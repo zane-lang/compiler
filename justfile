@@ -18,12 +18,12 @@ release:
 [working-directory: "test"]
 test:
 	rm -rf test/.cache
-	../build/Zane build
+	../build/zane build
 	pwsh.exe -Command ./build/windows-x64/test.exe 2>&1
 
 [working-directory: "test"]
 run:
-	../build/Zane run 2>&1 | python3 ../scripts/prettify.py
+	../build/zane run 2>&1 | python3 ../scripts/prettify.py
 
 parser:
 	bash ./parser/generate.sh

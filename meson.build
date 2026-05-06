@@ -1,5 +1,5 @@
 project(
-  'Zane',
+  'zane',
   'cpp',
   version: '1.0.0',
   default_options: [
