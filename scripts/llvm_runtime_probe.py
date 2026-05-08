@@ -17,7 +17,7 @@ def find_libllvm(libdir_arg: str) -> int:
 
 	for path in sorted(libdir.iterdir()):
 		name = path.name
-		if not re.fullmatch(r"^libLLVM\.so(?:\.\d+)*$", name):
+		if not re.fullmatch(r"libLLVM\.so(?:\.\d+)*$", name):
 			continue
 		if path.exists() and (path.is_file() or path.is_symlink()):
 			print(path)
@@ -71,7 +71,7 @@ def find_libffi(llvm_shared_arg: str) -> int:
 
 
 def parent_dir(path_arg: str) -> int:
-	if path_arg == "":
+	if not path_arg:
 		print("")
 		return 0
 
