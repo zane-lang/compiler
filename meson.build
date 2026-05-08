@@ -73,6 +73,11 @@ llvm_shared_s   = run_command(
 import pathlib, sys
 
 libdir = pathlib.Path(sys.argv[1])
+preferred = libdir / 'libLLVM.so'
+if preferred.exists() and (preferred.is_file() or preferred.is_symlink()):
+    print(preferred)
+    raise SystemExit(0)
+
 candidates = sorted(libdir.glob('libLLVM.so*'))
 for path in candidates:
     if path.exists() and (path.is_file() or path.is_symlink()):
@@ -93,7 +98,7 @@ llvm_libffi_s = run_command(
 import re, shutil, subprocess, sys
 
 if shutil.which('ldd') is None:
-    raise SystemExit("Build error: ldd utility is required to locate libffi for LLVM runtime linking. Please install binutils or your system's equivalent package.")
+    raise SystemExit('Build error: ldd utility is required to locate libffi for LLVM runtime linking. Please ensure your system runtime tools are installed.')
 
 try:
     output = subprocess.run(
@@ -111,7 +116,11 @@ for line in output.splitlines():
         continue
     candidate = ''
     if '=>' in line:
-        candidate = line.split('=>', 1)[1].strip().split(' (', 1)[0].strip()
+        candidate_part = line.split('=>', 1)[1].strip()
+        if candidate_part != 'not found':
+            match = re.match(r'(/[^()]+)', candidate_part)
+            if match:
+                candidate = match.group(1).strip()
     else:
         match = re.search(r'(/[^\s]+libffi\.so[^\s]*)', line)
         if match:
