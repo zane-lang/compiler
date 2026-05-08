@@ -174,28 +174,25 @@ inline std::shared_ptr<ir::FuncType> lowerCallableType(const zane::Node* declara
 
 		const zane::Node* paramType = nullptr;
 		bool isRef = false;
-		for (auto it = child->children.rbegin(); it != child->children.rend(); ++it) {
-			const auto* candidate = *it;
-			if (candidate != nullptr && candidate->kind == "ref") {
-				isRef = true;
+		for (const auto* candidate : child->children) {
+			if (candidate == nullptr) {
 				continue;
 			}
 
-			if (
-				candidate != nullptr
-				&& (
-					candidate->kind == "named_type"
-					|| candidate->kind == "type_param"
-					|| candidate->kind == "ref_type"
-				)
+			if (candidate->kind == "ref") {
+				isRef = true;
+			}
+			else if (
+				candidate->kind == "named_type"
+				|| candidate->kind == "type_param"
+				|| candidate->kind == "ref_type"
 			) {
 				paramType = candidate;
-				break;
 			}
 		}
 
 		auto loweredParamType = lowerTypeExpr(paramType);
-		if (isRef && (paramType == nullptr || paramType->kind != "ref_type")) {
+		if (isRef && paramType != nullptr && paramType->kind != "ref_type") {
 			auto symbol = std::make_shared<ir::TypeSymbol>();
 			symbol->name = "ref";
 			symbol->generics.push_back(loweredParamType);
