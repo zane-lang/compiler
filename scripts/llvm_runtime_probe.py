@@ -18,7 +18,7 @@ def find_libllvm(libdir_arg: str) -> int:
 	candidates = [
 		path
 		for path in libdir.iterdir()
-		if re.fullmatch(r"^libLLVM(?:-\d+)?\.so(?:\.\d+)*$", path.name)
+		if re.fullmatch(r"libLLVM(?:-\d+)?\.so(?:\.\d+)*$", path.name)
 	]
 
 	for path in sorted(candidates, key=lambda p: p.name):
@@ -47,7 +47,7 @@ def find_libffi(llvm_shared_arg: str) -> int:
 		).stdout
 	except subprocess.CalledProcessError as exc:
 		details = exc.stderr.strip() or exc.stdout.strip() or str(exc)
-		raise SystemExit(f"failed to inspect LLVM shared library dependencies: {details}") from exc
+		raise SystemExit(f"failed to inspect LLVM shared library dependencies: {details}")
 
 	for line in output.splitlines():
 		if "libffi.so" not in line:
