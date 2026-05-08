@@ -15,5 +15,9 @@ check:
 	clang-check -p build src/*.*
 
 [working-directory: "."]
+generate-parser:
+	scripts/generate_parser.sh
+
+[working-directory: "."]
 check-parser:
 	scripts/check_parser.sh

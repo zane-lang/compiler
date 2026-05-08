@@ -1,4 +1,5 @@
 build/
+parser/
 .cache/
 vcpkg_installed/
 __pycache__/
