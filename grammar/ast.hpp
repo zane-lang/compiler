@@ -94,7 +94,7 @@ break;
 return escaped;
 }
 
-	inline void printNode(const Node* node, std::ostream& stream, int indent = 0) {
+    inline void printNode(const Node* node, std::ostream& stream, int indent = 0) {
 const std::string prefix(indent, ' ');
 stream << prefix << "{\n";
 stream << prefix << "  \"kind\": \"" << escapeJson(node->kind) << "\"";
@@ -117,6 +117,6 @@ stream << prefix << "  ]\n";
 stream << ",\n" << prefix << "  \"children\": []\n";
 }
 
-		stream << prefix << '}';
-	}
+    stream << prefix << '}';
+    }
 } // namespace zane

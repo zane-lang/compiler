@@ -492,11 +492,11 @@ $$ = zane::makeNode("bool_literal", "true");
 | FALSE {
 $$ = zane::makeNode("bool_literal", "false");
 }
-	| value_name '{' field_args_opt '}' {
-		$$ = zane::makeNode("field_ctor_expr");
-		zane::adopt($$, $1);
-		zane::adopt($$, $3);
-	}
+| value_name '{' field_args_opt '}' {
+$$ = zane::makeNode("field_ctor_expr");
+zane::adopt($$, $1);
+zane::adopt($$, $3);
+}
 | '(' expression ')' {
 $$ = zane::makeNode("group_expr");
 zane::adopt($$, $2);
