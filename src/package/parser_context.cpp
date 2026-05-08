@@ -1,5 +1,6 @@
 #include "package/parser_context.hpp"
 
+#include "ast/ast_helpers.hpp"
 #include "ast.hpp"
 #include "lexer.hpp"
 
@@ -12,22 +13,7 @@ extern zane::Node* g_root;
 namespace {
 
 std::string getPackageNameFromTree(const zane::Node* root) {
-	if (root == nullptr || root->kind != "program") {
-		return {};
-	}
-
-	for (const auto* child : root->children) {
-		if (child == nullptr || child->kind != "package_decl" || child->children.empty()) {
-			continue;
-		}
-
-		const auto* name = child->children.front();
-		if (name != nullptr) {
-			return name->value;
-		}
-	}
-
-	return {};
+	return ast::declaredPackageName(root);
 }
 
 } // namespace

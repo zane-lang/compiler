@@ -65,6 +65,7 @@ llvm_cxxflags_s = run_command(llvm_config, '--cxxflags', check: true).stdout().s
 llvm_ldflags_s  = run_command(llvm_config, '--ldflags',  check: true).stdout().strip()
 llvm_libs_s     = run_command(llvm_config, ['--libs'] + llvm_modules, check: true).stdout().strip()
 llvm_syslibs_s  = run_command(llvm_config, '--system-libs', check: true).stdout().strip()
+llvm_libdir_s   = run_command(llvm_config, '--libdir', check: true).stdout().strip()
 
 llvm_cxxflags = llvm_cxxflags_s == '' ? [] : llvm_cxxflags_s.split()
 llvm_ldflags  = llvm_ldflags_s  == '' ? [] : llvm_ldflags_s.split()
@@ -143,6 +144,7 @@ zane_exe = executable(
   build_by_default: true,
   cpp_args: exe_cpp_args,
   link_args: exe_link_args,
+  build_rpath: llvm_libdir_s,
 )
 
 upx = find_program('upx', required: false)

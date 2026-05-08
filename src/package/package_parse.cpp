@@ -7,6 +7,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <utility>
 
 using ParseFileResult = zane::abortable<std::unique_ptr<ParserContext>, std::string>;
@@ -46,11 +47,24 @@ void Package::parse(const std::vector<fs::path>& files) {
 }
 
 void Package::collectSymbols() {
+	packageInfo.reset();
+	std::string packageName;
+
 	for (const auto& ctx : contexts) {
+		const auto& ctxPackageName = ctx->getPackageName();
+		if (packageName.empty()) {
+			packageName = ctxPackageName;
+		}
+		else if (!ctxPackageName.empty() && ctxPackageName != packageName) {
+			throw std::runtime_error("Mismatched package declarations in package sources");
+		}
+
 		symbolCollector->collectSymbols(ctx->getTree());
 	}
 
-	packageInfo = symbolCollector->getPackageInfo();
+	if (!packageName.empty()) {
+		packageInfo = symbolCollector->getPackageInfo(packageName);
+	}
 }
 
 void Package::buildTree(const std::string& packageDir) {
@@ -60,7 +74,9 @@ void Package::buildTree(const std::string& packageDir) {
 	}
 
 	irProgram = visitor->getGlobalScope();
-	writeSymbolsCache(packageInfo, packageDir);
+	if (packageInfo) {
+		writeSymbolsCache(packageInfo, packageDir);
+	}
 }
 
 void Package::compile(
