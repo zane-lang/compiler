@@ -1,7 +1,0 @@
-package test
-
-import testPackage
-
-Void main() {
-	testPackage$greet()
-}

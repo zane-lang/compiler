@@ -5,7 +5,6 @@
     "meson@latest",
     "clang@latest",
     "cmake@latest",
-    "antlr4@latest",
     "llvm_21@latest",
     "upx@latest",
     "ninja@latest",

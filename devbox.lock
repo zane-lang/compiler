@@ -1,12 +1,6 @@
 {
   "lockfile_version": "1",
   "packages": {
-    "antlr4@latest": {
-      "last_modified": "2023-02-24T09:01:09Z",
-      "resolved": "github:NixOS/nixpkgs/7d0ed7f2e5aea07ab22ccb338d27fbe347ed2f11#antlr4",
-      "source": "devbox-search",
-      "version": "4.11.1"
-    },
     "bison@latest": {
       "last_modified": "2026-04-23T13:07:47Z",
       "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#bison",
