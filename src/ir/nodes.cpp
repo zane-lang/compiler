@@ -1,60 +1,113 @@
 #include "nodes.hpp"
 
+#include <sstream>
+
 namespace ir {
 
-// ValueSymbol
+namespace {
+
+std::string qualifyName(
+		const std::optional<std::string>& packageName,
+		const std::string& name) {
+	if (!packageName.has_value()) {
+		return name;
+	}
+
+	return packageName.value() + "$" + name;
+}
+
+std::string formatTypeList(
+		const std::vector<std::shared_ptr<Type>>& types,
+		bool hasReceiver) {
+	std::ostringstream oss;
+	oss << "(";
+	for (size_t i = 0; i < types.size(); ++i) {
+		if (i > 0) {
+			oss << ", ";
+		}
+		if (hasReceiver && i == 0) {
+			oss << "this ";
+		}
+		oss << types[i]->getMangledName();
+	}
+	oss << ")";
+	return oss.str();
+}
+
+std::string callKindToString(CallKind kind) {
+	switch (kind) {
+		case CallKind::Free:
+			return "FuncCall";
+		case CallKind::Method:
+			return "MethodCall";
+		case CallKind::MutatingMethod:
+			return "MutatingMethodCall";
+		case CallKind::Pipe:
+			return "PipeCall";
+		case CallKind::Operator:
+			return "OperatorCall";
+		case CallKind::Subscript:
+			return "SubscriptCall";
+		case CallKind::Constructor:
+			return "ConstructorCall";
+	}
+
+	return "FuncCall";
+}
+
+} // namespace
+
 std::any ValueSymbol::accept(IRVisitor* visitor) {
 	return visitor->visitValueSymbol(this);
 }
 
 std::string ValueSymbol::getNodeName() const {
-	return "ValueSymbol(" + name + ")";
+	return "ValueSymbol(" + qualifyName(packageName, name) + ")";
 }
 
 std::string ValueSymbol::getMangledName() const {
-	std::string suffix = "";
+	std::string suffix;
 	if (type) {
 		type->value.match([&](std::shared_ptr<FuncType> funcType) {
 			suffix = funcType->getParamString();
 		});
 	}
-	std::string prefix = "";
+	std::string prefix;
 	if (packageName.has_value()) {
 		prefix = getMangledPackageName(packageName.value()) + "$";
 	}
 	return prefix + name + suffix;
 }
 
-// TypeSymbol
 std::any TypeSymbol::accept(IRVisitor* visitor) {
 	return visitor->visitTypeSymbol(this);
 }
 
 std::string TypeSymbol::getNodeName() const {
-	return "TypeSymbol(" + name + ")";
+	return "TypeSymbol(" + qualifyName(packageName, name) + ")";
 }
 
 std::string TypeSymbol::getMangledName() const {
-	std::string result = "";
+	std::string result;
 	if (packageName.has_value()) {
 		result = getMangledPackageName(packageName.value()) + "$" + name;
-	}
-	else {
+	} else {
 		result = name;
 	}
 
-	if (generics.size() > 0) {
+	if (!generics.empty()) {
 		result += "<";
-		for (auto type : generics) {
-			result += type->getMangledName();
-			result += ",";
+		for (size_t i = 0; i < generics.size(); ++i) {
+			if (i > 0) {
+				result += ", ";
+			}
+			result += generics[i]->getMangledName();
 		}
 		result += ">";
 	}
 	return result;
 }
 
-// GlobalScope
 std::any GlobalScope::accept(IRVisitor* visitor) {
 	return visitor->visitGlobalScope(this);
 }
@@ -67,27 +120,31 @@ std::string GlobalScope::printChildren(const std::string& prefix) const {
 	return printNodeVector(body, prefix);
 }
 
-// FuncType
 std::any FuncType::accept(IRVisitor* visitor) {
 	return visitor->visitFuncType(this);
 }
 
 std::string FuncType::getParamString() const {
-	if (paramTypes.size() == 0) {
-		return "()";
-	}
-	std::string result = paramTypes[0]->getMangledName();
-
-	for(int i = 1; i < paramTypes.size(); i++) {
-		auto type = paramTypes[i];
-		result += ", " + type->getMangledName();
-	}
-
-	return "(" + result + ")";
+	return formatTypeList(paramTypes, hasReceiver);
 }
 
 std::string FuncType::getNodeName() const {
-	return "FuncType(" + getMangledName() + ")";
+	std::ostringstream oss;
+	oss << "FuncType(" << getParamString();
+	if (isMutable) {
+		oss << " mut";
+	}
+	oss << " -> ";
+	if (returnType) {
+		oss << returnType->getMangledName();
+	} else {
+		oss << "Void";
+	}
+	if (abortType) {
+		oss << " ? " << abortType->getMangledName();
+	}
+	oss << ")";
+	return oss.str();
 }
 
 std::string FuncType::getMangledName() const {
@@ -95,36 +152,46 @@ std::string FuncType::getMangledName() const {
 }
 
 bool FuncType::operator==(const FuncType& other) const {
-    if (paramTypes.size() != other.paramTypes.size()) return false;
-    if (returnType->getMangledName() != other.returnType->getMangledName()) return false;
-    for (int i = 0; i < (int)paramTypes.size(); i++) {
-        if (paramTypes[i]->getMangledName() != other.paramTypes[i]->getMangledName()) return false;
-    }
-    return true;
+	if (paramTypes.size() != other.paramTypes.size()) return false;
+	if ((returnType == nullptr) != (other.returnType == nullptr)) return false;
+	if ((abortType == nullptr) != (other.abortType == nullptr)) return false;
+	if (hasReceiver != other.hasReceiver || isMutable != other.isMutable) return false;
+	if (returnType && returnType->getMangledName() != other.returnType->getMangledName()) return false;
+	if (abortType && abortType->getMangledName() != other.abortType->getMangledName()) return false;
+	for (size_t i = 0; i < paramTypes.size(); ++i) {
+		if (paramTypes[i]->getMangledName() != other.paramTypes[i]->getMangledName()) return false;
+	}
+	return true;
 }
 
-// Type
 std::any Type::accept(IRVisitor* visitor) {
 	return visitor->visitType(this);
 }
 
 std::string Type::getMangledName() const {
-	std::string name = value.visit([](auto& v) -> std::string {
+	auto name = value.visit([](auto& v) -> std::string {
 		return v->getMangledName();
 	});
+
+	if (isRef) {
+		return "ref " + name;
+	}
 
 	return name;
 }
 
 std::string Type::getNodeName() const {
-	std::string nodeName = value.visit([](auto& v) -> std::string {
+	auto nodeName = value.visit([](auto& v) -> std::string {
 		return v->getNodeName();
 	});
+
+	if (isRef) {
+		return "Type(ref " + nodeName + ")";
+	}
 
 	return "Type(" + nodeName + ")";
 }
 
-// Scope
 std::any Scope::accept(IRVisitor* visitor) {
 	return visitor->visitScope(this);
 }
@@ -137,30 +204,39 @@ std::string Scope::printChildren(const std::string& prefix) const {
 	return printNodeVector(statements, prefix);
 }
 
-// ReturnStatement
 std::any ReturnStatement::accept(IRVisitor* visitor) {
 	return visitor->visitReturnStatement(this);
 }
 
 std::string ReturnStatement::getNodeName() const {
-	return "ReturnStatement(" + value->getNodeName() + ")";
+	return "ReturnStatement";
 }
 
-// Lambda
 std::any Lambda::accept(IRVisitor* visitor) {
-    return visitor->visitLambda(this);
+	return visitor->visitLambda(this);
 }
 
 std::string Lambda::getNodeName() const {
-    return "Lambda(" + name + ")";
+	std::ostringstream oss;
+	oss << "Lambda(";
+	for (size_t i = 0; i < parameters.size(); ++i) {
+		if (i > 0) {
+			oss << ", ";
+		}
+		oss << parameters[i];
+	}
+	oss << ")";
+	if (isMutable) {
+		oss << " mut";
+	}
+	return oss.str();
 }
 
 std::string Lambda::printChildren(const std::string& prefix) const {
-    if (scope) return scope->printTree(prefix, true);
-    return "";
+	if (scope) return scope->printTree(prefix, true);
+	return "";
 }
 
-// FuncDef
 std::any FuncDef::accept(IRVisitor* visitor) {
 	return visitor->visitFuncDef(this);
 }
@@ -170,7 +246,13 @@ std::string FuncDef::getMangledName() const {
 }
 
 std::string FuncDef::getNodeName() const {
-	return "FuncDef(" + symbol->getNodeName() + ")";
+	std::ostringstream oss;
+	oss << "FuncDef(" << symbol->getNodeName();
+	if (type) {
+		oss << ", " << type->getNodeName();
+	}
+	oss << ")";
+	return oss.str();
 }
 
 std::string FuncDef::printChildren(const std::string& prefix) const {
@@ -178,22 +260,31 @@ std::string FuncDef::printChildren(const std::string& prefix) const {
 	return "";
 }
 
-// VarDef
 std::any VarDef::accept(IRVisitor* visitor) {
 	return visitor->visitVarDef(this);
 }
 
 std::string VarDef::getNodeName() const {
-	return "VarDef(" + symbol->getMangledName() + ")";
+	if (!symbol || !symbol->type) {
+		return "VarDef";
+	}
+
+	return "VarDef(" + symbol->name + ": " + symbol->type->getMangledName() + ")";
 }
 
-// FuncCall
+std::string VarDef::printChildren(const std::string& prefix) const {
+	if (!value) {
+		return "";
+	}
+	return value->printTree(prefix, true);
+}
+
 std::any FuncCall::accept(IRVisitor* visitor) {
 	return visitor->visitFuncCall(this);
 }
 
 std::string FuncCall::getNodeName() const {
-	return "FuncCall";
+	return callKindToString(kind);
 }
 
 std::string FuncCall::printChildren(const std::string& prefix) const {
@@ -206,13 +297,32 @@ std::string FuncCall::printChildren(const std::string& prefix) const {
 	return result;
 }
 
-// StringLiteral
 std::any StringLiteral::accept(IRVisitor* visitor) {
 	return visitor->visitStringLiteral(this);
 }
 
 std::string StringLiteral::getNodeName() const {
 	return "StringLiteral(" + value + ")";
+}
+
+std::any NumberLiteral::accept(IRVisitor* visitor) {
+	return visitor->visitNumberLiteral(this);
+}
+
+std::string NumberLiteral::getNodeName() const {
+	return "NumberLiteral(" + value + ")";
+}
+
+std::any TupleLiteral::accept(IRVisitor* visitor) {
+	return visitor->visitTupleLiteral(this);
+}
+
+std::string TupleLiteral::getNodeName() const {
+	return "TupleLiteral";
+}
+
+std::string TupleLiteral::printChildren(const std::string& prefix) const {
+	return printNodeVector(values, prefix);
 }
 
 } // namespace ir

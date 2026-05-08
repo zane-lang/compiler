@@ -1,7 +1,12 @@
 package test
 
-import testPackage
+String greet(name String) => name
+
+Void print(this String) mut {
+}
 
 Void main() {
-	testPackage$greet()
+	message String = "hello"
+	message!print()
+	print(greet|message)
 }

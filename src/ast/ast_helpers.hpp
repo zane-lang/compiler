@@ -16,14 +16,11 @@
 using namespace parser;
 
 class CustomZaneVisitor : public ZaneBaseVisitor {
-private:
-	std::string packageName; 
-
 protected:
 	template<typename T>
 	std::shared_ptr<T> toIRNode(const std::any& result) {
 		if (!result.has_value()) return nullptr;
-		
+
 		if (result.type() == typeid(std::shared_ptr<T>)) {
 			return std::any_cast<std::shared_ptr<T>>(result);
 		}
@@ -35,7 +32,7 @@ protected:
 
 		std::string expectedType = typeid(std::shared_ptr<T>).name();
 		std::string actualType = result.type().name();
-		
+
 		throw std::runtime_error(
 			"IR Type Mismatch!\n"
 			"  Expected: " + expectedType + "\n"
@@ -48,14 +45,36 @@ protected:
 		return toIRNode<T>(visit(tree));
 	}
 
+	std::shared_ptr<ir::Type> buildType(
+			ZaneParser::TypePrimaryContext* primary,
+			bool isRef) {
+		auto type = std::make_shared<ir::Type>();
+		type->isRef = isRef;
+
+		if (primary->typeSymbol()) {
+			type->value = { get<ir::TypeSymbol>(primary->typeSymbol()) };
+		} else if (primary->funcType()) {
+			type->value = { get<ir::FuncType>(primary->funcType()) };
+		}
+
+		if (primary->typeSymbol()) {
+			for (auto generic : primary->type()) {
+				type->value.match([&](ir::TypeSymbol& typeSymbol) {
+					typeSymbol.generics.push_back(get<ir::Type>(generic));
+				});
+			}
+		}
+
+		return type;
+	}
+
 public:
 	std::any visitTypeSymbol(ZaneParser::TypeSymbolContext *ctx) override {
 		auto typeSymbol = std::make_shared<ir::TypeSymbol>();
-		auto name = ctx->name->getText();
-		typeSymbol->name = name;
+		typeSymbol->name = ctx->name->getText();
 
 		if (ctx->package) {
-			typeSymbol->packageName = packageName;
+			typeSymbol->packageName = ctx->package->getText();
 		}
 
 		return std::static_pointer_cast<ir::IRNode>(typeSymbol);
@@ -65,15 +84,24 @@ public:
 		auto funcType = std::make_shared<ir::FuncType>();
 		funcType->returnType = get<ir::Type>(ctx->returnType);
 
-		std::string funcMod = "open";
-		if (ctx->funcMod()) {
-			funcMod = ctx->funcMod()->getText();
+		if (ctx->abortClause()) {
+			funcType->abortType = get<ir::Type>(ctx->abortClause()->type());
 		}
-		funcType->mod = ir::FuncMod(funcMod);
+
+		funcType->isMutable = ctx->methodMut() != nullptr;
 
 		if (ctx->funcTypeParams()) {
-			for (auto paramCtx : ctx->funcTypeParams()->type()) {
-				auto paramType = get<ir::Type>(paramCtx);
+			for (auto paramCtx : ctx->funcTypeParams()->funcTypeParam()) {
+				if (paramCtx->receiver) {
+					funcType->hasReceiver = true;
+					funcType->paramTypes.push_back(get<ir::Type>(paramCtx->receiverType));
+					continue;
+				}
+
+				auto paramType = get<ir::Type>(paramCtx->type());
+				if (paramCtx->refModifier()) {
+					paramType->isRef = true;
+				}
 				funcType->paramTypes.push_back(paramType);
 			}
 		}
@@ -82,20 +110,12 @@ public:
 	}
 
 	std::any visitType(ZaneParser::TypeContext *ctx) override {
-		auto type = std::make_shared<ir::Type>();
-	
-		if (ctx->typeSymbol()) {
-			type->value = { get<ir::TypeSymbol>(ctx->typeSymbol()) };
-		} else if (ctx->funcType()) {
-			type->value = { get<ir::FuncType>(ctx->funcType()) };
-		}
-	
-		for (auto generic : ctx->type()) {
-			type->value.match([&](ir::TypeSymbol& typeSymbol) {
-				typeSymbol.generics.push_back(get<ir::Type>(generic));
-			});
-		}
+		auto type = buildType(ctx->typePrimary(), ctx->refModifier() != nullptr);
+		return std::static_pointer_cast<ir::IRNode>(type);
+	}
 
+	std::any visitStorageType(ZaneParser::StorageTypeContext *ctx) override {
+		auto type = buildType(ctx->typePrimary(), ctx->refModifier() != nullptr);
 		return std::static_pointer_cast<ir::IRNode>(type);
 	}
 };

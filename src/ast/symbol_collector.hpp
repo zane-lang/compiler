@@ -26,14 +26,47 @@ class SymbolCollector : public CustomZaneVisitor {
 		current->symbols[mangled] = symbol;
 	}
 
+	std::shared_ptr<ir::FuncType> buildFuncType(
+			std::shared_ptr<ir::Type> returnType,
+			ZaneParser::AbortClauseContext* abortClause,
+			ZaneParser::ParamsContext* params,
+			bool isMutable) {
+		auto funcType = std::make_shared<ir::FuncType>();
+		funcType->returnType = std::move(returnType);
+		funcType->isMutable = isMutable;
+
+		if (abortClause) {
+			funcType->abortType = get<ir::Type>(abortClause->type());
+		}
+
+		if (!params) {
+			return funcType;
+		}
+
+		for (auto paramCtx : params->param()) {
+			if (paramCtx->receiver) {
+				funcType->hasReceiver = true;
+				funcType->paramTypes.push_back(get<ir::Type>(paramCtx->receiverType));
+				continue;
+			}
+
+			auto paramType = get<ir::Type>(paramCtx->type());
+			if (paramCtx->refModifier()) {
+				paramType->isRef = true;
+			}
+			funcType->paramTypes.push_back(paramType);
+		}
+
+		return funcType;
+	}
+
 	std::any visitVarDef(ZaneParser::VarDefContext *ctx) override {
 		auto symbol = std::make_shared<ir::ValueSymbol>();
 		symbol->name = ctx->name->getText();
 		symbol->packageName = current->packageName;
-		symbol->type = get<ir::Type>(ctx->type());
+		symbol->type = get<ir::Type>(ctx->storageType());
 
 		registerSymbol(symbol);
-
 		return 0;
 	}
 
@@ -41,36 +74,30 @@ class SymbolCollector : public CustomZaneVisitor {
 		auto symbol = std::make_shared<ir::ValueSymbol>();
 		symbol->name = ctx->name->getText();
 		symbol->packageName = current->packageName;
-		symbol->type = std::make_shared<ir::Type>();
-
-		auto funcType = std::make_shared<ir::FuncType>();
-		funcType->returnType = get<ir::Type>(ctx->type());
-
-		std::string funcMod = "open";
-		if (ctx->funcRhs()->funcMod()) {
-			funcMod = ctx->funcRhs()->funcMod()->getText();
-		}
-		funcType->mod = ir::FuncMod(funcMod);
-
-		if (ctx->funcRhs()->params()) {
-			for (auto paramCtx : ctx->funcRhs()->params()->param()) {
-				auto name = paramCtx->name->getText();
-				auto paramType = get<ir::Type>(paramCtx->type());
-				funcType->paramTypes.push_back(paramType);
-			}
-		}
-
-		symbol->type = std::make_shared<ir::Type>(funcType);
+		symbol->type = std::make_shared<ir::Type>(buildFuncType(
+			get<ir::Type>(ctx->returnType),
+			ctx->abortClause(),
+			ctx->params(),
+			ctx->methodMut() != nullptr));
 
 		registerSymbol(symbol);
-
 		return 0;
 	}
 
-	std::any visitGlobalScope(ZaneParser::GlobalScopeContext *ctx) override {
-		for (auto import : ctx->pkgImport()) {
-			current->importedPackages.push_back(import->name->getText());
-		}
+	std::any visitCtorDef(ZaneParser::CtorDefContext *ctx) override {
+		auto symbol = std::make_shared<ir::ValueSymbol>();
+		symbol->name = ctx->name->getText();
+		symbol->packageName = current->packageName;
+		auto returnTypeSymbol = std::make_shared<ir::TypeSymbol>();
+		returnTypeSymbol->name = ctx->name->getText();
+		returnTypeSymbol->packageName = current->packageName;
+		symbol->type = std::make_shared<ir::Type>(buildFuncType(
+			std::make_shared<ir::Type>(returnTypeSymbol),
+			nullptr,
+			ctx->params(),
+			false));
+
+		registerSymbol(symbol);
 		return 0;
 	}
 
@@ -86,6 +113,10 @@ public:
 			packages[pkgName]->packageName = pkgName;
 		}
 		current = packages[pkgName];
+
+		for (auto import : globalScopeCtx->pkgImport()) {
+			current->importedPackages.push_back(import->name->getText());
+		}
 
 		for (auto ctx : globalScopeCtx->declaration()) {
 			visit(ctx);

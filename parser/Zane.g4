@@ -1,13 +1,11 @@
 grammar Zane;
 
 // --- Lexer Rules ---
-OPERATOR: [!%&*+\-/<>^|?~#$@:]+;
-
-IDENTIFIER: [\p{L}_][\p{L}\p{N}_]*;
+IDENTIFIER: '@'? [\p{L}_] [\p{L}\p{N}_]*;
 STRING: '"' (~["\\\r\n] | '\\' .)* '"';
 
 fragment DIGIT: [0-9];
-fragment SIMPLE_NUMBER: DIGIT+('.' DIGIT+)?;
+fragment SIMPLE_NUMBER: DIGIT+ ('.' DIGIT+)?;
 fragment MANAGED_NUMBER: DIGIT (DIGIT DIGIT?)? ('\'' DIGIT DIGIT DIGIT)* ('.' DIGIT (DIGIT DIGIT?)?)?;
 NUMBER: SIMPLE_NUMBER | MANAGED_NUMBER;
 
@@ -24,6 +22,7 @@ globalScope
 
 declaration
 	: funcDef
+	| ctorDef
 	| varDef
 	;
 
@@ -32,10 +31,10 @@ declaration
 // -----------------------------------------------------
 
 statement
-	: value        // function calls are now expressions
-	| tuple
-	| varDef
+	: varDef
 	| retStat
+	| value
+	| tuple
 	;
 
 pkgDef
@@ -50,16 +49,34 @@ pkgImport
 // Types
 // -----------------------------------------------------
 
+refModifier
+	: 'ref'
+	;
+
+abortClause
+	: '?' type
+	;
+
+funcTypeParam
+	: receiver='this' receiverType=type
+	| refModifier? type
+	;
+
 funcTypeParams
-	: type (',' type)*
+	: funcTypeParam (',' funcTypeParam)*
 	;
 
 funcType
-	:'(' funcTypeParams? ')' funcMod? '->' returnType=type
+	: '(' funcTypeParams? ')' methodMut? '->' returnType=type abortClause?
 	;
 
 type
-	: typeSymbol ('<' type (',' type)* '>')? | funcType 
+	: refModifier? typePrimary
+	;
+
+typePrimary
+	: typeSymbol ('<' type (',' type)* '>')?
+	| funcType
 	;
 
 typeSymbol
@@ -71,18 +88,63 @@ valueSymbol
 	;
 
 // -----------------------------------------------------
-// Values (NEW STRUCTURE)
+// Values
 // -----------------------------------------------------
 
-string: STRING;
-number: NUMBER;
-
-value
-	: primary (OPERATOR primary)*
+string
+	: STRING
 	;
 
-primary
-	: atom postfix*
+number
+	: NUMBER
+	;
+
+value
+	: comparisonExpr
+	;
+
+comparisonExpr
+	: additiveExpr (comparisonOperator additiveExpr)?
+	;
+
+comparisonOperator
+	: '<'
+	| '>'
+	| '<='
+	| '>='
+	| '=='
+	| '~='
+	;
+
+additiveExpr
+	: multiplicativeExpr (additiveOperator multiplicativeExpr)*
+	;
+
+additiveOperator
+	: '+'
+	| '-'
+	;
+
+multiplicativeExpr
+	: pipeExpr (multiplicativeOperator pipeExpr)*
+	;
+
+multiplicativeOperator
+	: '*'
+	| '/'
+	;
+
+pipeExpr
+	: unaryExpr ('|' unaryExpr)*
+	;
+
+unaryExpr
+	: '~' unaryExpr
+	| postfixExpr
+	;
+
+postfixExpr
+	: atom postfixSuffix*
 	;
 
 atom
@@ -93,10 +155,11 @@ atom
 	| lambda
 	;
 
-postfix
-	: '.' IDENTIFIER      # propertyAccess
-	| '(' collection ')'  # funcCall
-	| ':' value           # pipeCall
+postfixSuffix
+	: '(' collection ')'					# funcCallSuffix
+	| ':' methodName=valueSymbol '(' collection ')'	# methodCallSuffix
+	| '!' methodName=valueSymbol '(' collection ')'	# mutatingMethodCallSuffix
+	| '[' collection ']'					# subscriptSuffix
 	;
 
 collection
@@ -107,41 +170,52 @@ collection
 // Functions
 // -----------------------------------------------------
 
-lambda
-    : '(' lambdaParams? ')' funcMod? funcBody
-    ;
+methodMut
+	: 'mut'
+	;
+
+lambdaParam
+	: receiver='this'
+	| name=IDENTIFIER
+	;
 
 lambdaParams
-	: IDENTIFIER (',' IDENTIFIER)*
+	: lambdaParam (',' lambdaParam)*
 	;
 
-funcRhs
-	: '(' params? ')' funcMod? funcBody
-	;
-
-funcDef
-	: returnType=type name=IDENTIFIER funcRhs
+lambda
+	: '(' lambdaParams? ')' methodMut? funcBody
 	;
 
 param
-	: type name=IDENTIFIER
+	: receiver='this' receiverType=type
+	| name=IDENTIFIER refModifier? type
 	;
 
 params
 	: param (',' param)*
 	;
 
-funcMod
-	: strict
-	| pure
+operatorName
+	: '~'
+	| '*'
+	| '/'
+	| '+'
+	| '=='
+	| '<'
 	;
 
-strict
-	: 'strict'
+functionName
+	: IDENTIFIER
+	| operatorName
 	;
 
-pure
-	: 'pure'
+funcDef
+	: returnType=type abortClause? name=functionName '(' params? ')' methodMut? funcBody
+	;
+
+ctorDef
+	: name=IDENTIFIER '(' params? ')' funcBody
 	;
 
 funcBody
@@ -169,10 +243,21 @@ tuple
 // Variables
 // -----------------------------------------------------
 
-unit: ':' IDENTIFIER ( OPERATOR IDENTIFIER )?;
+storageType
+	: refModifier? typePrimary
+	;
+
+ctorInit
+	: '(' collection ')'
+	;
+
+varInitializer
+	: '=' value
+	| ctorInit
+	;
 
 varDef
-	: type unit? name=IDENTIFIER '=' value
+	: name=IDENTIFIER storageType varInitializer?
 	;
 
 // -----------------------------------------------------

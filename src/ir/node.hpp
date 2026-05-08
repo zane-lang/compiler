@@ -14,6 +14,8 @@ struct GlobalScope;
 struct Scope;
 struct FuncCall;
 struct StringLiteral;
+struct NumberLiteral;
+struct TupleLiteral;
 struct FuncType;
 struct ReturnStatement;
 struct Type;
@@ -31,6 +33,8 @@ public:
 	virtual std::any visitScope(Scope* node) { return {}; }
 	virtual std::any visitFuncCall(FuncCall* node) { return {}; }
 	virtual std::any visitStringLiteral(StringLiteral* node) { return {}; }
+	virtual std::any visitNumberLiteral(NumberLiteral* node) { return {}; }
+	virtual std::any visitTupleLiteral(TupleLiteral* node) { return {}; }
 	virtual std::any visitType(Type* node) { return {}; }
 	virtual std::any visitFuncType(FuncType* node) { return {}; }
 	virtual std::any visitVarDef(VarDef* node) { return {}; }

@@ -4,28 +4,28 @@
 #include "utils/types.hpp"
 #include "parser/ZaneParser.h"
 
+#include <any>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/map.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/optional.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/string.hpp>
+#include <cereal/types/unordered_map.hpp>
+#include <cereal/types/vector.hpp>
 #include <map>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <string>
-#include <any>
-#include <unordered_map>
-#include <cereal/types/optional.hpp>
-#include <cereal/types/memory.hpp>
-#include <cereal/types/vector.hpp>
-#include <cereal/types/map.hpp>
-#include <cereal/types/unordered_map.hpp>
-#include <cereal/types/string.hpp>
 
 using namespace parser;
 
 namespace ir {
 
 inline constexpr char VERSION_PLACEHOLDER_PREFIX = '!';
-// Compilation currently runs one project command per thread; keep the
-// active placeholder package isolated to that thread while a command runs.
 inline thread_local std::unordered_map<std::string, std::string> packageNameOverrides;
 
 inline void setVersionPlaceholderPackage(const std::string& packageName) {
@@ -51,6 +51,9 @@ inline std::string getMangledPackageName(const std::string& packageName) {
 
 	return packageName;
 }
+
+struct Type;
+struct FuncType;
 
 struct ValueSymbol : public IRNode {
 	std::optional<std::string> packageName;
@@ -107,72 +110,17 @@ struct GlobalScope : public IRNode {
 	}
 };
 
-struct FuncMod {
-	enum Value {
-		Open,
-		Strict,
-		Pure
-	};
-
-	FuncMod() = default;
-	FuncMod(Value mod) : value(mod) { }
-	FuncMod(const std::string& mod) : value(getByString(mod)) { }
-
-	Value getByString(const std::string& mod) const {
-		return stringToEnum.at(mod);
-	}
-
-	std::string getString() const {
-		return enumToString.at(value);
-	}
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(value);
-	}
-
-private:
-	static inline const std::map<std::string, Value> stringToEnum = {
-		{ "open", Open },
-		{ "strict", Strict },
-		{ "pure", Pure },
-	};
-
-	static inline const std::map<Value, std::string> enumToString = {
-		{ Open, "open" },
-		{ Strict, "strict" },
-		{ Pure, "pure" },
-	};
-
-	Value value;
-};
-
-struct FuncType : public IRNode {
-	std::vector<std::shared_ptr<Type>> paramTypes;
-	std::shared_ptr<Type> returnType;
-	FuncMod mod;
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getParamString() const;
-	std::string getNodeName() const override;
-	std::string getMangledName() const;
-	bool operator==(const FuncType& other) const;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(paramTypes, returnType, mod);
-	}
-};
-
 struct Type : public IRNode {
 	WrappingVariant<std::shared_ptr, TypeSymbol, FuncType> value;
+	bool isRef = false;
 
 	Type() = default;
-	Type(std::shared_ptr<TypeSymbol> typeSymbol) {
+
+	explicit Type(std::shared_ptr<TypeSymbol> typeSymbol) {
 		value = { typeSymbol };
 	}
 
-	Type(std::shared_ptr<FuncType> funcType) {
+	explicit Type(std::shared_ptr<FuncType> funcType) {
 		value = { funcType };
 	}
 
@@ -182,7 +130,26 @@ struct Type : public IRNode {
 
 	template<typename Archive>
 	void serialize(Archive& ar) {
-		ar(value);
+		ar(value, isRef);
+	}
+};
+
+struct FuncType : public IRNode {
+	std::vector<std::shared_ptr<Type>> paramTypes;
+	std::shared_ptr<Type> returnType;
+	std::shared_ptr<Type> abortType;
+	bool hasReceiver = false;
+	bool isMutable = false;
+
+	std::any accept(IRVisitor* visitor) override;
+	std::string getParamString() const;
+	std::string getNodeName() const override;
+	std::string getMangledName() const;
+	bool operator==(const FuncType& other) const;
+
+	template<typename Archive>
+	void serialize(Archive& ar) {
+		ar(paramTypes, returnType, abortType, hasReceiver, isMutable);
 	}
 };
 
@@ -197,8 +164,6 @@ struct Scope : public IRNode {
 
 	template<typename Archive>
 	void serialize(Archive& ar) {
-		// parent is a weak_ptr and represents a runtime graph edge;
-		// it is intentionally skipped and must be re-linked after deserialization
 		ar(functionDefs, statements);
 	}
 };
@@ -221,6 +186,7 @@ struct VarDef : public IRNode {
 
 	std::any accept(IRVisitor* visitor) override;
 	std::string getNodeName() const override;
+	std::string printChildren(const std::string& prefix) const override;
 
 	template<typename Archive>
 	void serialize(Archive& ar) {
@@ -231,8 +197,10 @@ struct VarDef : public IRNode {
 struct Lambda : public IRNode {
 	std::string name;
 	std::vector<std::string> parameters;
+	bool hasReceiver = false;
+	bool isMutable = false;
 	std::shared_ptr<Scope> scope;
-	std::shared_ptr<FuncType> type; // null until resolved
+	std::shared_ptr<FuncType> type;
 	ZaneParser::LambdaContext* ctx = nullptr;
 
 	std::any accept(IRVisitor* visitor) override;
@@ -241,7 +209,7 @@ struct Lambda : public IRNode {
 
 	template<typename Archive>
 	void serialize(Archive& ar) {
-		ar(name, parameters, scope);
+		ar(name, parameters, hasReceiver, isMutable, scope);
 	}
 };
 
@@ -258,11 +226,22 @@ struct FuncDef : public IRNode {
 
 	template<typename Archive>
 	void serialize(Archive& ar) {
-		ar(symbol, parameters, scope);
+		ar(symbol, parameters, scope, type);
 	}
 };
 
+enum class CallKind {
+	Free,
+	Method,
+	MutatingMethod,
+	Pipe,
+	Operator,
+	Subscript,
+	Constructor,
+};
+
 struct FuncCall : public IRNode {
+	CallKind kind = CallKind::Free;
 	std::shared_ptr<IRNode> callee;
 	std::vector<std::shared_ptr<IRNode>> arguments;
 
@@ -272,7 +251,7 @@ struct FuncCall : public IRNode {
 
 	template<typename Archive>
 	void serialize(Archive& ar) {
-		ar(callee, arguments);
+		ar(kind, callee, arguments);
 	}
 };
 
@@ -288,11 +267,32 @@ struct StringLiteral : public IRNode {
 	}
 };
 
-} // namespace ir
+struct NumberLiteral : public IRNode {
+	std::string value;
 
-// Register polymorphic types with cereal
-#include <cereal/types/polymorphic.hpp>
-#include <cereal/types/base_class.hpp>
+	std::any accept(IRVisitor* visitor) override;
+	std::string getNodeName() const override;
+
+	template<typename Archive>
+	void serialize(Archive& ar) {
+		ar(value);
+	}
+};
+
+struct TupleLiteral : public IRNode {
+	std::vector<std::shared_ptr<IRNode>> values;
+
+	std::any accept(IRVisitor* visitor) override;
+	std::string getNodeName() const override;
+	std::string printChildren(const std::string& prefix) const override;
+
+	template<typename Archive>
+	void serialize(Archive& ar) {
+		ar(values);
+	}
+};
+
+} // namespace ir
 
 CEREAL_REGISTER_TYPE(ir::ValueSymbol)
 CEREAL_REGISTER_TYPE(ir::TypeSymbol)
@@ -302,12 +302,13 @@ CEREAL_REGISTER_TYPE(ir::GlobalScope)
 CEREAL_REGISTER_TYPE(ir::Scope)
 CEREAL_REGISTER_TYPE(ir::FuncCall)
 CEREAL_REGISTER_TYPE(ir::StringLiteral)
+CEREAL_REGISTER_TYPE(ir::NumberLiteral)
+CEREAL_REGISTER_TYPE(ir::TupleLiteral)
 CEREAL_REGISTER_TYPE(ir::ReturnStatement)
 CEREAL_REGISTER_TYPE(ir::Type)
 CEREAL_REGISTER_TYPE(ir::FuncType)
 CEREAL_REGISTER_TYPE(ir::Lambda)
 
-// Register inheritance relationships
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::ValueSymbol)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::TypeSymbol)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::FuncDef)
@@ -316,6 +317,8 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::GlobalScope)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::Scope)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::FuncCall)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::StringLiteral)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::NumberLiteral)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::TupleLiteral)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::ReturnStatement)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::Type)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::FuncType)
