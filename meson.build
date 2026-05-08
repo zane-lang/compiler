@@ -84,7 +84,7 @@ for path in candidates:
         print(path)
         break
 else:
-    raise SystemExit('libLLVM shared library not found')
+    raise SystemExit(f'libLLVM shared library not found in {libdir}')
 ''',
   llvm_libdir_s,
   check: true,
@@ -114,22 +114,24 @@ except subprocess.CalledProcessError as exc:
 for line in output.splitlines():
     if 'libffi.so' not in line:
         continue
-    candidate = ''
     if '=>' in line:
         candidate_part = line.split('=>', 1)[1].strip()
         if candidate_part != 'not found':
             match = re.match(r'(/[^()]+)', candidate_part)
             if match:
                 candidate = match.group(1).strip()
+                if candidate.startswith('/'):
+                    print(candidate)
+                    break
     else:
         match = re.search(r'(/[^\s]+libffi\.so[^\s]*)', line)
         if match:
             candidate = match.group(1)
-    if candidate.startswith('/'):
-        print(candidate)
-        break
+            if candidate.startswith('/'):
+                print(candidate)
+                break
 else:
-    raise SystemExit('libffi shared library not found in LLVM dependencies')
+    raise SystemExit(f'libffi shared library not found in LLVM dependencies of {sys.argv[1]}')
 ''',
   llvm_shared_s,
   check: true,
