@@ -10,7 +10,9 @@
     "upx@latest",
     "ninja@latest",
     "zig@latest",
-    "clang-tools@latest"
+    "clang-tools@latest",
+    "bison@latest",
+    "re2c@latest"
   ],
   "shell": {
     "init_hook": [
