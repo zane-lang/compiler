@@ -1,7 +1,0 @@
-name test
-type executable
-
-dependencies [
-	key url tag commitHash
-	test-package https://github.com/zane-lang/test-package v1.3 b68b81544599cf32f2570600cfb855297165e34d
-]
