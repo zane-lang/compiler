@@ -90,6 +90,8 @@ Float?Void game() {
 }
 
 Void main() {
-	health Float = spawn game()
+	health Float = spawn game() ? {
+		resolve 0.0
+	}
 	println("Player's health: " + health)
 }
