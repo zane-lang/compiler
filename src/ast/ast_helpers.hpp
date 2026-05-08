@@ -50,14 +50,15 @@ protected:
 			bool isRef) {
 		auto type = std::make_shared<ir::Type>();
 		type->isRef = isRef;
+		auto typeSymbolCtx = primary->typeSymbol();
 
-		if (primary->typeSymbol()) {
-			type->value = { get<ir::TypeSymbol>(primary->typeSymbol()) };
+		if (typeSymbolCtx) {
+			type->value = { get<ir::TypeSymbol>(typeSymbolCtx) };
 		} else if (primary->funcType()) {
 			type->value = { get<ir::FuncType>(primary->funcType()) };
 		}
 
-		if (primary->typeSymbol()) {
+		if (typeSymbolCtx) {
 			for (auto generic : primary->type()) {
 				type->value.match([&](ir::TypeSymbol& typeSymbol) {
 					typeSymbol.generics.push_back(get<ir::Type>(generic));

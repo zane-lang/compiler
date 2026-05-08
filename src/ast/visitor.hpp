@@ -592,11 +592,6 @@ class Visitor : public CustomZaneVisitor {
 		auto symbol = std::make_shared<ir::ValueSymbol>();
 		symbol->name = name;
 		if (ctx->package) symbol->packageName = ctx->package->getText();
-
-		if (!candidates.empty()) {
-			return std::static_pointer_cast<ir::IRNode>(symbol);
-		}
-
 		return std::static_pointer_cast<ir::IRNode>(symbol);
 	}
 

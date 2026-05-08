@@ -99,7 +99,7 @@ std::string TypeSymbol::getMangledName() const {
 		result += "<";
 		for (size_t i = 0; i < generics.size(); ++i) {
 			if (i > 0) {
-				result += ", ";
+				result += ",";
 			}
 			result += generics[i]->getMangledName();
 		}
