@@ -55,7 +55,7 @@ void Package::collectSymbols() {
 		if (packageName.empty()) {
 			packageName = ctxPackageName;
 		}
-		else if (!ctxPackageName.empty() && ctxPackageName != packageName) {
+else if (ctxPackageName != packageName) {
 			throw std::runtime_error("Mismatched package declarations in package sources");
 		}
 
