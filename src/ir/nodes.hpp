@@ -110,6 +110,25 @@ struct GlobalScope : public IRNode {
 	}
 };
 
+struct FuncType : public IRNode {
+	std::vector<std::shared_ptr<Type>> paramTypes;
+	std::shared_ptr<Type> returnType;
+	std::shared_ptr<Type> abortType;
+	bool hasReceiver = false;
+	bool isMutable = false;
+
+	std::any accept(IRVisitor* visitor) override;
+	std::string getParamString() const;
+	std::string getNodeName() const override;
+	std::string getMangledName() const;
+	bool operator==(const FuncType& other) const;
+
+	template<typename Archive>
+	void serialize(Archive& ar) {
+		ar(paramTypes, returnType, abortType, hasReceiver, isMutable);
+	}
+};
+
 struct Type : public IRNode {
 	WrappingVariant<std::shared_ptr, TypeSymbol, FuncType> value;
 	bool isRef = false;
@@ -131,25 +150,6 @@ struct Type : public IRNode {
 	template<typename Archive>
 	void serialize(Archive& ar) {
 		ar(value, isRef);
-	}
-};
-
-struct FuncType : public IRNode {
-	std::vector<std::shared_ptr<Type>> paramTypes;
-	std::shared_ptr<Type> returnType;
-	std::shared_ptr<Type> abortType;
-	bool hasReceiver = false;
-	bool isMutable = false;
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getParamString() const;
-	std::string getNodeName() const override;
-	std::string getMangledName() const;
-	bool operator==(const FuncType& other) const;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(paramTypes, returnType, abortType, hasReceiver, isMutable);
 	}
 };
 
