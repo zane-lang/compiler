@@ -17,13 +17,15 @@ def find_libllvm(libdir_arg: str) -> int:
 
 	for path in sorted(libdir.iterdir()):
 		name = path.name
-		if not re.fullmatch(r"libLLVM\.so(?:\.\d+)*", name):
+		if not re.fullmatch(r"libLLVM\.so(?:\.\d+)*$", name):
 			continue
 		if path.exists() and (path.is_file() or path.is_symlink()):
 			print(path)
 			return 0
 
-	raise SystemExit(f"libLLVM shared library not found in {libdir}")
+	raise SystemExit(
+		f"libLLVM shared library matching libLLVM.so or libLLVM.so.* not found in {libdir}"
+	)
 
 
 def find_libffi(llvm_shared_arg: str) -> int:
@@ -76,6 +78,8 @@ def parent_dir(path_arg: str) -> int:
 	parent = pathlib.Path(path_arg).parent
 	if parent.is_dir():
 		print(parent)
+	else:
+		print("")
 	return 0
 
 
