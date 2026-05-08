@@ -18,10 +18,10 @@ def find_libllvm(libdir_arg: str) -> int:
 	candidates = [
 		path
 		for path in libdir.iterdir()
-		if re.fullmatch(r"libLLVM(?:-\d+)?\.so(?:\.\d+)*$", path.name)
+		if re.fullmatch(r"^libLLVM(?:-\d+)?\.so(?:\.\d+)*$", path.name)
 	]
 
-	for path in sorted(candidates):
+	for path in sorted(candidates, key=lambda p: p.name):
 		if path.exists() and (path.is_file() or path.is_symlink()):
 			print(path)
 			return 0
