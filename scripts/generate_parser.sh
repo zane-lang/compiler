@@ -3,8 +3,6 @@ set -euo pipefail
 
 ROOT=.
 BUILD_DIR=${BUILD_DIR:-$ROOT/parser}
-INPUT=${1:-$ROOT/test/main.zn}
-OUTPUT=$ROOT/test/main.ast.json
 
 mkdir -p "$BUILD_DIR"
 

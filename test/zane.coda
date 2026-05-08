@@ -1,0 +1,6 @@
+name test
+type executable
+
+dependencies [
+	key commitHash tag url
+]
