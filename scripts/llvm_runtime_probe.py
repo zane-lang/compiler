@@ -15,16 +15,19 @@ def find_libllvm(libdir_arg: str) -> int:
 		print(preferred)
 		return 0
 
-	for path in sorted(libdir.iterdir()):
-		name = path.name
-		if not re.fullmatch(r"libLLVM\.so(?:\.\d+)*$", name):
-			continue
+	candidates = [
+		path
+		for path in libdir.iterdir()
+		if re.fullmatch(r"libLLVM(?:-\d+)?\.so(?:\.\d+)*$", path.name)
+	]
+
+	for path in sorted(candidates):
 		if path.exists() and (path.is_file() or path.is_symlink()):
 			print(path)
 			return 0
 
 	raise SystemExit(
-		f"libLLVM shared library matching libLLVM.so or libLLVM.so.* not found in {libdir}"
+		f"libLLVM shared library matching libLLVM.so, libLLVM.so.*, or libLLVM-<ver>.so not found in {libdir}"
 	)
 
 
