@@ -84,19 +84,37 @@ else:
   llvm_libdir_s,
   check: true,
 ).stdout().strip()
+# Resolve libffi from LLVM's shared-library dependencies so the zane binary
+# does not rely on LLVM's own RUNPATH entries at runtime.
 llvm_libffi_s = run_command(
   python,
   '-c',
   '''
-import subprocess, sys
+import re, shutil, subprocess, sys
 
-for line in subprocess.run(['ldd', sys.argv[1]], capture_output=True, text=True, check=True).stdout.splitlines():
-    if 'libffi.so' not in line or '=>' not in line:
+if shutil.which('ldd') is None:
+    raise SystemExit('ldd is required to locate libffi for LLVM runtime linking')
+
+try:
+    output = subprocess.run(
+        ['ldd', sys.argv[1]],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+except subprocess.CalledProcessError as exc:
+    details = exc.stderr.strip() or exc.stdout.strip() or str(exc)
+    raise SystemExit(f'failed to inspect LLVM shared library dependencies: {details}')
+
+for line in output.splitlines():
+    if 'libffi.so' not in line:
         continue
-    path = line.split('=>', 1)[1].strip().split(' ', 1)[0]
-    if path.startswith('/'):
-        print(path)
+    match = re.search(r'(/\S*libffi\.so\S*)', line)
+    if match:
+        print(match.group(1))
         break
+else:
+    raise SystemExit('libffi shared library not found in LLVM dependencies')
 ''',
   llvm_shared_s,
   check: true,
