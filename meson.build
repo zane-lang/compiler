@@ -66,6 +66,53 @@ llvm_ldflags_s  = run_command(llvm_config, '--ldflags',  check: true).stdout().s
 llvm_libs_s     = run_command(llvm_config, ['--libs'] + llvm_modules, check: true).stdout().strip()
 llvm_syslibs_s  = run_command(llvm_config, '--system-libs', check: true).stdout().strip()
 llvm_libdir_s   = run_command(llvm_config, '--libdir', check: true).stdout().strip()
+llvm_shared_s   = run_command(
+  python,
+  '-c',
+  '''
+import pathlib, sys
+
+libdir = pathlib.Path(sys.argv[1])
+candidates = sorted(libdir.glob('libLLVM.so*'))
+for path in candidates:
+    if path.is_file():
+        print(path)
+        break
+else:
+    raise SystemExit('libLLVM shared library not found')
+''',
+  llvm_libdir_s,
+  check: true,
+).stdout().strip()
+llvm_libffi_s = run_command(
+  python,
+  '-c',
+  '''
+import subprocess, sys
+
+for line in subprocess.run(['ldd', sys.argv[1]], capture_output=True, text=True, check=True).stdout.splitlines():
+    if 'libffi.so' not in line or '=>' not in line:
+        continue
+    path = line.split('=>', 1)[1].strip().split(' ', 1)[0]
+    if path.startswith('/'):
+        print(path)
+        break
+''',
+  llvm_shared_s,
+  check: true,
+).stdout().strip()
+llvm_libffi_dir_s = run_command(
+  python,
+  '-c',
+  '''
+import pathlib, sys
+
+if sys.argv[1]:
+    print(pathlib.Path(sys.argv[1]).parent)
+''',
+  llvm_libffi_s,
+  check: true,
+).stdout().strip()
 
 llvm_cxxflags = llvm_cxxflags_s == '' ? [] : llvm_cxxflags_s.split()
 llvm_ldflags  = llvm_ldflags_s  == '' ? [] : llvm_ldflags_s.split()
@@ -76,6 +123,15 @@ llvm_syslibs  = llvm_syslibs_s  == '' ? [] : llvm_syslibs_s.split()
 # (fixes conflicting <cxxabi.h> / __cxa_init_primary_exception)
 llvm_incdirs = []
 llvm_other_cargs = []
+llvm_runtime_rpath = [llvm_libdir_s]
+llvm_extra_link_args = []
+
+if llvm_libffi_s != ''
+  if llvm_libffi_dir_s != '' and not llvm_runtime_rpath.contains(llvm_libffi_dir_s)
+    llvm_runtime_rpath += llvm_libffi_dir_s
+  endif
+  llvm_extra_link_args += ['-Wl,--no-as-needed', llvm_libffi_s, '-Wl,--as-needed']
+endif
 
 foreach a : llvm_cxxflags
   if a.startswith('-I')
@@ -101,7 +157,7 @@ endforeach
 
 llvm_dep = declare_dependency(
   compile_args: llvm_fixed_cargs,
-  link_args: llvm_ldflags + llvm_libs + llvm_syslibs,
+  link_args: llvm_ldflags + llvm_libs + llvm_syslibs + llvm_extra_link_args,
 )
 # ----------------------------------------------------------------------
 
@@ -144,7 +200,7 @@ zane_exe = executable(
   build_by_default: true,
   cpp_args: exe_cpp_args,
   link_args: exe_link_args,
-  build_rpath: llvm_libdir_s,
+  build_rpath: ':'.join(llvm_runtime_rpath),
 )
 
 upx = find_program('upx', required: false)
