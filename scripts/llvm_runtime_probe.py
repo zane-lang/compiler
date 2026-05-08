@@ -21,7 +21,7 @@ def find_libllvm(libdir_arg: str) -> int:
 		if re.fullmatch(r"libLLVM(?:-\d+)?\.so(?:\.\d+)*$", path.name)
 	]
 
-	for path in sorted(candidates, key=lambda p: p.name):
+	for path in sorted(candidates, key=lambda p: p):
 		if path.exists() and (path.is_file() or path.is_symlink()):
 			print(path)
 			return 0
@@ -47,7 +47,9 @@ def find_libffi(llvm_shared_arg: str) -> int:
 		).stdout
 	except subprocess.CalledProcessError as exc:
 		details = exc.stderr.strip() or exc.stdout.strip() or str(exc)
-		raise SystemExit(f"failed to inspect LLVM shared library dependencies: {details}")
+		raise SystemExit(
+			f"failed to inspect LLVM shared library dependencies for {llvm_shared_arg}: {details}"
+		)
 
 	for line in output.splitlines():
 		if "libffi.so" not in line:
@@ -88,7 +90,10 @@ def parent_dir(path_arg: str) -> int:
 
 def main() -> int:
 	if len(sys.argv) != 3:
-		raise SystemExit("usage: llvm_runtime_probe.py <find-libllvm|find-libffi|parent-dir> <path>")
+		raise SystemExit(
+			"usage: llvm_runtime_probe.py "
+			"{find-libllvm <libdir>|find-libffi <llvm_lib_path>|parent-dir <path>}"
+		)
 
 	command, path_arg = sys.argv[1], sys.argv[2]
 	if command == "find-libllvm":
