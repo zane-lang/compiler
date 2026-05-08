@@ -27,6 +27,7 @@ class Visitor : public CustomZaneVisitor {
 	Stack<std::map<std::string, std::shared_ptr<ir::ValueSymbol>>> scopeSymbols;
 	zane::ref<SymbolCollector> symbolCollector;
 	std::string packageName;
+	int lambdaCounter = 0;
 
 	std::shared_ptr<ir::Type> makeConceptType(const std::string& name) {
 		auto typeSymbol = std::make_shared<ir::TypeSymbol>();
@@ -47,40 +48,6 @@ class Visitor : public CustomZaneVisitor {
 		}
 
 		return args;
-	}
-
-	std::shared_ptr<ir::FuncType> buildFuncType(
-			std::shared_ptr<ir::Type> returnType,
-			ZaneParser::AbortClauseContext* abortClause,
-			ZaneParser::ParamsContext* params,
-			bool isMutable) {
-		auto funcType = std::make_shared<ir::FuncType>();
-		funcType->returnType = std::move(returnType);
-		funcType->isMutable = isMutable;
-
-		if (abortClause) {
-			funcType->abortType = get<ir::Type>(abortClause->type());
-		}
-
-		if (!params) {
-			return funcType;
-		}
-
-		for (auto paramCtx : params->param()) {
-			if (paramCtx->receiver) {
-				funcType->hasReceiver = true;
-				funcType->paramTypes.push_back(get<ir::Type>(paramCtx->receiverType));
-				continue;
-			}
-
-			auto paramType = get<ir::Type>(paramCtx->type());
-			if (paramCtx->refModifier()) {
-				paramType->isRef = true;
-			}
-			funcType->paramTypes.push_back(paramType);
-		}
-
-		return funcType;
 	}
 
 	void pushFunctionParameters(
@@ -128,6 +95,85 @@ class Visitor : public CustomZaneVisitor {
 		return scope;
 	}
 
+	std::vector<std::shared_ptr<ir::ValueSymbol>> findValueSymbolCandidates(
+			const std::shared_ptr<ir::ValueSymbol>& symbol) {
+		std::vector<std::shared_ptr<ir::ValueSymbol>> candidates;
+		auto searchIn = [&](std::shared_ptr<ir::PackageInfo> info) {
+			if (!info) {
+				return;
+			}
+
+			for (auto& [key, candidate] : info->symbols) {
+				if (candidate->name == symbol->name) {
+					candidates.push_back(candidate);
+				}
+			}
+		};
+
+		if (symbol->packageName.has_value()) {
+			searchIn(getPackageInfo(symbol->packageName.value()));
+		} else {
+			searchIn(symbolCollector->getPackageInfo());
+		}
+
+		return candidates;
+	}
+
+	bool isConstructorReference(const std::shared_ptr<ir::IRNode>& callee) {
+		if (std::dynamic_pointer_cast<ir::TypeSymbol>(callee)) {
+			return true;
+		}
+
+		auto symbol = std::dynamic_pointer_cast<ir::ValueSymbol>(callee);
+		if (!symbol) {
+			return false;
+		}
+
+		for (auto& candidate : findValueSymbolCandidates(symbol)) {
+			bool isConstructor = false;
+			candidate->type->value.match([&](std::shared_ptr<ir::FuncType> funcType) {
+				if (!funcType || !funcType->returnType) {
+					return;
+				}
+
+				funcType->returnType->value.match([&](std::shared_ptr<ir::TypeSymbol> returnType) {
+					if (returnType->name != symbol->name) {
+						return;
+					}
+
+					if (symbol->packageName.has_value() && returnType->packageName != symbol->packageName) {
+						return;
+					}
+
+					isConstructor = true;
+				});
+			});
+
+			if (isConstructor) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	std::shared_ptr<ir::ValueSymbol> makeConstructorCallee(const std::shared_ptr<ir::Type>& type) {
+		auto callee = std::make_shared<ir::ValueSymbol>();
+		bool matched = false;
+
+		type->value.match([&](std::shared_ptr<ir::TypeSymbol> typeSymbol) {
+			callee->name = typeSymbol->name;
+			callee->packageName = typeSymbol->packageName;
+			matched = true;
+		});
+
+		if (!matched) {
+			throw std::runtime_error("Constructor initializer requires a nominal type");
+		}
+
+		return callee;
+	}
+
 	std::shared_ptr<ir::FuncCall> makeCall(
 			ir::CallKind kind,
 			std::shared_ptr<ir::IRNode> callee,
@@ -137,7 +183,7 @@ class Visitor : public CustomZaneVisitor {
 		call->callee = std::move(callee);
 		call->arguments = std::move(arguments);
 
-		if (kind == ir::CallKind::Constructor || kind == ir::CallKind::Subscript) {
+		if (kind == ir::CallKind::Subscript) {
 			return call;
 		}
 
@@ -260,16 +306,10 @@ class Visitor : public CustomZaneVisitor {
 			if (ctx->varInitializer()->value()) {
 				varDef->value = get<ir::IRNode>(ctx->varInitializer()->value());
 			} else if (ctx->varInitializer()->ctorInit()) {
-				auto ctorCall = std::make_shared<ir::FuncCall>();
-				ctorCall->kind = ir::CallKind::Constructor;
-				ctorCall->callee = std::make_shared<ir::TypeSymbol>();
-				symbol->type->value.match([&](std::shared_ptr<ir::TypeSymbol> typeSymbol) {
-					auto callee = std::make_shared<ir::TypeSymbol>();
-					*callee = *typeSymbol;
-					ctorCall->callee = callee;
-				});
-				ctorCall->arguments = collectArguments(ctx->varInitializer()->ctorInit()->collection());
-				varDef->value = ctorCall;
+				varDef->value = makeCall(
+					ir::CallKind::Constructor,
+					makeConstructorCallee(symbol->type),
+					collectArguments(ctx->varInitializer()->ctorInit()->collection()));
 			}
 		}
 
@@ -337,7 +377,7 @@ class Visitor : public CustomZaneVisitor {
 
 		for (auto suffixCtx : ctx->postfixSuffix()) {
 			if (auto funcCallCtx = dynamic_cast<ZaneParser::FuncCallSuffixContext*>(suffixCtx)) {
-				auto kind = std::dynamic_pointer_cast<ir::TypeSymbol>(current)
+				auto kind = isConstructorReference(current)
 					? ir::CallKind::Constructor
 					: ir::CallKind::Free;
 				current = makeCall(
@@ -370,8 +410,6 @@ class Visitor : public CustomZaneVisitor {
 	}
 
 	std::any visitLambda(ZaneParser::LambdaContext *ctx) override {
-		static int lambdaCounter = 0;
-
 		auto lambda = std::make_shared<ir::Lambda>();
 		lambda->name = "__lambda_" + std::to_string(lambdaCounter++);
 		lambda->isMutable = ctx->methodMut() != nullptr;
@@ -521,20 +559,7 @@ class Visitor : public CustomZaneVisitor {
 		auto sym = std::dynamic_pointer_cast<ir::ValueSymbol>(calleeNode);
 		if (!sym) return nullptr;
 
-		std::vector<std::shared_ptr<ir::ValueSymbol>> candidates;
-		auto searchIn = [&](std::shared_ptr<ir::PackageInfo> info) {
-			if (!info) return;
-			for (auto& [key, symbol] : info->symbols) {
-				if (symbol->name == sym->name) candidates.push_back(symbol);
-			}
-		};
-
-		if (sym->packageName.has_value()) {
-			searchIn(getPackageInfo(sym->packageName.value()));
-		} else {
-			searchIn(symbolCollector->getPackageInfo());
-		}
-
+		auto candidates = findValueSymbolCandidates(sym);
 		for (auto& candidate : candidates) {
 			std::shared_ptr<ir::FuncType> funcType;
 			candidate->type->value.match([&](std::shared_ptr<ir::FuncType> ft) {

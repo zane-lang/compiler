@@ -60,13 +60,47 @@ protected:
 
 		if (typeSymbolCtx) {
 			for (auto generic : primary->type()) {
-				type->value.match([&](ir::TypeSymbol& typeSymbol) {
-					typeSymbol.generics.push_back(get<ir::Type>(generic));
+				type->value.match([&](std::shared_ptr<ir::TypeSymbol> typeSymbol) {
+					typeSymbol->generics.push_back(get<ir::Type>(generic));
 				});
 			}
 		}
 
 		return type;
+	}
+
+	std::shared_ptr<ir::FuncType> buildFuncType(
+			std::shared_ptr<ir::Type> returnType,
+			ZaneParser::AbortClauseContext* abortClause,
+			ZaneParser::ParamsContext* params,
+			bool isMutable) {
+		auto funcType = std::make_shared<ir::FuncType>();
+		funcType->returnType = std::move(returnType);
+		funcType->isMutable = isMutable;
+
+		if (abortClause) {
+			funcType->abortType = get<ir::Type>(abortClause->type());
+		}
+
+		if (!params) {
+			return funcType;
+		}
+
+		for (auto paramCtx : params->param()) {
+			if (paramCtx->receiver) {
+				funcType->hasReceiver = true;
+				funcType->paramTypes.push_back(get<ir::Type>(paramCtx->receiverType));
+				continue;
+			}
+
+			auto paramType = get<ir::Type>(paramCtx->type());
+			if (paramCtx->refModifier()) {
+				paramType->isRef = true;
+			}
+			funcType->paramTypes.push_back(paramType);
+		}
+
+		return funcType;
 	}
 
 public:
