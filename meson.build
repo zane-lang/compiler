@@ -66,26 +66,11 @@ llvm_ldflags_s  = run_command(llvm_config, '--ldflags',  check: true).stdout().s
 llvm_libs_s     = run_command(llvm_config, ['--libs'] + llvm_modules, check: true).stdout().strip()
 llvm_syslibs_s  = run_command(llvm_config, '--system-libs', check: true).stdout().strip()
 llvm_libdir_s   = run_command(llvm_config, '--libdir', check: true).stdout().strip()
+llvm_runtime_probe = files('scripts/llvm_runtime_probe.py')
 llvm_shared_s   = run_command(
   python,
-  '-c',
-  '''
-import pathlib, sys
-
-libdir = pathlib.Path(sys.argv[1])
-preferred = libdir / 'libLLVM.so'
-if preferred.exists() and (preferred.is_file() or preferred.is_symlink()):
-    print(preferred)
-    raise SystemExit(0)
-
-candidates = sorted(libdir.glob('libLLVM.so*'))
-for path in candidates:
-    if path.exists() and (path.is_file() or path.is_symlink()):
-        print(path)
-        break
-else:
-    raise SystemExit(f'libLLVM shared library not found in {libdir}')
-''',
+  llvm_runtime_probe,
+  'find-libllvm',
   llvm_libdir_s,
   check: true,
 ).stdout().strip()
@@ -93,60 +78,15 @@ else:
 # does not rely on LLVM's own RUNPATH entries at runtime.
 llvm_libffi_s = run_command(
   python,
-  '-c',
-  '''
-import re, shutil, subprocess, sys
-
-if shutil.which('ldd') is None:
-    raise SystemExit('Build error: ldd utility is required to locate libffi for LLVM runtime linking. Please ensure your system runtime tools are installed.')
-
-try:
-    output = subprocess.run(
-        ['ldd', sys.argv[1]],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-except subprocess.CalledProcessError as exc:
-    details = exc.stderr.strip() or exc.stdout.strip() or str(exc)
-    raise SystemExit(f'failed to inspect LLVM shared library dependencies: {details}')
-
-for line in output.splitlines():
-    if 'libffi.so' not in line:
-        continue
-    if '=>' in line:
-        candidate_part = line.split('=>', 1)[1].strip()
-        if candidate_part != 'not found':
-            match = re.match(r'(/[^()]+)', candidate_part)
-            if match:
-                candidate = match.group(1).strip()
-                if candidate.startswith('/'):
-                    print(candidate)
-                    break
-    else:
-        match = re.search(r'(/[^\s]+libffi\.so[^\s]*)', line)
-        if match:
-            candidate = match.group(1)
-            if candidate.startswith('/'):
-                print(candidate)
-                break
-else:
-    raise SystemExit(f'libffi shared library not found in LLVM dependencies of {sys.argv[1]}')
-''',
+  llvm_runtime_probe,
+  'find-libffi',
   llvm_shared_s,
   check: true,
 ).stdout().strip()
 llvm_libffi_dir_s = run_command(
   python,
-  '-c',
-  '''
-import pathlib, sys
-
-if sys.argv[1] != '':
-    parent = pathlib.Path(sys.argv[1]).parent
-    if parent.is_dir():
-        print(parent)
-''',
+  llvm_runtime_probe,
+  'parent-dir',
   llvm_libffi_s,
   check: true,
 ).stdout().strip()
