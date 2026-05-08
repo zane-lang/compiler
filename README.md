@@ -13,7 +13,7 @@ curl -fsSL https://get.jetify.com/devbox | bash
 
 ```sh
 devbox shell
-just init # bootstrap ANTLR4/vcpkg dependencies and initialize meson
+just init # initialize submodules, vcpkg dependencies, and meson
 just build
 ```
 

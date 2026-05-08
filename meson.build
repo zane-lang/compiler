@@ -10,8 +10,6 @@ project(
 )
 
 python = import('python').find_installation()
-fs_mod = import('fs')
-thread_dep = dependency('threads')
 
 coda_inc = include_directories('vendor/coda/include')
 coda_dep = declare_dependency(include_directories: coda_inc)
@@ -19,47 +17,21 @@ coda_dep = declare_dependency(include_directories: coda_inc)
 zanecpp_inc = include_directories('vendor/zane-cpp/include')
 zanecpp_dep = declare_dependency(include_directories: zanecpp_inc)
 
-antlr4_root = meson.project_source_root() / '.cache' / 'tooling' / 'antlr4' / 'runtime' / '4.13.2'
-antlr4_incdir = '.cache/tooling/antlr4/runtime/4.13.2/include/antlr4-runtime'
-antlr4_static_lib = antlr4_root / 'lib' / 'libantlr4-runtime.a'
-if fs_mod.exists(antlr4_root / 'include' / 'antlr4-runtime' / 'antlr4-runtime.h') and fs_mod.exists(antlr4_static_lib)
-  antlr4_dep = declare_dependency(
-    include_directories: [include_directories(antlr4_incdir)],
-    link_args: [antlr4_static_lib],
-    dependencies: [thread_dep],
-  )
-else
-  antlr4_fallback = dependency(
-    'antlr4-runtime',
-    required: false,
-    method: 'cmake',
-    modules: ['antlr4_static'],
-  )
-  if antlr4_fallback.found() and antlr4_fallback.version().version_compare('>=4.13.2')
-    antlr4_dep = antlr4_fallback
-  else
-    error('ANTLR4 C++ runtime 4.13.2+ is required. Run "just init" to bootstrap the pinned runtime used by generated-parser/.')
-  endif
-endif
 nlohmann_dep = dependency('nlohmann_json', required: true, method: 'cmake')
 cereal_dep  = dependency('cereal', required: true, method: 'cmake')
 
 src_dir = include_directories('src')
-generated_dir = include_directories('generated-parser')
 
 buildtype = get_option('buildtype')
 is_debug = buildtype.startswith('debug')
 
-parser_cpp_args = []
 exe_cpp_args = []
 exe_link_args = []
 
 if is_debug
-  parser_cpp_args += ['-O1', '-g']
   exe_cpp_args += ['-O1', '-g', '-fsanitize=address,undefined', '-fstack-protector-strong']
   exe_link_args += ['-fsanitize=address,undefined']
 else
-  parser_cpp_args += ['-O3', '-flto', '-fvisibility=hidden']
   exe_cpp_args += ['-O3', '-march=native', '-flto', '-fvisibility=hidden']
   exe_link_args += ['-flto', '-Wl,--strip-all', '-Wl,--gc-sections']
 endif
@@ -140,19 +112,6 @@ embedded_data_header = custom_target(
   build_by_default: true,
 )
 
-parser_sources = run_command(
-  'find', 'generated-parser/parser', '-name', '*.cpp', check: true
-).stdout().strip().split('\n')
-
-parser_lib = static_library(
-  'zane_parser',
-  parser_sources,
-  include_directories: [generated_dir, src_dir],
-  dependencies: [antlr4_dep],
-  cpp_args: parser_cpp_args,
-  build_by_default: true,
-)
-
 sources = run_command(
   'find', 'src', '-name', '*.cpp', check: true
 ).stdout().strip().split('\n')
@@ -160,9 +119,8 @@ sources = run_command(
 zane_exe = executable(
   meson.project_name(),
   sources + [embedded_data_header],
-  include_directories: [src_dir, generated_dir],
-  dependencies: [nlohmann_dep, cereal_dep, antlr4_dep, llvm_dep, coda_dep, zanecpp_dep],
-  link_with: [parser_lib],
+  include_directories: [src_dir],
+  dependencies: [nlohmann_dep, cereal_dep, llvm_dep, coda_dep, zanecpp_dep],
   build_by_default: true,
   cpp_args: exe_cpp_args,
   link_args: exe_link_args,
