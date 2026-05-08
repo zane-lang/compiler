@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-ROOT="$(dirname "$(dirname "$0")")"
-JAR_PATH="$(python3 "$ROOT/scripts/setup_antlr4.py" --print-jar)"
-exec java -jar "$JAR_PATH" "$@"

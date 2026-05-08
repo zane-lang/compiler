@@ -2,4 +2,3 @@ build/
 .cache/
 vcpkg_installed/
 __pycache__/
-generated-parser/
