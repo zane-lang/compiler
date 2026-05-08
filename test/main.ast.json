@@ -596,6 +596,21 @@
                   "kind": "type_name",
                   "value": "List",
                   "children": []
+                },
+                {
+                  "kind": "generic_args",
+                  "children": [
+                    {
+                      "kind": "named_type",
+                      "children": [
+                        {
+                          "kind": "type_name",
+                          "value": "Weapon",
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -717,6 +732,21 @@
                       "kind": "type_name",
                       "value": "List",
                       "children": []
+                    },
+                    {
+                      "kind": "generic_args",
+                      "children": [
+                        {
+                          "kind": "named_type",
+                          "children": [
+                            {
+                              "kind": "type_name",
+                              "value": "Weapon",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
                     }
                   ]
                 },
@@ -1116,6 +1146,21 @@
                               "kind": "type_name",
                               "value": "List",
                               "children": []
+                            },
+                            {
+                              "kind": "generic_args",
+                              "children": [
+                                {
+                                  "kind": "named_type",
+                                  "children": [
+                                    {
+                                      "kind": "type_name",
+                                      "value": "Weapon",
+                                      "children": []
+                                    }
+                                  ]
+                                }
+                              ]
                             }
                           ]
                         },

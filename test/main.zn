@@ -31,7 +31,7 @@ Weapon{
 class Player {
 	position Vec2
 	health Float
-	weapons List
+	weapons List<Weapon>
 	currentWeapon ref Weapon
 }
 
@@ -40,7 +40,7 @@ class Player {
 Player{
 	position Vec2(0, 0),
 	health Float(100),
-	weapons List(),
+	weapons List<Weapon>(),
 } => init {
 	position,
 	health,
@@ -60,7 +60,7 @@ Float?Void game() {
 	b Vec2(23, 20)
 	playerPosition Vec2 = a + b
 
-	weapons List = [
+	weapons List<Weapon> = [
 		Weapon(name: "Rifle", fireRate: 0.5, damage: 20),
 		Weapon(name: "Shotgun", fireRate: 1.5, damage: 40),
 		Weapon(name: "Sniper", fireRate: 4, damage: 50)
