@@ -1,0 +1,722 @@
+{
+  "kind": "program",
+  "children": [
+    {
+      "kind": "package_decl",
+      "children": [
+        {
+          "kind": "name",
+          "value": "Main",
+          "children": []
+        }
+      ]
+    },
+    {
+      "kind": "import_decl",
+      "children": [
+        {
+          "kind": "name",
+          "value": "Random",
+          "children": []
+        }
+      ]
+    },
+    {
+      "kind": "struct_decl",
+      "children": [
+        {
+          "kind": "named_type",
+          "value": "Weapon",
+          "children": []
+        },
+        {
+          "kind": "field_decl",
+          "value": "name",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "String",
+              "children": []
+            }
+          ]
+        },
+        {
+          "kind": "field_decl",
+          "value": "damage",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "Float",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "struct_decl",
+      "children": [
+        {
+          "kind": "named_type",
+          "value": "Player",
+          "children": []
+        },
+        {
+          "kind": "field_decl",
+          "value": "health",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "Float",
+              "children": []
+            }
+          ]
+        },
+        {
+          "kind": "field_decl",
+          "value": "currentWeapon",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "Weapon",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "function_decl",
+      "children": [
+        {
+          "kind": "return_type",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "Float",
+              "children": []
+            }
+          ]
+        },
+        {
+          "kind": "name",
+          "value": "getHealth",
+          "children": []
+        },
+        {
+          "kind": "param_decl",
+          "value": "player",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "Player",
+              "children": []
+            }
+          ]
+        },
+        {
+          "kind": "expr_body",
+          "children": [
+            {
+              "kind": "member_expr",
+              "value": "health",
+              "children": [
+                {
+                  "kind": "name",
+                  "value": "player",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "function_decl",
+      "children": [
+        {
+          "kind": "return_type",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "Void",
+              "children": []
+            }
+          ]
+        },
+        {
+          "kind": "name",
+          "value": "swapWeapon",
+          "children": []
+        },
+        {
+          "kind": "param_decl",
+          "value": "player",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "Player",
+              "children": []
+            }
+          ]
+        },
+        {
+          "kind": "param_decl",
+          "value": "newWeapon",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "Weapon",
+              "children": []
+            }
+          ]
+        },
+        {
+          "kind": "block_body",
+          "children": [
+            {
+              "kind": "block",
+              "children": [
+                {
+                  "kind": "assignment_stmt",
+                  "children": [
+                    {
+                      "kind": "member_expr",
+                      "value": "currentWeapon",
+                      "children": [
+                        {
+                          "kind": "name",
+                          "value": "player",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "name",
+                      "value": "newWeapon",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "function_decl",
+      "children": [
+        {
+          "kind": "return_type",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "Float",
+              "children": []
+            },
+            {
+              "kind": "abort_type",
+              "children": [
+                {
+                  "kind": "named_type",
+                  "value": "Void",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "name",
+          "value": "game",
+          "children": []
+        },
+        {
+          "kind": "block_body",
+          "children": [
+            {
+              "kind": "block",
+              "children": [
+                {
+                  "kind": "symbol_decl",
+                  "value": "weapon",
+                  "children": [
+                    {
+                      "kind": "named_type",
+                      "value": "Weapon",
+                      "children": []
+                    },
+                    {
+                      "kind": "field_ctor_expr",
+                      "children": [
+                        {
+                          "kind": "name",
+                          "value": "Weapon",
+                          "children": []
+                        },
+                        {
+                          "kind": "field_args",
+                          "children": [
+                            {
+                              "kind": "field_arg",
+                              "value": "name",
+                              "children": [
+                                {
+                                  "kind": "string_literal",
+                                  "value": "Rifle",
+                                  "children": []
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "field_arg",
+                              "value": "damage",
+                              "children": [
+                                {
+                                  "kind": "number_literal",
+                                  "value": "20.0",
+                                  "children": []
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "symbol_decl",
+                  "value": "player",
+                  "children": [
+                    {
+                      "kind": "named_type",
+                      "value": "Player",
+                      "children": []
+                    },
+                    {
+                      "kind": "field_ctor_expr",
+                      "children": [
+                        {
+                          "kind": "name",
+                          "value": "Player",
+                          "children": []
+                        },
+                        {
+                          "kind": "field_args",
+                          "children": [
+                            {
+                              "kind": "field_arg",
+                              "value": "health",
+                              "children": [
+                                {
+                                  "kind": "number_literal",
+                                  "value": "100.0",
+                                  "children": []
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "field_arg",
+                              "value": "currentWeapon",
+                              "children": [
+                                {
+                                  "kind": "name",
+                                  "value": "weapon",
+                                  "children": []
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "guard_stmt",
+                  "children": [
+                    {
+                      "kind": "binary_expr",
+                      "value": "~=",
+                      "children": [
+                        {
+                          "kind": "member_expr",
+                          "value": "health",
+                          "children": [
+                            {
+                              "kind": "name",
+                              "value": "player",
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "number_literal",
+                          "value": "100.0",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "block",
+                      "children": [
+                        {
+                          "kind": "abort_stmt",
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "if_stmt",
+                  "children": [
+                    {
+                      "kind": "call_expr",
+                      "children": [
+                        {
+                          "kind": "qualified_name",
+                          "children": [
+                            {
+                              "kind": "name",
+                              "value": "Random",
+                              "children": []
+                            },
+                            {
+                              "kind": "segment",
+                              "value": "bool",
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "args",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "block",
+                      "children": [
+                        {
+                          "kind": "expression_stmt",
+                          "children": [
+                            {
+                              "kind": "call_expr",
+                              "children": [
+                                {
+                                  "kind": "name",
+                                  "value": "swapWeapon",
+                                  "children": []
+                                },
+                                {
+                                  "kind": "args",
+                                  "children": [
+                                    {
+                                      "kind": "name",
+                                      "value": "player",
+                                      "children": []
+                                    },
+                                    {
+                                      "kind": "field_ctor_expr",
+                                      "children": [
+                                        {
+                                          "kind": "name",
+                                          "value": "Weapon",
+                                          "children": []
+                                        },
+                                        {
+                                          "kind": "field_args",
+                                          "children": [
+                                            {
+                                              "kind": "field_arg",
+                                              "value": "name",
+                                              "children": [
+                                                {
+                                                  "kind": "string_literal",
+                                                  "value": "Shotgun",
+                                                  "children": []
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "kind": "field_arg",
+                                              "value": "damage",
+                                              "children": [
+                                                {
+                                                  "kind": "number_literal",
+                                                  "value": "40.0",
+                                                  "children": []
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "else_clause",
+                      "children": [
+                        {
+                          "kind": "block",
+                          "children": [
+                            {
+                              "kind": "expression_stmt",
+                              "children": [
+                                {
+                                  "kind": "call_expr",
+                                  "children": [
+                                    {
+                                      "kind": "name",
+                                      "value": "swapWeapon",
+                                      "children": []
+                                    },
+                                    {
+                                      "kind": "args",
+                                      "children": [
+                                        {
+                                          "kind": "name",
+                                          "value": "player",
+                                          "children": []
+                                        },
+                                        {
+                                          "kind": "field_ctor_expr",
+                                          "children": [
+                                            {
+                                              "kind": "name",
+                                              "value": "Weapon",
+                                              "children": []
+                                            },
+                                            {
+                                              "kind": "field_args",
+                                              "children": [
+                                                {
+                                                  "kind": "field_arg",
+                                                  "value": "name",
+                                                  "children": [
+                                                    {
+                                                      "kind": "string_literal",
+                                                      "value": "Pistol",
+                                                      "children": []
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "kind": "field_arg",
+                                                  "value": "damage",
+                                                  "children": [
+                                                    {
+                                                      "kind": "number_literal",
+                                                      "value": "10.0",
+                                                      "children": []
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "symbol_decl",
+                  "value": "health",
+                  "children": [
+                    {
+                      "kind": "named_type",
+                      "value": "Float",
+                      "children": []
+                    },
+                    {
+                      "kind": "call_expr",
+                      "children": [
+                        {
+                          "kind": "name",
+                          "value": "getHealth",
+                          "children": []
+                        },
+                        {
+                          "kind": "args",
+                          "children": [
+                            {
+                              "kind": "name",
+                              "value": "player",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "return_stmt",
+                  "children": [
+                    {
+                      "kind": "name",
+                      "value": "health",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "function_decl",
+      "children": [
+        {
+          "kind": "return_type",
+          "children": [
+            {
+              "kind": "named_type",
+              "value": "Void",
+              "children": []
+            }
+          ]
+        },
+        {
+          "kind": "name",
+          "value": "main",
+          "children": []
+        },
+        {
+          "kind": "block_body",
+          "children": [
+            {
+              "kind": "block",
+              "children": [
+                {
+                  "kind": "symbol_decl",
+                  "value": "health",
+                  "children": [
+                    {
+                      "kind": "named_type",
+                      "value": "Float",
+                      "children": []
+                    },
+                    {
+                      "kind": "handler_expr",
+                      "children": [
+                        {
+                          "kind": "handler_clause",
+                          "children": [
+                            {
+                              "kind": "block",
+                              "children": [
+                                {
+                                  "kind": "resolve_stmt",
+                                  "children": [
+                                    {
+                                      "kind": "number_literal",
+                                      "value": "0.0",
+                                      "children": []
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "unary_expr",
+                          "value": "spawn",
+                          "children": [
+                            {
+                              "kind": "call_expr",
+                              "children": [
+                                {
+                                  "kind": "qualified_name",
+                                  "children": [
+                                    {
+                                      "kind": "name",
+                                      "value": "Main",
+                                      "children": []
+                                    },
+                                    {
+                                      "kind": "segment",
+                                      "value": "game",
+                                      "children": []
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "args",
+                                  "children": []
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "expression_stmt",
+                  "children": [
+                    {
+                      "kind": "call_expr",
+                      "children": [
+                        {
+                          "kind": "name",
+                          "value": "println",
+                          "children": []
+                        },
+                        {
+                          "kind": "args",
+                          "children": [
+                            {
+                              "kind": "binary_expr",
+                              "value": "+",
+                              "children": [
+                                {
+                                  "kind": "string_literal",
+                                  "value": "Player health: ",
+                                  "children": []
+                                },
+                                {
+                                  "kind": "name",
+                                  "value": "health",
+                                  "children": []
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -2,94 +2,46 @@ package Main
 
 import Random
 
-struct Vec2<'T> {
-	x 'T
-	y 'T
-}
-Vec2<'T>(x 'T, y 'T) => init {x, y}
-Vec2<'T> +(left Vec2<'T>, right Vec2<'T>) => init {left.x + right.x, left.y + right.y}
-
-class Weapon {
-	name String
-	fireRate Float
-	damage Float
+struct Weapon {
+name String
+damage Float
 }
 
-Weapon{
-	name String = "Pistol",
-	fireRate Float(1),
-	damage Float = 10
-} {
-	temp Weapon = init {
-		name,
-		fireRate,
-		damage
-	}
-	return temp
+struct Player {
+health Float
+currentWeapon Weapon
 }
 
-class Player {
-	position Vec2
-	health Float
-	weapons List<Weapon>
-	currentWeapon ref Weapon
+Float getHealth(player Player) => player.health
+
+Void swapWeapon(player Player, newWeapon Weapon) {
+player.currentWeapon = newWeapon
 }
 
-/// the player has a list of weapons, but only one can be active at a time.
-/// The current weapon is stored as a reference to one of the weapons in the list.
-Player{
-	position Vec2(0, 0),
-	health Float(100),
-	weapons List<Weapon>(),
-} => init {
-	position,
-	health,
-	weapons,
-	currentWeapon: weapons[1]
+Float ? Void game() {
+weapon Weapon = Weapon{
+name: "Rifle",
+damage: 20.0,
 }
-
-// use refs for swapping
-Void swapWeapon(this Player, newWeapon ref Weapon) mut {
-	this.currentWeapon = newWeapon
+player Player = Player{
+health: 100.0,
+currentWeapon: weapon,
 }
-
-Float getHealth(this Player) => this.health
-
-Float?Void game() {
-	a Vec2(10, 10)
-	b Vec2(23, 20)
-	playerPosition Vec2 = a + b
-
-	weapons List<Weapon> = [
-		Weapon(name: "Rifle", fireRate: 0.5, damage: 20),
-		Weapon(name: "Shotgun", fireRate: 1.5, damage: 40),
-		Weapon(name: "Sniper", fireRate: 4, damage: 50)
-	]
-
-	player Player{
-		position: playerPosition,
-		health: 100,
-		weapons
-	}
-	guard player.health ~= 100 {
-		println("Player health should be initialized to 100")
-		abort
-	}
-
-	player!swapWeapon(weapons[2])
-
-	if Random$bool() {
-		player!swapWeapon(weapons[0])
-	}
-	else {
-		player!swapWeapon(weapons[1])
-	}
-
-	health Float = player:getHealth()
-	return health
+guard player.health ~= 100.0 {
+abort
+}
+if Random$bool() {
+swapWeapon(player, Weapon{name: "Shotgun", damage: 40.0})
+} else {
+swapWeapon(player, Weapon{name: "Pistol", damage: 10.0})
+}
+health Float = getHealth(player)
+return health
 }
 
 Void main() {
-	health Float = spawn game()
-	println("Player's health: " + health)
+health Float = spawn Main$game() ? {
+resolve 0.0
+}
+println("Player health: " + health)
 }
