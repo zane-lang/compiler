@@ -13,15 +13,13 @@
 #include "utils/console.hpp"
 
 #include <cstdio>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <map>
 #include <filesystem>
 #include <set>
 #include <vector>
-#include <antlr4-runtime.h>
-#include <parser/ZaneLexer.h>
-#include <parser/ZaneParser.h>
 
 namespace commands {
 
@@ -103,7 +101,7 @@ inline void debug(int argc, char* argv[], manifest::Manifest& manifest) {
 
 	auto packages = compiler.getPackages();
 	for (const auto& [name, package] : *packages) {
-		PRINT(package->irProgram->toString());
+		std::cout << package->getDebugOutput() << '\n';
 	}
 }
 

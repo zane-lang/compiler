@@ -3,6 +3,7 @@
 #include "ast/symbol_collector.hpp"
 #include "ast/visitor.hpp"
 #include "package/parser_context.hpp"
+#include "utils/console.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -21,7 +22,7 @@ ParseFileResult Package::parseFile(const fs::path& path) {
 	std::stringstream ss;
 	ss << stream.rdbuf();
 	auto ctx = std::make_unique<ParserContext>(ss.str());
-	if (!ctx->getTree()) {
+	if (!ctx->hasTree()) {
 		return ParseFileResult::abort("Failed to parse file: " + path.string());
 	}
 
@@ -54,7 +55,7 @@ void Package::collectSymbols() {
 
 void Package::buildTree(const std::string& packageDir) {
 	for (const auto& ctx : contexts) {
-		symbolCollector->setCurrentPackage(ctx->getTree()->pkgDef()->name->getText());
+		symbolCollector->setCurrentPackage(ctx->getPackageName());
 		visitor->buildTree(ctx->getTree());
 	}
 

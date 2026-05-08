@@ -10,6 +10,8 @@ project(
 )
 
 python = import('python').find_installation()
+bison = find_program('bison', required: true)
+re2c = find_program('re2c', required: true)
 
 coda_inc = include_directories('vendor/coda/include')
 coda_dep = declare_dependency(include_directories: coda_inc)
@@ -21,6 +23,7 @@ nlohmann_dep = dependency('nlohmann_json', required: true, method: 'cmake')
 cereal_dep  = dependency('cereal', required: true, method: 'cmake')
 
 src_dir = include_directories('src')
+grammar_dir = include_directories('grammar')
 
 buildtype = get_option('buildtype')
 is_debug = buildtype.startswith('debug')
@@ -112,14 +115,30 @@ embedded_data_header = custom_target(
   build_by_default: true,
 )
 
+generated_parser = custom_target(
+  'generated_parser',
+  input: files('grammar/parser.y'),
+  output: ['parser.cpp', 'parser.hpp'],
+  command: [bison, '--defines=@OUTPUT1@', '--output=@OUTPUT0@', '@INPUT@'],
+  build_by_default: true,
+)
+
+generated_lexer = custom_target(
+  'generated_lexer',
+  input: files('grammar/lexer.re'),
+  output: 'lexer.cpp',
+  command: [re2c, '--output', '@OUTPUT@', '@INPUT@'],
+  build_by_default: true,
+)
+
 sources = run_command(
   'find', 'src', '-name', '*.cpp', check: true
 ).stdout().strip().split('\n')
 
 zane_exe = executable(
   meson.project_name(),
-  sources + [embedded_data_header],
-  include_directories: [src_dir],
+  sources + [embedded_data_header, generated_parser, generated_lexer],
+  include_directories: [src_dir, grammar_dir],
   dependencies: [nlohmann_dep, cereal_dep, llvm_dep, coda_dep, zanecpp_dep],
   build_by_default: true,
   cpp_args: exe_cpp_args,

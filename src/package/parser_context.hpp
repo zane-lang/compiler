@@ -1,20 +1,23 @@
 #pragma once
 
-#include "parser/ZaneLexer.h"
-#include "parser/ZaneParser.h"
-
-#include <antlr4-runtime.h>
+#include <memory>
 #include <string>
+
+namespace zane {
+	struct Node;
+}
 
 struct ParserContext {
 	std::string source;
-	antlr4::ANTLRInputStream input;
-	parser::ZaneLexer lexer;
-	antlr4::CommonTokenStream tokens;
-	parser::ZaneParser parser;
-	parser::ZaneParser::GlobalScopeContext* tree;
+	std::unique_ptr<zane::Node> tree;
+	std::string astJson;
+	std::string packageName;
 
 	ParserContext(const std::string& src);
+	~ParserContext();
 
-	parser::ZaneParser::GlobalScopeContext* getTree() const;
+	const zane::Node* getTree() const;
+	bool hasTree() const;
+	const std::string& getAstJson() const;
+	const std::string& getPackageName() const;
 };
