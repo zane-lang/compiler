@@ -7,9 +7,6 @@
 #include <parser.hpp>
 #include <sstream>
 
-int yyparse();
-extern zane::Node* g_root;
-
 namespace {
 
 std::string getPackageNameFromTree(const zane::Node* root) {
@@ -22,24 +19,19 @@ ParserContext::ParserContext(const std::string& src)
 	: source(src) {
 	zane::Lexer lexer(source);
 	lexer.reset();
-	zane::g_lexer = &lexer;
-	g_root = nullptr;
+	zane::Node* root = nullptr;
 
-	if (yyparse() == 0 && g_root != nullptr) {
-		tree.reset(g_root);
-		g_root = nullptr;
+	if (yyparse(&lexer, &root) == 0 && root != nullptr) {
+		tree.reset(root);
 
 		std::ostringstream output;
 		zane::printNode(tree.get(), output);
 		astJson = output.str();
 		packageName = getPackageNameFromTree(tree.get());
 	}
-	else if (g_root != nullptr) {
-		delete g_root;
-		g_root = nullptr;
+	else if (root != nullptr) {
+		delete root;
 	}
-
-	zane::g_lexer = nullptr;
 }
 
 ParserContext::~ParserContext() = default;

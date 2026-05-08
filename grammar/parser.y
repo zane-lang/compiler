@@ -6,11 +6,6 @@
 
 #include "ast.hpp"
 
-int yylex(void);
-void yyerror(const char* message);
-
-zane::Node* g_root = nullptr;
-
 static zane::Node* takeNode(const char* kind, char* text) {
 zane::Node* node = zane::makeNode(kind, text == nullptr ? std::string() : std::string(text));
 std::free(text);
@@ -39,9 +34,19 @@ return node;
 
 %code requires {
 #include "ast.hpp"
+#include "lexer.hpp"
 }
 
+%code provides {
+int yylex(YYSTYPE* yylval, zane::Lexer* lexer);
+void yyerror(zane::Lexer* lexer, zane::Node** root, const char* message);
+}
+
+%define api.pure full
 %define parse.error detailed
+%parse-param { zane::Lexer* lexer }
+%parse-param { zane::Node** root }
+%lex-param { zane::Lexer* lexer }
 
 %union {
 char* text;
@@ -60,9 +65,9 @@ zane::NodeList* list;
 
 program:
 item_list {
-g_root = zane::makeNode("program");
-zane::adoptList(g_root, $1);
-$$ = g_root;
+*root = zane::makeNode("program");
+zane::adoptList(*root, $1);
+$$ = *root;
 }
 ;
 
@@ -849,6 +854,8 @@ zane::adopt($$, $2);
 
 %%
 
-void yyerror(const char* message) {
+void yyerror(zane::Lexer* lexer, zane::Node** root, const char* message) {
+(void)lexer;
+(void)root;
 std::cerr << message << '\n';
 }
