@@ -17,7 +17,7 @@ inline void createLibrary(const std::string& dir, const std::string& libraryName
 }
 
 inline void createExecutable(const std::string& dir) {
-	auto file = dir + constants::library::ENTRY;
+	auto file = dir + constants::executable::ENTRY;
 	auto content = constants::executable::getEntryContent();
 	writeFile(file, content);
 }
