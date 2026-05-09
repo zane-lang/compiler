@@ -9,6 +9,9 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
+#include <algorithm>
+#include <unordered_map>
+#include <vector>
 
 class LLVMVisitor {
 private:
@@ -17,13 +20,14 @@ private:
 	llvm::Module& module;
 	TypeMapper typeMapper;
 	std::unordered_map<std::string, llvm::AllocaInst*> namedValues;
+	std::unordered_map<std::string, std::vector<llvm::Function*>> functionsByAlias;
 
 	llvm::Value* defaultValue(llvm::Type* type) {
 		if (type == nullptr) {
 			return nullptr;
 		}
 
-		return llvm::UndefValue::get(type);
+		return llvm::Constant::getNullValue(type);
 	}
 
 	llvm::Value* currentReturnFallback() {
@@ -92,6 +96,35 @@ private:
 		return symbol;
 	}
 
+	void registerFunctionAlias(const std::string& alias, llvm::Function* function) {
+		if (alias.empty() || function == nullptr) {
+			return;
+		}
+
+		auto& functions = functionsByAlias[alias];
+		if (std::find(functions.begin(), functions.end(), function) == functions.end()) {
+			functions.push_back(function);
+		}
+	}
+
+	void registerFunctionAliases(
+			const std::shared_ptr<ir::ValueSymbol>& funcSymbol,
+			llvm::Function* function) {
+		if (!funcSymbol || function == nullptr) {
+			return;
+		}
+
+		registerFunctionAlias(funcSymbol->getMangledName(), function);
+		registerFunctionAlias(funcSymbol->name, function);
+
+		if (funcSymbol->packageName.has_value()) {
+			registerFunctionAlias(funcSymbol->packageName.value() + "$" + funcSymbol->name, function);
+			registerFunctionAlias(
+				ir::getMangledPackageName(funcSymbol->packageName.value()) + "$" + funcSymbol->name,
+				function);
+		}
+	}
+
 	llvm::Function* resolveFunctionByName(
 			const ir::Node* callee,
 			std::size_t argumentCount) {
@@ -105,23 +138,38 @@ private:
 		}
 
 		if (auto* function = module.getFunction(flatName)) {
-			return function;
+			if (function->arg_size() == argumentCount) {
+				return function;
+			}
+			DEBUG(
+				"Function '" << flatName << "' exists with " << function->arg_size()
+				<< " args, but call expected " << argumentCount);
+			return nullptr;
 		}
 
-		llvm::Function* fallback = nullptr;
-		for (auto& function : module.functions()) {
-			auto functionName = function.getName().str();
-			if (functionName == flatName || functionName.rfind(flatName, 0) == 0) {
-				if (function.arg_size() == argumentCount) {
-					return &function;
+		auto it = functionsByAlias.find(flatName);
+		if (it == functionsByAlias.end()) {
+			return nullptr;
+		}
+
+		llvm::Function* match = nullptr;
+		for (auto* function : it->second) {
+			if (function != nullptr && function->arg_size() == argumentCount) {
+				if (match != nullptr && match != function) {
+					DEBUG(
+						"Ambiguous function lookup for '" << flatName
+						<< "' with " << argumentCount << " args");
+					return nullptr;
 				}
-				if (fallback == nullptr) {
-					fallback = &function;
-				}
+				match = function;
 			}
 		}
 
-		return fallback;
+		if (match == nullptr) {
+			DEBUG("No function overload for '" << flatName << "' with " << argumentCount << " args");
+		}
+
+		return match;
 	}
 
 	llvm::Value* emitName(const ir::Node* node) {
@@ -290,6 +338,10 @@ private:
 
 		auto parameters = collectParameters(declaration);
 		if (function->arg_size() != parameters.size()) {
+			DEBUG(
+				"Parameter count mismatch for " << symbol->getMangledName()
+				<< ": LLVM has " << function->arg_size()
+				<< ", AST has " << parameters.size());
 			return;
 		}
 
@@ -355,7 +407,7 @@ public:
 
 private:
 	void declareSignature(const std::shared_ptr<ir::ValueSymbol>& funcSymbol) {
-		if (!funcSymbol || module.getFunction(funcSymbol->getMangledName())) {
+		if (!funcSymbol) {
 			return;
 		}
 
@@ -384,11 +436,16 @@ private:
 			return;
 		}
 
-		auto* functionType = llvm::FunctionType::get(returnType, params, false);
-		llvm::Function::Create(
-			functionType,
-			llvm::Function::ExternalLinkage,
-			funcSymbol->getMangledName(),
-			module);
+		llvm::Function* function = module.getFunction(funcSymbol->getMangledName());
+		if (function == nullptr) {
+			auto* functionType = llvm::FunctionType::get(returnType, params, false);
+			function = llvm::Function::Create(
+				functionType,
+				llvm::Function::ExternalLinkage,
+				funcSymbol->getMangledName(),
+				module);
+		}
+
+		registerFunctionAliases(funcSymbol, function);
 	}
 };
