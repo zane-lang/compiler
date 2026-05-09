@@ -21,22 +21,9 @@ std::shared_ptr<ir::GlobalScope> Package::getIRProgram() const {
 }
 
 std::string Package::getDebugOutput() const {
-	if (contexts.empty()) {
+	if (!irProgram) {
 		return {};
 	}
 
-	if (contexts.size() == 1) {
-		return contexts.front()->getAstJson();
-	}
-
-	std::ostringstream output;
-	for (std::size_t index = 0; index < contexts.size(); ++index) {
-		if (index != 0) {
-			output << "\n";
-		}
-
-		output << contexts[index]->getAstJson();
-	}
-
-	return output.str();
+	return irProgram->toString();
 }
