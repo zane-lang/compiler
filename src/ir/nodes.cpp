@@ -61,19 +61,6 @@ std::string TypeSymbol::getMangledName() const {
 	return result;
 }
 
-// GlobalScope
-std::any GlobalScope::accept(IRVisitor* visitor) {
-	return visitor->visitGlobalScope(this);
-}
-
-std::string GlobalScope::getNodeName() const {
-	return "GlobalScope";
-}
-
-std::string GlobalScope::printChildren(const std::string& prefix) const {
-	return printNodeVector(body, prefix);
-}
-
 // FuncType
 std::any FuncType::accept(IRVisitor* visitor) {
 	return visitor->visitFuncType(this);
@@ -129,97 +116,6 @@ std::string Type::getNodeName() const {
 	});
 
 	return "Type(" + nodeName + ")";
-}
-
-// Scope
-std::any Scope::accept(IRVisitor* visitor) {
-	return visitor->visitScope(this);
-}
-
-std::string Scope::getNodeName() const {
-	return "Scope";
-}
-
-std::string Scope::printChildren(const std::string& prefix) const {
-	return printNodeVector(statements, prefix);
-}
-
-// ReturnStatement
-std::any ReturnStatement::accept(IRVisitor* visitor) {
-	return visitor->visitReturnStatement(this);
-}
-
-std::string ReturnStatement::getNodeName() const {
-	return "ReturnStatement(" + value->getNodeName() + ")";
-}
-
-// Lambda
-std::any Lambda::accept(IRVisitor* visitor) {
-    return visitor->visitLambda(this);
-}
-
-std::string Lambda::getNodeName() const {
-    return "Lambda(" + name + ")";
-}
-
-std::string Lambda::printChildren(const std::string& prefix) const {
-    if (scope) return scope->printTree(prefix, true);
-    return "";
-}
-
-// FuncDef
-std::any FuncDef::accept(IRVisitor* visitor) {
-	return visitor->visitFuncDef(this);
-}
-
-std::string FuncDef::getMangledName() const {
-	return symbol->getMangledName();
-}
-
-std::string FuncDef::getNodeName() const {
-	return "FuncDef(" + symbol->getNodeName() + ")";
-}
-
-std::string FuncDef::printChildren(const std::string& prefix) const {
-	if (scope) return scope->printTree(prefix, true);
-	return "";
-}
-
-// VarDef
-std::any VarDef::accept(IRVisitor* visitor) {
-	return visitor->visitVarDef(this);
-}
-
-std::string VarDef::getNodeName() const {
-	return "VarDef(" + symbol->getMangledName() + ")";
-}
-
-// FuncCall
-std::any FuncCall::accept(IRVisitor* visitor) {
-	return visitor->visitFuncCall(this);
-}
-
-std::string FuncCall::getNodeName() const {
-	return "FuncCall";
-}
-
-std::string FuncCall::printChildren(const std::string& prefix) const {
-	std::string result;
-	bool isCalleeLast = arguments.empty();
-	if (callee) {
-		result += callee->printTree(prefix, isCalleeLast);
-	}
-	result += printNodeVector(arguments, prefix);
-	return result;
-}
-
-// StringLiteral
-std::any StringLiteral::accept(IRVisitor* visitor) {
-	return visitor->visitStringLiteral(this);
-}
-
-std::string StringLiteral::getNodeName() const {
-	return "StringLiteral(" + value + ")";
 }
 
 } // namespace ir

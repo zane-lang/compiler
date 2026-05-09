@@ -233,172 +233,35 @@ inline std::unique_ptr<zane::Node> cloneNode(const zane::Node* node) {
 	return clone;
 }
 
-inline std::shared_ptr<ir::IRNode> lowerNode(const zane::Node* node) {
-	if (node == nullptr) {
-		return nullptr;
-	}
-
-	return std::shared_ptr<zane::Node>(cloneNode(node).release());
-}
-
-inline std::shared_ptr<ir::IRNode> lowerExpression(const zane::Node* node);
-
-inline std::shared_ptr<ir::Scope> lowerBlock(const zane::Node* node) {
-	if (node == nullptr || node->kind != "block") {
-		return nullptr;
-	}
-
-	auto scope = std::make_shared<ir::Scope>();
-	for (const auto* child : node->children) {
-		if (child == nullptr) {
-			continue;
-		}
-
-		if (child->kind == "expression_stmt") {
-			auto statement = lowerExpression(childAt(child, 0));
-			if (statement) {
-				scope->statements.push_back(statement);
-			}
-			continue;
-		}
-
-		if (child->kind == "return_stmt") {
-			auto statement = std::make_shared<ir::ReturnStatement>();
-			statement->value = lowerExpression(childAt(child, 0));
-			scope->statements.push_back(statement);
-			continue;
-		}
-
-		auto statement = lowerNode(child);
-		if (statement) {
-			scope->statements.push_back(statement);
-		}
-	}
-
-	return scope;
-}
-
-inline std::shared_ptr<ir::Scope> lowerCallableBody(const zane::Node* node) {
-	if (node == nullptr) {
-		return nullptr;
-	}
-
-	if (node->kind == "block_body") {
-		return lowerBlock(childAt(node, 0));
-	}
-
-	if (node->kind == "expr_body") {
-		auto scope = std::make_shared<ir::Scope>();
-		auto statement = std::make_shared<ir::ReturnStatement>();
-		statement->value = lowerExpression(childAt(node, 0));
-		scope->statements.push_back(statement);
-		return scope;
-	}
-
-	return nullptr;
-}
-
-inline std::shared_ptr<ir::FuncCall> lowerCallExpr(const zane::Node* node) {
-	if (node == nullptr || node->kind != "call_expr") {
-		return nullptr;
-	}
-
-	auto call = std::make_shared<ir::FuncCall>();
-	call->callee = lowerExpression(childAt(node, 0));
-	for (std::size_t index = 1; index < node->children.size(); ++index) {
-		auto argument = lowerExpression(childAt(node, index));
-		if (argument) {
-			call->arguments.push_back(argument);
-		}
-	}
-
-	return call;
-}
-
-inline std::shared_ptr<ir::IRNode> lowerExpression(const zane::Node* node) {
-	if (node == nullptr) {
-		return nullptr;
-	}
-
-	if (node->kind == "call_expr") {
-		return lowerCallExpr(node);
-	}
-
-	if (node->kind == "name") {
-		auto symbol = std::make_shared<ir::ValueSymbol>();
-		symbol->name = node->value;
-		return symbol;
-	}
-
-	if (node->kind == "string_literal") {
-		auto literal = std::make_shared<ir::StringLiteral>();
-		literal->value = node->value;
-		return literal;
-	}
-
-	return lowerNode(node);
-}
-
-inline std::shared_ptr<ir::FuncDef> lowerFunctionDecl(
+inline std::shared_ptr<ir::ValueSymbol> makeCallableSymbol(
 		const zane::Node* node,
 		const std::string& packageName) {
-	if (node == nullptr || node->kind != "function_decl") {
+	if (node == nullptr) {
 		return nullptr;
 	}
 
 	auto symbol = std::make_shared<ir::ValueSymbol>();
 	auto callableType = lowerCallableType(node);
-	symbol->packageName = packageName;
-	symbol->name = flattenName(childAt(node, 1));
+	if (!packageName.empty()) {
+		symbol->packageName = packageName;
+	}
 	symbol->type = std::make_shared<ir::Type>(callableType);
+
+	if (node->kind == "function_decl") {
+		symbol->name = flattenName(childAt(node, 1));
+	}
+	else if (
+		node->kind == "constructor_decl"
+		|| node->kind == "field_constructor_decl"
+	) {
+		symbol->name = flattenName(childAt(node, 0));
+	}
+
 	if (symbol->name.empty()) {
 		return nullptr;
 	}
 
-	auto func = std::make_shared<ir::FuncDef>();
-	func->symbol = symbol;
-	func->type = callableType;
-
-	for (const auto* child : node->children) {
-		if (child == nullptr || child->kind != "param_decl") {
-			continue;
-		}
-
-		func->parameters.push_back(child->value);
-	}
-
-	const zane::Node* callableBody = nullptr;
-	for (const auto* child : node->children) {
-		if (child == nullptr) {
-			continue;
-		}
-
-		if (child->kind == "block_body" || child->kind == "expr_body") {
-			callableBody = child;
-			break;
-		}
-	}
-
-	func->scope = lowerCallableBody(callableBody);
-	return func;
-}
-
-inline std::shared_ptr<ir::IRNode> lowerTopLevelNode(
-		const zane::Node* node,
-		const std::string& packageName) {
-	if (node == nullptr) {
-		return nullptr;
-	}
-
-	if (node->kind == "package_decl") {
-		return nullptr;
-	}
-
-	if (node->kind == "function_decl") {
-		return lowerFunctionDecl(node, packageName);
-	}
-
-	return lowerNode(node);
+	return symbol;
 }
 
 } // namespace ast

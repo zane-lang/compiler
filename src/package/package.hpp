@@ -25,7 +25,7 @@ struct Package {
 	// Package owns its visitor outright; the visitor in turn borrows the collector.
 	std::unique_ptr<Visitor> visitor;
 	std::shared_ptr<ir::PackageInfo> packageInfo;
-	std::shared_ptr<ir::GlobalScope> irProgram;
+	std::shared_ptr<ir::Node> irProgram;
 
 	Package() = delete;
 	Package(zane::ref<SymbolCollector> symbolCollector);
@@ -51,7 +51,7 @@ struct Package {
 		const std::vector<std::shared_ptr<ir::PackageInfo>>& externalPackages,
 		const std::string& triple);
 	std::shared_ptr<ir::PackageInfo> getPackageInfo() const;
-	std::shared_ptr<ir::GlobalScope> getIRProgram() const;
+	std::shared_ptr<ir::Node> getIRProgram() const;
 	std::string getDebugOutput() const;
 
 private:

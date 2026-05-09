@@ -14,7 +14,7 @@ std::shared_ptr<ir::PackageInfo> Package::getPackageInfo() const {
 	return packageInfo;
 }
 
-std::shared_ptr<ir::GlobalScope> Package::getIRProgram() const {
+std::shared_ptr<ir::Node> Package::getIRProgram() const {
 	return irProgram;
 }
 

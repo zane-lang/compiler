@@ -30,25 +30,7 @@ class SymbolCollector {
 			return nullptr;
 		}
 
-		auto symbol = std::make_shared<ir::ValueSymbol>();
-		symbol->packageName = current->packageName;
-		symbol->type = std::make_shared<ir::Type>(ast::lowerCallableType(declaration));
-
-		if (declaration->kind == "function_decl") {
-			symbol->name = ast::flattenName(ast::childAt(declaration, 1));
-		}
-		else if (
-			declaration->kind == "constructor_decl"
-			|| declaration->kind == "field_constructor_decl"
-		) {
-			symbol->name = ast::flattenName(ast::childAt(declaration, 0));
-		}
-
-		if (symbol->name.empty()) {
-			return nullptr;
-		}
-
-		return symbol;
+		return ast::makeCallableSymbol(declaration, current->packageName);
 	}
 
 public:

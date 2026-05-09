@@ -90,20 +90,6 @@ struct PackageInfo {
 	}
 };
 
-struct GlobalScope : public IRNode {
-	std::vector<std::shared_ptr<IRNode>> body;
-	std::string packageName;
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getNodeName() const override;
-	std::string printChildren(const std::string& prefix) const override;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(packageName, body);
-	}
-};
-
 struct FuncMod {
 	enum Value {
 		Open,
@@ -183,107 +169,6 @@ struct Type : public IRNode {
 	}
 };
 
-struct Scope : public IRNode {
-	std::weak_ptr<IRNode> parent;
-	std::unordered_map<std::string, std::shared_ptr<FuncDef>> functionDefs;
-	std::vector<std::shared_ptr<IRNode>> statements;
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getNodeName() const override;
-	std::string printChildren(const std::string& prefix) const override;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		// parent is a weak_ptr and represents a runtime graph edge;
-		// it is intentionally skipped and must be re-linked after deserialization
-		ar(functionDefs, statements);
-	}
-};
-
-struct ReturnStatement : public IRNode {
-	std::shared_ptr<IRNode> value;
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getNodeName() const override;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(value);
-	}
-};
-
-struct VarDef : public IRNode {
-	std::shared_ptr<ValueSymbol> symbol;
-	std::shared_ptr<IRNode> value;
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getNodeName() const override;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(symbol, value);
-	}
-};
-
-struct Lambda : public IRNode {
-	std::string name;
-	std::vector<std::string> parameters;
-	std::shared_ptr<Scope> scope;
-	std::shared_ptr<FuncType> type; // null until resolved
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getNodeName() const override;
-	std::string printChildren(const std::string& prefix) const override;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(name, parameters, scope);
-	}
-};
-
-struct FuncDef : public IRNode {
-	std::shared_ptr<ValueSymbol> symbol;
-	std::vector<std::string> parameters;
-	std::shared_ptr<Scope> scope;
-	std::shared_ptr<FuncType> type;
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getMangledName() const;
-	std::string getNodeName() const override;
-	std::string printChildren(const std::string& prefix) const override;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(symbol, parameters, scope);
-	}
-};
-
-struct FuncCall : public IRNode {
-	std::shared_ptr<IRNode> callee;
-	std::vector<std::shared_ptr<IRNode>> arguments;
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getNodeName() const override;
-	std::string printChildren(const std::string& prefix) const override;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(callee, arguments);
-	}
-};
-
-struct StringLiteral : public IRNode {
-	std::string value;
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getNodeName() const override;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(value);
-	}
-};
-
 } // namespace ir
 
 // Register polymorphic types with cereal
@@ -292,27 +177,11 @@ struct StringLiteral : public IRNode {
 
 CEREAL_REGISTER_TYPE(ir::ValueSymbol)
 CEREAL_REGISTER_TYPE(ir::TypeSymbol)
-CEREAL_REGISTER_TYPE(ir::FuncDef)
-CEREAL_REGISTER_TYPE(ir::VarDef)
-CEREAL_REGISTER_TYPE(ir::GlobalScope)
-CEREAL_REGISTER_TYPE(ir::Scope)
-CEREAL_REGISTER_TYPE(ir::FuncCall)
-CEREAL_REGISTER_TYPE(ir::StringLiteral)
-CEREAL_REGISTER_TYPE(ir::ReturnStatement)
 CEREAL_REGISTER_TYPE(ir::Type)
 CEREAL_REGISTER_TYPE(ir::FuncType)
-CEREAL_REGISTER_TYPE(ir::Lambda)
 
 // Register inheritance relationships
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::ValueSymbol)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::TypeSymbol)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::FuncDef)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::VarDef)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::GlobalScope)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::Scope)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::FuncCall)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::StringLiteral)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::ReturnStatement)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::Type)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::FuncType)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::Lambda)
