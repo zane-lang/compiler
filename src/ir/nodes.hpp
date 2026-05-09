@@ -9,7 +9,6 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
-#include <unordered_map>
 #include <cereal/types/optional.hpp>
 #include <cereal/types/memory.hpp>
 #include <cereal/types/vector.hpp>
