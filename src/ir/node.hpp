@@ -30,19 +30,19 @@ public:
 	virtual ~IRVisitor() = default;
 	virtual std::any visit(IRNode* node);
 
-	virtual std::any visitFuncDef(FuncDef* node) { return {}; }
-	virtual std::any visitGlobalScope(GlobalScope* node) { return {}; }
-	virtual std::any visitScope(Scope* node) { return {}; }
-	virtual std::any visitFuncCall(FuncCall* node) { return {}; }
-	virtual std::any visitStringLiteral(StringLiteral* node) { return {}; }
-	virtual std::any visitType(Type* node) { return {}; }
-	virtual std::any visitFuncType(FuncType* node) { return {}; }
-	virtual std::any visitVarDef(VarDef* node) { return {}; }
-	virtual std::any visitReturnStatement(ReturnStatement* node) { return {}; }
-	virtual std::any visitValueSymbol(ValueSymbol* node) { return {}; }
-	virtual std::any visitTypeSymbol(TypeSymbol* node) { return {}; }
-	virtual std::any visitLambda(Lambda* node) {return {}; }
-	virtual std::any visitAstNode(zane::Node* node) { return {}; }
+	virtual std::any visitFuncDef(FuncDef*) { return {}; }
+	virtual std::any visitGlobalScope(GlobalScope*) { return {}; }
+	virtual std::any visitScope(Scope*) { return {}; }
+	virtual std::any visitFuncCall(FuncCall*) { return {}; }
+	virtual std::any visitStringLiteral(StringLiteral*) { return {}; }
+	virtual std::any visitType(Type*) { return {}; }
+	virtual std::any visitFuncType(FuncType*) { return {}; }
+	virtual std::any visitVarDef(VarDef*) { return {}; }
+	virtual std::any visitReturnStatement(ReturnStatement*) { return {}; }
+	virtual std::any visitValueSymbol(ValueSymbol*) { return {}; }
+	virtual std::any visitTypeSymbol(TypeSymbol*) { return {}; }
+	virtual std::any visitLambda(Lambda*) { return {}; }
+	virtual std::any visitAstNode(zane::Node*) { return {}; }
 };
 
 struct IRNode {
@@ -62,7 +62,7 @@ struct IRNode {
 		return result;
 	}
 
-	virtual std::string printChildren(const std::string& prefix) const {
+	virtual std::string printChildren(const std::string&) const {
 		return "";
 	}
 
