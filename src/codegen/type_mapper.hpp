@@ -1,4 +1,4 @@
-#include "ir/nodes.hpp"
+#include "semantic/metadata.hpp"
 #include <unordered_map>
 #include <string>
 #include <llvm/IR/Type.h>
@@ -27,13 +27,13 @@ public:
 		return nullptr;
 	}
 
-	llvm::Type* toLLVMType(ir::Type* irType) {
+	llvm::Type* toLLVMType(semantic::Type* irType) {
 		std::shared_ptr<llvm::Type*> result;
 		irType->value.match(
-			[&](std::shared_ptr<ir::TypeSymbol> ts) {
+			[&](std::shared_ptr<semantic::TypeSymbol> ts) {
 				result = std::make_shared<llvm::Type*>(toLLVMType(ts->getMangledName()));
 			},
-			[&](std::shared_ptr<ir::FuncType> ft) {
+			[&](std::shared_ptr<semantic::FuncType> ft) {
 				llvm::Type* retType = toLLVMType(ft->returnType.get());
 				std::vector<llvm::Type*> params;
 				for (auto& p : ft->paramTypes) {

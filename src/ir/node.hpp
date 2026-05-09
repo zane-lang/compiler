@@ -1,56 +1,42 @@
 #pragma once
 
-#include <any>
-#include <memory>
 #include <string>
 #include <vector>
 
 namespace ir {
 
-struct IRNode;
-struct FuncDef;
-struct VarDef;
-struct GlobalScope;
-struct Scope;
-struct FuncCall;
-struct StringLiteral;
-struct FuncType;
-struct ReturnStatement;
-	struct Type;
-	struct ValueSymbol;
-	struct TypeSymbol;
-	struct Lambda;
-	struct RawAstNode;
+struct Node {
+	std::string kind;
+	std::string value;
+	std::vector<Node*> children;
 
-class IRVisitor {
-public:
-	virtual ~IRVisitor() = default;
-	virtual std::any visit(IRNode* node);
+	Node(std::string nodeKind, std::string nodeValue = {})
+		: kind(std::move(nodeKind)), value(std::move(nodeValue)) {}
 
-	virtual std::any visitFuncDef(FuncDef* node) { return {}; }
-	virtual std::any visitGlobalScope(GlobalScope* node) { return {}; }
-	virtual std::any visitScope(Scope* node) { return {}; }
-	virtual std::any visitFuncCall(FuncCall* node) { return {}; }
-	virtual std::any visitStringLiteral(StringLiteral* node) { return {}; }
-	virtual std::any visitType(Type* node) { return {}; }
-	virtual std::any visitFuncType(FuncType* node) { return {}; }
-	virtual std::any visitVarDef(VarDef* node) { return {}; }
-	virtual std::any visitReturnStatement(ReturnStatement* node) { return {}; }
-	virtual std::any visitValueSymbol(ValueSymbol* node) { return {}; }
-	virtual std::any visitTypeSymbol(TypeSymbol* node) { return {}; }
-	virtual std::any visitLambda(Lambda* node) {return {}; }
-	virtual std::any visitRawAstNode(RawAstNode* node) { return {}; }
-};
+	Node(const Node&) = delete;
+	Node& operator=(const Node&) = delete;
+	Node(Node&&) = default;
+	Node& operator=(Node&&) = default;
 
-struct IRNode {
-	virtual ~IRNode() = default;
-	virtual std::string getNodeName() const = 0;
-	virtual std::any accept(IRVisitor* visitor) = 0;
-	virtual std::string toString() const {
+	~Node() {
+		for (Node* child : children) {
+			delete child;
+		}
+	}
+
+	std::string getNodeName() const {
+		if (value.empty()) {
+			return kind;
+		}
+
+		return kind + ": " + value;
+	}
+
+	std::string toString() const {
 		return printTree("", true);
 	}
 
-	virtual std::string printTree(const std::string& prefix, bool isLast) const {
+	std::string printTree(const std::string& prefix, bool isLast) const {
 		std::string result;
 		std::string connector = isLast ? "└── " : "├── ";
 		result += prefix + connector + getNodeName() + "\n";
@@ -59,28 +45,59 @@ struct IRNode {
 		return result;
 	}
 
-	virtual std::string printChildren(const std::string& prefix) const {
-		return "";
-	}
-
-protected:
-	std::string printNodeVector(const std::vector<std::shared_ptr<IRNode>>& nodes, const std::string& prefix) const {
+	std::string printChildren(const std::string& prefix) const {
 		std::string result;
-		for (size_t i = 0; i < nodes.size(); ++i) {
-			bool last = (i == nodes.size() - 1);
-			if (nodes[i]) {
-				result += nodes[i]->printTree(prefix, last);
+		for (std::size_t index = 0; index < children.size(); ++index) {
+			if (children[index] == nullptr) {
+				continue;
 			}
+
+			result += children[index]->printTree(prefix, index + 1 == children.size());
 		}
 		return result;
 	}
 };
 
-inline std::any IRVisitor::visit(IRNode* node) {
-	if (node) {
-		return node->accept(this);
+using NodeList = std::vector<Node*>;
+
+inline Node* makeNode(std::string kind, std::string value = {}) {
+	return new Node(std::move(kind), std::move(value));
+}
+
+inline NodeList* makeList() {
+	return new NodeList();
+}
+
+inline void push(NodeList* list, Node* node) {
+	if (list != nullptr && node != nullptr) {
+		list->push_back(node);
 	}
-	return {};
+}
+
+inline Node* adopt(Node* parent, Node* child) {
+	if (parent != nullptr && child != nullptr) {
+		parent->children.push_back(child);
+	}
+	return parent;
+}
+
+inline Node* adoptValue(Node* parent, const std::string& kind, const std::string& value) {
+	if (parent != nullptr) {
+		parent->children.push_back(makeNode(kind, value));
+	}
+	return parent;
+}
+
+inline Node* adoptList(Node* parent, NodeList* list) {
+	if (parent != nullptr && list != nullptr) {
+		for (Node* child : *list) {
+			if (child != nullptr) {
+				parent->children.push_back(child);
+			}
+		}
+	}
+	delete list;
+	return parent;
 }
 
 } // namespace ir

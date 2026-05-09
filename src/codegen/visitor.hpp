@@ -1,266 +1,454 @@
 #pragma once
 
+#include "ast/ast_helpers.hpp"
 #include "codegen/type_mapper.hpp"
-#include "ir/node.hpp"
-#include "ir/nodes.hpp"
 #include "package/package.hpp"
 #include "utils/console.hpp"
 
-#include <llvm/IR/Module.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/IRBuilder.h>
-#include <any>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Type.h>
+#include <algorithm>
+#include <unordered_map>
+#include <vector>
 
-class LLVMVisitor : public ir::IRVisitor {
+class LLVMVisitor {
 private:
+	static inline constexpr char packageAliasSeparator = '$';
+
 	llvm::LLVMContext& context;
 	llvm::IRBuilder<>& builder;
 	llvm::Module& module;
 	TypeMapper typeMapper;
 	std::unordered_map<std::string, llvm::AllocaInst*> namedValues;
+	std::unordered_map<std::string, std::vector<llvm::Function*>> functionsByAlias;
 
-	template<typename T>
-	T get(ir::IRNode* node) {
-		std::any result = visit(node);
-		if (result.has_value()) {
-			return std::any_cast<T>(result);
+	llvm::Value* defaultValue(llvm::Type* type) {
+		if (type == nullptr) {
+			return nullptr;
 		}
+
+		return llvm::Constant::getNullValue(type);
+	}
+
+	llvm::Value* currentReturnFallback() {
+		auto* block = builder.GetInsertBlock();
+		if (block == nullptr) {
+			return nullptr;
+		}
+
+		auto* function = block->getParent();
+		if (function == nullptr || function->getReturnType()->isVoidTy()) {
+			return nullptr;
+		}
+
+		return defaultValue(function->getReturnType());
+	}
+
+	void emitReturnValue(llvm::Value* value) {
+		if (value != nullptr) {
+			builder.CreateRet(value);
+			return;
+		}
+
+		if (auto* fallback = currentReturnFallback()) {
+			builder.CreateRet(fallback);
+			return;
+		}
+
+		builder.CreateRetVoid();
+	}
+
+	const ir::Node* findCallableBody(const ir::Node* declaration) const {
+		if (declaration == nullptr) {
+			return nullptr;
+		}
+
+		for (const auto* child : declaration->children) {
+			if (
+				child != nullptr
+				&& (child->kind == "block_body" || child->kind == "expr_body")
+			) {
+				return child;
+			}
+		}
+
 		return nullptr;
 	}
 
-public:
-	LLVMVisitor(llvm::LLVMContext& ctx, llvm::IRBuilder<>& b, llvm::Module& m) 
-		: context(ctx), builder(b), module(m), typeMapper(ctx) {}
+	std::vector<std::string> collectParameters(const ir::Node* declaration) const {
+		std::vector<std::string> parameters;
+		if (declaration == nullptr) {
+			return parameters;
+		}
 
-	// std::any visitGlobalScope(ir::GlobalScope* node) override {
-	// 	// First pass: Signatures
-	// 	for (auto& [name, funcDef] : node->functionDefs) {
-	// 		declareSignature(funcDef.get());
-	// 	}
-	// 	// Second pass: Bodies
-	// 	for (auto& [name, funcDef] : node->functionDefs) {
-	// 		visit(funcDef.get());
-	// 	}
-	// 	return {};
-	// }
+		for (const auto* child : declaration->children) {
+			if (child != nullptr && child->kind == "param_decl") {
+				parameters.push_back(child->value);
+			}
+		}
+
+		return parameters;
+	}
+
+	std::shared_ptr<semantic::ValueSymbol> resolveCallableSymbol(
+			const ir::Node* declaration,
+			const std::shared_ptr<semantic::PackageInfo>& packageInfo) const {
+		if (packageInfo == nullptr) {
+			return nullptr;
+		}
+
+		auto symbol = ast::makeCallableSymbol(declaration, packageInfo->packageName);
+		if (!symbol) {
+			return nullptr;
+		}
+
+		auto it = packageInfo->symbols.find(symbol->getMangledName());
+		if (it != packageInfo->symbols.end()) {
+			return it->second;
+		}
+
+		return symbol;
+	}
+
+	void registerFunctionAlias(const std::string& alias, llvm::Function* function) {
+		if (alias.empty() || function == nullptr) {
+			return;
+		}
+
+		auto& functions = functionsByAlias[alias];
+		if (std::find(functions.begin(), functions.end(), function) == functions.end()) {
+			functions.push_back(function);
+		}
+	}
+
+	void registerFunctionAliases(
+			const std::shared_ptr<semantic::ValueSymbol>& funcSymbol,
+			llvm::Function* function) {
+		if (!funcSymbol || function == nullptr) {
+			return;
+		}
+
+		registerFunctionAlias(funcSymbol->getMangledName(), function);
+		registerFunctionAlias(funcSymbol->name, function);
+
+		if (funcSymbol->packageName.has_value()) {
+			auto packageQualifiedName =
+				funcSymbol->packageName.value() + packageAliasSeparator + funcSymbol->name;
+			registerFunctionAlias(
+				packageQualifiedName,
+				function);
+			registerFunctionAlias(
+				semantic::getMangledPackageName(funcSymbol->packageName.value())
+					+ packageAliasSeparator + funcSymbol->name,
+				function);
+		}
+	}
+
+	llvm::Function* resolveFunctionByName(
+			const ir::Node* callee,
+			std::size_t argumentCount) {
+		if (callee == nullptr) {
+			return nullptr;
+		}
+
+		auto flatName = ast::flattenName(callee);
+		if (flatName.empty()) {
+			return nullptr;
+		}
+
+		if (auto* function = module.getFunction(flatName)) {
+			if (function->arg_size() == argumentCount) {
+				return function;
+			}
+			DEBUG(
+				"Function '" << flatName << "' exists with " << function->arg_size()
+				<< " args, but call expected " << argumentCount);
+			return nullptr;
+		}
+
+		auto it = functionsByAlias.find(flatName);
+		if (it == functionsByAlias.end()) {
+			return nullptr;
+		}
+
+		llvm::Function* match = nullptr;
+		std::vector<std::string> ambiguousMatches;
+		for (auto* function : it->second) {
+			if (function != nullptr && function->arg_size() == argumentCount) {
+				ambiguousMatches.push_back(function->getName().str());
+				if (match != nullptr && match != function) {
+					DEBUG(
+						"Ambiguous function lookup for '" << flatName
+						<< "' with " << argumentCount << " args: "
+						<< ambiguousMatches[0] << " vs " << ambiguousMatches.back());
+					return nullptr;
+				}
+				match = function;
+			}
+		}
+
+		if (match == nullptr) {
+			DEBUG("No function overload for '" << flatName << "' with " << argumentCount << " args");
+		}
+
+		return match;
+	}
+
+	llvm::Value* emitName(const ir::Node* node) {
+		if (node == nullptr) {
+			return nullptr;
+		}
+
+		auto it = namedValues.find(node->value);
+		if (it != namedValues.end()) {
+			return builder.CreateLoad(
+				it->second->getAllocatedType(), it->second, node->value);
+		}
+
+		if (auto* function = resolveFunctionByName(node, 0)) {
+			return function;
+		}
+
+		DEBUG("Unknown symbol: " << node->value);
+		return nullptr;
+	}
+
+	llvm::Value* emitQualifiedName(const ir::Node* node) {
+		return resolveFunctionByName(node, 0);
+	}
+
+	llvm::Value* emitCall(const ir::Node* node) {
+		if (node == nullptr || node->children.empty()) {
+			return nullptr;
+		}
+
+		std::vector<llvm::Value*> args;
+		for (std::size_t index = 1; index < node->children.size(); ++index) {
+			const auto* argumentNode = node->children[index];
+			if (argumentNode != nullptr && !argumentNode->children.empty()) {
+				if (argumentNode->kind == "named_arg" || argumentNode->kind == "field_arg") {
+					argumentNode = argumentNode->children.front();
+				}
+			}
+
+			auto* value = emitNode(argumentNode);
+			if (value == nullptr) {
+				return nullptr;
+			}
+			args.push_back(value);
+		}
+
+		const auto* callee = node->children.front();
+		if (auto* function = resolveFunctionByName(callee, args.size())) {
+			auto* call = builder.CreateCall(function, args);
+			call->setCallingConv(function->getCallingConv());
+			return call;
+		}
+
+		DEBUG("Unknown callee for: " << node->getNodeName());
+		return nullptr;
+	}
+
+	llvm::Value* emitNode(const ir::Node* node) {
+		if (node == nullptr) {
+			return nullptr;
+		}
+
+		if (node->kind == "name") {
+			return emitName(node);
+		}
+
+		if (node->kind == "qualified_name") {
+			return emitQualifiedName(node);
+		}
+
+		if (node->kind == "string_literal") {
+			return builder.CreateGlobalString(node->value);
+		}
+
+		if (node->kind == "call_expr") {
+			return emitCall(node);
+		}
+
+		if (node->kind == "expression_stmt") {
+			return emitNode(ast::childAt(node, 0));
+		}
+
+		return nullptr;
+	}
+
+	void emitReturn(const ir::Node* node) {
+		emitReturnValue(emitNode(ast::childAt(node, 0)));
+	}
+
+	void emitStatement(const ir::Node* node) {
+		if (node == nullptr || builder.GetInsertBlock()->getTerminator()) {
+			return;
+		}
+
+		if (node->kind == "return_stmt") {
+			emitReturn(node);
+			return;
+		}
+
+		(void)emitNode(node);
+	}
+
+	void emitBody(const ir::Node* body) {
+		if (body == nullptr) {
+			return;
+		}
+
+		if (body->kind == "expr_body") {
+			auto* value = emitNode(ast::childAt(body, 0));
+			if (builder.GetInsertBlock()->getTerminator()) {
+				return;
+			}
+
+			emitReturnValue(value);
+			return;
+		}
+
+		if (body->kind != "block_body") {
+			return;
+		}
+
+		const auto* block = ast::childAt(body, 0);
+		if (block == nullptr) {
+			return;
+		}
+
+		for (const auto* statement : block->children) {
+			emitStatement(statement);
+			if (builder.GetInsertBlock()->getTerminator()) {
+				break;
+			}
+		}
+	}
+
+	void emitFunction(const ir::Node* declaration, const std::shared_ptr<semantic::PackageInfo>& packageInfo) {
+		auto symbol = resolveCallableSymbol(declaration, packageInfo);
+		if (!symbol) {
+			return;
+		}
+
+		llvm::Function* function = module.getFunction(symbol->getMangledName());
+		if (function == nullptr) {
+			return;
+		}
+
+		auto parameters = collectParameters(declaration);
+		if (function->arg_size() != parameters.size()) {
+			DEBUG(
+				"Parameter count mismatch for " << symbol->getMangledName()
+				<< ": LLVM has " << function->arg_size()
+				<< ", AST has " << parameters.size());
+			return;
+		}
+
+		auto* entry = llvm::BasicBlock::Create(context, "entry", function);
+		builder.SetInsertPoint(entry);
+		namedValues.clear();
+
+		std::size_t index = 0;
+		for (auto& argument : function->args()) {
+			const auto& name = parameters[index++];
+			argument.setName(name);
+
+			auto* alloca = builder.CreateAlloca(argument.getType(), nullptr, name);
+			builder.CreateStore(&argument, alloca);
+			namedValues[name] = alloca;
+		}
+
+		emitBody(findCallableBody(declaration));
+
+		if (builder.GetInsertBlock()->getTerminator()) {
+			return;
+		}
+
+		if (function->getReturnType()->isVoidTy()) {
+			builder.CreateRetVoid();
+			return;
+		}
+
+		builder.CreateRet(defaultValue(function->getReturnType()));
+	}
+
+public:
+	LLVMVisitor(llvm::LLVMContext& ctx, llvm::IRBuilder<>& b, llvm::Module& m)
+		: context(ctx), builder(b), module(m), typeMapper(ctx) {}
 
 	void declareSignatures(zane::ref<Package> package) {
 		declareSignatures(package->packageInfo);
 	}
 
-	void declareSignatures(const std::shared_ptr<ir::PackageInfo>& packageInfo) {
-		if (!packageInfo) return;
-		declarePackageSymbols(packageInfo->symbols);
+	void declareSignatures(const std::shared_ptr<semantic::PackageInfo>& packageInfo) {
+		if (!packageInfo) {
+			return;
+		}
+
+		for (const auto& [name, symbol] : packageInfo->symbols) {
+			(void)name;
+			declareSignature(symbol);
+		}
 	}
 
 	void generateBodies(zane::ref<Package> package) {
-		auto globalScope = package->getIRProgram();
-		for (auto& node : globalScope->body) {
-			visit(node.get());
-		}
-	}
-
-	std::any visitValueSymbol(ir::ValueSymbol* node) override {
-		// Check bare name first (params/locals are never package-qualified)
-		auto it = namedValues.find(node->name);
-		if (it != namedValues.end()) {
-			return (llvm::Value*)builder.CreateLoad(
-				it->second->getAllocatedType(), it->second, node->name);
+		auto program = package->getIRProgram();
+		if (!program) {
+			return;
 		}
 
-		// Full mangled name (package-qualified globals, fully typed)
-		std::string mangled = node->getMangledName();
-		if (llvm::Function* func = module.getFunction(mangled)) {
-			return (llvm::Value*)func;
-		}
-		if (llvm::Function* func = module.getFunction(node->name)) {
-			return (llvm::Value*)func;
-		}
-
-		DEBUG("Unknown symbol: " << mangled);
-		return (llvm::Value*)nullptr;
-	}
-
-	std::any visitFuncDef(ir::FuncDef* node) override {
-		std::string mangledName = node->getMangledName();
-		llvm::Function* func = module.getFunction(mangledName);
-		if (!func) return {};
-
-		llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", func);
-		builder.SetInsertPoint(entry);
-
-		namedValues.clear();
-		unsigned idx = 0;
-		for (auto& arg : func->args()) {
-			std::string argName = node->parameters[idx];
-			// Build mangled name for param using its type from FuncDef
-			std::string mangledArg = argName; // params have no package prefix
-			arg.setName(mangledArg);
-
-			llvm::AllocaInst* alloca = builder.CreateAlloca(arg.getType(), nullptr, mangledArg);
-			builder.CreateStore(&arg, alloca);
-			namedValues[mangledArg] = alloca;
-
-			idx++;
-		}
-
-		if (node->scope) {
-			visit(node->scope.get());
-		}
-
-		if (!builder.GetInsertBlock()->getTerminator()) {
-			if (func->getReturnType()->isVoidTy()) {
-				builder.CreateRetVoid();
+		for (const auto* child : program->children) {
+			if (child != nullptr && child->kind == "function_decl") {
+				emitFunction(child, package->getPackageInfo());
 			}
 		}
-		return func;
-	}
-
-	std::any visitScope(ir::Scope* node) override {
-		for (const auto& stmt : node->statements) {
-			visit(stmt.get());
-		}
-		return {};
-	}
-	
-
-	template <typename K, typename V>
-	std::string unordered_map_to_string(const std::unordered_map<K, V>& map) {
-		std::ostringstream oss;
-		oss << "{";
-		bool first = true;
-		for (const auto& [key, value] : map) {
-			if (!first) {
-				oss << ", ";
-			}
-			first = false;
-			oss << key << ": " << value;
-		}
-		oss << "}";
-		return oss.str();
-	}
-
-	std::any visitLambda(ir::Lambda* node) override {
-		for (auto& func : module.functions()) {
-			std::string fname = func.getName().str();
-			if (fname.find(node->name) != std::string::npos) {
-				return (llvm::Value*)&func;
-			}
-		}
-		DEBUG("Unknown lambda: " << node->name);
-		return (llvm::Value*)nullptr;
-	}
-
-	std::any visitFuncCall(ir::FuncCall* node) override {
-		DEBUG("visitFuncCall: " << node->arguments.size() << " args");
-		std::vector<llvm::Value*> args;
-		for (const auto& arg : node->arguments) {
-			auto val = get<llvm::Value*>(arg.get());
-			if (!val) {
-				DEBUG("null arg");
-				return {};
-			}
-			args.push_back(val);
-		}
-
-		llvm::Value* calleeValue = get<llvm::Value*>(node->callee.get());
-		if (!calleeValue) {
-			DEBUG("null callee for: " << node->getNodeName());
-			return {};
-		}
-
-		// Direct call
-		if (auto* func = llvm::dyn_cast<llvm::Function>(calleeValue)) {
-			auto* call = builder.CreateCall(func, args);
-			call->setCallingConv(func->getCallingConv());
-			return (llvm::Value*)call;
-		}
-
-		// Indirect call — get FuncType from callee's IR type
-		llvm::FunctionType* funcType = nullptr;
-		if (auto calleeSym = std::dynamic_pointer_cast<ir::ValueSymbol>(node->callee)) {
-			if (calleeSym->type) {
-				calleeSym->type->value.match([&](std::shared_ptr<ir::FuncType> ft) {
-					llvm::Type* retType = typeMapper.toLLVMType(ft->returnType.get());
-					std::vector<llvm::Type*> paramTypes;
-					for (auto& p : ft->paramTypes) {
-						paramTypes.push_back(typeMapper.toLLVMType(p.get()));
-					}
-					funcType = llvm::FunctionType::get(retType, paramTypes, false);
-				});
-			}
-		}
-		if (!funcType) {
-			// Fallback: infer from args, assume void return
-			std::vector<llvm::Type*> argTypes;
-			for (auto* arg : args) argTypes.push_back(arg->getType());
-			funcType = llvm::FunctionType::get(llvm::Type::getVoidTy(context), argTypes, false);
-		}
-
-		return (llvm::Value*)builder.CreateCall(funcType, calleeValue, args);
-	}
-
-	std::any visitStringLiteral(ir::StringLiteral* node) override {
-		return (llvm::Value*)builder.CreateGlobalString(node->value);
-	}
-
-	std::any visitReturnStatement(ir::ReturnStatement *node) override {
-		if (node->value) {
-			// Evaluate the expression to get the LLVM Value*
-			llvm::Value* retVal = get<llvm::Value*>(node->value.get());
-			
-			if (retVal) {
-				return (llvm::Value*)builder.CreateRet(retVal);
-			}
-		}
-		
-		// Fallback for void returns or if the expression evaluation failed
-		return (llvm::Value*)builder.CreateRetVoid();
-	}
-
-	std::any visitType(ir::Type* node) override { return {}; }
-
-	std::any visitVarDef(ir::VarDef* node) override {
-		llvm::Type* type = typeMapper.toLLVMType(node->symbol->type.get());
-		if (!type) return {};
-
-		std::string mangled = node->symbol->getMangledName();
-		llvm::AllocaInst* alloca = builder.CreateAlloca(type, nullptr, mangled);
-		namedValues[mangled] = alloca;
-
-		if (node->value) {
-			auto val = get<llvm::Value*>(node->value.get());
-			if (val) {
-				builder.CreateStore(val, alloca);
-			}
-		}
-		return {};
 	}
 
 private:
-	void declarePackageSymbols(
-			const std::map<std::string, std::shared_ptr<ir::ValueSymbol>>& symbols) {
-		for (auto& [name, symbol] : symbols) {
-			symbol->type->value.match([&](std::shared_ptr<ir::FuncType> funcType) {
-				declareSignature(symbol);
-			});
+	void declareSignature(const std::shared_ptr<semantic::ValueSymbol>& funcSymbol) {
+		if (!funcSymbol) {
+			return;
 		}
-	}
 
-	void declareSignature(std::shared_ptr<ir::ValueSymbol> funcSymbol) {
-		if (module.getFunction(funcSymbol->getMangledName())) return;
-
-		llvm::Type* retType = nullptr;
+		llvm::Type* returnType = nullptr;
 		std::vector<llvm::Type*> params;
+		bool supported = true;
 
-		funcSymbol->type->value.match([&](std::shared_ptr<ir::FuncType> funcType) {
-			retType = typeMapper.toLLVMType(funcType->returnType.get());
-			for (auto& p : funcType->paramTypes) {
-				params.push_back(typeMapper.toLLVMType(p.get()));
+		funcSymbol->type->value.match([&](std::shared_ptr<semantic::FuncType> funcType) {
+			returnType = typeMapper.toLLVMType(funcType->returnType.get());
+			if (returnType == nullptr) {
+				supported = false;
+				return;
+			}
+
+			for (auto& param : funcType->paramTypes) {
+				auto* llvmType = typeMapper.toLLVMType(param.get());
+				if (llvmType == nullptr) {
+					supported = false;
+					return;
+				}
+				params.push_back(llvmType);
 			}
 		});
-		if (!retType) return;
 
-		llvm::FunctionType* ft = llvm::FunctionType::get(retType, params, false);
-		llvm::Function::Create(ft, llvm::Function::ExternalLinkage, funcSymbol->getMangledName(), module);
+		if (!supported || returnType == nullptr) {
+			return;
+		}
+
+		llvm::Function* function = module.getFunction(funcSymbol->getMangledName());
+		if (function == nullptr) {
+			auto* functionType = llvm::FunctionType::get(returnType, params, false);
+			function = llvm::Function::Create(
+				functionType,
+				llvm::Function::ExternalLinkage,
+				funcSymbol->getMangledName(),
+				module);
+		}
+
+		registerFunctionAliases(funcSymbol, function);
 	}
 };

@@ -73,7 +73,7 @@ void Package::buildTree(const std::string& packageDir) {
 		visitor->buildTree(ctx->getTree());
 	}
 
-	irProgram = visitor->getGlobalScope();
+	irProgram = visitor->getProgram();
 	if (packageInfo) {
 		writeSymbolsCache(packageInfo, packageDir);
 	}

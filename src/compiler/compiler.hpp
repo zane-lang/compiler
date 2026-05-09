@@ -34,7 +34,7 @@ private:
 	manifest::Manifest manifest;
 	std::unique_ptr<llvm::LLVMContext> context;
 	bool dependenciesPrepared = false;
-	std::vector<std::shared_ptr<ir::PackageInfo>> externalPackageInfos;
+	std::vector<std::shared_ptr<semantic::PackageInfo>> externalPackageInfos;
 
 	struct ResolvedDependency {
 		std::string alias;

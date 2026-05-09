@@ -3,7 +3,7 @@
 #include "cli/manifest.hpp"
 #include "cli/repl.hpp"
 #include "cli/template.hpp"
-#include "ir/nodes.hpp"
+#include "semantic/metadata.hpp"
 #include "globals/package_cache.hpp"
 #include "globals/targets.hpp"
 #include "cli/help.hpp"
@@ -221,10 +221,10 @@ const std::map<std::string, void(*)(int, char*[])> standaloneCommands = {
 
 inline void configureVersionPlaceholder(const manifest::Manifest& manifest) {
 	if (manifest.type == manifest::Type::Library) {
-		ir::setVersionPlaceholderPackage(manifest.name);
+		semantic::setVersionPlaceholderPackage(manifest.name);
 	}
 	else {
-		ir::clearVersionPlaceholderPackage();
+		semantic::clearVersionPlaceholderPackage();
 	}
 }
 
@@ -253,10 +253,10 @@ inline void dispatch(const std::string& cmd, int argc, char* argv[]) {
 		projectIt->second(argc, argv, manifest);
 	}
 	catch (...) {
-		ir::clearVersionPlaceholderPackage();
+		semantic::clearVersionPlaceholderPackage();
 		throw;
 	}
-	ir::clearVersionPlaceholderPackage();
+	semantic::clearVersionPlaceholderPackage();
 }
 
 } // namespace commands

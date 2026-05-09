@@ -2,8 +2,8 @@
 
 #include "ast/symbol_collector.hpp"
 #include "globals/package_cache.hpp"
-#include "ir/nodes.hpp"
 #include "package/package.hpp"
+#include "semantic/metadata.hpp"
 
 Compiler::ResolvedDependency Compiler::resolveDependency(
 		const std::string& alias,
@@ -86,7 +86,7 @@ void Compiler::loadExternalPackageSymbols() {
 		externalPackage.parse(sourceFiles);
 		externalPackage.collectSymbols();
 
-		std::shared_ptr<ir::PackageInfo> packageInfo;
+		std::shared_ptr<semantic::PackageInfo> packageInfo;
 		if (!dependency.packageName.empty()) {
 			packageInfo = symbolCollector->getPackageInfo(dependency.packageName);
 		}
@@ -102,7 +102,7 @@ void Compiler::loadExternalPackageSymbols() {
 		externalPackageInfos.push_back(packageInfo);
 
 		if (dependency.usesVersionedSymbols && !dependency.packageName.empty()) {
-			ir::setVersionedPackageName(dependency.packageName, dependency.tag);
+			semantic::setVersionedPackageName(dependency.packageName, dependency.tag);
 		}
 
 		if (!dependency.alias.empty()) {

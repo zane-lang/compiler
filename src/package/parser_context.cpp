@@ -9,7 +9,7 @@
 
 namespace {
 
-std::string getPackageNameFromTree(const zane::Node* root) {
+std::string getPackageNameFromTree(const ir::Node* root) {
 	return ast::declaredPackageName(root);
 }
 
@@ -36,7 +36,7 @@ ParserContext::ParserContext(const std::string& src)
 
 ParserContext::~ParserContext() = default;
 
-const zane::Node* ParserContext::getTree() const {
+const ir::Node* ParserContext::getTree() const {
 	return tree.get();
 }
 

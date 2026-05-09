@@ -3,3 +3,4 @@ parser/
 .cache/
 vcpkg_installed/
 __pycache__/
+test/.dev/

@@ -10,11 +10,11 @@ Package::Package(zane::ref<SymbolCollector> symbolCollector)
 
 Package::~Package() = default;
 
-std::shared_ptr<ir::PackageInfo> Package::getPackageInfo() const {
+std::shared_ptr<semantic::PackageInfo> Package::getPackageInfo() const {
 	return packageInfo;
 }
 
-std::shared_ptr<ir::GlobalScope> Package::getIRProgram() const {
+std::shared_ptr<ir::Node> Package::getIRProgram() const {
 	return irProgram;
 }
 
