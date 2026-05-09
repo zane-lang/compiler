@@ -233,7 +233,7 @@ inline std::unique_ptr<zane::Node> cloneNode(const zane::Node* node) {
 	return clone;
 }
 
-inline std::shared_ptr<ir::IRNode> lowerRawAst(const zane::Node* node) {
+inline std::shared_ptr<ir::IRNode> lowerNode(const zane::Node* node) {
 	if (node == nullptr) {
 		return nullptr;
 	}
@@ -269,7 +269,7 @@ inline std::shared_ptr<ir::Scope> lowerBlock(const zane::Node* node) {
 			continue;
 		}
 
-		auto statement = lowerRawAst(child);
+		auto statement = lowerNode(child);
 		if (statement) {
 			scope->statements.push_back(statement);
 		}
@@ -336,7 +336,7 @@ inline std::shared_ptr<ir::IRNode> lowerExpression(const zane::Node* node) {
 		return literal;
 	}
 
-	return lowerRawAst(node);
+	return lowerNode(node);
 }
 
 inline std::shared_ptr<ir::FuncDef> lowerFunctionDecl(
@@ -398,7 +398,7 @@ inline std::shared_ptr<ir::IRNode> lowerTopLevelNode(
 		return lowerFunctionDecl(node, packageName);
 	}
 
-	return lowerRawAst(node);
+	return lowerNode(node);
 }
 
 } // namespace ast
