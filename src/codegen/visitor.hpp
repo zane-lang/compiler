@@ -46,6 +46,20 @@ private:
 		return defaultValue(function->getReturnType());
 	}
 
+	void emitReturnValue(llvm::Value* value) {
+		if (value != nullptr) {
+			builder.CreateRet(value);
+			return;
+		}
+
+		if (auto* fallback = currentReturnFallback()) {
+			builder.CreateRet(fallback);
+			return;
+		}
+
+		builder.CreateRetVoid();
+	}
+
 	const ir::Node* findCallableBody(const ir::Node* declaration) const {
 		if (declaration == nullptr) {
 			return nullptr;
@@ -266,18 +280,7 @@ private:
 	}
 
 	void emitReturn(const ir::Node* node) {
-		auto* value = emitNode(ast::childAt(node, 0));
-		if (value != nullptr) {
-			builder.CreateRet(value);
-			return;
-		}
-
-		if (auto* fallback = currentReturnFallback()) {
-			builder.CreateRet(fallback);
-			return;
-		}
-
-		builder.CreateRetVoid();
+		emitReturnValue(emitNode(ast::childAt(node, 0)));
 	}
 
 	void emitStatement(const ir::Node* node) {
@@ -304,17 +307,7 @@ private:
 				return;
 			}
 
-			if (value != nullptr) {
-				builder.CreateRet(value);
-				return;
-			}
-
-			if (auto* fallback = currentReturnFallback()) {
-				builder.CreateRet(fallback);
-				return;
-			}
-
-			builder.CreateRetVoid();
+			emitReturnValue(value);
 			return;
 		}
 

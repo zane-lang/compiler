@@ -50,6 +50,11 @@ struct Node : IRNode {
 	Node(std::string nodeKind, std::string nodeValue = {})
 		: kind(std::move(nodeKind)), value(std::move(nodeValue)) {}
 
+	Node(const Node&) = delete;
+	Node& operator=(const Node&) = delete;
+	Node(Node&&) = default;
+	Node& operator=(Node&&) = default;
+
 	~Node() override {
 		for (Node* child : children) {
 			delete child;
