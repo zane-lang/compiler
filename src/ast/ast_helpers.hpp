@@ -227,8 +227,13 @@ inline std::unique_ptr<zane::Node> cloneNode(const zane::Node* node) {
 	auto clone = std::make_unique<zane::Node>(node->kind, node->value);
 	for (const auto* child : node->children) {
 		if (auto clonedChild = cloneNode(child)) {
-			clone->children.push_back(clonedChild.get());
-			(void)clonedChild.release();
+			auto* rawChild = clonedChild.release();
+			try {
+				clone->children.push_back(rawChild);
+			} catch (...) {
+				delete rawChild;
+				throw;
+			}
 		}
 	}
 	return clone;
