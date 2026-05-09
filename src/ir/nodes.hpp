@@ -9,7 +9,6 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
-#include <any>
 #include <unordered_map>
 #include <cereal/types/optional.hpp>
 #include <cereal/types/memory.hpp>
@@ -19,6 +18,11 @@
 #include <cereal/types/string.hpp>
 
 namespace ir {
+
+struct Type;
+struct TypeSymbol;
+struct FuncType;
+struct ValueSymbol;
 
 inline constexpr char VERSION_PLACEHOLDER_PREFIX = '!';
 // Compilation currently runs one project command per thread; keep the
@@ -49,13 +53,11 @@ inline std::string getMangledPackageName(const std::string& packageName) {
 	return packageName;
 }
 
-struct ValueSymbol : public IRNode {
+struct ValueSymbol {
 	std::optional<std::string> packageName;
 	std::string name;
 	std::shared_ptr<ir::Type> type;
 
-	std::any accept(IRVisitor* visitor) override;
-	std::string getNodeName() const override;
 	std::string getMangledName() const;
 
 	template<typename Archive>
@@ -64,13 +66,11 @@ struct ValueSymbol : public IRNode {
 	}
 };
 
-struct TypeSymbol : public IRNode {
+struct TypeSymbol {
 	std::optional<std::string> packageName;
 	std::vector<std::shared_ptr<Type>> generics;
 	std::string name;
 
-	std::any accept(IRVisitor* visitor) override;
-	std::string getNodeName() const override;
 	std::string getMangledName() const;
 
 	template<typename Archive>
@@ -130,14 +130,12 @@ private:
 	Value value;
 };
 
-struct FuncType : public IRNode {
+struct FuncType {
 	std::vector<std::shared_ptr<Type>> paramTypes;
 	std::shared_ptr<Type> returnType;
 	FuncMod mod;
 
-	std::any accept(IRVisitor* visitor) override;
 	std::string getParamString() const;
-	std::string getNodeName() const override;
 	std::string getMangledName() const;
 	bool operator==(const FuncType& other) const;
 
@@ -147,7 +145,7 @@ struct FuncType : public IRNode {
 	}
 };
 
-struct Type : public IRNode {
+struct Type {
 	WrappingVariant<std::shared_ptr, TypeSymbol, FuncType> value;
 
 	Type() = default;
@@ -159,9 +157,7 @@ struct Type : public IRNode {
 		value = { funcType };
 	}
 
-	std::any accept(IRVisitor* visitor) override;
 	std::string getMangledName() const;
-	std::string getNodeName() const override;
 
 	template<typename Archive>
 	void serialize(Archive& ar) {
@@ -170,18 +166,3 @@ struct Type : public IRNode {
 };
 
 } // namespace ir
-
-// Register polymorphic types with cereal
-#include <cereal/types/polymorphic.hpp>
-#include <cereal/types/base_class.hpp>
-
-CEREAL_REGISTER_TYPE(ir::ValueSymbol)
-CEREAL_REGISTER_TYPE(ir::TypeSymbol)
-CEREAL_REGISTER_TYPE(ir::Type)
-CEREAL_REGISTER_TYPE(ir::FuncType)
-
-// Register inheritance relationships
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::ValueSymbol)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::TypeSymbol)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::Type)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::FuncType)

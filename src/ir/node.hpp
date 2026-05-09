@@ -1,48 +1,11 @@
 #pragma once
 
-#include "visitor.hpp"
-
-#include <memory>
 #include <string>
 #include <vector>
 
 namespace ir {
 
-struct IRNode {
-	virtual ~IRNode() = default;
-	virtual std::string getNodeName() const = 0;
-	virtual std::any accept(IRVisitor* visitor) = 0;
-	virtual std::string toString() const {
-		return printTree("", true);
-	}
-
-	virtual std::string printTree(const std::string& prefix, bool isLast) const {
-		std::string result;
-		std::string connector = isLast ? "└── " : "├── ";
-		result += prefix + connector + getNodeName() + "\n";
-		std::string childPrefix = prefix + (isLast ? "    " : "│   ");
-		result += printChildren(childPrefix);
-		return result;
-	}
-
-	virtual std::string printChildren(const std::string&) const {
-		return "";
-	}
-
-protected:
-	std::string printNodeVector(const std::vector<std::shared_ptr<IRNode>>& nodes, const std::string& prefix) const {
-		std::string result;
-		for (size_t i = 0; i < nodes.size(); ++i) {
-			bool last = (i == nodes.size() - 1);
-			if (nodes[i]) {
-				result += nodes[i]->printTree(prefix, last);
-			}
-		}
-		return result;
-	}
-};
-
-struct Node : IRNode {
+struct Node {
 	std::string kind;
 	std::string value;
 	std::vector<Node*> children;
@@ -55,15 +18,13 @@ struct Node : IRNode {
 	Node(Node&&) = default;
 	Node& operator=(Node&&) = default;
 
-	~Node() override {
+	~Node() {
 		for (Node* child : children) {
 			delete child;
 		}
 	}
 
-	std::any accept(IRVisitor* visitor) override;
-
-	std::string getNodeName() const override {
+	std::string getNodeName() const {
 		if (value.empty()) {
 			return kind;
 		}
@@ -71,7 +32,20 @@ struct Node : IRNode {
 		return kind + ": " + value;
 	}
 
-	std::string printChildren(const std::string& prefix) const override {
+	std::string toString() const {
+		return printTree("", true);
+	}
+
+	std::string printTree(const std::string& prefix, bool isLast) const {
+		std::string result;
+		std::string connector = isLast ? "└── " : "├── ";
+		result += prefix + connector + getNodeName() + "\n";
+		std::string childPrefix = prefix + (isLast ? "    " : "│   ");
+		result += printChildren(childPrefix);
+		return result;
+	}
+
+	std::string printChildren(const std::string& prefix) const {
 		std::string result;
 		for (std::size_t index = 0; index < children.size(); ++index) {
 			if (children[index] == nullptr) {
@@ -124,10 +98,6 @@ inline Node* adoptList(Node* parent, NodeList* list) {
 	}
 	delete list;
 	return parent;
-}
-
-inline std::any Node::accept(IRVisitor* visitor) {
-	return visitor->visitNode(this);
 }
 
 } // namespace ir
