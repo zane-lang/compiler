@@ -160,23 +160,6 @@ std::string Lambda::printChildren(const std::string& prefix) const {
     return "";
 }
 
-// RawAstNode
-std::any RawAstNode::accept(IRVisitor* visitor) {
-	return visitor->visitRawAstNode(this);
-}
-
-std::string RawAstNode::getNodeName() const {
-	if (value.empty()) {
-		return "RawAstNode(" + kind + ")";
-	}
-
-	return "RawAstNode(" + kind + ": " + value + ")";
-}
-
-std::string RawAstNode::printChildren(const std::string& prefix) const {
-	return printNodeVector(children, prefix);
-}
-
 // FuncDef
 std::any FuncDef::accept(IRVisitor* visitor) {
 	return visitor->visitFuncDef(this);

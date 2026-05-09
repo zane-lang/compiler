@@ -241,21 +241,6 @@ struct Lambda : public IRNode {
 	}
 };
 
-struct RawAstNode : public IRNode {
-	std::string kind;
-	std::string value;
-	std::vector<std::shared_ptr<IRNode>> children;
-
-	std::any accept(IRVisitor* visitor) override;
-	std::string getNodeName() const override;
-	std::string printChildren(const std::string& prefix) const override;
-
-	template<typename Archive>
-	void serialize(Archive& ar) {
-		ar(kind, value, children);
-	}
-};
-
 struct FuncDef : public IRNode {
 	std::shared_ptr<ValueSymbol> symbol;
 	std::vector<std::string> parameters;
@@ -317,7 +302,6 @@ CEREAL_REGISTER_TYPE(ir::ReturnStatement)
 CEREAL_REGISTER_TYPE(ir::Type)
 CEREAL_REGISTER_TYPE(ir::FuncType)
 CEREAL_REGISTER_TYPE(ir::Lambda)
-CEREAL_REGISTER_TYPE(ir::RawAstNode)
 
 // Register inheritance relationships
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::ValueSymbol)
@@ -332,4 +316,3 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::ReturnStatement)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::Type)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::FuncType)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::Lambda)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ir::IRNode, ir::RawAstNode)

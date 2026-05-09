@@ -5,6 +5,10 @@
 #include <string>
 #include <vector>
 
+namespace zane {
+	struct Node;
+}
+
 namespace ir {
 
 struct IRNode;
@@ -20,7 +24,6 @@ struct ReturnStatement;
 	struct ValueSymbol;
 	struct TypeSymbol;
 	struct Lambda;
-	struct RawAstNode;
 
 class IRVisitor {
 public:
@@ -39,7 +42,7 @@ public:
 	virtual std::any visitValueSymbol(ValueSymbol* node) { return {}; }
 	virtual std::any visitTypeSymbol(TypeSymbol* node) { return {}; }
 	virtual std::any visitLambda(Lambda* node) {return {}; }
-	virtual std::any visitRawAstNode(RawAstNode* node) { return {}; }
+	virtual std::any visitAstNode(zane::Node* node) { return {}; }
 };
 
 struct IRNode {

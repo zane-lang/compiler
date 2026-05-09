@@ -219,23 +219,26 @@ inline std::string declaredPackageName(const zane::Node* root) {
 	return {};
 }
 
-inline std::shared_ptr<ir::RawAstNode> lowerRawAst(const zane::Node* node) {
+inline zane::Node* cloneNode(const zane::Node* node) {
 	if (node == nullptr) {
 		return nullptr;
 	}
 
-	auto lowered = std::make_shared<ir::RawAstNode>();
-	lowered->kind = node->kind;
-	lowered->value = node->value;
-
+	auto* clone = new zane::Node(node->kind, node->value);
 	for (const auto* child : node->children) {
-		auto loweredChild = lowerRawAst(child);
-		if (loweredChild) {
-			lowered->children.push_back(loweredChild);
+		if (auto* clonedChild = cloneNode(child)) {
+			clone->children.push_back(clonedChild);
 		}
 	}
+	return clone;
+}
 
-	return lowered;
+inline std::shared_ptr<ir::IRNode> lowerRawAst(const zane::Node* node) {
+	if (node == nullptr) {
+		return nullptr;
+	}
+
+	return std::shared_ptr<ir::IRNode>(cloneNode(node));
 }
 
 inline std::shared_ptr<ir::IRNode> lowerExpression(const zane::Node* node);
