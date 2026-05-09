@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ast/ast_helpers.hpp"
-#include "ir/nodes.hpp"
+#include "semantic/metadata.hpp"
 
 #include <map>
 #include <memory>
@@ -9,10 +9,10 @@
 #include <string>
 
 class SymbolCollector {
-	std::map<std::string, std::shared_ptr<ir::PackageInfo>> packages;
-	std::shared_ptr<ir::PackageInfo> current;
+	std::map<std::string, std::shared_ptr<semantic::PackageInfo>> packages;
+	std::shared_ptr<semantic::PackageInfo> current;
 
-	void registerSymbol(const std::shared_ptr<ir::ValueSymbol>& symbol) {
+	void registerSymbol(const std::shared_ptr<semantic::ValueSymbol>& symbol) {
 		if (!current || !symbol) {
 			return;
 		}
@@ -25,7 +25,7 @@ class SymbolCollector {
 		current->symbols[mangled] = symbol;
 	}
 
-	std::shared_ptr<ir::ValueSymbol> makeCallableSymbol(const zane::Node* declaration) const {
+	std::shared_ptr<semantic::ValueSymbol> makeCallableSymbol(const zane::Node* declaration) const {
 		if (declaration == nullptr || !current) {
 			return nullptr;
 		}
@@ -45,7 +45,7 @@ public:
 		}
 
 		if (!packages.count(pkgName)) {
-			packages[pkgName] = std::make_shared<ir::PackageInfo>();
+			packages[pkgName] = std::make_shared<semantic::PackageInfo>();
 			packages[pkgName]->packageName = pkgName;
 		}
 		current = packages[pkgName];
@@ -73,7 +73,7 @@ public:
 		}
 	}
 
-	std::shared_ptr<ir::PackageInfo> getPackageInfo() const {
+	std::shared_ptr<semantic::PackageInfo> getPackageInfo() const {
 		return current;
 	}
 
@@ -84,7 +84,7 @@ public:
 		}
 	}
 
-	std::shared_ptr<ir::PackageInfo> getPackageInfo(const std::string& pkgName) const {
+	std::shared_ptr<semantic::PackageInfo> getPackageInfo(const std::string& pkgName) const {
 		auto it = packages.find(pkgName);
 		if (it != packages.end()) {
 			return it->second;
@@ -95,7 +95,7 @@ public:
 
 	void registerPackageAlias(
 			const std::string& alias,
-			std::shared_ptr<ir::PackageInfo> packageInfo) {
+			std::shared_ptr<semantic::PackageInfo> packageInfo) {
 		if (!packageInfo) {
 			return;
 		}

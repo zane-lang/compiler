@@ -2,7 +2,7 @@
 
 #include "ast.hpp"
 #include "ir/node.hpp"
-#include "ir/nodes.hpp"
+#include "semantic/metadata.hpp"
 
 #include <memory>
 #include <string>
@@ -100,13 +100,13 @@ inline std::string flattenName(const zane::Node* node) {
 	return {};
 }
 
-inline std::shared_ptr<ir::Type> makeNamedType(const std::string& name) {
-	auto symbol = std::make_shared<ir::TypeSymbol>();
+inline std::shared_ptr<semantic::Type> makeNamedType(const std::string& name) {
+	auto symbol = std::make_shared<semantic::TypeSymbol>();
 	symbol->name = name.empty() ? "Void" : name;
-	return std::make_shared<ir::Type>(symbol);
+	return std::make_shared<semantic::Type>(symbol);
 }
 
-inline std::shared_ptr<ir::Type> lowerTypeExpr(const zane::Node* node) {
+inline std::shared_ptr<semantic::Type> lowerTypeExpr(const zane::Node* node) {
 	if (node == nullptr) {
 		return makeNamedType("Void");
 	}
@@ -120,12 +120,12 @@ inline std::shared_ptr<ir::Type> lowerTypeExpr(const zane::Node* node) {
 	}
 
 	if (node->kind == "ref_type") {
-		auto symbol = std::make_shared<ir::TypeSymbol>();
+		auto symbol = std::make_shared<semantic::TypeSymbol>();
 		symbol->name = "ref";
 		if (const auto* inner = childAt(node, 0)) {
 			symbol->generics.push_back(lowerTypeExpr(inner));
 		}
-		return std::make_shared<ir::Type>(symbol);
+		return std::make_shared<semantic::Type>(symbol);
 	}
 
 	if (
@@ -133,7 +133,7 @@ inline std::shared_ptr<ir::Type> lowerTypeExpr(const zane::Node* node) {
 		|| node->kind == "qualified_type"
 		|| node->kind == "type_name"
 	) {
-		auto symbol = std::make_shared<ir::TypeSymbol>();
+		auto symbol = std::make_shared<semantic::TypeSymbol>();
 		symbol->name = flattenName(node->kind == "named_type" ? childAt(node, 0) : node);
 
 		if (const auto* genericArgs = findChild(node, "generic_args")) {
@@ -142,15 +142,15 @@ inline std::shared_ptr<ir::Type> lowerTypeExpr(const zane::Node* node) {
 			}
 		}
 
-		return std::make_shared<ir::Type>(symbol);
+		return std::make_shared<semantic::Type>(symbol);
 	}
 
 	return makeNamedType(!node->value.empty() ? node->value : node->kind);
 }
 
-inline std::shared_ptr<ir::FuncType> lowerCallableType(const zane::Node* declaration) {
-	auto type = std::make_shared<ir::FuncType>();
-	type->mod = ir::FuncMod("open");
+inline std::shared_ptr<semantic::FuncType> lowerCallableType(const zane::Node* declaration) {
+	auto type = std::make_shared<semantic::FuncType>();
+	type->mod = semantic::FuncMod("open");
 	type->returnType = makeNamedType("Void");
 
 	if (declaration == nullptr) {
@@ -193,10 +193,10 @@ inline std::shared_ptr<ir::FuncType> lowerCallableType(const zane::Node* declara
 
 		auto loweredParamType = lowerTypeExpr(paramType);
 		if (isRef && paramType != nullptr && paramType->kind != "ref_type") {
-			auto symbol = std::make_shared<ir::TypeSymbol>();
+			auto symbol = std::make_shared<semantic::TypeSymbol>();
 			symbol->name = "ref";
 			symbol->generics.push_back(loweredParamType);
-			loweredParamType = std::make_shared<ir::Type>(symbol);
+			loweredParamType = std::make_shared<semantic::Type>(symbol);
 		}
 
 		type->paramTypes.push_back(loweredParamType);
@@ -239,19 +239,19 @@ inline std::unique_ptr<zane::Node> cloneNode(const zane::Node* node) {
 	return clone;
 }
 
-inline std::shared_ptr<ir::ValueSymbol> makeCallableSymbol(
+inline std::shared_ptr<semantic::ValueSymbol> makeCallableSymbol(
 		const zane::Node* node,
 		const std::string& packageName) {
 	if (node == nullptr) {
 		return nullptr;
 	}
 
-	auto symbol = std::make_shared<ir::ValueSymbol>();
+	auto symbol = std::make_shared<semantic::ValueSymbol>();
 	auto callableType = lowerCallableType(node);
 	if (!packageName.empty()) {
 		symbol->packageName = packageName;
 	}
-	symbol->type = std::make_shared<ir::Type>(callableType);
+	symbol->type = std::make_shared<semantic::Type>(callableType);
 
 	if (node->kind == "function_decl") {
 		symbol->name = flattenName(childAt(node, 1));

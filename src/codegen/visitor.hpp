@@ -92,9 +92,9 @@ private:
 		return parameters;
 	}
 
-	std::shared_ptr<ir::ValueSymbol> resolveCallableSymbol(
+	std::shared_ptr<semantic::ValueSymbol> resolveCallableSymbol(
 			const ir::Node* declaration,
-			const std::shared_ptr<ir::PackageInfo>& packageInfo) const {
+			const std::shared_ptr<semantic::PackageInfo>& packageInfo) const {
 		if (packageInfo == nullptr) {
 			return nullptr;
 		}
@@ -124,7 +124,7 @@ private:
 	}
 
 	void registerFunctionAliases(
-			const std::shared_ptr<ir::ValueSymbol>& funcSymbol,
+			const std::shared_ptr<semantic::ValueSymbol>& funcSymbol,
 			llvm::Function* function) {
 		if (!funcSymbol || function == nullptr) {
 			return;
@@ -140,7 +140,7 @@ private:
 				packageQualifiedName,
 				function);
 			registerFunctionAlias(
-				ir::getMangledPackageName(funcSymbol->packageName.value())
+				semantic::getMangledPackageName(funcSymbol->packageName.value())
 					+ packageAliasSeparator + funcSymbol->name,
 				function);
 		}
@@ -328,7 +328,7 @@ private:
 		}
 	}
 
-	void emitFunction(const ir::Node* declaration, const std::shared_ptr<ir::PackageInfo>& packageInfo) {
+	void emitFunction(const ir::Node* declaration, const std::shared_ptr<semantic::PackageInfo>& packageInfo) {
 		auto symbol = resolveCallableSymbol(declaration, packageInfo);
 		if (!symbol) {
 			return;
@@ -384,7 +384,7 @@ public:
 		declareSignatures(package->packageInfo);
 	}
 
-	void declareSignatures(const std::shared_ptr<ir::PackageInfo>& packageInfo) {
+	void declareSignatures(const std::shared_ptr<semantic::PackageInfo>& packageInfo) {
 		if (!packageInfo) {
 			return;
 		}
@@ -409,7 +409,7 @@ public:
 	}
 
 private:
-	void declareSignature(const std::shared_ptr<ir::ValueSymbol>& funcSymbol) {
+	void declareSignature(const std::shared_ptr<semantic::ValueSymbol>& funcSymbol) {
 		if (!funcSymbol) {
 			return;
 		}
@@ -418,7 +418,7 @@ private:
 		std::vector<llvm::Type*> params;
 		bool supported = true;
 
-		funcSymbol->type->value.match([&](std::shared_ptr<ir::FuncType> funcType) {
+		funcSymbol->type->value.match([&](std::shared_ptr<semantic::FuncType> funcType) {
 			returnType = typeMapper.toLLVMType(funcType->returnType.get());
 			if (returnType == nullptr) {
 				supported = false;

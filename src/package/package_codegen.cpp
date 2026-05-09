@@ -6,7 +6,7 @@ std::unique_ptr<llvm::Module> Package::getLlvmModule(
 		zane::ref<llvm::LLVMContext> context,
 		zane::ref<Package> package,
 		zane::ref<Packages> allPackages,
-		const std::vector<std::shared_ptr<ir::PackageInfo>>& externalPackages,
+		const std::vector<std::shared_ptr<semantic::PackageInfo>>& externalPackages,
 		const std::string& triple) {
 	LLVMCodeGen codegen(context.get(), triple);
 	codegen.setupBuiltins();

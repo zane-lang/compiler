@@ -1,22 +1,22 @@
 #pragma once
 
-#include "ir/node.hpp"
 #include "utils/types.hpp"
 
 #include <map>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <string>
-#include <cereal/types/optional.hpp>
-#include <cereal/types/memory.hpp>
-#include <cereal/types/vector.hpp>
 #include <cereal/types/map.hpp>
-#include <cereal/types/unordered_map.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/optional.hpp>
 #include <cereal/types/string.hpp>
+#include <cereal/types/unordered_map.hpp>
+#include <cereal/types/vector.hpp>
 
-namespace ir {
+namespace semantic {
 
 struct Type;
 struct TypeSymbol;
@@ -55,7 +55,7 @@ inline std::string getMangledPackageName(const std::string& packageName) {
 struct ValueSymbol {
 	std::optional<std::string> packageName;
 	std::string name;
-	std::shared_ptr<ir::Type> type;
+	std::shared_ptr<Type> type;
 
 	std::string getMangledName() const;
 
@@ -164,4 +164,4 @@ struct Type {
 	}
 };
 
-} // namespace ir
+} // namespace semantic
