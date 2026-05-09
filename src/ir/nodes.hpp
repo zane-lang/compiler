@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ir/node.hpp"
-#include "utils/types.hpp"
+#include "node.hpp"
+#include "../utils/types.hpp"
 
 #include <map>
 #include <memory>

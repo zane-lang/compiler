@@ -2,6 +2,13 @@
 
 namespace ir {
 
+std::any IRVisitor::visit(IRNode* node) {
+	if (node) {
+		return node->accept(this);
+	}
+	return {};
+}
+
 // ValueSymbol
 std::any ValueSymbol::accept(IRVisitor* visitor) {
 	return visitor->visitValueSymbol(this);
