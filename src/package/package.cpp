@@ -20,7 +20,7 @@ std::shared_ptr<ir::GlobalScope> Package::getIRProgram() const {
 
 std::string Package::getDebugOutput() const {
 	if (!irProgram) {
-		return {};
+		return "No IR program available.";
 	}
 
 	return irProgram->toString();

@@ -364,7 +364,19 @@ inline std::shared_ptr<ir::FuncDef> lowerFunctionDecl(
 		func->parameters.push_back(child->value);
 	}
 
-	func->scope = lowerCallableBody(node->children.empty() ? nullptr : node->children.back());
+	const zane::Node* callableBody = nullptr;
+	for (const auto* child : node->children) {
+		if (child == nullptr) {
+			continue;
+		}
+
+		if (child->kind == "block_body" || child->kind == "expr_body") {
+			callableBody = child;
+			break;
+		}
+	}
+
+	func->scope = lowerCallableBody(callableBody);
 	return func;
 }
 
