@@ -66,30 +66,6 @@ llvm_ldflags_s  = run_command(llvm_config, '--ldflags',  check: true).stdout().s
 llvm_libs_s     = run_command(llvm_config, ['--libs'] + llvm_modules, check: true).stdout().strip()
 llvm_syslibs_s  = run_command(llvm_config, '--system-libs', check: true).stdout().strip()
 llvm_libdir_s   = run_command(llvm_config, '--libdir', check: true).stdout().strip()
-llvm_runtime_probe = files('scripts/llvm_runtime_probe.py')
-llvm_shared_s   = run_command(
-  python,
-  llvm_runtime_probe,
-  'find-libllvm',
-  llvm_libdir_s,
-  check: true,
-).stdout().strip()
-# Resolve libffi from LLVM's shared-library dependencies so the zane binary
-# does not rely on LLVM's own RUNPATH entries at runtime.
-llvm_libffi_s = run_command(
-  python,
-  llvm_runtime_probe,
-  'find-libffi',
-  llvm_shared_s,
-  check: true,
-).stdout().strip()
-llvm_libffi_dir_s = run_command(
-  python,
-  llvm_runtime_probe,
-  'parent-dir',
-  llvm_libffi_s,
-  check: true,
-).stdout().strip()
 
 llvm_cxxflags = llvm_cxxflags_s == '' ? [] : llvm_cxxflags_s.split()
 llvm_ldflags  = llvm_ldflags_s  == '' ? [] : llvm_ldflags_s.split()
@@ -100,15 +76,6 @@ llvm_syslibs  = llvm_syslibs_s  == '' ? [] : llvm_syslibs_s.split()
 # (fixes conflicting <cxxabi.h> / __cxa_init_primary_exception)
 llvm_incdirs = []
 llvm_other_cargs = []
-llvm_runtime_rpath = [llvm_libdir_s]
-llvm_extra_link_args = []
-
-if llvm_libffi_s != ''
-  if llvm_libffi_dir_s != '' and not llvm_runtime_rpath.contains(llvm_libffi_dir_s)
-    llvm_runtime_rpath += llvm_libffi_dir_s
-  endif
-  llvm_extra_link_args += ['-Wl,--no-as-needed', llvm_libffi_s, '-Wl,--as-needed']
-endif
 
 foreach a : llvm_cxxflags
   if a.startswith('-I')
@@ -134,7 +101,7 @@ endforeach
 
 llvm_dep = declare_dependency(
   compile_args: llvm_fixed_cargs,
-  link_args: llvm_ldflags + llvm_libs + llvm_syslibs + llvm_extra_link_args,
+  link_args: llvm_ldflags + llvm_libs + llvm_syslibs,
 )
 # ----------------------------------------------------------------------
 
@@ -177,7 +144,7 @@ zane_exe = executable(
   build_by_default: true,
   cpp_args: exe_cpp_args,
   link_args: exe_link_args,
-  build_rpath: ':'.join(llvm_runtime_rpath),
+  build_rpath: llvm_libdir_s,
 )
 
 upx = find_program('upx', required: false)
