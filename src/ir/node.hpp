@@ -8,9 +8,6 @@
 
 namespace ir {
 
-struct IRNode;
-struct Node;
-
 struct IRNode {
 	virtual ~IRNode() = default;
 	virtual std::string getNodeName() const = 0;
