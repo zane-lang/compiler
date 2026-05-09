@@ -344,16 +344,17 @@ inline std::shared_ptr<ir::FuncDef> lowerFunctionDecl(
 	}
 
 	auto symbol = std::make_shared<ir::ValueSymbol>();
+	auto callableType = lowerCallableType(node);
 	symbol->packageName = packageName;
 	symbol->name = flattenName(childAt(node, 1));
-	symbol->type = std::make_shared<ir::Type>(lowerCallableType(node));
+	symbol->type = std::make_shared<ir::Type>(callableType);
 	if (symbol->name.empty()) {
 		return nullptr;
 	}
 
 	auto func = std::make_shared<ir::FuncDef>();
 	func->symbol = symbol;
-	func->type = std::get<std::shared_ptr<ir::FuncType>>(symbol->type->value.value);
+	func->type = callableType;
 
 	for (const auto* child : node->children) {
 		if (child == nullptr || child->kind != "param_decl") {

@@ -4,8 +4,6 @@
 #include "ast/visitor.hpp"
 #include "package/parser_context.hpp"
 
-#include <sstream>
-
 Package::Package(zane::ref<SymbolCollector> symbolCollector)
 	: symbolCollector(symbolCollector),
 	  visitor(std::make_unique<Visitor>(*symbolCollector)) {}
