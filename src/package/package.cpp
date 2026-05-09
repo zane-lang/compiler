@@ -4,8 +4,6 @@
 #include "ast/visitor.hpp"
 #include "package/parser_context.hpp"
 
-#include <sstream>
-
 Package::Package(zane::ref<SymbolCollector> symbolCollector)
 	: symbolCollector(symbolCollector),
 	  visitor(std::make_unique<Visitor>(*symbolCollector)) {}
@@ -21,22 +19,9 @@ std::shared_ptr<ir::GlobalScope> Package::getIRProgram() const {
 }
 
 std::string Package::getDebugOutput() const {
-	if (contexts.empty()) {
-		return {};
+	if (!irProgram) {
+		return "No IR program available.";
 	}
 
-	if (contexts.size() == 1) {
-		return contexts.front()->getAstJson();
-	}
-
-	std::ostringstream output;
-	for (std::size_t index = 0; index < contexts.size(); ++index) {
-		if (index != 0) {
-			output << "\n";
-		}
-
-		output << contexts[index]->getAstJson();
-	}
-
-	return output.str();
+	return irProgram->toString();
 }

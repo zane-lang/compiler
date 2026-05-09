@@ -26,7 +26,7 @@ public:
 		}
 
 		for (const auto* child : root->children) {
-			auto lowered = ast::lowerRawAst(child);
+			auto lowered = ast::lowerTopLevelNode(child, globalScope->packageName);
 			if (lowered) {
 				globalScope->body.push_back(lowered);
 			}
