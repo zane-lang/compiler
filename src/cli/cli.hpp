@@ -4,9 +4,6 @@
 #include "utils/console.hpp"
 
 #include <string>
-#include <antlr4-runtime.h>
-#include <parser/ZaneLexer.h>
-#include <parser/ZaneParser.h>
 
 class CLI {
 public:

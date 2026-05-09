@@ -3,9 +3,11 @@
 #include "ast/symbol_collector.hpp"
 #include "ast/visitor.hpp"
 #include "package/parser_context.hpp"
+#include "utils/console.hpp"
 
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <utility>
 
 using ParseFileResult = zane::abortable<std::unique_ptr<ParserContext>, std::string>;
@@ -21,7 +23,7 @@ ParseFileResult Package::parseFile(const fs::path& path) {
 	std::stringstream ss;
 	ss << stream.rdbuf();
 	auto ctx = std::make_unique<ParserContext>(ss.str());
-	if (!ctx->getTree()) {
+	if (!ctx->hasTree()) {
 		return ParseFileResult::abort("Failed to parse file: " + path.string());
 	}
 
@@ -45,21 +47,36 @@ void Package::parse(const std::vector<fs::path>& files) {
 }
 
 void Package::collectSymbols() {
+	packageInfo.reset();
+	std::string packageName;
+
 	for (const auto& ctx : contexts) {
+		const auto& ctxPackageName = ctx->getPackageName();
+		if (packageName.empty()) {
+			packageName = ctxPackageName;
+		}
+else if (ctxPackageName != packageName) {
+			throw std::runtime_error("Mismatched package declarations in package sources");
+		}
+
 		symbolCollector->collectSymbols(ctx->getTree());
 	}
 
-	packageInfo = symbolCollector->getPackageInfo();
+	if (!packageName.empty()) {
+		packageInfo = symbolCollector->getPackageInfo(packageName);
+	}
 }
 
 void Package::buildTree(const std::string& packageDir) {
 	for (const auto& ctx : contexts) {
-		symbolCollector->setCurrentPackage(ctx->getTree()->pkgDef()->name->getText());
+		symbolCollector->setCurrentPackage(ctx->getPackageName());
 		visitor->buildTree(ctx->getTree());
 	}
 
 	irProgram = visitor->getGlobalScope();
-	writeSymbolsCache(packageInfo, packageDir);
+	if (packageInfo) {
+		writeSymbolsCache(packageInfo, packageDir);
+	}
 }
 
 void Package::compile(

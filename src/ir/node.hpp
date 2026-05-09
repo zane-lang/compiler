@@ -16,10 +16,11 @@ struct FuncCall;
 struct StringLiteral;
 struct FuncType;
 struct ReturnStatement;
-struct Type;
-struct ValueSymbol;
-struct TypeSymbol;
-struct Lambda;
+	struct Type;
+	struct ValueSymbol;
+	struct TypeSymbol;
+	struct Lambda;
+	struct RawAstNode;
 
 class IRVisitor {
 public:
@@ -38,6 +39,7 @@ public:
 	virtual std::any visitValueSymbol(ValueSymbol* node) { return {}; }
 	virtual std::any visitTypeSymbol(TypeSymbol* node) { return {}; }
 	virtual std::any visitLambda(Lambda* node) {return {}; }
+	virtual std::any visitRawAstNode(RawAstNode* node) { return {}; }
 };
 
 struct IRNode {

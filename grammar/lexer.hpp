@@ -33,5 +33,4 @@ const char* cursor_ = nullptr;
 const char* marker_ = nullptr;
 };
 
-extern Lexer* g_lexer;
 } // namespace zane

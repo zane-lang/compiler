@@ -5,12 +5,6 @@
 #include "lexer.hpp"
 #include "parser.hpp"
 
-namespace zane {
-Lexer* g_lexer = nullptr;
-}
-
-extern YYSTYPE yylval;
-
 static char* dupRange(const char* begin, const char* end) {
 const std::size_t size = static_cast<std::size_t>(end - begin);
 char* text = static_cast<char*>(std::malloc(size + 1));
@@ -125,6 +119,6 @@ return 0;
 }
 }
 
-int yylex(void) {
-return zane::g_lexer->next(&yylval);
+int yylex(YYSTYPE* yylval, zane::Lexer* lexer) {
+return lexer->next(yylval);
 }

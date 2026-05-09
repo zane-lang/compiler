@@ -52,6 +52,7 @@ struct Package {
 		const std::string& triple);
 	std::shared_ptr<ir::PackageInfo> getPackageInfo() const;
 	std::shared_ptr<ir::GlobalScope> getIRProgram() const;
+	std::string getDebugOutput() const;
 
 private:
 	std::vector<std::unique_ptr<ParserContext>> contexts;
