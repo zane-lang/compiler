@@ -15,6 +15,8 @@
 
 class LLVMVisitor {
 private:
+	static inline constexpr char packageAliasSeparator = '$';
+
 	llvm::LLVMContext& context;
 	llvm::IRBuilder<>& builder;
 	llvm::Module& module;
@@ -118,9 +120,14 @@ private:
 		registerFunctionAlias(funcSymbol->name, function);
 
 		if (funcSymbol->packageName.has_value()) {
-			registerFunctionAlias(funcSymbol->packageName.value() + "$" + funcSymbol->name, function);
+			auto packageQualifiedName =
+				funcSymbol->packageName.value() + packageAliasSeparator + funcSymbol->name;
 			registerFunctionAlias(
-				ir::getMangledPackageName(funcSymbol->packageName.value()) + "$" + funcSymbol->name,
+				packageQualifiedName,
+				function);
+			registerFunctionAlias(
+				ir::getMangledPackageName(funcSymbol->packageName.value())
+					+ packageAliasSeparator + funcSymbol->name,
 				function);
 		}
 	}
@@ -153,12 +160,15 @@ private:
 		}
 
 		llvm::Function* match = nullptr;
+		std::vector<std::string> ambiguousMatches;
 		for (auto* function : it->second) {
 			if (function != nullptr && function->arg_size() == argumentCount) {
+				ambiguousMatches.push_back(function->getName().str());
 				if (match != nullptr && match != function) {
 					DEBUG(
 						"Ambiguous function lookup for '" << flatName
-						<< "' with " << argumentCount << " args");
+						<< "' with " << argumentCount << " args: "
+						<< ambiguousMatches[0] << " vs " << ambiguousMatches.back());
 					return nullptr;
 				}
 				match = function;
