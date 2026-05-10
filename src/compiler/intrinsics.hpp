@@ -3,6 +3,7 @@
 #include "semantic/metadata.hpp"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -28,7 +29,7 @@ struct IntrinsicInfo {
 	LoweringKind loweringKind;
 	std::string llvmTypeName;
 	std::string runtimeSymbol;
-	std::string literalNodeKind;
+	std::optional<ir::NodeKind> literalNodeKind;
 	std::shared_ptr<semantic::ValueSymbol> callableSymbol;
 
 	bool isType() const {
@@ -47,7 +48,7 @@ public:
 	const IntrinsicInfo* find(std::string_view fullName) const;
 	const std::unordered_map<std::string, IntrinsicInfo>& all() const;
 	const std::vector<std::shared_ptr<semantic::ValueSymbol>>& callableSymbols() const;
-	std::string conceptForLiteralNode(std::string_view nodeKind) const;
+	std::string conceptForLiteralNode(const ir::NodeKind& nodeKind) const;
 
 private:
 	std::unordered_map<std::string, IntrinsicInfo> entries;
@@ -57,7 +58,7 @@ private:
 		std::string fullName,
 		Category category,
 		std::string llvmTypeName,
-		std::string literalNodeKind = {}
+		std::optional<ir::NodeKind> literalNodeKind = std::nullopt
 	);
 	void registerFunction(
 		std::string fullName,

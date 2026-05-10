@@ -74,7 +74,7 @@ public:
 				continue;
 			}
 
-			if (child->kind == "import_decl") {
+			if (child->kind.is<ir::node_kind::import_decl>()) {
 				auto importName = ast::flattenName(child);
 				if (!importName.empty()) {
 					current->importedPackages.push_back(importName);
@@ -82,11 +82,10 @@ public:
 				continue;
 			}
 
-			if (
-				child->kind == "function_decl"
-				|| child->kind == "constructor_decl"
-				|| child->kind == "field_constructor_decl"
-			) {
+			if (child->kind.is<
+					ir::node_kind::function_decl,
+					ir::node_kind::constructor_decl,
+					ir::node_kind::field_constructor_decl>()) {
 				registerSymbol(makeCallableSymbol(child));
 			}
 		}

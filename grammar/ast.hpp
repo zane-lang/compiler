@@ -51,7 +51,8 @@ namespace zane {
 	inline void printNode(const Node* node, std::ostream& stream, int indent = 0) {
 		const std::string prefix(indent, ' ');
 		stream << prefix << "{\n";
-		stream << prefix << "  \"kind\": \"" << escapeJson(node->kind) << "\"";
+		stream << prefix << "  \"kind\": \""
+			   << escapeJson(std::string(ir::nodeKindName(node->kind))) << "\"";
 
 		if (!node->value.empty()) {
 			stream << ",\n" << prefix << "  \"value\": \"" << escapeJson(node->value) << "\"";

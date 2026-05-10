@@ -6,27 +6,29 @@
 
 #include "ast.hpp"
 
-static zane::Node* takeNode(const char* kind, char* text) {
+namespace nk = ir::node_kind;
+
+static zane::Node* takeNode(ir::NodeKind kind, char* text) {
 zane::Node* node = zane::makeNode(kind, text == nullptr ? std::string() : std::string(text));
 	std::free(text);
 return node;
 }
 
-static zane::Node* wrapList(const char* kind, zane::NodeList* list) {
+static zane::Node* wrapList(ir::NodeKind kind, zane::NodeList* list) {
 zane::Node* node = zane::makeNode(kind);
 	zane::adoptList(node, list);
 return node;
 }
 
 static zane::Node* makeBinary(const char* op, zane::Node* left, zane::Node* right) {
-zane::Node* node = zane::makeNode("binary_expr", op);
+zane::Node* node = zane::makeNode(nk::binary_expr{}, op);
 	zane::adopt(node, left);
 zane::adopt(node, right);
 	return node;
 }
 
 static zane::Node* makeUnary(const char* op, zane::Node* operand) {
-zane::Node* node = zane::makeNode("unary_expr", op);
+zane::Node* node = zane::makeNode(nk::unary_expr{}, op);
 	zane::adopt(node, operand);
 return node;
 }
@@ -65,7 +67,7 @@ zane::Node* node;
 
 program:
 	   item_list {
-*root = zane::makeNode("program");
+*root = zane::makeNode(nk::program{});
 zane::adoptList(*root, $1);
 	$$ = *root;
 }
@@ -90,30 +92,30 @@ item:
 
 package_decl:
 			PACKAGE value_name {
-$$ = zane::makeNode("package_decl");
+$$ = zane::makeNode(nk::package_decl{});
 zane::adopt($$, $2);
 	}
 ;
 
 import_decl:
 		   IMPORT value_name {
-$$ = zane::makeNode("import_decl");
+$$ = zane::makeNode(nk::import_decl{});
 zane::adopt($$, $2);
 	}
 ;
 
 class_kind:
 		  CLASS {
-$$ = zane::makeNode("class_kind", "class");
+$$ = zane::makeNode(nk::class_kind{}, "class");
 }
 | STRUCT {
-$$ = zane::makeNode("class_kind", "struct");
+$$ = zane::makeNode(nk::class_kind{}, "struct");
 }
 ;
 
 type_decl:
 		 class_kind named_type '{' field_decl_list_opt '}' {
-$$ = zane::makeNode($1->value == "class" ? "class_decl" : "struct_decl");
+$$ = zane::makeNode($1->value == "class" ? ir::NodeKind(nk::class_decl{}) : ir::NodeKind(nk::struct_decl{}));
 delete $1;
 zane::adopt($$, $2);
 	zane::adoptList($$, $4);
@@ -132,14 +134,14 @@ zane::push($1, $2);
 
 field_decl:
 		  NAME type_expr {
-$$ = zane::makeNode("field_decl", $1);
+$$ = zane::makeNode(nk::field_decl{}, $1);
 std::free($1);
    zane::adopt($$, $2);
 }
 | NAME REF type_expr {
-$$ = zane::makeNode("field_decl", $1);
+$$ = zane::makeNode(nk::field_decl{}, $1);
 std::free($1);
-   zane::adopt($$, zane::makeNode("ref"));
+   zane::adopt($$, zane::makeNode(nk::ref{}));
 zane::adopt($$, $3);
 	}
 ;
@@ -152,7 +154,7 @@ callable_decl:
 
 function_decl:
 			 return_type callable_name '(' parameter_list_opt ')' opt_mut callable_body {
-$$ = zane::makeNode("function_decl");
+$$ = zane::makeNode(nk::function_decl{});
 zane::adopt($$, $1);
 	zane::adopt($$, $2);
 zane::adoptList($$, $4);
@@ -163,7 +165,7 @@ zane::adopt($$, $7);
 
 constructor_decl:
 				named_type '(' parameter_list_opt ')' callable_body {
-$$ = zane::makeNode("constructor_decl");
+$$ = zane::makeNode(nk::constructor_decl{});
 zane::adopt($$, $1);
 	zane::adoptList($$, $3);
 zane::adopt($$, $5);
@@ -172,7 +174,7 @@ zane::adopt($$, $5);
 
 field_constructor_decl:
 					  named_type '{' ctor_field_entry_list_opt '}' callable_body {
-$$ = zane::makeNode("field_constructor_decl");
+$$ = zane::makeNode(nk::field_constructor_decl{});
 zane::adopt($$, $1);
 	zane::adoptList($$, $3);
 zane::adopt($$, $5);
@@ -181,39 +183,39 @@ zane::adopt($$, $5);
 
 callable_name:
 			 value_name {
-$$ = zane::makeNode("callable_name");
+$$ = zane::makeNode(nk::callable_name{});
 zane::adopt($$, $1);
 	}
 | operator_name {
-$$ = zane::makeNode("callable_name");
+$$ = zane::makeNode(nk::callable_name{});
 zane::adopt($$, $1);
 	}
 ;
 
 operator_name:
 			 '~' {
-$$ = zane::makeNode("operator_name", "~");
+$$ = zane::makeNode(nk::operator_name{}, "~");
 }
 | '*' {
-$$ = zane::makeNode("operator_name", "*");
+$$ = zane::makeNode(nk::operator_name{}, "*");
 }
 | '/' {
-$$ = zane::makeNode("operator_name", "/");
+$$ = zane::makeNode(nk::operator_name{}, "/");
 }
 | '+' {
-$$ = zane::makeNode("operator_name", "+");
+$$ = zane::makeNode(nk::operator_name{}, "+");
 }
 | EQEQ {
-$$ = zane::makeNode("operator_name", "==");
+$$ = zane::makeNode(nk::operator_name{}, "==");
 }
 | '<' {
-$$ = zane::makeNode("operator_name", "<");
+$$ = zane::makeNode(nk::operator_name{}, "<");
 }
 ;
 
 return_type:
 		   type_expr opt_abort_annotation {
-$$ = zane::makeNode("return_type");
+$$ = zane::makeNode(nk::return_type{});
 zane::adopt($$, $1);
 	zane::adopt($$, $2);
 }
@@ -224,7 +226,7 @@ opt_abort_annotation:
 $$ = nullptr;
 }
 | '?' type_expr {
-$$ = zane::makeNode("abort_type");
+$$ = zane::makeNode(nk::abort_type{});
 zane::adopt($$, $2);
 	}
 ;
@@ -234,17 +236,17 @@ opt_mut:
 $$ = nullptr;
 }
 | MUT {
-$$ = zane::makeNode("mut");
+$$ = zane::makeNode(nk::mut{});
 }
 ;
 
 callable_body:
 			 block {
-$$ = zane::makeNode("block_body");
+$$ = zane::makeNode(nk::block_body{});
 zane::adopt($$, $1);
 	}
 | FAT_ARROW expression {
-$$ = zane::makeNode("expr_body");
+$$ = zane::makeNode(nk::expr_body{});
 zane::adopt($$, $2);
 	}
 ;
@@ -269,18 +271,18 @@ zane::push($1, $3);
 
 parameter_decl:
 			  NAME type_expr {
-$$ = zane::makeNode("param_decl", $1);
+$$ = zane::makeNode(nk::param_decl{}, $1);
 std::free($1);
    zane::adopt($$, $2);
 }
 | NAME REF type_expr {
-$$ = zane::makeNode("param_decl", $1);
+$$ = zane::makeNode(nk::param_decl{}, $1);
 std::free($1);
-   zane::adopt($$, zane::makeNode("ref"));
+   zane::adopt($$, zane::makeNode(nk::ref{}));
 zane::adopt($$, $3);
 	}
 | THIS type_expr {
-$$ = zane::makeNode("param_decl", "this");
+$$ = zane::makeNode(nk::param_decl{}, "this");
 zane::adopt($$, $2);
 	}
 ;
@@ -308,22 +310,22 @@ $$ = $1;
 
 ctor_field_entry:
 				storage_decl {
-$$ = zane::makeNode("ctor_field_entry");
+$$ = zane::makeNode(nk::ctor_field_entry{});
 zane::adopt($$, $1);
 	}
 ;
 
 storage_decl:
 			NAME type_expr symbol_init_opt {
-$$ = zane::makeNode("storage_decl", $1);
+$$ = zane::makeNode(nk::storage_decl{}, $1);
 std::free($1);
    zane::adopt($$, $2);
 zane::adopt($$, $3);
 	}
 | NAME REF type_expr symbol_init_opt {
-$$ = zane::makeNode("storage_decl", $1);
+$$ = zane::makeNode(nk::storage_decl{}, $1);
 std::free($1);
-   zane::adopt($$, zane::makeNode("ref"));
+   zane::adopt($$, zane::makeNode(nk::ref{}));
 zane::adopt($$, $3);
 	zane::adopt($$, $4);
 }
@@ -334,7 +336,7 @@ symbol_init_opt:
 $$ = nullptr;
 }
 | '=' expression {
-$$ = zane::makeNode("assign_init");
+$$ = zane::makeNode(nk::assign_init{});
 zane::adopt($$, $2);
 	}
 | call_init
@@ -343,21 +345,21 @@ zane::adopt($$, $2);
 
 call_init:
 		 '(' call_arg_list_opt ')' {
-$$ = zane::makeNode("call_init");
+$$ = zane::makeNode(nk::call_init{});
 zane::adoptList($$, $2);
 	}
 ;
 
 field_init:
 		  '{' field_arg_list_opt '}' {
-$$ = zane::makeNode("field_init");
+$$ = zane::makeNode(nk::field_init{});
 zane::adoptList($$, $2);
 	}
 ;
 
 block:
 	 '{' statement_list '}' {
-$$ = zane::makeNode("block");
+$$ = zane::makeNode(nk::block{});
 zane::adoptList($$, $2);
 	}
 ;
@@ -385,14 +387,14 @@ statement:
 
 symbol_decl:
 		   storage_decl {
-$$ = zane::makeNode("symbol_decl");
+$$ = zane::makeNode(nk::symbol_decl{});
 zane::adopt($$, $1);
 	}
 ;
 
 assignment_stmt:
 			   postfix_expression '=' expression {
-$$ = zane::makeNode("assignment_stmt");
+$$ = zane::makeNode(nk::assignment_stmt{});
 zane::adopt($$, $1);
 	zane::adopt($$, $3);
 }
@@ -400,7 +402,7 @@ zane::adopt($$, $1);
 
 if_stmt:
 	   IF expression block elif_clause_list_opt else_clause_opt {
-$$ = zane::makeNode("if_stmt");
+$$ = zane::makeNode(nk::if_stmt{});
 zane::adopt($$, $2);
 	zane::adopt($$, $3);
 zane::adoptList($$, $4);
@@ -413,7 +415,7 @@ elif_clause_list_opt:
 $$ = zane::makeList();
 }
 | elif_clause_list_opt ELIF expression block {
-zane::Node* node = zane::makeNode("elif_clause");
+zane::Node* node = zane::makeNode(nk::elif_clause{});
 	zane::adopt(node, $3);
 zane::adopt(node, $4);
 	zane::push($1, node);
@@ -426,18 +428,18 @@ else_clause_opt:
 $$ = nullptr;
 }
 | ELSE block {
-$$ = zane::makeNode("else_clause");
+$$ = zane::makeNode(nk::else_clause{});
 zane::adopt($$, $2);
 	}
 ;
 
 guard_stmt:
 		  GUARD expression {
-$$ = zane::makeNode("guard_stmt");
+$$ = zane::makeNode(nk::guard_stmt{});
 zane::adopt($$, $2);
 	}
 | GUARD expression block {
-$$ = zane::makeNode("guard_stmt");
+$$ = zane::makeNode(nk::guard_stmt{});
 zane::adopt($$, $2);
 	zane::adopt($$, $3);
 }
@@ -445,37 +447,37 @@ zane::adopt($$, $2);
 
 return_stmt:
 		   RETURN {
-$$ = zane::makeNode("return_stmt");
+$$ = zane::makeNode(nk::return_stmt{});
 }
 | RETURN expression {
-$$ = zane::makeNode("return_stmt");
+$$ = zane::makeNode(nk::return_stmt{});
 zane::adopt($$, $2);
 	}
 ;
 
 abort_stmt:
 		  ABORT {
-$$ = zane::makeNode("abort_stmt");
+$$ = zane::makeNode(nk::abort_stmt{});
 }
 | ABORT expression {
-$$ = zane::makeNode("abort_stmt");
+$$ = zane::makeNode(nk::abort_stmt{});
 zane::adopt($$, $2);
 	}
 ;
 
 resolve_stmt:
 			RESOLVE {
-$$ = zane::makeNode("resolve_stmt");
+$$ = zane::makeNode(nk::resolve_stmt{});
 }
 | RESOLVE expression {
-$$ = zane::makeNode("resolve_stmt");
+$$ = zane::makeNode(nk::resolve_stmt{});
 zane::adopt($$, $2);
 	}
 ;
 
 expression_stmt:
 			   expression {
-$$ = zane::makeNode("expression_stmt");
+$$ = zane::makeNode(nk::expression_stmt{});
 zane::adopt($$, $1);
 	}
 ;
@@ -496,22 +498,22 @@ handler_suffix_opt:
 $$ = nullptr;
 }
 | '?' handler_clause {
-$$ = zane::makeNode("handler_expr");
+$$ = zane::makeNode(nk::handler_expr{});
 zane::adopt($$, $2);
 	}
 | QQ logic_expression {
-$$ = zane::makeNode("fallback_expr");
+$$ = zane::makeNode(nk::fallback_expr{});
 zane::adopt($$, $2);
 	}
 ;
 
 handler_clause:
 			  block {
-$$ = zane::makeNode("handler_clause");
+$$ = zane::makeNode(nk::handler_clause{});
 zane::adopt($$, $1);
 	}
 | NAME block {
-$$ = zane::makeNode("handler_clause", $1);
+$$ = zane::makeNode(nk::handler_clause{}, $1);
 std::free($1);
    zane::adopt($$, $2);
 }
@@ -603,28 +605,28 @@ postfix_expression:
 $$ = $1;
 }
 | postfix_expression '.' NAME {
-$$ = zane::makeNode("member_expr", $3);
+$$ = zane::makeNode(nk::member_expr{}, $3);
 std::free($3);
    zane::adopt($$, $1);
 }
 | postfix_expression '[' call_arg_list_opt ']' {
-$$ = zane::makeNode("subscript_expr");
+$$ = zane::makeNode(nk::subscript_expr{});
 zane::adopt($$, $1);
 	zane::adoptList($$, $3);
 }
 | postfix_expression '(' call_arg_list_opt ')' {
-$$ = zane::makeNode("call_expr");
+$$ = zane::makeNode(nk::call_expr{});
 zane::adopt($$, $1);
 	zane::adoptList($$, $3);
 }
 | postfix_expression ':' value_name '(' call_arg_list_opt ')' {
-$$ = zane::makeNode("method_call_expr", ":");
+$$ = zane::makeNode(nk::method_call_expr{}, ":");
 zane::adopt($$, $1);
 	zane::adopt($$, $3);
 zane::adoptList($$, $5);
 	}
 | postfix_expression '!' value_name '(' call_arg_list_opt ')' {
-$$ = zane::makeNode("method_call_expr", "!");
+$$ = zane::makeNode(nk::method_call_expr{}, "!");
 zane::adopt($$, $1);
 	zane::adopt($$, $3);
 zane::adoptList($$, $5);
@@ -636,29 +638,29 @@ primary_expression:
 $$ = $1;
 }
 | NUMBER {
-$$ = takeNode("number_literal", $1);
+$$ = takeNode(nk::number_literal{}, $1);
 }
 | STRING {
-$$ = takeNode("string_literal", $1);
+$$ = takeNode(nk::string_literal{}, $1);
 }
 | TRUE {
-$$ = zane::makeNode("bool_literal", "true");
+$$ = zane::makeNode(nk::bool_literal{}, "true");
 }
 | FALSE {
-$$ = zane::makeNode("bool_literal", "false");
+$$ = zane::makeNode(nk::bool_literal{}, "false");
 }
 | field_ctor_expr
 | init_expr
 | list_expr
 | '(' expression ')' {
-$$ = zane::makeNode("group_expr");
+$$ = zane::makeNode(nk::group_expr{});
 zane::adopt($$, $2);
 	}
 ;
 
 field_ctor_expr:
 			   value_name '{' field_arg_list_opt '}' {
-$$ = zane::makeNode("field_ctor_expr");
+$$ = zane::makeNode(nk::field_ctor_expr{});
 zane::adopt($$, $1);
 	zane::adoptList($$, $3);
 }
@@ -666,14 +668,14 @@ zane::adopt($$, $1);
 
 init_expr:
 		 INIT '{' init_item_list_opt '}' {
-$$ = zane::makeNode("init_expr");
+$$ = zane::makeNode(nk::init_expr{});
 zane::adoptList($$, $3);
 	}
 ;
 
 list_expr:
 		 '[' call_arg_list_opt ']' {
-$$ = zane::makeNode("list_expr");
+$$ = zane::makeNode(nk::list_expr{});
 zane::adoptList($$, $2);
 	}
 ;
@@ -701,12 +703,12 @@ $$ = $1;
 
 field_arg:
 		 NAME ':' expression {
-$$ = zane::makeNode("field_arg", $1);
+$$ = zane::makeNode(nk::field_arg{}, $1);
 std::free($1);
    zane::adopt($$, $3);
 }
 | NAME {
-$$ = zane::makeNode("field_arg", $1);
+$$ = zane::makeNode(nk::field_arg{}, $1);
 std::free($1);
    }
 ;
@@ -737,7 +739,7 @@ call_arg:
 $$ = $1;
 }
 | NAME ':' expression {
-$$ = zane::makeNode("named_arg", $1);
+$$ = zane::makeNode(nk::named_arg{}, $1);
 std::free($1);
    zane::adopt($$, $3);
 }
@@ -766,16 +768,16 @@ $$ = $1;
 
 init_item:
 		 NAME ':' expression {
-$$ = zane::makeNode("init_item", $1);
+$$ = zane::makeNode(nk::init_item{}, $1);
 std::free($1);
    zane::adopt($$, $3);
 }
 | NAME {
-$$ = zane::makeNode("init_item", $1);
+$$ = zane::makeNode(nk::init_item{}, $1);
 std::free($1);
    }
 | expression {
-$$ = zane::makeNode("init_expr_item");
+$$ = zane::makeNode(nk::init_expr_item{});
 zane::adopt($$, $1);
 	}
 ;
@@ -785,37 +787,37 @@ value_name:
 		$$ = $1;
 	}
 	| '@' NAME '$' NAME {
-		$$ = zane::makeNode("intrinsic_name");
-		zane::adopt($$, takeNode("namespace", $2));
-		zane::adopt($$, takeNode("name", $4));
+		$$ = zane::makeNode(nk::intrinsic_name{});
+		zane::adopt($$, takeNode(nk::namespace_name{}, $2));
+		zane::adopt($$, takeNode(nk::name{}, $4));
 	}
 ;
 
 qualified_value_name:
 					NAME {
-		$$ = takeNode("name", $1);
+		$$ = takeNode(nk::name{}, $1);
 	}
 	| THIS {
-		$$ = zane::makeNode("name", "this");
+		$$ = zane::makeNode(nk::name{}, "this");
 	}
 	| qualified_value_name '$' NAME {
-		$$ = zane::makeNode("qualified_name");
+		$$ = zane::makeNode(nk::qualified_name{});
 		zane::adopt($$, $1);
-zane::adopt($$, takeNode("segment", $3));
+zane::adopt($$, takeNode(nk::segment{}, $3));
 	}
 ;
 
 named_type:
 		  qualified_type generic_args_opt {
-		$$ = zane::makeNode("named_type");
+		$$ = zane::makeNode(nk::named_type{});
 		zane::adopt($$, $1);
 		zane::adopt($$, $2);
 	}
 	| '@' NAME '$' NAME generic_args_opt {
-		zane::Node* intrinsic = zane::makeNode("intrinsic_type");
-		zane::adopt(intrinsic, takeNode("namespace", $2));
-		zane::adopt(intrinsic, takeNode("name", $4));
-		$$ = zane::makeNode("named_type");
+		zane::Node* intrinsic = zane::makeNode(nk::intrinsic_type{});
+		zane::adopt(intrinsic, takeNode(nk::namespace_name{}, $2));
+		zane::adopt(intrinsic, takeNode(nk::name{}, $4));
+		$$ = zane::makeNode(nk::named_type{});
 		zane::adopt($$, intrinsic);
 		zane::adopt($$, $5);
 	}
@@ -823,12 +825,12 @@ named_type:
 
 qualified_type:
 			  NAME {
-$$ = takeNode("type_name", $1);
+$$ = takeNode(nk::type_name{}, $1);
 }
 | qualified_type '$' NAME {
-$$ = zane::makeNode("qualified_type");
+$$ = zane::makeNode(nk::qualified_type{});
 zane::adopt($$, $1);
-	zane::adopt($$, takeNode("segment", $3));
+	zane::adopt($$, takeNode(nk::segment{}, $3));
 }
 ;
 
@@ -837,7 +839,7 @@ generic_args_opt:
 $$ = nullptr;
 }
 | '<' generic_arg_list '>' {
-$$ = wrapList("generic_args", $2);
+$$ = wrapList(nk::generic_args{}, $2);
 }
 ;
 
@@ -857,10 +859,10 @@ type_expr:
 $$ = $1;
 }
 | TYPE_PARAM {
-$$ = takeNode("type_param", $1);
+$$ = takeNode(nk::type_param{}, $1);
 }
 | REF named_type {
-$$ = zane::makeNode("ref_type");
+$$ = zane::makeNode(nk::ref_type{});
 zane::adopt($$, $2);
 	}
 ;

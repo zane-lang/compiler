@@ -11,6 +11,8 @@
 
 namespace ast {
 
+namespace nk = ir::node_kind;
+
 inline const zane::Node* childAt(const zane::Node* node, std::size_t index) {
 	if (node == nullptr || index >= node->children.size()) {
 		return nullptr;
@@ -24,7 +26,7 @@ inline std::string childValue(const zane::Node* node, std::size_t index) {
 	return child != nullptr ? child->value : std::string();
 }
 
-inline const zane::Node* findChild(const zane::Node* node, std::string_view kind) {
+inline const zane::Node* findChild(const zane::Node* node, const ir::NodeKind& kind) {
 	if (node == nullptr) {
 		return nullptr;
 	}
@@ -38,7 +40,9 @@ inline const zane::Node* findChild(const zane::Node* node, std::string_view kind
 	return nullptr;
 }
 
-inline std::vector<const zane::Node*> findChildren(const zane::Node* node, std::string_view kind) {
+inline std::vector<const zane::Node*> findChildren(
+		const zane::Node* node,
+		const ir::NodeKind& kind) {
 	std::vector<const zane::Node*> matches;
 	if (node == nullptr) {
 		return matches;
@@ -58,17 +62,11 @@ inline std::string flattenName(const zane::Node* node) {
 		return {};
 	}
 
-	if (
-		node->kind == "name"
-		|| node->kind == "segment"
-		|| node->kind == "type_name"
-		|| node->kind == "operator_name"
-		|| node->kind == "type_param"
-	) {
+	if (node->kind.is<nk::name, nk::segment, nk::type_name, nk::operator_name, nk::type_param>()) {
 		return node->value;
 	}
 
-	if (node->kind == "intrinsic_name" || node->kind == "intrinsic_type") {
+	if (node->kind.is<nk::intrinsic_name, nk::intrinsic_type>()) {
 		std::string namespaceName = childValue(node, 0);
 		std::string name = childValue(node, 1);
 		if (!namespaceName.empty() && !name.empty()) {
@@ -78,11 +76,12 @@ inline std::string flattenName(const zane::Node* node) {
 	}
 
 	if (
-		node->kind == "qualified_name"
-		|| node->kind == "qualified_type"
-		|| node->kind == "callable_name"
-		|| node->kind == "package_decl"
-		|| node->kind == "import_decl"
+		node->kind.is<
+			nk::qualified_name,
+			nk::qualified_type,
+			nk::callable_name,
+			nk::package_decl,
+			nk::import_decl>()
 	) {
 		std::string result;
 		for (const auto* child : node->children) {
@@ -99,7 +98,7 @@ inline std::string flattenName(const zane::Node* node) {
 		return result;
 	}
 
-	if (node->kind == "named_type") {
+	if (node->kind.is<nk::named_type>()) {
 		return flattenName(childAt(node, 0));
 	}
 
@@ -125,15 +124,15 @@ inline std::shared_ptr<semantic::Type> lowerTypeExpr(const zane::Node* node) {
 		return makeNamedType("Void");
 	}
 
-	if (node->kind == "return_type" || node->kind == "abort_type") {
+	if (node->kind.is<nk::return_type, nk::abort_type>()) {
 		return lowerTypeExpr(childAt(node, 0));
 	}
 
-	if (node->kind == "type_param") {
+	if (node->kind.is<nk::type_param>()) {
 		return makeNamedType(node->value);
 	}
 
-	if (node->kind == "ref_type") {
+	if (node->kind.is<nk::ref_type>()) {
 		auto symbol = std::make_shared<semantic::TypeSymbol>();
 		symbol->name = "ref";
 		if (const auto* inner = childAt(node, 0)) {
@@ -142,21 +141,17 @@ inline std::shared_ptr<semantic::Type> lowerTypeExpr(const zane::Node* node) {
 		return std::make_shared<semantic::Type>(symbol);
 	}
 
-	if (node->kind == "intrinsic_type") {
+	if (node->kind.is<nk::intrinsic_type>()) {
 		auto symbol = std::make_shared<semantic::TypeSymbol>();
 		symbol->name = flattenName(node);
 		return std::make_shared<semantic::Type>(symbol);
 	}
 
-	if (
-		node->kind == "named_type"
-		|| node->kind == "qualified_type"
-		|| node->kind == "type_name"
-	) {
+	if (node->kind.is<nk::named_type, nk::qualified_type, nk::type_name>()) {
 		auto symbol = std::make_shared<semantic::TypeSymbol>();
-		symbol->name = flattenName(node->kind == "named_type" ? childAt(node, 0) : node);
+		symbol->name = flattenName(node->kind.is<nk::named_type>() ? childAt(node, 0) : node);
 
-		if (const auto* genericArgs = findChild(node, "generic_args")) {
+		if (const auto* genericArgs = findChild(node, nk::generic_args{})) {
 			for (const auto* generic : genericArgs->children) {
 				symbol->generics.push_back(lowerTypeExpr(generic));
 			}
@@ -165,7 +160,8 @@ inline std::shared_ptr<semantic::Type> lowerTypeExpr(const zane::Node* node) {
 		return std::make_shared<semantic::Type>(symbol);
 	}
 
-	return makeNamedType(!node->value.empty() ? node->value : node->kind);
+	return makeNamedType(
+		!node->value.empty() ? node->value : std::string(ir::nodeKindName(node->kind)));
 }
 
 inline std::shared_ptr<semantic::FuncType> lowerCallableType(const zane::Node* declaration) {
@@ -177,18 +173,15 @@ inline std::shared_ptr<semantic::FuncType> lowerCallableType(const zane::Node* d
 		return type;
 	}
 
-	if (declaration->kind == "function_decl") {
+	if (declaration->kind.is<nk::function_decl>()) {
 		type->returnType = lowerTypeExpr(childAt(declaration, 0));
 	}
-	else if (
-		declaration->kind == "constructor_decl"
-		|| declaration->kind == "field_constructor_decl"
-	) {
+	else if (declaration->kind.is<nk::constructor_decl, nk::field_constructor_decl>()) {
 		type->returnType = lowerTypeExpr(childAt(declaration, 0));
 	}
 
 	for (const auto* child : declaration->children) {
-		if (child == nullptr || child->kind != "param_decl") {
+		if (child == nullptr || !child->kind.is<nk::param_decl>()) {
 			continue;
 		}
 
@@ -199,20 +192,16 @@ inline std::shared_ptr<semantic::FuncType> lowerCallableType(const zane::Node* d
 				continue;
 			}
 
-			if (candidate->kind == "ref") {
+			if (candidate->kind.is<nk::ref>()) {
 				isRef = true;
 			}
-			else if (
-				candidate->kind == "named_type"
-				|| candidate->kind == "type_param"
-				|| candidate->kind == "ref_type"
-			) {
+			else if (candidate->kind.is<nk::named_type, nk::type_param, nk::ref_type>()) {
 				paramType = candidate;
 			}
 		}
 
 		auto loweredParamType = lowerTypeExpr(paramType);
-		if (isRef && paramType != nullptr && paramType->kind != "ref_type") {
+		if (isRef && paramType != nullptr && !paramType->kind.is<nk::ref_type>()) {
 			auto symbol = std::make_shared<semantic::TypeSymbol>();
 			symbol->name = "ref";
 			symbol->generics.push_back(loweredParamType);
@@ -226,12 +215,12 @@ inline std::shared_ptr<semantic::FuncType> lowerCallableType(const zane::Node* d
 }
 
 inline std::string declaredPackageName(const zane::Node* root) {
-	if (root == nullptr || root->kind != "program") {
+	if (root == nullptr || !root->kind.is<nk::program>()) {
 		return {};
 	}
 
 	for (const auto* child : root->children) {
-		if (child != nullptr && child->kind == "package_decl") {
+		if (child != nullptr && child->kind.is<nk::package_decl>()) {
 			return flattenName(child);
 		}
 	}
@@ -273,13 +262,10 @@ inline std::shared_ptr<semantic::ValueSymbol> makeCallableSymbol(
 	}
 	symbol->type = std::make_shared<semantic::Type>(callableType);
 
-	if (node->kind == "function_decl") {
+	if (node->kind.is<nk::function_decl>()) {
 		symbol->name = flattenName(childAt(node, 1));
 	}
-	else if (
-		node->kind == "constructor_decl"
-		|| node->kind == "field_constructor_decl"
-	) {
+	else if (node->kind.is<nk::constructor_decl, nk::field_constructor_decl>()) {
 		symbol->name = flattenName(childAt(node, 0));
 	}
 
