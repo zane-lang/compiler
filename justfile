@@ -2,22 +2,25 @@ build:
 	meson compile -C build
 
 init:
+	rm -rf build
 	git submodule update --init --recursive
 	vcpkg install
-	CXX=clang++ meson setup build --buildtype=debug --reconfigure --cmake-prefix-path "$(realpath vcpkg_installed/x64-linux)"
+	CXX=clang++ meson setup build --buildtype=debug --cmake-prefix-path "$(realpath vcpkg_installed/x64-linux)"
 
 release:
+	rm -rf build
 	git submodule update --init --recursive
 	vcpkg install
-	CXX=clang++ meson setup build --buildtype=release --reconfigure --cmake-prefix-path "$(realpath vcpkg_installed/x64-linux)"
+	CXX=clang++ meson setup build --buildtype=release --cmake-prefix-path "$(realpath vcpkg_installed/x64-linux)"
 
 check:
 	clang-check -p build src/*.*
 
-[working-directory: "."]
 generate-parser:
 	scripts/generate_parser.sh
 
-[working-directory: "."]
 check-parser:
 	scripts/check_parser.sh
+
+link:
+	ln -sf build/zane bin/zane
