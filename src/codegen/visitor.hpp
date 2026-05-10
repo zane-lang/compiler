@@ -283,7 +283,7 @@ private:
 		const auto* callee = node->children.front();
 		std::string calleeName = ast::flattenName(callee);
 
-		if (calleeName == "@Functions$stringFromText" && args.size() == 1) {
+		if (calleeName == "@Compiler$stringFromStringLiteral" && args.size() == 1) {
 			const auto* sourceNode = node->children.size() > 1 ? node->children[1] : nullptr;
 			if (sourceNode != nullptr) {
 				std::string literalConcept =
@@ -291,29 +291,6 @@ private:
 				(void)literalConcept;
 			}
 			return args.front();
-		}
-
-		if (calleeName == "@Functions$printLine") {
-			const auto* intrinsic = intrinsics::get().find(calleeName);
-			const std::string runtimeSymbol =
-				(intrinsic != nullptr && !intrinsic->runtimeSymbol.empty())
-					? intrinsic->runtimeSymbol
-					: "zane_printLine";
-			auto* function = resolveFunctionByName(callee, args.size(), runtimeSymbol);
-			if (function == nullptr && args.size() == 1) {
-				auto* functionType =
-					llvm::FunctionType::get(builder.getVoidTy(), {args.front()->getType()}, false);
-				function = llvm::Function::Create(
-					functionType,
-					llvm::Function::ExternalLinkage,
-					runtimeSymbol,
-					module);
-			}
-			if (function != nullptr) {
-				auto* call = builder.CreateCall(function, args);
-				call->setCallingConv(function->getCallingConv());
-				return call;
-			}
 		}
 
 		if (const auto* intrinsic = intrinsics::get().find(calleeName)) {

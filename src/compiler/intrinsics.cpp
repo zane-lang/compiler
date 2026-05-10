@@ -23,7 +23,7 @@ Registry::Registry() {
 	registerType("@Concepts$Number", Category::Concept, "i64", nk::number_literal{});
 
 	registerFunction(
-		"@Functions$stringFromText",
+		"@Compiler$stringFromStringLiteral",
 		LoweringKind::CompilerFunction,
 		"@Primitives$String",
 		{"@Concepts$StringLiteral"}

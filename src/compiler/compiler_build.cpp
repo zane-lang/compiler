@@ -11,11 +11,28 @@
 #include <llvm/Support/raw_ostream.h>
 #include <optional>
 #include <sstream>
+#include <vector>
 
 namespace {
 
-fs::path getRuntimeSourcePath() {
-	return fs::path(ZANE_COMPILER_ROOT) / "runtime" / "zane_runtime.c";
+fs::path getHeliosSourceDir() {
+	return fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios" / "src";
+}
+
+std::vector<fs::path> collectHeliosSources() {
+	std::vector<fs::path> sources;
+	const fs::path sourceDir = getHeliosSourceDir();
+	if (!fs::exists(sourceDir) || !fs::is_directory(sourceDir)) {
+		return sources;
+	}
+
+	for (const auto& entry : fs::recursive_directory_iterator(sourceDir)) {
+		if (entry.is_regular_file() && entry.path().extension() == ".c") {
+			sources.push_back(entry.path());
+		}
+	}
+
+	return sources;
 }
 
 } // namespace
@@ -90,27 +107,67 @@ bool Compiler::compileRuntimeObject(
 		BuildMode mode,
 		const fs::path& cacheDir,
 		fs::path& objectFile) {
-	const fs::path runtimeSource = getRuntimeSourcePath();
-	if (!fs::exists(runtimeSource)) {
-		DEBUG("Runtime source not found: " << runtimeSource);
+	const auto runtimeSources = collectHeliosSources();
+	if (runtimeSources.empty()) {
+		DEBUG("Helios sources not found under: " << getHeliosSourceDir());
 		return false;
 	}
 
-	objectFile = cacheDir / "__zane_runtime.o";
-	if (
-		fs::exists(objectFile)
-		&& fs::last_write_time(objectFile) >= fs::last_write_time(runtimeSource)
-	) {
+	objectFile = cacheDir / "__helios_runtime.o";
+
+	auto newestSource = fs::file_time_type::min();
+	for (const auto& runtimeSource : runtimeSources) {
+		newestSource = std::max(newestSource, fs::last_write_time(runtimeSource));
+	}
+
+	if (fs::exists(objectFile) && fs::last_write_time(objectFile) >= newestSource) {
 		return true;
 	}
 
-	std::string command = zig::path() + " cc"
-		+ " --target=" + zig::toZigTarget(target.triple)
-		+ (mode == BuildMode::Release ? " -O3" : "")
-		+ " -c " + shell::quote(runtimeSource.string())
-		+ " -o " + shell::quote(objectFile.string());
-	if (std::system(command.c_str()) != 0) {
-		DEBUG("Failed to compile runtime object");
+	if (runtimeSources.size() == 1) {
+		std::string command = zig::path() + " cc"
+			+ " --target=" + zig::toZigTarget(target.triple)
+			+ (mode == BuildMode::Release ? " -O3" : "")
+			+ " -c " + shell::quote(runtimeSources.front().string())
+			+ " -o " + shell::quote(objectFile.string());
+		if (std::system(command.c_str()) != 0) {
+			DEBUG("Failed to compile Helios runtime object");
+			return false;
+		}
+
+		return true;
+	}
+
+	const fs::path objectsDir = cacheDir / "__helios_objects";
+	fs::create_directories(objectsDir);
+
+	std::vector<std::string> partialObjects;
+	for (std::size_t index = 0; index < runtimeSources.size(); ++index) {
+		const fs::path partialObject =
+			objectsDir / ("helios_" + std::to_string(index) + ".o");
+		std::string command = zig::path() + " cc"
+			+ " --target=" + zig::toZigTarget(target.triple)
+			+ (mode == BuildMode::Release ? " -O3" : "")
+			+ " -c " + shell::quote(runtimeSources[index].string())
+			+ " -o " + shell::quote(partialObject.string());
+		if (std::system(command.c_str()) != 0) {
+			DEBUG("Failed to compile Helios source: " << runtimeSources[index]);
+			return false;
+		}
+
+		partialObjects.push_back(shell::quote(partialObject.string()));
+	}
+
+	std::stringstream mergeCommand;
+	mergeCommand << zig::path() << " cc"
+		<< " --target=" << zig::toZigTarget(target.triple)
+		<< " -r";
+	for (const auto& partialObject : partialObjects) {
+		mergeCommand << " " << partialObject;
+	}
+	mergeCommand << " -o " << shell::quote(objectFile.string());
+	if (std::system(mergeCommand.str().c_str()) != 0) {
+		DEBUG("Failed to merge Helios runtime objects");
 		return false;
 	}
 
