@@ -19,6 +19,8 @@ fs::path getHeliosSourceDir() {
 	return fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios" / "src";
 }
 
+constexpr std::string_view legacyHeliosRuntimeObjectName = "__helios_runtime.o";
+
 std::vector<fs::path> collectHeliosSources() {
 	std::vector<fs::path> sources;
 	const fs::path sourceDir = getHeliosSourceDir();
@@ -212,7 +214,7 @@ bool Compiler::linkObjectFiles(
 	}
 
 	for (const auto& path : getLocalObjectFiles(cacheDir)) {
-		if (path == runtimeObject || path.filename() == "__helios_runtime.o") {
+		if (path == runtimeObject || path.filename() == legacyHeliosRuntimeObjectName) {
 			continue;
 		}
 		objectFiles.push_back(shell::quote(path.string()));
@@ -259,7 +261,7 @@ bool Compiler::createStaticLibrary(
 	}
 
 	for (const auto& path : getLocalObjectFiles(cacheDir)) {
-		if (path == runtimeObject || path.filename() == "__helios_runtime.o") {
+		if (path == runtimeObject || path.filename() == legacyHeliosRuntimeObjectName) {
 			continue;
 		}
 		objectFiles.push_back(shell::quote(path.string()));
