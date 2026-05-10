@@ -5,6 +5,6 @@ Void print(text @Primitives$String) {
 }
 
 Void main() {
-	text @Primitives$String = @Functions$stringFromText("Hello, World!")
+	text @Primitives$String = @Compiler$stringFromStringLiteral("Hello, World!")
 	print(text)
 }
