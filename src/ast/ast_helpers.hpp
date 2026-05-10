@@ -81,7 +81,8 @@ inline std::string flattenName(const zane::Node* node) {
 			nk::qualified_type,
 			nk::callable_name,
 			nk::package_decl,
-			nk::import_decl>()
+			nk::import_decl
+		>()
 	) {
 		std::string result;
 		for (const auto* child : node->children) {

@@ -85,7 +85,8 @@ public:
 			if (child->kind.is<
 					ir::node_kind::function_decl,
 					ir::node_kind::constructor_decl,
-					ir::node_kind::field_constructor_decl>()) {
+					ir::node_kind::field_constructor_decl
+			>()) {
 				registerSymbol(makeCallableSymbol(child));
 			}
 		}

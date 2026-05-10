@@ -23,4 +23,4 @@ check-parser:
 	scripts/check_parser.sh
 
 link:
-	ln -sf build/zane bin/zane
+	ln -sf ../build/zane bin/zane
