@@ -39,6 +39,8 @@ else
   exe_link_args += ['-flto', '-Wl,--strip-all', '-Wl,--gc-sections']
 endif
 
+exe_cpp_args += ['-DZANE_COMPILER_ROOT="' + meson.project_source_root() + '"']
+
 # ---------------- LLVM (manual llvm-config integration) ----------------
 llvm_modules = [
   'core',
@@ -105,17 +107,6 @@ llvm_dep = declare_dependency(
 )
 # ----------------------------------------------------------------------
 
-embedded_data_header = custom_target(
-  'embedded_data',
-  output: 'embedded_data.hpp',
-  command: [python, files('scripts/embed_data.py')],
-  depend_files: [
-    files('data/types.csv'),
-    files('data/builtins.csv'),
-  ],
-  build_by_default: true,
-)
-
 generated_parser = custom_target(
   'generated_parser',
   input: files('grammar/parser.y'),
@@ -138,7 +129,7 @@ sources = run_command(
 
 zane_exe = executable(
   meson.project_name(),
-  sources + [embedded_data_header, generated_parser, generated_lexer],
+  sources + [generated_parser, generated_lexer],
   include_directories: [src_dir, grammar_dir],
   dependencies: [nlohmann_dep, cereal_dep, llvm_dep, coda_dep, zanecpp_dep],
   build_by_default: true,

@@ -78,6 +78,11 @@ private:
 		const fs::path& objectFile,
 		const constants::targets::Target& target,
 		BuildMode mode);
+	bool compileRuntimeObject(
+		const constants::targets::Target& target,
+		BuildMode mode,
+		const fs::path& cacheDir,
+		fs::path& objectFile);
 
 public:
 	Compiler(manifest::Manifest manifest);

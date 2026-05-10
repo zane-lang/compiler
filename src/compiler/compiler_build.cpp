@@ -12,6 +12,14 @@
 #include <optional>
 #include <sstream>
 
+namespace {
+
+fs::path getRuntimeSourcePath() {
+	return fs::path(ZANE_COMPILER_ROOT) / "runtime" / "zane_runtime.c";
+}
+
+} // namespace
+
 void Compiler::generateMainWrapper() {
 	auto wrapperModule = std::make_unique<llvm::Module>("__main_wrapper", *context);
 	llvm::IRBuilder<> builder(*context);
@@ -77,6 +85,38 @@ bool Compiler::compileModuleWithZig(
 	return true;
 }
 
+bool Compiler::compileRuntimeObject(
+		const constants::targets::Target& target,
+		BuildMode mode,
+		const fs::path& cacheDir,
+		fs::path& objectFile) {
+	const fs::path runtimeSource = getRuntimeSourcePath();
+	if (!fs::exists(runtimeSource)) {
+		DEBUG("Runtime source not found: " << runtimeSource);
+		return false;
+	}
+
+	objectFile = cacheDir / "__zane_runtime.o";
+	if (
+		fs::exists(objectFile)
+		&& fs::last_write_time(objectFile) >= fs::last_write_time(runtimeSource)
+	) {
+		return true;
+	}
+
+	std::string command = zig::path() + " cc"
+		+ " --target=" + zig::toZigTarget(target.triple)
+		+ (mode == BuildMode::Release ? " -O3" : "")
+		+ " -c " + shell::quote(runtimeSource.string())
+		+ " -o " + shell::quote(objectFile.string());
+	if (std::system(command.c_str()) != 0) {
+		DEBUG("Failed to compile runtime object");
+		return false;
+	}
+
+	return true;
+}
+
 void Compiler::compileToObjectFiles(
 		const constants::targets::Target& target,
 		BuildMode mode,
@@ -108,10 +148,19 @@ bool Compiler::linkObjectFiles(
 		const std::string& outputExecutable) {
 	fs::path cacheDir = fs::path(constants::CACHE_DIR) / target.name;
 	std::vector<std::string> objectFiles;
+	fs::path runtimeObject;
+
+	if (!compileRuntimeObject(target, mode, cacheDir, runtimeObject)) {
+		return false;
+	}
 
 	for (const auto& path : getLocalObjectFiles(cacheDir)) {
+		if (path == runtimeObject) {
+			continue;
+		}
 		objectFiles.push_back(shell::quote(path.string()));
 	}
+	objectFiles.push_back(shell::quote(runtimeObject.string()));
 
 	for (const auto& path : getDependencyArtifacts(target)) {
 		objectFiles.push_back(shell::quote(path.string()));
@@ -146,9 +195,19 @@ bool Compiler::createStaticLibrary(
 		const std::string& outputLibrary) {
 	fs::path cacheDir = fs::path(constants::CACHE_DIR) / target.name;
 	std::vector<std::string> objectFiles;
+	fs::path runtimeObject;
+
+	if (!compileRuntimeObject(target, BuildMode::Release, cacheDir, runtimeObject)) {
+		return false;
+	}
+
 	for (const auto& path : getLocalObjectFiles(cacheDir)) {
+		if (path == runtimeObject) {
+			continue;
+		}
 		objectFiles.push_back(shell::quote(path.string()));
 	}
+	objectFiles.push_back(shell::quote(runtimeObject.string()));
 
 	const auto dependencyArtifacts = getDependencyArtifacts(target);
 	for (const auto& path : dependencyArtifacts) {

@@ -19,6 +19,11 @@ inline const zane::Node* childAt(const zane::Node* node, std::size_t index) {
 	return node->children[index];
 }
 
+inline std::string childValue(const zane::Node* node, std::size_t index) {
+	const auto* child = childAt(node, index);
+	return child != nullptr ? child->value : std::string();
+}
+
 inline const zane::Node* findChild(const zane::Node* node, std::string_view kind) {
 	if (node == nullptr) {
 		return nullptr;
@@ -61,6 +66,15 @@ inline std::string flattenName(const zane::Node* node) {
 		|| node->kind == "type_param"
 	) {
 		return node->value;
+	}
+
+	if (node->kind == "intrinsic_name" || node->kind == "intrinsic_type") {
+		std::string namespaceName = childValue(node, 0);
+		std::string name = childValue(node, 1);
+		if (!namespaceName.empty() && !name.empty()) {
+			return "@" + namespaceName + "$" + name;
+		}
+		return {};
 	}
 
 	if (
@@ -125,6 +139,12 @@ inline std::shared_ptr<semantic::Type> lowerTypeExpr(const zane::Node* node) {
 		if (const auto* inner = childAt(node, 0)) {
 			symbol->generics.push_back(lowerTypeExpr(inner));
 		}
+		return std::make_shared<semantic::Type>(symbol);
+	}
+
+	if (node->kind == "intrinsic_type") {
+		auto symbol = std::make_shared<semantic::TypeSymbol>();
+		symbol->name = flattenName(node);
 		return std::make_shared<semantic::Type>(symbol);
 	}
 

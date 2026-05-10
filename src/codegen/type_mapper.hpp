@@ -1,10 +1,11 @@
+#include "compiler/intrinsics.hpp"
 #include "semantic/metadata.hpp"
-#include <unordered_map>
-#include <string>
+
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/LLVMContext.h>
-#include <utils/embedded_types.hpp>
+#include <string>
+#include <unordered_map>
 
 class TypeMapper {
 private:
@@ -17,13 +18,19 @@ public:
 	}
 
 	llvm::Type* toLLVMType(const std::string& irTypeName) {
-		if (irTypeName == "String") {
-			return llvm::PointerType::get(context, 0);
-		}
 		auto it = typeCache.find(irTypeName);
 		if (it != typeCache.end()) {
 			return it->second;
 		}
+
+		if (const auto* intrinsic = intrinsics::get().find(irTypeName)) {
+			llvm::Type* llvmType = resolveString(intrinsic->llvmTypeName);
+			if (llvmType != nullptr) {
+				typeCache[irTypeName] = llvmType;
+				return llvmType;
+			}
+		}
+
 		return nullptr;
 	}
 
@@ -33,13 +40,8 @@ public:
 			[&](std::shared_ptr<semantic::TypeSymbol> ts) {
 				result = std::make_shared<llvm::Type*>(toLLVMType(ts->getMangledName()));
 			},
-			[&](std::shared_ptr<semantic::FuncType> ft) {
-				llvm::Type* retType = toLLVMType(ft->returnType.get());
-				std::vector<llvm::Type*> params;
-				for (auto& p : ft->paramTypes) {
-					params.push_back(toLLVMType(p.get()));
-				}
-				llvm::FunctionType* funcType = llvm::FunctionType::get(retType, params, false);
+			[&](std::shared_ptr<semantic::FuncType> /* ft */) {
+				// Function types are represented as pointers in LLVM
 				result = std::make_shared<llvm::Type*>(llvm::PointerType::get(context, 0));
 			}
 		);
@@ -56,8 +58,18 @@ private:
 	}
 
 	void loadTypes() {
-		for (const auto& typeInfo : utils::parseEmbeddedTypes()) {
-			typeCache[typeInfo.name] = resolveString(typeInfo.llvmType);
+		typeCache["Void"] = llvm::Type::getVoidTy(context);
+		typeCache["String"] = llvm::PointerType::get(context, 0);
+
+		for (const auto& [fullName, intrinsic] : intrinsics::get().all()) {
+			(void)fullName;
+			if (!intrinsic.isType()) {
+				continue;
+			}
+
+			if (llvm::Type* llvmType = resolveString(intrinsic.llvmTypeName)) {
+				typeCache[intrinsic.fullName] = llvmType;
+			}
 		}
 	}
 };

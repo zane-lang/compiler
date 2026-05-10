@@ -2,6 +2,7 @@
 
 #include "ast/ast_helpers.hpp"
 #include "codegen/type_mapper.hpp"
+#include "compiler/intrinsics.hpp"
 #include "package/package.hpp"
 #include "utils/console.hpp"
 
@@ -146,29 +147,64 @@ private:
 		}
 	}
 
-	llvm::Function* resolveFunctionByName(
-			const ir::Node* callee,
-			std::size_t argumentCount) {
-		if (callee == nullptr) {
+	const intrinsics::IntrinsicInfo* resolveIntrinsic(const ir::Node* node) const {
+		if (node == nullptr) {
 			return nullptr;
 		}
 
-		auto flatName = ast::flattenName(callee);
-		if (flatName.empty()) {
+		return intrinsics::get().find(ast::flattenName(node));
+	}
+
+	const intrinsics::IntrinsicInfo* resolveIntrinsic(
+			const std::shared_ptr<semantic::ValueSymbol>& funcSymbol) const {
+		if (!funcSymbol) {
 			return nullptr;
 		}
 
-		if (auto* function = module.getFunction(flatName)) {
-			if (function->arg_size() == argumentCount) {
+		const auto tryLookup = [&](const std::string& name) -> const intrinsics::IntrinsicInfo* {
+			if (name.empty()) {
+				return nullptr;
+			}
+
+			if (const auto* intrinsic = intrinsics::get().find(name)) {
+				return intrinsic;
+			}
+
+			auto signatureStart = name.find('(');
+			if (signatureStart != std::string::npos) {
+				return intrinsics::get().find(name.substr(0, signatureStart));
+			}
+
+			return nullptr;
+		};
+
+		if (const auto* intrinsic = tryLookup(funcSymbol->name)) {
+			return intrinsic;
+		}
+
+		auto mangledName = funcSymbol->getMangledName();
+		return tryLookup(mangledName);
+	}
+
+	llvm::Function* resolveFunctionByName(const ir::Node* node, std::size_t expectedArgCount, const std::string& directName = "") {
+		std::string functionName = directName.empty() ? ast::flattenName(node) : directName;
+		if (functionName.empty()) {
+			return nullptr;
+		}
+
+		// Try direct module lookup first
+		if (auto* function = module.getFunction(functionName)) {
+			if (expectedArgCount == 0 || function->arg_size() == expectedArgCount) {
 				return function;
 			}
 			DEBUG(
-				"Function '" << flatName << "' exists with " << function->arg_size()
-				<< " args, but call expected " << argumentCount);
+				"Function '" << functionName << "' exists with " << function->arg_size()
+				<< " args, but call expected " << expectedArgCount);
 			return nullptr;
 		}
 
-		auto it = functionsByAlias.find(flatName);
+		// Try alias-based lookup
+		auto it = functionsByAlias.find(functionName);
 		if (it == functionsByAlias.end()) {
 			return nullptr;
 		}
@@ -176,12 +212,12 @@ private:
 		llvm::Function* match = nullptr;
 		std::vector<std::string> ambiguousMatches;
 		for (auto* function : it->second) {
-			if (function != nullptr && function->arg_size() == argumentCount) {
+			if (function != nullptr && (expectedArgCount == 0 || function->arg_size() == expectedArgCount)) {
 				ambiguousMatches.push_back(function->getName().str());
 				if (match != nullptr && match != function) {
 					DEBUG(
-						"Ambiguous function lookup for '" << flatName
-						<< "' with " << argumentCount << " args: "
+						"Ambiguous function lookup for '" << functionName
+						<< "' with " << expectedArgCount << " args: "
 						<< ambiguousMatches[0] << " vs " << ambiguousMatches.back());
 					return nullptr;
 				}
@@ -189,8 +225,8 @@ private:
 			}
 		}
 
-		if (match == nullptr) {
-			DEBUG("No function overload for '" << flatName << "' with " << argumentCount << " args");
+		if (match == nullptr && expectedArgCount != 0) {
+			DEBUG("No function overload for '" << functionName << "' with " << expectedArgCount << " args");
 		}
 
 		return match;
@@ -213,6 +249,10 @@ private:
 
 		DEBUG("Unknown symbol: " << node->value);
 		return nullptr;
+	}
+
+	llvm::Value* emitIntrinsicName(const ir::Node* node) {
+		return resolveFunctionByName(node, 0);
 	}
 
 	llvm::Value* emitQualifiedName(const ir::Node* node) {
@@ -241,6 +281,54 @@ private:
 		}
 
 		const auto* callee = node->children.front();
+		std::string calleeName = ast::flattenName(callee);
+
+		if (calleeName == "@Functions$stringFromText" && args.size() == 1) {
+			const auto* sourceNode = node->children.size() > 1 ? node->children[1] : nullptr;
+			if (sourceNode != nullptr) {
+				std::string literalConcept =
+					intrinsics::get().conceptForLiteralNode(sourceNode->kind);
+				(void)literalConcept;
+			}
+			return args.front();
+		}
+
+		if (calleeName == "@Functions$printLine") {
+			const auto* intrinsic = intrinsics::get().find(calleeName);
+			const std::string runtimeSymbol =
+				(intrinsic != nullptr && !intrinsic->runtimeSymbol.empty())
+					? intrinsic->runtimeSymbol
+					: "zane_printLine";
+			auto* function = resolveFunctionByName(callee, args.size(), runtimeSymbol);
+			if (function == nullptr && args.size() == 1) {
+				auto* functionType =
+					llvm::FunctionType::get(builder.getVoidTy(), {args.front()->getType()}, false);
+				function = llvm::Function::Create(
+					functionType,
+					llvm::Function::ExternalLinkage,
+					runtimeSymbol,
+					module);
+			}
+			if (function != nullptr) {
+				auto* call = builder.CreateCall(function, args);
+				call->setCallingConv(function->getCallingConv());
+				return call;
+			}
+		}
+
+		if (const auto* intrinsic = intrinsics::get().find(calleeName)) {
+			if (intrinsic->isFunction()
+					&& intrinsic->loweringKind == intrinsics::LoweringKind::RuntimeFunction
+					&& !intrinsic->runtimeSymbol.empty()) {
+				if (auto* function =
+						resolveFunctionByName(callee, args.size(), intrinsic->runtimeSymbol)) {
+					auto* call = builder.CreateCall(function, args);
+					call->setCallingConv(function->getCallingConv());
+					return call;
+				}
+			}
+		}
+
 		if (auto* function = resolveFunctionByName(callee, args.size())) {
 			auto* call = builder.CreateCall(function, args);
 			call->setCallingConv(function->getCallingConv());
@@ -258,6 +346,10 @@ private:
 
 		if (node->kind == "name") {
 			return emitName(node);
+		}
+
+		if (node->kind == "intrinsic_name") {
+			return emitIntrinsicName(node);
 		}
 
 		if (node->kind == "qualified_name") {
@@ -416,6 +508,58 @@ public:
 	LLVMVisitor(llvm::LLVMContext& ctx, llvm::IRBuilder<>& b, llvm::Module& m)
 		: context(ctx), builder(b), module(m), typeMapper(ctx) {}
 
+	void declareIntrinsicSignatures() {
+		for (const auto& [fullName, intrinsic] : intrinsics::get().all()) {
+			(void)fullName;
+			if (
+				!intrinsic.isFunction()
+				|| intrinsic.callableSymbol == nullptr
+				|| intrinsic.loweringKind != intrinsics::LoweringKind::RuntimeFunction
+			) {
+				continue;
+			}
+
+			llvm::Type* returnType = nullptr;
+			std::vector<llvm::Type*> params;
+			bool supported = true;
+
+			intrinsic.callableSymbol->type->value.match(
+				[&](std::shared_ptr<semantic::FuncType> funcType) {
+					returnType = typeMapper.toLLVMType(funcType->returnType.get());
+					if (returnType == nullptr) {
+						supported = false;
+						return;
+					}
+
+					for (auto& param : funcType->paramTypes) {
+						auto* llvmType = typeMapper.toLLVMType(param.get());
+						if (llvmType == nullptr) {
+							supported = false;
+							return;
+						}
+						params.push_back(llvmType);
+					}
+				}
+			);
+
+			if (!supported || returnType == nullptr || intrinsic.runtimeSymbol.empty()) {
+				continue;
+			}
+
+			auto* function = module.getFunction(intrinsic.runtimeSymbol);
+			if (function == nullptr) {
+				auto* functionType = llvm::FunctionType::get(returnType, params, false);
+				function = llvm::Function::Create(
+					functionType,
+					llvm::Function::ExternalLinkage,
+					intrinsic.runtimeSymbol,
+					module);
+			}
+
+			registerFunctionAliases(intrinsic.callableSymbol, function);
+		}
+	}
+
 	void declareSignatures(zane::ref<Package> package) {
 		declareSignatures(package->packageInfo);
 	}
@@ -450,6 +594,18 @@ private:
 			return;
 		}
 
+		if (const auto* intrinsic = resolveIntrinsic(funcSymbol)) {
+			if (
+				intrinsic->isFunction()
+				&& intrinsic->loweringKind == intrinsics::LoweringKind::CompilerFunction
+			) {
+				return;
+			}
+		}
+		else if (!funcSymbol->name.empty() && funcSymbol->name.front() == '@') {
+			return;
+		}
+
 		llvm::Type* returnType = nullptr;
 		std::vector<llvm::Type*> params;
 		bool supported = true;
@@ -475,13 +631,22 @@ private:
 			return;
 		}
 
-		llvm::Function* function = module.getFunction(funcSymbol->getMangledName());
+		std::string llvmName = funcSymbol->getMangledName();
+		if (const auto* intrinsic = resolveIntrinsic(funcSymbol)) {
+			if (intrinsic->isFunction()
+					&& intrinsic->loweringKind == intrinsics::LoweringKind::RuntimeFunction
+					&& !intrinsic->runtimeSymbol.empty()) {
+				llvmName = intrinsic->runtimeSymbol;
+			}
+		}
+
+		llvm::Function* function = module.getFunction(llvmName);
 		if (function == nullptr) {
 			auto* functionType = llvm::FunctionType::get(returnType, params, false);
 			function = llvm::Function::Create(
 				functionType,
 				llvm::Function::ExternalLinkage,
-				funcSymbol->getMangledName(),
+				llvmName,
 				module);
 		}
 

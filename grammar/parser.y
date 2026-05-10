@@ -782,8 +782,13 @@ zane::adopt($$, $1);
 
 value_name:
 		  qualified_value_name {
-$$ = $1;
-}
+		$$ = $1;
+	}
+	| '@' NAME '$' NAME {
+		$$ = zane::makeNode("intrinsic_name");
+		zane::adopt($$, takeNode("namespace", $2));
+		zane::adopt($$, takeNode("name", $4));
+	}
 ;
 
 qualified_value_name:
@@ -802,10 +807,18 @@ zane::adopt($$, takeNode("segment", $3));
 
 named_type:
 		  qualified_type generic_args_opt {
-$$ = zane::makeNode("named_type");
-zane::adopt($$, $1);
-	zane::adopt($$, $2);
-}
+		$$ = zane::makeNode("named_type");
+		zane::adopt($$, $1);
+		zane::adopt($$, $2);
+	}
+	| '@' NAME '$' NAME generic_args_opt {
+		zane::Node* intrinsic = zane::makeNode("intrinsic_type");
+		zane::adopt(intrinsic, takeNode("namespace", $2));
+		zane::adopt(intrinsic, takeNode("name", $4));
+		$$ = zane::makeNode("named_type");
+		zane::adopt($$, intrinsic);
+		zane::adopt($$, $5);
+	}
 ;
 
 qualified_type:
