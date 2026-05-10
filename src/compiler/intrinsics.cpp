@@ -29,6 +29,15 @@ Registry::Registry() {
 	registerType("@Concepts$Text", Category::Concept, "ptr");
 	registerType("@Concepts$Number", Category::Concept, "i64", nk::number_literal{});
 	loadHeliosRuntimeFunctions();
+	if (find("@Functions$printLine") == nullptr) {
+		registerFunction(
+			"@Functions$printLine",
+			LoweringKind::RuntimeFunction,
+			"Void",
+			{"@Primitives$String"},
+			"zane_printLine"
+		);
+	}
 
 	registerFunction(
 		"@Compiler$stringFromStringLiteral",
