@@ -2,3 +2,7 @@ Name
 Void
 String
 puts
+@Primitives$String
+@Functions$printLine
+@Functions$stringFromText
+@Concepts$StringLiteral

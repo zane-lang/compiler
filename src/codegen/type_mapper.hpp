@@ -51,6 +51,7 @@ private:
 		if (llvmTypeName == "void") return llvm::Type::getVoidTy(context);
 		if (llvmTypeName == "i32")  return llvm::Type::getInt32Ty(context);
 		if (llvmTypeName == "i64")  return llvm::Type::getInt64Ty(context);
+		if (llvmTypeName == "ptr")  return llvm::PointerType::get(context, 0);
 		return nullptr;
 	}
 

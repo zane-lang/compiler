@@ -279,6 +279,37 @@ private:
 		return nullptr;
 	}
 
+	void emitSymbolDecl(const ir::Node* node) {
+		const auto* storageDecl = ast::childAt(node, 0);
+		if (storageDecl == nullptr || storageDecl->kind != "storage_decl") {
+			return;
+		}
+
+		const std::string& varName = storageDecl->value;
+
+		// Child at index 0 of storage_decl is always the type expression
+		const auto* typeNode = ast::childAt(storageDecl, 0);
+		std::string typeName = ast::flattenName(typeNode);
+
+		llvm::Type* llvmType = typeMapper.toLLVMType(typeName);
+		if (llvmType == nullptr) {
+			DEBUG("Unknown type for local variable '" << varName << "': " << typeName);
+			return;
+		}
+
+		auto* alloca = builder.CreateAlloca(llvmType, nullptr, varName);
+		namedValues[varName] = alloca;
+
+		// Handle assign_init node (e.g. `= expression`) for initialization
+		const auto* initNode = ast::findChild(storageDecl, "assign_init");
+		if (initNode != nullptr && !initNode->children.empty()) {
+			auto* initValue = emitNode(initNode->children.front());
+			if (initValue != nullptr) {
+				builder.CreateStore(initValue, alloca);
+			}
+		}
+	}
+
 	void emitReturn(const ir::Node* node) {
 		emitReturnValue(emitNode(ast::childAt(node, 0)));
 	}
@@ -290,6 +321,11 @@ private:
 
 		if (node->kind == "return_stmt") {
 			emitReturn(node);
+			return;
+		}
+
+		if (node->kind == "symbol_decl") {
+			emitSymbolDecl(node);
 			return;
 		}
 

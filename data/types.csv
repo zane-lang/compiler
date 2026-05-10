@@ -1,3 +1,5 @@
 Name, LlvmType
 Void, void
 String, ptr
+@Primitives$String, ptr
+@Concepts$StringLiteral, ptr
