@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast/ast_helpers.hpp"
+#include "compiler/intrinsics.hpp"
 #include "semantic/metadata.hpp"
 
 #include <map>
@@ -33,6 +34,23 @@ class SymbolCollector {
 		return ast::makeCallableSymbol(declaration, current->packageName);
 	}
 
+	void registerIntrinsicSymbols() {
+		if (!current) {
+			return;
+		}
+
+		for (const auto& symbol : intrinsics::get().callableSymbols()) {
+			if (!symbol) {
+				continue;
+			}
+
+			auto mangled = symbol->getMangledName();
+			if (!current->symbols.count(mangled)) {
+				current->symbols[mangled] = symbol;
+			}
+		}
+	}
+
 public:
 	void collectSymbols(const zane::Node* root) {
 		if (root == nullptr) {
@@ -49,6 +67,7 @@ public:
 			packages[pkgName]->packageName = pkgName;
 		}
 		current = packages[pkgName];
+		registerIntrinsicSymbols();
 
 		for (const auto* child : root->children) {
 			if (child == nullptr) {

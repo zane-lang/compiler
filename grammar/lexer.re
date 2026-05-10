@@ -94,6 +94,7 @@ int zane::Lexer::next(void* semanticValue) {
 		  ">" { return '>'; }
 		  "|" { return '|'; }
 		  "$" { return '$'; }
+		  "@" { return '@'; }
 
 		  "'" [A-Za-z_] [A-Za-z_0-9]* {
 		  semantic->text = dupRange(token, YYCURSOR);
@@ -107,7 +108,7 @@ int zane::Lexer::next(void* semanticValue) {
 		semantic->text = dupRange(token, YYCURSOR);
 		return NUMBER;
 	}
-	"@"? [A-Za-z_] [A-Za-z_0-9]* {
+	[A-Za-z_] [A-Za-z_0-9]* {
 		semantic->text = dupRange(token, YYCURSOR);
 		return NAME;
 	}

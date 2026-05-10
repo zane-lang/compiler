@@ -9,7 +9,6 @@ std::unique_ptr<llvm::Module> Package::getLlvmModule(
 		const std::vector<std::shared_ptr<semantic::PackageInfo>>& externalPackages,
 		const std::string& triple) {
 	LLVMCodeGen codegen(context.get(), triple);
-	codegen.setupBuiltins();
 	codegen.generate(package, allPackages, externalPackages);
 	return codegen.extractModule();
 }
