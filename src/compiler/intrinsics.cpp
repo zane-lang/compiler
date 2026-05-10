@@ -4,6 +4,8 @@
 
 namespace intrinsics {
 
+namespace nk = ir::node_kind;
+
 namespace {
 
 std::shared_ptr<semantic::Type> makeNamedType(const std::string& name) {
@@ -16,9 +18,9 @@ std::shared_ptr<semantic::Type> makeNamedType(const std::string& name) {
 
 Registry::Registry() {
 	registerType("@Primitives$String", Category::Primitive, "ptr");
-	registerType("@Concepts$StringLiteral", Category::Concept, "ptr", "string_literal");
+	registerType("@Concepts$StringLiteral", Category::Concept, "ptr", nk::string_literal{});
 	registerType("@Concepts$Text", Category::Concept, "ptr");
-	registerType("@Concepts$Number", Category::Concept, "i64", "number_literal");
+	registerType("@Concepts$Number", Category::Concept, "i64", nk::number_literal{});
 
 	registerFunction(
 		"@Functions$stringFromText",
@@ -48,10 +50,14 @@ const std::vector<std::shared_ptr<semantic::ValueSymbol>>& Registry::callableSym
 	return functionSymbols;
 }
 
-std::string Registry::conceptForLiteralNode(std::string_view nodeKind) const {
+std::string Registry::conceptForLiteralNode(const ir::NodeKind& nodeKind) const {
 	for (const auto& [fullName, info] : entries) {
 		(void)fullName;
-		if (info.category == Category::Concept && info.literalNodeKind == nodeKind) {
+		if (
+			info.category == Category::Concept
+			&& info.literalNodeKind.has_value()
+			&& info.literalNodeKind.value() == nodeKind
+		) {
 			return info.fullName;
 		}
 	}
@@ -63,7 +69,7 @@ void Registry::registerType(
 		std::string fullName,
 		Category category,
 		std::string llvmTypeName,
-		std::string literalNodeKind) {
+		std::optional<ir::NodeKind> literalNodeKind) {
 	entries.emplace(
 		fullName,
 		IntrinsicInfo{

@@ -1,16 +1,18 @@
 #pragma once
 
+#include "utils/types.hpp"
+
 #include <string>
 #include <vector>
 
 namespace ir {
 
 struct Node {
-	std::string kind;
+	NodeKind kind;
 	std::string value;
 	std::vector<Node*> children;
 
-	Node(std::string nodeKind, std::string nodeValue = {})
+	Node(NodeKind nodeKind, std::string nodeValue = {})
 		: kind(std::move(nodeKind)), value(std::move(nodeValue)) {}
 
 	Node(const Node&) = delete;
@@ -25,11 +27,12 @@ struct Node {
 	}
 
 	std::string getNodeName() const {
+		std::string kindName(nodeKindName(kind));
 		if (value.empty()) {
-			return kind;
+			return kindName;
 		}
 
-		return kind + ": " + value;
+		return kindName + ": " + value;
 	}
 
 	std::string toString() const {
@@ -60,7 +63,7 @@ struct Node {
 
 using NodeList = std::vector<Node*>;
 
-inline Node* makeNode(std::string kind, std::string value = {}) {
+inline Node* makeNode(NodeKind kind, std::string value = {}) {
 	return new Node(std::move(kind), std::move(value));
 }
 
@@ -81,9 +84,9 @@ inline Node* adopt(Node* parent, Node* child) {
 	return parent;
 }
 
-inline Node* adoptValue(Node* parent, const std::string& kind, const std::string& value) {
+inline Node* adoptValue(Node* parent, NodeKind kind, const std::string& value) {
 	if (parent != nullptr) {
-		parent->children.push_back(makeNode(kind, value));
+		parent->children.push_back(makeNode(std::move(kind), value));
 	}
 	return parent;
 }

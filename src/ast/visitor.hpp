@@ -14,11 +14,11 @@ class Visitor {
 
 public:
 	explicit Visitor(SymbolCollector& collector)
-		: program(std::make_shared<ir::Node>("program")),
+		: program(std::make_shared<ir::Node>(ir::node_kind::program{})),
 		  symbolCollector(collector) {}
 
 	void buildTree(const zane::Node* root) {
-		if (root == nullptr || root->kind != "program") {
+		if (root == nullptr || !root->kind.is<ir::node_kind::program>()) {
 			return;
 		}
 
@@ -27,7 +27,7 @@ public:
 				continue;
 			}
 
-			if (child->kind == "package_decl") {
+			if (child->kind.is<ir::node_kind::package_decl>()) {
 				if (hasPackageDecl) {
 					continue;
 				}

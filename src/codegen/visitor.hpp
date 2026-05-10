@@ -69,7 +69,7 @@ private:
 		for (const auto* child : declaration->children) {
 			if (
 				child != nullptr
-				&& (child->kind == "block_body" || child->kind == "expr_body")
+				&& child->kind.is<ir::node_kind::block_body, ir::node_kind::expr_body>()
 			) {
 				return child;
 			}
@@ -85,7 +85,7 @@ private:
 		}
 
 		for (const auto* child : declaration->children) {
-			if (child != nullptr && child->kind == "param_decl") {
+			if (child != nullptr && child->kind.is<ir::node_kind::param_decl>()) {
 				parameters.push_back(child->value);
 			}
 		}
@@ -268,7 +268,7 @@ private:
 		for (std::size_t index = 1; index < node->children.size(); ++index) {
 			const auto* argumentNode = node->children[index];
 			if (argumentNode != nullptr && !argumentNode->children.empty()) {
-				if (argumentNode->kind == "named_arg" || argumentNode->kind == "field_arg") {
+				if (argumentNode->kind.is<ir::node_kind::named_arg, ir::node_kind::field_arg>()) {
 					argumentNode = argumentNode->children.front();
 				}
 			}
@@ -344,27 +344,27 @@ private:
 			return nullptr;
 		}
 
-		if (node->kind == "name") {
+		if (node->kind.is<ir::node_kind::name>()) {
 			return emitName(node);
 		}
 
-		if (node->kind == "intrinsic_name") {
+		if (node->kind.is<ir::node_kind::intrinsic_name>()) {
 			return emitIntrinsicName(node);
 		}
 
-		if (node->kind == "qualified_name") {
+		if (node->kind.is<ir::node_kind::qualified_name>()) {
 			return emitQualifiedName(node);
 		}
 
-		if (node->kind == "string_literal") {
+		if (node->kind.is<ir::node_kind::string_literal>()) {
 			return builder.CreateGlobalString(node->value);
 		}
 
-		if (node->kind == "call_expr") {
+		if (node->kind.is<ir::node_kind::call_expr>()) {
 			return emitCall(node);
 		}
 
-		if (node->kind == "expression_stmt") {
+		if (node->kind.is<ir::node_kind::expression_stmt>()) {
 			return emitNode(ast::childAt(node, 0));
 		}
 
@@ -373,7 +373,7 @@ private:
 
 	void emitSymbolDecl(const ir::Node* node) {
 		const auto* storageDecl = ast::childAt(node, 0);
-		if (storageDecl == nullptr || storageDecl->kind != "storage_decl") {
+		if (storageDecl == nullptr || !storageDecl->kind.is<ir::node_kind::storage_decl>()) {
 			return;
 		}
 
@@ -393,7 +393,7 @@ private:
 		namedValues[varName] = alloca;
 
 		// Handle assign_init node (e.g. `= expression`) for initialization
-		const auto* initNode = ast::findChild(storageDecl, "assign_init");
+		const auto* initNode = ast::findChild(storageDecl, ir::node_kind::assign_init{});
 		if (initNode != nullptr && !initNode->children.empty()) {
 			auto* initValue = emitNode(initNode->children.front());
 			if (initValue != nullptr) {
@@ -411,12 +411,12 @@ private:
 			return;
 		}
 
-		if (node->kind == "return_stmt") {
+		if (node->kind.is<ir::node_kind::return_stmt>()) {
 			emitReturn(node);
 			return;
 		}
 
-		if (node->kind == "symbol_decl") {
+		if (node->kind.is<ir::node_kind::symbol_decl>()) {
 			emitSymbolDecl(node);
 			return;
 		}
@@ -429,7 +429,7 @@ private:
 			return;
 		}
 
-		if (body->kind == "expr_body") {
+		if (body->kind.is<ir::node_kind::expr_body>()) {
 			auto* value = emitNode(ast::childAt(body, 0));
 			if (builder.GetInsertBlock()->getTerminator()) {
 				return;
@@ -439,7 +439,7 @@ private:
 			return;
 		}
 
-		if (body->kind != "block_body") {
+		if (!body->kind.is<ir::node_kind::block_body>()) {
 			return;
 		}
 
@@ -582,7 +582,7 @@ public:
 		}
 
 		for (const auto* child : program->children) {
-			if (child != nullptr && child->kind == "function_decl") {
+			if (child != nullptr && child->kind.is<ir::node_kind::function_decl>()) {
 				emitFunction(child, package->getPackageInfo());
 			}
 		}
