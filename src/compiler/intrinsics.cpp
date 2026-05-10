@@ -1,10 +1,13 @@
 #include "compiler/intrinsics.hpp"
 
+#include <coda.hpp>
+#include <filesystem>
 #include <utility>
 
 namespace intrinsics {
 
 namespace nk = ir::node_kind;
+namespace fs = std::filesystem;
 
 namespace {
 
@@ -14,6 +17,10 @@ std::shared_ptr<semantic::Type> makeNamedType(const std::string& name) {
 	return std::make_shared<semantic::Type>(symbol);
 }
 
+fs::path getHeliosSymbolsPath() {
+	return fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios" / "symbols.coda";
+}
+
 } // namespace
 
 Registry::Registry() {
@@ -21,19 +28,13 @@ Registry::Registry() {
 	registerType("@Concepts$StringLiteral", Category::Concept, "ptr", nk::string_literal{});
 	registerType("@Concepts$Text", Category::Concept, "ptr");
 	registerType("@Concepts$Number", Category::Concept, "i64", nk::number_literal{});
+	loadHeliosRuntimeFunctions();
 
 	registerFunction(
 		"@Compiler$stringFromStringLiteral",
 		LoweringKind::CompilerFunction,
 		"@Primitives$String",
 		{"@Concepts$StringLiteral"}
-	);
-	registerFunction(
-		"@Functions$printLine",
-		LoweringKind::RuntimeFunction,
-		"Void",
-		{"@Primitives$String"},
-		"zane_printLine"
 	);
 }
 
@@ -114,6 +115,44 @@ void Registry::registerFunction(
 			callableSymbol,
 		}
 	);
+}
+
+void Registry::loadHeliosRuntimeFunctions() {
+	const fs::path symbolsPath = getHeliosSymbolsPath();
+	if (!fs::exists(symbolsPath)) {
+		return;
+	}
+
+	coda::Doc symbols(symbolsPath.string());
+	auto& root = symbols.root();
+	if (!root.has("Functions")) {
+		return;
+	}
+
+	for (const auto& entry : root["Functions"].asArray()) {
+		const auto& function = entry->asBlock();
+		if (
+			!function.has("name")
+			|| !function.has("runtimeSymbol")
+			|| !function.has("returnType")
+			|| !function.has("parameterTypes")
+		) {
+			continue;
+		}
+
+		std::vector<std::string> parameterTypes;
+		for (const auto& parameterType : function["parameterTypes"].asArray()) {
+			parameterTypes.push_back(parameterType->asString());
+		}
+
+		registerFunction(
+			"@Functions$" + function["name"].asString(),
+			LoweringKind::RuntimeFunction,
+			function["returnType"].asString(),
+			std::move(parameterTypes),
+			function["runtimeSymbol"].asString()
+		);
+	}
 }
 
 Registry& get() {

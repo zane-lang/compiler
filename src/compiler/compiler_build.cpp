@@ -113,7 +113,7 @@ bool Compiler::compileRuntimeObject(
 		return false;
 	}
 
-	objectFile = cacheDir / "__helios_runtime.o";
+	objectFile = cacheDir / "__zane_runtime.o";
 
 	auto newestSource = fs::file_time_type::min();
 	for (const auto& runtimeSource : runtimeSources) {
@@ -212,7 +212,7 @@ bool Compiler::linkObjectFiles(
 	}
 
 	for (const auto& path : getLocalObjectFiles(cacheDir)) {
-		if (path == runtimeObject) {
+		if (path == runtimeObject || path.filename() == "__helios_runtime.o") {
 			continue;
 		}
 		objectFiles.push_back(shell::quote(path.string()));
@@ -259,7 +259,7 @@ bool Compiler::createStaticLibrary(
 	}
 
 	for (const auto& path : getLocalObjectFiles(cacheDir)) {
-		if (path == runtimeObject) {
+		if (path == runtimeObject || path.filename() == "__helios_runtime.o") {
 			continue;
 		}
 		objectFiles.push_back(shell::quote(path.string()));

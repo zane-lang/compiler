@@ -259,6 +259,56 @@ private:
 		return resolveFunctionByName(node, 0);
 	}
 
+	llvm::Function* ensureRuntimeIntrinsicFunction(const intrinsics::IntrinsicInfo& intrinsic) {
+		if (
+			!intrinsic.isFunction()
+			|| intrinsic.callableSymbol == nullptr
+			|| intrinsic.runtimeSymbol.empty()
+		) {
+			return nullptr;
+		}
+
+		llvm::Type* returnType = nullptr;
+		std::vector<llvm::Type*> params;
+		bool supported = true;
+
+		intrinsic.callableSymbol->type->value.match(
+			[&](std::shared_ptr<semantic::FuncType> funcType) {
+				returnType = typeMapper.toLLVMType(funcType->returnType.get());
+				if (returnType == nullptr) {
+					supported = false;
+					return;
+				}
+
+				for (auto& param : funcType->paramTypes) {
+					auto* llvmType = typeMapper.toLLVMType(param.get());
+					if (llvmType == nullptr) {
+						supported = false;
+						return;
+					}
+					params.push_back(llvmType);
+				}
+			}
+		);
+
+		if (!supported || returnType == nullptr) {
+			return nullptr;
+		}
+
+		auto* function = module.getFunction(intrinsic.runtimeSymbol);
+		if (function == nullptr) {
+			auto* functionType = llvm::FunctionType::get(returnType, params, false);
+			function = llvm::Function::Create(
+				functionType,
+				llvm::Function::ExternalLinkage,
+				intrinsic.runtimeSymbol,
+				module);
+		}
+
+		registerFunctionAliases(intrinsic.callableSymbol, function);
+		return function;
+	}
+
 	llvm::Value* emitCall(const ir::Node* node) {
 		if (node == nullptr || node->children.empty()) {
 			return nullptr;
@@ -297,8 +347,12 @@ private:
 			if (intrinsic->isFunction()
 					&& intrinsic->loweringKind == intrinsics::LoweringKind::RuntimeFunction
 					&& !intrinsic->runtimeSymbol.empty()) {
-				if (auto* function =
-						resolveFunctionByName(callee, args.size(), intrinsic->runtimeSymbol)) {
+				auto* function =
+					resolveFunctionByName(callee, args.size(), intrinsic->runtimeSymbol);
+				if (function == nullptr) {
+					function = ensureRuntimeIntrinsicFunction(*intrinsic);
+				}
+				if (function != nullptr) {
 					auto* call = builder.CreateCall(function, args);
 					call->setCallingConv(function->getCallingConv());
 					return call;
@@ -496,44 +550,7 @@ public:
 				continue;
 			}
 
-			llvm::Type* returnType = nullptr;
-			std::vector<llvm::Type*> params;
-			bool supported = true;
-
-			intrinsic.callableSymbol->type->value.match(
-				[&](std::shared_ptr<semantic::FuncType> funcType) {
-					returnType = typeMapper.toLLVMType(funcType->returnType.get());
-					if (returnType == nullptr) {
-						supported = false;
-						return;
-					}
-
-					for (auto& param : funcType->paramTypes) {
-						auto* llvmType = typeMapper.toLLVMType(param.get());
-						if (llvmType == nullptr) {
-							supported = false;
-							return;
-						}
-						params.push_back(llvmType);
-					}
-				}
-			);
-
-			if (!supported || returnType == nullptr || intrinsic.runtimeSymbol.empty()) {
-				continue;
-			}
-
-			auto* function = module.getFunction(intrinsic.runtimeSymbol);
-			if (function == nullptr) {
-				auto* functionType = llvm::FunctionType::get(returnType, params, false);
-				function = llvm::Function::Create(
-					functionType,
-					llvm::Function::ExternalLinkage,
-					intrinsic.runtimeSymbol,
-					module);
-			}
-
-			registerFunctionAliases(intrinsic.callableSymbol, function);
+			(void)ensureRuntimeIntrinsicFunction(intrinsic);
 		}
 	}
 
