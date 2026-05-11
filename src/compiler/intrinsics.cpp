@@ -29,15 +29,6 @@ Registry::Registry() {
 	registerType("@Concepts$Text", Category::Concept, "ptr");
 	registerType("@Concepts$Number", Category::Concept, "i64", nk::number_literal{});
 	loadHeliosRuntimeFunctions();
-	if (find("@Functions$printLine") == nullptr) {
-		registerFunction(
-			"@Functions$printLine",
-			LoweringKind::RuntimeFunction,
-			"Void",
-			{"@Primitives$String"},
-			"zane_printLine"
-		);
-	}
 
 	registerFunction(
 		"@Compiler$stringFromStringLiteral",
@@ -80,18 +71,16 @@ void Registry::registerType(
 		Category category,
 		std::string llvmTypeName,
 		std::optional<ir::NodeKind> literalNodeKind) {
-	entries.emplace(
+	IntrinsicInfo info{
 		fullName,
-		IntrinsicInfo{
-			std::move(fullName),
-			category,
-			LoweringKind::CompilerType,
-			std::move(llvmTypeName),
-			{},
-			std::move(literalNodeKind),
-			nullptr,
-		}
-	);
+		category,
+		LoweringKind::CompilerType,
+		std::move(llvmTypeName),
+		{},
+		std::move(literalNodeKind),
+		nullptr,
+	};
+	entries.emplace(info.fullName, std::move(info));
 }
 
 void Registry::registerFunction(
@@ -112,18 +101,16 @@ void Registry::registerFunction(
 	callableSymbol->type = std::make_shared<semantic::Type>(funcType);
 
 	functionSymbols.push_back(callableSymbol);
-	entries.emplace(
+	IntrinsicInfo info{
 		fullName,
-		IntrinsicInfo{
-			std::move(fullName),
-			Category::Function,
-			loweringKind,
-			{},
-			std::move(runtimeSymbol),
-			{},
-			callableSymbol,
-		}
-	);
+		Category::Function,
+		loweringKind,
+		{},
+		std::move(runtimeSymbol),
+		{},
+		callableSymbol,
+	};
+	entries.emplace(info.fullName, std::move(info));
 }
 
 void Registry::loadHeliosRuntimeFunctions() {

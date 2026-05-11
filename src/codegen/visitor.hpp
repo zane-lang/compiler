@@ -11,6 +11,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 #include <algorithm>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -24,6 +25,9 @@ private:
 	TypeMapper typeMapper;
 	std::unordered_map<std::string, llvm::AllocaInst*> namedValues;
 	std::unordered_map<std::string, std::vector<llvm::Function*>> functionsByAlias;
+
+	using CompilerLoweringHandler =
+		llvm::Value* (LLVMVisitor::*)(const ir::Node* callNode, const std::vector<llvm::Value*>& args);
 
 	llvm::Value* defaultValue(llvm::Type* type) {
 		if (type == nullptr) {
@@ -259,6 +263,33 @@ private:
 		return resolveFunctionByName(node, 0);
 	}
 
+	static const std::unordered_map<std::string_view, CompilerLoweringHandler>&
+	compilerLoweringHandlers() {
+		static const std::unordered_map<std::string_view, CompilerLoweringHandler> handlers{
+			{"@Compiler$stringFromStringLiteral", &LLVMVisitor::lowerStringFromStringLiteral},
+		};
+		return handlers;
+	}
+
+	llvm::Value* lowerStringFromStringLiteral(
+			const ir::Node* /* callNode */,
+			const std::vector<llvm::Value*>& args) {
+		return args.size() == 1 ? args.front() : nullptr;
+	}
+
+	llvm::Value* emitCompilerLoweredCall(
+			const intrinsics::IntrinsicInfo& intrinsic,
+			const ir::Node* callNode,
+			const std::vector<llvm::Value*>& args) {
+		auto it = compilerLoweringHandlers().find(intrinsic.fullName);
+		if (it == compilerLoweringHandlers().end()) {
+			DEBUG("No compiler lowering registered for " << intrinsic.fullName);
+			return nullptr;
+		}
+
+		return (this->*(it->second))(callNode, args);
+	}
+
 	llvm::Function* ensureRuntimeIntrinsicFunction(const intrinsics::IntrinsicInfo& intrinsic) {
 		if (
 			!intrinsic.isFunction()
@@ -309,6 +340,31 @@ private:
 		return function;
 	}
 
+	llvm::Value* emitRuntimeIntrinsicCall(
+			const intrinsics::IntrinsicInfo& intrinsic,
+			const ir::Node* callee,
+			const std::vector<llvm::Value*>& args) {
+		if (
+			!intrinsic.isFunction()
+			|| intrinsic.loweringKind != intrinsics::LoweringKind::RuntimeFunction
+			|| intrinsic.runtimeSymbol.empty()
+		) {
+			return nullptr;
+		}
+
+		auto* function = resolveFunctionByName(callee, args.size(), intrinsic.runtimeSymbol);
+		if (function == nullptr) {
+			function = ensureRuntimeIntrinsicFunction(intrinsic);
+		}
+		if (function == nullptr) {
+			return nullptr;
+		}
+
+		auto* call = builder.CreateCall(function, args);
+		call->setCallingConv(function->getCallingConv());
+		return call;
+	}
+
 	llvm::Value* emitCall(const ir::Node* node) {
 		if (node == nullptr || node->children.empty()) {
 			return nullptr;
@@ -332,54 +388,16 @@ private:
 
 		const auto* callee = node->children.front();
 		std::string calleeName = ast::flattenName(callee);
-
-		if (calleeName == "@Compiler$stringFromStringLiteral" && args.size() == 1) {
-			const auto* sourceNode = node->children.size() > 1 ? node->children[1] : nullptr;
-			if (sourceNode != nullptr) {
-				std::string literalConcept =
-					intrinsics::get().conceptForLiteralNode(sourceNode->kind);
-				(void)literalConcept;
-			}
-			return args.front();
-		}
-
-		if (calleeName == "@Functions$printLine") {
-			const auto* intrinsic = intrinsics::get().find(calleeName);
-			const std::string runtimeSymbol =
-				(intrinsic != nullptr && !intrinsic->runtimeSymbol.empty())
-					? intrinsic->runtimeSymbol
-					: "zane_printLine";
-			auto* function = resolveFunctionByName(callee, args.size(), runtimeSymbol);
-			if (function == nullptr && args.size() == 1) {
-				auto* functionType =
-					llvm::FunctionType::get(builder.getVoidTy(), {args.front()->getType()}, false);
-				function = llvm::Function::Create(
-					functionType,
-					llvm::Function::ExternalLinkage,
-					runtimeSymbol,
-					module);
-			}
-			if (function != nullptr) {
-				auto* call = builder.CreateCall(function, args);
-				call->setCallingConv(function->getCallingConv());
-				return call;
-			}
-		}
-
 		if (const auto* intrinsic = intrinsics::get().find(calleeName)) {
-			if (intrinsic->isFunction()
-					&& intrinsic->loweringKind == intrinsics::LoweringKind::RuntimeFunction
-					&& !intrinsic->runtimeSymbol.empty()) {
-				auto* function =
-					resolveFunctionByName(callee, args.size(), intrinsic->runtimeSymbol);
-				if (function == nullptr) {
-					function = ensureRuntimeIntrinsicFunction(*intrinsic);
-				}
-				if (function != nullptr) {
-					auto* call = builder.CreateCall(function, args);
-					call->setCallingConv(function->getCallingConv());
-					return call;
-				}
+			if (
+				intrinsic->isFunction()
+				&& intrinsic->loweringKind == intrinsics::LoweringKind::CompilerFunction
+			) {
+				return emitCompilerLoweredCall(*intrinsic, node, args);
+			}
+
+			if (auto* runtimeCall = emitRuntimeIntrinsicCall(*intrinsic, callee, args)) {
+				return runtimeCall;
 			}
 		}
 
