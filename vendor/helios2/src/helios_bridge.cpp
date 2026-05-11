@@ -63,10 +63,12 @@ llvm::Type* HeliosBridge::ensureType(std::string_view fullTypeName, std::string_
 }
 
 llvm::Function* HeliosBridge::ensureFunction(
-		std::string_view /* fullName */,
+		std::string_view fullName,
 		std::string_view returnTypeName,
 		const std::vector<std::string>& parameterTypeNames,
 		std::string_view runtimeSymbol) {
+	(void)fullName;
+
 	if (runtimeSymbol.empty()) {
 		return nullptr;
 	}
@@ -75,7 +77,7 @@ llvm::Function* HeliosBridge::ensureFunction(
 		return function;
 	}
 
-	auto* returnType = ensureType(returnTypeName, returnTypeName);
+	auto* returnType = builtinType(returnTypeName);
 	if (returnType == nullptr) {
 		return nullptr;
 	}
@@ -83,7 +85,7 @@ llvm::Function* HeliosBridge::ensureFunction(
 	std::vector<llvm::Type*> parameterTypes;
 	parameterTypes.reserve(parameterTypeNames.size());
 	for (const auto& parameterTypeName : parameterTypeNames) {
-		auto* parameterType = ensureType(parameterTypeName, parameterTypeName);
+		auto* parameterType = builtinType(parameterTypeName);
 		if (parameterType == nullptr) {
 			return nullptr;
 		}
