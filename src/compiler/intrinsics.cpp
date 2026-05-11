@@ -1,7 +1,9 @@
 #include "compiler/helios_symbols.hpp"
 #include "compiler/intrinsics.hpp"
+#include "utils/console.hpp"
 
 #include <coda.hpp>
+#include <exception>
 #include <utility>
 
 namespace intrinsics {
@@ -12,6 +14,11 @@ std::shared_ptr<semantic::Type> makeNamedType(const std::string& name) {
 	auto symbol = std::make_shared<semantic::TypeSymbol>();
 	symbol->name = name;
 	return std::make_shared<semantic::Type>(symbol);
+}
+
+void reportHeliosSymbolsError(const std::string& message) {
+	DEBUG(message);
+	std::cerr << message << std::endl;
 }
 
 Registry::Registry() {
@@ -105,36 +112,57 @@ void Registry::registerFunction(
 }
 
 void Registry::loadHeliosRuntimeFunctions() {
-	coda::Doc symbols =
-		coda::Doc::parse(std::string(heliosSymbolsSource()), "vendor/helios/symbols.coda");
-	auto& root = symbols.root();
-	if (!root.has("Functions")) {
+	try {
+		coda::Doc symbols =
+			coda::Doc::parse(std::string(heliosSymbolsSource()), "vendor/helios/symbols.coda");
+		auto& root = symbols.root();
+		if (!root.has("Functions")) {
+			return;
+		}
+
+		for (const auto& entry : root["Functions"].asArray()) {
+			try {
+				const auto& function = entry->asBlock();
+				if (
+					!function.has("name")
+					|| !function.has("runtimeSymbol")
+					|| !function.has("returnType")
+					|| !function.has("parameterTypes")
+				) {
+					continue;
+				}
+
+				std::vector<std::string> parameterTypes;
+				for (const auto& parameterType : function["parameterTypes"].asArray()) {
+					parameterTypes.push_back(parameterType->asString());
+				}
+
+				registerFunction(
+					"@Functions$" + function["name"].asString(),
+					LoweringKind::RuntimeFunction,
+					function["returnType"].asString(),
+					std::move(parameterTypes),
+					function["runtimeSymbol"].asString()
+				);
+			}
+			catch (const std::exception& error) {
+				reportHeliosSymbolsError(
+					std::string("Skipping malformed Helios function entry: ") + error.what()
+				);
+			}
+		}
+	}
+	catch (const coda::ParseError& error) {
+		reportHeliosSymbolsError(
+			std::string("Failed to parse embedded Helios symbols: ") + error.what()
+		);
 		return;
 	}
-
-	for (const auto& entry : root["Functions"].asArray()) {
-		const auto& function = entry->asBlock();
-		if (
-			!function.has("name")
-			|| !function.has("runtimeSymbol")
-			|| !function.has("returnType")
-			|| !function.has("parameterTypes")
-		) {
-			continue;
-		}
-
-		std::vector<std::string> parameterTypes;
-		for (const auto& parameterType : function["parameterTypes"].asArray()) {
-			parameterTypes.push_back(parameterType->asString());
-		}
-
-		registerFunction(
-			"@Functions$" + function["name"].asString(),
-			LoweringKind::RuntimeFunction,
-			function["returnType"].asString(),
-			std::move(parameterTypes),
-			function["runtimeSymbol"].asString()
+	catch (const std::exception& error) {
+		reportHeliosSymbolsError(
+			std::string("Failed to load embedded Helios symbols: ") + error.what()
 		);
+		return;
 	}
 }
 
