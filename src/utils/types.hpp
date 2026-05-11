@@ -227,7 +227,8 @@ struct WrappingVariant {
 	X(named_arg, "named_arg") \
 	X(named_type, "named_type") \
 	X(namespace_name, "namespace") \
-	X(number_literal, "number_literal") \
+	X(int_literal, "int_literal") \
+	X(float_literal, "float_literal") \
 	X(operator_name, "operator_name") \
 	X(package_decl, "package_decl") \
 	X(param_decl, "param_decl") \
@@ -309,7 +310,8 @@ using NodeKind = Variant<
 	node_kind::named_arg,
 	node_kind::named_type,
 	node_kind::namespace_name,
-	node_kind::number_literal,
+	node_kind::int_literal,
+	node_kind::float_literal,
 	node_kind::operator_name,
 	node_kind::package_decl,
 	node_kind::param_decl,

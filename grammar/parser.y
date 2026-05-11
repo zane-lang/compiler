@@ -56,7 +56,7 @@ zane::Node* node;
 	zane::NodeList* list;
 }
 
-%token <text> NAME NUMBER STRING TYPE_PARAM
+%token <text> NAME INT FLOAT STRING TYPE_PARAM
 %token PACKAGE IMPORT CLASS STRUCT REF IMPLICIT THIS MUT IF ELIF ELSE GUARD LOOP FROM TO RETURN ABORT RESOLVE SPAWN INIT AND OR TRUE FALSE
 %token ARROW FAT_ARROW QQ EQEQ NEQ LE GE
 
@@ -637,8 +637,11 @@ primary_expression:
 				  value_name {
 $$ = $1;
 }
-| NUMBER {
-$$ = takeNode(nk::number_literal{}, $1);
+| INT {
+	$$ = takeNode(nk::int_literal{}, $1);
+}
+| FLOAT {
+	$$ = takeNode(nk::float_literal{}, $1);
 }
 | STRING {
 $$ = takeNode(nk::string_literal{}, $1);
