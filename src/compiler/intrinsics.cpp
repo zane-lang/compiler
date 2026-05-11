@@ -172,7 +172,7 @@ void Registry::registerFunction(
 void Registry::loadHeliosSymbols() {
 	try {
 		coda::Doc symbols =
-			coda::Doc::parse(std::string(heliosSymbolsSource()), "vendor/helios/symbols.coda");
+			coda::Doc::parse(std::string(heliosSymbolsSource()), "embedded-helios-symbols.coda");
 		auto& root = symbols.root();
 
 		if (root.has("Primitives")) {

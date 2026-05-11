@@ -11,6 +11,7 @@ project(
 )
 
 python = import('python').find_installation()
+fs = import('fs')
 bison = find_program('bison', required: true)
 re2c = find_program('re2c', required: true)
 
@@ -20,7 +21,19 @@ coda_dep = declare_dependency(include_directories: coda_inc)
 zanecpp_inc = include_directories('vendor/zane-cpp/include')
 zanecpp_dep = declare_dependency(include_directories: zanecpp_inc)
 
-helios_inc = include_directories('vendor/helios/include')
+helios_include_dir = 'vendor/helios/include'
+helios_symbols_file = 'vendor/helios/symbols.coda'
+helios_bridge_source = 'vendor/helios/src/helios_bridge.cpp'
+helios_runtime_source = 'vendor/helios/src/helios_runtime.c'
+
+if fs.is_dir('vendor/helios2')
+  helios_include_dir = 'vendor/helios2/include'
+  helios_symbols_file = 'vendor/helios2/symbols.coda'
+  helios_bridge_source = 'vendor/helios2/src/helios_bridge.cpp'
+  helios_runtime_source = 'vendor/helios2/src/helios_runtime.c'
+endif
+
+helios_inc = include_directories(helios_include_dir)
 helios_dep = declare_dependency(include_directories: helios_inc)
 
 nlohmann_dep = dependency('nlohmann_json', required: true, method: 'cmake')
@@ -129,7 +142,7 @@ generated_lexer = custom_target(
 
 embedded_helios_symbols = custom_target(
   'embedded_helios_symbols',
-  input: files('vendor/helios/symbols.coda'),
+  input: files(helios_symbols_file),
   output: 'embedded_helios_symbols.cpp',
   command: [
     python,
@@ -147,8 +160,8 @@ sources = run_command(
 ).stdout().strip().split('\n')
 
 helios_sources = files(
-  'vendor/helios/src/helios_bridge.cpp',
-  'vendor/helios/src/helios_runtime.c',
+  helios_bridge_source,
+  helios_runtime_source,
 )
 
 zane_exe = executable(

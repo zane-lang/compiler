@@ -17,12 +17,21 @@
 
 namespace {
 
+fs::path getHeliosRootDir() {
+	const fs::path helios2Dir = fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios2";
+	if (fs::exists(helios2Dir) && fs::is_directory(helios2Dir)) {
+		return helios2Dir;
+	}
+
+	return fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios";
+}
+
 fs::path getHeliosSourceDir() {
-	return fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios" / "src";
+	return getHeliosRootDir() / "src";
 }
 
 fs::path getHeliosIncludeDir() {
-	return fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios" / "include";
+	return getHeliosRootDir() / "include";
 }
 
 std::vector<fs::path> collectHeliosFiles() {

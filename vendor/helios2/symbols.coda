@@ -1,0 +1,26 @@
+Primitives [
+	name type
+	I64 i64
+	F64 double
+	Bool i1
+	String ptr
+]
+
+Concepts [
+	name type node
+	Int i64 int_literal
+	Float double float_literal
+	Bool i1 bool_literal
+	String ptr string_literal
+]
+
+Functions [
+	{
+		name printInt
+		runtimeSymbol helios_print_i64
+		returnType Void
+		parameterTypes [
+			@Concepts$Int
+		]
+	}
+]
