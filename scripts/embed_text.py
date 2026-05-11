@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 import pathlib
 import sys
 
@@ -14,15 +13,16 @@ def main() -> int:
     namespace = sys.argv[3]
     function_name = sys.argv[4]
 
-    source = input_path.read_text(encoding="utf-8")
+    source = input_path.read_bytes()
+    literal = "".join(f"\\x{byte:02x}" for byte in source)
     output_path.write_text(
         f"""#include "compiler/helios_symbols.hpp"
 
 namespace {namespace} {{
 
 std::string_view {function_name}() {{
-    static constexpr std::string_view content = {json.dumps(source)};
-    return content;
+    static constexpr char content[] = "{literal}";
+    return std::string_view(content, sizeof(content) - 1);
 }}
 
 }} // namespace {namespace}

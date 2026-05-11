@@ -302,7 +302,11 @@ private:
 		}
 
 		auto expectedArity = compilerLoweringArity(intrinsic);
-		if (expectedArity.has_value() && args.size() != expectedArity.value()) {
+		if (!expectedArity.has_value()) {
+			DEBUG("No compiler lowering signature registered for " << intrinsic.fullName);
+			return nullptr;
+		}
+		if (args.size() != expectedArity.value()) {
 			DEBUG("Expected " << expectedArity.value() << " arguments for " << intrinsic.fullName
 				<< ", got " << args.size());
 			return nullptr;
