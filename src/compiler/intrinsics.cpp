@@ -67,15 +67,15 @@ const IntrinsicInfo* Registry::find(std::string_view fullName) const {
 }
 
 const IntrinsicInfo* Registry::findPrimitiveForConcept(std::string_view conceptName) const {
-	auto concept = find(conceptName);
-	if (concept == nullptr) {
+	auto conceptInfo = find(conceptName);
+	if (conceptInfo == nullptr) {
 		auto baseName = baseTypeName(conceptName);
 		if (baseName != conceptName) {
-			concept = find(baseName);
+			conceptInfo = find(baseName);
 		}
 	}
 
-	if (concept == nullptr || concept->category != Category::Concept) {
+	if (conceptInfo == nullptr || conceptInfo->category != Category::Concept) {
 		return nullptr;
 	}
 
@@ -83,7 +83,7 @@ const IntrinsicInfo* Registry::findPrimitiveForConcept(std::string_view conceptN
 		const auto& info = entry.second;
 		if (
 			info.category == Category::Primitive
-			&& info.llvmTypeName == concept->primitiveType
+			&& info.llvmTypeName == conceptInfo->primitiveType
 		) {
 			return &info;
 		}

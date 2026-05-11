@@ -21,6 +21,10 @@ fs::path getHeliosSourceDir() {
 	return fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios" / "src";
 }
 
+fs::path getHeliosIncludeDir() {
+	return fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios" / "include";
+}
+
 std::vector<fs::path> collectHeliosFiles() {
 	std::vector<fs::path> files;
 	const fs::path sourceDir = getHeliosSourceDir();
@@ -174,6 +178,7 @@ bool Compiler::compileRuntimeObject(
 	command << zig::path() << " cc"
 		<< " --target=" << zig::toZigTarget(target.triple)
 		<< (mode == BuildMode::Release ? " -O3" : "")
+		<< " -I" << shell::quote(getHeliosIncludeDir().string())
 		<< " -c";
 	for (const auto& src : runtimeSources) {
 		command << " " << shell::quote(src.string());
