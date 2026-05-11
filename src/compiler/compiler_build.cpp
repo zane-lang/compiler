@@ -124,50 +124,18 @@ bool Compiler::compileRuntimeObject(
 		return true;
 	}
 
-	if (runtimeSources.size() == 1) {
-		std::string command = zig::path() + " cc"
-			+ " --target=" + zig::toZigTarget(target.triple)
-			+ (mode == BuildMode::Release ? " -O3" : "")
-			+ " -c " + shell::quote(runtimeSources.front().string())
-			+ " -o " + shell::quote(objectFile.string());
-		if (std::system(command.c_str()) != 0) {
-			DEBUG("Failed to compile Helios runtime object");
-			return false;
-		}
-
-		return true;
-	}
-
-	const fs::path objectsDir = cacheDir / "__helios_objects";
-	fs::create_directories(objectsDir);
-
-	std::vector<std::string> partialObjects;
-	for (std::size_t index = 0; index < runtimeSources.size(); ++index) {
-		const fs::path partialObject =
-			objectsDir / ("helios_" + std::to_string(index) + ".o");
-		std::string command = zig::path() + " cc"
-			+ " --target=" + zig::toZigTarget(target.triple)
-			+ (mode == BuildMode::Release ? " -O3" : "")
-			+ " -c " + shell::quote(runtimeSources[index].string())
-			+ " -o " + shell::quote(partialObject.string());
-		if (std::system(command.c_str()) != 0) {
-			DEBUG("Failed to compile Helios source: " << runtimeSources[index]);
-			return false;
-		}
-
-		partialObjects.push_back(shell::quote(partialObject.string()));
-	}
-
-	std::stringstream mergeCommand;
-	mergeCommand << zig::path() << " cc"
+	std::stringstream command;
+	command << zig::path() << " cc"
 		<< " --target=" << zig::toZigTarget(target.triple)
-		<< " -r";
-	for (const auto& partialObject : partialObjects) {
-		mergeCommand << " " << partialObject;
+		<< (mode == BuildMode::Release ? " -O3" : "")
+		<< " -c";
+	for (const auto& src : runtimeSources) {
+		command << " " << shell::quote(src.string());
 	}
-	mergeCommand << " -o " << shell::quote(objectFile.string());
-	if (std::system(mergeCommand.str().c_str()) != 0) {
-		DEBUG("Failed to merge Helios runtime objects");
+	command << " -o " << shell::quote(objectFile.string());
+
+	if (std::system(command.str().c_str()) != 0) {
+		DEBUG("Failed to compile Helios runtime");
 		return false;
 	}
 
