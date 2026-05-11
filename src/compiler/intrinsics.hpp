@@ -67,7 +67,7 @@ private:
 		std::vector<std::string> parameterTypeNames,
 		std::string runtimeSymbol = {}
 	);
-	void loadHeliosRuntimeFunctions();
+	void loadHeliosSymbols();
 };
 
 Registry& get();
