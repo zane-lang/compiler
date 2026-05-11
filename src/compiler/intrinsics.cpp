@@ -145,11 +145,7 @@ void Registry::loadHeliosSymbols() {
 		if (root.has("Concepts")) {
 			for (const auto& row : root["Concepts"].asTable()) {
 				try {
-					std::optional<ir::NodeKind> literalNodeKind;
-					if (const auto parsedNodeKind = literalNodeKindFromHelios(row["node"]);
-						parsedNodeKind.has_value()) {
-						literalNodeKind = parsedNodeKind;
-					}
+					const auto literalNodeKind = literalNodeKindFromHelios(row["node"]);
 
 					registerType(
 						"@Concepts$" + row["name"],
