@@ -6,16 +6,55 @@
 #include "utils/console.hpp"
 #include "utils/shell.hpp"
 
+#include <algorithm>
 #include <cstdlib>
+#include <fstream>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Support/raw_ostream.h>
 #include <optional>
 #include <sstream>
+#include <vector>
 
 namespace {
 
-fs::path getRuntimeSourcePath() {
-	return fs::path(ZANE_COMPILER_ROOT) / "runtime" / "zane_runtime.c";
+fs::path getHeliosSourceDir() {
+	return fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios" / "src";
+}
+
+std::vector<fs::path> collectHeliosFiles() {
+	std::vector<fs::path> files;
+	const fs::path sourceDir = getHeliosSourceDir();
+	if (!fs::exists(sourceDir) || !fs::is_directory(sourceDir)) {
+		return files;
+	}
+
+	for (const auto& entry : fs::recursive_directory_iterator(sourceDir)) {
+		if (entry.is_regular_file()) {
+			files.push_back(entry.path());
+		}
+	}
+
+	std::sort(files.begin(), files.end());
+	return files;
+}
+
+std::vector<fs::path> collectHeliosSources() {
+	std::vector<fs::path> sources;
+	for (const auto& path : collectHeliosFiles()) {
+		if (path.extension() == ".c") {
+			sources.push_back(path);
+		}
+	}
+	return sources;
+}
+
+std::string serializeHeliosInputs(const std::vector<fs::path>& files, BuildMode mode) {
+	std::ostringstream serialized;
+	serialized << "mode=" << (mode == BuildMode::Release ? "release" : "debug") << '\n';
+	for (const auto& path : files) {
+		serialized << fs::relative(path, getHeliosSourceDir()).generic_string() << '\n';
+	}
+	return serialized.str();
 }
 
 } // namespace
@@ -90,27 +129,74 @@ bool Compiler::compileRuntimeObject(
 		BuildMode mode,
 		const fs::path& cacheDir,
 		fs::path& objectFile) {
-	const fs::path runtimeSource = getRuntimeSourcePath();
-	if (!fs::exists(runtimeSource)) {
-		DEBUG("Runtime source not found: " << runtimeSource);
+	const auto runtimeSources = collectHeliosSources();
+	if (runtimeSources.empty()) {
+		DEBUG("Helios sources not found under: " << getHeliosSourceDir());
 		return false;
 	}
 
 	objectFile = cacheDir / "__zane_runtime.o";
-	if (
-		fs::exists(objectFile)
-		&& fs::last_write_time(objectFile) >= fs::last_write_time(runtimeSource)
-	) {
-		return true;
+	const fs::path inputsFile = cacheDir / "__zane_runtime.inputs";
+	const auto runtimeInputs = collectHeliosFiles();
+	const std::string serializedInputs = serializeHeliosInputs(runtimeInputs, mode);
+
+	auto newestSource = fs::file_time_type::min();
+	for (const auto& runtimeInput : runtimeInputs) {
+		newestSource = std::max(newestSource, fs::last_write_time(runtimeInput));
 	}
 
-	std::string command = zig::path() + " cc"
-		+ " --target=" + zig::toZigTarget(target.triple)
-		+ (mode == BuildMode::Release ? " -O3" : "")
-		+ " -c " + shell::quote(runtimeSource.string())
-		+ " -o " + shell::quote(objectFile.string());
-	if (std::system(command.c_str()) != 0) {
-		DEBUG("Failed to compile runtime object");
+	if (
+		fs::exists(objectFile)
+		&& fs::exists(inputsFile)
+		&& fs::last_write_time(objectFile) >= newestSource
+	) {
+		std::ifstream existingInputs(inputsFile);
+		std::stringstream buffer;
+		buffer << existingInputs.rdbuf();
+		if (buffer.str() == serializedInputs) {
+			return true;
+		}
+	}
+
+	if (!fs::exists(cacheDir)) {
+		fs::create_directories(cacheDir);
+	}
+
+	if (fs::exists(objectFile)) {
+		fs::remove(objectFile);
+	}
+
+	if (fs::exists(inputsFile)) {
+		fs::remove(inputsFile);
+	}
+
+	std::stringstream command;
+	command << zig::path() << " cc"
+		<< " --target=" << zig::toZigTarget(target.triple)
+		<< (mode == BuildMode::Release ? " -O3" : "")
+		<< " -c";
+	for (const auto& src : runtimeSources) {
+		command << " " << shell::quote(src.string());
+	}
+	command << " -o " << shell::quote(objectFile.string());
+
+	if (std::system(command.str().c_str()) != 0) {
+		DEBUG("Failed to compile Helios runtime");
+		return false;
+	}
+
+	std::ofstream updatedInputs(inputsFile, std::ios::trunc);
+	if (!updatedInputs) {
+		DEBUG("Failed to write Helios runtime input manifest");
+		fs::remove(objectFile);
+		return false;
+	}
+	updatedInputs << serializedInputs;
+	updatedInputs.close();
+	if (!updatedInputs) {
+		DEBUG("Failed to finalize Helios runtime input manifest");
+		fs::remove(inputsFile);
+		fs::remove(objectFile);
 		return false;
 	}
 
