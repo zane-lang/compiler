@@ -3,13 +3,13 @@ build:
 
 init:
 	rm -rf build
-	git submodule update --init --recursive
+	test -d .git/modules || git submodule update --init --recursive
 	vcpkg install
 	CXX=clang++ meson setup build --buildtype=debug --cmake-prefix-path "$(realpath vcpkg_installed/x64-linux)"
 
 release:
 	rm -rf build
-	git submodule update --init --recursive
+	test -d .git/modules || git submodule update --init --recursive
 	vcpkg install
 	CXX=clang++ meson setup build --buildtype=release --cmake-prefix-path "$(realpath vcpkg_installed/x64-linux)"
 
@@ -23,4 +23,4 @@ check-parser:
 	scripts/check_parser.sh
 
 link:
-	ln -sf ../build/zane bin/zane
+	ln -sf build/zane bin/zane
