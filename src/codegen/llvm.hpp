@@ -1,5 +1,6 @@
 #pragma once
 
+#include "helios_bridge.hpp"
 #include "codegen/visitor.hpp"
 #include "utils/aliases.hpp"
 
@@ -29,7 +30,8 @@ public:
 			zane::ref<Package> package,
 			zane::ref<Packages> allPackages,
 			const std::vector<std::shared_ptr<semantic::PackageInfo>>& externalPackages = {}) {
-		LLVMVisitor visitor(context, builder, *module);
+		HeliosBridge bridge(context, *module);
+		LLVMVisitor visitor(context, builder, *module, bridge);
 		visitor.declareIntrinsicSignatures();
 		for (auto& [name, pkg] : *allPackages)
 			visitor.declareSignatures(*pkg);

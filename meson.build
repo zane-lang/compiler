@@ -1,5 +1,6 @@
 project(
   'zane',
+  'c',
   'cpp',
   version: '1.0.0',
   default_options: [
@@ -18,6 +19,9 @@ coda_dep = declare_dependency(include_directories: coda_inc)
 
 zanecpp_inc = include_directories('vendor/zane-cpp/include')
 zanecpp_dep = declare_dependency(include_directories: zanecpp_inc)
+
+helios_inc = include_directories('vendor/helios/include')
+helios_dep = declare_dependency(include_directories: helios_inc)
 
 nlohmann_dep = dependency('nlohmann_json', required: true, method: 'cmake')
 cereal_dep  = dependency('cereal', required: true, method: 'cmake')
@@ -142,11 +146,16 @@ sources = run_command(
   'find', 'src', '-name', '*.cpp', check: true
 ).stdout().strip().split('\n')
 
+helios_sources = files(
+  'vendor/helios/src/helios_bridge.cpp',
+  'vendor/helios/src/helios_runtime.c',
+)
+
 zane_exe = executable(
   meson.project_name(),
-  sources + [generated_parser, generated_lexer, embedded_helios_symbols],
+  sources + helios_sources + [generated_parser, generated_lexer, embedded_helios_symbols],
   include_directories: [src_dir, grammar_dir],
-  dependencies: [nlohmann_dep, cereal_dep, llvm_dep, coda_dep, zanecpp_dep],
+  dependencies: [nlohmann_dep, cereal_dep, llvm_dep, coda_dep, zanecpp_dep, helios_dep],
   build_by_default: true,
   cpp_args: exe_cpp_args,
   link_args: exe_link_args,

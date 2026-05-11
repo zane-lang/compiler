@@ -10,6 +10,15 @@ namespace intrinsics {
 
 namespace nk = ir::node_kind;
 
+std::string_view baseTypeName(std::string_view fullName) {
+	auto genericStart = fullName.find('<');
+	if (genericStart == std::string_view::npos) {
+		return fullName;
+	}
+
+	return fullName.substr(0, genericStart);
+}
+
 std::shared_ptr<semantic::Type> makeNamedType(const std::string& name) {
 	auto symbol = std::make_shared<semantic::TypeSymbol>();
 	symbol->name = name;
@@ -34,6 +43,10 @@ std::optional<ir::NodeKind> literalNodeKindFromHelios(std::string_view nodeName)
 		return nk::float_literal{};
 	}
 
+	if (nodeName == "bool_literal") {
+		return nk::bool_literal{};
+	}
+
 	return std::nullopt;
 }
 
@@ -51,6 +64,32 @@ Registry::Registry() {
 const IntrinsicInfo* Registry::find(std::string_view fullName) const {
 	auto it = entries.find(std::string(fullName));
 	return it == entries.end() ? nullptr : &it->second;
+}
+
+const IntrinsicInfo* Registry::findPrimitiveForConcept(std::string_view conceptName) const {
+	auto concept = find(conceptName);
+	if (concept == nullptr) {
+		auto baseName = baseTypeName(conceptName);
+		if (baseName != conceptName) {
+			concept = find(baseName);
+		}
+	}
+
+	if (concept == nullptr || concept->category != Category::Concept) {
+		return nullptr;
+	}
+
+	for (const auto& entry : entries) {
+		const auto& info = entry.second;
+		if (
+			info.category == Category::Primitive
+			&& info.llvmTypeName == concept->primitiveType
+		) {
+			return &info;
+		}
+	}
+
+	return nullptr;
 }
 
 const std::unordered_map<std::string, IntrinsicInfo>& Registry::all() const {
@@ -80,12 +119,18 @@ void Registry::registerType(
 		std::string fullName,
 		Category category,
 		std::string llvmTypeName,
+		std::string primitiveType,
 		std::optional<ir::NodeKind> literalNodeKind) {
+	if (primitiveType.empty()) {
+		primitiveType = llvmTypeName;
+	}
+
 	IntrinsicInfo info{
 		fullName,
 		category,
 		LoweringKind::CompilerType,
 		std::move(llvmTypeName),
+		std::move(primitiveType),
 		{},
 		std::move(literalNodeKind),
 		nullptr,
@@ -115,6 +160,7 @@ void Registry::registerFunction(
 		fullName,
 		Category::Function,
 		loweringKind,
+		{},
 		{},
 		std::move(runtimeSymbol),
 		{},
@@ -154,6 +200,7 @@ void Registry::loadHeliosSymbols() {
 					registerType(
 						"@Concepts$" + row["name"],
 						Category::Concept,
+						row["type"],
 						row["type"],
 						literalNodeKind
 					);

@@ -28,6 +28,7 @@ struct IntrinsicInfo {
 	Category category;
 	LoweringKind loweringKind;
 	std::string llvmTypeName;
+	std::string primitiveType;
 	std::string runtimeSymbol;
 	std::optional<ir::NodeKind> literalNodeKind;
 	std::shared_ptr<semantic::ValueSymbol> callableSymbol;
@@ -46,6 +47,7 @@ public:
 	Registry();
 
 	const IntrinsicInfo* find(std::string_view fullName) const;
+	const IntrinsicInfo* findPrimitiveForConcept(std::string_view conceptName) const;
 	const std::unordered_map<std::string, IntrinsicInfo>& all() const;
 	const std::vector<std::shared_ptr<semantic::ValueSymbol>>& callableSymbols() const;
 	std::string conceptForLiteralNode(const ir::NodeKind& nodeKind) const;
@@ -58,6 +60,7 @@ private:
 		std::string fullName,
 		Category category,
 		std::string llvmTypeName,
+		std::string primitiveType = {},
 		std::optional<ir::NodeKind> literalNodeKind = std::nullopt
 	);
 	void registerFunction(

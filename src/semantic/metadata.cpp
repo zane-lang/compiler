@@ -27,9 +27,10 @@ std::string TypeSymbol::getMangledName() const {
 
 	if (generics.size() > 0) {
 		result += "<";
-		for (auto type : generics) {
-			result += type->getMangledName();
+		result += generics.front()->getMangledName();
+		for (std::size_t i = 1; i < generics.size(); ++i) {
 			result += ",";
+			result += generics[i]->getMangledName();
 		}
 		result += ">";
 	}

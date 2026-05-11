@@ -3,6 +3,7 @@
 #include "ast/ast_helpers.hpp"
 #include "codegen/type_mapper.hpp"
 #include "compiler/intrinsics.hpp"
+#include "helios_bridge.hpp"
 #include "package/package.hpp"
 #include "utils/console.hpp"
 
@@ -12,6 +13,7 @@
 #include <llvm/IR/Type.h>
 #include <algorithm>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -23,6 +25,7 @@ private:
 	llvm::LLVMContext& context;
 	llvm::IRBuilder<>& builder;
 	llvm::Module& module;
+	HeliosBridge& bridge;
 	TypeMapper typeMapper;
 	std::unordered_map<std::string, llvm::AllocaInst*> namedValues;
 	std::unordered_map<std::string, std::vector<llvm::Function*>> functionsByAlias;
@@ -191,6 +194,49 @@ private:
 		return tryLookup(mangledName);
 	}
 
+	std::optional<std::string> llvmTypeNameForIntrinsicType(const semantic::Type* type) const {
+		if (type == nullptr) {
+			return std::nullopt;
+		}
+
+		std::optional<std::string> result;
+		type->value.match(
+			[&](std::shared_ptr<semantic::TypeSymbol> typeSymbol) {
+				const std::string fullTypeName = typeSymbol->getMangledName();
+
+				if (const auto* primitive = intrinsics::get().findPrimitiveForConcept(fullTypeName)) {
+					result = primitive->llvmTypeName;
+					return;
+				}
+
+				if (const auto* intrinsic = intrinsics::get().find(fullTypeName)) {
+					result = intrinsic->llvmTypeName;
+					return;
+				}
+
+				auto genericStart = fullTypeName.find('<');
+				if (genericStart != std::string::npos) {
+					const auto baseTypeName = fullTypeName.substr(0, genericStart);
+					if (const auto* primitive = intrinsics::get().findPrimitiveForConcept(baseTypeName)) {
+						result = primitive->llvmTypeName;
+						return;
+					}
+
+					if (const auto* intrinsic = intrinsics::get().find(baseTypeName)) {
+						result = intrinsic->llvmTypeName;
+						return;
+					}
+				}
+
+				result = fullTypeName;
+			},
+			[&](std::shared_ptr<semantic::FuncType> /* funcType */) {
+				result = "ptr";
+			}
+		);
+		return result;
+	}
+
 	llvm::Function* resolveFunctionByName(const ir::Node* node, std::size_t expectedArgCount, const std::string& directName = "") {
 		std::string functionName = directName.empty() ? ast::flattenName(node) : directName;
 		if (functionName.empty()) {
@@ -324,43 +370,39 @@ private:
 			return nullptr;
 		}
 
-		llvm::Type* returnType = nullptr;
-		std::vector<llvm::Type*> params;
+		std::optional<std::string> returnTypeName;
+		std::vector<std::string> parameterTypeNames;
 		bool supported = true;
 
 		intrinsic.callableSymbol->type->value.match(
 			[&](std::shared_ptr<semantic::FuncType> funcType) {
-				returnType = typeMapper.toLLVMType(funcType->returnType.get());
-				if (returnType == nullptr) {
+				returnTypeName = llvmTypeNameForIntrinsicType(funcType->returnType.get());
+				if (!returnTypeName.has_value()) {
 					supported = false;
 					return;
 				}
 
 				for (auto& param : funcType->paramTypes) {
-					auto* llvmType = typeMapper.toLLVMType(param.get());
-					if (llvmType == nullptr) {
+					auto paramTypeName = llvmTypeNameForIntrinsicType(param.get());
+					if (!paramTypeName.has_value()) {
 						supported = false;
 						return;
 					}
-					params.push_back(llvmType);
+					parameterTypeNames.push_back(std::move(paramTypeName.value()));
 				}
 			}
 		);
 
-		if (!supported || returnType == nullptr) {
+		if (!supported || !returnTypeName.has_value()) {
 			return nullptr;
 		}
 
-		auto* function = module.getFunction(intrinsic.runtimeSymbol);
-		if (function == nullptr) {
-			auto* functionType = llvm::FunctionType::get(returnType, params, false);
-			function = llvm::Function::Create(
-				functionType,
-				llvm::Function::ExternalLinkage,
-				intrinsic.runtimeSymbol,
-				module);
-		}
-
+		auto* function = bridge.ensureFunction(
+			intrinsic.fullName,
+			returnTypeName.value(),
+			parameterTypeNames,
+			intrinsic.runtimeSymbol
+		);
 		registerFunctionAliases(intrinsic.callableSymbol, function);
 		return function;
 	}
@@ -457,6 +499,25 @@ private:
 			return builder.CreateGlobalString(node->value);
 		}
 
+		if (node->kind.is<ir::node_kind::int_literal>()) {
+			return llvm::ConstantInt::get(
+				llvm::Type::getInt64Ty(context),
+				std::stoll(node->value),
+				true
+			);
+		}
+
+		if (node->kind.is<ir::node_kind::float_literal>()) {
+			return llvm::ConstantFP::get(context, llvm::APFloat(std::stod(node->value)));
+		}
+
+		if (node->kind.is<ir::node_kind::bool_literal>()) {
+			return llvm::ConstantInt::get(
+				llvm::Type::getInt1Ty(context),
+				node->value == "true" ? 1 : 0
+			);
+		}
+
 		if (node->kind.is<ir::node_kind::call_expr>()) {
 			return emitCall(node);
 		}
@@ -478,11 +539,13 @@ private:
 
 		// Child at index 0 of storage_decl is always the type expression
 		const auto* typeNode = ast::childAt(storageDecl, 0);
-		std::string typeName = ast::flattenName(typeNode);
-
-		llvm::Type* llvmType = typeMapper.toLLVMType(typeName);
+		auto loweredType = ast::lowerTypeExpr(typeNode);
+		llvm::Type* llvmType = typeMapper.toLLVMType(loweredType.get());
 		if (llvmType == nullptr) {
-			DEBUG("Unknown type for local variable '" << varName << "': " << typeName);
+			DEBUG(
+				"Unknown type for local variable '" << varName << "': "
+				<< (loweredType ? loweredType->getMangledName() : std::string())
+			);
 			return;
 		}
 
@@ -602,8 +665,16 @@ private:
 	}
 
 public:
-	LLVMVisitor(llvm::LLVMContext& ctx, llvm::IRBuilder<>& b, llvm::Module& m)
-		: context(ctx), builder(b), module(m), typeMapper(ctx) {}
+	LLVMVisitor(
+			llvm::LLVMContext& ctx,
+			llvm::IRBuilder<>& b,
+			llvm::Module& m,
+			HeliosBridge& heliosBridge)
+		: context(ctx),
+			builder(b),
+			module(m),
+			bridge(heliosBridge),
+			typeMapper(ctx, heliosBridge) {}
 
 	void declareIntrinsicSignatures() {
 		for (const auto& [fullName, intrinsic] : intrinsics::get().all()) {
@@ -659,6 +730,14 @@ private:
 				intrinsic->isFunction()
 				&& intrinsic->loweringKind == intrinsics::LoweringKind::CompilerFunction
 			) {
+				return;
+			}
+
+			if (
+				intrinsic->isFunction()
+				&& intrinsic->loweringKind == intrinsics::LoweringKind::RuntimeFunction
+			) {
+				(void)ensureRuntimeIntrinsicFunction(*intrinsic);
 				return;
 			}
 		}
