@@ -11,6 +11,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 #include <algorithm>
+#include <optional>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -274,12 +275,20 @@ private:
 	llvm::Value* lowerStringFromStringLiteral(
 			const ir::Node* /* callNode */,
 			const std::vector<llvm::Value*>& args) {
-		if (args.size() != 1) {
-			DEBUG("Expected 1 argument for @Compiler$stringFromStringLiteral, got " << args.size());
-			return nullptr;
+		return args.front();
+	}
+
+	std::optional<std::size_t> compilerLoweringArity(
+			const intrinsics::IntrinsicInfo& intrinsic) const {
+		if (intrinsic.callableSymbol == nullptr || intrinsic.callableSymbol->type == nullptr) {
+			return std::nullopt;
 		}
 
-		return args.front();
+		std::optional<std::size_t> arity;
+		intrinsic.callableSymbol->type->value.match([&](std::shared_ptr<semantic::FuncType> funcType) {
+			arity = funcType->paramTypes.size();
+		});
+		return arity;
 	}
 
 	llvm::Value* emitCompilerLoweredCall(
@@ -289,6 +298,13 @@ private:
 		auto it = compilerLoweringHandlers().find(intrinsic.fullName);
 		if (it == compilerLoweringHandlers().end()) {
 			DEBUG("No compiler lowering registered for " << intrinsic.fullName);
+			return nullptr;
+		}
+
+		auto expectedArity = compilerLoweringArity(intrinsic);
+		if (expectedArity.has_value() && args.size() != expectedArity.value()) {
+			DEBUG("Expected " << expectedArity.value() << " arguments for " << intrinsic.fullName
+				<< ", got " << args.size());
 			return nullptr;
 		}
 

@@ -123,13 +123,28 @@ generated_lexer = custom_target(
   build_by_default: true,
 )
 
+embedded_helios_symbols = custom_target(
+  'embedded_helios_symbols',
+  input: files('vendor/helios/symbols.coda'),
+  output: 'embedded_helios_symbols.cpp',
+  command: [
+    python,
+    files('scripts/embed_text.py'),
+    '@INPUT@',
+    '@OUTPUT@',
+    'intrinsics',
+    'heliosSymbolsSource',
+  ],
+  build_by_default: true,
+)
+
 sources = run_command(
   'find', 'src', '-name', '*.cpp', check: true
 ).stdout().strip().split('\n')
 
 zane_exe = executable(
   meson.project_name(),
-  sources + [generated_parser, generated_lexer],
+  sources + [generated_parser, generated_lexer, embedded_helios_symbols],
   include_directories: [src_dir, grammar_dir],
   dependencies: [nlohmann_dep, cereal_dep, llvm_dep, coda_dep, zanecpp_dep],
   build_by_default: true,

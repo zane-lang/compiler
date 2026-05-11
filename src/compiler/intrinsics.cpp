@@ -1,27 +1,18 @@
+#include "compiler/helios_symbols.hpp"
 #include "compiler/intrinsics.hpp"
 
 #include <coda.hpp>
-#include <filesystem>
 #include <utility>
 
 namespace intrinsics {
 
 namespace nk = ir::node_kind;
-namespace fs = std::filesystem;
-
-namespace {
 
 std::shared_ptr<semantic::Type> makeNamedType(const std::string& name) {
 	auto symbol = std::make_shared<semantic::TypeSymbol>();
 	symbol->name = name;
 	return std::make_shared<semantic::Type>(symbol);
 }
-
-fs::path getHeliosSymbolsPath() {
-	return fs::path(ZANE_COMPILER_ROOT) / "vendor" / "helios" / "symbols.coda";
-}
-
-} // namespace
 
 Registry::Registry() {
 	registerType("@Primitives$String", Category::Primitive, "ptr");
@@ -114,12 +105,8 @@ void Registry::registerFunction(
 }
 
 void Registry::loadHeliosRuntimeFunctions() {
-	const fs::path symbolsPath = getHeliosSymbolsPath();
-	if (!fs::exists(symbolsPath)) {
-		return;
-	}
-
-	coda::Doc symbols(symbolsPath.string());
+	coda::Doc symbols =
+		coda::Doc::parse(std::string(heliosSymbolsSource()), "vendor/helios/symbols.coda");
 	auto& root = symbols.root();
 	if (!root.has("Functions")) {
 		return;
