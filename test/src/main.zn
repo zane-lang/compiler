@@ -1,10 +1,5 @@
 package Test
 
-Void print(text @Primitives$String) {
-	@Functions$printLine(text)
-}
-
 Void main() {
-	text @Primitives$String = @Compiler$stringFromStringLiteral("Hello, World!")
-	print(text)
+	@Functions$printInt(20)
 }

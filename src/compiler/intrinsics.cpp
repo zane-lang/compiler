@@ -26,7 +26,7 @@ std::optional<ir::NodeKind> literalNodeKindFromHelios(std::string_view nodeName)
 		return nk::string_literal{};
 	}
 
-	if (nodeName == "int_literal" || nodeName == "number_literal") {
+	if (nodeName == "number_literal") {
 		return nk::number_literal{};
 	}
 
