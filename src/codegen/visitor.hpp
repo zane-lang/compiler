@@ -274,7 +274,12 @@ private:
 	llvm::Value* lowerStringFromStringLiteral(
 			const ir::Node* /* callNode */,
 			const std::vector<llvm::Value*>& args) {
-		return args.size() == 1 ? args.front() : nullptr;
+		if (args.size() != 1) {
+			DEBUG("Expected 1 argument for @Compiler$stringFromStringLiteral, got " << args.size());
+			return nullptr;
+		}
+
+		return args.front();
 	}
 
 	llvm::Value* emitCompilerLoweredCall(
