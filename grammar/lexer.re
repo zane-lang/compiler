@@ -104,9 +104,13 @@ int zane::Lexer::next(void* semanticValue) {
 		semantic->text = dupRange(token + 1, YYCURSOR - 1);
 		return STRING;
 	}
-	[0-9]+ ("." [0-9]+)? {
+	[0-9]+ "." [0-9]+ {
 		semantic->text = dupRange(token, YYCURSOR);
-		return NUMBER;
+		return FLOAT;
+	}
+	[0-9]+ {
+		semantic->text = dupRange(token, YYCURSOR);
+		return INT;
 	}
 	[A-Za-z_] [A-Za-z_0-9]* {
 		semantic->text = dupRange(token, YYCURSOR);
