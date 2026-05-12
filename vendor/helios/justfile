@@ -1,0 +1,3 @@
+init:
+	rm -rf build
+	CXX=clang++ meson setup build --buildtype=debug --cmake-prefix-path "$(realpath vcpkg_installed/x64-linux)"
