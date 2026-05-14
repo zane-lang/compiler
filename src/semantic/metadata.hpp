@@ -165,3 +165,26 @@ struct Type {
 };
 
 } // namespace semantic
+
+namespace std {
+	template<>
+	struct hash<semantic::TypeSymbol> {
+		size_t operator()(const semantic::TypeSymbol& ts) const noexcept {
+			return std::hash<std::string>{}(ts.getMangledName());
+		}
+	};
+
+	template<>
+	struct hash<semantic::ValueSymbol> {
+		size_t operator()(const semantic::ValueSymbol& vs) const noexcept {
+			return std::hash<std::string>{}(vs.getMangledName());
+		}
+	};
+	
+	template<>
+	struct hash<semantic::Type> {
+		size_t operator()(const semantic::Type& t) const noexcept {
+			return std::hash<std::string>{}(t.getMangledName());
+		}
+	};
+}
