@@ -605,6 +605,7 @@ public:
 	LLVMVisitor(llvm::LLVMContext& ctx, llvm::IRBuilder<>& b, llvm::Module& m)
 		: context(ctx), builder(b), module(m), typeMapper(ctx) {}
 
+	// TODO: not needed, remove
 	void declareIntrinsicSignatures() {
 		for (const auto& [fullName, intrinsic] : intrinsics::get().all()) {
 			(void)fullName;

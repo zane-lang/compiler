@@ -59,7 +59,7 @@ class Helios {
 	auto resolveTypeSymbol(const semantic::TypeSymbol& sym) -> std::expected<llvm::Type*, std::string> {
 		if (!sym.generics.empty()) {
 			if (!genericTypeConstructors.contains(sym.name)) {
-				return std::unexpected{ "unknown generic type: " + sym.name };
+				return std::unexpected { "unknown generic type: " + sym.name };
 			}
 			return genericTypeConstructors.at(sym.name)(ctx, sym.generics[0]);
 		}

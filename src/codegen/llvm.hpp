@@ -30,6 +30,7 @@ public:
 			zane::ref<Packages> allPackages,
 			const std::vector<std::shared_ptr<semantic::PackageInfo>>& externalPackages = {}) {
 		LLVMVisitor visitor(context, builder, *module);
+		// TODO: remove, not needed anymore, custom architecture
 		visitor.declareIntrinsicSignatures();
 		for (auto& [name, pkg] : *allPackages)
 			visitor.declareSignatures(*pkg);
