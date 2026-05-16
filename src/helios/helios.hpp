@@ -6,17 +6,26 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Function.h>
 #include <unordered_map>
 #include <vector>
+#include <map>
+#include <functional>
+#include <memory>
+#include <string>
 
 class Helios {
 	llvm::LLVMContext& ctx;
 	std::unordered_map<std::string, llvm::Type*> primitives;
 	std::unordered_map<semantic::Type, llvm::Type*> typeCache;
 
-	std::map<std::string, std::function<llvm::StructType*(llvm::LLVMContext&, semantic::Type)>> genericTypeConstructors = {
-		{"List", [this](llvm::LLVMContext& ctx, semantic::Type generic) {
-			llvm::Type* elementType = resolveSemanticType(generic);
+	std::map<std::string, std::function<llvm::Type*(llvm::LLVMContext&, std::shared_ptr<semantic::Type>)>> genericTypeConstructors = {
+		{"List", [this](llvm::LLVMContext& ctx, std::shared_ptr<semantic::Type> generic) {
+			auto elementType = getType(*generic) | zane::pipe([](auto result) {
+				return zane::handle(std::move(result), [](const std::string& error) -> llvm::Type* {
+					throw std::runtime_error(error);
+				});
+			});
 			auto node = llvm::StructType::create(ctx, "List");
 			auto nodePtr = llvm::PointerType::get(ctx, 0);
 			node->setBody({elementType, nodePtr});
@@ -24,27 +33,65 @@ class Helios {
 		}}
 	};
 
-	auto ensureGenericType(semantic::Type& type) -> zane::abortable<llvm::Type*, std::string> {
-		if (typeCache.contains(type)) {
-			return zane::abortable<llvm::Type*, std::string>::success(typeCache.at(type));
+	// Internal: resolve semantic::Type → llvm::Type* with caching
+	auto resolveType(const semantic::Type& type) -> zane::abortable<llvm::Type*, std::string> {
+		if (auto it = typeCache.find(type); it != typeCache.end()) {
+			return zane::abortable<llvm::Type*, std::string>::success(it->second);
 		}
-		// Assuming type.value holds std::shared_ptr<semantic::TypeSymbol> or std::shared_ptr<semantic::FuncType>
-		std::string name = type.value.match(
-			[](const std::shared_ptr<semantic::TypeSymbol>& arg) -> std::string { 
-				return arg->name; 
+
+		auto result = type.value.match(
+			[this](const std::shared_ptr<semantic::TypeSymbol>& sym) {
+				return resolveTypeSymbol(*sym);
+			},
+			[this](const std::shared_ptr<semantic::FuncType>& func) {
+				return resolveFuncType(*func);
 			}
 		);
-		
-		if (!genericTypeConstructors.contains(name)) {
-			return zane::abortable<llvm::Type*, std::string>::abort({ "unknown generic type: " + name });
+
+		if (result.is_success()) {
+			typeCache[type] = result.unwrap();
 		}
-		return genericTypeConstructors.at(type.value)(ctx, type.generics[0]);
+		return result;
+	}
+
+	auto resolveTypeSymbol(const semantic::TypeSymbol& sym) -> zane::abortable<llvm::Type*, std::string> {
+		// Generic types (e.g., List<T>)
+		if (!sym.generics.empty()) {
+			if (!genericTypeConstructors.contains(sym.name)) {
+				return zane::abortable<llvm::Type*, std::string>::abort({ "unknown generic type: " + sym.name });
+			}
+			return zane::abortable<llvm::Type*, std::string>::success(
+				genericTypeConstructors.at(sym.name)(ctx, sym.generics[0])
+			);
+		}
+		// Primitive lookup (fallback for unqualified names)
+		if (!sym.packageName.has_value() || sym.packageName.value() == "Primitives") {
+			return getPrimitiveType(sym.name);
+		}
+		return zane::abortable<llvm::Type*, std::string>::abort({ "unresolved type: " + sym.getMangledName() });
+	}
+
+	auto resolveFuncType(const semantic::FuncType& func) -> zane::abortable<llvm::Type*, std::string> {
+		std::vector<llvm::Type*> paramTypes;
+		paramTypes.reserve(func.paramTypes.size());
+		
+		for (const auto& param : func.paramTypes) {
+			auto ty = getType(*param);
+			if (!ty.is_success()) return ty;
+			paramTypes.push_back(ty.unwrap());
+		}
+		
+		auto retTy = getType(*func.returnType);
+		if (!retTy.is_success()) return retTy;
+		
+		return zane::abortable<llvm::Type*, std::string>::success(
+			llvm::FunctionType::get(retTy.unwrap(), paramTypes, false)
+		);
 	}
 
 	auto getPrimitiveType(const std::string& name) -> zane::abortable<llvm::Type*, std::string> {
 		if (primitives.contains(name)) {
-			auto result = primitives.at(name);
-			return zane::abortable<llvm::Type*, std::string>::success(result);
+			return zane::abortable<llvm::Type*, std::string>::success(primitives.at(name));
 		}
 		return zane::abortable<llvm::Type*, std::string>::abort({ "unknown primitive type: " + name });
 	}
@@ -60,14 +107,19 @@ public:
 		{ "F64", llvm::Type::getDoubleTy(ctx) },
 	}) {}
 
-
+	// Public API: primitive lookup by name
 	auto getType(const std::string& package, const std::string& name) -> zane::abortable<llvm::Type*, std::string> {
 		if (package == "Primitives") {
 			return getPrimitiveType(name);
 		}
-		else if (package == "Types") {
-			
-		}
-		return zane::abortable<llvm::Type*, std::string>::abort({ "unknown package: " + package });
+		// For "Types" package, caller should use getType(const semantic::Type&) directly
+		return zane::abortable<llvm::Type*, std::string>::abort({ 
+			"package '" + package + "' requires semantic::Type; use getType(const semantic::Type&) overload" 
+		});
+	}
+
+	// Public API: resolve any semantic::Type (primitives, generics, functions)
+	auto getType(const semantic::Type& type) -> zane::abortable<llvm::Type*, std::string> {
+		return resolveType(type);
 	}
 };
