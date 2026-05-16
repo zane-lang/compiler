@@ -53,7 +53,7 @@ inline std::string getMangledPackageName(const std::string& packageName) {
 }
 
 struct ValueSymbol {
-	std::optional<std::string> packageName;
+	std::string packageName;
 	std::string name;
 	std::shared_ptr<Type> type;
 
@@ -66,7 +66,7 @@ struct ValueSymbol {
 };
 
 struct TypeSymbol {
-	std::optional<std::string> packageName;
+	std::string packageName;
 	std::vector<std::shared_ptr<Type>> generics;
 	std::string name;
 
