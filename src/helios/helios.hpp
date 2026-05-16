@@ -57,18 +57,13 @@ class Helios {
 	}
 
 	auto resolveTypeSymbol(const semantic::TypeSymbol& sym) -> std::expected<llvm::Type*, std::string> {
-		// Generic types (e.g., List<T>)
 		if (!sym.generics.empty()) {
 			if (!genericTypeConstructors.contains(sym.name)) {
 				return std::unexpected{ "unknown generic type: " + sym.name };
 			}
 			return genericTypeConstructors.at(sym.name)(ctx, sym.generics[0]);
 		}
-		// Primitive lookup (fallback for unqualified names)
-		if (!sym.packageName.has_value() || sym.packageName.value() == "Primitives") {
-			return getPrimitiveType(sym.name);
-		}
-		return std::unexpected{ "unresolved type: " + sym.getMangledName() };
+		return getPrimitiveType(sym.name);
 	}
 
 	auto resolveFuncType(const semantic::FuncType& func) -> std::expected<llvm::Type*, std::string> {
@@ -104,18 +99,7 @@ public:
 		{ "F32", llvm::Type::getFloatTy(ctx) },
 		{ "F64", llvm::Type::getDoubleTy(ctx) },
 	}) {}
-
-	// Public API: primitive lookup by name
-	auto getType(const std::string& package, const std::string& name) -> std::expected<llvm::Type*, std::string> {
-		if (package == "Primitives") {
-			return getPrimitiveType(name);
-		}
-		return std::unexpected{ 
-			"package '" + package + "' requires semantic::Type; use getType(const semantic::Type&) overload" 
-		};
-	}
-
-	// Public API: resolve any semantic::Type (primitives, generics, functions)
+	
 	auto getType(const semantic::Type& type) -> std::expected<llvm::Type*, std::string> {
 		return resolveType(type);
 	}
