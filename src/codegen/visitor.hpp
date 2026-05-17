@@ -605,22 +605,6 @@ public:
 	LLVMVisitor(llvm::LLVMContext& ctx, llvm::IRBuilder<>& b, llvm::Module& m)
 		: context(ctx), builder(b), module(m), typeMapper(ctx) {}
 
-	// TODO: not needed, remove
-	void declareIntrinsicSignatures() {
-		for (const auto& [fullName, intrinsic] : intrinsics::get().all()) {
-			(void)fullName;
-			if (
-				!intrinsic.isFunction()
-				|| intrinsic.callableSymbol == nullptr
-				|| intrinsic.loweringKind != intrinsics::LoweringKind::RuntimeFunction
-			) {
-				continue;
-			}
-
-			(void)ensureRuntimeIntrinsicFunction(intrinsic);
-		}
-	}
-
 	void declareSignatures(zane::ref<Package> package) {
 		declareSignatures(package->packageInfo);
 	}
