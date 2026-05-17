@@ -73,6 +73,8 @@ int zane::Lexer::next(void* semanticValue) {
 		  "<=" { return LE; }
 		  ">=" { return GE; }
 
+		  "$" { return NAME_SEP; }
+
 		  "(" { return '('; }
 		  ")" { return ')'; }
 		  "{" { return '{'; }
@@ -93,7 +95,6 @@ int zane::Lexer::next(void* semanticValue) {
 		  "<" { return '<'; }
 		  ">" { return '>'; }
 		  "|" { return '|'; }
-		  "$" { return '$'; }
 		  "@" { return '@'; }
 
 		  "'" [A-Za-z_] [A-Za-z_0-9]* {
