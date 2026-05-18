@@ -1,9 +1,0 @@
-[submodule "vendor/coda"]
-	path = vendor/coda
-	url = https://github.com/zane-lang/coda
-[submodule "vendor/cpp-httplib"]
-	path = vendor/cpp-httplib
-	url = https://github.com/yhirose/cpp-httplib
-[submodule "vendor/zane-cpp"]
-	path = vendor/zane-cpp
-	url = https://github.com/zane-lang/zane-cpp.git

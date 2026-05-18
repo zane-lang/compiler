@@ -1,1 +1,0 @@
-This is the library that gets linked into every Zane project. It's purpose is to provide the functions in the special `@` namespace which is required by core types and functions. Core types and functions unwrap the value to the primitive before using any helios functions. This cleanly shifts the bridge to the Zane side instead of on the helios side.

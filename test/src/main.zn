@@ -1,5 +1,0 @@
-package Test
-
-Void main() {
-	@Functions$printInt(20)
-}
