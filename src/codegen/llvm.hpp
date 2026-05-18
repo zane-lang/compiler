@@ -27,10 +27,9 @@ public:
 
 	void generate(
 			zane::ref<Package> package,
-			zane::ref<Packages> allPackages,
+			zane::ref<Package> allPackages,
 			const std::vector<std::shared_ptr<semantic::PackageInfo>>& externalPackages = {}) {
 		LLVMVisitor visitor(context, builder, *module);
-		visitor.declareIntrinsicSignatures();
 		for (auto& [name, pkg] : *allPackages)
 			visitor.declareSignatures(*pkg);
 		for (const auto& packageInfo : externalPackages)
