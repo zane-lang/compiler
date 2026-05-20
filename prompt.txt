@@ -1,0 +1,426 @@
+can you please fix this issue? but first explore the codebase.
+ manuel on  ~/projects/zane/compiler essential/parser 
+# devbox shell
+Starting a devbox shell...
+Welcome to devbox!
+ manuel on  ~/projects/zane/compiler essential/parser 
+# rm -rf build
+CXX=clang++ CC=clang meson setup build --reconfigure
+meson compile -C build
+./build/zane "1 + 2"
+The Meson build system
+Version: 1.10.2
+Source dir: /home/manuel/projects/zane/compiler
+Build dir: /home/manuel/projects/zane/compiler/build
+Build type: native build
+Project name: zane
+Project version: 0.1.0
+C++ compiler for the host machine: clang++ (clang 21.1.8 "clang version 21.1.8")
+C++ linker for the host machine: clang++ ld.bfd 2.46
+Host machine cpu family: x86_64
+Host machine cpu: x86_64
+Program re2c found: YES (/home/manuel/projects/zane/compiler/.devbox/nix/profile/default/bin/re2c)
+Program bison found: YES (/home/manuel/projects/zane/compiler/.devbox/nix/profile/default/bin/bison)
+Build targets in project: 3
+
+Found ninja-1.13.1 at /home/manuel/projects/zane/compiler/.devbox/nix/profile/default/bin/ninja
+INFO: autodetecting backend as ninja
+INFO: calculating backend command to run: /home/manuel/projects/zane/compiler/.devbox/nix/profile/default/bin/ni
+nja -C /home/manuel/projects/zane/compiler/build
+ninja: Entering directory `/home/manuel/projects/zane/compiler/build'
+[3/6] Compiling C++ object zane.p/src_main.cpp.o
+FAILED: [code=1] zane.p/src_main.cpp.o 
+clang++ -Izane.p -I. -I.. -I../src -fdiagnostics-color=always -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -Wextra
+ -Wpedantic -std=c++20 -O0 -g -Wall -Wextra -MD -MQ zane.p/src_main.cpp.o -MF zane.p/src_main.cpp.o.d -o zane.p/
+src_main.cpp.o -c ../src/main.cpp
+In file included from ../src/main.cpp:1:
+In file included from ../src/ast/logic.hpp:2:
+In file included from ../src/ast/nodes.hpp:2:
+In file included from ../src/ast/fwd.hpp:2:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/memory:65:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/bits/memoryfwd.h
+:50:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/x86_64-unknown-l
+inux-gnu/bits/c++config.h:727:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/x86_64-unknown-l
+inux-gnu/bits/os_defines.h:39:
+/nix/store/fbbw928argckfii0j322346ihmllg7a7-glibc-2.42-61-dev/include/features.h:435:4: warning: _FORTIFY_SOURCE
+ requires compiling with optimization (-O) [-W#warnings]
+  435 | #  warning _FORTIFY_SOURCE requires compiling with optimization (-O)
+      |    ^
+In file included from ../src/main.cpp:1:
+In file included from ../src/ast/logic.hpp:2:
+In file included from ../src/ast/nodes.hpp:6:
+../src/ast/node_list.def:1:13: error: expected member name or ';' after declaration specifiers
+    1 | X(IntNode,  { int val; })
+      |             ^
+../src/ast/nodes.hpp:5:41: note: expanded from macro 'X'
+    5 |     #define X(Name, Body) struct Name { Body };
+      |                                         ^
+In file included from ../src/main.cpp:1:
+In file included from ../src/ast/logic.hpp:2:
+In file included from ../src/ast/nodes.hpp:6:
+../src/ast/node_list.def:2:13: error: expected member name or ';' after declaration specifiers
+    2 | X(AddNode,  { NodePtr lhs; NodePtr rhs; })
+      |             ^
+../src/ast/nodes.hpp:5:41: note: expanded from macro 'X'
+    5 |     #define X(Name, Body) struct Name { Body };
+      |                                         ^
+In file included from ../src/main.cpp:1:
+In file included from ../src/ast/logic.hpp:3:
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:246:13: error: field has incom
+plete type 'void'
+  246 |       _Type _M_storage;
+      |             ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:429:30: note: in instantiation
+ of template class 'std::__detail::__variant::_Uninitialized<void>' requested here
+  429 |       _Uninitialized<_First> _M_first;
+      |                              ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:430:59: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, void>' requested here
+  430 |       _Variadic_union<__trivially_destructible, _Rest...> _M_rest;
+      |                                                           ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:430:59: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, ast::AddNode, void>' requested here
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:430:59: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, ast::IntNode, ast::AddNode, void>' requeste
+d here
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:511:41: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, std::monostate, ast::IntNode, ast::AddNode,
+ void>' requested here
+  511 |       _Variadic_union<false, _Types...> _M_u;
+      |                                         ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:576:30: note: (skipping 2 cont
+exts in backtrace; use -ftemplate-backtrace-limit=0 to see all)
+  576 |     struct _Copy_ctor_base : _Variant_storage_alias<_Types...>
+      |                              ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:651:32: note: in instantiation
+ of template class 'std::__detail::__variant::_Move_ctor_base<false, std::monostate, ast::IntNode, ast::AddNode,
+ void>' requested here
+  651 |     struct _Copy_assign_base : _Move_ctor_alias<_Types...>
+      |                                ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:703:32: note: in instantiation
+ of template class 'std::__detail::__variant::_Copy_assign_base<false, std::monostate, ast::IntNode, ast::AddNod
+e, void>' requested here
+  703 |     struct _Move_assign_base : _Copy_assign_alias<_Types...>
+      |                                ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:757:28: note: in instantiation
+ of template class 'std::__detail::__variant::_Move_assign_base<false, std::monostate, ast::IntNode, ast::AddNod
+e, void>' requested here
+  757 |     struct _Variant_base : _Move_assign_alias<_Types...>
+      |                            ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:1426:15: note: in instantiatio
+n of template class 'std::__detail::__variant::_Variant_base<std::monostate, ast::IntNode, ast::AddNode, void>' 
+requested here
+ 1426 |     : private __detail::__variant::_Variant_base<_Types...>,
+      |               ^
+../src/ast/logic.hpp:15:21: note: in instantiation of template class 'std::variant<std::monostate, ast::IntNode,
+ ast::AddNode, void>' requested here
+   15 |         NodeVariant data;
+      |                     ^
+In file included from ../src/main.cpp:1:
+In file included from ../src/ast/logic.hpp:3:
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:1441:23: error: static asserti
+on failed due to requirement 'std::is_object_v<void>': variant alternatives must be non-array object types
+ 1441 |       static_assert(((std::is_object_v<_Types> && !is_array_v<_Types>) && ...),
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~~
+../src/ast/logic.hpp:15:21: note: in instantiation of template class 'std::variant<std::monostate, ast::IntNode,
+ ast::AddNode, void>' requested here
+   15 |         NodeVariant data;
+      |                     ^
+../src/main.cpp:17:16: error: no matching constructor for initialization of 'yy::Parser'
+   17 |     yy::Parser parser;
+      |                ^
+parser.tab.h:422:6: note: candidate constructor not viable: requires 1 argument, but 0 were provided
+  422 |      Parser  (const  Parser &) = delete;
+      |      ^        ~~~~~~~~~~~~~~~
+parser.tab.h:417:6: note: candidate constructor not viable: requires 3 arguments, but 0 were provided
+  417 |      Parser  (const char*& cursor_yyarg, const char*& marker_yyarg, const char* limit_yyarg);
+      |      ^        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/main.cpp:18:28: error: too many arguments to function call, expected 0, have 3
+   18 |     int res = parser.parse(cursor, marker, limit);
+      |               ~~~~~~~~~~~~ ^~~~~~~~~~~~~~~~~~~~~
+parser.tab.h:433:17: note: 'parse' declared here
+  433 |     virtual int parse ();
+      |                 ^
+1 warning and 6 errors generated.
+[4/6] Compiling C++ object zane.p/meson-generated_.._parser.cc.o
+FAILED: [code=1] zane.p/meson-generated_.._parser.cc.o 
+clang++ -Izane.p -I. -I.. -I../src -fdiagnostics-color=always -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -Wextra
+ -Wpedantic -std=c++20 -O0 -g -Wall -Wextra -MD -MQ zane.p/meson-generated_.._parser.cc.o -MF zane.p/meson-gener
+ated_.._parser.cc.o.d -o zane.p/meson-generated_.._parser.cc.o -c parser.cc
+In file included from parser.cc:41:
+In file included from ../src/grammar/parser.y:9:
+In file included from ../src/ast/logic.hpp:2:
+In file included from ../src/ast/nodes.hpp:2:
+In file included from ../src/ast/fwd.hpp:2:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/memory:65:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/bits/memoryfwd.h
+:50:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/x86_64-unknown-l
+inux-gnu/bits/c++config.h:727:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/x86_64-unknown-l
+inux-gnu/bits/os_defines.h:39:
+/nix/store/fbbw928argckfii0j322346ihmllg7a7-glibc-2.42-61-dev/include/features.h:435:4: warning: _FORTIFY_SOURCE
+ requires compiling with optimization (-O) [-W#warnings]
+  435 | #  warning _FORTIFY_SOURCE requires compiling with optimization (-O)
+      |    ^
+In file included from parser.cc:41:
+In file included from ../src/grammar/parser.y:9:
+In file included from ../src/ast/logic.hpp:2:
+In file included from ../src/ast/nodes.hpp:6:
+../src/ast/node_list.def:1:13: error: expected member name or ';' after declaration specifiers
+    1 | X(IntNode,  { int val; })
+      |             ^
+../src/ast/nodes.hpp:5:41: note: expanded from macro 'X'
+    5 |     #define X(Name, Body) struct Name { Body };
+      |                                         ^
+In file included from parser.cc:41:
+In file included from ../src/grammar/parser.y:9:
+In file included from ../src/ast/logic.hpp:2:
+In file included from ../src/ast/nodes.hpp:6:
+../src/ast/node_list.def:2:13: error: expected member name or ';' after declaration specifiers
+    2 | X(AddNode,  { NodePtr lhs; NodePtr rhs; })
+      |             ^
+../src/ast/nodes.hpp:5:41: note: expanded from macro 'X'
+    5 |     #define X(Name, Body) struct Name { Body };
+      |                                         ^
+In file included from parser.cc:41:
+In file included from ../src/grammar/parser.y:9:
+In file included from ../src/ast/logic.hpp:3:
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:246:13: error: field has incom
+plete type 'void'
+  246 |       _Type _M_storage;
+      |             ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:429:30: note: in instantiation
+ of template class 'std::__detail::__variant::_Uninitialized<void>' requested here
+  429 |       _Uninitialized<_First> _M_first;
+      |                              ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:430:59: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, void>' requested here
+  430 |       _Variadic_union<__trivially_destructible, _Rest...> _M_rest;
+      |                                                           ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:430:59: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, ast::AddNode, void>' requested here
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:430:59: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, ast::IntNode, ast::AddNode, void>' requeste
+d here
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:511:41: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, std::monostate, ast::IntNode, ast::AddNode,
+ void>' requested here
+  511 |       _Variadic_union<false, _Types...> _M_u;
+      |                                         ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:576:30: note: (skipping 2 cont
+exts in backtrace; use -ftemplate-backtrace-limit=0 to see all)
+  576 |     struct _Copy_ctor_base : _Variant_storage_alias<_Types...>
+      |                              ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:651:32: note: in instantiation
+ of template class 'std::__detail::__variant::_Move_ctor_base<false, std::monostate, ast::IntNode, ast::AddNode,
+ void>' requested here
+  651 |     struct _Copy_assign_base : _Move_ctor_alias<_Types...>
+      |                                ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:703:32: note: in instantiation
+ of template class 'std::__detail::__variant::_Copy_assign_base<false, std::monostate, ast::IntNode, ast::AddNod
+e, void>' requested here
+  703 |     struct _Move_assign_base : _Copy_assign_alias<_Types...>
+      |                                ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:757:28: note: in instantiation
+ of template class 'std::__detail::__variant::_Move_assign_base<false, std::monostate, ast::IntNode, ast::AddNod
+e, void>' requested here
+  757 |     struct _Variant_base : _Move_assign_alias<_Types...>
+      |                            ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:1426:15: note: in instantiatio
+n of template class 'std::__detail::__variant::_Variant_base<std::monostate, ast::IntNode, ast::AddNode, void>' 
+requested here
+ 1426 |     : private __detail::__variant::_Variant_base<_Types...>,
+      |               ^
+../src/ast/logic.hpp:15:21: note: in instantiation of template class 'std::variant<std::monostate, ast::IntNode,
+ ast::AddNode, void>' requested here
+   15 |         NodeVariant data;
+      |                     ^
+In file included from parser.cc:41:
+In file included from ../src/grammar/parser.y:9:
+In file included from ../src/ast/logic.hpp:3:
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:1441:23: error: static asserti
+on failed due to requirement 'std::is_object_v<void>': variant alternatives must be non-array object types
+ 1441 |       static_assert(((std::is_object_v<_Types> && !is_array_v<_Types>) && ...),
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~~
+../src/ast/logic.hpp:15:21: note: in instantiation of template class 'std::variant<std::monostate, ast::IntNode,
+ ast::AddNode, void>' requested here
+   15 |         NodeVariant data;
+      |                     ^
+parser.cc:300:33: error: no member named 'state' in 'yy::Parser::stack_symbol_type'
+  300 |     : super_type (YY_MOVE (that.state), YY_MOVE (that.value), YY_MOVE (that.location))
+      |                            ~~~~ ^
+parser.cc:300:55: error: no member named 'value' in 'yy::Parser::stack_symbol_type'
+  300 |     : super_type (YY_MOVE (that.state), YY_MOVE (that.value), YY_MOVE (that.location))
+      |                                                  ~~~~ ^
+parser.cc:300:77: error: no member named 'location' in 'yy::Parser::stack_symbol_type'
+  300 |     : super_type (YY_MOVE (that.state), YY_MOVE (that.value), YY_MOVE (that.location))
+      |                                                                        ~~~~ ^
+parser.cc:300:7: error: type 'super_type' (aka 'basic_symbol<by_state>') is not a direct or virtual base of 'yy:
+:Parser::stack_symbol_type'
+  300 |     : super_type (YY_MOVE (that.state), YY_MOVE (that.value), YY_MOVE (that.location))
+      |       ^~~~~~~~~~
+parser.cc:304:10: error: no member named 'state' in 'yy::Parser::stack_symbol_type'
+  304 |     that.state = empty_state;
+      |     ~~~~ ^
+parser.cc:304:18: error: use of undeclared identifier 'empty_state'; did you mean 'by_state::empty_state'?
+  304 |     that.state = empty_state;
+      |                  ^~~~~~~~~~~
+      |                  by_state::empty_state
+parser.tab.h:594:14: note: 'by_state::empty_state' declared here
+  594 |       enum { empty_state = 0 };
+      |              ^
+parser.cc:309:36: error: no member named 'value' in 'yy::Parser::symbol_type'
+  309 |     : super_type (s, YY_MOVE (that.value), YY_MOVE (that.location))
+      |                               ~~~~ ^
+parser.cc:309:58: error: no member named 'location' in 'yy::Parser::symbol_type'
+  309 |     : super_type (s, YY_MOVE (that.value), YY_MOVE (that.location))
+      |                                                     ~~~~ ^
+parser.cc:309:7: error: type 'super_type' (aka 'basic_symbol<by_state>') is not a direct or virtual base of 'yy:
+:Parser::stack_symbol_type'
+  309 |     : super_type (s, YY_MOVE (that.value), YY_MOVE (that.location))
+      |       ^~~~~~~~~~
+parser.cc:312:10: error: no member named 'kind_' in 'yy::Parser::symbol_type'
+  312 |     that.kind_ = symbol_kind::S_YYEMPTY;
+      |     ~~~~ ^
+parser.cc:487:55: error: no member named 'state' in 'yy::Parser::stack_symbol_type'
+  487 |     YYCDEBUG << "Entering state " << int (yystack_[0].state) << '\n';
+      |                                           ~~~~~~~~~~~ ^
+parser.cc:491:21: error: no member named 'state' in 'yy::Parser::stack_symbol_type'
+  491 |     if (yystack_[0].state == yyfinal_)
+      |         ~~~~~~~~~~~ ^
+parser.cc:502:32: error: no member named 'state' in 'yy::Parser::stack_symbol_type'
+  502 |     yyn = yypact_[+yystack_[0].state];
+      |                    ~~~~~~~~~~~ ^
+parser.cc:507:14: error: no member named 'empty' in 'yy::Parser::symbol_type'
+  507 |     if (yyla.empty ())
+      |         ~~~~ ^
+parser.cc:514:18: error: no member named 'kind_' in 'yy::Parser::symbol_type'
+  514 |             yyla.kind_ = yytranslate_ (yylex (&yyla.value, &yyla.location, cursor, marker, limit));
+      |             ~~~~ ^
+fatal error: too many errors emitted, stopping now [-ferror-limit=]
+1 warning and 20 errors generated.
+[5/6] Compiling C++ object zane.p/meson-generated_.._lexer.cc.o
+FAILED: [code=1] zane.p/meson-generated_.._lexer.cc.o 
+clang++ -Izane.p -I. -I.. -I../src -fdiagnostics-color=always -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -Wextra
+ -Wpedantic -std=c++20 -O0 -g -Wall -Wextra -MD -MQ zane.p/meson-generated_.._lexer.cc.o -MF zane.p/meson-genera
+ted_.._lexer.cc.o.d -o zane.p/meson-generated_.._lexer.cc.o -c lexer.cc
+In file included from ../src/grammar/lexer.re:9:
+In file included from ../src/ast/logic.hpp:2:
+In file included from ../src/ast/nodes.hpp:2:
+In file included from ../src/ast/fwd.hpp:2:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/memory:65:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/bits/memoryfwd.h
+:50:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/x86_64-unknown-l
+inux-gnu/bits/c++config.h:727:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/x86_64-unknown-l
+inux-gnu/bits/os_defines.h:39:
+/nix/store/fbbw928argckfii0j322346ihmllg7a7-glibc-2.42-61-dev/include/features.h:435:4: warning: _FORTIFY_SOURCE
+ requires compiling with optimization (-O) [-W#warnings]
+  435 | #  warning _FORTIFY_SOURCE requires compiling with optimization (-O)
+      |    ^
+In file included from ../src/grammar/lexer.re:9:
+In file included from ../src/ast/logic.hpp:2:
+In file included from ../src/ast/nodes.hpp:6:
+../src/ast/node_list.def:1:13: error: expected member name or ';' after declaration specifiers
+    1 | X(IntNode,  { int val; })
+      |             ^
+../src/ast/nodes.hpp:5:41: note: expanded from macro 'X'
+    5 |     #define X(Name, Body) struct Name { Body };
+      |                                         ^
+In file included from ../src/grammar/lexer.re:9:
+In file included from ../src/ast/logic.hpp:2:
+In file included from ../src/ast/nodes.hpp:6:
+../src/ast/node_list.def:2:13: error: expected member name or ';' after declaration specifiers
+    2 | X(AddNode,  { NodePtr lhs; NodePtr rhs; })
+      |             ^
+../src/ast/nodes.hpp:5:41: note: expanded from macro 'X'
+    5 |     #define X(Name, Body) struct Name { Body };
+      |                                         ^
+In file included from ../src/grammar/lexer.re:9:
+In file included from ../src/ast/logic.hpp:3:
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:246:13: error: field has incom
+plete type 'void'
+  246 |       _Type _M_storage;
+      |             ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:429:30: note: in instantiation
+ of template class 'std::__detail::__variant::_Uninitialized<void>' requested here
+  429 |       _Uninitialized<_First> _M_first;
+      |                              ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:430:59: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, void>' requested here
+  430 |       _Variadic_union<__trivially_destructible, _Rest...> _M_rest;
+      |                                                           ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:430:59: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, ast::AddNode, void>' requested here
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:430:59: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, ast::IntNode, ast::AddNode, void>' requeste
+d here
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:511:41: note: in instantiation
+ of template class 'std::__detail::__variant::_Variadic_union<false, std::monostate, ast::IntNode, ast::AddNode,
+ void>' requested here
+  511 |       _Variadic_union<false, _Types...> _M_u;
+      |                                         ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:576:30: note: (skipping 2 cont
+exts in backtrace; use -ftemplate-backtrace-limit=0 to see all)
+  576 |     struct _Copy_ctor_base : _Variant_storage_alias<_Types...>
+      |                              ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:651:32: note: in instantiation
+ of template class 'std::__detail::__variant::_Move_ctor_base<false, std::monostate, ast::IntNode, ast::AddNode,
+ void>' requested here
+  651 |     struct _Copy_assign_base : _Move_ctor_alias<_Types...>
+      |                                ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:703:32: note: in instantiation
+ of template class 'std::__detail::__variant::_Copy_assign_base<false, std::monostate, ast::IntNode, ast::AddNod
+e, void>' requested here
+  703 |     struct _Move_assign_base : _Copy_assign_alias<_Types...>
+      |                                ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:757:28: note: in instantiation
+ of template class 'std::__detail::__variant::_Move_assign_base<false, std::monostate, ast::IntNode, ast::AddNod
+e, void>' requested here
+  757 |     struct _Variant_base : _Move_assign_alias<_Types...>
+      |                            ^
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:1426:15: note: in instantiatio
+n of template class 'std::__detail::__variant::_Variant_base<std::monostate, ast::IntNode, ast::AddNode, void>' 
+requested here
+ 1426 |     : private __detail::__variant::_Variant_base<_Types...>,
+      |               ^
+../src/ast/logic.hpp:15:21: note: in instantiation of template class 'std::variant<std::monostate, ast::IntNode,
+ ast::AddNode, void>' requested here
+   15 |         NodeVariant data;
+      |                     ^
+In file included from ../src/grammar/lexer.re:9:
+In file included from ../src/ast/logic.hpp:3:
+/nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/variant:1441:23: error: static asserti
+on failed due to requirement 'std::is_object_v<void>': variant alternatives must be non-array object types
+ 1441 |       static_assert(((std::is_object_v<_Types> && !is_array_v<_Types>) && ...),
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~~
+../src/ast/logic.hpp:15:21: note: in instantiation of template class 'std::variant<std::monostate, ast::IntNode,
+ ast::AddNode, void>' requested here
+   15 |         NodeVariant data;
+      |                     ^
+../src/grammar/lexer.re:25:36: error: excess elements in struct initializer
+   25 |             *yylval = ast::IntNode{std::stoi(toStr(start, cursor))};
+      |                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/grammar/lexer.re:25:21: error: no viable overloaded '='
+   25 |             *yylval = ast::IntNode{std::stoi(toStr(start, cursor))};
+      |             ~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../src/ast/logic.hpp:14:12: note: candidate function (the implicit copy assignment operator) not viable: no know
+n conversion from 'ast::IntNode' to 'const Node' for 1st argument
+   14 |     struct Node {
+      |            ^~~~
+../src/ast/logic.hpp:14:12: note: candidate function (the implicit move assignment operator) not viable: no know
+n conversion from 'ast::IntNode' to 'Node' for 1st argument
+   14 |     struct Node {
+      |            ^~~~
+../src/grammar/lexer.re:18:45: warning: unused parameter 'marker' [-Wunused-parameter]
+   18 |           const char*& cursor, const char*& marker, const char* limit) {
+      |                                             ^
+2 warnings and 6 errors generated.
+ninja: build stopped: subcommand failed.
+bash: ./build/zane: No such file or directory
+ manuel on  ~/projects/zane/compiler essential/parser 
+# 

@@ -1,0 +1,2 @@
+X(IntNode,  { int val; })
+X(AddNode,  { std::unique_ptr<ast::Node> lhs; std::unique_ptr<ast::Node> rhs; })
