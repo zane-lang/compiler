@@ -5,10 +5,15 @@
 %define api.namespace { yy }
 %define api.value.type { ast::Node }
 
-%code requires {
+%{
     #include "ast/logic.hpp"
     #include <string>
     #include <memory>
+%}
+
+%code {
+    int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
+              const char*& cursor, const char*& marker, const char* limit);
 }
 
 %locations
@@ -16,20 +21,20 @@
 %param { const char*& marker }
 %param { const char* limit }
 
-%token <int> INT
-%token PLUS LPAREN RPAREN END ERROR
-%type <ast::Node> expr
+%token INT
+%token PLUS LPAREN RPAREN ERROR
+%type expr
 %left PLUS
 
 %%
-start: expr END ;
+start: expr ;
 
-expr: INT { $$ = ast::IntNode{$1}; }
+expr: INT { $$ = std::move($1); }
     | expr PLUS expr {
-        $$ = ast::AddNode{
+        $$ = ast::Node(ast::AddNode(
             std::make_unique<ast::Node>(std::move($1)),
             std::make_unique<ast::Node>(std::move($3))
-        };
+        ));
       }
     | LPAREN expr RPAREN { $$ = std::move($2); }
     ;
