@@ -19,5 +19,5 @@ public:
 	auto rbegin() { return stack.rbegin(); }
 	auto rend()   { return stack.rend(); }
 	auto begin()  { return stack.begin(); }
-	auto end()    { return stack.end(); }
+	auto end()	{ return stack.end(); }
 };

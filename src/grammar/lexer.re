@@ -11,24 +11,24 @@ re2c:yyfill:enable = 0;
 #include <string>
 
 static std::string toStr(const char* b, const char* e) {
-    return std::string(b, static_cast<size_t>(e - b));
+	return std::string(b, static_cast<size_t>(e - b));
 }
 
 int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
-          const char*& cursor, const char*& marker, const char* limit) {
-    for (;;) {
-        if (cursor >= limit) return 0; // YYEOF
-        const char* start = cursor;
-        /*!re2c
-        [ \t\n]+ { continue; }
-        [0-9]+ {
-            *yylval = ast::Node(ast::IntNode{std::stoi(toStr(start, cursor))});
-            return yy::Parser::token::INT;
-        }
-        "+" { return yy::Parser::token::PLUS; }
-        "(" { return yy::Parser::token::LPAREN; }
-        ")" { return yy::Parser::token::RPAREN; }
-        * { return yy::Parser::token::ERROR; }
-        */
-    }
+		  const char*& cursor, const char*& marker, const char* limit) {
+	for (;;) {
+		if (cursor >= limit) return 0; // YYEOF
+		const char* start = cursor;
+		/*!re2c
+		[ \t\n]+ { continue; }
+		[0-9]+ {
+			*yylval = ast::Node(ast::IntNode{std::stoi(toStr(start, cursor))});
+			return yy::Parser::token::INT;
+		}
+		"+" { return yy::Parser::token::PLUS; }
+		"(" { return yy::Parser::token::LPAREN; }
+		")" { return yy::Parser::token::RPAREN; }
+		* { return yy::Parser::token::ERROR; }
+		*/
+	}
 }

@@ -6,14 +6,14 @@
 %define api.value.type { ast::Node }
 
 %{
-    #include "ast/logic.hpp"
-    #include <string>
-    #include <memory>
+	#include "ast/logic.hpp"
+	#include <string>
+	#include <memory>
 %}
 
 %code {
-    int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
-              const char*& cursor, const char*& marker, const char* limit);
+	int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
+			  const char*& cursor, const char*& marker, const char* limit);
 }
 
 %locations
@@ -30,16 +30,16 @@
 start: expr ;
 
 expr: INT { $$ = std::move($1); }
-    | expr PLUS expr {
-        $$ = ast::Node(ast::AddNode(
-            std::make_unique<ast::Node>(std::move($1)),
-            std::make_unique<ast::Node>(std::move($3))
-        ));
-      }
-    | LPAREN expr RPAREN { $$ = std::move($2); }
-    ;
+	| expr PLUS expr {
+		$$ = ast::Node(ast::AddNode(
+			std::make_unique<ast::Node>(std::move($1)),
+			std::make_unique<ast::Node>(std::move($3))
+		));
+	  }
+	| LPAREN expr RPAREN { $$ = std::move($2); }
+	;
 %%
 
 void yy::Parser::error(const location& l, const std::string& m) {
-    std::cerr << "Error at " << l.begin.line << ":" << l.begin.column << ": " << m << "\n";
+	std::cerr << "Error at " << l.begin.line << ":" << l.begin.column << ": " << m << "\n";
 }
