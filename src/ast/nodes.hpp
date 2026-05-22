@@ -1,5 +1,8 @@
 #pragma once
+#include <memory>
+#include <utility>
 #include "fwd.hpp"
+
 namespace ast {
 	#define X(Name, Members) struct Name Members;
 	#include "node_list.def"

@@ -1,2 +1,14 @@
-X(IntNode,  { int val; })
-X(AddNode,  { std::unique_ptr<ast::Node> lhs; std::unique_ptr<ast::Node> rhs; })
+X(IntNode, {
+	int value;
+	IntNode(int v) : value(v) {}
+	IntNode(const IntNode&) = default;
+	IntNode& operator=(const IntNode&) = default;
+})
+
+X(AddNode, {
+	std::unique_ptr<Node> left;
+	std::unique_ptr<Node> right;
+	AddNode(std::unique_ptr<Node> l, std::unique_ptr<Node> r);
+	AddNode(const AddNode& other);
+	AddNode& operator=(const AddNode& other);
+})
