@@ -7,6 +7,8 @@
 
 namespace ast::nodes {
 
+struct Statement;
+
 struct TypeExpression;
 
 struct NameType {
@@ -21,22 +23,59 @@ struct FunctionType {
 
 struct TypeExpression {
 	std::variant<NameType, FunctionType> data;
+};
 
-	explicit TypeExpression(NameType nameType) : data(std::move(nameType)) {}
-	explicit TypeExpression(FunctionType functionType) : data(std::move(functionType)) {}
+struct Scope {
+	std::vector<std::unique_ptr<Statement>> statements;
+};
+
+struct Parameter {
+	std::unique_ptr<TypeExpression> type;
+	std::string name;
 };
 
 struct FunctionDecl {
-	std::string name;	
-	FunctionType type;
+	std::string name;
+	std::vector<Parameter> parameters;
+	TypeExpression returnType;
+	Scope functionBody;
+	bool mutating;
 };
 
-using Declaration = FunctionDecl;
 
+
+// values
+struct ValueExpr;
+
+struct FunctionCall {
+	std::unique_ptr<ValueExpr> callee;	
+	std::vector<ValueExpr> arguments;
+};
+
+/// does not include quotes
+struct StringLiteral {
+	std::string data;
+};
+
+struct ValueSymbol {
+	std::string name;
+};
+
+struct ValueExpr {
+	/// decided not to distinguish between callable and objects, since not verifyable at parse time
+	std::variant<FunctionCall, ValueSymbol, StringLiteral> data;
+};
+// end values
+
+struct Statement {
+	std::variant<FunctionCall> data;
+};
+
+using Declaration = std::variant<FunctionDecl>;
 struct Package {
 	std::vector<Declaration> declarations;
 
-	explicit Package() : declarations() {};
+	explicit Package() : declarations() {}
 };
 
 } // namespace nodes
