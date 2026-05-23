@@ -3,7 +3,6 @@
 #include "ast/nodes.hpp"
 #include <string>
 #include <variant>
-#include <stdexcept>
 
 namespace ast::evaluators {
 

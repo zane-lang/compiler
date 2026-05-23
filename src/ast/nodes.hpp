@@ -1,36 +1,42 @@
 #pragma once
 #include <memory>
+#include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace ast::nodes {
 
-struct IntNode {
-	int value;
-	IntNode(int v) : value(v) {}
+struct TypeExpression;
+
+struct NameType {
+	std::string name;
+	std::vector<TypeExpression> generics;
 };
 
-struct ValueNode;
-
-struct AddNode {
-	std::unique_ptr<ValueNode> left;
-	std::unique_ptr<ValueNode> right;
-
-	explicit AddNode(std::unique_ptr<ValueNode> l, std::unique_ptr<ValueNode> r)
-		: left(std::move(l)), right(std::move(r)) {}
+struct FunctionType {
+	std::vector<TypeExpression> paramTypes;
+	std::unique_ptr<TypeExpression> returnType;
 };
 
-struct ValueNode {
-	std::variant<IntNode, AddNode> data;
+struct TypeExpression {
+	std::variant<NameType, FunctionType> data;
 
-	explicit ValueNode(IntNode t) : data(std::move(t)) {}
-	explicit ValueNode(AddNode t) : data(std::move(t)) {}
+	explicit TypeExpression(NameType nameType) : data(std::move(nameType)) {}
+	explicit TypeExpression(FunctionType functionType) : data(std::move(functionType)) {}
 };
 
-struct Program {
-	std::unique_ptr<ValueNode> valueNode;
+struct FunctionDecl {
+	std::string name;	
+	FunctionType type;
+};
 
-	explicit Program(std::unique_ptr<ValueNode> t) : valueNode(std::move(t)) {};
+using Declaration = FunctionDecl;
+
+struct Package {
+	std::vector<Declaration> declarations;
+
+	explicit Package() : declarations() {};
 };
 
 } // namespace nodes
