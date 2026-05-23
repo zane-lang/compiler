@@ -1,0 +1,95 @@
+ manuel on  ~/projects/zane/compiler essential/parser 
+# devbox shell
+Starting a devbox shell...
+Welcome to devbox!
+ manuel on  ~/projects/zane/compiler essential/parser 
+# just debug test-parser
+rm -rf build
+vcpkg install
+Detecting compiler hash for triplet x64-linux...
+Compiler found: /nix/store/qd70v8g0561vm8m33kmnp79z00cgyi5n-gcc-wrapper-15.2.0/bin/g++
+The following packages are already installed:
+    cereal:x64-linux@1.3.2#1 -- git+https://github.com/microsoft/vcpkg@075869fcf5302c6dd11d564286d0dfa1d2d4d7a1
+    nlohmann-json:x64-linux@3.12.0#2 -- git+https://github.com/microsoft/vcpkg@ac3b8821cf486e45dd543bef2a4ba1d1ba230258
+  * vcpkg-cmake:x64-linux@2024-04-23 -- git+https://github.com/microsoft/vcpkg@e74aa1e8f93278a8e71372f1fa08c3df420eb840
+  * vcpkg-cmake-config:x64-linux@2024-05-23 -- git+https://github.com/microsoft/vcpkg@97a63e4bc1a17422ffe4eff71da53b4b561a7841
+cereal provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(cereal CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE cereal::cereal)
+
+The package nlohmann-json provides CMake targets:
+
+    find_package(nlohmann_json CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE nlohmann_json::nlohmann_json)
+
+The package nlohmann-json can be configured to not provide implicit conversions via a custom triplet file:
+
+    set(nlohmann-json_IMPLICIT_CONVERSIONS OFF)
+
+For more information, see the docs here:
+    
+    https://json.nlohmann.me/api/macros/json_use_implicit_conversions/
+
+All requested installations completed successfully in: 198 us
+CXX=clang++ meson setup build --buildtype=debug --cmake-prefix-path "$(realpath vcpkg_installed/x64-linux)"
+The Meson build system
+Version: 1.10.2
+Source dir: /home/manuel/projects/zane/compiler
+Build dir: /home/manuel/projects/zane/compiler/build
+Build type: native build
+Project name: zane
+Project version: 0.1.0
+C++ compiler for the host machine: clang++ (clang 21.1.8 "clang version 21.1.8")
+C++ linker for the host machine: clang++ ld.bfd 2.46
+Host machine cpu family: x86_64
+Host machine cpu: x86_64
+Program re2c found: YES (/home/manuel/projects/zane/compiler/.devbox/nix/profile/default/bin/re2c)
+Program bison found: YES (/home/manuel/projects/zane/compiler/.devbox/nix/profile/default/bin/bison)
+Build targets in project: 3
+
+zane 0.1.0
+
+  User defined options
+    buildtype        : debug
+    cmake_prefix_path: /home/manuel/projects/zane/compiler/vcpkg_installed/x64-linux
+
+Found ninja-1.13.1 at /home/manuel/projects/zane/compiler/.devbox/nix/profile/default/bin/ninja
+meson compile -C build
+INFO: autodetecting backend as ninja
+INFO: calculating backend command to run: /home/manuel/projects/zane/compiler/.devbox/nix/profile/default/bin/ninja -C /home/man
+uel/projects/zane/compiler/build
+ninja: Entering directory `/home/manuel/projects/zane/compiler/build'
+[1/6] Generating parser with a custom command
+FAILED: [code=1] parser.cc parser.tab.h 
+/home/manuel/projects/zane/compiler/.devbox/nix/profile/default/bin/bison -d -o parser.cc --defines=parser.tab.h ../src/grammar/
+parser.y
+../src/grammar/parser.y:33.24-25: error: $1 of ‘expr’ has no declared type
+   33 |         $$ = std::move($1);  // $1 is already unique_ptr<ValueNode>
+      |                        ^~
+[2/6] Compiling C++ object zane.p/src_main.cpp.o
+FAILED: [code=1] zane.p/src_main.cpp.o 
+clang++ -Izane.p -I. -I.. -I../src -fdiagnostics-color=always -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -Wextra -Wpedantic -std
+=c++20 -O0 -g -Wall -Wextra -MD -MQ zane.p/src_main.cpp.o -MF zane.p/src_main.cpp.o.d -o zane.p/src_main.cpp.o -c ../src/main.cp
+p
+In file included from ../src/main.cpp:1:
+In file included from ../src/ast/nodes.hpp:2:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/memory:65:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/bits/memoryfwd.h:50:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/x86_64-unknown-linux-gnu/bits/c+
++config.h:727:
+In file included from /nix/store/sanx9fg8mry8mq92zhlm5qvb83qlxrlx-gcc-15.2.0/include/c++/15.2.0/x86_64-unknown-linux-gnu/bits/os
+_defines.h:39:
+/nix/store/fbbw928argckfii0j322346ihmllg7a7-glibc-2.42-61-dev/include/features.h:435:4: warning: _FORTIFY_SOURCE requires compil
+ing with optimization (-O) [-W#warnings]
+  435 | #  warning _FORTIFY_SOURCE requires compiling with optimization (-O)
+      |    ^
+../src/main.cpp:2:10: fatal error: 'parser.tab.h' file not found
+    2 | #include "parser.tab.h"
+      |          ^~~~~~~~~~~~~~
+1 warning and 1 error generated.
+ninja: build stopped: subcommand failed.
+error: Recipe `test-parser` failed on line 12 with exit code 1
+ manuel on  ~/projects/zane/compiler essential/parser 
+# 

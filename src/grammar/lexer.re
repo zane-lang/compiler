@@ -6,7 +6,7 @@ re2c:define:YYMARKER = marker;
 re2c:yyfill:enable = 0;
 */
 
-#include "ast/logic.hpp"
+#include "ast/nodes.hpp"
 #include "parser.tab.h"
 #include <string>
 
@@ -22,7 +22,8 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
 		/*!re2c
 		[ \t\n]+ { continue; }
 		[0-9]+ {
-			*yylval = ast::Node(ast::IntNode{std::stoi(toStr(start, cursor))});
+			int val = std::stoi(toStr(start, cursor));
+			*yylval = new ast::ValueNode(ast::IntNode{val});
 			return yy::Parser::token::INT;
 		}
 		"+" { return yy::Parser::token::PLUS; }

@@ -10,4 +10,4 @@ release:
 
 test-parser:
 	meson compile -C build
-	./build/zane "1 + 2"
+	./build/zane
