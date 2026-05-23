@@ -3,10 +3,7 @@
 #include <utility>
 #include <variant>
 
-namespace ast {
-
-struct Node;
-using NodePtr = std::unique_ptr<Node>;
+namespace ast::nodes {
 
 struct IntNode {
 	int value;
@@ -18,6 +15,7 @@ struct ValueNode;
 struct AddNode {
 	std::unique_ptr<ValueNode> left;
 	std::unique_ptr<ValueNode> right;
+
 	explicit AddNode(std::unique_ptr<ValueNode> l, std::unique_ptr<ValueNode> r)
 		: left(std::move(l)), right(std::move(r)) {}
 };
@@ -35,4 +33,4 @@ struct Program {
 	explicit Program(std::unique_ptr<ValueNode> t) : valueNode(std::move(t)) {};
 };
 
-} // namespace ast
+} // namespace nodes

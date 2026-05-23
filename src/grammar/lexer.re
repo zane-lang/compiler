@@ -6,7 +6,7 @@ re2c:define:YYMARKER = marker;
 re2c:yyfill:enable = 0;
 */
 
-#include "ast/nodes.hpp"
+#include "ast/.hpp"
 #include "parser.tab.h"
 #include <string>
 
@@ -15,7 +15,8 @@ static std::string toStr(const char* b, const char* e) {
 }
 
 int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
-		  const char*& cursor, const char*& marker, const char* limit) {
+		  const char*& cursor, const char*& marker, const char* limit,
+		  ast::nodes::ValueNode*&) {
 	for (;;) {
 		if (cursor >= limit) return 0; // YYEOF
 		const char* start = cursor;
@@ -23,7 +24,7 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
 		[ \t\n]+ { continue; }
 		[0-9]+ {
 			int val = std::stoi(toStr(start, cursor));
-			*yylval = new ast::ValueNode(ast::IntNode{val});
+			*yylval = new ast::nodes::ValueNode(ast::nodes::IntNode{val});
 			return yy::Parser::token::INT;
 		}
 		"+" { return yy::Parser::token::PLUS; }

@@ -3,23 +3,25 @@
 
 %define api.parser.class { Parser }
 %define api.namespace { yy }
-%define api.value.type { ast::ValueNode* }
+%define api.value.type { ast::nodes::ValueNode* }
 
 %{
-	#include "ast/nodes.hpp"
+	#include "ast/.hpp"
 	#include <iostream>
 	#include <string>
 %}
 
 %code {
 	int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
-			  const char*& cursor, const char*& marker, const char* limit);
+			  const char*& cursor, const char*& marker, const char* limit,
+			  ast::nodes::ValueNode*& result);
 }
 
 %locations
 %param { const char*& cursor }
 %param { const char*& marker }
 %param { const char* limit }
+%param { ast::nodes::ValueNode*& result }
 
 %token INT
 %token PLUS LPAREN RPAREN ERROR
@@ -29,7 +31,8 @@
 
 %%
 start: expr {
-	delete $1;
+	result = $1;
+	$1 = nullptr;
 } ;
 
 expr: INT {
@@ -38,9 +41,9 @@ expr: INT {
 
 }
 | expr PLUS expr {
-	$$ = new ast::ValueNode(ast::AddNode{
-		std::unique_ptr<ast::ValueNode>($1),
-		std::unique_ptr<ast::ValueNode>($3),
+	$$ = new ast::nodes::ValueNode(ast::nodes::AddNode{
+		std::unique_ptr<ast::nodes::ValueNode>($1),
+		std::unique_ptr<ast::nodes::ValueNode>($3),
 	});
 	$1 = nullptr;
 	$3 = nullptr;
