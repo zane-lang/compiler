@@ -22,8 +22,7 @@ lexer_gen = custom_target('lexer',
 
 executable('zane',
   'src/main.cpp',
-  parser_gen[0],
-  lexer_gen,
-  include_directories: include_directories('src', '.'),
-  cpp_args: ['-Wall', '-Wextra'],
+  parser_gen[0], # parser.cc
+  lexer_gen,     # lexer.cc
+  include_directories: include_directories('src'),
 )

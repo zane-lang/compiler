@@ -1,4 +1,4 @@
-#include "src/ast/.hpp"
+#include "ast/.hpp"
 #include "parser.tab.h"
 #include <iostream>
 #include <string>
