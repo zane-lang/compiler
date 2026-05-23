@@ -14,14 +14,14 @@
 %code {
 	int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
 			  const char*& cursor, const char*& marker, const char* limit,
-			  ast::nodes::ValueNode*& result);
+			  ast::nodes::Program*& ast);
 }
 
 %locations
 %param { const char*& cursor }
 %param { const char*& marker }
 %param { const char* limit }
-%param { ast::nodes::ValueNode*& result }
+%param { ast::nodes::Program*& ast }
 
 %token INT
 %token PLUS LPAREN RPAREN ERROR
@@ -31,7 +31,7 @@
 
 %%
 start: expr {
-	result = $1;
+	ast = new ast::nodes::Program(std::unique_ptr<ast::nodes::ValueNode>($1));
 	$1 = nullptr;
 } ;
 

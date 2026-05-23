@@ -16,7 +16,7 @@ static std::string toStr(const char* b, const char* e) {
 
 int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
 		  const char*& cursor, const char*& marker, const char* limit,
-		  ast::nodes::ValueNode*&) {
+		  ast::nodes::Program*&) {
 	for (;;) {
 		if (cursor >= limit) return 0; // YYEOF
 		const char* start = cursor;
