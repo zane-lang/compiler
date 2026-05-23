@@ -14,9 +14,10 @@
 }
 
 %code {
-	int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
-	          const char*& cursor, const char*& marker, const char* limit,
-	          ast::nodes::Package*& ast);
+	int yylex(
+        yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
+        const char*& cursor, const char*& marker, const char* limit,
+        ast::nodes::Package*& ast);
 }
 
 %param { const char*& cursor }
