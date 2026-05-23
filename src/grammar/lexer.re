@@ -50,6 +50,9 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
 		")"            { return yy::Parser::token::RPAREN; }
 		"{"            { return yy::Parser::token::LCURLY; }
 		"}"            { return yy::Parser::token::RCURLY; }
+		","            { return yy::Parser::token::COMMA; }
+		":"            { return yy::Parser::token::COLON; }
+		";"            { return yy::Parser::token::SEMICOLON; }
 		["] str_char* ["] { yylval->emplace<std::string>(unescape(start+1, cursor-1));
 		                    return yy::Parser::token::STRING; }
 		ident+         { yylval->emplace<std::string>(toStr(start, cursor));

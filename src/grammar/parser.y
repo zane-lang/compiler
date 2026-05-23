@@ -52,9 +52,17 @@
 
 package
 	: %empty
-		{ $$ = ast::nodes::Package(); }
+		{
+			$$ = ast::nodes::Package();
+			ast = new ast::nodes::Package($$);
+		}
 	| package[pkg] declaration[decl]
-		{ $pkg.declarations.push_back(std::move($decl)); $$ = std::move($pkg); }
+		{
+			$pkg.declarations.push_back(std::move($decl));
+			delete ast;
+			ast = new ast::nodes::Package($pkg);
+			$$ = std::move($pkg);
+		}
 	;
 
 declaration
@@ -77,14 +85,17 @@ function_decl
 
 parameters
 	: %empty
-		{ $$ = {}; }
+		{ $$ = std::vector<ast::nodes::Parameter>(); }
 	| param_list[list]
 		{ $$ = std::move($list); }
 	;
 
 param_list
 	: parameter[p]
-		{ $$ = {std::move($p)}; }
+		{
+			$$ = std::vector<ast::nodes::Parameter>();
+			$$.push_back(std::move($p));
+		}
 	| param_list[list] COMMA parameter[p]
 		{ $list.push_back(std::move($p)); $$ = std::move($list); }
 	;
@@ -112,14 +123,17 @@ name_type
 
 type_expr_list
 	: %empty
-		{ $$ = {}; }
+		{ $$ = std::vector<ast::nodes::TypeExpression>(); }
 	| type_expr_list_ne[list]
 		{ $$ = std::move($list); }
 	;
 
 type_expr_list_ne
 	: type_expr[t]
-		{ $$ = {std::move($t)}; }
+		{
+			$$ = std::vector<ast::nodes::TypeExpression>();
+			$$.push_back(std::move($t));
+		}
 	| type_expr_list_ne[list] COMMA type_expr[t]
 		{ $list.push_back(std::move($t)); $$ = std::move($list); }
 	;
@@ -135,7 +149,12 @@ scope
 
 statements
 	: %empty
-		{ $$ = {}; }
+		{ $$ = std::vector<std::unique_ptr<ast::nodes::Statement>>(); }
+	| statements[list] statement[stmt]
+		{
+			$list.push_back(std::make_unique<ast::nodes::Statement>(std::move($stmt)));
+			$$ = std::move($list);
+		}
 	| statements[list] statement[stmt] SEMICOLON
 		{
 			$list.push_back(std::make_unique<ast::nodes::Statement>(std::move($stmt)));
@@ -170,14 +189,17 @@ function_call
 
 arguments
 	: %empty
-		{ $$ = {}; }
+		{ $$ = std::vector<ast::nodes::ValueExpr>(); }
 	| arg_list[list]
 		{ $$ = std::move($list); }
 	;
 
 arg_list
 	: value_expr[v]
-		{ $$ = {std::move($v)}; }
+		{
+			$$ = std::vector<ast::nodes::ValueExpr>();
+			$$.push_back(std::move($v));
+		}
 	| arg_list[list] COMMA value_expr[v]
 		{ $list.push_back(std::move($v)); $$ = std::move($list); }
 	;

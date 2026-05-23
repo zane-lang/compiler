@@ -7,7 +7,7 @@
 
 int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*, 
 	const char*& cursor, const char*& marker, const char* limit,
-	ast::nodes::Program*& ast);
+	ast::nodes::Package*& ast);
 
 std::string readFile(const std::string& path) {
     std::ifstream file(path);
@@ -18,18 +18,18 @@ std::string readFile(const std::string& path) {
                         std::istreambuf_iterator<char>());
 }
 
-int main(int argc, char** argv) {
+int main() {
 	std::string input = readFile("test-parser/main.zn");
 	const char* cursor = input.c_str();
 	const char* marker = cursor;
 	const char* limit = cursor + input.size();
-	ast::nodes::Program* ast = nullptr;
+	ast::nodes::Package* ast = nullptr;
 	
 	yy::Parser parser(cursor, marker, limit, ast);
 	int res = parser.parse();
 	
 	if (ast != nullptr) {
-		std::cout << std::visit(ast::evaluators::ToString {}, ast->valueNode->data);
+		std::cout << ast::evaluators::ToString {}(*ast) << '\n';
 		delete ast;
 	}
 	
