@@ -62,8 +62,8 @@ inline std::string node(const std::string& label, const std::vector<std::string>
 	std::string result = label;
 	for (std::size_t i = 0; i < children.size(); ++i) {
 		result += "\n";
-		result += i + 1 == children.size() ? "`-- " : "|-- ";
-		result += indent(children[i], i + 1 == children.size() ? "    " : "|   ");
+		result += i + 1 == children.size() ? "└── " : "├── ";
+		result += indent(children[i], i + 1 == children.size() ? "    " : "│   ");
 	}
 
 	return result;
