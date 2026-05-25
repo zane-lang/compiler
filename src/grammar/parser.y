@@ -29,8 +29,13 @@
 %token LPAREN RPAREN LCURLY RCURLY
 %token COMMA COLON SEMICOLON
 %token TILDE
-%token <std::string> STRING IDENT INT FLOAT OPERATOR
+%token <std::string> STRING IDENT INT FLOAT
 %token ERROR
+
+// --- associativity ---
+%left <std::string> PLUS MINUS
+%left <std::string> STAR SLASH
+%right TILDE
 
 // --- non-terminal types ---
 %type <std::unique_ptr<ast::nodes::Package>>                package
@@ -48,6 +53,7 @@
 %type <std::unique_ptr<ast::nodes::OperatorCall>>           operator_call
 %type <std::unique_ptr<ast::nodes::OperatorFlipCall>>       operator_flip_call
 %type <std::unique_ptr<ast::nodes::FunctionCall>>           function_call
+%type <std::unique_ptr<ast::nodes::ParenthizedValue>>       parenthized_value
 %type <std::unique_ptr<ast::nodes::ValueExpr>>              value_expr
 %type <std::vector<std::unique_ptr<ast::nodes::ValueExpr>>> arguments arg_list
 
@@ -185,6 +191,17 @@ value_expr
 		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(std::move(*$op))); }
 	| operator_flip_call[op_flip]
 		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(std::move(*$op_flip))); }
+	| parenthized_value[pv]
+		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(std::move(*$pv))); }
+	;
+
+parenthized_value
+	: LPAREN value_expr[val] RPAREN
+		{
+			$$ = std::make_unique<ast::nodes::ParenthizedValue>(
+				ast::nodes::ParenthizedValue(std::move($val))
+			);
+		}
 	;
 
 function_call
@@ -207,7 +224,31 @@ operator_flip_call
 	;
 
 operator_call
-	: value_expr[left] OPERATOR[op] value_expr[right]
+	: value_expr[left] PLUS[op] value_expr[right]
+		{
+			$$ = std::make_unique<ast::nodes::OperatorCall>(ast::nodes::OperatorCall(
+				std::move($op),
+				std::move($left),
+				std::move($right)
+			));
+		}
+	| value_expr[left] MINUS[op] value_expr[right]
+		{
+			$$ = std::make_unique<ast::nodes::OperatorCall>(ast::nodes::OperatorCall(
+				std::move($op),
+				std::move($left),
+				std::move($right)
+			));
+		}
+	| value_expr[left] STAR[op] value_expr[right]
+		{
+			$$ = std::make_unique<ast::nodes::OperatorCall>(ast::nodes::OperatorCall(
+				std::move($op),
+				std::move($left),
+				std::move($right)
+			));
+		}
+	| value_expr[left] SLASH[op] value_expr[right]
 		{
 			$$ = std::make_unique<ast::nodes::OperatorCall>(ast::nodes::OperatorCall(
 				std::move($op),
@@ -236,6 +277,11 @@ arg_list
 	;
 
 %%
+
+template <typename Ret, typename U>
+std::unique_ptr<Ret> wrap(U&& val) {
+   return std::make_unique<Ret>(std::forward<U>(val));
+}
 
 void yy::Parser::error(const location_type& loc, const std::string& msg) {
 	std::cerr << loc.begin.line << ":" << loc.begin.column << ": " << msg << "\n";

@@ -147,11 +147,19 @@ struct ValueSymbol {
 	explicit ValueSymbol(std::string name) : name(std::move(name)) {}
 };
 
-struct ValueExpr {
-	std::variant<FunctionCall, OperatorCall, OperatorFlipCall, ValueSymbol, StringLiteral, IntLiteral, FloatLiteral> data;
+struct ParenthizedValue {
+	std::unique_ptr<ValueExpr> data;
 
-	template <typename T>
-	explicit ValueExpr(T value) : data(std::move(value)) {}
+	explicit ParenthizedValue(std::unique_ptr<ValueExpr> value) : data(std::move(value)) {}
+	ParenthizedValue(const ParenthizedValue& other) : data(clonePtr(other.data)) {}
+};
+
+struct ValueExpr {
+	std::variant<FunctionCall, ParenthizedValue, OperatorCall, OperatorFlipCall, ValueSymbol, StringLiteral, IntLiteral, FloatLiteral> data;
+
+    template <typename T>
+    explicit ValueExpr(T value) : data(std::move(value)) {}
+    ValueExpr(const ValueExpr& other) : data(other.data) {}
 };
 
 struct Statement {

@@ -53,7 +53,6 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
 		// FLOAT: optional swiss grouping, mandatory decimal point + fractional digits
 		int_lit   = sw_digits | digits;
 		float_lit = sw_digits "." digits | digits "." digits;
-		operator_ = "+" | "-" | "*" | "/";
 
 		[ \t\n]+       { continue; }
 		"("            { return yy::Parser::token::LPAREN; }
@@ -65,10 +64,10 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
 
 		"~"            { return yy::Parser::token::TILDE; }
 
-		operator_ {
-			yylval->emplace<std::string>(toStr(start, cursor));
-			return yy::Parser::token::OPERATOR;
-		}
+		"+"  { yylval->emplace<std::string>("+"); return yy::Parser::token::PLUS; }
+		"-"  { yylval->emplace<std::string>("-"); return yy::Parser::token::MINUS; }
+		"*"  { yylval->emplace<std::string>("*"); return yy::Parser::token::STAR; }
+		"/"  { yylval->emplace<std::string>("/"); return yy::Parser::token::SLASH; }
 		float_lit { 
 			yylval->emplace<std::string>(toStr(start, cursor));
 			return yy::Parser::token::FLOAT;

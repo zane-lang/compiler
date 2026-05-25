@@ -206,6 +206,10 @@ std::string operator()(const nodes::Package& package) const {
 	return detail::tree::node("Package", children);
 }
 
+std::string operator()(const nodes::ParenthizedValue& expression) const {
+	return std::visit(*this, expression.data->data);
+}
+
 std::string operator()(const nodes::ValueExpr& expression) const {
 	return std::visit(*this, expression.data);
 }
