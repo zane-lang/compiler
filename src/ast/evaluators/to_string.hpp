@@ -72,12 +72,42 @@ inline std::string node(const std::string& label, const std::vector<std::string>
 } // namespace detail::tree
 
 struct ToString {
+std::string operator()(const nodes::IntLiteral& literal) const {
+	return detail::tree::node("IntLiteral \"" + literal.data + "\"", {});
+}
+
+std::string operator()(const nodes::FloatLiteral& literal) const {
+	return detail::tree::node("FloatLiteral \"" + literal.data + "\"", {});
+}
+
 std::string operator()(const nodes::StringLiteral& literal) const {
 	return detail::tree::node("StringLiteral \"" + literal.data + "\"", {});
 }
 
 std::string operator()(const nodes::ValueSymbol& symbol) const {
 	return detail::tree::node("ValueSymbol " + symbol.name, {});
+}
+
+std::string operator()(const nodes::OperatorFlipCall& call) const {
+	std::vector<std::string> children;
+	if (call.value != nullptr) {
+		children.push_back(detail::tree::branch("value", render(*call.value)));
+	}
+
+	return detail::tree::node("OperatorCall", children);
+}
+
+std::string operator()(const nodes::OperatorCall& call) const {
+	std::vector<std::string> children;
+	children.push_back(detail::tree::branch("op", call.op));
+	if (call.left != nullptr) {
+		children.push_back(detail::tree::branch("left", render(*call.left)));
+	}
+	if (call.right != nullptr) {
+		children.push_back(detail::tree::branch("right", render(*call.right)));
+	}
+
+	return detail::tree::node("OperatorCall", children);
 }
 
 std::string operator()(const nodes::FunctionCall& call) const {

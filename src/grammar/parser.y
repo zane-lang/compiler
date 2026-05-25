@@ -28,7 +28,8 @@
 // --- tokens ---
 %token LPAREN RPAREN LCURLY RCURLY
 %token COMMA COLON SEMICOLON
-%token <std::string> STRING IDENT
+%token TILDE
+%token <std::string> STRING IDENT INT FLOAT OPERATOR
 %token ERROR
 
 // --- non-terminal types ---
@@ -44,6 +45,8 @@
 %type <std::unique_ptr<ast::nodes::Scope>>                  scope
 %type <std::vector<std::unique_ptr<ast::nodes::Statement>>> statements
 %type <std::unique_ptr<ast::nodes::Statement>>              statement
+%type <std::unique_ptr<ast::nodes::OperatorCall>>           operator_call
+%type <std::unique_ptr<ast::nodes::OperatorFlipCall>>       operator_flip_call
 %type <std::unique_ptr<ast::nodes::FunctionCall>>           function_call
 %type <std::unique_ptr<ast::nodes::ValueExpr>>              value_expr
 %type <std::vector<std::unique_ptr<ast::nodes::ValueExpr>>> arguments arg_list
@@ -170,10 +173,18 @@ statement
 value_expr
 	: IDENT[id]
 		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::ValueSymbol(std::move($id)))); }
+	| INT[i]
+		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::IntLiteral(std::move($i)))); }
+	| FLOAT[f]
+		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::FloatLiteral(std::move($f)))); }
 	| STRING[s]
 		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::StringLiteral(std::move($s)))); }
 	| function_call[fc]
 		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(std::move(*$fc))); }
+	| operator_call[op]
+		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(std::move(*$op))); }
+	| operator_flip_call[op_flip]
+		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(std::move(*$op_flip))); }
 	;
 
 function_call
@@ -185,6 +196,27 @@ function_call
 			));
 		}
 	;
+
+operator_flip_call
+	: TILDE value_expr[value]
+		{
+			$$ = std::make_unique<ast::nodes::OperatorFlipCall>(ast::nodes::OperatorFlipCall(
+				std::move($value)
+			));
+		}
+	;
+
+operator_call
+	: value_expr[left] OPERATOR[op] value_expr[right]
+		{
+			$$ = std::make_unique<ast::nodes::OperatorCall>(ast::nodes::OperatorCall(
+				std::move($op),
+				std::move($left),
+				std::move($right)
+			));
+		}
+	;
+
 
 arguments
 	: %empty

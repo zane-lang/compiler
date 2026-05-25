@@ -92,6 +92,27 @@ struct FunctionDecl {
 		  mutating(mutating) {}
 };
 
+/// The only unary operator
+struct OperatorFlipCall {
+	std::unique_ptr<ValueExpr> value;
+
+	OperatorFlipCall(std::unique_ptr<ValueExpr> value)
+		: value(std::move(value)) {}
+	OperatorFlipCall(const OperatorFlipCall& other)
+		: value(clonePtr(other.value)) {}
+};
+
+struct OperatorCall {
+	std::string op;
+	std::unique_ptr<ValueExpr> left;
+	std::unique_ptr<ValueExpr> right;
+
+	OperatorCall(std::string op, std::unique_ptr<ValueExpr> left, std::unique_ptr<ValueExpr> right)
+		: op(std::move(op)), left(std::move(left)), right(std::move(right)) {}
+	OperatorCall(const OperatorCall& other)
+		: op(std::move(other.op)), left(clonePtr(other.left)), right(clonePtr(other.right)) {}
+};
+
 struct FunctionCall {
 	std::unique_ptr<ValueExpr> callee;
 	std::vector<std::unique_ptr<ValueExpr>> arguments;
@@ -108,6 +129,18 @@ struct StringLiteral {
 	explicit StringLiteral(std::string data) : data(std::move(data)) {}
 };
 
+struct IntLiteral {
+	std::string data;
+
+	explicit IntLiteral(std::string data) : data(data) {}
+};
+
+struct FloatLiteral {
+	std::string data;
+
+	explicit FloatLiteral(std::string data) : data(std::move(data)) {}
+};
+
 struct ValueSymbol {
 	std::string name;
 
@@ -115,7 +148,7 @@ struct ValueSymbol {
 };
 
 struct ValueExpr {
-	std::variant<FunctionCall, ValueSymbol, StringLiteral> data;
+	std::variant<FunctionCall, OperatorCall, OperatorFlipCall, ValueSymbol, StringLiteral, IntLiteral, FloatLiteral> data;
 
 	template <typename T>
 	explicit ValueExpr(T value) : data(std::move(value)) {}

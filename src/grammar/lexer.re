@@ -44,6 +44,16 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
 		nonascii = [\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF];
 		ident    = [a-zA-Z_] | nonascii;
 		str_char = [^"\\] | "\\" [^];
+		// Digit groups: plain or swiss-separated (e.g. 1'000'000)
+		digit     = [0-9];
+		digits    = digit+;
+		sw_digits = digit{1,3} ("'" digit{3})*;   // swiss thousands groups
+
+		// INT: optional swiss grouping, no decimal point
+		// FLOAT: optional swiss grouping, mandatory decimal point + fractional digits
+		int_lit   = sw_digits | digits;
+		float_lit = sw_digits "." digits | digits "." digits;
+		operator_ = "+" | "-" | "*" | "/";
 
 		[ \t\n]+       { continue; }
 		"("            { return yy::Parser::token::LPAREN; }
@@ -52,7 +62,21 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
 		"}"            { return yy::Parser::token::RCURLY; }
 		","            { return yy::Parser::token::COMMA; }
 		":"            { return yy::Parser::token::COLON; }
-		";"            { return yy::Parser::token::SEMICOLON; }
+
+		"~"            { return yy::Parser::token::TILDE; }
+
+		operator_ {
+			yylval->emplace<std::string>(toStr(start, cursor));
+			return yy::Parser::token::OPERATOR;
+		}
+		float_lit { 
+			yylval->emplace<std::string>(toStr(start, cursor));
+			return yy::Parser::token::FLOAT;
+		}
+		int_lit {
+			yylval->emplace<std::string>(toStr(start, cursor));
+			return yy::Parser::token::INT;
+		}
 		["] str_char* ["] { yylval->emplace<std::string>(unescape(start+1, cursor-1));
 		                    return yy::Parser::token::STRING; }
 		ident+         { yylval->emplace<std::string>(toStr(start, cursor));
