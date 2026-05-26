@@ -6,7 +6,7 @@
 
 int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
 	const char*& cursor, const char*& marker, const char* limit,
-	ast::nodes::Package*& ast, int& line, const char*& line_start);
+	const std::string& source, ast::nodes::Package*& ast, int& line, const char*& line_start);
 
 std::string readFile(const std::string& path) {
 	std::ifstream file(path);
@@ -26,7 +26,7 @@ int main() {
 	int line               = 1;
 	ast::nodes::Package* ast = nullptr;
 
-	yy::Parser parser(cursor, marker, limit, ast, line, line_start);
+	yy::Parser parser(cursor, marker, limit, input, ast, line, line_start);
 	int res = parser.parse();
 
 	if (ast != nullptr) {

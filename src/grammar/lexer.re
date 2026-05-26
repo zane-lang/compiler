@@ -27,9 +27,18 @@ static std::string unescape(const char* b, const char* e) {
 	return out;
 }
 
+static void updateLocation(const char* begin, const char* end, int& line, const char*& line_start) {
+	for (const char* cursor = begin; cursor < end; ++cursor) {
+		if (*cursor == '\n') {
+			++line;
+			line_start = cursor + 1;
+		}
+	}
+}
+
 int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
 		const char*& cursor, const char*& marker, const char* limit,
-		ast::nodes::Package*&, int& line, const char*& line_start) {
+		const std::string&, ast::nodes::Package*&, int& line, const char*& line_start) {
 	for (;;) {
 		if (cursor >= limit) return 0;
 		const char* start = cursor;
@@ -56,7 +65,10 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
 		int_lit   = sw_digits | digits;
 		float_lit = sw_digits "." digits | digits "." digits;
 
-		[ \t\r\n]+    { continue; }
+		[ \t\r\n]+    {
+			updateLocation(start, cursor, line, line_start);
+			continue;
+		}
 		"("   { tok = yy::Parser::token::LPAREN;  goto done; }
 		")"   { tok = yy::Parser::token::RPAREN;  goto done; }
 		"{"   { tok = yy::Parser::token::LCURLY;  goto done; }

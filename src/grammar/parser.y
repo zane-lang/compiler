@@ -8,6 +8,7 @@
 
 %code requires {
 	#include "ast/.hpp"
+	#include <algorithm>
 	#include <iostream>
 	#include <memory>
 	#include <string>
@@ -18,12 +19,14 @@
 	int yylex(
 		yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
 		const char*& cursor, const char*& marker, const char* limit,
-		ast::nodes::Package*& ast, int& line, const char*& line_start);
+		const std::string& source, ast::nodes::Package*& ast, int& line, const char*& line_start);
 }
 
 %param { const char*& cursor }
 %param { const char*& marker }
 %param { const char* limit }
+
+%param { const std::string& source }
 %param { ast::nodes::Package*& ast }
 %param { int& line }
 %param { const char*& line_start }
@@ -233,6 +236,48 @@ arguments
 
 %%
 
+static std::string findLine(const std::string& source, int line_number) {
+	int current_line = 1;
+	size_t line_start = 0;
+
+	while (line_start <= source.size()) {
+		size_t line_end = source.find('\n', line_start);
+		if (line_end == std::string::npos) {
+			line_end = source.size();
+		}
+
+		if (current_line == line_number) {
+			return source.substr(line_start, line_end - line_start);
+		}
+
+		if (line_end == source.size()) {
+			break;
+		}
+
+		line_start = line_end + 1;
+		++current_line;
+	}
+
+	return std::string();
+}
+
 void yy::Parser::error(const location_type& loc, const std::string& msg) {
 	std::cerr << loc.begin.line << ":" << loc.begin.column << ": " << msg << "\n";
+
+	const std::string line = findLine(source, loc.begin.line);
+	if (line.empty()) {
+		return;
+	}
+
+	std::cerr << line << "\n";
+
+	std::string caret_line;
+	caret_line.reserve(line.size());
+	for (int column = 1; column < loc.begin.column; ++column) {
+		caret_line += static_cast<size_t>(column - 1) < line.size() && line[static_cast<size_t>(column - 1)] == '\t' ? '\t' : ' ';
+	}
+
+	const int highlight_width = std::max(1, loc.end.column - loc.begin.column);
+	caret_line.append(static_cast<size_t>(highlight_width), '^');
+	std::cerr << caret_line << "\n";
 }
