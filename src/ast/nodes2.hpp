@@ -63,6 +63,7 @@ NODE(TypeExpression ,
 
 	template <typename T>
 	explicit TypeExpression(T value) : data(std::move(value)) {}
+	TypeExpression(const TypeExpression& other) : data(other.data) {}
 );
 
 NODE(Scope , 
