@@ -141,6 +141,13 @@ struct FloatLiteral {
 	explicit FloatLiteral(std::string data) : data(std::move(data)) {}
 };
 
+struct PackageValueSymbol {
+	std::string name;
+	std::string package;
+
+	explicit PackageValueSymbol(std::string name, std::string package) : name(std::move(name)), package(std::move(package)) {}
+};
+
 struct ValueSymbol {
 	std::string name;
 
@@ -155,7 +162,7 @@ struct ParenthizedValue {
 };
 
 struct ValueExpr {
-	std::variant<FunctionCall, ParenthizedValue, OperatorCall, OperatorFlipCall, ValueSymbol, StringLiteral, IntLiteral, FloatLiteral> data;
+	std::variant<FunctionCall, ParenthizedValue, OperatorCall, OperatorFlipCall, ValueSymbol, PackageValueSymbol, StringLiteral, IntLiteral, FloatLiteral> data;
 
     template <typename T>
     explicit ValueExpr(T value) : data(std::move(value)) {}

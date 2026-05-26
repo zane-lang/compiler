@@ -30,7 +30,7 @@
 
 // --- tokens ---
 %token LPAREN RPAREN LCURLY RCURLY
-%token COMMA COLON
+%token COMMA COLON DOLLAR
 %token TILDE
 %token <std::string> STRING IDENT INT FLOAT
 %token ERROR
@@ -184,6 +184,8 @@ statement
 value_expr
 	: IDENT[id]
 		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::ValueSymbol(std::move($id)))); }
+	| IDENT[pkg] DOLLAR IDENT[id]
+		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::PackageValueSymbol(std::move($id), std::move($pkg)))); }
 	| INT[i]
 		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::IntLiteral(std::move($i)))); }
 	| FLOAT[f]

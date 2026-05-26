@@ -84,6 +84,10 @@ std::string operator()(const nodes::StringLiteral& literal) const {
 	return detail::tree::node("StringLiteral \"" + literal.data + "\"", {});
 }
 
+std::string operator()(const nodes::PackageValueSymbol& symbol) const {
+	return detail::tree::node("PackageValueSymbol " + symbol.package + "$" + symbol.name, {});
+}
+
 std::string operator()(const nodes::ValueSymbol& symbol) const {
 	return detail::tree::node("ValueSymbol " + symbol.name, {});
 }
