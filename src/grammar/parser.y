@@ -30,8 +30,8 @@
 
 // --- tokens ---
 %token LPAREN RPAREN LCURLY RCURLY
-%token COMMA COLON DOLLAR THIN_ARROW
-%token TILDE
+%token COMMA COLON
+%token DOLLAR THIN_ARROW AT
 %token <std::string> STRING IDENT INT FLOAT
 %token ERROR
 
@@ -45,12 +45,11 @@
 %type <std::vector<ast::nodes::Declaration>>                global_scope
 %type <ast::nodes::Declaration>                             declaration
 %type <ast::nodes::FunctionDecl>                            function_decl
-%type <std::vector<ast::nodes::Parameter>>                  parameters param_list
+%type <std::vector<ast::nodes::Parameter>>                  parameters
 %type <ast::nodes::Parameter>                               parameter
 %type <ast::nodes::TypeExpression>                          type_expr
 %type <ast::nodes::NameType>                                name_type
 %type <ast::nodes::FunctionType>                            function_type
-%type <std::vector<std::unique_ptr<ast::nodes::TypeExpression>>> type_expr_list type_expr_list_ne
 %type <ast::nodes::Scope>                                   scope
 %type <std::vector<std::unique_ptr<ast::nodes::Statement>>> statements
 %type <ast::nodes::Statement>                               statement
@@ -72,12 +71,7 @@ package
 	;
 
 global_scope
-	: declaration[decl]
-		{
-			auto declarations = std::vector<ast::nodes::Declaration>();
-			declarations.push_back(std::move($decl));
-			$$ = std::move(declarations);
-		}
+	: %empty
 	| global_scope[glb] declaration[decl]
 		{
 			$glb.push_back(std::move($decl));
@@ -105,19 +99,11 @@ function_decl
 
 parameters
 	: %empty
-		{ $$ = std::vector<ast::nodes::Parameter>(); }
-	| param_list[list]
-		{ $$ = std::move($list); }
-	;
-
-param_list
-	: parameter[p]
+	| parameters[params] COMMA parameter[p]
 		{
-			$$ = std::vector<ast::nodes::Parameter>();
-			$$.push_back(std::move($p));
+			$params.push_back(std::move($p));
+			$$ = std::move($params);
 		}
-	| param_list[list] COMMA parameter[p]
-		{ $list.push_back(std::move($p)); $$ = std::move($list); }
 	;
 
 parameter
@@ -152,23 +138,6 @@ name_type
 		{ $$ = ast::nodes::NameType(std::move($id), std::vector<std::unique_ptr<ast::nodes::TypeExpression>>()); }
 	;
 
-type_expr_list
-	: %empty
-		{ $$ = std::vector<std::unique_ptr<ast::nodes::TypeExpression>>(); }
-	| type_expr_list_ne[list]
-		{ $$ = std::move($list); }
-	;
-
-type_expr_list_ne
-	: type_expr[t]
-		{
-			$$ = std::vector<std::unique_ptr<ast::nodes::TypeExpression>>();
-			$$.push_back(std::make_unique<ast::nodes::TypeExpression>(std::move($t)));
-		}
-	| type_expr_list_ne[list] COMMA type_expr[t]
-		{ $list.push_back(std::make_unique<ast::nodes::TypeExpression>(std::move($t))); $$ = std::move($list); }
-	;
-
 scope
 	: LCURLY statements[stmts] RCURLY
 		{ $$ = ast::nodes::Scope(std::move($stmts)); }
@@ -194,6 +163,8 @@ value_expr
 		{ $$ = ast::nodes::ValueExpr(ast::nodes::ValueSymbol(std::move($id))); }
 	| IDENT[pkg] DOLLAR IDENT[id]
 		{ $$ = ast::nodes::ValueExpr(ast::nodes::PackageValueSymbol(std::move($id), std::move($pkg))); }
+	| AT IDENT[pkg] DOLLAR IDENT[id]
+		{ $$ = ast::nodes::ValueExpr(ast::nodes::IntrinsicValueSymbol(std::move($id), std::move($pkg))); }
 	| INT[i]
 		{ $$ = ast::nodes::ValueExpr(ast::nodes::IntLiteral(std::move($i))); }
 	| FLOAT[f]

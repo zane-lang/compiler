@@ -71,6 +71,7 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
 		"/" { yylval->emplace<std::string>("/"); tok = yy::Parser::token::SLASH; goto done; }
 
 		"$"   { tok = yy::Parser::token::DOLLAR;  goto done; }
+		"@"   { tok = yy::Parser::token::AT;  goto done; }
 		"->"   { tok = yy::Parser::token::THIN_ARROW;  goto done; }
 
 		float_lit {
