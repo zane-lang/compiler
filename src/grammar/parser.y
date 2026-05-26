@@ -21,7 +21,7 @@
 		ast::nodes::Package*& ast, int& line, const char*& line_start);
 
 	template <typename Ret, typename... Args>
-		std::unique_ptr<Ret> wrap(Args&&... args) {
+	std::unique_ptr<Ret> wrap(Args&&... args) {
 		return std::make_unique<Ret>(std::forward<Args>(args)...);
 	}
 }
@@ -72,12 +72,12 @@ package
 	: global_scope[glb]
 		{
 			$$ = std::make_unique<ast::nodes::Package>(std::move($glb));
-			ast = new ast::nodes::Package(*$$);
+			ast = $$.release();  // fix: was copying with *$$
 		}
 	;
 
 global_scope
-	: declaration[decl] 
+	: declaration[decl]
 		{
 			auto declarations = std::vector<ast::nodes::Declaration>();
 			declarations.push_back(std::move(*$decl));
@@ -140,7 +140,6 @@ type_expr
 		{ $$ = wrap<ast::nodes::TypeExpression>(std::move(*$nt)); }
 	;
 
-// assumed syntax: Name or Name(T, U, ...) for generics
 name_type
 	: IDENT[id]
 		{ $$ = wrap<ast::nodes::NameType>(std::move($id), std::vector<std::unique_ptr<ast::nodes::TypeExpression>>()); }
@@ -157,17 +156,15 @@ type_expr_list_ne
 	: type_expr[t]
 		{
 			$$ = std::vector<std::unique_ptr<ast::nodes::TypeExpression>>();
-			$$.push_back(std::make_unique<ast::nodes::TypeExpression>($t.take()));
+			$$.push_back(std::move($t));  // fix: was $t.take() + redundant make_unique
 		}
 	| type_expr_list_ne[list] COMMA type_expr[t]
-		{ $list.push_back(std::make_unique<ast::nodes::TypeExpression>($t.take())); $$ = std::move($list); }
+		{ $list.push_back(std::move($t)); $$ = std::move($list); }
 	;
 
 scope
 	: LCURLY statements[stmts] RCURLY
-		{
-			$$ = wrap<ast::nodes::Scope>(std::move($stmts));
-		}
+		{ $$ = wrap<ast::nodes::Scope>(std::move($stmts)); }
 	;
 
 statements
@@ -185,7 +182,6 @@ statement
 		{ $$ = wrap<ast::nodes::Statement>(std::move(*$fc)); }
 	;
 
-// value_expr left-recursion handles chained calls: foo(a)(b)
 value_expr
 	: IDENT[id]
 		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::ValueSymbol(std::move($id))); }
@@ -209,11 +205,7 @@ value_expr
 
 parenthized_value
 	: LPAREN value_expr[val] RPAREN
-		{
-			$$ = std::make_unique<ast::nodes::ParenthizedValue>(
-				ast::nodes::ParenthizedValue(std::move($val))
-			);
-		}
+		{ $$ = wrap<ast::nodes::ParenthizedValue>(std::move($val)); }  // fix: was constructing twice
 	;
 
 function_call
@@ -228,48 +220,19 @@ function_call
 
 operator_flip_call
 	: TILDE value_expr[value]
-		{
-			$$ = wrap<ast::nodes::OperatorFlipCall>(
-				std::move($value)
-			);
-		}
+		{ $$ = wrap<ast::nodes::OperatorFlipCall>(std::move($value)); }
 	;
 
 operator_call
 	: value_expr[left] PLUS[op] value_expr[right]
-		{
-			$$ = wrap<ast::nodes::OperatorCall>(
-				std::move($op),
-				std::move($left),
-				std::move($right)
-			);
-		}
+		{ $$ = wrap<ast::nodes::OperatorCall>(std::move($op), std::move($left), std::move($right)); }
 	| value_expr[left] MINUS[op] value_expr[right]
-		{
-			$$ = wrap<ast::nodes::OperatorCall>(
-				std::move($op),
-				std::move($left),
-				std::move($right)
-			);
-		}
+		{ $$ = wrap<ast::nodes::OperatorCall>(std::move($op), std::move($left), std::move($right)); }
 	| value_expr[left] STAR[op] value_expr[right]
-		{
-			$$ = wrap<ast::nodes::OperatorCall>(
-				std::move($op),
-				std::move($left),
-				std::move($right)
-			);
-		}
+		{ $$ = wrap<ast::nodes::OperatorCall>(std::move($op), std::move($left), std::move($right)); }
 	| value_expr[left] SLASH[op] value_expr[right]
-		{
-			$$ = wrap<ast::nodes::OperatorCall>(
-				std::move($op),
-				std::move($left),
-				std::move($right)
-			);
-		}
+		{ $$ = wrap<ast::nodes::OperatorCall>(std::move($op), std::move($left), std::move($right)); }
 	;
-
 
 arguments
 	: %empty
