@@ -56,16 +56,7 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
 		int_lit   = sw_digits | digits;
 		float_lit = sw_digits "." digits | digits "." digits;
 
-		[ \t]+    { continue; }
-
-		[\r\n]+ {
-			for (const char* p = start; p < cursor; ++p)
-				if (*p == '\n') { ++line; line_start = p + 1; }
-			yylloc->end.line   = line;
-			yylloc->end.column = (int)(cursor - line_start) + 1;
-			return yy::Parser::token::LINE_BREAK;
-		}
-
+		[ \t\r\n]+    { continue; }
 		"("   { tok = yy::Parser::token::LPAREN;  goto done; }
 		")"   { tok = yy::Parser::token::RPAREN;  goto done; }
 		"{"   { tok = yy::Parser::token::LCURLY;  goto done; }

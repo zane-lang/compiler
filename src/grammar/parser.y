@@ -30,7 +30,7 @@
 
 // --- tokens ---
 %token LPAREN RPAREN LCURLY RCURLY
-%token COMMA COLON LINE_BREAK
+%token COMMA COLON
 %token TILDE
 %token <std::string> STRING IDENT INT FLOAT
 %token ERROR
@@ -64,16 +64,11 @@
 %%
 
 package
-	: may_break global_scope[glb] may_break
+	: global_scope[glb]
 		{
 			$$ = std::make_unique<ast::nodes::Package>(std::move($glb));
 			ast = new ast::nodes::Package(*$$);
 		}
-	;
-
-may_break
-	: %empty
-	| LINE_BREAK
 	;
 
 global_scope
@@ -83,7 +78,7 @@ global_scope
 			declarations.push_back(std::move(*$decl));
 			$$ = std::move(declarations);
 		}
-	| global_scope[glb] LINE_BREAK declaration[decl]
+	| global_scope[glb] declaration[decl]
 		{
 			$glb.push_back(std::move(*$decl));
 			$$ = std::move($glb);
