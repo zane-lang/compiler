@@ -19,6 +19,11 @@
 		yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
 		const char*& cursor, const char*& marker, const char* limit,
 		ast::nodes::Package*& ast, int& line, const char*& line_start);
+
+	template <typename Ret, typename... Args>
+		std::unique_ptr<Ret> wrap(Args&&... args) {
+		return std::make_unique<Ret>(std::forward<Args>(args)...);
+	}
 }
 
 %param { const char*& cursor }
@@ -87,7 +92,7 @@ global_scope
 
 declaration
 	: function_decl[fd]
-		{ $$ = std::make_unique<ast::nodes::Declaration>(ast::nodes::Declaration(std::move(*$fd))); }
+		{ $$ = wrap<ast::nodes::Declaration>(std::move(*$fd)); }
 	;
 
 function_decl
@@ -132,13 +137,13 @@ parameter
 
 type_expr
 	: name_type[nt]
-		{ $$ = std::make_unique<ast::nodes::TypeExpression>(ast::nodes::TypeExpression(std::move(*$nt))); }
+		{ $$ = wrap<ast::nodes::TypeExpression>(std::move(*$nt)); }
 	;
 
 // assumed syntax: Name or Name(T, U, ...) for generics
 name_type
 	: IDENT[id]
-		{ $$ = std::make_unique<ast::nodes::NameType>(ast::nodes::NameType(std::move($id), {})); }
+		{ $$ = wrap<ast::nodes::NameType>(std::move($id), std::vector<std::unique_ptr<ast::nodes::TypeExpression>>()); }
 	;
 
 type_expr_list
@@ -161,7 +166,7 @@ type_expr_list_ne
 scope
 	: LCURLY statements[stmts] RCURLY
 		{
-			$$ = std::make_unique<ast::nodes::Scope>(ast::nodes::Scope(std::move($stmts)));
+			$$ = wrap<ast::nodes::Scope>(std::move($stmts));
 		}
 	;
 
@@ -177,29 +182,29 @@ statements
 
 statement
 	: function_call[fc]
-		{ $$ = std::make_unique<ast::nodes::Statement>(ast::nodes::Statement(std::move(*$fc))); }
+		{ $$ = wrap<ast::nodes::Statement>(std::move(*$fc)); }
 	;
 
 // value_expr left-recursion handles chained calls: foo(a)(b)
 value_expr
 	: IDENT[id]
-		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::ValueSymbol(std::move($id)))); }
+		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::ValueSymbol(std::move($id))); }
 	| IDENT[pkg] DOLLAR IDENT[id]
-		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::PackageValueSymbol(std::move($id), std::move($pkg)))); }
+		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::PackageValueSymbol(std::move($id), std::move($pkg))); }
 	| INT[i]
-		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::IntLiteral(std::move($i)))); }
+		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::IntLiteral(std::move($i))); }
 	| FLOAT[f]
-		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::FloatLiteral(std::move($f)))); }
+		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::FloatLiteral(std::move($f))); }
 	| STRING[s]
-		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::StringLiteral(std::move($s)))); }
+		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::StringLiteral(std::move($s))); }
 	| function_call[fc]
-		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(std::move(*$fc))); }
+		{ $$ = wrap<ast::nodes::ValueExpr>(std::move(*$fc)); }
 	| operator_call[op]
-		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(std::move(*$op))); }
+		{ $$ = wrap<ast::nodes::ValueExpr>(std::move(*$op)); }
 	| operator_flip_call[op_flip]
-		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(std::move(*$op_flip))); }
+		{ $$ = wrap<ast::nodes::ValueExpr>(std::move(*$op_flip)); }
 	| parenthized_value[pv]
-		{ $$ = std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(std::move(*$pv))); }
+		{ $$ = wrap<ast::nodes::ValueExpr>(std::move(*$pv)); }
 	;
 
 parenthized_value
@@ -284,11 +289,6 @@ arg_list
 	;
 
 %%
-
-template <typename Ret, typename U>
-std::unique_ptr<Ret> wrap(U&& val) {
-   return std::make_unique<Ret>(std::forward<U>(val));
-}
 
 void yy::Parser::error(const location_type& loc, const std::string& msg) {
 	std::cerr << loc.begin.line << ":" << loc.begin.column << ": " << msg << "\n";
