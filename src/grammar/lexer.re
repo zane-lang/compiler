@@ -36,9 +36,10 @@ static void updateLocation(const char* begin, const char* end, int& line, const 
 	}
 }
 
-int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
-		const char*& cursor, const char*& marker, const char* limit,
-		const std::string&, const std::string&, ast::nodes::Package*&, int& line, const char*& line_start) {
+int yylex(
+		yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
+		const char*& cursor, const char*& marker, const char* limit, const std::string& sourcePath,
+		const std::string& source, ast::nodes::Package*& ast, int& line, const char*& line_start) {
 	for (;;) {
 		if (cursor >= limit) return 0;
 		const char* start = cursor;
