@@ -58,7 +58,7 @@
 %type <ast::nodes::FunctionCall>                            function_call
 %type <ast::nodes::ParenthizedValue>                        parenthized_value
 %type <ast::nodes::ValueExpr>                               value_expr
-%type <std::vector<std::unique_ptr<ast::nodes::ValueExpr>>> arguments arg_list
+%type <std::vector<std::unique_ptr<ast::nodes::ValueExpr>>> arguments
 
 %%
 
@@ -99,6 +99,11 @@ function_decl
 
 parameters
 	: %empty
+	| parameter[p]
+		{
+			$$ = std::vector<ast::nodes::Parameter>();
+			$$.push_back(std::move($p));
+		}
 	| parameters[params] COMMA parameter[p]
 		{
 			$params.push_back(std::move($p));
@@ -214,19 +219,16 @@ operator_call
 
 arguments
 	: %empty
-		{ $$ = std::vector<std::unique_ptr<ast::nodes::ValueExpr>>(); }
-	| arg_list[list]
-		{ $$ = std::move($list); }
-	;
-
-arg_list
-	: value_expr[v]
+	| value_expr[v]
 		{
 			$$ = std::vector<std::unique_ptr<ast::nodes::ValueExpr>>();
 			$$.push_back(std::make_unique<ast::nodes::ValueExpr>(std::move($v)));
 		}
-	| arg_list[list] COMMA value_expr[v]
-		{ $list.push_back(std::make_unique<ast::nodes::ValueExpr>(std::move($v))); $$ = std::move($list); }
+	| arguments[args] COMMA value_expr[v]
+		{
+			$args.push_back(std::make_unique<ast::nodes::ValueExpr>(std::move($v)));
+			$$ = std::move($args);
+		}
 	;
 
 %%
