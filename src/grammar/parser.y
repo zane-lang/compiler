@@ -98,13 +98,13 @@ declaration
 function_decl
 	: type_expr[return_type] IDENT[name] LPAREN parameters[params] RPAREN scope[body]
 		{
-			$$ = std::make_unique<ast::nodes::FunctionDecl>(ast::nodes::FunctionDecl(
+			$$ = wrap<ast::nodes::FunctionDecl>(
 				std::move($name),
 				std::move($params),
 				std::move(*$return_type),
 				std::move(*$body),
 				false
-			));
+			);
 		}
 	;
 
@@ -128,10 +128,10 @@ param_list
 parameter
 	: IDENT[name] type_expr[type]
 		{
-			$$ = std::make_unique<ast::nodes::Parameter>(ast::nodes::Parameter(
+			$$ = wrap<ast::nodes::Parameter>(
 				std::move($type),
 				std::move($name)
-			));
+			);
 		}
 	;
 
@@ -219,54 +219,54 @@ parenthized_value
 function_call
 	: value_expr[callee] LPAREN arguments[args] RPAREN
 		{
-			$$ = std::make_unique<ast::nodes::FunctionCall>(ast::nodes::FunctionCall(
+			$$ = wrap<ast::nodes::FunctionCall>(
 				std::move($callee),
 				std::move($args)
-			));
+			);
 		}
 	;
 
 operator_flip_call
 	: TILDE value_expr[value]
 		{
-			$$ = std::make_unique<ast::nodes::OperatorFlipCall>(ast::nodes::OperatorFlipCall(
+			$$ = wrap<ast::nodes::OperatorFlipCall>(
 				std::move($value)
-			));
+			);
 		}
 	;
 
 operator_call
 	: value_expr[left] PLUS[op] value_expr[right]
 		{
-			$$ = std::make_unique<ast::nodes::OperatorCall>(ast::nodes::OperatorCall(
+			$$ = wrap<ast::nodes::OperatorCall>(
 				std::move($op),
 				std::move($left),
 				std::move($right)
-			));
+			);
 		}
 	| value_expr[left] MINUS[op] value_expr[right]
 		{
-			$$ = std::make_unique<ast::nodes::OperatorCall>(ast::nodes::OperatorCall(
+			$$ = wrap<ast::nodes::OperatorCall>(
 				std::move($op),
 				std::move($left),
 				std::move($right)
-			));
+			);
 		}
 	| value_expr[left] STAR[op] value_expr[right]
 		{
-			$$ = std::make_unique<ast::nodes::OperatorCall>(ast::nodes::OperatorCall(
+			$$ = wrap<ast::nodes::OperatorCall>(
 				std::move($op),
 				std::move($left),
 				std::move($right)
-			));
+			);
 		}
 	| value_expr[left] SLASH[op] value_expr[right]
 		{
-			$$ = std::make_unique<ast::nodes::OperatorCall>(ast::nodes::OperatorCall(
+			$$ = wrap<ast::nodes::OperatorCall>(
 				std::move($op),
 				std::move($left),
 				std::move($right)
-			));
+			);
 		}
 	;
 
