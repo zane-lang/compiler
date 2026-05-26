@@ -4,6 +4,7 @@
 %define api.value.type variant
 %define parse.error detailed
 %locations
+%start package
 
 %code requires {
 	#include "ast/.hpp"
@@ -15,19 +16,21 @@
 
 %code {
 	int yylex(
-        yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
-        const char*& cursor, const char*& marker, const char* limit,
-        ast::nodes::Package*& ast);
+		yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
+		const char*& cursor, const char*& marker, const char* limit,
+		ast::nodes::Package*& ast, int& line, const char*& line_start);
 }
 
 %param { const char*& cursor }
 %param { const char*& marker }
 %param { const char* limit }
 %param { ast::nodes::Package*& ast }
+%param { int& line }
+%param { const char*& line_start }
 
 // --- tokens ---
 %token LPAREN RPAREN LCURLY RCURLY
-%token COMMA COLON SEMICOLON
+%token COMMA COLON LINE_BREAK
 %token TILDE
 %token <std::string> STRING IDENT INT FLOAT
 %token ERROR
@@ -39,6 +42,7 @@
 
 // --- non-terminal types ---
 %type <std::unique_ptr<ast::nodes::Package>>                package
+%type <std::vector<ast::nodes::Declaration>>                global_scope
 %type <std::unique_ptr<ast::nodes::Declaration>>            declaration
 %type <std::unique_ptr<ast::nodes::FunctionDecl>>           function_decl
 %type <std::vector<ast::nodes::Parameter>>                  parameters param_list
@@ -60,18 +64,29 @@
 %%
 
 package
-	: %empty
+	: may_break global_scope[glb] may_break
 		{
-			$$ = std::make_unique<ast::nodes::Package>(std::vector<ast::nodes::Declaration>());
+			$$ = std::make_unique<ast::nodes::Package>(std::move($glb));
 			ast = new ast::nodes::Package(*$$);
 		}
-	| package[pkg] declaration[decl]
+	;
+
+may_break
+	: %empty
+	| LINE_BREAK
+	;
+
+global_scope
+	: declaration[decl] 
 		{
-			auto declarations = std::move($pkg->declarations);
+			auto declarations = std::vector<ast::nodes::Declaration>();
 			declarations.push_back(std::move(*$decl));
-			delete ast;
-			$$ = std::make_unique<ast::nodes::Package>(std::move(declarations));
-			ast = new ast::nodes::Package(*$$);
+			$$ = std::move(declarations);
+		}
+	| global_scope[glb] LINE_BREAK declaration[decl]
+		{
+			$glb.push_back(std::move(*$decl));
+			$$ = std::move($glb);
 		}
 	;
 
@@ -159,11 +174,6 @@ statements
 	: %empty
 		{ $$ = std::vector<std::unique_ptr<ast::nodes::Statement>>(); }
 	| statements[list] statement[stmt]
-		{
-			$list.push_back(std::move($stmt));
-			$$ = std::move($list);
-		}
-	| statements[list] statement[stmt] SEMICOLON
 		{
 			$list.push_back(std::move($stmt));
 			$$ = std::move($list);

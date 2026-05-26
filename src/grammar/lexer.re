@@ -27,12 +27,18 @@ static std::string unescape(const char* b, const char* e) {
 	return out;
 }
 
-int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
+int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
 		const char*& cursor, const char*& marker, const char* limit,
-		ast::nodes::Package*&) {
+		ast::nodes::Package*&, int& line, const char*& line_start) {
 	for (;;) {
 		if (cursor >= limit) return 0;
 		const char* start = cursor;
+
+		yylloc->begin.line   = line;
+		yylloc->begin.column = (int)(start - line_start) + 1;
+
+		int tok = -1;
+
 		/*!re2c
 		re2c:flags:utf-8     = 1;
 		re2c:define:YYCTYPE  = "char";
@@ -41,46 +47,60 @@ int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type*,
 		re2c:define:YYMARKER = marker;
 		re2c:yyfill:enable   = 0;
 
-		nonascii = [\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF];
-		ident    = [a-zA-Z_] | nonascii;
-		str_char = [^"\\] | "\\" [^];
-		// Digit groups: plain or swiss-separated (e.g. 1'000'000)
+		nonascii  = [\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF];
+		ident     = [a-zA-Z_] | nonascii;
+		str_char  = [^"\\] | "\\" [^];
 		digit     = [0-9];
 		digits    = digit+;
-		sw_digits = digit{1,3} ("'" digit{3})*;   // swiss thousands groups
-
-		// INT: optional swiss grouping, no decimal point
-		// FLOAT: optional swiss grouping, mandatory decimal point + fractional digits
+		sw_digits = digit{1,3} ("'" digit{3})*;
 		int_lit   = sw_digits | digits;
 		float_lit = sw_digits "." digits | digits "." digits;
 
-		[ \t\n]+       { continue; }
-		"("            { return yy::Parser::token::LPAREN; }
-		")"            { return yy::Parser::token::RPAREN; }
-		"{"            { return yy::Parser::token::LCURLY; }
-		"}"            { return yy::Parser::token::RCURLY; }
-		","            { return yy::Parser::token::COMMA; }
-		":"            { return yy::Parser::token::COLON; }
+		[ \t]+    { continue; }
 
-		"~"            { return yy::Parser::token::TILDE; }
+		[\r\n]+ {
+			for (const char* p = start; p < cursor; ++p)
+				if (*p == '\n') { ++line; line_start = p + 1; }
+			yylloc->end.line   = line;
+			yylloc->end.column = (int)(cursor - line_start) + 1;
+			return yy::Parser::token::LINE_BREAK;
+		}
 
-		"+"  { yylval->emplace<std::string>("+"); return yy::Parser::token::PLUS; }
-		"-"  { yylval->emplace<std::string>("-"); return yy::Parser::token::MINUS; }
-		"*"  { yylval->emplace<std::string>("*"); return yy::Parser::token::STAR; }
-		"/"  { yylval->emplace<std::string>("/"); return yy::Parser::token::SLASH; }
-		float_lit { 
+		"("   { tok = yy::Parser::token::LPAREN;  goto done; }
+		")"   { tok = yy::Parser::token::RPAREN;  goto done; }
+		"{"   { tok = yy::Parser::token::LCURLY;  goto done; }
+		"}"   { tok = yy::Parser::token::RCURLY;  goto done; }
+		","   { tok = yy::Parser::token::COMMA;   goto done; }
+		":"   { tok = yy::Parser::token::COLON;   goto done; }
+		"~"   { tok = yy::Parser::token::TILDE;   goto done; }
+
+		"+" { yylval->emplace<std::string>("+"); tok = yy::Parser::token::PLUS;  goto done; }
+		"-" { yylval->emplace<std::string>("-"); tok = yy::Parser::token::MINUS; goto done; }
+		"*" { yylval->emplace<std::string>("*"); tok = yy::Parser::token::STAR;  goto done; }
+		"/" { yylval->emplace<std::string>("/"); tok = yy::Parser::token::SLASH; goto done; }
+
+		float_lit {
 			yylval->emplace<std::string>(toStr(start, cursor));
-			return yy::Parser::token::FLOAT;
+			tok = yy::Parser::token::FLOAT; goto done;
 		}
 		int_lit {
 			yylval->emplace<std::string>(toStr(start, cursor));
-			return yy::Parser::token::INT;
+			tok = yy::Parser::token::INT; goto done;
 		}
-		["] str_char* ["] { yylval->emplace<std::string>(unescape(start+1, cursor-1));
-		                    return yy::Parser::token::STRING; }
-		ident+         { yylval->emplace<std::string>(toStr(start, cursor));
-		                 return yy::Parser::token::IDENT; }
-		*              { return yy::Parser::token::ERROR; }
+		["] str_char* ["] {
+			yylval->emplace<std::string>(unescape(start + 1, cursor - 1));
+			tok = yy::Parser::token::STRING; goto done;
+		}
+		ident+ {
+			yylval->emplace<std::string>(toStr(start, cursor));
+			tok = yy::Parser::token::IDENT; goto done;
+		}
+		* { tok = yy::Parser::token::ERROR; goto done; }
 		*/
+
+		done:
+		yylloc->end.line   = line;
+		yylloc->end.column = (int)(cursor - line_start) + 1;
+		return tok;
 	}
 }
