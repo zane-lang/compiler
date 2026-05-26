@@ -15,6 +15,7 @@ struct Statement;
 #define NODE(name, ...)               \
 struct name {                       \
 	__VA_ARGS__                     \
+	name() = default;               \
 	name(name&&) = default;         \
 	name& operator=(name&&) = default; \
 }
@@ -27,12 +28,20 @@ NODE(NameType ,
 	: name(std::move(name)), generics(std::move(generics)) {}
 );
 
+NODE(Parameter , 
+	std::unique_ptr<TypeExpression> type;
+	std::string name;
+
+	Parameter(std::unique_ptr<TypeExpression> type, std::string name)
+	: type(std::move(type)), name(std::move(name)) {}
+);
+
 NODE(FunctionType , 
-	std::vector<std::unique_ptr<TypeExpression>> paramTypes;
+	std::vector<Parameter> parameters;
 	std::unique_ptr<TypeExpression> returnType;
 
-	FunctionType(std::vector<std::unique_ptr<TypeExpression>> paramTypes, std::unique_ptr<TypeExpression> returnType)
-	: paramTypes(std::move(paramTypes)), returnType(std::move(returnType)) {}
+	FunctionType(std::vector<Parameter> params, std::unique_ptr<TypeExpression> returnType)
+	: parameters(std::move(params)), returnType(std::move(returnType)) {}
 );
 
 NODE(TypeExpression , 
@@ -47,14 +56,6 @@ NODE(Scope ,
 
 	explicit Scope(std::vector<std::unique_ptr<Statement>> statements)
 	: statements(std::move(statements)) {}
-);
-
-NODE(Parameter , 
-	std::unique_ptr<TypeExpression> type;
-	std::string name;
-
-	Parameter(std::unique_ptr<TypeExpression> type, std::string name)
-	: type(std::move(type)), name(std::move(name)) {}
 );
 
 NODE(FunctionDecl , 

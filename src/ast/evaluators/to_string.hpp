@@ -142,10 +142,11 @@ std::string operator()(const nodes::NameType& type) const {
 
 std::string operator()(const nodes::FunctionType& type) const {
 	std::vector<std::string> children;
-	for (std::size_t i = 0; i < type.paramTypes.size(); ++i) {
-		if (type.paramTypes[i] != nullptr) {
-			children.push_back(detail::tree::branch("paramType[" + std::to_string(i) + "]", render(*type.paramTypes[i])));
-		}
+	for (std::size_t i = 0; i < type.parameters.size(); ++i) {
+		children.push_back(detail::tree::branch(
+			"parameter[" + std::to_string(i) + "]",
+			type.parameters[i].name + " " + render(*type.parameters[i].type)
+		));
 	}
 
 	if (type.returnType != nullptr) {

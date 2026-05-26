@@ -19,11 +19,6 @@
 		yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
 		const char*& cursor, const char*& marker, const char* limit,
 		ast::nodes::Package*& ast, int& line, const char*& line_start);
-
-	template <typename Ret, typename... Args>
-	std::unique_ptr<Ret> wrap(Args&&... args) {
-		return std::make_unique<Ret>(std::forward<Args>(args)...);
-	}
 }
 
 %param { const char*& cursor }
@@ -35,7 +30,7 @@
 
 // --- tokens ---
 %token LPAREN RPAREN LCURLY RCURLY
-%token COMMA COLON DOLLAR
+%token COMMA COLON DOLLAR THIN_ARROW
 %token TILDE
 %token <std::string> STRING IDENT INT FLOAT
 %token ERROR
@@ -46,24 +41,24 @@
 %right TILDE
 
 // --- non-terminal types ---
-%type <std::unique_ptr<ast::nodes::Package>>                package
+%type <ast::nodes::Package>                                 package
 %type <std::vector<ast::nodes::Declaration>>                global_scope
-%type <std::unique_ptr<ast::nodes::Declaration>>            declaration
-%type <std::unique_ptr<ast::nodes::FunctionDecl>>           function_decl
+%type <ast::nodes::Declaration>                             declaration
+%type <ast::nodes::FunctionDecl>                            function_decl
 %type <std::vector<ast::nodes::Parameter>>                  parameters param_list
-%type <std::unique_ptr<ast::nodes::Parameter>>              parameter
-%type <std::unique_ptr<ast::nodes::TypeExpression>>         type_expr
-%type <std::unique_ptr<ast::nodes::NameType>>               name_type
-%type <std::unique_ptr<ast::nodes::FunctionType>>           function_type
+%type <ast::nodes::Parameter>                               parameter
+%type <ast::nodes::TypeExpression>                          type_expr
+%type <ast::nodes::NameType>                                name_type
+%type <ast::nodes::FunctionType>                            function_type
 %type <std::vector<std::unique_ptr<ast::nodes::TypeExpression>>> type_expr_list type_expr_list_ne
-%type <std::unique_ptr<ast::nodes::Scope>>                  scope
+%type <ast::nodes::Scope>                                   scope
 %type <std::vector<std::unique_ptr<ast::nodes::Statement>>> statements
-%type <std::unique_ptr<ast::nodes::Statement>>              statement
-%type <std::unique_ptr<ast::nodes::OperatorCall>>           operator_call
-%type <std::unique_ptr<ast::nodes::OperatorFlipCall>>       operator_flip_call
-%type <std::unique_ptr<ast::nodes::FunctionCall>>           function_call
-%type <std::unique_ptr<ast::nodes::ParenthizedValue>>       parenthized_value
-%type <std::unique_ptr<ast::nodes::ValueExpr>>              value_expr
+%type <ast::nodes::Statement>                               statement
+%type <ast::nodes::OperatorCall>                            operator_call
+%type <ast::nodes::OperatorFlipCall>                        operator_flip_call
+%type <ast::nodes::FunctionCall>                            function_call
+%type <ast::nodes::ParenthizedValue>                        parenthized_value
+%type <ast::nodes::ValueExpr>                               value_expr
 %type <std::vector<std::unique_ptr<ast::nodes::ValueExpr>>> arguments arg_list
 
 %%
@@ -71,8 +66,8 @@
 package
 	: global_scope[glb]
 		{
-			$$ = std::make_unique<ast::nodes::Package>(std::move($glb));
-			ast = $$.release();  // fix: was copying with *$$
+			$$ = ast::nodes::Package(std::move($glb));
+			ast = new ast::nodes::Package(std::move($$));
 		}
 	;
 
@@ -80,29 +75,29 @@ global_scope
 	: declaration[decl]
 		{
 			auto declarations = std::vector<ast::nodes::Declaration>();
-			declarations.push_back(std::move(*$decl));
+			declarations.push_back(std::move($decl));
 			$$ = std::move(declarations);
 		}
 	| global_scope[glb] declaration[decl]
 		{
-			$glb.push_back(std::move(*$decl));
+			$glb.push_back(std::move($decl));
 			$$ = std::move($glb);
 		}
 	;
 
 declaration
 	: function_decl[fd]
-		{ $$ = wrap<ast::nodes::Declaration>(std::move(*$fd)); }
+		{ $$ = ast::nodes::Declaration(std::move($fd)); }
 	;
 
 function_decl
 	: type_expr[return_type] IDENT[name] LPAREN parameters[params] RPAREN scope[body]
 		{
-			$$ = wrap<ast::nodes::FunctionDecl>(
+			$$ = ast::nodes::FunctionDecl(
 				std::move($name),
 				std::move($params),
-				std::move(*$return_type),
-				std::move(*$body),
+				std::move($return_type),
+				std::move($body),
 				false
 			);
 		}
@@ -119,30 +114,42 @@ param_list
 	: parameter[p]
 		{
 			$$ = std::vector<ast::nodes::Parameter>();
-			$$.push_back(std::move(*$p));
+			$$.push_back(std::move($p));
 		}
 	| param_list[list] COMMA parameter[p]
-		{ $list.push_back(std::move(*$p)); $$ = std::move($list); }
+		{ $list.push_back(std::move($p)); $$ = std::move($list); }
 	;
 
 parameter
 	: IDENT[name] type_expr[type]
 		{
-			$$ = wrap<ast::nodes::Parameter>(
-				std::move($type),
+			$$ = ast::nodes::Parameter(
+				std::make_unique<ast::nodes::TypeExpression>(std::move($type)),
 				std::move($name)
+			);
+		}
+	;
+
+function_type
+	: LPAREN parameters[params] RPAREN THIN_ARROW type_expr[ret_type]
+		{
+			$$ = ast::nodes::FunctionType(
+				std::move($params),
+				std::make_unique<ast::nodes::TypeExpression>(std::move($ret_type))
 			);
 		}
 	;
 
 type_expr
 	: name_type[nt]
-		{ $$ = wrap<ast::nodes::TypeExpression>(std::move(*$nt)); }
+		{ $$ = ast::nodes::TypeExpression(std::move($nt)); }
+	| function_type[ft]
+		{ $$ = ast::nodes::TypeExpression(std::move($ft)); }
 	;
 
 name_type
 	: IDENT[id]
-		{ $$ = wrap<ast::nodes::NameType>(std::move($id), std::vector<std::unique_ptr<ast::nodes::TypeExpression>>()); }
+		{ $$ = ast::nodes::NameType(std::move($id), std::vector<std::unique_ptr<ast::nodes::TypeExpression>>()); }
 	;
 
 type_expr_list
@@ -156,15 +163,15 @@ type_expr_list_ne
 	: type_expr[t]
 		{
 			$$ = std::vector<std::unique_ptr<ast::nodes::TypeExpression>>();
-			$$.push_back(std::move($t));  // fix: was $t.take() + redundant make_unique
+			$$.push_back(std::make_unique<ast::nodes::TypeExpression>(std::move($t)));
 		}
 	| type_expr_list_ne[list] COMMA type_expr[t]
-		{ $list.push_back(std::move($t)); $$ = std::move($list); }
+		{ $list.push_back(std::make_unique<ast::nodes::TypeExpression>(std::move($t))); $$ = std::move($list); }
 	;
 
 scope
 	: LCURLY statements[stmts] RCURLY
-		{ $$ = wrap<ast::nodes::Scope>(std::move($stmts)); }
+		{ $$ = ast::nodes::Scope(std::move($stmts)); }
 	;
 
 statements
@@ -172,47 +179,47 @@ statements
 		{ $$ = std::vector<std::unique_ptr<ast::nodes::Statement>>(); }
 	| statements[list] statement[stmt]
 		{
-			$list.push_back(std::move($stmt));
+			$list.push_back(std::make_unique<ast::nodes::Statement>(std::move($stmt)));
 			$$ = std::move($list);
 		}
 	;
 
 statement
 	: function_call[fc]
-		{ $$ = wrap<ast::nodes::Statement>(std::move(*$fc)); }
+		{ $$ = ast::nodes::Statement(std::move($fc)); }
 	;
 
 value_expr
 	: IDENT[id]
-		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::ValueSymbol(std::move($id))); }
+		{ $$ = ast::nodes::ValueExpr(ast::nodes::ValueSymbol(std::move($id))); }
 	| IDENT[pkg] DOLLAR IDENT[id]
-		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::PackageValueSymbol(std::move($id), std::move($pkg))); }
+		{ $$ = ast::nodes::ValueExpr(ast::nodes::PackageValueSymbol(std::move($id), std::move($pkg))); }
 	| INT[i]
-		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::IntLiteral(std::move($i))); }
+		{ $$ = ast::nodes::ValueExpr(ast::nodes::IntLiteral(std::move($i))); }
 	| FLOAT[f]
-		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::FloatLiteral(std::move($f))); }
+		{ $$ = ast::nodes::ValueExpr(ast::nodes::FloatLiteral(std::move($f))); }
 	| STRING[s]
-		{ $$ = wrap<ast::nodes::ValueExpr>(ast::nodes::StringLiteral(std::move($s))); }
+		{ $$ = ast::nodes::ValueExpr(ast::nodes::StringLiteral(std::move($s))); }
 	| function_call[fc]
-		{ $$ = wrap<ast::nodes::ValueExpr>(std::move(*$fc)); }
+		{ $$ = ast::nodes::ValueExpr(std::move($fc)); }
 	| operator_call[op]
-		{ $$ = wrap<ast::nodes::ValueExpr>(std::move(*$op)); }
+		{ $$ = ast::nodes::ValueExpr(std::move($op)); }
 	| operator_flip_call[op_flip]
-		{ $$ = wrap<ast::nodes::ValueExpr>(std::move(*$op_flip)); }
+		{ $$ = ast::nodes::ValueExpr(std::move($op_flip)); }
 	| parenthized_value[pv]
-		{ $$ = wrap<ast::nodes::ValueExpr>(std::move(*$pv)); }
+		{ $$ = ast::nodes::ValueExpr(std::move($pv)); }
 	;
 
 parenthized_value
 	: LPAREN value_expr[val] RPAREN
-		{ $$ = wrap<ast::nodes::ParenthizedValue>(std::move($val)); }  // fix: was constructing twice
+		{ $$ = ast::nodes::ParenthizedValue(std::make_unique<ast::nodes::ValueExpr>(std::move($val))); }
 	;
 
 function_call
 	: value_expr[callee] LPAREN arguments[args] RPAREN
 		{
-			$$ = wrap<ast::nodes::FunctionCall>(
-				std::move($callee),
+			$$ = ast::nodes::FunctionCall(
+				std::make_unique<ast::nodes::ValueExpr>(std::move($callee)),
 				std::move($args)
 			);
 		}
@@ -220,18 +227,18 @@ function_call
 
 operator_flip_call
 	: TILDE value_expr[value]
-		{ $$ = wrap<ast::nodes::OperatorFlipCall>(std::move($value)); }
+		{ $$ = ast::nodes::OperatorFlipCall(std::make_unique<ast::nodes::ValueExpr>(std::move($value))); }
 	;
 
 operator_call
 	: value_expr[left] PLUS[op] value_expr[right]
-		{ $$ = wrap<ast::nodes::OperatorCall>(std::move($op), std::move($left), std::move($right)); }
+		{ $$ = ast::nodes::OperatorCall(std::move($op), std::make_unique<ast::nodes::ValueExpr>(std::move($left)), std::make_unique<ast::nodes::ValueExpr>(std::move($right))); }
 	| value_expr[left] MINUS[op] value_expr[right]
-		{ $$ = wrap<ast::nodes::OperatorCall>(std::move($op), std::move($left), std::move($right)); }
+		{ $$ = ast::nodes::OperatorCall(std::move($op), std::make_unique<ast::nodes::ValueExpr>(std::move($left)), std::make_unique<ast::nodes::ValueExpr>(std::move($right))); }
 	| value_expr[left] STAR[op] value_expr[right]
-		{ $$ = wrap<ast::nodes::OperatorCall>(std::move($op), std::move($left), std::move($right)); }
+		{ $$ = ast::nodes::OperatorCall(std::move($op), std::make_unique<ast::nodes::ValueExpr>(std::move($left)), std::make_unique<ast::nodes::ValueExpr>(std::move($right))); }
 	| value_expr[left] SLASH[op] value_expr[right]
-		{ $$ = wrap<ast::nodes::OperatorCall>(std::move($op), std::move($left), std::move($right)); }
+		{ $$ = ast::nodes::OperatorCall(std::move($op), std::make_unique<ast::nodes::ValueExpr>(std::move($left)), std::make_unique<ast::nodes::ValueExpr>(std::move($right))); }
 	;
 
 arguments
@@ -245,10 +252,10 @@ arg_list
 	: value_expr[v]
 		{
 			$$ = std::vector<std::unique_ptr<ast::nodes::ValueExpr>>();
-			$$.push_back(std::move($v));
+			$$.push_back(std::make_unique<ast::nodes::ValueExpr>(std::move($v)));
 		}
 	| arg_list[list] COMMA value_expr[v]
-		{ $list.push_back(std::move($v)); $$ = std::move($list); }
+		{ $list.push_back(std::make_unique<ast::nodes::ValueExpr>(std::move($v))); $$ = std::move($list); }
 	;
 
 %%
