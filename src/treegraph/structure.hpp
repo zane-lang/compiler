@@ -38,6 +38,11 @@ struct List {
 
 struct Node {
 	std::variant<Table, List, std::string> data;
+
+	Node() = default;
+	explicit Node(Table data) : data(std::move(data)) {}
+	explicit Node(List data) : data(std::move(data)) {}
+	explicit Node(std::string data) : data(std::move(data)) {}
 };
 
 } // namespace treegraph

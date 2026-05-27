@@ -127,6 +127,8 @@ private:
 	}
 
 	std::string renderIndexed(const std::string& indexedKey, const std::string& itemKey, const std::string& value) const {
+		if (itemKey.empty())
+			return value.empty() ? indexedKey : indexedKey + ": " + value;
 		const auto label = value.empty() ? itemKey : itemKey + ": " + value;
 		return detail::node(indexedKey, {label});
 	}
@@ -135,10 +137,14 @@ private:
 		std::vector<std::string> children;
 		for (const auto& [childKey, child] : table.children)
 			appendRenderedChild(children, childKey, *child);
+		if (itemKey.empty())
+			return detail::node(indexedKey, children);
 		return detail::node(indexedKey, {detail::node(itemKey, children)});
 	}
 
 	std::string renderIndexed(const std::string& indexedKey, const std::string& itemKey, const List& list) const {
+		if (itemKey.empty())
+			return detail::node(indexedKey, renderListEntries(indexedKey, list));
 		return detail::node(indexedKey, {detail::node(itemKey, renderListEntries(indexedKey, list))});
 	}
 
