@@ -86,7 +86,7 @@ NODE(FunctionDecl,
 	TypeExpression returnType;
 	Scope functionBody;
 	bool isMethod;
-	bool mutating;
+	bool isMutating;
 
 	FunctionDecl(
 		std::string name,
@@ -94,14 +94,14 @@ NODE(FunctionDecl,
 		TypeExpression returnType,
 		Scope functionBody,
 		bool isMethod,
-		bool mutating
+		bool isMutating
 	)
 		: name(std::move(name)),
 		parameters(std::move(parameters)),
 		returnType(std::move(returnType)),
 		functionBody(std::move(functionBody)),
 		isMethod(isMethod),
-		mutating(mutating) {}
+		isMutating(isMutating) {}
 );
 
 /// The only unary operator

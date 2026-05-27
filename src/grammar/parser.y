@@ -52,6 +52,7 @@
 %type <ast::nodes::VariableDecl>                            variable_decl
 %type <ast::nodes::FunctionDecl>                            function_decl
 %type <std::vector<ast::nodes::Parameter>>                  parameters
+%type <std::vector<std::unique_ptr<ast::nodes::TypeExpression>>> type_list type_list_ne
 %type <ast::nodes::Parameter>                               parameter
 %type <ast::nodes::TypeExpression>                          type_expr
 %type <ast::nodes::NameType>                                name_type
@@ -142,12 +143,60 @@ parameter
 		}
 	;
 
+type_list
+	: %empty
+		{ $$ = std::vector<std::unique_ptr<ast::nodes::TypeExpression>>(); }
+	| type_expr[expr]
+		{
+			$$ = std::vector<std::unique_ptr<ast::nodes::TypeExpression>>();
+			$$.push_back(std::make_unique<ast::nodes::TypeExpression>(std::move($expr)));
+		}
+	| type_list[list] COMMA type_expr[expr]
+		{
+			$list.push_back(std::make_unique<ast::nodes::TypeExpression>(std::move($expr)));
+			$$ = std::move($list);
+		}
+	;
+
+type_list_ne
+	: type_expr[expr]
+		{
+			$$ = std::vector<std::unique_ptr<ast::nodes::TypeExpression>>();
+			$$.push_back(std::make_unique<ast::nodes::TypeExpression>(std::move($expr)));
+		}
+	| type_list[list] COMMA type_expr[expr]
+		{
+			$list.push_back(std::make_unique<ast::nodes::TypeExpression>(std::move($expr)));
+			$$ = std::move($list);
+		}
+	;
+
 function_type
-	: LPAREN parameters[params] RPAREN THIN_ARROW type_expr[ret_type]
+	: LPAREN type_list[params] RPAREN THIN_ARROW type_expr[ret_type]
 		{
 			$$ = ast::nodes::FunctionType(
 				std::move($params),
-				std::make_unique<ast::nodes::TypeExpression>(std::move($ret_type))
+				std::make_unique<ast::nodes::TypeExpression>(std::move($ret_type)),
+				false,
+				false
+			);
+		}
+	| LPAREN THIS type_list_ne[params] RPAREN THIN_ARROW type_expr[ret_type]
+		{
+			$$ = ast::nodes::FunctionType(
+				std::move($params),
+				std::make_unique<ast::nodes::TypeExpression>(std::move($ret_type)),
+				true,
+				false
+			);
+		}
+	| LPAREN THIS type_list_ne[params] RPAREN MUT THIN_ARROW type_expr[ret_type]
+		{
+			$$ = ast::nodes::FunctionType(
+				std::move($params),
+				std::make_unique<ast::nodes::TypeExpression>(std::move($ret_type)),
+				true,
+				true
 			);
 		}
 	;
