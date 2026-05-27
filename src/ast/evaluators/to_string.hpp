@@ -174,7 +174,7 @@ std::string operator()(const nodes::Parameter& parameter) const {
 }
 
 std::string operator()(const nodes::Statement& statement) const {
-	return detail::tree::node("Statement", {detail::tree::branch("data", std::visit(*this, statement.data))});
+	return std::visit(*this, statement.data);
 }
 
 std::string operator()(const nodes::Scope& scope) const {
@@ -198,7 +198,7 @@ std::string operator()(const nodes::VariableDecl& declaration) const {
 
 std::string operator()(const nodes::FunctionDecl& declaration) const {
 	std::vector<std::string> children;
-	children.push_back(detail::tree::leaf("isMEthod", declaration.isMethod ? "true" : "false"));
+	children.push_back(detail::tree::leaf("isMethod", declaration.isMethod ? "true" : "false"));
 	children.push_back(detail::tree::leaf("mutating", declaration.mutating ? "true" : "false"));
 
 	for (std::size_t i = 0; i < declaration.parameters.size(); ++i) {

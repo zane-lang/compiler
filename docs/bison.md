@@ -53,3 +53,5 @@ statements
 		}
 	;
 ```
+
+no ambiguaty must exist that would be resolved through following sub-nodes, because sub-nodes are reduced before matching. otherwise we would use glr, but it is slower and lalr(1) is linear.
