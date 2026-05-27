@@ -51,6 +51,7 @@
 %type <ast::nodes::Declaration>                             declaration
 %type <ast::nodes::VariableDecl>                            variable_decl
 %type <ast::nodes::FunctionDecl>                            function_decl
+%type <ast::nodes::MethodDecl>                              method_decl
 %type <std::vector<ast::nodes::Parameter>>                  parameters method_parameters
 %type <std::vector<std::unique_ptr<ast::nodes::TypeExpression>>> type_list type_list_ne
 %type <ast::nodes::Parameter>                               parameter
@@ -91,6 +92,8 @@ global_scope
 declaration
 	: function_decl[fd]
 		{ $$ = ast::nodes::Declaration(std::move($fd)); }
+	| method_decl[md]
+		{ $$ = ast::nodes::Declaration(std::move($md)); }
 	;
 
 variable_decl
@@ -111,31 +114,30 @@ function_decl
 				std::move($name),
 				std::move($params),
 				std::move($return_type),
-				std::move($body),
-				false,
-				false
+				std::move($body)
 			);
 		}
-	| type_expr[return_type] IDENT[name] LPAREN method_parameters[params] RPAREN scope[body]
+	;
+
+method_decl
+	: type_expr[return_type] IDENT[name] LPAREN method_parameters[params] RPAREN scope[body]
 		{
-			$$ = ast::nodes::FunctionDecl(
+			$$ = ast::nodes::MethodDecl(
 				std::move($name),
 				std::move($params),
 				std::move($return_type),
 				std::move($body),
-				true,
 				false
 			);
 		}
 	
 	| type_expr[return_type] IDENT[name] LPAREN method_parameters[params] RPAREN MUT scope[body]
 		{
-			$$ = ast::nodes::FunctionDecl(
+			$$ = ast::nodes::MethodDecl(
 				std::move($name),
 				std::move($params),
 				std::move($return_type),
 				std::move($body),
-				true,
 				true
 			);
 		}

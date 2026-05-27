@@ -200,8 +200,6 @@ std::string operator()(const nodes::VariableDecl& declaration) const {
 
 std::string operator()(const nodes::FunctionDecl& declaration) const {
 	std::vector<std::string> children;
-	children.push_back(detail::tree::leaf("isMethod", declaration.isMethod ? "true" : "false"));
-	children.push_back(detail::tree::leaf("isMutating", declaration.isMutating ? "true" : "false"));
 
 	for (std::size_t i = 0; i < declaration.parameters.size(); ++i) {
 		children.push_back(detail::tree::branch("parameter[" + std::to_string(i) + "]", render(declaration.parameters[i])));
@@ -211,6 +209,20 @@ std::string operator()(const nodes::FunctionDecl& declaration) const {
 	children.push_back(detail::tree::branch("functionBody", render(declaration.functionBody)));
 
 	return detail::tree::node("FunctionDecl " + declaration.name, children);
+}
+
+std::string operator()(const nodes::MethodDecl& declaration) const {
+	std::vector<std::string> children;
+	children.push_back(detail::tree::leaf("isMutating", declaration.isMutating ? "true" : "false"));
+
+	for (std::size_t i = 0; i < declaration.parameters.size(); ++i) {
+		children.push_back(detail::tree::branch("parameter[" + std::to_string(i) + "]", render(declaration.parameters[i])));
+	}
+
+	children.push_back(detail::tree::branch("returnType", render(declaration.returnType)));
+	children.push_back(detail::tree::branch("functionBody", render(declaration.functionBody)));
+
+	return detail::tree::node("MethodDecl " + declaration.name, children);
 }
 
 std::string operator()(const nodes::Declaration& declaration) const {

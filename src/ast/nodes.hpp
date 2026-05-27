@@ -85,22 +85,37 @@ NODE(FunctionDecl,
 	std::vector<Parameter> parameters;
 	TypeExpression returnType;
 	Scope functionBody;
-	bool isMethod;
-	bool isMutating;
 
 	FunctionDecl(
 		std::string name,
 		std::vector<Parameter> parameters,
 		TypeExpression returnType,
+		Scope functionBody
+	)
+		: name(std::move(name)),
+		parameters(std::move(parameters)),
+		returnType(std::move(returnType)),
+		functionBody(std::move(functionBody)) {}
+);
+
+NODE(MethodDecl,
+	std::string name;
+	std::vector<Parameter> parameters;
+	TypeExpression returnType;
+	Scope functionBody;
+	bool isMutating;
+
+	MethodDecl(
+		std::string name,
+		std::vector<Parameter> parameters,
+		TypeExpression returnType,
 		Scope functionBody,
-		bool isMethod,
 		bool isMutating
 	)
 		: name(std::move(name)),
 		parameters(std::move(parameters)),
 		returnType(std::move(returnType)),
 		functionBody(std::move(functionBody)),
-		isMethod(isMethod),
 		isMutating(isMutating) {}
 );
 
@@ -187,7 +202,7 @@ NODE(Statement,
 	explicit Statement(T value) : data(std::move(value)) {}
 );
 
-using Declaration = std::variant<FunctionDecl>;
+using Declaration = std::variant<FunctionDecl, MethodDecl>;
 
 NODE(Package,
 	std::vector<Declaration> declarations;
