@@ -58,18 +58,42 @@ NODE(Scope ,
 	: statements(std::move(statements)) {}
 );
 
+NODE(VariableDecl,
+	std::string name;
+	TypeExpression type;
+	std::unique_ptr<ValueExpr> value;
+
+	VariableDecl(
+		std::string name,
+		TypeExpression type,
+		std::unique_ptr<ValueExpr> value
+	)
+		: name(std::move(name)),
+		type(std::move(type)),
+		value(std::move(value)) {}
+);
+
 NODE(FunctionDecl ,
 	std::string name;
 	std::vector<Parameter> parameters;
 	TypeExpression returnType;
 	Scope functionBody;
+	bool isMethod;
 	bool mutating;
 
-	FunctionDecl(std::string name, std::vector<Parameter> parameters, TypeExpression returnType, Scope functionBody, bool mutating)
+	FunctionDecl(
+		std::string name,
+		std::vector<Parameter> parameters,
+		TypeExpression returnType,
+		Scope functionBody,
+		bool isMethod,
+		bool mutating
+	)
 		: name(std::move(name)),
 		parameters(std::move(parameters)),
 		returnType(std::move(returnType)),
 		functionBody(std::move(functionBody)),
+		isMethod(isMethod),
 		mutating(mutating) {}
 );
 
@@ -150,7 +174,7 @@ NODE(ValueExpr ,
 );
 
 NODE(Statement ,
-	std::variant<FunctionCall> data;
+	std::variant<FunctionCall, VariableDecl> data;
 
 	template <typename T>
 	explicit Statement(T value) : data(std::move(value)) {}

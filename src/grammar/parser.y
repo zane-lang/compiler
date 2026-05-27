@@ -34,8 +34,9 @@
 
 // --- tokens ---
 %token LPAREN RPAREN LCURLY RCURLY
-%token COMMA COLON
+%token COMMA COLON EQUAL
 %token DOLLAR THIN_ARROW AT
+%token MUT THIS
 %token <std::string> STRING IDENT INT FLOAT
 %token ERROR
 
@@ -48,6 +49,7 @@
 %type <ast::nodes::Package>                                 package
 %type <std::vector<ast::nodes::Declaration>>                global_scope
 %type <ast::nodes::Declaration>                             declaration
+%type <ast::nodes::VariableDecl>                            variable_decl
 %type <ast::nodes::FunctionDecl>                            function_decl
 %type <std::vector<ast::nodes::Parameter>>                  parameters
 %type <ast::nodes::Parameter>                               parameter
@@ -60,6 +62,7 @@
 %type <ast::nodes::OperatorCall>                            operator_call
 %type <ast::nodes::OperatorFlipCall>                        operator_flip_call
 %type <ast::nodes::FunctionCall>                            function_call
+%type <ast::nodes::FunctionCall>                            statement_function_call
 %type <ast::nodes::ParenthizedValue>                        parenthized_value
 %type <ast::nodes::ValueExpr>                               value_expr
 %type <std::vector<std::unique_ptr<ast::nodes::ValueExpr>>> arguments
@@ -76,6 +79,7 @@ package
 
 global_scope
 	: %empty
+		{ $$ = std::vector<ast::nodes::Declaration>(); }
 	| global_scope[glb] declaration[decl]
 		{
 			$glb.push_back(std::move($decl));
@@ -88,6 +92,17 @@ declaration
 		{ $$ = ast::nodes::Declaration(std::move($fd)); }
 	;
 
+variable_decl
+	: IDENT[name] type_expr[type] EQUAL value_expr[val]
+		{
+			$$ = ast::nodes::VariableDecl(
+				std::move($name),
+				std::move($type),
+				std::make_unique<ast::nodes::ValueExpr>(std::move($val))
+			);
+		}
+	;
+
 function_decl
 	: type_expr[return_type] IDENT[name] LPAREN parameters[params] RPAREN scope[body]
 		{
@@ -96,6 +111,7 @@ function_decl
 				std::move($params),
 				std::move($return_type),
 				std::move($body),
+				false,
 				false
 			);
 		}
@@ -103,6 +119,7 @@ function_decl
 
 parameters
 	: %empty
+		{ $$ = std::vector<ast::nodes::Parameter>(); }
 	| parameter[p]
 		{
 			$$ = std::vector<ast::nodes::Parameter>();
@@ -163,8 +180,34 @@ statements
 	;
 
 statement
-	: function_call[fc]
+	: statement_function_call[fc]
 		{ $$ = ast::nodes::Statement(std::move($fc)); }
+	| variable_decl[var_decl]
+		{ $$ = ast::nodes::Statement(std::move($var_decl)); }
+	;
+
+statement_function_call
+	: IDENT[name] LPAREN arguments[args] RPAREN
+		{
+			$$ = ast::nodes::FunctionCall(
+				std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::ValueSymbol(std::move($name)))),
+				std::move($args)
+			);
+		}
+	| IDENT[pkg] DOLLAR IDENT[name] LPAREN arguments[args] RPAREN
+		{
+			$$ = ast::nodes::FunctionCall(
+				std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::PackageValueSymbol(std::move($name), std::move($pkg)))),
+				std::move($args)
+			);
+		}
+	| AT IDENT[pkg] DOLLAR IDENT[name] LPAREN arguments[args] RPAREN
+		{
+			$$ = ast::nodes::FunctionCall(
+				std::make_unique<ast::nodes::ValueExpr>(ast::nodes::ValueExpr(ast::nodes::IntrinsicValueSymbol(std::move($name), std::move($pkg)))),
+				std::move($args)
+			);
+		}
 	;
 
 value_expr
@@ -223,6 +266,7 @@ operator_call
 
 arguments
 	: %empty
+		{ $$ = std::vector<std::unique_ptr<ast::nodes::ValueExpr>>(); }
 	| value_expr[v]
 		{
 			$$ = std::vector<std::unique_ptr<ast::nodes::ValueExpr>>();

@@ -70,6 +70,7 @@ int yylex(
 			updateLocation(start, cursor, line, line_start);
 			continue;
 		}
+		"="   { tok = yy::Parser::token::EQUAL;   goto done; }
 		"("   { tok = yy::Parser::token::LPAREN;  goto done; }
 		")"   { tok = yy::Parser::token::RPAREN;  goto done; }
 		"{"   { tok = yy::Parser::token::LCURLY;  goto done; }
@@ -99,6 +100,8 @@ int yylex(
 			yylval->emplace<std::string>(unescape(start + 1, cursor - 1));
 			tok = yy::Parser::token::STRING; goto done;
 		}
+		"mut" { tok = yy::Parser::token::MUT;  goto done; }
+		"this" { tok = yy::Parser::token::THIS;  goto done; }
 		ident+ {
 			yylval->emplace<std::string>(toStr(start, cursor));
 			tok = yy::Parser::token::IDENT; goto done;
