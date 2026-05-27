@@ -51,7 +51,7 @@
 %type <ast::nodes::Declaration>                             declaration
 %type <ast::nodes::VariableDecl>                            variable_decl
 %type <ast::nodes::FunctionDecl>                            function_decl
-%type <std::vector<ast::nodes::Parameter>>                  parameters
+%type <std::vector<ast::nodes::Parameter>>                  parameters method_parameters
 %type <std::vector<std::unique_ptr<ast::nodes::TypeExpression>>> type_list type_list_ne
 %type <ast::nodes::Parameter>                               parameter
 %type <ast::nodes::TypeExpression>                          type_expr
@@ -115,6 +115,49 @@ function_decl
 				false,
 				false
 			);
+		}
+	| type_expr[return_type] IDENT[name] LPAREN method_parameters[params] RPAREN scope[body]
+		{
+			$$ = ast::nodes::FunctionDecl(
+				std::move($name),
+				std::move($params),
+				std::move($return_type),
+				std::move($body),
+				true,
+				false
+			);
+		}
+	
+	| type_expr[return_type] IDENT[name] LPAREN method_parameters[params] RPAREN MUT scope[body]
+		{
+			$$ = ast::nodes::FunctionDecl(
+				std::move($name),
+				std::move($params),
+				std::move($return_type),
+				std::move($body),
+				true,
+				true
+			);
+		}
+	;
+
+method_parameters
+	: %empty
+		{ $$ = std::vector<ast::nodes::Parameter>(); }
+	| THIS type_expr[type]
+		{
+			$$ = std::vector<ast::nodes::Parameter>();
+			$$.push_back(std::move(
+				ast::nodes::Parameter(
+					std::make_unique<ast::nodes::TypeExpression>(std::move($type)),
+					"this"
+				)
+			));
+		}
+	| method_parameters[params] COMMA parameter[p]
+		{
+			$params.push_back(std::move($p));
+			$$ = std::move($params);
 		}
 	;
 
