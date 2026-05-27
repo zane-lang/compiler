@@ -156,10 +156,25 @@ std::string operator()(const nodes::FunctionType& type) const {
 	if (type.returnType != nullptr) {
 		children.push_back(detail::tree::branch("returnType", render(*type.returnType)));
 	}
-	children.push_back(detail::tree::leaf("isMethod", type.isMethod ? "true" : "false"));
-	children.push_back(detail::tree::leaf("isMutating", type.isMutating ? "true" : "false"));
 
 	return detail::tree::node("FunctionType", children);
+}
+
+std::string operator()(const nodes::MethodType& type) const {
+	std::vector<std::string> children;
+	for (std::size_t i = 0; i < type.parameters.size(); ++i) {
+		children.push_back(detail::tree::branch(
+			"parameter[" + std::to_string(i) + "]",
+			std::visit(*this, type.parameters[i]->data)
+		));
+	}
+
+	if (type.returnType != nullptr) {
+		children.push_back(detail::tree::branch("returnType", render(*type.returnType)));
+	}
+	children.push_back(detail::tree::leaf("isMutating", type.isMutating ? "true" : "false"));
+
+	return detail::tree::node("MethodType", children);
 }
 
 std::string operator()(const nodes::TypeExpression& expression) const {

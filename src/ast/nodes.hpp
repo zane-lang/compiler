@@ -39,20 +39,29 @@ NODE(Parameter,
 NODE(FunctionType,
 	std::vector<std::unique_ptr<TypeExpression>> parameters;
 	std::unique_ptr<TypeExpression> returnType;
-	bool isMethod;
-	bool isMutating;
 
 	FunctionType(
 		std::vector<std::unique_ptr<TypeExpression>> parameters,
+		std::unique_ptr<TypeExpression> returnType
+	)
+	: parameters(std::move(parameters)), returnType(std::move(returnType)) {}
+);
+
+NODE(MethodType,
+	std::vector<std::unique_ptr<TypeExpression>> parameters;
+	std::unique_ptr<TypeExpression> returnType;
+	bool isMutating;
+
+	MethodType(
+		std::vector<std::unique_ptr<TypeExpression>> parameters,
 		std::unique_ptr<TypeExpression> returnType,
-		bool isMethod,
 		bool isMutating
 	)
-	: parameters(std::move(parameters)), returnType(std::move(returnType)), isMethod(isMethod), isMutating(isMutating) {}
+	: parameters(std::move(parameters)), returnType(std::move(returnType)), isMutating(isMutating) {}
 );
 
 NODE(TypeExpression,
-	std::variant<NameType, FunctionType> data;
+	std::variant<NameType, FunctionType, MethodType> data;
 
 	template <typename T>
 	explicit TypeExpression(T value) : data(std::move(value)) {}

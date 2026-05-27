@@ -58,6 +58,7 @@
 %type <ast::nodes::TypeExpression>                          type_expr
 %type <ast::nodes::NameType>                                name_type
 %type <ast::nodes::FunctionType>                            function_type
+%type <ast::nodes::MethodType>                              method_type
 %type <ast::nodes::Scope>                                   scope
 %type <std::vector<std::unique_ptr<ast::nodes::Statement>>> statements
 %type <ast::nodes::Statement>                               statement
@@ -221,26 +222,25 @@ function_type
 		{
 			$$ = ast::nodes::FunctionType(
 				std::move($params),
-				std::make_unique<ast::nodes::TypeExpression>(std::move($ret_type)),
-				false,
-				false
+				std::make_unique<ast::nodes::TypeExpression>(std::move($ret_type))
 			);
 		}
-	| LPAREN THIS type_list_ne[params] RPAREN THIN_ARROW type_expr[ret_type]
+	;
+
+method_type
+	: LPAREN THIS type_list_ne[params] RPAREN THIN_ARROW type_expr[ret_type]
 		{
-			$$ = ast::nodes::FunctionType(
+			$$ = ast::nodes::MethodType(
 				std::move($params),
 				std::make_unique<ast::nodes::TypeExpression>(std::move($ret_type)),
-				true,
 				false
 			);
 		}
 	| LPAREN THIS type_list_ne[params] RPAREN MUT THIN_ARROW type_expr[ret_type]
 		{
-			$$ = ast::nodes::FunctionType(
+			$$ = ast::nodes::MethodType(
 				std::move($params),
 				std::make_unique<ast::nodes::TypeExpression>(std::move($ret_type)),
-				true,
 				true
 			);
 		}
@@ -251,6 +251,8 @@ type_expr
 		{ $$ = ast::nodes::TypeExpression(std::move($nt)); }
 	| function_type[ft]
 		{ $$ = ast::nodes::TypeExpression(std::move($ft)); }
+	| method_type[mt]
+		{ $$ = ast::nodes::TypeExpression(std::move($mt)); }
 	;
 
 name_type
