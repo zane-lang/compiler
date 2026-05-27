@@ -1,5 +1,6 @@
 #include "ast/.hpp"
 #include "parser.tab.h"
+#include "treegraph/evaluator.hpp"
 #include <iostream>
 #include <string>
 #include <fstream>
@@ -31,7 +32,7 @@ int main() {
 	int res = parser.parse();
 
 	if (ast != nullptr) {
-		std::cout << ast::evaluators::ToString{}(*ast) << '\n';
+		std::cout << treegraph::Evaluator{}.render(ast::evaluators::ToGraph{}(*ast)) << '\n';
 		delete ast;
 	}
 
