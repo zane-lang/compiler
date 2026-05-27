@@ -3,4 +3,5 @@ Void main(b Int, a Bool) {
 	Std$print(1 + 1 + 3 + 4)
 	@Intrinsics$print("hello")
 	test Int = 3
+	func (Int) -> Void = 3
 }

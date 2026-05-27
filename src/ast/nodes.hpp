@@ -20,7 +20,7 @@ struct name {                       \
 	name& operator=(name&&) = default; \
 }
 
-NODE(NameType ,
+NODE(NameType,
 	std::string name;
 	std::vector<std::unique_ptr<TypeExpression>> generics;
 
@@ -28,7 +28,7 @@ NODE(NameType ,
 	: name(std::move(name)), generics(std::move(generics)) {}
 );
 
-NODE(Parameter ,
+NODE(Parameter,
 	std::unique_ptr<TypeExpression> type;
 	std::string name;
 
@@ -36,22 +36,29 @@ NODE(Parameter ,
 	: type(std::move(type)), name(std::move(name)) {}
 );
 
-NODE(FunctionType ,
-	std::vector<Parameter> parameters;
+NODE(FunctionType,
+	std::vector<std::unique_ptr<TypeExpression>> parameters;
 	std::unique_ptr<TypeExpression> returnType;
+	bool isMethod;
+	bool isMutating;
 
-	FunctionType(std::vector<Parameter> params, std::unique_ptr<TypeExpression> returnType)
-	: parameters(std::move(params)), returnType(std::move(returnType)) {}
+	FunctionType(
+		std::vector<std::unique_ptr<TypeExpression>> parameters,
+		std::unique_ptr<TypeExpression> returnType,
+		bool isMethod,
+		bool isMutating
+	)
+	: parameters(std::move(parameters)), returnType(std::move(returnType)), isMethod(isMethod), isMutating(isMutating) {}
 );
 
-NODE(TypeExpression ,
+NODE(TypeExpression,
 	std::variant<NameType, FunctionType> data;
 
 	template <typename T>
 	explicit TypeExpression(T value) : data(std::move(value)) {}
 );
 
-NODE(Scope ,
+NODE(Scope,
 	std::vector<std::unique_ptr<Statement>> statements;
 
 	explicit Scope(std::vector<std::unique_ptr<Statement>> statements)
@@ -73,7 +80,7 @@ NODE(VariableDecl,
 		value(std::move(value)) {}
 );
 
-NODE(FunctionDecl ,
+NODE(FunctionDecl,
 	std::string name;
 	std::vector<Parameter> parameters;
 	TypeExpression returnType;
@@ -98,14 +105,14 @@ NODE(FunctionDecl ,
 );
 
 /// The only unary operator
-NODE(OperatorFlipCall ,
+NODE(OperatorFlipCall,
 	std::unique_ptr<ValueExpr> value;
 
 	OperatorFlipCall(std::unique_ptr<ValueExpr> value)
 	: value(std::move(value)) {}
 );
 
-NODE(OperatorCall ,
+NODE(OperatorCall,
 	std::string op;
 	std::unique_ptr<ValueExpr> left;
 	std::unique_ptr<ValueExpr> right;
@@ -114,7 +121,7 @@ NODE(OperatorCall ,
 	: op(std::move(op)), left(std::move(left)), right(std::move(right)) {}
 );
 
-NODE(FunctionCall ,
+NODE(FunctionCall,
 	std::unique_ptr<ValueExpr> callee;
 	std::vector<std::unique_ptr<ValueExpr>> arguments;
 
@@ -122,19 +129,19 @@ NODE(FunctionCall ,
 	: callee(std::move(callee)), arguments(std::move(arguments)) {}
 );
 
-NODE(StringLiteral ,
+NODE(StringLiteral,
 	std::string data;
 
 	explicit StringLiteral(std::string data) : data(std::move(data)) {}
 );
 
-NODE(IntLiteral ,
+NODE(IntLiteral,
 	std::string data;
 
 	explicit IntLiteral(std::string data) : data(data) {}
 );
 
-NODE(FloatLiteral ,
+NODE(FloatLiteral,
 	std::string data;
 
 	explicit FloatLiteral(std::string data) : data(std::move(data)) {}
@@ -147,33 +154,33 @@ NODE(IntrinsicValueSymbol,
 	explicit IntrinsicValueSymbol(std::string name, std::string package) : name(std::move(name)), package(std::move(package)) {}
 );
 
-NODE(PackageValueSymbol ,
+NODE(PackageValueSymbol,
 	std::string name;
 	std::string package;
 
 	explicit PackageValueSymbol(std::string name, std::string package) : name(std::move(name)), package(std::move(package)) {}
 );
 
-NODE(ValueSymbol ,
+NODE(ValueSymbol,
 	std::string name;
 
 	explicit ValueSymbol(std::string name) : name(std::move(name)) {}
 );
 
-NODE(ParenthizedValue ,
+NODE(ParenthizedValue,
 	std::unique_ptr<ValueExpr> data;
 
 	explicit ParenthizedValue(std::unique_ptr<ValueExpr> value) : data(std::move(value)) {}
 );
 
-NODE(ValueExpr ,
+NODE(ValueExpr,
 	std::variant<FunctionCall, ParenthizedValue, OperatorCall, OperatorFlipCall, ValueSymbol, PackageValueSymbol, IntrinsicValueSymbol, StringLiteral, IntLiteral, FloatLiteral> data;
 
 	template <typename T>
 	explicit ValueExpr(T value) : data(std::move(value)) {}
 );
 
-NODE(Statement ,
+NODE(Statement,
 	std::variant<FunctionCall, VariableDecl> data;
 
 	template <typename T>
@@ -182,7 +189,7 @@ NODE(Statement ,
 
 using Declaration = std::variant<FunctionDecl>;
 
-NODE(Package ,
+NODE(Package,
 	std::vector<Declaration> declarations;
 
 	explicit Package(std::vector<Declaration> declarations)
