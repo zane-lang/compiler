@@ -10,11 +10,11 @@ release:
 
 test-parser:
 	meson compile -C build
-	./build/zane test-parser/main.zn
+	./build/zane
 
 glr-stats:
 	meson compile -C build
-	ELKHOUND_DEBUG=1 ./build/zane test-parser/main.zn 2>/dev/null
+	ELKHOUND_DEBUG=1 ./build/zane 2>/dev/null
 
 grammar-conflicts:
 	elkhound -v -tr conflict,prec src/grammar/parser.gr
