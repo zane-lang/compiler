@@ -1,6 +1,7 @@
 {
   "dependencies": [
     "nlohmann-json",
-    "cereal"
+    "cereal",
+    "elkhound-runtime"
   ]
 }

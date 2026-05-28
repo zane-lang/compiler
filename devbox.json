@@ -10,7 +10,7 @@
     "ninja@latest",
     "zig@latest",
     "clang-tools@latest",
-    "bison@latest",
+    "elkhound@latest",
     "re2c@latest"
   ],
   "shell": {

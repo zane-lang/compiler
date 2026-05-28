@@ -3,12 +3,19 @@ project('zane', 'cpp',
   default_options: ['cpp_std=c++20', 'warning_level=3'])
 
 re2c = find_program('re2c', required: true)
-bison = find_program('bison', required: true)
+elkhound = find_program('elkhound', required: true)
+
+elkhound_runtime = dependency('elkhound_runtime',
+  method: 'cmake',
+  cmake_args: [
+    '-DCMAKE_PREFIX_PATH=' + meson.project_source_root() / 'vcpkg_installed/x64-linux/share/elkhound-runtime',
+  ],
+  required: true)
 
 parser_gen = custom_target('parser',
-  input: 'src/grammar/parser.y',
-  output: ['parser.cc', 'parser.tab.h'],
-  command: [bison, '-d', '-o', '@OUTPUT0@', '--defines=@OUTPUT1@', '@INPUT@'],
+  input: 'src/grammar/parser.gr',
+  output: ['zane_parser.cc', 'zane_parser.h'],
+  command: [elkhound, '-o', '@OUTDIR@/zane_parser', '@INPUT@'],
   build_by_default: true,
 )
 
@@ -17,7 +24,6 @@ lexer_gen = custom_target('lexer',
   output: 'lexer.cc',
   command: [re2c, '-o', '@OUTPUT@', '@INPUT@'],
   build_by_default: true,
-  depends: [parser_gen],
 )
 
 executable('zane',
@@ -25,4 +31,5 @@ executable('zane',
   parser_gen[0], # parser.cc
   lexer_gen,     # lexer.cc
   include_directories: include_directories('src'),
+  dependencies: [elkhound_runtime],
 )

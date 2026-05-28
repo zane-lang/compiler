@@ -1,12 +1,10 @@
 #include "ast/.hpp"
-#include "parser.tab.h"
+#include "glr.h"
+#include "grammar/lexer.hpp"
+#include "zane_parser.h"
+#include <fstream>
 #include <iostream>
 #include <string>
-#include <fstream>
-
-int yylex(yy::Parser::semantic_type* yylval, yy::Parser::location_type* yylloc,
-	const char*& cursor, const char*& marker, const char* limit,
-	const std::string& sourcePath, const std::string& source, ast::nodes::Package*& ast, int& line, const char*& line_start);
 
 std::string readFile(const std::string& path) {
 	std::ifstream file(path);
@@ -19,21 +17,26 @@ std::string readFile(const std::string& path) {
 int main() {
 	const std::string inputPath = "test-parser/main.zn";
 	std::string input = readFile(inputPath);
+	Lexer lexer(inputPath, input);
+	Lexer::nextToken(&lexer);
 
-	const char* cursor     = input.c_str();
-	const char* marker     = cursor;
-	const char* limit      = cursor + input.size();
-	const char* line_start = cursor;
-	int line               = 1;
-	ast::nodes::Package* ast = nullptr;
+	ZaneParser parser;
+	GLR glr(&parser, parser.makeTables());
+	glr.noisyFailedParse = false;
 
-	yy::Parser parser(cursor, marker, limit, inputPath, input, ast, line, line_start);
-	int res = parser.parse();
+	SemanticValue result = NULL_SVAL;
+	const bool success = glr.glrParse(lexer, result);
+	if (!success) {
+		lexer.reportParseError();
+		return 1;
+	}
+
+	auto* ast = reinterpret_cast<ast::nodes::Package*>(result);
 
 	if (ast != nullptr) {
 		std::cout << (ast::evaluators::ToGraph {}(*ast)).render();
 		delete ast;
 	}
 
-	return res;
+	return 0;
 }

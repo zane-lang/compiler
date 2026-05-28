@@ -6,4 +6,6 @@ Void main(this Int, a Bool) {
 	func (this Int) -> Void = 3.0
 }
 
-Int getNum() => 3
+Int getNum() {
+	print()
+}

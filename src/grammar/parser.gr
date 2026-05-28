@@ -1,0 +1,539 @@
+verbatim {
+	#include "ast/.hpp"
+	#include <memory>
+	#include <string>
+	#include <utility>
+	#include <variant>
+	#include <vector>
+
+	namespace grammar_support {
+
+	struct FunctionBodyValue {
+		std::variant<ast::nodes::Scope, ast::nodes::ArrowBody> value;
+
+		explicit FunctionBodyValue(std::variant<ast::nodes::Scope, ast::nodes::ArrowBody> value)
+		: value(std::move(value)) {}
+	};
+
+	template <typename T>
+	T take_value(T* ptr) {
+		T value = std::move(*ptr);
+		delete ptr;
+		return value;
+	}
+
+	template <typename T>
+	std::unique_ptr<T> take_ptr(T* ptr) {
+		return std::unique_ptr<T>(ptr);
+	}
+
+	inline std::string take_string(std::string* ptr) {
+		std::string value = std::move(*ptr);
+		delete ptr;
+		return value;
+	}
+
+	inline ast::nodes::ValueExpr* make_binary(
+		std::string op,
+		ast::nodes::ValueExpr* left,
+		ast::nodes::ValueExpr* right
+	) {
+		return new ast::nodes::ValueExpr(
+			ast::nodes::OperatorCall(
+				std::move(op),
+				take_ptr(left),
+				take_ptr(right)
+			)
+		);
+	}
+
+	inline ast::nodes::ValueExpr* make_flip(ast::nodes::ValueExpr* value) {
+		return new ast::nodes::ValueExpr(ast::nodes::OperatorFlipCall(take_ptr(value)));
+	}
+
+	inline ast::nodes::ValueExpr* wrap_call(ast::nodes::FunctionCall* call) {
+		return new ast::nodes::ValueExpr(take_value(call));
+	}
+
+	inline ast::nodes::ValueExpr* wrap_parenthesized(ast::nodes::ParenthizedValue* value) {
+		return new ast::nodes::ValueExpr(take_value(value));
+	}
+
+	} // namespace grammar_support
+}
+
+option defaultMergeAborts;
+
+context_class ZaneParser : public UserActions {
+public:
+	// generated parser hooks are added by Elkhound
+};
+
+terminals {
+	0  : TOK_EOF;
+	1  : TOK_LPAREN      "(";
+	2  : TOK_RPAREN      ")";
+	3  : TOK_LCURLY      "{";
+	4  : TOK_RCURLY      "}";
+	5  : TOK_COMMA       ",";
+	6  : TOK_COLON       ":";
+	7  : TOK_EQUAL       "=";
+	8  : TOK_DOLLAR      "$";
+	9  : TOK_THIN_ARROW  "->";
+	10 : TOK_THICK_ARROW "=>";
+	11 : TOK_AT          "@";
+	12 : TOK_MUT         "mut";
+	13 : TOK_THIS        "this";
+	14 : TOK_STRING;
+	15 : TOK_IDENT;
+	16 : TOK_INT;
+	17 : TOK_FLOAT;
+	18 : TOK_PLUS        "+";
+	19 : TOK_MINUS       "-";
+	20 : TOK_STAR        "*";
+	21 : TOK_SLASH       "/";
+	22 : TOK_TILDE       "~";
+	23 : TOK_ERROR;
+
+	token(std::string*) TOK_STRING {
+		fun dup(s) [return new std::string(*s);]
+		fun del(s) [delete s;]
+	}
+	token(std::string*) TOK_IDENT {
+		fun dup(s) [return new std::string(*s);]
+		fun del(s) [delete s;]
+	}
+	token(std::string*) TOK_INT {
+		fun dup(s) [return new std::string(*s);]
+		fun del(s) [delete s;]
+	}
+	token(std::string*) TOK_FLOAT {
+		fun dup(s) [return new std::string(*s);]
+		fun del(s) [delete s;]
+	}
+
+	precedence {
+		left 20 "*" "/";
+		left 10 "+" "-";
+		right 30 "~";
+	}
+}
+
+nonterm(ast::nodes::Package*) package {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> declarations:global_scope {
+		return new ast::nodes::Package(grammar_support::take_value(declarations));
+	}
+}
+
+nonterm(std::vector<ast::nodes::Declaration>*) global_scope {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> {
+		return new std::vector<ast::nodes::Declaration>();
+	}
+	-> declarations:global_scope declaration:declaration {
+		declarations->push_back(grammar_support::take_value(declaration));
+		return declarations;
+	}
+}
+
+nonterm(ast::nodes::Declaration*) declaration {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> function:function_decl {
+		return new ast::nodes::Declaration(grammar_support::take_value(function));
+	}
+	-> method:method_decl {
+		return new ast::nodes::Declaration(grammar_support::take_value(method));
+	}
+}
+
+nonterm(ast::nodes::VariableDecl*) variable_decl {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> name:TOK_IDENT type:type_expr "=" value:value_expr {
+		return new ast::nodes::VariableDecl(
+			grammar_support::take_string(name),
+			grammar_support::take_value(type),
+			grammar_support::take_ptr(value)
+		);
+	}
+}
+
+nonterm(ast::nodes::FunctionDecl*) function_decl {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> return_type:type_expr name:TOK_IDENT "(" params:parameters ")" body:function_body {
+		return new ast::nodes::FunctionDecl(
+			grammar_support::take_string(name),
+			grammar_support::take_value(params),
+			grammar_support::take_value(return_type),
+			grammar_support::take_value(body).value
+		);
+	}
+}
+
+nonterm(ast::nodes::MethodDecl*) method_decl {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> return_type:type_expr name:TOK_IDENT "(" params:method_parameters ")" body:function_body {
+		return new ast::nodes::MethodDecl(
+			grammar_support::take_string(name),
+			grammar_support::take_value(params),
+			grammar_support::take_value(return_type),
+			grammar_support::take_value(body).value,
+			false
+		);
+	}
+	-> return_type:type_expr name:TOK_IDENT "(" params:method_parameters ")" "mut" body:function_body {
+		return new ast::nodes::MethodDecl(
+			grammar_support::take_string(name),
+			grammar_support::take_value(params),
+			grammar_support::take_value(return_type),
+			grammar_support::take_value(body).value,
+			true
+		);
+	}
+}
+
+nonterm(std::vector<ast::nodes::Parameter>*) parameters {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> {
+		return new std::vector<ast::nodes::Parameter>();
+	}
+	-> list:parameter_list {
+		return list;
+	}
+}
+
+nonterm(std::vector<ast::nodes::Parameter>*) parameter_list {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> parameter:parameter {
+		auto* list = new std::vector<ast::nodes::Parameter>();
+		list->push_back(grammar_support::take_value(parameter));
+		return list;
+	}
+	-> list:parameter_list "," parameter:parameter {
+		list->push_back(grammar_support::take_value(parameter));
+		return list;
+	}
+}
+
+nonterm(std::vector<ast::nodes::Parameter>*) method_parameters {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> list:method_parameter_seq {
+		return list;
+	}
+}
+
+nonterm(std::vector<ast::nodes::Parameter>*) method_parameter_seq {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> "this" type:type_expr {
+		auto* list = new std::vector<ast::nodes::Parameter>();
+		list->push_back(ast::nodes::Parameter(grammar_support::take_ptr(type), "this"));
+		return list;
+	}
+	-> list:method_parameter_seq "," parameter:parameter {
+		list->push_back(grammar_support::take_value(parameter));
+		return list;
+	}
+}
+
+nonterm(ast::nodes::Parameter*) parameter {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> name:TOK_IDENT type:type_expr {
+		return new ast::nodes::Parameter(
+			grammar_support::take_ptr(type),
+			grammar_support::take_string(name)
+		);
+	}
+}
+
+nonterm(std::vector<std::unique_ptr<ast::nodes::TypeExpression>>*) type_list {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> {
+		return new std::vector<std::unique_ptr<ast::nodes::TypeExpression>>();
+	}
+	-> list:type_list_ne {
+		return list;
+	}
+}
+
+nonterm(std::vector<std::unique_ptr<ast::nodes::TypeExpression>>*) type_list_ne {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> expr:type_expr {
+		auto* list = new std::vector<std::unique_ptr<ast::nodes::TypeExpression>>();
+		list->push_back(grammar_support::take_ptr(expr));
+		return list;
+	}
+	-> list:type_list_ne "," expr:type_expr {
+		list->push_back(grammar_support::take_ptr(expr));
+		return list;
+	}
+}
+
+nonterm(ast::nodes::TypeExpression*) type_expr {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> name:name_type {
+		return new ast::nodes::TypeExpression(grammar_support::take_value(name));
+	}
+	-> function:function_type {
+		return new ast::nodes::TypeExpression(grammar_support::take_value(function));
+	}
+	-> method:method_type {
+		return new ast::nodes::TypeExpression(grammar_support::take_value(method));
+	}
+}
+
+nonterm(ast::nodes::NameType*) name_type {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> identifier:TOK_IDENT {
+		return new ast::nodes::NameType(
+			grammar_support::take_string(identifier),
+			std::vector<std::unique_ptr<ast::nodes::TypeExpression>>()
+		);
+	}
+}
+
+nonterm(ast::nodes::FunctionType*) function_type {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> "(" params:type_list ")" "->" return_type:type_expr {
+		return new ast::nodes::FunctionType(
+			grammar_support::take_value(params),
+			grammar_support::take_ptr(return_type)
+		);
+	}
+}
+
+nonterm(ast::nodes::MethodType*) method_type {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> "(" "this" params:type_list_ne ")" "->" return_type:type_expr {
+		return new ast::nodes::MethodType(
+			grammar_support::take_value(params),
+			grammar_support::take_ptr(return_type),
+			false
+		);
+	}
+	-> "(" "this" params:type_list_ne ")" "mut" "->" return_type:type_expr {
+		return new ast::nodes::MethodType(
+			grammar_support::take_value(params),
+			grammar_support::take_ptr(return_type),
+			true
+		);
+	}
+}
+
+nonterm(ast::nodes::ArrowBody*) arrow_body {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> "=>" value:value_expr {
+		return new ast::nodes::ArrowBody(grammar_support::take_ptr(value));
+	}
+}
+
+nonterm(grammar_support::FunctionBodyValue*) function_body {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> body:arrow_body {
+		return new grammar_support::FunctionBodyValue(grammar_support::take_value(body));
+	}
+	-> body:scope {
+		return new grammar_support::FunctionBodyValue(grammar_support::take_value(body));
+	}
+}
+
+nonterm(ast::nodes::Scope*) scope {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> "{" statements:statements "}" {
+		return new ast::nodes::Scope(grammar_support::take_value(statements));
+	}
+}
+
+nonterm(std::vector<std::unique_ptr<ast::nodes::Statement>>*) statements {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> {
+		return new std::vector<std::unique_ptr<ast::nodes::Statement>>();
+	}
+	-> list:statements statement:statement {
+		list->push_back(grammar_support::take_ptr(statement));
+		return list;
+	}
+}
+
+nonterm(ast::nodes::Statement*) statement {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> call:statement_function_call {
+		return new ast::nodes::Statement(grammar_support::take_value(call));
+	}
+	-> declaration:variable_decl {
+		return new ast::nodes::Statement(grammar_support::take_value(declaration));
+	}
+}
+
+nonterm(ast::nodes::FunctionCall*) statement_function_call {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> call:call_expr {
+		return call;
+	}
+}
+
+nonterm(ast::nodes::ValueExpr*) value_expr {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> expr:additive_expr {
+		return expr;
+	}
+}
+
+nonterm(ast::nodes::ValueExpr*) additive_expr {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> expr:multiplicative_expr {
+		return expr;
+	}
+	-> left:additive_expr "+" right:multiplicative_expr {
+		return grammar_support::make_binary("+", left, right);
+	}
+	-> left:additive_expr "-" right:multiplicative_expr {
+		return grammar_support::make_binary("-", left, right);
+	}
+}
+
+nonterm(ast::nodes::ValueExpr*) multiplicative_expr {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> expr:unary_expr {
+		return expr;
+	}
+	-> left:multiplicative_expr "*" right:unary_expr {
+		return grammar_support::make_binary("*", left, right);
+	}
+	-> left:multiplicative_expr "/" right:unary_expr {
+		return grammar_support::make_binary("/", left, right);
+	}
+}
+
+nonterm(ast::nodes::ValueExpr*) unary_expr {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> expr:postfix_expr {
+		return expr;
+	}
+	-> "~" expr:unary_expr precedence("~") {
+		return grammar_support::make_flip(expr);
+	}
+}
+
+nonterm(ast::nodes::ValueExpr*) postfix_expr {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> expr:primary_expr {
+		return expr;
+	}
+	-> call:call_expr {
+		return grammar_support::wrap_call(call);
+	}
+}
+
+nonterm(ast::nodes::FunctionCall*) call_expr {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> callee:primary_expr "(" args:arguments ")" {
+		return new ast::nodes::FunctionCall(
+			grammar_support::take_ptr(callee),
+			grammar_support::take_value(args)
+		);
+	}
+	-> callee:call_expr "(" args:arguments ")" {
+		return new ast::nodes::FunctionCall(
+			std::make_unique<ast::nodes::ValueExpr>(grammar_support::take_value(callee)),
+			grammar_support::take_value(args)
+		);
+	}
+}
+
+nonterm(ast::nodes::ValueExpr*) primary_expr {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> identifier:TOK_IDENT {
+		return new ast::nodes::ValueExpr(ast::nodes::ValueSymbol(grammar_support::take_string(identifier)));
+	}
+	-> package:TOK_IDENT "$" identifier:TOK_IDENT {
+		return new ast::nodes::ValueExpr(
+			ast::nodes::PackageValueSymbol(
+				grammar_support::take_string(identifier),
+				grammar_support::take_string(package)
+			)
+		);
+	}
+	-> "@" package:TOK_IDENT "$" identifier:TOK_IDENT {
+		return new ast::nodes::ValueExpr(
+			ast::nodes::IntrinsicValueSymbol(
+				grammar_support::take_string(identifier),
+				grammar_support::take_string(package)
+			)
+		);
+	}
+	-> integer:TOK_INT {
+		return new ast::nodes::ValueExpr(ast::nodes::IntLiteral(grammar_support::take_string(integer)));
+	}
+	-> number:TOK_FLOAT {
+		return new ast::nodes::ValueExpr(ast::nodes::FloatLiteral(grammar_support::take_string(number)));
+	}
+	-> text:TOK_STRING {
+		return new ast::nodes::ValueExpr(ast::nodes::StringLiteral(grammar_support::take_string(text)));
+	}
+	-> value:parenthized_value {
+		return grammar_support::wrap_parenthesized(value);
+	}
+}
+
+nonterm(ast::nodes::ParenthizedValue*) parenthized_value {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> "(" value:value_expr ")" {
+		return new ast::nodes::ParenthizedValue(grammar_support::take_ptr(value));
+	}
+}
+
+nonterm(std::vector<std::unique_ptr<ast::nodes::ValueExpr>>*) arguments {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> {
+		return new std::vector<std::unique_ptr<ast::nodes::ValueExpr>>();
+	}
+	-> list:argument_list {
+		return list;
+	}
+}
+
+nonterm(std::vector<std::unique_ptr<ast::nodes::ValueExpr>>*) argument_list {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> value:value_expr {
+		auto* list = new std::vector<std::unique_ptr<ast::nodes::ValueExpr>>();
+		list->push_back(grammar_support::take_ptr(value));
+		return list;
+	}
+	-> list:argument_list "," value:value_expr {
+		list->push_back(grammar_support::take_ptr(value));
+		return list;
+	}
+}
