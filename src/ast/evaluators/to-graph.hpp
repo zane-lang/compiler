@@ -1,8 +1,7 @@
 #pragma once
 
 #include "ast/nodes.hpp"
-#include "treegraph/build.hpp"
-#include "treegraph/structure.hpp"
+#include "treegraph/.hpp"
 #include <string>
 #include <variant>
 
