@@ -50,10 +50,6 @@ verbatim {
 		return new ast::nodes::ValueExpr(takeValue(call));
 	}
 
-	inline ast::nodes::ValueExpr* wrapParenthesized(ast::nodes::ParenthizedValue* value) {
-		return new ast::nodes::ValueExpr(takeValue(value));
-	}
-
 	} // namespace grammarSupport
 }
 
@@ -424,7 +420,7 @@ nonterm(ast::nodes::ValueExpr*) value_expr {
 		return new ast::nodes::ValueExpr(ast::nodes::StringLiteral(grammarSupport::takeString(text)));
 	}
 	-> value:parenthized_value {
-		return grammarSupport::wrapParenthesized(value);
+		return new ast::nodes::ValueExpr(grammarSupport::takeValue(value));
 	}
 	-> call:function_call {
 		return new ast::nodes::ValueExpr(grammarSupport::takeValue(call));
