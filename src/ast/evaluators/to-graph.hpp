@@ -103,7 +103,9 @@ struct ToGraph {
 	}
 
 	treegraph::Node operator()(const nodes::TypeExpression& expression) const {
-		return std::visit(*this, expression.data);
+		treegraph::Table table;
+		table.insert("ArrowBody", treegraph::ptr(std::visit(*this, expression.data)));
+		return treegraph::Node(std::move(table));
 	}
 
 	treegraph::Node operator()(const nodes::Parameter& parameter) const {

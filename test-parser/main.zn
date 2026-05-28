@@ -5,3 +5,5 @@ Void main(this Int, a Bool) {
 	test Int = 3
 	func (this Int) -> Void = 3.0
 }
+
+Int getNum() => 3
