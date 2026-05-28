@@ -370,93 +370,10 @@ nonterm(std::vector<std::unique_ptr<ast::nodes::Statement>>*) statements {
 	}
 }
 
-nonterm(ast::nodes::Statement*) statement {
+nonterm(ast::nodes::FunctionCall*) function_call {
 	fun dup(p) [return p;]
 	fun del(p) []
-	-> call:statement_function_call {
-		return new ast::nodes::Statement(grammarSupport::takeValue(call));
-	}
-	-> declaration:variable_decl {
-		return new ast::nodes::Statement(grammarSupport::takeValue(declaration));
-	}
-}
-
-nonterm(ast::nodes::FunctionCall*) statement_function_call {
-	fun dup(p) [return p;]
-	fun del(p) []
-	-> call:call_expr {
-		return call;
-	}
-}
-
-nonterm(ast::nodes::ValueExpr*) value_expr {
-	fun dup(p) [return p;]
-	fun del(p) []
-	-> expr:additive_expr {
-		return expr;
-	}
-}
-
-nonterm(ast::nodes::ValueExpr*) additive_expr {
-	fun dup(p) [return p;]
-	fun del(p) []
-	-> expr:multiplicative_expr {
-		return expr;
-	}
-	-> left:additive_expr "+" right:multiplicative_expr {
-		return grammarSupport::makeBinary("+", left, right);
-	}
-	-> left:additive_expr "-" right:multiplicative_expr {
-		return grammarSupport::makeBinary("-", left, right);
-	}
-}
-
-nonterm(ast::nodes::ValueExpr*) multiplicative_expr {
-	fun dup(p) [return p;]
-	fun del(p) []
-	-> expr:unary_expr {
-		return expr;
-	}
-	-> left:multiplicative_expr "*" right:unary_expr {
-		return grammarSupport::makeBinary("*", left, right);
-	}
-	-> left:multiplicative_expr "/" right:unary_expr {
-		return grammarSupport::makeBinary("/", left, right);
-	}
-}
-
-nonterm(ast::nodes::ValueExpr*) unary_expr {
-	fun dup(p) [return p;]
-	fun del(p) []
-	-> expr:postfix_expr {
-		return expr;
-	}
-	-> "~" expr:unary_expr precedence("~") {
-		return grammarSupport::makeFlip(expr);
-	}
-}
-
-nonterm(ast::nodes::ValueExpr*) postfix_expr {
-	fun dup(p) [return p;]
-	fun del(p) []
-	-> expr:primary_expr {
-		return expr;
-	}
-	-> call:call_expr {
-		return grammarSupport::wrapCall(call);
-	}
-}
-
-nonterm(ast::nodes::FunctionCall*) call_expr {
-	fun dup(p) [return p;]
-	fun del(p) []
-	-> callee:primary_expr "(" args:arguments ")" {
-		return new ast::nodes::FunctionCall(
-			grammarSupport::takePtr(callee),
-			grammarSupport::takeValue(args)
-		);
-	}
-	-> callee:call_expr "(" args:arguments ")" {
+	-> callee:value_expr "(" args: arguments ")" {
 		return new ast::nodes::FunctionCall(
 			std::make_unique<ast::nodes::ValueExpr>(grammarSupport::takeValue(callee)),
 			grammarSupport::takeValue(args)
@@ -464,7 +381,18 @@ nonterm(ast::nodes::FunctionCall*) call_expr {
 	}
 }
 
-nonterm(ast::nodes::ValueExpr*) primary_expr {
+nonterm(ast::nodes::Statement*) statement {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> call:function_call {
+		return new ast::nodes::Statement(grammarSupport::takeValue(call));
+	}
+	-> declaration:variable_decl {
+		return new ast::nodes::Statement(grammarSupport::takeValue(declaration));
+	}
+}
+
+nonterm(ast::nodes::ValueExpr*) value_expr {
 	fun dup(p) [return p;]
 	fun del(p) []
 	-> identifier:TOK_IDENT {
@@ -497,6 +425,24 @@ nonterm(ast::nodes::ValueExpr*) primary_expr {
 	}
 	-> value:parenthized_value {
 		return grammarSupport::wrapParenthesized(value);
+	}
+	-> call:function_call {
+		return new ast::nodes::ValueExpr(grammarSupport::takeValue(call));
+	}
+	-> "~" expr:value_expr precedence("~") {
+		return grammarSupport::makeFlip(expr);
+	}
+	-> left:value_expr "*" right:value_expr {
+		return grammarSupport::makeBinary("*", left, right);
+	}
+	-> left:value_expr "/" right:value_expr {
+		return grammarSupport::makeBinary("/", left, right);
+	}
+	-> left:value_expr "+" right:value_expr {
+		return grammarSupport::makeBinary("*", left, right);
+	}
+	-> left:value_expr "-" right:value_expr {
+		return grammarSupport::makeBinary("/", left, right);
 	}
 }
 
