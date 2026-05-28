@@ -8,12 +8,7 @@ verbatim {
 
 	namespace grammarSupport {
 
-	struct FunctionBodyValue {
-		std::variant<ast::nodes::Scope, ast::nodes::ArrowBody> value;
-
-		explicit FunctionBodyValue(std::variant<ast::nodes::Scope, ast::nodes::ArrowBody> value)
-		: value(std::move(value)) {}
-	};
+	using FunctionBody = std::variant<ast::nodes::Scope, ast::nodes::ArrowBody>;
 
 	template <typename T>
 	T takeValue(T* ptr) {
@@ -170,7 +165,7 @@ nonterm(ast::nodes::FunctionDecl*) function_decl {
 			grammarSupport::takeString(name),
 			grammarSupport::takeValue(params),
 			grammarSupport::takeValue(return_type),
-			grammarSupport::takeValue(body).value
+			grammarSupport::takeValue(body)
 		);
 	}
 }
@@ -183,7 +178,7 @@ nonterm(ast::nodes::MethodDecl*) method_decl {
 			grammarSupport::takeString(name),
 			grammarSupport::takeValue(params),
 			grammarSupport::takeValue(return_type),
-			grammarSupport::takeValue(body).value,
+			grammarSupport::takeValue(body),
 			false
 		);
 	}
@@ -192,7 +187,7 @@ nonterm(ast::nodes::MethodDecl*) method_decl {
 			grammarSupport::takeString(name),
 			grammarSupport::takeValue(params),
 			grammarSupport::takeValue(return_type),
-			grammarSupport::takeValue(body).value,
+			grammarSupport::takeValue(body),
 			true
 		);
 	}
@@ -344,14 +339,14 @@ nonterm(ast::nodes::ArrowBody*) arrow_body {
 	}
 }
 
-nonterm(grammarSupport::FunctionBodyValue*) function_body {
+nonterm(grammarSupport::FunctionBody*) function_body {
 	fun dup(p) [return p;]
 	fun del(p) []
 	-> body:arrow_body {
-		return new grammarSupport::FunctionBodyValue(grammarSupport::takeValue(body));
+		return new grammarSupport::FunctionBody(grammarSupport::takeValue(body));
 	}
 	-> body:scope {
-		return new grammarSupport::FunctionBodyValue(grammarSupport::takeValue(body));
+		return new grammarSupport::FunctionBody(grammarSupport::takeValue(body));
 	}
 }
 
