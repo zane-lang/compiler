@@ -32,7 +32,7 @@ int main() {
 	int res = parser.parse();
 
 	if (ast != nullptr) {
-		std::cout << treegraph::Evaluator{}.render(ast::evaluators::ToGraph{}(*ast)) << '\n';
+		std::cout << (ast::evaluators::ToGraph {}(*ast)).render();
 		delete ast;
 	}
 

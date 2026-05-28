@@ -43,6 +43,8 @@ struct Node {
 	explicit Node(Table data) : data(std::move(data)) {}
 	explicit Node(List data) : data(std::move(data)) {}
 	explicit Node(std::string data) : data(std::move(data)) {}
+
+	std::string render() const;
 };
 
 } // namespace treegraph

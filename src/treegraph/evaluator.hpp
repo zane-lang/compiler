@@ -158,4 +158,8 @@ private:
 	}
 };
 
+inline std::string Node::render() const {
+	return Evaluator{}.render(*this);
+}
+
 } // namespace treegraph
