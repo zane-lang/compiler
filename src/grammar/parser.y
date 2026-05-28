@@ -35,7 +35,7 @@
 // --- tokens ---
 %token LPAREN RPAREN LCURLY RCURLY
 %token COMMA COLON EQUAL
-%token DOLLAR THIN_ARROW AT
+%token DOLLAR THIN_ARROW THICK_ARROW AT
 %token MUT THIS
 %token <std::string> STRING IDENT INT FLOAT
 %token ERROR
@@ -59,7 +59,9 @@
 %type <ast::nodes::NameType>                                name_type
 %type <ast::nodes::FunctionType>                            function_type
 %type <ast::nodes::MethodType>                              method_type
+%type <ast::nodes::ArrowBody>                               arrow_body
 %type <ast::nodes::Scope>                                   scope
+%type <std::variant<ast::nodes::Scope, ast::nodes::ArrowBody>> function_body
 %type <std::vector<std::unique_ptr<ast::nodes::Statement>>> statements
 %type <ast::nodes::Statement>                               statement
 %type <ast::nodes::OperatorCall>                            operator_call
@@ -108,8 +110,26 @@ variable_decl
 		}
 	;
 
+arrow_body
+	: THICK_ARROW value_expr[val]
+		{
+			$$ = ast::nodes::ArrowBody(std::make_unique<ast::nodes::ValueExpr>(std::move($val)));
+		}
+	;
+
+function_body
+	: arrow_body[arrow]
+		{
+			$$ = std::move($arrow);
+		}
+	| scope[scope]
+		{
+			$$ = std::move($scope);
+		}
+	;
+
 function_decl
-	: type_expr[return_type] IDENT[name] LPAREN parameters[params] RPAREN scope[body]
+	: type_expr[return_type] IDENT[name] LPAREN parameters[params] RPAREN function_body[body]
 		{
 			$$ = ast::nodes::FunctionDecl(
 				std::move($name),
@@ -121,7 +141,7 @@ function_decl
 	;
 
 method_decl
-	: type_expr[return_type] IDENT[name] LPAREN method_parameters[params] RPAREN scope[body]
+	: type_expr[return_type] IDENT[name] LPAREN method_parameters[params] RPAREN function_body[body]
 		{
 			$$ = ast::nodes::MethodDecl(
 				std::move($name),
@@ -132,7 +152,7 @@ method_decl
 			);
 		}
 	
-	| type_expr[return_type] IDENT[name] LPAREN method_parameters[params] RPAREN MUT scope[body]
+	| type_expr[return_type] IDENT[name] LPAREN method_parameters[params] RPAREN MUT function_body[body]
 		{
 			$$ = ast::nodes::MethodDecl(
 				std::move($name),
@@ -150,12 +170,12 @@ method_parameters
 	| THIS type_expr[type]
 		{
 			$$ = std::vector<ast::nodes::Parameter>();
-			$$.push_back(std::move(
+			$$.push_back(
 				ast::nodes::Parameter(
 					std::make_unique<ast::nodes::TypeExpression>(std::move($type)),
 					"this"
 				)
-			));
+			);
 		}
 	| method_parameters[params] COMMA parameter[p]
 		{

@@ -87,6 +87,7 @@ int yylex(
 		"$"   { tok = yy::Parser::token::DOLLAR;  goto done; }
 		"@"   { tok = yy::Parser::token::AT;  goto done; }
 		"->"   { tok = yy::Parser::token::THIN_ARROW;  goto done; }
+		"=>"   { tok = yy::Parser::token::THICK_ARROW;  goto done; }
 
 		float_lit {
 			yylval->emplace<std::string>(toStr(start, cursor));

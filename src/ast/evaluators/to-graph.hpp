@@ -80,7 +80,7 @@ struct ToGraph {
 		treegraph::List parameters;
 		for (const auto& parameter : type.parameters)
 			if (parameter != nullptr)
-				parameters.push({}, treegraph::ptr(std::visit([this](const auto& p) { return (*this)(p); }, parameter->data)));
+				parameters.push({}, treegraph::ptr(std::visit(*this, parameter->data)));
 		if (!parameters.children.empty())
 			table.insert("Parameters", treegraph::list(std::move(parameters)));
 		if (type.returnType != nullptr)
@@ -93,7 +93,7 @@ struct ToGraph {
 		treegraph::List parameters;
 		for (const auto& parameter : type.parameters)
 			if (parameter != nullptr)
-				parameters.push({}, treegraph::ptr(std::visit([this](const auto& p) { return (*this)(p); }, parameter->data)));
+				parameters.push({}, treegraph::ptr(std::visit(*this, parameter->data)));
 		if (!parameters.children.empty())
 			table.insert("Parameters", treegraph::list(std::move(parameters)));
 		if (type.returnType != nullptr)
@@ -103,7 +103,7 @@ struct ToGraph {
 	}
 
 	treegraph::Node operator()(const nodes::TypeExpression& expression) const {
-		return std::visit([this](const auto& e) { return (*this)(e); }, expression.data);
+		return std::visit(*this, expression.data);
 	}
 
 	treegraph::Node operator()(const nodes::Parameter& parameter) const {
@@ -115,7 +115,7 @@ struct ToGraph {
 	}
 
 	treegraph::Node operator()(const nodes::Statement& statement) const {
-		return std::visit([this](const auto& s) { return (*this)(s); }, statement.data);
+		return std::visit(*this, statement.data);
 	}
 
 	treegraph::Node operator()(const nodes::Scope& scope) const {
@@ -137,6 +137,10 @@ struct ToGraph {
 		return treegraph::Node(std::move(table));
 	}
 
+	treegraph::Node operator()(const nodes::ArrowBody& body) const {
+		return (*this)(*body.returnValue);
+	}
+
 	treegraph::Node operator()(const nodes::FunctionDecl& declaration) const {
 		treegraph::Table table;
 		table.insert("Name", treegraph::string(declaration.name));
@@ -146,7 +150,7 @@ struct ToGraph {
 		if (!parameters.children.empty())
 			table.insert("Parameters", treegraph::list(std::move(parameters)));
 		table.insert("ReturnType", treegraph::ptr((*this)(declaration.returnType)));
-		table.insert("FunctionBody", treegraph::ptr((*this)(declaration.functionBody)));
+		table.insert("FunctionBody", treegraph::ptr(std::visit(*this, declaration.functionBody)));
 		return treegraph::Node{std::move(table)};
 	}
 
@@ -160,12 +164,12 @@ struct ToGraph {
 		if (!parameters.children.empty())
 			table.insert("Parameters", treegraph::list(std::move(parameters)));
 		table.insert("ReturnType", treegraph::ptr((*this)(declaration.returnType)));
-		table.insert("FunctionBody", treegraph::ptr((*this)(declaration.functionBody)));
+		table.insert("FunctionBody", treegraph::ptr(std::visit(*this, declaration.functionBody)));
 		return treegraph::Node{std::move(table)};
 	}
 
 	treegraph::Node operator()(const nodes::Declaration& declaration) const {
-		return std::visit([this](const auto& d) { return (*this)(d); }, declaration);
+		return std::visit(*this, declaration);
 	}
 
 	treegraph::Node operator()(const nodes::Package& package) const {
@@ -183,7 +187,7 @@ struct ToGraph {
 	}
 
 	treegraph::Node operator()(const nodes::ValueExpr& expression) const {
-		return std::visit([this](const auto& e) { return (*this)(e); }, expression.data);
+		return std::visit(*this, expression.data);
 	}
 };
 

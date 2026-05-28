@@ -89,17 +89,23 @@ NODE(VariableDecl,
 		value(std::move(value)) {}
 );
 
+NODE(ArrowBody,
+	std::unique_ptr<ValueExpr> returnValue;
+
+	ArrowBody(std::unique_ptr<ValueExpr> returnValue) : returnValue(std::move(returnValue)) {}
+);
+
 NODE(FunctionDecl,
 	std::string name;
 	std::vector<Parameter> parameters;
 	TypeExpression returnType;
-	Scope functionBody;
+	std::variant<Scope, ArrowBody> functionBody;
 
 	FunctionDecl(
 		std::string name,
 		std::vector<Parameter> parameters,
 		TypeExpression returnType,
-		Scope functionBody
+		std::variant<Scope, ArrowBody> functionBody
 	)
 		: name(std::move(name)),
 		parameters(std::move(parameters)),
@@ -111,14 +117,14 @@ NODE(MethodDecl,
 	std::string name;
 	std::vector<Parameter> parameters;
 	TypeExpression returnType;
-	Scope functionBody;
+	std::variant<Scope, ArrowBody> functionBody;
 	bool isMutating;
 
 	MethodDecl(
 		std::string name,
 		std::vector<Parameter> parameters,
 		TypeExpression returnType,
-		Scope functionBody,
+		std::variant<Scope, ArrowBody> functionBody,
 		bool isMutating
 	)
 		: name(std::move(name)),
