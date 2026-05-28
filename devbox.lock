@@ -153,54 +153,6 @@
         }
       }
     },
-    "elkhound@latest": {
-      "last_modified": "2026-04-23T13:07:47Z",
-      "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#elkhound",
-      "source": "devbox-search",
-      "version": "0-unstable-2020-04-13",
-      "systems": {
-        "aarch64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/1i4ny8flqb1pgd1ly7f3c13a6mh9i6bx-elkhound-0-unstable-2020-04-13",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/1i4ny8flqb1pgd1ly7f3c13a6mh9i6bx-elkhound-0-unstable-2020-04-13"
-        },
-        "aarch64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/jzl4xkd3l33ryiqrsbzcjmlwwr8v3w5g-elkhound-0-unstable-2020-04-13",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/jzl4xkd3l33ryiqrsbzcjmlwwr8v3w5g-elkhound-0-unstable-2020-04-13"
-        },
-        "x86_64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/9n87n5khz2kzr3gkj2z6ynwgak0zskw5-elkhound-0-unstable-2020-04-13",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/9n87n5khz2kzr3gkj2z6ynwgak0zskw5-elkhound-0-unstable-2020-04-13"
-        },
-        "x86_64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/macnab366i1q2zps273r05dh1pbs34y2-elkhound-0-unstable-2020-04-13",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/macnab366i1q2zps273r05dh1pbs34y2-elkhound-0-unstable-2020-04-13"
-        }
-      }
-    },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
       "last_modified": "2026-05-27T10:28:13Z",
       "resolved": "github:NixOS/nixpkgs/4100e830e085863741bc69b156ec4ccd53ab5be0?lastModified=1779877693&narHash=sha256-NOF9NAREhxr50bbBfVcVOq%2BArCMSoe8dP79Pk2uyARk%3D"

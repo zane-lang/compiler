@@ -10,7 +10,7 @@
     "ninja@latest",
     "zig@latest",
     "clang-tools@latest",
-    "elkhound@latest",
+    "path:nix/elkhound#default",
     "re2c@latest"
   ],
   "shell": {
