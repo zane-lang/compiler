@@ -435,10 +435,10 @@ nonterm(ast::nodes::ValueExpr*) value_expr {
 		return grammarSupport::makeBinary("/", left, right);
 	}
 	-> left:value_expr "+" right:value_expr {
-		return grammarSupport::makeBinary("*", left, right);
+		return grammarSupport::makeBinary("+", left, right);
 	}
 	-> left:value_expr "-" right:value_expr {
-		return grammarSupport::makeBinary("/", left, right);
+		return grammarSupport::makeBinary("-", left, right);
 	}
 }
 
