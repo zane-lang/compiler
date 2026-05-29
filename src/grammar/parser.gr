@@ -73,7 +73,7 @@ terminals {
 	9  : TOK_THIN_ARROW  "->";
 	10 : TOK_THICK_ARROW "=>";
 	11 : TOK_AT          "@";
-	12 : TOK_MUT         "mut";
+	12 : TOK_EXCL        "!";
 	13 : TOK_THIS        "this";
 	14 : TOK_STRING;
 	15 : TOK_IDENT;
@@ -169,7 +169,7 @@ nonterm(ast::nodes::VariableDecl*) variable_decl {
 nonterm(ast::nodes::FunctionDecl*) function_decl {
 	fun dup(p) [return p;]
 	fun del(p) []
-	-> return_type:type_expr name:TOK_IDENT "(" params:parameters ")" body:function_body {
+	-> name:TOK_IDENT "(" params:parameters ")" return_type:type_expr body:function_body {
 		return new ast::nodes::FunctionDecl(
 			grammarSupport::takeString(name),
 			grammarSupport::takeValue(params),
@@ -182,7 +182,7 @@ nonterm(ast::nodes::FunctionDecl*) function_decl {
 nonterm(ast::nodes::MethodDecl*) method_decl {
 	fun dup(p) [return p;]
 	fun del(p) []
-	-> return_type:type_expr name:TOK_IDENT "(" params:method_parameters ")" body:function_body {
+	-> name:TOK_IDENT "(" params:method_parameters ")" return_type:type_expr body:function_body {
 		return new ast::nodes::MethodDecl(
 			grammarSupport::takeString(name),
 			grammarSupport::takeValue(params),
@@ -191,7 +191,7 @@ nonterm(ast::nodes::MethodDecl*) method_decl {
 			false
 		);
 	}
-	-> return_type:type_expr name:TOK_IDENT "(" params:method_parameters ")" "mut" body:function_body {
+	-> name:TOK_IDENT "(" params:method_parameters ")" "!" return_type:type_expr body:function_body {
 		return new ast::nodes::MethodDecl(
 			grammarSupport::takeString(name),
 			grammarSupport::takeValue(params),
@@ -331,7 +331,7 @@ nonterm(ast::nodes::MethodType*) method_type {
 			false
 		);
 	}
-	-> "(" "this" params:type_list_ne ")" "mut" "->" return_type:type_expr {
+	-> "(" "this" params:type_list_ne ")" "!" "->" return_type:type_expr {
 		return new ast::nodes::MethodType(
 			grammarSupport::takeValue(params),
 			grammarSupport::takePtr(return_type),

@@ -120,7 +120,7 @@ const char* Lexer::tokenName(int token) {
 		case TOK_THIN_ARROW: return "->";
 		case TOK_THICK_ARROW: return "=>";
 		case TOK_AT: return "@";
-		case TOK_MUT: return "mut";
+		case TOK_EXCL: return "!";
 		case TOK_THIS: return "this";
 		case TOK_STRING: return "string";
 		case TOK_IDENT: return "identifier";
@@ -227,6 +227,7 @@ void Lexer::nextToken(LexerInterface* base) {
 		"}"   { tok = TOK_RCURLY;  goto done; }
 		","   { tok = TOK_COMMA;   goto done; }
 		":"   { tok = TOK_COLON;   goto done; }
+		"!"   { tok = TOK_EXCL;  goto done; }
 		"~"   { tok = TOK_TILDE;   goto done; }
 		"+"   { tok = TOK_PLUS;    goto done; }
 		"-"   { tok = TOK_MINUS;   goto done; }
@@ -250,7 +251,6 @@ void Lexer::nextToken(LexerInterface* base) {
 			sval = reinterpret_cast<SemanticValue>(new std::string(unescape(start + 1, cursor - 1)));
 			tok = TOK_STRING; goto done;
 		}
-		"mut"  { tok = TOK_MUT;  goto done; }
 		"this" { tok = TOK_THIS; goto done; }
 		ident+ {
 			sval = reinterpret_cast<SemanticValue>(new std::string(toStr(start, cursor)));
