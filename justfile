@@ -17,4 +17,4 @@ glr-stats:
 	ELKHOUND_DEBUG=1 ./build/zane 2>/dev/null
 
 grammar-conflicts:
-	elkhound -v -tr conflict,prec src/grammar/parser.gr
+	elkhound -v -tr conflict,prec -o build/zane_parser src/grammar/parser.gr
