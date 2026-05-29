@@ -84,7 +84,8 @@ terminals {
 	20 : TOK_STAR        "*";
 	21 : TOK_SLASH       "/";
 	22 : TOK_TILDE       "~";
-	23 : TOK_ERROR;
+	23 : TOK_LINEBREAK;
+	24 : TOK_ERROR;
 
 	token(std::string*) TOK_STRING {
 		fun dup(s) [return new std::string(*s);]
@@ -113,9 +114,16 @@ terminals {
 nonterm(ast::nodes::Package*) package {
 	fun dup(p) [return p;]
 	fun del(p) []
-	-> declarations:global_scope {
+	-> may_break declarations:global_scope may_break {
 		return new ast::nodes::Package(grammarSupport::takeValue(declarations));
 	}
+}
+
+nonterm(int) may_break {
+	fun dup(p) [return p;]
+	fun del(p) []
+	-> { return 0; }
+	-> TOK_LINEBREAK { return 0; }
 }
 
 nonterm(std::vector<ast::nodes::Declaration>*) global_scope {
@@ -124,7 +132,12 @@ nonterm(std::vector<ast::nodes::Declaration>*) global_scope {
 	-> {
 		return new std::vector<ast::nodes::Declaration>();
 	}
-	-> declarations:global_scope declaration:declaration {
+	-> declaration:declaration {
+		auto* list = new std::vector<ast::nodes::Declaration>();
+		list->push_back(grammarSupport::takeValue(declaration));
+		return list;
+	}
+	-> declarations:global_scope TOK_LINEBREAK declaration:declaration {
 		declarations->push_back(grammarSupport::takeValue(declaration));
 		return declarations;
 	}
@@ -349,7 +362,7 @@ nonterm(grammarSupport::FunctionBody*) function_body {
 nonterm(ast::nodes::Scope*) scope {
 	fun dup(p) [return p;]
 	fun del(p) []
-	-> "{" statements:statements "}" {
+	-> "{" TOK_LINEBREAK statements:statements TOK_LINEBREAK "}" {
 		return new ast::nodes::Scope(grammarSupport::takeValue(statements));
 	}
 }
@@ -360,7 +373,7 @@ nonterm(std::vector<std::unique_ptr<ast::nodes::Statement>>*) statements {
 	-> {
 		return new std::vector<std::unique_ptr<ast::nodes::Statement>>();
 	}
-	-> list:statements statement:statement {
+	-> list:statements TOK_LINEBREAK statement:statement {
 		list->push_back(grammarSupport::takePtr(statement));
 		return list;
 	}

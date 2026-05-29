@@ -131,6 +131,7 @@ const char* Lexer::tokenName(int token) {
 		case TOK_STAR: return "*";
 		case TOK_SLASH: return "/";
 		case TOK_TILDE: return "~";
+		case TOK_LINEBREAK: return "\\n";
 		case TOK_ERROR: return "invalid token";
 		default: return "unknown token";
 	}
@@ -214,10 +215,11 @@ void Lexer::nextToken(LexerInterface* base) {
 		int_lit   = sw_digits | digits;
 		float_lit = sw_digits "." digits | digits "." digits;
 
-		[ \t\r\n]+    {
+		[ \t]+    {
 			lexer->updateLocation(start, cursor);
 			continue;
 		}
+		[\r\n]+ { tok = TOK_LINEBREAK; goto done; }
 		"="   { tok = TOK_EQUAL;   goto done; }
 		"("   { tok = TOK_LPAREN;  goto done; }
 		")"   { tok = TOK_RPAREN;  goto done; }

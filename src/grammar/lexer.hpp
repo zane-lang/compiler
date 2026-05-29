@@ -28,6 +28,7 @@ enum TokenCode {
 	TOK_STAR,
 	TOK_SLASH,
 	TOK_TILDE,
+	TOK_LINEBREAK,
 	TOK_ERROR,
 };
 
