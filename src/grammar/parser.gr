@@ -373,6 +373,11 @@ nonterm(std::vector<std::unique_ptr<ast::nodes::Statement>>*) statements {
 	-> {
 		return new std::vector<std::unique_ptr<ast::nodes::Statement>>();
 	}
+	-> statement:statement {
+		auto* list = new std::vector<std::unique_ptr<ast::nodes::Statement>>();
+		list->push_back(grammarSupport::takePtr(statement));
+		return list;
+	}
 	-> list:statements TOK_LINEBREAK statement:statement {
 		list->push_back(grammarSupport::takePtr(statement));
 		return list;
