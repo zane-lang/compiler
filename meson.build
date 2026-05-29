@@ -5,12 +5,7 @@ project('zane', 'cpp',
 re2c = find_program('re2c', required: true)
 elkhound = find_program('elkhound', required: true)
 
-elkhound_runtime = dependency('elkhound_runtime',
-  method: 'cmake',
-  cmake_args: [
-    '-DCMAKE_PREFIX_PATH=' + meson.project_source_root() / 'vcpkg_installed/x64-linux/share/elkhound-runtime',
-  ],
-  required: true)
+elkhound_runtime = dependency('elkhound_runtime', method: 'cmake', required: true)
 
 parser_gen = custom_target('parser',
   input: 'src/grammar/parser.gr',
