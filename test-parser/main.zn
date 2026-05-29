@@ -5,6 +5,7 @@ main (this Int, a Bool)! Void {
 	test Int = 3
 	func (this Int) -> Void = 3.0
 }
-getNum() Void {
+
+getNum () Void {
 	print()
 }
