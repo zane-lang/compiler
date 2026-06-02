@@ -1,7 +1,0 @@
-loseHp (this Player, x Int)! Void {
-
-}
-
-sqrt (x Float) Float?ArithmeticError {
-
-}
