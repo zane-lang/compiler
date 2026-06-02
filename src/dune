@@ -1,9 +1,5 @@
 (executable
  (public_name zane-compiler)
  (name main)
- (modules main ast lexer parser)
- (libraries menhirLib sedlex)
- (preprocess (pps sedlex.ppx)))
-
-(menhir
- (modules parser))
+ (libraries ast grammar)
+ (modules main))
