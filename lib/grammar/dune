@@ -1,7 +1,7 @@
 (library
  (name grammar)
  (modules parser lexer)
- (libraries ast menhirLib sedlex)
+ (libraries cst menhirLib sedlex)
  (preprocess (pps sedlex.ppx)))
 
 (menhir

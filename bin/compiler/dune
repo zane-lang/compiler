@@ -1,5 +1,5 @@
 (executable
  (public_name zane-compiler)
  (name main)
- (libraries ast grammar)
+ (libraries cst grammar)
  (modules main))

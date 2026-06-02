@@ -1,9 +1,9 @@
 let rec string_of_expr = function
-    | Ast.Nodes.Int n -> string_of_int n
-    | Ast.Nodes.Add (e1, e2) -> "(" ^ string_of_expr e1 ^ " + " ^ string_of_expr e2 ^ ")"
-    | Ast.Nodes.Sub (e1, e2) -> "(" ^ string_of_expr e1 ^ " - " ^ string_of_expr e2 ^ ")"
-    | Ast.Nodes.Mul (e1, e2) -> "(" ^ string_of_expr e1 ^ " * " ^ string_of_expr e2 ^ ")"
-    | Ast.Nodes.Div (e1, e2) -> "(" ^ string_of_expr e1 ^ " / " ^ string_of_expr e2 ^ ")"
+    | Cst.Nodes.Int n -> string_of_int n
+    | Cst.Nodes.Add (e1, e2) -> "(" ^ string_of_expr e1 ^ " + " ^ string_of_expr e2 ^ ")"
+    | Cst.Nodes.Sub (e1, e2) -> "(" ^ string_of_expr e1 ^ " - " ^ string_of_expr e2 ^ ")"
+    | Cst.Nodes.Mul (e1, e2) -> "(" ^ string_of_expr e1 ^ " * " ^ string_of_expr e2 ^ ")"
+    | Cst.Nodes.Div (e1, e2) -> "(" ^ string_of_expr e1 ^ " / " ^ string_of_expr e2 ^ ")"
 
 let () =
     let input = "3 + 4 * (2 - 1)" in
