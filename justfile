@@ -1,8 +1,8 @@
 default:
 	just -l
 
-projectName := "zane-compiler"
-
 run:
-	dune build
-	dune exec {{projectName}}
+	dune exec bin/compiler/main.exe
+
+watch:
+	dune build --watch

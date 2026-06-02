@@ -1,3 +1,7 @@
 (library
  (name cst)
- (modules nodes))
+ (libraries menhirLib sedlex)
+ (preprocess (pps sedlex.ppx)))
+
+(menhir
+ (modules parser))

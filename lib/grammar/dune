@@ -1,8 +1,0 @@
-(library
- (name grammar)
- (modules parser lexer)
- (libraries cst menhirLib sedlex)
- (preprocess (pps sedlex.ppx)))
-
-(menhir
- (modules parser))
