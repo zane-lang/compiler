@@ -1,4 +1,4 @@
 (executable
  (public_name zane-compiler)
  (name main)
- (libraries zane_compiler))
+ (libraries menhirLib sedlex))

@@ -1,3 +1,0 @@
-(test
- (name test_zane_compiler)
- (libraries zane_compiler))
