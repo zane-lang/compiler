@@ -153,54 +153,6 @@
         }
       }
     },
-    "dune@latest": {
-      "last_modified": "2026-05-21T08:15:18Z",
-      "resolved": "github:NixOS/nixpkgs/4a29d733e8a7d5b824c3d8c958a946a9867b3eb2#dune",
-      "source": "devbox-search",
-      "version": "3.21.1",
-      "systems": {
-        "aarch64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/i62ga7dgh2zx0wkwq5bhp7r0aq5l1qic-dune-3.21.1",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/i62ga7dgh2zx0wkwq5bhp7r0aq5l1qic-dune-3.21.1"
-        },
-        "aarch64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/x7srvl1r3fxqlwrgic8xci2xw4vs4fpd-dune-3.21.1",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/x7srvl1r3fxqlwrgic8xci2xw4vs4fpd-dune-3.21.1"
-        },
-        "x86_64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/cwcy3w2hlik0xa6qirq7v7p3qpngqvcr-dune-3.21.1",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/cwcy3w2hlik0xa6qirq7v7p3qpngqvcr-dune-3.21.1"
-        },
-        "x86_64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/3g9c7bq560gc93cjya06cgx3df0sl5yw-dune-3.21.1",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/3g9c7bq560gc93cjya06cgx3df0sl5yw-dune-3.21.1"
-        }
-      }
-    },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
       "last_modified": "2026-05-27T10:28:13Z",
       "resolved": "github:NixOS/nixpkgs/4100e830e085863741bc69b156ec4ccd53ab5be0?lastModified=1779877693&narHash=sha256-NOF9NAREhxr50bbBfVcVOq%2BArCMSoe8dP79Pk2uyARk%3D"

@@ -2,15 +2,11 @@
 opam-version: "2.0"
 synopsis: "A short synopsis"
 description: "A longer description"
-maintainer: ["Maintainer Name <maintainer@example.com>"]
-authors: ["Author Name <author@example.com>"]
-license: "LICENSE"
 tags: ["add topics" "to describe" "your" "project"]
-homepage: "https://github.com/username/reponame"
-doc: "https://url/to/documentation"
-bug-reports: "https://github.com/username/reponame/issues"
+homepage: "https://github.com/zane-lang/compiler"
+bug-reports: "https://github.com/zane-lang/compiler/issues"
 depends: [
-  "dune" {>= "3.22"}
+  "dune" {>= "3.21"}
   "ocaml"
   "odoc" {with-doc}
 ]
@@ -28,5 +24,5 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/username/reponame.git"
+dev-repo: "git+https://github.com/zane-lang/compiler.git"
 x-maintenance-intent: ["(latest)"]

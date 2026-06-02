@@ -1,19 +1,11 @@
-(lang dune 3.22)
-
+(lang dune 3.21)
 (name zane-compiler)
-
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github zane-lang/compiler))
 
-(authors "Author Name <author@example.com>")
-
-(maintainers "Maintainer Name <maintainer@example.com>")
-
-(license LICENSE)
-
-(documentation https://url/to/documentation)
+(using menhir 3.0)
 
 (package
  (name zane-compiler)
