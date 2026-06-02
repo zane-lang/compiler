@@ -1,7 +1,0 @@
-{
-  "dependencies": [
-    "nlohmann-json",
-    "cereal",
-    "elkhound-runtime"
-  ]
-}

@@ -1,7 +1,0 @@
-{
-  "name": "elkhound-runtime",
-  "version-string": "2026-05-28",
-  "description": "Elkhound parser runtime library bundled with smbase",
-  "homepage": "https://github.com/WeiDUorg/elkhound",
-  "license": "BSD-3-Clause"
-}

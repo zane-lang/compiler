@@ -9,9 +9,7 @@
     "upx@latest",
     "ninja@latest",
     "zig@latest",
-    "clang-tools@latest",
-    "path:nix/elkhound#default",
-    "re2c@latest"
+    "clang-tools@latest"
   ],
   "shell": {
     "init_hook": [
