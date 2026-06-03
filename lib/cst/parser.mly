@@ -11,7 +11,7 @@ prog:
 
 expr:
   | i = INT { Nodes.Int i }
-  | LPAREN e = expr RPAREN { e }
+  | LPAREN e = expr RPAREN { Nodes.Parenthized e }
   | e1 = expr PLUS e2 = expr { Nodes.Add (e1, e2) }
   | e1 = expr MINUS e2 = expr { Nodes.Sub (e1, e2) }
   | e1 = expr MUL e2 = expr { Nodes.Mul (e1, e2) }

@@ -13,3 +13,4 @@ type expr =
   | Sub of expr * expr
   | Mul of expr * expr
   | Div of expr * expr
+  | Parenthized of expr
