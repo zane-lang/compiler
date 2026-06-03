@@ -1,18 +1,31 @@
-%token <int> INT
-%token PLUS MINUS MUL DIV LPAREN RPAREN EOF
+%token <string> INT FLOAT STRING IDENT
+%token EQUAL
+%token LPAREN RPAREN
+%token LCURLY RCURLY
+%token COMMA COLON
+%token EXCL TILDE
+%token PLUS MINUS STAR SLASH
+%token DOLLAR AT
+%token THIN_ARROW THICK_ARROW
+%token THIS
+%token ERROR
+%token EOF
 
 %left PLUS MINUS
-%left MUL DIV
+%left STAR SLASH
 
-%start <Nodes.expr> prog
+%start <Nodes.package> package
 %%
-prog:
-  | e = expr EOF { e }
 
-expr:
-  | i = INT { Nodes.Int i }
-  | LPAREN e = expr RPAREN { Nodes.Parenthized e }
-  | e1 = expr PLUS e2 = expr { Nodes.Add (e1, e2) }
-  | e1 = expr MINUS e2 = expr { Nodes.Sub (e1, e2) }
-  | e1 = expr MUL e2 = expr { Nodes.Mul (e1, e2) }
-  | e1 = expr DIV e2 = expr { Nodes.Div (e1, e2) }
+package:
+  | decls = list(decl) EOF { { Nodes.decl = decls } }
+
+decl:
+  | name = IDENT LPAREN params = separated_list(COMMA, param) RPAREN ret = type_expr
+  { Nodes.FunctionDecl { name; params; ret } }
+
+param:
+  | name = IDENT type_ = type_expr { { Nodes.name; type_ } }
+
+type_expr:
+  | name = IDENT { Nodes.Simple name }

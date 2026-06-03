@@ -1,1 +1,1 @@
-(1 + 1) *(3 + 3) / 3
+main (hi Int, a Bool) Void
