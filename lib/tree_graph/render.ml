@@ -19,21 +19,30 @@ let render node =
     match node with
     | Node.Leaf v ->
         prefix ^ connector ^ key ^ ": " ^ v
-    | Node.Fields (_, fields) ->
-        let header = prefix ^ connector ^ key ^ ":" in
-        if Node.StringMap.is_empty fields then header
-        else header ^ "\n" ^ render_fields next_prefix fields
-    | Node.Children (name, children) ->
-        let header = prefix ^ connector ^ key ^ ":" in
-        if children = [] then header
-        else header ^ "\n" ^ render_children next_prefix name children
+    | Node.Group { title; body } ->
+        let header = prefix ^ connector ^ key ^ " (" ^ title ^ "):" in
+        header ^ "\n" ^ render_node next_prefix true "" body
+    | Node.Fields fields ->
+        if Node.StringMap.is_empty fields then
+          prefix ^ connector ^ key
+        else
+          let header = prefix ^ connector ^ key ^ ":" in
+          header ^ "\n" ^ render_fields next_prefix fields
+    | Node.Children children ->
+        if children = [] then
+          prefix ^ connector ^ key
+        else
+          let header = prefix ^ connector ^ key ^ ":" in
+          header ^ "\n" ^ render_children next_prefix key children
   in
   match node with
   | Node.Leaf v -> v
-  | Node.Fields (name, fields) ->
-      let header = name ^ ":" in
-      if Node.StringMap.is_empty fields then header
-      else header ^ "\n" ^ render_fields "" fields
-  | Node.Children (name, children) ->
-      if children = [] then name ^ ":"
-      else render_children "" name children
+  | Node.Group { title; body } ->
+      let header = "(" ^ title ^ "):" in
+      header ^ "\n" ^ render_node "" true "" body
+  | Node.Fields fields ->
+      if Node.StringMap.is_empty fields then ""
+      else render_fields "" fields
+  | Node.Children children ->
+      if children = [] then ""
+      else render_children "" "item" children

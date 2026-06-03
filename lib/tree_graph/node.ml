@@ -1,6 +1,7 @@
 module StringMap = Map.Make(String) [@@deriving map]
 
-type nodes =
+type node =
   | Leaf of string
-  | Fields of string * nodes StringMap.t
-  | Children of string * nodes list
+  | Group of { title: string; body: node }
+  | Fields of node StringMap.t
+  | Children of node list
