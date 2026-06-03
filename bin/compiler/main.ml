@@ -1,8 +1,9 @@
-let read_file path =
-  In_channel.with_open_text path In_channel.input_all
-
 let () =
-  let input = read_file "test-parser/main.zn" in
-  let cst = Cst.parse input in
-  let output = Cst.to_string cst in
-  print_endline output
+  let tree = Tree_graph.Fields ("hi", Tree_graph.StringMap.of_list [
+    ("child1", Tree_graph.Fields ("hi", Tree_graph.StringMap.of_list [
+      ("child1", Tree_graph.Leaf "bye");
+      ("child2", Tree_graph.Leaf "see ya")
+    ]));
+    ("child2", Tree_graph.Children ("hello", [Tree_graph.Leaf "see ya"]))
+  ]) in
+  print_endline (Tree_graph.render tree)

@@ -1,4 +1,6 @@
 (executable
  (name main)
- (libraries cst)
+ (public_name main)
+ (package zane-compiler)
+ (libraries cst tree_graph)
  (modules main))
