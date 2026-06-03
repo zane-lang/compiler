@@ -1,9 +1,12 @@
 let () =
-  let tree = Tree_graph.Fields ("hi", Tree_graph.StringMap.of_list [
-    ("child1", Tree_graph.Fields ("hi", Tree_graph.StringMap.of_list [
-      ("child1", Tree_graph.Leaf "bye");
-      ("child2", Tree_graph.Leaf "see ya")
+  let tree = Tree_graph.Fields ("editors", Tree_graph.StringMap.of_list [
+    ("constraints", Tree_graph.Fields ("required languages", Tree_graph.StringMap.of_list [
+      ("cpp", Tree_graph.Leaf "full");
+      ("yacc", Tree_graph.Leaf "ts only")
     ]));
-    ("child2", Tree_graph.Children ("hello", [Tree_graph.Leaf "see ya"]))
+    ("candidates", Tree_graph.Children ("closest", [Tree_graph.Fields ("required languages", Tree_graph.StringMap.of_list [
+      ("cpp", Tree_graph.Leaf "full");
+      ("yacc", Tree_graph.Leaf "ts only")
+    ]); Tree_graph.Leaf "zed"]))
   ]) in
   print_endline (Tree_graph.render tree)
