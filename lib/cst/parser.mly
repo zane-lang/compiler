@@ -38,18 +38,18 @@ package:
 
 decl:
   | name=IDENT LPAREN params=separated_list(COMMA, param) RPAREN 
-    ret_type=type_expr body=function_body {
-      Nodes.FunctionDecl { name; params; ret_type; body }
+    ret_type=type_expr body=func_body {
+      Nodes.FuncDecl { name; params; ret_type; body }
     }
 
-function_body:
+func_body:
   | LCURLY statements=list(statement) RCURLY {
       Nodes.Scope statements
     }
 
 statement:
   | expr=expr
-      { Nodes.ExprStatement expr }
+      { Nodes.ExprStat expr }
 
 param:
   | name=IDENT type_=type_expr { { Nodes.name; type_ } }
@@ -57,28 +57,28 @@ param:
 type_expr:
   | name=IDENT { Nodes.SimpleType name }
   | LPAREN params=separated_list(COMMA, type_expr) RPAREN THIN_ARROW ret=type_expr {
-      Nodes.FunctionType { params; ret_type=ret }
+      Nodes.FuncType { params; ret_type=ret }
     }
   | LPAREN params=separated_list(COMMA, type_expr) RPAREN THICK_ARROW ret=type_expr {
-      Nodes.MethodType { params; ret_type=ret; is_mut=false }
+      Nodes.MethType { params; ret_type=ret; is_mut=false }
     }
   | EXCL LPAREN params=separated_list(COMMA, type_expr) RPAREN THICK_ARROW ret=type_expr {
-      Nodes.MethodType { params; ret_type=ret; is_mut=true }
+      Nodes.MethType { params; ret_type=ret; is_mut=true }
     }
 
 expr:
-  | e1=expr PLUS e2=expr  { Nodes.Operator { left=e1; right=e2; operator="+" } }
-  | e1=expr MINUS e2=expr { Nodes.Operator { left=e1; right=e2; operator="-" } }
-  | e1=expr STAR e2=expr  { Nodes.Operator { left=e1; right=e2; operator="*" } }
-  | e1=expr SLASH e2=expr { Nodes.Operator { left=e1; right=e2; operator="/" } }
+  | e1=expr PLUS e2=expr  { Nodes.Op { left=e1; right=e2; operator="+" } }
+  | e1=expr MINUS e2=expr { Nodes.Op { left=e1; right=e2; operator="-" } }
+  | e1=expr STAR e2=expr  { Nodes.Op { left=e1; right=e2; operator="*" } }
+  | e1=expr SLASH e2=expr { Nodes.Op { left=e1; right=e2; operator="/" } }
   | p=primary { p }
 
 primary:
-  | int=INT { Nodes.IntLiteral int }
-  | float=FLOAT { Nodes.FloatLiteral float }
-  | string=STRING { Nodes.StringLiteral string }
+  | int=INT { Nodes.IntLit int }
+  | float=FLOAT { Nodes.FloatLit float }
+  | string=STRING { Nodes.StrLit string }
   | ident=IDENT { Nodes.Ident ident }
   | LPAREN e=expr RPAREN { Nodes.Parenthized e }
   | callee=primary LPAREN args=separated_list(COMMA, expr) RPAREN {
-      Nodes.FunctionCall { callee; args }
+      Nodes.FuncCall { callee; args }
     }

@@ -1,11 +1,11 @@
 let rec type_to_node = function
   | Nodes.SimpleType s -> Tree_graph.Leaf s
-  | Nodes.FunctionType { params; ret_type } ->
+  | Nodes.FuncType { params; ret_type } ->
       Tree_graph.Fields (Tree_graph.StringMap.of_list [
         ("param", Tree_graph.Sequence (List.map type_to_node params));
         ("type", type_to_node ret_type);
       ])
-  | Nodes.MethodType { params; ret_type; is_mut } ->
+  | Nodes.MethType { params; ret_type; is_mut } ->
       Tree_graph.Fields (Tree_graph.StringMap.of_list [
         ("param", Tree_graph.Sequence (List.map type_to_node params));
         ("type", type_to_node ret_type);
@@ -13,11 +13,11 @@ let rec type_to_node = function
       ])
 
 and expr_to_node (x: Nodes.expr) = match x with
-  | Nodes.IntLiteral x -> Tree_graph.Leaf x
-  | Nodes.FloatLiteral x -> Tree_graph.Leaf x
-  | Nodes.StringLiteral x -> Tree_graph.Leaf x
+  | Nodes.IntLit x -> Tree_graph.Leaf x
+  | Nodes.FloatLit x -> Tree_graph.Leaf x
+  | Nodes.StrLit x -> Tree_graph.Leaf x
   | Nodes.Ident x -> Tree_graph.Leaf x
-  | Nodes.Operator x ->
+  | Nodes.Op x ->
       Tree_graph.Fields (Tree_graph.StringMap.of_list [
         ("left", expr_to_node x.left);
         ("right", expr_to_node x.right);
@@ -28,7 +28,7 @@ and expr_to_node (x: Nodes.expr) = match x with
         title = "Parenthized";
         body = expr_to_node x
       }
-  | Nodes.FunctionCall x -> function_call_to_node x
+  | Nodes.FuncCall x -> function_call_to_node x
 
 and function_call_to_node x =
   Tree_graph.Group {
@@ -50,8 +50,8 @@ and param_to_node (x: Nodes.param) =
 and params_to_node (x: Nodes.param list) =
   Tree_graph.Sequence (List.map param_to_node x)
 
-and statement_to_node (x: Nodes.statement) = match x with
-  | Nodes.ExprStatement x -> expr_to_node x
+and statement_to_node (x: Nodes.stat) = match x with
+  | Nodes.ExprStat x -> expr_to_node x
 
 and body_to_node (x: Nodes.body) = match x with
   | Nodes.Scope scope ->
@@ -64,7 +64,7 @@ and body_to_node (x: Nodes.body) = match x with
       }
 
 and decl_to_node = function
-  | Nodes.FunctionDecl { name; params; ret_type; body } ->
+  | Nodes.FuncDecl { name; params; ret_type; body } ->
       Tree_graph.Group {
         title = "function_decl";
         body = Tree_graph.Fields (

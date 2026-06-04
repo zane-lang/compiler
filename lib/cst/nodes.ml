@@ -1,37 +1,37 @@
 (* The CST's job is to represent what was parsed, not what's valid. *)
 
 type expr =
-  | IntLiteral of string
-  | FloatLiteral of string
-  | StringLiteral of string
+  | IntLit of string
+  | FloatLit of string
+  | StrLit of string
   | Ident of string
-  | Operator of { left: expr; right: expr; operator: string }
+  | Op of { left: expr; right: expr; operator: string }
   | Parenthized of expr
-  | FunctionCall of function_call
+  | FuncCall of func_call
 
-and function_call = {
+and func_call = {
   callee: expr;
   args: expr list 
 }
 
 type type_expr =
   | SimpleType of string
-  | FunctionType of { params: type_expr list; ret_type: type_expr }
-  | MethodType of { params: type_expr list; ret_type: type_expr; is_mut: bool }
+  | FuncType of { params: type_expr list; ret_type: type_expr }
+  | MethType of { params: type_expr list; ret_type: type_expr; is_mut: bool }
 
 type param = {
   name: string;
   type_: type_expr
 }
 
-type statement =
-  | ExprStatement of expr
+type stat =
+  | ExprStat of expr
 
 type body =
-  | Scope of statement list
+  | Scope of stat list
 
 type decl =
-  | FunctionDecl of { name: string; params: param list; ret_type: type_expr; body: body }
+  | FuncDecl of { name: string; params: param list; ret_type: type_expr; body: body }
 
 type package = {
   decls: decl list
