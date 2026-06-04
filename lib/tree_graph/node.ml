@@ -4,4 +4,4 @@ type node =
   | Leaf of string
   | Group of { title: string; body: node }
   | Fields of node StringMap.t
-  | Children of node list
+  | Sequence of node list

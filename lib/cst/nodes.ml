@@ -2,10 +2,8 @@ type expr =
   | IntLiteral of string
   | FloatLiteral of string
   | StringLiteral of string
-  | Add of expr * expr
-  | Sub of expr * expr
-  | Mul of expr * expr
-  | Div of expr * expr
+  | Ident of string
+  | Operator of {left: expr; right: expr; operator: string}
   | Parenthized of expr
 
 type type_expr =
@@ -18,8 +16,14 @@ type param = {
   type_: type_expr
 }
 
+type statement =
+  | FunctionCall of { callee: expr; args: expr list; }
+
+type body =
+  | Scope of statement list
+
 type decl =
-  | FunctionDecl of { name: string; params: param list; ret_type: type_expr }
+  | FunctionDecl of { name: string; params: param list; ret_type: type_expr; body: body }
 
 type package = {
   decls: decl list

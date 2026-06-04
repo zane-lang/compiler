@@ -1,1 +1,4 @@
-main (hi Int, a Bool) Void
+main (hi Int, a Bool) Void {
+	print("hi")
+	log("bug")
+}
