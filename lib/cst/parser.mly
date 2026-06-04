@@ -18,11 +18,11 @@
 %%
 
 package:
-  | decls = list(decl) EOF { { Nodes.decl = decls } }
+  | decls = list(decl) EOF { { Nodes.decls = decls } }
 
 decl:
-  | name = IDENT LPAREN params = separated_list(COMMA, param) RPAREN ret = type_expr
-  { Nodes.FunctionDecl { name; params; ret } }
+  | name = IDENT LPAREN params = separated_list(COMMA, param) RPAREN ret_type = type_expr
+  { Nodes.FunctionDecl { name; params; ret_type } }
 
 param:
   | name = IDENT type_ = type_expr { { Nodes.name; type_ } }

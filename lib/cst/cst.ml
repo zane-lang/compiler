@@ -1,7 +1,7 @@
 module Nodes = Nodes
 module Parser = Parser
 module Lexer = Lexer
-include To_string
+include To_tree_graph
 
 let parse input =
   let lexbuf = Sedlexing.Utf8.from_string input in

@@ -1,6 +1,6 @@
 (library
  (name cst)
- (libraries menhirLib sedlex)
+ (libraries menhirLib sedlex tree_graph)
  (preprocess (pps sedlex.ppx)))
 
 (menhir

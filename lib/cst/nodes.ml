@@ -19,8 +19,8 @@ type param = {
 }
 
 type decl =
-  | FunctionDecl of { name: string; params: param list; ret: type_expr }
+  | FunctionDecl of { name: string; params: param list; ret_type: type_expr }
 
 type package = {
-  decl: decl list
+  decls: decl list
 }
