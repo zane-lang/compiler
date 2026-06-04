@@ -1,13 +1,13 @@
 (* The CST's job is to represent what was parsed, not what's valid. *)
 
 type expr =
-  | IntLit of string
-  | FloatLit of string
-  | StrLit of string
-  | Ident of string
-  | Op of { left: expr; right: expr; operator: string }
+  | IntLit      of string
+  | FloatLit    of string
+  | StrLit      of string
+  | Ident       of string
+  | Op          of { left: expr; right: expr; operator: string }
   | Parenthized of expr
-  | FuncCall of func_call
+  | FuncCall    of func_call
 
 and func_call = {
   callee: expr;
