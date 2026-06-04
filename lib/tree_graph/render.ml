@@ -1,27 +1,41 @@
-(* Intermediate representation to flatten Children into their parent's scope *)
-type item = 
+type item =
   | ILeaf of string * string
   | IContainer of string * item list
 
-let rec collect name = function
-  | Node.Leaf v -> [ILeaf (name, v)]
-  | Node.Group { title; body } -> collect title body
+let rec collect ~name node =
+  match node with
+  | Node.Leaf v ->
+      [ILeaf (name, v)]
+      
+  | Node.Group { title; body } ->
+      (* Chain group titles with " > " *)
+      let new_name = if name = "" then title else name ^ " > " ^ title in
+      collect ~name:new_name body
+      
   | Node.Fields map ->
-      let children = Node.StringMap.bindings map 
-                     |> List.map (fun (k, v) -> collect k v) 
-                     |> List.flatten in
-      [IContainer (name, children)]
+      let children =
+        Node.StringMap.bindings map
+        |> List.map (fun (k, v) -> collect ~name:k v)
+        |> List.flatten
+      in
+      (* If it's the unnamed root, just return the children directly *)
+      if name = "" then children
+      else [IContainer (name, children)]
+      
   | Node.Children list ->
-      if list = [] then [IContainer (name, [])]
+      if list = [] then
+        if name = "" then [] else [IContainer (name, [])]
       else
-        (* Flattens the list so elements become direct siblings of other Fields/Children *)
         List.mapi (fun i v ->
-          let child_name = if name = "" then Printf.sprintf "[%d]" i else Printf.sprintf "%s[%d]" name i in
-          collect child_name v
+          let child_name =
+            if name = "" then Printf.sprintf "[%d]" i
+            else Printf.sprintf "%s[%d]" name i
+          in
+          collect ~name:child_name v
         ) list |> List.flatten
 
 let render root_node =
-  let items = collect "" root_node in
+  let items = collect ~name:"" root_node in
   let rec print_items prefix items =
     let len = List.length items in
     List.iteri (fun i item ->
@@ -35,8 +49,7 @@ let render root_node =
           else
             Printf.printf "%s%s%s: %s\n" prefix branch name value
       | IContainer (name, children) ->
-          if name = "" then 
-            (* Unnamed root container just prints its children without a header *)
+          if name = "" then
             print_items prefix children
           else begin
             Printf.printf "%s%s%s:\n" prefix branch name;
