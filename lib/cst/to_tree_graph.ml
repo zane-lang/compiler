@@ -1,5 +1,5 @@
 let rec type_to_node = function
-  | Nodes.Simple s -> Tree_graph.Leaf s
+  | Nodes.SimpleType s -> Tree_graph.Leaf s
   | Nodes.FunctionType { params; ret_type } ->
       Tree_graph.Fields (Tree_graph.StringMap.of_list [
         ("param", Tree_graph.Sequence (List.map type_to_node params));
@@ -28,6 +28,18 @@ and expr_to_node (x: Nodes.expr) = match x with
         title = "Parenthized";
         body = expr_to_node x
       }
+  | Nodes.FunctionCall x -> function_call_to_node x
+
+and function_call_to_node x =
+  Tree_graph.Group {
+    title = "function_call";
+    body = Tree_graph.Fields (
+      Tree_graph.StringMap.of_list [
+        ("callee", expr_to_node x.callee);
+        ("arg", Tree_graph.Sequence (List.map expr_to_node x.args));
+      ]
+    )
+  }
 
 and param_to_node (x: Nodes.param) =
   Tree_graph.Fields (Tree_graph.StringMap.of_list [
@@ -39,16 +51,7 @@ and params_to_node (x: Nodes.param list) =
   Tree_graph.Sequence (List.map param_to_node x)
 
 and statement_to_node (x: Nodes.statement) = match x with
-  | Nodes.FunctionCall x ->
-      Tree_graph.Group {
-        title = "function_call";
-        body = Tree_graph.Fields (
-          Tree_graph.StringMap.of_list [
-            ("callee", expr_to_node x.callee);
-            ("arg", Tree_graph.Sequence (List.map expr_to_node x.args));
-          ]
-        )
-      }
+  | Nodes.ExprStatement x -> expr_to_node x
 
 and body_to_node (x: Nodes.body) = match x with
   | Nodes.Scope scope ->
