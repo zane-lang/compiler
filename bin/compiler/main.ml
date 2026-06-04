@@ -1,25 +1,8 @@
-let map1 = Tree_graph.StringMap.of_list [
-  ("name", Tree_graph.Leaf "hi");
-  ("type", Tree_graph.Leaf "Int");
-] in
-let map2 = Tree_graph.StringMap.of_list [
-  ("name", Tree_graph.Leaf "a");
-  ("type", Tree_graph.Leaf "Bool");
-] in
+let read_file path =
+  In_channel.with_open_text path In_channel.input_all
 
-let root = Tree_graph.Group {
-  title = "package";
-  body = Tree_graph.Fields (Tree_graph.StringMap.of_list [
-    ("params", Tree_graph.Children [Tree_graph.Fields map1; Tree_graph.Fields map2]);
-    ("ret_type", Tree_graph.Leaf "Void");
-    ("sub_data", Tree_graph.Group {
-      title = "package";
-      body = Tree_graph.Group {
-        title = "package";
-        body = Tree_graph.Leaf "bla" 
-      }
-    });
-  ])
-} in
-
-Tree_graph.render root
+let () =
+  let input = read_file "test-parser/main.zn" in
+  let cst = Cst.parse input in
+  let output = Cst.to_node cst in
+  Tree_graph.render output

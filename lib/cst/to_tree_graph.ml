@@ -24,10 +24,18 @@ and params_to_node (x: Nodes.param list) =
 
 and decl_to_node = function
   | Nodes.FunctionDecl { name; params; ret_type } ->
-      Tree_graph.Fields (Tree_graph.StringMap.of_list [
-        ("params", params_to_node params);
-        ("ret_type", type_to_node ret_type);
-      ])
+      Tree_graph.Group {
+        title = "function_decl";
+        body = Tree_graph.Fields (
+          Tree_graph.StringMap.of_list [
+            ("params", params_to_node params);
+            ("ret_type", type_to_node ret_type);
+          ]
+        )
+      }
 
 let to_node ({ Nodes.decls }: Nodes.package) =
-  Tree_graph.Group { title = "package"; body = Tree_graph.Children (List.map decl_to_node decls) }
+  Tree_graph.Group { title = "package"; body = Tree_graph.Fields (Tree_graph.StringMap.of_list [
+      ("declarations", Tree_graph.Children (List.map decl_to_node decls))
+    ])
+  }
