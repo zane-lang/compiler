@@ -25,7 +25,7 @@ type param = {
 }
 
 type stat =
-  | ExprStat of expr
+  | FuncCallStat of func_call
 
 type body =
   | Scope of stat list

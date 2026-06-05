@@ -28,9 +28,9 @@ and expr_to_node (x: Nodes.expr) = match x with
         title = "Parenthized";
         body = expr_to_node x
       }
-  | Nodes.FuncCall x -> function_call_to_node x
+  | Nodes.FuncCall x -> func_call_to_node x
 
-and function_call_to_node x =
+and func_call_to_node x =
   Tree_graph.Group {
     title = "function_call";
     body = Tree_graph.Fields (
@@ -51,7 +51,7 @@ and params_to_node (x: Nodes.param list) =
   Tree_graph.Sequence (List.map param_to_node x)
 
 and statement_to_node (x: Nodes.stat) = match x with
-  | Nodes.ExprStat x -> expr_to_node x
+  | Nodes.FuncCallStat x -> func_call_to_node x
 
 and body_to_node (x: Nodes.body) = match x with
   | Nodes.Scope scope
@@ -66,7 +66,7 @@ and body_to_node (x: Nodes.body) = match x with
 and decl_to_node = function
   | Nodes.FuncDecl { name; params; ret_type; body }
       -> Tree_graph.Group {
-        title = "function_decl";
+        title = "func_decl";
         body = Tree_graph.Fields (
           Tree_graph.StringMap.of_list [
             ("param", params_to_node params);

@@ -48,8 +48,9 @@ func_body:
     }
 
 statement:
-  | expr=expr
-      { Nodes.ExprStat expr }
+  | callee=expr LPAREN args=separated_list(COMMA, expr) RPAREN {
+      Nodes.FuncCallStat { callee; args }
+    }
 
 param:
   | name=IDENT type_=type_expr { { Nodes.name; type_ } }
@@ -67,18 +68,18 @@ type_expr:
     }
 
 expr:
+  | p=primary { p }
   | e1=expr PLUS e2=expr  { Nodes.Op { left=e1; right=e2; operator="+" } }
   | e1=expr MINUS e2=expr { Nodes.Op { left=e1; right=e2; operator="-" } }
   | e1=expr STAR e2=expr  { Nodes.Op { left=e1; right=e2; operator="*" } }
   | e1=expr SLASH e2=expr { Nodes.Op { left=e1; right=e2; operator="/" } }
-  | p=primary { p }
+  | LPAREN e=expr RPAREN { Nodes.Parenthized e }
+  | callee=expr LPAREN args=separated_list(COMMA, expr) RPAREN {
+      Nodes.FuncCall { callee; args }
+    }
 
 primary:
   | int=INT { Nodes.IntLit int }
   | float=FLOAT { Nodes.FloatLit float }
   | string=STRING { Nodes.StrLit string }
   | ident=IDENT { Nodes.Ident ident }
-  | LPAREN e=expr RPAREN { Nodes.Parenthized e }
-  | callee=primary LPAREN args=separated_list(COMMA, expr) RPAREN {
-      Nodes.FuncCall { callee; args }
-    }
