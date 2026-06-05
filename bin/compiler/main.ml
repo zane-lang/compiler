@@ -3,6 +3,6 @@ let read_file path =
 
 let () =
   let input = read_file "test-parser/main.zn" in
-  let cst = Cst.parse input in
+  let cst = Cst.parse "test-parser/main,zn" input in
   let output = Cst.to_node cst in
   Tree_graph.render output

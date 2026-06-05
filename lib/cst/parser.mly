@@ -37,9 +37,15 @@ package:
   | decls=list(decl) EOF { { Nodes.decls = decls } }
 
 decl:
-  | name=IDENT LPAREN params=separated_list(COMMA, param) RPAREN 
+  | name=IDENT "(" params=separated_list(COMMA, param) ")" 
     ret_type=type_expr body=func_body {
       Nodes.FuncDecl { name; params; ret_type; body }
+    }
+  | name=IDENT type_=type_expr "=" value=expr {
+      Nodes.VarDecl { name; type_; value }
+    }
+  | name=IDENT type_=type_expr "(" args=separated_list(COMMA, expr) ")" {
+      Nodes.ConstructorDecl { name; type_; args }
     }
 
 func_body:
@@ -48,7 +54,7 @@ func_body:
     }
 
 statement:
-  | callee=expr LPAREN args=separated_list(COMMA, expr) RPAREN {
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" {
       Nodes.FuncCallStat { callee; args }
     }
 
@@ -57,13 +63,13 @@ param:
 
 type_expr:
   | name=IDENT { Nodes.SimpleType name }
-  | LPAREN params=separated_list(COMMA, type_expr) RPAREN THIN_ARROW ret=type_expr {
+  | "(" params=separated_list(COMMA, type_expr) ")" THIN_ARROW ret=type_expr {
       Nodes.FuncType { params; ret_type=ret }
     }
-  | LPAREN params=separated_list(COMMA, type_expr) RPAREN THICK_ARROW ret=type_expr {
+  | "(" THIS params=separated_list(COMMA, type_expr) ")" THIN_ARROW ret=type_expr {
       Nodes.MethType { params; ret_type=ret; is_mut=false }
     }
-  | EXCL LPAREN params=separated_list(COMMA, type_expr) RPAREN THICK_ARROW ret=type_expr {
+  | "(" THIS params=separated_list(COMMA, type_expr) ")" "!" THIN_ARROW ret=type_expr {
       Nodes.MethType { params; ret_type=ret; is_mut=true }
     }
 
@@ -73,8 +79,8 @@ expr:
   | e1=expr MINUS e2=expr { Nodes.Op { left=e1; right=e2; operator="-" } }
   | e1=expr STAR e2=expr  { Nodes.Op { left=e1; right=e2; operator="*" } }
   | e1=expr SLASH e2=expr { Nodes.Op { left=e1; right=e2; operator="/" } }
-  | LPAREN e=expr RPAREN { Nodes.Parenthized e }
-  | callee=expr LPAREN args=separated_list(COMMA, expr) RPAREN {
+  | "(" e=expr ")" { Nodes.Parenthized e }
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" {
       Nodes.FuncCall { callee; args }
     }
 

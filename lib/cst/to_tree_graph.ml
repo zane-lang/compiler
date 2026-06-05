@@ -75,6 +75,28 @@ and decl_to_node = function
           ]
         )
       }
+  | Nodes.VarDecl { name; type_; value }
+      -> Tree_graph.Group {
+        title = "var_decl";
+        body = Tree_graph.Fields (
+          Tree_graph.StringMap.of_list [
+            ("name", Tree_graph.Leaf name);
+            ("type", type_to_node type_);
+            ("value", expr_to_node value);
+          ]
+        )
+      }
+  | Nodes.ConstructorDecl { name; type_; args }
+      -> Tree_graph.Group {
+        title = "var_decl";
+        body = Tree_graph.Fields (
+          Tree_graph.StringMap.of_list [
+            ("name", Tree_graph.Leaf name);
+            ("type", type_to_node type_);
+            ("args", Tree_graph.Sequence (List.map expr_to_node args));
+          ]
+        )
+      }
 
 let to_node ({ Nodes.decls }: Nodes.package) =
   Tree_graph.Group { title = "package"; body = Tree_graph.Fields (Tree_graph.StringMap.of_list [

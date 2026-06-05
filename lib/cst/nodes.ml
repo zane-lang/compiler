@@ -32,6 +32,8 @@ type body =
 
 type decl =
   | FuncDecl of { name: string; params: param list; ret_type: type_expr; body: body }
+  | VarDecl of { name: string; type_: type_expr; value: expr }
+  | ConstructorDecl of  { name: string; type_: type_expr; args: expr list }
 
 type package = {
   decls: decl list
