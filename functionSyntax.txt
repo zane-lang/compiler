@@ -1,3 +1,0 @@
-main (this Int, a Bool)! Void {
-	print(2, 2)
-}

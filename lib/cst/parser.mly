@@ -11,6 +11,8 @@
 %token COMMA ","
 %token LCURLY "{"
 %token RCURLY "}"
+%token LBRACKET "["
+%token RBRACKET "]"
 %token COLON
 %token EQUAL "="
 %token PLUS "+"
@@ -75,13 +77,13 @@ param:
 
 type_expr:
   | name=IDENT { Nodes.SimpleType name }
-  | "(" params=separated_list(COMMA, type_expr) ")" THIN_ARROW ret=type_expr {
+  | "[" params=separated_list(COMMA, type_expr) "]" THIN_ARROW ret=type_expr {
       Nodes.FuncType { params; ret_type=ret }
     }
-  | "(" THIS params=separated_list(COMMA, type_expr) ")" THIN_ARROW ret=type_expr {
+  | "[" THIS params=separated_list(COMMA, type_expr) "]" THIN_ARROW ret=type_expr {
       Nodes.MethType { params; ret_type=ret; is_mut=false }
     }
-  | "(" THIS params=separated_list(COMMA, type_expr) ")" "!" THIN_ARROW ret=type_expr {
+  | "[" THIS params=separated_list(COMMA, type_expr) "]" "!" THIN_ARROW ret=type_expr {
       Nodes.MethType { params; ret_type=ret; is_mut=true }
     }
 

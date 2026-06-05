@@ -1,6 +1,6 @@
 main (hi Int, a Bool) Void {
-	x String = "hello"
+	x [this Int]! -> Void = "hello"
 	y String = "world"
-	print (x, y)
-	log ("bug")
+	print(x, y)
+	log("bug")
 }

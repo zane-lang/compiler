@@ -7,5 +7,3 @@ get to state after issue
 `sudo apt install libc++-21-dev libc++abi-21-dev`
 
 should be fixed on the commit where notes.md is added
-
-execution bottom to top?

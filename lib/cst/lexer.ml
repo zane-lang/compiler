@@ -21,6 +21,8 @@ let rec token buf =
   | ')'                         -> RPAREN
   | '{'                         -> LCURLY
   | '}'                         -> RCURLY
+  | '['                         -> LBRACKET
+  | ']'                         -> RBRACKET
   | ','                         -> COMMA
   | ':'                         -> COLON
   | '!'                         -> EXCL
