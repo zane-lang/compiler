@@ -52,6 +52,7 @@ and params_to_node (x: Nodes.param list) =
 
 and statement_to_node (x: Nodes.stat) = match x with
   | Nodes.FuncCallStat x -> func_call_to_node x
+  | Nodes.DeclStat x -> decl_to_node x
 
 and body_to_node (x: Nodes.body) = match x with
   | Nodes.Scope scope

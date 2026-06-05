@@ -8,6 +8,6 @@ let parse filename input =
   let tokenizer = Sedlexing.with_tokenizer Lexer.token lexbuf in
   try
     MenhirLib.Convert.Simplified.traditional2revised Parser.package tokenizer
-  with Parser.Error ->
+  with Parser.Error tokenizer ->
     let (pos_start, pos_end) = Sedlexing.lexing_positions lexbuf in
     Parse_error.print_parse_error filename input pos_start pos_end

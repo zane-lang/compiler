@@ -1,13 +1,17 @@
 (*****************************)
 (*     token definitions     *)
 (*****************************)
-%token <string> INT FLOAT STRING IDENT
+%token <string> INT "43"
+%token <string> FLOAT "8.647"
+%token <string> STRING "\"john\""
+%token <string> IDENT "foo"
+
 %token LPAREN "("
 %token RPAREN ")"
 %token COMMA ","
 %token LCURLY "{"
 %token RCURLY "}"
-%token COLON ":"
+%token COLON
 %token EQUAL "="
 %token PLUS "+"
 %token MINUS "-"
@@ -19,10 +23,11 @@
 %token TILDE "~"
 %token THIN_ARROW "->"
 %token THICK_ARROW "=>"
-%token THIS
-%token ERROR
-%token EOF
+%token THIS "this"
+%token ERROR "<error>"
+%token EOF "<eof>"
 
+%left LPAREN
 %left PLUS MINUS
 %left STAR SLASH
 
@@ -37,26 +42,33 @@ package:
   | decls=list(decl) EOF { { Nodes.decls = decls } }
 
 decl:
-  | name=IDENT "(" params=separated_list(COMMA, param) ")" 
-    ret_type=type_expr body=func_body {
-      Nodes.FuncDecl { name; params; ret_type; body }
-    }
   | name=IDENT type_=type_expr "=" value=expr {
       Nodes.VarDecl { name; type_; value }
     }
   | name=IDENT type_=type_expr "(" args=separated_list(COMMA, expr) ")" {
       Nodes.ConstructorDecl { name; type_; args }
     }
+  | name=IDENT "(" params=separated_list(COMMA, param) ")" 
+    ret_type=type_expr body=func_body {
+      Nodes.FuncDecl { name; params; ret_type; body }
+    }
 
 func_body:
-  | LCURLY statements=list(statement) RCURLY {
+  | LCURLY statements=list(stat) RCURLY {
       Nodes.Scope statements
     }
 
-statement:
+func_call:
   | callee=expr "(" args=separated_list(COMMA, expr) ")" {
-      Nodes.FuncCallStat { callee; args }
+      { callee=callee; args=args }
     }
+
+stat:
+  | decl=decl { Nodes.DeclStat decl }
+  | func_call=func_call {
+      Nodes.FuncCallStat func_call
+    }
+
 
 param:
   | name=IDENT type_=type_expr { { Nodes.name; type_ } }
@@ -74,18 +86,15 @@ type_expr:
     }
 
 expr:
-  | p=primary { p }
+  | int=INT { Nodes.IntLit int }
+  | float=FLOAT { Nodes.FloatLit float }
+  | string=STRING { Nodes.StrLit string }
+  | ident=IDENT { Nodes.Ident ident }
   | e1=expr PLUS e2=expr  { Nodes.Op { left=e1; right=e2; operator="+" } }
   | e1=expr MINUS e2=expr { Nodes.Op { left=e1; right=e2; operator="-" } }
   | e1=expr STAR e2=expr  { Nodes.Op { left=e1; right=e2; operator="*" } }
   | e1=expr SLASH e2=expr { Nodes.Op { left=e1; right=e2; operator="/" } }
   | "(" e=expr ")" { Nodes.Parenthized e }
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" {
-      Nodes.FuncCall { callee; args }
+  | func_call=func_call {
+      Nodes.FuncCall func_call
     }
-
-primary:
-  | int=INT { Nodes.IntLit int }
-  | float=FLOAT { Nodes.FloatLit float }
-  | string=STRING { Nodes.StrLit string }
-  | ident=IDENT { Nodes.Ident ident }

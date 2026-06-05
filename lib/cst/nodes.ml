@@ -26,11 +26,12 @@ type param = {
 
 type stat =
   | FuncCallStat of func_call
+  | DeclStat of decl
 
-type body =
+and body =
   | Scope of stat list
 
-type decl =
+and decl =
   | FuncDecl of { name: string; params: param list; ret_type: type_expr; body: body }
   | VarDecl of { name: string; type_: type_expr; value: expr }
   | ConstructorDecl of  { name: string; type_: type_expr; args: expr list }
