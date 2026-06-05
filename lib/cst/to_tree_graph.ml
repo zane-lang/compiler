@@ -76,6 +76,18 @@ and decl_to_node = function
           ]
         )
       }
+  | Nodes.MethDecl { name; params; ret_type; body; is_mut }
+      -> Tree_graph.Group {
+        title = "method_decl";
+        body = Tree_graph.Fields (
+          Tree_graph.StringMap.of_list [
+            ("param", params_to_node params);
+            ("ret_type", type_to_node ret_type);
+            ("body", body_to_node body);
+            ("is_mut ", Tree_graph.Leaf (string_of_bool is_mut));
+          ]
+        )
+      }
   | Nodes.VarDecl { name; type_; value }
       -> Tree_graph.Group {
         title = "var_decl";
@@ -89,7 +101,7 @@ and decl_to_node = function
       }
   | Nodes.ConstructorDecl { name; type_; args }
       -> Tree_graph.Group {
-        title = "var_decl";
+        title = "constructor_decl";
         body = Tree_graph.Fields (
           Tree_graph.StringMap.of_list [
             ("name", Tree_graph.Leaf name);

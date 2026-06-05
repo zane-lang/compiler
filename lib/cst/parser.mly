@@ -41,7 +41,7 @@
 %%
 
 package:
-  | decls=list(decl) EOF { { Nodes.decls = decls } }
+  | decls=list(decl) EOF { { Nodes.decls=decls } }
 
 decl:
   | name=IDENT type_=type_expr "=" value=expr {
@@ -54,6 +54,18 @@ decl:
     ret_type=type_expr body=func_body {
       Nodes.FuncDecl { name; params; ret_type; body }
     }
+  | name=IDENT "(" meth_params=meth_params ")"
+    ret_type=type_expr body=func_body {
+      Nodes.MethDecl { name; params=meth_params; ret_type; body; is_mut=false }
+    }
+  | name=IDENT "(" meth_params=meth_params ")" "!"
+    ret_type=type_expr body=func_body {
+      Nodes.MethDecl { name; params=meth_params; ret_type; body; is_mut=true }
+    }
+
+meth_params:
+  | THIS; t=type_expr; rest=loption(preceded(COMMA, separated_nonempty_list(COMMA, param)))
+      { { Nodes.name="this"; type_=t } :: rest }
 
 func_body:
   | LCURLY statements=list(stat) RCURLY {
