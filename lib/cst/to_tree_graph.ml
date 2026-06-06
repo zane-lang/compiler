@@ -30,6 +30,10 @@ and expr_to_node (x: Nodes.expr) = match x with
       }
   | Nodes.FuncCall x -> func_call_to_node x
 
+and abort_handle_to_node (x: Nodes.abort_handle) = match x with
+  | Nodes.AbortBody x -> body_to_node x
+  | Nodes.AbortShorthand x -> expr_to_node x
+
 and func_call_to_node x = match x with
   | Nodes.SafeCall x
       -> Tree_graph.Group {
@@ -41,6 +45,20 @@ and func_call_to_node x = match x with
           ]
         )
       }
+  | Nodes.AbortCall x ->
+      let fields = [
+        ("callee", expr_to_node x.callee);
+        ("args", Tree_graph.Sequence (List.map expr_to_node x.args));
+        ("handle_block", abort_handle_to_node x.handle_block)
+      ] in
+      let fields = match x.binder with
+        | Some b -> ("binder", Tree_graph.Leaf b) :: fields
+        | None   -> fields
+      in
+    Tree_graph.Group {
+      title = "function_call";
+      body = Tree_graph.Fields (Tree_graph.StringMap.of_list fields)
+    }
 
 and param_to_node (x: Nodes.param) =
   Tree_graph.Fields (Tree_graph.StringMap.of_list [

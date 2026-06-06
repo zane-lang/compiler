@@ -21,12 +21,13 @@ and abort_handle =
 and abort_call = {
   callee: expr;
   args: expr list;
+  binder: string option;
   handle_block: abort_handle;
 }
 
 and func_call =
   | SafeCall of safe_call
-  (* | AbortCall of abort_call *)
+  | AbortCall of abort_call
 
 
 and type_expr =

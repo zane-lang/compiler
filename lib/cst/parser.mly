@@ -23,6 +23,7 @@
 %token AT "@"
 %token EXCL "!"
 %token QSTNMARK "?"
+%token QSTNQSTN "??"
 %token TILDE "~"
 %token THIN_ARROW "->"
 %token THICK_ARROW "=>"
@@ -52,15 +53,15 @@ decl:
       Nodes.ConstructorDecl { name; type_; args }
     }
   | name=IDENT "(" params=separated_list(COMMA, param) ")" 
-    ret_type=ret_type body=func_body {
+    ret_type=ret_type body=body {
       Nodes.FuncDecl { name; params; ret_type; body }
     }
   | name=IDENT "(" meth_params=meth_params ")"
-    ret_type=ret_type body=func_body {
+    ret_type=ret_type body=body {
       Nodes.MethDecl { name; params=meth_params; ret_type; body; is_mut=false }
     }
   | name=IDENT "(" meth_params=meth_params ")" "!"
-    ret_type=ret_type body=func_body {
+    ret_type=ret_type body=body {
       Nodes.MethDecl { name; params=meth_params; ret_type; body; is_mut=true }
     }
 
@@ -76,14 +77,20 @@ meth_params:
   | THIS; t=type_expr; rest=loption(preceded(COMMA, separated_nonempty_list(COMMA, param)))
       { { Nodes.name="this"; type_=t } :: rest }
 
-func_body:
-  | LCURLY statements=list(stat) RCURLY {
+body:
+  | "{" statements=list(stat) "}" {
       Nodes.Scope statements
     }
 
 func_call:
   | callee=expr "(" args=separated_list(COMMA, expr) ")" {
-      Nodes.SafeCall { callee=callee; args=args }
+      Nodes.SafeCall { callee; args }
+    }
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(IDENT) "?" body=body {
+      Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortBody body }
+    }
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(IDENT) "??" value=expr {
+      Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortShorthand value }
     }
 
 stat:

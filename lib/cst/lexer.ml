@@ -26,6 +26,7 @@ let rec token buf =
   | ','                         -> COMMA
   | ':'                         -> COLON
   | '!'                         -> EXCL
+  | "??"                        -> QSTNQSTN
   | '?'                         -> QSTNMARK
   | '~'                         -> TILDE
   | '+'                         -> PLUS
