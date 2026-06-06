@@ -7,3 +7,5 @@ main (this Int, a Bool)! Void?String {
 		abort error
 	}
 }
+
+square (x Int, y Int) Int => x * y

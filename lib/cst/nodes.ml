@@ -49,6 +49,7 @@ and stat =
 
 and body =
   | Scope of stat list
+  | RetShorthand of expr
 
 and ret_type =
   | SafeRet of type_expr

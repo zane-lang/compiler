@@ -96,6 +96,11 @@ and body_to_node (x: Nodes.body) = match x with
             ("stat", Tree_graph.Sequence (List.map stat_to_node scope) );
         ])
       }
+  | Nodes.RetShorthand x
+      -> Tree_graph.Group {
+        title = "ret_shorthand";
+        body = expr_to_node x
+      }
 
 and ret_to_node (x: Nodes.ret_type) = match x with
   | Nodes.SafeRet ret -> type_to_node ret

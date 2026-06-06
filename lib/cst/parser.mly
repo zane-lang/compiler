@@ -84,6 +84,9 @@ body:
   | "{" statements=list(stat) "}" {
       Nodes.Scope statements
     }
+  | "=>" value=expr {
+      Nodes.RetShorthand value
+    }
 
 func_call:
   | callee=expr "(" args=separated_list(COMMA, expr) ")" {
