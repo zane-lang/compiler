@@ -4,6 +4,6 @@ main (this Int, a Bool)! Void?String {
 	content String = read("wordlist.txt") ?? ""
 	results List = crawl(content) error ? {
 		print(error)
-		resolve ""
+		abort error
 	}
 }

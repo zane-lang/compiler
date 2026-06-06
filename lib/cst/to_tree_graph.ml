@@ -69,9 +69,14 @@ and param_to_node (x: Nodes.param) =
 and params_to_node (x: Nodes.param list) =
   Tree_graph.Sequence (List.map param_to_node x)
 
-and statement_to_node (x: Nodes.stat) = match x with
+and stat_to_node (x: Nodes.stat) = match x with
   | Nodes.FuncCallStat x -> func_call_to_node x
   | Nodes.DeclStat x -> decl_to_node x
+  | Nodes.AbortStat x
+      -> Tree_graph.Group {
+        title = "abort_stat";
+        body = expr_to_node x
+      }
   | Nodes.RetStat x
       -> Tree_graph.Group {
         title = "ret_stat";
@@ -88,7 +93,7 @@ and body_to_node (x: Nodes.body) = match x with
       -> Tree_graph.Group {
         title = "scope";
         body = Tree_graph.Fields (Tree_graph.StringMap.of_list [
-            ("stat", Tree_graph.Sequence (List.map statement_to_node scope) );
+            ("stat", Tree_graph.Sequence (List.map stat_to_node scope) );
         ])
       }
 

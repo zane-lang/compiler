@@ -28,6 +28,7 @@
 %token THIN_ARROW "->"
 %token THICK_ARROW "=>"
 %token THIS "this"
+%token ABORT "abort"
 %token RETURN "return"
 %token RESOLVE "resolve"
 %token ERROR "<error>"
@@ -100,13 +101,15 @@ stat:
   | func_call=func_call {
       Nodes.FuncCallStat func_call
     }
+  | ABORT value=expr {
+      Nodes.AbortStat value
+    }
   | RETURN value=expr {
       Nodes.RetStat value
     }
   | RESOLVE value=expr {
       Nodes.ResolveStat value
     }
-
 
 param:
   | name=IDENT type_=type_expr { { Nodes.name; type_ } }

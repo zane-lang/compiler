@@ -43,6 +43,7 @@ and param = {
 and stat =
   | FuncCallStat of func_call
   | DeclStat of decl
+  | AbortStat of expr
   | RetStat of expr
   | ResolveStat of expr
 
