@@ -30,16 +30,17 @@ and expr_to_node (x: Nodes.expr) = match x with
       }
   | Nodes.FuncCall x -> func_call_to_node x
 
-and func_call_to_node x =
-  Tree_graph.Group {
-    title = "function_call";
-    body = Tree_graph.Fields (
-      Tree_graph.StringMap.of_list [
-        ("callee", expr_to_node x.callee);
-        ("arg", Tree_graph.Sequence (List.map expr_to_node x.args));
-      ]
-    )
-  }
+and func_call_to_node x = match x with
+  | Nodes.SafeCall x
+      -> Tree_graph.Group {
+        title = "function_call";
+        body = Tree_graph.Fields (
+          Tree_graph.StringMap.of_list [
+            ("callee", expr_to_node x.callee);
+            ("arg", Tree_graph.Sequence (List.map expr_to_node x.args));
+          ]
+        )
+      }
 
 and param_to_node (x: Nodes.param) =
   Tree_graph.Fields (Tree_graph.StringMap.of_list [

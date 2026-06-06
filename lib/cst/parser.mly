@@ -83,7 +83,7 @@ func_body:
 
 func_call:
   | callee=expr "(" args=separated_list(COMMA, expr) ")" {
-      { callee=callee; args=args }
+      Nodes.SafeCall { callee=callee; args=args }
     }
 
 stat:

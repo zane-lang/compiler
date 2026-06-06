@@ -9,22 +9,37 @@ type expr =
   | Parenthized of expr
   | FuncCall    of func_call
 
-and func_call = {
+and safe_call = {
   callee: expr;
-  args: expr list 
+  args: expr list;
 }
 
-type type_expr =
+and abort_handle =
+  | AbortBody of body
+  | AbortShorthand of expr
+
+and abort_call = {
+  callee: expr;
+  args: expr list;
+  handle_block: abort_handle;
+}
+
+and func_call =
+  | SafeCall of safe_call
+  (* | AbortCall of abort_call *)
+
+
+and type_expr =
   | SimpleType of string
   | FuncType of { params: type_expr list; ret_type: type_expr }
   | MethType of { params: type_expr list; ret_type: type_expr; is_mut: bool }
 
-type param = {
+and param = {
   name: string;
   type_: type_expr
 }
 
-type stat =
+and stat =
   | FuncCallStat of func_call
   | DeclStat of decl
 
