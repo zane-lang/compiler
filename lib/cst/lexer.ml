@@ -41,6 +41,8 @@ let rec token buf =
       let s = Utf8.lexeme buf in
       STRING (String.sub s 1 (String.length s - 2))
   | "this"                      -> THIS
+  | "return"                    -> RETURN
+  | "resolve"                   -> RESOLVE
   | Plus ident_char             -> IDENT (Utf8.lexeme buf)
   | eof                         -> EOF
   | _                           -> ERROR

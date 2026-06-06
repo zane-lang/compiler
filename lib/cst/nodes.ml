@@ -43,6 +43,8 @@ and param = {
 and stat =
   | FuncCallStat of func_call
   | DeclStat of decl
+  | RetStat of expr
+  | ResolveStat of expr
 
 and body =
   | Scope of stat list

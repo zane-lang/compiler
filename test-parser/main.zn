@@ -2,7 +2,8 @@ main (this Int, a Bool)! Void?String {
 	x [this Int]! -> Void = "hello"
 	y String = "world"
 	content String = read("wordlist.txt") ?? ""
-	crawl(content) error ? {
+	results List = crawl(content) error ? {
 		print(error)
+		resolve ""
 	}
 }

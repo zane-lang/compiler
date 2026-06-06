@@ -28,6 +28,8 @@
 %token THIN_ARROW "->"
 %token THICK_ARROW "=>"
 %token THIS "this"
+%token RETURN "return"
+%token RESOLVE "resolve"
 %token ERROR "<error>"
 %token EOF "<eof>"
 
@@ -98,6 +100,12 @@ stat:
   | func_call=func_call {
       Nodes.FuncCallStat func_call
     }
+  | RETURN value=expr {
+      Nodes.RetStat value
+    }
+  | RESOLVE value=expr {
+      Nodes.ResolveStat value
+    }
 
 
 param:
@@ -105,13 +113,13 @@ param:
 
 type_expr:
   | name=IDENT { Nodes.SimpleType name }
-  | "[" params=separated_list(COMMA, type_expr) "]" THIN_ARROW ret=type_expr {
+  | "[" params=separated_list(COMMA, type_expr) "]" "->" ret=type_expr {
       Nodes.FuncType { params; ret_type=ret }
     }
-  | "[" THIS params=separated_list(COMMA, type_expr) "]" THIN_ARROW ret=type_expr {
+  | "[" THIS params=separated_list(COMMA, type_expr) "]" "->" ret=type_expr {
       Nodes.MethType { params; ret_type=ret; is_mut=false }
     }
-  | "[" THIS params=separated_list(COMMA, type_expr) "]" "!" THIN_ARROW ret=type_expr {
+  | "[" THIS params=separated_list(COMMA, type_expr) "]" "!" "->" ret=type_expr {
       Nodes.MethType { params; ret_type=ret; is_mut=true }
     }
 
@@ -120,10 +128,10 @@ expr:
   | float=FLOAT { Nodes.FloatLit float }
   | string=STRING { Nodes.StrLit string }
   | ident=IDENT { Nodes.Ident ident }
-  | e1=expr PLUS e2=expr  { Nodes.Op { left=e1; right=e2; operator="+" } }
-  | e1=expr MINUS e2=expr { Nodes.Op { left=e1; right=e2; operator="-" } }
-  | e1=expr STAR e2=expr  { Nodes.Op { left=e1; right=e2; operator="*" } }
-  | e1=expr SLASH e2=expr { Nodes.Op { left=e1; right=e2; operator="/" } }
+  | e1=expr "+" e2=expr  { Nodes.Op { left=e1; right=e2; operator="+" } }
+  | e1=expr "-" e2=expr { Nodes.Op { left=e1; right=e2; operator="-" } }
+  | e1=expr "*" e2=expr  { Nodes.Op { left=e1; right=e2; operator="*" } }
+  | e1=expr "/" e2=expr { Nodes.Op { left=e1; right=e2; operator="/" } }
   | "(" e=expr ")" { Nodes.Parenthized e }
   | func_call=func_call {
       Nodes.FuncCall func_call

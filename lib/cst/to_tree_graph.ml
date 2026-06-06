@@ -72,15 +72,24 @@ and params_to_node (x: Nodes.param list) =
 and statement_to_node (x: Nodes.stat) = match x with
   | Nodes.FuncCallStat x -> func_call_to_node x
   | Nodes.DeclStat x -> decl_to_node x
+  | Nodes.RetStat x
+      -> Tree_graph.Group {
+        title = "ret_stat";
+        body = expr_to_node x
+      }
+  | Nodes.ResolveStat x
+      -> Tree_graph.Group {
+        title = "resolve_stat";
+        body = expr_to_node x
+      }
 
 and body_to_node (x: Nodes.body) = match x with
   | Nodes.Scope scope
       -> Tree_graph.Group {
         title = "scope";
-        body = Tree_graph.Group {
-          title = "statement";
-          body = Tree_graph.Sequence (List.map statement_to_node scope)
-        }
+        body = Tree_graph.Fields (Tree_graph.StringMap.of_list [
+            ("stat", Tree_graph.Sequence (List.map statement_to_node scope) );
+        ])
       }
 
 and ret_to_node (x: Nodes.ret_type) = match x with
