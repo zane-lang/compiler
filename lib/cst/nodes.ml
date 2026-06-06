@@ -31,9 +31,13 @@ type stat =
 and body =
   | Scope of stat list
 
+and ret_type =
+  | SafeRet of type_expr
+  | AbortRet of type_expr * type_expr
+
 and decl =
-  | FuncDecl of { name: string; params: param list; ret_type: type_expr; body: body }
-  | MethDecl of { name: string; params: param list; ret_type: type_expr; is_mut: bool ; body: body }
+  | FuncDecl of { name: string; params: param list; ret_type: ret_type; body: body }
+  | MethDecl of { name: string; params: param list; ret_type: ret_type; is_mut: bool ; body: body }
   | VarDecl of { name: string; type_: type_expr; value: expr }
   | ConstructorDecl of  { name: string; type_: type_expr; args: expr list }
 

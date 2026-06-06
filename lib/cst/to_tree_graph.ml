@@ -64,6 +64,16 @@ and body_to_node (x: Nodes.body) = match x with
         }
       }
 
+and ret_to_node (x: Nodes.ret_type) = match x with
+  | Nodes.SafeRet ret -> type_to_node ret
+  | Nodes.AbortRet (ret_type, abort_type)
+      -> Tree_graph.Fields (
+          Tree_graph.StringMap.of_list [
+            ("safe_type", type_to_node abort_type );
+            ("abort_type", type_to_node ret_type);
+          ]
+        )
+
 and decl_to_node = function
   | Nodes.FuncDecl { name; params; ret_type; body }
       -> Tree_graph.Group {
@@ -71,7 +81,7 @@ and decl_to_node = function
         body = Tree_graph.Fields (
           Tree_graph.StringMap.of_list [
             ("param", params_to_node params);
-            ("ret_type", type_to_node ret_type);
+            ("ret_type", ret_to_node ret_type);
             ("body", body_to_node body);
           ]
         )
@@ -82,7 +92,7 @@ and decl_to_node = function
         body = Tree_graph.Fields (
           Tree_graph.StringMap.of_list [
             ("param", params_to_node params);
-            ("ret_type", type_to_node ret_type);
+            ("ret_type", ret_to_node ret_type);
             ("body", body_to_node body);
             ("is_mut ", Tree_graph.Leaf (string_of_bool is_mut));
           ]

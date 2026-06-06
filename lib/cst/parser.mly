@@ -22,6 +22,7 @@
 %token DOLLAR "$"
 %token AT "@"
 %token EXCL "!"
+%token QSTNMARK "?"
 %token TILDE "~"
 %token THIN_ARROW "->"
 %token THICK_ARROW "=>"
@@ -51,17 +52,25 @@ decl:
       Nodes.ConstructorDecl { name; type_; args }
     }
   | name=IDENT "(" params=separated_list(COMMA, param) ")" 
-    ret_type=type_expr body=func_body {
+    ret_type=ret_type body=func_body {
       Nodes.FuncDecl { name; params; ret_type; body }
     }
   | name=IDENT "(" meth_params=meth_params ")"
-    ret_type=type_expr body=func_body {
+    ret_type=ret_type body=func_body {
       Nodes.MethDecl { name; params=meth_params; ret_type; body; is_mut=false }
     }
   | name=IDENT "(" meth_params=meth_params ")" "!"
-    ret_type=type_expr body=func_body {
+    ret_type=ret_type body=func_body {
       Nodes.MethDecl { name; params=meth_params; ret_type; body; is_mut=true }
     }
+
+ret_type:
+  | ret_type=type_expr {
+      Nodes.SafeRet ret_type
+    }
+  | safe_type=type_expr "?" abort_type=type_expr {
+    Nodes.AbortRet (safe_type, abort_type)
+  }
 
 meth_params:
   | THIS; t=type_expr; rest=loption(preceded(COMMA, separated_nonempty_list(COMMA, param)))
