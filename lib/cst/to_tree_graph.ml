@@ -2,7 +2,7 @@ open Tree_graph
 
 let rec type_to_node = function
   | Nodes.SimpleType s              -> Leaf s
-  | Nodes.QualifiedType (pkg, type_) -> Leaf (pkg ^ type_)
+  | Nodes.QualifiedType (pkg, type_) -> Leaf (pkg ^ "$" ^ type_)
   | Nodes.FuncType { params; ret_type } ->
       fields [
         ("param", map_seq type_to_node params);
@@ -35,7 +35,7 @@ and expr_to_node (x : Nodes.expr) = match x with
   | Nodes.FuncCall x ->
       func_call_to_node x
   | Nodes.FuncLambda x ->
-      group "func_decl" (func_lambda_to_node x)
+      group "func_lambda" (func_lambda_to_node x)
   | Nodes.MethLambda x ->
       group "meth_lambda" (meth_lambda_to_node x)
 
@@ -43,7 +43,7 @@ and op_to_name (x : Nodes.operator) = match x with
   | Add -> "+"
   | Sub -> "-"
   | Mul -> "*"
-  | Div -> "*"
+  | Div -> "/"
 
 and abort_handle_to_node (x : Nodes.abort_handle) = match x with
   | Nodes.AbortBody x      -> body_to_node x
@@ -53,7 +53,7 @@ and func_call_to_node x = match x with
   | Nodes.SafeCall x ->
       group "function_call" (fields [
         ("callee", expr_to_node x.callee);
-        ("arg",    map_seq expr_to_node x.args);
+        ("args",   map_seq expr_to_node x.args);
       ])
   | Nodes.AbortCall x ->
       let fs = [
@@ -95,8 +95,8 @@ and ret_to_node (x : Nodes.ret_type) = match x with
   | Nodes.SafeRet ret -> type_to_node ret
   | Nodes.AbortRet (ret_type, abort_type) ->
       fields [
-        ("safe_type",  type_to_node abort_type);
-        ("abort_type", type_to_node ret_type);
+        ("safe_type",  type_to_node ret_type);
+        ("abort_type", type_to_node abort_type);
       ]
 
 and func_lambda_to_node (x : Nodes.func_lambda) =
@@ -122,7 +122,7 @@ and decl_to_node = function
         ("func", func_lambda_to_node x.func);
       ])
   | Nodes.MethDecl x ->
-      group "func_decl" (fields [
+      group "meth_decl" (fields [
         ("name", Leaf x.name);
         ("func", meth_lambda_to_node x.func);
       ])

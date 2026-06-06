@@ -9,8 +9,6 @@ let nonascii   = [%sedlex.regexp? 192 .. 214 | 216 .. 246 | 248 .. 255]
 let ident_char = [%sedlex.regexp? 'a'..'z' | 'A'..'Z' | '_' | nonascii]
 let str_char   = [%sedlex.regexp? Compl ('"' | '\\') | '\\', any]
 
-let strip_sep s = String.concat "" (String.split_on_char '\'' s)
-
 let rec token buf =
   match%sedlex buf with
   | Plus (' ' | '\t' | '\r' | '\n') -> token buf

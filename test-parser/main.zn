@@ -3,7 +3,7 @@ main (this Int, a Bool)! Void?String {
 	y String = "world"
 	content String = read("wordlist.txt") ?? ""
 	results List = crawl(content) error ? {
-		print(error)
+		std$print(error)
 		abort error
 	}
 

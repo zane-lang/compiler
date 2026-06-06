@@ -151,6 +151,7 @@ expr:
   | TRUE { Nodes.BoolLit true }
   | FALSE { Nodes.BoolLit false }
   | ident=IDENT { Nodes.Ident ident }
+  | pkg=IDENT "$" ident=IDENT { Nodes.QualifiedIdent (pkg, ident) }
   | e1=expr "+" e2=expr  { Nodes.Op { left=e1; right=e2; operator=Nodes.Add } }
   | e1=expr "-" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.Sub } }
   | e1=expr "*" e2=expr  { Nodes.Op { left=e1; right=e2; operator=Nodes.Mul } }
