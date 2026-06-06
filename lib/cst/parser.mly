@@ -27,6 +27,8 @@
 %token TILDE "~"
 %token THIN_ARROW "->"
 %token THICK_ARROW "=>"
+%token TRUE "true"
+%token FALSE "false"
 %token THIS "this"
 %token ABORT "abort"
 %token RETURN "return"
@@ -48,6 +50,24 @@
 package:
   | decls=list(decl) EOF { { Nodes.decls=decls } }
 
+func_lambda:
+  | "(" params=separated_list(COMMA, param) ")" 
+    ret_type=ret_type body=body {
+      { Nodes.params; ret_type; body }
+    }
+
+meth_lambda:
+  | "(" THIS this_type=type_expr
+    params=loption(preceded(",", separated_nonempty_list(",", param)))
+    ")" ret_type=ret_type body=body {
+      { Nodes.this_type; params; ret_type; is_mut=false; body }
+    }
+  | "(" THIS this_type=type_expr
+    params=loption(preceded(",", separated_nonempty_list(",", param)))
+    ")" "!" ret_type=ret_type body=body {
+      { Nodes.this_type; params; ret_type; is_mut=true; body }
+    }
+
 decl:
   | name=IDENT type_=type_expr "=" value=expr {
       Nodes.VarDecl { name; type_; value }
@@ -55,17 +75,11 @@ decl:
   | name=IDENT type_=type_expr "(" args=separated_list(COMMA, expr) ")" {
       Nodes.ConstructorDecl { name; type_; args }
     }
-  | name=IDENT "(" params=separated_list(COMMA, param) ")" 
-    ret_type=ret_type body=body {
-      Nodes.FuncDecl { name; params; ret_type; body }
+  | name=IDENT func_lambda=func_lambda {
+      Nodes.FuncDecl { name; func=func_lambda }
     }
-  | name=IDENT "(" meth_params=meth_params ")"
-    ret_type=ret_type body=body {
-      Nodes.MethDecl { name; params=meth_params; ret_type; body; is_mut=false }
-    }
-  | name=IDENT "(" meth_params=meth_params ")" "!"
-    ret_type=ret_type body=body {
-      Nodes.MethDecl { name; params=meth_params; ret_type; body; is_mut=true }
+  | name=IDENT meth_lambda=meth_lambda {
+      Nodes.MethDecl { name; func=meth_lambda }
     }
 
 ret_type:
@@ -73,12 +87,8 @@ ret_type:
       Nodes.SafeRet ret_type
     }
   | safe_type=type_expr "?" abort_type=type_expr {
-    Nodes.AbortRet (safe_type, abort_type)
-  }
-
-meth_params:
-  | THIS; t=type_expr; rest=loption(preceded(COMMA, separated_nonempty_list(COMMA, param)))
-      { { Nodes.name="this"; type_=t } :: rest }
+      Nodes.AbortRet (safe_type, abort_type)
+    }
 
 body:
   | "{" statements=list(stat) "}" {
@@ -119,26 +129,39 @@ param:
 
 type_expr:
   | name=IDENT { Nodes.SimpleType name }
-  | "[" params=separated_list(COMMA, type_expr) "]" "->" ret=type_expr {
+  | pkg=IDENT name=IDENT { Nodes.QualifiedType (pkg, name) }
+  | "[" params=separated_list(",", type_expr) "]" "->" ret=type_expr {
       Nodes.FuncType { params; ret_type=ret }
     }
-  | "[" THIS params=separated_list(COMMA, type_expr) "]" "->" ret=type_expr {
-      Nodes.MethType { params; ret_type=ret; is_mut=false }
+  | "[" THIS this_type=type_expr 
+    params=loption(preceded(",", separated_nonempty_list(",", type_expr)))
+    "]" "->" ret=type_expr {
+      Nodes.MethType { this_type; params; ret_type=ret; is_mut=false }
     }
-  | "[" THIS params=separated_list(COMMA, type_expr) "]" "!" "->" ret=type_expr {
-      Nodes.MethType { params; ret_type=ret; is_mut=true }
+  | "[" THIS this_type=type_expr
+    params=loption(preceded(",", separated_nonempty_list(",", type_expr)))
+    "]" "!" "->" ret=type_expr {
+      Nodes.MethType { this_type; params; ret_type=ret; is_mut=true }
     }
 
 expr:
   | int=INT { Nodes.IntLit int }
   | float=FLOAT { Nodes.FloatLit float }
   | string=STRING { Nodes.StrLit string }
+  | TRUE { Nodes.BoolLit true }
+  | FALSE { Nodes.BoolLit false }
   | ident=IDENT { Nodes.Ident ident }
-  | e1=expr "+" e2=expr  { Nodes.Op { left=e1; right=e2; operator="+" } }
-  | e1=expr "-" e2=expr { Nodes.Op { left=e1; right=e2; operator="-" } }
-  | e1=expr "*" e2=expr  { Nodes.Op { left=e1; right=e2; operator="*" } }
-  | e1=expr "/" e2=expr { Nodes.Op { left=e1; right=e2; operator="/" } }
+  | e1=expr "+" e2=expr  { Nodes.Op { left=e1; right=e2; operator=Nodes.Add } }
+  | e1=expr "-" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.Sub } }
+  | e1=expr "*" e2=expr  { Nodes.Op { left=e1; right=e2; operator=Nodes.Mul } }
+  | e1=expr "/" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.Div } }
   | "(" e=expr ")" { Nodes.Parenthized e }
   | func_call=func_call {
       Nodes.FuncCall func_call
+    }
+  | func_lambda=func_lambda {
+      Nodes.FuncLambda func_lambda
+    }
+  | meth_lambda=meth_lambda {
+      Nodes.MethLambda meth_lambda
     }

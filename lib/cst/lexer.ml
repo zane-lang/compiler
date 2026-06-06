@@ -40,6 +40,8 @@ let rec token buf =
   | '"', Star str_char, '"'     ->
       let s = Utf8.lexeme buf in
       STRING (String.sub s 1 (String.length s - 2))
+  | "true"                      -> TRUE
+  | "false"                     -> FALSE
   | "this"                      -> THIS
   | "abort"                     -> ABORT
   | "return"                    -> RETURN

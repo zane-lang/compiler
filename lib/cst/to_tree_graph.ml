@@ -2,32 +2,51 @@ open Tree_graph
 
 let rec type_to_node = function
   | Nodes.SimpleType s -> Leaf s
+  | Nodes.QualifiedType (pkg, type_) -> Leaf (pkg ^ type_)
   | Nodes.FuncType { params; ret_type }
       -> fields [
            ("param", map_seq type_to_node params);
            ("type",  type_to_node ret_type);
          ]
-  | Nodes.MethType { params; ret_type; is_mut }
+  | Nodes.MethType { this_type; params; ret_type; is_mut }
       -> fields [
-           ("param",  map_seq type_to_node params);
-           ("type",   type_to_node ret_type);
-           ("is_mut", Leaf (string_of_bool is_mut));
-         ]
+          ("this_type", type_to_node this_type );
+          ("param",  map_seq type_to_node params);
+          ("type",   type_to_node ret_type);
+          ("is_mut", Leaf (string_of_bool is_mut));
+        ]
 
 and expr_to_node (x: Nodes.expr) = match x with
-  | Nodes.IntLit x   -> Leaf x
-  | Nodes.FloatLit x -> Leaf x
-  | Nodes.StrLit x   -> Leaf x
-  | Nodes.Ident x    -> Leaf x
+  | Nodes.IntLit x                   -> Leaf x
+  | Nodes.FloatLit x                 -> Leaf x
+  | Nodes.StrLit x                   -> Leaf x
+  | Nodes.BoolLit x                  -> Leaf (string_of_bool x)
+  | Nodes.Ident x                    -> Leaf x
+  | Nodes.QualifiedIdent (pkg, name) -> Leaf (pkg ^ "$" ^ name)
   | Nodes.Op x
       -> fields [
-           ("left",  expr_to_node x.left);
-           ("right", expr_to_node x.right);
-           ("op",    Leaf x.operator);
-         ]
+        (op_to_name x.operator, fields [
+          ("left",  expr_to_node x.left);
+          ("right", expr_to_node x.right);
+        ]);
+      ]
   | Nodes.Parenthized x
       -> group "Parenthized" (expr_to_node x)
   | Nodes.FuncCall x -> func_call_to_node x
+  | Nodes.FuncLambda x
+      -> group "func_decl" (
+        func_lambda_to_node x
+      )
+  | Nodes.MethLambda x
+      -> group "meth_lambda" (
+       meth_lambda_to_node x
+      )
+
+and op_to_name (x: Nodes.operator) = match x with
+  | Add -> "+"
+  | Sub -> "-"
+  | Mul -> "*"
+  | Div -> "*"
 
 and abort_handle_to_node (x: Nodes.abort_handle) = match x with
   | Nodes.AbortBody x     -> body_to_node x
@@ -83,20 +102,33 @@ and ret_to_node (x: Nodes.ret_type) = match x with
            ("abort_type", type_to_node ret_type);
          ]
 
+and func_lambda_to_node (x: Nodes.func_lambda) =
+  fields [
+    ("param",    params_to_node x.params);
+    ("ret_type", ret_to_node x.ret_type);
+    ("body",     body_to_node x.body);
+  ]
+
+and meth_lambda_to_node (x: Nodes.meth_lambda) =
+  fields [
+    ("this_type", type_to_node x.this_type);
+    ("param",    params_to_node x.params);
+    ("ret_type", ret_to_node x.ret_type);
+    ("body",     body_to_node x.body);
+    ("is_mut",   Leaf (string_of_bool x.is_mut));
+  ]
+
 and decl_to_node = function
-  | Nodes.FuncDecl { name; params; ret_type; body }
+  | Nodes.FuncDecl x
       -> group "func_decl" (fields [
-           ("param",    params_to_node params);
-           ("ret_type", ret_to_node ret_type);
-           ("body",     body_to_node body);
-         ])
-  | Nodes.MethDecl { name; params; ret_type; body; is_mut }
-      -> group "method_decl" (fields [
-           ("param",    params_to_node params);
-           ("ret_type", ret_to_node ret_type);
-           ("body",     body_to_node body);
-           ("is_mut",   Leaf (string_of_bool is_mut));
-         ])
+        ("name", Leaf x.name);
+        ("func", func_lambda_to_node x.func);
+      ])
+  | Nodes.MethDecl x
+      -> group "func_decl" (fields [
+        ("name", Leaf x.name);
+        ("func", meth_lambda_to_node x.func);
+      ])
   | Nodes.VarDecl { name; type_; value }
       -> group "var_decl" (fields [
            ("name",  Leaf name);

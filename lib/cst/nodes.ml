@@ -1,13 +1,23 @@
 (* The CST's job is to represent what was parsed, not what's valid. *)
 
+type operator =
+  | Add
+  | Sub
+  | Mul
+  | Div
+
 type expr =
-  | IntLit      of string
-  | FloatLit    of string
-  | StrLit      of string
-  | Ident       of string
-  | Op          of { left: expr; right: expr; operator: string }
-  | Parenthized of expr
-  | FuncCall    of func_call
+  | IntLit           of string
+  | FloatLit         of string
+  | StrLit           of string
+  | BoolLit          of bool
+  | Ident            of string
+  | QualifiedIdent   of string * string
+  | Op               of { left: expr; right: expr; operator: operator }
+  | Parenthized      of expr
+  | FuncCall         of func_call
+  | FuncLambda       of func_lambda
+  | MethLambda       of meth_lambda
 
 and safe_call = {
   callee: expr;
@@ -29,11 +39,19 @@ and func_call =
   | SafeCall of safe_call
   | AbortCall of abort_call
 
-
 and type_expr =
   | SimpleType of string
-  | FuncType of { params: type_expr list; ret_type: type_expr }
-  | MethType of { params: type_expr list; ret_type: type_expr; is_mut: bool }
+  | QualifiedType of string * string
+  | FuncType of {
+      params: type_expr list;
+      ret_type: type_expr
+    }
+  | MethType of {
+      this_type: type_expr;
+      params: type_expr list;
+      ret_type: type_expr;
+      is_mut: bool
+    }
 
 and param = {
   name: string;
@@ -55,9 +73,23 @@ and ret_type =
   | SafeRet of type_expr
   | AbortRet of type_expr * type_expr
 
+and func_lambda = {
+  params: param list;
+  ret_type: ret_type;
+  body: body
+}
+
+and meth_lambda = {
+  this_type: type_expr;
+  params: param list;
+  ret_type: ret_type;
+  is_mut: bool;
+  body: body
+}
+
 and decl =
-  | FuncDecl of { name: string; params: param list; ret_type: ret_type; body: body }
-  | MethDecl of { name: string; params: param list; ret_type: ret_type; is_mut: bool ; body: body }
+  | FuncDecl of { name: string; func: func_lambda }
+  | MethDecl of { name: string; func: meth_lambda }
   | VarDecl of { name: string; type_: type_expr; value: expr }
   | ConstructorDecl of  { name: string; type_: type_expr; args: expr list }
 
