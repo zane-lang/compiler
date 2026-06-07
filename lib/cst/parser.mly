@@ -45,10 +45,13 @@
 %token ERROR "<error>"
 %token EOF "<eof>"
 
-%left LPAREN
+%nonassoc EQEQ LESSEQ MOREEQ LESS MORE   /* comparisons */
 %left PLUS MINUS
 %left STAR SLASH
-%nonassoc TILDE
+%left LPAREN                             /* function application */
+%nonassoc IF
+%nonassoc ELSE
+%nonassoc TILDE                          /* prefix ~ */
 
 %start <Nodes.package> package
 
@@ -60,13 +63,13 @@
 package:
   | decls=list(decl) EOF { { Nodes.decls=decls } }
 
-func_lambda:
+%inline func_lambda:
   | "(" params=separated_list(COMMA, param) ")" 
     ret_type=ret_type body=body {
       { Nodes.params; ret_type; body }
     }
 
-meth_lambda:
+%inline meth_lambda:
   | "(" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param)))
     ")" ret_type=ret_type body=body {
@@ -92,7 +95,7 @@ decl:
       Nodes.MethDecl { name; func=meth_lambda }
     }
 
-ret_type:
+%inline ret_type:
   | ret_type=type_expr {
       Nodes.SafeRet ret_type
     }
@@ -109,15 +112,12 @@ body:
     }
 
 func_call:
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" {
-      Nodes.SafeCall { callee; args }
-    }
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(LIDENT) "?" body=body {
-      Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortBody body }
-    }
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(LIDENT) "??" value=expr {
-      Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortShorthand value }
-    }
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" %prec LPAREN
+      { Nodes.SafeCall { callee; args } }
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(LIDENT) "?" body=body %prec LPAREN
+      { Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortBody body } }
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(LIDENT) "??" value=expr %prec LPAREN
+      { Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortShorthand value } }
 
 %inline if_:
   | IF cond=expr "{" block=list(stat) "}" {
@@ -152,7 +152,7 @@ stat:
       Nodes.CondSeq { if_; elifs_; else_ }
     }
 
-param:
+%inline param:
   | name=LIDENT type_=type_expr { { Nodes.name; type_ } }
 
 type_expr:
