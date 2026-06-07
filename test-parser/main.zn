@@ -5,7 +5,7 @@ main (this Int, a Bool)! Void?String {
 	
 	if random() {
 		results List = crawl(content) error ? {
-			std$print(error)
+			Std$print(error)
 			abort error
 		}
 	}

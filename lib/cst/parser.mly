@@ -4,7 +4,8 @@
 %token <string> INT "43"
 %token <string> FLOAT "8.647"
 %token <string> STRING "\"john\""
-%token <string> IDENT "foo"
+%token <string> LIDENT "length"
+%token <string> UIDENT "Int"
 
 %token LPAREN "("
 %token RPAREN ")"
@@ -78,16 +79,16 @@ meth_lambda:
     }
 
 decl:
-  | name=IDENT type_=type_expr "=" value=expr {
+  | name=LIDENT type_=type_expr "=" value=expr {
       Nodes.VarDecl { name; type_; value }
     }
-  | name=IDENT type_=type_expr "(" args=separated_list(COMMA, expr) ")" {
+  | name=LIDENT type_=type_expr "(" args=separated_list(COMMA, expr) ")" {
       Nodes.ConstructorDecl { name; type_; args }
     }
-  | name=IDENT func_lambda=func_lambda {
+  | name=LIDENT func_lambda=func_lambda {
       Nodes.FuncDecl { name; func=func_lambda }
     }
-  | name=IDENT meth_lambda=meth_lambda {
+  | name=LIDENT meth_lambda=meth_lambda {
       Nodes.MethDecl { name; func=meth_lambda }
     }
 
@@ -111,10 +112,10 @@ func_call:
   | callee=expr "(" args=separated_list(COMMA, expr) ")" {
       Nodes.SafeCall { callee; args }
     }
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(IDENT) "?" body=body {
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(LIDENT) "?" body=body {
       Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortBody body }
     }
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(IDENT) "??" value=expr {
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(LIDENT) "??" value=expr {
       Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortShorthand value }
     }
 
@@ -152,11 +153,11 @@ stat:
     }
 
 param:
-  | name=IDENT type_=type_expr { { Nodes.name; type_ } }
+  | name=LIDENT type_=type_expr { { Nodes.name; type_ } }
 
 type_expr:
-  | name=IDENT { Nodes.SimpleType name }
-  | pkg=IDENT name=IDENT { Nodes.QualifiedType (pkg, name) }
+  | name=UIDENT { Nodes.SimpleType name }
+  | pkg=UIDENT name=UIDENT { Nodes.QualifiedType (pkg, name) }
   | "[" params=separated_list(",", type_expr) "]" "->" ret=type_expr {
       Nodes.FuncType { params; ret_type=ret }
     }
@@ -177,8 +178,8 @@ expr:
   | string=STRING { Nodes.StrLit string }
   | TRUE { Nodes.BoolLit true }
   | FALSE { Nodes.BoolLit false }
-  | ident=IDENT { Nodes.Ident ident }
-  | pkg=IDENT "$" ident=IDENT { Nodes.QualifiedIdent (pkg, ident) }
+  | ident=LIDENT { Nodes.Ident ident }
+  | pkg=UIDENT "$" ident=LIDENT { Nodes.QualifiedIdent (pkg, ident) }
   | e1=expr "+" e2=expr  { Nodes.Op { left=e1; right=e2; operator=Nodes.Add } }
   | e1=expr "-" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.Sub } }
   | e1=expr "*" e2=expr  { Nodes.Op { left=e1; right=e2; operator=Nodes.Mul } }

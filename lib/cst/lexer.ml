@@ -5,9 +5,15 @@ let digit      = [%sedlex.regexp? '0'..'9']
 let digits     = [%sedlex.regexp? Plus digit]
 let int_lit    = [%sedlex.regexp? digits, Star ('\'', digits)]
 let float_lit  = [%sedlex.regexp? int_lit, '.', digits]
-let nonascii   = [%sedlex.regexp? 192 .. 214 | 216 .. 246 | 248 .. 255]
-let ident_char = [%sedlex.regexp? 'a'..'z' | 'A'..'Z' | '_' | nonascii]
 let str_char   = [%sedlex.regexp? Compl ('"' | '\\') | '\\', any]
+
+(* Any character valid inside an identifier (after the first) *)
+let ident_char = [%sedlex.regexp? alphabetic | '0'..'9' | '_']
+
+(* Starts with a Unicode lowercase letter, or '_' then one *)
+let lower_ident = [%sedlex.regexp? (lowercase | '_', lowercase), Star ident_char]
+(* Starts with a Unicode uppercase letter, or '_' then one *)
+let upper_ident = [%sedlex.regexp? (uppercase | '_', uppercase), Star ident_char]
 
 let rec token buf =
   match%sedlex buf with
@@ -53,6 +59,7 @@ let rec token buf =
   | "abort"                     -> ABORT
   | "return"                    -> RETURN
   | "resolve"                   -> RESOLVE
-  | Plus ident_char             -> IDENT (Utf8.lexeme buf)
+  | lower_ident                 -> LIDENT (Utf8.lexeme buf)
+  | upper_ident                 -> UIDENT (Utf8.lexeme buf)
   | eof                         -> EOF
   | _                           -> ERROR
