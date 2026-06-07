@@ -4,7 +4,7 @@ main (this Int, a Bool)! Void?String {
 	content String = read("wordlist.txt") ?? ""
 	
 	if random() {
-		results List = crawl(content) error ? {
+		results List = crawl(content) ? error {
 			Std$print(error)
 			abort error
 		}

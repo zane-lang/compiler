@@ -114,9 +114,9 @@ body:
 func_call:
   | callee=expr "(" args=separated_list(COMMA, expr) ")" %prec LPAREN
       { Nodes.SafeCall { callee; args } }
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(LIDENT) "?" body=body %prec LPAREN
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" "?" binder=ioption(LIDENT) body=body %prec LPAREN
       { Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortBody body } }
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" binder=ioption(LIDENT) "??" value=expr %prec LPAREN
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" "??" binder=ioption(LIDENT) value=expr %prec LPAREN
       { Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortShorthand value } }
 
 %inline if_:
@@ -189,7 +189,7 @@ expr:
   | e1=expr ">=" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.MoreEq } }
   | e1=expr "<" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.Less } }
   | e1=expr ">" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.More } }
-  | "~" value=expr { Nodes.Flip value }
+  | "~" value=expr %prec TILDE { Nodes.Flip value }
   | "(" e=expr ")" { Nodes.Parenthized e }
   | func_call=func_call {
       Nodes.FuncCall func_call
