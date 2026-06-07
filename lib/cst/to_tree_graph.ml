@@ -1,14 +1,14 @@
 open Tree_graph
 
-let rec type_to_node = function
-  | Nodes.SimpleType s              -> Leaf s
-  | Nodes.QualifiedType (pkg, type_) -> Leaf (pkg ^ "$" ^ type_)
-  | Nodes.FuncType { params; ret_type } ->
+let rec type_to_node (x: Nodes.type_expr) = match x with
+  | SimpleType s              -> Leaf s
+  | QualifiedType (pkg, type_) -> Leaf (pkg ^ "$" ^ type_)
+  | FuncType { params; ret_type } ->
       fields [
         ("param", map_seq type_to_node params);
         ("type",  type_to_node ret_type);
       ]
-  | Nodes.MethType { this_type; params; ret_type; is_mut } ->
+  | MethType { this_type; params; ret_type; is_mut } ->
       fields [
         ("this_type", type_to_node this_type);
         ("param",     map_seq type_to_node params);
@@ -16,8 +16,8 @@ let rec type_to_node = function
         ("is_mut",    Leaf (string_of_bool is_mut));
       ]
 
-and expr_to_node (x : Nodes.expr) = match x with
-  | Nodes.IntLit x                    -> Leaf x
+and expr_to_node (x: Nodes.expr) = match x with
+  | IntLit x              -> Leaf x
   | FloatLit x                  -> Leaf x
   | StrLit x                    -> Leaf x
   | BoolLit x                   -> Leaf (string_of_bool x)
@@ -53,16 +53,16 @@ and op_to_name (x : Nodes.operator) = match x with
   | More    -> ">"
 
 and abort_handle_to_node (x : Nodes.abort_handle) = match x with
-  | Nodes.AbortBody x      -> body_to_node x
-  | Nodes.AbortShorthand x -> expr_to_node x
+  | AbortBody x      -> body_to_node x
+  | AbortShorthand x -> expr_to_node x
 
 and func_call_to_node x = match x with
-  | Nodes.SafeCall x ->
+  | SafeCall x ->
       group "function_call" (fields [
         ("callee", expr_to_node x.callee);
         ("args",   map_seq expr_to_node x.args);
       ])
-  | Nodes.AbortCall x ->
+  | AbortCall x ->
       let fs = [
         ("callee",       expr_to_node x.callee);
         ("args",         map_seq expr_to_node x.args);
@@ -84,23 +84,23 @@ and params_to_node (x : Nodes.param list) =
   map_seq param_to_node x
 
 and stat_to_node (x : Nodes.stat) = match x with
-  | Nodes.FuncCallStat x -> func_call_to_node x
-  | Nodes.DeclStat x     -> decl_to_node x
-  | Nodes.AbortStat x    -> group "abort_stat"   (expr_to_node x)
-  | Nodes.RetStat x      -> group "ret_stat"     (expr_to_node x)
-  | Nodes.ResolveStat x  -> group "resolve_stat" (expr_to_node x)
+  | FuncCallStat x -> func_call_to_node x
+  | DeclStat x     -> decl_to_node x
+  | AbortStat x    -> group "abort_stat"   (expr_to_node x)
+  | RetStat x      -> group "ret_stat"     (expr_to_node x)
+  | ResolveStat x  -> group "resolve_stat" (expr_to_node x)
 
 and body_to_node (x : Nodes.body) = match x with
-  | Nodes.Scope scope ->
+  | Scope scope ->
       group "scope" (fields [
         ("stat", map_seq stat_to_node scope);
       ])
-  | Nodes.RetShorthand x ->
+  | RetShorthand x ->
       group "ret_shorthand" (expr_to_node x)
 
 and ret_to_node (x : Nodes.ret_type) = match x with
-  | Nodes.SafeRet ret -> type_to_node ret
-  | Nodes.AbortRet (ret_type, abort_type) ->
+  | SafeRet ret -> type_to_node ret
+  | AbortRet (ret_type, abort_type) ->
       fields [
         ("safe_type",  type_to_node ret_type);
         ("abort_type", type_to_node abort_type);
@@ -122,24 +122,24 @@ and meth_lambda_to_node (x : Nodes.meth_lambda) =
     ("is_mut",    Leaf (string_of_bool x.is_mut));
   ]
 
-and decl_to_node = function
-  | Nodes.FuncDecl x ->
+and decl_to_node (x: Nodes.decl) = match x with
+  | FuncDecl x ->
       group "func_decl" (fields [
         ("name", Leaf x.name);
         ("func", func_lambda_to_node x.func);
       ])
-  | Nodes.MethDecl x ->
+  | MethDecl x ->
       group "meth_decl" (fields [
         ("name", Leaf x.name);
         ("func", meth_lambda_to_node x.func);
       ])
-  | Nodes.VarDecl { name; type_; value } ->
+  | VarDecl { name; type_; value } ->
       group "var_decl" (fields [
         ("name",  Leaf name);
         ("type",  type_to_node type_);
         ("value", expr_to_node value);
       ])
-  | Nodes.ConstructorDecl { name; type_; args } ->
+  | ConstructorDecl { name; type_; args } ->
       group "constructor_decl" (fields [
         ("name", Leaf name);
         ("type", type_to_node type_);
