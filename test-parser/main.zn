@@ -8,6 +8,8 @@ main (this Int, a Bool)! Void?String {
 	}
 
 	rifle Weapon("rifle", 20)
+
+	value Bool = ~true + 3
 }
 
 square (x Int, y Int) Int => x * y

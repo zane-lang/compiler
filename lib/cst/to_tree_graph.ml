@@ -18,32 +18,39 @@ let rec type_to_node = function
 
 and expr_to_node (x : Nodes.expr) = match x with
   | Nodes.IntLit x                    -> Leaf x
-  | Nodes.FloatLit x                  -> Leaf x
-  | Nodes.StrLit x                    -> Leaf x
-  | Nodes.BoolLit x                   -> Leaf (string_of_bool x)
-  | Nodes.Ident x                     -> Leaf x
-  | Nodes.QualifiedIdent (pkg, name)  -> Leaf (pkg ^ "$" ^ name)
-  | Nodes.Op x ->
+  | FloatLit x                  -> Leaf x
+  | StrLit x                    -> Leaf x
+  | BoolLit x                   -> Leaf (string_of_bool x)
+  | Ident x                     -> Leaf x
+  | QualifiedIdent (pkg, name)  -> Leaf (pkg ^ "$" ^ name)
+  | Op x ->
       fields [
         (op_to_name x.operator, fields [
           ("left",  expr_to_node x.left);
           ("right", expr_to_node x.right);
         ]);
       ]
-  | Nodes.Parenthized x ->
-      group "Parenthized" (expr_to_node x)
-  | Nodes.FuncCall x ->
+  | Flip x ->
+      group "flip" (expr_to_node x)
+  | Parenthized x ->
+      group "parenthized" (expr_to_node x)
+  | FuncCall x ->
       func_call_to_node x
-  | Nodes.FuncLambda x ->
+  | FuncLambda x ->
       group "func_lambda" (func_lambda_to_node x)
-  | Nodes.MethLambda x ->
+  | MethLambda x ->
       group "meth_lambda" (meth_lambda_to_node x)
 
 and op_to_name (x : Nodes.operator) = match x with
-  | Add -> "+"
-  | Sub -> "-"
-  | Mul -> "*"
-  | Div -> "/"
+  | Add     -> "+"
+  | Sub     -> "-"
+  | Mul     -> "*"
+  | Div     -> "/"
+  | Eq      -> "=="
+  | LessEq  -> "<="
+  | MoreEq  -> ">="
+  | Less    -> "<"
+  | More    -> ">"
 
 and abort_handle_to_node (x : Nodes.abort_handle) = match x with
   | Nodes.AbortBody x      -> body_to_node x

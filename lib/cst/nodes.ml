@@ -5,6 +5,11 @@ type operator =
   | Sub
   | Mul
   | Div
+  | Eq
+  | LessEq
+  | MoreEq
+  | Less
+  | More
 
 type expr =
   | IntLit           of string
@@ -14,6 +19,7 @@ type expr =
   | Ident            of string
   | QualifiedIdent   of string * string
   | Op               of { left: expr; right: expr; operator: operator }
+  | Flip             of expr
   | Parenthized      of expr
   | FuncCall         of func_call
   | FuncLambda       of func_lambda

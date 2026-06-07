@@ -14,6 +14,11 @@ let rec token buf =
   | Plus (' ' | '\t' | '\r' | '\n') -> token buf
   | "->"                        -> THIN_ARROW
   | "=>"                        -> THICK_ARROW
+  | "=="                        -> EQEQ
+  | "<="                        -> LESSEQ
+  | ">="                        -> MOREEQ
+  | '<'                         -> LESS
+  | '>'                         -> MORE
   | '='                         -> EQUAL
   | '('                         -> LPAREN
   | ')'                         -> RPAREN
@@ -38,6 +43,10 @@ let rec token buf =
   | '"', Star str_char, '"'     ->
       let s = Utf8.lexeme buf in
       STRING (String.sub s 1 (String.length s - 2))
+  | "if"                        -> IF
+  | "elif"                      -> ELIF
+  | "else"                      -> ELSE
+  (* | "loop"                      -> LOOP *)
   | "true"                      -> TRUE
   | "false"                     -> FALSE
   | "this"                      -> THIS
