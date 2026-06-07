@@ -118,6 +118,21 @@ func_call:
       Nodes.AbortCall { callee; args; binder; handle_block=Nodes.AbortShorthand value }
     }
 
+%inline if_:
+  | IF cond=expr "{" block=list(stat) "}" {
+      { Nodes.cond; block }
+    }
+
+%inline elif_:
+  | ELIF cond=expr "{" block=list(stat) "}" {
+      { Nodes.cond; block }
+    }
+
+%inline else_:
+  | ELSE "{" statements=list(stat) "}" {
+      statements
+    }
+
 stat:
   | decl=decl { Nodes.DeclStat decl }
   | func_call=func_call {
@@ -131,6 +146,9 @@ stat:
     }
   | RESOLVE value=expr {
       Nodes.ResolveStat value
+    }
+  | if_=if_ elifs_=list(elif_) else_=ioption(else_) {
+      Nodes.CondSeq { if_; elifs_; else_ }
     }
 
 param:

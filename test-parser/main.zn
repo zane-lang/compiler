@@ -2,14 +2,17 @@ main (this Int, a Bool)! Void?String {
 	x [this Int]! -> Void = "hello"
 	y String = "world"
 	content String = read("wordlist.txt") ?? ""
-	results List = crawl(content) error ? {
-		std$print(error)
-		abort error
+	
+	if random() {
+		results List = crawl(content) error ? {
+			std$print(error)
+			abort error
+		}
 	}
-
-	rifle Weapon("rifle", 20)
-
-	value Bool = ~true + 3
+	else {
+		rifle Weapon("rifle", 20)
+		value Bool = ~true + 3
+	}
 }
 
 square (x Int, y Int) Int => x * y

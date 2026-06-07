@@ -83,12 +83,34 @@ and param_to_node (x : Nodes.param) =
 and params_to_node (x : Nodes.param list) =
   map_seq param_to_node x
 
+and elif_to_fields (x: Nodes.cond_block) =
+  fields [
+    ("cond", expr_to_node x.cond);
+    ("block", map_seq stat_to_node x.block);
+  ]
+
+and cond_seq_to_node (x: Nodes.cond_seq) =
+  let cond_seq = [
+    ("if", fields [
+      ("cond", expr_to_node x.if_.cond);
+      ("block", map_seq stat_to_node x.if_.block);
+    ]);
+    ("elif", map_seq elif_to_fields x.elifs_);
+  ] in
+  let cond_seq = match x.else_ with
+    | Some x -> ("else", fields [
+        ("block", map_seq stat_to_node x);
+      ]) :: cond_seq
+    | None -> cond_seq
+  in group "cond_seq" (fields cond_seq)
+
 and stat_to_node (x : Nodes.stat) = match x with
   | FuncCallStat x -> func_call_to_node x
   | DeclStat x     -> decl_to_node x
   | AbortStat x    -> group "abort_stat"   (expr_to_node x)
   | RetStat x      -> group "ret_stat"     (expr_to_node x)
   | ResolveStat x  -> group "resolve_stat" (expr_to_node x)
+  | CondSeq x      -> cond_seq_to_node x
 
 and body_to_node (x : Nodes.body) = match x with
   | Scope scope ->

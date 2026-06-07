@@ -64,12 +64,24 @@ and param = {
   type_: type_expr
 }
 
+and cond_block = {
+  cond: expr;
+  block: stat list
+}
+
+and cond_seq = {
+  if_: cond_block;
+  elifs_: cond_block list;
+  else_: stat list option;
+}
+
 and stat =
   | FuncCallStat of func_call
   | DeclStat of decl
   | AbortStat of expr
   | RetStat of expr
   | ResolveStat of expr
+  | CondSeq of cond_seq
 
 and body =
   | Scope of stat list
