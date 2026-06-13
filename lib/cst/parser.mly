@@ -7,43 +7,44 @@
 %token <string> LIDENT "length"
 %token <string> UIDENT "Int"
 
-%token LPAREN "("
-%token RPAREN ")"
-%token COMMA ","
-%token LCURLY "{"
-%token RCURLY "}"
-%token LBRACKET "["
-%token RBRACKET "]"
+%token LPAREN      "("
+%token RPAREN      ")"
+%token COMMA       ","
+%token LCURLY      "{"
+%token RCURLY      "}"
+%token LBRACKET    "["
+%token RBRACKET    "]"
 %token COLON
-%token EQUAL "="
-%token PLUS "+"
-%token MINUS "-"
-%token STAR "*"
-%token SLASH "/"
-%token DOLLAR "$"
-%token AT "@"
-%token EXCL "!"
-%token QSTNMARK "?"
-%token QSTNQSTN "??"
-%token TILDE "~"
-%token THIN_ARROW "->"
+%token EQUAL       "="
+%token PLUS        "+"
+%token MINUS       "-"
+%token STAR        "*"
+%token SLASH       "/"
+%token DOLLAR      "$"
+%token AT          "@"
+%token EXCL        "!"
+%token QSTNMARK    "?"
+%token QSTNQSTN    "??"
+%token TILDE       "~"
+%token THIN_ARROW  "->"
 %token THICK_ARROW "=>"
-%token EQEQ "=="
-%token LESSEQ "<="
-%token MOREEQ ">="
-%token LESS "<"
-%token MORE ">"
-%token IF "if"
-%token ELIF "elif"
-%token ELSE "else"
-%token TRUE "true"
-%token FALSE "false"
-%token THIS "this"
-%token ABORT "abort"
-%token RETURN "return"
-%token RESOLVE "resolve"
-%token ERROR "<error>"
-%token EOF "<eof>"
+%token EQEQ        "=="
+%token LESSEQ      "<="
+%token MOREEQ      ">="
+%token LESS        "<"
+%token MORE        ">"
+%token IF          "if"
+%token ELIF        "elif"
+%token ELSE        "else"
+%token TRUE        "true"
+%token FALSE       "false"
+%token THIS        "this"
+%token MUT         "mut"
+%token ABORT       "abort"
+%token RETURN      "return"
+%token RESOLVE     "resolve"
+%token ERROR       "<error>"
+%token EOF          "<eof>"
 
 %nonassoc EQEQ LESSEQ MOREEQ LESS MORE   /* comparisons */
 %left PLUS MINUS
@@ -64,20 +65,19 @@ package:
   | decls=list(decl) EOF { { Nodes.decls=decls } }
 
 %inline func_lambda:
-  | "(" params=separated_list(COMMA, param) ")" 
-    ret_type=ret_type body=body {
+  | ret_type=ret_type "(" params=separated_list(COMMA, param) ")" body=body {
       { Nodes.params; ret_type; body }
     }
 
 %inline meth_lambda:
-  | "(" THIS this_type=type_expr
+  | ret_type=ret_type "(" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param)))
-    ")" ret_type=ret_type body=body {
+    ")" body=body {
       { Nodes.this_type; params; ret_type; is_mut=false; body }
     }
-  | "(" THIS this_type=type_expr
+  | ret_type=ret_type "(" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param)))
-    ")" "!" ret_type=ret_type body=body {
+    ")" MUT body=body {
       { Nodes.this_type; params; ret_type; is_mut=true; body }
     }
 
@@ -89,10 +89,18 @@ decl:
       Nodes.ConstructorDecl { name; type_; args }
     }
   | name=LIDENT func_lambda=func_lambda {
-      Nodes.FuncDecl { name; func=func_lambda }
+      Nodes.VarDecl {
+        name;
+        type_=Nodes.func_type_of_lambda func_lambda;
+        value=Nodes.FuncLambda func_lambda
+      }
     }
   | name=LIDENT meth_lambda=meth_lambda {
-      Nodes.MethDecl { name; func=meth_lambda }
+      Nodes.VarDecl {
+        name;
+        type_=Nodes.meth_type_of_lambda meth_lambda;
+        value=Nodes.MethLambda meth_lambda
+      }
     }
 
 %inline ret_type:
@@ -158,17 +166,17 @@ stat:
 type_expr:
   | name=UIDENT { Nodes.SimpleType name }
   | pkg=UIDENT name=UIDENT { Nodes.QualifiedType (pkg, name) }
-  | "[" params=separated_list(",", type_expr) "]" "->" ret=type_expr {
+  | ret=ret_type "[" params=separated_list(",", type_expr) "]" {
       Nodes.FuncType { params; ret_type=ret }
     }
-  | "[" THIS this_type=type_expr 
+  | ret=ret_type "[" THIS this_type=type_expr 
     params=loption(preceded(",", separated_nonempty_list(",", type_expr)))
-    "]" "->" ret=type_expr {
+    "]" {
       Nodes.MethType { this_type; params; ret_type=ret; is_mut=false }
     }
-  | "[" THIS this_type=type_expr
+  | ret=ret_type "[" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", type_expr)))
-    "]" "!" "->" ret=type_expr {
+    "]" MUT {
       Nodes.MethType { this_type; params; ret_type=ret; is_mut=true }
     }
 

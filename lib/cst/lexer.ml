@@ -56,6 +56,7 @@ let rec token buf =
   | "true"                      -> TRUE
   | "false"                     -> FALSE
   | "this"                      -> THIS
+  | "mut"                       -> MUT
   | "abort"                     -> ABORT
   | "return"                    -> RETURN
   | "resolve"                   -> RESOLVE

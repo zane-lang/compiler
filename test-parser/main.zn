@@ -1,5 +1,5 @@
-main (this Int, a Bool)! Void?String {
-	x [this Int]! -> Void = "hello"
+main Void?String (this Int, a Bool) mut {
+	x Void[this Int] = "hello"
 	y String = "world"
 	content String = read("wordlist.txt") ?? ""
 	
@@ -15,4 +15,4 @@ main (this Int, a Bool)! Void?String {
 	}
 }
 
-square (x Int, y Int) Int => x * y
+square Int (x Int, y Int) => x * y

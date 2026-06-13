@@ -50,12 +50,12 @@ and type_expr =
   | QualifiedType of string * string
   | FuncType of {
       params: type_expr list;
-      ret_type: type_expr
+      ret_type: ret_type
     }
   | MethType of {
       this_type: type_expr;
       params: type_expr list;
-      ret_type: type_expr;
+      ret_type: ret_type;
       is_mut: bool
     }
 
@@ -114,3 +114,17 @@ and decl =
 type package = {
   decls: decl list
 }
+
+let func_type_of_lambda (x: func_lambda) : type_expr =
+  FuncType {
+    params   = List.map (fun (p: param) -> p.type_) x.params;
+    ret_type  = x.ret_type;
+}
+
+let meth_type_of_lambda (x: meth_lambda) : type_expr =
+  MethType {
+    this_type = x.this_type;
+    params    = List.map (fun (p: param) -> p.type_) x.params;
+    ret_type  = x.ret_type;
+    is_mut    = x.is_mut;
+  }

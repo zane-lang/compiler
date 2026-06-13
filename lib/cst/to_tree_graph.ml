@@ -6,13 +6,13 @@ let rec type_to_node (x: Nodes.type_expr) = match x with
   | FuncType { params; ret_type } ->
       fields [
         ("param", map_seq type_to_node params);
-        ("type",  type_to_node ret_type);
+        ("type",  ret_to_node ret_type);
       ]
   | MethType { this_type; params; ret_type; is_mut } ->
       fields [
         ("this_type", type_to_node this_type);
         ("param",     map_seq type_to_node params);
-        ("type",      type_to_node ret_type);
+        ("type",      ret_to_node ret_type);
         ("is_mut",    Leaf (string_of_bool is_mut));
       ]
 
