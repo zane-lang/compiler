@@ -18,7 +18,6 @@ let upper_ident = [%sedlex.regexp? (uppercase | '_', uppercase), Star ident_char
 let rec token buf =
   match%sedlex buf with
   | Plus (' ' | '\t' | '\r' | '\n') -> token buf
-  | "->"                        -> THIN_ARROW
   | "=>"                        -> THICK_ARROW
   | "=="                        -> EQEQ
   | "<="                        -> LESSEQ
@@ -49,6 +48,10 @@ let rec token buf =
   | '"', Star str_char, '"'     ->
       let s = Utf8.lexeme buf in
       STRING (String.sub s 1 (String.length s - 2))
+  | "type"                      -> LTYPE
+  | "alias"                     -> ALIAS
+  | "Type"                      -> UTYPE
+  | "Number"                    -> NUMBER
   | "if"                        -> IF
   | "elif"                      -> ELIF
   | "else"                      -> ELSE

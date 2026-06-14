@@ -167,12 +167,36 @@ and decl_to_node (x: Nodes.decl) = match x with
         ("type",  type_to_node type_);
         ("value", expr_to_node value);
       ])
-  | ConstructorDecl { name; type_; args } ->
+  | VarDeclShorthand { name; type_; args } ->
       group "constructor_decl" (fields [
         ("name", Leaf name);
         ("type", type_to_node type_);
         ("args", map_seq expr_to_node args);
       ])
+  | TypeDecl x ->
+      let fs = [
+        ("name",  Leaf x.name);
+        ("value", type_to_node x.value);
+      ] in
+      let fs = match x.params with
+        | Some p -> ("params", map_seq type_param_to_node p) :: fs
+        | None   -> fs
+      in
+      group "type_decl" (fields fs)
+  | AliasDecl x ->
+      let fs = [
+        ("name",  Leaf x.name);
+        ("value", type_to_node x.value);
+      ] in
+      let fs = match x.params with
+        | Some p -> ("params", map_seq type_param_to_node p) :: fs
+        | None   -> fs
+      in
+      group "alias_decl" (fields fs)
+
+and type_param_to_node (x: Nodes.type_param) = match x with
+  | Type x ->group "generic_param" (Leaf x)
+  | Number x -> group "number_param" (Leaf x)
 
 let to_node ({ Nodes.decls } : Nodes.package) =
   group "package" (fields [

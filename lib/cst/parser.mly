@@ -26,13 +26,16 @@
 %token QSTNMARK    "?"
 %token QSTNQSTN    "??"
 %token TILDE       "~"
-%token THIN_ARROW  "->"
 %token THICK_ARROW "=>"
 %token EQEQ        "=="
 %token LESSEQ      "<="
 %token MOREEQ      ">="
 %token LESS        "<"
 %token MORE        ">"
+%token LTYPE       "type"
+%token ALIAS       "alias"
+%token UTYPE       "Type"
+%token NUMBER      "Number"
 %token IF          "if"
 %token ELIF        "elif"
 %token ELSE        "else"
@@ -76,12 +79,20 @@ package:
       { Nodes.this_type; params; ret_type; is_mut; body }
     }
 
+%inline type_param:
+  | name=UIDENT "Type" {
+      Nodes.Type name
+    }
+  | name=UIDENT "Number" {
+      Nodes.Number name
+    }
+
 decl:
   | name=LIDENT type_=type_expr "=" value=expr {
       Nodes.VarDecl { name; type_; value }
     }
   | name=LIDENT type_=type_expr "(" args=separated_list(COMMA, expr) ")" {
-      Nodes.ConstructorDecl { name; type_; args }
+      Nodes.VarDeclShorthand { name; type_; args }
     }
   | name=LIDENT func_lambda=func_lambda {
       Nodes.VarDecl {
@@ -117,6 +128,20 @@ decl:
         ret_type;
         is_mut;
         body;
+      }
+    }
+  | "type" name=UIDENT params=ioption(delimited("<", separated_nonempty_list(",", type_param), ">")) "=" value=type_expr {
+      Nodes.TypeDecl {
+        name;
+        params;
+        value;
+      }
+    }
+  | "alias" name=UIDENT params=ioption(delimited("<", separated_nonempty_list(",", type_param), ">")) "=" value=type_expr {
+      Nodes.AliasDecl {
+        name;
+        params;
+        value;
       }
     }
 

@@ -105,6 +105,10 @@ and meth_lambda = {
   body: body
 }
 
+and type_param =
+  | Type of string
+  | Number of string
+
 and decl =
   | FuncDecl of {
       name: string;
@@ -121,7 +125,9 @@ and decl =
       body: body
     }
   | VarDecl of { name: string; type_: type_expr; value: expr }
-  | ConstructorDecl of  { name: string; type_: type_expr; args: expr list }
+  | VarDeclShorthand of  { name: string; type_: type_expr; args: expr list }
+  | TypeDecl of { name: string; params: type_param list option; value: type_expr }
+  | AliasDecl of { name: string; params: type_param list option; value: type_expr }
 
 type package = {
   decls: decl list

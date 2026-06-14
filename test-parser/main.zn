@@ -1,3 +1,5 @@
+type Vector<T Type> = Vector
+
 Void?String main (this Int, a Bool) mut {
 	x Void[this Int] = "hello"
 	y String = "world"
