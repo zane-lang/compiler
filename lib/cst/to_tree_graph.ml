@@ -148,12 +148,18 @@ and decl_to_node (x: Nodes.decl) = match x with
   | FuncDecl x ->
       group "func_decl" (fields [
         ("name", Leaf x.name);
-        ("func", func_lambda_to_node x.func);
+        ("param",    params_to_node x.params);
+        ("ret_type", ret_to_node x.ret_type);
+        ("body",     body_to_node x.body);
       ])
   | MethDecl x ->
       group "meth_decl" (fields [
         ("name", Leaf x.name);
-        ("func", meth_lambda_to_node x.func);
+        ("this_type", type_to_node x.this_type);
+        ("param",     params_to_node x.params);
+        ("ret_type",  ret_to_node x.ret_type);
+        ("body",      body_to_node x.body);
+        ("is_mut",    Leaf (string_of_bool x.is_mut));
       ])
   | VarDecl { name; type_; value } ->
       group "var_decl" (fields [

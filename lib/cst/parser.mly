@@ -72,13 +72,8 @@ package:
 %inline meth_lambda:
   | ret_type=ret_type "(" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param)))
-    ")" body=body {
-      { Nodes.this_type; params; ret_type; is_mut=false; body }
-    }
-  | ret_type=ret_type "(" THIS this_type=type_expr
-    params=loption(preceded(",", separated_nonempty_list(",", param)))
-    ")" MUT body=body {
-      { Nodes.this_type; params; ret_type; is_mut=true; body }
+    ")" is_mut=boption(MUT) body=body {
+      { Nodes.this_type; params; ret_type; is_mut; body }
     }
 
 decl:
@@ -100,6 +95,28 @@ decl:
         name;
         type_=Nodes.meth_type_of_lambda meth_lambda;
         value=Nodes.MethLambda meth_lambda
+      }
+    }
+  | ret_type=ret_type name=LIDENT
+    "(" params=separated_list(COMMA, param) ")" body=body {
+      Nodes.FuncDecl {
+        name;
+        params;
+        ret_type;
+        body;
+      }
+    }
+  | ret_type=ret_type name=LIDENT
+    "(" THIS this_type=type_expr
+    params=loption(preceded(",", separated_nonempty_list(",", param)))
+    ")" is_mut=boption(MUT) body=body {
+      Nodes.MethDecl {
+        name;
+        this_type;
+        params;
+        ret_type;
+        is_mut;
+        body;
       }
     }
 

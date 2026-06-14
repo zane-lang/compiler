@@ -106,8 +106,20 @@ and meth_lambda = {
 }
 
 and decl =
-  | FuncDecl of { name: string; func: func_lambda }
-  | MethDecl of { name: string; func: meth_lambda }
+  | FuncDecl of {
+      name: string;
+      params: param list;
+      ret_type: ret_type;
+      body: body
+    }
+  | MethDecl of {
+      name: string;
+      this_type: type_expr;
+      params: param list;
+      ret_type: ret_type;
+      is_mut: bool;
+      body: body
+    }
   | VarDecl of { name: string; type_: type_expr; value: expr }
   | ConstructorDecl of  { name: string; type_: type_expr; args: expr list }
 
