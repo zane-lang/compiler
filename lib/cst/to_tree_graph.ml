@@ -1,8 +1,10 @@
 open Tree_graph
 
-let rec type_to_node (x: Nodes.type_expr) = match x with
+let rec name_type_to_node (x: Nodes.name_type) = match x with
   | SimpleType s              -> Leaf s
   | QualifiedType (pkg, type_) -> Leaf (pkg ^ "$" ^ type_)
+
+and call_type_to_node (x: Nodes.call_type) = match x with
   | FuncType { params; ret_type } ->
       fields [
         ("param", map_seq type_to_node params);
@@ -15,6 +17,19 @@ let rec type_to_node (x: Nodes.type_expr) = match x with
         ("type",      ret_to_node ret_type);
         ("is_mut",    Leaf (string_of_bool is_mut));
       ]
+
+and generic_arg_to_node (x: Nodes.generic_arg) = match x with
+  | TypeArg x -> type_to_node x
+  | NumberArg x -> group "number" (Leaf x)
+
+and type_to_node (x: Nodes.type_expr) = match x with
+  | NameType x -> name_type_to_node x
+  | CallType x -> call_type_to_node x
+  | GenericType (name, generics) ->
+      group "generic_type" (fields [
+        ("name", name_type_to_node name);
+        ("args", map_seq generic_arg_to_node generics);
+      ])
 
 and expr_to_node (x: Nodes.expr) = match x with
   | IntLit x              -> Leaf x
@@ -168,7 +183,7 @@ and decl_to_node (x: Nodes.decl) = match x with
         ("value", expr_to_node value);
       ])
   | VarDeclShorthand { name; type_; args } ->
-      group "constructor_decl" (fields [
+      group "var_decl_shorthand" (fields [
         ("name", Leaf name);
         ("type", type_to_node type_);
         ("args", map_seq expr_to_node args);
@@ -179,7 +194,7 @@ and decl_to_node (x: Nodes.decl) = match x with
         ("value", type_to_node x.value);
       ] in
       let fs = match x.params with
-        | Some p -> ("params", map_seq type_param_to_node p) :: fs
+        | Some p -> ("params", map_seq generic_param_to_node p) :: fs
         | None   -> fs
       in
       group "type_decl" (fields fs)
@@ -189,14 +204,14 @@ and decl_to_node (x: Nodes.decl) = match x with
         ("value", type_to_node x.value);
       ] in
       let fs = match x.params with
-        | Some p -> ("params", map_seq type_param_to_node p) :: fs
+        | Some p -> ("params", map_seq generic_param_to_node p) :: fs
         | None   -> fs
       in
       group "alias_decl" (fields fs)
 
-and type_param_to_node (x: Nodes.type_param) = match x with
-  | Type x ->group "generic_param" (Leaf x)
-  | Number x -> group "number_param" (Leaf x)
+and generic_param_to_node (x: Nodes.generic_param) = match x with
+  | TypeParam x ->group "type_param" (Leaf x)
+  | NumberParam x -> group "number_param" (Leaf x)
 
 let to_node ({ Nodes.decls } : Nodes.package) =
   group "package" (fields [

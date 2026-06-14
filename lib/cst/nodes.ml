@@ -45,9 +45,11 @@ and func_call =
   | SafeCall of safe_call
   | AbortCall of abort_call
 
-and type_expr =
+and name_type =
   | SimpleType of string
   | QualifiedType of string * string
+
+and call_type =
   | FuncType of {
       params: type_expr list;
       ret_type: ret_type
@@ -58,6 +60,15 @@ and type_expr =
       ret_type: ret_type;
       is_mut: bool
     }
+
+and generic_arg =
+  | TypeArg of type_expr
+  | NumberArg of string
+
+and type_expr =
+  | NameType of name_type
+  | CallType of call_type
+  | GenericType of name_type * generic_arg list
 
 and param = {
   name: string;
@@ -105,9 +116,9 @@ and meth_lambda = {
   body: body
 }
 
-and type_param =
-  | Type of string
-  | Number of string
+and generic_param =
+  | TypeParam of string
+  | NumberParam of string
 
 and decl =
   | FuncDecl of {
@@ -126,23 +137,23 @@ and decl =
     }
   | VarDecl of { name: string; type_: type_expr; value: expr }
   | VarDeclShorthand of  { name: string; type_: type_expr; args: expr list }
-  | TypeDecl of { name: string; params: type_param list option; value: type_expr }
-  | AliasDecl of { name: string; params: type_param list option; value: type_expr }
+  | TypeDecl of { name: string; params: generic_param list option; value: type_expr }
+  | AliasDecl of { name: string; params: generic_param list option; value: type_expr }
 
 type package = {
   decls: decl list
 }
 
 let func_type_of_lambda (x: func_lambda) : type_expr =
-  FuncType {
+  CallType (FuncType {
     params   = List.map (fun (p: param) -> p.type_) x.params;
     ret_type  = x.ret_type;
-}
+  })
 
 let meth_type_of_lambda (x: meth_lambda) : type_expr =
-  MethType {
+  CallType (MethType {
     this_type = x.this_type;
     params    = List.map (fun (p: param) -> p.type_) x.params;
     ret_type  = x.ret_type;
     is_mut    = x.is_mut;
-  }
+  })

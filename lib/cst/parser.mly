@@ -79,12 +79,12 @@ package:
       { Nodes.this_type; params; ret_type; is_mut; body }
     }
 
-%inline type_param:
+%inline generic_param:
   | name=UIDENT "Type" {
-      Nodes.Type name
+      Nodes.TypeParam name
     }
   | name=UIDENT "Number" {
-      Nodes.Number name
+      Nodes.NumberParam name
     }
 
 decl:
@@ -130,14 +130,14 @@ decl:
         body;
       }
     }
-  | "type" name=UIDENT params=ioption(delimited("<", separated_nonempty_list(",", type_param), ">")) "=" value=type_expr {
+  | "type" name=UIDENT params=ioption(delimited("<", separated_nonempty_list(",", generic_param), ">")) "=" value=type_expr {
       Nodes.TypeDecl {
         name;
         params;
         value;
       }
     }
-  | "alias" name=UIDENT params=ioption(delimited("<", separated_nonempty_list(",", type_param), ">")) "=" value=type_expr {
+  | "alias" name=UIDENT params=ioption(delimited("<", separated_nonempty_list(",", generic_param), ">")) "=" value=type_expr {
       Nodes.AliasDecl {
         name;
         params;
@@ -205,9 +205,11 @@ stat:
 %inline param:
   | name=LIDENT type_=type_expr { { Nodes.name; type_ } }
 
-type_expr:
+%inline name_type:
   | name=UIDENT { Nodes.SimpleType name }
   | pkg=UIDENT name=UIDENT { Nodes.QualifiedType (pkg, name) }
+
+%inline call_type:
   | ret=ret_type "[" params=separated_list(",", type_expr) "]" {
       Nodes.FuncType { params; ret_type=ret }
     }
@@ -220,6 +222,26 @@ type_expr:
     params=loption(preceded(",", separated_nonempty_list(",", type_expr)))
     "]" MUT {
       Nodes.MethType { this_type; params; ret_type=ret; is_mut=true }
+    }
+
+%inline generic_arg:
+  | type_expr=type_expr {
+      Nodes.TypeArg type_expr
+    }
+  | number=INT {
+      Nodes.NumberArg number
+    }
+
+
+type_expr:
+  | name_type=name_type {
+      Nodes.NameType name_type
+    }
+  | call_type=call_type {
+      Nodes.CallType call_type
+    }
+  | name_type=name_type "<" params=separated_nonempty_list(",", generic_arg) ">" {
+      Nodes.GenericType (name_type, params)
     }
 
 expr:

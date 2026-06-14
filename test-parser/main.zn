@@ -1,4 +1,4 @@
-type Vector<T Type> = Vector
+type Vector<T Type> = Vector<T>
 
 Void?String main (this Int, a Bool) mut {
 	x Void[this Int] = "hello"
