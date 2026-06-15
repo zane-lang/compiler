@@ -14,7 +14,8 @@
 %token RCURLY      "}"
 %token LBRACKET    "["
 %token RBRACKET    "]"
-%token COLON
+%token COLON       ":"
+%token SEMICOLON   ";"
 %token EQUAL       "="
 %token PLUS        "+"
 %token MINUS       "-"
@@ -36,6 +37,11 @@
 %token ALIAS       "alias"
 %token UTYPE       "Type"
 %token NUMBER      "Number"
+%token CLASS       "class"
+%token STRUCT      "struct"
+%token VARIANT     "variant"
+%token TUPLE       "tuple"
+%token ENUM        "enum"
 %token IF          "if"
 %token ELIF        "elif"
 %token ELSE        "else"
@@ -224,6 +230,26 @@ stat:
       Nodes.MethType { this_type; params; ret_type=ret; is_mut=true }
     }
 
+%inline body_field:
+  | name=LIDENT type_=type_expr {
+      { Nodes.name; type_ }
+    }
+
+%inline body_type:
+  | CLASS "{" fields=separated_list(";", body_field) "}" {
+      Nodes.Class fields
+    }
+  | STRUCT "{" fields=separated_list(";", body_field) "}" {
+      Nodes.Struct fields
+    }
+  | VARIANT "{" fields=separated_list(";", body_field) "}" {
+      Nodes.Variant fields
+    }
+  | TUPLE "[" types=separated_list(",", type_expr) "]" {
+      Nodes.Tuple types
+    }
+
+
 %inline generic_arg:
   | type_expr=type_expr {
       Nodes.TypeArg type_expr
@@ -242,6 +268,9 @@ type_expr:
     }
   | name_type=name_type "<" params=separated_nonempty_list(",", generic_arg) ">" {
       Nodes.GenericType (name_type, params)
+    }
+  | body_type=body_type {
+      Nodes.BodyType body_type
     }
 
 expr:

@@ -33,6 +33,7 @@ let rec token buf =
   | ']'                         -> RBRACKET
   | ','                         -> COMMA
   | ':'                         -> COLON
+  | ';'                         -> SEMICOLON
   | '!'                         -> EXCL
   | "??"                        -> QSTNQSTN
   | '?'                         -> QSTNMARK
@@ -52,6 +53,11 @@ let rec token buf =
   | "alias"                     -> ALIAS
   | "Type"                      -> UTYPE
   | "Number"                    -> NUMBER
+  | "class"                     -> CLASS
+  | "struct"                    -> STRUCT
+  | "variant"                   -> VARIANT
+  | "tuple"                     -> TUPLE
+  | "enum"                      -> ENUM
   | "if"                        -> IF
   | "elif"                      -> ELIF
   | "else"                      -> ELSE

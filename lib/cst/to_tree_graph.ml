@@ -18,6 +18,18 @@ and call_type_to_node (x: Nodes.call_type) = match x with
         ("is_mut",    Leaf (string_of_bool is_mut));
       ]
 
+and body_field_to_node (x: Nodes.body_field) =
+  group "body_field" (fields [
+    ("name", Leaf x.name);
+    ("type", type_to_node x.type_);
+  ])
+
+and body_type_to_node (x: Nodes.body_type) = match x with
+  | Class x -> group "class" (map_seq body_field_to_node x)
+  | Struct x -> group "struct" (map_seq body_field_to_node x)
+  | Variant x -> group "variant" (map_seq body_field_to_node x)
+  | Tuple x -> group "tuple" (map_seq type_to_node x)
+
 and generic_arg_to_node (x: Nodes.generic_arg) = match x with
   | TypeArg x -> type_to_node x
   | NumberArg x -> group "number" (Leaf x)
@@ -30,6 +42,7 @@ and type_to_node (x: Nodes.type_expr) = match x with
         ("name", name_type_to_node name);
         ("args", map_seq generic_arg_to_node generics);
       ])
+  | BodyType x -> body_type_to_node x
 
 and expr_to_node (x: Nodes.expr) = match x with
   | IntLit x              -> Leaf x

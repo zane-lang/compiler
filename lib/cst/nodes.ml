@@ -61,6 +61,18 @@ and call_type =
       is_mut: bool
     }
 
+and body_field = {
+  name: string;
+  type_: type_expr;
+}
+
+and body_type =
+  | Class of body_field list
+  | Struct of body_field list
+  | Variant of body_field list
+  | Tuple of type_expr list
+  (* | Enum of type_expr list *)
+
 and generic_arg =
   | TypeArg of type_expr
   | NumberArg of string
@@ -69,6 +81,7 @@ and type_expr =
   | NameType of name_type
   | CallType of call_type
   | GenericType of name_type * generic_arg list
+  | BodyType of body_type
 
 and param = {
   name: string;
