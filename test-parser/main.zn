@@ -1,4 +1,7 @@
-type Vector<T Type> = Vector<T>
+type Vector2<T Type> = struct {
+	x T;
+	y T;
+}
 
 Void?String main (this Int, a Bool) mut {
 	x Void[this Int] = "hello"

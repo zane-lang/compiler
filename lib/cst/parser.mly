@@ -231,18 +231,18 @@ stat:
     }
 
 %inline body_field:
-  | name=LIDENT type_=type_expr {
-      { Nodes.name; type_ }
+  | name=LIDENT type_=type_expr ";" {
+      ({ Nodes.name; type_ } : Nodes.body_field)
     }
 
 %inline body_type:
-  | CLASS "{" fields=separated_list(";", body_field) "}" {
+  | CLASS "{" fields=list(body_field) "}" {
       Nodes.Class fields
     }
-  | STRUCT "{" fields=separated_list(";", body_field) "}" {
+  | STRUCT "{" fields=list(body_field) "}" {
       Nodes.Struct fields
     }
-  | VARIANT "{" fields=separated_list(";", body_field) "}" {
+  | VARIANT "{" fields=list(body_field) "}" {
       Nodes.Variant fields
     }
   | TUPLE "[" types=separated_list(",", type_expr) "]" {
