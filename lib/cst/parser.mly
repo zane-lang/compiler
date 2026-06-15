@@ -245,6 +245,9 @@ stat:
   | VARIANT "{" fields=list(body_field) "}" {
       Nodes.Variant fields
     }
+  | ENUM "[" cases=separated_list(",", LIDENT) "]" {
+      Nodes.Enum cases
+    }
   | TUPLE "[" types=separated_list(",", type_expr) "]" {
       Nodes.Tuple types
     }

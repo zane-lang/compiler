@@ -28,6 +28,7 @@ and body_type_to_node (x: Nodes.body_type) = match x with
   | Class x -> group "class" (map_seq body_field_to_node x)
   | Struct x -> group "struct" (map_seq body_field_to_node x)
   | Variant x -> group "variant" (map_seq body_field_to_node x)
+  | Enum x -> group "enum" (map_seq (fun x -> Leaf x) x)
   | Tuple x -> group "tuple" (map_seq type_to_node x)
 
 and generic_arg_to_node (x: Nodes.generic_arg) = match x with

@@ -71,7 +71,7 @@ and body_type =
   | Struct of body_field list
   | Variant of body_field list
   | Tuple of type_expr list
-  (* | Enum of type_expr list *)
+  | Enum of string list
 
 and generic_arg =
   | TypeArg of type_expr
