@@ -18,6 +18,10 @@ Void?String main (this Int, a Bool) mut {
 		rifle Weapon("rifle", 20)
 		value Bool = ~true + 3
 	}
+
+	loop i to 3 {
+		print(i)
+	}
 }
 
 square Int (x Int, y Int) => x * y

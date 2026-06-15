@@ -43,6 +43,7 @@ let rec token buf =
   | '*'                         -> STAR
   | '/'                         -> SLASH
   | '$'                         -> DOLLAR
+  | '&'                         -> AND
   | '@'                         -> AT
   | float_lit                   -> FLOAT (Utf8.lexeme buf)
   | int_lit                     -> INT (Utf8.lexeme buf)
@@ -61,7 +62,9 @@ let rec token buf =
   | "if"                        -> IF
   | "elif"                      -> ELIF
   | "else"                      -> ELSE
-  (* | "loop"                      -> LOOP *)
+  | "loop"                      -> LOOP
+  | "from"                      -> FROM
+  | "to"                        -> TO
   | "true"                      -> TRUE
   | "false"                     -> FALSE
   | "this"                      -> THIS

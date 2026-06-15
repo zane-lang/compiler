@@ -22,6 +22,7 @@
 %token STAR        "*"
 %token SLASH       "/"
 %token DOLLAR      "$"
+%token AND         "&"
 %token AT          "@"
 %token EXCL        "!"
 %token QSTNMARK    "?"
@@ -46,6 +47,9 @@
 %token ELIF        "elif"
 %token ELSE        "else"
 %token TRUE        "true"
+%token LOOP        "loop"
+%token FROM        "from"
+%token TO          "to"
 %token FALSE       "false"
 %token THIS        "this"
 %token MUT         "mut"
@@ -190,6 +194,11 @@ func_call:
       statements
     }
 
+%inline loop:
+  | LOOP binder=LIDENT start=ioption(preceded(FROM, expr)) TO end_=expr "{" statements=list(stat) "}" {
+      ({ start; end_; binder; body=statements; }: Nodes.loop)
+    }
+
 stat:
   | decl=decl { Nodes.DeclStat decl }
   | func_call=func_call {
@@ -206,6 +215,9 @@ stat:
     }
   | if_=if_ elifs_=list(elif_) else_=ioption(else_) {
       Nodes.CondSeq { if_; elifs_; else_ }
+    }
+  | loop=loop {
+      Nodes.Loop loop
     }
 
 %inline param:

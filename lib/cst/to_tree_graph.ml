@@ -70,7 +70,7 @@ and expr_to_node (x: Nodes.expr) = match x with
   | MethLambda x ->
       group "meth_lambda" (meth_lambda_to_node x)
 
-and op_to_name (x : Nodes.operator) = match x with
+and op_to_name (x: Nodes.operator) = match x with
   | Add     -> "+"
   | Sub     -> "-"
   | Mul     -> "*"
@@ -81,7 +81,7 @@ and op_to_name (x : Nodes.operator) = match x with
   | Less    -> "<"
   | More    -> ">"
 
-and abort_handle_to_node (x : Nodes.abort_handle) = match x with
+and abort_handle_to_node (x: Nodes.abort_handle) = match x with
   | AbortBody x      -> body_to_node x
   | AbortShorthand x -> expr_to_node x
 
@@ -103,13 +103,13 @@ and func_call_to_node x = match x with
       in
       group "function_call" (fields fs)
 
-and param_to_node (x : Nodes.param) =
+and param_to_node (x: Nodes.param) =
   fields [
     ("name", Leaf x.name);
     ("type", type_to_node x.type_);
   ]
 
-and params_to_node (x : Nodes.param list) =
+and params_to_node (x: Nodes.param list) =
   map_seq param_to_node x
 
 and elif_to_fields (x: Nodes.cond_block) =
@@ -133,15 +133,28 @@ and cond_seq_to_node (x: Nodes.cond_seq) =
     | None -> cond_seq
   in group "cond_seq" (fields cond_seq)
 
-and stat_to_node (x : Nodes.stat) = match x with
+and loop_to_node (x: Nodes.loop) =
+  let fs = [
+    ("stats", map_seq stat_to_node x.body);
+    ("end", expr_to_node x.end_);
+    ("binder", Leaf x.binder);
+  ] in
+  let fs = match x.start with
+    | Some x -> ("start", expr_to_node x) :: fs
+    | None   -> fs
+  in
+  group "loop_stat" (fields fs)
+
+and stat_to_node (x: Nodes.stat) = match x with
   | FuncCallStat x -> func_call_to_node x
   | DeclStat x     -> decl_to_node x
   | AbortStat x    -> group "abort_stat"   (expr_to_node x)
   | RetStat x      -> group "ret_stat"     (expr_to_node x)
   | ResolveStat x  -> group "resolve_stat" (expr_to_node x)
   | CondSeq x      -> cond_seq_to_node x
+  | Loop x         -> loop_to_node x
 
-and body_to_node (x : Nodes.body) = match x with
+and body_to_node (x: Nodes.body) = match x with
   | Scope scope ->
       group "scope" (fields [
         ("stat", map_seq stat_to_node scope);
@@ -149,7 +162,7 @@ and body_to_node (x : Nodes.body) = match x with
   | RetShorthand x ->
       group "ret_shorthand" (expr_to_node x)
 
-and ret_to_node (x : Nodes.ret_type) = match x with
+and ret_to_node (x: Nodes.ret_type) = match x with
   | SafeRet ret -> type_to_node ret
   | AbortRet (ret_type, abort_type) ->
       fields [
@@ -157,14 +170,14 @@ and ret_to_node (x : Nodes.ret_type) = match x with
         ("abort_type", type_to_node abort_type);
       ]
 
-and func_lambda_to_node (x : Nodes.func_lambda) =
+and func_lambda_to_node (x: Nodes.func_lambda) =
   fields [
     ("param",    params_to_node x.params);
     ("ret_type", ret_to_node x.ret_type);
     ("body",     body_to_node x.body);
   ]
 
-and meth_lambda_to_node (x : Nodes.meth_lambda) =
+and meth_lambda_to_node (x: Nodes.meth_lambda) =
   fields [
     ("this_type", type_to_node x.this_type);
     ("param",     params_to_node x.params);
@@ -227,7 +240,7 @@ and generic_param_to_node (x: Nodes.generic_param) = match x with
   | TypeParam x ->group "type_param" (Leaf x)
   | NumberParam x -> group "number_param" (Leaf x)
 
-let to_node ({ Nodes.decls } : Nodes.package) =
+let to_node ({ Nodes.decls }: Nodes.package) =
   group "package" (fields [
     ("declarations", map_seq decl_to_node decls);
   ])

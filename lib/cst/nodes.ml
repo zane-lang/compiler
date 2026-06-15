@@ -99,6 +99,13 @@ and cond_seq = {
   else_: stat list option;
 }
 
+and loop = {
+  start: expr option;
+  end_: expr;
+  binder: string;
+  body: stat list;
+}
+
 and stat =
   | FuncCallStat of func_call
   | DeclStat of decl
@@ -106,6 +113,7 @@ and stat =
   | RetStat of expr
   | ResolveStat of expr
   | CondSeq of cond_seq
+  | Loop of loop
 
 and body =
   | Scope of stat list
