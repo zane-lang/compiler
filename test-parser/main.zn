@@ -6,7 +6,7 @@ type Vector2<T Type> = struct {
 Void?String main (this Int, a Bool) mut {
 	x Void[this Int] = "hello"
 	y String = "world"
-	content String = read("wordlist.txt") ?? ""
+	content &String = read("wordlist.txt") ?? ""
 	
 	if random() {
 		results List = crawl(content) ? error {

@@ -77,11 +77,15 @@ and generic_arg =
   | TypeArg of type_expr
   | NumberArg of string
 
-and type_expr =
-  | NameType of name_type
-  | CallType of call_type
-  | GenericType of name_type * generic_arg list
+and refable =
   | BodyType of body_type
+  | NameType of name_type
+  | GenericType of name_type * generic_arg list
+
+and type_expr =
+  | CallType of call_type
+  | NormalType of refable
+  | RefType of refable
 
 and param = {
   name: string;

@@ -231,15 +231,10 @@ stat:
   | ret=ret_type "[" params=separated_list(",", type_expr) "]" {
       Nodes.FuncType { params; ret_type=ret }
     }
-  | ret=ret_type "[" THIS this_type=type_expr 
-    params=loption(preceded(",", separated_nonempty_list(",", type_expr)))
-    "]" {
-      Nodes.MethType { this_type; params; ret_type=ret; is_mut=false }
-    }
   | ret=ret_type "[" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", type_expr)))
-    "]" MUT {
-      Nodes.MethType { this_type; params; ret_type=ret; is_mut=true }
+    "]" is_mut=boption(MUT) {
+      Nodes.MethType { this_type; params; ret_type=ret; is_mut }
     }
 
 %inline body_field:
@@ -274,18 +269,26 @@ stat:
     }
 
 
-type_expr:
+refable:
   | name_type=name_type {
       Nodes.NameType name_type
-    }
-  | call_type=call_type {
-      Nodes.CallType call_type
     }
   | name_type=name_type "<" params=separated_nonempty_list(",", generic_arg) ">" {
       Nodes.GenericType (name_type, params)
     }
   | body_type=body_type {
       Nodes.BodyType body_type
+    }
+
+type_expr:
+  | call_type=call_type {
+      Nodes.CallType call_type
+    }
+  | refable=refable {
+      Nodes.NormalType refable
+    }
+  | "&" refable=refable {
+      Nodes.RefType refable
     }
 
 expr:

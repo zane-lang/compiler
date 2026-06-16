@@ -35,15 +35,20 @@ and generic_arg_to_node (x: Nodes.generic_arg) = match x with
   | TypeArg x -> type_to_node x
   | NumberArg x -> group "number" (Leaf x)
 
-and type_to_node (x: Nodes.type_expr) = match x with
-  | NameType x -> name_type_to_node x
-  | CallType x -> call_type_to_node x
+and refable_to_node (x: Nodes.refable) = match x with
   | GenericType (name, generics) ->
       group "generic_type" (fields [
         ("name", name_type_to_node name);
         ("args", map_seq generic_arg_to_node generics);
       ])
   | BodyType x -> body_type_to_node x
+  | NameType x -> name_type_to_node x
+
+
+and type_to_node (x: Nodes.type_expr) = match x with
+  | CallType x -> call_type_to_node x
+  | NormalType x -> refable_to_node x
+  | RefType x -> group "ref_type" (refable_to_node x)
 
 and expr_to_node (x: Nodes.expr) = match x with
   | IntLit x              -> Leaf x
