@@ -231,7 +231,7 @@ and decl_to_node (x: Nodes.decl) = match x with
   | VarDeclShorthand { name; type_; args } ->
       group "var_decl_shorthand" (fields [
         ("name", Leaf name);
-        ("type", type_to_node type_);
+        ("type", name_type_to_node type_);
         ("args", map_seq expr_to_node args);
       ])
   | TypeDecl x ->

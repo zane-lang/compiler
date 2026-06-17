@@ -173,7 +173,7 @@ and decl =
       body: body
     }
   | VarDecl of { name: string; type_: type_expr; value: expr }
-  | VarDeclShorthand of  { name: string; type_: type_expr; args: expr list }
+  | VarDeclShorthand of  { name: string; type_: name_type; args: expr list }
   | TypeDecl of { name: string; params: generic_param list option; value: type_expr }
   | AliasDecl of { name: string; params: generic_param list option; value: type_expr }
 

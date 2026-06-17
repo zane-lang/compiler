@@ -7,10 +7,11 @@ Void?String main (this Int, a Bool) mut {
 	x Void[this Int] = "hello"
 	y String = "world"
 	content &String = read("wordlist.txt") ?? ""
+	x Int(3)
 	
 	if random() {
 		results List = crawl(content) ? error {
-			Std$print(error)
+			std$print(error)
 			abort error
 		}
 	}
@@ -20,7 +21,7 @@ Void?String main (this Int, a Bool) mut {
 	}
 
 	loop i to 3 {
-		print(i)
+		std$print(i)
 	}
 }
 

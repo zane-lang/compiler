@@ -106,7 +106,7 @@ decl:
   | name=LIDENT type_=type_expr "=" value=expr {
       Nodes.VarDecl { name; type_; value }
     }
-  | name=LIDENT type_=type_expr "(" args=separated_list(COMMA, expr) ")" {
+  | name=LIDENT type_=name_type "(" args=separated_list(COMMA, expr) ")" {
       Nodes.VarDeclShorthand { name; type_; args }
     }
   | name=LIDENT func_lambda=func_lambda {
@@ -251,7 +251,7 @@ stat:
 
 %inline name_type:
   | name=UIDENT { Nodes.SimpleType name }
-  | pkg=UIDENT name=UIDENT { Nodes.QualifiedType (pkg, name) }
+  | pkg=LIDENT "$" name=UIDENT { Nodes.QualifiedType (pkg, name) }
 
 %inline call_type:
   | ret=ret_type "[" params=separated_list(",", param_type) "]" {
@@ -324,7 +324,7 @@ expr:
   | TRUE { Nodes.BoolLit true }
   | FALSE { Nodes.BoolLit false }
   | ident=LIDENT { Nodes.Ident ident }
-  | pkg=UIDENT "$" ident=LIDENT { Nodes.QualifiedIdent (pkg, ident) }
+  | pkg=LIDENT "$" ident=LIDENT { Nodes.QualifiedIdent (pkg, ident) }
   | e1=expr "+" e2=expr  { Nodes.Op { left=e1; right=e2; operator=Nodes.Add } }
   | e1=expr "-" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.Sub } }
   | e1=expr "*" e2=expr  { Nodes.Op { left=e1; right=e2; operator=Nodes.Mul } }
