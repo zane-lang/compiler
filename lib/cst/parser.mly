@@ -145,6 +145,14 @@ decl:
         body;
       }
     }
+  | type_=name_type
+    "(" params=separated_list(COMMA, param) ")" body=body {
+      Nodes.ConstructorDecl {
+        type_;
+        params;
+        body;
+      }
+    }
   | "type" name=UIDENT params=ioption(delimited("<", separated_nonempty_list(",", generic_param), ">")) "=" value=type_expr {
       Nodes.TypeDecl {
         name;

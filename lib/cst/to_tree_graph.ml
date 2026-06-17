@@ -216,6 +216,12 @@ and decl_to_node (x: Nodes.decl) = match x with
         ("body",      body_to_node x.body);
         ("is_mut",    Leaf (string_of_bool x.is_mut));
       ])
+  | ConstructorDecl x ->
+      group "meth_decl" (fields [
+        ("type", name_type_to_node x.type_);
+        ("param",     params_to_node x.params);
+        ("body",      body_to_node x.body);
+      ])
   | VarDecl { name; type_; value } ->
       group "var_decl" (fields [
         ("name",  Leaf name);
