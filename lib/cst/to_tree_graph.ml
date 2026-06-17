@@ -4,16 +4,24 @@ let rec name_type_to_node (x: Nodes.name_type) = match x with
   | SimpleType s              -> Leaf s
   | QualifiedType (pkg, type_) -> Leaf (pkg ^ "$" ^ type_)
 
+and generic_param_type_to_node (x: Nodes.generic_param_type) = match x with
+  | TypeParam -> Leaf "Type"
+  | NumberParam -> Leaf "Number"
+
+and param_type_to_node (x: Nodes.param_type) = match x with
+  | NormalParam x -> type_to_node x
+  | GenericParam x -> generic_param_type_to_node x
+
 and call_type_to_node (x: Nodes.call_type) = match x with
   | FuncType { params; ret_type } ->
       fields [
-        ("param", map_seq type_to_node params);
+        ("param", map_seq param_type_to_node params);
         ("type",  ret_to_node ret_type);
       ]
   | MethType { this_type; params; ret_type; is_mut } ->
       fields [
         ("this_type", type_to_node this_type);
-        ("param",     map_seq type_to_node params);
+        ("param",     map_seq param_type_to_node params);
         ("type",      ret_to_node ret_type);
         ("is_mut",    Leaf (string_of_bool is_mut));
       ]
@@ -111,7 +119,7 @@ and func_call_to_node x = match x with
 and param_to_node (x: Nodes.param) =
   fields [
     ("name", Leaf x.name);
-    ("type", type_to_node x.type_);
+    ("type", param_type_to_node x.type_);
   ]
 
 and params_to_node (x: Nodes.param list) =
@@ -241,9 +249,11 @@ and decl_to_node (x: Nodes.decl) = match x with
       in
       group "alias_decl" (fields fs)
 
-and generic_param_to_node (x: Nodes.generic_param) = match x with
-  | TypeParam x ->group "type_param" (Leaf x)
-  | NumberParam x -> group "number_param" (Leaf x)
+and generic_param_to_node (x: Nodes.generic_param) =
+  fields [
+    ("name", Leaf x.name);
+    ("type", generic_param_type_to_node x.type_);
+  ]
 
 let to_node ({ Nodes.decls }: Nodes.package) =
   group "package" (fields [

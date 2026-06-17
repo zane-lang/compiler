@@ -51,12 +51,12 @@ and name_type =
 
 and call_type =
   | FuncType of {
-      params: type_expr list;
+      params: param_type list;
       ret_type: ret_type
     }
   | MethType of {
       this_type: type_expr;
-      params: type_expr list;
+      params: param_type list;
       ret_type: ret_type;
       is_mut: bool
     }
@@ -87,9 +87,13 @@ and type_expr =
   | NormalType of refable
   | RefType of refable
 
+and param_type =
+  | NormalParam of type_expr
+  | GenericParam of generic_param_type
+
 and param = {
   name: string;
-  type_: type_expr
+  type_: param_type
 }
 
 and cond_block = {
@@ -141,9 +145,12 @@ and meth_lambda = {
   body: body
 }
 
-and generic_param =
-  | TypeParam of string
-  | NumberParam of string
+and generic_param_type = TypeParam | NumberParam
+
+and generic_param = {
+  name: string;
+  type_: generic_param_type;
+}
 
 and decl =
   | FuncDecl of {

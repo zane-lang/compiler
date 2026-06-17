@@ -89,12 +89,17 @@ package:
       { Nodes.this_type; params; ret_type; is_mut; body }
     }
 
-%inline generic_param:
-  | name=UIDENT "Type" {
-      Nodes.TypeParam name
+%inline generic_param_type:
+  | "Type" {
+      Nodes.TypeParam
     }
-  | name=UIDENT "Number" {
-      Nodes.NumberParam name
+  | "Number" {
+      Nodes.NumberParam
+    }
+
+%inline generic_param:
+  | name=UIDENT type_=generic_param_type {
+     ({ name; type_ }: Nodes.generic_param)
     }
 
 decl:
@@ -220,19 +225,32 @@ stat:
       Nodes.Loop loop
     }
 
+%inline param_type:
+  | type_=type_expr {
+      Nodes.NormalParam type_
+    }
+  | type_=generic_param_type {
+      Nodes.GenericParam type_
+    }
+
 %inline param:
-  | name=LIDENT type_=type_expr { { Nodes.name; type_ } }
+  | name=LIDENT type_=type_expr {
+      ({ Nodes.name; type_=Nodes.NormalParam type_ }: Nodes.param)
+    }
+  | name=UIDENT type_=generic_param_type {
+      ({ Nodes.name; type_=Nodes.GenericParam type_ }: Nodes.param)
+    }
 
 %inline name_type:
   | name=UIDENT { Nodes.SimpleType name }
   | pkg=UIDENT name=UIDENT { Nodes.QualifiedType (pkg, name) }
 
 %inline call_type:
-  | ret=ret_type "[" params=separated_list(",", type_expr) "]" {
+  | ret=ret_type "[" params=separated_list(",", param_type) "]" {
       Nodes.FuncType { params; ret_type=ret }
     }
   | ret=ret_type "[" THIS this_type=type_expr
-    params=loption(preceded(",", separated_nonempty_list(",", type_expr)))
+    params=loption(preceded(",", separated_nonempty_list(",", param_type)))
     "]" is_mut=boption(MUT) {
       Nodes.MethType { this_type; params; ret_type=ret; is_mut }
     }
