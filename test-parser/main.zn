@@ -3,6 +3,10 @@ type Vector2<T Type> = struct {
 	y T;
 }
 
+Vector2<T> +(left Vector2<T Type>, right Vector2<T Type>) {
+	return Vector2(left.x + right.x, left.y + right.y)
+}
+
 Void?String main (this Int, a Bool) mut {
 	x Void[this Int] = "hello"
 	y String = "world"

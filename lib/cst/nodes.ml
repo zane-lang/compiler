@@ -89,6 +89,7 @@ and type_expr =
 
 and param_type =
   | NormalParam of type_expr
+  | InfGenericParam of { type_: name_type; generics: generic_param list }
   | GenericParam of generic_param_type
 
 and param = {
@@ -165,6 +166,17 @@ and decl =
       params: param list;
       ret_type: ret_type;
       is_mut: bool;
+      body: body
+    }
+  | OpDecl of {
+      op: operator;
+      params: param list;
+      ret_type: ret_type;
+      body: body
+    }
+  | FlipDecl of {
+      params: param list;
+      ret_type: ret_type;
       body: body
     }
   | ConstructorDecl of {

@@ -10,6 +10,11 @@ and generic_param_type_to_node (x: Nodes.generic_param_type) = match x with
 
 and param_type_to_node (x: Nodes.param_type) = match x with
   | NormalParam x -> type_to_node x
+  | InfGenericParam x ->
+      group "InfGenericParam" (fields [
+        ("type", name_type_to_node x.type_);
+        ("generics", map_seq generic_param_to_node x.generics);
+      ])
   | GenericParam x -> generic_param_type_to_node x
 
 and call_type_to_node (x: Nodes.call_type) = match x with
@@ -233,6 +238,19 @@ and decl_to_node (x: Nodes.decl) = match x with
         ("name", Leaf name);
         ("type", name_type_to_node type_);
         ("args", map_seq expr_to_node args);
+      ])
+  | OpDecl x -> 
+      group "op_decl" (fields [
+        ("op", Leaf (op_to_name x.op));
+        ("param",    params_to_node x.params);
+        ("ret_type", ret_to_node x.ret_type);
+        ("body",     body_to_node x.body);
+      ])
+  | FlipDecl x -> 
+      group "flip_decl" (fields [
+        ("param",    params_to_node x.params);
+        ("ret_type", ret_to_node x.ret_type);
+        ("body",     body_to_node x.body);
       ])
   | TypeDecl x ->
       let fs = [

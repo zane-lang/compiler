@@ -153,6 +153,21 @@ decl:
         body;
       }
     }
+  | ret_type=ret_type op=operator "(" params=separated_list(COMMA, param) ")" body=body {
+      Nodes.OpDecl {
+        op;
+        params;
+        ret_type;
+        body;
+      }
+    }
+  | ret_type=ret_type "~" "(" params=separated_list(COMMA, param) ")" body=body {
+      Nodes.FlipDecl {
+        params;
+        ret_type;
+        body;
+      }
+    }
   | "type" name=UIDENT params=ioption(delimited("<", separated_nonempty_list(",", generic_param), ">")) "=" value=type_expr {
       Nodes.TypeDecl {
         name;
@@ -237,6 +252,10 @@ stat:
   | type_=type_expr {
       Nodes.NormalParam type_
     }
+  | type_=name_type "<"
+    generics=separated_nonempty_list(",", generic_param) ">" {
+      Nodes.InfGenericParam {type_; generics}
+    }
   | type_=generic_param_type {
       Nodes.GenericParam type_
     }
@@ -244,6 +263,10 @@ stat:
 %inline param:
   | name=LIDENT type_=type_expr {
       ({ Nodes.name; type_=Nodes.NormalParam type_ }: Nodes.param)
+    }
+  | name=LIDENT type_=name_type "<"
+    generics=separated_nonempty_list(",", generic_param) ">" {
+      ({ Nodes.name; type_=Nodes.InfGenericParam {type_; generics}}: Nodes.param)
     }
   | name=UIDENT type_=generic_param_type {
       ({ Nodes.name; type_=Nodes.GenericParam type_ }: Nodes.param)
@@ -317,6 +340,17 @@ type_expr:
       Nodes.RefType refable
     }
 
+operator:
+  | "+" { Nodes.Add }
+  | "-" { Nodes.Sub }
+  | "*" { Nodes.Mul }
+  | "/" { Nodes.Div }
+  | "=="{ Nodes.Eq }
+  | "<="{ Nodes.LessEq }
+  | ">="{ Nodes.MoreEq }
+  | "<" { Nodes.Less }
+  | ">" { Nodes.More }
+
 expr:
   | int=INT { Nodes.IntLit int }
   | float=FLOAT { Nodes.FloatLit float }
@@ -325,15 +359,7 @@ expr:
   | FALSE { Nodes.BoolLit false }
   | ident=LIDENT { Nodes.Ident ident }
   | pkg=LIDENT "$" ident=LIDENT { Nodes.QualifiedIdent (pkg, ident) }
-  | e1=expr "+" e2=expr  { Nodes.Op { left=e1; right=e2; operator=Nodes.Add } }
-  | e1=expr "-" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.Sub } }
-  | e1=expr "*" e2=expr  { Nodes.Op { left=e1; right=e2; operator=Nodes.Mul } }
-  | e1=expr "/" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.Div } }
-  | e1=expr "==" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.Eq } }
-  | e1=expr "<=" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.LessEq } }
-  | e1=expr ">=" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.MoreEq } }
-  | e1=expr "<" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.Less } }
-  | e1=expr ">" e2=expr { Nodes.Op { left=e1; right=e2; operator=Nodes.More } }
+  | e1=expr op=operator e2=expr  { Nodes.Op { left=e1; right=e2; operator=op } }
   | "~" value=expr %prec TILDE { Nodes.Flip value }
   | "(" e=expr ")" { Nodes.Parenthized e }
   | func_call=func_call {
