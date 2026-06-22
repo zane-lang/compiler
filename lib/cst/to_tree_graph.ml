@@ -71,12 +71,26 @@ and expr_to_node (x: Nodes.expr) = match x with
   | Ident x                     -> Leaf x
   | QualifiedIdent (pkg, name)  -> Leaf (pkg ^ "$" ^ name)
   | Op x ->
-      fields [
-        (op_to_name x.operator, fields [
+      group (op_to_name x.operator) (
+        fields [
           ("left",  expr_to_node x.left);
           ("right", expr_to_node x.right);
-        ]);
-      ]
+        ]
+      )
+  | DotAccess (value, field) ->
+      group "dot_access" (
+        fields [
+          ("value", expr_to_node value);
+          ("field", Leaf field);
+        ]
+      )
+  | ConstructorCall x ->
+      group "constructor_call" (
+        fields [
+          ("type", name_type_to_node x.type_);
+          ("args", map_seq expr_to_node x.args);
+        ]
+      )
   | Flip x ->
       group "flip" (expr_to_node x)
   | Parenthized x ->

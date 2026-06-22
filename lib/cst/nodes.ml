@@ -20,6 +20,8 @@ type expr =
   | QualifiedIdent   of string * string
   | Op               of { left: expr; right: expr; operator: operator }
   | Flip             of expr
+  | DotAccess        of expr * string
+  | ConstructorCall  of { type_: name_type; args: expr list }
   | Parenthized      of expr
   | FuncCall         of func_call
   | FuncLambda       of func_lambda

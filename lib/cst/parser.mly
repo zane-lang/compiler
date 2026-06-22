@@ -16,6 +16,7 @@
 %token RBRACKET    "]"
 %token COLON       ":"
 %token SEMICOLON   ";"
+%token DOT         "."
 %token EQUAL       "="
 %token PLUS        "+"
 %token MINUS       "-"
@@ -66,6 +67,7 @@
 %nonassoc IF
 %nonassoc ELSE
 %nonassoc TILDE                          /* prefix ~ */
+%left DOT                                /* field access */
 
 %start <Nodes.package> package
 
@@ -359,8 +361,19 @@ expr:
   | FALSE { Nodes.BoolLit false }
   | ident=LIDENT { Nodes.Ident ident }
   | pkg=LIDENT "$" ident=LIDENT { Nodes.QualifiedIdent (pkg, ident) }
-  | e1=expr op=operator e2=expr  { Nodes.Op { left=e1; right=e2; operator=op } }
+  | e1=expr "+"  e2=expr %prec PLUS   { Nodes.Op { left=e1; right=e2; operator=Nodes.Add } }
+  | e1=expr "-"  e2=expr %prec MINUS  { Nodes.Op { left=e1; right=e2; operator=Nodes.Sub } }
+  | e1=expr "*"  e2=expr %prec STAR   { Nodes.Op { left=e1; right=e2; operator=Nodes.Mul } }
+  | e1=expr "/"  e2=expr %prec SLASH  { Nodes.Op { left=e1; right=e2; operator=Nodes.Div } }
+  | e1=expr "==" e2=expr %prec EQEQ   { Nodes.Op { left=e1; right=e2; operator=Nodes.Eq } }
+  | e1=expr "<=" e2=expr %prec LESSEQ { Nodes.Op { left=e1; right=e2; operator=Nodes.LessEq } }
+  | e1=expr ">=" e2=expr %prec MOREEQ { Nodes.Op { left=e1; right=e2; operator=Nodes.MoreEq } }
+  | e1=expr "<"  e2=expr %prec LESS   { Nodes.Op { left=e1; right=e2; operator=Nodes.Less } }
+  | e1=expr ">"  e2=expr %prec MORE   { Nodes.Op { left=e1; right=e2; operator=Nodes.More } }
   | "~" value=expr %prec TILDE { Nodes.Flip value }
+  | value=expr "." field=LIDENT %prec DOT { Nodes.DotAccess (value, field) }
+  | type_=name_type "(" args=separated_list(COMMA, expr) ")" %prec LPAREN
+      { Nodes.ConstructorCall { type_; args } }
   | "(" e=expr ")" { Nodes.Parenthized e }
   | func_call=func_call {
       Nodes.FuncCall func_call

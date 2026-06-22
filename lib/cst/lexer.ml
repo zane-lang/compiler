@@ -32,6 +32,7 @@ let rec token buf =
   | '['                         -> LBRACKET
   | ']'                         -> RBRACKET
   | ','                         -> COMMA
+  | '.'                         -> DOT
   | ':'                         -> COLON
   | ';'                         -> SEMICOLON
   | '!'                         -> EXCL

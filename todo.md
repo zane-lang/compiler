@@ -1,6 +1,6 @@
 x ConstructorDecl
-OpDecl
+x OpDecl
 MethodCall
 
-rename callables to verb
+x rename callables to verb
 x refs
