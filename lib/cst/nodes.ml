@@ -91,7 +91,6 @@ and type_expr =
 
 and param_type =
   | NormalParam of type_expr
-  | InfGenericParam of { type_: name_type; generics: generic_param list }
   | GenericParam of generic_param_type
 
 and param = {
@@ -158,12 +157,14 @@ and generic_param = {
 and decl =
   | FuncDecl of {
       name: string;
+      generic_header: generic_param list option;
       params: param list;
       ret_type: ret_type;
       body: body
     }
   | MethDecl of {
       name: string;
+      generic_header: generic_param list option;
       this_type: type_expr;
       params: param list;
       ret_type: ret_type;
@@ -172,11 +173,13 @@ and decl =
     }
   | OpDecl of {
       op: operator;
+      generic_header: generic_param list option;
       params: param list;
       ret_type: ret_type;
       body: body
     }
   | FlipDecl of {
+      generic_header: generic_param list option;
       params: param list;
       ret_type: ret_type;
       body: body

@@ -10,11 +10,6 @@ and generic_param_type_to_node (x: Nodes.generic_param_type) = match x with
 
 and param_type_to_node (x: Nodes.param_type) = match x with
   | NormalParam x -> type_to_node x
-  | InfGenericParam x ->
-      group "InfGenericParam" (fields [
-        ("type", name_type_to_node x.type_);
-        ("generics", map_seq generic_param_to_node x.generics);
-      ])
   | GenericParam x -> generic_param_type_to_node x
 
 and call_type_to_node (x: Nodes.call_type) = match x with

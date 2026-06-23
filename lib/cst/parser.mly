@@ -126,20 +126,24 @@ decl:
       }
     }
   | ret_type=ret_type name=LIDENT
+    generic_header=ioption(delimited("<", separated_nonempty_list(",", generic_param), ">"))
     "(" params=separated_list(COMMA, param) ")" body=body {
       Nodes.FuncDecl {
         name;
+        generic_header;
         params;
         ret_type;
         body;
       }
     }
   | ret_type=ret_type name=LIDENT
+    generic_header=ioption(delimited("<", separated_nonempty_list(",", generic_param), ">"))
     "(" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param)))
     ")" is_mut=boption(MUT) body=body {
       Nodes.MethDecl {
         name;
+        generic_header;
         this_type;
         params;
         ret_type;
@@ -254,10 +258,6 @@ stat:
   | type_=type_expr {
       Nodes.NormalParam type_
     }
-  | type_=name_type "<"
-    generics=separated_nonempty_list(",", generic_param) ">" {
-      Nodes.InfGenericParam {type_; generics}
-    }
   | type_=generic_param_type {
       Nodes.GenericParam type_
     }
@@ -265,10 +265,6 @@ stat:
 %inline param:
   | name=LIDENT type_=type_expr {
       ({ Nodes.name; type_=Nodes.NormalParam type_ }: Nodes.param)
-    }
-  | name=LIDENT type_=name_type "<"
-    generics=separated_nonempty_list(",", generic_param) ">" {
-      ({ Nodes.name; type_=Nodes.InfGenericParam {type_; generics}}: Nodes.param)
     }
   | name=UIDENT type_=generic_param_type {
       ({ Nodes.name; type_=Nodes.GenericParam type_ }: Nodes.param)

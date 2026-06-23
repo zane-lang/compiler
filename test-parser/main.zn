@@ -3,7 +3,7 @@ type Vector2<T Type> = struct {
 	y T;
 }
 
-Vector2<T> +(left Vector2<T Type>, right Vector2<T Type>) {
+Vector2<T> +<T Type>(left Vector2<T>, right Vector2<T>) {
 	return Vector2(left.x + right.x, left.y + right.y)
 }
 
