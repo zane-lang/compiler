@@ -1,213 +1,297 @@
 (* The CST's job is to represent what was parsed, not what's valid. *)
 
-type operator =
-  | Add
-  | Sub
-  | Mul
-  | Div
-  | Eq
-  | LessEq
-  | MoreEq
-  | Less
-  | More
+(* ---------------------------------------------------------------------- *)
+(* Leaf types: no back-references into the recursive core, so they live    *)
+(* outside the [module rec] chain as ordinary modules.                     *)
+(* ---------------------------------------------------------------------- *)
 
-type expr =
-  | IntLit           of string
-  | FloatLit         of string
-  | StrLit           of string
-  | BoolLit          of bool
-  | Ident            of string
-  | QualifiedIdent   of string * string
-  | Op               of { left: expr; right: expr; operator: operator }
-  | Flip             of expr
-  | DotAccess        of expr * string
-  | ConstructorCall  of { type_: name_type; args: expr list }
-  | Parenthized      of expr
-  | FuncCall         of func_call
-  | FuncLambda       of func_lambda
-  | MethLambda       of meth_lambda
+module Operator = struct
+  type t =
+    | Add
+    | Sub
+    | Mul
+    | Div
+    | Eq
+    | LessEq
+    | MoreEq
+    | Less
+    | More
+end
 
-and safe_call = {
-  callee: expr;
-  args: expr list;
-}
+module Kind = struct
+  type t = Value | Reference
+end
 
-and abort_handle =
-  | AbortBody of body
-  | AbortShorthand of expr
+module Name_type = struct
+  type t =
+    | Simple of string
+    | Qualified of string * string
+end
 
-and abort_call = {
-  callee: expr;
-  args: expr list;
-  binder: string option;
-  handle_block: abort_handle;
-}
+module Generic_param_type = struct
+  type t = Type | Number
+end
 
-and func_call =
-  | SafeCall of safe_call
-  | AbortCall of abort_call
+module Generic_param = struct
+  type t = {
+    name : string;
+    type_ : Generic_param_type.t;
+  }
+end
 
-and name_type =
-  | SimpleType of string
-  | QualifiedType of string * string
+(* ---------------------------------------------------------------------- *)
+(* Recursive core. Every node is its own module with a [t], so the         *)
+(* constructor names no longer need disambiguating suffixes:               *)
+(*   FuncCallStat -> Stat.VerbCall,  FuncDecl -> Decl.Func,                 *)
+(*   NormalType   -> Type_expr.Normal,  SafeRet -> Ret_type.Safe, ...       *)
+(* The [: sig .. end = Name] wrapper is required for recursive modules.     *)
+(* ---------------------------------------------------------------------- *)
 
-and call_type =
-  | FuncType of {
-      params: param_type list;
-      ret_type: ret_type
-    }
-  | MethType of {
-      this_type: type_expr;
-      params: param_type list;
-      ret_type: ret_type;
-      is_mut: bool
-    }
+module rec Expr : sig
+  type t =
+    | IntLit of string
+    | FloatLit of string
+    | StrLit of string
+    | BoolLit of bool
+    | Ident of string
+    | QualifiedIdent of string * string
+    | Flip of t
+    | DotAccess of t * string
+    | ConstructorCall of { type_ : Name_type.t; args : t list }
+    | Parenthized of t
+    | VerbCall of Verb_call.t
+    | FuncLambda of Func_lambda.t
+    | MethLambda of Meth_lambda.t
+end = Expr
 
-and body_field = {
-  name: string;
-  type_: type_expr;
-}
+and Abort_handle : sig
+  type t =
+    | Shorthand of Expr.t
+    | Longhand of { binder: string option; body: Body.t }
+end = Abort_handle
 
-and body_type =
-  | Class of body_field list
-  | Struct of body_field list
-  | Variant of body_field list
-  | Tuple of type_expr list
-  | Enum of string list
+(* needs grouping because then we can unify the abort handling *)
+and Verb_call : sig
+  type t =
+    | Func        of { callee: Expr.t; args: Expr.t list; }
+    | Meth        of { callee: Expr.t; this: Expr.t; args: Expr.t list; }
+    | Constructor of { type_name: string option * string; args: Expr.t list; }
+    | Op          of { op: Operator.t; left: Expr.t; right: Expr.t; }
+end = Verb_call
 
-and generic_arg =
-  | TypeArg of type_expr
-  | NumberArg of string
+and Body_field : sig
+  type t = {
+    name : string;
+    type_ : Type_expr.t;
+  }
+end = Body_field
 
-and refable =
-  | BodyType of body_type
-  | NameType of name_type
-  | GenericType of name_type * generic_arg list
+and Mould : sig
+  type t =
+    | Struct of Body_field.t list
+    | Variant of Body_field.t list
+    | Enum of string list
+    | Tuple of Type_expr.t list
+end = Mould
 
-and type_expr =
-  | CallType of call_type
-  | NormalType of refable
-  | RefType of refable
+and Moulded : sig
+  type t = {
+    mould : Mould.t;
+    kind : Kind.t;
+  }
+end = Moulded
 
-and param_type =
-  | NormalParam of type_expr
-  | GenericParam of generic_param_type
+and Generic_arg : sig
+  type t =
+    | Type of Type_expr.t
+    | Number of string
+end = Generic_arg
 
-and param = {
-  name: string;
-  type_: param_type
-}
+and Verb_type : sig
+  type t =
+    | Func of {
+        params: param_type list;
+        ret_type: ret_type
+      }
+    | Meth of {
+        this_type: type_expr;
+        params: param_type list;
+        ret_type: ret_type;
+        is_mut: bool
+      }
+end = Verb_type
 
-and cond_block = {
-  cond: expr;
-  block: stat list
-}
+and Type_expr : sig
+  type t =
+    | Normal of Name_type.t * Generic_arg.t list option
+    | Call of Verb_type.t
+end = Type_expr
 
-and cond_seq = {
-  if_: cond_block;
-  elifs_: cond_block list;
-  else_: stat list option;
-}
+and Param_type : sig
+  type t =
+    | Normal of Type_expr.t
+    | Generic of Generic_param_type.t
+end = Param_type
 
-and loop = {
-  start: expr option;
-  end_: expr;
-  binder: string;
-  body: stat list;
-}
+and Param : sig
+  type t = {
+    name : string;
+    type_ : Param_type.t;
+  }
+end = Param
 
-and stat =
-  | FuncCallStat of func_call
-  | DeclStat of decl
-  | AbortStat of expr
-  | RetStat of expr
-  | ResolveStat of expr
-  | CondSeq of cond_seq
-  | Loop of loop
+and Cond_block : sig
+  type t = {
+    cond : Expr.t;
+    block : Stat.t list;
+  }
+end = Cond_block
 
-and body =
-  | Scope of stat list
-  | RetShorthand of expr
+and Cond_seq : sig
+  type t = {
+    if_ : Cond_block.t;
+    elifs_ : Cond_block.t list;
+    else_ : Stat.t list option;
+  }
+end = Cond_seq
 
-and ret_type =
-  | SafeRet of type_expr
-  | AbortRet of type_expr * type_expr
+and Loop : sig
+  type t = {
+    start : Expr.t option;
+    end_ : Expr.t;
+    binder : string;
+    body : Stat.t list;
+  }
+end = Loop
 
-and func_lambda = {
-  params: param list;
-  ret_type: ret_type;
-  body: body
-}
+and Stat : sig
+  type t =
+    | VerbCall of Verb_call.t
+    | Decl of Decl.t
+    | Abort of Expr.t
+    | Ret of Expr.t
+    | Resolve of Expr.t
+    | CondSeq of Cond_seq.t
+    | Loop of Loop.t
+end = Stat
 
-and meth_lambda = {
-  this_type: type_expr;
-  params: param list;
-  ret_type: ret_type;
-  is_mut: bool;
-  body: body
-}
+and Body : sig
+  type t =
+    | Shorthand of Expr.t
+    | Longhand of Stat.t list
+end = Body
 
-and generic_param_type = TypeParam | NumberParam
+and Ret_type : sig
+  type t =
+    | Safe of Type_expr.t
+    | Abort of Type_expr.t * Type_expr.t
+end = Ret_type
 
-and generic_param = {
-  name: string;
-  type_: generic_param_type;
-}
+and Func_lambda : sig
+  type t = {
+    params : Param.t list;
+    ret_type : Ret_type.t;
+    body : Body.t;
+  }
+end = Func_lambda
 
-and decl =
-  | FuncDecl of {
-      name: string;
-      generic_header: generic_param list option;
-      params: param list;
-      ret_type: ret_type;
-      body: body
-    }
-  | MethDecl of {
-      name: string;
-      generic_header: generic_param list option;
-      this_type: type_expr;
-      params: param list;
-      ret_type: ret_type;
-      is_mut: bool;
-      body: body
-    }
-  | OpDecl of {
-      op: operator;
-      generic_header: generic_param list option;
-      params: param list;
-      ret_type: ret_type;
-      body: body
-    }
-  | FlipDecl of {
-      generic_header: generic_param list option;
-      params: param list;
-      ret_type: ret_type;
-      body: body
-    }
-  | ConstructorDecl of {
-      type_: name_type;
-      params: param list;
-      body: body
-    }
-  | VarDecl of { name: string; type_: type_expr; value: expr }
-  | VarDeclShorthand of  { name: string; type_: name_type; args: expr list }
-  | TypeDecl of { name: string; params: generic_param list option; value: type_expr }
-  | AliasDecl of { name: string; params: generic_param list option; value: type_expr }
+and Meth_lambda : sig
+  type t = {
+    this_type : Type_expr.t;
+    params : Param.t list;
+    ret_type : Ret_type.t;
+    is_mut : bool;
+    body : Body.t;
+  }
+end = Meth_lambda
 
-type package = {
-  decls: decl list
-}
+and Type_or_moulded : sig
+  type t =
+    | Raw of Type_expr.t
+    | Moulded of Moulded.t
+end = Type_or_moulded
 
-let func_type_of_lambda (x: func_lambda) : type_expr =
-  CallType (FuncType {
-    params   = List.map (fun (p: param) -> p.type_) x.params;
-    ret_type  = x.ret_type;
-  })
+and Var_decl : sig
+  type t =
+    | Shorthand
+    | Longhand
+end = Var_decl
 
-let meth_type_of_lambda (x: meth_lambda) : type_expr =
-  CallType (MethType {
-    this_type = x.this_type;
-    params    = List.map (fun (p: param) -> p.type_) x.params;
-    ret_type  = x.ret_type;
-    is_mut    = x.is_mut;
-  })
+and Verb_decl : sig
+  type t =
+    | Func of {
+        name : string;
+        generic_header : Generic_param.t list option;
+        params : Param.t list;
+        ret_type : Ret_type.t;
+        body : Body.t;
+      }
+    | Meth of {
+        name : string;
+        generic_header : Generic_param.t list option;
+        this_type : Type_expr.t;
+        params : Param.t list;
+        ret_type : Ret_type.t;
+        is_mut : bool;
+        body : Body.t;
+      }
+    | Op of {
+        op : Operator.t;
+        generic_header : Generic_param.t list option;
+        params : Param.t list;
+        ret_type : Ret_type.t;
+        body : Body.t;
+      }
+    | Constructor of {
+        type_ : Name_type.t;
+        params : Param.t list;
+        body : Body.t;
+      }
+end = Verb_decl
+
+and Decl : sig
+  type t =
+    | Flip of {
+        generic_header : Generic_param.t list option;
+        params : Param.t list;
+        ret_type : Ret_type.t;
+        body : Body.t;
+      }
+    | Var of { name : string; type_ : Type_expr.t; value : Expr.t }
+    | VarShorthand of { name : string; type_ : Name_type.t; args : Expr.t list }
+    | Type of {
+        name : string;
+        params : Generic_param.t list option;
+        value : Type_or_moulded.t;
+      }
+    | Alias of {
+        name : string;
+        params : Generic_param.t list option;
+        value : Type_expr.t;
+      }
+end = Decl
+
+(* ---------------------------------------------------------------------- *)
+(* Root + helpers. These are not part of the recursion, so they stay out   *)
+(* of the [module rec] block and just reference the modules above.         *)
+(* ---------------------------------------------------------------------- *)
+
+module Package = struct
+  type t = { decls : Decl.t list }
+end
+
+let func_type_of_lambda (x : Func_lambda.t) : Type_expr.t =
+  Type_expr.Call
+    (Call_type.Func {
+        params = List.map (fun (p : Param.t) -> p.Param.type_) x.Func_lambda.params;
+        ret_type = x.Func_lambda.ret_type;
+      })
+
+let meth_type_of_lambda (x : Meth_lambda.t) : Type_expr.t =
+  Type_expr.Call
+    (Call_type.Meth {
+        this_type = x.Meth_lambda.this_type;
+        params = List.map (fun (p : Param.t) -> p.Param.type_) x.Meth_lambda.params;
+        ret_type = x.Meth_lambda.ret_type;
+        is_mut = x.Meth_lambda.is_mut;
+      })

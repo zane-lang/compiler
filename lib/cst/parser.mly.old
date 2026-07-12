@@ -101,7 +101,7 @@ package:
 
 %inline generic_param:
   | name=UIDENT type_=generic_param_type {
-      ({ Nodes.Generic_param.name; type_ } : Nodes.Generic_param.t)
+     ({ Nodes.Generic_param.name; type_ } : Nodes.Generic_param.t)
     }
 
 decl:
@@ -206,26 +206,16 @@ body:
     }
 
 func_call:
-  | 
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" %prec LPAREN
       { Nodes.Func_call.Safe Nodes.Safe_call.{ callee; args } }
   | callee=expr "(" args=separated_list(COMMA, expr) ")" "?" binder=ioption(LIDENT) body=body %prec LPAREN
       { Nodes.Func_call.Abort
           Nodes.Abort_call.{ callee; args; binder;
-                              handle_block = Nodes.Abort_handle.Body body } }
+                             handle_block = Nodes.Abort_handle.Body body } }
   | callee=expr "(" args=separated_list(COMMA, expr) ")" "??" binder=ioption(LIDENT) value=expr %prec LPAREN
       { Nodes.Func_call.Abort
           Nodes.Abort_call.{ callee; args; binder;
-                              handle_block = Nodes.Abort_handle.Shorthand value } }
-
-%inline abort_handle:
-  | "?" binder=ioption(LIDENT) body=body
-  | "??" value=expr
-
-verb_call:
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" %prec LPAREN abort_handle=ioption(abort_handle) {
-      Nodes.Verb_call func_call 
-    }
-
+                             handle_block = Nodes.Abort_handle.Shorthand value } }
 
 %inline if_:
   | IF cond=expr "{" block=list(stat) "}" {
@@ -288,7 +278,7 @@ stat:
   | name=UIDENT { Nodes.Name_type.Simple name }
   | pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Qualified (pkg, name) }
 
-%inline verb_type:
+%inline call_type:
   | ret=ret_type "[" params=separated_list(",", param_type) "]" {
       Nodes.Call_type.Func { params; ret_type = ret }
     }
@@ -298,5 +288,99 @@ stat:
       Nodes.Call_type.Meth { this_type; params; ret_type = ret; is_mut }
     }
 
+%inline body_field:
+  | name=LIDENT type_=type_expr ";" {
+      ({ Nodes.Body_field.name; type_ } : Nodes.Body_field.t)
+    }
+
+%inline mould:
+  | CLASS "{" fields=list(body_field) "}" {
+      Nodes.Mould.Class fields
+    }
+  | STRUCT "{" fields=list(body_field) "}" {
+      Nodes.Mould.Struct fields
+    }
+  | VARIANT "{" fields=list(body_field) "}" {
+      Nodes.Mould.Variant fields
+    }
+  | ENUM "[" cases=separated_list(",", LIDENT) "]" {
+      Nodes.Mould.Enum cases
+    }
+  | TUPLE "[" types=separated_list(",", type_expr) "]" {
+      Nodes.Mould.Tuple types
+    }
 
 
+%inline generic_arg:
+  | type_expr=type_expr {
+      Nodes.Generic_arg.Type type_expr
+    }
+  | number=INT {
+      Nodes.Generic_arg.Number number
+    }
+
+
+refable:
+  | name_type=name_type {
+      Nodes.Refable.Name name_type
+    }
+  | name_type=name_type "<" params=separated_nonempty_list(",", generic_arg) ">" {
+      Nodes.Refable.Generic (name_type, params)
+    }
+  | body_type=body_type {
+      Nodes.Refable.Body body_type
+    }
+
+type_expr:
+  | call_type=call_type {
+      Nodes.Type_expr.Call call_type
+    }
+  | refable=refable {
+      Nodes.Type_expr.Normal refable
+    }
+  | "&" refable=refable {
+      Nodes.Type_expr.Ref refable
+    }
+
+operator:
+  | "+" { Nodes.Operator.Add }
+  | "-" { Nodes.Operator.Sub }
+  | "*" { Nodes.Operator.Mul }
+  | "/" { Nodes.Operator.Div }
+  | "=="{ Nodes.Operator.Eq }
+  | "<="{ Nodes.Operator.LessEq }
+  | ">="{ Nodes.Operator.MoreEq }
+  | "<" { Nodes.Operator.Less }
+  | ">" { Nodes.Operator.More }
+
+expr:
+  | int=INT { Nodes.Expr.IntLit int }
+  | float=FLOAT { Nodes.Expr.FloatLit float }
+  | string=STRING { Nodes.Expr.StrLit string }
+  | TRUE { Nodes.Expr.BoolLit true }
+  | FALSE { Nodes.Expr.BoolLit false }
+  | ident=LIDENT { Nodes.Expr.Ident ident }
+  | pkg=LIDENT "$" ident=LIDENT { Nodes.Expr.QualifiedIdent (pkg, ident) }
+  | e1=expr "+"  e2=expr %prec PLUS   { Nodes.Expr.Op { left=e1; right=e2; operator=Nodes.Operator.Add } }
+  | e1=expr "-"  e2=expr %prec MINUS  { Nodes.Expr.Op { left=e1; right=e2; operator=Nodes.Operator.Sub } }
+  | e1=expr "*"  e2=expr %prec STAR   { Nodes.Expr.Op { left=e1; right=e2; operator=Nodes.Operator.Mul } }
+  | e1=expr "/"  e2=expr %prec SLASH  { Nodes.Expr.Op { left=e1; right=e2; operator=Nodes.Operator.Div } }
+  | e1=expr "==" e2=expr %prec EQEQ   { Nodes.Expr.Op { left=e1; right=e2; operator=Nodes.Operator.Eq } }
+  | e1=expr "<=" e2=expr %prec LESSEQ { Nodes.Expr.Op { left=e1; right=e2; operator=Nodes.Operator.LessEq } }
+  | e1=expr ">=" e2=expr %prec MOREEQ { Nodes.Expr.Op { left=e1; right=e2; operator=Nodes.Operator.MoreEq } }
+  | e1=expr "<"  e2=expr %prec LESS   { Nodes.Expr.Op { left=e1; right=e2; operator=Nodes.Operator.Less } }
+  | e1=expr ">"  e2=expr %prec MORE   { Nodes.Expr.Op { left=e1; right=e2; operator=Nodes.Operator.More } }
+  | "~" value=expr %prec TILDE { Nodes.Expr.Flip value }
+  | value=expr "." field=LIDENT %prec DOT { Nodes.Expr.DotAccess (value, field) }
+  | type_=name_type "(" args=separated_list(COMMA, expr) ")" %prec LPAREN
+      { Nodes.Expr.ConstructorCall { type_; args } }
+  | "(" e=expr ")" { Nodes.Expr.Parenthized e }
+  | func_call=func_call {
+      Nodes.Expr.FuncCall func_call
+    }
+  | func_lambda=func_lambda {
+      Nodes.Expr.FuncLambda func_lambda
+    }
+  | meth_lambda=meth_lambda {
+      Nodes.Expr.MethLambda meth_lambda
+    }
