@@ -54,9 +54,8 @@ module rec Expr : sig
     | StrLit of string
     | BoolLit of bool
     | Ident of string
-    | QualifiedIdent of string * string
-    | Flip of t
-    | DotAccess of t * string
+    | QualifiedIdent of (string * string)
+    | DotAccess of (t * string)
     | ConstructorCall of { type_ : Name_type.t; args : t list }
     | Parenthized of t
     | VerbCall of Verb_call.t
@@ -75,7 +74,7 @@ and Verb_call : sig
   type t =
     | Func        of { callee: Expr.t; args: Expr.t list; }
     | Meth        of { callee: Expr.t; this: Expr.t; args: Expr.t list; }
-    | Constructor of { type_name: string option * string; args: Expr.t list; }
+    | Constructor of { type_name: (string option * string); args: Expr.t list; }
     | Op          of { op: Operator.t; left: Expr.t; right: Expr.t; }
     | Flip        of { value: Expr.t; }
 end = Verb_call
@@ -124,7 +123,7 @@ end = Verb_type
 
 and Type_expr : sig
   type t =
-    | Normal of Name_type.t * Generic_arg.t list option
+    | Normal of (Name_type.t * Generic_arg.t list option)
     | Call of Verb_type.t
 end = Type_expr
 
@@ -185,7 +184,7 @@ end = Body
 and Ret_type : sig
   type t =
     | Safe of Type_expr.t
-    | Abort of Type_expr.t * Type_expr.t
+    | Abort of (Type_expr.t * Type_expr.t)
 end = Ret_type
 
 and Func_lambda : sig
