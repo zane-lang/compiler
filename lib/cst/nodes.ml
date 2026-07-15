@@ -77,6 +77,7 @@ and Verb_call : sig
     | Meth        of { callee: Expr.t; this: Expr.t; args: Expr.t list; }
     | Constructor of { type_name: string option * string; args: Expr.t list; }
     | Op          of { op: Operator.t; left: Expr.t; right: Expr.t; }
+    | Flip        of { value: Expr.t; }
 end = Verb_call
 
 and Body_field : sig
@@ -110,13 +111,13 @@ end = Generic_arg
 and Verb_type : sig
   type t =
     | Func of {
-        params: param_type list;
-        ret_type: ret_type
+        params: Param_type.t list;
+        ret_type: Ret_type.t
       }
     | Meth of {
-        this_type: type_expr;
-        params: param_type list;
-        ret_type: ret_type;
+        this_type: Type_expr.t;
+        params: Param_type.t list;
+        ret_type: Ret_type.t;
         is_mut: bool
       }
 end = Verb_type
@@ -247,16 +248,16 @@ and Verb_decl : sig
         params : Param.t list;
         body : Body.t;
       }
-end = Verb_decl
-
-and Decl : sig
-  type t =
     | Flip of {
         generic_header : Generic_param.t list option;
         params : Param.t list;
         ret_type : Ret_type.t;
         body : Body.t;
       }
+end = Verb_decl
+
+and Decl : sig
+  type t =
     | Var of { name : string; type_ : Type_expr.t; value : Expr.t }
     | VarShorthand of { name : string; type_ : Name_type.t; args : Expr.t list }
     | Type of {
@@ -282,14 +283,14 @@ end
 
 let func_type_of_lambda (x : Func_lambda.t) : Type_expr.t =
   Type_expr.Call
-    (Call_type.Func {
+    (Verb_type.Func {
         params = List.map (fun (p : Param.t) -> p.Param.type_) x.Func_lambda.params;
         ret_type = x.Func_lambda.ret_type;
       })
 
 let meth_type_of_lambda (x : Meth_lambda.t) : Type_expr.t =
   Type_expr.Call
-    (Call_type.Meth {
+    (Verb_type.Meth {
         this_type = x.Meth_lambda.this_type;
         params = List.map (fun (p : Param.t) -> p.Param.type_) x.Meth_lambda.params;
         ret_type = x.Meth_lambda.ret_type;
