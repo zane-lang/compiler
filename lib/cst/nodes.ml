@@ -72,11 +72,11 @@ end = Abort_handle
 (* needs grouping because then we can unify the abort handling *)
 and Verb_call : sig
   type t =
-    | Func        of { callee: Expr.t; args: Expr.t list; }
-    | Meth        of { callee: Expr.t; this: Expr.t; args: Expr.t list; }
-    | Constructor of { type_name: (string option * string); args: Expr.t list; }
-    | Op          of { op: Operator.t; left: Expr.t; right: Expr.t; }
-    | Flip        of { value: Expr.t; }
+    | Func        of { callee: Expr.t; args: Expr.t list; abort_handle: Abort_handle option; }
+    | Meth        of { callee: Expr.t; this: Expr.t; args: Expr.t list; abort_handle: Abort_handle option; }
+    | Constructor of { type_name: (string option * string); args: Expr.t list; abort_handle: Abort_handle option; }
+    | Op          of { op: Operator.t; left: Expr.t; right: Expr.t; abort_handle: Abort_handle option; }
+    | Flip        of { value: Expr.t; abort_handle: Abort_handle option; }
 end = Verb_call
 
 and Body_field : sig
