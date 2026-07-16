@@ -26,10 +26,12 @@ open Tree_graph
 let name_type_to_node (x: Nodes.Name_type.t) = match x with
   | Ident s -> Leaf s
   | Qualified { package; ident } -> Leaf (package ^ "$" ^ ident)
+  | Intrinsic { package; ident } -> Leaf ("@" ^ package ^ "$" ^ ident)
 
 let name_expr_to_node (x: Nodes.Name_expr.t) = match x with
   | Ident s -> Leaf s
   | Qualified { package; ident } -> Leaf (package ^ "$" ^ ident)
+  | Intrinsic { package; ident } -> Leaf ("@" ^ package ^ "$" ^ ident)
 
 let rec concept_to_node (x: Nodes.Concept.t) = match x with
   | Type -> Leaf "Type"

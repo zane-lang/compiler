@@ -26,6 +26,8 @@ module Name_type = struct
   type t =
     | Ident of string
     | Qualified of { package : string; ident : string }
+    (* intrinsic namespace, spelled @package$Ident, e.g. @primitives$I32 *)
+    | Intrinsic of { package : string; ident : string }
 end
 
 module Concept = struct
@@ -51,6 +53,8 @@ module Name_expr = struct
   type t =
     | Ident of string
     | Qualified of { package : string; ident : string }
+    (* intrinsic namespace, spelled @package$ident, e.g. @funcs$strToI32 *)
+    | Intrinsic of { package : string; ident : string }
 end
 
 module rec Expr : sig

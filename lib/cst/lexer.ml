@@ -60,7 +60,6 @@ let rec token buf =
   | "alias"                     -> ALIAS
   | "Type"                      -> UTYPE
   | "Number"                    -> NUMBER
-  | "class"                     -> CLASS
   | "struct"                    -> STRUCT
   | "variant"                   -> VARIANT
   | "tuple"                     -> TUPLE

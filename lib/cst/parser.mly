@@ -40,7 +40,6 @@
 %token ALIAS       "alias"
 %token UTYPE       "Type"
 %token NUMBER      "Number"
-%token CLASS       "class"
 %token STRUCT      "struct"
 %token VARIANT     "variant"
 %token TUPLE       "tuple"
@@ -216,6 +215,7 @@ decl:
 %inline name_expr:
   | name=LIDENT { Nodes.Name_expr.Ident name }
   | pkg=LIDENT "$" name=LIDENT { Nodes.Name_expr.Qualified { package = pkg; ident = name } }
+  | "@" pkg=LIDENT "$" name=LIDENT { Nodes.Name_expr.Intrinsic { package = pkg; ident = name } }
 
 %inline comparison_op:
   | "==" { Nodes.Operator.Eq }
@@ -405,6 +405,7 @@ stat:
 %inline name_type:
   | name=UIDENT { Nodes.Name_type.Ident name }
   | pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Qualified { package = pkg; ident = name } }
+  | "@" pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Intrinsic { package = pkg; ident = name } }
 
 %inline verb_type:
   | ret=ret_type "[" params=separated_list(",", param_type) "]" {
