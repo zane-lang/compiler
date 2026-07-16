@@ -24,8 +24,8 @@ end
 
 module Name_type = struct
   type t =
-    | Simple of string
-    | Qualified of string * string
+    | Ident of string
+    | Qualified of { package : string; ident : string }
 end
 
 module Generic_param_type = struct
@@ -47,15 +47,20 @@ end
 (* The [: sig .. end = Name] wrapper is required for recursive modules.     *)
 (* ---------------------------------------------------------------------- *)
 
+module Name_expr = struct
+  type t =
+    | Ident of string
+    | Qualified of { package : string; ident : string }
+end
+
 module rec Expr : sig
   type t =
     | IntLit of string
     | FloatLit of string
     | StrLit of string
     | BoolLit of bool
-    | Ident of string
-    | QualifiedIdent of (string * string)
-    | DotAccess of (t * string)
+    | NameExpr of Name_expr.t
+    | DotAccess of { target : t; field : string }
     | ConstructorCall of { type_ : Name_type.t; args : t list }
     | Parenthized of t
     | VerbCall of Verb_call.t
@@ -74,7 +79,7 @@ and Verb_call : sig
   type t =
     | Func        of { callee: Expr.t; args: Expr.t list; abort_handle: Abort_handle.t option; }
     | Meth        of { callee: Expr.t; this: Expr.t; args: Expr.t list; abort_handle: Abort_handle.t option; }
-    | Constructor of { type_name: (string option * string); args: Expr.t list; abort_handle: Abort_handle.t option; }
+    | Constructor of { name_type: Name_type.t; args: Expr.t list; abort_handle: Abort_handle.t option; }
     | Op          of { op: Operator.t; left: Expr.t; right: Expr.t; abort_handle: Abort_handle.t option; }
     | Flip        of { value: Expr.t; abort_handle: Abort_handle.t option; }
 end = Verb_call
@@ -123,7 +128,7 @@ end = Verb_type
 
 and Type_expr : sig
   type t =
-    | Normal of (Name_type.t * Generic_arg.t list option)
+    | Normal of { name : Name_type.t; generics : Generic_arg.t list }
     | Call of Verb_type.t
 end = Type_expr
 
@@ -184,7 +189,7 @@ end = Body
 and Ret_type : sig
   type t =
     | Safe of Type_expr.t
-    | Abort of (Type_expr.t * Type_expr.t)
+    | Abort of { ok : Type_expr.t; abort : Type_expr.t }
 end = Ret_type
 
 and Func_lambda : sig
@@ -215,14 +220,12 @@ and Verb_decl : sig
   type t =
     | Func of {
         name : string;
-        generic_header : Generic_param.t list option;
         params : Param.t list;
         ret_type : Ret_type.t;
         body : Body.t;
       }
     | Meth of {
         name : string;
-        generic_header : Generic_param.t list option;
         this_type : Type_expr.t;
         params : Param.t list;
         ret_type : Ret_type.t;
@@ -231,7 +234,6 @@ and Verb_decl : sig
       }
     | Op of {
         op : Operator.t;
-        generic_header : Generic_param.t list option;
         params : Param.t list;
         ret_type : Ret_type.t;
         body : Body.t;
@@ -242,7 +244,6 @@ and Verb_decl : sig
         body : Body.t;
       }
     | Flip of {
-        generic_header : Generic_param.t list option;
         params : Param.t list;
         ret_type : Ret_type.t;
         body : Body.t;
@@ -255,12 +256,12 @@ and Decl : sig
     | VarShorthand of { name : string; constructor : Name_type.t; args : Expr.t list }
     | Type of {
         name : string;
-        params : Generic_param.t list option;
+        params : Generic_param.t list;
         value : Type_or_moulded.t;
       }
     | Alias of {
         name : string;
-        params : Generic_param.t list option;
+        params : Generic_param.t list;
         value : Type_expr.t;
       }
     | Verb of Verb_decl.t
