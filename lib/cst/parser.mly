@@ -92,7 +92,6 @@ package:
       { Nodes.Meth_lambda.this_type; params; ret_type; is_mut; body }
     }
 
-(* renamed: Generic_param_type -> Concept *)
 %inline concept:
   | "Type" {
       Nodes.Concept.Type
@@ -175,8 +174,6 @@ decl:
         body;
       })
     }
-  (* params is a plain list now, so loption (not ioption) is the right
-     combinator — it already yields [] when the <> header is absent. *)
   | "type" name=UIDENT params=loption(delimited("<", separated_nonempty_list(",", generic_param), ">")) "=" value=type_or_moulded {
       Nodes.Decl.Type {
         name;
@@ -194,7 +191,7 @@ decl:
 
 %inline body_field:
   | name=LIDENT type_=type_expr ";" {
-      Nodes.Body_field { name; type_ }
+      { Nodes.Body_field.name; type_ }
     }
 
 %inline mould:
@@ -207,20 +204,20 @@ decl:
   | ENUM "[" members=separated_nonempty_list(",", LIDENT) "]" {
       Nodes.Mould.Enum members
     }
-  | TUPLE "[" members=separated_nonempty_list(",", type_expr) "]"{
+  | TUPLE "[" members=separated_nonempty_list(",", type_expr) "]" {
       Nodes.Mould.Tuple members
     }
 
 %inline moulded:
   | mould=mould {
-      Nodes.Moulded { mould; type_axis=Nodes.Type_axis.Value }
+      { Nodes.Moulded.mould; axis = Nodes.Type_axis.Value }
     }
   | "#" mould=mould {
-      Nodes.Moulded { mould; type_axis=Nodes.Type_axis.Reference }
+      { Nodes.Moulded.mould; axis = Nodes.Type_axis.Reference }
     }
 
 %inline type_or_moulded:
-  | type_expr=type_or_moulded {
+  | type_expr=type_expr {
       Nodes.Type_or_moulded.Raw type_expr
     }
   | moulded=moulded {
