@@ -1,29 +1,45 @@
 open Tree_graph
 
-(* ================================================= *)
-(* rule for splitting concerns                       *)
-(* ---                                               *)
-(* helper functions never group their name           *)
-(* eg name_type_to_node doesnt say it's a name type  *)
-(* it's up to the caller whether it wants to do that *)
-(* it only group its internals if needed             *)
-(* this rule is against double grouping by accident  *)
-(* and for keeping the usage of the helpers flexible *)
-(* ================================================= *)
+(* =================================================== *)
+(* rule: helpers return raw nodes, never self-wrap     *)
+(* ---                                                 *)
+(* a helper like name_type_to_node returns the Node    *)
+(* for its value directly, it never calls group on     *)
+(* its own output, even if that means the result       *)
+(* looks "unlabeled" on its own.                       *)
+(*                                                     *)
+(*   let name_type_to_node x = match x with            *)
+(*     | Ident s -> Leaf s                             *)
+(*     | Qualified { .. } -> Leaf (...)                *)
+(*     (* no group "name_type" (...) here *)           *)
+(*                                                     *)
+(* labeling is the caller's decision, not the callee's *)
+(* the same value can be grouped under different names *)
+(* depending on where it's used (a "type" field here,  *)
+(* a "constructor" field there) or left ungrouped      *)
+(* entirely if it's just one entry among fields [...]. *)
+(* if a helper pre-wraps its own result, that decision *)
+(* is made once and for all callers, even the ones     *)
+(* that wanted a different label or no label at all.   *)
+(* =================================================== *)
 
-let rec name_type_to_node (x: Nodes.Name_type.t) = match x with
-  | Simple s              -> Leaf s
-  | Qualified (pkg, type_) -> Leaf (pkg ^ "$" ^ type_)
+let name_type_to_node (x: Nodes.Name_type.t) = match x with
+  | Ident s -> Leaf s
+  | Qualified { package; ident } -> Leaf (package ^ "$" ^ ident)
 
-and generic_param_type_to_node (x: Nodes.Generic_param_type.t) = match x with
+let name_expr_to_node (x: Nodes.Name_expr.t) = match x with
+  | Ident s -> Leaf s
+  | Qualified { package; ident } -> Leaf (package ^ "$" ^ ident)
+
+let rec concept_to_node (x: Nodes.Concept.t) = match x with
   | Type -> Leaf "Type"
   | Number -> Leaf "Number"
 
 and param_type_to_node (x: Nodes.Param_type.t) = match x with
-  | Normal x -> type_to_node x
-  | Generic x -> generic_param_type_to_node x
+  | Concrete x -> type_to_node x
+  | Concept x -> concept_to_node x
 
-and call_type_to_node (x: Nodes.Verb_type.t) = match x with
+and verb_type_to_node (x: Nodes.Verb_type.t) = match x with
   | Func { params; ret_type } ->
       fields [
         ("param", map_seq param_type_to_node params);
@@ -53,17 +69,13 @@ and generic_arg_to_node (x: Nodes.Generic_arg.t) = match x with
   | Type x -> type_to_node x
   | Number x -> group "number" (Leaf x)
 
-(* Name_type.t * Generic_arg.t list option*)
-and normal_type_to_node x =
-  let (name, generic_args) = x in
-  fields [
-    ("qualifier", name_type_to_node name);
-    ("args", map_seq generic_arg_to_node (Option.value ~default:[] generic_args));
-  ]
-
 and type_to_node (x: Nodes.Type_expr.t) = match x with
-  | Call x -> call_type_to_node x
-  | Normal x -> normal_type_to_node x
+  | Verb x -> verb_type_to_node x
+  | Path { name; generics } ->
+      fields [
+        ("qualifier", name_type_to_node name);
+        ("args", map_seq generic_arg_to_node generics);
+      ]
 
 and verb_call_to_node (x: Nodes.Verb_call.t) = match x with
   | Func { callee; args; abort_handle } ->
@@ -71,7 +83,7 @@ and verb_call_to_node (x: Nodes.Verb_call.t) = match x with
         ("callee", expr_to_node callee);
         ("args", map_seq expr_to_node args);
         ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
-  ])
+      ])
   | Meth { callee; this; args; abort_handle } ->
       group "meth_call" (fields [
         ("callee", expr_to_node callee);
@@ -79,49 +91,36 @@ and verb_call_to_node (x: Nodes.Verb_call.t) = match x with
         ("args", map_seq expr_to_node args);
         ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
       ])
-  | Constructor { type_name; args; abort_handle } ->
-      let (pkg, name) = type_name in
-      let qual = match pkg with
-        | Some p -> Leaf (p ^ "$" ^ name)
-        | None   -> Leaf name
-      in
+  | Constructor { name_type; args; abort_handle } ->
       group "ctor_call" (fields [
-        ("type", qual);
+        ("type", name_type_to_node name_type);
         ("args", map_seq expr_to_node args);
         ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
       ])
-        | Op { op; left; right; abort_handle } ->
-            group "op_call" (fields [
-              ("op", Leaf (op_to_name op));
+  | Op { op; left; right; abort_handle } ->
+      group "op_call" (fields [
+        ("op", Leaf (op_to_name op));
         ("left", expr_to_node left);
         ("right", expr_to_node right);
         ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
       ])
-        | Flip { value; abort_handle } ->
-            group "flip_call" (fields [
-              ("value", expr_to_node value);
+  | Flip { value; abort_handle } ->
+      group "flip_call" (fields [
+        ("value", expr_to_node value);
         ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
-            ])
+      ])
 
-          and expr_to_node (x: Nodes.Expr.t) = match x with
-  | IntLit x              -> Leaf x
-  | FloatLit x            -> Leaf x
-  | StrLit x              -> Leaf x
-  | BoolLit x             -> Leaf (string_of_bool x)
-  | Ident x               -> Leaf x
-  | QualifiedIdent (pkg, name) -> Leaf (pkg ^ "$" ^ name)
-  | DotAccess (value, field) ->
-      group "dot_access" (
-        fields [
-          ("value", expr_to_node value);
-          ("field", Leaf field);
-            ]
-          )
-  | ConstructorCall { type_; args } ->
-      group "ctor_call" (fields [
-        ("type", name_type_to_node type_);
-        ("args", map_seq expr_to_node args);
-        ])
+and expr_to_node (x: Nodes.Expr.t) = match x with
+  | IntLit x   -> Leaf x
+  | FloatLit x -> Leaf x
+  | StrLit x   -> Leaf x
+  | BoolLit x  -> Leaf (string_of_bool x)
+  | NameExpr x -> name_expr_to_node x
+  | DotAccess { target; field } ->
+      group "dot_access" (fields [
+        ("target", expr_to_node target);
+        ("field", Leaf field);
+      ])
   | Parenthized x ->
       group "parenthized" (expr_to_node x)
   | FuncLambda x ->
@@ -213,10 +212,10 @@ and body_to_node (x: Nodes.Body.t) = match x with
 
 and ret_to_node (x: Nodes.Ret_type.t) = match x with
   | Safe ret -> type_to_node ret
-  | Abort (ret_type, abort_type) ->
+  | Abort { ok; abort } ->
       fields [
-        ("safe_type",  type_to_node ret_type);
-        ("abort_type", type_to_node abort_type);
+        ("safe_type",  type_to_node ok);
+        ("abort_type", type_to_node abort);
       ]
 
 and func_lambda_to_node (x: Nodes.Func_lambda.t) =
@@ -263,38 +262,30 @@ and decl_to_node (x: Nodes.Decl.t) = match x with
         ("args", map_seq expr_to_node args);
       ])
   | Type x ->
-      let fs = [
-        ("name",  Leaf x.name);
-        ("value", type_or_moulded_to_node x.value);
-      ] in
-      let fs = match x.params with
-        | Some p -> ("params", map_seq generic_param_to_node p) :: fs
-        | None   -> fs
-      in
-      group "type_decl" (fields fs)
+      group "type_decl" (fields [
+        ("name",   Leaf x.name);
+        ("params", map_seq generic_param_to_node x.params);
+        ("value",  type_or_moulded_to_node x.value);
+      ])
   | Alias x ->
-      let fs = [
-        ("name",  Leaf x.name);
-        ("value", type_to_node x.value);
-      ] in
-      let fs = match x.params with
-        | Some p -> ("params", map_seq generic_param_to_node p) :: fs
-        | None   -> fs
-      in
-      group "alias_decl" (fields fs)
+      group "alias_decl" (fields [
+        ("name",   Leaf x.name);
+        ("params", map_seq generic_param_to_node x.params);
+        ("value",  type_to_node x.value);
+      ])
   | Verb x -> verb_decl_to_node x
 
 and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x with
   | Func x ->
       group "func_decl" (fields [
-        ("name", Leaf x.name);
+        ("name",     Leaf x.name);
         ("param",    params_to_node x.params);
         ("ret_type", ret_to_node x.ret_type);
         ("body",     body_to_node x.body);
       ])
   | Meth x ->
       group "meth_decl" (fields [
-        ("name", Leaf x.name);
+        ("name",      Leaf x.name);
         ("this_type", type_to_node x.this_type);
         ("param",     params_to_node x.params);
         ("ret_type",  ret_to_node x.ret_type);
@@ -302,19 +293,19 @@ and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x with
         ("is_mut",    Leaf (string_of_bool x.is_mut));
       ])
   | Constructor x ->
-      group "meth_decl" (fields [
-        ("type", name_type_to_node x.type_);
-        ("param",     params_to_node x.params);
-        ("body",      body_to_node x.body);
+      group "ctor_decl" (fields [
+        ("type",  name_type_to_node x.type_);
+        ("param", params_to_node x.params);
+        ("body",  body_to_node x.body);
       ])
-  | Op x -> 
+  | Op x ->
       group "op_decl" (fields [
-        ("op", Leaf (op_to_name x.op));
+        ("op",       Leaf (op_to_name x.op));
         ("param",    params_to_node x.params);
         ("ret_type", ret_to_node x.ret_type);
         ("body",     body_to_node x.body);
       ])
-  | Flip x -> 
+  | Flip x ->
       group "flip_decl" (fields [
         ("param",    params_to_node x.params);
         ("ret_type", ret_to_node x.ret_type);
@@ -324,7 +315,7 @@ and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x with
 and generic_param_to_node (x: Nodes.Generic_param.t) =
   fields [
     ("name", Leaf x.name);
-    ("type", generic_param_type_to_node x.type_);
+    ("type", concept_to_node x.type_);
   ]
 
 let to_node ({ decls }: Nodes.Package.t) =

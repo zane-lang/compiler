@@ -28,14 +28,14 @@ module Name_type = struct
     | Qualified of { package : string; ident : string }
 end
 
-module Generic_param_type = struct
+module Concept = struct
   type t = Type | Number
 end
 
 module Generic_param = struct
   type t = {
     name : string;
-    type_ : Generic_param_type.t;
+    type_ : Concept.t;
   }
 end
 
@@ -61,7 +61,6 @@ module rec Expr : sig
     | BoolLit of bool
     | NameExpr of Name_expr.t
     | DotAccess of { target : t; field : string }
-    | ConstructorCall of { type_ : Name_type.t; args : t list }
     | Parenthized of t
     | VerbCall of Verb_call.t
     | FuncLambda of Func_lambda.t
@@ -128,14 +127,14 @@ end = Verb_type
 
 and Type_expr : sig
   type t =
-    | Normal of { name : Name_type.t; generics : Generic_arg.t list }
-    | Call of Verb_type.t
+    | Path of { name : Name_type.t; generics : Generic_arg.t list }
+    | Verb of Verb_type.t
 end = Type_expr
 
 and Param_type : sig
   type t =
-    | Normal of Type_expr.t
-    | Generic of Generic_param_type.t
+    | Concrete of Type_expr.t
+    | Concept of Concept.t
 end = Param_type
 
 and Param : sig
@@ -277,14 +276,14 @@ module Package = struct
 end
 
 let func_type_of_lambda (x : Func_lambda.t) : Type_expr.t =
-  Type_expr.Call
+  Type_expr.Verb
     (Verb_type.Func {
         params = List.map (fun (p : Param.t) -> p.Param.type_) x.Func_lambda.params;
         ret_type = x.Func_lambda.ret_type;
       })
 
 let meth_type_of_lambda (x : Meth_lambda.t) : Type_expr.t =
-  Type_expr.Call
+  Type_expr.Verb
     (Verb_type.Meth {
         this_type = x.Meth_lambda.this_type;
         params = List.map (fun (p : Param.t) -> p.Param.type_) x.Meth_lambda.params;
