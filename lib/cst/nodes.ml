@@ -1,8 +1,8 @@
 (* The CST's job is to represent what was parsed, not what's valid. *)
 
 (* ---------------------------------------------------------------------- *)
-(* Leaf types: no back-references into the recursive core, so they live    *)
-(* outside the [module rec] chain as ordinary modules.                     *)
+(* Leaf types: no back-references into the recursive core, so they live   *)
+(* outside the [module rec] chain as ordinary modules.                    *)
 (* ---------------------------------------------------------------------- *)
 
 module Operator = struct
