@@ -44,6 +44,7 @@ let rec token buf =
   | '*'                         -> STAR
   | '/'                         -> SLASH
   | '$'                         -> DOLLAR
+  | '#'                         -> HASH
   | '&'                         -> AND
   | '@'                         -> AT
   | float_lit                   -> FLOAT (Utf8.lexeme buf)

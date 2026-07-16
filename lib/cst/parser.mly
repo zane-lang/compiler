@@ -23,6 +23,7 @@
 %token STAR        "*"
 %token SLASH       "/"
 %token DOLLAR      "$"
+%token HASH        "#"
 %token AND         "&"
 %token AT          "@"
 %token EXCL        "!"
@@ -91,25 +92,29 @@ package:
       { Nodes.Meth_lambda.this_type; params; ret_type; is_mut; body }
     }
 
-%inline generic_param_type:
+(* renamed: Generic_param_type -> Concept *)
+%inline concept:
   | "Type" {
-      Nodes.Generic_param_type.Type
+      Nodes.Concept.Type
     }
   | "Number" {
-      Nodes.Generic_param_type.Number
+      Nodes.Concept.Number
     }
 
 %inline generic_param:
-  | name=UIDENT type_=generic_param_type {
-      ({ Nodes.Generic_param.name; type_ } : Nodes.Generic_param.t)
+  | name=UIDENT "Type" {
+      ({ Nodes.Generic_param.name; type_ = Nodes.Concept.Type } : Nodes.Generic_param.t)
+    }
+  | name=LIDENT "Number" {
+      ({ Nodes.Generic_param.name; type_ = Nodes.Concept.Number } : Nodes.Generic_param.t)
     }
 
 decl:
   | name=LIDENT type_=type_expr "=" value=expr {
       Nodes.Decl.Var { name; type_; value }
     }
-  | name=LIDENT type_=name_type "(" args=separated_list(COMMA, expr) ")" {
-      Nodes.Decl.VarShorthand { name; type_; args }
+  | name=LIDENT constructor=name_type "(" args=separated_list(COMMA, expr) ")" {
+      Nodes.Decl.VarShorthand { name; constructor; args }
     }
   | name=LIDENT func_lambda=func_lambda {
       Nodes.Decl.Var {
@@ -126,62 +131,60 @@ decl:
       }
     }
   | ret_type=ret_type name=LIDENT
-    generic_header=ioption(delimited("<", separated_nonempty_list(",", generic_param), ">"))
     "(" params=separated_list(COMMA, param) ")" body=body {
-      Nodes.Decl.Func {
+      Nodes.Decl.Verb (Nodes.Verb_decl.Func {
         name;
-        generic_header;
         params;
         ret_type;
         body;
-      }
+      })
     }
   | ret_type=ret_type name=LIDENT
-    generic_header=ioption(delimited("<", separated_nonempty_list(",", generic_param), ">"))
     "(" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param)))
     ")" is_mut=boption(MUT) body=body {
-      Nodes.Decl.Meth {
+      Nodes.Decl.Verb (Nodes.Verb_decl.Meth {
         name;
-        generic_header;
         this_type;
         params;
         ret_type;
         is_mut;
         body;
-      }
+      })
     }
   | type_=name_type
     "(" params=separated_list(COMMA, param) ")" body=body {
-      Nodes.Decl.Constructor {
+      Nodes.Decl.Verb (Nodes.Verb_decl.Constructor {
         type_;
         params;
         body;
-      }
+      })
     }
   | ret_type=ret_type op=operator "(" params=separated_list(COMMA, param) ")" body=body {
-      Nodes.Decl.Op {
+      Nodes.Decl.Verb (Nodes.Verb_decl.Op {
         op;
         params;
         ret_type;
         body;
-      }
+      })
     }
   | ret_type=ret_type "~" "(" params=separated_list(COMMA, param) ")" body=body {
-      Nodes.Decl.Flip {
+      Nodes.Decl.Verb (Nodes.Verb_decl.Flip {
         params;
         ret_type;
         body;
-      }
+      })
     }
-  | "type" name=UIDENT params=ioption(delimited("<", separated_nonempty_list(",", generic_param), ">")) "=" value=type_expr {
+  (* params is a plain list now, so loption (not ioption) is the right
+     combinator — it already yields [] when the <> header is absent. *)
+  | "type" name=UIDENT params=loption(delimited("<", separated_nonempty_list(",", generic_param), ">")) "=" value=type_or_moulded {
       Nodes.Decl.Type {
         name;
         params;
         value;
       }
     }
-  | "alias" name=UIDENT params=ioption(delimited("<", separated_nonempty_list(",", generic_param), ">")) "=" value=type_expr {
+  | "alias" name=UIDENT params=loption(delimited("<", separated_nonempty_list(",", generic_param), ">")) "=" value=type_expr {
       Nodes.Decl.Alias {
         name;
         params;
@@ -189,43 +192,75 @@ decl:
       }
     }
 
+%inline body_field:
+  | name=LIDENT type_=type_expr ";" {
+      Nodes.Body_field { name; type_ }
+    }
+
+%inline mould:
+  | STRUCT "{" fields=list(body_field) "}" {
+      Nodes.Mould.Struct fields
+    }
+  | VARIANT "{" fields=list(body_field) "}" {
+      Nodes.Mould.Variant fields
+    }
+  | ENUM "[" members=separated_nonempty_list(",", LIDENT) "]" {
+      Nodes.Mould.Enum members
+    }
+  | TUPLE "[" members=separated_nonempty_list(",", type_expr) "]"{
+      Nodes.Mould.Tuple members
+    }
+
+%inline moulded:
+  | mould=mould {
+      Nodes.Moulded { mould; type_axis=Nodes.Type_axis.Value }
+    }
+  | "#" mould=mould {
+      Nodes.Moulded { mould; type_axis=Nodes.Type_axis.Reference }
+    }
+
+%inline type_or_moulded:
+  | type_expr=type_or_moulded {
+      Nodes.Type_or_moulded.Raw type_expr
+    }
+  | moulded=moulded {
+      Nodes.Type_or_moulded.Moulded moulded
+    }
+
 %inline ret_type:
   | ret_type=type_expr {
       Nodes.Ret_type.Safe ret_type
     }
-  | safe_type=type_expr "?" abort_type=type_expr {
-      Nodes.Ret_type.Abort (safe_type, abort_type)
+  | ok=type_expr "?" abort=type_expr {
+      Nodes.Ret_type.Abort { ok; abort }
     }
 
 body:
   | "{" statements=list(stat) "}" {
-      Nodes.Body.Scope statements
+      Nodes.Body.Longhand statements
     }
   | "=>" value=expr {
-      Nodes.Body.RetShorthand value
+      Nodes.Body.Shorthand value
     }
-
-func_call:
-  | 
-      { Nodes.Func_call.Safe Nodes.Safe_call.{ callee; args } }
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" "?" binder=ioption(LIDENT) body=body %prec LPAREN
-      { Nodes.Func_call.Abort
-          Nodes.Abort_call.{ callee; args; binder;
-                              handle_block = Nodes.Abort_handle.Body body } }
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" "??" binder=ioption(LIDENT) value=expr %prec LPAREN
-      { Nodes.Func_call.Abort
-          Nodes.Abort_call.{ callee; args; binder;
-                              handle_block = Nodes.Abort_handle.Shorthand value } }
 
 %inline abort_handle:
-  | "?" binder=ioption(LIDENT) body=body
-  | "??" value=expr
-
-verb_call:
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" %prec LPAREN abort_handle=ioption(abort_handle) {
-      Nodes.Verb_call func_call 
+  | "?" binder=ioption(LIDENT) body=body {
+      Nodes.Abort_handle.Longhand { binder; body }
+    }
+  | "??" value=expr {
+      Nodes.Abort_handle.Shorthand value
     }
 
+verb_call:
+  | callee=expr "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
+      Nodes.Verb_call.Func { callee; args; abort_handle }
+    }
+  | this=expr "!" callee=expr "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
+      Nodes.Verb_call.Meth { callee; this; args; abort_handle }
+    }
+  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
+      Nodes.Verb_call.Constructor { name_type; args; abort_handle }
+    }
 
 %inline if_:
   | IF cond=expr "{" block=list(stat) "}" {
@@ -249,8 +284,8 @@ verb_call:
 
 stat:
   | decl=decl { Nodes.Stat.Decl decl }
-  | func_call=func_call {
-      Nodes.Stat.FuncCall func_call
+  | verb_call=verb_call {
+      Nodes.Stat.VerbCall verb_call
     }
   | ABORT value=expr {
       Nodes.Stat.Abort value
@@ -270,33 +305,34 @@ stat:
 
 %inline param_type:
   | type_=type_expr {
-      Nodes.Param_type.Normal type_
+      Nodes.Param_type.Concrete type_
     }
-  | type_=generic_param_type {
-      Nodes.Param_type.Generic type_
+  | type_=concept {
+      Nodes.Param_type.Concept type_
     }
 
 %inline param:
   | name=LIDENT type_=type_expr {
-      ({ Nodes.Param.name; type_ = Nodes.Param_type.Normal type_ } : Nodes.Param.t)
+      ({ Nodes.Param.name; type_ = Nodes.Param_type.Concrete type_ } : Nodes.Param.t)
     }
-  | name=UIDENT type_=generic_param_type {
-      ({ Nodes.Param.name; type_ = Nodes.Param_type.Generic type_ } : Nodes.Param.t)
+  | name=UIDENT "Type" {
+      ({ Nodes.Param.name; type_ = Nodes.Param_type.Concept Nodes.Concept.Type } : Nodes.Param.t)
+    }
+  | name=LIDENT "Number" {
+      ({ Nodes.Param.name; type_ = Nodes.Param_type.Concept Nodes.Concept.Number } : Nodes.Param.t)
     }
 
 %inline name_type:
-  | name=UIDENT { Nodes.Name_type.Simple name }
-  | pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Qualified (pkg, name) }
+  | name=UIDENT { Nodes.Name_type.Ident name }
+  | pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Qualified { package = pkg; ident = name } }
 
 %inline verb_type:
   | ret=ret_type "[" params=separated_list(",", param_type) "]" {
-      Nodes.Call_type.Func { params; ret_type = ret }
+      Nodes.Verb_type.Func { params; ret_type = ret }
     }
   | ret=ret_type "[" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param_type)))
     "]" is_mut=boption(MUT) {
-      Nodes.Call_type.Meth { this_type; params; ret_type = ret; is_mut }
+      Nodes.Verb_type.Meth { this_type; params; ret_type = ret; is_mut }
     }
-
-
 
