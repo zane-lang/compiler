@@ -58,16 +58,13 @@
 %token ABORT       "abort"
 %token RETURN      "return"
 %token RESOLVE     "resolve"
-%token ERROR       "<error>"
 %token EOF          "<eof>"
 
 %nonassoc EQEQ LESSEQ MOREEQ LESS MORE   /* comparisons */
 %left PLUS MINUS
 %left STAR SLASH
 %left LPAREN                             /* function application */
-%nonassoc IF
-%nonassoc ELSE
-%nonassoc TILDE                          /* prefix ~ */
+%nonassoc TILDE AND                      /* prefix ~ and & */
 %left DOT                                /* field access */
 
 %start <Nodes.Package.t> package
@@ -253,7 +250,7 @@ expr:
   | func_lambda=func_lambda { Nodes.Expr.FuncLambda func_lambda }
   | meth_lambda=meth_lambda { Nodes.Expr.MethLambda meth_lambda }
   | verb_call=verb_call { Nodes.Expr.VerbCall verb_call }
-  | target=expr "." field=LIDENT %prec DOT {
+  | target=expr "." field=LIDENT {
       Nodes.Expr.DotAccess { target; field }
     }
   | left=expr op=comparison_op right=expr abort_handle=ioption(abort_handle) %prec EQEQ {
@@ -267,6 +264,9 @@ expr:
     }
   | "~" value=expr abort_handle=ioption(abort_handle) %prec TILDE {
       Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle })
+    }
+  | "&" value=expr %prec AND {
+      Nodes.Expr.Ref value
     }
 
 %inline body_field:
@@ -333,7 +333,10 @@ verb_call:
       Nodes.Verb_call.Func { callee; args; abort_handle }
     }
   | this=expr "!" callee=expr "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
-      Nodes.Verb_call.Meth { callee; this; args; abort_handle }
+      Nodes.Verb_call.Meth { callee; this; args; abort_handle; is_mut = true }
+    }
+  | this=expr ":" callee=expr "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
+      Nodes.Verb_call.Meth { callee; this; args; abort_handle; is_mut = false }
     }
   | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
       Nodes.Verb_call.Constructor { name_type; args; abort_handle }

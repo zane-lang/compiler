@@ -85,11 +85,12 @@ and verb_call_to_node (x: Nodes.Verb_call.t) = match x with
         ("args", map_seq expr_to_node args);
         ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
       ])
-  | Meth { callee; this; args; abort_handle } ->
+  | Meth { callee; this; args; abort_handle; is_mut } ->
       group "meth_call" (fields [
         ("callee", expr_to_node callee);
         ("this", expr_to_node this);
         ("args", map_seq expr_to_node args);
+        ("is_mut", Leaf (string_of_bool is_mut));
         ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
       ])
   | Constructor { name_type; args; abort_handle } ->
@@ -122,6 +123,8 @@ and expr_to_node (x: Nodes.Expr.t) = match x with
         ("target", expr_to_node target);
         ("field", Leaf field);
       ])
+  | Ref x ->
+      group "ref" (expr_to_node x)
   | Parenthized x ->
       group "parenthized" (expr_to_node x)
   | FuncLambda x ->
