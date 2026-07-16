@@ -100,6 +100,30 @@ package:
       Nodes.Concept.Number
     }
 
+%inline generic_arg:
+  | type_expr=type_expr {
+      Nodes.Generic_arg.Type type_expr
+    }
+  | number=INT {
+      Nodes.Generic_arg.Number number
+    }
+  | param=param {
+      Nodes.Generic_arg.Inferred param
+    }
+
+%inline generics:
+  | "<" generics=separated_nonempty_list(",", generic_arg) ">" {
+      generics
+    }
+
+type_expr:
+  | name=name_type generics=loption(generics) {
+      Nodes.Type_expr.Path { name; generics }
+    }
+  | verb_type=verb_type {
+      Nodes.Type_expr.Verb verb_type
+    }
+
 %inline generic_param:
   | name=UIDENT "Type" {
       ({ Nodes.Generic_param.name; type_ = Nodes.Concept.Type } : Nodes.Generic_param.t)
@@ -187,6 +211,62 @@ decl:
         params;
         value;
       }
+    }
+
+(* value-identifier counterpart to name_type — both segments lowercase
+   since Name_expr lives in the value namespace (LIDENT), unlike
+   Name_type's qualified form which ends in a UIDENT type name. *)
+%inline name_expr:
+  | name=LIDENT { Nodes.Name_expr.Ident name }
+  | pkg=LIDENT "$" name=LIDENT { Nodes.Name_expr.Qualified { package = pkg; ident = name } }
+
+%inline comparison_op:
+  | "==" { Nodes.Operator.Eq }
+  | "<=" { Nodes.Operator.LessEq }
+  | ">=" { Nodes.Operator.MoreEq }
+  | "<"  { Nodes.Operator.Less }
+  | ">"  { Nodes.Operator.More }
+
+%inline additive_op:
+  | "+" { Nodes.Operator.Add }
+  | "-" { Nodes.Operator.Sub }
+
+%inline multiplicative_op:
+  | "*" { Nodes.Operator.Mul }
+  | "/" { Nodes.Operator.Div }
+
+(* used by decl's operator-overload form, e.g. `Int +(other Int) { ... }` —
+   a single bare operator token, no left/right operands involved there *)
+%inline operator:
+  | op=comparison_op     { op }
+  | op=additive_op       { op }
+  | op=multiplicative_op { op }
+
+expr:
+  | i=INT    { Nodes.Expr.IntLit i }
+  | f=FLOAT  { Nodes.Expr.FloatLit f }
+  | s=STRING { Nodes.Expr.StrLit s }
+  | TRUE     { Nodes.Expr.BoolLit true }
+  | FALSE    { Nodes.Expr.BoolLit false }
+  | name_expr=name_expr { Nodes.Expr.NameExpr name_expr }
+  | "(" e=expr ")" { Nodes.Expr.Parenthized e }
+  | func_lambda=func_lambda { Nodes.Expr.FuncLambda func_lambda }
+  | meth_lambda=meth_lambda { Nodes.Expr.MethLambda meth_lambda }
+  | verb_call=verb_call { Nodes.Expr.VerbCall verb_call }
+  | target=expr "." field=LIDENT %prec DOT {
+      Nodes.Expr.DotAccess { target; field }
+    }
+  | left=expr op=comparison_op right=expr abort_handle=ioption(abort_handle) %prec EQEQ {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op { op; left; right; abort_handle })
+    }
+  | left=expr op=additive_op right=expr abort_handle=ioption(abort_handle) %prec PLUS {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op { op; left; right; abort_handle })
+    }
+  | left=expr op=multiplicative_op right=expr abort_handle=ioption(abort_handle) %prec STAR {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op { op; left; right; abort_handle })
+    }
+  | "~" value=expr abort_handle=ioption(abort_handle) %prec TILDE {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle })
     }
 
 %inline body_field:

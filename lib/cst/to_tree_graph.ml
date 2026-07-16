@@ -68,6 +68,7 @@ and mould_to_node (x: Nodes.Mould.t) = match x with
 and generic_arg_to_node (x: Nodes.Generic_arg.t) = match x with
   | Type x -> type_to_node x
   | Number x -> group "number" (Leaf x)
+  | Inferred x -> group "param" (param_to_node x)
 
 and type_to_node (x: Nodes.Type_expr.t) = match x with
   | Verb x -> verb_type_to_node x

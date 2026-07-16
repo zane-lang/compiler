@@ -109,6 +109,7 @@ and Generic_arg : sig
   type t =
     | Type of Type_expr.t
     | Number of string
+    | Inferred of Param.t
 end = Generic_arg
 
 and Verb_type : sig
