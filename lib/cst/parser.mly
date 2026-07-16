@@ -40,7 +40,6 @@
 %token ALIAS       "alias"
 %token UTYPE       "Type"
 %token NUMBER      "Number"
-%token CLASS       "class"
 %token STRUCT      "struct"
 %token VARIANT     "variant"
 %token TUPLE       "tuple"
@@ -58,17 +57,12 @@
 %token ABORT       "abort"
 %token RETURN      "return"
 %token RESOLVE     "resolve"
-%token ERROR       "<error>"
 %token EOF          "<eof>"
 
 %nonassoc EQEQ LESSEQ MOREEQ LESS MORE   /* comparisons */
 %left PLUS MINUS
 %left STAR SLASH
-%left LPAREN                             /* function application */
-%nonassoc IF
-%nonassoc ELSE
-%nonassoc TILDE                          /* prefix ~ */
-%left DOT                                /* field access */
+%nonassoc TILDE AND                      /* prefix ~ and & */
 
 %start <Nodes.Package.t> package
 
@@ -219,6 +213,7 @@ decl:
 %inline name_expr:
   | name=LIDENT { Nodes.Name_expr.Ident name }
   | pkg=LIDENT "$" name=LIDENT { Nodes.Name_expr.Qualified { package = pkg; ident = name } }
+  | "@" pkg=LIDENT "$" name=LIDENT { Nodes.Name_expr.Intrinsic { package = pkg; ident = name } }
 
 %inline comparison_op:
   | "==" { Nodes.Operator.Eq }
@@ -242,7 +237,8 @@ decl:
   | op=additive_op       { op }
   | op=multiplicative_op { op }
 
-expr:
+(* atoms: literals, names, parenthesised exprs, lambdas *)
+primary:
   | i=INT    { Nodes.Expr.IntLit i }
   | f=FLOAT  { Nodes.Expr.FloatLit f }
   | s=STRING { Nodes.Expr.StrLit s }
@@ -252,10 +248,18 @@ expr:
   | "(" e=expr ")" { Nodes.Expr.Parenthized e }
   | func_lambda=func_lambda { Nodes.Expr.FuncLambda func_lambda }
   | meth_lambda=meth_lambda { Nodes.Expr.MethLambda meth_lambda }
+
+(* postfix chain: calls, method calls, field access. binds tighter than the
+   binary operators, so `a!b(c) * d(e)` is `(a!b(c)) * (d(e))`, unambiguously. *)
+app:
+  | primary=primary { primary }
   | verb_call=verb_call { Nodes.Expr.VerbCall verb_call }
-  | target=expr "." field=LIDENT %prec DOT {
+  | target=app "." field=LIDENT {
       Nodes.Expr.DotAccess { target; field }
     }
+
+expr:
+  | app=app { app }
   | left=expr op=comparison_op right=expr abort_handle=ioption(abort_handle) %prec EQEQ {
       Nodes.Expr.VerbCall (Nodes.Verb_call.Op { op; left; right; abort_handle })
     }
@@ -267,6 +271,9 @@ expr:
     }
   | "~" value=expr abort_handle=ioption(abort_handle) %prec TILDE {
       Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle })
+    }
+  | "&" value=expr %prec AND {
+      Nodes.Expr.Ref value
     }
 
 %inline body_field:
@@ -328,14 +335,26 @@ body:
       Nodes.Abort_handle.Shorthand value
     }
 
+(* mutable (!) and immutable (:) method calls are structurally identical, so
+   they share one production; the marker only decides the is_mut payload. *)
+%inline meth_marker:
+  | "!" { true }
+  | ":" { false }
+
+%inline meth_part:
+  | is_mut=meth_marker name=primary { (is_mut, name) }
+
+(* a single call form: a flexible postfix receiver, then an optional method
+   part. no method part => function call; a method part => method call, with
+   the receiver as `this` and the (primary) name as the callee. *)
 verb_call:
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
-      Nodes.Verb_call.Func { callee; args; abort_handle }
+  | receiver=app part=ioption(meth_part) "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) {
+      match part with
+      | None -> Nodes.Verb_call.Func { callee = receiver; args; abort_handle }
+      | Some (is_mut, name) ->
+          Nodes.Verb_call.Meth { this = receiver; callee = name; args; abort_handle; is_mut }
     }
-  | this=expr "!" callee=expr "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
-      Nodes.Verb_call.Meth { callee; this; args; abort_handle }
-    }
-  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
+  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) {
       Nodes.Verb_call.Constructor { name_type; args; abort_handle }
     }
 
@@ -402,6 +421,7 @@ stat:
 %inline name_type:
   | name=UIDENT { Nodes.Name_type.Ident name }
   | pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Qualified { package = pkg; ident = name } }
+  | "@" pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Intrinsic { package = pkg; ident = name } }
 
 %inline verb_type:
   | ret=ret_type "[" params=separated_list(",", param_type) "]" {

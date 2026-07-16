@@ -1,6 +1,10 @@
 open Sedlexing
 open Parser
 
+(* Raised on a character that starts no valid token. Position is read from the
+   lexbuf by the caller, the same way a [Parser.Error] is located. *)
+exception Lexing_error
+
 let digit      = [%sedlex.regexp? '0'..'9']
 let digits     = [%sedlex.regexp? Plus digit]
 let int_lit    = [%sedlex.regexp? digits, Star ('\'', digits)]
@@ -56,7 +60,6 @@ let rec token buf =
   | "alias"                     -> ALIAS
   | "Type"                      -> UTYPE
   | "Number"                    -> NUMBER
-  | "class"                     -> CLASS
   | "struct"                    -> STRUCT
   | "variant"                   -> VARIANT
   | "tuple"                     -> TUPLE
@@ -77,4 +80,4 @@ let rec token buf =
   | lower_ident                 -> LIDENT (Utf8.lexeme buf)
   | upper_ident                 -> UIDENT (Utf8.lexeme buf)
   | eof                         -> EOF
-  | _                           -> ERROR
+  | _                           -> raise Lexing_error

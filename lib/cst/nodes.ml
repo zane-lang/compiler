@@ -26,6 +26,8 @@ module Name_type = struct
   type t =
     | Ident of string
     | Qualified of { package : string; ident : string }
+    (* intrinsic namespace, spelled @package$Ident, e.g. @primitives$I32 *)
+    | Intrinsic of { package : string; ident : string }
 end
 
 module Concept = struct
@@ -51,6 +53,8 @@ module Name_expr = struct
   type t =
     | Ident of string
     | Qualified of { package : string; ident : string }
+    (* intrinsic namespace, spelled @package$ident, e.g. @funcs$strToI32 *)
+    | Intrinsic of { package : string; ident : string }
 end
 
 module rec Expr : sig
@@ -61,6 +65,7 @@ module rec Expr : sig
     | BoolLit of bool
     | NameExpr of Name_expr.t
     | DotAccess of { target : t; field : string }
+    | Ref of t
     | Parenthized of t
     | VerbCall of Verb_call.t
     | FuncLambda of Func_lambda.t
@@ -77,7 +82,7 @@ end = Abort_handle
 and Verb_call : sig
   type t =
     | Func        of { callee: Expr.t; args: Expr.t list; abort_handle: Abort_handle.t option; }
-    | Meth        of { callee: Expr.t; this: Expr.t; args: Expr.t list; abort_handle: Abort_handle.t option; }
+    | Meth        of { callee: Expr.t; this: Expr.t; args: Expr.t list; abort_handle: Abort_handle.t option; is_mut: bool; }
     | Constructor of { name_type: Name_type.t; args: Expr.t list; abort_handle: Abort_handle.t option; }
     | Op          of { op: Operator.t; left: Expr.t; right: Expr.t; abort_handle: Abort_handle.t option; }
     | Flip        of { value: Expr.t; abort_handle: Abort_handle.t option; }
