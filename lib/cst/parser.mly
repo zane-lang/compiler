@@ -62,9 +62,7 @@
 %nonassoc EQEQ LESSEQ MOREEQ LESS MORE   /* comparisons */
 %left PLUS MINUS
 %left STAR SLASH
-%left LPAREN                             /* function application */
 %nonassoc TILDE AND                      /* prefix ~ and & */
-%left DOT                                /* field access */
 
 %start <Nodes.Package.t> package
 
@@ -239,7 +237,8 @@ decl:
   | op=additive_op       { op }
   | op=multiplicative_op { op }
 
-expr:
+(* atoms: literals, names, parenthesised exprs, lambdas *)
+primary:
   | i=INT    { Nodes.Expr.IntLit i }
   | f=FLOAT  { Nodes.Expr.FloatLit f }
   | s=STRING { Nodes.Expr.StrLit s }
@@ -249,10 +248,18 @@ expr:
   | "(" e=expr ")" { Nodes.Expr.Parenthized e }
   | func_lambda=func_lambda { Nodes.Expr.FuncLambda func_lambda }
   | meth_lambda=meth_lambda { Nodes.Expr.MethLambda meth_lambda }
+
+(* postfix chain: calls, method calls, field access. binds tighter than the
+   binary operators, so `a!b(c) * d(e)` is `(a!b(c)) * (d(e))`, unambiguously. *)
+app:
+  | primary=primary { primary }
   | verb_call=verb_call { Nodes.Expr.VerbCall verb_call }
-  | target=expr "." field=LIDENT {
+  | target=app "." field=LIDENT {
       Nodes.Expr.DotAccess { target; field }
     }
+
+expr:
+  | app=app { app }
   | left=expr op=comparison_op right=expr abort_handle=ioption(abort_handle) %prec EQEQ {
       Nodes.Expr.VerbCall (Nodes.Verb_call.Op { op; left; right; abort_handle })
     }
@@ -328,17 +335,26 @@ body:
       Nodes.Abort_handle.Shorthand value
     }
 
+(* mutable (!) and immutable (:) method calls are structurally identical, so
+   they share one production; the marker only decides the is_mut payload. *)
+%inline meth_marker:
+  | "!" { true }
+  | ":" { false }
+
+%inline meth_part:
+  | is_mut=meth_marker name=primary { (is_mut, name) }
+
+(* a single call form: a flexible postfix receiver, then an optional method
+   part. no method part => function call; a method part => method call, with
+   the receiver as `this` and the (primary) name as the callee. *)
 verb_call:
-  | callee=expr "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
-      Nodes.Verb_call.Func { callee; args; abort_handle }
+  | receiver=app part=ioption(meth_part) "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) {
+      match part with
+      | None -> Nodes.Verb_call.Func { callee = receiver; args; abort_handle }
+      | Some (is_mut, name) ->
+          Nodes.Verb_call.Meth { this = receiver; callee = name; args; abort_handle; is_mut }
     }
-  | this=expr "!" callee=expr "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
-      Nodes.Verb_call.Meth { callee; this; args; abort_handle; is_mut = true }
-    }
-  | this=expr ":" callee=expr "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
-      Nodes.Verb_call.Meth { callee; this; args; abort_handle; is_mut = false }
-    }
-  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
+  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) {
       Nodes.Verb_call.Constructor { name_type; args; abort_handle }
     }
 
