@@ -18,7 +18,7 @@ module Operator = struct
     | More
 end
 
-module Kind = struct
+module Type_axis = struct
   type t = Value | Reference
 end
 
@@ -97,7 +97,7 @@ end = Mould
 and Moulded : sig
   type t = {
     mould : Mould.t;
-    kind : Kind.t;
+    axis : Type_axis.t;
   }
 end = Moulded
 
@@ -211,12 +211,6 @@ and Type_or_moulded : sig
     | Moulded of Moulded.t
 end = Type_or_moulded
 
-and Var_decl : sig
-  type t =
-    | Shorthand
-    | Longhand
-end = Var_decl
-
 and Verb_decl : sig
   type t =
     | Func of {
@@ -258,7 +252,7 @@ end = Verb_decl
 and Decl : sig
   type t =
     | Var of { name : string; type_ : Type_expr.t; value : Expr.t }
-    | VarShorthand of { name : string; type_ : Name_type.t; args : Expr.t list }
+    | VarShorthand of { name : string; constructor : Name_type.t; args : Expr.t list }
     | Type of {
         name : string;
         params : Generic_param.t list option;
@@ -269,6 +263,7 @@ and Decl : sig
         params : Generic_param.t list option;
         value : Type_expr.t;
       }
+    | Verb of Verb_decl.t
 end = Decl
 
 (* ---------------------------------------------------------------------- *)
