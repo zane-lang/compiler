@@ -4,6 +4,10 @@
 
 module StringSet = Set.Make (String)
 module IntMap = Map.Make (Int)
+module ConflictSet = Set.Make (struct
+  type t = int * string
+  let compare = compare
+end)
 
 type reduction = { lhs : string; width : int }
 
@@ -28,13 +32,11 @@ let empty_state () =
 
 let cap_add a b = min 2 (a + b)
 
+let words_re = Str.regexp "[ \t]+"
+
 let words text =
   if String.trim text = "" then []
-  else Str.split (Str.regexp "[ \t]+") (String.trim text)
-
-let starts_with prefix text =
-  let n = String.length prefix in
-  String.length text >= n && String.sub text 0 n = prefix
+  else Str.split words_re (String.trim text)
 
 let read_lines path =
   let channel = open_in path in
@@ -47,27 +49,110 @@ let read_lines path =
   in
   loop []
 
-let token_re =
-  Str.regexp
-    "^[ \t]*%token\\([ \t]+<[^>]+>\\)?[ \t]+\\([A-Z][A-Z0-9_]*\\)\\([ \t]+\"\\(.*\\)\"\\)?[ \t]*$"
+let read_file path =
+  let channel = open_in_bin path in
+  Fun.protect ~finally:(fun () -> close_in channel) (fun () ->
+      let length = in_channel_length channel in
+      really_input_string channel length)
+
+let strip_comments source =
+  let length = String.length source in
+  let buffer = Buffer.create length in
+  let rec normal index =
+    if index >= length then ()
+    else if index + 1 < length && source.[index] = '(' && source.[index + 1] = '*'
+    then ocaml_comment 1 (index + 2)
+    else if index + 1 < length && source.[index] = '/' && source.[index + 1] = '*'
+    then c_comment (index + 2)
+    else begin
+      Buffer.add_char buffer source.[index];
+      normal (index + 1)
+    end
+  and ocaml_comment depth index =
+    if index >= length then ()
+    else if index + 1 < length && source.[index] = '(' && source.[index + 1] = '*'
+    then ocaml_comment (depth + 1) (index + 2)
+    else if index + 1 < length && source.[index] = '*' && source.[index + 1] = ')'
+    then if depth = 1 then normal (index + 2) else ocaml_comment (depth - 1) (index + 2)
+    else begin
+      if source.[index] = '\n' then Buffer.add_char buffer '\n';
+      ocaml_comment depth (index + 1)
+    end
+  and c_comment index =
+    if index >= length then ()
+    else if index + 1 < length && source.[index] = '*' && source.[index + 1] = '/'
+    then normal (index + 2)
+    else begin
+      if source.[index] = '\n' then Buffer.add_char buffer '\n';
+      c_comment (index + 1)
+    end
+  in
+  normal 0;
+  Buffer.contents buffer
+
+let token_decl_re =
+  Str.regexp "^[ \t]*%token\\([ \t]+<[^>]+>\\)?[ \t]+\\(.*\\)$"
+
+let is_uppercase = function 'A' .. 'Z' -> true | _ -> false
+let is_token_char = function 'A' .. 'Z' | '0' .. '9' | '_' -> true | _ -> false
+
+let parse_token_specs text add =
+  let length = String.length text in
+  let rec skip index =
+    if index < length && not (is_uppercase text.[index]) then skip (index + 1)
+    else index
+  in
+  let rec token_end index =
+    if index < length && is_token_char text.[index] then token_end (index + 1)
+    else index
+  in
+  let rec whitespace index =
+    if index < length && (text.[index] = ' ' || text.[index] = '\t') then
+      whitespace (index + 1)
+    else index
+  in
+  let rec quoted_end escaped index =
+    if index >= length then length
+    else if escaped then quoted_end false (index + 1)
+    else if text.[index] = '\\' then quoted_end true (index + 1)
+    else if text.[index] = '"' then index
+    else quoted_end false (index + 1)
+  in
+  let rec loop index =
+    let start = skip index in
+    if start < length then begin
+      let finish = token_end start in
+      let token = String.sub text start (finish - start) in
+      let after = whitespace finish in
+      if after < length && text.[after] = '"' then begin
+        let quote_end = quoted_end false (after + 1) in
+        let raw = String.sub text (after + 1) (quote_end - after - 1) in
+        add token (Some raw);
+        loop (min length (quote_end + 1))
+      end
+      else begin
+        add token None;
+        loop finish
+      end
+    end
+  in
+  loop 0
 
 let parse_tokens grammar =
   let terminals = ref StringSet.empty in
   let aliases = Hashtbl.create 64 in
+  let source = strip_comments (read_file grammar) in
   List.iter
     (fun line ->
-      if Str.string_match token_re line 0 then begin
-        let token = Str.matched_group 2 line in
-        terminals := StringSet.add token !terminals;
-        match Str.matched_group 4 line with
-        | alias ->
-            let alias =
-              try Scanf.unescaped alias with _ -> alias
-            in
-            Hashtbl.replace aliases token alias
-        | exception Not_found -> ()
-      end)
-    (read_lines grammar);
+      if Str.string_match token_decl_re line 0 then
+        parse_token_specs (Str.matched_group 2 line) (fun token alias ->
+            terminals := StringSet.add token !terminals;
+            Option.iter
+              (fun alias ->
+                let alias = try Scanf.unescaped alias with _ -> alias in
+                Hashtbl.replace aliases token alias)
+              alias))
+    (String.split_on_char '\n' source);
   (!terminals, aliases)
 
 let quote = Filename.quote
@@ -422,18 +507,24 @@ let frontier_lower_bound engine distances frontier =
     frontier (max_int / 4)
 
 type outcome = {
-  witness : string list option;
+  witnesses : ((int * string) list * string list) list;
   explored : int;
   unique : int;
   deepest : int;
   stopped : string option;
 }
 
-let temporary_directory () =
-  let path = Filename.temp_file "zane-ambiguity-" "" in
-  Sys.remove path;
-  Unix.mkdir path 0o700;
-  path
+let () = Random.self_init ()
+
+let rec temporary_directory () =
+  let path =
+    Filename.concat (Filename.get_temp_dir_name ())
+      (Printf.sprintf "zane-ambiguity-%d-%08x" (Unix.getpid ()) (Random.bits ()))
+  in
+  try
+    Unix.mkdir path 0o700;
+    path
+  with Unix.Unix_error (Unix.EEXIST, _, _) -> temporary_directory ()
 
 let rec remove_tree path =
   if Sys.is_directory path then begin
@@ -451,11 +542,47 @@ let render automaton tokens =
            ~default:("<" ^ token ^ ">"))
   |> String.concat " "
 
-let choose_shorter left right =
-  match (left, right) with
-  | None, value | value, None -> value
-  | Some left, Some right ->
-      if List.length left <= List.length right then Some left else Some right
+let conflict_profile engine tokens =
+  let frontier = ref (IntMap.singleton engine.stacks.root.id 1) in
+  let conflicts = ref ConflictSet.empty in
+  let inspect token =
+    let reduced = closure engine !frontier token in
+    IntMap.iter
+      (fun stack_id _ ->
+        let stack = Stack_pool.find engine.stacks stack_id in
+        let state = engine.automaton.states.(stack.state) in
+        let reductions = reductions state token in
+        if
+          List.length reductions > 1
+          || (reductions <> [] && Hashtbl.mem state.transitions token)
+        then conflicts := ConflictSet.add (stack.state, token) !conflicts)
+      reduced
+  in
+  List.iter
+    (fun token ->
+      inspect token;
+      frontier := shift engine !frontier token)
+    tokens;
+  inspect "#";
+  ConflictSet.elements !conflicts
+
+let compare_witness (_, left) (_, right) =
+  match compare (List.length left) (List.length right) with
+  | 0 -> compare left right
+  | order -> order
+
+let merge_witnesses limit lists =
+  let by_profile = Hashtbl.create 128 in
+  List.iter
+    (fun (profile, tokens) ->
+      match Hashtbl.find_opt by_profile profile with
+      | Some previous when List.length previous <= List.length tokens -> ()
+      | _ -> Hashtbl.replace by_profile profile tokens)
+    (List.concat lists);
+  Hashtbl.fold (fun profile tokens result -> (profile, tokens) :: result)
+    by_profile []
+  |> List.sort compare_witness
+  |> List.to_seq |> Seq.take limit |> List.of_seq
 
 type directed_item = {
   tokens_rev : string list;
@@ -465,30 +592,33 @@ type directed_item = {
 }
 
 let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
-    conflict_distance accept_distance =
+    ~max_witnesses conflict_distance accept_distance =
   let deadline = Unix.gettimeofday () +. timeout in
   let buckets = Array.init (max_tokens + 1) (fun _ -> Queue.create ()) in
   let seen_plain = Hashtbl.create 1_000_003 in
   let seen_branched = Hashtbl.create 1_000_003 in
   let add item =
     if item.depth <= max_tokens then
-      let seen = if item.branched then seen_branched else seen_plain in
-      let key = signature item.frontier in
-      match Hashtbl.find_opt seen key with
-      | Some depth when depth <= item.depth -> ()
-      | _ ->
-          Hashtbl.replace seen key item.depth;
-          Queue.add item buckets.(item.depth)
+      if derivations item.frontier >= 2 && accepted_count engine item.frontier >= 2
+      then Queue.add item buckets.(item.depth)
+      else
+        let seen = if item.branched then seen_branched else seen_plain in
+        let key = signature item.frontier in
+        match Hashtbl.find_opt seen key with
+        | Some depth when depth <= item.depth -> ()
+        | _ ->
+            Hashtbl.replace seen key item.depth;
+            Queue.add item buckets.(item.depth)
   in
   List.iter add initial;
   let explored = ref 0 in
   let deepest = ref 0 in
   let conflict_seeds = ref 0 in
-  let witness = ref None in
+  let witnesses = Hashtbl.create max_witnesses in
   let stopped = ref None in
   let depth = ref 0 in
   while
-    !witness = None
+    Hashtbl.length witnesses < max_witnesses
     && !depth <= max_tokens
     && !explored < max_frontiers
     && Unix.gettimeofday () < deadline
@@ -498,8 +628,12 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
       let item = Queue.take buckets.(!depth) in
       incr explored;
       deepest := max !deepest item.depth;
-      if accepted_count engine item.frontier >= 2 then
-        witness := Some (List.rev item.tokens_rev)
+      if accepted_count engine item.frontier >= 2 then begin
+        let tokens = List.rev item.tokens_rev in
+        let profile = conflict_profile engine tokens in
+        if not (Hashtbl.mem witnesses profile) then
+          Hashtbl.add witnesses profile tokens
+      end
       else if item.depth < max_tokens then
         StringSet.iter
           (fun token ->
@@ -524,14 +658,17 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
           (possible_tokens engine item.frontier)
     end
   done;
-  if !witness = None then begin
-    if !explored >= max_frontiers then
+  if !explored >= max_frontiers then
       stopped := Some "the frontier limit was reached"
     else if Unix.gettimeofday () >= deadline then
       stopped := Some "the timeout was reached"
-  end;
+    else if Hashtbl.length witnesses >= max_witnesses then
+      stopped := Some "the witness limit was reached";
   ( {
-      witness = !witness;
+      witnesses =
+        Hashtbl.fold
+          (fun profile tokens result -> (profile, tokens) :: result)
+          witnesses [];
       explored = !explored;
       unique = Hashtbl.length seen_plain + Hashtbl.length seen_branched;
       deepest = !deepest;
@@ -597,14 +734,14 @@ let initial_partitions engine jobs max_tokens =
   end
 
 let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
-    conflict_distance accept_distance temporary =
+    ~max_witnesses conflict_distance accept_distance temporary =
   let partitions, prefix_explored, prefix_unique, prefix_seeds =
     initial_partitions engine (max 1 jobs) max_tokens
   in
   if Array.length partitions = 1 then
     let outcome, seeds =
       unified_search engine partitions.(0) ~max_tokens ~timeout ~max_frontiers
-        conflict_distance accept_distance
+        ~max_witnesses conflict_distance accept_distance
     in
     ( {
         outcome with
@@ -621,7 +758,7 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
         | 0 ->
             let result =
               unified_search engine initial ~max_tokens ~timeout ~max_frontiers
-                conflict_distance accept_distance
+                ~max_witnesses conflict_distance accept_distance
             in
             let channel = open_out_bin output in
             Marshal.to_channel channel result [];
@@ -632,17 +769,23 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
     let outcomes =
       List.map
         (fun (pid, output) ->
-          ignore (Unix.waitpid [] pid);
-          let channel = open_in_bin output in
-          let result : outcome * int = Marshal.from_channel channel in
-          close_in channel;
-          result)
+          match Unix.waitpid [] pid with
+          | _, Unix.WEXITED 0 ->
+              let channel = open_in_bin output in
+              Fun.protect ~finally:(fun () -> close_in channel) (fun () ->
+                  (Marshal.from_channel channel : outcome * int))
+          | _, Unix.WEXITED code ->
+              failwith (Printf.sprintf "ambiguity-search worker %d exited with status %d" pid code)
+          | _, Unix.WSIGNALED signal ->
+              failwith (Printf.sprintf "ambiguity-search worker %d was killed by signal %d" pid signal)
+          | _, Unix.WSTOPPED signal ->
+              failwith (Printf.sprintf "ambiguity-search worker %d stopped on signal %d" pid signal))
         !children
     in
     let outcome, seeds = List.fold_left
       (fun (combined, seeds) (outcome, worker_seeds) ->
         ( {
-            witness = choose_shorter combined.witness outcome.witness;
+            witnesses = outcome.witnesses @ combined.witnesses;
             explored = combined.explored + outcome.explored;
             unique = combined.unique + outcome.unique;
             deepest = max combined.deepest outcome.deepest;
@@ -652,12 +795,13 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
               | _ -> Some "one or more workers reached a search limit");
           },
           seeds + worker_seeds ))
-      ( { witness = None; explored = 0; unique = 0; deepest = 0; stopped = None },
+      ( { witnesses = []; explored = 0; unique = 0; deepest = 0; stopped = None },
         0 )
       outcomes
     in
     ( {
         outcome with
+        witnesses = merge_witnesses max_witnesses [ outcome.witnesses ];
         explored = prefix_explored + outcome.explored;
         unique = prefix_unique + outcome.unique;
       },
@@ -670,6 +814,7 @@ let max_tokens = ref 20
 let max_frontiers = ref 500_000
 let timeout = ref 60.
 let jobs = ref 1
+let max_witnesses = ref 20
 let check_tokens = ref []
 
 let options =
@@ -679,6 +824,7 @@ let options =
     ("--max-frontiers", Arg.Set_int max_frontiers, "N search-state limit per worker");
     ("--timeout", Arg.Set_float timeout, "SECONDS time limit per search phase");
     ("--jobs", Arg.Set_int jobs, "N worker processes");
+    ("--max-witnesses", Arg.Set_int max_witnesses, "N ambiguity families to report");
     ( "--check-tokens",
       Arg.String (fun value -> check_tokens := words value),
       "TOKENS check one space-separated token sequence" );
@@ -691,6 +837,11 @@ let main () =
     Arg.usage options "ambiguity_search [options] GRAMMAR";
     exit 2
   end;
+  if !max_tokens < 0 then invalid_arg "--max-tokens must be at least 0";
+  if !max_frontiers < 1 then invalid_arg "--max-frontiers must be at least 1";
+  if !timeout < 0. then invalid_arg "--timeout must be non-negative";
+  if !jobs < 1 then invalid_arg "--jobs must be at least 1";
+  if !max_witnesses < 1 then invalid_arg "--max-witnesses must be at least 1";
   let grammar_path = Unix.realpath !grammar in
   let temporary = temporary_directory () in
   Fun.protect
@@ -726,24 +877,12 @@ let main () =
       let accept_distance = reverse_distances automaton accept_targets in
       let outcome, conflict_seeds =
         parallel_unified_search engine ~jobs:!jobs ~max_tokens:!max_tokens
-          ~timeout:!timeout ~max_frontiers:!max_frontiers conflict_distance
-          accept_distance temporary
+          ~timeout:!timeout ~max_frontiers:!max_frontiers
+          ~max_witnesses:!max_witnesses conflict_distance accept_distance
+          temporary
       in
-      match outcome.witness with
-      | Some witness ->
-          Printf.printf "Complete ambiguity found.\nTokens (%d): %s\nSource: %s\n"
-            (List.length witness) (String.concat " " witness)
-            (render automaton witness);
-          Printf.printf "Explored %d frontiers (%d unique); %d conflict seeds.\n"
-            outcome.explored outcome.unique conflict_seeds;
-          Option.iter
-            (fun reason ->
-              Printf.printf
-                "Warning: %s, so this witness is valid but might not be the shortest.\n"
-                reason)
-            outcome.stopped;
-          exit 1
-      | None ->
+      match outcome.witnesses with
+      | [] ->
           (match outcome.stopped with
           | None ->
               Printf.printf
@@ -754,11 +893,35 @@ let main () =
                 "Search stopped at depth %d because %s; no complete ambiguity was found in %d explored frontiers (%d unique).\n"
                 outcome.deepest reason outcome.explored outcome.unique);
           Printf.printf "This is a bounded result, not a proof of unambiguity.\n";
-          exit 0)
+          exit 0
+      | witnesses ->
+          Printf.printf "Found %d complete ambiguity %s.\n"
+            (List.length witnesses)
+            (if List.length witnesses = 1 then "family" else "families");
+          List.iteri
+            (fun index (profile, witness) ->
+              Printf.printf "\n%d. Tokens (%d): %s\n   Source: %s\n"
+                (index + 1) (List.length witness) (String.concat " " witness)
+                (render automaton witness);
+              Printf.printf "   Conflict origins: %s\n"
+                (profile
+                |> List.map (fun (state, token) ->
+                       Printf.sprintf "state %d on %s" state token)
+                |> String.concat ", "))
+            witnesses;
+          Printf.printf "\n";
+          Printf.printf "Explored %d frontiers (%d unique); %d conflict seeds.\n"
+            outcome.explored outcome.unique conflict_seeds;
+          Option.iter
+            (fun reason ->
+              Printf.printf "Search stopped because %s.\n" reason)
+            outcome.stopped;
+          exit 1)
 
 let () =
   try main ()
   with
-  | Failure message | Sys_error message | Unix.Unix_error (_, _, message) ->
+  | Failure message | Invalid_argument message | Sys_error message
+  | Unix.Unix_error (_, _, message) ->
       prerr_endline ("error: " ^ message);
       exit 2
