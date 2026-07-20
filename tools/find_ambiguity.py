@@ -24,7 +24,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Iterable, Mapping
+from typing import Mapping
 
 
 Stack = tuple[int, ...]
@@ -203,11 +203,16 @@ def accepted_count(automaton: Automaton, frontier: Mapping[Stack, int]) -> int:
     return total
 
 
-def possible_tokens(automaton: Automaton, frontier: Mapping[Stack, int]) -> Iterable[str]:
-    # Trying every declared terminal is cheap for this grammar and, unlike an
-    # approximation based only on the current top states, does not miss tokens
-    # that become shiftable after one or more reductions.
-    return automaton.terminals
+def possible_tokens(automaton: Automaton, frontier: Mapping[Stack, int]) -> set[str]:
+    """Return exact lookaheads on which at least one stack has an action."""
+    tokens: set[str] = set()
+    terminals = set(automaton.terminals)
+    for stack in frontier:
+        state = automaton.states[stack[-1]]
+        tokens.update(symbol for symbol in state.transitions if symbol in terminals)
+        tokens.update(state.reductions)
+    tokens.discard("#")
+    return tokens
 
 
 def render(tokens: tuple[str, ...], aliases: Mapping[str, str]) -> str:
@@ -217,7 +222,6 @@ def render(tokens: tuple[str, ...], aliases: Mapping[str, str]) -> str:
 
 def search(
     automaton: Automaton,
-    aliases: Mapping[str, str],
     max_tokens: int,
     max_frontiers: int,
     timeout: float,
@@ -300,7 +304,6 @@ def main() -> int:
             automaton = parse_automaton(automaton_path, terminals)
             witness, explored, unique, deepest, stopped = search(
                 automaton,
-                aliases,
                 max(0, args.max_tokens),
                 max(1, args.max_frontiers),
                 max(0.0, args.timeout),
