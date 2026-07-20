@@ -18,3 +18,7 @@ stats:
 
 conflicts:
 	menhir {{ grammarFile }} --random-sentence-concrete package --random-seed 1 --random-sentence-length 16
+
+# Find the shortest complete ambiguity within a bounded GLR search.
+ambiguities max_tokens="20" timeout="60" max_frontiers="500000" menhir="menhir":
+	python3 tools/find_ambiguity.py {{ grammarFile }} --menhir {{ menhir }} --max-tokens {{ max_tokens }} --timeout {{ timeout }} --max-frontiers {{ max_frontiers }}
