@@ -597,6 +597,9 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
   let buckets = Array.init (max_tokens + 1) (fun _ -> Queue.create ()) in
   let seen_plain = Hashtbl.create 1_000_003 in
   let seen_branched = Hashtbl.create 1_000_003 in
+  let unique_count () =
+    Hashtbl.length seen_plain + Hashtbl.length seen_branched
+  in
   let add item =
     if item.depth <= max_tokens then
       if derivations item.frontier >= 2 && accepted_count engine item.frontier >= 2
@@ -606,9 +609,10 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
         let key = signature item.frontier in
         match Hashtbl.find_opt seen key with
         | Some depth when depth <= item.depth -> ()
-        | _ ->
+        | _ when unique_count () < max_frontiers ->
             Hashtbl.replace seen key item.depth;
             Queue.add item buckets.(item.depth)
+        | _ -> ()
   in
   List.iter add initial;
   let explored = ref 0 in
@@ -621,6 +625,7 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
     Hashtbl.length witnesses < max_witnesses
     && !depth <= max_tokens
     && !explored < max_frontiers
+    && unique_count () < max_frontiers
     && Unix.gettimeofday () < deadline
   do
     if Queue.is_empty buckets.(!depth) then incr depth
@@ -658,7 +663,7 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
           (possible_tokens engine item.frontier)
     end
   done;
-  if !explored >= max_frontiers then
+  if !explored >= max_frontiers || unique_count () >= max_frontiers then
       stopped := Some "the frontier limit was reached"
     else if Unix.gettimeofday () >= deadline then
       stopped := Some "the timeout was reached"
@@ -670,7 +675,7 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
           (fun profile tokens result -> (profile, tokens) :: result)
           witnesses [];
       explored = !explored;
-      unique = Hashtbl.length seen_plain + Hashtbl.length seen_branched;
+      unique = unique_count ();
       deepest = !deepest;
       stopped = !stopped;
     },
