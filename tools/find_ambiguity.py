@@ -29,7 +29,7 @@ from typing import Mapping
 
 Stack = tuple[int, ...]
 Frontier = dict[Stack, int]
-FrontierKey = tuple[tuple[Stack, int], ...]
+FrontierKey = frozenset[tuple[Stack, int]]
 
 
 @dataclass
@@ -52,10 +52,11 @@ TRANSITION_RE = re.compile(r"^-- On (\S+) shift to state (\d+)$")
 LOOKAHEAD_RE = re.compile(r"^-- On (.+)$")
 REDUCTION_RE = re.compile(r"^--   reduce production (.+?) ->(?: (.*))?$")
 ACCEPT_RE = re.compile(r"^--   accept (\S+)$")
-TOKEN_RE = re.compile(
-    r'^\s*%token(?:\s*<[^>]+>)?\s+([A-Z][A-Z0-9_]*)'
-    r'(?:\s+("(?:[^"\\]|\\.)*"))?\s*$'
+TOKEN_DECL_RE = re.compile(r"^\s*%token(?:\s*<[^>]+>)?\s+(.*)$")
+TOKEN_AND_ALIAS_RE = re.compile(
+    r'\b([A-Z][A-Z0-9_]*)(?:\s*("(?:[^"\\]|\\.)*"))?'
 )
+COMMENT_RE = re.compile(r"\(\*.*?\*\)|/\*.*?\*/", re.DOTALL)
 
 
 def cap_add(left: int, right: int) -> int:
@@ -63,23 +64,24 @@ def cap_add(left: int, right: int) -> int:
 
 
 def key(frontier: Mapping[Stack, int]) -> FrontierKey:
-    return tuple(sorted(frontier.items()))
+    return frozenset(frontier.items())
 
 
 def parse_aliases(grammar: Path) -> tuple[set[str], dict[str, str]]:
     terminals: set[str] = set()
     aliases: dict[str, str] = {}
-    for line in grammar.read_text(encoding="utf-8").splitlines():
-        match = TOKEN_RE.match(line)
+    source = COMMENT_RE.sub("", grammar.read_text(encoding="utf-8"))
+    for line in source.splitlines():
+        match = TOKEN_DECL_RE.match(line)
         if not match:
             continue
-        token, quoted_alias = match.groups()
-        terminals.add(token)
-        if quoted_alias is not None:
-            try:
-                aliases[token] = ast.literal_eval(quoted_alias)
-            except (SyntaxError, ValueError):
-                aliases[token] = quoted_alias[1:-1]
+        for token, quoted_alias in TOKEN_AND_ALIAS_RE.findall(match.group(1)):
+            terminals.add(token)
+            if quoted_alias:
+                try:
+                    aliases[token] = ast.literal_eval(quoted_alias)
+                except (SyntaxError, ValueError):
+                    aliases[token] = quoted_alias[1:-1]
     return terminals, aliases
 
 
