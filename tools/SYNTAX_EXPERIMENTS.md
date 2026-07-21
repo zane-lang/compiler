@@ -43,7 +43,11 @@ The predefined candidates cover:
 - removing general grouping;
 - `[]`, `@()`, or `.()` for all calls;
 - ordinary calls for names with `@()` or `[]` reserved for computed callees;
-- combinations of the most promising statement, grouping, and call changes.
+- abort handlers anchored to delimited boundaries (statement calls,
+  declaration values, `return`/`resolve`/`abort` values, call arguments, and
+  grouping) instead of every expression production;
+- combinations of the most promising statement, grouping, call, and
+  abort-handler changes.
 
 The named-statement experiment still permits computed calls inside expressions.
 It only prevents a computed call such as `(x)()` from independently reducing to
@@ -56,6 +60,20 @@ statement follows and permits one trailing semicolon. The stricter
 and statement, including the final item in a block.
 
 ## Measurements
+
+Known witnesses are **respelled in each variant's own syntax** before being
+replayed: every transformation that changes surface spelling registers a
+matching update in `SPELLINGS`, and each known case builds its intended
+program from the resulting spelling profile. A rejection therefore means the
+variant genuinely cannot parse the intended program — never that an old
+spelling merely became illegal. A case a variant cannot express at all (for
+example a computed-call statement under `named-statement-calls`) is labeled
+"not expressible" and counted as rejected.
+
+Alongside the ambiguity witnesses, the case set includes one plain
+compatibility probe: an ordinary named call statement, `print("hello")`,
+which every variant is expected to parse exactly once (spelled
+`print["hello"]` under `bracket-calls`, and so on).
 
 For each candidate, the report records:
 
@@ -81,7 +99,9 @@ human judgment.
 1. Add a transformation function that uses `replace_once` or another checked
    structural edit. A changed grammar anchor must fail loudly rather than silently
    producing the baseline grammar.
-2. Register it in `TRANSFORMS`.
+2. Register it in `TRANSFORMS`, and register a matching spelling update in
+   `SPELLINGS` (the identity update for transforms that do not change how the
+   known witnesses are spelled). The two tables must cover the same names.
 3. Add one or more `Variant` entries, including useful combinations and an edit
    cost.
 4. Add focused assertions to `test_syntax_experiments.py`.
