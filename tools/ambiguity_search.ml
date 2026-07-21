@@ -901,6 +901,9 @@ type directed_item = {
 module Seen_cache = struct
   type digest = int * int
 
+  (* The mix constants (and the lane seeds below) need OCaml's 63-bit native
+     int, so this tool requires a 64-bit platform; Int64 would box every
+     operation on this hot path. *)
   let mix hash value =
     let hash = hash + value in
     let hash = (hash lxor (hash lsr 30)) * 0x3F58476D1CE4E5B9 in
@@ -982,7 +985,10 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
         match Seen_cache.find seen key with
         | Some depth when depth <= item.depth ->
             Seen_cache.refresh seen key depth
-        | _ when !queued < max_frontiers ->
+        | Some _ when !queued < max_frontiers ->
+            Seen_cache.refresh seen key item.depth;
+            enqueue item
+        | None when !queued < max_frontiers ->
             Seen_cache.insert seen key item.depth;
             enqueue item
         | _ -> dropped := true
