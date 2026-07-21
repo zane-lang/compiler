@@ -56,7 +56,43 @@ TOKEN_DECL_RE = re.compile(r"^\s*%token(?:\s*<[^>]+>)?\s+(.*)$")
 TOKEN_AND_ALIAS_RE = re.compile(
     r'\b([A-Z][A-Z0-9_]*)(?:\s*("(?:[^"\\]|\\.)*"))?'
 )
-COMMENT_RE = re.compile(r"\(\*.*?\*\)|/\*.*?\*/", re.DOTALL)
+def strip_comments(text: str) -> str:
+    """Remove OCaml (* ... *) comments, which nest, and C /* ... */ comments.
+
+    Newlines inside comments are preserved so line structure survives,
+    matching strip_comments in tools/ambiguity_search.ml.
+    """
+    out: list[str] = []
+    index = 0
+    length = len(text)
+    while index < length:
+        if text.startswith("(*", index):
+            depth = 1
+            index += 2
+            while index < length and depth > 0:
+                if text.startswith("(*", index):
+                    depth += 1
+                    index += 2
+                elif text.startswith("*)", index):
+                    depth -= 1
+                    index += 2
+                else:
+                    if text[index] == "\n":
+                        out.append("\n")
+                    index += 1
+        elif text.startswith("/*", index):
+            index += 2
+            while index < length:
+                if text.startswith("*/", index):
+                    index += 2
+                    break
+                if text[index] == "\n":
+                    out.append("\n")
+                index += 1
+        else:
+            out.append(text[index])
+            index += 1
+    return "".join(out)
 
 
 def cap_add(left: int, right: int) -> int:
@@ -70,7 +106,7 @@ def key(frontier: Mapping[Stack, int]) -> FrontierKey:
 def parse_aliases(grammar: Path) -> tuple[set[str], dict[str, str]]:
     terminals: set[str] = set()
     aliases: dict[str, str] = {}
-    source = COMMENT_RE.sub("", grammar.read_text(encoding="utf-8"))
+    source = strip_comments(grammar.read_text(encoding="utf-8"))
     for line in source.splitlines():
         match = TOKEN_DECL_RE.match(line)
         if not match:
