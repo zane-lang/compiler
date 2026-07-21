@@ -289,10 +289,10 @@ module Stack_pool = struct
 
   let create () =
     let root = { id = 0; state = 0; parent = None; depth = 0 } in
-    let by_id = Hashtbl.create 1_000_003 in
+    let by_id = Hashtbl.create 16_384 in
     Hashtbl.add by_id 0 root;
     {
-      by_edge = Hashtbl.create 1_000_003;
+      by_edge = Hashtbl.create 16_384;
       by_id;
       next_id = 1;
       root;
@@ -870,8 +870,8 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
     ~max_witnesses conflict_distance accept_distance =
   let deadline = Unix.gettimeofday () +. timeout in
   let buckets = Array.init (max_tokens + 1) (fun _ -> Queue.create ()) in
-  let seen_plain = Hashtbl.create 1_000_003 in
-  let seen_branched = Hashtbl.create 1_000_003 in
+  let seen_plain = Hashtbl.create 16_384 in
+  let seen_branched = Hashtbl.create 16_384 in
   let unique_count () =
     Hashtbl.length seen_plain + Hashtbl.length seen_branched
   in
@@ -1145,7 +1145,7 @@ let main () =
       let automaton = parse_automaton automaton_path terminals aliases in
       let stacks = Stack_pool.create () in
       let engine =
-        { automaton; stacks; closure_cache = Hashtbl.create 1_000_003 }
+        { automaton; stacks; closure_cache = Hashtbl.create 16_384 }
       in
       if !check_tokens <> [] then begin
         let frontier =
