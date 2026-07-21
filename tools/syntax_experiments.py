@@ -985,7 +985,7 @@ def validate_args(args: argparse.Namespace, cli: argparse.ArgumentParser) -> Non
     if not search_words:
         cli.error("--search-command must not be empty")
     executable = search_words[0]
-    if not args.emit_only and os.sep in executable and not Path(executable).is_file():
+    if not args.emit_only and os.path.dirname(executable) and not Path(executable).is_file():
         cli.error(
             f"search executable does not exist: {executable};"
             " run `dune build tools/ambiguity_search.exe` first"

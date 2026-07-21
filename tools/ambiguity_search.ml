@@ -684,13 +684,15 @@ let joint_outcomes moves (start_left, start_right) token =
                 all)
             all
         else
+          let moves_left = moves suffix_left token in
+          let moves_right = moves suffix_right token in
           List.iter
             (fun move_left ->
               List.iter
                 (fun move_right ->
                   Option.iter push (paired move_left move_right))
-                (moves suffix_right token))
-            (moves suffix_left token)
+                moves_right)
+            moves_left
     | Running suffix_left, Finished _ ->
         List.iter
           (fun move ->
