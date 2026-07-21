@@ -37,11 +37,15 @@ the state is triaged into one of these categories.
   sentences (`tools/ambiguity_search.ml`). A completed bound is a theorem
   ("no ambiguous sentence of at most N tokens"), up to the astronomically
   unlikely collision of the 124-bit frontier digests used for
-  deduplication; an interrupted bound is evidence only. `--max-frontiers`
-  bounds resident memory per worker (an evicting digest cache plus a cap
-  on queued frontiers, roughly 2 KB per unit); the search itself is
-  bounded by `--max-tokens` and `--timeout`, and a run that had to drop
-  part of the space reports itself as interrupted. Witnesses are grouped by the conflict states they
+  deduplication; an interrupted bound is evidence only. Two independent
+  per-worker budgets control the search: `--max-queue` caps the number of
+  queued frontiers — the search reach, and the live set that stack memory
+  tracks — while `--max-frontiers` sizes the evicting digest cache that
+  prunes redundant work (`--max-queue` defaults to `--max-frontiers`).
+  Together they run at roughly 2 KB per unit of resident memory; the search
+  itself is bounded by `--max-tokens` and `--timeout`, and a run whose queue
+  filled and had to drop part of the space reports itself as interrupted.
+  Witnesses are grouped by the conflict states they
   traverse, which maps each finding directly onto an obligation above.
 - `just prove` — conservative unambiguity prover (`--prove K`). It abstracts
   GLR stacks to their top-K states and exhaustively explores pairs of

@@ -961,7 +961,7 @@ module Seen_cache = struct
 end
 
 let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
-    ~max_witnesses conflict_distance accept_distance =
+    ~max_queue ~max_witnesses conflict_distance accept_distance =
   let deadline = Unix.gettimeofday () +. timeout in
   let buckets = Array.init (max_tokens + 1) (fun _ -> Queue.create ()) in
   let seen = Seen_cache.create max_frontiers in
@@ -971,11 +971,12 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
     incr queued;
     Queue.add item buckets.(item.depth)
   in
-  (* max_frontiers is a memory budget: it caps both the dedup cache and the
-     number of queued items. A full queue drops new discoveries (recorded so
-     the result is reported as incomplete) instead of growing without bound;
-     a dropped frontier can still be rediscovered once the queue drains,
-     because only enqueued frontiers enter the dedup cache. *)
+  (* max_queue caps the number of queued items - the search reach. A full
+     queue drops new discoveries (recorded so the result is reported as
+     incomplete) instead of growing without bound; a dropped frontier can
+     still be rediscovered once the queue drains, because only enqueued
+     frontiers enter the dedup cache. max_frontiers is the independent dedup
+     memory budget (see Seen_cache above): a smaller table simply prunes less. *)
   let add item =
     if item.depth <= max_tokens then
       if derivations item.frontier >= 2 && accepted_count engine item.frontier >= 2
@@ -985,10 +986,10 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
         match Seen_cache.find seen key with
         | Some depth when depth <= item.depth ->
             Seen_cache.refresh seen key depth
-        | Some _ when !queued < max_frontiers ->
+        | Some _ when !queued < max_queue ->
             Seen_cache.refresh seen key item.depth;
             enqueue item
-        | None when !queued < max_frontiers ->
+        | None when !queued < max_queue ->
             Seen_cache.insert seen key item.depth;
             enqueue item
         | _ -> dropped := true
@@ -1002,8 +1003,9 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
   let depth = ref 0 in
   (* The stack pool and closure cache also grow with the search; sweep them
      against the live queue on a geometric schedule so total memory stays
-     proportional to max_frontiers plus the queue itself. *)
-  let stack_budget = max 65_536 (4 * max_frontiers) in
+     proportional to the queue itself (the live set marked below), whose size
+     is bounded by max_queue. *)
+  let stack_budget = max 65_536 (4 * max_queue) in
   let compact_floor = ref stack_budget in
   let mark_live mark =
     Array.iter
@@ -1142,14 +1144,14 @@ let initial_partitions engine jobs max_tokens =
   end
 
 let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
-    ~max_witnesses conflict_distance accept_distance temporary =
+    ~max_queue ~max_witnesses conflict_distance accept_distance temporary =
   let partitions, prefix_explored, prefix_unique, prefix_seeds =
     initial_partitions engine (max 1 jobs) max_tokens
   in
   if Array.length partitions = 1 then
     let outcome, seeds =
       unified_search engine partitions.(0) ~max_tokens ~timeout ~max_frontiers
-        ~max_witnesses conflict_distance accept_distance
+        ~max_queue ~max_witnesses conflict_distance accept_distance
     in
     ( {
         outcome with
@@ -1169,7 +1171,7 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
         | 0 ->
             let result =
               unified_search engine initial ~max_tokens ~timeout ~max_frontiers
-                ~max_witnesses conflict_distance accept_distance
+                ~max_queue ~max_witnesses conflict_distance accept_distance
             in
             let channel = open_out_bin output in
             Marshal.to_channel channel result [];
@@ -1227,6 +1229,7 @@ let grammar = ref ""
 let menhir = ref "menhir"
 let max_tokens = ref 20
 let max_frontiers = ref 500_000
+let max_queue = ref 0
 let timeout = ref 60.
 let jobs = ref 1
 let max_witnesses = ref 20
@@ -1239,8 +1242,13 @@ let options =
     ("--max-tokens", Arg.Set_int max_tokens, "N maximum tokens, including EOF");
     ( "--max-frontiers",
       Arg.Set_int max_frontiers,
-      "N dedup-cache entries per worker; bounds memory, not the search \
+      "N dedup-cache entries per worker; bounds dedup memory, not the search \
        (and the abstract pair count under --prove)" );
+    ( "--max-queue",
+      Arg.Set_int max_queue,
+      "N queued frontiers per worker; the search reach (a full queue drops \
+       discoveries and reports the run incomplete). Its live set drives stack \
+       memory. Defaults to --max-frontiers" );
     ("--timeout", Arg.Set_float timeout, "SECONDS time limit per search phase");
     ("--jobs", Arg.Set_int jobs, "N worker processes");
     ("--max-witnesses", Arg.Set_int max_witnesses, "N ambiguity families to report");
@@ -1263,6 +1271,8 @@ let main () =
   end;
   if !max_tokens < 0 then invalid_arg "--max-tokens must be at least 0";
   if !max_frontiers < 1 then invalid_arg "--max-frontiers must be at least 1";
+  if !max_queue < 0 then invalid_arg "--max-queue must be non-negative";
+  if !max_queue = 0 then max_queue := !max_frontiers;
   if !timeout < 0. then invalid_arg "--timeout must be non-negative";
   if !jobs < 1 then invalid_arg "--jobs must be at least 1";
   if !max_witnesses < 1 then invalid_arg "--max-witnesses must be at least 1";
@@ -1326,8 +1336,8 @@ let main () =
       let outcome, conflict_seeds =
         parallel_unified_search engine ~jobs:!jobs ~max_tokens:!max_tokens
           ~timeout:!timeout ~max_frontiers:!max_frontiers
-          ~max_witnesses:!max_witnesses conflict_distance accept_distance
-          temporary
+          ~max_queue:!max_queue ~max_witnesses:!max_witnesses conflict_distance
+          accept_distance temporary
       in
       match outcome.witnesses with
       | [] ->
