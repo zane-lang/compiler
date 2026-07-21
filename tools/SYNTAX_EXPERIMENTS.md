@@ -57,6 +57,20 @@ and statement, including the final item in a block.
 
 ## Measurements
 
+Known witnesses are **respelled in each variant's own syntax** before being
+replayed: every transformation that changes surface spelling registers a
+matching update in `SPELLINGS`, and each known case builds its intended
+program from the resulting spelling profile. A rejection therefore means the
+variant genuinely cannot parse the intended program — never that an old
+spelling merely became illegal. A case a variant cannot express at all (for
+example a computed-call statement under `named-statement-calls`) is labeled
+"not expressible" and counted as rejected.
+
+Alongside the ambiguity witnesses, the case set includes one plain
+compatibility probe: an ordinary named call statement, `print("hello")`,
+which every variant is expected to parse exactly once (spelled
+`print["hello"]` under `bracket-calls`, and so on).
+
 For each candidate, the report records:
 
 - whether each known witness has zero, one, or two accepting derivations;
@@ -81,7 +95,9 @@ human judgment.
 1. Add a transformation function that uses `replace_once` or another checked
    structural edit. A changed grammar anchor must fail loudly rather than silently
    producing the baseline grammar.
-2. Register it in `TRANSFORMS`.
+2. Register it in `TRANSFORMS`, and register a matching spelling update in
+   `SPELLINGS` (the identity update for transforms that do not change how the
+   known witnesses are spelled). The two tables must cover the same names.
 3. Add one or more `Variant` entries, including useful combinations and an edit
    cost.
 4. Add focused assertions to `test_syntax_experiments.py`.
