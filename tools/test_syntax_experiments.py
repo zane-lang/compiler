@@ -35,6 +35,17 @@ class SyntaxExperimentTests(unittest.TestCase):
         self.assertIn("verb_call=statement_verb_call", grammar)
         self.assertNotIn(experiments.STAT_CALL, grammar)
 
+    def test_anchored_abort_handles_leave_no_expression_slots(self) -> None:
+        grammar = experiments.anchored_abort_handles(self.source)
+        self.assertNotIn("abort_handle=ioption(abort_handle) %prec", grammar)
+        self.assertIn("handled_expr:", grammar)
+        self.assertIn(
+            "| verb_call=verb_call abort_handle=ioption(abort_handle) {", grammar
+        )
+        self.assertIn('value=handled_expr', grammar)
+        self.assertIn('"(" e=handled_expr ")"', grammar)
+        self.assertEqual(grammar.count("separated_list(COMMA, handled_expr)"), 3)
+
     def test_grouping_variants_are_mutually_distinct(self) -> None:
         bracket = experiments.bracket_grouping(self.source)
         keyword = experiments.keyword_grouping(self.source)

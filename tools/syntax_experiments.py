@@ -411,6 +411,100 @@ def computed_calls(source: str, kind: str) -> str:
     return replace_once(source, VERB_CALL, replacement, f"{kind}-computed-calls")
 
 
+OP_HANDLE_SLOTS = (
+    ("comparison_op", "EQEQ"),
+    ("additive_op", "PLUS"),
+    ("multiplicative_op", "STAR"),
+)
+
+HANDLED_EXPR = '''handled_expr:
+  | e=expr { e }
+  | e=expr abort_handle=abort_handle {
+      Nodes.Expr.WithAbortHandle { value = e; abort_handle }
+    }
+
+'''
+
+
+def anchored_abort_handles(source: str) -> str:
+    """Abort handlers may only attach at delimited boundaries: statement
+    calls, declaration values, return/resolve/abort values, call arguments,
+    and grouping parentheses — never inside an undelimited expression."""
+    name = "anchored-abort-handles"
+    for rule, prec in OP_HANDLE_SLOTS:
+        source = replace_once(
+            source,
+            f"  | left=expr op={rule} right=expr abort_handle=ioption(abort_handle) %prec {prec} {{\n"
+            "      Nodes.Expr.VerbCall (Nodes.Verb_call.Op { op; left; right; abort_handle })\n"
+            "    }\n",
+            f"  | left=expr op={rule} right=expr %prec {prec} {{\n"
+            "      Nodes.Expr.VerbCall (Nodes.Verb_call.Op { op; left; right; abort_handle = None })\n"
+            "    }\n",
+            name,
+        )
+    source = replace_once(
+        source,
+        '  | "~" value=expr abort_handle=ioption(abort_handle) %prec TILDE {\n'
+        "      Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle })\n"
+        "    }\n",
+        '  | "~" value=expr %prec TILDE {\n'
+        "      Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle = None })\n"
+        "    }\n",
+        name,
+    )
+    source = replace_once(
+        source,
+        VERB_CALL,
+        '''verb_call:
+  | receiver=app part=ioption(meth_part) "(" args=separated_list(COMMA, handled_expr) ")" {
+      match part with
+      | None -> Nodes.Verb_call.Func { callee = receiver; args; abort_handle = None }
+      | Some (is_mut, name) ->
+          Nodes.Verb_call.Meth { this = receiver; callee = name; args; abort_handle = None; is_mut }
+    }
+  | name_type=name_type "(" args=separated_list(COMMA, handled_expr) ")" {
+      Nodes.Verb_call.Constructor { name_type; args; abort_handle = None }
+    }
+''',
+        name,
+    )
+    source = replace_once(
+        source,
+        STAT_CALL,
+        '''  | verb_call=verb_call abort_handle=ioption(abort_handle) {
+      Nodes.Stat.VerbCall (Nodes.with_statement_handle verb_call abort_handle)
+    }
+''',
+        name,
+    )
+    source = replace_once(
+        source,
+        '  | name=LIDENT type_=type_expr "=" value=expr {\n',
+        '  | name=LIDENT type_=type_expr "=" value=handled_expr {\n',
+        name,
+    )
+    source = replace_once(
+        source,
+        '  | name=LIDENT constructor=name_type "(" args=separated_list(COMMA, expr) ")" {\n',
+        '  | name=LIDENT constructor=name_type "(" args=separated_list(COMMA, handled_expr) ")" {\n',
+        name,
+    )
+    for keyword in ("ABORT", "RETURN", "RESOLVE"):
+        source = replace_once(
+            source,
+            f"  | {keyword} value=expr {{\n",
+            f"  | {keyword} value=handled_expr {{\n",
+            name,
+        )
+    source = replace_once(
+        source,
+        PRIMARY_GROUP,
+        '  | "(" e=handled_expr ")" { Nodes.Expr.Parenthized e }\n',
+        name,
+    )
+    return replace_once(source, "\nexpr:\n", f"\n{HANDLED_EXPR}expr:\n", name)
+
+
 def marked_computed_calls(source: str) -> str:
     return computed_calls(source, "marked")
 
@@ -433,6 +527,7 @@ TRANSFORMS: dict[str, Transform] = {
     "dotted-calls": dotted_calls,
     "marked-computed-calls": marked_computed_calls,
     "bracket-computed-calls": bracket_computed_calls,
+    "anchored-abort-handles": anchored_abort_handles,
 }
 
 
@@ -458,6 +553,9 @@ SPELLINGS: dict[str, Callable[[Spelling], Spelling]] = {
     "dotted-calls": lambda s: replace(s, named_call=DOTTED_CALL, computed_call=DOTTED_CALL),
     "marked-computed-calls": lambda s: replace(s, computed_call=MARKED_CALL),
     "bracket-computed-calls": lambda s: replace(s, computed_call=BRACKET_CALL),
+    # The witnesses spell their abort handlers at positions that stay legal
+    # (call arguments and declaration values), so the spelling is unchanged.
+    "anchored-abort-handles": lambda s: s,
 }
 
 
@@ -582,6 +680,18 @@ VARIANTS = (
         "Combine keyword grouping with named-only call statements",
         ("keyword-grouping", "named-statement-calls"),
         2,
+    ),
+    Variant(
+        "anchored-abort-handles",
+        "Attach abort handlers only at delimited boundaries, not inside expressions",
+        ("anchored-abort-handles",),
+        2,
+    ),
+    Variant(
+        "anchored-handles-and-semicolons",
+        "Combine anchored abort handlers with statement separators",
+        ("anchored-abort-handles", "semicolon-separated"),
+        3,
     ),
 )
 

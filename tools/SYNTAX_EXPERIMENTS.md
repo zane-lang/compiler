@@ -43,7 +43,11 @@ The predefined candidates cover:
 - removing general grouping;
 - `[]`, `@()`, or `.()` for all calls;
 - ordinary calls for names with `@()` or `[]` reserved for computed callees;
-- combinations of the most promising statement, grouping, and call changes.
+- abort handlers anchored to delimited boundaries (statement calls,
+  declaration values, `return`/`resolve`/`abort` values, call arguments, and
+  grouping) instead of every expression production;
+- combinations of the most promising statement, grouping, call, and
+  abort-handler changes.
 
 The named-statement experiment still permits computed calls inside expressions.
 It only prevents a computed call such as `(x)()` from independently reducing to
