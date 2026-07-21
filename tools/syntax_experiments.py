@@ -697,8 +697,9 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--emit-dir", type=Path, help="keep generated grammars in this directory")
     result.add_argument(
         "--search-command",
-        default="dune exec tools/ambiguity_search.exe --",
-        help="command prefix used to invoke the ambiguity search",
+        default="_build/default/tools/ambiguity_search.exe",
+        help="command prefix used to invoke the ambiguity search; the default"
+        " expects a prior `dune build tools/ambiguity_search.exe`",
     )
     result.add_argument("--menhir", default="menhir", help="Menhir executable")
     result.add_argument("--max-tokens", type=int, default=12)
@@ -720,6 +721,15 @@ def parser() -> argparse.ArgumentParser:
 def validate_args(args: argparse.Namespace, cli: argparse.ArgumentParser) -> None:
     if not args.grammar.is_file():
         cli.error(f"grammar does not exist: {args.grammar}")
+    search_words = shlex.split(args.search_command)
+    if not search_words:
+        cli.error("--search-command must not be empty")
+    executable = search_words[0]
+    if not args.emit_only and os.sep in executable and not Path(executable).is_file():
+        cli.error(
+            f"search executable does not exist: {executable};"
+            " run `dune build tools/ambiguity_search.exe` first"
+        )
     if args.max_tokens < 0:
         cli.error("--max-tokens must be at least 0")
     if args.timeout < 0:

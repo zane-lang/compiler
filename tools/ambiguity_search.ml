@@ -40,20 +40,28 @@ let words text =
 
 let read_lines path =
   let channel = open_in path in
-  let rec loop result =
-    match input_line channel with
-    | line -> loop (line :: result)
-    | exception End_of_file ->
-        close_in channel;
-        List.rev result
-  in
-  loop []
+  Fun.protect ~finally:(fun () -> close_in channel) (fun () ->
+      let rec loop result =
+        match input_line channel with
+        | line -> loop (line :: result)
+        | exception End_of_file -> List.rev result
+      in
+      loop [])
 
 let read_file path =
   let channel = open_in_bin path in
   Fun.protect ~finally:(fun () -> close_in channel) (fun () ->
       let length = in_channel_length channel in
       really_input_string channel length)
+
+let split_lines source =
+  List.map
+    (fun line ->
+      let length = String.length line in
+      if length > 0 && line.[length - 1] = '\r' then
+        String.sub line 0 (length - 1)
+      else line)
+    (String.split_on_char '\n' source)
 
 let strip_comments source =
   let length = String.length source in
@@ -152,7 +160,7 @@ let parse_tokens grammar =
                 let alias = try Scanf.unescaped alias with _ -> alias in
                 Hashtbl.replace aliases token alias)
               alias))
-    (String.split_on_char '\n' source);
+    (split_lines source);
   (!terminals, aliases)
 
 let quote = Filename.quote
@@ -774,7 +782,11 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
     let outcomes =
       List.map
         (fun (pid, output) ->
-          match Unix.waitpid [] pid with
+          let rec wait () =
+            try Unix.waitpid [] pid
+            with Unix.Unix_error (Unix.EINTR, _, _) -> wait ()
+          in
+          match wait () with
           | _, Unix.WEXITED 0 ->
               let channel = open_in_bin output in
               Fun.protect ~finally:(fun () -> close_in channel) (fun () ->
