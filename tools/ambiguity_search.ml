@@ -892,23 +892,46 @@ type directed_item = {
   branched : bool;
 }
 
-(* Bounded two-generation dedup cache. Inserts and hits go to the young
-   generation; when it fills, the old generation is dropped and the
-   generations flip, so recently touched entries survive and stale ones are
-   forgotten. Deduplication is pruning, not correctness - a forgotten entry
-   costs re-exploration, never a missed witness - so a full cache degrades
-   the search instead of stopping it or exhausting memory. *)
+(* Bounded two-generation dedup cache over 124-bit frontier digests. Inserts
+   and hits go to the young generation; when it fills, the old generation is
+   dropped and the generations flip, so recently touched entries survive and
+   stale ones are forgotten. Deduplication is pruning, not correctness - a
+   forgotten entry costs re-exploration, never a missed witness - so a full
+   cache degrades the search instead of stopping it or exhausting memory. *)
 module Seen_cache = struct
+  type digest = int * int
+
+  let mix hash value =
+    let hash = hash + value in
+    let hash = (hash lxor (hash lsr 30)) * 0x3F58476D1CE4E5B9 in
+    let hash = (hash lxor (hash lsr 27)) * 0x14D049BB133111EB in
+    hash lxor (hash lsr 31)
+
+  (* Two independently seeded 62-bit lanes make colliding distinct frontiers
+     astronomically unlikely even across billions of entries. A collision
+     could only skip a frontier wrongly, never produce a false witness. *)
+  let digest branched frontier =
+    let lane seed =
+      IntMap.fold
+        (fun stack_id count hash -> mix (mix hash stack_id) count)
+        frontier
+        (mix seed (Bool.to_int branched))
+    in
+    (lane 0x2545F4914F6CDD1D, lane 0x27220A95FE4D1D65)
+
   type t = {
     generation_capacity : int;
-    mutable young : ((bool * signature), int) Hashtbl.t;
-    mutable old : ((bool * signature), int) Hashtbl.t;
+    mutable young : (digest, int) Hashtbl.t;
+    mutable old : (digest, int) Hashtbl.t;
     mutable inserted : int;
   }
 
+  (* Digest entries are an order of magnitude smaller than the queued items
+     the memory budget is sized for, so the cache can afford to remember
+     four times the budget: two generations of twice the budget each. *)
   let create capacity =
     {
-      generation_capacity = max 1 (capacity / 2);
+      generation_capacity = max 1 (2 * capacity);
       young = Hashtbl.create 4_096;
       old = Hashtbl.create 4_096;
       inserted = 0;
@@ -955,7 +978,7 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
       if derivations item.frontier >= 2 && accepted_count engine item.frontier >= 2
       then enqueue item
       else
-        let key = (item.branched, signature item.frontier) in
+        let key = Seen_cache.digest item.branched item.frontier in
         match Seen_cache.find seen key with
         | Some depth when depth <= item.depth ->
             Seen_cache.refresh seen key depth

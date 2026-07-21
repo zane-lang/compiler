@@ -27,10 +27,6 @@ ambiguities max_tokens="20" timeout="60" max_frontiers="500000" jobs="4" max_wit
 prove level="2" max_tokens="12" timeout="120" max_frontiers="2000000" jobs="4" menhir="menhir":
 	dune exec tools/ambiguity_search.exe -- {{ grammarFile }} --prove {{ level }} --menhir {{ menhir }} --max-tokens {{ max_tokens }} --timeout {{ timeout }} --max-frontiers {{ max_frontiers }} --jobs {{ jobs }}
 
-# Slower reference implementation, useful for cross-checking the OCaml search.
-ambiguities-python max_tokens="20" timeout="60" max_frontiers="500000" menhir="menhir":
-	python3 tools/find_ambiguity.py {{ grammarFile }} --menhir {{ menhir }} --max-tokens {{ max_tokens }} --timeout {{ timeout }} --max-frontiers {{ max_frontiers }}
-
 # Compare all controlled syntax variants and write Markdown/JSON reports.
 syntax-experiments max_tokens="12" timeout="15" max_frontiers="150000" max_witnesses="10" jobs="4" menhir="menhir":
 	dune build tools/ambiguity_search.exe
