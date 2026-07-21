@@ -324,6 +324,32 @@ module Stack_pool = struct
       match node.parent with
       | None -> None
       | Some parent -> pop parent (count - 1)
+
+  let size pool = Hashtbl.length pool.by_id
+
+  (* Drop every node not reachable from the root or from [iter_live]'s nodes.
+     Ids keep increasing across compactions, so a swept node re-created later
+     gets a fresh id and stale signatures in the dedup cache simply age out. *)
+  let compact pool iter_live =
+    let keep : (int, node) Hashtbl.t = Hashtbl.create 16_384 in
+    let rec mark node =
+      if not (Hashtbl.mem keep node.id) then begin
+        Hashtbl.add keep node.id node;
+        Option.iter mark node.parent
+      end
+    in
+    mark pool.root;
+    iter_live mark;
+    Hashtbl.reset pool.by_edge;
+    Hashtbl.reset pool.by_id;
+    Hashtbl.iter
+      (fun _ node ->
+        Hashtbl.add pool.by_id node.id node;
+        Option.iter
+          (fun parent ->
+            Hashtbl.add pool.by_edge (parent.id, node.state) node)
+          node.parent)
+      keep
 end
 
 type frontier = int IntMap.t
@@ -866,28 +892,77 @@ type directed_item = {
   branched : bool;
 }
 
+(* Bounded two-generation dedup cache. Inserts and hits go to the young
+   generation; when it fills, the old generation is dropped and the
+   generations flip, so recently touched entries survive and stale ones are
+   forgotten. Deduplication is pruning, not correctness - a forgotten entry
+   costs re-exploration, never a missed witness - so a full cache degrades
+   the search instead of stopping it or exhausting memory. *)
+module Seen_cache = struct
+  type t = {
+    generation_capacity : int;
+    mutable young : ((bool * signature), int) Hashtbl.t;
+    mutable old : ((bool * signature), int) Hashtbl.t;
+    mutable inserted : int;
+  }
+
+  let create capacity =
+    {
+      generation_capacity = max 1 (capacity / 2);
+      young = Hashtbl.create 4_096;
+      old = Hashtbl.create 4_096;
+      inserted = 0;
+    }
+
+  let find cache key =
+    match Hashtbl.find_opt cache.young key with
+    | Some _ as found -> found
+    | None -> Hashtbl.find_opt cache.old key
+
+  let refresh cache key depth =
+    if
+      (not (Hashtbl.mem cache.young key))
+      && Hashtbl.length cache.young >= cache.generation_capacity
+    then begin
+      cache.old <- cache.young;
+      cache.young <- Hashtbl.create 4_096
+    end;
+    Hashtbl.replace cache.young key depth
+
+  let insert cache key depth =
+    cache.inserted <- cache.inserted + 1;
+    refresh cache key depth
+end
+
 let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
     ~max_witnesses conflict_distance accept_distance =
   let deadline = Unix.gettimeofday () +. timeout in
   let buckets = Array.init (max_tokens + 1) (fun _ -> Queue.create ()) in
-  let seen_plain = Hashtbl.create 16_384 in
-  let seen_branched = Hashtbl.create 16_384 in
-  let unique_count () =
-    Hashtbl.length seen_plain + Hashtbl.length seen_branched
+  let seen = Seen_cache.create max_frontiers in
+  let queued = ref 0 in
+  let dropped = ref false in
+  let enqueue item =
+    incr queued;
+    Queue.add item buckets.(item.depth)
   in
+  (* max_frontiers is a memory budget: it caps both the dedup cache and the
+     number of queued items. A full queue drops new discoveries (recorded so
+     the result is reported as incomplete) instead of growing without bound;
+     a dropped frontier can still be rediscovered once the queue drains,
+     because only enqueued frontiers enter the dedup cache. *)
   let add item =
     if item.depth <= max_tokens then
       if derivations item.frontier >= 2 && accepted_count engine item.frontier >= 2
-      then Queue.add item buckets.(item.depth)
+      then enqueue item
       else
-        let seen = if item.branched then seen_branched else seen_plain in
-        let key = signature item.frontier in
-        match Hashtbl.find_opt seen key with
-        | Some depth when depth <= item.depth -> ()
-        | _ when unique_count () < max_frontiers ->
-            Hashtbl.replace seen key item.depth;
-            Queue.add item buckets.(item.depth)
-        | _ -> ()
+        let key = (item.branched, signature item.frontier) in
+        match Seen_cache.find seen key with
+        | Some depth when depth <= item.depth ->
+            Seen_cache.refresh seen key depth
+        | _ when !queued < max_frontiers ->
+            Seen_cache.insert seen key item.depth;
+            enqueue item
+        | _ -> dropped := true
   in
   List.iter add initial;
   let explored = ref 0 in
@@ -896,16 +971,40 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
   let witnesses = Hashtbl.create max_witnesses in
   let stopped = ref None in
   let depth = ref 0 in
+  (* The stack pool and closure cache also grow with the search; sweep them
+     against the live queue on a geometric schedule so total memory stays
+     proportional to max_frontiers plus the queue itself. *)
+  let stack_budget = max 65_536 (4 * max_frontiers) in
+  let compact_floor = ref stack_budget in
+  let mark_live mark =
+    Array.iter
+      (fun bucket ->
+        Queue.iter
+          (fun item ->
+            IntMap.iter
+              (fun stack_id _ ->
+                mark (Stack_pool.find engine.stacks stack_id))
+              item.frontier)
+          bucket)
+      buckets
+  in
+  let maybe_compact () =
+    if Stack_pool.size engine.stacks > !compact_floor then begin
+      Stack_pool.compact engine.stacks mark_live;
+      Hashtbl.reset engine.closure_cache;
+      compact_floor := max stack_budget (2 * Stack_pool.size engine.stacks)
+    end
+  in
   while
     Hashtbl.length witnesses < max_witnesses
     && !depth <= max_tokens
-    && !explored < max_frontiers
-    && unique_count () < max_frontiers
     && Unix.gettimeofday () < deadline
   do
     if Queue.is_empty buckets.(!depth) then incr depth
     else begin
+      maybe_compact ();
       let item = Queue.take buckets.(!depth) in
+      decr queued;
       incr explored;
       deepest := max !deepest item.depth;
       if accepted_count engine item.frontier >= 2 then begin
@@ -938,19 +1037,19 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
           (possible_tokens engine item.frontier)
     end
   done;
-  if !explored >= max_frontiers || unique_count () >= max_frontiers then
-      stopped := Some "the frontier limit was reached"
-    else if Unix.gettimeofday () >= deadline then
-      stopped := Some "the timeout was reached"
-    else if Hashtbl.length witnesses >= max_witnesses then
-      stopped := Some "the witness limit was reached";
+  if Unix.gettimeofday () >= deadline then
+    stopped := Some "the timeout was reached"
+  else if Hashtbl.length witnesses >= max_witnesses then
+    stopped := Some "the witness limit was reached"
+  else if !dropped then
+    stopped := Some "the memory budget dropped part of the search space";
   ( {
       witnesses =
         Hashtbl.fold
           (fun profile tokens result -> (profile, tokens) :: result)
           witnesses [];
       explored = !explored;
-      unique = unique_count ();
+      unique = seen.Seen_cache.inserted;
       deepest = !deepest;
       stopped = !stopped;
     },
@@ -1109,7 +1208,10 @@ let options =
   [
     ("--menhir", Arg.Set_string menhir, "PATH Menhir executable");
     ("--max-tokens", Arg.Set_int max_tokens, "N maximum tokens, including EOF");
-    ("--max-frontiers", Arg.Set_int max_frontiers, "N search-state limit per worker");
+    ( "--max-frontiers",
+      Arg.Set_int max_frontiers,
+      "N dedup-cache entries per worker; bounds memory, not the search \
+       (and the abstract pair count under --prove)" );
     ("--timeout", Arg.Set_float timeout, "SECONDS time limit per search phase");
     ("--jobs", Arg.Set_int jobs, "N worker processes");
     ("--max-witnesses", Arg.Set_int max_witnesses, "N ambiguity families to report");
