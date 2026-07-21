@@ -334,7 +334,7 @@ let add_count stack_id count frontier =
   let updated = cap_add old count in
   (IntMap.add stack_id updated frontier, updated - old)
 
-let signature frontier = IntMap.bindings frontier
+let signature frontier : signature = IntMap.bindings frontier
 
 let derivations frontier =
   IntMap.fold (fun _ count total -> cap_add total count) frontier 0
@@ -1030,6 +1030,9 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
       },
       prefix_seeds + seeds )
   else begin
+    (* Anything still buffered would be replayed by every child's exit. *)
+    flush stdout;
+    flush stderr;
     let children = ref [] in
     Array.iteri
       (fun index initial ->
