@@ -9,7 +9,7 @@ module ConflictSet = Set.Make (struct
   let compare = compare
 end)
 
-type reduction = { lhs : string; width : int }
+type reduction = { lhs : string; width : int; prod : int }
 
 type state = {
   transitions : (string, int) Hashtbl.t;
@@ -206,6 +206,15 @@ let parse_automaton path terminals aliases =
   let table = Hashtbl.create 1024 in
   let current = ref None in
   let lookaheads = ref [] in
+  let productions = Hashtbl.create 512 in
+  let intern_production text =
+    match Hashtbl.find_opt productions text with
+    | Some id -> id
+    | None ->
+        let id = Hashtbl.length productions in
+        Hashtbl.add productions text id;
+        id
+  in
   let get_state number =
     match Hashtbl.find_opt table number with
     | Some state -> state
@@ -236,7 +245,13 @@ let parse_automaton path terminals aliases =
             else if Str.string_match reduction_re line 0 then begin
               let lhs = String.trim (Str.matched_group 1 line) in
               let rhs = String.trim (Str.matched_group 2 line) in
-              let reduction = { lhs; width = List.length (words rhs) } in
+              let reduction =
+                {
+                  lhs;
+                  width = List.length (words rhs);
+                  prod = intern_production (lhs ^ " -> " ^ rhs);
+                }
+              in
               List.iter
                 (fun token ->
                   let previous =
@@ -513,6 +528,256 @@ let frontier_lower_bound engine distances frontier =
       let stack = Stack_pool.find engine.stacks stack_id in
       min best distances.(stack.state))
     frontier (max_int / 4)
+
+(* ----- Conservative unambiguity prover -----
+
+   Abstract every GLR stack to its top-K states; a suffix shorter than K means
+   the states below are unknown, which over-approximates every continuation,
+   including the true stack bottom. Reductions that pop into the unknown part
+   re-enter through every goto edge on the reduced nonterminal. The abstract
+   configuration space is finite, so a pair search over runs that consume the
+   same input terminates. Every concrete ambiguous sentence projects onto an
+   abstract pair of runs that diverge in their actions and both accept, so if
+   no such abstract pair exists, the grammar is unambiguous. The converse does
+   not hold: an abstract diverging pair may be spurious, which is why a found
+   candidate only downgrades the verdict to "not proven". *)
+
+let rec drop_states count list =
+  if count = 0 then list
+  else match list with [] -> [] | _ :: tail -> drop_states (count - 1) tail
+
+let truncate_suffix limit list =
+  let rec take count = function
+    | [] -> []
+    | _ when count = 0 -> []
+    | head :: tail -> head :: take (count - 1) tail
+  in
+  take limit list
+
+let goto_edges automaton =
+  let table = Hashtbl.create 256 in
+  Array.iteri
+    (fun source state ->
+      Hashtbl.iter
+        (fun symbol target ->
+          if not (StringSet.mem symbol automaton.terminals) then
+            Hashtbl.replace table symbol
+              ((source, target)
+              :: Option.value (Hashtbl.find_opt table symbol) ~default:[]))
+        state.transitions)
+    automaton.states;
+  table
+
+(* One micro-step of a single run while consuming a token: apply one
+   reduction, or terminate the chain by shifting the token (accepting, when
+   the token is "#"). *)
+type side_move =
+  | Reduce of int * int list (* production id, suffix afterwards *)
+  | Terminate of int list (* suffix after the shift, or at acceptance *)
+
+let side_moves automaton gotos limit cache suffix token =
+  match Hashtbl.find_opt cache (suffix, token) with
+  | Some moves -> moves
+  | None ->
+      let moves = ref [] in
+      (match suffix with
+      | [] -> ()
+      | top :: _ ->
+          let state = automaton.states.(top) in
+          if token = "#" then begin
+            if StringSet.mem "#" state.accepts then
+              moves := Terminate suffix :: !moves
+          end
+          else
+            Option.iter
+              (fun target ->
+                moves :=
+                  Terminate (truncate_suffix limit (target :: suffix)) :: !moves)
+              (Hashtbl.find_opt state.transitions token);
+          List.iter
+            (fun reduction ->
+              if reduction.width < List.length suffix then
+                match drop_states reduction.width suffix with
+                | [] -> assert false
+                | base :: _ as remaining ->
+                    Option.iter
+                      (fun target ->
+                        moves :=
+                          Reduce
+                            ( reduction.prod,
+                              truncate_suffix limit (target :: remaining) )
+                          :: !moves)
+                      (Hashtbl.find_opt
+                         automaton.states.(base).transitions reduction.lhs)
+              else
+                (* The reduction pops into the unknown part of the stack; the
+                   goto source is the state left on top afterwards. *)
+                List.iter
+                  (fun (source, target) ->
+                    moves :=
+                      Reduce
+                        (reduction.prod, truncate_suffix limit [ target; source ])
+                      :: !moves)
+                  (Option.value
+                     (Hashtbl.find_opt gotos reduction.lhs)
+                     ~default:[]))
+            (reductions state token));
+      Hashtbl.add cache (suffix, token) !moves;
+      !moves
+
+type chain_status = Running of int list | Finished of int list
+
+(* All (left result, right result, diverged) ways for both runs to consume
+   [token]. The two reduction chains advance in lockstep: aligned identical
+   productions carry no divergence, so a reduction cycle both runs share
+   cancels out instead of poisoning the verdict, while any position where the
+   chains first differ - two different productions, or one run reducing while
+   the other shifts - is exactly where two distinct parses of one sentence
+   must part ways, and marks the pair diverged. Goto and shift-target
+   differences alone are abstraction artifacts, never a first divergence, so
+   they are deliberately not compared. *)
+let joint_outcomes moves (start_left, start_right) token =
+  let seen = Hashtbl.create 64 in
+  let results = Hashtbl.create 16 in
+  let queue = Queue.create () in
+  let push node =
+    if not (Hashtbl.mem seen node) then begin
+      Hashtbl.add seen node ();
+      Queue.add node queue
+    end
+  in
+  push (Running start_left, Running start_right, false);
+  while not (Queue.is_empty queue) do
+    let (left, right, diverged) = Queue.take queue in
+    match (left, right) with
+    | Finished result_left, Finished result_right ->
+        Hashtbl.replace results (result_left, result_right, diverged) ()
+    | Running suffix_left, Running suffix_right ->
+        let paired move_left move_right =
+          match (move_left, move_right) with
+          | Reduce (p, l), Reduce (q, r) ->
+              Some (Running l, Running r, diverged || p <> q)
+          | Reduce (_, l), Terminate r -> Some (Running l, Finished r, true)
+          | Terminate l, Reduce (_, r) -> Some (Finished l, Running r, true)
+          | Terminate l, Terminate r -> Some (Finished l, Finished r, diverged)
+        in
+        if (not diverged) && suffix_left = suffix_right then
+          (* The two runs are still the same run: same stack, so an
+             unknown-base goto resolves identically on both sides. Identical
+             moves pair diagonally; distinct moves pair only where two real
+             parses can first part ways - different productions, or reducing
+             against shifting. Same-production pairs with different gotos are
+             different possible worlds, never two parses of one sentence. *)
+          let all = moves suffix_left token in
+          List.iter
+            (fun move_left ->
+              List.iter
+                (fun move_right ->
+                  let compatible =
+                    match (move_left, move_right) with
+                    | Reduce (p, _), Reduce (q, _) -> p <> q
+                    | Reduce _, Terminate _ | Terminate _, Reduce _ -> true
+                    | Terminate _, Terminate _ -> false
+                  in
+                  if move_left == move_right || compatible then
+                    Option.iter push (paired move_left move_right))
+                all)
+            all
+        else
+          List.iter
+            (fun move_left ->
+              List.iter
+                (fun move_right ->
+                  Option.iter push (paired move_left move_right))
+                (moves suffix_right token))
+            (moves suffix_left token)
+    | Running suffix_left, Finished _ ->
+        List.iter
+          (fun move ->
+            match move with
+            | Reduce (_, l) -> push (Running l, right, diverged)
+            | Terminate l -> push (Finished l, right, diverged))
+          (moves suffix_left token)
+    | Finished _, Running suffix_right ->
+        List.iter
+          (fun move ->
+            match move with
+            | Reduce (_, r) -> push (left, Running r, diverged)
+            | Terminate r -> push (left, Finished r, diverged))
+          (moves suffix_right token)
+  done;
+  Hashtbl.fold (fun key () list -> key :: list) results []
+
+type prove_result =
+  | Proven of int
+  | Abstract_candidate of string list * int
+  | Pair_overflow of int
+
+let prove engine limit pair_limit =
+  let automaton = engine.automaton in
+  let gotos = goto_edges automaton in
+  let moves_cache = Hashtbl.create 100_003 in
+  let moves = side_moves automaton gotos limit moves_cache in
+  let joint_cache = Hashtbl.create 100_003 in
+  let joint pair token =
+    match Hashtbl.find_opt joint_cache (pair, token) with
+    | Some outcomes -> outcomes
+    | None ->
+        let outcomes = joint_outcomes moves pair token in
+        Hashtbl.add joint_cache (pair, token) outcomes;
+        outcomes
+  in
+  let parents :
+      ( int list * int list * bool,
+        (string * (int list * int list * bool)) option )
+      Hashtbl.t =
+    Hashtbl.create 100_003
+  in
+  let queue = Queue.create () in
+  let overflow = ref false in
+  let candidate = ref None in
+  let canonical (left, right, diverged) =
+    if compare left right <= 0 then (left, right, diverged)
+    else (right, left, diverged)
+  in
+  let push origin node =
+    let node = canonical node in
+    if not (Hashtbl.mem parents node) then
+      if Hashtbl.length parents >= pair_limit then overflow := true
+      else begin
+        Hashtbl.add parents node origin;
+        Queue.add node queue
+      end
+  in
+  let rec trail node =
+    match Hashtbl.find parents node with
+    | None -> []
+    | Some (token, parent) -> token :: trail parent
+  in
+  let terminals = StringSet.elements automaton.terminals in
+  push None ([ 0 ], [ 0 ], false);
+  while (not (Queue.is_empty queue)) && !candidate = None && not !overflow do
+    let (left, right, diverged) as node = Queue.take queue in
+    List.iter
+      (fun (_, _, chain_diverged) ->
+        if (diverged || chain_diverged) && !candidate = None then
+          candidate := Some (List.rev (trail node)))
+      (joint (left, right) "#");
+    if !candidate = None then
+      List.iter
+        (fun token ->
+          List.iter
+            (fun (next_left, next_right, chain_diverged) ->
+              push
+                (Some (token, node))
+                (next_left, next_right, diverged || chain_diverged))
+            (joint (left, right) token))
+        terminals
+  done;
+  let explored = Hashtbl.length parents in
+  match !candidate with
+  | Some tokens -> Abstract_candidate (tokens, explored)
+  | None -> if !overflow then Pair_overflow explored else Proven explored
 
 type outcome = {
   witnesses : ((int * string) list * string list) list;
@@ -833,6 +1098,7 @@ let timeout = ref 60.
 let jobs = ref 1
 let max_witnesses = ref 20
 let check_tokens = ref []
+let prove_level = ref 0
 
 let options =
   [
@@ -845,6 +1111,11 @@ let options =
     ( "--check-tokens",
       Arg.String (fun value -> check_tokens := words value),
       "TOKENS check one space-separated token sequence" );
+    ( "--prove",
+      Arg.Set_int prove_level,
+      "K attempt an unambiguity proof with a top-K stack abstraction; \
+       exit 0 proven unambiguous, 1 ambiguous, 3 not proven \
+       (--max-frontiers also bounds the abstract pair count)" );
   ]
 
 let main () =
@@ -884,6 +1155,30 @@ let main () =
         Printf.printf "Accepting derivations: %d\n" count;
         exit (if count >= 2 then 1 else 0)
       end;
+      if !prove_level > 0 then begin
+        match prove engine !prove_level !max_frontiers with
+        | Proven pairs ->
+            Printf.printf
+              "PROVEN UNAMBIGUOUS: no diverging pair of accepting parses \
+               exists in the top-%d stack abstraction (%d abstract pairs \
+               explored).\n"
+              !prove_level pairs;
+            exit 0
+        | Pair_overflow pairs ->
+            Printf.printf
+              "NOT PROVEN: the abstract pair limit (%d) was reached at \
+               abstraction level %d. Raise --max-frontiers or lower --prove.\n"
+              pairs !prove_level;
+            exit 3
+        | Abstract_candidate (tokens, pairs) ->
+            Printf.printf
+              "Abstract ambiguity candidate at level %d after %d pairs \
+               (possibly spurious): %s\n"
+              !prove_level pairs
+              (String.concat " " tokens);
+            Printf.printf
+              "Attempting to concretize with the bounded search...\n\n"
+      end;
       let conflicts = conflict_states automaton in
       let conflict_distance = reverse_distances automaton conflicts in
       let accept_targets =
@@ -909,6 +1204,14 @@ let main () =
               Printf.printf
                 "Search stopped at depth %d because %s; no complete ambiguity was found in %d explored frontiers (%d unique).\n"
                 outcome.deepest reason outcome.explored outcome.unique);
+          if !prove_level > 0 then begin
+            Printf.printf
+              "NOT PROVEN: the abstract candidate could not be concretized \
+               within the search bounds; the grammar is neither proven \
+               unambiguous nor shown ambiguous. Raising --prove may remove \
+               the spurious candidate.\n";
+            exit 3
+          end;
           Printf.printf "This is a bounded result, not a proof of unambiguity.\n";
           exit 0
       | witnesses ->
