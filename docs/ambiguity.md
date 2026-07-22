@@ -45,9 +45,16 @@ the state is triaged into one of these categories.
   `AMBIGUITY_MAX_FRONTIER_RATIO` is the number of digest-cache entries per
   queued frontier: raising it trades queue reach for stronger deduplication,
   while lowering it does the opposite. The estimate is based on
-  `queue * (600 + 24 * max_tokens) + cache * 240` bytes per worker. The search
-  itself is bounded by `--max-tokens` and `--timeout`, and a run whose queue
-  filled and had to drop part of the space reports itself as interrupted.
+  `queue * (600 + 24 * max_tokens) + cache * 240` bytes per worker. The cache
+  limit covers both of its generations; it is not multiplied behind the
+  scenes. Workers also monitor their actual OCaml heap: they compact at 80% of
+  their share, first release the older (purely optional) dedup generation,
+  stop admitting new frontiers at 90%, and resume below 75%. The remaining 10%
+  covers the coordinator, native allocations, and transient compaction/
+  copy-on-write overhead. This keeps memory near the configured plateau while
+  prioritizing queue reach even when real frontiers are larger than the
+  estimate. The search itself is bounded by `--max-tokens` and `--timeout`, and
+  a run that had to drop part of the space reports itself as interrupted.
   Witnesses are grouped by the conflict states they
   traverse, which maps each finding directly onto an obligation above.
 - `ambiguities --prove K` — conservative unambiguity proof mode built into the

@@ -36,7 +36,7 @@ compiler
 ambiguities --max-tokens 100 --timeout 3600 --max-witnesses 50
 ambiguities --prove 3 --max-tokens 16 --timeout 120 --max-witnesses 20
 syntax-experiments --max-tokens 12 --timeout 15 --max-witnesses 10
-syntax-experiments --variant semicolon-separated
+syntax-experiments --variant semicolon-separated --max-tokens 12 --timeout 15 --max-witnesses 10
 grammar-stats
 grammar-conflicts
 ```
