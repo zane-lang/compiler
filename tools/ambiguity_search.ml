@@ -966,8 +966,8 @@ module Seen_cache = struct
 end
 
 let managed_heap_bytes () =
-  float_of_int (Gc.quick_stat ()).heap_words
-  *. float_of_int (Sys.word_size / 8)
+  let stats = Gc.quick_stat () in
+  float_of_int stats.heap_words *. float_of_int (Sys.word_size / 8)
 
 let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
     ~max_queue ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
@@ -1047,9 +1047,10 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
      the hard limit, pause admission and drain queued work until compaction
      brings the heap below the resume watermark.  This hysteresis keeps memory
      near a plateau instead of repeatedly overshooting the budget. *)
-  (* soft and hard are 80% and 90% of the worker share respectively, so this
-     is 75% of that share without passing a third threshold around. *)
-  let resume_heap_bytes = 0.9375 *. soft_heap_bytes in
+  (* soft and hard are 80% and 90% of the worker share respectively. Resume at
+     85% so pressure mode holds a narrow 85--90% plateau instead of producing
+     a large sawtooth while the queue drains and refills. *)
+  let resume_heap_bytes = 1.0625 *. soft_heap_bytes in
   let next_heap_check = ref soft_heap_bytes in
   let manage_memory () =
     let before = managed_heap_bytes () in

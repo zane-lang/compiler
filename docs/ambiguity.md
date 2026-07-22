@@ -49,7 +49,7 @@ the state is triaged into one of these categories.
   limit covers both of its generations; it is not multiplied behind the
   scenes. Workers also monitor their actual OCaml heap: they compact at 80% of
   their share, first release the older (purely optional) dedup generation,
-  stop admitting new frontiers at 90%, and resume below 75%. The remaining 10%
+  stop admitting new frontiers at 90%, and resume below 85%. The remaining 10%
   covers the coordinator, native allocations, and transient compaction/
   copy-on-write overhead. This keeps memory near the configured plateau while
   prioritizing queue reach even when real frontiers are larger than the
