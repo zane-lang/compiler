@@ -9,8 +9,4 @@ dune build --root "$ROOT" tools/ambiguity_search.exe
 exec python3 "$ROOT/tools/syntax_experiments.py" \
 	"$ROOT/lib/cst/parser.mly" \
 	--search-command "$ROOT/_build/default/tools/ambiguity_search.exe" \
-	--menhir "$AMBIGUITY_MENHIR" \
-	--memory-mb "$AMBIGUITY_MEMORY_MB" \
-	--max-frontier-ratio "$AMBIGUITY_MAX_FRONTIER_RATIO" \
-	--jobs "$AMBIGUITY_JOBS" \
 	"$@"

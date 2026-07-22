@@ -1225,13 +1225,32 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
       prefix_seeds + seeds )
   end
 
+let environment name default =
+  Option.value (Sys.getenv_opt name) ~default
+
+let environment_int name default =
+  match Sys.getenv_opt name with
+  | None -> default
+  | Some value ->
+      (match int_of_string_opt value with
+      | Some parsed -> parsed
+      | None -> invalid_arg (name ^ " must be an integer"))
+
+let environment_float name default =
+  match Sys.getenv_opt name with
+  | None -> default
+  | Some value ->
+      (try float_of_string value
+       with Failure _ -> invalid_arg (name ^ " must be a number"))
+
 let grammar = ref ""
-let menhir = ref "menhir"
+let menhir = environment "AMBIGUITY_MENHIR" "menhir"
 let max_tokens = ref 20
-let memory_mb = ref 512
-let max_frontier_ratio = ref 1.
+let memory_mb = environment_int "AMBIGUITY_MEMORY_MB" 512
+let max_frontier_ratio =
+  environment_float "AMBIGUITY_MAX_FRONTIER_RATIO" 1.
 let timeout = ref 60.
-let jobs = ref 1
+let jobs = environment_int "AMBIGUITY_JOBS" 1
 let max_witnesses = ref 20
 let check_tokens = ref []
 let prove_level = ref 0
@@ -1252,29 +1271,21 @@ let derive_memory_limits ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens =
   let max_queue_float = floor (per_worker_bytes /. combined_entry_bytes) in
   if max_queue_float < 1. || max_queue_float > float_of_int max_int then
     invalid_arg
-      "--memory-mb is too small or too large for the requested worker count";
+      "AMBIGUITY_MEMORY_MB is too small or too large for AMBIGUITY_JOBS";
   let max_queue = int_of_float max_queue_float in
   let max_frontiers_float =
     floor (float_of_int max_queue *. max_frontier_ratio)
   in
   if max_frontiers_float > float_of_int max_int then
-    invalid_arg "--memory-mb or --max-frontier-ratio is too large";
+    invalid_arg
+      "AMBIGUITY_MEMORY_MB or AMBIGUITY_MAX_FRONTIER_RATIO is too large";
   let max_frontiers = max 1 (int_of_float max_frontiers_float) in
   (max_queue, max_frontiers)
 
 let options =
   [
-    ("--menhir", Arg.Set_string menhir, "PATH Menhir executable");
     ("--max-tokens", Arg.Set_int max_tokens, "N maximum tokens, including EOF");
-    ( "--memory-mb",
-      Arg.Set_int memory_mb,
-      "N approximate total memory budget in MiB across all workers" );
-    ( "--max-frontier-ratio",
-      Arg.Set_float max_frontier_ratio,
-      "R dedup-cache entries per queued frontier; higher values trade search \
-       reach for more deduplication (default 1.0)" );
     ("--timeout", Arg.Set_float timeout, "SECONDS time limit per search phase");
-    ("--jobs", Arg.Set_int jobs, "N worker processes");
     ("--max-witnesses", Arg.Set_int max_witnesses, "N ambiguity families to report");
     ( "--check-tokens",
       Arg.String (fun value -> check_tokens := words value),
@@ -1294,23 +1305,25 @@ let main () =
     exit 2
   end;
   if !max_tokens < 0 then invalid_arg "--max-tokens must be at least 0";
-  if !memory_mb < 1 then invalid_arg "--memory-mb must be at least 1";
+  if memory_mb < 1 then invalid_arg "AMBIGUITY_MEMORY_MB must be at least 1";
   if
-    Float.is_nan !max_frontier_ratio
-    || Float.is_infinite !max_frontier_ratio
-    || !max_frontier_ratio <= 0.
-  then invalid_arg "--max-frontier-ratio must be finite and greater than 0";
+    Float.is_nan max_frontier_ratio
+    || Float.is_infinite max_frontier_ratio
+    || max_frontier_ratio <= 0.
+  then
+    invalid_arg
+      "AMBIGUITY_MAX_FRONTIER_RATIO must be finite and greater than 0";
   if !timeout < 0. then invalid_arg "--timeout must be non-negative";
-  if !jobs < 1 then invalid_arg "--jobs must be at least 1";
+  if jobs < 1 then invalid_arg "AMBIGUITY_JOBS must be at least 1";
   if !max_witnesses < 1 then invalid_arg "--max-witnesses must be at least 1";
   let max_queue, max_frontiers =
-    derive_memory_limits ~memory_mb:!memory_mb
-      ~max_frontier_ratio:!max_frontier_ratio ~jobs:!jobs
+    derive_memory_limits ~memory_mb
+      ~max_frontier_ratio ~jobs
       ~max_tokens:!max_tokens
   in
   Printf.printf
     "Memory budget: %d MiB total across %d worker(s); per-worker limits are %d queued frontiers and %d dedup frontiers (ratio %g).\n"
-    !memory_mb !jobs max_queue max_frontiers !max_frontier_ratio;
+    memory_mb jobs max_queue max_frontiers max_frontier_ratio;
   let grammar_path = Unix.realpath !grammar in
   let temporary = temporary_directory () in
   Fun.protect
@@ -1318,7 +1331,7 @@ let main () =
     (fun () ->
       let terminals, aliases = parse_tokens grammar_path in
       let automaton_path =
-        prepare_automaton ~menhir:!menhir ~grammar:grammar_path
+        prepare_automaton ~menhir ~grammar:grammar_path
           ~directory:temporary
       in
       let automaton = parse_automaton automaton_path terminals aliases in
@@ -1348,8 +1361,8 @@ let main () =
         | Pair_overflow pairs ->
             Printf.printf
               "NOT PROVEN: the abstract pair limit (%d) was reached at \
-               abstraction level %d. Raise --memory-mb or \
-               --max-frontier-ratio, or lower --prove.\n"
+               abstraction level %d. Raise AMBIGUITY_MEMORY_MB or \
+               AMBIGUITY_MAX_FRONTIER_RATIO, or lower --prove.\n"
               pairs !prove_level;
             exit 3
         | Abstract_candidate (tokens, pairs) ->
@@ -1370,7 +1383,7 @@ let main () =
       in
       let accept_distance = reverse_distances automaton accept_targets in
       let outcome, conflict_seeds =
-        parallel_unified_search engine ~jobs:!jobs ~max_tokens:!max_tokens
+        parallel_unified_search engine ~jobs ~max_tokens:!max_tokens
           ~timeout:!timeout ~max_frontiers ~max_queue
           ~max_witnesses:!max_witnesses conflict_distance
           accept_distance temporary

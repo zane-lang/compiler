@@ -720,14 +720,16 @@ def apply_variant(source: str, variant: Variant) -> str:
     return header + result
 
 
-def run_process(command: list[str]) -> tuple[int, str, str, float]:
+def run_process(
+    command: list[str], env: dict[str, str] | None = None
+) -> tuple[int, str, str, float]:
     started = time.monotonic()
-    completed = subprocess.run(command, text=True, capture_output=True)
+    completed = subprocess.run(command, text=True, capture_output=True, env=env)
     return completed.returncode, completed.stdout, completed.stderr, time.monotonic() - started
 
 
 def base_command(args: argparse.Namespace, grammar: Path) -> list[str]:
-    return [*shlex.split(args.search_command), str(grammar), "--menhir", args.menhir]
+    return [*shlex.split(args.search_command), str(grammar)]
 
 
 def check_case(args: argparse.Namespace, grammar: Path, case: KnownCase, variant: Variant) -> CaseResult:
@@ -745,24 +747,27 @@ def check_case(args: argparse.Namespace, grammar: Path, case: KnownCase, variant
 
 def search_variant(args: argparse.Namespace, grammar: Path) -> SearchResult:
     # Several variants may run concurrently. Give each search an equal share
-    # so --memory-mb remains a total budget for the whole experiment command.
+    # so AMBIGUITY_MEMORY_MB remains a total budget for the whole command.
     search_memory_mb = args.memory_mb // args.concurrent_searches
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "AMBIGUITY_MEMORY_MB": str(search_memory_mb),
+            "AMBIGUITY_MAX_FRONTIER_RATIO": str(args.max_frontier_ratio),
+            "AMBIGUITY_JOBS": str(args.search_jobs),
+            "AMBIGUITY_MENHIR": args.menhir,
+        }
+    )
     command = [
         *base_command(args, grammar),
         "--max-tokens",
         str(args.max_tokens),
         "--timeout",
         str(args.timeout),
-        "--memory-mb",
-        str(search_memory_mb),
-        "--max-frontier-ratio",
-        str(args.max_frontier_ratio),
-        "--jobs",
-        str(args.search_jobs),
         "--max-witnesses",
         str(args.max_witnesses),
     ]
-    code, stdout, stderr, seconds = run_process(command)
+    code, stdout, stderr, seconds = run_process(command, env=environment)
     if code not in {0, 1}:
         message = (stderr or stdout or f"search exited with status {code}").strip()
         return SearchResult(None, None, None, None, None, None, [], seconds, message)
@@ -968,14 +973,9 @@ def parser() -> argparse.ArgumentParser:
         help="command prefix used to invoke the ambiguity search; the default"
         " expects a prior `dune build tools/ambiguity_search.exe`",
     )
-    result.add_argument("--menhir", default="menhir", help="Menhir executable")
     result.add_argument("--max-tokens", type=int, default=12)
     result.add_argument("--timeout", type=float, default=15.0)
-    result.add_argument("--memory-mb", type=int, default=512)
-    result.add_argument("--max-frontier-ratio", type=float, default=1.0)
     result.add_argument("--max-witnesses", type=int, default=10)
-    result.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
-    result.add_argument("--search-jobs", type=int, default=1)
     result.add_argument("--skip-known", action="store_true")
     result.add_argument(
         "--output",
@@ -984,6 +984,23 @@ def parser() -> argparse.ArgumentParser:
         help="report path without extension",
     )
     return result
+
+
+def load_machine_config(args: argparse.Namespace, cli: argparse.ArgumentParser) -> None:
+    args.menhir = os.environ.get("AMBIGUITY_MENHIR", "menhir")
+    try:
+        args.memory_mb = int(os.environ.get("AMBIGUITY_MEMORY_MB", "512"))
+        args.max_frontier_ratio = float(
+            os.environ.get("AMBIGUITY_MAX_FRONTIER_RATIO", "1.0")
+        )
+        args.jobs = int(
+            os.environ.get("AMBIGUITY_JOBS", str(min(4, os.cpu_count() or 1)))
+        )
+    except ValueError:
+        cli.error(
+            "invalid AMBIGUITY_MEMORY_MB, AMBIGUITY_MAX_FRONTIER_RATIO, "
+            "or AMBIGUITY_JOBS"
+        )
 
 
 def validate_args(args: argparse.Namespace, cli: argparse.ArgumentParser) -> None:
@@ -1003,11 +1020,11 @@ def validate_args(args: argparse.Namespace, cli: argparse.ArgumentParser) -> Non
     if args.timeout < 0:
         cli.error("--timeout must be non-negative")
     if args.memory_mb < 1 or args.max_witnesses < 1:
-        cli.error("memory and witness limits must be at least 1")
+        cli.error("AMBIGUITY_MEMORY_MB and the witness limit must be at least 1")
     if not math.isfinite(args.max_frontier_ratio) or args.max_frontier_ratio <= 0:
-        cli.error("--max-frontier-ratio must be finite and greater than 0")
-    if args.jobs < 1 or args.search_jobs < 1:
-        cli.error("worker counts must be at least 1")
+        cli.error("AMBIGUITY_MAX_FRONTIER_RATIO must be finite and greater than 0")
+    if args.jobs < 1:
+        cli.error("AMBIGUITY_JOBS must be at least 1")
 
 
 def main() -> int:
@@ -1019,14 +1036,18 @@ def main() -> int:
             print(f"{variant.name:52} cost={variant.edit_cost}  {transforms}")
             print(f"  {variant.description}")
         return 0
+    load_machine_config(args, cli)
     validate_args(args, cli)
     try:
         variants = select_variants(args.variant)
     except ValueError as error:
         cli.error(str(error))
     args.concurrent_searches = min(args.jobs, len(variants))
+    args.search_jobs = max(1, args.jobs // args.concurrent_searches)
     if args.memory_mb < args.concurrent_searches:
-        cli.error("--memory-mb must provide at least 1 MiB per concurrent search")
+        cli.error(
+            "AMBIGUITY_MEMORY_MB must provide at least 1 MiB per concurrent search"
+        )
 
     source = args.grammar.read_text(encoding="utf-8")
     temporary: tempfile.TemporaryDirectory[str] | None = None
