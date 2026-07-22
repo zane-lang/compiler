@@ -1,14 +1,19 @@
-# Shared defaults for the ambiguity-tool executables.
-AMBIGUITY_MEMORY_MB="${AMBIGUITY_MEMORY_MB:-512}"
-AMBIGUITY_MAX_FRONTIER_RATIO="${AMBIGUITY_MAX_FRONTIER_RATIO:-1.0}"
-AMBIGUITY_JOBS="${AMBIGUITY_JOBS:-4}"
-AMBIGUITY_MENHIR="${AMBIGUITY_MENHIR:-menhir}"
-
 if [[ -f "$ROOT/machine-config.txt" ]]; then
 	# machine-config.txt uses shell-compatible KEY=VALUE assignments.
 	# shellcheck source=/dev/null
 	. "$ROOT/machine-config.txt"
 fi
+
+for name in \
+	AMBIGUITY_MEMORY_MB \
+	AMBIGUITY_MAX_FRONTIER_RATIO \
+	AMBIGUITY_JOBS \
+	AMBIGUITY_MENHIR; do
+	if [[ -z "${!name:-}" ]]; then
+		echo "ambiguities: $name must be set in machine-config.txt or the environment" >&2
+		exit 2
+	fi
+done
 
 export AMBIGUITY_MEMORY_MB
 export AMBIGUITY_MAX_FRONTIER_RATIO

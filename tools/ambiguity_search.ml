@@ -1225,33 +1225,30 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
       prefix_seeds + seeds )
   end
 
-let environment name default =
-  Option.value (Sys.getenv_opt name) ~default
-
-let environment_int name default =
+let environment name =
   match Sys.getenv_opt name with
-  | None -> default
+  | Some value when value <> "" -> value
+  | _ -> invalid_arg (name ^ " must be set")
+
+let environment_int name =
+  match Sys.getenv_opt name with
+  | None | Some "" -> invalid_arg (name ^ " must be set")
   | Some value ->
       (match int_of_string_opt value with
       | Some parsed -> parsed
       | None -> invalid_arg (name ^ " must be an integer"))
 
-let environment_float name default =
+let environment_float name =
   match Sys.getenv_opt name with
-  | None -> default
+  | None | Some "" -> invalid_arg (name ^ " must be set")
   | Some value ->
       (try float_of_string value
        with Failure _ -> invalid_arg (name ^ " must be a number"))
 
 let grammar = ref ""
-let menhir = environment "AMBIGUITY_MENHIR" "menhir"
-let max_tokens = ref 20
-let memory_mb = environment_int "AMBIGUITY_MEMORY_MB" 512
-let max_frontier_ratio =
-  environment_float "AMBIGUITY_MAX_FRONTIER_RATIO" 1.
-let timeout = ref 60.
-let jobs = environment_int "AMBIGUITY_JOBS" 1
-let max_witnesses = ref 20
+let max_tokens = ref None
+let timeout = ref None
+let max_witnesses = ref None
 let check_tokens = ref []
 let prove_level = ref 0
 
@@ -1284,9 +1281,15 @@ let derive_memory_limits ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens =
 
 let options =
   [
-    ("--max-tokens", Arg.Set_int max_tokens, "N maximum tokens, including EOF");
-    ("--timeout", Arg.Set_float timeout, "SECONDS time limit per search phase");
-    ("--max-witnesses", Arg.Set_int max_witnesses, "N ambiguity families to report");
+    ( "--max-tokens",
+      Arg.Int (fun value -> max_tokens := Some value),
+      "N maximum tokens, including EOF (required for search/prove)" );
+    ( "--timeout",
+      Arg.Float (fun value -> timeout := Some value),
+      "SECONDS time limit per search phase (required for search/prove)" );
+    ( "--max-witnesses",
+      Arg.Int (fun value -> max_witnesses := Some value),
+      "N ambiguity families to report (required for search/prove)" );
     ( "--check-tokens",
       Arg.String (fun value -> check_tokens := words value),
       "TOKENS check one space-separated token sequence" );
@@ -1304,7 +1307,16 @@ let main () =
     Arg.usage options "ambiguity_search [options] GRAMMAR";
     exit 2
   end;
-  if !max_tokens < 0 then invalid_arg "--max-tokens must be at least 0";
+  let menhir = environment "AMBIGUITY_MENHIR" in
+  let memory_mb = environment_int "AMBIGUITY_MEMORY_MB" in
+  let max_frontier_ratio =
+    environment_float "AMBIGUITY_MAX_FRONTIER_RATIO"
+  in
+  let jobs = environment_int "AMBIGUITY_JOBS" in
+  Option.iter
+    (fun value ->
+      if value < 0 then invalid_arg "--max-tokens must be at least 0")
+    !max_tokens;
   if memory_mb < 1 then invalid_arg "AMBIGUITY_MEMORY_MB must be at least 1";
   if
     Float.is_nan max_frontier_ratio
@@ -1313,17 +1325,27 @@ let main () =
   then
     invalid_arg
       "AMBIGUITY_MAX_FRONTIER_RATIO must be finite and greater than 0";
-  if !timeout < 0. then invalid_arg "--timeout must be non-negative";
+  Option.iter
+    (fun value ->
+      if value < 0. then invalid_arg "--timeout must be non-negative")
+    !timeout;
   if jobs < 1 then invalid_arg "AMBIGUITY_JOBS must be at least 1";
-  if !max_witnesses < 1 then invalid_arg "--max-witnesses must be at least 1";
-  let max_queue, max_frontiers =
-    derive_memory_limits ~memory_mb
-      ~max_frontier_ratio ~jobs
-      ~max_tokens:!max_tokens
+  Option.iter
+    (fun value ->
+      if value < 1 then invalid_arg "--max-witnesses must be at least 1")
+    !max_witnesses;
+  let search_limits =
+    if !check_tokens <> [] then None
+    else
+      let required name = function
+        | Some value -> value
+        | None -> invalid_arg (name ^ " is required for search/prove")
+      in
+      Some
+        ( required "--max-tokens" !max_tokens,
+          required "--timeout" !timeout,
+          required "--max-witnesses" !max_witnesses )
   in
-  Printf.printf
-    "Memory budget: %d MiB total across %d worker(s); per-worker limits are %d queued frontiers and %d dedup frontiers (ratio %g).\n"
-    memory_mb jobs max_queue max_frontiers max_frontier_ratio;
   let grammar_path = Unix.realpath !grammar in
   let temporary = temporary_directory () in
   Fun.protect
@@ -1349,6 +1371,13 @@ let main () =
         Printf.printf "Accepting derivations: %d\n" count;
         exit (if count >= 2 then 1 else 0)
       end;
+      let max_tokens, timeout, max_witnesses = Option.get search_limits in
+      let max_queue, max_frontiers =
+        derive_memory_limits ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens
+      in
+      Printf.printf
+        "Memory budget: %d MiB total across %d worker(s); per-worker limits are %d queued frontiers and %d dedup frontiers (ratio %g).\n"
+        memory_mb jobs max_queue max_frontiers max_frontier_ratio;
       if !prove_level > 0 then begin
         match prove engine !prove_level max_frontiers with
         | Proven pairs ->
@@ -1383,9 +1412,8 @@ let main () =
       in
       let accept_distance = reverse_distances automaton accept_targets in
       let outcome, conflict_seeds =
-        parallel_unified_search engine ~jobs ~max_tokens:!max_tokens
-          ~timeout:!timeout ~max_frontiers ~max_queue
-          ~max_witnesses:!max_witnesses conflict_distance
+        parallel_unified_search engine ~jobs ~max_tokens ~timeout
+          ~max_frontiers ~max_queue ~max_witnesses conflict_distance
           accept_distance temporary
       in
       match outcome.witnesses with
@@ -1394,7 +1422,7 @@ let main () =
           | None ->
               Printf.printf
                 "No complete ambiguity found through %d tokens after exploring %d frontiers (%d unique).\n"
-                !max_tokens outcome.explored outcome.unique
+                max_tokens outcome.explored outcome.unique
           | Some reason ->
               Printf.printf
                 "Search stopped at depth %d because %s; no complete ambiguity was found in %d explored frontiers (%d unique).\n"

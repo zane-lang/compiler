@@ -8,7 +8,4 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 dune build --root "$ROOT" tools/ambiguity_search.exe
 exec "$ROOT/_build/default/tools/ambiguity_search.exe" \
 	"$ROOT/lib/cst/parser.mly" \
-	--max-tokens 50 \
-	--timeout 1800 \
-	--max-witnesses 50 \
 	"$@"

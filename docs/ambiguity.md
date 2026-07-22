@@ -44,8 +44,7 @@ the state is triaged into one of these categories.
   digest-cache size, which controls deduplication.
   `AMBIGUITY_MAX_FRONTIER_RATIO` is the number of digest-cache entries per
   queued frontier: raising it trades queue reach for stronger deduplication,
-  while lowering it does the opposite. The default ratio is `1.0`. The estimate
-  is based on
+  while lowering it does the opposite. The estimate is based on
   `queue * (600 + 24 * max_tokens) + cache * 240` bytes per worker. The search
   itself is bounded by `--max-tokens` and `--timeout`, and a run whose queue
   filled and had to drop part of the space reports itself as interrupted.
@@ -72,16 +71,16 @@ the state is triaged into one of these categories.
 ## Local machine configuration
 
 The ambiguity-tool executables load machine-specific values from the ignored
-`machine-config.txt` file. Copy `machine-config.example` to get started. This
-keeps memory, worker-count, and executable-path tuning out of normal command
-invocations and out of version control. Without the file, the same values from
-the example are used as defaults. The file supplies `AMBIGUITY_MEMORY_MB`,
+`machine-config.txt` file. Copy `machine-config.example` before running them.
+There are no fallback values: a missing setting is an error. This keeps memory,
+worker-count, and executable-path tuning out of normal command invocations and
+out of version control. The file supplies `AMBIGUITY_MEMORY_MB`,
 `AMBIGUITY_MAX_FRONTIER_RATIO`, `AMBIGUITY_JOBS`, and `AMBIGUITY_MENHIR` as
 environment variables; they are deliberately not command-line options.
 
 Search intent remains on the command line. For example,
-`ambiguities --max-tokens 100 --timeout 3600` searches through 100 tokens for
-up to one hour, using the local machine budget.
+`ambiguities --max-tokens 100 --timeout 3600 --max-witnesses 50` searches
+through 100 tokens for up to one hour, using the local machine budget.
 
 ## Why this is sound
 

@@ -33,15 +33,13 @@ Common tools are available directly inside the development shell:
 
 ```sh
 compiler
-ambiguity-config
-ambiguities --max-tokens 100 --timeout 3600
-ambiguities --prove 3 --max-tokens 16
-syntax-experiments
+ambiguities --max-tokens 100 --timeout 3600 --max-witnesses 50
+ambiguities --prove 3 --max-tokens 16 --timeout 120 --max-witnesses 20
+syntax-experiments --max-tokens 12 --timeout 15 --max-witnesses 10
 syntax-experiments --variant semicolon-separated
 grammar-stats
 grammar-conflicts
 ```
 
-`ambiguity-search` exposes the underlying OCaml tool directly for advanced
-invocations. The `justfile` is reserved for parameterless project actions such
-as rebuilding, watching, and running the syntax-experiment tests.
+The `justfile` is reserved for parameterless project actions such as rebuilding,
+watching, and running the syntax-experiment tests.

@@ -973,9 +973,9 @@ def parser() -> argparse.ArgumentParser:
         help="command prefix used to invoke the ambiguity search; the default"
         " expects a prior `dune build tools/ambiguity_search.exe`",
     )
-    result.add_argument("--max-tokens", type=int, default=12)
-    result.add_argument("--timeout", type=float, default=15.0)
-    result.add_argument("--max-witnesses", type=int, default=10)
+    result.add_argument("--max-tokens", type=int)
+    result.add_argument("--timeout", type=float)
+    result.add_argument("--max-witnesses", type=int)
     result.add_argument("--skip-known", action="store_true")
     result.add_argument(
         "--output",
@@ -987,15 +987,20 @@ def parser() -> argparse.ArgumentParser:
 
 
 def load_machine_config(args: argparse.Namespace, cli: argparse.ArgumentParser) -> None:
-    args.menhir = os.environ.get("AMBIGUITY_MENHIR", "menhir")
+    names = (
+        "AMBIGUITY_MEMORY_MB",
+        "AMBIGUITY_MAX_FRONTIER_RATIO",
+        "AMBIGUITY_JOBS",
+        "AMBIGUITY_MENHIR",
+    )
+    missing = [name for name in names if not os.environ.get(name)]
+    if missing:
+        cli.error(f"missing machine configuration: {', '.join(missing)}")
+    args.menhir = os.environ["AMBIGUITY_MENHIR"]
     try:
-        args.memory_mb = int(os.environ.get("AMBIGUITY_MEMORY_MB", "512"))
-        args.max_frontier_ratio = float(
-            os.environ.get("AMBIGUITY_MAX_FRONTIER_RATIO", "1.0")
-        )
-        args.jobs = int(
-            os.environ.get("AMBIGUITY_JOBS", str(min(4, os.cpu_count() or 1)))
-        )
+        args.memory_mb = int(os.environ["AMBIGUITY_MEMORY_MB"])
+        args.max_frontier_ratio = float(os.environ["AMBIGUITY_MAX_FRONTIER_RATIO"])
+        args.jobs = int(os.environ["AMBIGUITY_JOBS"])
     except ValueError:
         cli.error(
             "invalid AMBIGUITY_MEMORY_MB, AMBIGUITY_MAX_FRONTIER_RATIO, "
@@ -1015,6 +1020,17 @@ def validate_args(args: argparse.Namespace, cli: argparse.ArgumentParser) -> Non
             f"search executable does not exist: {executable};"
             " run `dune build tools/ambiguity_search.exe` first"
         )
+    missing = [
+        name
+        for name, value in (
+            ("--max-tokens", args.max_tokens),
+            ("--timeout", args.timeout),
+            ("--max-witnesses", args.max_witnesses),
+        )
+        if value is None
+    ]
+    if missing:
+        cli.error(f"required for experiments: {', '.join(missing)}")
     if args.max_tokens < 0:
         cli.error("--max-tokens must be at least 0")
     if args.timeout < 0:
