@@ -35,7 +35,7 @@ Common tools are available directly inside the development shell:
 compiler
 ambiguity-config
 ambiguities --max-tokens 100 --timeout 3600
-ambiguity-prove --prove 3 --max-tokens 16
+ambiguities --prove 3 --max-tokens 16
 syntax-experiments
 syntax-experiments --variant semicolon-separated
 grammar-stats

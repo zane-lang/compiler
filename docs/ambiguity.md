@@ -51,17 +51,18 @@ the state is triaged into one of these categories.
   filled and had to drop part of the space reports itself as interrupted.
   Witnesses are grouped by the conflict states they
   traverse, which maps each finding directly onto an obligation above.
-- `ambiguity-prove` — conservative unambiguity prover (`--prove K`). It abstracts
-  GLR stacks to their top-K states and exhaustively explores pairs of
-  abstract parses of the same input, comparing reduction chains in lockstep.
-  Three verdicts: exit 0 "PROVEN UNAMBIGUOUS" is a genuine proof with no
-  sentence-length bound; exit 1 means a concrete ambiguous sentence was
+- `ambiguities --prove K` — conservative unambiguity proof mode built into the
+  ambiguity search. It abstracts GLR stacks to their top-K states and
+  exhaustively explores pairs of abstract parses of the same input, comparing
+  reduction chains in lockstep. It does not depend on an external constraint
+  solver. Three verdicts: exit 0 "PROVEN UNAMBIGUOUS" is a genuine proof with
+  no sentence-length bound; exit 1 means a concrete ambiguous sentence was
   found; exit 3 means not proven — the abstraction reported a candidate the
-  bounded search could not concretize, so raise `--prove` or the search
-  bounds. Because unambiguity is undecidable in general, the "not proven"
-  verdict can never be eliminated entirely; the prover is validated against
-  known-ambiguous grammars, LR(1) grammars, precedence-resolved expression
-  grammars, and unambiguous non-LR grammars such as palindromes.
+  bounded search could not concretize, so raise `--prove` or the search bounds.
+  Because unambiguity is undecidable in general, the "not proven" verdict can
+  never be eliminated entirely; the prover is validated against known-ambiguous
+  grammars, LR(1) grammars, precedence-resolved expression grammars, and
+  unambiguous non-LR grammars such as palindromes.
 - `syntax-experiments` — compares candidate grammar changes under
   equal search bounds before they are adopted
   (`tools/SYNTAX_EXPERIMENTS.md`).
