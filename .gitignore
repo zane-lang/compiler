@@ -5,3 +5,4 @@ parser/
 vcpkg_installed/
 __pycache__/
 .devbox/
+*.term

@@ -1,204 +1,205 @@
+Welcome to devbox!
 Found 50 complete ambiguity families.
 
 1. Tokens (9): LIDENT UIDENT EQUAL TILDE TILDE FALSE QSTNQSTN FALSE EOF
    Source: length Int = ~ ~ false ?? false
-   Conflict origins: state 564 on QSTNQSTN
+   Conflict origins: state 496 on QSTNQSTN
 
 2. Tokens (10): LIDENT UIDENT EQUAL FALSE EQEQ TILDE FALSE QSTNQSTN FALSE EOF
    Source: length Int = false == ~ false ?? false
-   Conflict origins: state 189 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 214 on QSTNQSTN, state 496 on QSTNQSTN
 
 3. Tokens (10): LIDENT UIDENT EQUAL FALSE LESS TILDE FALSE QSTNQSTN FALSE EOF
    Source: length Int = false < ~ false ?? false
-   Conflict origins: state 181 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 206 on QSTNQSTN, state 496 on QSTNQSTN
 
 4. Tokens (10): LIDENT UIDENT EQUAL FALSE LESSEQ TILDE FALSE QSTNQSTN FALSE EOF
    Source: length Int = false <= ~ false ?? false
-   Conflict origins: state 173 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 198 on QSTNQSTN, state 496 on QSTNQSTN
 
 5. Tokens (10): LIDENT UIDENT EQUAL FALSE MINUS TILDE FALSE QSTNQSTN FALSE EOF
    Source: length Int = false - ~ false ?? false
-   Conflict origins: state 153 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 178 on QSTNQSTN, state 496 on QSTNQSTN
 
 6. Tokens (10): LIDENT UIDENT EQUAL FALSE MORE TILDE FALSE QSTNQSTN FALSE EOF
    Source: length Int = false > ~ false ?? false
-   Conflict origins: state 165 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 190 on QSTNQSTN, state 496 on QSTNQSTN
 
 7. Tokens (10): LIDENT UIDENT EQUAL FALSE MOREEQ TILDE FALSE QSTNQSTN FALSE EOF
    Source: length Int = false >= ~ false ?? false
-   Conflict origins: state 149 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 174 on QSTNQSTN, state 496 on QSTNQSTN
 
 8. Tokens (10): LIDENT UIDENT EQUAL FALSE PLUS TILDE FALSE QSTNQSTN FALSE EOF
    Source: length Int = false + ~ false ?? false
-   Conflict origins: state 141 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 166 on QSTNQSTN, state 496 on QSTNQSTN
 
 9. Tokens (10): LIDENT UIDENT EQUAL FALSE SLASH TILDE FALSE QSTNQSTN FALSE EOF
    Source: length Int = false / ~ false ?? false
-   Conflict origins: state 133 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 158 on QSTNQSTN, state 496 on QSTNQSTN
 
 10. Tokens (10): LIDENT UIDENT EQUAL FALSE STAR TILDE FALSE QSTNQSTN FALSE EOF
    Source: length Int = false * ~ false ?? false
-   Conflict origins: state 123 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 148 on QSTNQSTN, state 496 on QSTNQSTN
 
 11. Tokens (10): LIDENT UIDENT EQUAL TILDE FALSE LPAREN RPAREN QSTNQSTN FALSE EOF
    Source: length Int = ~ false ( ) ?? false
-   Conflict origins: state 126 on LPAREN, state 129 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 135 on LPAREN, state 138 on QSTNQSTN, state 496 on QSTNQSTN
 
 12. Tokens (10): LIDENT UIDENT EQUAL TILDE TILDE FALSE QSTNMARK LCURLY RCURLY EOF
    Source: length Int = ~ ~ false ? { }
-   Conflict origins: state 564 on QSTNMARK
+   Conflict origins: state 496 on QSTNMARK
 
 13. Tokens (10): LIDENT UIDENT EQUAL TILDE UIDENT LPAREN RPAREN QSTNQSTN FALSE EOF
    Source: length Int = ~ Int ( ) ?? false
-   Conflict origins: state 80 on LPAREN, state 119 on QSTNQSTN, state 564 on QSTNQSTN
+   Conflict origins: state 93 on LPAREN, state 132 on QSTNQSTN, state 496 on QSTNQSTN
 
-14. Tokens (10): LIDENT UIDENT LPAREN TILDE TILDE FALSE QSTNQSTN FALSE RPAREN EOF
-   Source: length Int ( ~ ~ false ?? false )
-   Conflict origins: state 311 on LPAREN, state 564 on QSTNQSTN
+14. Tokens (11): LIDENT UIDENT EQUAL TILDE FALSE QSTNMARK THICK_ARROW FALSE DOT LIDENT EOF
+   Source: length Int = ~ false ? => false . length
+   Conflict origins: state 496 on QSTNMARK, state 503 on DOT
 
-15. Tokens (11): LIDENT UIDENT EQUAL FALSE LPAREN RPAREN QSTNQSTN FALSE DOT LIDENT EOF
-   Source: length Int = false ( ) ?? false . length
-   Conflict origins: state 126 on DOT, state 126 on LPAREN, state 129 on QSTNQSTN
-
-16. Tokens (11): LIDENT UIDENT EQUAL TILDE TILDE FALSE QSTNQSTN FALSE DOT LIDENT EOF
-   Source: length Int = ~ ~ false ?? false . length
-   Conflict origins: state 126 on DOT, state 564 on QSTNQSTN
-
-17. Tokens (11): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN QSTNQSTN FALSE DOT LIDENT EOF
-   Source: length Int = Int ( ) ?? false . length
-   Conflict origins: state 80 on LPAREN, state 119 on QSTNQSTN, state 126 on DOT
-
-18. Tokens (11): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN THICK_ARROW FALSE DOT LIDENT EOF
+15. Tokens (11): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN THICK_ARROW FALSE DOT LIDENT EOF
    Source: length Int = Int ( ) => false . length
-   Conflict origins: state 80 on LPAREN, state 126 on DOT
+   Conflict origins: state 93 on LPAREN, state 503 on DOT
 
-19. Tokens (11): LIDENT UIDENT QSTNMARK UIDENT LBRACKET RBRACKET LPAREN RPAREN LCURLY RCURLY EOF
-   Source: length Int ? Int [ ] ( ) { }
-   Conflict origins: state 57 on LPAREN
+16. Tokens (12): LIDENT UIDENT EQUAL FALSE EQEQ FALSE QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+   Source: length Int = false == false ? => 8.647 . length
+   Conflict origins: state 214 on QSTNMARK, state 503 on DOT
 
-20. Tokens (11): LTYPE UIDENT EQUAL UIDENT QSTNMARK UIDENT LBRACKET RBRACKET LBRACKET RBRACKET EOF
-   Source: type Int = Int ? Int [ ] [ ]
-   Conflict origins: state 57 on LBRACKET
+17. Tokens (12): LIDENT UIDENT EQUAL FALSE LESS FALSE QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+   Source: length Int = false < false ? => 8.647 . length
+   Conflict origins: state 206 on QSTNMARK, state 503 on DOT
 
-21. Tokens (12): LIDENT UIDENT EQUAL FALSE EQEQ TILDE FALSE QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = false == ~ false ?? "john" . length
-   Conflict origins: state 126 on DOT, state 189 on QSTNQSTN, state 564 on QSTNQSTN
+18. Tokens (12): LIDENT UIDENT EQUAL FALSE LESSEQ FALSE QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+   Source: length Int = false <= false ? => 8.647 . length
+   Conflict origins: state 198 on QSTNMARK, state 503 on DOT
 
-22. Tokens (12): LIDENT UIDENT EQUAL FALSE LESS TILDE FALSE QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = false < ~ false ?? "john" . length
-   Conflict origins: state 126 on DOT, state 181 on QSTNQSTN, state 564 on QSTNQSTN
-
-23. Tokens (12): LIDENT UIDENT EQUAL FALSE LESSEQ TILDE FALSE QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = false <= ~ false ?? "john" . length
-   Conflict origins: state 126 on DOT, state 173 on QSTNQSTN, state 564 on QSTNQSTN
-
-24. Tokens (12): LIDENT UIDENT EQUAL FALSE LPAREN RPAREN QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+19. Tokens (12): LIDENT UIDENT EQUAL FALSE LPAREN RPAREN QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
    Source: length Int = false ( ) ? => 8.647 . length
-   Conflict origins: state 126 on DOT, state 126 on LPAREN, state 129 on QSTNMARK
+   Conflict origins: state 135 on LPAREN, state 138 on QSTNMARK, state 503 on DOT
 
-25. Tokens (12): LIDENT UIDENT EQUAL FALSE MINUS TILDE FALSE QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = false - ~ false ?? "john" . length
-   Conflict origins: state 126 on DOT, state 153 on QSTNQSTN, state 564 on QSTNQSTN
+20. Tokens (12): LIDENT UIDENT EQUAL FALSE MINUS FALSE QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+   Source: length Int = false - false ? => 8.647 . length
+   Conflict origins: state 178 on QSTNMARK, state 503 on DOT
 
-26. Tokens (12): LIDENT UIDENT EQUAL FALSE MORE TILDE FALSE QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = false > ~ false ?? "john" . length
-   Conflict origins: state 126 on DOT, state 165 on QSTNQSTN, state 564 on QSTNQSTN
+21. Tokens (12): LIDENT UIDENT EQUAL FALSE MORE FALSE QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+   Source: length Int = false > false ? => 8.647 . length
+   Conflict origins: state 190 on QSTNMARK, state 503 on DOT
 
-27. Tokens (12): LIDENT UIDENT EQUAL FALSE MOREEQ TILDE FALSE QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = false >= ~ false ?? "john" . length
-   Conflict origins: state 126 on DOT, state 149 on QSTNQSTN, state 564 on QSTNQSTN
+22. Tokens (12): LIDENT UIDENT EQUAL FALSE MOREEQ FALSE QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+   Source: length Int = false >= false ? => 8.647 . length
+   Conflict origins: state 174 on QSTNMARK, state 503 on DOT
 
-28. Tokens (12): LIDENT UIDENT EQUAL FALSE PLUS TILDE FALSE QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = false + ~ false ?? "john" . length
-   Conflict origins: state 126 on DOT, state 141 on QSTNQSTN, state 564 on QSTNQSTN
+23. Tokens (12): LIDENT UIDENT EQUAL FALSE PLUS FALSE QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+   Source: length Int = false + false ? => 8.647 . length
+   Conflict origins: state 166 on QSTNMARK, state 503 on DOT
 
-29. Tokens (12): LIDENT UIDENT EQUAL FALSE SLASH TILDE FALSE QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = false / ~ false ?? "john" . length
-   Conflict origins: state 126 on DOT, state 133 on QSTNQSTN, state 564 on QSTNQSTN
+24. Tokens (12): LIDENT UIDENT EQUAL FALSE SLASH FALSE QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+   Source: length Int = false / false ? => 8.647 . length
+   Conflict origins: state 158 on QSTNMARK, state 503 on DOT
 
-30. Tokens (12): LIDENT UIDENT EQUAL FALSE STAR TILDE FALSE QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = false * ~ false ?? "john" . length
-   Conflict origins: state 123 on QSTNQSTN, state 126 on DOT, state 564 on QSTNQSTN
+25. Tokens (12): LIDENT UIDENT EQUAL FALSE STAR FALSE QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+   Source: length Int = false * false ? => 8.647 . length
+   Conflict origins: state 148 on QSTNMARK, state 503 on DOT
 
-31. Tokens (12): LIDENT UIDENT EQUAL TILDE FALSE LPAREN RPAREN QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = ~ false ( ) ?? "john" . length
-   Conflict origins: state 126 on DOT, state 126 on LPAREN, state 129 on QSTNQSTN, state 564 on QSTNQSTN
-
-32. Tokens (12): LIDENT UIDENT EQUAL TILDE TILDE FALSE QSTNMARK THICK_ARROW STRING DOT LIDENT EOF
-   Source: length Int = ~ ~ false ? => "john" . length
-   Conflict origins: state 126 on DOT, state 564 on QSTNMARK
-
-33. Tokens (12): LIDENT UIDENT EQUAL TILDE UIDENT LPAREN RPAREN QSTNQSTN STRING DOT LIDENT EOF
-   Source: length Int = ~ Int ( ) ?? "john" . length
-   Conflict origins: state 80 on LPAREN, state 119 on QSTNQSTN, state 126 on DOT, state 564 on QSTNQSTN
-
-34. Tokens (12): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
+26. Tokens (12): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN QSTNMARK THICK_ARROW FLOAT DOT LIDENT EOF
    Source: length Int = Int ( ) ? => 8.647 . length
-   Conflict origins: state 80 on LPAREN, state 119 on QSTNMARK, state 126 on DOT
+   Conflict origins: state 93 on LPAREN, state 132 on QSTNMARK, state 503 on DOT
 
-35. Tokens (13): LIDENT UIDENT LPAREN FALSE EQEQ TILDE FALSE QSTNQSTN LIDENT DOLLAR LIDENT RPAREN EOF
-   Source: length Int ( false == ~ false ?? length $ length )
-   Conflict origins: state 189 on QSTNQSTN, state 311 on LPAREN, state 564 on QSTNQSTN
+27. Tokens (13): LIDENT UIDENT LPAREN AND TILDE TILDE FALSE QSTNQSTN LIDENT DOLLAR LIDENT RPAREN EOF
+   Source: length Int ( & ~ ~ false ?? length $ length )
+   Conflict origins: state 325 on LPAREN, state 496 on QSTNQSTN
 
-36. Tokens (13): LIDENT UIDENT QSTNMARK UIDENT LBRACKET RBRACKET LPAREN RPAREN THICK_ARROW STRING DOT LIDENT EOF
-   Source: length Int ? Int [ ] ( ) => "john" . length
-   Conflict origins: state 57 on LPAREN, state 126 on DOT
+28. Tokens (13): UIDENT PLUS LPAREN RPAREN THICK_ARROW TILDE TILDE FALSE QSTNQSTN STRING DOT LIDENT EOF
+   Source: Int + ( ) => ~ ~ false ?? "john" . length
+   Conflict origins: state 496 on QSTNQSTN, state 503 on DOT
 
-37. Tokens (15): LIDENT UIDENT EQUAL TILDE FALSE QSTNMARK THICK_ARROW FALSE EQEQ AND AT LIDENT DOLLAR LIDENT EOF
-   Source: length Int = ~ false ? => false == & @ length $ length
-   Conflict origins: state 564 on QSTNMARK, state 571 on EQEQ
+29. Tokens (16): LIDENT UIDENT EQUAL TILDE FALSE QSTNMARK THICK_ARROW FALSE LESS AND AND AT LIDENT DOLLAR LIDENT EOF
+   Source: length Int = ~ false ? => false < & & @ length $ length
+   Conflict origins: state 496 on QSTNMARK, state 503 on LESS
 
-38. Tokens (16): LIDENT UIDENT EQUAL FALSE LPAREN RPAREN QSTNQSTN FALSE LESS AND AND AT LIDENT DOLLAR LIDENT EOF
-   Source: length Int = false ( ) ?? false < & & @ length $ length
-   Conflict origins: state 126 on LPAREN, state 129 on QSTNQSTN, state 131 on LESS
-
-39. Tokens (16): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN QSTNQSTN FALSE LESS AND AND AT LIDENT DOLLAR LIDENT EOF
-   Source: length Int = Int ( ) ?? false < & & @ length $ length
-   Conflict origins: state 80 on LPAREN, state 119 on QSTNQSTN, state 121 on LESS
-
-40. Tokens (16): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN THICK_ARROW FALSE LESS AND AND AT LIDENT DOLLAR LIDENT EOF
+30. Tokens (16): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN THICK_ARROW FALSE LESS AND AND AT LIDENT DOLLAR LIDENT EOF
    Source: length Int = Int ( ) => false < & & @ length $ length
-   Conflict origins: state 80 on LPAREN, state 571 on LESS
+   Conflict origins: state 93 on LPAREN, state 503 on LESS
 
-41. Tokens (16): LIDENT UIDENT LPAREN AND TILDE TILDE FALSE QSTNQSTN AT LIDENT DOLLAR LIDENT DOT LIDENT RPAREN EOF
-   Source: length Int ( & ~ ~ false ?? @ length $ length . length )
-   Conflict origins: state 126 on DOT, state 311 on LPAREN, state 564 on QSTNQSTN
+31. Tokens (17): LIDENT UIDENT EQUAL FALSE EQEQ FALSE QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: length Int = false == false ? => length $ length <= @ length $ length
+   Conflict origins: state 214 on QSTNMARK, state 503 on LESSEQ
 
-42. Tokens (16): LIDENT UIDENT QSTNMARK UIDENT LBRACKET RBRACKET LBRACKET RBRACKET EQUAL AT LIDENT DOLLAR LIDENT DOT LIDENT EOF
-   Source: length Int ? Int [ ] [ ] = @ length $ length . length
-   Conflict origins: state 57 on LBRACKET, state 126 on DOT
+32. Tokens (17): LIDENT UIDENT EQUAL FALSE LESS FALSE QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: length Int = false < false ? => length $ length <= @ length $ length
+   Conflict origins: state 206 on QSTNMARK, state 503 on LESSEQ
 
-43. Tokens (17): LIDENT UIDENT EQUAL AND FALSE LPAREN RPAREN QSTNQSTN LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
-   Source: length Int = & false ( ) ?? length $ length <= @ length $ length
-   Conflict origins: state 126 on LPAREN, state 129 on QSTNQSTN, state 131 on LESSEQ
+33. Tokens (17): LIDENT UIDENT EQUAL FALSE LESSEQ FALSE QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: length Int = false <= false ? => length $ length <= @ length $ length
+   Conflict origins: state 198 on QSTNMARK, state 503 on LESSEQ
 
-44. Tokens (17): LIDENT UIDENT EQUAL AND UIDENT LPAREN RPAREN QSTNQSTN LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
-   Source: length Int = & Int ( ) ?? length $ length <= @ length $ length
-   Conflict origins: state 80 on LPAREN, state 119 on QSTNQSTN, state 121 on LESSEQ
-
-45. Tokens (17): LIDENT UIDENT EQUAL AND UIDENT LPAREN RPAREN THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
-   Source: length Int = & Int ( ) => length $ length <= @ length $ length
-   Conflict origins: state 80 on LPAREN, state 571 on LESSEQ
-
-46. Tokens (17): LIDENT UIDENT EQUAL FALSE LPAREN RPAREN QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+34. Tokens (17): LIDENT UIDENT EQUAL FALSE LPAREN RPAREN QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
    Source: length Int = false ( ) ? => length $ length <= @ length $ length
-   Conflict origins: state 126 on LPAREN, state 129 on QSTNMARK, state 571 on LESSEQ
+   Conflict origins: state 135 on LPAREN, state 138 on QSTNMARK, state 503 on LESSEQ
 
-47. Tokens (17): LIDENT UIDENT EQUAL FALSE LPAREN RPAREN QSTNQSTN AND LIDENT DOLLAR LIDENT EQEQ AT LIDENT DOLLAR LIDENT EOF
-   Source: length Int = false ( ) ?? & length $ length == @ length $ length
-   Conflict origins: state 126 on LPAREN, state 129 on QSTNQSTN, state 131 on EQEQ
+35. Tokens (17): LIDENT UIDENT EQUAL FALSE MINUS FALSE QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: length Int = false - false ? => length $ length <= @ length $ length
+   Conflict origins: state 178 on QSTNMARK, state 503 on LESSEQ
 
-48. Tokens (17): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+36. Tokens (17): LIDENT UIDENT EQUAL FALSE MORE FALSE QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: length Int = false > false ? => length $ length <= @ length $ length
+   Conflict origins: state 190 on QSTNMARK, state 503 on LESSEQ
+
+37. Tokens (17): LIDENT UIDENT EQUAL FALSE MOREEQ FALSE QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: length Int = false >= false ? => length $ length <= @ length $ length
+   Conflict origins: state 174 on QSTNMARK, state 503 on LESSEQ
+
+38. Tokens (17): LIDENT UIDENT EQUAL FALSE PLUS FALSE QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: length Int = false + false ? => length $ length <= @ length $ length
+   Conflict origins: state 166 on QSTNMARK, state 503 on LESSEQ
+
+39. Tokens (17): LIDENT UIDENT EQUAL FALSE SLASH FALSE QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: length Int = false / false ? => length $ length <= @ length $ length
+   Conflict origins: state 158 on QSTNMARK, state 503 on LESSEQ
+
+40. Tokens (17): LIDENT UIDENT EQUAL FALSE STAR FALSE QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: length Int = false * false ? => length $ length <= @ length $ length
+   Conflict origins: state 148 on QSTNMARK, state 503 on LESSEQ
+
+41. Tokens (17): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
    Source: length Int = Int ( ) ? => length $ length <= @ length $ length
-   Conflict origins: state 80 on LPAREN, state 119 on QSTNMARK, state 571 on LESSEQ
+   Conflict origins: state 93 on LPAREN, state 132 on QSTNMARK, state 503 on LESSEQ
 
-49. Tokens (17): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN QSTNQSTN AND LIDENT DOLLAR LIDENT EQEQ AT LIDENT DOLLAR LIDENT EOF
-   Source: length Int = Int ( ) ?? & length $ length == @ length $ length
-   Conflict origins: state 80 on LPAREN, state 119 on QSTNQSTN, state 121 on EQEQ
+42. Tokens (17): UIDENT LPAREN RPAREN THICK_ARROW TILDE FALSE QSTNMARK THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: Int ( ) => ~ false ? => length $ length <= @ length $ length
+   Conflict origins: state 496 on QSTNMARK, state 503 on LESSEQ
 
-50. Tokens (17): LIDENT UIDENT EQUAL UIDENT LPAREN RPAREN THICK_ARROW AND LIDENT DOLLAR LIDENT EQEQ AT LIDENT DOLLAR LIDENT EOF
-   Source: length Int = Int ( ) => & length $ length == @ length $ length
-   Conflict origins: state 80 on LPAREN, state 571 on EQEQ
+43. Tokens (17): UIDENT LPAREN RPAREN THICK_ARROW UIDENT LPAREN RPAREN THICK_ARROW LIDENT DOLLAR LIDENT LESSEQ AT LIDENT DOLLAR LIDENT EOF
+   Source: Int ( ) => Int ( ) => length $ length <= @ length $ length
+   Conflict origins: state 93 on LPAREN, state 503 on LESSEQ
 
-Explored 6298445 frontiers (6417598 unique); 65028 conflict seeds.
+44. Tokens (19): UIDENT LPAREN RPAREN THICK_ARROW FALSE EQEQ FALSE SLASH FLOAT DOT LIDENT QSTNQSTN AND AND AT LIDENT DOLLAR LIDENT EOF
+   Source: Int ( ) => false == false / 8.647 . length ?? & & @ length $ length
+   Conflict origins: state 158 on QSTNQSTN, state 214 on QSTNQSTN, state 503 on EQEQ
+
+45. Tokens (19): UIDENT LPAREN RPAREN THICK_ARROW FALSE EQEQ FALSE STAR FLOAT DOT LIDENT QSTNQSTN AND AND AT LIDENT DOLLAR LIDENT EOF
+   Source: Int ( ) => false == false * 8.647 . length ?? & & @ length $ length
+   Conflict origins: state 148 on QSTNQSTN, state 214 on QSTNQSTN, state 503 on EQEQ
+
+46. Tokens (19): UIDENT LPAREN RPAREN THICK_ARROW FALSE LESS FALSE SLASH FLOAT DOT LIDENT QSTNQSTN AND AND AT LIDENT DOLLAR LIDENT EOF
+   Source: Int ( ) => false < false / 8.647 . length ?? & & @ length $ length
+   Conflict origins: state 158 on QSTNQSTN, state 206 on QSTNQSTN, state 503 on LESS
+
+47. Tokens (19): UIDENT LPAREN RPAREN THICK_ARROW FALSE LESS FALSE STAR FLOAT DOT LIDENT QSTNQSTN AND AND AT LIDENT DOLLAR LIDENT EOF
+   Source: Int ( ) => false < false * 8.647 . length ?? & & @ length $ length
+   Conflict origins: state 148 on QSTNQSTN, state 206 on QSTNQSTN, state 503 on LESS
+
+48. Tokens (19): UIDENT LPAREN RPAREN THICK_ARROW FALSE LESSEQ FALSE SLASH FLOAT DOT LIDENT QSTNQSTN AND AND AT LIDENT DOLLAR LIDENT EOF
+   Source: Int ( ) => false <= false / 8.647 . length ?? & & @ length $ length
+   Conflict origins: state 158 on QSTNQSTN, state 198 on QSTNQSTN, state 503 on LESSEQ
+
+49. Tokens (19): UIDENT LPAREN RPAREN THICK_ARROW FALSE LESSEQ FALSE STAR FLOAT DOT LIDENT QSTNQSTN AND AND AT LIDENT DOLLAR LIDENT EOF
+   Source: Int ( ) => false <= false * 8.647 . length ?? & & @ length $ length
+   Conflict origins: state 148 on QSTNQSTN, state 198 on QSTNQSTN, state 503 on LESSEQ
+
+50. Tokens (19): UIDENT LPAREN RPAREN THICK_ARROW FALSE MINUS FALSE SLASH FLOAT DOT LIDENT QSTNQSTN AND AND AT LIDENT DOLLAR LIDENT EOF
+   Source: Int ( ) => false - false / 8.647 . length ?? & & @ length $ length
+   Conflict origins: state 158 on QSTNQSTN, state 178 on QSTNQSTN, state 503 on MINUS
+
+Explored 10029149 frontiers (10028786 unique); 65138 conflict seeds.
 Search stopped because one or more workers reached a search limit.

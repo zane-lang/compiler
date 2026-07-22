@@ -20,7 +20,7 @@ conflicts:
 	menhir {{ grammarFile }} --random-sentence-concrete package --random-seed 1 --random-sentence-length 16
 
 # Find a short complete ambiguity within a bounded, parallel GLR search.
-ambiguities max_tokens="20" timeout="60" max_frontiers="500000" jobs="4" max_witnesses="20" menhir="menhir" max_queue="0":
+ambiguities max_tokens="50" timeout="1800" max_frontiers="60000" jobs="4" max_witnesses="50" menhir="menhir" max_queue="60000":
 	dune exec tools/ambiguity_search.exe -- {{ grammarFile }} --menhir {{ menhir }} --max-tokens {{ max_tokens }} --timeout {{ timeout }} --max-frontiers {{ max_frontiers }} --jobs {{ jobs }} --max-witnesses {{ max_witnesses }} --max-queue {{ max_queue }}
 
 # Conservative unambiguity proof attempt: exit 0 proven, 1 ambiguous, 3 not proven.
