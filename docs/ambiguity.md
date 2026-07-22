@@ -33,7 +33,7 @@ the state is triaged into one of these categories.
 
 ## Tooling
 
-- `just ambiguities` — bounded, parallel GLR search for complete ambiguous
+- `ambiguities` — bounded, parallel GLR search for complete ambiguous
   sentences (`tools/ambiguity_search.ml`). A completed bound is a theorem
   ("no ambiguous sentence of at most N tokens"), up to the astronomically
   unlikely collision of the 124-bit frontier digests used for
@@ -50,7 +50,7 @@ the state is triaged into one of these categories.
   filled and had to drop part of the space reports itself as interrupted.
   Witnesses are grouped by the conflict states they
   traverse, which maps each finding directly onto an obligation above.
-- `just prove` — conservative unambiguity prover (`--prove K`). It abstracts
+- `ambiguity-prove` — conservative unambiguity prover (`--prove K`). It abstracts
   GLR stacks to their top-K states and exhaustively explores pairs of
   abstract parses of the same input, comparing reduction chains in lockstep.
   Three verdicts: exit 0 "PROVEN UNAMBIGUOUS" is a genuine proof with no
@@ -61,7 +61,7 @@ the state is triaged into one of these categories.
   verdict can never be eliminated entirely; the prover is validated against
   known-ambiguous grammars, LR(1) grammars, precedence-resolved expression
   grammars, and unambiguous non-LR grammars such as palindromes.
-- `just syntax-experiments` — compares candidate grammar changes under
+- `syntax-experiments` — compares candidate grammar changes under
   equal search bounds before they are adopted
   (`tools/SYNTAX_EXPERIMENTS.md`).
 - `menhir --explain` — enumerates the conflict states that constitute the
@@ -69,15 +69,15 @@ the state is triaged into one of these categories.
 
 ## Local machine configuration
 
-The `just` recipes load machine-specific values from the ignored
+The ambiguity-tool executables load machine-specific values from the ignored
 `machine-config.txt` file. Copy `machine-config.example` to get started. This
 keeps memory, worker-count, and executable-path tuning out of normal command
 invocations and out of version control. Without the file, the same values from
 the example are used as defaults.
 
 Search intent remains on the command line. For example,
-`just ambiguities 100 3600` searches through 100 tokens for up to one hour,
-using the local machine budget.
+`ambiguities --max-tokens 100 --timeout 3600` searches through 100 tokens for
+up to one hour, using the local machine budget.
 
 ## Why this is sound
 

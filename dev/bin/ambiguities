@@ -2,5 +2,17 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT"
-exec just ambiguities "$@"
+# shellcheck source=../lib/ambiguity-config.sh
+. "$ROOT/dev/lib/ambiguity-config.sh"
+
+dune build --root "$ROOT" tools/ambiguity_search.exe
+exec "$ROOT/_build/default/tools/ambiguity_search.exe" \
+	"$ROOT/lib/cst/parser.mly" \
+	--menhir "$AMBIGUITY_MENHIR" \
+	--memory-mb "$AMBIGUITY_MEMORY_MB" \
+	--max-frontier-ratio "$AMBIGUITY_MAX_FRONTIER_RATIO" \
+	--jobs "$AMBIGUITY_JOBS" \
+	--max-tokens 50 \
+	--timeout 1800 \
+	--max-witnesses 50 \
+	"$@"

@@ -2,5 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT"
-exec just ambiguity-config "$@"
+# shellcheck source=../lib/ambiguity-config.sh
+. "$ROOT/dev/lib/ambiguity-config.sh"
+
+printf 'memory: %s MiB total\n' "$AMBIGUITY_MEMORY_MB"
+printf 'frontier ratio: %s\n' "$AMBIGUITY_MAX_FRONTIER_RATIO"
+printf 'workers: %s\n' "$AMBIGUITY_JOBS"
+printf 'menhir: %s\n' "$AMBIGUITY_MENHIR"

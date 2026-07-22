@@ -2,5 +2,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT"
-exec just conflicts "$@"
+# shellcheck source=../lib/ambiguity-config.sh
+. "$ROOT/dev/lib/ambiguity-config.sh"
+
+exec "$AMBIGUITY_MENHIR" "$ROOT/lib/cst/parser.mly" \
+	--random-sentence-concrete package \
+	--random-seed 1 \
+	--random-sentence-length 16 \
+	"$@"
