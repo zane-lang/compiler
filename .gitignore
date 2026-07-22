@@ -6,3 +6,4 @@ vcpkg_installed/
 __pycache__/
 .devbox/
 *.term
+machine-config.txt

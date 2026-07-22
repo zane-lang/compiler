@@ -929,12 +929,12 @@ module Seen_cache = struct
     mutable inserted : int;
   }
 
-  (* Digest entries are an order of magnitude smaller than the queued items
-     the memory budget is sized for, so the cache can afford to remember
-     four times the budget: two generations of twice the budget each. *)
+  (* [capacity] is the total number of entries retained across both
+     generations.  Keeping that meaning literal is important: callers use it
+     to divide a fixed memory budget between the queue and deduplication. *)
   let create capacity =
     {
-      generation_capacity = max 1 (2 * capacity);
+      generation_capacity = max 1 (capacity / 2);
       young = Hashtbl.create 4_096;
       old = Hashtbl.create 4_096;
       inserted = 0;
@@ -958,15 +958,26 @@ module Seen_cache = struct
   let insert cache key depth =
     cache.inserted <- cache.inserted + 1;
     refresh cache key depth
+
+  (* Deduplication is an optimization, so the older generation is the safest
+     memory to reclaim under pressure: forgetting it can cause re-exploration
+     but cannot hide a witness. *)
+  let release_old cache = cache.old <- Hashtbl.create 4_096
 end
 
+let managed_heap_bytes () =
+  let stats = Gc.quick_stat () in
+  float_of_int stats.heap_words *. float_of_int (Sys.word_size / 8)
+
 let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
-    ~max_queue ~max_witnesses conflict_distance accept_distance =
+    ~max_queue ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
+    conflict_distance accept_distance =
   let deadline = Unix.gettimeofday () +. timeout in
   let buckets = Array.init (max_tokens + 1) (fun _ -> Queue.create ()) in
   let seen = Seen_cache.create max_frontiers in
   let queued = ref 0 in
   let dropped = ref false in
+  let admit_new = ref true in
   let enqueue item =
     incr queued;
     Queue.add item buckets.(item.depth)
@@ -981,6 +992,7 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
     if item.depth <= max_tokens then
       if derivations item.frontier >= 2 && accepted_count engine item.frontier >= 2
       then enqueue item
+      else if not !admit_new then dropped := true
       else
         let key = Seen_cache.digest item.branched item.frontier in
         match Seen_cache.find seen key with
@@ -1019,11 +1031,47 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
           bucket)
       buckets
   in
-  let maybe_compact () =
+  let compact_search_state () =
+    Stack_pool.compact engine.stacks mark_live;
+    Hashtbl.reset engine.closure_cache;
+    compact_floor := max stack_budget (2 * Stack_pool.size engine.stacks)
+  in
+  let maybe_compact_stacks () =
     if Stack_pool.size engine.stacks > !compact_floor then begin
-      Stack_pool.compact engine.stacks mark_live;
-      Hashtbl.reset engine.closure_cache;
-      compact_floor := max stack_budget (2 * Stack_pool.size engine.stacks)
+      compact_search_state ()
+    end
+  in
+  (* Static entry-size estimates determine the shape of the search, but the
+     heap guard is what keeps the process inside the requested machine budget.
+     Near the soft limit, compact once and keep using the reclaimed space.  At
+     the hard limit, pause admission and drain queued work until compaction
+     brings the heap below the resume watermark.  This hysteresis keeps memory
+     near a plateau instead of repeatedly overshooting the budget. *)
+  (* soft and hard are 80% and 90% of the worker share respectively. Resume at
+     85% so pressure mode holds a narrow 85--90% plateau instead of producing
+     a large sawtooth while the queue drains and refills. *)
+  let resume_heap_bytes = 1.0625 *. soft_heap_bytes in
+  let next_heap_check = ref soft_heap_bytes in
+  let manage_memory () =
+    let before = managed_heap_bytes () in
+    if before >= !next_heap_check then begin
+      Seen_cache.release_old seen;
+      compact_search_state ();
+      Gc.compact ();
+      let after = managed_heap_bytes () in
+      if after >= hard_heap_bytes then begin
+        admit_new := false;
+        dropped := true;
+        next_heap_check := 0.
+      end
+      else begin
+        if (not !admit_new) && after <= resume_heap_bytes then
+          admit_new := true;
+        next_heap_check :=
+          if !admit_new then
+            min hard_heap_bytes (max soft_heap_bytes (after *. 1.10))
+          else 0.
+      end
     end
   in
   while
@@ -1033,7 +1081,11 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
   do
     if Queue.is_empty buckets.(!depth) then incr depth
     else begin
-      maybe_compact ();
+      maybe_compact_stacks ();
+      if !admit_new then begin
+        if !explored mod 4_096 = 0 then manage_memory ()
+      end
+      else manage_memory ();
       let item = Queue.take buckets.(!depth) in
       decr queued;
       incr explored;
@@ -1144,14 +1196,16 @@ let initial_partitions engine jobs max_tokens =
   end
 
 let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
-    ~max_queue ~max_witnesses conflict_distance accept_distance temporary =
+    ~max_queue ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
+    conflict_distance accept_distance temporary =
   let partitions, prefix_explored, prefix_unique, prefix_seeds =
     initial_partitions engine (max 1 jobs) max_tokens
   in
   if Array.length partitions = 1 then
     let outcome, seeds =
       unified_search engine partitions.(0) ~max_tokens ~timeout ~max_frontiers
-        ~max_queue ~max_witnesses conflict_distance accept_distance
+        ~max_queue ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
+        conflict_distance accept_distance
     in
     ( {
         outcome with
@@ -1160,6 +1214,9 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
       },
       prefix_seeds + seeds )
   else begin
+    (* Do not make every child inherit avoidable garbage or an unnecessarily
+       sparse major heap: after fork those pages become copy-on-write overhead. *)
+    Gc.compact ();
     (* Anything still buffered would be replayed by every child's exit. *)
     flush stdout;
     flush stderr;
@@ -1171,7 +1228,8 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
         | 0 ->
             let result =
               unified_search engine initial ~max_tokens ~timeout ~max_frontiers
-                ~max_queue ~max_witnesses conflict_distance accept_distance
+                ~max_queue ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
+                conflict_distance accept_distance
             in
             let channel = open_out_bin output in
             Marshal.to_channel channel result [];
@@ -1225,33 +1283,82 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
       prefix_seeds + seeds )
   end
 
+let environment name =
+  match Sys.getenv_opt name with
+  | Some value when value <> "" -> value
+  | _ -> invalid_arg (name ^ " must be set")
+
+let environment_int name =
+  match Sys.getenv_opt name with
+  | None | Some "" -> invalid_arg (name ^ " must be set")
+  | Some value ->
+      (match int_of_string_opt value with
+      | Some parsed -> parsed
+      | None -> invalid_arg (name ^ " must be an integer"))
+
+let environment_float name =
+  match Sys.getenv_opt name with
+  | None | Some "" -> invalid_arg (name ^ " must be set")
+  | Some value ->
+      (try float_of_string value
+       with Failure _ -> invalid_arg (name ^ " must be a number"))
+
 let grammar = ref ""
-let menhir = ref "menhir"
-let max_tokens = ref 20
-let max_frontiers = ref 500_000
-let max_queue = ref 0
-let timeout = ref 60.
-let jobs = ref 1
-let max_witnesses = ref 20
+let max_tokens = ref None
+let timeout = ref None
+let max_witnesses = ref None
 let check_tokens = ref []
 let prove_level = ref 0
 
+type memory_limits = {
+  max_queue : int;
+  max_frontiers : int;
+  soft_heap_bytes : float;
+  hard_heap_bytes : float;
+}
+
+(* Structural estimates choose how to divide the search space between queued
+   work and deduplication.  Actual managed-heap measurements enforce the
+   budget at runtime, so unexpectedly large frontiers reduce search reach
+   instead of causing an unbounded memory spike.  Ten percent remains outside
+   the worker high-water marks for the coordinator, native allocations, and
+   short-lived copy-on-write/compaction overhead. *)
+let derive_memory_limits ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens =
+  let queue_entry_bytes = 600. +. (24. *. float_of_int max_tokens) in
+  let frontier_entry_bytes = 240. in
+  let declared_per_worker_bytes =
+    float_of_int memory_mb *. 1024. *. 1024. /. float_of_int jobs
+  in
+  let hard_heap_bytes = 0.90 *. declared_per_worker_bytes in
+  let soft_heap_bytes = 0.80 *. declared_per_worker_bytes in
+  let combined_entry_bytes =
+    queue_entry_bytes +. (max_frontier_ratio *. frontier_entry_bytes)
+  in
+  let max_queue_float = floor (hard_heap_bytes /. combined_entry_bytes) in
+  if max_queue_float < 1. || max_queue_float > float_of_int max_int then
+    invalid_arg
+      "AMBIGUITY_MEMORY_MB is too small or too large for AMBIGUITY_JOBS";
+  let max_queue = int_of_float max_queue_float in
+  let max_frontiers_float =
+    floor (float_of_int max_queue *. max_frontier_ratio)
+  in
+  if max_frontiers_float > float_of_int max_int then
+    invalid_arg
+      "AMBIGUITY_MEMORY_MB or AMBIGUITY_MAX_FRONTIER_RATIO is too large";
+  let max_frontiers = max 1 (int_of_float max_frontiers_float) in
+  { max_queue; max_frontiers; soft_heap_bytes; hard_heap_bytes }
+
 let options =
   [
-    ("--menhir", Arg.Set_string menhir, "PATH Menhir executable");
-    ("--max-tokens", Arg.Set_int max_tokens, "N maximum tokens, including EOF");
-    ( "--max-frontiers",
-      Arg.Set_int max_frontiers,
-      "N dedup-cache entries per worker; bounds dedup memory, not the search \
-       (and the abstract pair count under --prove)" );
-    ( "--max-queue",
-      Arg.Set_int max_queue,
-      "N queued frontiers per worker; the search reach (a full queue drops \
-       discoveries and reports the run incomplete). Its live set drives stack \
-       memory. Defaults to --max-frontiers" );
-    ("--timeout", Arg.Set_float timeout, "SECONDS time limit per search phase");
-    ("--jobs", Arg.Set_int jobs, "N worker processes");
-    ("--max-witnesses", Arg.Set_int max_witnesses, "N ambiguity families to report");
+    ( "--max-tokens",
+      Arg.Int (fun value -> max_tokens := Some value),
+      "N maximum tokens, including EOF (required for search/prove)" );
+    ( "--timeout",
+      Arg.Float (fun value -> timeout := Some value),
+      "SECONDS time limit per search phase (required for search/prove)" );
+    ( "--max-witnesses",
+      Arg.Int (fun value -> max_witnesses := Some value),
+      "N ambiguity families to report (required for search/prove)" );
     ( "--check-tokens",
       Arg.String (fun value -> check_tokens := words value),
       "TOKENS check one space-separated token sequence" );
@@ -1259,7 +1366,7 @@ let options =
       Arg.Set_int prove_level,
       "K attempt an unambiguity proof with a top-K stack abstraction; \
        exit 0 proven unambiguous, 1 ambiguous, 3 not proven \
-       (--max-frontiers also bounds the abstract pair count)" );
+       (the derived dedup-frontier limit also bounds the abstract pair count)" );
   ]
 
 let main () =
@@ -1269,13 +1376,45 @@ let main () =
     Arg.usage options "ambiguity_search [options] GRAMMAR";
     exit 2
   end;
-  if !max_tokens < 0 then invalid_arg "--max-tokens must be at least 0";
-  if !max_frontiers < 1 then invalid_arg "--max-frontiers must be at least 1";
-  if !max_queue < 0 then invalid_arg "--max-queue must be non-negative";
-  if !max_queue = 0 then max_queue := !max_frontiers;
-  if !timeout < 0. then invalid_arg "--timeout must be non-negative";
-  if !jobs < 1 then invalid_arg "--jobs must be at least 1";
-  if !max_witnesses < 1 then invalid_arg "--max-witnesses must be at least 1";
+  let menhir = environment "AMBIGUITY_MENHIR" in
+  let memory_mb = environment_int "AMBIGUITY_MEMORY_MB" in
+  let max_frontier_ratio =
+    environment_float "AMBIGUITY_MAX_FRONTIER_RATIO"
+  in
+  let jobs = environment_int "AMBIGUITY_JOBS" in
+  Option.iter
+    (fun value ->
+      if value < 0 then invalid_arg "--max-tokens must be at least 0")
+    !max_tokens;
+  if memory_mb < 1 then invalid_arg "AMBIGUITY_MEMORY_MB must be at least 1";
+  if
+    Float.is_nan max_frontier_ratio
+    || Float.is_infinite max_frontier_ratio
+    || max_frontier_ratio <= 0.
+  then
+    invalid_arg
+      "AMBIGUITY_MAX_FRONTIER_RATIO must be finite and greater than 0";
+  Option.iter
+    (fun value ->
+      if value < 0. then invalid_arg "--timeout must be non-negative")
+    !timeout;
+  if jobs < 1 then invalid_arg "AMBIGUITY_JOBS must be at least 1";
+  Option.iter
+    (fun value ->
+      if value < 1 then invalid_arg "--max-witnesses must be at least 1")
+    !max_witnesses;
+  let search_limits =
+    if !check_tokens <> [] then None
+    else
+      let required name = function
+        | Some value -> value
+        | None -> invalid_arg (name ^ " is required for search/prove")
+      in
+      Some
+        ( required "--max-tokens" !max_tokens,
+          required "--timeout" !timeout,
+          required "--max-witnesses" !max_witnesses )
+  in
   let grammar_path = Unix.realpath !grammar in
   let temporary = temporary_directory () in
   Fun.protect
@@ -1283,7 +1422,7 @@ let main () =
     (fun () ->
       let terminals, aliases = parse_tokens grammar_path in
       let automaton_path =
-        prepare_automaton ~menhir:!menhir ~grammar:grammar_path
+        prepare_automaton ~menhir ~grammar:grammar_path
           ~directory:temporary
       in
       let automaton = parse_automaton automaton_path terminals aliases in
@@ -1301,8 +1440,19 @@ let main () =
         Printf.printf "Accepting derivations: %d\n" count;
         exit (if count >= 2 then 1 else 0)
       end;
+      let max_tokens, timeout, max_witnesses = Option.get search_limits in
+      let memory_limits =
+        derive_memory_limits ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens
+      in
+      Printf.printf
+        "Memory budget: %d MiB total across %d worker(s); workers compact at %.0f MiB and stop admitting frontiers at %.0f MiB each (10%% reserved); per-worker limits are %d queued frontiers and %d retained dedup frontiers (ratio %g).\n"
+        memory_mb jobs
+        (memory_limits.soft_heap_bytes /. 1024. /. 1024.)
+        (memory_limits.hard_heap_bytes /. 1024. /. 1024.)
+        memory_limits.max_queue memory_limits.max_frontiers
+        max_frontier_ratio;
       if !prove_level > 0 then begin
-        match prove engine !prove_level !max_frontiers with
+        match prove engine !prove_level memory_limits.max_frontiers with
         | Proven pairs ->
             Printf.printf
               "PROVEN UNAMBIGUOUS: no diverging pair of accepting parses \
@@ -1313,7 +1463,8 @@ let main () =
         | Pair_overflow pairs ->
             Printf.printf
               "NOT PROVEN: the abstract pair limit (%d) was reached at \
-               abstraction level %d. Raise --max-frontiers or lower --prove.\n"
+               abstraction level %d. Raise AMBIGUITY_MEMORY_MB or \
+               AMBIGUITY_MAX_FRONTIER_RATIO, or lower --prove.\n"
               pairs !prove_level;
             exit 3
         | Abstract_candidate (tokens, pairs) ->
@@ -1334,9 +1485,11 @@ let main () =
       in
       let accept_distance = reverse_distances automaton accept_targets in
       let outcome, conflict_seeds =
-        parallel_unified_search engine ~jobs:!jobs ~max_tokens:!max_tokens
-          ~timeout:!timeout ~max_frontiers:!max_frontiers
-          ~max_queue:!max_queue ~max_witnesses:!max_witnesses conflict_distance
+        parallel_unified_search engine ~jobs ~max_tokens ~timeout
+          ~max_frontiers:memory_limits.max_frontiers
+          ~max_queue:memory_limits.max_queue ~max_witnesses
+          ~soft_heap_bytes:memory_limits.soft_heap_bytes
+          ~hard_heap_bytes:memory_limits.hard_heap_bytes conflict_distance
           accept_distance temporary
       in
       match outcome.witnesses with
@@ -1345,7 +1498,7 @@ let main () =
           | None ->
               Printf.printf
                 "No complete ambiguity found through %d tokens after exploring %d frontiers (%d unique).\n"
-                !max_tokens outcome.explored outcome.unique
+                max_tokens outcome.explored outcome.unique
           | Some reason ->
               Printf.printf
                 "Search stopped at depth %d because %s; no complete ambiguity was found in %d explored frontiers (%d unique).\n"

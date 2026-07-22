@@ -20,6 +20,7 @@
   "shell": {
     "init_hook": [
       "echo 'Welcome to devbox!'",
+      "export PATH=\"$DEVBOX_PROJECT_ROOT/dev/bin:$PATH\"",
       "eval $(opam env)",
       "export LLVM_CONFIG=$(realpath $DEVBOX_PROJECT_ROOT/.devbox/nix/profile/default/bin/llvm-config)",
       "export LD_LIBRARY_PATH=/nix/store/s7vmxmhkq439cjb7ag9w198p6dk7kl0w-zstd-1.5.7/lib:$LD_LIBRARY_PATH"
