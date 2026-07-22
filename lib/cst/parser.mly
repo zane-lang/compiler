@@ -62,7 +62,9 @@
 %nonassoc EQEQ LESSEQ MOREEQ LESS MORE   /* comparisons */
 %left PLUS MINUS
 %left STAR SLASH
+%left DOT                                /* field access */
 %nonassoc TILDE AND                      /* prefix ~ and & */
+%left LPAREN                             /* function application */
 
 %start <Nodes.Package.t> package
 
@@ -110,12 +112,46 @@ package:
       generics
     }
 
-type_expr:
+%inline type_atom:
   | name=name_type generics=loption(generics) {
       Nodes.Type_expr.Path { name; generics }
     }
-  | verb_type=verb_type {
-      Nodes.Type_expr.Verb verb_type
+  | "(" type_=type_expr ")" {
+      Nodes.Type_expr.Parenthesized type_
+    }
+
+%inline verb_type_suffix:
+  | "[" params=separated_list(",", param_type) "]" {
+      fun ret_type ->
+        Nodes.Type_expr.Verb (Nodes.Verb_type.Func { params; ret_type })
+    }
+  | "[" THIS this_type=type_expr
+    params=loption(preceded(",", separated_nonempty_list(",", param_type)))
+    "]" is_mut=boption(MUT) {
+      fun ret_type ->
+        Nodes.Type_expr.Verb (Nodes.Verb_type.Meth {
+          this_type;
+          params;
+          ret_type;
+          is_mut;
+        })
+    }
+
+(* Verb-type brackets bind more tightly than an unparenthesized abort return:
+   `Int ? Error[]` is `Int ? (Error[])`. To make the abort return feed the
+   verb type instead, group it explicitly: `(Int ? Error)[]`. *)
+type_expr:
+  | atom=type_atom suffixes=list(verb_type_suffix) {
+      List.fold_left
+        (fun type_ suffix -> suffix (Nodes.Ret_type.Safe type_))
+        atom suffixes
+    }
+  | "(" ret_type=abort_ret_type ")"
+    first=verb_type_suffix rest=list(verb_type_suffix) {
+      let type_ = first (Nodes.Ret_type.Parenthesized ret_type) in
+      List.fold_left
+        (fun type_ suffix -> suffix (Nodes.Ret_type.Safe type_))
+        type_ rest
     }
 
 %inline generic_param:
@@ -249,12 +285,13 @@ primary:
   | func_lambda=func_lambda { Nodes.Expr.FuncLambda func_lambda }
   | meth_lambda=meth_lambda { Nodes.Expr.MethLambda meth_lambda }
 
-(* postfix chain: calls, method calls, field access. binds tighter than the
-   binary operators, so `a!b(c) * d(e)` is `(a!b(c)) * (d(e))`, unambiguously. *)
+(* Calls bind tighter than prefix operators, while field access binds just
+   below them. Thus `~value().field` is `(~value()).field`. Both remain tighter
+   than binary operators, so `a!b(c) * d(e)` is `(a!b(c)) * (d(e))`. *)
 app:
   | primary=primary { primary }
   | verb_call=verb_call { Nodes.Expr.VerbCall verb_call }
-  | target=app "." field=LIDENT {
+  | target=expr "." field=LIDENT {
       Nodes.Expr.DotAccess { target; field }
     }
 
@@ -311,10 +348,15 @@ expr:
       Nodes.Type_or_moulded.Moulded moulded
     }
 
-%inline ret_type:
+ret_type:
   | ret_type=type_expr {
       Nodes.Ret_type.Safe ret_type
     }
+  | ret_type=abort_ret_type {
+      ret_type
+    }
+
+abort_ret_type:
   | ok=type_expr "?" abort=type_expr {
       Nodes.Ret_type.Abort { ok; abort }
     }
@@ -348,13 +390,13 @@ body:
    part. no method part => function call; a method part => method call, with
    the receiver as `this` and the (primary) name as the callee. *)
 verb_call:
-  | receiver=app part=ioption(meth_part) "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) {
+  | receiver=app part=ioption(meth_part) "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
       match part with
       | None -> Nodes.Verb_call.Func { callee = receiver; args; abort_handle }
       | Some (is_mut, name) ->
           Nodes.Verb_call.Meth { this = receiver; callee = name; args; abort_handle; is_mut }
     }
-  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) {
+  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
       Nodes.Verb_call.Constructor { name_type; args; abort_handle }
     }
 
@@ -422,14 +464,3 @@ stat:
   | name=UIDENT { Nodes.Name_type.Ident name }
   | pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Qualified { package = pkg; ident = name } }
   | "@" pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Intrinsic { package = pkg; ident = name } }
-
-%inline verb_type:
-  | ret=ret_type "[" params=separated_list(",", param_type) "]" {
-      Nodes.Verb_type.Func { params; ret_type = ret }
-    }
-  | ret=ret_type "[" THIS this_type=type_expr
-    params=loption(preceded(",", separated_nonempty_list(",", param_type)))
-    "]" is_mut=boption(MUT) {
-      Nodes.Verb_type.Meth { this_type; params; ret_type = ret; is_mut }
-    }
-

@@ -74,6 +74,7 @@ and generic_arg_to_node (x: Nodes.Generic_arg.t) = match x with
 
 and type_to_node (x: Nodes.Type_expr.t) = match x with
   | Verb x -> verb_type_to_node x
+  | Parenthesized x -> group "parenthesized" (type_to_node x)
   | Path { name; generics } ->
       fields [
         ("qualifier", name_type_to_node name);
@@ -223,6 +224,7 @@ and ret_to_node (x: Nodes.Ret_type.t) = match x with
         ("safe_type",  type_to_node ok);
         ("abort_type", type_to_node abort);
       ]
+  | Parenthesized ret -> group "parenthesized" (ret_to_node ret)
 
 and func_lambda_to_node (x: Nodes.Func_lambda.t) =
   fields [

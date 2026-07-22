@@ -197,13 +197,13 @@ KNOWN_CASES = (
 PRIMARY_GROUP = '  | "(" e=expr ")" { Nodes.Expr.Parenthized e }\n'
 
 VERB_CALL = '''verb_call:
-  | receiver=app part=ioption(meth_part) "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) {
+  | receiver=app part=ioption(meth_part) "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
       match part with
       | None -> Nodes.Verb_call.Func { callee = receiver; args; abort_handle }
       | Some (is_mut, name) ->
           Nodes.Verb_call.Meth { this = receiver; callee = name; args; abort_handle; is_mut }
     }
-  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) {
+  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
       Nodes.Verb_call.Constructor { name_type; args; abort_handle }
     }
 '''
