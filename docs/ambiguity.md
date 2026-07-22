@@ -37,12 +37,15 @@ the state is triaged into one of these categories.
   sentences (`tools/ambiguity_search.ml`). A completed bound is a theorem
   ("no ambiguous sentence of at most N tokens"), up to the astronomically
   unlikely collision of the 124-bit frontier digests used for
-  deduplication; an interrupted bound is evidence only. Two independent
-  per-worker budgets control the search: `--max-queue` caps the number of
-  queued frontiers — the search reach, and the live set that stack memory
-  tracks — while `--max-frontiers` sizes the evicting digest cache that
-  prunes redundant work (`--max-queue` defaults to `--max-frontiers`).
-  Together they run at roughly 2 KB per unit of resident memory; the search
+  deduplication; an interrupted bound is evidence only. `--memory-mb` sets an
+  approximate total resident-memory budget shared by all workers. The tool
+  derives two per-worker limits from it: a queue cap, which controls search
+  reach and the live stack set, and an evicting digest-cache size, which
+  controls deduplication. `--max-frontier-ratio` is the number of digest-cache
+  entries per queued frontier: raising it trades queue reach for stronger
+  deduplication, while lowering it does the opposite. The default ratio is
+  `1.0`. The estimate is based on
+  `queue * (600 + 24 * max_tokens) + cache * 240` bytes per worker. The search
   itself is bounded by `--max-tokens` and `--timeout`, and a run whose queue
   filled and had to drop part of the space reports itself as interrupted.
   Witnesses are grouped by the conflict states they
@@ -63,6 +66,18 @@ the state is triaged into one of these categories.
   (`tools/SYNTAX_EXPERIMENTS.md`).
 - `menhir --explain` — enumerates the conflict states that constitute the
   obligation ledger.
+
+## Local machine configuration
+
+The `just` recipes load machine-specific values from the ignored
+`machine-config.txt` file. Copy `machine-config.example` to get started. This
+keeps memory, worker-count, and executable-path tuning out of normal command
+invocations and out of version control. Without the file, the same values from
+the example are used as defaults.
+
+Search intent remains on the command line. For example,
+`just ambiguities 100 3600` searches through 100 tokens for up to one hour,
+using the local machine budget.
 
 ## Why this is sound
 

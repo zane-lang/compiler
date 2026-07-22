@@ -14,6 +14,7 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, replace
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -743,14 +744,19 @@ def check_case(args: argparse.Namespace, grammar: Path, case: KnownCase, variant
 
 
 def search_variant(args: argparse.Namespace, grammar: Path) -> SearchResult:
+    # Several variants may run concurrently. Give each search an equal share
+    # so --memory-mb remains a total budget for the whole experiment command.
+    search_memory_mb = args.memory_mb // args.concurrent_searches
     command = [
         *base_command(args, grammar),
         "--max-tokens",
         str(args.max_tokens),
         "--timeout",
         str(args.timeout),
-        "--max-frontiers",
-        str(args.max_frontiers),
+        "--memory-mb",
+        str(search_memory_mb),
+        "--max-frontier-ratio",
+        str(args.max_frontier_ratio),
         "--jobs",
         str(args.search_jobs),
         "--max-witnesses",
@@ -875,7 +881,8 @@ def render_markdown(args: argparse.Namespace, results: list[VariantResult]) -> s
         "",
         (
             f"Bounds: {args.max_tokens} tokens, {args.timeout:g}s, "
-            f"{args.max_frontiers:,} frontiers, {args.max_witnesses} witnesses per variant."
+            f"{args.memory_mb:,} MiB total memory, frontier ratio "
+            f"{args.max_frontier_ratio:g}, {args.max_witnesses} witnesses per variant."
         ),
         "",
         "A Pareto mark means no tested candidate was at least as good on every measured axis. "
@@ -964,7 +971,8 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--menhir", default="menhir", help="Menhir executable")
     result.add_argument("--max-tokens", type=int, default=12)
     result.add_argument("--timeout", type=float, default=15.0)
-    result.add_argument("--max-frontiers", type=int, default=150_000)
+    result.add_argument("--memory-mb", type=int, default=512)
+    result.add_argument("--max-frontier-ratio", type=float, default=1.0)
     result.add_argument("--max-witnesses", type=int, default=10)
     result.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
     result.add_argument("--search-jobs", type=int, default=1)
@@ -994,8 +1002,10 @@ def validate_args(args: argparse.Namespace, cli: argparse.ArgumentParser) -> Non
         cli.error("--max-tokens must be at least 0")
     if args.timeout < 0:
         cli.error("--timeout must be non-negative")
-    if args.max_frontiers < 1 or args.max_witnesses < 1:
-        cli.error("frontier and witness limits must be at least 1")
+    if args.memory_mb < 1 or args.max_witnesses < 1:
+        cli.error("memory and witness limits must be at least 1")
+    if not math.isfinite(args.max_frontier_ratio) or args.max_frontier_ratio <= 0:
+        cli.error("--max-frontier-ratio must be finite and greater than 0")
     if args.jobs < 1 or args.search_jobs < 1:
         cli.error("worker counts must be at least 1")
 
@@ -1014,6 +1024,9 @@ def main() -> int:
         variants = select_variants(args.variant)
     except ValueError as error:
         cli.error(str(error))
+    args.concurrent_searches = min(args.jobs, len(variants))
+    if args.memory_mb < args.concurrent_searches:
+        cli.error("--memory-mb must provide at least 1 MiB per concurrent search")
 
     source = args.grammar.read_text(encoding="utf-8")
     temporary: tempfile.TemporaryDirectory[str] | None = None
@@ -1064,7 +1077,8 @@ def main() -> int:
             "bounds": {
                 "max_tokens": args.max_tokens,
                 "timeout": args.timeout,
-                "max_frontiers": args.max_frontiers,
+                "memory_mb": args.memory_mb,
+                "max_frontier_ratio": args.max_frontier_ratio,
                 "max_witnesses": args.max_witnesses,
             },
             "known_cases": [

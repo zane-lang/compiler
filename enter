@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if ! command -v devbox >/dev/null 2>&1; then
+	echo "enter: devbox is required; install it from https://www.jetify.com/devbox" >&2
+	exit 127
+fi
+
+cd "$ROOT"
+exec devbox shell
