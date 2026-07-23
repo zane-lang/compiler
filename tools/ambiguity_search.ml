@@ -969,19 +969,17 @@ let managed_heap_bytes () =
   let stats = Gc.quick_stat () in
   float_of_int stats.heap_words *. float_of_int (Sys.word_size / 8)
 
-let unified_search engine initial ~max_tokens ~min_tokens ~depth_bias ~timeout
-    ~max_frontiers ~max_queue ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
-    conflict_distance accept_distance =
+let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
+    ~timeout ~max_frontiers ~max_queue ~max_witnesses ~soft_heap_bytes
+    ~hard_heap_bytes conflict_distance accept_distance =
   let deadline = Unix.gettimeofday () +. timeout in
   let buckets = Array.init (max_tokens + 1) (fun _ -> Queue.create ()) in
   let seen = Seen_cache.create max_frontiers in
   let queued = ref 0 in
   let dropped = ref false in
   let admit_new = ref true in
-  let deepest_bucket = ref 0 in
   let enqueue item =
     incr queued;
-    deepest_bucket := max !deepest_bucket item.depth;
     Queue.add item buckets.(item.depth)
   in
   (* max_queue caps the number of queued items - the search reach. A full
@@ -1019,8 +1017,8 @@ let unified_search engine initial ~max_tokens ~min_tokens ~depth_bias ~timeout
   let conflict_seeds = ref 0 in
   let witnesses = Hashtbl.create max_witnesses in
   let stopped = ref None in
-  let depth = ref 0 in
-  let deep_turns = ref 0 in
+  let current_depth = ref 0 in
+  let expanded_at_depth = ref 0 in
   (* The stack pool and closure cache also grow with the search; sweep them
      against the live queue on a geometric schedule so total memory stays
      proportional to the queue itself (the live set marked below), whose size
@@ -1082,32 +1080,36 @@ let unified_search engine initial ~max_tokens ~min_tokens ~depth_bias ~timeout
       end
     end
   in
-  let shallowest_nonempty () =
+  (* A quota forms a depth wave: expand a bounded number of siblings, descend
+     through their children, then return to the earliest unfinished siblings
+     when no deeper bucket remains. Nothing is discarded, so repeated waves
+     eventually cover the same frontiers as breadth-first search. *)
+  let first_nonempty start =
+    let depth = ref start in
     while !depth <= max_tokens && Queue.is_empty buckets.(!depth) do
       incr depth
     done;
-    !depth
-  in
-  let deepest_nonempty () =
-    while
-      !deepest_bucket >= 0 && Queue.is_empty buckets.(!deepest_bucket)
-    do
-      decr deepest_bucket
-    done;
-    !deepest_bucket
+    if !depth <= max_tokens then Some !depth else None
   in
   let next_bucket () =
-    let shallowest = shallowest_nonempty () in
-    let deepest = deepest_nonempty () in
-    if depth_bias = 0 then shallowest
-    else if !deep_turns = 0 then begin
-      deep_turns := depth_bias;
-      shallowest
-    end
-    else begin
-      decr deep_turns;
-      deepest
-    end
+    match nodes_per_depth with
+    | None -> Option.get (first_nonempty 0)
+    | Some limit ->
+        let current_available =
+          !current_depth <= max_tokens
+          && not (Queue.is_empty buckets.(!current_depth))
+        in
+        if (not current_available) || !expanded_at_depth >= limit then begin
+          let next =
+            match first_nonempty (!current_depth + 1) with
+            | Some depth -> depth
+            | None -> Option.get (first_nonempty 0)
+          in
+          current_depth := next;
+          expanded_at_depth := 0
+        end;
+        incr expanded_at_depth;
+        !current_depth
   in
   while
     Hashtbl.length witnesses < max_witnesses
@@ -1232,7 +1234,7 @@ let initial_partitions engine jobs max_tokens initial =
   end
 
 let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
-    ~depth_bias ~timeout ~max_frontiers ~max_queue ~max_witnesses
+    ~nodes_per_depth ~timeout ~max_frontiers ~max_queue ~max_witnesses
     ~soft_heap_bytes ~hard_heap_bytes conflict_distance accept_distance
     temporary =
   let partitions, prefix_explored, prefix_unique, prefix_seeds =
@@ -1240,9 +1242,9 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
   in
   if Array.length partitions = 1 then
     let outcome, seeds =
-      unified_search engine partitions.(0) ~max_tokens ~min_tokens ~depth_bias
-        ~timeout ~max_frontiers ~max_queue ~max_witnesses ~soft_heap_bytes
-        ~hard_heap_bytes conflict_distance accept_distance
+      unified_search engine partitions.(0) ~max_tokens ~min_tokens
+        ~nodes_per_depth ~timeout ~max_frontiers ~max_queue ~max_witnesses
+        ~soft_heap_bytes ~hard_heap_bytes conflict_distance accept_distance
     in
     ( {
         outcome with
@@ -1264,10 +1266,10 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
         match Unix.fork () with
         | 0 ->
             let result =
-              unified_search engine initial ~max_tokens ~min_tokens ~depth_bias
-                ~timeout ~max_frontiers ~max_queue ~max_witnesses
-                ~soft_heap_bytes ~hard_heap_bytes conflict_distance
-                accept_distance
+              unified_search engine initial ~max_tokens ~min_tokens
+                ~nodes_per_depth ~timeout ~max_frontiers ~max_queue
+                ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
+                conflict_distance accept_distance
             in
             let channel = open_out_bin output in
             Marshal.to_channel channel result [];
@@ -1345,7 +1347,7 @@ let grammar = ref ""
 let max_tokens = ref None
 let min_tokens = ref 0
 let prefix_tokens = ref []
-let depth_bias = ref 0
+let nodes_per_depth = ref None
 let timeout = ref None
 let max_witnesses = ref None
 let check_tokens = ref []
@@ -1401,10 +1403,10 @@ let options =
     ( "--prefix-tokens",
       Arg.String (fun value -> prefix_tokens := words value),
       "TOKENS consume a space-separated token prefix before searching" );
-    ( "--depth-bias",
-      Arg.Set_int depth_bias,
-      "N deepest-frontier expansions per shallowest-frontier expansion; 0 is \
-       breadth-first, 1 balances depth and breadth (default 0)" );
+    ( "--nodes-per-depth",
+      Arg.Int (fun value -> nodes_per_depth := Some value),
+      "N queued frontiers to expand at each depth before descending; omitted \
+       for breadth-first search" );
     ( "--timeout",
       Arg.Float (fun value -> timeout := Some value),
       "SECONDS time limit per search phase (required for search/prove)" );
@@ -1439,7 +1441,10 @@ let main () =
       if value < 0 then invalid_arg "--max-tokens must be at least 0")
     !max_tokens;
   if !min_tokens < 0 then invalid_arg "--min-tokens must be at least 0";
-  if !depth_bias < 0 then invalid_arg "--depth-bias must be at least 0";
+  Option.iter
+    (fun value ->
+      if value < 1 then invalid_arg "--nodes-per-depth must be at least 1")
+    !nodes_per_depth;
   if memory_mb < 1 then invalid_arg "AMBIGUITY_MEMORY_MB must be at least 1";
   if
     Float.is_nan max_frontier_ratio
@@ -1527,8 +1532,12 @@ let main () =
         memory_limits.max_queue memory_limits.max_frontiers
         max_frontier_ratio;
       Printf.printf
-        "Search constraints: %d..%d total tokens; %d-token prefix; depth bias %d.\n"
-        !min_tokens max_tokens prefix_depth !depth_bias;
+        "Search constraints: %d..%d total tokens; %d-token prefix; %s.\n"
+        !min_tokens max_tokens prefix_depth
+        (match !nodes_per_depth with
+        | None -> "breadth-first scheduling"
+        | Some 1 -> "1 node per depth"
+        | Some limit -> Printf.sprintf "%d nodes per depth" limit);
       if !prefix_tokens <> [] then
         Printf.printf "Prefix tokens: %s\n" (String.concat " " !prefix_tokens);
       if !prove_level > 0 then begin
@@ -1566,7 +1575,7 @@ let main () =
       let accept_distance = reverse_distances automaton accept_targets in
       let outcome, conflict_seeds =
         parallel_unified_search engine initial ~jobs ~max_tokens
-          ~min_tokens:!min_tokens ~depth_bias:!depth_bias ~timeout
+          ~min_tokens:!min_tokens ~nodes_per_depth:!nodes_per_depth ~timeout
           ~max_frontiers:memory_limits.max_frontiers
           ~max_queue:memory_limits.max_queue ~max_witnesses
           ~soft_heap_bytes:memory_limits.soft_heap_bytes
