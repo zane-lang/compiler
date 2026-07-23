@@ -33,15 +33,15 @@ Common tools are available directly inside the development shell:
 
 ```sh
 compiler
-ambiguities profiles
-ambiguities search
-ambiguities search deep-function-body --timeout 1h --output deep-search.txt
-ambiguities check UIDENT LIDENT LPAREN RPAREN LCURLY RCURLY EOF
-ambiguities prove 3
-syntax-experiments --max-tokens 12 --timeout 15 --max-witnesses 10
-syntax-experiments --variant semicolon-separated --max-tokens 12 --timeout 15 --max-witnesses 10
-grammar-stats
-grammar-conflicts
+ambiguity profiles
+ambiguity search
+ambiguity search deep-function-body --timeout 1h --output deep-search.txt
+ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY RCURLY EOF
+ambiguity prove 3
+syntax-experiment --max-tokens 12 --timeout 15 --max-witnesses 10
+syntax-experiment --variant semicolon-separated --max-tokens 12 --timeout 15 --max-witnesses 10
+grammar-stat
+grammar-conflict
 ```
 
 The `justfile` is reserved for parameterless project actions such as rebuilding,
