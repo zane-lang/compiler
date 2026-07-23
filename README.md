@@ -33,8 +33,11 @@ Common tools are available directly inside the development shell:
 
 ```sh
 compiler
-ambiguities --max-tokens 100 --timeout 3600 --max-witnesses 50
-ambiguities --prove 3 --max-tokens 16 --timeout 120 --max-witnesses 20
+ambiguities profiles
+ambiguities search
+ambiguities search deep-function-body --timeout 1h --output deep-search.txt
+ambiguities check UIDENT LIDENT LPAREN RPAREN LCURLY RCURLY EOF
+ambiguities prove 3
 syntax-experiments --max-tokens 12 --timeout 15 --max-witnesses 10
 syntax-experiments --variant semicolon-separated --max-tokens 12 --timeout 15 --max-witnesses 10
 grammar-stats
@@ -42,4 +45,4 @@ grammar-conflicts
 ```
 
 The `justfile` is reserved for parameterless project actions such as rebuilding,
-watching, and running the syntax-experiment tests.
+watching, and running tool tests.
