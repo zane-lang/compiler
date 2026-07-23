@@ -103,8 +103,8 @@ To concentrate a run inside a function body and favor depth over breadth:
 
 ```sh
 ambiguities \
-  --prefix-tokens "UIDENT LPAREN RPAREN LCURLY" \
-  --min-tokens 12 \
+  --prefix-tokens "UIDENT LIDENT LPAREN RPAREN LCURLY" \
+  --min-tokens 15 \
   --max-tokens 20 \
   --depth-bias 20 \
   --timeout 3600 \
