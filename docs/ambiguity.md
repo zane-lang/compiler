@@ -60,6 +60,11 @@ the state is triaged into one of these categories.
   rotates depth waves so sibling statements continue to receive attention.
   The search itself is bounded by the profile's token range and timeout, and a
   run that had to drop part of the space reports itself as interrupted.
+  In an interactive terminal, one transient status line shows the active token
+  depth, ambiguity families found at that depth, explored and unique frontiers,
+  elapsed time, and a RAM bar against the configured memory budget. The
+  coordinator deduplicates ambiguity families across workers before displaying
+  the count. Redirected output and saved reports contain no progress line.
   `--nodes-per-depth N` expands up to `N` queued frontiers at one depth before
   descending to the next populated depth. When a deep wave ends, the search
   returns to the shallowest unfinished depth, so earlier token choices rotate
