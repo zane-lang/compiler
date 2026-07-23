@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 
-from tools import syntax_experiments as experiments
+from tools import syntax_experiment as experiments
 
 
 class SyntaxExperimentTests(unittest.TestCase):

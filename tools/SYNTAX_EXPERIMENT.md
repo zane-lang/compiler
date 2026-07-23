@@ -1,6 +1,6 @@
 # Syntax experiments
 
-`syntax_experiments.py` compares small, explicit changes to Zane's concrete
+`syntax_experiment.py` compares small, explicit changes to Zane's concrete
 syntax. It generates a temporary Menhir grammar for every selected variant,
 replays the known complete-ambiguity witnesses, runs the bounded ambiguity
 search, and produces Markdown and JSON reports.
@@ -11,24 +11,24 @@ reviewable, composable, and assigned an approximate edit cost.
 ## Quick start
 
 ```sh
-just syntax-experiments-list
-just syntax-experiments
-just syntax-experiment semicolon-separated
+syntax-experiment --list
+syntax-experiment
+syntax-experiment --variant semicolon-separated
 ```
 
 Reports are written to:
 
 ```text
-_build/syntax-experiments/report.md
-_build/syntax-experiments/report.json
+_build/syntax-experiment/report.md
+_build/syntax-experiment/report.json
 ```
 
 Generated grammars normally live only for the duration of a run. To inspect
 them directly:
 
 ```sh
-python3 tools/syntax_experiments.py --emit-only \
-  --emit-dir _build/syntax-experiments/grammars
+python3 tools/syntax_experiment.py --emit-only \
+  --emit-dir _build/syntax-experiment/grammars
 ```
 
 ## Included ideas
@@ -104,8 +104,8 @@ human judgment.
    known witnesses are spelled). The two tables must cover the same names.
 3. Add one or more `Variant` entries, including useful combinations and an edit
    cost.
-4. Add focused assertions to `test_syntax_experiments.py`.
-5. Run `just syntax-experiments-test`, then a short single-variant search before
+4. Add focused assertions to `test_syntax_experiment.py`.
+5. Run `just syntax-experiment-test`, then a short single-variant search before
    comparing the full matrix.
 
 ## Limitations

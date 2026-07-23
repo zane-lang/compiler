@@ -33,8 +33,8 @@ the state is triaged into one of these categories.
 
 ## Tooling
 
-- `ambiguities` — bounded, parallel GLR search for complete ambiguous
-  sentences (`tools/ambiguity_search.ml`). A completed bound is a theorem
+- `ambiguity search [PROFILE]` — bounded, parallel GLR search for complete
+  ambiguous sentences (`tools/ambiguity_search.ml`). A completed bound is a theorem
   ("no ambiguous sentence of at most N tokens"), up to the astronomically
   unlikely collision of the 124-bit frontier digests used for
   deduplication; an interrupted bound is evidence only.
@@ -53,25 +53,49 @@ the state is triaged into one of these categories.
   covers the coordinator, native allocations, and transient compaction/
   copy-on-write overhead. This keeps memory near the configured plateau while
   prioritizing queue reach even when real frontiers are larger than the
-  estimate. The search itself is bounded by `--max-tokens` and `--timeout`, and
-  a run that had to drop part of the space reports itself as interrupted.
+  estimate. Named profiles in `ambiguity-searches.toml` collect search intent
+  in one reviewable place. `ambiguity profiles` lists them, and command-line
+  options can temporarily override a profile. The default `general` profile
+  is breadth-first; `deep-function-body` fixes the function-body prefix and
+  rotates depth waves so sibling statements continue to receive attention.
+  The search itself is bounded by the profile's token range and timeout, and a
+  run that had to drop part of the space reports itself as interrupted.
+  In an interactive terminal, one transient status line shows the active token
+  depth, ambiguity families found at that depth, explored and unique frontiers,
+  elapsed time, and a RAM bar against the configured memory budget. The
+  coordinator deduplicates ambiguity families across workers before displaying
+  the count. Redirected output and saved reports contain no progress line.
+  `--nodes-per-depth N` expands up to `N` queued frontiers at one depth before
+  descending to the next populated depth. When a deep wave ends, the search
+  returns to the shallowest unfinished depth, so earlier token choices rotate
+  instead of one deep subtree monopolizing the run. Smaller values are
+  narrower and deeper; larger values explore more siblings before descending.
+  Omitting the option preserves breadth-first scheduling. The scheduler does
+  not prune queued frontiers, so a run that completes its bound remains
+  exhaustive.
+  `--min-tokens N` prevents shorter ambiguities from consuming witness slots.
+  `--prefix-tokens "TOKENS..."` first advances the GLR parser through a fixed
+  token prefix and searches from that frontier, which is useful for targeting
+  contexts such as a function body. Minimum and maximum token counts include
+  the prefix and `EOF`.
   Witnesses are grouped by the conflict states they
   traverse, which maps each finding directly onto an obligation above.
-- `ambiguities --prove K` — conservative unambiguity proof mode built into the
-  ambiguity search. It abstracts GLR stacks to their top-K states and
+- `ambiguity prove K [PROFILE]` — conservative unambiguity proof mode built
+  into the ambiguity search. It abstracts GLR stacks to their top-K states and
   exhaustively explores pairs of abstract parses of the same input, comparing
   reduction chains in lockstep. It does not depend on an external constraint
   solver. Three verdicts: exit 0 "PROVEN UNAMBIGUOUS" is a genuine proof with
   no sentence-length bound; exit 1 means a concrete ambiguous sentence was
   found; exit 3 means not proven — the abstraction reported a candidate the
-  bounded search could not concretize, so raise `--prove` or the search bounds.
+  bounded search could not concretize, so raise the proof level or override the
+  concretization profile.
   Because unambiguity is undecidable in general, the "not proven" verdict can
   never be eliminated entirely; the prover is validated against known-ambiguous
   grammars, LR(1) grammars, precedence-resolved expression grammars, and
   unambiguous non-LR grammars such as palindromes.
-- `syntax-experiments` — compares candidate grammar changes under
+- `syntax-experiment` — compares candidate grammar changes under
   equal search bounds before they are adopted
-  (`tools/SYNTAX_EXPERIMENTS.md`).
+  (`tools/SYNTAX_EXPERIMENT.md`).
 - `menhir --explain` — enumerates the conflict states that constitute the
   obligation ledger.
 
@@ -85,9 +109,30 @@ out of version control. The file supplies `AMBIGUITY_MEMORY_MB`,
 `AMBIGUITY_MAX_FRONTIER_RATIO`, `AMBIGUITY_JOBS`, and `AMBIGUITY_MENHIR` as
 environment variables; they are deliberately not command-line options.
 
-Search intent remains on the command line. For example,
-`ambiguities --max-tokens 100 --timeout 3600 --max-witnesses 50` searches
-through 100 tokens for up to one hour, using the local machine budget.
+Search intent lives in versioned profiles, with concise overrides for one-off
+runs. For example, `ambiguity search general --tokens 0..100 --timeout 1h`
+searches through 100 tokens for up to one hour, using the local machine budget.
+Friendly durations such as `90s`, `30m`, and `1h` are accepted. Add
+`--output report.txt` to display and save a report, or `--dry-run` to inspect
+the resolved settings without building the engine.
+
+To concentrate a run inside a function body and favor depth over breadth:
+
+```sh
+ambiguity search deep-function-body
+```
+
+To change just one aspect without creating a profile:
+
+```sh
+ambiguity search deep-function-body --nodes-per-depth 4 --timeout 2h
+```
+
+Exact witnesses can be checked without quoting their token names:
+
+```sh
+ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN EOF
+```
 
 ## Why this is sound
 

@@ -10,7 +10,7 @@ for name in \
 	AMBIGUITY_JOBS \
 	AMBIGUITY_MENHIR; do
 	if [[ -z "${!name:-}" ]]; then
-		echo "ambiguities: $name must be set in machine-config.txt or the environment" >&2
+		echo "ambiguity: $name must be set in machine-config.txt or the environment" >&2
 		exit 2
 	fi
 done

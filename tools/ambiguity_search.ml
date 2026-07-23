@@ -815,6 +815,14 @@ type outcome = {
   stopped : string option;
 }
 
+type search_progress = {
+  depth : int;
+  ambiguities : ((int * string) list * int) list;
+  explored : int;
+  unique : int;
+  rss_bytes : float;
+}
+
 let () = Random.self_init ()
 
 let rec temporary_directory () =
@@ -913,12 +921,12 @@ module Seen_cache = struct
   (* Two independently seeded 62-bit lanes make colliding distinct frontiers
      astronomically unlikely even across billions of entries. A collision
      could only skip a frontier wrongly, never produce a false witness. *)
-  let digest branched frontier =
+  let digest branched progress frontier =
     let lane seed =
       IntMap.fold
         (fun stack_id count hash -> mix (mix hash stack_id) count)
         frontier
-        (mix seed (Bool.to_int branched))
+        (mix (mix seed (Bool.to_int branched)) progress)
     in
     (lane 0x2545F4914F6CDD1D, lane 0x27220A95FE4D1D65)
 
@@ -969,9 +977,102 @@ let managed_heap_bytes () =
   let stats = Gc.quick_stat () in
   float_of_int stats.heap_words *. float_of_int (Sys.word_size / 8)
 
-let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
-    ~max_queue ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
-    conflict_distance accept_distance =
+let resident_memory_bytes () =
+  try
+    read_lines "/proc/self/status"
+    |> List.find_map (fun line ->
+           if String.starts_with ~prefix:"VmRSS:" line then
+             try Some (Scanf.sscanf line "VmRSS: %f kB" (fun kib -> kib *. 1024.))
+             with _ -> None
+           else None)
+    |> Option.value ~default:(managed_heap_bytes ())
+  with _ -> managed_heap_bytes ()
+
+let progress_is_visible = Unix.isatty Unix.stderr
+
+let compact_number value =
+  let value = float_of_int value in
+  if value >= 1_000_000_000. then Printf.sprintf "%.1fB" (value /. 1_000_000_000.)
+  else if value >= 1_000_000. then Printf.sprintf "%.1fM" (value /. 1_000_000.)
+  else if value >= 1_000. then Printf.sprintf "%.1fk" (value /. 1_000.)
+  else Printf.sprintf "%.0f" value
+
+let memory_bar used budget =
+  let width = 12 in
+  let ratio = if budget <= 0. then 0. else min 1. (used /. budget) in
+  let filled = int_of_float (floor ((ratio *. float_of_int width) +. 0.5)) in
+  String.make filled '#' ^ String.make (width - filled) '-'
+
+let render_progress ~started ~max_tokens ~memory_budget
+    (entries : (bool * search_progress) list) =
+  if progress_is_visible && entries <> [] then begin
+    let has_active = List.exists fst entries in
+    let depth =
+      List.fold_left
+        (fun current
+             (is_active, (progress : search_progress)) ->
+          if has_active && not is_active then current
+          else max current progress.depth)
+        0 entries
+    in
+    let profiles = Hashtbl.create 64 in
+    let explored = ref 0 in
+    let unique = ref 0 in
+    let rss_bytes = ref 0. in
+    List.iter
+      (fun (_, (progress : search_progress)) ->
+        explored := !explored + progress.explored;
+        unique := !unique + progress.unique;
+        rss_bytes := !rss_bytes +. progress.rss_bytes;
+        List.iter
+          (fun (profile, witness_depth) ->
+            match Hashtbl.find_opt profiles profile with
+            | Some previous when previous <= witness_depth -> ()
+            | _ -> Hashtbl.replace profiles profile witness_depth)
+          progress.ambiguities)
+      entries;
+    let at_depth =
+      Hashtbl.fold
+        (fun _ witness_depth count ->
+          if witness_depth = depth then count + 1 else count)
+        profiles 0
+    in
+    let elapsed = max 0. (Unix.gettimeofday () -. started) in
+    Printf.eprintf
+      "\r\027[2K● depth %d/%d | ambiguities@depth %d | %s explored | %s unique | RAM [%s] %.1f/%.1f GiB | %02d:%02d"
+      depth max_tokens at_depth (compact_number !explored)
+      (compact_number !unique)
+      (memory_bar !rss_bytes memory_budget)
+      (!rss_bytes /. 1024. /. 1024. /. 1024.)
+      (memory_budget /. 1024. /. 1024. /. 1024.)
+      (int_of_float elapsed / 60) (int_of_float elapsed mod 60);
+    flush stderr
+  end
+
+let clear_progress () =
+  if progress_is_visible then begin
+    Printf.eprintf "\r\027[2K";
+    flush stderr
+  end
+
+let write_progress path (progress : search_progress) =
+  let temporary = path ^ ".new" in
+  let channel = open_out_bin temporary in
+  Marshal.to_channel channel progress [];
+  close_out channel;
+  Sys.rename temporary path
+
+let read_progress path : search_progress option =
+  try
+    let channel = open_in_bin path in
+    Fun.protect ~finally:(fun () -> close_in channel) (fun () ->
+        Some (Marshal.from_channel channel : search_progress))
+  with Sys_error _ | End_of_file | Failure _ -> None
+
+let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
+    ~timeout ~max_frontiers ~max_queue ~max_witnesses ~soft_heap_bytes
+    ~hard_heap_bytes ~show_progress ~on_progress conflict_distance
+    accept_distance =
   let deadline = Unix.gettimeofday () +. timeout in
   let buckets = Array.init (max_tokens + 1) (fun _ -> Queue.create ()) in
   let seen = Seen_cache.create max_frontiers in
@@ -994,7 +1095,12 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
       then enqueue item
       else if not !admit_new then dropped := true
       else
-        let key = Seen_cache.digest item.branched item.frontier in
+        (* Before [min_tokens], revisiting the same parser frontier at a
+           greater depth is useful rather than redundant: it can eventually
+           produce a witness long enough to report. Once the minimum is met,
+           the usual shortest-path deduplication applies. *)
+        let progress = min item.depth min_tokens in
+        let key = Seen_cache.digest item.branched progress item.frontier in
         match Seen_cache.find seen key with
         | Some depth when depth <= item.depth ->
             Seen_cache.refresh seen key depth
@@ -1012,7 +1118,28 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
   let conflict_seeds = ref 0 in
   let witnesses = Hashtbl.create max_witnesses in
   let stopped = ref None in
-  let depth = ref 0 in
+  let current_depth = ref 0 in
+  let expanded_at_depth = ref 0 in
+  let last_depth = ref 0 in
+  let last_progress = ref 0. in
+  let emit_progress force =
+    let now = Unix.gettimeofday () in
+    if show_progress && (force || now -. !last_progress >= 0.2) then begin
+      last_progress := now;
+      on_progress
+        {
+          depth = !last_depth;
+          ambiguities =
+            Hashtbl.fold
+              (fun profile tokens result ->
+                (profile, List.length tokens) :: result)
+              witnesses [];
+          explored = !explored;
+          unique = seen.Seen_cache.inserted;
+          rss_bytes = resident_memory_bytes ();
+        }
+    end
+  in
   (* The stack pool and closure cache also grow with the search; sweep them
      against the live queue on a geometric schedule so total memory stays
      proportional to the queue itself (the live set marked below), whose size
@@ -1074,27 +1201,61 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
       end
     end
   in
+  (* A quota forms a depth wave: expand a bounded number of siblings, descend
+     through their children, then return to the earliest unfinished siblings
+     when no deeper bucket remains. Nothing is discarded, so repeated waves
+     eventually cover the same frontiers as breadth-first search. *)
+  let first_nonempty start =
+    let depth = ref start in
+    while !depth <= max_tokens && Queue.is_empty buckets.(!depth) do
+      incr depth
+    done;
+    if !depth <= max_tokens then Some !depth else None
+  in
+  let next_bucket () =
+    match nodes_per_depth with
+    | None -> Option.get (first_nonempty 0)
+    | Some limit ->
+        let current_available =
+          !current_depth <= max_tokens
+          && not (Queue.is_empty buckets.(!current_depth))
+        in
+        if (not current_available) || !expanded_at_depth >= limit then begin
+          let next =
+            match first_nonempty (!current_depth + 1) with
+            | Some depth -> depth
+            | None -> Option.get (first_nonempty 0)
+          in
+          current_depth := next;
+          expanded_at_depth := 0
+        end;
+        incr expanded_at_depth;
+        !current_depth
+  in
   while
     Hashtbl.length witnesses < max_witnesses
-    && !depth <= max_tokens
+    && !queued > 0
     && Unix.gettimeofday () < deadline
   do
-    if Queue.is_empty buckets.(!depth) then incr depth
-    else begin
+    let bucket = next_bucket () in
+    if bucket >= 0 && bucket <= max_tokens then begin
       maybe_compact_stacks ();
       if !admit_new then begin
         if !explored mod 4_096 = 0 then manage_memory ()
       end
       else manage_memory ();
-      let item = Queue.take buckets.(!depth) in
+      let item = Queue.take buckets.(bucket) in
       decr queued;
       incr explored;
+      last_depth := item.depth;
       deepest := max !deepest item.depth;
       if accepted_count engine item.frontier >= 2 then begin
-        let tokens = List.rev item.tokens_rev in
-        let profile = conflict_profile engine tokens in
-        if not (Hashtbl.mem witnesses profile) then
-          Hashtbl.add witnesses profile tokens
+        if item.depth >= min_tokens then begin
+          let tokens = List.rev item.tokens_rev in
+          let profile = conflict_profile engine tokens in
+          if not (Hashtbl.mem witnesses profile) then
+            Hashtbl.add witnesses profile tokens
+        end
       end
       else if item.depth < max_tokens then
         StringSet.iter
@@ -1118,8 +1279,10 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
                   }
             end)
           (possible_tokens engine item.frontier)
-    end
+    end;
+    emit_progress false
   done;
+  emit_progress true;
   if Unix.gettimeofday () >= deadline then
     stopped := Some "the timeout was reached"
   else if Hashtbl.length witnesses >= max_witnesses then
@@ -1138,16 +1301,15 @@ let unified_search engine initial ~max_tokens ~timeout ~max_frontiers
     },
     !conflict_seeds )
 
-let initial_partitions engine jobs max_tokens =
-  let root = IntMap.singleton engine.stacks.root.id 1 in
-  if jobs <= 1 || max_tokens = 0 then
-    ( [| [ { tokens_rev = []; depth = 0; frontier = root; branched = false } ] |],
+let initial_partitions engine jobs max_tokens initial =
+  if jobs <= 1 || initial.depth = max_tokens then
+    ( [| [ initial ] |],
       0,
       0,
       0 )
   else begin
-    let split_depth = min 3 max_tokens in
-    let current = ref [ { tokens_rev = []; depth = 0; frontier = root; branched = false } ] in
+    let split_depth = min 3 (max_tokens - initial.depth) in
+    let current = ref [ initial ] in
     let explored = ref 0 in
     let unique = ref 1 in
     let conflict_seeds = ref 0 in
@@ -1195,18 +1357,39 @@ let initial_partitions engine jobs max_tokens =
     (buckets, !explored, !unique, !conflict_seeds)
   end
 
-let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
-    ~max_queue ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
-    conflict_distance accept_distance temporary =
+let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
+    ~nodes_per_depth ~timeout ~max_frontiers ~max_queue ~max_witnesses
+    ~soft_heap_bytes ~hard_heap_bytes conflict_distance accept_distance
+    temporary =
+  let started = Unix.gettimeofday () in
+  let memory_budget =
+    hard_heap_bytes /. 0.90 *. float_of_int (max 1 jobs)
+  in
   let partitions, prefix_explored, prefix_unique, prefix_seeds =
-    initial_partitions engine (max 1 jobs) max_tokens
+    initial_partitions engine (max 1 jobs) max_tokens initial
+  in
+  let prefix_progress =
+    {
+      depth = initial.depth;
+      ambiguities = [];
+      explored = prefix_explored;
+      unique = prefix_unique;
+      rss_bytes = 0.;
+    }
   in
   if Array.length partitions = 1 then
-    let outcome, seeds =
-      unified_search engine partitions.(0) ~max_tokens ~timeout ~max_frontiers
-        ~max_queue ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
-        conflict_distance accept_distance
+    let show progress =
+      render_progress ~started ~max_tokens ~memory_budget
+        [ (false, prefix_progress); (true, progress) ]
     in
+    let outcome, seeds =
+      unified_search engine partitions.(0) ~max_tokens ~min_tokens
+        ~nodes_per_depth ~timeout ~max_frontiers ~max_queue ~max_witnesses
+        ~soft_heap_bytes ~hard_heap_bytes
+        ~show_progress:progress_is_visible ~on_progress:show conflict_distance
+        accept_distance
+    in
+    clear_progress ();
     ( {
         outcome with
         explored = prefix_explored + outcome.explored;
@@ -1224,39 +1407,107 @@ let parallel_unified_search engine ~jobs ~max_tokens ~timeout ~max_frontiers
     Array.iteri
       (fun index initial ->
         let output = Filename.concat temporary (Printf.sprintf "worker-%d" index) in
+        let progress_path =
+          Filename.concat temporary (Printf.sprintf "progress-%d" index)
+        in
         match Unix.fork () with
         | 0 ->
+            let report progress =
+              if progress_is_visible then write_progress progress_path progress
+            in
             let result =
-              unified_search engine initial ~max_tokens ~timeout ~max_frontiers
-                ~max_queue ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
+              unified_search engine initial ~max_tokens ~min_tokens
+                ~nodes_per_depth ~timeout ~max_frontiers ~max_queue
+                ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
+                ~show_progress:progress_is_visible ~on_progress:report
                 conflict_distance accept_distance
             in
             let channel = open_out_bin output in
             Marshal.to_channel channel result [];
             close_out channel;
             exit 0
-        | pid -> children := (pid, output) :: !children)
+        | pid -> children := (pid, output, progress_path) :: !children)
       partitions;
-    let outcomes =
-      List.map
-        (fun (pid, output) ->
-          let rec wait () =
-            try Unix.waitpid [] pid
-            with Unix.Unix_error (Unix.EINTR, _, _) -> wait ()
-          in
-          match wait () with
-          | _, Unix.WEXITED 0 ->
-              let channel = open_in_bin output in
-              Fun.protect ~finally:(fun () -> close_in channel) (fun () ->
-                  (Marshal.from_channel channel : outcome * int))
-          | _, Unix.WEXITED code ->
-              failwith (Printf.sprintf "ambiguity-search worker %d exited with status %d" pid code)
-          | _, Unix.WSIGNALED signal ->
-              failwith (Printf.sprintf "ambiguity-search worker %d was killed by signal %d" pid signal)
-          | _, Unix.WSTOPPED signal ->
-              failwith (Printf.sprintf "ambiguity-search worker %d stopped on signal %d" pid signal))
-        !children
+    let latest = Hashtbl.create (Array.length partitions) in
+    let worker_result pid output status =
+      match status with
+      | Unix.WEXITED 0 ->
+          let channel = open_in_bin output in
+          Fun.protect ~finally:(fun () -> close_in channel) (fun () ->
+              (Marshal.from_channel channel : outcome * int))
+      | Unix.WEXITED code ->
+          failwith
+            (Printf.sprintf "ambiguity-search worker %d exited with status %d"
+               pid code)
+      | Unix.WSIGNALED signal ->
+          failwith
+            (Printf.sprintf "ambiguity-search worker %d was killed by signal %d"
+               pid signal)
+      | Unix.WSTOPPED signal ->
+          failwith
+            (Printf.sprintf "ambiguity-search worker %d stopped on signal %d"
+               pid signal)
     in
+    let rec collect pending outcomes =
+      List.iter
+        (fun (pid, _, progress_path) ->
+          Option.iter
+            (fun progress -> Hashtbl.replace latest pid progress)
+            (read_progress progress_path))
+        pending;
+      let active = Hashtbl.create (List.length pending) in
+      List.iter (fun (pid, _, _) -> Hashtbl.replace active pid ()) pending;
+      let entries =
+        (false, prefix_progress)
+        :: Hashtbl.fold
+             (fun pid progress result ->
+               (Hashtbl.mem active pid, progress) :: result)
+             latest []
+      in
+      render_progress ~started ~max_tokens ~memory_budget entries;
+      match pending with
+      | [] -> List.rev outcomes
+      | _ ->
+          let remaining = ref [] in
+          let completed = ref [] in
+          List.iter
+            (fun ((pid, output, progress_path) as child) ->
+              let waited, status =
+                try Unix.waitpid [ Unix.WNOHANG ] pid
+                with Unix.Unix_error (Unix.EINTR, _, _) ->
+                  (0, Unix.WEXITED 0)
+              in
+              if waited = 0 then remaining := child :: !remaining
+              else begin
+                let ((outcome, _) as result) =
+                  worker_result pid output status
+                in
+                let final_progress =
+                  Option.value (read_progress progress_path)
+                    ~default:
+                      {
+                        depth = outcome.deepest;
+                        ambiguities =
+                          List.map
+                            (fun (profile, tokens) ->
+                              (profile, List.length tokens))
+                            outcome.witnesses;
+                        explored = outcome.explored;
+                        unique = outcome.unique;
+                        rss_bytes = 0.;
+                      }
+                in
+                Hashtbl.replace latest pid
+                  { final_progress with rss_bytes = 0. };
+                completed := result :: !completed
+              end)
+            pending;
+          if !completed = [] then
+            ignore (Unix.select [] [] [] 0.1);
+          collect (List.rev !remaining) (List.rev_append !completed outcomes)
+    in
+    let outcomes = collect !children [] in
+    clear_progress ();
     let outcome, seeds = List.fold_left
       (fun (combined, seeds) (outcome, worker_seeds) ->
         ( {
@@ -1305,6 +1556,9 @@ let environment_float name =
 
 let grammar = ref ""
 let max_tokens = ref None
+let min_tokens = ref 0
+let prefix_tokens = ref []
+let nodes_per_depth = ref None
 let timeout = ref None
 let max_witnesses = ref None
 let check_tokens = ref []
@@ -1353,6 +1607,17 @@ let options =
     ( "--max-tokens",
       Arg.Int (fun value -> max_tokens := Some value),
       "N maximum tokens, including EOF (required for search/prove)" );
+    ( "--min-tokens",
+      Arg.Set_int min_tokens,
+      "N minimum tokens for reported witnesses, including the prefix and EOF \
+       (default 0)" );
+    ( "--prefix-tokens",
+      Arg.String (fun value -> prefix_tokens := words value),
+      "TOKENS consume a space-separated token prefix before searching" );
+    ( "--nodes-per-depth",
+      Arg.Int (fun value -> nodes_per_depth := Some value),
+      "N queued frontiers to expand at each depth before descending; omitted \
+       for breadth-first search" );
     ( "--timeout",
       Arg.Float (fun value -> timeout := Some value),
       "SECONDS time limit per search phase (required for search/prove)" );
@@ -1386,6 +1651,11 @@ let main () =
     (fun value ->
       if value < 0 then invalid_arg "--max-tokens must be at least 0")
     !max_tokens;
+  if !min_tokens < 0 then invalid_arg "--min-tokens must be at least 0";
+  Option.iter
+    (fun value ->
+      if value < 1 then invalid_arg "--nodes-per-depth must be at least 1")
+    !nodes_per_depth;
   if memory_mb < 1 then invalid_arg "AMBIGUITY_MEMORY_MB must be at least 1";
   if
     Float.is_nan max_frontier_ratio
@@ -1441,6 +1711,27 @@ let main () =
         exit (if count >= 2 then 1 else 0)
       end;
       let max_tokens, timeout, max_witnesses = Option.get search_limits in
+      if !min_tokens > max_tokens then
+        invalid_arg "--min-tokens must not exceed --max-tokens";
+      let prefix_depth = List.length !prefix_tokens in
+      if prefix_depth > max_tokens then
+        invalid_arg
+          "--prefix-tokens must not contain more tokens than --max-tokens";
+      let initial_frontier =
+        List.fold_left (shift engine)
+          (IntMap.singleton engine.stacks.root.id 1)
+          !prefix_tokens
+      in
+      if IntMap.is_empty initial_frontier then
+        invalid_arg "--prefix-tokens is not a valid grammar prefix";
+      let initial =
+        {
+          tokens_rev = List.rev !prefix_tokens;
+          depth = prefix_depth;
+          frontier = initial_frontier;
+          branched = derivations initial_frontier >= 2;
+        }
+      in
       let memory_limits =
         derive_memory_limits ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens
       in
@@ -1451,6 +1742,15 @@ let main () =
         (memory_limits.hard_heap_bytes /. 1024. /. 1024.)
         memory_limits.max_queue memory_limits.max_frontiers
         max_frontier_ratio;
+      Printf.printf
+        "Search constraints: %d..%d total tokens; %d-token prefix; %s.\n"
+        !min_tokens max_tokens prefix_depth
+        (match !nodes_per_depth with
+        | None -> "breadth-first scheduling"
+        | Some 1 -> "1 node per depth"
+        | Some limit -> Printf.sprintf "%d nodes per depth" limit);
+      if !prefix_tokens <> [] then
+        Printf.printf "Prefix tokens: %s\n" (String.concat " " !prefix_tokens);
       if !prove_level > 0 then begin
         match prove engine !prove_level memory_limits.max_frontiers with
         | Proven pairs ->
@@ -1485,7 +1785,8 @@ let main () =
       in
       let accept_distance = reverse_distances automaton accept_targets in
       let outcome, conflict_seeds =
-        parallel_unified_search engine ~jobs ~max_tokens ~timeout
+        parallel_unified_search engine initial ~jobs ~max_tokens
+          ~min_tokens:!min_tokens ~nodes_per_depth:!nodes_per_depth ~timeout
           ~max_frontiers:memory_limits.max_frontiers
           ~max_queue:memory_limits.max_queue ~max_witnesses
           ~soft_heap_bytes:memory_limits.soft_heap_bytes
@@ -1497,8 +1798,8 @@ let main () =
           (match outcome.stopped with
           | None ->
               Printf.printf
-                "No complete ambiguity found through %d tokens after exploring %d frontiers (%d unique).\n"
-                max_tokens outcome.explored outcome.unique
+                "No complete ambiguity satisfying the search constraints was found after exploring %d frontiers (%d unique).\n"
+                outcome.explored outcome.unique
           | Some reason ->
               Printf.printf
                 "Search stopped at depth %d because %s; no complete ambiguity was found in %d explored frontiers (%d unique).\n"
@@ -1542,5 +1843,6 @@ let () =
   with
   | Failure message | Invalid_argument message | Sys_error message
   | Unix.Unix_error (_, _, message) ->
+      clear_progress ();
       prerr_endline ("error: " ^ message);
       exit 2

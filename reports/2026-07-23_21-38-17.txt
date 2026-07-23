@@ -1,0 +1,28 @@
+Search profile: deep-function-body
+Rotate deep search waves through statements in a function body.
+Tokens 15..50 · timeout 30m · 50 witnesses · 10 nodes per depth
+Prefix (5): UIDENT LIDENT LPAREN RPAREN LCURLY
+
+Memory budget: 6144 MiB total across 4 worker(s); workers compact at 1229 MiB and stop admitting frontiers at 1382 MiB each (10% reserved); per-worker limits are 710564 queued frontiers and 710564 retained dedup frontiers (ratio 1).
+Search constraints: 15..50 total tokens; 5-token prefix; 10 nodes per depth.
+Prefix tokens: UIDENT LIDENT LPAREN RPAREN LCURLY
+Found 4 complete ambiguity families.
+
+1. Tokens (15): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT TRUE EQEQ AND TILDE FALSE QSTNQSTN FALSE RCURLY EOF
+   Source: Int length ( ) { abort true == & ~ false ?? false }
+   Conflict origins: state 214 on QSTNQSTN, state 496 on QSTNQSTN
+
+2. Tokens (15): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT TRUE LESSEQ TILDE FALSE QSTNQSTN AND STRING RCURLY EOF
+   Source: Int length ( ) { abort true <= ~ false ?? & "john" }
+   Conflict origins: state 198 on QSTNQSTN, state 496 on QSTNQSTN
+
+3. Tokens (17): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT TRUE ABORT AND FALSE LESS TILDE FALSE QSTNQSTN INT RCURLY EOF
+   Source: Int length ( ) { abort true abort & false < ~ false ?? 43 }
+   Conflict origins: state 206 on QSTNQSTN, state 496 on QSTNQSTN
+
+4. Tokens (17): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT UIDENT LBRACKET RBRACKET LPAREN RPAREN THICK_ARROW FALSE DOT LIDENT RCURLY EOF
+   Source: Int length ( ) { abort Int [ ] ( ) => false . length }
+   Conflict origins: state 503 on DOT
+
+Explored 19546256 frontiers (22249396 unique); 415852 conflict seeds.
+Search stopped because one or more workers reached a search limit.
