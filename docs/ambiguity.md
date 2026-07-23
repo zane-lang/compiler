@@ -55,6 +55,16 @@ the state is triaged into one of these categories.
   prioritizing queue reach even when real frontiers are larger than the
   estimate. The search itself is bounded by `--max-tokens` and `--timeout`, and
   a run that had to drop part of the space reports itself as interrupted.
+  `--depth-bias N` changes which queued frontier is explored next without
+  pruning any of them: `0` is breadth-first, `1` alternates shallowest and
+  deepest work, and larger values perform `N` deepest expansions per
+  shallowest expansion. This makes time-bounded runs narrower and deeper
+  while preserving the exhaustiveness of a run that completes its bound.
+  `--min-tokens N` prevents shorter ambiguities from consuming witness slots.
+  `--prefix-tokens "TOKENS..."` first advances the GLR parser through a fixed
+  token prefix and searches from that frontier, which is useful for targeting
+  contexts such as a function body. Minimum and maximum token counts include
+  the prefix and `EOF`.
   Witnesses are grouped by the conflict states they
   traverse, which maps each finding directly onto an obligation above.
 - `ambiguities --prove K` — conservative unambiguity proof mode built into the
@@ -88,6 +98,18 @@ environment variables; they are deliberately not command-line options.
 Search intent remains on the command line. For example,
 `ambiguities --max-tokens 100 --timeout 3600 --max-witnesses 50` searches
 through 100 tokens for up to one hour, using the local machine budget.
+
+To concentrate a run inside a function body and favor depth over breadth:
+
+```sh
+ambiguities \
+  --prefix-tokens "UIDENT LPAREN RPAREN LCURLY" \
+  --min-tokens 12 \
+  --max-tokens 20 \
+  --depth-bias 20 \
+  --timeout 3600 \
+  --max-witnesses 50
+```
 
 ## Why this is sound
 
