@@ -370,6 +370,7 @@ def parser() -> argparse.ArgumentParser:
 def _write_prelude(prelude: str, output: TextIO | None) -> None:
     print(prelude)
     print()
+    sys.stdout.flush()
     if output is not None:
         output.write(prelude + "\n\n")
         output.flush()
