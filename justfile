@@ -8,8 +8,8 @@ rebuild:
 watch:
 	dune build --watch
 
-syntax-experiments-test:
-	python3 -m unittest tools.test_syntax_experiments -v
+syntax-experiment-test:
+	python3 -m unittest tools.test_syntax_experiment -v
 
-ambiguities-test:
-	python3 -m unittest tools.test_ambiguities -v
+ambiguity-test:
+	python3 -m unittest tools.test_ambiguity -v
