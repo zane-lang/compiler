@@ -1006,14 +1006,16 @@ let memory_bar used budget =
 let render_progress ~started ~max_tokens ~memory_budget
     (entries : (bool * search_progress) list) =
   if progress_is_visible && entries <> [] then begin
-    let active =
+    let active : search_progress list =
       List.filter_map
-        (fun (is_active, progress) -> if is_active then Some progress else None)
+        (fun (is_active, (progress : search_progress)) ->
+          if is_active then Some progress else None)
         entries
     in
     let depth =
       List.fold_left
-        (fun current progress -> max current progress.depth)
+        (fun current (progress : search_progress) ->
+          max current progress.depth)
         0
         (if active = [] then List.map snd entries else active)
     in
@@ -1022,7 +1024,7 @@ let render_progress ~started ~max_tokens ~memory_budget
     let unique = ref 0 in
     let rss_bytes = ref 0. in
     List.iter
-      (fun (_, progress) ->
+      (fun (_, (progress : search_progress)) ->
         explored := !explored + progress.explored;
         unique := !unique + progress.unique;
         rss_bytes := !rss_bytes +. progress.rss_bytes;
