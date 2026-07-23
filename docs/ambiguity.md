@@ -80,6 +80,23 @@ the state is triaged into one of these categories.
   the prefix and `EOF`.
   Witnesses are grouped by the conflict states they
   traverse, which maps each finding directly onto an obligation above.
+  Before searching, the tool computes **terminal equivalence classes**:
+  terminals that behave identically throughout the LR automaton — the same
+  shifts (up to a state bisimulation), the same reductions as a lookahead, and
+  the same acceptance — are interchangeable, so swapping one for another is an
+  automorphism of the recognition relation. The search explores a single
+  representative per class instead of every interchangeable token, which cuts
+  the branching factor wherever a construct admits several equivalent terminals
+  (for the current grammar, the value atoms `FALSE`/`FLOAT`/`STRING`/`TRUE`
+  collapse to one class, as do same-precedence operator groups such as
+  `+`/`-` and `*`/`/`). Precedence and associativity are already resolved in
+  the automaton's concrete actions, so tokens with different precedence never
+  share a class; and a token that reaches a context the others do not — `INT`,
+  which is also a const-generic argument — stays in its own class. Because
+  class members generate isomorphic parse forests, a completed bound is a
+  theorem up to renaming terminals within their class: an ambiguous sentence
+  exists with one member iff it exists with every member, so no obligation is
+  lost. Witnesses render with the representative terminal.
 - `ambiguity prove K [PROFILE]` — conservative unambiguity proof mode built
   into the ambiguity search. It abstracts GLR stacks to their top-K states and
   exhaustively explores pairs of abstract parses of the same input, comparing
@@ -93,6 +110,9 @@ the state is triaged into one of these categories.
   never be eliminated entirely; the prover is validated against known-ambiguous
   grammars, LR(1) grammars, precedence-resolved expression grammars, and
   unambiguous non-LR grammars such as palindromes.
+- `ambiguity classes` — lists the terminal equivalence classes the search
+  collapses, so a grammar change that unexpectedly splits or merges a class is
+  visible. The same classes bound the prover's terminal alphabet.
 - `syntax-experiment` — compares candidate grammar changes under
   equal search bounds before they are adopted
   (`tools/SYNTAX_EXPERIMENT.md`).
