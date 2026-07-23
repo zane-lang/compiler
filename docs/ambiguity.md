@@ -55,11 +55,14 @@ the state is triaged into one of these categories.
   prioritizing queue reach even when real frontiers are larger than the
   estimate. The search itself is bounded by `--max-tokens` and `--timeout`, and
   a run that had to drop part of the space reports itself as interrupted.
-  `--depth-bias N` changes which queued frontier is explored next without
-  pruning any of them: `0` is breadth-first, `1` alternates shallowest and
-  deepest work, and larger values perform `N` deepest expansions per
-  shallowest expansion. This makes time-bounded runs narrower and deeper
-  while preserving the exhaustiveness of a run that completes its bound.
+  `--nodes-per-depth N` expands up to `N` queued frontiers at one depth before
+  descending to the next populated depth. When a deep wave ends, the search
+  returns to the shallowest unfinished depth, so earlier token choices rotate
+  instead of one deep subtree monopolizing the run. Smaller values are
+  narrower and deeper; larger values explore more siblings before descending.
+  Omitting the option preserves breadth-first scheduling. The scheduler does
+  not prune queued frontiers, so a run that completes its bound remains
+  exhaustive.
   `--min-tokens N` prevents shorter ambiguities from consuming witness slots.
   `--prefix-tokens "TOKENS..."` first advances the GLR parser through a fixed
   token prefix and searches from that frontier, which is useful for targeting
@@ -106,7 +109,7 @@ ambiguities \
   --prefix-tokens "UIDENT LIDENT LPAREN RPAREN LCURLY" \
   --min-tokens 15 \
   --max-tokens 20 \
-  --depth-bias 20 \
+  --nodes-per-depth 10 \
   --timeout 3600 \
   --max-witnesses 50
 ```
