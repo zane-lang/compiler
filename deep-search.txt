@@ -1,0 +1,31 @@
+Memory budget: 6144 MiB total across 4 worker(s); workers compact at 1229 MiB and stop admitting frontiers at 1382 MiB each (10% reserved); per-worker limits are 710564 queued frontiers and 710564 retained dedup frontiers (ratio 1).
+Search constraints: 12..50 total tokens; 5-token prefix; depth bias 10.
+Prefix tokens: UIDENT LIDENT LPAREN RPAREN LCURLY
+Found 6 complete ambiguity families.
+
+1. Tokens (13): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT TILDE TILDE FALSE QSTNQSTN FALSE RCURLY EOF
+   Source: Int length ( ) { abort ~ ~ false ?? false }
+   Conflict origins: state 496 on QSTNQSTN
+
+2. Tokens (14): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT TRUE MORE TILDE FALSE QSTNQSTN FALSE RCURLY EOF
+   Source: Int length ( ) { abort true > ~ false ?? false }
+   Conflict origins: state 190 on QSTNQSTN, state 496 on QSTNQSTN
+
+3. Tokens (15): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT TRUE EQEQ AND TILDE FALSE QSTNQSTN FALSE RCURLY EOF
+   Source: Int length ( ) { abort true == & ~ false ?? false }
+   Conflict origins: state 214 on QSTNQSTN, state 496 on QSTNQSTN
+
+4. Tokens (16): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT TRUE EQEQ AND FALSE LPAREN RPAREN QSTNQSTN TRUE RCURLY EOF
+   Source: Int length ( ) { abort true == & false ( ) ?? true }
+   Conflict origins: state 135 on LPAREN, state 138 on QSTNQSTN, state 214 on QSTNQSTN
+
+5. Tokens (50): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT UIDENT LPAREN AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND TILDE TILDE FALSE QSTNQSTN FALSE RPAREN RCURLY EOF
+   Source: Int length ( ) { abort Int ( & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & ~ ~ false ?? false ) }
+   Conflict origins: state 93 on LPAREN, state 496 on QSTNQSTN
+
+6. Tokens (50): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT UIDENT LPAREN AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND AND FALSE LPAREN RPAREN QSTNQSTN FALSE LPAREN RPAREN RPAREN RCURLY EOF
+   Source: Int length ( ) { abort Int ( & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & false ( ) ?? false ( ) ) }
+   Conflict origins: state 93 on LPAREN, state 135 on LPAREN, state 138 on QSTNQSTN
+
+Explored 36133386 frontiers (33875222 unique); 882773 conflict seeds.
+Search stopped because one or more workers reached a search limit.
