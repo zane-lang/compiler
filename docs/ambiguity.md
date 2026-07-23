@@ -33,7 +33,7 @@ the state is triaged into one of these categories.
 
 ## Tooling
 
-- `ambiguities search [PROFILE]` — bounded, parallel GLR search for complete
+- `ambiguity search [PROFILE]` — bounded, parallel GLR search for complete
   ambiguous sentences (`tools/ambiguity_search.ml`). A completed bound is a theorem
   ("no ambiguous sentence of at most N tokens"), up to the astronomically
   unlikely collision of the 124-bit frontier digests used for
@@ -54,7 +54,7 @@ the state is triaged into one of these categories.
   copy-on-write overhead. This keeps memory near the configured plateau while
   prioritizing queue reach even when real frontiers are larger than the
   estimate. Named profiles in `ambiguity-searches.toml` collect search intent
-  in one reviewable place. `ambiguities profiles` lists them, and command-line
+  in one reviewable place. `ambiguity profiles` lists them, and command-line
   options can temporarily override a profile. The default `general` profile
   is breadth-first; `deep-function-body` fixes the function-body prefix and
   rotates depth waves so sibling statements continue to receive attention.
@@ -75,7 +75,7 @@ the state is triaged into one of these categories.
   the prefix and `EOF`.
   Witnesses are grouped by the conflict states they
   traverse, which maps each finding directly onto an obligation above.
-- `ambiguities prove K [PROFILE]` — conservative unambiguity proof mode built
+- `ambiguity prove K [PROFILE]` — conservative unambiguity proof mode built
   into the ambiguity search. It abstracts GLR stacks to their top-K states and
   exhaustively explores pairs of abstract parses of the same input, comparing
   reduction chains in lockstep. It does not depend on an external constraint
@@ -88,9 +88,9 @@ the state is triaged into one of these categories.
   never be eliminated entirely; the prover is validated against known-ambiguous
   grammars, LR(1) grammars, precedence-resolved expression grammars, and
   unambiguous non-LR grammars such as palindromes.
-- `syntax-experiments` — compares candidate grammar changes under
+- `syntax-experiment` — compares candidate grammar changes under
   equal search bounds before they are adopted
-  (`tools/SYNTAX_EXPERIMENTS.md`).
+  (`tools/SYNTAX_EXPERIMENT.md`).
 - `menhir --explain` — enumerates the conflict states that constitute the
   obligation ledger.
 
@@ -105,7 +105,7 @@ out of version control. The file supplies `AMBIGUITY_MEMORY_MB`,
 environment variables; they are deliberately not command-line options.
 
 Search intent lives in versioned profiles, with concise overrides for one-off
-runs. For example, `ambiguities search general --tokens 0..100 --timeout 1h`
+runs. For example, `ambiguity search general --tokens 0..100 --timeout 1h`
 searches through 100 tokens for up to one hour, using the local machine budget.
 Friendly durations such as `90s`, `30m`, and `1h` are accepted. Add
 `--output report.txt` to display and save a report, or `--dry-run` to inspect
@@ -114,19 +114,19 @@ the resolved settings without building the engine.
 To concentrate a run inside a function body and favor depth over breadth:
 
 ```sh
-ambiguities search deep-function-body
+ambiguity search deep-function-body
 ```
 
 To change just one aspect without creating a profile:
 
 ```sh
-ambiguities search deep-function-body --nodes-per-depth 4 --timeout 2h
+ambiguity search deep-function-body --nodes-per-depth 4 --timeout 2h
 ```
 
 Exact witnesses can be checked without quoting their token names:
 
 ```sh
-ambiguities check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN EOF
+ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN EOF
 ```
 
 ## Why this is sound
