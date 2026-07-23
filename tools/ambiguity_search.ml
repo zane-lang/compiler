@@ -1003,7 +1003,8 @@ let memory_bar used budget =
   let filled = int_of_float (floor ((ratio *. float_of_int width) +. 0.5)) in
   String.make filled '#' ^ String.make (width - filled) '-'
 
-let render_progress ~started ~max_tokens ~memory_budget entries =
+let render_progress ~started ~max_tokens ~memory_budget
+    (entries : (bool * search_progress) list) =
   if progress_is_visible && entries <> [] then begin
     let active =
       List.filter_map
@@ -1056,14 +1057,14 @@ let clear_progress () =
     flush stderr
   end
 
-let write_progress path progress =
+let write_progress path (progress : search_progress) =
   let temporary = path ^ ".new" in
   let channel = open_out_bin temporary in
   Marshal.to_channel channel progress [];
   close_out channel;
   Sys.rename temporary path
 
-let read_progress path =
+let read_progress path : search_progress option =
   try
     let channel = open_in_bin path in
     Fun.protect ~finally:(fun () -> close_in channel) (fun () ->
