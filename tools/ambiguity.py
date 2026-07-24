@@ -9,6 +9,7 @@ import datetime
 from pathlib import Path
 import re
 import shlex
+import string
 import subprocess
 import sys
 import tomllib
@@ -110,20 +111,36 @@ def expand_output_path(pattern: Path, profile_name: str) -> Path:
         "time": now.strftime("%H-%M-%S"),
         "datetime": now.strftime("%Y-%m-%d_%H-%M-%S"),
     }
+    available = ", ".join("{" + name + "}" for name in fields)
+    text = str(pattern)
+    # Expand only bare `{name}` placeholders. Parsing the pattern ourselves —
+    # rather than str.format_map — keeps indexed or attribute forms such as
+    # {profile[0]} or {profile.foo} out: format_map would silently expand the
+    # former to a wrong path and raise an uncaught AttributeError on the latter.
     try:
-        expanded = str(pattern).format_map(fields)
-    except KeyError as error:
-        available = ", ".join("{" + name + "}" for name in fields)
+        parsed = list(string.Formatter().parse(text))
+    except ValueError as error:
         raise ConfigurationError(
-            f"unknown placeholder {{{error.args[0]}}} in --output pattern "
-            f"{str(pattern)!r}; available placeholders are {available}"
-        ) from error
-    except (IndexError, ValueError) as error:
-        raise ConfigurationError(
-            f"invalid --output pattern {str(pattern)!r}: {error}; "
+            f"invalid --output pattern {text!r}: {error}; "
             "write {{ and }} for literal braces"
         ) from error
-    return Path(expanded)
+    result: list[str] = []
+    for literal, field, spec, conversion in parsed:
+        result.append(literal)
+        if field is None:
+            continue
+        if field not in fields:
+            raise ConfigurationError(
+                f"unknown placeholder {{{field}}} in --output pattern "
+                f"{text!r}; available placeholders are {available}"
+            )
+        if spec or conversion:
+            raise ConfigurationError(
+                f"--output placeholder {{{field}}} takes no format spec or "
+                f"conversion in pattern {text!r}"
+            )
+        result.append(fields[field])
+    return Path("".join(result))
 
 
 def _profile_tables(path: Path) -> dict[str, dict[str, Any]]:

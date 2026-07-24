@@ -176,6 +176,32 @@ class OutputPatternTests(unittest.TestCase):
         ):
             ambiguity.expand_output_path(Path("reports/{profile.txt"), "general")
 
+    def test_literal_braces_are_preserved(self) -> None:
+        self.assertEqual(
+            ambiguity.expand_output_path(Path("reports/{{profile}}.txt"), "general"),
+            Path("reports/{profile}.txt"),
+        )
+
+    def test_indexed_placeholder_is_rejected(self) -> None:
+        # str.format_map would silently expand this to the first character.
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "unknown placeholder"
+        ):
+            ambiguity.expand_output_path(Path("{profile[0]}.txt"), "general")
+
+    def test_attribute_placeholder_is_rejected(self) -> None:
+        # str.format_map would raise an uncaught AttributeError here.
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "unknown placeholder"
+        ):
+            ambiguity.expand_output_path(Path("{profile.foo}.txt"), "general")
+
+    def test_format_spec_is_rejected(self) -> None:
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "no format spec or conversion"
+        ):
+            ambiguity.expand_output_path(Path("{profile:>10}.txt"), "general")
+
 
 class CommandLineTests(unittest.TestCase):
     def test_search_defaults_to_general(self) -> None:

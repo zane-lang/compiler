@@ -136,10 +136,9 @@ Friendly durations such as `90s`, `30m`, and `1h` are accepted. Add
 `--output report.txt` to display and save a report, or `--dry-run` to inspect
 the resolved settings without building the engine.
 
-The `--output` path may contain `{name}` placeholders that are filled in when
-the run starts: `{profile}` is the resolved profile name, and `{date}`,
-`{time}`, and `{datetime}` are timestamps laid out like the existing `reports/`
-filenames (`2026-07-23`, `21-38-17`, and `2026-07-23_21-38-17`). Any
+The `--output` path may contain placeholders that are filled in when the run
+starts: `{profile}` is the resolved profile name, and `{date}`, `{time}`, and
+`{datetime}` are timestamps laid out like the existing `reports/` filenames (`2026-07-23`, `21-38-17`, and `2026-07-23_21-38-17`). Any
 directories in the expanded path are created automatically, so
 `--output reports/{profile}-{date}.txt` drops a dated report into `reports/`
 without a manual `mkdir`. Write `{{` and `}}` for literal braces.
