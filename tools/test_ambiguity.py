@@ -1,10 +1,48 @@
 #!/usr/bin/env python3
 import argparse
+import os
+import shutil
+import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
 from tools import ambiguity
+
+ROOT = Path(__file__).resolve().parents[1]
+ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity_search.exe"
+
+# A minimal grammar whose two atoms A and B are interchangeable (both reduce to
+# [e] in the same contexts) so they collapse into one terminal class, while the
+# unparenthesized [e PLUS e] rule is genuinely ambiguous. It exercises the
+# equivalence-class machinery on a grammar small enough for the prover to finish
+# instantly.
+TINY_GRAMMAR = """\
+%token A "a"
+%token B "b"
+%token PLUS "+"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: e EOF { () }
+e:
+  | A { () }
+  | B { () }
+  | e PLUS e { () }
+"""
+
+
+def engine_environment() -> dict[str, str] | None:
+    menhir = os.environ.get("AMBIGUITY_MENHIR") or shutil.which("menhir")
+    if not ENGINE.exists() or menhir is None:
+        return None
+    return {
+        **os.environ,
+        "AMBIGUITY_MENHIR": menhir,
+        "AMBIGUITY_MEMORY_MB": "64",
+        "AMBIGUITY_MAX_FRONTIER_RATIO": "1.0",
+        "AMBIGUITY_JOBS": "1",
+    }
 
 
 class ValueParsingTests(unittest.TestCase):
@@ -149,6 +187,57 @@ class CommandLineTests(unittest.TestCase):
                 "10",
             ],
         )
+
+
+class TerminalClassEngineTests(unittest.TestCase):
+    """End-to-end checks that the search collapses interchangeable terminals
+    without losing an ambiguity reachable only through a non-representative
+    member. Skipped when the engine binary or menhir is unavailable, so the
+    otherwise pure-Python suite still runs without the OCaml toolchain."""
+
+    def setUp(self) -> None:
+        self.environment = engine_environment()
+        if self.environment is None:
+            self.skipTest(
+                "requires a built _build/default/tools/ambiguity_search.exe and menhir"
+            )
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.grammar = Path(directory.name) / "tiny.mly"
+        self.grammar.write_text(TINY_GRAMMAR, encoding="utf-8")
+
+    def engine(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [str(ENGINE), *arguments, str(self.grammar)],
+            env=self.environment,
+            text=True,
+            capture_output=True,
+        )
+
+    def test_interchangeable_atoms_share_one_class(self) -> None:
+        result = self.engine("--dump-terminal-classes")
+        self.assertIn("{ A B }", result.stdout)
+
+    def test_ambiguity_holds_through_a_non_representative_member(self) -> None:
+        # B is not the class representative (A sorts first), so the search never
+        # shifts it directly; the all-B sentence must still be recognized as
+        # ambiguous, confirming the representative stands in for the whole class.
+        result = self.engine("--check-tokens", "B PLUS B PLUS B EOF")
+        self.assertIn("Accepting derivations: 2", result.stdout)
+        self.assertEqual(result.returncode, 1)
+
+    def test_prove_finds_the_ambiguity_via_the_representative(self) -> None:
+        # prove drives the abstract BFS over class representatives, then
+        # concretizes; it must surface the e-PLUS-e ambiguity even though every
+        # witness is spelled with the representative atom.
+        result = self.engine(
+            "--prove", "2",
+            "--max-tokens", "8",
+            "--timeout", "30",
+            "--max-witnesses", "5",
+        )
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("complete ambiguity", result.stdout)
 
 
 if __name__ == "__main__":
