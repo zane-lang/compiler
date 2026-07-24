@@ -139,6 +139,38 @@ output = "reports/{profile}.txt"
         )
         self.assertEqual(overridden.output, Path("elsewhere.txt"))
 
+    def test_output_must_be_a_string_path(self) -> None:
+        path = self.write_profiles(
+            """
+[profiles.quick]
+tokens = "0..10"
+timeout = "1m"
+witnesses = 5
+output = 5
+"""
+        )
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "output must be a string path"
+        ):
+            ambiguity.load_profiles(path)
+
+    def test_prefix_must_leave_room_for_eof(self) -> None:
+        # A prefix that fills the entire max_tokens budget leaves no slot for the
+        # required EOF token, so it can never complete a witness.
+        path = self.write_profiles(
+            """
+[profiles.quick]
+tokens = "0..3"
+timeout = "1m"
+witnesses = 5
+prefix-tokens = ["UIDENT", "LPAREN", "RPAREN"]
+"""
+        )
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "no room for the EOF token"
+        ):
+            ambiguity.load_profiles(path)
+
     def test_profile_keys_match_override_flags(self) -> None:
         # The whole point of the registry: the TOML keys and the CLI flags are
         # the same kebab-case names.

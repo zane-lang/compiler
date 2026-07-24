@@ -157,6 +157,11 @@ def _coerce_nodes_per_depth(raw: Any, name: str) -> dict[str, Any]:
 
 
 def _coerce_output(raw: Any, name: str) -> dict[str, Any]:
+    # A profile supplies a string; the --output override supplies a Path. Guard
+    # like every other coercer so a malformed value (e.g. output = 5) becomes a
+    # ConfigurationError routed through main() instead of an uncaught TypeError.
+    if not isinstance(raw, (str, Path)):
+        raise ConfigurationError(f"profile {name!r}: output must be a string path")
     return {"output": Path(raw)}
 
 
@@ -253,9 +258,13 @@ PROFILE_KEYS = {"description", "extends"} | {setting.key for setting in SETTINGS
 
 
 def _validate_profile(profile: SearchProfile, name: str) -> None:
-    if len(profile.prefix_tokens) > profile.max_tokens:
+    # max_tokens counts the prefix and the required EOF, so the prefix must
+    # leave room for at least the EOF token: a prefix of exactly max_tokens can
+    # never complete a witness.
+    if len(profile.prefix_tokens) >= profile.max_tokens:
         raise ConfigurationError(
-            f"profile {name!r}: prefix is longer than the maximum token count"
+            f"profile {name!r}: prefix fills the whole token budget, "
+            f"leaving no room for the EOF token"
         )
 
 
