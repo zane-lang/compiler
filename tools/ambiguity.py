@@ -100,16 +100,28 @@ def format_duration(seconds: float) -> str:
 
 @dataclass(frozen=True)
 class Setting:
+    # One entry per command-line flag. `kind` records how it behaves and
+    # `profile_key` whether it is also a valid TOML key, so a single registry
+    # enumerates every flag and marks which ones profiles may set - there is no
+    # separate cli-only list.
+    #   "value"  - takes an argument; loadable from a profile and, unless it is
+    #              purely a wrapper concern, forwarded to the engine.
+    #   "toggle" - a boolean switch (--flag / `flag = true`) that rewrites a
+    #              field rather than carrying its own value.
+    #   "mode"   - a boolean switch that changes what the CLI does, never a
+    #              profile setting.
     key: str
+    kind: str
+    help: str
+    profile_key: bool = True
+    metavar: str | None = None
+    arg_type: Callable[[str], Any] | None = None
+    required: bool = False
     # (raw value, profile name) -> SearchProfile field updates; raises
     # ConfigurationError on an invalid value. Accepts both the TOML-typed value
     # and the argparse-typed override so a single coercion serves both surfaces.
-    coerce: Callable[[Any, str], dict[str, Any]]
-    to_engine_args: Callable[["SearchProfile"], list[str]]
-    metavar: str
-    help: str
-    required: bool = False
-    arg_type: Callable[[str], Any] | None = None
+    coerce: Callable[[Any, str], dict[str, Any]] | None = None
+    to_engine_args: Callable[["SearchProfile"], list[str]] | None = None
 
     @property
     def dest(self) -> str:
@@ -165,6 +177,19 @@ def _coerce_output(raw: Any, name: str) -> dict[str, Any]:
     return {"output": Path(raw)}
 
 
+def _coerce_breadth_first(raw: Any, name: str) -> dict[str, Any]:
+    # Scheduling is a single slot with two spellings: `nodes-per-depth = N` or
+    # `breadth-first = true`. This toggle rewrites the nodes_per_depth field to
+    # None; the two keys are mutually exclusive within a table (enforced in
+    # _profile_tables) and a child overrides whichever the parent chose.
+    if raw is not True:
+        raise ConfigurationError(
+            f"profile {name!r}: breadth-first must be true "
+            f"(omit it to use nodes-per-depth)"
+        )
+    return {"nodes_per_depth": None}
+
+
 def _tokens_engine_args(profile: SearchProfile) -> list[str]:
     return [
         "--max-tokens",
@@ -202,59 +227,84 @@ def _no_engine_args(profile: SearchProfile) -> list[str]:
 SETTINGS: tuple[Setting, ...] = (
     Setting(
         "tokens",
-        _coerce_tokens,
-        _tokens_engine_args,
-        "MIN..MAX",
-        "override the profile's complete-witness token range",
+        kind="value",
+        help="override the profile's complete-witness token range",
+        metavar="MIN..MAX",
         required=True,
+        coerce=_coerce_tokens,
+        to_engine_args=_tokens_engine_args,
     ),
     Setting(
         "timeout",
-        _coerce_timeout,
-        _timeout_engine_args,
-        "DURATION",
-        "override the timeout; accepts values such as 90s, 30m, and 1h",
+        kind="value",
+        help="override the timeout; accepts values such as 90s, 30m, and 1h",
+        metavar="DURATION",
         required=True,
+        coerce=_coerce_timeout,
+        to_engine_args=_timeout_engine_args,
     ),
     Setting(
         "witnesses",
-        _coerce_witnesses,
-        _witnesses_engine_args,
-        "N",
-        "override the number of ambiguity families to report",
-        required=True,
+        kind="value",
+        help="override the number of ambiguity families to report",
+        metavar="N",
         arg_type=int,
+        required=True,
+        coerce=_coerce_witnesses,
+        to_engine_args=_witnesses_engine_args,
     ),
     Setting(
         "prefix-tokens",
-        _coerce_prefix_tokens,
-        _prefix_engine_args,
-        "TOKENS",
-        "override the fixed space-separated token prefix",
+        kind="value",
+        help="override the fixed space-separated token prefix",
+        metavar="TOKENS",
+        coerce=_coerce_prefix_tokens,
+        to_engine_args=_prefix_engine_args,
     ),
     Setting(
         "nodes-per-depth",
-        _coerce_nodes_per_depth,
-        _nodes_engine_args,
-        "N",
-        "override how many sibling frontiers a depth wave expands",
+        kind="value",
+        help="override how many sibling frontiers a depth wave expands",
+        metavar="N",
         arg_type=int,
+        coerce=_coerce_nodes_per_depth,
+        to_engine_args=_nodes_engine_args,
+    ),
+    Setting(
+        "breadth-first",
+        kind="toggle",
+        help="use shortest-first scheduling (the breadth-first spelling of the "
+        "nodes-per-depth slot; a profile may set at most one of the two)",
+        coerce=_coerce_breadth_first,
     ),
     Setting(
         "output",
-        _coerce_output,
-        _no_engine_args,
-        "FILE",
-        "write the complete report to FILE while also displaying it; "
+        kind="value",
+        help="write the complete report to FILE while also displaying it; "
         "{profile}, {date}, {time}, and {datetime} expand in the path "
         "(e.g. reports/{profile}-{date}.txt), and missing directories are created",
+        metavar="FILE",
         arg_type=Path,
+        coerce=_coerce_output,
+        to_engine_args=_no_engine_args,
+    ),
+    Setting(
+        "dry-run",
+        kind="mode",
+        help="show the resolved profile without running the engine",
+        profile_key=False,
     ),
 )
 
-# The TOML profile keys are exactly the setting names plus the two structural
-# keys, so the flags and the profile keys can never drift apart.
-PROFILE_KEYS = {"description", "extends"} | {setting.key for setting in SETTINGS}
+# Scheduling is one concept with two spellings; a profile table may set at most
+# one of these keys, and a child profile's choice replaces the parent's.
+SCHEDULING_KEYS = ("nodes-per-depth", "breadth-first")
+
+# The TOML profile keys are exactly the profile-key settings plus the two
+# structural keys, so the flags and the profile keys can never drift apart.
+PROFILE_KEYS = {"description", "extends"} | {
+    setting.key for setting in SETTINGS if setting.profile_key
+}
 
 
 def _validate_profile(profile: SearchProfile, name: str) -> None:
@@ -333,6 +383,10 @@ def _profile_tables(path: Path) -> dict[str, dict[str, Any]]:
         if unknown:
             keys = ", ".join(sorted(unknown))
             raise ConfigurationError(f"profile {name!r} has unknown settings: {keys}")
+        if len([key for key in SCHEDULING_KEYS if key in table]) > 1:
+            raise ConfigurationError(
+                f"profile {name!r}: set at most one of {' and '.join(SCHEDULING_KEYS)}"
+            )
         result[name] = table
     return result
 
@@ -356,7 +410,13 @@ def load_profiles(path: Path = DEFAULT_PROFILES) -> dict[str, SearchProfile]:
         if parent is not None and not isinstance(parent, str):
             raise ConfigurationError(f"profile {name!r}: extends must be a string")
         merged = dict(resolve(parent)) if parent else {}
-        merged.update({key: value for key, value in table.items() if key != "extends"})
+        child_items = {key: value for key, value in table.items() if key != "extends"}
+        # Scheduling is one slot: if the child chooses either spelling, drop
+        # whichever the parent set so the child's choice wins in both directions.
+        if any(key in child_items for key in SCHEDULING_KEYS):
+            for key in SCHEDULING_KEYS:
+                merged.pop(key, None)
+        merged.update(child_items)
         resolving.pop()
         resolved[name] = merged
         return merged
@@ -375,7 +435,7 @@ def load_profiles(path: Path = DEFAULT_PROFILES) -> dict[str, SearchProfile]:
             raise ConfigurationError(f"profile {name!r}: description must be a string")
         fields: dict[str, Any] = {"name": name, "description": description}
         for setting in SETTINGS:
-            if setting.key in settings:
+            if setting.coerce is not None and setting.key in settings:
                 fields.update(setting.coerce(settings[setting.key], name))
         profile = SearchProfile(**fields)
         _validate_profile(profile, name)
@@ -388,18 +448,20 @@ def apply_overrides(
 ) -> SearchProfile:
     fields: dict[str, Any] = {}
     for setting in SETTINGS:
+        if setting.kind != "value":
+            continue
         value = getattr(arguments, setting.dest, None)
         if value is not None:
             fields.update(setting.coerce(value, profile.name))
     result = replace(profile, **fields) if fields else profile
-    # --breadth-first is not a value; it is nodes-per-depth turned off, and only
-    # exists to override a profile that set it.
+    # The scheduling slot again: --breadth-first rewrites nodes_per_depth to
+    # None, and the two cannot be given together on one command line.
     if getattr(arguments, "breadth_first", False):
         if getattr(arguments, "nodes_per_depth", None) is not None:
             raise ConfigurationError(
                 "--breadth-first and --nodes-per-depth cannot be combined"
             )
-        result = replace(result, nodes_per_depth=None)
+        result = replace(result, **_coerce_breadth_first(True, result.name))
     _validate_profile(result, result.name)
     return result
 
@@ -407,7 +469,8 @@ def apply_overrides(
 def engine_arguments(profile: SearchProfile, prove: int | None = None) -> list[str]:
     arguments: list[str] = []
     for setting in SETTINGS:
-        arguments.extend(setting.to_engine_args(profile))
+        if setting.to_engine_args is not None:
+            arguments.extend(setting.to_engine_args(profile))
     if prove is not None:
         arguments.extend(["--prove", str(prove)])
     return arguments
@@ -439,24 +502,21 @@ def profile_summary(profile: SearchProfile, action: str) -> str:
 
 
 def add_overrides(command: argparse.ArgumentParser) -> None:
-    # Every profile setting registers an identically named override flag; the
-    # single registry keeps the two surfaces in lockstep.
+    # Every flag - value settings, toggles, and modes alike - is registered from
+    # the one registry, so there is no separate cli-only flag list to maintain.
     for setting in SETTINGS:
-        options: dict[str, Any] = {"metavar": setting.metavar, "help": setting.help}
-        if setting.arg_type is not None:
-            options["type"] = setting.arg_type
-        command.add_argument(f"--{setting.key}", **options)
-    command.add_argument(
-        "--breadth-first",
-        action="store_true",
-        help="override the profile and use shortest-first scheduling "
-        "(the same as leaving nodes-per-depth unset)",
-    )
-    command.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="show the resolved profile without running the engine",
-    )
+        if setting.kind == "value":
+            options: dict[str, Any] = {
+                "metavar": setting.metavar,
+                "help": setting.help,
+            }
+            if setting.arg_type is not None:
+                options["type"] = setting.arg_type
+            command.add_argument(f"--{setting.key}", **options)
+        else:
+            command.add_argument(
+                f"--{setting.key}", action="store_true", help=setting.help
+            )
 
 
 def parser() -> argparse.ArgumentParser:
