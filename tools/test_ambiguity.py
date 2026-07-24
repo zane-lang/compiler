@@ -207,11 +207,14 @@ class TerminalClassEngineTests(unittest.TestCase):
         self.grammar.write_text(TINY_GRAMMAR, encoding="utf-8")
 
     def engine(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        # --timeout only bounds the engine's own search; a process-level timeout
+        # keeps a hung binary or menhir from blocking the whole suite.
         return subprocess.run(
             [str(ENGINE), *arguments, str(self.grammar)],
             env=self.environment,
             text=True,
             capture_output=True,
+            timeout=120,
         )
 
     def test_interchangeable_atoms_share_one_class(self) -> None:
@@ -238,6 +241,15 @@ class TerminalClassEngineTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("complete ambiguity", result.stdout)
+        # The witness must be spelled with the class representative A, never the
+        # non-representative B, confirming concretization stays on representatives.
+        witnesses = [
+            line for line in result.stdout.splitlines() if "Tokens (" in line
+        ]
+        self.assertTrue(witnesses, result.stdout)
+        tokens = witnesses[0].split(":", 1)[1].split()
+        self.assertIn("A", tokens)
+        self.assertNotIn("B", tokens)
 
 
 if __name__ == "__main__":
