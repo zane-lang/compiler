@@ -73,6 +73,14 @@ class ProfileTests(unittest.TestCase):
         path.write_text(contents, encoding="utf-8")
         return path
 
+    def override_namespace(self, **overrides: object) -> argparse.Namespace:
+        # Mirror argparse defaults: every override dest is None (store_true
+        # flags are False) unless the test sets it.
+        namespace = {setting.dest: None for setting in ambiguity.SETTINGS}
+        namespace["breadth_first"] = False
+        namespace.update(overrides)
+        return argparse.Namespace(**namespace)
+
     def test_inheritance_and_overrides(self) -> None:
         path = self.write_profiles(
             """
@@ -85,8 +93,9 @@ witnesses = 10
 [profiles.deep]
 extends = "base"
 tokens = "12..50"
-prefix_tokens = ["UIDENT", "LCURLY"]
-nodes_per_depth = 4
+prefix-tokens = ["UIDENT", "LCURLY"]
+nodes-per-depth = 4
+output = "reports/{profile}-{date}.txt"
 """
         )
         profile = ambiguity.load_profiles(path)["deep"]
@@ -95,13 +104,13 @@ nodes_per_depth = 4
         self.assertEqual(profile.timeout_seconds, 120)
         self.assertEqual(profile.prefix_tokens, ("UIDENT", "LCURLY"))
         self.assertEqual(profile.nodes_per_depth, 4)
+        self.assertEqual(profile.output, Path("reports/{profile}-{date}.txt"))
 
-        arguments = argparse.Namespace(
-            token_range="10..30",
+        arguments = self.override_namespace(
+            tokens="10..30",
             timeout="1h",
             witnesses=25,
             prefix_tokens="UIDENT LIDENT",
-            nodes_per_depth=None,
             breadth_first=True,
         )
         overridden = ambiguity.apply_overrides(profile, arguments)
@@ -110,6 +119,48 @@ nodes_per_depth = 4
         self.assertEqual(overridden.witnesses, 25)
         self.assertEqual(overridden.prefix_tokens, ("UIDENT", "LIDENT"))
         self.assertIsNone(overridden.nodes_per_depth)
+        # The profile's output survives when no --output override is given.
+        self.assertEqual(overridden.output, Path("reports/{profile}-{date}.txt"))
+
+    def test_output_key_and_override(self) -> None:
+        path = self.write_profiles(
+            """
+[profiles.quick]
+tokens = "0..10"
+timeout = "1m"
+witnesses = 5
+output = "reports/{profile}.txt"
+"""
+        )
+        profile = ambiguity.load_profiles(path)["quick"]
+        self.assertEqual(profile.output, Path("reports/{profile}.txt"))
+        overridden = ambiguity.apply_overrides(
+            profile, self.override_namespace(output=Path("elsewhere.txt"))
+        )
+        self.assertEqual(overridden.output, Path("elsewhere.txt"))
+
+    def test_profile_keys_match_override_flags(self) -> None:
+        # The whole point of the registry: the TOML keys and the CLI flags are
+        # the same kebab-case names.
+        search = ambiguity.parser().parse_args(["search"])
+        for setting in ambiguity.SETTINGS:
+            self.assertIn(setting.key, ambiguity.PROFILE_KEYS)
+            self.assertTrue(hasattr(search, setting.dest))
+
+    def test_snake_case_key_is_rejected(self) -> None:
+        path = self.write_profiles(
+            """
+[profiles.quick]
+tokens = "0..10"
+timeout = "1m"
+witnesses = 5
+prefix_tokens = ["UIDENT"]
+"""
+        )
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "unknown settings: prefix_tokens"
+        ):
+            ambiguity.load_profiles(path)
 
     def test_inheritance_cycle_is_reported(self) -> None:
         path = self.write_profiles(
