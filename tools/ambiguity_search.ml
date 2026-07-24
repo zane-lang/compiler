@@ -21,6 +21,11 @@ type automaton = {
   states : state array;
   terminals : StringSet.t;
   aliases : (string, string) Hashtbl.t;
+  (* Terminals that behave identically everywhere in the automaton share a
+     class id. Two terminals are in one class when swapping them is an
+     automorphism of the recognition relation, so the search only needs to try
+     one representative per class instead of every interchangeable token. *)
+  terminal_class : (string, int) Hashtbl.t;
 }
 
 let empty_state () =
@@ -195,6 +200,145 @@ let prepare_automaton ~menhir ~grammar ~directory =
   end;
   automaton
 
+(* Terminal equivalence classes.
+
+   Two terminals are interchangeable when replacing every occurrence of one by
+   the other is an automorphism of the recognition relation: they shift to
+   equivalent states, trigger the same reductions as a lookahead, and are
+   accepted in the same places. Interchangeable terminals generate isomorphic
+   parse forests, so an ambiguous sentence exists with one iff it exists with
+   the other; the search may therefore explore a single representative per
+   class. Because precedence and associativity are already baked into the
+   automaton's concrete shift/reduce actions, tokens with different precedence
+   land in different classes automatically.
+
+   Equivalence is computed in two steps. First a partition refinement over the
+   states (a bisimulation on recognition behaviour: shift-target blocks,
+   reduction (lhs, width) sets, nonterminal goto-target blocks, and accepts)
+   collapses states that differ only in which production they carry - so
+   [primary -> INT], [primary -> FLOAT] and [primary -> STRING] states become
+   one block. Then terminals are grouped by their action across every state,
+   comparing shift targets up to that state partition. This is why FLOAT and
+   STRING merge even though they shift to distinct states, while INT stays
+   separate: it is also valid as a const generic argument, a context the other
+   two never reach. *)
+let compute_terminal_classes states terminals =
+  let count = Array.length states in
+  let terminal_list = StringSet.elements terminals in
+  (* "#" is the end marker; it is never shifted but does drive reductions and
+     acceptance, so it participates in the lookahead-role signatures. *)
+  let lookaheads = "#" :: terminal_list in
+  let reduce_signature state token =
+    match Hashtbl.find_opt state.reductions token with
+    | None -> []
+    | Some reductions ->
+        List.sort_uniq compare
+          (List.map (fun reduction -> (reduction.lhs, reduction.width)) reductions)
+  in
+  let shift_target state token =
+    if StringSet.mem token terminals then Hashtbl.find_opt state.transitions token
+    else None
+  in
+  let goto_targets state =
+    Hashtbl.fold
+      (fun symbol target result ->
+        if StringSet.mem symbol terminals then result
+        else (symbol, target) :: result)
+      state.transitions []
+    |> List.sort compare
+  in
+  let block = Array.make (max 1 count) 0 in
+  let state_signature index =
+    let state = states.(index) in
+    let shifts =
+      List.map
+        (fun token ->
+          match shift_target state token with
+          | Some target -> Some block.(target)
+          | None -> None)
+        terminal_list
+    in
+    let reduces = List.map (reduce_signature state) lookaheads in
+    let accepts =
+      List.map (fun token -> StringSet.mem token state.accepts) lookaheads
+    in
+    let gotos =
+      List.map (fun (symbol, target) -> (symbol, block.(target))) (goto_targets state)
+    in
+    (shifts, reduces, accepts, gotos)
+  in
+  (* One refinement pass. Keying by the previous block keeps the partition
+     monotonically finer, so the block count never decreases and the loop
+     below terminates once it stabilizes. *)
+  let refine () =
+    let table = Hashtbl.create 1024 in
+    let fresh = ref 0 in
+    let updated = Array.make (max 1 count) 0 in
+    for index = 0 to count - 1 do
+      let key = (block.(index), state_signature index) in
+      match Hashtbl.find_opt table key with
+      | Some id -> updated.(index) <- id
+      | None ->
+          let id = !fresh in
+          incr fresh;
+          Hashtbl.add table key id;
+          updated.(index) <- id
+    done;
+    Array.blit updated 0 block 0 count;
+    !fresh
+  in
+  let previous = ref (-1) in
+  let blocks = ref (refine ()) in
+  while !blocks <> !previous do
+    previous := !blocks;
+    blocks := refine ()
+  done;
+  let terminal_signature token =
+    List.init count (fun index ->
+        let state = states.(index) in
+        let shift =
+          match shift_target state token with
+          | Some target -> Some block.(target)
+          | None -> None
+        in
+        (shift, reduce_signature state token, StringSet.mem token state.accepts))
+  in
+  let signatures = Hashtbl.create 64 in
+  let terminal_class = Hashtbl.create 64 in
+  let fresh = ref 0 in
+  List.iter
+    (fun token ->
+      let key = terminal_signature token in
+      let id =
+        match Hashtbl.find_opt signatures key with
+        | Some id -> id
+        | None ->
+            let id = !fresh in
+            incr fresh;
+            Hashtbl.add signatures key id;
+            id
+      in
+      Hashtbl.add terminal_class token id)
+    terminal_list;
+  terminal_class
+
+(* Keep one terminal per class - the alphabetically first, for reproducible
+   witnesses - so interchangeable tokens are explored once. A class is either
+   wholly present in a frontier's possible tokens or wholly absent (its members
+   act identically in every state), so picking representatives never drops a
+   reachable token. *)
+let class_representatives automaton tokens =
+  let seen = Hashtbl.create 32 in
+  StringSet.fold
+    (fun token result ->
+      match Hashtbl.find_opt automaton.terminal_class token with
+      | Some id when Hashtbl.mem seen id -> result
+      | Some id ->
+          Hashtbl.add seen id ();
+          StringSet.add token result
+      | None -> StringSet.add token result)
+    tokens StringSet.empty
+
 let state_re = Str.regexp "^State \\([0-9]+\\):$"
 let transition_re =
   Str.regexp "^-- On \\([^ ]+\\) shift to state \\([0-9]+\\)$"
@@ -270,7 +414,8 @@ let parse_automaton path terminals aliases =
     (read_lines path);
   let maximum = Hashtbl.fold (fun number _ value -> max number value) table 0 in
   let states = Array.init (maximum + 1) (fun number -> get_state number) in
-  { states; terminals; aliases }
+  let terminal_class = compute_terminal_classes states terminals in
+  { states; terminals; aliases; terminal_class }
 
 module Stack_pool = struct
   type node = {
@@ -782,7 +927,12 @@ let prove engine limit pair_limit =
     | None -> []
     | Some (token, parent) -> token :: trail parent
   in
-  let terminals = StringSet.elements automaton.terminals in
+  (* One representative per terminal class: interchangeable lookaheads drive
+     the same abstract reduction chains, so exploring one covers the class and
+     shrinks the abstract pair space by the same factor as the search. *)
+  let terminals =
+    StringSet.elements (class_representatives automaton automaton.terminals)
+  in
   push None ([ 0 ], [ 0 ], false);
   while (not (Queue.is_empty queue)) && !candidate = None && not !overflow do
     let (left, right, diverged) as node = Queue.take queue in
@@ -1278,7 +1428,8 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
                     branched;
                   }
             end)
-          (possible_tokens engine item.frontier)
+          (class_representatives engine.automaton
+             (possible_tokens engine item.frontier))
     end;
     emit_progress false
   done;
@@ -1342,7 +1493,8 @@ let initial_partitions engine jobs max_tokens initial =
                     next := item :: !next
                   end
                 end)
-              (possible_tokens engine item.frontier))
+              (class_representatives engine.automaton
+                 (possible_tokens engine item.frontier)))
         !current;
       unique := !unique + Hashtbl.length seen;
       current := !next
@@ -1563,6 +1715,7 @@ let timeout = ref None
 let max_witnesses = ref None
 let check_tokens = ref []
 let prove_level = ref 0
+let dump_classes = ref false
 
 type memory_limits = {
   max_queue : int;
@@ -1632,6 +1785,9 @@ let options =
       "K attempt an unambiguity proof with a top-K stack abstraction; \
        exit 0 proven unambiguous, 1 ambiguous, 3 not proven \
        (the derived dedup-frontier limit also bounds the abstract pair count)" );
+    ( "--dump-terminal-classes",
+      Arg.Set dump_classes,
+      " list the terminal equivalence classes the search collapses, then exit" );
   ]
 
 let main () =
@@ -1674,7 +1830,7 @@ let main () =
       if value < 1 then invalid_arg "--max-witnesses must be at least 1")
     !max_witnesses;
   let search_limits =
-    if !check_tokens <> [] then None
+    if !check_tokens <> [] || !dump_classes then None
     else
       let required name = function
         | Some value -> value
@@ -1700,6 +1856,31 @@ let main () =
       let engine =
         { automaton; stacks; closure_cache = Hashtbl.create 16_384 }
       in
+      if !dump_classes then begin
+        let members = Hashtbl.create 64 in
+        Hashtbl.iter
+          (fun token id ->
+            Hashtbl.replace members id
+              (token :: Option.value (Hashtbl.find_opt members id) ~default:[]))
+          automaton.terminal_class;
+        let classes =
+          Hashtbl.fold (fun _ tokens result -> List.sort compare tokens :: result)
+            members []
+          |> List.sort compare
+        in
+        let singletons = List.filter (fun tokens -> List.length tokens = 1) classes in
+        let merged = List.filter (fun tokens -> List.length tokens > 1) classes in
+        Printf.printf "%d terminals in %d classes (%d merged, %d singleton).\n"
+          (StringSet.cardinal automaton.terminals)
+          (List.length classes) (List.length merged) (List.length singletons);
+        List.iter
+          (fun tokens -> Printf.printf "  { %s }\n" (String.concat " " tokens))
+          merged;
+        if singletons <> [] then
+          Printf.printf "  singletons: %s\n"
+            (String.concat " " (List.concat singletons));
+        exit 0
+      end;
       if !check_tokens <> [] then begin
         let frontier =
           List.fold_left (shift engine)

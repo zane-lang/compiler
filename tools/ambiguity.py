@@ -364,6 +364,10 @@ def parser() -> argparse.ArgumentParser:
     add_overrides(prove)
 
     commands.add_parser("profiles", help="list available search profiles")
+    commands.add_parser(
+        "classes",
+        help="list the terminal equivalence classes the search collapses",
+    )
     return result
 
 
@@ -430,6 +434,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             return run_engine(
                 ["--check-tokens", " ".join(arguments.tokens)],
                 "Exact ambiguity check",
+                None,
+            )
+
+        if arguments.command == "classes":
+            return run_engine(
+                ["--dump-terminal-classes"],
+                "Terminal equivalence classes",
                 None,
             )
 
