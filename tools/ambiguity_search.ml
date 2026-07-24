@@ -1189,7 +1189,7 @@ let render_progress ~started ~max_tokens ~memory_budget
     in
     let elapsed = max 0. (Unix.gettimeofday () -. started) in
     Printf.eprintf
-      "\r\027[2K● depth %d/%d | ambiguities@depth %d | %s explored | %s unique | RAM [%s] %.1f/%.1f GiB | %02d:%02d"
+      "\r\027[2K● %d/%d | amb %d | explored %s | unique %s | RAM [%s] %.1f/%.1fG | %02d:%02d"
       depth max_tokens at_depth (compact_number !explored)
       (compact_number !unique)
       (memory_bar !rss_bytes memory_budget)

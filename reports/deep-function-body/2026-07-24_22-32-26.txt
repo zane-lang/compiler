@@ -1,0 +1,9 @@
+Search profile: deep-function-body
+Rotate deep search waves through statements in a function body.
+Tokens 15..50 · timeout 30m · 50 witnesses · 10 nodes per depth
+Prefix (5): UIDENT LIDENT LPAREN RPAREN LCURLY
+Report: reports/deep-function-body/2026-07-24_22-32-26.txt
+
+Memory budget: 6144 MiB total across 4 worker(s); workers compact at 1229 MiB and stop admitting frontiers at 1382 MiB each (10% reserved); per-worker limits are 710564 queued frontiers and 710564 retained dedup frontiers (ratio 1).
+Search constraints: 15..50 total tokens; 5-token prefix; 10 nodes per depth.
+Prefix tokens: UIDENT LIDENT LPAREN RPAREN LCURLY
