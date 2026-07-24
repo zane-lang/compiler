@@ -14,5 +14,5 @@ witnesses = 50
 extends = "general"
 description = "Rotate deep search waves through statements in a function body."
 tokens = "15..50"
-prefix_tokens = ["UIDENT", "LIDENT", "LPAREN", "RPAREN", "LCURLY"]
-nodes_per_depth = 10
+prefix-tokens = ["UIDENT", "LIDENT", "LPAREN", "RPAREN", "LCURLY"]
+nodes-per-depth = 10

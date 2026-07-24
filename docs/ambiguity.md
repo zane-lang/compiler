@@ -136,12 +136,24 @@ Friendly durations such as `90s`, `30m`, and `1h` are accepted. Add
 `--output report.txt` to display and save a report, or `--dry-run` to inspect
 the resolved settings without building the engine.
 
-The `--output` path may contain placeholders that are filled in when the run
-starts: `{profile}` is the resolved profile name, and `{date}`, `{time}`, and
-`{datetime}` are timestamps laid out like the existing `reports/` filenames (`2026-07-23`, `21-38-17`, and `2026-07-23_21-38-17`). Any
-directories in the expanded path are created automatically, so
-`--output reports/{profile}-{date}.txt` drops a dated report into `reports/`
-without a manual `mkdir`. Write `{{` and `}}` for literal braces.
+Every profile setting has an identically named override flag: the TOML key and
+the `--flag` share the same kebab-case spelling (`tokens`, `timeout`,
+`witnesses`, `prefix-tokens`, `nodes-per-depth`, `output`), and the command line
+overrides the profile. A single registry in `tools/ambiguity.py` declares each
+setting once and drives both the profile keys and the flags, so they cannot
+drift apart. The two remaining flags are not settings: `--breadth-first` is just
+`nodes-per-depth` turned off (a profile expresses it by leaving the key unset),
+and `--dry-run` is a run mode.
+
+The `output` path — whether set as a profile key or passed with `--output` —
+may contain placeholders that are filled in when the run starts: `{profile}` is
+the resolved profile name, and `{date}`, `{time}`, and `{datetime}` are
+timestamps laid out like the existing `reports/` filenames (`2026-07-23`,
+`21-38-17`, and `2026-07-23_21-38-17`). Any directories in the expanded path are
+created automatically, so `output = "reports/{profile}-{date}.txt"` in a profile
+(or `--output reports/{profile}-{date}.txt` on the command line) drops a dated
+report into `reports/` without a manual `mkdir`. Write `{{` and `}}` for literal
+braces.
 
 To concentrate a run inside a function body and favor depth over breadth:
 

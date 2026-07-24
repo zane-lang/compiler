@@ -13,22 +13,13 @@ import string
 import subprocess
 import sys
 import tomllib
-from typing import Any, Sequence, TextIO
+from typing import Any, Callable, Sequence, TextIO
 
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILES = ROOT / "ambiguity-searches.toml"
 ENGINE_RUNNER = ROOT / "dev" / "bin" / "ambiguity"
 
-PROFILE_KEYS = {
-    "description",
-    "extends",
-    "tokens",
-    "timeout",
-    "witnesses",
-    "prefix_tokens",
-    "nodes_per_depth",
-}
 DURATION_PART = re.compile(r"(\d+(?:\.\d+)?)(ms|s|m|h)")
 DURATION_FACTORS = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
 
@@ -47,6 +38,7 @@ class SearchProfile:
     witnesses: int
     prefix_tokens: tuple[str, ...] = ()
     nodes_per_depth: int | None = None
+    output: Path | None = None
 
 
 def parse_token_range(value: str) -> tuple[int, int]:
@@ -95,6 +87,185 @@ def format_duration(seconds: float) -> str:
     if seconds % 60 == 0:
         return f"{seconds / 60:g}m"
     return f"{seconds:g}s"
+
+
+# ----- Search-parameter registry -----
+#
+# Every search parameter is declared once here and shared by both surfaces:
+# the TOML profile key and the `--key` override flag use the identical
+# kebab-case spelling. The registry drives profile validation, argparse flag
+# registration, override application, and engine-argument construction, so a
+# new parameter is added in exactly one place instead of five.
+
+
+@dataclass(frozen=True)
+class Setting:
+    key: str
+    # (raw value, profile name) -> SearchProfile field updates; raises
+    # ConfigurationError on an invalid value. Accepts both the TOML-typed value
+    # and the argparse-typed override so a single coercion serves both surfaces.
+    coerce: Callable[[Any, str], dict[str, Any]]
+    to_engine_args: Callable[["SearchProfile"], list[str]]
+    metavar: str
+    help: str
+    required: bool = False
+    arg_type: Callable[[str], Any] | None = None
+
+    @property
+    def dest(self) -> str:
+        return self.key.replace("-", "_")
+
+
+def _coerce_tokens(raw: Any, name: str) -> dict[str, Any]:
+    if not isinstance(raw, str):
+        raise ConfigurationError(f"profile {name!r}: tokens must be MIN..MAX")
+    minimum, maximum = parse_token_range(raw)
+    return {"min_tokens": minimum, "max_tokens": maximum}
+
+
+def _coerce_timeout(raw: Any, name: str) -> dict[str, Any]:
+    return {"timeout_seconds": parse_duration(raw)}
+
+
+def _coerce_witnesses(raw: Any, name: str) -> dict[str, Any]:
+    if isinstance(raw, bool) or not isinstance(raw, int) or raw < 1:
+        raise ConfigurationError(
+            f"profile {name!r}: witnesses must be an integer of at least 1"
+        )
+    return {"witnesses": raw}
+
+
+def _coerce_prefix_tokens(raw: Any, name: str) -> dict[str, Any]:
+    # A profile supplies an array; the CLI override supplies a space-separated
+    # string. Accept either so both surfaces share one code path.
+    tokens = raw.split() if isinstance(raw, str) else raw
+    if not isinstance(tokens, list) or not all(
+        isinstance(token, str) and token for token in tokens
+    ):
+        raise ConfigurationError(
+            f"profile {name!r}: prefix-tokens must be an array of token names"
+        )
+    return {"prefix_tokens": tuple(tokens)}
+
+
+def _coerce_nodes_per_depth(raw: Any, name: str) -> dict[str, Any]:
+    if isinstance(raw, bool) or not isinstance(raw, int) or raw < 1:
+        raise ConfigurationError(
+            f"profile {name!r}: nodes-per-depth must be an integer of at least 1"
+        )
+    return {"nodes_per_depth": raw}
+
+
+def _coerce_output(raw: Any, name: str) -> dict[str, Any]:
+    # A profile supplies a string; the --output override supplies a Path. Guard
+    # like every other coercer so a malformed value (e.g. output = 5) becomes a
+    # ConfigurationError routed through main() instead of an uncaught TypeError.
+    if not isinstance(raw, (str, Path)):
+        raise ConfigurationError(f"profile {name!r}: output must be a string path")
+    return {"output": Path(raw)}
+
+
+def _tokens_engine_args(profile: SearchProfile) -> list[str]:
+    return [
+        "--max-tokens",
+        str(profile.max_tokens),
+        "--min-tokens",
+        str(profile.min_tokens),
+    ]
+
+
+def _timeout_engine_args(profile: SearchProfile) -> list[str]:
+    return ["--timeout", f"{profile.timeout_seconds:g}"]
+
+
+def _witnesses_engine_args(profile: SearchProfile) -> list[str]:
+    return ["--max-witnesses", str(profile.witnesses)]
+
+
+def _prefix_engine_args(profile: SearchProfile) -> list[str]:
+    if not profile.prefix_tokens:
+        return []
+    return ["--prefix-tokens", " ".join(profile.prefix_tokens)]
+
+
+def _nodes_engine_args(profile: SearchProfile) -> list[str]:
+    if profile.nodes_per_depth is None:
+        return []
+    return ["--nodes-per-depth", str(profile.nodes_per_depth)]
+
+
+def _no_engine_args(profile: SearchProfile) -> list[str]:
+    # The report path is handled by this wrapper, not passed to the engine.
+    return []
+
+
+SETTINGS: tuple[Setting, ...] = (
+    Setting(
+        "tokens",
+        _coerce_tokens,
+        _tokens_engine_args,
+        "MIN..MAX",
+        "override the profile's complete-witness token range",
+        required=True,
+    ),
+    Setting(
+        "timeout",
+        _coerce_timeout,
+        _timeout_engine_args,
+        "DURATION",
+        "override the timeout; accepts values such as 90s, 30m, and 1h",
+        required=True,
+    ),
+    Setting(
+        "witnesses",
+        _coerce_witnesses,
+        _witnesses_engine_args,
+        "N",
+        "override the number of ambiguity families to report",
+        required=True,
+        arg_type=int,
+    ),
+    Setting(
+        "prefix-tokens",
+        _coerce_prefix_tokens,
+        _prefix_engine_args,
+        "TOKENS",
+        "override the fixed space-separated token prefix",
+    ),
+    Setting(
+        "nodes-per-depth",
+        _coerce_nodes_per_depth,
+        _nodes_engine_args,
+        "N",
+        "override how many sibling frontiers a depth wave expands",
+        arg_type=int,
+    ),
+    Setting(
+        "output",
+        _coerce_output,
+        _no_engine_args,
+        "FILE",
+        "write the complete report to FILE while also displaying it; "
+        "{profile}, {date}, {time}, and {datetime} expand in the path "
+        "(e.g. reports/{profile}-{date}.txt), and missing directories are created",
+        arg_type=Path,
+    ),
+)
+
+# The TOML profile keys are exactly the setting names plus the two structural
+# keys, so the flags and the profile keys can never drift apart.
+PROFILE_KEYS = {"description", "extends"} | {setting.key for setting in SETTINGS}
+
+
+def _validate_profile(profile: SearchProfile, name: str) -> None:
+    # max_tokens counts the prefix and the required EOF, so the prefix must
+    # leave room for at least the EOF token: a prefix of exactly max_tokens can
+    # never complete a witness.
+    if len(profile.prefix_tokens) >= profile.max_tokens:
+        raise ConfigurationError(
+            f"profile {name!r}: prefix fills the whole token budget, "
+            f"leaving no room for the EOF token"
+        )
 
 
 def expand_output_path(pattern: Path, profile_name: str) -> Path:
@@ -193,100 +364,50 @@ def load_profiles(path: Path = DEFAULT_PROFILES) -> dict[str, SearchProfile]:
     profiles: dict[str, SearchProfile] = {}
     for name in tables:
         settings = resolve(name)
-        missing = {"tokens", "timeout", "witnesses"} - set(settings)
+        missing = {setting.key for setting in SETTINGS if setting.required} - set(
+            settings
+        )
         if missing:
             keys = ", ".join(sorted(missing))
             raise ConfigurationError(f"profile {name!r} is missing: {keys}")
-        token_value = settings["tokens"]
-        if not isinstance(token_value, str):
-            raise ConfigurationError(f"profile {name!r}: tokens must be MIN..MAX")
-        minimum, maximum = parse_token_range(token_value)
-        witnesses = settings["witnesses"]
-        if isinstance(witnesses, bool) or not isinstance(witnesses, int) or witnesses < 1:
-            raise ConfigurationError(
-                f"profile {name!r}: witnesses must be an integer of at least 1"
-            )
-        prefix = settings.get("prefix_tokens", [])
-        if not isinstance(prefix, list) or not all(
-            isinstance(token, str) and token for token in prefix
-        ):
-            raise ConfigurationError(
-                f"profile {name!r}: prefix_tokens must be an array of token names"
-            )
-        nodes = settings.get("nodes_per_depth")
-        if nodes is not None and (
-            isinstance(nodes, bool) or not isinstance(nodes, int) or nodes < 1
-        ):
-            raise ConfigurationError(
-                f"profile {name!r}: nodes_per_depth must be an integer of at least 1"
-            )
-        if len(prefix) > maximum:
-            raise ConfigurationError(
-                f"profile {name!r}: prefix is longer than the maximum token count"
-            )
         description = settings.get("description", "")
         if not isinstance(description, str):
             raise ConfigurationError(f"profile {name!r}: description must be a string")
-        profiles[name] = SearchProfile(
-            name=name,
-            description=description,
-            min_tokens=minimum,
-            max_tokens=maximum,
-            timeout_seconds=parse_duration(settings["timeout"]),
-            witnesses=witnesses,
-            prefix_tokens=tuple(prefix),
-            nodes_per_depth=nodes,
-        )
+        fields: dict[str, Any] = {"name": name, "description": description}
+        for setting in SETTINGS:
+            if setting.key in settings:
+                fields.update(setting.coerce(settings[setting.key], name))
+        profile = SearchProfile(**fields)
+        _validate_profile(profile, name)
+        profiles[name] = profile
     return profiles
 
 
 def apply_overrides(
     profile: SearchProfile, arguments: argparse.Namespace
 ) -> SearchProfile:
-    result = profile
-    if arguments.token_range is not None:
-        minimum, maximum = parse_token_range(arguments.token_range)
-        result = replace(result, min_tokens=minimum, max_tokens=maximum)
-    if arguments.timeout is not None:
-        result = replace(result, timeout_seconds=parse_duration(arguments.timeout))
-    if arguments.witnesses is not None:
-        if arguments.witnesses < 1:
-            raise ConfigurationError("--witnesses must be at least 1")
-        result = replace(result, witnesses=arguments.witnesses)
-    if arguments.prefix_tokens is not None:
-        result = replace(
-            result, prefix_tokens=tuple(arguments.prefix_tokens.split())
-        )
-    if arguments.nodes_per_depth is not None:
-        if arguments.nodes_per_depth < 1:
-            raise ConfigurationError("--nodes-per-depth must be at least 1")
-        result = replace(result, nodes_per_depth=arguments.nodes_per_depth)
-    if arguments.breadth_first:
-        if arguments.nodes_per_depth is not None:
+    fields: dict[str, Any] = {}
+    for setting in SETTINGS:
+        value = getattr(arguments, setting.dest, None)
+        if value is not None:
+            fields.update(setting.coerce(value, profile.name))
+    result = replace(profile, **fields) if fields else profile
+    # --breadth-first is not a value; it is nodes-per-depth turned off, and only
+    # exists to override a profile that set it.
+    if getattr(arguments, "breadth_first", False):
+        if getattr(arguments, "nodes_per_depth", None) is not None:
             raise ConfigurationError(
                 "--breadth-first and --nodes-per-depth cannot be combined"
             )
         result = replace(result, nodes_per_depth=None)
-    if len(result.prefix_tokens) > result.max_tokens:
-        raise ConfigurationError("prefix is longer than the maximum token count")
+    _validate_profile(result, result.name)
     return result
 
 
 def engine_arguments(profile: SearchProfile, prove: int | None = None) -> list[str]:
-    arguments = [
-        "--max-tokens",
-        str(profile.max_tokens),
-        "--min-tokens",
-        str(profile.min_tokens),
-        "--timeout",
-        f"{profile.timeout_seconds:g}",
-        "--max-witnesses",
-        str(profile.witnesses),
-    ]
-    if profile.prefix_tokens:
-        arguments.extend(["--prefix-tokens", " ".join(profile.prefix_tokens)])
-    if profile.nodes_per_depth is not None:
-        arguments.extend(["--nodes-per-depth", str(profile.nodes_per_depth)])
+    arguments: list[str] = []
+    for setting in SETTINGS:
+        arguments.extend(setting.to_engine_args(profile))
     if prove is not None:
         arguments.extend(["--prove", str(prove)])
     return arguments
@@ -318,47 +439,18 @@ def profile_summary(profile: SearchProfile, action: str) -> str:
 
 
 def add_overrides(command: argparse.ArgumentParser) -> None:
+    # Every profile setting registers an identically named override flag; the
+    # single registry keeps the two surfaces in lockstep.
+    for setting in SETTINGS:
+        options: dict[str, Any] = {"metavar": setting.metavar, "help": setting.help}
+        if setting.arg_type is not None:
+            options["type"] = setting.arg_type
+        command.add_argument(f"--{setting.key}", **options)
     command.add_argument(
-        "--tokens",
-        dest="token_range",
-        metavar="MIN..MAX",
-        help="override the profile's complete-witness token range",
-    )
-    command.add_argument(
-        "--timeout",
-        metavar="DURATION",
-        help="override the timeout; accepts values such as 90s, 30m, and 1h",
-    )
-    command.add_argument(
-        "--witnesses",
-        type=int,
-        metavar="N",
-        help="override the number of ambiguity families to report",
-    )
-    command.add_argument(
-        "--prefix-tokens",
-        metavar="TOKENS",
-        help="override the fixed space-separated token prefix",
-    )
-    scheduling = command.add_mutually_exclusive_group()
-    scheduling.add_argument(
-        "--nodes-per-depth",
-        type=int,
-        metavar="N",
-        help="override how many sibling frontiers a depth wave expands",
-    )
-    scheduling.add_argument(
         "--breadth-first",
         action="store_true",
-        help="override the profile and use shortest-first scheduling",
-    )
-    command.add_argument(
-        "--output",
-        type=Path,
-        metavar="FILE",
-        help="write the complete report to FILE while also displaying it; "
-        "{profile}, {date}, {time}, and {datetime} expand in the path "
-        "(e.g. reports/{profile}-{date}.txt), and missing directories are created",
+        help="override the profile and use shortest-first scheduling "
+        "(the same as leaving nodes-per-depth unset)",
     )
     command.add_argument(
         "--dry-run",
@@ -475,6 +567,8 @@ def list_profiles(profiles: dict[str, SearchProfile]) -> None:
             f"{format_duration(profile.timeout_seconds)}, "
             f"{profile.witnesses} witnesses, {scheduling}"
         )
+        if profile.output is not None:
+            print(f"  {'':<{width}}  report: {profile.output}")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -516,8 +610,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         output_path = (
             None
-            if arguments.output is None
-            else expand_output_path(arguments.output, profile.name)
+            if profile.output is None
+            else expand_output_path(profile.output, profile.name)
         )
         summary = profile_summary(profile, action)
         if output_path is not None:
