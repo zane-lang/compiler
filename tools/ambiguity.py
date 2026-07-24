@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, replace
+import datetime
 from pathlib import Path
 import re
 import shlex
+import string
 import subprocess
 import sys
 import tomllib
@@ -93,6 +95,52 @@ def format_duration(seconds: float) -> str:
     if seconds % 60 == 0:
         return f"{seconds / 60:g}m"
     return f"{seconds:g}s"
+
+
+def expand_output_path(pattern: Path, profile_name: str) -> Path:
+    """Substitute report-naming placeholders in an --output pattern.
+
+    Placeholders use brace syntax: ``{name}``, with ``{{`` and ``}}`` for
+    literal braces. The supported names are ``profile`` and three timestamp
+    forms whose date and time layout matches the existing ``reports/``
+    filenames (e.g. ``2026-07-23_21-38-17``)."""
+    now = datetime.datetime.now()
+    fields = {
+        "profile": profile_name,
+        "date": now.strftime("%Y-%m-%d"),
+        "time": now.strftime("%H-%M-%S"),
+        "datetime": now.strftime("%Y-%m-%d_%H-%M-%S"),
+    }
+    available = ", ".join("{" + name + "}" for name in fields)
+    text = str(pattern)
+    # Expand only bare `{name}` placeholders. Parsing the pattern ourselves —
+    # rather than str.format_map — keeps indexed or attribute forms such as
+    # {profile[0]} or {profile.foo} out: format_map would silently expand the
+    # former to a wrong path and raise an uncaught AttributeError on the latter.
+    try:
+        parsed = list(string.Formatter().parse(text))
+    except ValueError as error:
+        raise ConfigurationError(
+            f"invalid --output pattern {text!r}: {error}; "
+            "write {{ and }} for literal braces"
+        ) from error
+    result: list[str] = []
+    for literal, field, spec, conversion in parsed:
+        result.append(literal)
+        if field is None:
+            continue
+        if field not in fields:
+            raise ConfigurationError(
+                f"unknown placeholder {{{field}}} in --output pattern "
+                f"{text!r}; available placeholders are {available}"
+            )
+        if spec or conversion:
+            raise ConfigurationError(
+                f"--output placeholder {{{field}}} takes no format spec or "
+                f"conversion in pattern {text!r}"
+            )
+        result.append(fields[field])
+    return Path("".join(result))
 
 
 def _profile_tables(path: Path) -> dict[str, dict[str, Any]]:
@@ -308,7 +356,9 @@ def add_overrides(command: argparse.ArgumentParser) -> None:
         "--output",
         type=Path,
         metavar="FILE",
-        help="write the complete report to FILE while also displaying it",
+        help="write the complete report to FILE while also displaying it; "
+        "{profile}, {date}, {time}, and {datetime} expand in the path "
+        "(e.g. reports/{profile}-{date}.txt), and missing directories are created",
     )
     command.add_argument(
         "--dry-run",
@@ -386,6 +436,7 @@ def run_engine(
     output: TextIO | None = None
     try:
         if output_path is not None:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
             output = output_path.open("w", encoding="utf-8")
         _write_prelude(prelude, output)
         process = subprocess.Popen(
@@ -463,16 +514,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             if proof_level is not None
             else "Search"
         )
+        output_path = (
+            None
+            if arguments.output is None
+            else expand_output_path(arguments.output, profile.name)
+        )
         summary = profile_summary(profile, action)
-        if arguments.output is not None:
-            summary += f"\nReport: {arguments.output}"
+        if output_path is not None:
+            summary += f"\nReport: {output_path}"
         engine_args = engine_arguments(profile, proof_level)
         if arguments.dry_run:
             print(summary)
             print("\nEngine arguments:")
             print("  " + shlex.join(engine_args))
             return 0
-        return run_engine(engine_args, summary, arguments.output)
+        return run_engine(engine_args, summary, output_path)
     except ConfigurationError as error:
         cli.error(str(error))
     return 2
