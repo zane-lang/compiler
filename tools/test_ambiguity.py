@@ -171,13 +171,109 @@ prefix-tokens = ["UIDENT", "LPAREN", "RPAREN"]
         ):
             ambiguity.load_profiles(path)
 
-    def test_profile_keys_match_override_flags(self) -> None:
-        # The whole point of the registry: the TOML keys and the CLI flags are
-        # the same kebab-case names.
+    def test_single_registry_drives_flags_and_keys(self) -> None:
+        # The whole point of the registry: one list enumerates every flag, and
+        # each entry marks whether it is also a TOML key. Every setting registers
+        # a flag; only profile_key settings are valid TOML keys.
         search = ambiguity.parser().parse_args(["search"])
         for setting in ambiguity.SETTINGS:
-            self.assertIn(setting.key, ambiguity.PROFILE_KEYS)
             self.assertTrue(hasattr(search, setting.dest))
+            self.assertEqual(
+                setting.profile_key, setting.key in ambiguity.PROFILE_KEYS
+            )
+        # dry-run is a mode, so it is the one flag that is not a TOML key.
+        self.assertNotIn("dry-run", ambiguity.PROFILE_KEYS)
+        self.assertIn("breadth-first", ambiguity.PROFILE_KEYS)
+
+    def test_breadth_first_profile_key(self) -> None:
+        path = self.write_profiles(
+            """
+[profiles.quick]
+tokens = "0..10"
+timeout = "1m"
+witnesses = 5
+breadth-first = true
+"""
+        )
+        self.assertIsNone(ambiguity.load_profiles(path)["quick"].nodes_per_depth)
+
+    def test_breadth_first_must_be_true(self) -> None:
+        path = self.write_profiles(
+            """
+[profiles.quick]
+tokens = "0..10"
+timeout = "1m"
+witnesses = 5
+breadth-first = false
+"""
+        )
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "breadth-first must be true"
+        ):
+            ambiguity.load_profiles(path)
+
+    def test_scheduling_keys_are_mutually_exclusive(self) -> None:
+        path = self.write_profiles(
+            """
+[profiles.quick]
+tokens = "0..10"
+timeout = "1m"
+witnesses = 5
+nodes-per-depth = 4
+breadth-first = true
+"""
+        )
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "at most one of nodes-per-depth"
+        ):
+            ambiguity.load_profiles(path)
+
+    def test_child_breadth_first_overrides_inherited_depth(self) -> None:
+        path = self.write_profiles(
+            """
+[profiles.base]
+tokens = "0..10"
+timeout = "1m"
+witnesses = 5
+nodes-per-depth = 8
+
+[profiles.child]
+extends = "base"
+breadth-first = true
+"""
+        )
+        self.assertIsNone(ambiguity.load_profiles(path)["child"].nodes_per_depth)
+
+    def test_child_depth_overrides_inherited_breadth_first(self) -> None:
+        path = self.write_profiles(
+            """
+[profiles.base]
+tokens = "0..10"
+timeout = "1m"
+witnesses = 5
+breadth-first = true
+
+[profiles.child]
+extends = "base"
+nodes-per-depth = 8
+"""
+        )
+        self.assertEqual(ambiguity.load_profiles(path)["child"].nodes_per_depth, 8)
+
+    def test_dry_run_is_not_a_profile_key(self) -> None:
+        path = self.write_profiles(
+            """
+[profiles.quick]
+tokens = "0..10"
+timeout = "1m"
+witnesses = 5
+dry-run = true
+"""
+        )
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "unknown settings: dry-run"
+        ):
+            ambiguity.load_profiles(path)
 
     def test_snake_case_key_is_rejected(self) -> None:
         path = self.write_profiles(

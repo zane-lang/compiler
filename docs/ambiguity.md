@@ -138,12 +138,21 @@ the resolved settings without building the engine.
 
 Every profile setting has an identically named override flag: the TOML key and
 the `--flag` share the same kebab-case spelling (`tokens`, `timeout`,
-`witnesses`, `prefix-tokens`, `nodes-per-depth`, `output`), and the command line
-overrides the profile. A single registry in `tools/ambiguity.py` declares each
-setting once and drives both the profile keys and the flags, so they cannot
-drift apart. The two remaining flags are not settings: `--breadth-first` is just
-`nodes-per-depth` turned off (a profile expresses it by leaving the key unset),
-and `--dry-run` is a run mode.
+`witnesses`, `prefix-tokens`, `nodes-per-depth`, `breadth-first`, `output`), and
+the command line overrides the profile. A single registry in
+`tools/ambiguity.py` declares every flag once — value flags, the `breadth-first`
+toggle, and the `dry-run` mode alike — and marks which ones profiles may set, so
+the flags and the profile keys are one list and cannot drift apart. The only
+flag that is not a profile key is `--dry-run`, which is a run mode (show the
+resolved settings without running the engine), not saved search intent.
+
+Scheduling is one slot with two spellings: a profile sets either
+`nodes-per-depth = N` (depth waves) or `breadth-first = true` (shortest-first),
+never both. Because breadth-first is now a real key, a child profile can reset
+an inherited `nodes-per-depth` back to breadth-first (or the reverse) — the
+child's choice replaces whichever the parent set. On the command line,
+`--breadth-first` overrides a profile's `nodes-per-depth`, and giving both
+`--breadth-first` and `--nodes-per-depth` at once is an error.
 
 The `output` path — whether set as a profile key or passed with `--output` —
 may contain placeholders that are filled in when the run starts: `{profile}` is
