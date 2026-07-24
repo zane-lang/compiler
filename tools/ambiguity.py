@@ -9,7 +9,6 @@ import datetime
 from pathlib import Path
 import re
 import shlex
-import string
 import subprocess
 import sys
 import tomllib
@@ -100,10 +99,10 @@ def format_duration(seconds: float) -> str:
 def expand_output_path(pattern: Path, profile_name: str) -> Path:
     """Substitute report-naming placeholders in an --output pattern.
 
-    Placeholders follow shell/``string.Template`` syntax: ``$name`` or
-    ``${name}``, with ``$$`` for a literal dollar sign. The supported names are
-    ``profile`` and three timestamp forms whose date and time layout matches the
-    existing ``reports/`` filenames (e.g. ``2026-07-23_21-38-17``)."""
+    Placeholders use brace syntax: ``{name}``, with ``{{`` and ``}}`` for
+    literal braces. The supported names are ``profile`` and three timestamp
+    forms whose date and time layout matches the existing ``reports/``
+    filenames (e.g. ``2026-07-23_21-38-17``)."""
     now = datetime.datetime.now()
     fields = {
         "profile": profile_name,
@@ -111,19 +110,18 @@ def expand_output_path(pattern: Path, profile_name: str) -> Path:
         "time": now.strftime("%H-%M-%S"),
         "datetime": now.strftime("%Y-%m-%d_%H-%M-%S"),
     }
-    template = string.Template(str(pattern))
     try:
-        expanded = template.substitute(fields)
+        expanded = str(pattern).format_map(fields)
     except KeyError as error:
-        available = ", ".join(f"${name}" for name in fields)
+        available = ", ".join("{" + name + "}" for name in fields)
         raise ConfigurationError(
-            f"unknown placeholder ${{{error.args[0]}}} in --output pattern "
+            f"unknown placeholder {{{error.args[0]}}} in --output pattern "
             f"{str(pattern)!r}; available placeholders are {available}"
         ) from error
-    except ValueError as error:
+    except (IndexError, ValueError) as error:
         raise ConfigurationError(
             f"invalid --output pattern {str(pattern)!r}: {error}; "
-            "write $$ for a literal dollar sign"
+            "write {{ and }} for literal braces"
         ) from error
     return Path(expanded)
 
@@ -342,8 +340,8 @@ def add_overrides(command: argparse.ArgumentParser) -> None:
         type=Path,
         metavar="FILE",
         help="write the complete report to FILE while also displaying it; "
-        "$profile, $date, $time, and $datetime expand in the path "
-        "(e.g. reports/$profile-$date.txt), and missing directories are created",
+        "{profile}, {date}, {time}, and {datetime} expand in the path "
+        "(e.g. reports/{profile}-{date}.txt), and missing directories are created",
     )
     command.add_argument(
         "--dry-run",

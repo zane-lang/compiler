@@ -145,13 +145,13 @@ surprise = true
 class OutputPatternTests(unittest.TestCase):
     def test_profile_and_date_placeholders_expand(self) -> None:
         path = ambiguity.expand_output_path(
-            Path("reports/$profile-$date.txt"), "general"
+            Path("reports/{profile}-{date}.txt"), "general"
         )
         self.assertRegex(str(path), r"^reports/general-\d{4}-\d{2}-\d{2}\.txt$")
 
-    def test_braced_and_timestamp_placeholders_expand(self) -> None:
+    def test_timestamp_placeholders_expand(self) -> None:
         path = ambiguity.expand_output_path(
-            Path("${profile}_$datetime--$time"), "deep"
+            Path("{profile}_{datetime}--{time}"), "deep"
         )
         self.assertRegex(
             str(path),
@@ -168,13 +168,13 @@ class OutputPatternTests(unittest.TestCase):
         with self.assertRaisesRegex(
             ambiguity.ConfigurationError, "unknown placeholder"
         ):
-            ambiguity.expand_output_path(Path("reports/$oops.txt"), "general")
+            ambiguity.expand_output_path(Path("reports/{oops}.txt"), "general")
 
-    def test_dangling_dollar_is_reported(self) -> None:
+    def test_unbalanced_brace_is_reported(self) -> None:
         with self.assertRaisesRegex(
             ambiguity.ConfigurationError, "invalid --output pattern"
         ):
-            ambiguity.expand_output_path(Path("reports/100$.txt"), "general")
+            ambiguity.expand_output_path(Path("reports/{profile.txt"), "general")
 
 
 class CommandLineTests(unittest.TestCase):
