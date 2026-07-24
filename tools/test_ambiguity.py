@@ -142,6 +142,41 @@ surprise = true
             ambiguity.load_profiles(path)
 
 
+class OutputPatternTests(unittest.TestCase):
+    def test_profile_and_date_placeholders_expand(self) -> None:
+        path = ambiguity.expand_output_path(
+            Path("reports/$profile-$date.txt"), "general"
+        )
+        self.assertRegex(str(path), r"^reports/general-\d{4}-\d{2}-\d{2}\.txt$")
+
+    def test_braced_and_timestamp_placeholders_expand(self) -> None:
+        path = ambiguity.expand_output_path(
+            Path("${profile}_$datetime--$time"), "deep"
+        )
+        self.assertRegex(
+            str(path),
+            r"^deep_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}--\d{2}-\d{2}-\d{2}$",
+        )
+
+    def test_plain_path_is_unchanged(self) -> None:
+        self.assertEqual(
+            ambiguity.expand_output_path(Path("report.txt"), "general"),
+            Path("report.txt"),
+        )
+
+    def test_unknown_placeholder_is_reported(self) -> None:
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "unknown placeholder"
+        ):
+            ambiguity.expand_output_path(Path("reports/$oops.txt"), "general")
+
+    def test_dangling_dollar_is_reported(self) -> None:
+        with self.assertRaisesRegex(
+            ambiguity.ConfigurationError, "invalid --output pattern"
+        ):
+            ambiguity.expand_output_path(Path("reports/100$.txt"), "general")
+
+
 class CommandLineTests(unittest.TestCase):
     def test_search_defaults_to_general(self) -> None:
         arguments = ambiguity.parser().parse_args(["search"])
