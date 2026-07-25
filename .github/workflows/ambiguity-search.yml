@@ -71,20 +71,23 @@ jobs:
         with:
           enable-cache: true
 
+      # Every command below is handed to `devbox run` as a single word followed
+      # by plain arguments. Devbox quotes each argument and `eval`s the result,
+      # so a multi-line shell snippet passed this way is mangled into an escape
+      # sequence rather than run; the devbox init hook already provisions the
+      # opam switch and puts dev/bin and the switch on PATH, so no wrapper shell
+      # is needed in the first place.
       - name: Install OCaml dependencies
         shell: bash
         run: |
           set -euo pipefail
-          devbox run -- bash -lc 'dev/bin/bootstrap-toolchain'
+          devbox run -- dev/bin/bootstrap-toolchain
 
       - name: Build ambiguity finder
         shell: bash
         run: |
           set -euo pipefail
-          devbox run -- bash -lc '
-            eval "$(opam env --switch=. --set-switch)"
-            dune build tools/ambiguity_search.exe
-          '
+          devbox run -- dune build tools/ambiguity_search.exe
 
       - name: Run ambiguity search
         shell: bash
@@ -95,17 +98,7 @@ jobs:
           WITNESSES: ${{ inputs.witnesses }}
         run: |
           set -euo pipefail
-          mkdir -p "$(dirname "$REPORT")"
-
-          args=(search "$PROFILE" --timeout "$SEARCH_TIMEOUT" --max-witnesses "$WITNESSES" --output "$REPORT")
-          if [[ -n "$TOKENS" ]]; then
-            args+=(--tokens "$TOKENS")
-          fi
-
-          devbox run -- bash -lc '
-            eval "$(opam env --switch=. --set-switch)"
-            ambiguity "$@"
-          ' bash "${args[@]}"
+          devbox run -- .github/scripts/ambiguity-search
 
       - name: Show report in job log
         if: always()
