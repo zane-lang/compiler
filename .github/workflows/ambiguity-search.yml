@@ -1,0 +1,126 @@
+name: Ambiguity search
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to search
+        required: true
+        default: essential/parser
+        type: string
+      profile:
+        description: Search profile
+        required: true
+        default: general
+        type: choice
+        options:
+          - quick
+          - general
+          - deep-function-body
+      tokens:
+        description: Optional token range override, for example 0..30
+        required: false
+        type: string
+      timeout:
+        description: Search timeout
+        required: true
+        default: 30m
+        type: string
+      witnesses:
+        description: Maximum witnesses
+        required: true
+        default: "50"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ambiguity-${{ inputs.ref }}-${{ inputs.profile }}
+  cancel-in-progress: false
+
+jobs:
+  search:
+    name: ${{ inputs.profile }} on ${{ inputs.ref }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      AMBIGUITY_MEMORY_MB: "6144"
+      AMBIGUITY_MAX_FRONTIER_RATIO: "1.0"
+      AMBIGUITY_JOBS: "4"
+      AMBIGUITY_MENHIR: menhir
+      REPORT: reports/actions/${{ inputs.profile }}-${{ github.run_id }}-${{ github.run_attempt }}.txt
+
+    steps:
+      - name: Check out requested revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Install Devbox
+        uses: jetify-com/devbox-install-action@a0d2d53632934ae004f878c840055956d9f741b0 # v0.14.0
+        with:
+          enable-cache: true
+
+      - name: Install OCaml dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          devbox run -- bash -lc '
+            opam init --bare --disable-sandboxing -y
+            if ! opam switch list --short | grep -Fxq "$PWD"; then
+              opam switch create . ocaml-system -y
+            fi
+            eval "$(opam env --switch=. --set-switch)"
+            opam install -y dune menhir menhirGLR sedlex
+          '
+
+      - name: Build ambiguity finder
+        shell: bash
+        run: |
+          set -euo pipefail
+          devbox run -- bash -lc '
+            eval "$(opam env --switch=. --set-switch)"
+            dune build tools/ambiguity_search.exe
+          '
+
+      - name: Run ambiguity search
+        shell: bash
+        env:
+          PROFILE: ${{ inputs.profile }}
+          TOKENS: ${{ inputs.tokens }}
+          SEARCH_TIMEOUT: ${{ inputs.timeout }}
+          WITNESSES: ${{ inputs.witnesses }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$REPORT")"
+
+          args=(search "$PROFILE" --timeout "$SEARCH_TIMEOUT" --max-witnesses "$WITNESSES" --output "$REPORT")
+          if [[ -n "$TOKENS" ]]; then
+            args+=(--tokens "$TOKENS")
+          fi
+
+          devbox run -- bash -lc '
+            eval "$(opam env --switch=. --set-switch)"
+            ambiguity "$@"
+          ' bash "${args[@]}"
+
+      - name: Show report in job log
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f "$REPORT" ]]; then
+            cat "$REPORT"
+          else
+            echo "No report was produced."
+          fi
+
+      - name: Upload ambiguity report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ambiguity-${{ inputs.profile }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/actions/
+          if-no-files-found: warn
+          retention-days: 30
