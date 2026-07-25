@@ -22,8 +22,10 @@ on:
         required: false
         type: string
       timeout:
-        # The job is hard-stopped after 45 minutes, so the offered values stay
-        # below that: a longer search would be killed before it could report.
+        # The job is hard-stopped after 45 minutes, and checkout, Devbox, the
+        # opam bootstrap, the build and the report upload all come out of that
+        # budget. The offered values leave room for a cold setup, so a search
+        # is never killed before it can emit its report.
         description: Search timeout
         required: true
         default: 30m
@@ -32,7 +34,6 @@ on:
           - 5m
           - 15m
           - 30m
-          - 40m
       witnesses:
         description: Maximum witnesses
         required: true

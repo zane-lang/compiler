@@ -15,7 +15,10 @@
  (depends
   ; StringMap.of_list in lib/tree_graph/node.ml needs Map.S.of_list (OCaml 5.1).
   (ocaml (>= 5.1))
-  menhir
+  ; lib/cst/dune builds the grammar with --GLR, which the 20260122 release line
+  ; introduced along with the menhirGLR runtime that lib/cst links against.
+  (menhir (>= 20260122))
+  menhirGLR
   sedlex)
  (tags
   ("compiler" "zane" "parser" "menhir" "ocaml")))

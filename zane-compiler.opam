@@ -10,7 +10,8 @@ bug-reports: "https://github.com/zane-lang/compiler/issues"
 depends: [
   "dune" {>= "3.21"}
   "ocaml" {>= "5.1"}
-  "menhir" {>= "20180523"}
+  "menhir" {>= "20260122"}
+  "menhirGLR"
   "sedlex"
   "odoc" {with-doc}
 ]

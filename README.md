@@ -18,10 +18,13 @@ straight into a shell:
 ```sh
 version=0.17.2
 base="https://releases.jetify.com/devbox/stable/$version"
-curl -fsSLO "$base/devbox_${version}_linux_amd64.tar.gz"
+archive="devbox_${version}_linux_amd64.tar.gz"
+curl -fsSLO "$base/$archive"
 curl -fsSLO "$base/checksums.txt"
-sha256sum --check --ignore-missing checksums.txt
-tar -xzf "devbox_${version}_linux_amd64.tar.gz" devbox
+checksum="$(grep -F -- "$archive" checksums.txt)" ||
+  { echo "no checksum listed for $archive" >&2; exit 1; }
+printf '%s\n' "$checksum" | sha256sum --check --status
+tar -xzf "$archive" devbox
 install -m 0755 devbox /usr/local/bin/devbox
 ```
 

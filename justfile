@@ -15,6 +15,6 @@ syntax-experiment-test:
 # both present, so build the engine first and fail loudly on a missing Menhir
 # rather than reporting a green run that silently skipped them.
 ambiguity-test:
-	dune build tools/ambiguity_search.exe
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
+	dune build tools/ambiguity_search.exe
 	python3 -m unittest tools.test_ambiguity -v

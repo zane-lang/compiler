@@ -6,12 +6,23 @@ exception Rejected of string
 
 let tab_width = 4
 
+(* Positions arrive as byte offsets, which is what indexing [input] needs, but a
+   column is a count of characters on screen. A UTF-8 continuation byte is the
+   tail of a character already counted, so it advances no column; without this
+   every multibyte character before the error would push the caret one column
+   right per extra byte. *)
+let is_utf8_continuation c = Char.code c land 0xC0 = 0x80
+
 let visual_col_of_idx s idx =
   let rec aux i vcol =
     if i >= idx then vcol
     else
       let c = s.[i] in
-      let step = if c = '\t' then tab_width - (vcol mod tab_width) else 1 in
+      let step =
+        if c = '\t' then tab_width - (vcol mod tab_width)
+        else if is_utf8_continuation c then 0
+        else 1
+      in
       aux (i + 1) (vcol + step)
   in
   aux 0 0
@@ -28,7 +39,7 @@ let expand_tabs s =
         aux (i + 1) (vcol + spaces)
       else
         let () = Buffer.add_char buf c in
-        aux (i + 1) (vcol + 1)
+        aux (i + 1) (vcol + if is_utf8_continuation c then 0 else 1)
   in
   aux 0 0
 

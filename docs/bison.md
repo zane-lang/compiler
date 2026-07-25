@@ -27,7 +27,12 @@ puts the separator before the first element, so `f(, test Int)` would parse and
 ```bison
 parameters
 	: %empty
-	| parameter
+		{ $$ = std::vector<ast::nodes::Parameter>(); }
+	| parameter[p]
+		{
+			$$ = std::vector<ast::nodes::Parameter>();
+			$$.push_back(std::move($p));
+		}
 	| parameters[params] COMMA parameter[p]
 		{
 			$params.push_back(std::move($p));
