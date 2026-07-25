@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Run one profiled ambiguity search from the parameters in the environment.
+#
+# `devbox run` shell-quotes each argument it is given and then `eval`s the
+# reassembled command line, so every argument is re-parsed by a shell before
+# the command sees it. Workflow inputs therefore must not be passed as
+# arguments: this script reads them from the environment, and the workflow
+# invokes it with no arguments at all.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+: "${PROFILE:?must be set}"
+: "${SEARCH_TIMEOUT:?must be set}"
+: "${WITNESSES:?must be set}"
+: "${REPORT:?must be set}"
+
+args=(
+	search "$PROFILE"
+	--timeout "$SEARCH_TIMEOUT"
+	--witnesses "$WITNESSES"
+	--output "$REPORT"
+)
+
+# An empty token range means "keep the profile's own range".
+if [[ -n "${TOKENS:-}" ]]; then
+	args+=(--tokens "$TOKENS")
+fi
+
+# The report directory is created here as well as by --output, so the artifact
+# upload finds a directory even when the search dies before its first write.
+mkdir -p "$(dirname "$REPORT")"
+
+exec "$ROOT/dev/bin/ambiguity" "${args[@]}"
