@@ -4,28 +4,28 @@ type Vector2<T Type> = struct {
 }
 
 Vector2<T> +<T Type>(left Vector2<T>, right Vector2<T>) {
-	return Vector2(left.x + right.x, left.y + right.y)
+	return Vector2(left.x + right.x, left.y + right.y);
 }
 
 Void?String main (this Int, a Bool) mut {
-	x Void[this Int] = "hello"
-	y String = "world"
-	content &String = read("wordlist.txt") ?? ""
-	x Int(3)
+	x Void[this Int] = "hello";
+	y String = "world";
+	content &String = read("wordlist.txt") ?? "";
+	x Int(3);
 	
 	if random() {
 		results List = crawl(content) ? error {
-			std$print(error)
-			abort error
-		}
+			std$print(error);
+			abort error;
+		};
 	}
 	else {
-		rifle Weapon("rifle", 20)
-		value Bool = ~true + 3
+		rifle Weapon("rifle", 20);
+		value Bool = ~true + 3;
 	}
 
 	loop i to 3 {
-		std$print(i)
+		std$print(i);
 	}
 }
 
