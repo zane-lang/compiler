@@ -433,10 +433,10 @@ body:
     }
 
 %inline abort_handle:
-  | "?" binder=ioption(LIDENT) body=body {
+  | "?" binder=ioption(LIDENT) body=body %prec THICK_ARROW {
       Nodes.Abort_handle.Longhand { binder; body }
     }
-  | "??" value=expr {
+  | "??" value=expr %prec THICK_ARROW {
       Nodes.Abort_handle.Shorthand value
     }
 
