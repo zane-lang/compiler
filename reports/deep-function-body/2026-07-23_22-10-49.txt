@@ -1,0 +1,46 @@
+Search profile: deep-function-body
+Rotate deep search waves through statements in a function body.
+Tokens 15..50 · timeout 30m · 50 witnesses · 10 nodes per depth
+Prefix (5): UIDENT LIDENT LPAREN RPAREN LCURLY
+
+Memory budget: 6144 MiB total across 4 worker(s); workers compact at 1229 MiB and stop admitting frontiers at 1
+382 MiB each (10% reserved); per-worker limits are 710564 queued frontiers and 710564 retained dedup frontiers 
+(ratio 1).
+Search constraints: 15..50 total tokens; 5-token prefix; 10 nodes per depth.
+Prefix tokens: UIDENT LIDENT LPAREN RPAREN LCURLY
+Found 7 complete ambiguity families.
+
+1. Tokens (15): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT TRUE EQEQ AND TILDE FALSE QSTNQSTN FALSE RCURLY EOF
+   Source: Int length ( ) { abort true == & ~ false ?? false }
+   Conflict origins: state 214 on QSTNQSTN, state 496 on QSTNQSTN
+
+2. Tokens (15): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT TRUE LESSEQ TILDE FALSE QSTNQSTN AND STRING RCURLY EOF
+   Source: Int length ( ) { abort true <= ~ false ?? & "john" }
+   Conflict origins: state 198 on QSTNQSTN, state 496 on QSTNQSTN
+
+3. Tokens (15): UIDENT LIDENT LPAREN RPAREN LCURLY RESOLVE TRUE MINUS TILDE FALSE QSTNQSTN AND TRUE RCURLY EOF
+   Source: Int length ( ) { resolve true - ~ false ?? & true }
+   Conflict origins: state 178 on QSTNQSTN, state 496 on QSTNQSTN
+
+4. Tokens (15): UIDENT LIDENT LPAREN RPAREN LCURLY RESOLVE UIDENT LPAREN RPAREN THICK_ARROW FLOAT SLASH STRING 
+RCURLY EOF
+   Source: Int length ( ) { resolve Int ( ) => 8.647 / "john" }
+   Conflict origins: state 93 on LPAREN, state 503 on SLASH
+
+5. Tokens (16): UIDENT LIDENT LPAREN RPAREN LCURLY RESOLVE TILDE TILDE TILDE AND TRUE QSTNQSTN AND INT RCURLY E
+OF
+   Source: Int length ( ) { resolve ~ ~ ~ & true ?? & 43 }
+   Conflict origins: state 496 on QSTNQSTN
+
+6. Tokens (16): UIDENT LIDENT LPAREN RPAREN LCURLY RETURN TRUE LESS TILDE FALSE QSTNQSTN LIDENT MINUS FLOAT RCU
+RLY EOF
+   Source: Int length ( ) { return true < ~ false ?? length - 8.647 }
+   Conflict origins: state 206 on QSTNQSTN, state 496 on QSTNQSTN
+
+7. Tokens (17): UIDENT LIDENT LPAREN RPAREN LCURLY ABORT UIDENT LBRACKET RBRACKET LPAREN RPAREN THICK_ARROW FAL
+SE DOT LIDENT RCURLY EOF
+   Source: Int length ( ) { abort Int [ ] ( ) => false . length }
+   Conflict origins: state 503 on DOT
+
+Explored 27585724 frontiers (30246349 unique); 455669 conflict seeds.
+Search stopped because one or more workers reached a search limit.

@@ -1,0 +1,7 @@
+Void main() {
+	print("hello");
+	std$print(1 + 1 + 3 + 4);
+	@intrinsics$print("hello");
+	print(res.value);
+	print(res:getValue());
+}

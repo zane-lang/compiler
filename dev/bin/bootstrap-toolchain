@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Idempotently provision the OCaml toolchain the project builds with.
+#
+# Devbox supplies opam and the system OCaml compiler; dune, menhir and sedlex
+# are opam packages, so a fresh Devbox shell has none of them on PATH until
+# this script has run once. The devbox init hook and the CI workflow both call
+# it so they provision the exact same toolchain.
+#
+# Versions are pinned here rather than resolved freshly on every run: an
+# unpinned `opam install` lets a repository update silently change parser
+# generation. Bump these deliberately.
+set -euo pipefail
+
+DUNE_VERSION="3.24.1"
+MENHIR_VERSION="20260209"
+SEDLEX_VERSION="3.7"
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# menhirGLR ships inside the menhir package, so it needs no separate pin.
+packages=(
+	"dune.$DUNE_VERSION"
+	"menhir.$MENHIR_VERSION"
+	"sedlex.$SEDLEX_VERSION"
+)
+
+if ! command -v opam >/dev/null 2>&1; then
+	echo "bootstrap-toolchain: opam is not on PATH; enter the devbox shell first" >&2
+	exit 1
+fi
+
+if [[ ! -d "${OPAMROOT:-$HOME/.opam}" ]]; then
+	opam init --bare --disable-sandboxing -y
+fi
+
+if ! opam switch list --short | grep -Fxq "$ROOT"; then
+	opam switch create "$ROOT" ocaml-system -y
+fi
+
+eval "$(opam env --switch="$ROOT" --set-switch)"
+
+# Only reinstall when a pinned package is missing or at the wrong version, so
+# entering the shell stays fast once the switch is warm.
+needed=()
+for package in "${packages[@]}"; do
+	name="${package%%.*}"
+	version="${package#*.}"
+	if [[ "$(opam show --field=installed-version "$name" 2>/dev/null)" != "$version" ]]; then
+		needed+=("$package")
+	fi
+done
+
+if ((${#needed[@]} > 0)); then
+	opam install -y "${needed[@]}"
+fi

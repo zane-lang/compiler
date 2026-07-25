@@ -1,0 +1,21 @@
+[profiles.quick]
+description = "Fast breadth-first feedback while editing the grammar."
+tokens = "0..16"
+timeout = "2m"
+witnesses = 20
+output = "reports/{profile}/{datetime}.txt"
+
+[profiles.general]
+description = "Broad shortest-first search for the regular ambiguity report."
+tokens = "0..50"
+timeout = "30m"
+witnesses = 50
+output = "reports/{profile}/{datetime}.txt"
+
+[profiles.deep-function-body]
+extends = "general"
+description = "Rotate deep search waves through statements in a function body."
+tokens = "15..50"
+prefix-tokens = ["UIDENT", "LIDENT", "LPAREN", "RPAREN", "LCURLY"]
+nodes-per-depth = 10
+output = "reports/{profile}/{datetime}.txt"

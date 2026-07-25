@@ -1,26 +1,20 @@
-build:
-	meson compile -C build
+default:
+	just -l
 
-init:
-	rm -rf build
-	test -d .git/modules || git submodule update --init --recursive
-	vcpkg install
-	CXX=clang++ meson setup build --buildtype=debug --cmake-prefix-path "$(realpath vcpkg_installed/x64-linux)"
+rebuild:
+	dune clean
+	dune build
 
-release:
-	rm -rf build
-	test -d .git/modules || git submodule update --init --recursive
-	vcpkg install
-	CXX=clang++ meson setup build --buildtype=release --cmake-prefix-path "$(realpath vcpkg_installed/x64-linux)"
+watch:
+	dune build --watch
 
-check:
-	clang-check -p build src/*.*
+syntax-experiment-test:
+	python3 -m unittest tools.test_syntax_experiment -v
 
-generate-parser:
-	scripts/generate_parser.sh
-
-check-parser:
-	scripts/check_parser.sh
-
-link:
-	ln -sf build/zane bin/zane
+# The engine-backed tests skip themselves unless the executable and Menhir are
+# both present, so build the engine first and fail loudly on a missing Menhir
+# rather than reporting a green run that silently skipped them.
+ambiguity-test:
+	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
+	dune build tools/ambiguity_search.exe
+	python3 -m unittest tools.test_ambiguity -v

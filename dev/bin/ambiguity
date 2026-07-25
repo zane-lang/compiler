@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+if [[ "${1:-}" == "__engine" ]]; then
+	shift
+	# shellcheck source=../lib/ambiguity-config.sh
+	. "$ROOT/dev/lib/ambiguity-config.sh"
+	dune build --root "$ROOT" tools/ambiguity_search.exe
+	exec "$ROOT/_build/default/tools/ambiguity_search.exe" \
+		"$ROOT/lib/cst/parser.mly" \
+		"$@"
+fi
+
+# Keep existing scripts working while the profile interface becomes the
+# preferred entry point.
+case "${1:-}" in
+	--max-tokens | --min-tokens | --prefix-tokens | --nodes-per-depth | \
+		--timeout | --max-witnesses | --check-tokens | --prove | \
+		--dump-terminal-classes)
+		exec "$0" __engine "$@"
+		;;
+esac
+
+exec python3 "$ROOT/tools/ambiguity.py" "$@"

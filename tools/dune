@@ -1,0 +1,3 @@
+(executable
+ (name ambiguity_search)
+ (libraries unix str))

@@ -1,6 +1,11 @@
 build/
+_build/
 parser/
 .cache/
 vcpkg_installed/
 __pycache__/
-test/.dev/
+.devbox/
+_opam/
+.claude/settings.local.json
+*.term
+machine-config.txt

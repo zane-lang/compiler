@@ -1,6 +1,0 @@
-{
-  "dependencies": [
-    "nlohmann-json",
-    "cereal"
-  ]
-}
