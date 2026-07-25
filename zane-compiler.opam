@@ -9,7 +9,7 @@ homepage: "https://github.com/zane-lang/compiler"
 bug-reports: "https://github.com/zane-lang/compiler/issues"
 depends: [
   "dune" {>= "3.21"}
-  "ocaml" {>= "4.14"}
+  "ocaml" {>= "5.1"}
   "menhir" {>= "20260122"}
   "menhirGLR"
   "sedlex"
