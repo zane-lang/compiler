@@ -1,3 +1,41 @@
+%{
+let attach_abort_handle expr abort_handle =
+  let attach = function
+    | Nodes.Verb_call.Func { callee; args; abort_handle = None } ->
+        Nodes.Verb_call.Func { callee; args; abort_handle = Some abort_handle }
+    | Nodes.Verb_call.Meth { callee; this; args; abort_handle = None; is_mut } ->
+        Nodes.Verb_call.Meth {
+          callee;
+          this;
+          args;
+          abort_handle = Some abort_handle;
+          is_mut;
+        }
+    | Nodes.Verb_call.Constructor { name_type; args; abort_handle = None } ->
+        Nodes.Verb_call.Constructor {
+          name_type;
+          args;
+          abort_handle = Some abort_handle;
+        }
+    | Nodes.Verb_call.Op { op; left; right; abort_handle = None } ->
+        Nodes.Verb_call.Op {
+          op;
+          left;
+          right;
+          abort_handle = Some abort_handle;
+        }
+    | Nodes.Verb_call.Flip { value; abort_handle = None } ->
+        Nodes.Verb_call.Flip { value; abort_handle = Some abort_handle }
+    | _ -> invalid_arg "an operation can only have one abort handler"
+  in
+  let rec loop = function
+    | Nodes.Expr.VerbCall call -> Nodes.Expr.VerbCall (attach call)
+    | Nodes.Expr.Parenthized value -> Nodes.Expr.Parenthized (loop value)
+    | _ -> invalid_arg "an abort handler must follow an abortable operation"
+  in
+  loop expr
+%}
+
 (*****************************)
 (*     token definitions     *)
 (*****************************)
@@ -59,9 +97,13 @@
 %token RESOLVE     "resolve"
 %token EOF          "<eof>"
 
+(* Shorthand bodies consume the entire expression to their right. Abort
+   handlers bind above binary operators but below field and prefix operators. *)
+%right THICK_ARROW
 %nonassoc EQEQ LESSEQ MOREEQ LESS MORE   /* comparisons */
 %left PLUS MINUS
 %left STAR SLASH
+%nonassoc QSTNMARK QSTNQSTN             /* abort handling */
 %left DOT                                /* field access */
 %nonassoc TILDE AND                      /* prefix ~ and & */
 %left LPAREN                             /* function application */
@@ -286,31 +328,52 @@ primary:
   | meth_lambda=meth_lambda { Nodes.Expr.MethLambda meth_lambda }
 
 (* Calls bind tighter than prefix operators, while field access binds just
-   below them. Thus `~value().field` is `(~value()).field`. Both remain tighter
-   than binary operators, so `a!b(c) * d(e)` is `(a!b(c)) * (d(e))`. *)
+   below them. Thus `~value().field` is `(~value()).field`. Abort handlers bind
+   below both but above binary operators. *)
 app:
   | primary=primary { primary }
-  | verb_call=verb_call { Nodes.Expr.VerbCall verb_call }
+  | call=verb_call { Nodes.Expr.VerbCall (call None) }
   | target=expr "." field=LIDENT {
       Nodes.Expr.DotAccess { target; field }
     }
 
 expr:
   | app=app { app }
-  | left=expr op=comparison_op right=expr abort_handle=ioption(abort_handle) %prec EQEQ {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Op { op; left; right; abort_handle })
+  | left=expr op=comparison_op right=expr %prec EQEQ {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
+        op;
+        left;
+        right;
+        abort_handle = None;
+      })
     }
-  | left=expr op=additive_op right=expr abort_handle=ioption(abort_handle) %prec PLUS {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Op { op; left; right; abort_handle })
+  | left=expr op=additive_op right=expr %prec PLUS {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
+        op;
+        left;
+        right;
+        abort_handle = None;
+      })
     }
-  | left=expr op=multiplicative_op right=expr abort_handle=ioption(abort_handle) %prec STAR {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Op { op; left; right; abort_handle })
+  | left=expr op=multiplicative_op right=expr %prec STAR {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
+        op;
+        left;
+        right;
+        abort_handle = None;
+      })
     }
-  | "~" value=expr abort_handle=ioption(abort_handle) %prec TILDE {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle })
+  | "~" value=expr %prec TILDE {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Flip {
+        value;
+        abort_handle = None;
+      })
     }
   | "&" value=expr %prec AND {
       Nodes.Expr.Ref value
+    }
+  | value=expr abort_handle=abort_handle %prec QSTNQSTN {
+      attach_abort_handle value abort_handle
     }
 
 %inline body_field:
@@ -386,18 +449,25 @@ body:
 %inline meth_part:
   | is_mut=meth_marker name=primary { (is_mut, name) }
 
-(* a single call form: a flexible postfix receiver, then an optional method
-   part. no method part => function call; a method part => method call, with
-   the receiver as `this` and the (primary) name as the callee. *)
+(* A call is built without deciding its abort handler. Expression and statement
+   contexts attach the handler at their own precedence level. *)
 verb_call:
-  | receiver=app part=ioption(meth_part) "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
-      match part with
-      | None -> Nodes.Verb_call.Func { callee = receiver; args; abort_handle }
-      | Some (is_mut, name) ->
-          Nodes.Verb_call.Meth { this = receiver; callee = name; args; abort_handle; is_mut }
+  | receiver=app part=ioption(meth_part) "(" args=separated_list(COMMA, expr) ")" %prec LPAREN {
+      fun abort_handle ->
+        match part with
+        | None -> Nodes.Verb_call.Func { callee = receiver; args; abort_handle }
+        | Some (is_mut, name) ->
+            Nodes.Verb_call.Meth {
+              this = receiver;
+              callee = name;
+              args;
+              abort_handle;
+              is_mut;
+            }
     }
-  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" abort_handle=ioption(abort_handle) %prec LPAREN {
-      Nodes.Verb_call.Constructor { name_type; args; abort_handle }
+  | name_type=name_type "(" args=separated_list(COMMA, expr) ")" %prec LPAREN {
+      fun abort_handle ->
+        Nodes.Verb_call.Constructor { name_type; args; abort_handle }
     }
 
 %inline if_:
@@ -420,18 +490,20 @@ verb_call:
       ({ Nodes.Loop.start; end_; binder; body = statements } : Nodes.Loop.t)
     }
 
+(* Semicolons terminate simple statements. Block statements remain delimited by
+   their braces and do not need an additional terminator. *)
 stat:
-  | decl=decl { Nodes.Stat.Decl decl }
-  | verb_call=verb_call {
-      Nodes.Stat.VerbCall verb_call
+  | decl=decl ";" { Nodes.Stat.Decl decl }
+  | call=verb_call abort_handle=ioption(abort_handle) ";" {
+      Nodes.Stat.VerbCall (call abort_handle)
     }
-  | ABORT value=expr {
+  | ABORT value=expr ";" {
       Nodes.Stat.Abort value
     }
-  | RETURN value=expr {
+  | RETURN value=expr ";" {
       Nodes.Stat.Ret value
     }
-  | RESOLVE value=expr {
+  | RESOLVE value=expr ";" {
       Nodes.Stat.Resolve value
     }
   | if_=if_ elifs_=list(elif_) else_=ioption(else_) {
