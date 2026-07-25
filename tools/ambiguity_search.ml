@@ -618,8 +618,8 @@ let possible_tokens engine frontier =
     frontier StringSet.empty
 
 let conflict_states automaton =
-  Array.mapi
-    (fun _ state ->
+  Array.map
+    (fun state ->
       Hashtbl.fold
         (fun token reductions conflict ->
           conflict
@@ -1499,13 +1499,30 @@ let initial_partitions engine jobs max_tokens initial =
       unique := !unique + Hashtbl.length seen;
       current := !next
     done;
-    let buckets = Array.make jobs [] in
-    List.iter
-      (fun item ->
-        let hash = Hashtbl.hash (item.branched, signature item.frontier) land max_int in
-        let bucket = hash mod jobs in
-        buckets.(bucket) <- item :: buckets.(bucket))
-      !current;
+    (* Never hand back an empty bucket: [parallel_unified_search] forks one
+       worker per partition, and a worker with no frontiers is a wasted process
+       that only reports "no witnesses". Hashing can leave buckets empty either
+       because there are fewer items than jobs or because several items collide,
+       so cap the bucket count at the item count and drop any that stay empty. *)
+    let items = !current in
+    let buckets =
+      if items = [] then [| [ initial ] |]
+      else begin
+        let count = min jobs (List.length items) in
+        let buckets = Array.make count [] in
+        List.iter
+          (fun item ->
+            let hash =
+              Hashtbl.hash (item.branched, signature item.frontier) land max_int
+            in
+            let bucket = hash mod count in
+            buckets.(bucket) <- item :: buckets.(bucket))
+          items;
+        match Array.to_list buckets |> List.filter (fun b -> b <> []) with
+        | [] -> [| items |]
+        | non_empty -> Array.of_list non_empty
+      end
+    in
     (buckets, !explored, !unique, !conflict_seeds)
   end
 
@@ -1580,6 +1597,30 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
             exit 0
         | pid -> children := (pid, output, progress_path) :: !children)
       partitions;
+    (* Pids that have been forked but not yet reaped. A worker failure aborts
+       the whole search, and without this the siblings would keep running as
+       orphans, still burning the memory budget the coordinator just gave up
+       on. *)
+    let live = Hashtbl.create (Array.length partitions) in
+    List.iter (fun (pid, _, _) -> Hashtbl.replace live pid ()) !children;
+    let rec reap pid =
+      match Unix.waitpid [] pid with
+      | _ -> ()
+      | exception Unix.Unix_error (Unix.EINTR, _, _) -> reap pid
+      | exception Unix.Unix_error (Unix.ECHILD, _, _) -> ()
+    in
+    let terminate_live () =
+      let pids = Hashtbl.fold (fun pid () acc -> pid :: acc) live [] in
+      List.iter
+        (fun pid ->
+          try Unix.kill pid Sys.sigterm with Unix.Unix_error _ -> ())
+        pids;
+      List.iter
+        (fun pid ->
+          reap pid;
+          Hashtbl.remove live pid)
+        pids
+    in
     let latest = Hashtbl.create (Array.length partitions) in
     let worker_result pid output status =
       match status with
@@ -1631,6 +1672,7 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
               in
               if waited = 0 then remaining := child :: !remaining
               else begin
+                Hashtbl.remove live pid;
                 let ((outcome, _) as result) =
                   worker_result pid output status
                 in
@@ -1658,7 +1700,14 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
             ignore (Unix.select [] [] [] 0.1);
           collect (List.rev !remaining) (List.rev_append !completed outcomes)
     in
-    let outcomes = collect !children [] in
+    let outcomes =
+      try collect !children []
+      with exn ->
+        let backtrace = Printexc.get_raw_backtrace () in
+        terminate_live ();
+        clear_progress ();
+        Printexc.raise_with_backtrace exn backtrace
+    in
     clear_progress ();
     let outcome, seeds = List.fold_left
       (fun (combined, seeds) (outcome, worker_seeds) ->
@@ -1843,9 +1892,22 @@ let main () =
   in
   let grammar_path = Unix.realpath !grammar in
   let temporary = temporary_directory () in
-  Fun.protect
-    ~finally:(fun () -> remove_tree temporary)
-    (fun () ->
+  (* Most exits below go through [Stdlib.exit], which runs [at_exit] handlers
+     but never a [Fun.protect ~finally], so the directory has to be released
+     from an [at_exit] handler as well. Forked workers write their results into
+     this same directory and exit through it too, hence the owner check: only
+     the process that created the directory may remove it. Both entry points
+     share one idempotent [cleanup]. *)
+  let owner = Unix.getpid () in
+  let cleaned = ref false in
+  let cleanup () =
+    if Unix.getpid () = owner && not !cleaned then begin
+      cleaned := true;
+      try remove_tree temporary with Sys_error _ | Unix.Unix_error _ -> ()
+    end
+  in
+  at_exit cleanup;
+  Fun.protect ~finally:cleanup (fun () ->
       let terminals, aliases = parse_tokens grammar_path in
       let automaton_path =
         prepare_automaton ~menhir ~grammar:grammar_path

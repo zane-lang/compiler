@@ -6,7 +6,7 @@ let () =
   match Cst.parse "test-parser/main.zn" input with
   | Ok cst ->
       let output = Cst.to_node cst in
-      Tree_graph.render output
+      print_string (Tree_graph.render output)
   | Error message ->
       prerr_string message;
       exit 1

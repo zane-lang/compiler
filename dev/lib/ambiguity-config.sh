@@ -1,3 +1,6 @@
+# shellcheck shell=bash
+# Sourced by dev/bin/ambiguity; ROOT is set by the caller.
+
 if [[ -f "$ROOT/machine-config.txt" ]]; then
 	# machine-config.txt uses shell-compatible KEY=VALUE assignments.
 	# shellcheck source=/dev/null

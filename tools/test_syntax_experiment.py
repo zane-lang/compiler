@@ -4,11 +4,14 @@ from pathlib import Path
 
 from tools import syntax_experiment as experiments
 
+ROOT = Path(__file__).resolve().parents[1]
+GRAMMAR = ROOT / "lib" / "cst" / "parser.mly"
+
 
 class SyntaxExperimentTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.source = Path("lib/cst/parser.mly").read_text(encoding="utf-8")
+        cls.source = GRAMMAR.read_text(encoding="utf-8")
 
     def test_every_predefined_variant_applies(self) -> None:
         names = set()

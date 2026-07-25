@@ -10,11 +10,37 @@ reviewable, composable, and assigned an approximate edit cost.
 
 ## Quick start
 
+Run experiments through the `syntax-experiment` wrapper from inside the
+development shell. It builds the search engine, points the script at
+`lib/cst/parser.mly`, and loads the machine configuration for you:
+
 ```sh
 syntax-experiment --list
-syntax-experiment
-syntax-experiment --variant semicolon-separated
+syntax-experiment --max-tokens 12 --timeout 15 --max-witnesses 10
+syntax-experiment --variant semicolon-separated \
+  --max-tokens 12 --timeout 15 --max-witnesses 10
 ```
+
+Every run that actually searches needs three bounds, and the command fails
+rather than guessing at them:
+
+| Option            | Meaning                                          |
+| ----------------- | ------------------------------------------------ |
+| `--max-tokens`    | longest sentence the search will build           |
+| `--timeout`       | per-variant search budget, in seconds            |
+| `--max-witnesses` | ambiguity witnesses to collect before stopping   |
+
+`--list` and `--emit-only` skip the search, so they do not need them.
+
+The machine budget comes from the environment, normally by copying
+`machine-config.example` to `machine-config.txt` at the repository root:
+
+| Setting                        | Meaning                                    |
+| ------------------------------ | ------------------------------------------ |
+| `AMBIGUITY_MEMORY_MB`          | total memory shared by all searches        |
+| `AMBIGUITY_MAX_FRONTIER_RATIO` | retained-frontier ratio per worker         |
+| `AMBIGUITY_JOBS`               | worker processes to run in parallel        |
+| `AMBIGUITY_MENHIR`             | `menhir` binary used to build the automaton |
 
 Reports are written to:
 
@@ -23,11 +49,11 @@ _build/syntax-experiment/report.md
 _build/syntax-experiment/report.json
 ```
 
-Generated grammars normally live only for the duration of a run. To inspect
-them directly:
+Generated grammars normally live only for the duration of a run. To keep them
+for inspection, ask for a directory to write them into:
 
 ```sh
-python3 tools/syntax_experiment.py --emit-only \
+syntax-experiment --emit-only \
   --emit-dir _build/syntax-experiment/grammars
 ```
 

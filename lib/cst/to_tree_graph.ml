@@ -81,12 +81,15 @@ and type_to_node (x: Nodes.Type_expr.t) = match x with
         ("args", map_seq generic_arg_to_node generics);
       ]
 
+and abort_field abort_handle =
+  ("abort", Option.fold ~none:(Leaf "none") ~some:abort_handle_to_node abort_handle)
+
 and verb_call_to_node (x: Nodes.Verb_call.t) = match x with
   | Func { callee; args; abort_handle } ->
       group "func_call" (fields [
         ("callee", expr_to_node callee);
         ("args", map_seq expr_to_node args);
-        ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
+        abort_field abort_handle;
       ])
   | Meth { callee; this; args; abort_handle; is_mut } ->
       group "meth_call" (fields [
@@ -94,25 +97,25 @@ and verb_call_to_node (x: Nodes.Verb_call.t) = match x with
         ("this", expr_to_node this);
         ("args", map_seq expr_to_node args);
         ("is_mut", Leaf (string_of_bool is_mut));
-        ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
+        abort_field abort_handle;
       ])
   | Constructor { name_type; args; abort_handle } ->
       group "ctor_call" (fields [
         ("type", name_type_to_node name_type);
         ("args", map_seq expr_to_node args);
-        ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
+        abort_field abort_handle;
       ])
   | Op { op; left; right; abort_handle } ->
       group "op_call" (fields [
         ("op", Leaf (op_to_name op));
         ("left", expr_to_node left);
         ("right", expr_to_node right);
-        ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
+        abort_field abort_handle;
       ])
   | Flip { value; abort_handle } ->
       group "flip_call" (fields [
         ("value", expr_to_node value);
-        ("abort", Option.map abort_handle_to_node abort_handle |> Option.value ~default:(Leaf "none"));
+        abort_field abort_handle;
       ])
 
 and expr_to_node (x: Nodes.Expr.t) = match x with
@@ -173,31 +176,31 @@ and elif_to_fields (x: Nodes.Cond_block.t) =
     ("block", map_seq stat_to_node x.block);
   ]
 
+(* The optional fields below are appended in source order rather than consed
+   onto the front, so the list reads the way the construct does. *)
 and cond_seq_to_node (x: Nodes.Cond_seq.t) =
-  let cond_seq = [
+  let else_ = match x.else_ with
+    | Some x -> [("else", fields [("block", map_seq stat_to_node x)])]
+    | None   -> []
+  in
+  fields ([
     ("if", fields [
       ("cond", expr_to_node x.if_.cond);
       ("block", map_seq stat_to_node x.if_.block);
     ]);
     ("elif", map_seq elif_to_fields x.elifs_);
-  ] in
-  let cond_seq = match x.else_ with
-    | Some x -> ("else", fields [
-        ("block", map_seq stat_to_node x);
-      ]) :: cond_seq
-    | None -> cond_seq
-  in fields cond_seq
+  ] @ else_)
 
 and loop_to_node (x: Nodes.Loop.t) =
-  let fs = [
+  let start = match x.start with
+    | Some x -> [("start", expr_to_node x)]
+    | None   -> []
+  in
+  let fs = start @ [
     ("stats", map_seq stat_to_node x.body);
     ("end", expr_to_node x.end_);
     ("binder", Leaf x.binder);
   ] in
-  let fs = match x.start with
-    | Some x -> ("start", expr_to_node x) :: fs
-    | None   -> fs
-  in
   fields fs
 
 and stat_to_node (x: Nodes.Stat.t) = match x with

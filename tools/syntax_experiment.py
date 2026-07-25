@@ -697,6 +697,10 @@ VARIANTS = (
 )
 
 
+# Outside the engine's own exit codes (0 unambiguous, 1 ambiguous), so a killed
+# process is reported as a failed case rather than mistaken for a result.
+EXIT_TIMED_OUT = 124
+
 DERIVATIONS_RE = re.compile(r"Accepting derivations: (\d+)")
 FAMILIES_RE = re.compile(r"Found (\d+) complete ambiguity")
 EXPLORED_RE = re.compile(r"Explored (\d+) frontiers \((\d+) unique\); (\d+) conflict seeds")
@@ -721,11 +725,47 @@ def apply_variant(source: str, variant: Variant) -> str:
 
 
 def run_process(
-    command: list[str], env: dict[str, str] | None = None
+    command: list[str], env: dict[str, str] | None = None, timeout: float | None = None
 ) -> tuple[int, str, str, float]:
+    """Run ``command``, returning ``(code, stdout, stderr, seconds)``.
+
+    ``timeout`` is a process-level backstop, not the search's own budget: the
+    engine enforces ``--timeout`` itself, but a wedged process would otherwise
+    block its worker forever. On expiry the child is killed and the call
+    reports a non-zero status rather than raising.
+    """
     started = time.monotonic()
-    completed = subprocess.run(command, text=True, capture_output=True, env=env)
+    try:
+        completed = subprocess.run(
+            command, text=True, capture_output=True, env=env, timeout=timeout
+        )
+    except subprocess.TimeoutExpired as expired:
+        def decode(stream: str | bytes | None) -> str:
+            if stream is None:
+                return ""
+            if isinstance(stream, bytes):
+                return stream.decode("utf-8", "replace")
+            return stream
+
+        return (
+            EXIT_TIMED_OUT,
+            decode(expired.stdout),
+            (
+                decode(expired.stderr)
+                + f"search did not exit within {expired.timeout:.0f}s and was killed"
+            ),
+            time.monotonic() - started,
+        )
     return completed.returncode, completed.stdout, completed.stderr, time.monotonic() - started
+
+
+def process_timeout(args: argparse.Namespace) -> float:
+    """Generous bound around the engine's own ``--timeout``.
+
+    Startup, menhir invocation, and writing results all happen outside the
+    searched budget, so allow double the budget plus a fixed minute.
+    """
+    return args.timeout * 2 + 60
 
 
 def base_command(args: argparse.Namespace, grammar: Path) -> list[str]:
@@ -737,7 +777,7 @@ def check_case(args: argparse.Namespace, grammar: Path, case: KnownCase, variant
     if tokens is None:
         return CaseResult(case.name, None, 0.0, expressible=False)
     command = [*base_command(args, grammar), "--check-tokens", tokens]
-    code, stdout, stderr, seconds = run_process(command)
+    code, stdout, stderr, seconds = run_process(command, timeout=process_timeout(args))
     match = DERIVATIONS_RE.search(stdout)
     if code not in {0, 1} or match is None:
         message = (stderr or stdout or f"search exited with status {code}").strip()
@@ -767,7 +807,9 @@ def search_variant(args: argparse.Namespace, grammar: Path) -> SearchResult:
         "--max-witnesses",
         str(args.max_witnesses),
     ]
-    code, stdout, stderr, seconds = run_process(command, env=environment)
+    code, stdout, stderr, seconds = run_process(
+        command, env=environment, timeout=process_timeout(args)
+    )
     if code not in {0, 1}:
         message = (stderr or stdout or f"search exited with status {code}").strip()
         return SearchResult(None, None, None, None, None, None, [], seconds, message)
@@ -881,14 +923,20 @@ def mark_pareto(results: list[VariantResult]) -> None:
 
 
 def render_markdown(args: argparse.Namespace, results: list[VariantResult]) -> str:
-    lines = [
-        "# Zane syntax experiment report",
-        "",
-        (
+    # --emit-only runs no search, so it has no bounds to report.
+    bounds = (
+        "Bounds: grammars only; no search was run."
+        if args.emit_only
+        else (
             f"Bounds: {args.max_tokens} tokens, {args.timeout:g}s, "
             f"{args.memory_mb:,} MiB total memory, frontier ratio "
             f"{args.max_frontier_ratio:g}, {args.max_witnesses} witnesses per variant."
-        ),
+        )
+    )
+    lines = [
+        "# Zane syntax experiment report",
+        "",
+        bounds,
         "",
         "A Pareto mark means no tested candidate was at least as good on every measured axis. "
         "An interrupted zero-witness search is treated as uncertain, not clean.",
@@ -1020,23 +1068,34 @@ def validate_args(args: argparse.Namespace, cli: argparse.ArgumentParser) -> Non
             f"search executable does not exist: {executable};"
             " run `dune build tools/ambiguity_search.exe` first"
         )
-    missing = [
-        name
-        for name, value in (
-            ("--max-tokens", args.max_tokens),
-            ("--timeout", args.timeout),
-            ("--max-witnesses", args.max_witnesses),
-        )
-        if value is None
-    ]
-    if missing:
-        cli.error(f"required for experiments: {', '.join(missing)}")
-    if args.max_tokens < 0:
-        cli.error("--max-tokens must be at least 0")
-    if args.timeout < 0:
-        cli.error("--timeout must be non-negative")
-    if args.memory_mb < 1 or args.max_witnesses < 1:
-        cli.error("AMBIGUITY_MEMORY_MB and the witness limit must be at least 1")
+    # --emit-only produces grammars and nothing else, so without a directory to
+    # keep them in they would be written to a temporary directory and deleted
+    # again before the command returns — reporting variants as "generated" with
+    # nothing on disk to show for it.
+    if args.emit_only and args.emit_dir is None:
+        cli.error("--emit-only requires --emit-dir to say where to keep the grammars")
+    # --emit-only materializes grammars and returns without running a search,
+    # so the search bounds do not apply to it.
+    if not args.emit_only:
+        missing = [
+            name
+            for name, value in (
+                ("--max-tokens", args.max_tokens),
+                ("--timeout", args.timeout),
+                ("--max-witnesses", args.max_witnesses),
+            )
+            if value is None
+        ]
+        if missing:
+            cli.error(f"required for experiments: {', '.join(missing)}")
+        if args.max_tokens < 0:
+            cli.error("--max-tokens must be at least 0")
+        if args.timeout < 0:
+            cli.error("--timeout must be non-negative")
+        if args.max_witnesses < 1:
+            cli.error("the witness limit must be at least 1")
+    if args.memory_mb < 1:
+        cli.error("AMBIGUITY_MEMORY_MB must be at least 1")
     if not math.isfinite(args.max_frontier_ratio) or args.max_frontier_ratio <= 0:
         cli.error("AMBIGUITY_MAX_FRONTIER_RATIO must be finite and greater than 0")
     if args.jobs < 1:

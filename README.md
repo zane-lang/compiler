@@ -4,10 +4,28 @@ This repository contains the Zane language compiler and CLI.
 
 ## Setup
 
-To setup this project in a new environment or sandbox, run:
+To setup this project in a new environment or sandbox, install
+[Devbox](https://www.jetify.com/devbox). Prefer a package manager, for example:
 
 ```sh
-curl -fsSL https://get.jetify.com/devbox | bash
+nix profile install nixpkgs#devbox
+```
+
+If you install from a release instead, download the archive and verify its
+checksum before running anything from it, rather than piping the installer
+straight into a shell:
+
+```sh
+version=0.17.2
+base="https://releases.jetify.com/devbox/stable/$version"
+archive="devbox_${version}_linux_amd64.tar.gz"
+curl -fsSLO "$base/$archive"
+curl -fsSLO "$base/checksums.txt"
+checksum="$(grep -F -- "$archive" checksums.txt)" ||
+  { echo "no checksum listed for $archive" >&2; exit 1; }
+printf '%s\n' "$checksum" | sha256sum --check --status
+tar -xzf "$archive" devbox
+install -m 0755 devbox /usr/local/bin/devbox
 ```
 
 Then enter the project development shell:
