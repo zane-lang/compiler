@@ -17,7 +17,8 @@ fi
 # preferred entry point.
 case "${1:-}" in
 	--max-tokens | --min-tokens | --prefix-tokens | --nodes-per-depth | \
-		--timeout | --max-witnesses | --check-tokens | --prove)
+		--timeout | --max-witnesses | --check-tokens | --prove | \
+		--dump-terminal-classes)
 		exec "$0" __engine "$@"
 		;;
 esac

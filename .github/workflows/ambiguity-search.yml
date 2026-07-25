@@ -22,10 +22,17 @@ on:
         required: false
         type: string
       timeout:
+        # The job is hard-stopped after 45 minutes, so the offered values stay
+        # below that: a longer search would be killed before it could report.
         description: Search timeout
         required: true
         default: 30m
-        type: string
+        type: choice
+        options:
+          - 5m
+          - 15m
+          - 30m
+          - 40m
       witnesses:
         description: Maximum witnesses
         required: true
@@ -67,14 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          devbox run -- bash -lc '
-            opam init --bare --disable-sandboxing -y
-            if ! opam switch list --short | grep -Fxq "$PWD"; then
-              opam switch create . ocaml-system -y
-            fi
-            eval "$(opam env --switch=. --set-switch)"
-            opam install -y dune menhir menhirGLR sedlex
-          '
+          devbox run -- bash -lc 'dev/bin/bootstrap-toolchain'
 
       - name: Build ambiguity finder
         shell: bash

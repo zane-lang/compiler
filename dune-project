@@ -9,10 +9,15 @@
 
 (package
  (name zane-compiler)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml)
+ (synopsis "Compiler and CLI for the Zane programming language")
+ (description
+  "The Zane compiler: a sedlex lexer, a Menhir GLR grammar producing a concrete\nsyntax tree, and the developer tooling used to keep that grammar unambiguous.")
+ (depends
+  ; StringMap.of_list in lib/tree_graph/node.ml needs Map.S.of_list (OCaml 5.1).
+  (ocaml (>= 5.1))
+  menhir
+  sedlex)
  (tags
-  ("add topics" "to describe" your project)))
+  ("compiler" "zane" "parser" "menhir" "ocaml")))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html

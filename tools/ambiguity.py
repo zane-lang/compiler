@@ -136,7 +136,10 @@ def _coerce_tokens(raw: Any, name: str) -> dict[str, Any]:
 
 
 def _coerce_timeout(raw: Any, name: str) -> dict[str, Any]:
-    return {"timeout_seconds": parse_duration(raw)}
+    try:
+        return {"timeout_seconds": parse_duration(raw)}
+    except ConfigurationError as error:
+        raise ConfigurationError(f"profile {name!r}: {error}") from error
 
 
 def _coerce_witnesses(raw: Any, name: str) -> dict[str, Any]:
@@ -591,19 +594,34 @@ def run_engine(
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output = output_path.open("w", encoding="utf-8")
         _write_prelude(prelude, output)
+        # The engine's diagnostics (memory budget, menhir failures, the reason a
+        # search stopped) go to stderr, so they are folded into stdout: they
+        # belong in the saved report next to the results they explain, and the
+        # terminal still shows them interleaved in order.
         process = subprocess.Popen(
             [str(ENGINE_RUNNER), "__engine", *arguments],
             stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
         )
-        assert process.stdout is not None
-        for line in process.stdout:
-            sys.stdout.write(line)
-            sys.stdout.flush()
-            if output is not None:
-                output.write(line)
-                output.flush()
-        return process.wait()
+        try:
+            assert process.stdout is not None
+            for line in process.stdout:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                if output is not None:
+                    output.write(line)
+                    output.flush()
+            return process.wait()
+        except BaseException:
+            # A search can run for an hour; if streaming fails or the user
+            # interrupts, the engine must not be left running unattended.
+            process.kill()
+            process.wait()
+            raise
+        finally:
+            if process.stdout is not None:
+                process.stdout.close()
     except OSError as error:
         raise ConfigurationError(f"cannot run ambiguity engine: {error}") from error
     finally:

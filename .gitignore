@@ -5,5 +5,7 @@ parser/
 vcpkg_installed/
 __pycache__/
 .devbox/
+_opam/
+.claude/settings.local.json
 *.term
 machine-config.txt

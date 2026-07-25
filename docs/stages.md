@@ -1,8 +1,11 @@
-We use 4 stages:
-1. parsing: astA (correct terminology: cst, concrete syntax tree)
-2. semantics: astB (correct terminology: ast)
-3. optimizations: mutate astB
-4. codegen: binary
+# Compilation stages
 
-we use two different ast's. astA only captures the content and doesnt do name resolution or desugaring.
-those things are handled in stage 2 semantics.
+The compiler runs in four stages:
+
+1. **parsing** — produces the concrete syntax tree (CST).
+2. **semantics** — lowers the CST to the abstract syntax tree (AST).
+3. **optimizations** — mutate the AST.
+4. **codegen** — produces the binary.
+
+The CST captures only what the source says. Name resolution and desugaring
+belong to the semantics stage, which is where the AST gets its meaning.

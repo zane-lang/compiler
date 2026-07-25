@@ -1,3 +1,9 @@
+(* Raised by grammar actions for a form the grammar accepts but the language
+   does not, such as an abort handler on an operation that cannot abort.
+   [Cst.parse] catches it and reports it at the current position, so these stay
+   inside the [Ok]/[Error] contract instead of escaping as [Invalid_argument]. *)
+exception Rejected of string
+
 let tab_width = 4
 
 let visual_col_of_idx s idx =
@@ -26,7 +32,8 @@ let expand_tabs s =
   in
   aux 0 0
 
-let format_parse_error filename input pos_start pos_end =
+let format_parse_error ?(message = "Parse error") filename input pos_start
+    pos_end =
   let line = pos_start.Lexing.pos_lnum in
   let char_start = pos_start.Lexing.pos_cnum - pos_start.Lexing.pos_bol in
   let lines = String.split_on_char '\n' input in
@@ -65,5 +72,5 @@ let format_parse_error filename input pos_start pos_end =
     (Printf.sprintf "  | %s%s\n"
        (String.make vcol_start ' ')
        (String.make (max 1 (vcol_end - vcol_start)) '^'));
-  Buffer.add_string buf "Error: Parse error\n";
+  Buffer.add_string buf (Printf.sprintf "Error: %s\n" message);
   Buffer.contents buf

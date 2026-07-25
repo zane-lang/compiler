@@ -26,12 +26,17 @@ let attach_abort_handle expr abort_handle =
         }
     | Nodes.Verb_call.Flip { value; abort_handle = None } ->
         Nodes.Verb_call.Flip { value; abort_handle = Some abort_handle }
-    | _ -> invalid_arg "an operation can only have one abort handler"
+    | _ ->
+        raise
+          (Parse_error.Rejected "an operation can only have one abort handler")
   in
   let rec loop = function
     | Nodes.Expr.VerbCall call -> Nodes.Expr.VerbCall (attach call)
     | Nodes.Expr.Parenthized value -> Nodes.Expr.Parenthized (loop value)
-    | _ -> invalid_arg "an abort handler must follow an abortable operation"
+    | _ ->
+        raise
+          (Parse_error.Rejected
+             "an abort handler must follow an abortable operation")
   in
   loop expr
 %}
