@@ -43,6 +43,10 @@ parameters
 
 ## Lookahead
 
-Sub-nodes are reduced before they are matched, so no ambiguity may exist that
-would have to be resolved by looking at a following sub-node. GLR parsing would
-handle it, but LALR(1) is linear and GLR is slower.
+The grammar is parsed with menhirGLR, so a rule may need more than one token of
+lookahead: where the parser cannot yet tell two readings apart it forks and
+carries both, and constructs are allowed to require unbounded lookahead.
+
+What a rule must not do is leave an input with more than one parse. Forking is
+free; every fork but one has to die before acceptance. `docs/ambiguity.md` holds
+the policy and the per-conflict proof obligations a new rule has to satisfy.
