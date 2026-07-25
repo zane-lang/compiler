@@ -13,8 +13,8 @@
  (description
   "The Zane compiler: a sedlex lexer, a Menhir GLR grammar producing a concrete\nsyntax tree, and the developer tooling used to keep that grammar unambiguous.")
  (depends
-  ; StringMap.of_list in lib/tree_graph/node.ml needs Map.S.of_list (OCaml 5.1).
-  (ocaml (>= 5.1))
+  ; bin/compiler/main.ml reads the source with In_channel, added in OCaml 4.14.
+  (ocaml (>= 4.14))
   ; lib/cst/dune builds the grammar with --GLR, which the 20260122 release line
   ; introduced along with the menhirGLR runtime that lib/cst links against.
   (menhir (>= 20260122))
