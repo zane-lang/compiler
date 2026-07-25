@@ -432,7 +432,7 @@ body:
       Nodes.Body.Shorthand value
     }
 
-%inline abort_handle:
+abort_handle:
   | "?" binder=ioption(LIDENT) body=body %prec THICK_ARROW {
       Nodes.Abort_handle.Longhand { binder; body }
     }
