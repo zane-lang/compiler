@@ -11,9 +11,10 @@ let rec collect ~name node =
       let new_name = if name = "" then title else name ^ " > " ^ title in
       collect ~name:new_name body
 
-  | Node.Fields map ->
+  | Node.Fields pairs ->
+      (* Rendered in the order given; see the [Fields] comment in node.ml. *)
       let nested_items =
-        Node.StringMap.bindings map
+        pairs
         |> List.map (fun (k, v) -> collect ~name:k v)
         |> List.flatten
       in
