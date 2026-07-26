@@ -109,8 +109,8 @@ let attach_abort_handle expr abort_handle =
 %left PLUS MINUS
 %left STAR SLASH
 %nonassoc QSTNMARK QSTNQSTN             /* abort handling */
-%left DOT                                /* field access */
 %nonassoc TILDE AND                      /* prefix ~ and & */
+%left DOT                                /* field access */
 %left LPAREN                             /* function application */
 
 %start <Nodes.Package.t> package
@@ -333,13 +333,14 @@ primary:
   | name_expr=name_expr { Nodes.Expr.NameExpr name_expr }
   | "(" e=expr ")" { Nodes.Expr.Parenthized e }
 
-(* Calls bind tighter than prefix operators, while field access binds just
-   below them. Thus `~value().field` is `(~value()).field`. Abort handlers bind
-   below both but above binary operators. *)
+(* Calls and field access are postfix operators. They chain left-to-right on the
+   nearest preceding postfix base and bind above prefix operators. Thus
+   `~value().field` is `~(value().field)`. Abort handlers bind below postfix and
+   prefix operators but above binary operators. *)
 app:
   | primary=primary { primary }
   | call=verb_call { Nodes.Expr.VerbCall (call None) }
-  | target=expr "." field=LIDENT {
+  | target=app "." field=LIDENT {
       Nodes.Expr.DotAccess { target; field }
     }
 
