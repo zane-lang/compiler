@@ -17,4 +17,4 @@ syntax-experiment-test:
 ambiguity-test:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
 	dune build tools/ambiguity_search.exe
-	python3 -m unittest tools.test_ambiguity -v
+	python3 -m unittest tools.test_ambiguity tools.test_parser_ambiguity -v
