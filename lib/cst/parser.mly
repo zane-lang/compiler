@@ -109,8 +109,8 @@ let attach_abort_handle expr abort_handle =
 %left PLUS MINUS
 %left STAR SLASH
 %nonassoc QSTNMARK QSTNQSTN             /* abort handling */
-%left DOT                                /* field access */
 %nonassoc TILDE AND                      /* prefix ~ and & */
+%left DOT                                /* field access */
 %left LPAREN                             /* function application */
 
 %start <Nodes.Package.t> package
@@ -320,7 +320,10 @@ decl:
   | op=additive_op       { op }
   | op=multiplicative_op { op }
 
-(* atoms: literals, names, parenthesised exprs, lambdas *)
+(* Postfix bases are deliberately limited to literals, names, and parenthesised
+   expressions. Bare lambdas remain expressions, but a following postfix belongs
+   to the smallest expression in their shorthand body. Parenthesize the lambda
+   when the postfix should apply to the lambda itself. *)
 primary:
   | i=INT    { Nodes.Expr.IntLit i }
   | f=FLOAT  { Nodes.Expr.FloatLit f }
@@ -329,21 +332,22 @@ primary:
   | FALSE    { Nodes.Expr.BoolLit false }
   | name_expr=name_expr { Nodes.Expr.NameExpr name_expr }
   | "(" e=expr ")" { Nodes.Expr.Parenthized e }
-  | func_lambda=func_lambda { Nodes.Expr.FuncLambda func_lambda }
-  | meth_lambda=meth_lambda { Nodes.Expr.MethLambda meth_lambda }
 
-(* Calls bind tighter than prefix operators, while field access binds just
-   below them. Thus `~value().field` is `(~value()).field`. Abort handlers bind
-   below both but above binary operators. *)
+(* Calls and field access are postfix operators. They chain left-to-right on the
+   nearest preceding postfix base and bind above prefix operators. Thus
+   `~value().field` is `~(value().field)`. Abort handlers bind below postfix and
+   prefix operators but above binary operators. *)
 app:
   | primary=primary { primary }
   | call=verb_call { Nodes.Expr.VerbCall (call None) }
-  | target=expr "." field=LIDENT {
+  | target=app "." field=LIDENT {
       Nodes.Expr.DotAccess { target; field }
     }
 
 expr:
   | app=app { app }
+  | func_lambda=func_lambda { Nodes.Expr.FuncLambda func_lambda }
+  | meth_lambda=meth_lambda { Nodes.Expr.MethLambda meth_lambda }
   | left=expr op=comparison_op right=expr %prec EQEQ {
       Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
         op;
