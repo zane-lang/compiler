@@ -65,6 +65,22 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "RPAREN LPAREN RPAREN SEMICOLON RCURLY EOF"
         )
 
+    def test_shorthand_body_keeps_the_nearest_field_access(self) -> None:
+        # The same nearest-target rule applies to every postfix operation:
+        # `false.length` belongs to the shorthand body, not to the bare lambda.
+        self.assert_unambiguous(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "UIDENT QSTNMARK UIDENT LPAREN RPAREN THICK_ARROW "
+            "FALSE DOT LIDENT SEMICOLON RCURLY EOF"
+        )
+
+    def test_parentheses_allow_field_access_on_the_lambda(self) -> None:
+        self.assert_unambiguous(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LPAREN "
+            "UIDENT QSTNMARK UIDENT LPAREN RPAREN THICK_ARROW FALSE "
+            "RPAREN DOT LIDENT SEMICOLON RCURLY EOF"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
