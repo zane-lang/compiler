@@ -1,10 +1,3 @@
-(library
- (name ambiguity_result)
- (wrapped false)
- (modules ambiguity_result))
-
 (executable
  (name ambiguity_search)
- (modules ambiguity_search)
- (flags (:standard -open Ambiguity_result))
- (libraries ambiguity_result unix str))
+ (libraries unix str))
