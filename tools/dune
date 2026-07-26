@@ -1,3 +1,7 @@
 (executable
  (name ambiguity_search)
  (libraries unix str))
+
+(executable
+ (name parser_shape)
+ (libraries cst))
