@@ -53,7 +53,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      AMBIGUITY_MEMORY_MB: "6144"
+      # Public ubuntu-latest runners provide four CPUs and 16 GB RAM. Give the
+      # four search workers 10 GiB total, leaving about 6 GiB for the runner,
+      # coordinator, native allocations, and compaction/COW peaks.
+      AMBIGUITY_MEMORY_MB: "10240"
       AMBIGUITY_MAX_FRONTIER_RATIO: "1.0"
       AMBIGUITY_JOBS: "4"
       AMBIGUITY_MENHIR: menhir
