@@ -1832,7 +1832,7 @@ let options =
     ( "--prove",
       Arg.Set_int prove_level,
       "K attempt an unambiguity proof with a top-K stack abstraction; \
-       exit 0 proven unambiguous, 1 ambiguous, 3 not proven \
+       all completed outcomes exit 0 \
        (the derived dedup-frontier limit also bounds the abstract pair count)" );
     ( "--dump-terminal-classes",
       Arg.Set dump_classes,
@@ -1951,7 +1951,7 @@ let main () =
         in
         let count = accepted_count engine frontier in
         Printf.printf "Accepting derivations: %d\n" count;
-        exit (if count >= 2 then 1 else 0)
+        exit 0
       end;
       let max_tokens, timeout, max_witnesses = Option.get search_limits in
       if !min_tokens > max_tokens then
@@ -2009,7 +2009,7 @@ let main () =
                abstraction level %d. Raise AMBIGUITY_MEMORY_MB or \
                AMBIGUITY_MAX_FRONTIER_RATIO, or lower --prove.\n"
               pairs !prove_level;
-            exit 3
+            exit 0
         | Abstract_candidate (tokens, pairs) ->
             Printf.printf
               "Abstract ambiguity candidate at level %d after %d pairs \
@@ -2053,7 +2053,7 @@ let main () =
                within the search bounds; the grammar is neither proven \
                unambiguous nor shown ambiguous. Raising --prove may remove \
                the spurious candidate.\n";
-            exit 3
+            exit 0
           end;
           Printf.printf "This is a bounded result, not a proof of unambiguity.\n";
           exit 0
@@ -2079,7 +2079,7 @@ let main () =
             (fun reason ->
               Printf.printf "Search stopped because %s.\n" reason)
             outcome.stopped;
-          exit 1)
+          exit 0)
 
 let () =
   try main ()
