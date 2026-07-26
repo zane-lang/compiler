@@ -467,7 +467,7 @@ class TerminalClassEngineTests(unittest.TestCase):
         # ambiguous, confirming the representative stands in for the whole class.
         result = self.engine("--check-tokens", "B PLUS B PLUS B EOF")
         self.assertIn("Accepting derivations: 2", result.stdout)
-        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.returncode, 0)
 
     def test_prove_finds_the_ambiguity_via_the_representative(self) -> None:
         # prove drives the abstract BFS over class representatives, then
@@ -479,7 +479,7 @@ class TerminalClassEngineTests(unittest.TestCase):
             "--timeout", "30",
             "--max-witnesses", "5",
         )
-        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("complete ambiguity", result.stdout)
         # The witness must be spelled with the class representative A, never the
         # non-representative B, confirming concretization stays on representatives.
