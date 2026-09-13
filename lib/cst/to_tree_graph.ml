@@ -331,6 +331,38 @@ and type_or_moulded_to_node (x: Nodes.Type_or_moulded.t) = match x with
   | Raw x -> type_to_node x
   | Moulded x -> moulded_to_node x
 
+and import_member_to_node (x: Nodes.Import_member.t) =
+  fields [
+    ("name", Leaf x.name);
+    ("is_type", Leaf (string_of_bool x.is_type));
+  ]
+
+and import_to_node (x: Nodes.Import.t) = match x with
+  | Package { package; alias } ->
+      let fs = [("package", Leaf package)] in
+      let fs = match alias with
+        | Some alias -> fs @ [("alias", Leaf alias)]
+        | None -> fs
+      in
+      group "import_package" (fields fs)
+  | Member { package; member; alias } ->
+      let fs = [
+        ("package", Leaf package);
+        ("member", import_member_to_node member);
+      ] in
+      let fs = match alias with
+        | Some alias -> fs @ [("alias", import_member_to_node alias)]
+        | None -> fs
+      in
+      group "import_member" (fields fs)
+  | Members { package; members } ->
+      group "import_members" (fields [
+        ("package", Leaf package);
+        ("members", map_seq import_member_to_node members);
+      ])
+  | All { package } ->
+      group "import_all" (fields [("package", Leaf package)])
+
 and map_entry_to_node (key, value) =
   fields [
     ("key", expr_to_node key);
@@ -345,7 +377,7 @@ and enum_map_entry_to_node (member, value) =
 
 and decl_to_node (x: Nodes.Decl.t) = match x with
   | Package name -> group "package_decl" (Leaf name)
-  | Import name -> group "import_decl" (Leaf name)
+  | Import value -> group "import_decl" (import_to_node value)
   | Var { name; type_; value } ->
       group "var_decl" (fields [
         ("name",  Leaf name);

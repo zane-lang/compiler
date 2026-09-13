@@ -50,6 +50,40 @@ module Concept = struct
   type t = Type | Number
 end
 
+(* One name taken from a package. The casing class is kept rather than
+   recomputed, because an `as` alias must preserve it: a value may not be
+   renamed to a type-shaped name, or the reverse. *)
+module Import_member = struct
+  type t = {
+    name : string;
+    is_type : bool;
+  }
+end
+
+(* What an import writes after `import` is what the file writes at the use
+   site, so the form is the declaration rather than a detail of it. An alias
+   belongs only to the two forms that name a single thing to rename: a list has
+   no single name, and the whole-package `pkg$` form qualifies nothing. Those
+   two combinations are therefore unrepresentable here rather than rejected
+   later. *)
+module Import = struct
+  type t =
+    (* import pkg           -> pkg$member
+       import pkg as alias  -> alias$member *)
+    | Package of { package : string; alias : string option }
+    (* import pkg$member           -> member
+       import pkg$member as alias  -> alias *)
+    | Member of {
+        package : string;
+        member : Import_member.t;
+        alias : Import_member.t option;
+      }
+    (* import pkg$[memberA, memberB] -> memberA, memberB *)
+    | Members of { package : string; members : Import_member.t list }
+    (* import pkg$ -> every accessible member, unqualified *)
+    | All of { package : string }
+end
+
 module Generic_param = struct
   type t = {
     name : string;
@@ -342,7 +376,7 @@ end = Verb_decl
 and Decl : sig
   type t =
     | Package of string
-    | Import of string
+    | Import of Import.t
     | Var of { name : string; type_ : Type_expr.t; value : Expr.t }
     | VarShorthand of { name : string; constructor : Constructor_name.t; args : Constructor_args.t }
     | Type of {

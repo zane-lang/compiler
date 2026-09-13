@@ -70,6 +70,7 @@ let rec token buf =
   | "enum"                      -> ENUM
   | "package"                   -> PACKAGE
   | "import"                    -> IMPORT
+  | "as"                        -> AS
   | "implicit"                  -> IMPLICIT
   | "init"                      -> INIT
   | "match"                     -> MATCH

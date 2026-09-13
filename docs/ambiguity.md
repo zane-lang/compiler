@@ -63,8 +63,8 @@ the state is triaged into one of these categories.
 
 ### Where the current conflicts come from
 
-Menhir reports 53 states with shift/reduce conflicts and 4 with reduce/reduce
-conflicts; the explanations file accounts for 55 conflict blocks, since a state
+Menhir reports 54 states with shift/reduce conflicts and 4 with reduce/reduce
+conflicts; the explanations file accounts for 56 conflict blocks, since a state
 carrying both kinds is explained once per kind. The table counts states rather
 than token occurrences. They are not independent problems:
 
@@ -82,6 +82,7 @@ than token occurrences. They are not independent problems:
 | `?` `??` `(` `[` | 2 | `expr -> SPAWN verb_call`, `func_callee -> verb_call` | a spawned call against what follows it |
 | `{`             | 3 | `computed_call_no_trailing_arg_ -> ... RPAREN` | a call's trailing argument against an enclosing brace |
 | `{` / `(` `{`   | 3 | `app -> ... DOT LIDENT` | a field access against a constructor body |
+| a name, `[`     | 1 | `import_decl -> IMPORT LIDENT DOLLAR` | a whole-package import against a member one |
 | `(`             | 2 | `primary -> LIDENT`, `primary -> THIS` | a bare name against a call or a lambda |
 
 The `<` row is about the declaration form, not the comparison. Its nine states
@@ -94,7 +95,7 @@ language change rather than a restructuring, so it is a measurement here and
 not a proposal.
 
 **The vanished terminator is one root, not six.** Twenty-one shift/reduce
-states and both reduce/reduce conflicts — 23 of the 55 — trace to a single
+states and both reduce/reduce conflicts — 23 of the 56 — trace to a single
 fact: a statement's `;` is optional
 in the grammar, because whether it is required depends on whether the statement
 ends in a `}`, and that is not a question a bracket answers. So the token that
@@ -102,7 +103,10 @@ used to end a statement can now be the first token of the next one, and every
 reduction that used to be decided by seeing `;` is decided by seeing `[` or `(`
 instead — the two tokens a statement can begin with. `type T = Int[]` followed
 by a statement opening `[a] = b;` is the shape; the parser must close the
-verb-type suffix list before it can know.
+verb-type suffix list before it can know. The import state below shares the
+root — with a terminator after each package-scope declaration its lookahead
+would be decided — but it forks over a name rather than a bracket, so it is
+triaged on its own.
 
 These are **open obligations**, and the reason they are permitted rather than
 resolved is that the conflict is an artifact of where the check lives, not of
@@ -133,6 +137,21 @@ rejected orders are all gone, and the enum map is a `type_expr` followed by a
 `{ }` body again. The twelve `[` states in the table above are a different
 family that happens to be the same size — they are the vanished terminator, and
 they appear on a plain `type` declaration with no enum map in sight.
+
+The one state that reduces `import_decl -> IMPORT LIDENT DOLLAR` is an **open
+obligation**. `import pkg$` takes every accessible member and so ends on the
+`$`; `import pkg$member` takes one. After the `$`, a name is either that member
+or the first token of the next declaration, and since a package-scope
+declaration carries no terminator there is nothing between them to read.
+
+It looks transient, and the shape a proof would take is clear: the shift branch
+consumes a name that the reduce branch needs in order to open a declaration, so
+for both to accept, some token sequence would have to be a run of declarations
+both with and without a name in front of it. No proof keyed to the state's LR
+items has been written, so it is tracked rather than argued. What is measured
+is that every continuation tried resolves to one derivation — a following
+`import`, a lowercase variable declaration, an uppercase verb declaration, a
+`type` declaration, a constructor declaration, and an enum map.
 
 The three `{` states that reduce a completed call are **open obligations**. A
 call may be closed by a trailing argument, so after `f(x)` a following `{` is

@@ -151,6 +151,21 @@ let decl_ends_in_brace (decl : Nodes.Decl.t) =
   | Nodes.Decl.Verb (Nodes.Verb_decl.Flip { body; _ }) ->
       body_ends_in_brace body
 
+(* An `as` alias renames one member, and casing is what says whether a name is
+   a type or a value, so a rename across the two classes would change what the
+   name means rather than what it is spelled. The grammar admits either
+   spelling on each side because both are ordinary names; only the pair is
+   wrong. *)
+let import_alias (member : Nodes.Import_member.t)
+    (alias : Nodes.Import_member.t) =
+  if member.Nodes.Import_member.is_type <> alias.Nodes.Import_member.is_type
+  then
+    raise
+      (Parse_error.Rejected
+         "an `as` alias has to keep the casing of the name it renames, since \
+          an uppercase-initial name is a type and a lowercase one a value");
+  alias
+
 (* [terminated] is what the statement was actually written with. *)
 let check_terminator ~ends_in_brace ~terminated =
   if ends_in_brace && terminated then
@@ -214,6 +229,7 @@ let stat_expr ~terminated build value =
 %token ENUM        "enum"
 %token PACKAGE     "package"
 %token IMPORT      "import"
+%token AS          "as"
 %token IMPLICIT    "implicit"
 %token INIT        "init"
 %token MATCH       "match"
@@ -473,6 +489,44 @@ map_lit:
       entries
     }
 
+(* A name taken from a package, in either casing class. *)
+%inline import_member:
+  | name=LIDENT {
+      ({ Nodes.Import_member.name; is_type = false } : Nodes.Import_member.t)
+    }
+  | name=UIDENT {
+      ({ Nodes.Import_member.name; is_type = true } : Nodes.Import_member.t)
+    }
+
+(* The four import forms. What the file writes at the use site is what the
+   import wrote after `import`, so each form is its own production rather than
+   one shape with optional parts.
+
+   `import pkg$` takes everything past the separator and so ends on the `$`
+   itself. Since a package-scope declaration carries no terminator, the name
+   that follows one belongs to the next declaration, and the parser settles
+   which by carrying both readings until one of them fails to be a
+   declaration. *)
+import_decl:
+  | IMPORT package=LIDENT alias=ioption(preceded(AS, LIDENT)) {
+      Nodes.Import.Package { package; alias }
+    }
+  | IMPORT package=LIDENT "$" member=import_member
+    alias=ioption(preceded(AS, import_member)) {
+      Nodes.Import.Member {
+        package;
+        member;
+        alias = Option.map (import_alias member) alias;
+      }
+    }
+  | IMPORT package=LIDENT "$"
+    "[" members=separated_nonempty_list(",", import_member) "]" {
+      Nodes.Import.Members { package; members }
+    }
+  | IMPORT package=LIDENT "$" {
+      Nodes.Import.All { package }
+    }
+
 body_decl(body_form):
   | ret_type=ret_type name=LIDENT "(" params=separated_list(",", param) ")" body=body_form {
       Nodes.Decl.Verb (Nodes.Verb_decl.Func { name; params; ret_type; body })
@@ -537,8 +591,8 @@ simple_decl:
   | PACKAGE name=LIDENT {
       Nodes.Decl.Package name
     }
-  | IMPORT name=LIDENT {
-      Nodes.Decl.Import name
+  | value=import_decl {
+      Nodes.Decl.Import value
     }
   | name=LIDENT type_=type_expr "=" value=expr {
       Nodes.Decl.Var { name; type_; value }

@@ -163,6 +163,53 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_rejects("Int double(value Int) => value * Int(2);")
         self.assert_rejects("answer Int = Int(42);")
 
+    def test_every_import_form(self) -> None:
+        self.assert_parses(
+            '''
+            import math
+            import math as m
+            import math$sqrt
+            import math$Vector
+            import math$sqrt as root
+            import math$Vector as Vec
+            import math$[sqrt, pow]
+            import math$[sqrt, Vector]
+            import math$
+            '''
+        )
+
+    def test_an_import_ends_where_its_form_ends(self) -> None:
+        # `import pkg$` takes everything past the separator, so the name after
+        # it opens the next declaration rather than continuing the import.
+        self.assert_parses(
+            '''
+            import math$
+            answer Int = Int(4)
+
+            import text$
+            Int double(v Int) => v * Int(2)
+
+            import shapes$
+            type Meters = Int
+            '''
+        )
+
+    def test_an_alias_names_one_thing_and_keeps_its_casing(self) -> None:
+        # A list has no single name to rename, and `pkg$` qualifies nothing.
+        self.assert_rejects("import math$[sqrt, pow] as m")
+        self.assert_rejects("import math$ as m")
+        # A whole-package alias is a package name, so it is lowercase-initial.
+        self.assert_rejects("import math as M")
+        # A member alias may not cross the casing classes.
+        self.assert_rejects("import math$sqrt as Root")
+        self.assert_rejects("import math$Vector as vec")
+
+    def test_an_import_list_is_an_ordinary_flat_list(self) -> None:
+        self.assert_rejects("import math$[]")
+        self.assert_rejects("import math$[sqrt, pow,]")
+        # Operators resolve by operand home package and are not importable.
+        self.assert_rejects("import math$+")
+
     def test_map_literals(self) -> None:
         self.assert_parses(
             '''
