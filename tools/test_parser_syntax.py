@@ -34,18 +34,33 @@ class ParserSyntaxTests(unittest.TestCase):
             '''
             type Vector2 = struct { x Float; y Float; }
 
-            Vector2.zeros() => init{x = Float(0), y = Float(0)};
-            Vector2.fromPair{x Float, y Float = Float(0)} => init{x, y};
-            Vector2<T>{x T Type, y T} => init{x, y};
-            implicit Vector2(v Float) => init{x = v, y = v};
+            Vector2.zeros() => init{x = Float(0); y = Float(0);}
+            Vector2.fromPair{x Float; y Float = Float(0);} => init{x; y;}
+            Vector2<T>{x T Type; y T;} => init{x; y;}
+            implicit Vector2(v Float) => init{x = v; y = v;}
 
             Unit use() {
                 a Vector2.zeros();
-                b Vector2{x = Float(1), y = Float(2)};
-                c Vector2.fromPair{x = Float(3)};
+                b Vector2{x = Float(1); y = Float(2);}
+                c Vector2.fromPair{x = Float(3);}
                 return Unit();
             }
             '''
+        )
+
+    def test_a_body_entry_keeps_its_terminator(self) -> None:
+        # An entry of a `{ }` body carries its `;` unconditionally, including
+        # one whose value ends in a `}`. Only statements take the brace
+        # exception.
+        self.assert_parses(
+            '''
+            type Handler = struct { fire Unit[]; }
+
+            Handler.idle() => init{ fire = Unit() { return Unit(); }; }
+            '''
+        )
+        self.assert_rejects(
+            "Handler.idle() => init{ fire = Unit() { return Unit(); } }"
         )
 
     def test_guest_types_subscripts_assignment_and_spawn(self) -> None:
@@ -53,7 +68,7 @@ class ParserSyntaxTests(unittest.TestCase):
             '''
             type Node = #struct { next &Node; }
 
-            (this Node)[index Int] => this;
+            (this Node)[index Int] => this
 
             Unit work(this Node) mut {
                 this.next = &this;
@@ -76,7 +91,7 @@ class ParserSyntaxTests(unittest.TestCase):
 
                 ran Bool = if(values:size() == Int(0)) {
                     std$print("empty");
-                };
+                }
                 ran!elif({ resolve values:size() < Int(4); }) {
                     std$print("short");
                 }
@@ -93,20 +108,98 @@ class ParserSyntaxTests(unittest.TestCase):
     def test_a_trailing_block_closes_a_call_statement(self) -> None:
         self.assert_rejects("Unit use() { run() { std$print(\"once\"); }; }")
         self.assert_rejects("Unit use() { run() { } { } }")
+        # Nothing may continue the call past the brace that closed it.
+        self.assert_rejects("Unit use() { run() { } () }")
+        self.assert_rejects("Unit use() { run() { } [index] }")
+        # A handler is one of the things that cannot follow it; the same call
+        # with its block inside the argument list takes one.
+        self.assert_rejects("Unit use() { run() { } ? e { resolve Unit(); } }")
+        self.assert_parses(
+            'Unit use() { done Unit = run({ work(); }) ? e { resolve Unit(); } }'
+        )
+
+    def test_a_statement_ending_in_a_brace_takes_no_terminator(self) -> None:
+        self.assert_parses(
+            '''
+            Unit use(c Color) {
+                picked String = match c {
+                    red => "Red";
+                    green => "Green";
+                }
+                ran Bool = if(true) {
+                    std$print(picked);
+                }
+                handled Int = parse("4") ? e {
+                    resolve Int(0);
+                }
+                plain Int = Int(3);
+                return Unit();
+            }
+            '''
+        )
+        self.assert_rejects("Unit use() { ran Bool = if(true) { g(); }; }")
+        self.assert_rejects("Unit use() { plain Int = Int(3) }")
+        self.assert_rejects("Unit use() { return Unit() }")
+
+    def test_a_brace_may_not_open_a_statement(self) -> None:
+        self.assert_rejects("Unit use() { { std$print(\"scoped\"); } }")
+        # The same work is a call taking a block argument.
+        self.assert_parses("Unit use() { do() { std$print(\"scoped\"); } }")
+
+    def test_package_scope_declarations_take_no_terminator(self) -> None:
+        self.assert_parses(
+            '''
+            package demo
+            import std
+
+            type Meters = Int
+            alias Metres = Meters
+
+            Int double(value Int) => value * Int(2)
+            answer Int = Int(42)
+            '''
+        )
+        self.assert_rejects("package demo;")
+        self.assert_rejects("Int double(value Int) => value * Int(2);")
+        self.assert_rejects("answer Int = Int(42);")
+
+    def test_map_literals(self) -> None:
+        self.assert_parses(
+            '''
+            Unit use() {
+                scores Map<String, Int> = {
+                    String("first"), Int(1);
+                    String("second"), Int(2);
+                }
+                register({ String("a"), Int(1); });
+                register() {
+                    String("b"), Int(2);
+                }
+                return Unit();
+            }
+            '''
+        )
+        # A literal is never empty, so a bare `{}` is a block argument.
+        self.assert_parses("Unit use() { register({}); }")
+        # An entry is exactly a key and a value.
+        self.assert_rejects("Unit use() { m Map = { String(\"a\"); }; }")
 
     def test_match_enum_map_type_members_pipe_and_inequality(self) -> None:
         self.assert_parses(
             '''
-            package demo;
-            import std;
+            package demo
+            import std
 
             type Color = enum [ red, green ]
-            Color.label String [ red = "Red", green = "Green" ];
+            Color.label String {
+                red = "Red";
+                green = "Green";
+            }
 
             String show(c Color) => match c {
                 red => Color.red.label;
                 green => "Green";
-            };
+            }
 
             Unit use() {
                 different Bool = true ~= false;
@@ -114,6 +207,18 @@ class ParserSyntaxTests(unittest.TestCase):
                 rendered String = Color.red:render|label;
                 first String = label[0];
                 return Unit();
+            }
+            '''
+        )
+
+    def test_an_enum_map_keeps_a_verb_typed_property(self) -> None:
+        self.assert_parses(
+            '''
+            type Color = enum [ red, green ]
+
+            Color.render String[Int] {
+                red = renderRed;
+                green = renderGreen;
             }
             '''
         )
@@ -129,7 +234,7 @@ class ParserSyntaxTests(unittest.TestCase):
                         return "Red";
                     }
                     green => "Green";
-                };
+                }
                 return label;
             }
             '''
@@ -143,9 +248,9 @@ class ParserSyntaxTests(unittest.TestCase):
             type Cased = variant { some Int; }
             type Listed = enum [ red, green ]
 
-            type Meters = Int;
-            type Mapper<T Type> = T;
-            alias Metres = Meters;
+            type Meters = Int
+            type Mapper<T Type> = T
+            alias Metres = Meters
             '''
         )
 
@@ -180,7 +285,7 @@ class ParserSyntaxTests(unittest.TestCase):
                 data Array<T, n>;
             }
 
-            T first(values Array<T Type, n Number>) => values[0];
+            T first(values Array<T Type, n Number>) => values[0]
 
             Unit literals() {
                 values Array<Int, 3> = Array([Int(1), Int(2), Int(3)]);

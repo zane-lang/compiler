@@ -1,15 +1,30 @@
 %{
 let attach_abort_handle expr abort_handle =
   let attach = function
-    | Nodes.Verb_call.Func { callee; args; abort_handle = None } ->
-        Nodes.Verb_call.Func { callee; args; abort_handle = Some abort_handle }
-    | Nodes.Verb_call.Meth { callee; this; args; abort_handle = None; is_mut } ->
+    (* A trailing argument ends its statement, so nothing may continue the call
+       past that `}` -- a handler included. The same call written with the
+       argument inside the parentheses takes one. *)
+    | Nodes.Verb_call.Func { trailing = true; _ }
+    | Nodes.Verb_call.Meth { trailing = true; _ } ->
+        raise
+          (Parse_error.Rejected
+             "a trailing argument ends the statement, so an abort handler \
+              cannot follow it; write the argument inside the argument list")
+    | Nodes.Verb_call.Func { callee; args; abort_handle = None; trailing } ->
+        Nodes.Verb_call.Func {
+          callee;
+          args;
+          abort_handle = Some abort_handle;
+          trailing;
+        }
+    | Nodes.Verb_call.Meth { callee; this; args; abort_handle = None; is_mut; trailing } ->
         Nodes.Verb_call.Meth {
           callee;
           this;
           args;
           abort_handle = Some abort_handle;
           is_mut;
+          trailing;
         }
     | Nodes.Verb_call.Constructor { name; args; abort_handle = None } ->
         Nodes.Verb_call.Constructor {
@@ -45,16 +60,109 @@ let attach_abort_handle expr abort_handle =
   in
   loop expr
 
-(* What one bracket group in an enum map turned out to hold. The grammar shifts
-   the group before it can tell which kind it is, so the kind travels with the
-   contents until the run of groups is complete. *)
-type enum_map_group =
-  | Entries of (string * Nodes.Expr.t) list
-  | Params of Nodes.Param_type.t list
-
 let constructor_expr name args =
   Nodes.Expr.VerbCall
     (Nodes.Verb_call.Constructor { name; args; abort_handle = None })
+
+(* Does this statement's last token close a brace?
+
+   A statement ends with `;`, unless it ends with a `}` -- then that brace ends
+   it and a `;` after it would mark nothing. Which of the two a statement takes
+   is therefore a property of its final token, which is a property of the
+   shape at the tail of its tree: every form below either closes with a brace
+   itself or hands the question to whatever it ends with.
+
+   The grammar accepts a terminator either way and the check below rejects the
+   spelling that does not match, rather than the language being split into
+   brace-ending and non-brace-ending halves. A grammatical split would have to
+   reach through every binary operator -- `a + match e { ... }` ends in a brace
+   because its right operand does -- which means two copies of the expression
+   grammar and two of every operator production. One function over the tree
+   says the same thing once. *)
+let rec expr_ends_in_brace (expr : Nodes.Expr.t) =
+  match expr with
+  | Nodes.Expr.Init _ | Nodes.Expr.MapLit _ -> true
+  | Nodes.Expr.Match { abort_handle = Some handle; _ } ->
+      abort_handle_ends_in_brace handle
+  | Nodes.Expr.Match _ -> true
+  | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call ->
+      verb_call_ends_in_brace call
+  | Nodes.Expr.Pipe { abort_handle = Some handle; _ } ->
+      abort_handle_ends_in_brace handle
+  | Nodes.Expr.Pipe { value; _ } -> expr_ends_in_brace value
+  | Nodes.Expr.Logic { right; _ } -> expr_ends_in_brace right
+  | Nodes.Expr.FuncLambda { body; _ } -> body_ends_in_brace body
+  | Nodes.Expr.MethLambda { body; _ } -> body_ends_in_brace body
+  | Nodes.Expr.Ref value -> expr_ends_in_brace value
+  (* Only ever a [Pipe]'s callee, which is never the tail of the statement. *)
+  | Nodes.Expr.MethodTarget _ -> false
+  (* Closed by `)`, `]`, or the name itself. *)
+  | Nodes.Expr.IntLit _ | Nodes.Expr.FloatLit _ | Nodes.Expr.StrLit _
+  | Nodes.Expr.BoolLit _ | Nodes.Expr.CollectionLit _ | Nodes.Expr.NameExpr _
+  | Nodes.Expr.TypeMember _ | Nodes.Expr.DotAccess _ | Nodes.Expr.Subscript _
+  | Nodes.Expr.Parenthized _ ->
+      false
+
+and verb_call_ends_in_brace (call : Nodes.Verb_call.t) =
+  match call with
+  | Nodes.Verb_call.Func { abort_handle = Some handle; _ }
+  | Nodes.Verb_call.Meth { abort_handle = Some handle; _ }
+  | Nodes.Verb_call.Constructor { abort_handle = Some handle; _ }
+  | Nodes.Verb_call.Op { abort_handle = Some handle; _ }
+  | Nodes.Verb_call.Flip { abort_handle = Some handle; _ } ->
+      abort_handle_ends_in_brace handle
+  (* A trailing argument's `}` is the call's last token; without one the `)` is. *)
+  | Nodes.Verb_call.Func { trailing; _ } | Nodes.Verb_call.Meth { trailing; _ } ->
+      trailing
+  | Nodes.Verb_call.Constructor { args = Nodes.Constructor_args.Fields _; _ } ->
+      true
+  | Nodes.Verb_call.Constructor _ -> false
+  | Nodes.Verb_call.Op { right; _ } -> expr_ends_in_brace right
+  | Nodes.Verb_call.Flip { value; _ } -> expr_ends_in_brace value
+
+and abort_handle_ends_in_brace (handle : Nodes.Abort_handle.t) =
+  match handle with
+  | Nodes.Abort_handle.Shorthand value -> expr_ends_in_brace value
+  | Nodes.Abort_handle.Longhand { body; _ } -> body_ends_in_brace body
+
+and body_ends_in_brace (body : Nodes.Body.t) =
+  match body with
+  | Nodes.Body.Longhand _ -> true
+  | Nodes.Body.Shorthand value -> expr_ends_in_brace value
+
+let decl_ends_in_brace (decl : Nodes.Decl.t) =
+  match decl with
+  | Nodes.Decl.Package _ | Nodes.Decl.Import _ -> false
+  | Nodes.Decl.Var { value; _ } -> expr_ends_in_brace value
+  | Nodes.Decl.VarShorthand { args = Nodes.Constructor_args.Fields _; _ } -> true
+  | Nodes.Decl.VarShorthand _ -> false
+  | Nodes.Decl.Type { value = Nodes.Type_or_moulded.Moulded _; _ }
+  | Nodes.Decl.Alias { value = Nodes.Type_or_moulded.Moulded _; _ } ->
+      true
+  | Nodes.Decl.Type _ | Nodes.Decl.Alias _ -> false
+  (* Its entries are a `{ }` body. *)
+  | Nodes.Decl.EnumMap _ -> true
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Subscript { value; _ }) ->
+      expr_ends_in_brace value
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Func { body; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Meth { body; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Op { body; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Constructor { body; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Flip { body; _ }) ->
+      body_ends_in_brace body
+
+(* [terminated] is what the statement was actually written with. *)
+let check_terminator ~ends_in_brace ~terminated =
+  if ends_in_brace && terminated then
+    raise
+      (Parse_error.Rejected
+         "a statement ending in `}` is closed by that brace and takes no `;`")
+  else if (not ends_in_brace) && not terminated then
+    raise (Parse_error.Rejected "a statement not ending in `}` needs a `;`")
+
+let stat_expr ~terminated build value =
+  check_terminator ~ends_in_brace:(expr_ends_in_brace value) ~terminated;
+  build value
 %}
 
 (*****************************)
@@ -143,32 +251,21 @@ let constructor_expr name args =
 (*************************)
 %%
 
-(* A declaration ends with `;` unless something already closes it.
+(* A package-scope declaration is not a statement and carries no terminator of
+   its own: it ends where its own body, bracket, or expression ends. A `;`
+   there would belong to nothing, since nothing follows a declaration that a
+   terminator would have to be told apart from -- the next declaration starts
+   with its own return type, binder, or keyword.
 
-   A declaration that binds a value — a variable, either lambda spelling, a
-   shorthand constructor — always ends with `;`. A verb declaration ends with
-   `;` only when its body is `=> expr`, since a `{ }` body closes it. A type
-   declaration ends with `;` only when it is cast from a bare type expression,
-   since a mould closes it with its own delimiter: `{ }` where the contents are
-   named typed members, `[ ]` where they are a flat list of names. Which
-   delimiter a mould uses is decided by its contents and says nothing about the
-   terminator, so `enum` reads like every other mould.
-
-   The rule is the same at the top level and inside a body, so moving a
-   declaration between them does not change how it is spelled.
-
-   A call statement follows it too: one that ends in a trailing block is closed
-   by that block and takes no terminator, while every other call statement
-   takes `;`.
-
-   The spec separates statements by newline instead; see
-   docs/spec-divergences.md. *)
+   Inside a body the same declaration is a statement and does take `;`, unless
+   it ends in a `}`; see [stat]. That is the one place the two levels differ in
+   how a declaration is spelled. *)
 package:
   | decls=list(top_decl) EOF { { Nodes.Package.decls = decls } }
 
 top_decl:
   | value=block_decl { value }
-  | value=simple_decl ";" { value }
+  | value=simple_decl { value }
 
 %inline func_lambda(body_form):
   | ret_type=ret_type "(" params=separated_list(COMMA, param) ")" body=body_form {
@@ -290,6 +387,21 @@ type_expr:
       Nodes.Call_arg.Block stats
     }
 
+(* A `{ }` body of `;`-terminated `key, value` entries. It stands in a value
+   position behind no introducing token, which is also true of a block
+   argument, so in argument position the two can meet. What tells them apart is
+   the mark after the first expression: a `,` opens an entry's value, a `;`
+   ends a statement. A literal is never empty, so a bare `{}` is a block. *)
+%inline map_entry:
+  | key=expr "," value=expr {
+      (key, value)
+    }
+
+map_lit:
+  | "{" entries=nonempty_list(terminated(map_entry, ";")) "}" {
+      Nodes.Expr.MapLit entries
+    }
+
 %inline call_arg:
   | value=expr { Nodes.Call_arg.Value value }
   | block=block_arg { block }
@@ -301,7 +413,7 @@ type_expr:
   | "(" args=call_args ")" {
       Nodes.Constructor_args.Positional args
     }
-  | "{" args=separated_list(",", field_arg) "}" {
+  | "{" args=list(terminated(field_arg, ";")) "}" {
       Nodes.Constructor_args.Fields args
     }
 
@@ -334,7 +446,7 @@ type_expr:
   | "(" params=separated_list(",", param) ")" {
       Nodes.Constructor_params.Positional params
     }
-  | "{" fields=separated_list(",", constructor_field) "}" {
+  | "{" fields=list(terminated(constructor_field, ";")) "}" {
       Nodes.Constructor_params.Fields fields
     }
 
@@ -348,59 +460,18 @@ type_expr:
       (member, value)
     }
 
-(* An enum map is a type followed by a run of bracket groups, all but the last
-   of which belong to the type as verb-type suffixes. Which one a group is
-   depends on what comes after its closing bracket, so the old shape - a
-   [type_expr] whose own suffix list had to be closed before the entry list's
-   bracket could be shifted - asked the parser to decide at the opening
-   bracket instead. Here every group is shifted first and classified after,
-   which is what the decision actually depends on.
-
-   A group's contents already say which kind it is: an entry is `name = value`
-   and a parameter type never starts that way. What the grammar cannot say is
-   that entries come last and suffixes do not, so the actions reject the two
-   orders that are not enum maps, the same way an abort handler in the wrong
-   place is rejected. *)
-enum_map_tail:
-  | "[" body=ioption(enum_map_group) "]" {
-      match body with
-      | None -> ([], [])
-      | Some (Entries entries) -> ([], entries)
-      | Some (Params _) ->
-          raise
-            (Parse_error.Rejected
-               "an enum map ends in its entry list, not in a verb-type suffix")
+(* An enum map's entries are a `{ }` body, so they no longer share a bracket
+   with the verb-type suffixes of the property's own type. The type is an
+   ordinary [type_expr] again and the entries follow it, which is what the
+   earlier shift-every-group-then-classify shape existed to work around: with
+   `[ ]` on both, whether a group was a suffix or the entry list depended on
+   what came after its closing bracket. `{ }` answers that at the opening
+   bracket, so the run of groups, the two rejected orders, and the classifier
+   carrying a group's kind are all gone. *)
+%inline enum_map_body:
+  | "{" entries=list(terminated(enum_map_entry, ";")) "}" {
+      entries
     }
-  | "[" body=ioption(enum_map_group) "]" rest=enum_map_tail {
-      let suffixes, entries = rest in
-      let params =
-        match body with
-        | None -> []
-        | Some (Params params) -> params
-        | Some (Entries _) ->
-            raise
-              (Parse_error.Rejected
-                 "an enum map's entries come after its type, not inside it")
-      in
-      let suffix ret_type =
-        Nodes.Type_expr.Verb (Nodes.Verb_type.Func { params; ret_type })
-      in
-      (suffix :: suffixes, entries)
-    }
-  | "[" THIS this_type=type_expr
-    params=loption(preceded(",", separated_nonempty_list(",", param_type)))
-    "]" is_mut=boption(MUT) rest=enum_map_tail {
-      let suffixes, entries = rest in
-      let suffix ret_type =
-        Nodes.Type_expr.Verb
-          (Nodes.Verb_type.Meth { this_type; params; ret_type; is_mut })
-      in
-      (suffix :: suffixes, entries)
-    }
-
-%inline enum_map_group:
-  | entries=separated_nonempty_list(",", enum_map_entry) { Entries entries }
-  | params=separated_nonempty_list(",", param_type) { Params params }
 
 body_decl(body_form):
   | ret_type=ret_type name=LIDENT "(" params=separated_list(",", param) ")" body=body_form {
@@ -489,32 +560,9 @@ simple_decl:
         value = Nodes.Expr.MethLambda meth_lambda;
       }
     }
-  | enum=named_type_expr "." property=LIDENT map_type=type_atom
-    tail=enum_map_tail {
-      let suffixes, entries = tail in
-      let type_ =
-        List.fold_left
-          (fun type_ suffix -> suffix (Nodes.Ret_type.Safe type_))
-          map_type suffixes
-      in
+  | enum=named_type_expr "." property=LIDENT type_=type_expr
+    entries=enum_map_body {
       Nodes.Decl.EnumMap { enum; property; type_; entries }
-    }
-  | enum=named_type_expr "." property=LIDENT
-    "(" ret_type=abort_ret_type ")" tail=enum_map_tail {
-      let suffixes, entries = tail in
-      match suffixes with
-      | [] ->
-          raise
-            (Parse_error.Rejected
-               "a parenthesized abort return has to be given a verb type")
-      | first :: rest ->
-          let type_ =
-            List.fold_left
-              (fun type_ suffix -> suffix (Nodes.Ret_type.Safe type_))
-              (first (Nodes.Ret_type.Parenthesized ret_type))
-              rest
-          in
-          Nodes.Decl.EnumMap { enum; property; type_; entries }
     }
   | "(" THIS this_type=type_expr ")"
     "[" params=separated_list(",", param) "]" "=>" value=expr {
@@ -591,40 +639,48 @@ abort_ret_type:
   | ":" { false }
   | "!" { true }
 
-(* At most one of a call's block arguments may trail its closing `)`, where it
-   still reads as the last argument. The two spellings are the same call, so
-   the productions below take the tail as a parameter and build one node.
+(* At most one of a call's arguments may trail its closing `)`, where it still
+   reads as the last argument. Only a `{ }` may take the position -- a block or
+   a map literal -- because `{` is the one opening bracket that cannot also be
+   read as a postfix on what precedes it: a trailing `[ ]` would collide with
+   the subscript syntax. The two spellings are the same call, so the
+   productions below take the tail as a parameter and build one node, recording
+   only whether the argument was written outside the `)`, since that decides
+   where the statement ends.
 
    A constructor call is left out of this rule, because `Foo() { ... }` already
    spells a constructor declaration with a block body; a constructor takes its
    blocks in the argument list. See docs/spec-divergences.md. *)
-%inline no_trailing_block:
+%inline no_trailing_arg:
   | { ([] : Nodes.Call_arg.t list) }
 
-%inline trailing_block:
+%inline trailing_arg:
   | block=block_arg { [ block ] }
+  | lit=map_lit { [ Nodes.Call_arg.Value lit ] }
 
 computed_call(trailer):
-  | receiver=func_callee "(" args=call_args ")" trailing=trailer {
+  | receiver=func_callee "(" args=call_args ")" tail=trailer {
       fun abort_handle -> Nodes.Verb_call.Func {
         callee = receiver;
-        args = args @ trailing;
+        args = args @ tail;
         abort_handle;
+        trailing = tail <> [];
       }
     }
-  | receiver=app part=meth_part "(" args=call_args ")" trailing=trailer {
+  | receiver=app part=meth_part "(" args=call_args ")" tail=trailer {
       let is_mut, callee = part in
       fun abort_handle -> Nodes.Verb_call.Meth {
         callee;
         this = receiver;
-        args = args @ trailing;
+        args = args @ tail;
         abort_handle;
         is_mut;
+        trailing = tail <> [];
       }
     }
 
 verb_call:
-  | call=computed_call(no_trailing_block) { call }
+  | call=computed_call(no_trailing_arg) { call }
   | name=constructor_name args=constructor_args {
       fun abort_handle -> Nodes.Verb_call.Constructor { name; args; abort_handle }
     }
@@ -635,7 +691,7 @@ verb_call:
    which is where "a verb declaring a block parameter is never spawned" falls
    out of the grammar rather than being written as a rule. *)
 block_call:
-  | call=computed_call(trailing_block) { call }
+  | call=computed_call(trailing_arg) { call }
 
 %inline operator:
   | op=comparison_decl_op { op }
@@ -717,9 +773,10 @@ primary:
   | THIS     { Nodes.Expr.NameExpr (Nodes.Name_expr.Ident "this") }
   | name_expr=name_expr { Nodes.Expr.NameExpr name_expr }
   | "(" e=expr ")" { Nodes.Expr.Parenthized e }
-  | INIT "{" fields=separated_list(",", field_arg) "}" {
+  | INIT "{" fields=list(terminated(field_arg, ";")) "}" {
       Nodes.Expr.Init fields
     }
+  | value=map_lit { value }
   | value=match_expr { value }
 
 %inline type_member:
@@ -825,38 +882,50 @@ abort_handle:
       Nodes.Abort_handle.Shorthand value
     }
 
-(* Semicolons terminate simple statements. Block statements remain delimited by
-   their braces and do not need an additional terminator. *)
+(* A `;` terminates a statement, unless the statement already ends in a `}` --
+   then that brace closes it and a `;` would mark nothing. Every form below
+   therefore takes the terminator as optional and hands it to
+   [check_terminator], which rejects whichever of the two spellings the
+   statement's own shape did not call for.
+
+   Note what is *not* here: a bare `{ }` is not a statement. Scoping a run of
+   work is a call taking a block argument, so the only braces that open
+   anything at this level belong to a declaration. *)
 stat:
-  | target=app "=" value=expr ";" {
+  | target=app "=" value=expr terminated=boption(";") {
+      check_terminator ~ends_in_brace:(expr_ends_in_brace value) ~terminated;
       Nodes.Stat.Assign { target; value }
     }
   | decl=block_decl {
       Nodes.Stat.Decl decl
     }
-  | decl=simple_decl ";" {
+  | decl=simple_decl terminated=boption(";") {
+      check_terminator ~ends_in_brace:(decl_ends_in_brace decl) ~terminated;
       Nodes.Stat.Decl decl
     }
-  | call=verb_call abort_handle=ioption(abort_handle) ";" {
-      Nodes.Stat.VerbCall (call abort_handle)
+  | call=verb_call abort_handle=ioption(abort_handle) terminated=boption(";") {
+      let call = call abort_handle in
+      check_terminator ~ends_in_brace:(verb_call_ends_in_brace call) ~terminated;
+      Nodes.Stat.VerbCall call
     }
-  (* Closed by its own trailing block, so it takes no terminator. An abort
-     handler is written where the call's value is bound, since a handler brings
-     a terminator question of its own. *)
+  (* Closed by its own trailing argument, so it takes no terminator and admits
+     no abort handler -- nothing may continue the call past that brace. *)
   | call=block_call {
       Nodes.Stat.VerbCall (call None)
     }
-  | SPAWN call=verb_call abort_handle=ioption(abort_handle) ";" {
-      Nodes.Stat.Spawn (call abort_handle)
+  | SPAWN call=verb_call abort_handle=ioption(abort_handle) terminated=boption(";") {
+      let call = call abort_handle in
+      check_terminator ~ends_in_brace:(verb_call_ends_in_brace call) ~terminated;
+      Nodes.Stat.Spawn call
     }
-  | ABORT value=expr ";" {
-      Nodes.Stat.Abort value
+  | ABORT value=expr terminated=boption(";") {
+      stat_expr ~terminated (fun value -> Nodes.Stat.Abort value) value
     }
-  | RETURN value=expr ";" {
-      Nodes.Stat.Ret value
+  | RETURN value=expr terminated=boption(";") {
+      stat_expr ~terminated (fun value -> Nodes.Stat.Ret value) value
     }
-  | RESOLVE value=expr ";" {
-      Nodes.Stat.Resolve value
+  | RESOLVE value=expr terminated=boption(";") {
+      stat_expr ~terminated (fun value -> Nodes.Stat.Resolve value) value
     }
 
 %inline param_type:

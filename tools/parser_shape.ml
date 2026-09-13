@@ -38,6 +38,13 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
   | Cst.Nodes.Expr.Match { scrutinees; _ } ->
       parts "match" (List.map expr_shape scrutinees)
   | Cst.Nodes.Expr.Ref value -> "ref(" ^ expr_shape value ^ ")"
+  (* A map literal renders its entries in order, so a shape says whether a
+     brace in argument position was read as a literal or as a block. *)
+  | Cst.Nodes.Expr.MapLit entries ->
+      parts "map"
+        (List.concat_map
+           (fun (key, value) -> [ expr_shape key; expr_shape value ])
+           entries)
   | _ -> "other"
 
 let abort_expr (package : Cst.Nodes.Package.t) =

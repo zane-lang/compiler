@@ -110,18 +110,20 @@ and constructor_args_to_node (x: Nodes.Constructor_args.t) = match x with
   | Fields args -> group "fields" (map_seq field_arg_to_node args)
 
 and verb_call_to_node (x: Nodes.Verb_call.t) = match x with
-  | Func { callee; args; abort_handle } ->
+  | Func { callee; args; abort_handle; trailing } ->
       group "func_call" (fields [
         ("callee", expr_to_node callee);
         ("args", map_seq call_arg_to_node args);
+        ("trailing", Leaf (string_of_bool trailing));
         abort_field abort_handle;
       ])
-  | Meth { callee; this; args; abort_handle; is_mut } ->
+  | Meth { callee; this; args; abort_handle; is_mut; trailing } ->
       group "meth_call" (fields [
         ("callee", expr_to_node callee);
         ("this", expr_to_node this);
         ("args", map_seq call_arg_to_node args);
         ("is_mut", Leaf (string_of_bool is_mut));
+        ("trailing", Leaf (string_of_bool trailing));
         abort_field abort_handle;
       ])
   | Constructor { name; args; abort_handle } ->
@@ -196,6 +198,8 @@ and expr_to_node (x: Nodes.Expr.t) = match x with
       group "parenthized" (expr_to_node x)
   | Init fields_ ->
       group "init" (map_seq field_arg_to_node fields_)
+  | MapLit entries ->
+      group "map_lit" (map_seq map_entry_to_node entries)
   | MethodTarget { callee; this; is_mut } ->
       group "method_target" (fields [
         ("callee", expr_to_node callee);
@@ -326,6 +330,12 @@ and moulded_to_node (x: Nodes.Moulded.t) =
 and type_or_moulded_to_node (x: Nodes.Type_or_moulded.t) = match x with
   | Raw x -> type_to_node x
   | Moulded x -> moulded_to_node x
+
+and map_entry_to_node (key, value) =
+  fields [
+    ("key", expr_to_node key);
+    ("value", expr_to_node value);
+  ]
 
 and enum_map_entry_to_node (member, value) =
   fields [

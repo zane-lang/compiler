@@ -1,5 +1,16 @@
-(* A slice of Zane's grammar around the one conflict its unambiguity proof
-   still trips on, kept small enough to sweep the abstraction level over.
+(* A slice of Zane's grammar around a conflict its unambiguity proof trips on,
+   kept small enough to sweep the abstraction level over.
+
+   HISTORICAL, AND KEPT ON PURPOSE. The real grammar no longer has the
+   adjacency modelled below: the spec moved an enum map's entries from `[ ]` to
+   `{ }`, so the entry list no longer shares a bracket with the verb-type
+   suffixes of the map type, and the `[` lookahead below cannot arise there any
+   more. This file is retained as a prover corpus case rather than as a mirror
+   of the current parser -- what it demonstrates is a property of the
+   abstraction (a lookahead set merged across contexts that the retained stack
+   cannot separate), and that property is worth a standing test whether or not
+   Zane's own grammar still exhibits it. Do not read the widths below as a
+   claim about `lib/cst/parser.mly` today.
 
    The conflict: after `&Foo`, with `[` as the lookahead, the parser can
 

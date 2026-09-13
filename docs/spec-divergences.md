@@ -15,7 +15,7 @@ settles, in one pass rather than section by section. Until then:
 - Each entry cites the spec section it departs from and states both rules, so
   the claim can be rechecked rather than taken on trust.
 
-Entries below were checked against spec commit `5bf48ae`, and the links
+Entries below were checked against spec commit `034f11a`, and the links
 point at that commit so a later spec edit cannot silently make a quotation
 here disagree with what it links to. Re-pin them when the entries are
 rechecked. Where a claim is
@@ -23,33 +23,26 @@ about what the parser accepts, it was measured with
 `ambiguity search --check-tokens`, which reports how many parses a token
 sequence has: `0` is a syntax error, `1` is accepted.
 
+Three entries closed at this re-pin, when the spec moved to `;`-terminated
+statements and a brace that ends one. What was the widest divergence — the
+spec separating statements by newline where the compiler terminated them — is
+gone, and with it the same-line rule for a trailing block and the disagreement
+over what may follow one. The **Closed** section at the end records them, since
+an entry that simply vanishes reads as an oversight.
+
 ---
 
-## 1. Statements are terminated, not separated
+## 1. A match arm's terminator follows its body
 
-**Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/5bf48ae/spec/lexical.md)
-§6.3: "A newline separates statements in a function body or a control-flow
-block. Zane has no statement separator, so two statements cannot share a line.
-This is the one place a newline is structural."
-
-**Compiler** — a newline carries no meaning anywhere. A simple statement is
-terminated by `;`, and two statements may share a line.
-
-This is the widest divergence, and every other terminator difference follows
-from it. The spec's examples are written without `;` throughout; the same
-programs need one per simple statement here.
-
-The lexer produces no `NEWLINE` token, so closing this would be a lexical
-change before it is a grammatical one.
-
-## 2. A match arm's terminator follows its body
-
-**Spec** — [`adt.md`](https://github.com/zane-lang/spec/blob/5bf48ae/spec/adt.md)
-§5.1 and [`syntax.md`](https://github.com/zane-lang/spec/blob/5bf48ae/spec/syntax.md)
+**Spec** — [`adt.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/adt.md)
+§5.1 and [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
 §4.8: the scrutinee is followed by "a `{ }` block of `;`-terminated arms", with
 the arm given as `[binder] selector => body ;`.
-[`lexical.md`](https://github.com/zane-lang/spec/blob/5bf48ae/spec/lexical.md)
-§7 repeats it: `;` terminates "every arm of a `match` block".
+[`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
+§6.3 now says so in as many words: an entry of a `{ }` body "carries its `;`
+unconditionally [...] including an entry whose value ends in a `}` — that
+uniformity is what makes newlines insignificant inside a body, and it does not
+bend for the last entry or for any particular value shape."
 
 **Compiler** — an arm whose body is `=> expr` is terminated by `;`; an arm whose
 body is a `{ }` block is not, because the block already closes it.
@@ -59,13 +52,23 @@ red { return "Red"; }     // accepted; `red { ... };` is rejected
 green => "Green";         // accepted; `green => "Green"` is rejected
 ```
 
-This follows the rule the parser applies to declarations, where the terminator
-marks a construct that would otherwise trail off into an expression. Applying
-it uniformly is what makes an arm body and a function body interchangeable.
+This is the compiler's brace rule applied to an arm as though it were a
+statement. The spec draws the line elsewhere: the brace ends a *statement*, and
+an arm is an entry, which carries its terminator whatever its body looks like.
+Both rules are uniform; they differ over which uniformity an arm belongs to.
 
-## 3. `and` and `or` are still keywords here
+The compiler follows the spec on the `=> expr` arm whose *value* ends in a
+brace, which keeps its `;` like any other entry:
 
-**Spec** — [`operators.md`](https://github.com/zane-lang/spec/blob/5bf48ae/spec/operators.md)
+```zane
+wanted name => env:lookup(wanted) ? missing {
+    abort missing;
+};                        // accepted, and the `;` is required
+```
+
+## 2. `and` and `or` are still keywords here
+
+**Spec** — [`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
 §2.4 has no `and` or `or` at all. `Bool` draws from the same fixed operator set
 as every other type: `*` is conjunction, `+` is disjunction, `~` is complement,
 and both operands are evaluated. A deferred right operand is an overload taking
@@ -80,26 +83,11 @@ these as short-circuiting keywords without placing them. The spec has since
 removed them, so what is left to reconcile is the whole construct rather than
 its precedence.
 
-## 4. A trailing block is placed by position, not by line
+## 3. A constructor call carries its blocks in the argument list
 
-**Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/5bf48ae/spec/syntax.md)
-§4.9: "A trailing block's `{` **MUST** open on the same line as the call, which
-is what distinguishes it from a statement block on the following line", and the
-example marks `g()` followed by a `{ }` on the next line as a plain statement
-block rather than an argument.
-
-**Compiler** — a `{` that follows a call's `)` is that call's trailing block
-wherever it is written, because no newline carries meaning (§1). Nothing is lost
-by it: a braced run of statements is not a statement here, so the second reading
-the spec's rule keeps away does not exist. The rule becomes load-bearing on the
-day a `NEWLINE` token and a statement block arrive, which is the same day §1
-closes.
-
-## 5. A constructor call carries its blocks in the argument list
-
-**Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/5bf48ae/spec/syntax.md)
-§4.9: "A call may carry any number of **block arguments** [...] At most one of
-them may **trail** the argument list", said of calls in general.
+**Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
+§4.9: "A call's **last** argument may instead **trail** [...] Only a `{ }`
+argument may trail", said of calls in general.
 
 **Compiler** — a function or method call may trail one; a constructor call may
 not, and writes every block in its argument list.
@@ -110,28 +98,87 @@ Foo() { run(); }     // a constructor declaration, here and in a body alike
 ```
 
 The second line is a positional constructor declaration with a block body
-([`syntax.md`](https://github.com/zane-lang/spec/blob/5bf48ae/spec/syntax.md)
+([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
 §3.3), which it already was before block arguments existed. Letting a
 constructor call trail a block would give those tokens a second reading, so it
 may not; a function or method call is not spelled that way and can. Measured
 with `--check-tokens`, `UIDENT LPAREN RPAREN LCURLY RCURLY EOF` has 1 parse.
 
-## 6. A call statement closed by a trailing block takes no handler
+## 4. A declaration inside a body is terminated like the statement it is
 
-**Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/5bf48ae/spec/syntax.md)
-§6.2 gives `expr ? binder { ... }` for any abortable operation.
+**Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
+§6.3: "A **package-scope declaration** is not a statement and takes no
+terminator of its own; it ends where its own body or bracket ends." The forms
+in [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
+§1 are written bare throughout — `name VarType = expr`, `import packageName`,
+`type Name = TypeExpr`, `name ReturnType(param ParamType, ...) => expr`.
 
-**Compiler** — a call statement ending in a trailing block is closed by that
-block and takes neither a `;` nor a handler. An abortable one is handled where
-its value is bound:
+**Compiler** — agrees at package scope, and applies the statement rule
+unchanged inside a body. A declaration written in a function body is a
+statement there, so it takes `;` unless it ends in a `}`:
 
 ```zane
-retry(count) { attempt(); }                       // accepted
-done Unit = retry(count) { attempt(); } ? e {     // accepted
-    resolve Unit();
-};
+type Meters = Int            // package scope: no terminator
+
+Unit use() {
+    answer Int = Int(42);    // in a body: terminated, like any statement
+    ran Bool = if(ready) {
+        start();
+    }                        // in a body: the brace ends it, so no `;`
+}
 ```
 
-This keeps one terminator rule per statement form. A handler brings its own
-terminator question — a `{ }` handler body closes the statement, a `=> expr` one
-does not — and answering both in a single form is what the grammar avoids.
+The spec's sentence covers the package-scope half and says nothing about the
+same declaration written inside a body, where §6.3's own rule — every statement
+is terminated, unless it ends in a `}` — is the only rule that applies. The
+compiler reads a declaration in a body as a statement and terminates it on that
+basis. The divergence is therefore narrow and may not be one at all: it is
+recorded because moving a declaration between the two levels changes how it is
+spelled, which is a real cost and worth stating out loud rather than
+discovering.
+
+`package`, `import`, a raw `type`/`alias`, a `=> expr` verb, and a positional
+instantiation are the forms this is visible on. A mould, a `{ }` verb body, and
+an enum map end in a brace and are spelled the same at both levels.
+
+---
+
+## Closed at the `034f11a` re-pin
+
+Kept briefly so a reader who remembers them can see they were closed on
+purpose, and by which spec change.
+
+- **Statements are terminated, not separated.** The spec separated statements
+  by newline and called it "the one place a newline is structural"; the
+  compiler has always terminated them with `;` and given newlines no meaning.
+  Spec [#181](https://github.com/zane-lang/spec/pull/181) adopted the
+  terminator — "a `;` **terminates** every statement in a code block" — and
+  with it "**`Newlines are never structural`**". The compiler's rule is now the
+  spec's. What the compiler had to add was the other half of the new rule: a
+  statement that ends in a `}` takes no terminator, which it previously applied
+  only to a call closed by a trailing block and now applies to every statement.
+
+- **A trailing block is placed by position, not by line.** The spec required a
+  trailing block's `{` to open on the same line as its call, to tell it from a
+  statement block on the next line. Spec #181 removed the rule along with the
+  statement block itself: a `{ }` may no longer open a statement
+  ([`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
+  §6.3.1), so nothing is left for the line to disambiguate. The compiler never
+  had a statement block and never read a newline, so it already behaved this
+  way; `Unit use() { { work(); } }` is rejected, and the scoped form is
+  `do() { work(); }`.
+
+- **A call statement closed by a trailing block takes no handler.** The spec
+  gave `expr ? binder { ... }` for any abortable operation, which read as
+  permitting a handler after a trailing block. Spec #181 settled it the other
+  way: "A trailing argument **MUST** be the last thing in its statement [...]
+  neither a `;` nor anything that would continue the call may come after it."
+  The compiler now enforces exactly that, for a handler and for a further call
+  or subscript alike, and an abortable call that wants a handler writes its
+  block inside the argument list:
+
+  ```zane
+  done Unit = retry(count, { attempt(); }) ? e {
+      resolve Unit();
+  }
+  ```

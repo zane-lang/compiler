@@ -87,6 +87,9 @@ module rec Expr : sig
     | Ref of t
     | Parenthized of t
     | Init of Field_arg.t list
+    (* A `{ }` body of `;`-terminated `key, value` entries. Never empty: an
+       empty `{ }` in a value position is a block, so the two never compete. *)
+    | MapLit of (t * t) list
     | MethodTarget of { callee : t; this : t; is_mut : bool }
     | Pipe of {
         callee : t;
@@ -129,11 +132,18 @@ and Constructor_args : sig
     | Fields of Field_arg.t list
 end = Constructor_args
 
-(* needs grouping because then we can unify the abort handling *)
+(* needs grouping because then we can unify the abort handling
+
+   [trailing] records whether the call's last argument was written after the
+   `)` rather than inside it. The two spellings mean the same call, so nothing
+   downstream of the parser reads it, but they do not end the same way: a
+   trailing argument's `}` closes the statement, which decides whether a `;`
+   follows and forbids an abort handler after it. That is surface information,
+   and a CST that could not tell the two apart could not apply either rule. *)
 and Verb_call : sig
   type t =
-    | Func        of { callee: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; }
-    | Meth        of { callee: Expr.t; this: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; is_mut: bool; }
+    | Func        of { callee: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; trailing: bool; }
+    | Meth        of { callee: Expr.t; this: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; is_mut: bool; trailing: bool; }
     | Constructor of { name: Constructor_name.t; args: Constructor_args.t; abort_handle: Abort_handle.t option; }
     | Op          of { op: Operator.t; left: Expr.t; right: Expr.t; abort_handle: Abort_handle.t option; }
     | Flip        of { value: Expr.t; abort_handle: Abort_handle.t option; }
