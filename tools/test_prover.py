@@ -125,6 +125,15 @@ RETIRED_HEADER = re.compile(
     r"moving it\. The grammar is unproven at these sites and nowhere else:$",
     re.MULTILINE,
 )
+# The same list when the abstract phase did not finish. "Nowhere else" is a
+# claim about the whole grammar and only the exhaustive walk earns it.
+RETIRED_HEADER_CUT_SHORT = re.compile(
+    r"^Retired (\d+) divergence site\(s\), each after refinement stopped "
+    r"moving it\. The grammar is unproven at these sites and unclassified "
+    r"everywhere else, since this run stopped before it finished walking the "
+    r"abstract space:$",
+    re.MULTILINE,
+)
 RETIRED_ENTRY = re.compile(
     r"^  \d+\. states? \d+(?: and \d+)? on lookahead \S+: .+$", re.MULTILINE
 )
@@ -842,6 +851,43 @@ class RetirementTests(ProverTestCase):
             EVEN_PALINDROME, 1, extra=("--prove-refine", "5", "--prove-retire", "2")
         )
         self.assertRegex(output, RETIRED_CLOSED_LINE)
+
+    def test_a_cut_short_run_claims_nothing_about_the_rest(self) -> None:
+        # Retiring says what it gave up on; only an exhaustive walk says the
+        # rest came out clean. A round limit that ends the run one retirement
+        # in leaves a candidate standing at a different site, printed directly
+        # below the retirement list -- so the unqualified "nowhere else" used
+        # to contradict the same output it appeared in.
+        _, cut_short = self.prove(
+            TWO_INDEPENDENT_SITES,
+            1,
+            extra=(
+                "--prove-refine",
+                "6",
+                "--prove-retire",
+                "1",
+                "--prove-refine-rounds",
+                "1",
+            ),
+        )
+        self.assertRegex(cut_short, RETIRED_HEADER_CUT_SHORT)
+        self.assertNotRegex(cut_short, RETIRED_HEADER)
+        # The guard against that passing for the wrong reason: one more round
+        # finishes the walk on the same grammar, and then the claim is earned.
+        _, finished = self.prove(
+            TWO_INDEPENDENT_SITES,
+            1,
+            extra=(
+                "--prove-refine",
+                "6",
+                "--prove-retire",
+                "1",
+                "--prove-refine-rounds",
+                "2",
+            ),
+        )
+        self.assertRegex(finished, RETIRED_HEADER)
+        self.assertNotRegex(finished, RETIRED_HEADER_CUT_SHORT)
 
     def test_a_second_site_behind_the_first_is_still_reached(self) -> None:
         # The property retiring exists for, and the one its pruning could

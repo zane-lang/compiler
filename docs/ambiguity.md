@@ -96,8 +96,9 @@ intended reading point opposite ways here. Settling that is a language
 decision, and until it is settled these states carry neither a precedence
 resolution nor a transience argument.
 
-What the grammar does today is pinned by three witnesses, each accepted by
-exactly one derivation, so the fork is resolved rather than ambiguous on them:
+What the grammar does today is pinned by three witnesses. Two are accepted by
+exactly one derivation, so the fork is resolved rather than ambiguous on them,
+and the third is rejected outright:
 
 ```sh
 ambiguity check LIDENT UIDENT EQUAL MATCH LIDENT LPAREN RPAREN LCURLY RCURLY LCURLY LIDENT THICK_ARROW INT SEMICOLON RCURLY SEMICOLON EOF

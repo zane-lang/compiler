@@ -6,6 +6,12 @@
 # Command: ambiguity_search.exe lib/cst/parser.mly --prove 1 --prove-refine 9 --prove-refine-rounds 14 --prove-retire 3 --max-tokens 16 --timeout 2400 --max-witnesses 5
 # Ran to its own verdict. Supersedes the interrupted run of the same shape.
 #
+# Kept verbatim, including one sentence the engine no longer prints. This run
+# ended on its timeout after 558517 of 6316128 pairs, and the retirement list
+# below still reads "unproven at these sites and nowhere else" -- a claim only
+# an exhaustive walk earns. The engine now says "unclassified everywhere else"
+# when the phase was cut short; read the line here as that.
+#
 Search constraints: 0..16 total tokens; 0-token prefix; breadth-first scheduling.
 Proof budget: 6316128 abstract pairs (single-threaded; the 4-worker split does not apply).
 Refinement round 1: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN SEMICOLON EOF, retaining up to 9 (state 50 to 7, state 1034 to 3, state 310 to 6, state 67 to 7, state 749 to 6, state 62 to 9, state 30 to 7, state 189 to 5, state 6 to 6, state 164 to 7, state 8 to 8, state 123 to 7, state 96 to 6, state 222 to 5, state 757 to 2, state 903 to 7, state 65 to 9, state 44 to 7, state 1035 to 3, state 64 to 8, state 190 to 6, state 68 to 5, state 1039 to 3, state 115 to 6, state 136 to 5, state 63 to 7, state 186 to 5, state 7 to 7, state 107 to 5, state 555 to 2, state 86 to 6, state 320 to 7).
