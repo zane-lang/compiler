@@ -1,0 +1,20 @@
+# Unambiguity survey, proof level 2
+#
+# Engine: tools/ambiguity_search.ml, built with ocamlopt 4.14.1 outside the
+# project toolchain; Menhir 20231231. State numbers are Menhir-version
+# sensitive, so re-read them with `just explain --state N` under the same
+# Menhir before citing them.
+# Grammar: lib/cst/parser.mly at 27d6b4c.
+# Command: ambiguity_search.exe lib/cst/parser.mly --prove 2 --prove-survey 8 --max-tokens 14 --timeout 3000 --max-witnesses 5
+# Ended on the abstract phase timeout, so its counts are a floor.
+#
+Search constraints: 0..14 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 6573929 abstract pairs (single-threaded; the 4-worker split does not apply).
+Survey at level 2: 1178 distinct divergence site(s), 1 accepting abstract pair(s), 522086 pairs explored (incomplete: the counts are a floor).
+  1. LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT LBRACKET RBRACKET SEMICOLON EOF
+     divergence site on lookahead LPAREN
+     abstract stack (top first): 325 1025
+     conflict at stack 325 1025:
+       reduce loption_generics_ -> 
+       shift to 326
+NOT PROVEN: the survey enumerates where the abstraction cannot separate two parses; it does not concretize them.

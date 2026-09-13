@@ -1,0 +1,41 @@
+# Forward trace of the surviving candidate at state 325
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1; Menhir 20231231.
+# State numbers are Menhir-version sensitive.
+# Grammar: lib/cst/parser.mly at 27d6b4c.
+# Command: ambiguity_search.exe lib/cst/parser.mly --prove 1 --prove-trace --max-tokens 14 --timeout 600 --max-witnesses 3
+# Killed by a container restart after printing the trace.
+#
+Search constraints: 0..14 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 6573929 abstract pairs (single-threaded; the 4-worker split does not apply).
+Abstract ambiguity candidate at level 1 after 10628 pairs (possibly spurious): LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN SEMICOLON EOF
+  divergence site on lookahead LPAREN
+  abstract stack (top first): 325
+  conflict at stack 325:
+    reduce loption_generics_ -> 
+    shift to 326
+  forward from the site, to acceptance:
+   1. on LPAREN       stack 325
+        guessed at state 62 (exact from 4)
+        guessed at state 555 (exact from 2)
+   2. on LIDENT       left 326 | right 559  [exact]
+   3. on LPAREN       left 107 | right 136
+        guessed at state 136 (exact from 2)
+        guessed at state 186 (exact from 2)
+   4. on UIDENT       left 6 | right 190  [exact]
+   5. on RPAREN       left 7 | right 123
+        guessed at state 62 (exact from 4)
+   6. on SEMICOLON    stack 64
+        guessed at state 65 (exact from 5)
+        guessed at state 310 (exact from 6)
+        guessed at state 749 (exact from 6)
+        guessed at state 757 (exact from 2)
+   7. on EOF          stack 1034
+        guessed at state 1034 (exact from 3)
+        guessed at state 1035 (exact from 3)
+   8. on #            stack 1039
+        guessed at state 1039 (exact from 3)
+Stack height: refused 455345 move(s) onto a state no stack that short can carry; the height stops being counted past 18.
+Attempting to concretize with the bounded search...
+
+Memory budget: 8192 MiB total across 4 worker(s); workers compact at 1638 MiB and stop admitting frontiers at 1843 MiB each (10% reserved); per-worker limits are 1643482 queued frontiers and 1643482 retained dedup frontiers (ratio 1).

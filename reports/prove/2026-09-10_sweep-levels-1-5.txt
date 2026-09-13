@@ -1,0 +1,30 @@
+# Precision sweep, levels 1-5
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1; Menhir 20231231.
+# State numbers are Menhir-version sensitive.
+# Grammar: lib/cst/parser.mly at 20a41ae.
+# Command: python3 tools/precision_sweep.py lib/cst/parser.mly --levels 1-5 \
+#            --timeout 240 --max-tokens 12 --quiet
+# AMBIGUITY_MEMORY_MB=8192, JOBS=4 on a 4-core 16GB machine.
+# Every level hit the per-level timeout, so the tool reports the table as
+# inconclusive and every count in it is a floor.
+#
+Sweeping lib/cst/parser.mly at 240s per level.
+
+level  verdict     accepting   sites      pairs  walk        seconds
+--------------------------------------------------------------------
+    1  not proven          1     362      63389  CUT SHORT     242.1
+    2  not proven          1     890     190636  CUT SHORT     241.9
+    3  not proven          1    4650     850338  CUT SHORT     240.5
+    4  not proven          1   16473     839590  CUT SHORT     243.1
+    5  not proven          0   19759     897628  CUT SHORT     240.7
+
+INCONCLUSIVE: level 1, level 2, level 3, level 4, level 5 did not finish walking the abstract space, so their counts are a floor rather than a total. Raise --timeout or AMBIGUITY_MEMORY_MB before reading the trend.
+
+Surviving site at level 4:
+  1. LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT LBRACKET RBRACKET SEMICOLON EOF
+     divergence site on lookahead LPAREN
+     abstract stack (top first): 325 1025 0
+     conflict at stack 325 1025 0:
+       reduce loption_generics_ -> 
+       shift to 326

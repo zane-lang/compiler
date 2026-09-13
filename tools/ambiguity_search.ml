@@ -3730,14 +3730,22 @@ let main () =
            and this says what "the rest" left out. Each one is printed with the
            sentence that reached it and the conflict behind it, because a site
            nobody can act on is not a useful thing to have stopped for. *)
-        let report_retirements () =
+        (* [exhaustive] is whether the abstract phase actually finished walking
+           the space. Only then is "nowhere else" a claim about the grammar: a
+           run stopped by the clock, the pair budget, or a surviving candidate
+           has classified the sites it retired and nothing about the rest, and
+           saying otherwise would read as coverage it never had. *)
+        let report_retirements ~exhaustive () =
           if !retirements <> [] then begin
             let retirements = List.rev !retirements in
             printf
               "Retired %d divergence site(s), each after refinement stopped \
-               moving it. The grammar is unproven at these sites and nowhere \
-               else:\n"
-              (List.length retirements);
+               moving it. The grammar is unproven at these sites %s:\n"
+              (List.length retirements)
+              (if exhaustive then "and nowhere else"
+               else
+                 "and unclassified everywhere else, since this run stopped \
+                  before it finished walking the abstract space");
             List.iteri
               (fun index ((state, other, lookahead), reason, example) ->
                 printf "  %d. state%s %d%s on lookahead %s: %s\n"
@@ -3755,8 +3763,8 @@ let main () =
               retirements
           end
         in
-        let report_refinement () =
-          report_retirements ();
+        let report_refinement ~exhaustive () =
+          report_retirements ~exhaustive ();
           if !rounds > 0 then
             printf "Refinement reached: %s\n" (precision_summary ());
           Option.iter
@@ -3784,7 +3792,7 @@ let main () =
                parses exists in the top-%d stack abstraction (%d abstract \
                pairs explored).\n"
               !prove_level pairs;
-            report_refinement ();
+            report_refinement ~exhaustive:true ();
             printf
               "Attempting to concretize with the bounded search...\n\n"
         | Proven pairs ->
@@ -3837,7 +3845,7 @@ let main () =
                abstraction level %d. Raise AMBIGUITY_MEMORY_MB or \
                AMBIGUITY_MAX_FRONTIER_RATIO, or lower --prove.\n"
               pairs !prove_level;
-            report_refinement ();
+            report_refinement ~exhaustive:false ();
             exit not_proven_status
         | Prove_timeout pairs ->
             printf
@@ -3845,13 +3853,13 @@ let main () =
                phase at level %d, after %d pairs. Raise --timeout, or lower \
                --prove.\n"
               timeout !prove_level pairs;
-            report_refinement ();
+            report_refinement ~exhaustive:false ();
             exit not_proven_status
         | Abstract_candidate candidate ->
             let tokens = candidate.candidate_tokens in
             let example = candidate.candidate_example in
             let forward = candidate.candidate_forward in
-            report_retirements ();
+            report_retirements ~exhaustive:false ();
             printf
               "Abstract ambiguity candidate at level %d after %d pairs \
                (possibly spurious): %s\n"

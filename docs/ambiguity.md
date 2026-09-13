@@ -63,18 +63,57 @@ the state is triaged into one of these categories.
 
 ### Where the current conflicts come from
 
-Menhir reports 26 conflict states. Twenty-three of them turn on one lookahead
+Menhir reports 29 conflict states. Twenty-six of them turn on one lookahead
 token and three turn on four at once, so the table counts states rather than
-token occurrences and its rows sum to the same 26. They are not independent
+token occurrences and its rows sum to the same 29. They are not independent
 problems:
 
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
 | `(`             | 9 | `loption_generics_ ->` | before a call or a lambda |
-| `<`             | 9 | `loption_generics_ ->` | against `<` as less-than |
+| `<`             | 9 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `{`             | 3 | `app -> ... DOT LIDENT` | a field access against a constructor body |
+| `{`             | 3 | `computed_call_no_trailing_block_ -> ... RPAREN` | a call's trailing block against an enclosing brace |
 | `(`             | 2 | `primary -> LIDENT`, `primary -> THIS` | a bare name against a call or a lambda |
+
+The `<` row is about the declaration form, not the comparison. Its nine states
+all reduce toward `ret_type "<" "(" params ")" body`, the declaration of the
+`<` operator, against shifting `<` as the opening bracket of a generic argument
+list: after a name type, `Foo<Int> …` and `Foo <(a Int) { }` open with the same
+two tokens. Dropping `<` and `>` from the operators a declaration may name
+removes all nine and nothing else, which is what identifies the family; it is a
+language change rather than a restructuring, so it is a measurement here and
+not a proposal.
+
+The three `{` states that reduce a completed call are **open obligations**. A
+call may be closed by a trailing block, so after `f(x)` a following `{` is
+either that block or a brace belonging to whatever encloses the call — in
+`match f(x) { … }`, the arms. The smallest grouping rule attaches following
+syntax to the nearest preceding construct that can accept it, which reads the
+brace as the call's block and leaves the `match` unclosed, so the rule and the
+intended reading point opposite ways here. Settling that is a language
+decision, and until it is settled these states carry neither a precedence
+resolution nor a transience argument.
+
+What the grammar does today is pinned by three witnesses. Two are accepted by
+exactly one derivation, so the fork is resolved rather than ambiguous on them,
+and the third is rejected outright:
+
+```sh
+ambiguity check LIDENT UIDENT EQUAL MATCH LIDENT LPAREN RPAREN LCURLY RCURLY LCURLY LIDENT THICK_ARROW INT SEMICOLON RCURLY SEMICOLON EOF
+```
+
+`x Int = match f() { } { a => 1; };` is accepted, and reads the first brace as
+the call's block and the second as the arms. `x Int = match f() { a => 1; };`
+is accepted the only way it can be, since `a => 1;` is not a statement and so
+cannot be the call's block. `x Int = match f() { a => 1; } { };` is rejected
+for the same reason, once the arms are spent there is nothing left to take the
+last brace. The first of the three is what block arguments added: before them
+it was rejected. That every arm list which is not also a statement list escapes
+the fork is the shape a transience argument would have to take, and it is not
+one yet — the case where a brace's contents read as both has not been ruled
+out.
 
 There were twelve more, on `[`, and all twelve were one adjacency: an enum
 map's type was a `type_expr`, whose own run of verb-type suffixes had to be
@@ -86,13 +125,40 @@ refinement round, so no retained depth ever closed it. `enum_map_tail` shifts
 every group before classifying it, which removed all twelve without changing
 what the language accepts.
 
-Twenty-one of the 26 reduce `loption_generics_ ->` and five reduce `app` or
-`primary`. The empty generics reduction is load-bearing rather than an
-artifact: expanding the option into two explicit alternatives raises the count
-to 40, and dropping generics from named types raises it to 28. What it stands
-in for is a genuine overlap in the surface syntax — `x Foo(…)` is either a
-constructor shorthand or a lambda declaration whose return type is `Foo`, and
-nothing before the closing bracket says which.
+Twenty-one of the 29 reduce `loption_generics_ ->`, five reduce `app` or
+`primary`, and three reduce a completed call. The empty generics reduction is
+load-bearing rather than an artifact: expanding the option into two explicit
+alternatives raises the count to 43, and dropping generics from named types
+raises it to 31, both by trading shift/reduce states for reduce/reduce ones.
+What it stands in for is a genuine overlap in the surface syntax — `x Foo(…)`
+is either a constructor shorthand or a lambda declaration whose return type is
+`Foo`, and nothing before the closing bracket says which.
+
+### Restructurings that were measured and rejected
+
+`enum_map_tail` removed twelve conflicts by shifting every bracket group before
+classifying it, and the same move looks like it should close the generics
+family: give the constructor path the same `loption(generics)` the type path
+carries, so that no reduction has to decide which one a name type is opening.
+Measured, it goes the wrong way. Adding the option to `constructor_name` turns
+29 conflict states into 49, twelve of them reduce/reduce; routing `verb_call`
+through `constructor_decl_name`, which reaches the same shape by a different
+edit, lands on the same 49.
+
+What the enum-map case had and this one does not is a common shape to shift.
+Both readings of a bracket group there were `[ … ]`, differing only in the role
+the contents played, so one rule could take the group and let the actions sort
+it out afterward. Here the two readings diverge in shape at the token the
+decision is about: `Foo<Int>` continues as a type, `Foo(x)` as an argument
+list, and `Foo.bar` as either a type member or a constructor member. Giving
+both paths the same optional generics makes their prefixes identical without
+making their continuations identical. It buys two `(` states and pays ten new
+`.` states and twelve reduce/reduce ones for them: the parser now cannot tell
+which nonterminal it is completing at the point where it used to know.
+
+The reading to take from this is that the remaining families are not waiting
+for a factoring. They are overlaps in the surface syntax whose resolution sits
+past any fixed lookahead, which is what the prover is for.
 
 ## Tooling
 
@@ -214,7 +280,7 @@ nothing before the closing bracket says which.
   goto target sitting on one of those guessed sources — two entries, with
   nothing underneath. Walking downward from the deepest entry recovers context
   wherever the automaton leaves no choice about what sits below, which holds
-  for 744 of the current grammar's 919 reachable states, and the walk stops at
+  for 860 of the current grammar's 1040 reachable states, and the walk stops at
   the first entry with more than one possible predecessor. Descending through a
   branch would mean carrying one stack per predecessor, and two stacks
   differing only in how a split resolved are different possible worlds rather

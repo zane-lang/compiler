@@ -1,0 +1,58 @@
+# Concretising the prover's candidates
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1; Menhir 20231231.
+# Grammar: lib/cst/parser.mly at 4ec14bd.
+# Command: ambiguity check <tokens>   (--check-tokens, a real GLR recognizer)
+#
+# Every candidate the abstraction reported was fed back to the recognizer.
+# "Accepting derivations" is 0 rejected, 1 accepted and unambiguous, 2+
+# ambiguous. All four come back 0: the sentences are not ambiguous, they are
+# not accepted at all. The pairs are spurious, which is what the engine's own
+# "(possibly spurious)" label allows for.
+
+  0   LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT LBRACKET RBRACKET SEMICOLON EOF
+      site 325, surviving candidate at sweep level 4
+  0   LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN SEMICOLON EOF
+      site 325, candidate at level 1 and the subject of the forward trace
+  0   LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT LBRACKET AMPERSAND UIDENT SEMICOLON EOF
+      site 325, candidate at refinement round 8, the round before it retired
+  0   UIDENT LCURLY RCURLY LCURLY THIS RPAREN LCURLY RCURLY SEMICOLON EOF
+      site 192, the candidate reported when it retired
+
+# Controls, same binary and invocation:
+  1   LIDENT UIDENT EQUAL INT SEMICOLON EOF                     (x Int = 1;)
+  1   LIDENT UIDENT EQUAL MATCH LIDENT LPAREN RPAREN LCURLY LIDENT THICK_ARROW INT SEMICOLON RCURLY SEMICOLON EOF
+  0   LPAREN LPAREN SEMICOLON EOF                               (not a program)
+
+# This is consistent with every proof run so far exiting 3 (not proven) and
+# never 1 (a concrete ambiguous sentence was found): the concretization search
+# that follows the abstract phase has never turned a candidate into a witness.
+# It is evidence about these candidates, not a proof about the grammar.
+
+# What the candidate is, if it is not an ambiguity
+#
+# The sentence fails for a reason unrelated to the fork it was reported at:
+# a bare uppercase name is not an expression in Zane.
+#
+  0   LIDENT UIDENT EQUAL UIDENT SEMICOLON EOF                (x Int = Bar;)
+  1   LIDENT UIDENT EQUAL UIDENT DOT LIDENT SEMICOLON EOF     (x Int = Bar.b;)
+#
+# Give the candidate the one token it is missing and it becomes a real
+# program, accepted by exactly one derivation -- the fork happens and one
+# branch dies, which is the policy holding:
+#
+  0   LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN SEMICOLON EOF
+      x Foo(y(Bar));   -- the candidate
+  1   LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT DOT LIDENT RPAREN RPAREN SEMICOLON EOF
+      x Foo(y(Bar.b)); -- the same shape, completed
+#
+# And the two readings the fork at state 325 is between are both real:
+#
+  1   LIDENT UIDENT LPAREN INT RPAREN SEMICOLON EOF           (x Foo(1);        constructor)
+  1   LIDENT UIDENT LPAREN LIDENT UIDENT RPAREN THICK_ARROW LIDENT SEMICOLON EOF
+                                                              (x Foo(a Int) => a;  lambda)
+#
+# So the report is a real fork followed by an unreal continuation. The branch
+# that should have died dies during the closing reduction chain, and that is
+# where the forward trace shows the abstraction guessing -- on RPAREN,
+# SEMICOLON and EOF, not at the fork.

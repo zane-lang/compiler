@@ -1,0 +1,48 @@
+# Refinement diagnostic, base level 1, ceiling 9 -- completed
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1; Menhir 20231231.
+# State numbers are Menhir-version sensitive.
+# Grammar: lib/cst/parser.mly at 27d6b4c.
+# Command: ambiguity_search.exe lib/cst/parser.mly --prove 1 --prove-refine 9 --prove-refine-rounds 14 --prove-retire 3 --max-tokens 16 --timeout 2400 --max-witnesses 5
+# Ran to its own verdict. Supersedes the interrupted run of the same shape.
+#
+# Kept verbatim, including one sentence the engine no longer prints. This run
+# ended on its timeout after 558517 of 6316128 pairs, and the retirement list
+# below still reads "unproven at these sites and nowhere else" -- a claim only
+# an exhaustive walk earns. The engine now says "unclassified everywhere else"
+# when the phase was cut short; read the line here as that.
+#
+Search constraints: 0..16 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 6316128 abstract pairs (single-threaded; the 4-worker split does not apply).
+Refinement round 1: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN SEMICOLON EOF, retaining up to 9 (state 50 to 7, state 1034 to 3, state 310 to 6, state 67 to 7, state 749 to 6, state 62 to 9, state 30 to 7, state 189 to 5, state 6 to 6, state 164 to 7, state 8 to 8, state 123 to 7, state 96 to 6, state 222 to 5, state 757 to 2, state 903 to 7, state 65 to 9, state 44 to 7, state 1035 to 3, state 64 to 8, state 190 to 6, state 68 to 5, state 1039 to 3, state 115 to 6, state 136 to 5, state 63 to 7, state 186 to 5, state 7 to 7, state 107 to 5, state 555 to 2, state 86 to 6, state 320 to 7).
+Refinement round 2: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT LBRACKET RBRACKET SEMICOLON EOF, retaining up to 9 (state 18 to 9, state 32 to 9, state 60 to 9, state 59 to 9, state 79 to 9, state 61 to 9, state 96 to 7, state 28 to 9, state 24 to 9, state 37 to 9, state 115 to 7, state 9 to 9, state 43 to 9, state 86 to 7).
+Refinement round 3: deepened the stacks behind UIDENT LCURLY RCURLY LCURLY FALSE RPAREN LCURLY RCURLY SEMICOLON EOF, retaining up to 9 (state 877 to 8, state 964 to 8, state 331 to 4, state 228 to 8, state 962 to 8, state 226 to 8, state 557 to 5, state 210 to 7, state 199 to 8, state 219 to 8, state 193 to 9, state 960 to 6, state 185 to 8, state 189 to 8, state 883 to 8, state 900 to 8, state 321 to 8, state 911 to 8, state 864 to 9, state 221 to 8, state 879 to 8, state 212 to 6, state 901 to 8, state 951 to 8, state 751 to 8, state 216 to 6, state 209 to 8, state 201 to 8, state 204 to 7, state 251 to 8, state 195 to 8, state 234 to 8, state 240 to 8, state 236 to 8, state 191 to 8, state 860 to 8, state 961 to 8, state 952 to 9, state 163 to 6, state 230 to 8, state 197 to 8, state 213 to 6, state 841 to 8, state 899 to 8, state 232 to 8, state 927 to 6, state 214 to 8, state 224 to 8, state 153 to 8, state 207 to 7, state 888 to 8, state 186 to 8, state 174 to 7, state 238 to 8, state 928 to 7, state 881 to 8, state 211 to 6, state 192 to 9, state 329 to 8, state 259 to 8, state 865 to 9).
+Refinement round 4: deepened the stacks behind UIDENT LCURLY RCURLY LCURLY INT RPAREN LCURLY RCURLY SEMICOLON EOF, retaining up to 9 (state 146 to 8).
+Retired the divergence site at state 192 on lookahead LCURLY: 3 consecutive round(s) of deepening left the divergence at the same site. Continuing with the rest of the grammar.
+Refinement round 5: deepened the stacks behind LIDENT UIDENT EQUAL AMPERSAND UIDENT DOT LIDENT LCURLY RCURLY SEMICOLON EOF, retaining up to 9 (state 143 to 8, state 920 to 9, state 142 to 7, state 919 to 9, state 918 to 9, state 160 to 6, state 159 to 5).
+Refinement round 6: deepened the stacks behind LIDENT UIDENT EQUAL AMPERSAND UIDENT LPAREN RPAREN LCURLY RCURLY SEMICOLON EOF, retaining up to 9 (state 949 to 9, state 166 to 6, state 568 to 7, state 210 to 8, state 897 to 9, state 206 to 9, state 755 to 8, state 893 to 9, state 205 to 9, state 963 to 9, state 124 to 7, state 892 to 9, state 896 to 8, state 895 to 7, state 207 to 9, state 174 to 9).
+Refinement round 7: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN AMPERSAND LPAREN UIDENT RPAREN SEMICOLON EOF, retaining up to 9 (state 25 to 7, state 30 to 9, state 31 to 9, state 8 to 9, state 123 to 9, state 903 to 9, state 902 to 8, state 7 to 9, state 29 to 8).
+Refinement round 8: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT LBRACKET AMPERSAND UIDENT SEMICOLON EOF, retaining up to 9 (state 50 to 9, state 310 to 9, state 313 to 9, state 67 to 9, state 749 to 9, state 27 to 9, state 164 to 9, state 168 to 9, state 281 to 9, state 96 to 9, state 44 to 9, state 72 to 9, state 808 to 9, state 115 to 9, state 26 to 9, state 63 to 9, state 451 to 9, state 555 to 9, state 561 to 9, state 86 to 9).
+Retired the divergence site at state 325 on lookahead LPAREN: 3 consecutive round(s) of deepening left the divergence at the same site. Continuing with the rest of the grammar.
+Refinement round 9: deepened the stacks behind UIDENT LCURLY RCURLY LCURLY THIS LPAREN RPAREN LCURLY RCURLY SEMICOLON EOF, retaining up to 9 (state 856 to 9, state 127 to 8, state 855 to 9, state 851 to 9, state 854 to 9, state 853 to 9, state 852 to 9).
+Refinement round 10: deepened the stacks behind LIDENT UIDENT EQUAL LBRACKET TILDE UIDENT DOT LIDENT LCURLY RCURLY SEMICOLON EOF, retaining up to 9 (state 143 to 9, state 145 to 5, state 142 to 8, state 163 to 7, state 126 to 6).
+Refinement round 11: deepened the stacks behind LIDENT UIDENT LPAREN LCURLY LIDENT LPAREN UIDENT LBRACKET NUMBER RBRACKET SEMICOLON EOF, retaining up to 9 (state 52 to 9, state 58 to 9, state 12 to 9, state 48 to 9, state 53 to 9, state 482 to 9, state 77 to 9, state 47 to 9, state 73 to 9, state 57 to 8, state 324 to 2, state 46 to 9, state 320 to 8).
+NOT PROVEN: the timeout (2400s) expired during the abstract phase at level 1, after 558517 pairs. Raise --timeout, or lower --prove.
+Retired 2 divergence site(s), each after refinement stopped moving it. The grammar is unproven at these sites and nowhere else:
+  1. state 192 on lookahead LCURLY: 3 consecutive round(s) of deepening left the divergence at the same site
+     reached by: UIDENT LCURLY RCURLY LCURLY THIS RPAREN LCURLY RCURLY SEMICOLON EOF
+     divergence site on lookahead LCURLY
+     abstract stack (top first): 192 191 190 189
+     conflict at stack 192 191 190 189:
+       reduce computed_call_no_trailing_block_ -> func_callee LPAREN loption_separated_nonempty_list_COMMA_call_arg__ RPAREN [pops the retained stack exactly: goto limited to predecessors]
+       shift to 193
+  2. state 325 on lookahead LPAREN: 3 consecutive round(s) of deepening left the divergence at the same site
+     reached by: LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT LBRACKET NUMBER RBRACKET SEMICOLON EOF
+     divergence site on lookahead LPAREN
+     abstract stack (top first): 325
+     conflict at stack 325:
+       reduce loption_generics_ -> 
+       shift to 326
+Refinement reached: 11 refinement round(s); 157 of 1040 state(s) deepened past level 1, to a retained stack of 9 at the deepest.
+Refinement was capped: 59 state(s) asked for a deeper stack than --prove-refine 9 allows and were cut down to it; the deepest is state 856, which is exact from 14.
+Stack height: refused 362319 move(s) onto a state no stack that short can carry; the height stops being counted past 18.
