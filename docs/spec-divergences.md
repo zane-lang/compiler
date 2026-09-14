@@ -137,16 +137,58 @@ recorded because moving a declaration between the two levels changes how it is
 spelled, which is a real cost and worth stating out loud rather than
 discovering.
 
-`package`, `import`, a raw `type`/`alias`, a positional instantiation, a
-`=> expr` verb **whose expression does not itself end in a `}`**, and a type
-cast from the **peer mould** are the forms this is visible on — the peer
-mould's contents are a flat list of names, so it takes `[ ]` and closes on a
-`]` rather than a brace. A `struct`/`variant` mould, a `{ }` verb body, an
+A raw `type`/`alias`, a positional instantiation, a `=> expr` verb **whose
+expression does not itself end in a `}`**, and a type cast from the **peer
+mould** are the forms this is visible on — the peer mould's contents are a flat
+list of names, so it takes `[ ]` and closes on a `]` rather than a brace.
+`package` and `import` are spelled the same at both levels, since §5 gives them
+a terminator at both. A `struct`/`variant` mould, a `{ }` verb body, an
 enum map, and a `=> expr` verb whose expression *does* end in a `}` — a
 `match`, a handler, a trailing call — all end in a brace and are spelled the
 same at both levels. The parser reads this off the expression rather than off
 the form, so `Int f() => match c { … }` needs no `;` in a body while
 `Int f() => c` does.
+
+## 5. `package` and `import` are terminated
+
+**Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
+§6.3: "A **package-scope declaration** is not a statement and takes no
+terminator of its own; it ends where its own body or bracket ends." The forms
+in [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
+§1.5 and §8.2 are written bare — `import packageName$member`, `package
+packageName`.
+
+**Compiler** — these two take a `;`, and the grammar requires it:
+
+```zane
+package main;
+import core$;
+import math$[floor, ceil];
+
+type Meters = Int            // every other declaration is still bare
+```
+
+The spec's sentence assumes a declaration ends where its own shape says it
+stopped, which is true of every form that closes on a body, a bracket, or an
+expression. `package pkg` and `import pkg$member` end on a bare name, and
+`import pkg$` ends just before one, so their shape says nothing about where
+they stop. That is not merely untidy: it is ambiguous. `import core$` followed
+by `main Unit() { }` parses both as a whole-package import and a lambda-valued
+declaration, and as a member import of `main` and a constructor declaration for
+`Unit`. Measured with `--check-tokens`, that bare spelling had two parses
+before the `;` was required; each terminated spelling has one, and the bare one
+is now rejected.
+
+The terminator is required inside a body too, where the same two forms are
+statements and the same two readings meet. That is stricter than §6.3's
+statement rule, which would let `check_terminator` accept the `;` and reject
+its absence after the parse — too late, because both spellings parse.
+
+`docs/ambiguity.md` has the full account, in the ledger entry for the state
+reducing `import_decl -> IMPORT LIDENT DOLLAR`. Reconciling in the spec's
+direction needs the spec to say what separates two adjacent declarations when
+the first ends in a name; until it does, the compiler cannot drop the `;`
+without re-admitting the ambiguity.
 
 ---
 

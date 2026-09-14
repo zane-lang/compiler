@@ -368,6 +368,12 @@ let expr_statement ~terminated ~ends_at build value =
 (* Closed by its own brace, so there was never a terminator to get wrong. *)
 let braced_statement stat =
   ({ Nodes.Statement.stat; defect = None } : Nodes.Statement.t)
+
+(* Terminated by a `;` the grammar itself requires, so there was never a
+   terminator to get wrong here either -- the parse fails without it rather
+   than the tree carrying a defect to [Statement_check]. *)
+let terminated_statement stat =
+  ({ Nodes.Statement.stat; defect = None } : Nodes.Statement.t)
 %}
 
 (*****************************)
@@ -463,6 +469,8 @@ let braced_statement stat =
    terminator would have to be told apart from -- the next declaration starts
    with its own return type, binder, or keyword.
 
+   `package` and `import` are the exception, and [header_decl] below says why.
+
    Inside a body the same declaration is a statement and does take `;`, unless
    it ends in a `}`; see [stat]. That is the one place the two levels differ in
    how a declaration is spelled. *)
@@ -472,6 +480,7 @@ package:
 top_decl:
   | value=block_decl { value }
   | value=simple_decl { value }
+  | value=header_decl ";" { value }
 
 %inline func_lambda(body_form):
   | ret_type=ret_type "(" params=separated_list(COMMA, param) ")" body=body_form {
@@ -693,10 +702,8 @@ map_lit:
    one shape with optional parts.
 
    `import pkg$` takes everything past the separator and so ends on the `$`
-   itself. Since a package-scope declaration carries no terminator, the name
-   that follows one belongs to the next declaration, and the parser settles
-   which by carrying both readings until one of them fails to be a
-   declaration. *)
+   itself. What follows the `$` is settled by the terminator [header_decl]
+   requires, not by reading on: see there. *)
 import_decl:
   | IMPORT package=LIDENT alias=ioption(preceded(AS, LIDENT)) {
       Nodes.Import.Package { package; alias }
@@ -715,6 +722,33 @@ import_decl:
     }
   | IMPORT package=LIDENT "$" {
       Nodes.Import.All { package }
+    }
+
+(* The two declarations that end in a bare name, and the only two that carry a
+   terminator at package scope.
+
+   Every other declaration ends in a body, a bracket, or an expression, so the
+   declaration after it starts where its own shape says it stopped. These two
+   stop at a name, and `import pkg$` stops before one: after the `$` a name is
+   either the member being imported or the first token of the next
+   declaration, and nothing in either shape tells the reader -- or the parser
+   -- which. Carrying both readings until one fails to be a declaration is not
+   enough, because both can succeed: `import core$ main Unit() { }` is a
+   whole-package import followed by a lambda-valued declaration, and also a
+   member import of `main` followed by a constructor declaration for `Unit`.
+   That was an ambiguity the search found, not a fork that resolves.
+
+   So the `;` is required here and the grammar carries the rule, which is
+   where docs/ambiguity.md says a rule belongs when the grammar can hold it. A
+   terminator after the `$` leaves the name nowhere to go but the next
+   declaration, and the same `;` is what ends `package pkg` and the three
+   import forms that do end in a name. *)
+header_decl:
+  | PACKAGE name=LIDENT {
+      Nodes.Decl.Package name
+    }
+  | value=import_decl {
+      Nodes.Decl.Import value
     }
 
 body_decl(body_form):
@@ -779,12 +813,6 @@ simple_decl:
   | value=body_decl(shorthand_body) { value }
   | value=type_decl(raw_value) { value }
   | value=type_decl(enum_moulded_value) { value }
-  | PACKAGE name=LIDENT {
-      Nodes.Decl.Package name
-    }
-  | value=import_decl {
-      Nodes.Decl.Import value
-    }
   | name=LIDENT type_=type_expr "=" value=expr {
       Nodes.Decl.Var { name; type_; value }
     }
@@ -1158,6 +1186,14 @@ stat:
   (* Ends in its own `{ }` body, so there was no terminator to get wrong. *)
   | decl=block_decl {
       braced_statement (Nodes.Stat.Decl decl)
+    }
+  (* The grammar requires this one's `;` (see [header_decl]), so there was no
+     terminator to get wrong here either. A statement is where the ambiguity
+     reaches too -- a body holds `import pkg$` and the declaration after it on
+     the same terms package scope does -- so the requirement has to hold at
+     both levels to close it at either. *)
+  | decl=header_decl ";" {
+      terminated_statement (Nodes.Stat.Decl decl)
     }
   | decl=simple_decl terminated=boption(";") {
       statement

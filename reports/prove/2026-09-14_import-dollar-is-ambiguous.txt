@@ -1,0 +1,95 @@
+# The `import pkg$` obligation now has a witness
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1; Menhir 20231231.
+# State numbers are Menhir-version sensitive.
+# Grammar: lib/cst/parser.mly at 625038f.
+# Command: ambiguity prove 1 quick --timeout 5m
+# AMBIGUITY_MEMORY_MB=8192, JOBS=4 on a 4-core 16GB machine.
+#
+# Exit 1, not 3: the concretization search turned the abstract candidate into a
+# complete ambiguous sentence. No proof run had done that before -- every
+# earlier one exited 3, and the four candidates in
+# 2026-09-10_candidates-are-spurious.txt all concretized to 0 derivations.
+#
+# The witness sits on the open obligation docs/ambiguity.md tracks at the state
+# reducing `import_decl -> IMPORT LIDENT DOLLAR`. Re-checked against the
+# recognizer directly, outside the proof run:
+#
+#   2   IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN RPAREN LCURLY RCURLY EOF
+#
+#       import core$      + main Unit() { }   -- whole-package import, then a
+#                                                lambda-valued var declaration
+#       import core$main  + Unit() { }        -- member import, then a
+#                                                constructor declaration
+#
+# Both halves are complete package-scope declarations on their own, which is
+# why no lookahead separates the readings:
+#
+#   1   IMPORT LIDENT DOLLAR LIDENT EOF                    (import core$main)
+#   1   LIDENT UIDENT LPAREN RPAREN LCURLY RCURLY EOF      (main Unit() { })
+#   1   UIDENT LPAREN RPAREN LCURLY RCURLY EOF             (Unit() { })
+#
+# The shorthand body does it too. The other function spelling does not, because
+# its tail is not a declaration on its own:
+#
+#   2   IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN RPAREN THICK_ARROW INT EOF
+#                                               (import core$ / main Int() => 1)
+#   1   IMPORT LIDENT DOLLAR UIDENT LIDENT LPAREN RPAREN LCURLY RCURLY EOF
+#                                               (import core$ / Unit main() { })
+#   1   IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN INT RPAREN EOF
+#                                               (import core$ / x Int(5))
+#
+# It arrived with the package-scope terminator. The same sentence checked
+# against each grammar in turn:
+#
+#   2   625038f  Align parser with spec: semicolon-terminated statements ...
+#   0   3ef47aa  Correct the obligation ledger ...
+#   0   899e3fa  Take control flow out of the grammar ...
+#
+# 625038f changed `top_decl` from `simple_decl ";"` to bare `simple_decl`, which
+# is what spec/lexical.md 6.3 asks for -- "A package-scope declaration is not a
+# statement and takes no terminator of its own". That `;` was the only thing
+# deciding this state's lookahead, which docs/ambiguity.md had already said:
+# "with a terminator after each package-scope declaration its lookahead would be
+# decided". Settling it is a language decision rather than a factoring, since
+# both readings are complete declaration sequences.
+#
+# The companion search report reports/general/2026-09-14_12-28-44.txt found this
+# same family and no other through 10 tokens.
+#
+# Not run here: tools.test_parser_ambiguity and tools.test_parser_syntax, which
+# import the cst library and so need dune, unavailable on this machine. The
+# engine itself was validated against tools.test_prover (58 tests) and
+# tools.test_ambiguity_cli.
+#
+Proof level 1, concretization profile: quick
+Fast breadth-first feedback while editing the grammar.
+Tokens 0..16 · timeout 5m · 20 witnesses · breadth-first
+Report: reports/quick/2026-09-14_12-21-02.txt
+
+Search constraints: 0..16 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 6316128 abstract pairs (single-threaded; the 4-worker split does not apply).
+● abstract level 1 | pairs 304 | queued 176 | accepting 0 | 00:00
+Abstract ambiguity candidate at level 1 after 9353 pairs (possibly spurious): IMPORT LIDENT DOLLAR LIDENT UIDENT LBRACKET UIDENT EOF
+  divergence site on lookahead LIDENT
+  abstract stack (top first): 535
+  conflict at stack 535:
+    reduce import_decl -> IMPORT LIDENT DOLLAR [pops past the retained stack: goto limited to states 3 below its deepest]
+    shift to 540
+Stack height: refused 780816 move(s) onto a state no stack that short can carry; the height stops being counted past 18.
+Attempting to concretize with the bounded search...
+
+Memory budget: 8192 MiB total across 4 worker(s); workers compact at 1638 MiB and stop admitting frontiers at 1843 MiB each (10% reserved); per-worker limits are 1579032 queued frontiers and 1579032 retained dedup frontiers (ratio 1).
+● search 3/16 | amb 0 | explored 50 | unique 270 | RAM [------------] 0.0/8.0G | 00:37
+● search 10/16 | amb 0 | explored 1.3M | unique 7.6M | RAM [#######-----] 4.5/8.0G | 01:37
+● search 10/16 | amb 0 | explored 2.7M | unique 9.0M | RAM [########----] 5.7/8.0G | 02:37
+● search 11/16 | amb 0 | explored 4.1M | unique 10.4M | RAM [#########---] 6.0/8.0G | 03:38
+● search 11/16 | amb 0 | explored 5.5M | unique 11.8M | RAM [#########---] 6.3/8.0G | 04:38
+Found 1 complete ambiguity family.
+
+1. Tokens (10): IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN RPAREN LCURLY RCURLY EOF
+   Source: import length $ length Int ( ) { }
+   Conflict origins: state 102 on LPAREN, state 344 on LPAREN, state 535 on LIDENT
+
+Explored 6743338 frontiers (13059558 unique); 295640 conflict seeds.
+Search ended at depth 11 because one or more workers reached a search limit.

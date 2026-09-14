@@ -8,18 +8,18 @@
 /// subscripts, lambdas, generics, abort handlers, `spawn`, map literals, the
 /// import forms, and the block arguments everything that reads as control flow
 /// is built from.
-package main
+package main;
 
 /// Every import form, since what an import writes after `import` is what the
 /// file writes at the use site: the form is chosen per name, not per package.
 /// `core` is a dependency like any other -- the whole-package form is what puts
 /// `Int` and `Float` in scope below without a qualifier.
-import core$
-import std
-import text as fmt
-import math$sqrt
-import math$Vector as Vec
-import math$[floor, ceil]
+import core$;
+import std;
+import text as fmt;
+import math$sqrt;
+import math$Vector as Vec;
+import math$[floor, ceil];
 
 // ---------------------------------------------------------------------------
 // Peers, and the tables hung off them

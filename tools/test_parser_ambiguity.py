@@ -42,6 +42,25 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             timeout=120,
         )
 
+    def assert_derivations(self, tokens: str, source: str, expected: int) -> None:
+        # How many complete parses the grammar gives this token sequence: 0 is
+        # rejected, 1 is accepted and unambiguous, 2 or more is an ambiguity.
+        # No tree shape is asserted, so this reaches sequences that are meant
+        # to have no tree at all.
+        result = self.check(tokens)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        # The whole line, so that a count of 10 cannot satisfy an expected 1.
+        reported = [
+            line.strip()
+            for line in result.stdout.splitlines()
+            if line.startswith("Accepting derivations:")
+        ]
+        self.assertEqual(
+            reported,
+            [f"Accepting derivations: {expected}"],
+            f"{source}\n{result.stdout}",
+        )
+
     def assert_grouping(self, tokens: str, source: str, expected: str) -> None:
         result = self.check(tokens)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -223,6 +242,44 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "RCURLY EOF",
             "Int length() { abort value() { first, false; } }",
             "call(name, map(name, bool))",
+        )
+
+    def test_a_terminator_separates_two_adjacent_import_readings(self) -> None:
+        # The one obligation in docs/ambiguity.md that turned out to be a bug
+        # rather than a fork: `import core$ main Unit() { }` had two complete
+        # derivations, since both readings are a run of declarations. Each is
+        # reachable on its own once the `;` says where the import stops, and
+        # the unterminated spelling is no longer a program at all.
+        self.assert_derivations(
+            "IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN RPAREN LCURLY RCURLY EOF",
+            "import core$ main Unit() { }",
+            0,
+        )
+        self.assert_derivations(
+            "IMPORT LIDENT DOLLAR SEMICOLON LIDENT UIDENT LPAREN RPAREN "
+            "LCURLY RCURLY EOF",
+            "import core$; main Unit() { }",
+            1,
+        )
+        self.assert_derivations(
+            "IMPORT LIDENT DOLLAR LIDENT SEMICOLON UIDENT LPAREN RPAREN "
+            "LCURLY RCURLY EOF",
+            "import core$main; Unit() { }",
+            1,
+        )
+        # The shorthand body reaches the same fork, and a body holds the same
+        # two forms as package scope does.
+        self.assert_derivations(
+            "IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN RPAREN THICK_ARROW "
+            "INT EOF",
+            "import core$ main Int() => 1",
+            0,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY IMPORT LIDENT DOLLAR LIDENT "
+            "UIDENT LPAREN RPAREN LCURLY RCURLY RCURLY EOF",
+            "Unit f() { import core$ main Unit() { } }",
+            0,
         )
 
     def test_bare_type_member_has_one_value_reading(self) -> None:

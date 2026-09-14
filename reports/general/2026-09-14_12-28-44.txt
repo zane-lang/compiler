@@ -1,0 +1,15 @@
+Search profile: general
+Broad shortest-first search for the regular ambiguity report.
+Tokens 0..11 · timeout 12m · 25 witnesses · breadth-first
+Report: reports/general/2026-09-14_12-28-44.txt
+
+Search constraints: 0..11 total tokens; 0-token prefix; breadth-first scheduling.
+Memory budget: 8192 MiB total across 4 worker(s); workers compact at 1638 MiB and stop admitting frontiers at 1843 MiB each (10% reserved); per-worker limits are 1750666 queued frontiers and 1750666 retained dedup frontiers (ratio 1).
+Found 1 complete ambiguity family.
+
+1. Tokens (10): IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN RPAREN LCURLY RCURLY EOF
+   Source: import length $ length Int ( ) { }
+   Conflict origins: state 102 on LPAREN, state 344 on LPAREN, state 535 on LIDENT
+
+Explored 10437220 frontiers (12187953 unique); 267265 conflict seeds.
+Search ended at depth 11 because one or more workers reached a search limit.

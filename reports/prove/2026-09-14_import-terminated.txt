@@ -1,0 +1,54 @@
+# The same proof run, with `package` and `import` terminated
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1; Menhir 20231231.
+# State numbers are Menhir-version sensitive.
+# Grammar: lib/cst/parser.mly at a99b8f8.
+# Command: ambiguity prove 1 quick --timeout 5m
+# AMBIGUITY_MEMORY_MB=8192, JOBS=4 on a 4-core 16GB machine.
+# Kept verbatim; the run's own `Report:` line names the --output path it was
+# written to before being moved here.
+#
+# Exit 3, where the run in 2026-09-14_import-dollar-is-ambiguous.txt exited 1.
+# The `import pkg$` candidate is gone along with the state that produced it,
+# and the concretization search found no complete ambiguity at all.
+#
+# What the abstract phase reports instead is the blind spot that was already
+# there: state 344 -- 325 before the grammar change renumbered it -- reducing
+# the empty `loption_generics_` against a shift. That is the candidate of
+# 2026-09-10_candidates-are-spurious.txt, and it concretizes the same way now:
+#
+#   0   LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN EOF   (x Foo(y(Bar)))
+#   1   LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT DOT LIDENT RPAREN RPAREN EOF
+#                                                              (x Foo(y(Bar.b)))
+#
+# The sentence is not ambiguous, it is not a program: a bare uppercase name is
+# not an expression. Give it the one token it lacks and the fork resolves.
+#
+# So the grammar is back where it stood before the terminator was dropped:
+# unproven at the generics blind spot, with no ambiguity known anywhere. The
+# companion search in reports/general/2026-09-14_14-10-33.txt sweeps 10 tokens
+# breadth-first and finds nothing, where the same sweep before this change
+# found the import family.
+#
+Proof level 1, concretization profile: quick
+Fast breadth-first feedback while editing the grammar.
+Tokens 0..16 · timeout 5m · 20 witnesses · breadth-first
+Report: /tmp/claude-0/-home-user-compiler/00efa038-827e-5c88-8e84-d8af8291bee8/scratchpad/prove-after.txt
+
+Search constraints: 0..16 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 6316128 abstract pairs (single-threaded; the 4-worker split does not apply).
+● abstract level 1 | pairs 297 | queued 169 | accepting 0 | 00:00
+Abstract ambiguity candidate at level 1 after 12727 pairs (possibly spurious): LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN EOF
+  divergence site on lookahead LPAREN
+  abstract stack (top first): 344
+  conflict at stack 344:
+    reduce loption_generics_ -> 
+    shift to 345
+Stack height: refused 796056 move(s) onto a state no stack that short can carry; the height stops being counted past 18.
+Attempting to concretize with the bounded search...
+
+Memory budget: 8192 MiB total across 4 worker(s); workers compact at 1638 MiB and stop admitting frontiers at 1843 MiB each (10% reserved); per-worker limits are 1579032 queued frontiers and 1579032 retained dedup frontiers (ratio 1).
+● search 3/16 | amb 0 | explored 50 | unique 252 | RAM [------------] 0.0/8.0G | 01:33
+● search 10/16 | amb 0 | explored 2.6M | unique 8.9M | RAM [#########---] 6.0/8.0G | 03:33
+Search ended at depth 11 because one or more workers reached a search limit; no complete ambiguity was found in 6228537 explored frontiers (12544762 unique).
+NOT PROVEN: the abstract candidate could not be concretized within the search bounds; the grammar is neither proven unambiguous nor shown ambiguous. Raising --prove may remove the spurious candidate.

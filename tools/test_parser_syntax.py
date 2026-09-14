@@ -209,8 +209,8 @@ class ParserSyntaxTests(unittest.TestCase):
     def test_package_scope_declarations_take_no_terminator(self) -> None:
         self.assert_parses(
             '''
-            package demo
-            import std
+            package demo;
+            import std;
 
             type Meters = Int
             alias Metres = Meters
@@ -219,56 +219,101 @@ class ParserSyntaxTests(unittest.TestCase):
             answer Int = Int(42)
             '''
         )
-        self.assert_rejects("package demo;")
         self.assert_rejects("Int double(value Int) => value * Int(2);")
         self.assert_rejects("answer Int = Int(42);")
+
+    def test_package_and_import_are_the_two_that_are_terminated(self) -> None:
+        # They end on a bare name -- `import pkg$` ends just before one -- so
+        # nothing about their own shape says where they stop, and the `;` is
+        # what says it instead.
+        self.assert_parses("package demo;")
+        self.assert_rejects("package demo")
+        self.assert_parses("import std;")
+        self.assert_rejects("import std")
+
+    def test_a_terminator_tells_a_whole_package_import_from_a_member_one(
+        self,
+    ) -> None:
+        # Without the `;` this is two programs at once: a whole-package import
+        # followed by a lambda-valued declaration, and a member import of
+        # `main` followed by a constructor declaration for `Unit`. Both halves
+        # are complete declarations, so nothing downstream can pick.
+        self.assert_rejects(
+            '''
+            import core$
+            main Unit() { }
+            '''
+        )
+        self.assert_parses(
+            '''
+            import core$;
+            main Unit() { }
+            '''
+        )
+        self.assert_parses(
+            '''
+            import core$main;
+            Unit() { }
+            '''
+        )
+
+    def test_the_header_terminator_is_required_in_a_body_too(self) -> None:
+        # A body holds the same two forms on the same terms, so the rule has to
+        # hold at both levels to close the ambiguity at either. Both
+        # alternatives of `header_decl` reach the body, so both are checked at
+        # that boundary.
+        self.assert_parses("Unit use() { import core$; return Unit(); }")
+        self.assert_rejects("Unit use() { import core$ return Unit(); }")
+        self.assert_parses("Unit use() { package demo; return Unit(); }")
+        self.assert_rejects("Unit use() { package demo return Unit(); }")
 
     def test_every_import_form(self) -> None:
         self.assert_parses(
             '''
-            import math
-            import math as m
-            import math$sqrt
-            import math$Vector
-            import math$sqrt as root
-            import math$Vector as Vec
-            import math$[sqrt, pow]
-            import math$[sqrt, Vector]
-            import math$
+            import math;
+            import math as m;
+            import math$sqrt;
+            import math$Vector;
+            import math$sqrt as root;
+            import math$Vector as Vec;
+            import math$[sqrt, pow];
+            import math$[sqrt, Vector];
+            import math$;
             '''
         )
 
-    def test_an_import_ends_where_its_form_ends(self) -> None:
-        # `import pkg$` takes everything past the separator, so the name after
-        # it opens the next declaration rather than continuing the import.
+    def test_an_import_ends_where_its_terminator_ends_it(self) -> None:
+        # `import pkg$` takes everything past the separator, and the `;` is
+        # what leaves the following name nowhere to go but the next
+        # declaration.
         self.assert_parses(
             '''
-            import math$
+            import math$;
             answer Int = Int(4)
 
-            import text$
+            import text$;
             Int double(v Int) => v * Int(2)
 
-            import shapes$
+            import shapes$;
             type Meters = Int
             '''
         )
 
     def test_an_alias_names_one_thing_and_keeps_its_casing(self) -> None:
         # A list has no single name to rename, and `pkg$` qualifies nothing.
-        self.assert_rejects("import math$[sqrt, pow] as m")
-        self.assert_rejects("import math$ as m")
+        self.assert_rejects("import math$[sqrt, pow] as m;")
+        self.assert_rejects("import math$ as m;")
         # A whole-package alias is a package name, so it is lowercase-initial.
-        self.assert_rejects("import math as M")
+        self.assert_rejects("import math as M;")
         # A member alias may not cross the casing classes.
-        self.assert_rejects("import math$sqrt as Root")
-        self.assert_rejects("import math$Vector as vec")
+        self.assert_rejects("import math$sqrt as Root;")
+        self.assert_rejects("import math$Vector as vec;")
 
     def test_an_import_list_is_an_ordinary_flat_list(self) -> None:
-        self.assert_rejects("import math$[]")
-        self.assert_rejects("import math$[sqrt, pow,]")
+        self.assert_rejects("import math$[];")
+        self.assert_rejects("import math$[sqrt, pow,];")
         # Operators resolve by operand home package and are not importable.
-        self.assert_rejects("import math$+")
+        self.assert_rejects("import math$+;")
 
     def test_map_literals(self) -> None:
         self.assert_parses(
@@ -294,8 +339,8 @@ class ParserSyntaxTests(unittest.TestCase):
     def test_match_enum_map_type_members_pipe_and_inequality(self) -> None:
         self.assert_parses(
             '''
-            package demo
-            import std
+            package demo;
+            import std;
 
             type Color = enum [ red, green ]
             Color.label String {
