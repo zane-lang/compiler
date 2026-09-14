@@ -196,7 +196,7 @@ and Verb_call : sig
   type t =
     | Func        of { callee: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; trailing: bool; }
     | Meth        of { callee: Expr.t; this: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; is_mut: bool; trailing: bool; }
-    | Constructor of { name: Constructor_name.t; args: Constructor_args.t; abort_handle: Abort_handle.t option; }
+    | Constructor of { name: Constructor_name.t; args: Constructor_args.t; abort_handle: Abort_handle.t option; trailing: bool; }
     | Op          of { op: Operator.t; left: Expr.t; right: Expr.t; abort_handle: Abort_handle.t option; }
     | Flip        of { value: Expr.t; abort_handle: Abort_handle.t option; }
 end = Verb_call
@@ -417,7 +417,7 @@ and Decl : sig
     | Package of string
     | Import of Import.t
     | Var of { name : string; type_ : Type_expr.t; value : Expr.t }
-    | VarShorthand of { name : string; constructor : Constructor_name.t; args : Constructor_args.t }
+    | VarShorthand of { name : string; constructor : Constructor_name.t; args : Constructor_args.t; trailing : bool }
     | Type of {
         name : string;
         params : Generic_param.t list;

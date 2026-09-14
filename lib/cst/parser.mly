@@ -5,7 +5,8 @@ let attach_abort_handle expr abort_handle =
        past that `}` -- a handler included. The same call written with the
        argument inside the parentheses takes one. *)
     | Nodes.Verb_call.Func { trailing = true; _ }
-    | Nodes.Verb_call.Meth { trailing = true; _ } ->
+    | Nodes.Verb_call.Meth { trailing = true; _ }
+    | Nodes.Verb_call.Constructor { trailing = true; _ } ->
         raise
           (Parse_error.Rejected
              "a trailing argument ends the statement, so an abort handler \
@@ -26,11 +27,12 @@ let attach_abort_handle expr abort_handle =
           is_mut;
           trailing;
         }
-    | Nodes.Verb_call.Constructor { name; args; abort_handle = None } ->
+    | Nodes.Verb_call.Constructor { name; args; abort_handle = None; trailing } ->
         Nodes.Verb_call.Constructor {
           name;
           args;
           abort_handle = Some abort_handle;
+          trailing;
         }
     | Nodes.Verb_call.Op { op; left; right; abort_handle = None } ->
         Nodes.Verb_call.Op {
@@ -62,7 +64,8 @@ let attach_abort_handle expr abort_handle =
 
 let constructor_expr name args =
   Nodes.Expr.VerbCall
-    (Nodes.Verb_call.Constructor { name; args; abort_handle = None })
+    (Nodes.Verb_call.Constructor
+       { name; args; abort_handle = None; trailing = false })
 
 (* Does this statement's last token close a brace?
 
@@ -114,9 +117,11 @@ and verb_call_ends_in_brace (call : Nodes.Verb_call.t) =
   (* A trailing argument's `}` is the call's last token; without one the `)` is. *)
   | Nodes.Verb_call.Func { trailing; _ } | Nodes.Verb_call.Meth { trailing; _ } ->
       trailing
+  (* A field constructor call closes on the `}` of its own field body, which is
+     why that form never trails: it has no `)` to elide. *)
   | Nodes.Verb_call.Constructor { args = Nodes.Constructor_args.Fields _; _ } ->
       true
-  | Nodes.Verb_call.Constructor _ -> false
+  | Nodes.Verb_call.Constructor { trailing; _ } -> trailing
   | Nodes.Verb_call.Op { right; _ } -> expr_ends_in_brace right
   | Nodes.Verb_call.Flip { value; _ } -> expr_ends_in_brace value
 
@@ -144,7 +149,7 @@ let decl_ends_in_brace (decl : Nodes.Decl.t) =
   | Nodes.Decl.Package _ | Nodes.Decl.Import _ -> false
   | Nodes.Decl.Var { value; _ } -> expr_ends_in_brace value
   | Nodes.Decl.VarShorthand { args = Nodes.Constructor_args.Fields _; _ } -> true
-  | Nodes.Decl.VarShorthand _ -> false
+  | Nodes.Decl.VarShorthand { trailing; _ } -> trailing
   | Nodes.Decl.Type { value = Nodes.Type_or_moulded.Moulded moulded; _ }
   | Nodes.Decl.Alias { value = Nodes.Type_or_moulded.Moulded moulded; _ } ->
       moulded_ends_in_brace moulded
@@ -181,7 +186,8 @@ let import_alias (member : Nodes.Import_member.t)
 let rec ends_in_trailing_call (expr : Nodes.Expr.t) =
   match expr with
   | Nodes.Expr.VerbCall (Nodes.Verb_call.Func { abort_handle = None; trailing; _ })
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Meth { abort_handle = None; trailing; _ }) ->
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Meth { abort_handle = None; trailing; _ })
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Constructor { abort_handle = None; trailing; _ }) ->
       trailing
   | Nodes.Expr.VerbCall (Nodes.Verb_call.Op { right; abort_handle = None; _ }) ->
       ends_in_trailing_call right
@@ -365,9 +371,18 @@ let expr_statement ~terminated ~ends_at build value =
     ~continued:(continues_past_trailing value)
     (build value)
 
-(* Closed by its own brace, so there was never a terminator to get wrong. *)
-let braced_statement stat =
-  ({ Nodes.Statement.stat; defect = None } : Nodes.Statement.t)
+(* Closed by its own brace, so there was never a terminator to get wrong. The
+   other question still stands: a trailing argument continued past its `}` can
+   be written inside such a statement -- in an argument of the call that closed
+   it, or in a constructor field's default -- and the rule does not bend for
+   where the enclosing statement happens to end. *)
+let braced_statement ~ends_at ~continued stat =
+  let defect =
+    if continued then
+      Some (Nodes.Statement_defect.Continued_trailing_argument, ends_at)
+    else None
+  in
+  ({ Nodes.Statement.stat; defect } : Nodes.Statement.t)
 
 (* Terminated by a `;` the grammar itself requires, so there was never a
    terminator to get wrong here either -- the parse fails without it rather
@@ -624,8 +639,21 @@ map_lit:
 %inline call_args:
   | args=separated_list(",", call_arg) { args }
 
+(* The empty positional list is a production of its own rather than a
+   [call_args] that happens to be empty, so that the non-empty list is written
+   once and both spellings of a constructor call -- with a trailing argument
+   and without -- read it through the same production. Written as one list
+   either way, the parser has to pick between them while reducing the list, at
+   the `)`; written like this it shifts the `)` and decides on the token that
+   actually decides, the `{` or its absence. The state count is the same
+   twelve; what changes is which fork they are, and this one is the fork
+   docs/ambiguity.md already carries for a call's trailing argument against an
+   enclosing brace. *)
 %inline constructor_args:
-  | "(" args=call_args ")" {
+  | "(" ")" {
+      Nodes.Constructor_args.Positional []
+    }
+  | "(" args=separated_nonempty_list(",", call_arg) ")" {
       Nodes.Constructor_args.Positional args
     }
   | "{" args=list(terminated(field_arg, ";")) "}" {
@@ -817,7 +845,20 @@ simple_decl:
       Nodes.Decl.Var { name; type_; value }
     }
   | name=LIDENT constructor=constructor_name args=constructor_args {
-      Nodes.Decl.VarShorthand { name; constructor; args }
+      Nodes.Decl.VarShorthand { name; constructor; args; trailing = false }
+    }
+  (* The same instantiation with the call's last argument trailing, under the
+     same restriction the call itself is under: what stays inside the `( )`
+     may not be empty, or `name Foo() { ... }` would read both as this and as
+     the lambda-variable shorthand two rules down. *)
+  | name=LIDENT constructor=constructor_name
+    "(" args=separated_nonempty_list(",", call_arg) ")" tail=trailing_arg {
+      Nodes.Decl.VarShorthand {
+        name;
+        constructor;
+        args = Nodes.Constructor_args.Positional (args @ tail);
+        trailing = true;
+      }
     }
   | name=LIDENT func_lambda=func_lambda(body) {
       Nodes.Decl.Var {
@@ -935,9 +976,9 @@ abort_ret_type:
    only whether the argument was written outside the `)`, since that decides
    where the statement ends.
 
-   A constructor call is left out of this rule, because `Foo() { ... }` already
-   spells a constructor declaration with a block body; a constructor takes its
-   blocks in the argument list. See docs/spec-divergences.md. *)
+   A constructor call takes the same tail, but not through this rule: its
+   callee is a [constructor_name] rather than an [app], so it is written out
+   in [block_call] instead of being parameterized here. *)
 %inline no_trailing_arg:
   | { ([] : Nodes.Call_arg.t list) }
 
@@ -969,7 +1010,8 @@ computed_call(trailer):
 verb_call:
   | call=computed_call(no_trailing_arg) { call }
   | name=constructor_name args=constructor_args {
-      fun abort_handle -> Nodes.Verb_call.Constructor { name; args; abort_handle }
+      fun abort_handle ->
+        Nodes.Verb_call.Constructor { name; args; abort_handle; trailing = false }
     }
 
 (* A call closed by a trailing block. It is an expression rather than a postfix
@@ -979,6 +1021,31 @@ verb_call:
    out of the grammar rather than being written as a rule. *)
 block_call:
   | call=computed_call(trailing_arg) { call }
+  (* A constructor call trails its last argument the same way, with two
+     restrictions the casing rule puts on it and on nothing else.
+
+     Only the positional form takes a tail: trailing elides the `)`, and the
+     field form has none to elide -- it already closes on the `}` of its own
+     field body.
+
+     And what stays inside the `( )` may not be empty. `Foo() { ... }` is a
+     nullary lambda literal whose return type is `Foo` (syntax.md §3.8), and
+     in statement position a constructor declaration as well; both are written
+     with an upper-case name in front of an empty bracket and a `{ }`, which
+     is exactly the trailing form's own shape. A lower-case callee has no such
+     reading, which is why `do() { ... }` is unambiguous and `Foo() { ... }`
+     is not. A constructor call whose only argument is a block writes it
+     inside the list. See docs/spec-divergences.md. *)
+  | name=constructor_name "(" args=separated_nonempty_list(",", call_arg) ")"
+    tail=trailing_arg {
+      fun abort_handle ->
+        Nodes.Verb_call.Constructor {
+          name;
+          args = Nodes.Constructor_args.Positional (args @ tail);
+          abort_handle;
+          trailing = true;
+        }
+    }
 
 %inline operator:
   | op=comparison_decl_op { op }
@@ -1185,7 +1252,9 @@ stat:
     }
   (* Ends in its own `{ }` body, so there was no terminator to get wrong. *)
   | decl=block_decl {
-      braced_statement (Nodes.Stat.Decl decl)
+      braced_statement ~ends_at:$endpos
+        ~continued:(decl_continues_past_trailing decl)
+        (Nodes.Stat.Decl decl)
     }
   (* The grammar requires this one's `;` (see [header_decl]), so there was no
      terminator to get wrong here either. A statement is where the ambiguity
@@ -1213,7 +1282,10 @@ stat:
   (* Closed by its own trailing argument, so it takes no terminator and admits
      no abort handler -- nothing may continue the call past that brace. *)
   | call=block_call {
-      braced_statement (Nodes.Stat.VerbCall (call None))
+      let call = call None in
+      braced_statement ~ends_at:$endpos
+        ~continued:(continues_past_trailing (Nodes.Expr.VerbCall call))
+        (Nodes.Stat.VerbCall call)
     }
   | SPAWN call=verb_call abort_handle=ioption(abort_handle) terminated=boption(";") {
       let call = call abort_handle in
