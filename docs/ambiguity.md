@@ -307,13 +307,21 @@ onto. Written as a `primary` it measures `Colors.red`, `Int(3)` and
 a type value, beside the readings they already have. Written at expression
 level each stays at one, and so does every case in the suites.
 
-The four states it adds are forks over the same empty generic list the family
-below is about: after an uppercase name the parser cannot yet tell a type used
-as a value from the head of an applied type or a constructor call, and the next
-token says which. Three of them are the `loption_generics_` reduction under two
-new lookahead sets — the argument position and the operand position — and
-the fourth doubles the `primary -> LIDENT` state. No reduce/reduce state is
-added.
+The four states it adds — four more than the same grammar without the
+production — are over the same empty generic list the family below is about:
+after an uppercase name the parser cannot yet tell a type used as a value from
+the head of an applied type or a constructor call, and the next token says
+which. Three of them are the `loption_generics_` reduction under two new
+lookahead sets — the argument position and the operand position — and the
+fourth doubles the `primary -> LIDENT` state. No reduce/reduce state is added.
+
+That they are forks rather than ambiguities is measured, not proved. Both
+readings are explored and exactly one survives on every case in
+[`test_parser_ambiguity.py`](../tools/test_parser_ambiguity.py), and the search
+in [`reports/general/`](../reports/general) exhausted every sentence of at most
+nine tokens without finding one. Neither reaches inputs of every length, so
+these four stand where the rest of the ledger does: **open obligations**, until
+`ambiguity prove` closes them or a longer search finds a witness.
 
 **Only a bare name may be written that way**, and the measurement is what drew
 the line. Admitting an applied `Array<Int, 4>` as well costs three

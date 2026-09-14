@@ -18,5 +18,6 @@ Search ended at depth 9 because the search space within the token bound was exha
 This is a bounded result, not a proof of unambiguity.
 
 The bound was exhausted rather than cut short, so this is a theorem about every
-sentence of at most nine tokens: none of them is ambiguous. The four states the
-rule adds are forks, not ambiguities.
+sentence of at most nine tokens: none of them is ambiguous. It says nothing
+about longer ones, so the four states the rule adds are forks on this evidence
+rather than proved to be.
