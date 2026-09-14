@@ -162,15 +162,23 @@ purpose, and by which spec change.
   terminator — "a `;` **terminates** every statement in a code block" — and
   with it "**`Newlines are never structural`**". The compiler's rule is now the
   spec's. What the compiler had to generalize was the other half of the new
-  rule. A statement that ends in a `}` takes no terminator, and the compiler
-  already had that for the statements whose *form* made it obvious — a
-  block-bodied verb, a `struct`/`variant` mould, a call closed by a trailing
-  block, each of which reached `stat` by a production that had no terminator to
-  begin with — the peer mould only looks like one of them, and takes a `;`. What it
-  did not have was the rule stated over a statement's **tail** rather than its
-  form, which is what reaches a variable bound to a `match`, an assignment, a
-  `return`, and a `=> expr` verb whose expression ends in a brace. That is now
-  decided per statement and checked after the parse.
+  rule.
+
+  A statement that ends in a `}` takes no terminator. The compiler already
+  behaved that way for the statements whose *form* made it look obvious — a
+  block-bodied verb, any mould, a call closed by a trailing block — each of
+  which reached `stat` by a production with no terminator in it. Reading the
+  rule off the form is what made that wrong for one of them: the peer mould's
+  contents are a flat list, so it closes on a `]` and never had a brace to end
+  it. It took no terminator anyway, and taking one was a syntax error. This
+  pull request narrowed the no-terminator productions to the brace moulds and
+  routed the peer mould through the ordinary terminated path.
+
+  What the compiler did not have at all was the rule stated over a statement's
+  **tail** rather than its form, which is what reaches a variable bound to a
+  `match`, an assignment, a `return`, and a `=> expr` verb whose expression
+  ends in a brace. That is now decided per statement and checked after the
+  parse.
 
 - **A trailing block is placed by position, not by line.** The spec required a
   trailing block's `{` to open on the same line as its call, to tell it from a
