@@ -263,7 +263,10 @@ call itself, and the instantiation shorthand that writes a name in front of it
 construct's, and three that double the `app -> ... DOT LIDENT` family, where a
 named constructor's `.member` now opens the trailing form as well as a field
 access. Under GLR both readings are explored and one survives, measured on
-every case in [`test_parser_ambiguity.py`](../tools/test_parser_ambiguity.py).
+every case in [`test_parser_ambiguity.py`](../tools/test_parser_ambiguity.py)
+and searched for in [`reports/general/`](../reports/general), where the run
+that added the rule exhausted every sentence of at most nine tokens without
+finding one.
 
 Which token carries the fork was a choice. The trailing form reads a non-empty
 argument list, and if the plain form reads `( )` as a list that may be empty,

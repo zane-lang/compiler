@@ -1,0 +1,119 @@
+Search profile: general (run by hand, not through a profile)
+Broad shortest-first search over the grammar after a constructor call was
+allowed to trail its last argument.
+
+Run with the no-devbox fallback rig: the apt `menhir` (20231231) as
+AMBIGUITY_MENHIR, and `ambiguity_search.exe` built with plain `ocamlopt`,
+because devbox still cannot provision in this session. The recognizer is the
+same one `ambiguity search` drives, so the verdicts below mean what they
+usually mean; only the profile plumbing and the memory budget differ.
+
+=== Run 1 · tokens 0..9 · timeout 7m · 4 workers · 4096 MiB =================
+Search constraints: 0..9 total tokens; 0-token prefix; breadth-first scheduling.
+Memory budget: 4096 MiB total across 4 worker(s); workers compact at 819 MiB and stop admitting frontiers at 922 MiB each (10% reserved); per-worker limits are 915120 queued frontiers and 915120 retained dedup frontiers (ratio 1).
+● search 3/9 | amb 0 | explored 47 | unique 164 | RAM [------------] 0.0/4.0G | 00:00
+● search 8/9 | amb 0 | explored 457.2k | unique 824.6k | RAM [##----------] 0.5/4.0G | 00:10
+Search ended at depth 9 because the search space within the token bound was exhausted; no complete ambiguity was found in 851127 explored frontiers (851224 unique).
+This is a bounded result, not a proof of unambiguity.
+
+=== Run 2 · tokens 0..11 · timeout 15m · 4 workers · 6144 MiB ==============
+Search constraints: 0..11 total tokens; 0-token prefix; breadth-first scheduling.
+Memory budget: 6144 MiB total across 4 worker(s); workers compact at 1229 MiB and stop admitting frontiers at 1382 MiB each (10% reserved); per-worker limits are 1312999 queued frontiers and 1312999 retained dedup frontiers (ratio 1).
+● search 0/11 | amb 0 | explored 46 | unique 143 | RAM [------------] 0.0/6.0G | 00:00
+● search 9/11 | amb 0 | explored 318.8k | unique 2.1M | RAM [####--------] 2.0/6.0G | 00:10
+● search 9/11 | amb 0 | explored 548.9k | unique 3.6M | RAM [#######-----] 3.6/6.0G | 00:20
+● search 9/11 | amb 0 | explored 548.9k | unique 3.6M | RAM [#######-----] 3.6/6.0G | 00:30
+● search 9/11 | amb 0 | explored 680.0k | unique 4.6M | RAM [######------] 3.1/6.0G | 00:40
+● search 10/11 | amb 0 | explored 1.1M | unique 6.3M | RAM [########----] 3.8/6.0G | 00:50
+● search 10/11 | amb 0 | explored 1.1M | unique 6.4M | RAM [########----] 4.1/6.0G | 01:00
+● search 10/11 | amb 0 | explored 1.5M | unique 6.8M | RAM [########----] 4.2/6.0G | 01:10
+● search 10/11 | amb 0 | explored 1.5M | unique 6.8M | RAM [########----] 4.2/6.0G | 01:20
+● search 10/11 | amb 0 | explored 1.6M | unique 6.9M | RAM [########----] 4.1/6.0G | 01:30
+● search 10/11 | amb 0 | explored 1.9M | unique 7.1M | RAM [########----] 4.2/6.0G | 01:40
+● search 10/11 | amb 0 | explored 1.9M | unique 7.1M | RAM [########----] 4.2/6.0G | 01:50
+● search 10/11 | amb 0 | explored 2.1M | unique 7.3M | RAM [#########---] 4.5/6.0G | 02:00
+● search 10/11 | amb 0 | explored 2.4M | unique 7.6M | RAM [#########---] 4.5/6.0G | 02:10
+● search 10/11 | amb 0 | explored 2.5M | unique 7.8M | RAM [#########---] 4.6/6.0G | 02:20
+● search 10/11 | amb 0 | explored 2.9M | unique 8.1M | RAM [#########---] 4.7/6.0G | 02:30
+● search 10/11 | amb 0 | explored 3.0M | unique 8.2M | RAM [#########---] 4.7/6.0G | 02:40
+● search 10/11 | amb 0 | explored 3.1M | unique 8.3M | RAM [#########---] 4.3/6.0G | 02:50
+● search 10/11 | amb 0 | explored 3.4M | unique 8.5M | RAM [#########---] 4.4/6.0G | 03:00
+● search 10/11 | amb 0 | explored 3.6M | unique 8.7M | RAM [#########---] 4.6/6.0G | 03:10
+● search 10/11 | amb 0 | explored 3.9M | unique 8.9M | RAM [#########---] 4.6/6.0G | 03:20
+● search 10/11 | amb 0 | explored 4.1M | unique 9.0M | RAM [#########---] 4.4/6.0G | 03:30
+● search 10/11 | amb 0 | explored 4.3M | unique 9.2M | RAM [#########---] 4.6/6.0G | 03:41
+● search 10/11 | amb 0 | explored 4.4M | unique 9.2M | RAM [#########---] 4.6/6.0G | 03:51
+● search 10/11 | amb 0 | explored 4.5M | unique 9.4M | RAM [#########---] 4.7/6.0G | 04:01
+● search 10/11 | amb 0 | explored 6.1M | unique 9.6M | RAM [#######-----] 3.5/6.0G | 04:11
+● search 10/11 | amb 0 | explored 6.3M | unique 9.7M | RAM [#######-----] 3.4/6.0G | 04:21
+● search 10/11 | amb 0 | explored 6.4M | unique 9.7M | RAM [#######-----] 3.7/6.0G | 04:31
+● search 10/11 | amb 0 | explored 6.5M | unique 9.7M | RAM [#######-----] 3.4/6.0G | 04:41
+● search 10/11 | amb 0 | explored 6.6M | unique 9.8M | RAM [#######-----] 3.7/6.0G | 04:51
+● search 10/11 | amb 0 | explored 6.7M | unique 9.8M | RAM [#######-----] 3.3/6.0G | 05:01
+● search 10/11 | amb 0 | explored 6.9M | unique 9.9M | RAM [#######-----] 3.6/6.0G | 05:11
+● search 10/11 | amb 0 | explored 7.0M | unique 10.0M | RAM [######------] 3.2/6.0G | 05:21
+● search 10/11 | amb 0 | explored 7.1M | unique 10.0M | RAM [#######-----] 3.6/6.0G | 05:31
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 05:41
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 05:51
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 06:01
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 06:11
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 06:21
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 06:31
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 06:41
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 06:51
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 07:01
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 07:11
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 07:21
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 07:31
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 07:41
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 07:51
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 08:01
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 08:12
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 08:22
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 08:32
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 08:42
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 08:52
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 09:02
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 09:12
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 09:22
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 09:32
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 09:42
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 09:52
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 10:02
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 10:12
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 10:22
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 10:32
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 10:42
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 10:52
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 11:02
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 11:12
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 11:22
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 11:32
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 11:42
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 11:52
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 12:02
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 12:12
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 12:22
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 12:32
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 12:42
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 12:52
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 13:02
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 13:13
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 13:23
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 13:33
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 13:43
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 13:53
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 14:03
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 14:13
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 14:23
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 14:33
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 14:43
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 14:53
+● search 10/11 | amb 0 | explored 7.6M | unique 10.2M | RAM [#####-------] 2.7/6.0G | 15:03
+Search ended at depth 11 because one or more workers reached a search limit; no complete ambiguity was found in 7582817 explored frontiers (10208798 unique).
+This is a bounded result, not a proof of unambiguity.
+
+Run 1 exhausted its bound, so it is a theorem about every sentence of at most
+nine tokens. Run 2 stopped on a worker search limit, so it is evidence and not
+a bound: it says only that nothing ambiguous turned up in the 7.6M frontiers it
+reached.
