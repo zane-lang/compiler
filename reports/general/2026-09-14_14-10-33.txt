@@ -1,0 +1,14 @@
+Search profile: general
+Broad shortest-first search for the regular ambiguity report.
+Tokens 0..11 · timeout 12m · 25 witnesses · breadth-first
+Report: /tmp/claude-0/-home-user-compiler/00efa038-827e-5c88-8e84-d8af8291bee8/scratchpad/search-after.txt
+
+Search constraints: 0..11 total tokens; 0-token prefix; breadth-first scheduling.
+Memory budget: 8192 MiB total across 4 worker(s); workers compact at 1638 MiB and stop admitting frontiers at 1843 MiB each (10% reserved); per-worker limits are 1750666 queued frontiers and 1750666 retained dedup frontiers (ratio 1).
+● search 3/11 | amb 0 | explored 47 | unique 164 | RAM [------------] 0.0/8.0G | 00:00
+● search 10/11 | amb 0 | explored 1.8M | unique 7.0M | RAM [#######-----] 4.5/8.0G | 02:00
+● search 10/11 | amb 0 | explored 3.0M | unique 9.5M | RAM [#########---] 5.7/8.0G | 04:00
+● search 10/11 | amb 0 | explored 8.4M | unique 11.4M | RAM [####--------] 2.7/8.0G | 06:00
+● search 10/11 | amb 0 | explored 10.5M | unique 12.2M | RAM [###---------] 1.8/8.0G | 08:00
+Search ended at depth 11 because one or more workers reached a search limit; no complete ambiguity was found in 12885690 explored frontiers (12885787 unique).
+This is a bounded result, not a proof of unambiguity.
