@@ -103,25 +103,28 @@ and field_arg_to_node (x: Nodes.Field_arg.t) =
 
 and call_arg_to_node (x: Nodes.Call_arg.t) = match x with
   | Value x -> expr_to_node x
-  | Block stats -> group "block" (fields [("stat", map_seq stat_to_node stats)])
+  | Block stats ->
+      group "block" (fields [("stat", map_seq statement_to_node stats)])
 
 and constructor_args_to_node (x: Nodes.Constructor_args.t) = match x with
   | Positional args -> map_seq call_arg_to_node args
   | Fields args -> group "fields" (map_seq field_arg_to_node args)
 
 and verb_call_to_node (x: Nodes.Verb_call.t) = match x with
-  | Func { callee; args; abort_handle } ->
+  | Func { callee; args; abort_handle; trailing } ->
       group "func_call" (fields [
         ("callee", expr_to_node callee);
         ("args", map_seq call_arg_to_node args);
+        ("trailing", Leaf (string_of_bool trailing));
         abort_field abort_handle;
       ])
-  | Meth { callee; this; args; abort_handle; is_mut } ->
+  | Meth { callee; this; args; abort_handle; is_mut; trailing } ->
       group "meth_call" (fields [
         ("callee", expr_to_node callee);
         ("this", expr_to_node this);
         ("args", map_seq call_arg_to_node args);
         ("is_mut", Leaf (string_of_bool is_mut));
+        ("trailing", Leaf (string_of_bool trailing));
         abort_field abort_handle;
       ])
   | Constructor { name; args; abort_handle } ->
@@ -196,6 +199,8 @@ and expr_to_node (x: Nodes.Expr.t) = match x with
       group "parenthized" (expr_to_node x)
   | Init fields_ ->
       group "init" (map_seq field_arg_to_node fields_)
+  | MapLit entries ->
+      group "map_lit" (map_seq map_entry_to_node entries)
   | MethodTarget { callee; this; is_mut } ->
       group "method_target" (fields [
         ("callee", expr_to_node callee);
@@ -267,6 +272,10 @@ and constructor_field_to_node (x: Nodes.Constructor_field.t) =
   in
   fields fs
 
+(* The terminator mark is not printed: a tree that reaches a consumer has
+   already been checked, so every mark on it is [None]. *)
+and statement_to_node (x: Nodes.Statement.t) = stat_to_node x.stat
+
 and stat_to_node (x: Nodes.Stat.t) = match x with
   | VerbCall x -> verb_call_to_node x
   | Spawn x    -> group "spawn_stat" (verb_call_to_node x)
@@ -283,7 +292,7 @@ and stat_to_node (x: Nodes.Stat.t) = match x with
 and body_to_node (x: Nodes.Body.t) = match x with
   | Longhand x ->
       group "scope" (fields [
-        ("stat", map_seq stat_to_node x);
+        ("stat", map_seq statement_to_node x);
       ])
   | Shorthand x ->
       group "ret_shorthand" (expr_to_node x)
@@ -327,6 +336,44 @@ and type_or_moulded_to_node (x: Nodes.Type_or_moulded.t) = match x with
   | Raw x -> type_to_node x
   | Moulded x -> moulded_to_node x
 
+and import_member_to_node (x: Nodes.Import_member.t) =
+  fields [
+    ("name", Leaf x.name);
+    ("is_type", Leaf (string_of_bool x.is_type));
+  ]
+
+and import_to_node (x: Nodes.Import.t) = match x with
+  | Package { package; alias } ->
+      let fs = [("package", Leaf package)] in
+      let fs = match alias with
+        | Some alias -> fs @ [("alias", Leaf alias)]
+        | None -> fs
+      in
+      group "import_package" (fields fs)
+  | Member { package; member; alias } ->
+      let fs = [
+        ("package", Leaf package);
+        ("member", import_member_to_node member);
+      ] in
+      let fs = match alias with
+        | Some alias -> fs @ [("alias", import_member_to_node alias)]
+        | None -> fs
+      in
+      group "import_member" (fields fs)
+  | Members { package; members } ->
+      group "import_members" (fields [
+        ("package", Leaf package);
+        ("members", map_seq import_member_to_node members);
+      ])
+  | All { package } ->
+      group "import_all" (fields [("package", Leaf package)])
+
+and map_entry_to_node (key, value) =
+  fields [
+    ("key", expr_to_node key);
+    ("value", expr_to_node value);
+  ]
+
 and enum_map_entry_to_node (member, value) =
   fields [
     ("member", Leaf member);
@@ -335,7 +382,7 @@ and enum_map_entry_to_node (member, value) =
 
 and decl_to_node (x: Nodes.Decl.t) = match x with
   | Package name -> group "package_decl" (Leaf name)
-  | Import name -> group "import_decl" (Leaf name)
+  | Import value -> group "import_decl" (import_to_node value)
   | Var { name; type_; value } ->
       group "var_decl" (fields [
         ("name",  Leaf name);

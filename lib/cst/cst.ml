@@ -30,9 +30,20 @@ let parse filename input =
              pos_end)
       in
       try
-        Ok
-          (MenhirLib.Convert.Simplified.traditional2revised Parser.package
-             tokenizer)
+        let package =
+          MenhirLib.Convert.Simplified.traditional2revised Parser.package
+            tokenizer
+        in
+        (* Statement shape is checked here rather than in the grammar's
+           actions: under GLR an action runs on branches that are abandoned a
+           token later, so rejecting from one ends the parse instead of the
+           branch. See [Statement_check]. *)
+        match Statement_check.check package with
+        | Ok () -> Ok package
+        | Error (message, position) ->
+            Error
+              (Parse_error.format_parse_error ~message filename input position
+                 position)
       with
       | Parse_error.Rejected message -> located ~message ()
       | Parser.Error _ | Lexer.Lexing_error | Sedlexing.MalFormed -> located ())

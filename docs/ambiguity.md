@@ -61,20 +61,58 @@ Every LR conflict state must carry exactly one of:
 A grammar change that introduces a new conflict state is incomplete until
 the state is triaged into one of these categories.
 
+### What a semantic action may do
+
+An action runs on **every branch the parser has live**, not only on the branch
+that goes on to be accepted. A conflict state forks, both branches reduce, and
+the losing one is discarded a token or twenty later — but its actions have
+already run by then.
+
+So an action **MUST NOT** raise to reject its own branch. Raising ends the
+parse, not the branch, and the input that dies is whatever was being read when
+the losing branch got far enough to raise — which is ordinary, valid input.
+`Parse_error.Rejected` is therefore safe only where the raise cannot fire on a
+branch that competes with a valid reading: `attach_abort_handle` raises on a
+handler following a trailing argument, and no valid program has one, so no
+accepted input reaches it.
+
+The statement terminator is the case that taught this. Whether a statement
+needs `;` depends on whether it ends in `}`, which the grammar cannot see when
+it has to choose — after `ran Bool = if(ready)` the next token decides, and a
+`{` there continues the call. So the grammar takes either spelling and the
+mismatch is checked afterward. Checked from a raise in the action, it failed 18
+tests at once, every one of them on the early-ending branch of a program that
+parses correctly one token later. The check now records the mismatch on the
+statement and `Statement_check` walks the finished tree, where the losing
+branches are gone.
+
+The rule that follows: a check that depends on more than the branch it is in
+belongs **after the parse**, over the tree that survived. A check that is local
+to its own branch can stay in the action. Neither is a substitute for encoding
+the rule in the grammar where the grammar can carry it.
+
 ### Where the current conflicts come from
 
-Menhir reports 29 conflict states. Twenty-six of them turn on one lookahead
-token and three turn on four at once, so the table counts states rather than
-token occurrences and its rows sum to the same 29. They are not independent
-problems:
+Menhir reports 54 states with shift/reduce conflicts and 4 with reduce/reduce
+conflicts; the explanations file accounts for 56 conflict blocks, since a state
+carrying both kinds is explained once per kind. The table counts states rather
+than token occurrences. They are not independent problems:
 
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
 | `(`             | 9 | `loption_generics_ ->` | before a call or a lambda |
 | `<`             | 9 | `loption_generics_ ->` | against `<` as a declared operator |
+| `(` `<`         | 3 | `loption_generics_ ->` | a named type opening a call or a generic list |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
-| `{`             | 3 | `app -> ... DOT LIDENT` | a field access against a constructor body |
-| `{`             | 3 | `computed_call_no_trailing_block_ -> ... RPAREN` | a call's trailing block against an enclosing brace |
+| `[`             | 12 | `list_verb_type_suffix_ ->` | a vanished terminator against a verb-type suffix |
+| `(`             | 3 | `list_verb_type_suffix_ ->` | the same, before a call |
+| `(`             | 2 | `app -> func_callee` | a vanished terminator against a call |
+| `[`             | 2 | `expr -> app`, `ref_target -> app` | a vanished terminator against a subscript |
+| `(` `[`         | 2 | `boption_SEMICOLON_ ->`, `expr -> SPAWN verb_call` | *(reduce/reduce)* the same, on `spawn` |
+| `?` `??` `(` `[` | 2 | `expr -> SPAWN verb_call`, `func_callee -> verb_call` | a spawned call against what follows it |
+| `{`             | 3 | `computed_call_no_trailing_arg_ -> ... RPAREN` | a call's trailing argument against an enclosing brace |
+| `{` / `(` `{`   | 3 | `app -> ... DOT LIDENT` | a field access against a constructor body |
+| a name, `[`     | 1 | `import_decl -> IMPORT LIDENT DOLLAR` | a whole-package import against a member one |
 | `(`             | 2 | `primary -> LIDENT`, `primary -> THIS` | a bare name against a call or a lambda |
 
 The `<` row is about the declaration form, not the comparison. Its nine states
@@ -86,13 +124,72 @@ removes all nine and nothing else, which is what identifies the family; it is a
 language change rather than a restructuring, so it is a measurement here and
 not a proposal.
 
+**The vanished terminator is one root, not six.** Twenty-one shift/reduce
+states and both reduce/reduce conflicts — 23 of the 56 — trace to a single
+fact: a statement's `;` is optional
+in the grammar, because whether it is required depends on whether the statement
+ends in a `}`, and that is not a question a bracket answers. So the token that
+used to end a statement can now be the first token of the next one, and every
+reduction that used to be decided by seeing `;` is decided by seeing `[` or `(`
+instead — the two tokens a statement can begin with. `type T = Int[]` followed
+by a statement opening `[a] = b;` is the shape; the parser must close the
+verb-type suffix list before it can know. The import state below shares the
+root — with a terminator after each package-scope declaration its lookahead
+would be decided — but it forks over a name rather than a bracket, so it is
+triaged on its own.
+
+These are **open obligations**, and the reason they are permitted rather than
+resolved is that the conflict is an artifact of where the check lives, not of
+the language. Exactly one of the two readings survives the grammar in every
+case measured, and the one that survives is then accepted or rejected by
+`check_terminator`, which reads the statement's own tail off the tree. The
+alternative — splitting the expression grammar into brace-ending and
+non-brace-ending halves so that the terminator is decided by the shape — would
+resolve them at the cost of two copies of every operator production, since
+`a + match e { … }` ends in a brace because its right operand does. That trade
+has not been made.
+
+What removed twelve conflicts and what brought them back is worth recording
+together. The twelve were on `[`, and all twelve were one adjacency: an enum
+map's type was a `type_expr`, whose own run of verb-type suffixes had to be
+closed before the entry list's bracket could be shifted. Which kind a bracket
+group was depended on what followed its closing bracket, so deciding at the
+opening one was a question LR could not answer. `enum_map_tail` shifted every
+group before classifying it, which removed all twelve without changing what the
+language accepted.
+
+The spec then moved the enum map's entries from `[ ]` to `{ }`
+([`adt.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/adt.md) §6), and
+the adjacency went with it: the entry list no longer shares a bracket with the
+suffixes, so the decision is made at the opening bracket by the bracket itself.
+`enum_map_tail`, the classifier that carried a group's kind, and the two
+rejected orders are all gone, and the enum map is a `type_expr` followed by a
+`{ }` body again. The twelve `[` states in the table above are a different
+family that happens to be the same size — they are the vanished terminator, and
+they appear on a plain `type` declaration with no enum map in sight.
+
+The one state that reduces `import_decl -> IMPORT LIDENT DOLLAR` is an **open
+obligation**. `import pkg$` takes every accessible member and so ends on the
+`$`; `import pkg$member` takes one. After the `$`, a name is either that member
+or the first token of the next declaration, and since a package-scope
+declaration carries no terminator there is nothing between them to read.
+
+It looks transient, and the shape a proof would take is clear: the shift branch
+consumes a name that the reduce branch needs in order to open a declaration, so
+for both to accept, some token sequence would have to be a run of declarations
+both with and without a name in front of it. No proof keyed to the state's LR
+items has been written, so it is tracked rather than argued. What is measured
+is that every continuation tried resolves to one derivation — a following
+`import`, a lowercase variable declaration, an uppercase verb declaration, a
+`type` declaration, a constructor declaration, and an enum map.
+
 The three `{` states that reduce a completed call are **open obligations**. A
-call may be closed by a trailing block, so after `f(x)` a following `{` is
-either that block or a brace belonging to whatever encloses the call — in
+call may be closed by a trailing argument, so after `f(x)` a following `{` is
+either that argument or a brace belonging to whatever encloses the call — in
 `match f(x) { … }`, the arms. The smallest grouping rule attaches following
 syntax to the nearest preceding construct that can accept it, which reads the
-brace as the call's block and leaves the `match` unclosed, so the rule and the
-intended reading point opposite ways here. Settling that is a language
+brace as the call's argument and leaves the `match` unclosed, so the rule and
+the intended reading point opposite ways here. Settling that is a language
 decision, and until it is settled these states carry neither a precedence
 resolution nor a transience argument.
 
@@ -101,13 +198,13 @@ exactly one derivation, so the fork is resolved rather than ambiguous on them,
 and the third is rejected outright:
 
 ```sh
-ambiguity check LIDENT UIDENT EQUAL MATCH LIDENT LPAREN RPAREN LCURLY RCURLY LCURLY LIDENT THICK_ARROW INT SEMICOLON RCURLY SEMICOLON EOF
+ambiguity check LIDENT UIDENT EQUAL MATCH LIDENT LPAREN RPAREN LCURLY RCURLY LCURLY LIDENT THICK_ARROW INT SEMICOLON RCURLY EOF
 ```
 
-`x Int = match f() { } { a => 1; };` is accepted, and reads the first brace as
-the call's block and the second as the arms. `x Int = match f() { a => 1; };`
+`x Int = match f() { } { a => 1; }` is accepted, and reads the first brace as
+the call's block and the second as the arms. `x Int = match f() { a => 1; }`
 is accepted the only way it can be, since `a => 1;` is not a statement and so
-cannot be the call's block. `x Int = match f() { a => 1; } { };` is rejected
+cannot be the call's block. `x Int = match f() { a => 1; } { }` is rejected
 for the same reason, once the arms are spent there is nothing left to take the
 last brace. The first of the three is what block arguments added: before them
 it was rejected. That every arm list which is not also a statement list escapes
@@ -115,35 +212,36 @@ the fork is the shape a transience argument would have to take, and it is not
 one yet — the case where a brace's contents read as both has not been ruled
 out.
 
-There were twelve more, on `[`, and all twelve were one adjacency: an enum
-map's type was a `type_expr`, whose own run of verb-type suffixes had to be
-closed before the entry list's bracket could be shifted. Which kind a bracket
-group is depends on what follows its closing bracket, so deciding at the
-opening one is a question LR cannot answer, and the family of candidates it
-generated is unbounded — the surviving counterexample grew a token per
-refinement round, so no retained depth ever closed it. `enum_map_tail` shifts
-every group before classifying it, which removed all twelve without changing
-what the language accepts.
+That shape is now load-bearing in a second place. A **map literal** stands in a
+value position behind no introducing token, and so does a block argument, so in
+argument position the two can meet. They are told apart by the mark after the
+first expression — a `,` opens an entry's value, a `;` ends a statement — which
+is a parse rather than a scan, since both now hold `;`-terminated things. Both
+readings are explored and exactly one survives on every case measured,
+including the one that looks like a counterexample: a `match` consumes its own
+scrutinee commas before the entry's mark is reached. `f({ a, b; })` and
+`f({ g(); })` each have one derivation, and so do both of their trailing
+spellings.
 
-Twenty-one of the 29 reduce `loption_generics_ ->`, five reduce `app` or
-`primary`, and three reduce a completed call. The empty generics reduction is
-load-bearing rather than an artifact: expanding the option into two explicit
-alternatives raises the count to 43, and dropping generics from named types
-raises it to 31, both by trading shift/reduce states for reduce/reduce ones.
-What it stands in for is a genuine overlap in the surface syntax — `x Foo(…)`
-is either a constructor shorthand or a lambda declaration whose return type is
-`Foo`, and nothing before the closing bracket says which.
+Twenty-four states reduce `loption_generics_ ->`, 21 of which predate the
+terminator change and are unchanged by it. The empty generics reduction is load-bearing rather
+than an artifact: expanding the option into two explicit alternatives raises
+the count, and dropping generics from named types raises it too, both by
+trading shift/reduce states for reduce/reduce ones. What it stands in for is a
+genuine overlap in the surface syntax — `x Foo(…)` is either a constructor
+shorthand or a lambda declaration whose return type is `Foo`, and nothing
+before the closing bracket says which.
 
 ### Restructurings that were measured and rejected
 
 `enum_map_tail` removed twelve conflicts by shifting every bracket group before
-classifying it, and the same move looks like it should close the generics
+classifying it, and the same move looked like it should close the generics
 family: give the constructor path the same `loption(generics)` the type path
 carries, so that no reduction has to decide which one a name type is opening.
-Measured, it goes the wrong way. Adding the option to `constructor_name` turns
+Measured, it goes the wrong way. Adding the option to `constructor_name` turned
 29 conflict states into 49, twelve of them reduce/reduce; routing `verb_call`
 through `constructor_decl_name`, which reaches the same shape by a different
-edit, lands on the same 49.
+edit, landed on the same 49.
 
 What the enum-map case had and this one does not is a common shape to shift.
 Both readings of a bracket group there were `[ … ]`, differing only in the role
@@ -155,6 +253,10 @@ both paths the same optional generics makes their prefixes identical without
 making their continuations identical. It buys two `(` states and pays ten new
 `.` states and twelve reduce/reduce ones for them: the parser now cannot tell
 which nonterminal it is completing at the point where it used to know.
+
+Both measurements were taken before the terminator change and have not been
+retaken against the current grammar; the counts they cite are relative to the
+29-state baseline.
 
 The reading to take from this is that the remaining families are not waiting
 for a factoring. They are overlaps in the surface syntax whose resolution sits

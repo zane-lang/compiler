@@ -154,8 +154,8 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
             "LIDENT LPAREN FALSE LPAREN RPAREN RPAREN LCURLY RCURLY "
-            "SEMICOLON RCURLY EOF",
-            "Int length() { abort value(false()) { }; }",
+            "RCURLY EOF",
+            "Int length() { abort value(false()) { } }",
             "call(name, call(bool), block)",
         )
 
@@ -163,8 +163,8 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
             "LIDENT LPAREN LCURLY ABORT FALSE SEMICOLON RCURLY RPAREN "
-            "LCURLY RCURLY SEMICOLON RCURLY EOF",
-            "Int length() { abort value({ abort false; }) { }; }",
+            "LCURLY RCURLY RCURLY EOF",
+            "Int length() { abort value({ abort false; }) { } }",
             "call(name, block, block)",
         )
 
@@ -172,16 +172,16 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
             "LIDENT LPAREN RPAREN COLON LIDENT LPAREN RPAREN LCURLY RCURLY "
-            "SEMICOLON RCURLY EOF",
-            "Int length() { abort value():length() { }; }",
+            "RCURLY EOF",
+            "Int length() { abort value():length() { } }",
             "meth(call(name), name, block)",
         )
 
     def test_a_match_keeps_the_brace_that_holds_its_arms(self) -> None:
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
-            "MATCH LIDENT LPAREN RPAREN LCURLY RCURLY SEMICOLON RCURLY EOF",
-            "Int length() { abort match value() { }; }",
+            "MATCH LIDENT LPAREN RPAREN LCURLY RCURLY RCURLY EOF",
+            "Int length() { abort match value() { } }",
             "match(call(name))",
         )
 
@@ -191,9 +191,38 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
             "MATCH LIDENT LPAREN RPAREN LCURLY RCURLY LCURLY RCURLY "
-            "SEMICOLON RCURLY EOF",
-            "Int length() { abort match value() { } { }; }",
+            "RCURLY EOF",
+            "Int length() { abort match value() { } { } }",
             "match(call(name, block))",
+        )
+
+    def test_a_brace_argument_is_told_from_a_block_by_its_first_mark(
+        self,
+    ) -> None:
+        # `,` after the first expression opens a map entry's value; `;` ends a
+        # statement. The two never compete for the same text.
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "LIDENT LPAREN LCURLY LIDENT COMMA FALSE SEMICOLON RCURLY RPAREN "
+            "SEMICOLON RCURLY EOF",
+            "Int length() { abort value({ first, false; }); }",
+            "call(name, map(name, bool))",
+        )
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "LIDENT LPAREN LCURLY ABORT FALSE SEMICOLON RCURLY RPAREN "
+            "SEMICOLON RCURLY EOF",
+            "Int length() { abort value({ abort false; }); }",
+            "call(name, block)",
+        )
+
+    def test_a_map_literal_may_trail_a_call(self) -> None:
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "LIDENT LPAREN RPAREN LCURLY LIDENT COMMA FALSE SEMICOLON RCURLY "
+            "RCURLY EOF",
+            "Int length() { abort value() { first, false; } }",
+            "call(name, map(name, bool))",
         )
 
     def test_bare_type_member_has_one_value_reading(self) -> None:

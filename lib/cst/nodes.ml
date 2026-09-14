@@ -31,6 +31,24 @@ module Type_axis = struct
   type t = Value | Reference
 end
 
+(* How a statement disagreed with the rules about where it ends.
+
+   All three are decided by the statement's tail, which the grammar cannot see
+   at the point it has to choose, so they are recorded on the statement and
+   read back afterwards rather than rejected in an action. *)
+module Statement_defect = struct
+  type t =
+    (* Ends in `}`, which closes it, and carries a `;` that marks nothing. *)
+    | Stray_semicolon
+    (* Does not end in `}`, so nothing else closes it. *)
+    | Missing_semicolon
+    (* A trailing argument's `}` closes the call and the statement together, so
+       nothing may continue it -- `run() { } + Int(1)` writes an operand after
+       the statement has already ended. The parenthesized form, `(run() { })
+       + Int(1)`, is how that value is continued. *)
+    | Continued_trailing_argument
+end
+
 module Name_type = struct
   type t =
     | Ident of string
@@ -48,6 +66,40 @@ end
 
 module Concept = struct
   type t = Type | Number
+end
+
+(* One name taken from a package. The casing class is kept rather than
+   recomputed, because an `as` alias must preserve it: a value may not be
+   renamed to a type-shaped name, or the reverse. *)
+module Import_member = struct
+  type t = {
+    name : string;
+    is_type : bool;
+  }
+end
+
+(* What an import writes after `import` is what the file writes at the use
+   site, so the form is the declaration rather than a detail of it. An alias
+   belongs only to the two forms that name a single thing to rename: a list has
+   no single name, and the whole-package `pkg$` form qualifies nothing. Those
+   two combinations are therefore unrepresentable here rather than rejected
+   later. *)
+module Import = struct
+  type t =
+    (* import pkg           -> pkg$member
+       import pkg as alias  -> alias$member *)
+    | Package of { package : string; alias : string option }
+    (* import pkg$member           -> member
+       import pkg$member as alias  -> alias *)
+    | Member of {
+        package : string;
+        member : Import_member.t;
+        alias : Import_member.t option;
+      }
+    (* import pkg$[memberA, memberB] -> memberA, memberB *)
+    | Members of { package : string; members : Import_member.t list }
+    (* import pkg$ -> every accessible member, unqualified *)
+    | All of { package : string }
 end
 
 module Generic_param = struct
@@ -87,6 +139,9 @@ module rec Expr : sig
     | Ref of t
     | Parenthized of t
     | Init of Field_arg.t list
+    (* A `{ }` body of `;`-terminated `key, value` entries. Never empty: an
+       empty `{ }` in a value position is a block, so the two never compete. *)
+    | MapLit of (t * t) list
     | MethodTarget of { callee : t; this : t; is_mut : bool }
     | Pipe of {
         callee : t;
@@ -120,7 +175,7 @@ end = Field_arg
 and Call_arg : sig
   type t =
     | Value of Expr.t
-    | Block of Stat.t list
+    | Block of Statement.t list
 end = Call_arg
 
 and Constructor_args : sig
@@ -129,11 +184,18 @@ and Constructor_args : sig
     | Fields of Field_arg.t list
 end = Constructor_args
 
-(* needs grouping because then we can unify the abort handling *)
+(* needs grouping because then we can unify the abort handling
+
+   [trailing] records whether the call's last argument was written after the
+   `)` rather than inside it. The two spellings mean the same call, so nothing
+   downstream of the parser reads it, but they do not end the same way: a
+   trailing argument's `}` closes the statement, which decides whether a `;`
+   follows and forbids an abort handler after it. That is surface information,
+   and a CST that could not tell the two apart could not apply either rule. *)
 and Verb_call : sig
   type t =
-    | Func        of { callee: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; }
-    | Meth        of { callee: Expr.t; this: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; is_mut: bool; }
+    | Func        of { callee: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; trailing: bool; }
+    | Meth        of { callee: Expr.t; this: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; is_mut: bool; trailing: bool; }
     | Constructor of { name: Constructor_name.t; args: Constructor_args.t; abort_handle: Abort_handle.t option; }
     | Op          of { op: Operator.t; left: Expr.t; right: Expr.t; abort_handle: Abort_handle.t option; }
     | Flip        of { value: Expr.t; abort_handle: Abort_handle.t option; }
@@ -251,10 +313,31 @@ and Stat : sig
     | Resolve of Expr.t
 end = Stat
 
+(* A statement together with what its terminator turned out to be.
+
+   Whether a `;` was needed is decided by the statement's own tail, which the
+   grammar cannot see at the point it has to choose: it accepts either
+   spelling, and a mismatch is recorded here rather than raised.
+
+   Recorded, because the parser is GLR and a semantic action runs on every
+   live branch -- including the branch that reads `ran Bool = if(ready)` as a
+   whole statement, one token before the `{` that continues it. Raising there
+   ends the parse rather than that branch, so a valid program dies on a
+   reading it was never going to keep. What reaches the finished tree is what
+   was really parsed, so the check runs over that instead. *)
+and Statement : sig
+  type t = {
+    stat : Stat.t;
+    (* [None] when the statement is well formed. Otherwise how it is not, and
+       where to point. *)
+    defect : (Statement_defect.t * Lexing.position) option;
+  }
+end = Statement
+
 and Body : sig
   type t =
     | Shorthand of Expr.t
-    | Longhand of Stat.t list
+    | Longhand of Statement.t list
 end = Body
 
 and Ret_type : sig
@@ -332,7 +415,7 @@ end = Verb_decl
 and Decl : sig
   type t =
     | Package of string
-    | Import of string
+    | Import of Import.t
     | Var of { name : string; type_ : Type_expr.t; value : Expr.t }
     | VarShorthand of { name : string; constructor : Constructor_name.t; args : Constructor_args.t }
     | Type of {
