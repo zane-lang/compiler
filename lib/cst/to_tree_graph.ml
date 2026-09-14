@@ -127,7 +127,7 @@ and verb_call_to_node (x: Nodes.Verb_call.t) = match x with
         ("trailing", Leaf (string_of_bool trailing));
         abort_field abort_handle;
       ])
-  | Constructor { name; args; abort_handle } ->
+  | Constructor { name; args; abort_handle; trailing } ->
       let fs = [("type", name_type_to_node name.type_)] in
       let fs = match name.member with
         | Some member -> fs @ [("member", Leaf member)]
@@ -135,6 +135,7 @@ and verb_call_to_node (x: Nodes.Verb_call.t) = match x with
       in
       group "ctor_call" (fields (fs @ [
         ("args", constructor_args_to_node args);
+        ("trailing", Leaf (string_of_bool trailing));
         abort_field abort_handle;
       ]))
   | Op { op; left; right; abort_handle } ->
@@ -389,7 +390,7 @@ and decl_to_node (x: Nodes.Decl.t) = match x with
         ("type",  type_to_node type_);
         ("value", expr_to_node value);
       ])
-  | VarShorthand { name; constructor; args } ->
+  | VarShorthand { name; constructor; args; trailing } ->
       let fs = [
         ("name", Leaf name);
         ("type", name_type_to_node constructor.type_);
@@ -399,7 +400,10 @@ and decl_to_node (x: Nodes.Decl.t) = match x with
         | None -> fs
       in
       group "var_decl_shorthand"
-        (fields (fs @ [("args", constructor_args_to_node args)]))
+        (fields (fs @ [
+          ("args", constructor_args_to_node args);
+          ("trailing", Leaf (string_of_bool trailing));
+        ]))
   | Type x ->
       group "type_decl" (fields [
         ("name",   Leaf x.name);

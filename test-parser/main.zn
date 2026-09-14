@@ -4,10 +4,10 @@
 /// named values, and reports what went wrong when it cannot. The program is
 /// also the parser's fixture, so it reaches on purpose for most of the shapes
 /// the grammar accepts: enums and the maps hung off them, variants and `match`,
-/// value and reference types, the constructor forms, methods, operators,
-/// subscripts, lambdas, generics, abort handlers, `spawn`, map literals, the
-/// import forms, and the block arguments everything that reads as control flow
-/// is built from.
+/// value and reference types, the constructor forms and the calls that trail a
+/// block into them, methods, operators, subscripts, lambdas, generics, abort
+/// handlers, `spawn`, map literals, the import forms, and the block arguments
+/// everything that reads as control flow is built from.
 package main;
 
 /// Every import form, since what an import writes after `import` is what the
@@ -337,6 +337,38 @@ Unit record(entries @concepts$Map<String, Float>) {
 }
 
 // ---------------------------------------------------------------------------
+// Retrying: constructors that take the last argument after the `)`
+// ---------------------------------------------------------------------------
+
+/// A verb declaring a `@concepts$Block` parameter is how a package that is not
+/// `core` writes control flow of its own. A constructor may declare one too,
+/// since a constructor is an ordinary call -- so its last argument trails the
+/// `)` the way a function call's does.
+type Retry = struct {
+	attempts Int;
+}
+
+Retry(attempts Int, body @concepts$Block) {
+	@controlflow$repeat(attempts, body);
+	return init{ attempts; }
+}
+
+/// A named constructor takes one on the same terms.
+Retry.upTo(limit Int, body @concepts$Block) {
+	@controlflow$repeat(limit, body);
+	return init{ attempts = limit; }
+}
+
+/// The other `{ }` that may trail a call is a map literal, so a constructor
+/// whose last parameter is a map takes one there.
+type Snapshot = #struct {
+	label String;
+	taken Map<String, Float>;
+}
+
+Snapshot(label String, taken @concepts$Map<String, Float>) => init{ label; taken; }
+
+// ---------------------------------------------------------------------------
 // Reporting
 // ---------------------------------------------------------------------------
 
@@ -427,6 +459,37 @@ Unit main() {
 		"answer", answer;
 	}
 
+	// A constructor call trails its last argument the way any other call does,
+	// and the instantiation shorthand writes the symbol in front of the same
+	// call. A named constructor takes one on the same terms.
+	retried Retry(2) {
+		std$print("retrying");
+	}
+	capped Retry.upTo(3) {
+		std$print("capped at " + String(retried.attempts));
+	}
+
+	// The same call written in full. It ends on the `)` rather than a `}`, so
+	// this spelling is the one that carries the terminator.
+	direct Retry(1, { std$print("once"); });
+
+	// A bare call statement trails one too, and the map literal is the other
+	// `{ }` that may take the position.
+	Retry(1) {
+		std$print("dropped");
+	}
+	taken Snapshot("final") {
+		"x", Float(3);
+		"y", Float(4);
+	}
+
+	// What may not trail is an argument list with nothing left inside it:
+	// `Retry() { ... }` is a lambda literal returning a `Retry`, which is what
+	// the next line declares.
+	make Retry() {
+		return Retry(1, { std$print("made"); });
+	}
+
 	// Both maps again, in a context that wants an `Int` rather than a String.
 	spread Int = Operator.mul.precedence - Operator.add.precedence;
 
@@ -473,6 +536,10 @@ Unit main() {
 	std$print(walker:peek());
 	std$print(shifted.left);
 	std$print(bits);
+	std$print(capped.attempts);
+	std$print(direct.attempts);
+	std$print(taken.label);
+	std$print(make().attempts);
 
 	// The other way into a map: straight off the member name.
 	std$print(Operator.add.identity);

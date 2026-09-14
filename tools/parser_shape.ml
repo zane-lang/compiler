@@ -20,12 +20,20 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
   | Cst.Nodes.Expr.VerbCall
       (Cst.Nodes.Verb_call.Meth { callee; this; args; _ }) ->
       parts "meth" (expr_shape this :: expr_shape callee :: List.map arg_shape args)
-  | Cst.Nodes.Expr.VerbCall
-      (Cst.Nodes.Verb_call.Constructor { name = { member = Some _; _ }; _ }) ->
-      "named_ctor"
-  | Cst.Nodes.Expr.VerbCall
-      (Cst.Nodes.Verb_call.Constructor { name = { member = None; _ }; _ }) ->
-      "ctor"
+  (* A constructor call renders its arguments for the same reason a function
+     call does: a trailing block is the last of them, and the shape is what
+     says it joined this call rather than something inside it. *)
+  | Cst.Nodes.Expr.VerbCall (Cst.Nodes.Verb_call.Constructor { name; args; _ })
+    ->
+      let tag =
+        match name.Cst.Nodes.Constructor_name.member with
+        | Some _ -> "named_ctor"
+        | None -> "ctor"
+      in
+      (match args with
+      | Cst.Nodes.Constructor_args.Positional args ->
+          parts tag (List.map arg_shape args)
+      | Cst.Nodes.Constructor_args.Fields _ -> parts tag [ "fields" ])
   | Cst.Nodes.Expr.VerbCall (Cst.Nodes.Verb_call.Flip { value; _ }) ->
       "flip(" ^ expr_shape value ^ ")"
   | Cst.Nodes.Expr.FuncLambda {
@@ -33,6 +41,11 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
       _;
     } ->
       "lambda(" ^ expr_shape body ^ ")"
+  (* A `{ }`-bodied lambda renders as [block] for the same reason a block
+     argument does: `Foo() { ... }` is one of these and not a constructor call
+     with a trailing block, and the shape is what says so. *)
+  | Cst.Nodes.Expr.FuncLambda { body = Cst.Nodes.Body.Longhand _; _ } ->
+      "lambda(block)"
   | Cst.Nodes.Expr.Spawn call ->
       "spawn(" ^ expr_shape (Cst.Nodes.Expr.VerbCall call) ^ ")"
   | Cst.Nodes.Expr.Match { scrutinees; _ } ->

@@ -83,26 +83,58 @@ these as short-circuiting keywords without placing them. The spec has since
 removed them, so what is left to reconcile is the whole construct rather than
 its precedence.
 
-## 3. A constructor call carries its blocks in the argument list
+## 3. A constructor call with nothing else to pass may not trail
 
 **Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
 §4.9: "A call's **last** argument may instead **trail** [...] Only a `{ }`
-argument may trail", said of calls in general.
+argument may trail", said of calls in general, and "An argument list with
+nothing left inside it still writes its `( )`".
 
-**Compiler** — a function or method call may trail one; a constructor call may
-not, and writes every block in its argument list.
+**Compiler** — a constructor call trails its last argument like any other
+call, wherever one is written: as a statement, as an expression, and in the
+instantiation shorthand of
+[`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
+§1.1. What it may not do is trail when that would leave the `( )` empty.
 
 ```zane
-Foo({ run(); })      // a constructor call taking a block argument
-Foo() { run(); }     // a constructor declaration, here and in a body alike
+worker Thread(name) {           // the block trails the call
+    poll();
+}
+
+worker Thread(name, { poll(); });   // the same call, written in full
+worker Thread() { poll(); }         // not this call: a lambda literal
 ```
 
-The second line is a positional constructor declaration with a block body
+The last line is the whole of what is left, and it is not rejected — it is
+read as something else. `Foo() { ... }` is a **lambda literal** whose return
+type is `Foo`
 ([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§3.3), which it already was before block arguments existed. Letting a
-constructor call trail a block would give those tokens a second reading, so it
-may not; a function or method call is not spelled that way and can. Measured
-with `--check-tokens`, `UIDENT LPAREN RPAREN LCURLY RCURLY EOF` has 1 parse.
+§3.8 lists `ReturnType() { body }` as a form of its own), and in statement
+position it is also a positional constructor declaration with a block body
+(§3.3). Nothing inside the form tells those from a nullary constructor call
+with one trailing block: an empty argument list and an empty parameter list are
+the same `( )`, and a trailing block argument and a block body are the same
+`{ }`. A lower-case callee has no such reading, which is why `do() { ... }` is
+unambiguous and `Foo() { ... }` is not — the casing rule is doing the work.
+
+So what is left is a collision inside the spec rather than a place the
+compiler went its own way: §3.8 and §4.9 both claim the spelling, and neither
+says which wins. Until the spec settles it, the compiler reads it as §3.8 has
+it, and a constructor call whose only argument is a block writes the block
+inside the list — `Thread({ poll(); });`, which needs its `;` because it ends
+on the `)`.
+
+Measured with `--check-tokens`, `UIDENT LPAREN RPAREN LCURLY RCURLY EOF` has 1
+parse and `UIDENT LPAREN LIDENT RPAREN LCURLY RCURLY EOF` — the same call
+with something inside the brackets — has 1 parse as the trailing form.
+Admitting the nullary trailing reading gives `return Foo() { }` 2.
+
+What stood here before was wider: no constructor call could trail at all,
+because `Foo() { ... }` already spelled a constructor declaration with a block
+body (§3.3). That reason is real but it only reaches statement position, and
+the grammar was refusing the trailing form everywhere on the strength of it.
+Narrowing it to the empty argument list keeps every spelling the declaration
+and the lambda literal can take, and gives the rest back to the call.
 
 ## 4. A declaration inside a body is terminated like the statement it is
 
@@ -137,10 +169,11 @@ recorded because moving a declaration between the two levels changes how it is
 spelled, which is a real cost and worth stating out loud rather than
 discovering.
 
-A raw `type`/`alias`, a positional instantiation, a `=> expr` verb **whose
-expression does not itself end in a `}`**, and a type cast from the **peer
-mould** are the forms this is visible on — the peer mould's contents are a flat
-list of names, so it takes `[ ]` and closes on a `]` rather than a brace.
+A raw `type`/`alias`, a positional instantiation that does not trail its last
+argument (entry 3 above), a `=> expr` verb **whose expression does not itself
+end in a `}`**, and a type cast from the **peer mould** are the forms this is
+visible on — the peer mould's contents are a flat list of names, so it takes
+`[ ]` and closes on a `]` rather than a brace.
 `package` and `import` are spelled the same at both levels, since §5 gives them
 a terminator at both. A `struct`/`variant` mould, a `{ }` verb body, an
 enum map, and a `=> expr` verb whose expression *does* end in a `}` — a

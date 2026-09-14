@@ -134,7 +134,7 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
             "UIDENT DOT LIDENT LPAREN RPAREN SEMICOLON RCURLY EOF",
             "Int length() { abort Vector2.zeros(); }",
-            "named_ctor",
+            "named_ctor()",
         )
 
     def test_spawn_takes_the_outer_call(self) -> None:
@@ -280,6 +280,113 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "UIDENT LPAREN RPAREN LCURLY RCURLY RCURLY EOF",
             "Unit f() { import core$ main Unit() { } }",
             0,
+        )
+
+    def test_a_trailing_block_joins_a_constructor_call(self) -> None:
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "UIDENT LPAREN LIDENT RPAREN LCURLY RCURLY RCURLY EOF",
+            "Int length() { abort Vector2(first) { } }",
+            "ctor(name, block)",
+        )
+
+    def test_a_trailing_block_reaches_a_named_constructor(self) -> None:
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "UIDENT DOT LIDENT LPAREN LIDENT RPAREN LCURLY RCURLY RCURLY EOF",
+            "Int length() { abort Vector2.fromPair(first) { } }",
+            "named_ctor(name, block)",
+        )
+
+    def test_a_map_literal_may_trail_a_constructor_call(self) -> None:
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "UIDENT LPAREN LIDENT RPAREN LCURLY LIDENT COMMA FALSE SEMICOLON "
+            "RCURLY RCURLY EOF",
+            "Int length() { abort Vector2(first) { second, false; } }",
+            "ctor(name, map(name, bool))",
+        )
+
+    def test_an_empty_argument_list_keeps_the_lambda_reading(self) -> None:
+        # `Foo() { ... }` is a lambda literal whose return type is `Foo`
+        # (syntax.md §3.8), and in statement position a constructor
+        # declaration as well. A nullary constructor call may not trail,
+        # because it would be spelled exactly that way; the block goes inside
+        # the argument list instead. See docs/spec-divergences.md §3.
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "UIDENT LPAREN RPAREN LCURLY RCURLY RCURLY EOF",
+            "Int length() { abort Vector2() { } }",
+            "lambda(block)",
+        )
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "UIDENT LPAREN LCURLY RCURLY RPAREN SEMICOLON RCURLY EOF",
+            "Int length() { abort Vector2({ }); }",
+            "ctor(block)",
+        )
+
+    def test_a_constructor_scrutinee_takes_a_block_only_when_the_arms_do(
+        self,
+    ) -> None:
+        # The same fork the function-call scrutinee is in, reached through a
+        # constructor call: the first brace is the call's trailing argument
+        # only when a second one is left to hold the arms.
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "MATCH UIDENT LPAREN LIDENT RPAREN LCURLY RCURLY LCURLY RCURLY "
+            "RCURLY EOF",
+            "Int length() { abort match Vector2(first) { } { } }",
+            "match(ctor(name, block))",
+        )
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "MATCH UIDENT LPAREN LIDENT RPAREN LCURLY RCURLY RCURLY EOF",
+            "Int length() { abort match Vector2(first) { } }",
+            "match(ctor(name))",
+        )
+
+    def test_nothing_continues_a_constructor_call_past_its_trailing_block(
+        self,
+    ) -> None:
+        # The `}` ends the statement, so neither a `;` nor a further call may
+        # follow it, and a field-constructor call has no `)` to elide and so
+        # never trails at all.
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY UIDENT LPAREN LIDENT RPAREN "
+            "LCURLY RCURLY SEMICOLON RCURLY EOF",
+            "Unit f() { Vector2(first) { }; }",
+            0,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY UIDENT LPAREN LIDENT RPAREN "
+            "LCURLY RCURLY LPAREN RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { Vector2(first) { } (); }",
+            0,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY UIDENT LCURLY LIDENT EQUAL "
+            "LIDENT SEMICOLON RCURLY LCURLY RCURLY RCURLY EOF",
+            "Unit f() { Vector2{ x = first; } { } }",
+            0,
+        )
+
+    def test_the_instantiation_shorthand_takes_a_trailing_block(self) -> None:
+        # `name VarType(args, ...)` is a constructor call with a name in front
+        # of it, so it trails on the same terms. The empty list is the lambda
+        # variable's, for the same reason the bare call's is the lambda
+        # literal's.
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN LIDENT "
+            "RPAREN LCURLY RCURLY RCURLY EOF",
+            "Unit f() { v Vector2(first) { } }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN RPAREN "
+            "LCURLY RCURLY RCURLY EOF",
+            "Unit f() { v Vector2() { } }",
+            1,
         )
 
     def test_bare_type_member_has_one_value_reading(self) -> None:
