@@ -93,8 +93,8 @@ the rule in the grammar where the grammar can carry it.
 
 ### Where the current conflicts come from
 
-Menhir reports 57 states with shift/reduce conflicts and 2 with reduce/reduce
-conflicts; the explanations file accounts for 59 conflict blocks, since a state
+Menhir reports 72 states with shift/reduce conflicts and 2 with reduce/reduce
+conflicts; the explanations file accounts for 74 conflict blocks, since a state
 carrying both kinds is explained once per kind. The table counts states rather
 than token occurrences. They are not independent problems:
 
@@ -113,7 +113,8 @@ than token occurrences. They are not independent problems:
 | `(` `[`         | 2 | `boption_SEMICOLON_ ->`, `expr -> SPAWN verb_call` | *(reduce/reduce)* the same, on `spawn` |
 | `?` `??` `(` `[` | 2 | `expr -> SPAWN verb_call`, `func_callee -> verb_call` | a spawned call against what follows it |
 | `{`             | 3 | `computed_call_no_trailing_arg_ -> ... RPAREN` | a call's trailing argument against an enclosing brace |
-| `{` / `(` `{`   | 3 | `app -> ... DOT LIDENT` | a field access against a constructor body |
+| `{`             | 12 | `verb_call -> ... RPAREN`, `simple_decl -> ... RPAREN` | a constructor call's trailing argument against the same |
+| `{` / `(` `{`   | 6 | `app -> ... DOT LIDENT` | a field access against a constructor body or its trailing form |
 | `(`             | 3 | `primary -> LIDENT`, `primary -> THIS` | a bare name against a call or a lambda |
 
 The `<` row is about the declaration form, not the comparison. Its nine states
@@ -126,7 +127,7 @@ language change rather than a restructuring, so it is a measurement here and
 not a proposal.
 
 **The vanished terminator is one root, not six.** Twenty-one shift/reduce
-states and both reduce/reduce conflicts — 23 of the 59 — trace to a single
+states and both reduce/reduce conflicts — 23 of the 74 — trace to a single
 fact: a statement's `;` is optional
 in the grammar, because whether it is required depends on whether the statement
 ends in a `}`, and that is not a question a bracket answers. So the token that
@@ -211,8 +212,8 @@ What it leaves behind is the general lesson the ledger is for: a continuation
 survey is evidence that an obligation is *plausible*, never that it holds. The
 obligations below are open on the same footing.
 
-The three `{` states that reduce a completed call are **open obligations**. A
-call may be closed by a trailing argument, so after `f(x)` a following `{` is
+The fifteen `{` states that reduce a completed call are **open obligations**.
+A call may be closed by a trailing argument, so after `f(x)` a following `{` is
 either that argument or a brace belonging to whatever encloses the call — in
 `match f(x) { … }`, the arms. The smallest grouping rule attaches following
 syntax to the nearest preceding construct that can accept it, which reads the
@@ -220,6 +221,11 @@ brace as the call's argument and leaves the `match` unclosed, so the rule and
 the intended reading point opposite ways here. Settling that is a language
 decision, and until it is settled these states carry neither a precedence
 resolution nor a transience argument.
+
+Twelve of the fifteen are the same question asked of a constructor call, which
+reaches the fork through `verb_call` and through the instantiation shorthand
+rather than through `computed_call`. The witnesses below are written with a
+function call; the constructor spelling of each measures the same.
 
 What the grammar does today is pinned by three witnesses. Two are accepted by
 exactly one derivation, so the fork is resolved rather than ambiguous on them,
@@ -250,6 +256,42 @@ including the one that looks like a counterexample: a `match` consumes its own
 scrutinee commas before the entry's mark is reached. `f({ a, b; })` and
 `f({ g(); })` each have one derivation, and so do both of their trailing
 spellings.
+
+**A constructor call may trail its last argument, unless that would leave the
+`( )` empty.** The fifteen states that rule adds are the fork above, reached
+from six more places: twelve on `{` where a completed constructor call — the
+call itself, and the instantiation shorthand that writes a name in front of it
+— meets a brace that is either its trailing argument or the enclosing
+construct's, and three that double the `app -> ... DOT LIDENT` family, where a
+named constructor's `.member` now opens the trailing form as well as a field
+access. Under GLR both readings are explored and one survives, measured on
+every case in [`test_parser_ambiguity.py`](../tools/test_parser_ambiguity.py)
+and searched for in [`reports/general/`](../reports/general), where the run
+that added the rule exhausted every sentence of at most nine tokens without
+finding one.
+
+Which token carries the fork was a choice. The trailing form reads a non-empty
+argument list, and if the plain form reads `( )` as a list that may be empty,
+the two diverge while the list is being reduced: the parser picks at the `)`,
+before the `{` that decides is in view, and that spelling measures twelve
+states on `)` instead. Giving the empty list its own production lets both
+spellings share the non-empty one, so the `)` is shifted either way. The count
+is the same; the fork is the one already on this ledger.
+
+The empty list is the case the grammar has to keep out, and the reason is not
+the constructor declaration the divergence entry used to name. `Foo() { ... }`
+is a **lambda literal** whose return type is `Foo`
+([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
+§3.8 gives `ReturnType() { body }` as a form of its own), and a lambda literal
+is an expression, so that reading is live everywhere the trailing one would be
+— not only in statement position, where a constructor declaration is also
+spelled that way. Nothing inside the form separates them: an empty argument
+list and an empty parameter list are the same `( )`, and a trailing block
+argument and a block body are the same `{ }`. Admitting the trailing reading
+there gives `return Foo() { ... }` two derivations, measured; requiring
+something inside the `( )` gives every spelling one. What makes `do() { ... }`
+safe by comparison is the casing rule: a lower-case callee cannot be a return
+type, so no lambda reading exists to collide with.
 
 **A type may be written where a value is expected**, which is how the explicit
 half of

@@ -149,6 +149,85 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_parses(
             'Unit use() { done Unit = run({ work(); }) ? e { resolve Unit(); } }'
         )
+        # A statement closed by its own brace takes no terminator, which says
+        # nothing about what is written inside it: a continuation in the
+        # closing call's own argument, or in a constructor field's default, is
+        # the same mistake and is rejected the same way.
+        self.assert_rejects(
+            "Unit use() { run(wrap() { g(); } + Int(1)) { h(); } }"
+        )
+        self.assert_rejects(
+            "Unit use() { Foo{ a Int = wrap() { g(); } + Int(1); } { h(); } }"
+        )
+
+    def test_a_constructor_call_trails_its_last_argument(self) -> None:
+        # Spec syntax.md §4.9 says this of calls in general, and a constructor
+        # call is one. The empty argument list is the exception; it has its own
+        # test below.
+        self.assert_parses(
+            '''
+            Unit use(name String) {
+                worker Thread(name) {
+                    poll();
+                }
+                pool Pool.sized(4) {
+                    poll();
+                }
+                queued Queue(name, { warm(); }) {
+                    drain();
+                }
+                labels Table(name) {
+                    "x", Float(3);
+                }
+                started Thread = Thread(name) {
+                    poll();
+                }
+                Thread(name) {
+                    poll();
+                }
+                return Unit();
+            }
+            '''
+        )
+        # The same call written in full, which ends on the `)` and so carries
+        # the terminator.
+        self.assert_parses("Unit use(n String) { worker Thread(n, { poll(); }); }")
+        # The brace ends the statement, so nothing may follow it -- the same
+        # rule a function call's trailing block is under.
+        self.assert_rejects("Unit use(n String) { worker Thread(n) { poll(); }; }")
+        self.assert_rejects("Unit use(n String) { Thread(n) { poll(); }; }")
+        self.assert_rejects("Unit use(n String) { Thread(n) { poll(); } () }")
+        self.assert_rejects(
+            "Unit use(n String) { Thread(n) { poll(); } ? e { resolve Unit(); } }"
+        )
+        self.assert_rejects(
+            "Unit use(n String) { total Int = Thread(n) { poll(); } + Int(1); }"
+        )
+        # A field-constructor call closes on the `}` of its own field body, so
+        # it has no `)` to elide and never trails.
+        self.assert_rejects("Unit use(n String) { Thread{ name = n; } { poll(); } }")
+
+    def test_an_empty_argument_list_stays_with_the_lambda_literal(self) -> None:
+        # `Foo() { ... }` is a lambda literal whose return type is `Foo`
+        # (syntax.md §3.8), and in statement position a constructor
+        # declaration with a block body (§3.3). A nullary constructor call may
+        # not trail, because it would be spelled exactly that way; the block
+        # goes inside the argument list. See docs/spec-divergences.md §3.
+        self.assert_parses(
+            '''
+            Unit use() {
+                make Thread() {
+                    return Thread("worker");
+                }
+                started Thread = Thread({ poll(); });
+                Thread({ poll(); });
+                return Unit();
+            }
+            '''
+        )
+        # Read as a lambda literal, it is a declaration, so the brace ends it
+        # and a `;` after it marks nothing.
+        self.assert_rejects("Unit use() { make Thread() { return t; }; }")
 
     def test_a_statement_ending_in_a_brace_takes_no_terminator(self) -> None:
         self.assert_parses(
