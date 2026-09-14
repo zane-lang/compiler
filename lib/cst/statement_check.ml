@@ -1,4 +1,4 @@
-(* Whether every statement carries the terminator its shape calls for.
+(* Whether every statement agrees with the rules about where it ends.
 
    The rule is that a `;` ends a statement, unless the statement ends in a `}`
    -- then that brace ends it and a `;` would mark nothing. Which of the two a
@@ -18,21 +18,24 @@
    Walking the finished tree has neither problem: the branches that lost are
    gone, and what is left is what was really parsed. *)
 
-let message (error : Nodes.Terminator_error.t) =
-  match error with
-  | Nodes.Terminator_error.Stray_semicolon ->
+let message (defect : Nodes.Statement_defect.t) =
+  match defect with
+  | Nodes.Statement_defect.Stray_semicolon ->
       "a statement ending in `}` is closed by that brace and takes no `;`"
-  | Nodes.Terminator_error.Missing_semicolon ->
+  | Nodes.Statement_defect.Missing_semicolon ->
       "a statement not ending in `}` needs a `;`"
+  | Nodes.Statement_defect.Continued_trailing_argument ->
+      "a trailing argument ends the statement, so nothing may continue it; \
+       parenthesize the call to go on using its value"
 
-(* The first badly terminated statement in written order, if any. Reporting one
-   is enough: the terminator is a local property, so a second is not explained
-   by the first and will be found on the next run. *)
+(* The first defective statement in written order, if any. Reporting one is
+   enough: each of these is a local property, so a second is not explained by
+   the first and will be found on the next run. *)
 let rec first_in_statements (statements : Nodes.Statement.t list) =
   match statements with
   | [] -> None
   | statement :: rest -> (
-      match statement.Nodes.Statement.bad_terminator with
+      match statement.Nodes.Statement.defect with
       | Some found -> Some found
       | None -> (
           match in_stat statement.Nodes.Statement.stat with
@@ -181,8 +184,8 @@ and in_constructor_params (params : Nodes.Constructor_params.t) =
            (fun (f : Nodes.Constructor_field.t) -> f.default)
            fields)
 
-(* [Ok ()] when every statement in the package is terminated as its shape
-   calls for. *)
+(* [Ok ()] when every statement in the package ends the way its shape calls
+   for. *)
 let check (package : Nodes.Package.t) =
   match
     List.fold_left
@@ -191,4 +194,4 @@ let check (package : Nodes.Package.t) =
       None package.Nodes.Package.decls
   with
   | None -> Ok ()
-  | Some (error, position) -> Error (message error, position)
+  | Some (defect, position) -> Error (message defect, position)

@@ -114,6 +114,17 @@ class ParserSyntaxTests(unittest.TestCase):
         # A handler is one of the things that cannot follow it; the same call
         # with its block inside the argument list takes one.
         self.assert_rejects("Unit use() { run() { } ? e { resolve Unit(); } }")
+        # An operand continues the statement past the brace just as a postfix
+        # would, so the binary forms are closed off too.
+        self.assert_rejects("Unit use() { total Int = run() { g(); } + Int(1); }")
+        self.assert_rejects("Unit use() { total Int = run() { g(); } | other; }")
+        self.assert_rejects("Unit use() { ok Bool = run() { g(); } and other; }")
+        self.assert_rejects("Unit use() { ok Bool = run() { g(); } == other; }")
+        # Parentheses close the call before the operator sees it, which is how
+        # such a value is continued.
+        self.assert_parses(
+            "Unit use() { total Int = (run() { g(); }) + Int(1); }"
+        )
         self.assert_parses(
             'Unit use() { done Unit = run({ work(); }) ? e { resolve Unit(); } }'
         )

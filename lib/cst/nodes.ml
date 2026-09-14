@@ -31,13 +31,22 @@ module Type_axis = struct
   type t = Value | Reference
 end
 
-(* How a statement's terminator disagreed with its shape. *)
-module Terminator_error = struct
+(* How a statement disagreed with the rules about where it ends.
+
+   All three are decided by the statement's tail, which the grammar cannot see
+   at the point it has to choose, so they are recorded on the statement and
+   read back afterwards rather than rejected in an action. *)
+module Statement_defect = struct
   type t =
     (* Ends in `}`, which closes it, and carries a `;` that marks nothing. *)
     | Stray_semicolon
     (* Does not end in `}`, so nothing else closes it. *)
     | Missing_semicolon
+    (* A trailing argument's `}` closes the call and the statement together, so
+       nothing may continue it -- `run() { } + Int(1)` writes an operand after
+       the statement has already ended. The parenthesized form, `(run() { })
+       + Int(1)`, is how that value is continued. *)
+    | Continued_trailing_argument
 end
 
 module Name_type = struct
@@ -319,9 +328,9 @@ end = Stat
 and Statement : sig
   type t = {
     stat : Stat.t;
-    (* [None] when the spelling matched the shape. Otherwise how it differed,
-       and where the terminator was or should have been. *)
-    bad_terminator : (Terminator_error.t * Lexing.position) option;
+    (* [None] when the statement is well formed. Otherwise how it is not, and
+       where to point. *)
+    defect : (Statement_defect.t * Lexing.position) option;
   }
 end = Statement
 

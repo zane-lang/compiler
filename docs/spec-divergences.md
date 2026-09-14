@@ -137,12 +137,16 @@ recorded because moving a declaration between the two levels changes how it is
 spelled, which is a real cost and worth stating out loud rather than
 discovering.
 
-`package`, `import`, a raw `type`/`alias`, a `=> expr` verb, a positional
-instantiation, and a type cast from the **peer mould** are the forms this is
-visible on — the peer mould's contents are a flat list of names, so it takes
-`[ ]` and closes on a `]` rather than a brace. A `struct`/`variant` mould, a
-`{ }` verb body, and an enum map do end in a brace and are spelled the same at
-both levels.
+`package`, `import`, a raw `type`/`alias`, a positional instantiation, a
+`=> expr` verb **whose expression does not itself end in a `}`**, and a type
+cast from the **peer mould** are the forms this is visible on — the peer
+mould's contents are a flat list of names, so it takes `[ ]` and closes on a
+`]` rather than a brace. A `struct`/`variant` mould, a `{ }` verb body, an
+enum map, and a `=> expr` verb whose expression *does* end in a `}` — a
+`match`, a handler, a trailing call — all end in a brace and are spelled the
+same at both levels. The parser reads this off the expression rather than off
+the form, so `Int f() => match c { … }` needs no `;` in a body while
+`Int f() => c` does.
 
 ---
 
@@ -157,9 +161,15 @@ purpose, and by which spec change.
   Spec [#181](https://github.com/zane-lang/spec/pull/181) adopted the
   terminator — "a `;` **terminates** every statement in a code block" — and
   with it "**`Newlines are never structural`**". The compiler's rule is now the
-  spec's. What the compiler had to add was the other half of the new rule: a
-  statement that ends in a `}` takes no terminator, which it previously applied
-  only to a call closed by a trailing block and now applies to every statement.
+  spec's. What the compiler had to generalize was the other half of the new
+  rule. A statement that ends in a `}` takes no terminator, and the compiler
+  already had that for the statements whose *form* made it obvious — a
+  block-bodied verb, a mould, a call closed by a trailing block, each of which
+  reached `stat` by a production that had no terminator to begin with. What it
+  did not have was the rule stated over a statement's **tail** rather than its
+  form, which is what reaches a variable bound to a `match`, an assignment, a
+  `return`, and a `=> expr` verb whose expression ends in a brace. That is now
+  decided per statement and checked after the parse.
 
 - **A trailing block is placed by position, not by line.** The spec required a
   trailing block's `{` to open on the same line as its call, to tell it from a

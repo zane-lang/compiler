@@ -34,11 +34,11 @@ let parse filename input =
           MenhirLib.Convert.Simplified.traditional2revised Parser.package
             tokenizer
         in
-        (* Statement terminators are checked here rather than in the grammar's
+        (* Statement shape is checked here rather than in the grammar's
            actions: under GLR an action runs on branches that are abandoned a
            token later, so rejecting from one ends the parse instead of the
-           branch. See [Terminator_check]. *)
-        match Terminator_check.check package with
+           branch. See [Statement_check]. *)
+        match Statement_check.check package with
         | Ok () -> Ok package
         | Error (message, position) ->
             Error

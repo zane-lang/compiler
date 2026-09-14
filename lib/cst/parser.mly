@@ -176,34 +176,92 @@ let import_alias (member : Nodes.Import_member.t)
           an uppercase-initial name is a type and a lowercase one a value");
   alias
 
-(* Build a statement, recording whether the terminator it was written with
-   matches the shape of its tail. The two disagree exactly when they are equal:
-   a statement ending in `}` is closed by that brace and takes no `;`, and one
-   that does not end in `}` has nothing else to close it.
+(* Does this expression end with a call that closed itself with a trailing
+   argument? That `}` ends the statement too, so nothing may follow it. *)
+let rec ends_in_trailing_call (expr : Nodes.Expr.t) =
+  match expr with
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Func { abort_handle = None; trailing; _ })
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Meth { abort_handle = None; trailing; _ }) ->
+      trailing
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Op { right; abort_handle = None; _ }) ->
+      ends_in_trailing_call right
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle = None }) ->
+      ends_in_trailing_call value
+  | Nodes.Expr.Logic { right; _ } -> ends_in_trailing_call right
+  | Nodes.Expr.Pipe { value; abort_handle = None; _ } ->
+      ends_in_trailing_call value
+  | Nodes.Expr.Ref value -> ends_in_trailing_call value
+  | _ -> false
 
-   This never raises. An action here runs on every branch the GLR parser has
+(* Is a trailing argument's `}` written anywhere an operand continues past it?
+   Only the left of a binary form can do that: the right is the tail, and
+   whether the tail may end that way is the enclosing statement's question.
+   Parentheses close the call before the operator sees it, which is how such a
+   value is continued, so [Parenthized] is not searched. *)
+let rec continues_past_trailing (expr : Nodes.Expr.t) =
+  match expr with
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Op { left; right; _ }) ->
+      ends_in_trailing_call left || continues_past_trailing left
+      || continues_past_trailing right
+  | Nodes.Expr.Logic { left; right; _ } ->
+      ends_in_trailing_call left || continues_past_trailing left
+      || continues_past_trailing right
+  | Nodes.Expr.Pipe { callee; value; _ } ->
+      ends_in_trailing_call callee || continues_past_trailing callee
+      || continues_past_trailing value
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; _ }) ->
+      continues_past_trailing value
+  | Nodes.Expr.Ref value -> continues_past_trailing value
+  | _ -> false
+
+(* A declaration's own tail, for the same question. *)
+let decl_continues_past_trailing (decl : Nodes.Decl.t) =
+  match decl with
+  | Nodes.Decl.Var { value; _ } -> continues_past_trailing value
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Subscript { value; _ }) ->
+      continues_past_trailing value
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Func { body = Nodes.Body.Shorthand value; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Meth { body = Nodes.Body.Shorthand value; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Op { body = Nodes.Body.Shorthand value; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Constructor { body = Nodes.Body.Shorthand value; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Flip { body = Nodes.Body.Shorthand value; _ }) ->
+      continues_past_trailing value
+  | _ -> false
+
+(* Build a statement, recording how it disagrees with the rules about where a
+   statement ends, if it does.
+
+   The terminator is the first of those: it disagrees exactly when the two are
+   equal, since a statement ending in `}` is closed by that brace and takes no
+   `;`, and one that does not end in `}` has nothing else to close it.
+
+   None of this raises. An action here runs on every branch the GLR parser has
    live, and the branch that ends a statement one token before a `{` continues
    it is live on perfectly good input -- raising there would end the parse
-   rather than the branch. [Terminator_check] reads the mark off the tree that
+   rather than the branch. [Statement_check] reads the mark off the tree that
    actually survived. *)
-let statement ~ends_in_brace ~terminated ~ends_at stat =
-  let bad_terminator =
-    if ends_in_brace <> terminated then None
+let statement ~ends_in_brace ~terminated ~ends_at ~continued stat =
+  let defect =
+    if continued then
+      Some (Nodes.Statement_defect.Continued_trailing_argument, ends_at)
+    else if ends_in_brace <> terminated then None
     else if terminated then
-      Some (Nodes.Terminator_error.Stray_semicolon, ends_at)
-    else Some (Nodes.Terminator_error.Missing_semicolon, ends_at)
+      Some (Nodes.Statement_defect.Stray_semicolon, ends_at)
+    else Some (Nodes.Statement_defect.Missing_semicolon, ends_at)
   in
-  ({ Nodes.Statement.stat; bad_terminator } : Nodes.Statement.t)
+  ({ Nodes.Statement.stat; defect } : Nodes.Statement.t)
 
 (* A statement whose tail is an expression. *)
 let expr_statement ~terminated ~ends_at build value =
   statement
     ~ends_in_brace:(expr_ends_in_brace value)
-    ~terminated ~ends_at (build value)
+    ~terminated ~ends_at
+    ~continued:(continues_past_trailing value)
+    (build value)
 
 (* Closed by its own brace, so there was never a terminator to get wrong. *)
 let braced_statement stat =
-  ({ Nodes.Statement.stat; bad_terminator = None } : Nodes.Statement.t)
+  ({ Nodes.Statement.stat; defect = None } : Nodes.Statement.t)
 %}
 
 (*****************************)
@@ -998,13 +1056,17 @@ stat:
   | decl=simple_decl terminated=boption(";") {
       statement
         ~ends_in_brace:(decl_ends_in_brace decl)
-        ~terminated ~ends_at:$endpos (Nodes.Stat.Decl decl)
+        ~terminated ~ends_at:$endpos
+        ~continued:(decl_continues_past_trailing decl)
+        (Nodes.Stat.Decl decl)
     }
   | call=verb_call abort_handle=ioption(abort_handle) terminated=boption(";") {
       let call = call abort_handle in
       statement
         ~ends_in_brace:(verb_call_ends_in_brace call)
-        ~terminated ~ends_at:$endpos (Nodes.Stat.VerbCall call)
+        ~terminated ~ends_at:$endpos
+        ~continued:(continues_past_trailing (Nodes.Expr.VerbCall call))
+        (Nodes.Stat.VerbCall call)
     }
   (* Closed by its own trailing argument, so it takes no terminator and admits
      no abort handler -- nothing may continue the call past that brace. *)
@@ -1015,7 +1077,9 @@ stat:
       let call = call abort_handle in
       statement
         ~ends_in_brace:(verb_call_ends_in_brace call)
-        ~terminated ~ends_at:$endpos (Nodes.Stat.Spawn call)
+        ~terminated ~ends_at:$endpos
+        ~continued:(continues_past_trailing (Nodes.Expr.VerbCall call))
+        (Nodes.Stat.Spawn call)
     }
   | ABORT value=expr terminated=boption(";") {
       expr_statement ~terminated ~ends_at:$endpos
