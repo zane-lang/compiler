@@ -257,11 +257,15 @@ class ParserSyntaxTests(unittest.TestCase):
             '''
         )
 
-    def test_the_import_terminator_is_required_in_a_body_too(self) -> None:
+    def test_the_header_terminator_is_required_in_a_body_too(self) -> None:
         # A body holds the same two forms on the same terms, so the rule has to
-        # hold at both levels to close the ambiguity at either.
+        # hold at both levels to close the ambiguity at either. Both
+        # alternatives of `header_decl` reach the body, so both are checked at
+        # that boundary.
         self.assert_parses("Unit use() { import core$; return Unit(); }")
         self.assert_rejects("Unit use() { import core$ return Unit(); }")
+        self.assert_parses("Unit use() { package demo; return Unit(); }")
+        self.assert_rejects("Unit use() { package demo return Unit(); }")
 
     def test_every_import_form(self) -> None:
         self.assert_parses(
