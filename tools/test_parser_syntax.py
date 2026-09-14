@@ -329,6 +329,28 @@ class ParserSyntaxTests(unittest.TestCase):
             '''
         )
 
+    def test_only_a_brace_mould_closes_a_declaration_in_a_body(self) -> None:
+        # Which delimiter a mould uses is decided by its contents, and only a
+        # brace ends a statement: the peer mould is a `[ ]` list, so inside a
+        # body it is terminated like any other statement that does not end in
+        # a brace. At package scope neither takes a terminator.
+        self.assert_parses(
+            '''
+            Unit use() {
+                type Braced = struct { x Int; }
+                type Cased = variant { some Int; }
+                type Marked = #struct { next &Marked; }
+                type Listed = enum [ red, green ];
+                alias Aliased = enum [ up, down ];
+                type Meters = Int;
+                return Unit();
+            }
+            '''
+        )
+        self.assert_rejects("Unit use() { type Listed = enum [ red, green ] }")
+        self.assert_rejects("Unit use() { alias Aliased = enum [ up, down ] }")
+        self.assert_rejects("Unit use() { type Braced = struct { x Int; }; }")
+
     def test_comparison_chains_and_short_circuit_keywords(self) -> None:
         self.assert_parses(
             '''

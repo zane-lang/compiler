@@ -130,15 +130,25 @@ and body_ends_in_brace (body : Nodes.Body.t) =
   | Nodes.Body.Longhand _ -> true
   | Nodes.Body.Shorthand value -> expr_ends_in_brace value
 
+(* A mould's delimiter is decided by its contents: named typed members take
+   `{ }`, a flat list of names takes `[ ]`. Only the first closes a statement,
+   so the shape has to be read rather than assumed from the value being
+   moulded at all. *)
+let moulded_ends_in_brace (moulded : Nodes.Moulded.t) =
+  match moulded.Nodes.Moulded.mould with
+  | Nodes.Mould.Struct _ | Nodes.Mould.Variant _ -> true
+  | Nodes.Mould.Enum _ -> false
+
 let decl_ends_in_brace (decl : Nodes.Decl.t) =
   match decl with
   | Nodes.Decl.Package _ | Nodes.Decl.Import _ -> false
   | Nodes.Decl.Var { value; _ } -> expr_ends_in_brace value
   | Nodes.Decl.VarShorthand { args = Nodes.Constructor_args.Fields _; _ } -> true
   | Nodes.Decl.VarShorthand _ -> false
-  | Nodes.Decl.Type { value = Nodes.Type_or_moulded.Moulded _; _ }
-  | Nodes.Decl.Alias { value = Nodes.Type_or_moulded.Moulded _; _ } ->
-      true
+  | Nodes.Decl.Type { value = Nodes.Type_or_moulded.Moulded moulded; _ }
+  | Nodes.Decl.Alias { value = Nodes.Type_or_moulded.Moulded moulded; _ } ->
+      moulded_ends_in_brace moulded
+  (* Cast from a bare type expression, which closes on a name, `]`, `>` or `)`. *)
   | Nodes.Decl.Type _ | Nodes.Decl.Alias _ -> false
   (* Its entries are a `{ }` body. *)
   | Nodes.Decl.EnumMap _ -> true
@@ -588,6 +598,7 @@ block_decl:
 simple_decl:
   | value=body_decl(shorthand_body) { value }
   | value=type_decl(raw_value) { value }
+  | value=type_decl(enum_moulded_value) { value }
   | PACKAGE name=LIDENT {
       Nodes.Decl.Package name
     }
@@ -624,7 +635,12 @@ simple_decl:
     }
 
 %inline moulded_value:
-  | value=moulded {
+  | value=moulded(braced_mould) {
+      Nodes.Type_or_moulded.Moulded value
+    }
+
+%inline enum_moulded_value:
+  | value=moulded(enum_mould) {
       Nodes.Type_or_moulded.Moulded value
     }
 
@@ -633,22 +649,31 @@ simple_decl:
       Nodes.Type_or_moulded.Raw value
     }
 
-%inline mould:
+(* The moulds that close on a brace. A declaration ending in one is closed by
+   it and takes no terminator, which is why they and the peer mould below are
+   reached through different declaration rules. *)
+%inline braced_mould:
   | STRUCT "{" fields=list(body_field) "}" {
       Nodes.Mould.Struct fields
     }
   | VARIANT "{" fields=list(body_field) "}" {
       Nodes.Mould.Variant fields
     }
+
+(* The peer mould's contents are a flat list of names, so it takes `[ ]` and
+   closes on a `]`. Which delimiter a mould uses is decided by its contents,
+   and only a brace ends a statement -- so a declaration cast from this one is
+   terminated like any other that does not end in a brace. *)
+%inline enum_mould:
   | ENUM "[" members=separated_nonempty_list(",", LIDENT) "]" {
       Nodes.Mould.Enum members
     }
 
-%inline moulded:
-  | mould=mould {
+%inline moulded(mould_form):
+  | mould=mould_form {
       { Nodes.Moulded.mould; axis = Nodes.Type_axis.Value }
     }
-  | "#" mould=mould {
+  | "#" mould=mould_form {
       { Nodes.Moulded.mould; axis = Nodes.Type_axis.Reference }
     }
 

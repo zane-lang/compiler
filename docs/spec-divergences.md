@@ -137,9 +137,12 @@ recorded because moving a declaration between the two levels changes how it is
 spelled, which is a real cost and worth stating out loud rather than
 discovering.
 
-`package`, `import`, a raw `type`/`alias`, a `=> expr` verb, and a positional
-instantiation are the forms this is visible on. A mould, a `{ }` verb body, and
-an enum map end in a brace and are spelled the same at both levels.
+`package`, `import`, a raw `type`/`alias`, a `=> expr` verb, a positional
+instantiation, and a type cast from the **peer mould** are the forms this is
+visible on — the peer mould's contents are a flat list of names, so it takes
+`[ ]` and closes on a `]` rather than a brace. A `struct`/`variant` mould, a
+`{ }` verb body, and an enum map do end in a brace and are spelled the same at
+both levels.
 
 ---
 
