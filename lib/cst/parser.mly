@@ -176,18 +176,34 @@ let import_alias (member : Nodes.Import_member.t)
           an uppercase-initial name is a type and a lowercase one a value");
   alias
 
-(* [terminated] is what the statement was actually written with. *)
-let check_terminator ~ends_in_brace ~terminated =
-  if ends_in_brace && terminated then
-    raise
-      (Parse_error.Rejected
-         "a statement ending in `}` is closed by that brace and takes no `;`")
-  else if (not ends_in_brace) && not terminated then
-    raise (Parse_error.Rejected "a statement not ending in `}` needs a `;`")
+(* Build a statement, recording whether the terminator it was written with
+   matches the shape of its tail. The two disagree exactly when they are equal:
+   a statement ending in `}` is closed by that brace and takes no `;`, and one
+   that does not end in `}` has nothing else to close it.
 
-let stat_expr ~terminated build value =
-  check_terminator ~ends_in_brace:(expr_ends_in_brace value) ~terminated;
-  build value
+   This never raises. An action here runs on every branch the GLR parser has
+   live, and the branch that ends a statement one token before a `{` continues
+   it is live on perfectly good input -- raising there would end the parse
+   rather than the branch. [Terminator_check] reads the mark off the tree that
+   actually survived. *)
+let statement ~ends_in_brace ~terminated ~ends_at stat =
+  let bad_terminator =
+    if ends_in_brace <> terminated then None
+    else if terminated then
+      Some (Nodes.Terminator_error.Stray_semicolon, ends_at)
+    else Some (Nodes.Terminator_error.Missing_semicolon, ends_at)
+  in
+  ({ Nodes.Statement.stat; bad_terminator } : Nodes.Statement.t)
+
+(* A statement whose tail is an expression. *)
+let expr_statement ~terminated ~ends_at build value =
+  statement
+    ~ends_in_brace:(expr_ends_in_brace value)
+    ~terminated ~ends_at (build value)
+
+(* Closed by its own brace, so there was never a terminator to get wrong. *)
+let braced_statement stat =
+  ({ Nodes.Statement.stat; bad_terminator = None } : Nodes.Statement.t)
 %}
 
 (*****************************)
@@ -972,39 +988,46 @@ abort_handle:
    anything at this level belong to a declaration. *)
 stat:
   | target=app "=" value=expr terminated=boption(";") {
-      check_terminator ~ends_in_brace:(expr_ends_in_brace value) ~terminated;
-      Nodes.Stat.Assign { target; value }
+      expr_statement ~terminated ~ends_at:$endpos
+        (fun value -> Nodes.Stat.Assign { target; value }) value
     }
+  (* Ends in its own `{ }` body, so there was no terminator to get wrong. *)
   | decl=block_decl {
-      Nodes.Stat.Decl decl
+      braced_statement (Nodes.Stat.Decl decl)
     }
   | decl=simple_decl terminated=boption(";") {
-      check_terminator ~ends_in_brace:(decl_ends_in_brace decl) ~terminated;
-      Nodes.Stat.Decl decl
+      statement
+        ~ends_in_brace:(decl_ends_in_brace decl)
+        ~terminated ~ends_at:$endpos (Nodes.Stat.Decl decl)
     }
   | call=verb_call abort_handle=ioption(abort_handle) terminated=boption(";") {
       let call = call abort_handle in
-      check_terminator ~ends_in_brace:(verb_call_ends_in_brace call) ~terminated;
-      Nodes.Stat.VerbCall call
+      statement
+        ~ends_in_brace:(verb_call_ends_in_brace call)
+        ~terminated ~ends_at:$endpos (Nodes.Stat.VerbCall call)
     }
   (* Closed by its own trailing argument, so it takes no terminator and admits
      no abort handler -- nothing may continue the call past that brace. *)
   | call=block_call {
-      Nodes.Stat.VerbCall (call None)
+      braced_statement (Nodes.Stat.VerbCall (call None))
     }
   | SPAWN call=verb_call abort_handle=ioption(abort_handle) terminated=boption(";") {
       let call = call abort_handle in
-      check_terminator ~ends_in_brace:(verb_call_ends_in_brace call) ~terminated;
-      Nodes.Stat.Spawn call
+      statement
+        ~ends_in_brace:(verb_call_ends_in_brace call)
+        ~terminated ~ends_at:$endpos (Nodes.Stat.Spawn call)
     }
   | ABORT value=expr terminated=boption(";") {
-      stat_expr ~terminated (fun value -> Nodes.Stat.Abort value) value
+      expr_statement ~terminated ~ends_at:$endpos
+        (fun value -> Nodes.Stat.Abort value) value
     }
   | RETURN value=expr terminated=boption(";") {
-      stat_expr ~terminated (fun value -> Nodes.Stat.Ret value) value
+      expr_statement ~terminated ~ends_at:$endpos
+        (fun value -> Nodes.Stat.Ret value) value
     }
   | RESOLVE value=expr terminated=boption(";") {
-      stat_expr ~terminated (fun value -> Nodes.Stat.Resolve value) value
+      expr_statement ~terminated ~ends_at:$endpos
+        (fun value -> Nodes.Stat.Resolve value) value
     }
 
 %inline param_type:

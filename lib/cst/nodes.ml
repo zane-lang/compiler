@@ -31,6 +31,15 @@ module Type_axis = struct
   type t = Value | Reference
 end
 
+(* How a statement's terminator disagreed with its shape. *)
+module Terminator_error = struct
+  type t =
+    (* Ends in `}`, which closes it, and carries a `;` that marks nothing. *)
+    | Stray_semicolon
+    (* Does not end in `}`, so nothing else closes it. *)
+    | Missing_semicolon
+end
+
 module Name_type = struct
   type t =
     | Ident of string
@@ -157,7 +166,7 @@ end = Field_arg
 and Call_arg : sig
   type t =
     | Value of Expr.t
-    | Block of Stat.t list
+    | Block of Statement.t list
 end = Call_arg
 
 and Constructor_args : sig
@@ -295,10 +304,31 @@ and Stat : sig
     | Resolve of Expr.t
 end = Stat
 
+(* A statement together with what its terminator turned out to be.
+
+   Whether a `;` was needed is decided by the statement's own tail, which the
+   grammar cannot see at the point it has to choose: it accepts either
+   spelling, and a mismatch is recorded here rather than raised.
+
+   Recorded, because the parser is GLR and a semantic action runs on every
+   live branch -- including the branch that reads `ran Bool = if(ready)` as a
+   whole statement, one token before the `{` that continues it. Raising there
+   ends the parse rather than that branch, so a valid program dies on a
+   reading it was never going to keep. What reaches the finished tree is what
+   was really parsed, so the check runs over that instead. *)
+and Statement : sig
+  type t = {
+    stat : Stat.t;
+    (* [None] when the spelling matched the shape. Otherwise how it differed,
+       and where the terminator was or should have been. *)
+    bad_terminator : (Terminator_error.t * Lexing.position) option;
+  }
+end = Statement
+
 and Body : sig
   type t =
     | Shorthand of Expr.t
-    | Longhand of Stat.t list
+    | Longhand of Statement.t list
 end = Body
 
 and Ret_type : sig

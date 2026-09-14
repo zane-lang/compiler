@@ -103,7 +103,8 @@ and field_arg_to_node (x: Nodes.Field_arg.t) =
 
 and call_arg_to_node (x: Nodes.Call_arg.t) = match x with
   | Value x -> expr_to_node x
-  | Block stats -> group "block" (fields [("stat", map_seq stat_to_node stats)])
+  | Block stats ->
+      group "block" (fields [("stat", map_seq statement_to_node stats)])
 
 and constructor_args_to_node (x: Nodes.Constructor_args.t) = match x with
   | Positional args -> map_seq call_arg_to_node args
@@ -271,6 +272,10 @@ and constructor_field_to_node (x: Nodes.Constructor_field.t) =
   in
   fields fs
 
+(* The terminator mark is not printed: a tree that reaches a consumer has
+   already been checked, so every mark on it is [None]. *)
+and statement_to_node (x: Nodes.Statement.t) = stat_to_node x.stat
+
 and stat_to_node (x: Nodes.Stat.t) = match x with
   | VerbCall x -> verb_call_to_node x
   | Spawn x    -> group "spawn_stat" (verb_call_to_node x)
@@ -287,7 +292,7 @@ and stat_to_node (x: Nodes.Stat.t) = match x with
 and body_to_node (x: Nodes.Body.t) = match x with
   | Longhand x ->
       group "scope" (fields [
-        ("stat", map_seq stat_to_node x);
+        ("stat", map_seq statement_to_node x);
       ])
   | Shorthand x ->
       group "ret_shorthand" (expr_to_node x)

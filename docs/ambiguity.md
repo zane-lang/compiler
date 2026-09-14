@@ -61,6 +61,36 @@ Every LR conflict state must carry exactly one of:
 A grammar change that introduces a new conflict state is incomplete until
 the state is triaged into one of these categories.
 
+### What a semantic action may do
+
+An action runs on **every branch the parser has live**, not only on the branch
+that goes on to be accepted. A conflict state forks, both branches reduce, and
+the losing one is discarded a token or twenty later — but its actions have
+already run by then.
+
+So an action **MUST NOT** raise to reject its own branch. Raising ends the
+parse, not the branch, and the input that dies is whatever was being read when
+the losing branch got far enough to raise — which is ordinary, valid input.
+`Parse_error.Rejected` is therefore safe only where the raise cannot fire on a
+branch that competes with a valid reading: `attach_abort_handle` raises on a
+handler following a trailing argument, and no valid program has one, so no
+accepted input reaches it.
+
+The statement terminator is the case that taught this. Whether a statement
+needs `;` depends on whether it ends in `}`, which the grammar cannot see when
+it has to choose — after `ran Bool = if(ready)` the next token decides, and a
+`{` there continues the call. So the grammar takes either spelling and the
+mismatch is checked afterward. Checked from a raise in the action, it failed 18
+tests at once, every one of them on the early-ending branch of a program that
+parses correctly one token later. The check now records the mismatch on the
+statement and `Terminator_check` walks the finished tree, where the losing
+branches are gone.
+
+The rule that follows: a check that depends on more than the branch it is in
+belongs **after the parse**, over the tree that survived. A check that is local
+to its own branch can stay in the action. Neither is a substitute for encoding
+the rule in the grammar where the grammar can carry it.
+
 ### Where the current conflicts come from
 
 Menhir reports 54 states with shift/reduce conflicts and 4 with reduce/reduce

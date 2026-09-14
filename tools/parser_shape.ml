@@ -51,7 +51,9 @@ let abort_expr (package : Cst.Nodes.Package.t) =
   match package.decls with
   | [ Cst.Nodes.Decl.Verb
         (Cst.Nodes.Verb_decl.Func {
-          body = Cst.Nodes.Body.Longhand [ Cst.Nodes.Stat.Abort expr ];
+          body =
+            Cst.Nodes.Body.Longhand
+              [ { Cst.Nodes.Statement.stat = Cst.Nodes.Stat.Abort expr; _ } ];
           _;
         }) ] ->
       expr
