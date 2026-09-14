@@ -164,8 +164,9 @@ purpose, and by which spec change.
   spec's. What the compiler had to generalize was the other half of the new
   rule. A statement that ends in a `}` takes no terminator, and the compiler
   already had that for the statements whose *form* made it obvious — a
-  block-bodied verb, a mould, a call closed by a trailing block, each of which
-  reached `stat` by a production that had no terminator to begin with. What it
+  block-bodied verb, a `struct`/`variant` mould, a call closed by a trailing
+  block, each of which reached `stat` by a production that had no terminator to
+  begin with — the peer mould only looks like one of them, and takes a `;`. What it
   did not have was the rule stated over a statement's **tail** rather than its
   form, which is what reaches a variable bound to a `match`, an assignment, a
   `return`, and a `=> expr` verb whose expression ends in a brace. That is now

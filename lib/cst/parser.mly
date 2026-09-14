@@ -194,39 +194,145 @@ let rec ends_in_trailing_call (expr : Nodes.Expr.t) =
   | _ -> false
 
 (* Is a trailing argument's `}` written anywhere an operand continues past it?
+
    Only the left of a binary form can do that: the right is the tail, and
-   whether the tail may end that way is the enclosing statement's question.
-   Parentheses close the call before the operator sees it, which is how such a
-   value is continued, so [Parenthized] is not searched. *)
+   whether the tail may end that way is the enclosing statement's question,
+   answered where that statement is built. But the binary form itself can sit
+   anywhere, so the whole of a statement's own expression is searched -- under
+   a lambda's `=> expr` body, inside a match arm, in an argument, under a
+   handler, and inside parentheses.
+
+   Parentheses are searched even though they are also the escape: `(run() { })
+   + Int(1)` is legal because the `)` closes the call before the operator sees
+   it, which [ends_in_trailing_call] reports by not seeing through a
+   [Parenthized]. `(run() { } + Int(1))` puts the operator *inside*, and is the
+   same mistake wearing brackets.
+
+   What is not searched is a nested statement -- a `{ }` body or block
+   argument. Those carry their own marks, put there when they were built. *)
 let rec continues_past_trailing (expr : Nodes.Expr.t) =
   match expr with
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Op { left; right; _ }) ->
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Op { left; right; abort_handle }) ->
       ends_in_trailing_call left || continues_past_trailing left
       || continues_past_trailing right
+      || handler_continues_past_trailing abort_handle
   | Nodes.Expr.Logic { left; right; _ } ->
       ends_in_trailing_call left || continues_past_trailing left
       || continues_past_trailing right
-  | Nodes.Expr.Pipe { callee; value; _ } ->
+  | Nodes.Expr.Pipe { callee; value; abort_handle } ->
       ends_in_trailing_call callee || continues_past_trailing callee
       || continues_past_trailing value
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; _ }) ->
+      || handler_continues_past_trailing abort_handle
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle }) ->
       continues_past_trailing value
-  | Nodes.Expr.Ref value -> continues_past_trailing value
-  | _ -> false
+      || handler_continues_past_trailing abort_handle
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Func { callee; args; abort_handle; _ }) ->
+      continues_past_trailing callee
+      || List.exists arg_continues_past_trailing args
+      || handler_continues_past_trailing abort_handle
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Meth { callee; this; args; abort_handle; _ }) ->
+      continues_past_trailing callee || continues_past_trailing this
+      || List.exists arg_continues_past_trailing args
+      || handler_continues_past_trailing abort_handle
+  | Nodes.Expr.VerbCall (Nodes.Verb_call.Constructor { args; abort_handle; _ }) ->
+      constructor_args_continue_past_trailing args
+      || handler_continues_past_trailing abort_handle
+  | Nodes.Expr.Spawn call ->
+      continues_past_trailing (Nodes.Expr.VerbCall call)
+  | Nodes.Expr.Match { scrutinees; arms; abort_handle } ->
+      List.exists continues_past_trailing scrutinees
+      || List.exists
+           (fun (arm : Nodes.Match_arm.t) ->
+             body_continues_past_trailing arm.Nodes.Match_arm.body)
+           arms
+      || handler_continues_past_trailing abort_handle
+  | Nodes.Expr.FuncLambda { body; _ } | Nodes.Expr.MethLambda { body; _ } ->
+      body_continues_past_trailing body
+  | Nodes.Expr.Ref value | Nodes.Expr.Parenthized value ->
+      continues_past_trailing value
+  | Nodes.Expr.MethodTarget { callee; this; _ } ->
+      continues_past_trailing callee || continues_past_trailing this
+  | Nodes.Expr.DotAccess { target; _ } -> continues_past_trailing target
+  | Nodes.Expr.Subscript { target; args } ->
+      continues_past_trailing target || List.exists continues_past_trailing args
+  | Nodes.Expr.CollectionLit items -> List.exists continues_past_trailing items
+  | Nodes.Expr.MapLit entries ->
+      List.exists
+        (fun (key, value) ->
+          continues_past_trailing key || continues_past_trailing value)
+        entries
+  | Nodes.Expr.Init fields -> field_args_continue_past_trailing fields
+  | Nodes.Expr.IntLit _ | Nodes.Expr.FloatLit _ | Nodes.Expr.StrLit _
+  | Nodes.Expr.BoolLit _ | Nodes.Expr.NameExpr _ | Nodes.Expr.TypeMember _ ->
+      false
 
-(* A declaration's own tail, for the same question. *)
+and arg_continues_past_trailing (arg : Nodes.Call_arg.t) =
+  match arg with
+  | Nodes.Call_arg.Value value -> continues_past_trailing value
+  (* A block argument holds statements, which carry their own marks. *)
+  | Nodes.Call_arg.Block _ -> false
+
+and constructor_args_continue_past_trailing (args : Nodes.Constructor_args.t) =
+  match args with
+  | Nodes.Constructor_args.Positional args ->
+      List.exists arg_continues_past_trailing args
+  | Nodes.Constructor_args.Fields fields ->
+      field_args_continue_past_trailing fields
+
+and field_args_continue_past_trailing (fields : Nodes.Field_arg.t list) =
+  List.exists
+    (fun (field : Nodes.Field_arg.t) ->
+      match field.Nodes.Field_arg.value with
+      | Some value -> continues_past_trailing value
+      | None -> false)
+    fields
+
+and constructor_params_continue_past_trailing (params : Nodes.Constructor_params.t) =
+  match params with
+  | Nodes.Constructor_params.Positional _ -> false
+  | Nodes.Constructor_params.Fields fields ->
+      List.exists
+        (fun (field : Nodes.Constructor_field.t) ->
+          match field.Nodes.Constructor_field.default with
+          | Some value -> continues_past_trailing value
+          | None -> false)
+        fields
+
+and handler_continues_past_trailing (handle : Nodes.Abort_handle.t option) =
+  match handle with
+  | None -> false
+  | Some (Nodes.Abort_handle.Shorthand value) -> continues_past_trailing value
+  | Some (Nodes.Abort_handle.Longhand { body; _ }) ->
+      body_continues_past_trailing body
+
+(* A `{ }` body is a run of statements, each already marked when it was built;
+   only a `=> expr` body is part of this statement's own expression. *)
+and body_continues_past_trailing (body : Nodes.Body.t) =
+  match body with
+  | Nodes.Body.Longhand _ -> false
+  | Nodes.Body.Shorthand value -> continues_past_trailing value
+
+(* A declaration's own expression, for the same question. *)
 let decl_continues_past_trailing (decl : Nodes.Decl.t) =
   match decl with
   | Nodes.Decl.Var { value; _ } -> continues_past_trailing value
+  | Nodes.Decl.VarShorthand { args; _ } ->
+      constructor_args_continue_past_trailing args
+  | Nodes.Decl.EnumMap { entries; _ } ->
+      List.exists (fun (_, value) -> continues_past_trailing value) entries
   | Nodes.Decl.Verb (Nodes.Verb_decl.Subscript { value; _ }) ->
       continues_past_trailing value
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Func { body = Nodes.Body.Shorthand value; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Meth { body = Nodes.Body.Shorthand value; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Op { body = Nodes.Body.Shorthand value; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Constructor { body = Nodes.Body.Shorthand value; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Flip { body = Nodes.Body.Shorthand value; _ }) ->
-      continues_past_trailing value
-  | _ -> false
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Constructor { params; body; _ }) ->
+      constructor_params_continue_past_trailing params
+      || body_continues_past_trailing body
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Func { body; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Meth { body; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Op { body; _ })
+  | Nodes.Decl.Verb (Nodes.Verb_decl.Flip { body; _ }) ->
+      body_continues_past_trailing body
+  | Nodes.Decl.Package _ | Nodes.Decl.Import _ | Nodes.Decl.Type _
+  | Nodes.Decl.Alias _ ->
+      false
 
 (* Build a statement, recording how it disagrees with the rules about where a
    statement ends, if it does.

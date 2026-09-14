@@ -83,7 +83,7 @@ it has to choose — after `ran Bool = if(ready)` the next token decides, and a
 mismatch is checked afterward. Checked from a raise in the action, it failed 18
 tests at once, every one of them on the early-ending branch of a program that
 parses correctly one token later. The check now records the mismatch on the
-statement and `Terminator_check` walks the finished tree, where the losing
+statement and `Statement_check` walks the finished tree, where the losing
 branches are gone.
 
 The rule that follows: a check that depends on more than the branch it is in

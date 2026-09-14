@@ -125,6 +125,27 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_parses(
             "Unit use() { total Int = (run() { g(); }) + Int(1); }"
         )
+        # The binary form can sit anywhere inside the statement, so the whole
+        # of its expression is searched -- not just the outermost operand.
+        self.assert_rejects(
+            "Unit use() { f Int() => run() { g(); } + Int(1); }"
+        )
+        self.assert_rejects(
+            "Unit use() { f Int(this Node) mut => run() { g(); } + Int(1); }"
+        )
+        self.assert_rejects(
+            "Unit use() { total Int = match c { red => run() { g(); } + Int(1); } }"
+        )
+        self.assert_rejects(
+            "Unit use() { wrap(run() { g(); } + Int(1)); }"
+        )
+        self.assert_rejects(
+            "Unit use() { total Int = parse(s) ?? run() { g(); } + Int(1); }"
+        )
+        # Including inside the parentheses that are otherwise the escape.
+        self.assert_rejects(
+            "Unit use() { total Int = (run() { g(); } + Int(1)); }"
+        )
         self.assert_parses(
             'Unit use() { done Unit = run({ work(); }) ? e { resolve Unit(); } }'
         )
