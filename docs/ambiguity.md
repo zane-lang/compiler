@@ -93,14 +93,16 @@ the rule in the grammar where the grammar can carry it.
 
 ### Where the current conflicts come from
 
-Menhir reports 53 states with shift/reduce conflicts and 4 with reduce/reduce
-conflicts; the explanations file accounts for 55 conflict blocks, since a state
+Menhir reports 57 states with shift/reduce conflicts and 2 with reduce/reduce
+conflicts; the explanations file accounts for 59 conflict blocks, since a state
 carrying both kinds is explained once per kind. The table counts states rather
 than token occurrences. They are not independent problems:
 
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
-| `(`             | 9 | `loption_generics_ ->` | before a call or a lambda |
+| `(`             | 6 | `loption_generics_ ->` | before a call or a lambda |
+| `)` `?` `(` `<` `{` `[` | 3 | `loption_generics_ ->` | the same, where a type may also be the whole argument |
+| operators, `(` `<` `{` `.` | 3 | `loption_generics_ ->` | the same, where a type may also be an operand |
 | `<`             | 9 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<`         | 3 | `loption_generics_ ->` | a named type opening a call or a generic list |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
@@ -112,7 +114,7 @@ than token occurrences. They are not independent problems:
 | `?` `??` `(` `[` | 2 | `expr -> SPAWN verb_call`, `func_callee -> verb_call` | a spawned call against what follows it |
 | `{`             | 3 | `computed_call_no_trailing_arg_ -> ... RPAREN` | a call's trailing argument against an enclosing brace |
 | `{` / `(` `{`   | 3 | `app -> ... DOT LIDENT` | a field access against a constructor body |
-| `(`             | 2 | `primary -> LIDENT`, `primary -> THIS` | a bare name against a call or a lambda |
+| `(`             | 3 | `primary -> LIDENT`, `primary -> THIS` | a bare name against a call or a lambda |
 
 The `<` row is about the declaration form, not the comparison. Its nine states
 all reduce toward `ret_type "<" "(" params ")" body`, the declaration of the
@@ -124,7 +126,7 @@ language change rather than a restructuring, so it is a measurement here and
 not a proposal.
 
 **The vanished terminator is one root, not six.** Twenty-one shift/reduce
-states and both reduce/reduce conflicts — 23 of the 55 — trace to a single
+states and both reduce/reduce conflicts — 23 of the 59 — trace to a single
 fact: a statement's `;` is optional
 in the grammar, because whether it is required depends on whether the statement
 ends in a `}`, and that is not a question a bracket answers. So the token that
@@ -249,7 +251,38 @@ scrutinee commas before the entry's mark is reached. `f({ a, b; })` and
 `f({ g(); })` each have one derivation, and so do both of their trailing
 spellings.
 
-Twenty-four states reduce `loption_generics_ ->`, 21 of which predate the
+**A type may be written where a value is expected**, which is how the explicit
+half of
+[`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
+§5.3 reaches a verb — `Array(Int, 10000)` passes a type the way it passes a
+number. Where the production sits is the whole of what makes that safe. A type
+is never a postfix base: there is no dot access on a type, a name in front of
+an argument list is already a constructor call, and a `[ ]` after a type name
+is a verb-type suffix. So the production belongs at expression level, not among
+the `primary` forms, which are exactly the ones `app` threads `.`, `(` and `[`
+onto. Written as a `primary` it measures `Colors.red`, `Int(3)` and
+`Span.point(0)` at **two** derivations each — an access, a call and a chain on
+a type value, beside the readings they already have. Written at expression
+level each stays at one, and so does every case in the suites.
+
+The four states it adds are forks over the same empty generic list the family
+below is about: after an uppercase name the parser cannot yet tell a type used
+as a value from the head of an applied type or a constructor call, and the next
+token says which. Three of them are the `loption_generics_` reduction under two
+new lookahead sets — the argument position and the operand position — and
+the fourth doubles the `primary -> LIDENT` state. No reduce/reduce state is
+added.
+
+**Only a bare name may be written that way**, and the measurement is what drew
+the line. Admitting an applied `Array<Int, 4>` as well costs three
+**reduce/reduce** states, all of them `expr -> <name> loption_generics_`
+against `list_verb_type_suffix_ -> ` — after the name, a `[` is either a verb
+type's parameter list or a subscript, and the type-value reading has to be
+complete before the parser knows. The spec's own examples pass bare names, so
+the cheaper half is the whole of what §5.3 asks for;
+[`spec-divergences.md`](spec-divergences.md) records the rest.
+
+Twenty-seven states reduce `loption_generics_ ->`, 21 of which predate the
 terminator change and are unchanged by it. The empty generics reduction is load-bearing rather
 than an artifact: expanding the option into two explicit alternatives raises
 the count, and dropping generics from named types raises it too, both by

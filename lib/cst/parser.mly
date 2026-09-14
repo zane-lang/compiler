@@ -99,8 +99,8 @@ let rec expr_ends_in_brace (expr : Nodes.Expr.t) =
   (* Closed by `)`, `]`, or the name itself. *)
   | Nodes.Expr.IntLit _ | Nodes.Expr.FloatLit _ | Nodes.Expr.StrLit _
   | Nodes.Expr.BoolLit _ | Nodes.Expr.CollectionLit _ | Nodes.Expr.NameExpr _
-  | Nodes.Expr.TypeMember _ | Nodes.Expr.DotAccess _ | Nodes.Expr.Subscript _
-  | Nodes.Expr.Parenthized _ ->
+  | Nodes.Expr.TypeMember _ | Nodes.Expr.TypeValue _ | Nodes.Expr.DotAccess _
+  | Nodes.Expr.Subscript _ | Nodes.Expr.Parenthized _ ->
       false
 
 and verb_call_ends_in_brace (call : Nodes.Verb_call.t) =
@@ -263,7 +263,8 @@ let rec continues_past_trailing (expr : Nodes.Expr.t) =
         entries
   | Nodes.Expr.Init fields -> field_args_continue_past_trailing fields
   | Nodes.Expr.IntLit _ | Nodes.Expr.FloatLit _ | Nodes.Expr.StrLit _
-  | Nodes.Expr.BoolLit _ | Nodes.Expr.NameExpr _ | Nodes.Expr.TypeMember _ ->
+  | Nodes.Expr.BoolLit _ | Nodes.Expr.NameExpr _ | Nodes.Expr.TypeMember _
+  | Nodes.Expr.TypeValue _ ->
       false
 
 and arg_continues_past_trailing (arg : Nodes.Call_arg.t) =
@@ -1090,6 +1091,19 @@ app:
 
 expr:
   | app=app { app }
+  (* A type passed as a value -- the explicit type argument of generics.md
+     §5.3, as in `Array(Int, 10000)`.
+
+     It sits here rather than in [primary] because a type is never a postfix
+     base: there is no dot access on a type, no calling one (a name in front of
+     an argument list is already a constructor call), and no subscripting one
+     (a `[ ]` after a type name is a verb-type suffix). Written as a [primary]
+     it would reach all three through [app], and `Colors.red`, `Int(3)` and
+     `Span.point(0)` would each gain a second reading; written here it reaches
+     none of them and every one of those stays at a single derivation.
+
+     Only a bare name, for the reason [Nodes.Expr.TypeValue] records. *)
+  | name=name_type { Nodes.Expr.TypeValue name }
   | call=block_call { Nodes.Expr.VerbCall (call None) }
   | value=spawn_expr { value }
   | func_lambda=func_lambda(body) { Nodes.Expr.FuncLambda func_lambda }

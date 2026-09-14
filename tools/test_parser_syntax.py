@@ -468,6 +468,53 @@ class ParserSyntaxTests(unittest.TestCase):
             '''
         )
 
+    def test_a_type_is_passed_as_an_ordinary_argument(self) -> None:
+        # generics.md §5.3: a type or number reaches a verb either inferred
+        # from the value arguments, or passed directly as a value parameter of
+        # concept type `Type`. The second half needs a type to be writable
+        # where a value is expected, which is what the `Int` arguments below
+        # are.
+        self.assert_parses(
+            '''
+            type Vector<T Type> = struct {
+                x T;
+                y T;
+            }
+
+            Vector<T>(T Type) => init{ x = T(0); y = T(0); }
+
+            Array<T, n>(T Type, n Number) => init{ }
+
+            Unit use() {
+                vec Vector(Int);
+                arr Array(Int, 10000);
+                register(Float);
+                registry!add(math$Vector);
+                machine Slot = @primitives$I64;
+                return Unit();
+            }
+            '''
+        )
+        # A named constructor takes one on the same terms.
+        self.assert_parses("Unit use() { v Vector2.zeros(Int); }")
+        # The inferred half is unchanged and still the one a literal drives.
+        self.assert_parses(
+            "Unit use() { vec Vector(Int(2), Int(3)); }"
+        )
+
+    def test_only_a_bare_name_is_a_type_value(self) -> None:
+        # A type name written as a value closes on the name. Every other type
+        # spelling continues into a bracket that means something else in an
+        # expression -- `<` a comparison, `[` a subscript, `&` a reference --
+        # so only the bare name may be written here.
+        # See docs/spec-divergences.md.
+        self.assert_rejects("Unit use() { register(Array<Int, 4>); }")
+        self.assert_rejects("Unit use() { register(&Int); }")
+        self.assert_rejects("Unit use() { register(Int[3]); }")
+        # `Type` is a concept: legal in a parameter position, never as storage.
+        self.assert_rejects("Unit use() { held Type = Int; }")
+        self.assert_rejects("Type pick() { return Int; }")
+
 
 if __name__ == "__main__":
     unittest.main()

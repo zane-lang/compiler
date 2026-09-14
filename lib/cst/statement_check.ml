@@ -90,7 +90,8 @@ and in_expr (expr : Nodes.Expr.t) =
   | Nodes.Expr.Init fields -> in_field_args fields
   | Nodes.Expr.Ref value | Nodes.Expr.Parenthized value -> in_expr value
   | Nodes.Expr.IntLit _ | Nodes.Expr.FloatLit _ | Nodes.Expr.StrLit _
-  | Nodes.Expr.BoolLit _ | Nodes.Expr.NameExpr _ | Nodes.Expr.TypeMember _ ->
+  | Nodes.Expr.BoolLit _ | Nodes.Expr.NameExpr _ | Nodes.Expr.TypeMember _
+  | Nodes.Expr.TypeValue _ ->
       None
 
 and in_field_args (fields : Nodes.Field_arg.t list) =

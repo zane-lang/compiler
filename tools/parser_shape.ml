@@ -13,6 +13,9 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
   | Cst.Nodes.Expr.BoolLit _ -> "bool"
   | Cst.Nodes.Expr.NameExpr _ -> "name"
   | Cst.Nodes.Expr.TypeMember _ -> "type_member"
+  (* A type passed as a value, told apart from a type member so a shape says
+     which of the two an uppercase name was read as. *)
+  | Cst.Nodes.Expr.TypeValue _ -> "type_value"
   | Cst.Nodes.Expr.DotAccess { target; _ } -> "dot(" ^ expr_shape target ^ ")"
   | Cst.Nodes.Expr.Parenthized inner -> "paren(" ^ expr_shape inner ^ ")"
   | Cst.Nodes.Expr.VerbCall (Cst.Nodes.Verb_call.Func { callee; args; _ }) ->
