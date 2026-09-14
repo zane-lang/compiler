@@ -141,6 +141,34 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_rejects("Unit use() { plain Int = Int(3) }")
         self.assert_rejects("Unit use() { return Unit() }")
 
+    def test_the_brace_rule_reaches_every_statement_form(self) -> None:
+        # Not just declarations and calls: an assignment and a lambda
+        # declaration end on their own brace too, and the `=> expr` spelling of
+        # the same declaration does not.
+        self.assert_parses(
+            '''
+            Unit use(loudest Severity) {
+                total = match loudest {
+                    note => total;
+                }
+                clamp Float(value Float) {
+                    return value;
+                }
+                double Float(value Float) => value * Float(2);
+                total = other;
+                return Unit();
+            }
+            '''
+        )
+        self.assert_rejects(
+            "Unit use() { total = match loudest { note => total; }; }"
+        )
+        self.assert_rejects(
+            "Unit use() { clamp Float(value Float) { return value; }; }"
+        )
+        self.assert_rejects("Unit use() { double Float(v Float) => v }")
+        self.assert_rejects("Unit use() { total = other }")
+
     def test_a_brace_may_not_open_a_statement(self) -> None:
         self.assert_rejects("Unit use() { { std$print(\"scoped\"); } }")
         # The same work is a call taking a block argument.

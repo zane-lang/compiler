@@ -55,6 +55,17 @@ Operator.identity Float {
 	div = Float(1);
 }
 
+/// A map may carry a verb type. Its entry list used to share a bracket with
+/// the `[ ]` suffixes of the property's own type, so which one a group opened
+/// could only be told after its closing bracket; the `{ }` body settles it at
+/// the opening one. The entries are lambdas, since a verb has no value form.
+Operator.fold Float[Float, Float] {
+	add = Float(a Float, b Float) => a + b;
+	sub = Float(a Float, b Float) => a - b;
+	mul = Float(a Float, b Float) => a * b;
+	div = Float(a Float, b Float) => a / b;
+}
+
 /// How loud a diagnostic is.
 type Severity = enum [ note, warning, failure ]
 
@@ -117,6 +128,20 @@ Report{
 	message String;
 	span Span.point(0);
 } => init{ severity; message; span; }
+
+/// A field whose type is a verb type holds a lambda rather than a verb.
+type Formatter = #struct {
+	render String[Float];
+}
+
+/// An entry of a `{ }` body is terminated whatever its value looks like, so
+/// the lambda's closing brace does not stand in for the `;`. This is where the
+/// brace rule stops: it ends a statement, never an entry.
+Formatter.plain() => init{
+	render = String(value Float) {
+		return String(value);
+	};
+}
 
 /// Reading `.label` off `this.severity` is an enum-map access through a value
 /// rather than through the member name.
@@ -305,6 +330,12 @@ T first(values Array<T Type, n Number>) => values[1]
 /// A concept-typed parameter accepts a source literal and lowers it.
 String quote(text @concepts$Text) => "\"" + String(text) + "\""
 
+/// A map literal carries `@concepts$Map<K, V>` the way an array literal
+/// carries `@concepts$Array<T, n>`, and is lowered by whatever consumes it.
+Unit record(entries @concepts$Map<String, Float>) {
+	return Unit();
+}
+
 // ---------------------------------------------------------------------------
 // Reporting
 // ---------------------------------------------------------------------------
@@ -371,6 +402,12 @@ Unit main() {
 	// The same declaration, in the shorthand that drops the `= literal`.
 	double Float(value Float) => value * Float(2);
 
+	// The same shorthand with a block body. It is a declaration either way, so
+	// what decides the terminator is the shape of the body, not the form.
+	clamp Float(value Float) {
+		return value;
+	}
+
 	middle Float = double(blend(result, answer));
 
 	// A pipe hands one value to a callable.
@@ -410,6 +447,14 @@ Unit main() {
 	// An implicit constructor covers the `span` field from a bare offset.
 	summary Report{ severity = Severity.note; message = "read four slots"; span = Int(3); }
 	loudest Severity = worst(summary.severity, Severity.warning);
+
+	// An assignment ends in a brace too, and takes no terminator for the same
+	// reason a declaration does not.
+	total = match loudest {
+		note => total;
+		warning => total;
+		failure => Float(0);
+	}
 	announce(summary);
 
 	// A value type is mutated through the caller's own slot.
