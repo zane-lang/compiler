@@ -500,13 +500,18 @@ past any fixed lookahead, which is what the prover is for.
   decides what happens next. Two derivations settle the grammar: it is
   ambiguous, refining would be sharpening an abstraction that turned out to be
   right, and the run goes straight to the bounded search to render the witness
-  family. Nought or one makes the pair spurious, and the report says which
-  rather than leaving it to be inferred. Both directions are worth what they
-  cost. Every candidate this grammar has produced since the terminator change
-  is a sentence the recognizer rejects outright — `x Foo(y(Bar` and its
-  neighbours, unclosed parentheses and all — and each one used to cost a
-  refinement round to find that out; the one time a candidate was a real
-  ambiguity, the `import pkg$` bug in [`reports/prove/`](../reports/prove), the
+  family. The bound the search answers to is not the finding's, so a sentence
+  longer than it still reports the ambiguity and names the sentence, with the
+  bound as the reason no family is rendered beneath it. Nought or one makes the pair spurious, and the report says which
+  rather than leaving it to be inferred. The two spurious answers are not the
+  same finding. Nought means the abstraction accepted something that is not a
+  sentence — `x Foo(y(Bar` and its neighbours, unclosed parentheses and all —
+  and a round spent on one buys nothing. One means the sentence is a real
+  program whose single parse the abstraction cannot tell from a second, which
+  is the blind spot itself. Of the twenty-two candidates the ninety-minute run
+  in [`reports/prove/`](../reports/prove) worked through, sixteen are the first
+  kind and six the second, and before this check they were indistinguishable.
+  The third answer has been seen once: the `import pkg$` bug, where the
   recognizer would have settled it in milliseconds rather than at the end of
   the bounded search.
 

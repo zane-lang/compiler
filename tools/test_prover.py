@@ -106,6 +106,15 @@ REFINEMENT_CAPPED = re.compile(
 REFINEMENT_DEEPEST = re.compile(
     r"to a retained stack of (\d+) at the deepest\.", re.MULTILINE
 )
+# A recognizer-confirmed ambiguity the bounded search could not reach. The
+# abstract phase has no token bound and the search does, so the witness family
+# can be out of the search's reach while the finding itself is settled.
+AMBIGUOUS_BEYOND_BOUND = re.compile(
+    r"^AMBIGUOUS: the recognizer found two derivations of (.+) \((.*)\), which "
+    r"the bounded search did not reach within (\d+) tokens, so no witness "
+    r"family is rendered\. Raise the token bound to render it\.$",
+    re.MULTILINE,
+)
 CANDIDATE_LINE = re.compile(
     r"^Abstract ambiguity candidate at level \d+ after \d+ pairs "
     r"\((?:spurious|confirmed by the recognizer)\): (.+)$",
@@ -1159,6 +1168,23 @@ class CandidateParseTests(ProverTestCase):
         self.assertTrue(rounds, output)
         longest = max(len(match[1].split()) for match in rounds)
         self.assertLessEqual(int(decisive.group(1)), longest, output)
+
+    def test_a_confirmed_ambiguity_outlives_the_search_bound(self) -> None:
+        # The dangling else's shortest witness is ten tokens, so a search
+        # bounded at eight cannot render it -- but the abstract phase has no
+        # token bound, and the recognizer has already parsed the candidate
+        # twice. Reporting "neither proven unambiguous nor shown ambiguous"
+        # there would be the run disclaiming a finding it is holding.
+        status, output = self.prove(DANGLING_ELSE, 1, max_tokens="8")
+        self.assertEqual(status, AMBIGUOUS, output)
+        beyond = AMBIGUOUS_BEYOND_BOUND.search(output)
+        self.assertIsNotNone(beyond, output)
+        self.assertEqual(beyond.group(3), "8", output)
+        self.assertNotRegex(output, NOT_PROVEN_LINE)
+        # The witness is named even though no family is rendered: a sentence
+        # the reader can feed back to `ambiguity check` is the whole of what
+        # the search would have added.
+        self.assertGreater(len(beyond.group(1).split()), 8, output)
 
     def test_an_unambiguous_grammar_still_proves(self) -> None:
         # The guard on all of the above: a check that runs on candidates must

@@ -3599,6 +3599,14 @@ let main () =
          means: a run that stepped over a site has not answered it, and both
          the report and the exit status have to keep saying so. *)
       let retirements = ref [] in
+      (* A candidate the recognizer confirmed, kept for the verdict at the
+         bottom. The abstract phase has no token bound and the concretization
+         search does, so a confirmed sentence can be longer than the search is
+         allowed to reach -- and then the search finds nothing, having been
+         asked a question whose answer is already in hand. Losing the finding
+         there would report "neither proven unambiguous nor shown ambiguous"
+         about a grammar this run has two derivations of. *)
+      let confirmed = ref None in
       if !prove_level > 0 then begin
         (* The abstract phase is one sequential search, not a pool of workers,
            so dividing the budget by AMBIGUITY_JOBS would hand most of it to
@@ -4043,6 +4051,8 @@ let main () =
               (fun line -> printf "  %s\n" line)
               example.example_site;
             report_candidate_parse candidate;
+            if candidate.candidate_derivations >= 2 then
+              confirmed := Some tokens;
             List.iter (fun line -> printf "  %s\n" line) forward;
             (* Why refinement gave up is the part worth reading. A candidate
                that outlived an abstraction made exact along its own path is
@@ -4124,6 +4134,21 @@ let main () =
                is left open is exactly the retired list, and saying so is the
                difference between a verdict a reader can act on and one that
                sends them to raise --prove for no reason. *)
+            (match !confirmed with
+             | Some tokens ->
+                 (* The search did not reach it, but nothing about the finding
+                    depends on the search: the recognizer parsed this sentence
+                    twice. The bound is what is missing, so the verdict names
+                    it rather than the grammar. *)
+                 printf
+                   "AMBIGUOUS: the recognizer found two derivations of %s \
+                    (%s), which the bounded search did not reach within %d \
+                    tokens, so no witness family is rendered. Raise the token \
+                    bound to render it.\n"
+                   (String.concat " " tokens) (render automaton tokens)
+                   max_tokens;
+                 exit ambiguous_status
+             | None -> ());
             (if !retirements <> [] then
                printf
                  "NOT PROVEN: %d retired site(s) were stepped over rather \
