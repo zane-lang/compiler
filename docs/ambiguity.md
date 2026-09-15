@@ -345,11 +345,11 @@ before the closing bracket says which.
 
 The loose forms of [`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
 §3.1 — `'*` `'/` `'+` `'-` `'<` `'>` `'<=` `'>=` `'==` `'~=` — add ten terminals,
-three precedence levels and three `expr` productions, and **no conflict at
-all**. Not a smaller number than the rest of the ledger: the same one. Measured
-with the project's own `--GLR` build and again without it, every conflict block
-before and after this change matches family for family, on
-`(kind, tokens involved, reductions)`, with none new and none gone.
+three precedence levels and three `expr` productions, and **no new conflict
+block**. The census does not move at all, rather than moving by less than the
+rest of the ledger: measured with the project's own `--GLR` build and again
+without it, every conflict block before and after this change matches family for
+family, on `(kind, tokens involved, reductions)`, with none new and none gone.
 
 Two things make that so. A loose operator is strictly infix and lexically
 distinct, so no loose token can begin an expression or end one — the decision
