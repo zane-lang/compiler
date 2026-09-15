@@ -1827,6 +1827,12 @@ type abstract_candidate = {
      candidate carries are the ones made at that step, rather than every guess
      anywhere along a path whose tail the real parse never reached. *)
   candidate_decisive : (int * string) option;
+  (* Every guess anywhere on the candidate's path, which is what the aim
+     narrows down from. Aiming is worth it while it moves the blind spot, and
+     when it stops moving it the loop has to be able to ask for everything
+     again rather than crawl one entry per round behind an aim that is not
+     enough. *)
+  candidate_path_requests : (int * int) list;
 }
 
 type prove_result =
@@ -2483,6 +2489,7 @@ let prove engine (precision : precision) pair_limit deadline survey_limit trace
           | None -> []
           | Some (_, token, parent) -> requests_at parent token
         in
+        let along_the_path = candidate_refinements node in
         Abstract_candidate
           {
             candidate_tokens = tokens;
@@ -2490,12 +2497,12 @@ let prove engine (precision : precision) pair_limit deadline survey_limit trace
             candidate_example =
               { example_tokens = tokens; example_site = describe_site site };
             candidate_forward = (if trace then describe_forward node else []);
-            candidate_requests =
-              (if aimed <> [] then aimed else candidate_refinements node);
+            candidate_requests = (if aimed <> [] then aimed else along_the_path);
             candidate_site = site_identity site;
             candidate_derivations = parses;
             candidate_decisive =
               Option.map (fun (index, token, _) -> (index, token)) decisive_step;
+            candidate_path_requests = along_the_path;
           }
     | None ->
         if !overflow then Pair_overflow explored
@@ -3688,13 +3695,25 @@ let main () =
               result
           | Abstract_candidate candidate when !refine_max > 0 ->
               let tokens = candidate.candidate_tokens in
-              let requests = candidate.candidate_requests in
               let site = candidate.candidate_site in
               if !last_site = Some site then incr streak
               else begin
                 last_site := Some site;
                 streak := 1
               end;
+              (* The aim is the step where the abstraction left the language,
+                 and it is worth following while it moves the blind spot. A
+                 site that answers a round with the same site has not been
+                 moved by it, and asking the same step again would widen by one
+                 entry per round behind an aim that has already been shown not
+                 to be enough. So a repeat falls back to every guess on the
+                 path -- what the loop asked for before it could aim -- and the
+                 aim resumes at the next site. *)
+              let requests =
+                if !streak > 1 && candidate.candidate_path_requests <> [] then
+                  candidate.candidate_path_requests
+                else candidate.candidate_requests
+              in
               (* What the chain asks for is the depth that would make each of
                  its guessed gotos exact. That is the right first request and
                  not always a sufficient one: a reduction consumes the entries

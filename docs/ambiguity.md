@@ -650,6 +650,16 @@ past any fixed lookahead, which is what the prover is for.
   chain that unwinds the whole package is the longest one there is, so aiming
   takes its first round from 52 states down to 43 rather than to a handful.
 
+  **An aim that stops moving the blind spot is widened, not repeated.** A site
+  that answers a round with the same site has not been moved by it, and asking
+  the same step again buys one entry per round — the crawl the jump above
+  exists to avoid, paid for with a whole abstract phase each time. So a repeat
+  falls back to every guess on the path, and the aim resumes at the next site.
+  The difference is the whole outcome on this grammar: aimed alone, the
+  `x Foo(y(Bar)` site takes rounds 4 through 15 and is still standing at a
+  retained stack of 18; widened on the repeat, it closes at round 5 and the run
+  moves on to sites behind it.
+
   A round grants the depth at the state that asked for it and nowhere else.
   Nothing has to be bought behind it: a reduction chain keeps the entries its
   own pops leave behind, so depth survives a chain rather than being re-capped
