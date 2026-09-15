@@ -5,14 +5,6 @@
 (* outside the [module rec] chain as ordinary modules.                    *)
 (* ---------------------------------------------------------------------- *)
 
-(* Short-circuiting keywords, kept apart from Operator.t because they are not
-   overloadable and do not evaluate both sides. *)
-module Logic_op = struct
-  type t =
-    | And
-    | Or
-end
-
 module Operator = struct
   type t =
     | Add
@@ -161,7 +153,6 @@ module rec Expr : sig
     | Spawn of Verb_call.t
     | Match of Match_expr.t
     | VerbCall of Verb_call.t
-    | Logic of { op : Logic_op.t; left : t; right : t }
     | FuncLambda of Func_lambda.t
     | MethLambda of Meth_lambda.t
 end = Expr

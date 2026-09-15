@@ -118,7 +118,7 @@ class ParserSyntaxTests(unittest.TestCase):
         # would, so the binary forms are closed off too.
         self.assert_rejects("Unit use() { total Int = run() { g(); } + Int(1); }")
         self.assert_rejects("Unit use() { total Int = run() { g(); } | other; }")
-        self.assert_rejects("Unit use() { ok Bool = run() { g(); } and other; }")
+        self.assert_rejects("Unit use() { ok Bool = run() { g(); } '* other; }")
         self.assert_rejects("Unit use() { ok Bool = run() { g(); } == other; }")
         # Parentheses close the call before the operator sees it, which is how
         # such a value is continued.
@@ -507,15 +507,18 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_rejects("Unit use() { alias Aliased = enum [ up, down ] }")
         self.assert_rejects("Unit use() { type Braced = struct { x Int; }; }")
 
-    def test_comparison_chains_and_short_circuit_keywords(self) -> None:
+    def test_comparison_chains_and_the_operators_that_join_them(self) -> None:
+        # `Bool` draws from the same operator set as every other type
+        # (operators.md §2.4): `*` is conjunction, `+` is disjunction. Joining
+        # two comparisons is what the loose tier of §3.1 is for.
         self.assert_parses(
             '''
             Unit use() {
                 chained Bool = a < b < c;
                 equality Bool = a == b == c;
-                both Bool = a < b and c < d;
-                either Bool = a and b or c;
-                associative Bool = a and b and c;
+                both Bool = a < b '* c < d;
+                either Bool = a '* b '+ c;
+                associative Bool = a '* b '* c;
                 return Unit();
             }
             '''
@@ -635,6 +638,25 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_parses("Unit use() { n Int = Int(2) '* 1'000'000; }")
         # With no space, the literal ends where the digits do.
         self.assert_parses("Unit use() { n Int = 2'*3; }")
+
+
+    def test_and_and_or_are_ordinary_names(self) -> None:
+        # operators.md §2.4 gives `Bool` the same operator set as every other
+        # type, with no `and` or `or` in it. They are no longer keywords, so
+        # they carry no meaning of their own in an expression...
+        self.assert_rejects("Unit use() { ok Bool = a and b; }")
+        self.assert_rejects("Unit use() { ok Bool = a or b; }")
+        # ...and, being unreserved, they are available as names again.
+        self.assert_parses(
+            """
+            Unit use() {
+                and Bool = true;
+                or Bool = false;
+                both Bool = and '* or;
+                return Unit();
+            }
+            """
+        )
 
 
 

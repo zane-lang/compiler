@@ -360,6 +360,13 @@ tier deep by construction: the levels are fixed in the grammar rather than
 chosen by a program, so there is no recursion between the tiers for a state to
 have to unwind.
 
+The tier is also what let `and` and `or` go. They were the compiler's own
+stand-in for a level below the comparisons, and removing them — two terminals,
+two productions, a `Logic` node and its `Logic_op` — moves the census by nothing
+either, family for family, for the same reason: an infix level settled by a
+precedence declaration never reaches the automaton as a conflict.
+[`spec-divergences.md`](spec-divergences.md) records that closure.
+
 The lexer carries the part of §3.1 that the grammar would have found expensive.
 Each loose form is a single token, so `'` must touch its operator, and the three
 spellings the spec calls illegal — `a ''* b`, `'~a`, `a '| f()` — are rejected
