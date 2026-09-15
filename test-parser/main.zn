@@ -276,7 +276,7 @@ Float?String evaluate(node Expr, env &Environment) {
 /// An enum scrutinee matches the same way a variant does, minus the binders.
 Float?String apply(op Operator, left Float, right Float) {
 	empty Bool = right == Float(0);
-	if(empty and Operator.div == op) {
+	if(empty '* Operator.div == op) {
 		abort "division by zero";
 	}
 
@@ -521,8 +521,11 @@ Unit main() {
 	// A guest of the environment, walked without ever hosting it.
 	walker Cursor(&env);
 
-	// Comparisons are ordinary calls, and `and` binds tighter than `or`.
-	settled Bool = Float(0) < middle and middle < Float(100) or answer == Float(42);
+	// Comparisons are ordinary calls, and `Bool` joins them with the same
+	// operators every other type uses: `*` for conjunction, `+` for disjunction.
+	// The loose forms let the comparisons close first, so `'*` binds tighter
+	// than `'+` exactly as `*` does than `+`.
+	settled Bool = Float(0) < middle '* middle < Float(100) '+ answer == Float(42);
 
 	// An implicit constructor covers the `span` field from a bare offset.
 	summary Report{ severity = Severity.note; message = "read four slots"; span = Int(3); }

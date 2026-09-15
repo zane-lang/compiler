@@ -93,7 +93,6 @@ let rec expr_ends_in_brace (expr : Nodes.Expr.t) =
   | Nodes.Expr.Pipe { abort_handle = Some handle; _ } ->
       abort_handle_ends_in_brace handle
   | Nodes.Expr.Pipe { value; _ } -> expr_ends_in_brace value
-  | Nodes.Expr.Logic { right; _ } -> expr_ends_in_brace right
   | Nodes.Expr.FuncLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.MethLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.Ref value -> expr_ends_in_brace value
@@ -193,7 +192,6 @@ let rec ends_in_trailing_call (expr : Nodes.Expr.t) =
       ends_in_trailing_call right
   | Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle = None }) ->
       ends_in_trailing_call value
-  | Nodes.Expr.Logic { right; _ } -> ends_in_trailing_call right
   | Nodes.Expr.Pipe { value; abort_handle = None; _ } ->
       ends_in_trailing_call value
   | Nodes.Expr.Ref value -> ends_in_trailing_call value
@@ -222,9 +220,6 @@ let rec continues_past_trailing (expr : Nodes.Expr.t) =
       ends_in_trailing_call left || continues_past_trailing left
       || continues_past_trailing right
       || handler_continues_past_trailing abort_handle
-  | Nodes.Expr.Logic { left; right; _ } ->
-      ends_in_trailing_call left || continues_past_trailing left
-      || continues_past_trailing right
   | Nodes.Expr.Pipe { callee; value; abort_handle } ->
       ends_in_trailing_call callee || continues_past_trailing callee
       || continues_past_trailing value
@@ -432,6 +427,20 @@ let terminated_statement stat =
 %token MOREEQ      ">="
 %token LESS        "<"
 %token MORE        ">"
+
+(* The loose forms of operators.md §3.1: one token each, so the `'` must touch
+   the operator it prefixes. *)
+%token LOOSE_STAR   "'*"
+%token LOOSE_SLASH  "'/"
+%token LOOSE_PLUS   "'+"
+%token LOOSE_MINUS  "'-"
+%token LOOSE_EQEQ   "'=="
+%token LOOSE_NOTEQ  "'~="
+%token LOOSE_LESSEQ "'<="
+%token LOOSE_MOREEQ "'>="
+%token LOOSE_LESS   "'<"
+%token LOOSE_MORE   "'>"
+
 %token LTYPE       "type"
 %token ALIAS       "alias"
 %token UTYPE       "Type"
@@ -445,8 +454,6 @@ let terminated_statement stat =
 %token IMPLICIT    "implicit"
 %token INIT        "init"
 %token MATCH       "match"
-%token AND         "and"
-%token OR          "or"
 %token SPAWN       "spawn"
 %token TRUE        "true"
 %token FALSE       "false"
@@ -457,17 +464,22 @@ let terminated_statement stat =
 %token RESOLVE     "resolve"
 %token EOF          "<eof>"
 
-(* Keep the existing grouping decisions. New syntax is inserted around them
-   rather than respelling existing programs to match the prose spec. *)
+(* The precedence table of operators.md §3, loosest first -- which is Menhir's
+   order, so the declarations below read as that table upside down. The numbered
+   lines are that table exactly, and are every operator the language has. The
+   unnumbered ones carry no level in the spec because they are not operators:
+   they are abort handling and the postfix chain, placed where each has to be
+   for the chain to thread. *)
 %right THICK_ARROW
-%left OR                                        /* short-circuit or */
-%left AND                                       /* short-circuit and */
-%left EQEQ NOTEQ LESSEQ MOREEQ LESS MORE       /* comparisons */
-%left PLUS MINUS
-%left STAR SLASH
-%left PIPE                                      /* pipe */
+%left LOOSE_EQEQ LOOSE_NOTEQ LOOSE_LESSEQ LOOSE_MOREEQ LOOSE_LESS LOOSE_MORE  /* 8 */
+%left LOOSE_PLUS LOOSE_MINUS                    /* 7 */
+%left LOOSE_STAR LOOSE_SLASH                    /* 6 -- the loose tier, §3.1 */
+%left EQEQ NOTEQ LESSEQ MOREEQ LESS MORE        /* 5 -- comparisons */
+%left PLUS MINUS                                /* 4 */
+%left STAR SLASH                                /* 3 */
+%left PIPE                                      /* 2 -- pipe syntax */
 %nonassoc QSTNMARK QSTNQSTN                    /* abort handling */
-%nonassoc TILDE AMPERSAND                       /* prefix ~ and & */
+%nonassoc TILDE AMPERSAND                       /* 1 -- prefix ~, and & */
 %left DOT                                       /* field access */
 %left LBRACKET                                  /* subscript */
 %left LPAREN                                    /* function application */
@@ -1072,6 +1084,30 @@ block_call:
   | "*" { Nodes.Operator.Mul }
   | "/" { Nodes.Operator.Div }
 
+(* The loose forms carry the same [Operator.t] as the operators they mirror,
+   because a loose operator "calls the same implementation as its unprefixed
+   form and differs only in where it groups" (operators.md §3.1) and the
+   grouping is the tree. Nothing downstream asks which spelling was written,
+   and §3.1 is explicit that the loose forms add no token to the operator
+   vocabulary of §5.1 -- so they declare nothing either, and [operator] above,
+   which is the declaration form, does not admit them. *)
+
+%inline loose_comparison_op:
+  | "'==" { Nodes.Operator.Eq }
+  | "'~=" { Nodes.Operator.NotEq }
+  | "'<=" { Nodes.Operator.LessEq }
+  | "'>=" { Nodes.Operator.MoreEq }
+  | "'<"  { Nodes.Operator.Less }
+  | "'>"  { Nodes.Operator.More }
+
+%inline loose_additive_op:
+  | "'+" { Nodes.Operator.Add }
+  | "'-" { Nodes.Operator.Sub }
+
+%inline loose_multiplicative_op:
+  | "'*" { Nodes.Operator.Mul }
+  | "'/" { Nodes.Operator.Div }
+
 %inline match_selector:
   | case=LIDENT {
       [case]
@@ -1199,6 +1235,30 @@ expr:
         abort_handle = None;
       })
     }
+  | left=expr op=loose_comparison_op right=expr %prec LOOSE_EQEQ {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
+        op;
+        left;
+        right;
+        abort_handle = None;
+      })
+    }
+  | left=expr op=loose_additive_op right=expr %prec LOOSE_PLUS {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
+        op;
+        left;
+        right;
+        abort_handle = None;
+      })
+    }
+  | left=expr op=loose_multiplicative_op right=expr %prec LOOSE_STAR {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
+        op;
+        left;
+        right;
+        abort_handle = None;
+      })
+    }
   | receiver=app part=meth_part "|" value=expr %prec PIPE {
       let is_mut, callee = part in
       let callee = Nodes.Expr.MethodTarget { callee; this = receiver; is_mut } in
@@ -1206,12 +1266,6 @@ expr:
     }
   | callee=expr "|" value=expr %prec PIPE {
       Nodes.Expr.Pipe { callee; value; abort_handle = None }
-    }
-  | left=expr "and" right=expr %prec AND {
-      Nodes.Expr.Logic { op = Nodes.Logic_op.And; left; right }
-    }
-  | left=expr "or" right=expr %prec OR {
-      Nodes.Expr.Logic { op = Nodes.Logic_op.Or; left; right }
     }
   | "~" value=expr %prec TILDE {
       Nodes.Expr.VerbCall (Nodes.Verb_call.Flip {

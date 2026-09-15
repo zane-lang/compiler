@@ -1,0 +1,27 @@
+Search profile: general (run by hand, not through a profile)
+Broad shortest-first search over the grammar with the loose operator tier of
+operators.md §3.1 in place: `'*` `'/` `'+` `'-` `'<` `'>` `'<=` `'>=` `'==`
+`'~=` as three mirrored precedence levels below every unprefixed operator.
+
+Run with the real toolchain rather than the no-devbox fallback: menhir 20260209
+from the project's own opam switch as AMBIGUITY_MENHIR, and
+`ambiguity_search.exe` built by dune. Earlier reports in this directory were
+run with the apt menhir (20231231) and an ocamlopt-built engine.
+
+Tokens 0..9 · timeout 7m · 4 workers · 4096 MiB
+
+Search constraints: 0..9 total tokens; 0-token prefix; breadth-first scheduling.
+Memory budget: 4096 MiB total across 4 worker(s); workers compact at 819 MiB and stop admitting frontiers at 922 MiB each (10% reserved); per-worker limits are 915120 queued frontiers and 915120 retained dedup frontiers (ratio 1).
+● search 3/9 | amb 0 | explored 47 | unique 164 | RAM [------------] 0.0/4.0G | 00:00
+● search 9/9 | amb 0 | explored 539.7k | unique 943.7k | RAM [##----------] 0.6/4.0G | 00:10
+Search ended at depth 9 because the search space within the token bound was exhausted; no complete ambiguity was found in 943566 explored frontiers (943663 unique).
+This is a bounded result, not a proof of unambiguity.
+
+The bound was exhausted rather than cut short, so this is a theorem about every
+sentence of at most nine tokens: none of them is ambiguous with the loose tier
+in place. It says nothing about longer ones, and the ten new terminals push
+some of the shapes that would exercise the tier past nine tokens -- `a > b '* c
+> d` is seven before its enclosing declaration. So this stands beside the
+conflict measurement rather than in place of it: the tier adds no conflict
+block at all, family for family, under `--GLR` and without it, which is the
+stronger of the two statements here.

@@ -1,5 +1,26 @@
 let parts name shapes = name ^ "(" ^ String.concat ", " shapes ^ ")"
 
+(* An operator call renders under its operator's own name, so a shape says both
+   how the expression grouped and which implementation each grouping calls.
+
+   A loose operator renders as the operator it mirrors, because that is what it
+   is: operators.md §3.1 gives it the same implementation and a level of its
+   own, so the only thing it changes is the nesting -- which is what a shape
+   shows. `a > b '* c > d` and `a > b * c > d` are told apart here by their
+   shape, not by a tag. *)
+let operator_name (op : Cst.Nodes.Operator.t) =
+  match op with
+  | Cst.Nodes.Operator.Add -> "add"
+  | Cst.Nodes.Operator.Sub -> "sub"
+  | Cst.Nodes.Operator.Mul -> "mul"
+  | Cst.Nodes.Operator.Div -> "div"
+  | Cst.Nodes.Operator.Eq -> "eq"
+  | Cst.Nodes.Operator.NotEq -> "not_eq"
+  | Cst.Nodes.Operator.LessEq -> "less_eq"
+  | Cst.Nodes.Operator.MoreEq -> "more_eq"
+  | Cst.Nodes.Operator.Less -> "less"
+  | Cst.Nodes.Operator.More -> "more"
+
 (* A block argument renders as [block] wherever it sits, so a shape says which
    call a block joined and in which position, which is the grouping question a
    trailing block raises. *)
@@ -37,6 +58,8 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
       | Cst.Nodes.Constructor_args.Positional args ->
           parts tag (List.map arg_shape args)
       | Cst.Nodes.Constructor_args.Fields _ -> parts tag [ "fields" ])
+  | Cst.Nodes.Expr.VerbCall (Cst.Nodes.Verb_call.Op { op; left; right; _ }) ->
+      parts (operator_name op) [ expr_shape left; expr_shape right ]
   | Cst.Nodes.Expr.VerbCall (Cst.Nodes.Verb_call.Flip { value; _ }) ->
       "flip(" ^ expr_shape value ^ ")"
   | Cst.Nodes.Expr.FuncLambda {

@@ -453,6 +453,65 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             0,
         )
 
+    def test_a_loose_operator_groups_below_every_unprefixed_one(self) -> None:
+        # operators.md §3.1. The loose tier changes nothing but the nesting,
+        # so the nesting is the whole assertion: `'*` is level 6 and every
+        # unprefixed operator is levels 1-5, so both comparisons close before
+        # it joins them.
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT MORE LIDENT "
+            "LOOSE_STAR LIDENT MORE LIDENT SEMICOLON RCURLY EOF",
+            "Int length() { abort a > b '* c > d; }",
+            "mul(more(name, name), more(name, name))",
+        )
+        # The same operator unprefixed, for contrast: `*` is level 3, so it
+        # binds inside the comparison instead and `>` groups left.
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT MORE LIDENT "
+            "STAR LIDENT MORE LIDENT SEMICOLON RCURLY EOF",
+            "Int length() { abort a > b * c > d; }",
+            "more(more(name, mul(name, name)), name)",
+        )
+
+    def test_the_loose_tier_mirrors_the_order_it_came_from(self) -> None:
+        # §3.1's own second example: levels 6-8 keep the relative order of
+        # levels 3-5, so `'*` binds tighter than `'+` exactly as `*` does
+        # than `+`.
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT EQEQ LIDENT "
+            "LOOSE_STAR LIDENT EQEQ LIDENT LOOSE_PLUS LIDENT EQEQ LIDENT "
+            "SEMICOLON RCURLY EOF",
+            "Int length() { abort a == b '* c == d '+ e == f; }",
+            "add(mul(eq(name, name), eq(name, name)), eq(name, name))",
+        )
+        # And the loose comparisons are looser still, being level 8.
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT LOOSE_STAR "
+            "LIDENT LOOSE_LESS LIDENT LOOSE_STAR LIDENT SEMICOLON RCURLY EOF",
+            "Int length() { abort a '* b '< c '* d; }",
+            "less(mul(name, name), mul(name, name))",
+        )
+
+    def test_a_loose_operator_is_looser_than_its_own_unprefixed_form(
+        self,
+    ) -> None:
+        # The mirror is one tier deep and sits entirely below the unprefixed
+        # levels, so the two spellings of one operator are not equals: `+` at
+        # level 4 closes before `'*` at level 6 takes it.
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT LOOSE_STAR "
+            "LIDENT PLUS LIDENT SEMICOLON RCURLY EOF",
+            "Int length() { abort a '* b + c; }",
+            "mul(name, add(name, name))",
+        )
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT STAR LIDENT "
+            "LOOSE_STAR LIDENT SEMICOLON RCURLY EOF",
+            "Int length() { abort a * b '* c; }",
+            "mul(mul(name, name), name)",
+        )
+
+
 
 if __name__ == "__main__":
     unittest.main()
