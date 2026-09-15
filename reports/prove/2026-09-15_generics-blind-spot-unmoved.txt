@@ -1,0 +1,89 @@
+# The generics blind spot, after the loose tier and the type-as-value production
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1; Menhir 20231231.
+# State numbers are Menhir-version sensitive.
+# Grammar: lib/cst/parser.mly at 08a1234.
+# Command: ambiguity prove 1 quick --timeout 5m
+# AMBIGUITY_MEMORY_MB=8192, JOBS=4 on a 4-core 16GB machine.
+# Kept verbatim; the run's own `Report:` line names the --output path it was
+# written to before being moved here.
+#
+# Exit 3, as in 2026-09-14_import-terminated.txt. Trailing constructor
+# arguments, a type written where a value is expected, and the loose operator
+# tier have all landed since that run, and none of them moved the verdict or
+# the site: the abstraction still stops at the empty `loption_generics_`
+# reduction against a shift, state 356 here where it was 344 then and 325
+# before the terminator change renumbered it.
+#
+# The candidate is shorter than it was, and reached sooner -- 7 tokens after
+# 5761 abstract pairs, against 8 tokens after 12727. That is the four states
+# the type-as-value production adds over the same reduction (docs/ambiguity.md,
+# "A type may be written where a value is expected"), not a new blind spot.
+#
+# It is spurious in the same way, and the recognizer says so directly:
+#
+#   0   LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF               (x Foo(y(Bar)
+#   1   LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN RPAREN EOF (x Foo(y(Bar)))
+#   1   LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT DOT LIDENT RPAREN RPAREN EOF
+#                                                                   (x Foo(y(Bar.b)))
+#
+# The candidate itself is not a program -- the parentheses do not close and a
+# bare uppercase name is not an expression. Complete it either way and the fork
+# resolves to one derivation.
+#
+# The concretization search that followed found no ambiguity in 5939731
+# explored frontiers, ending at depth 10 on a worker search limit. So the
+# grammar stands where it has stood: unproven at the generics blind spot, with
+# no ambiguity known anywhere.
+#
+Proof level 1, concretization profile: quick
+Fast breadth-first feedback while editing the grammar.
+Tokens 0..16 · timeout 5m · 20 witnesses · breadth-first
+Report: reports/quick/2026-09-15_14-51-02.txt
+
+Search constraints: 0..16 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 6316128 abstract pairs (single-threaded; the 4-worker split does not apply).
+● abstract level 1 | pairs 298 | queued 170 | accepting 0 | 00:00
+Abstract ambiguity candidate at level 1 after 5761 pairs (possibly spurious): LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF
+  divergence site on lookahead LPAREN
+  abstract stack (top first): 356
+  conflict at stack 356:
+    reduce loption_generics_ -> 
+    shift to 357
+Stack height: refused 933508 move(s) onto a state no stack that short can carry; the height stops being counted past 18.
+Attempting to concretize with the bounded search...
+
+Memory budget: 8192 MiB total across 4 worker(s); workers compact at 1638 MiB and stop admitting frontiers at 1843 MiB each (10% reserved); per-worker limits are 1579032 queued frontiers and 1579032 retained dedup frontiers (ratio 1).
+● search 3/16 | amb 0 | explored 50 | unique 252 | RAM [------------] 0.1/8.0G | 00:07
+● search 9/16 | amb 0 | explored 288.4k | unique 2.0M | RAM [###---------] 1.8/8.0G | 00:17
+● search 9/16 | amb 0 | explored 534.5k | unique 3.8M | RAM [#####-------] 3.3/8.0G | 00:27
+● search 9/16 | amb 0 | explored 749.0k | unique 5.6M | RAM [#######-----] 4.9/8.0G | 00:37
+● search 10/16 | amb 0 | explored 802.5k | unique 6.0M | RAM [########----] 5.3/8.0G | 00:47
+● search 10/16 | amb 0 | explored 929.8k | unique 6.9M | RAM [#######-----] 4.5/8.0G | 00:57
+● search 10/16 | amb 0 | explored 1.3M | unique 7.6M | RAM [#######-----] 4.6/8.0G | 01:07
+● search 10/16 | amb 0 | explored 1.6M | unique 7.9M | RAM [#########---] 5.9/8.0G | 01:17
+● search 10/16 | amb 0 | explored 1.7M | unique 8.0M | RAM [#######-----] 4.9/8.0G | 01:27
+● search 10/16 | amb 0 | explored 2.0M | unique 8.3M | RAM [#######-----] 5.0/8.0G | 01:37
+● search 10/16 | amb 0 | explored 2.3M | unique 8.6M | RAM [#########---] 5.9/8.0G | 01:47
+● search 10/16 | amb 0 | explored 2.3M | unique 8.6M | RAM [#########---] 5.9/8.0G | 01:57
+● search 10/16 | amb 0 | explored 2.4M | unique 8.7M | RAM [########----] 5.5/8.0G | 02:07
+● search 10/16 | amb 0 | explored 2.8M | unique 9.1M | RAM [########----] 5.5/8.0G | 02:17
+● search 10/16 | amb 0 | explored 3.0M | unique 9.4M | RAM [#########---] 5.9/8.0G | 02:27
+● search 10/16 | amb 0 | explored 3.1M | unique 9.5M | RAM [#########---] 6.0/8.0G | 02:37
+● search 10/16 | amb 0 | explored 3.4M | unique 9.7M | RAM [#########---] 5.8/8.0G | 02:47
+● search 10/16 | amb 0 | explored 3.6M | unique 9.9M | RAM [#########---] 6.0/8.0G | 02:57
+● search 10/16 | amb 0 | explored 3.8M | unique 10.1M | RAM [#########---] 6.0/8.0G | 03:08
+● search 10/16 | amb 0 | explored 4.0M | unique 10.3M | RAM [#########---] 5.7/8.0G | 03:18
+● search 10/16 | amb 0 | explored 4.3M | unique 10.6M | RAM [#########---] 5.9/8.0G | 03:28
+● search 10/16 | amb 0 | explored 4.5M | unique 10.8M | RAM [#########---] 6.3/8.0G | 03:38
+● search 10/16 | amb 0 | explored 4.5M | unique 10.8M | RAM [##########--] 6.3/8.0G | 03:48
+● search 10/16 | amb 0 | explored 4.7M | unique 11.0M | RAM [##########--] 6.5/8.0G | 03:58
+● search 10/16 | amb 0 | explored 5.0M | unique 11.3M | RAM [##########--] 6.5/8.0G | 04:08
+● search 10/16 | amb 0 | explored 5.2M | unique 11.5M | RAM [##########--] 6.5/8.0G | 04:18
+● search 10/16 | amb 0 | explored 5.3M | unique 11.6M | RAM [##########--] 6.4/8.0G | 04:28
+● search 10/16 | amb 0 | explored 5.5M | unique 11.8M | RAM [#########---] 6.3/8.0G | 04:38
+● search 10/16 | amb 0 | explored 5.6M | unique 12.0M | RAM [#########---] 6.3/8.0G | 04:48
+● search 10/16 | amb 0 | explored 5.8M | unique 12.1M | RAM [##########--] 6.6/8.0G | 04:58
+● search 10/16 | amb 0 | explored 5.9M | unique 12.2M | RAM [#####-------] 3.3/8.0G | 05:08
+Search ended at depth 10 because one or more workers reached a search limit; no complete ambiguity was found in 5939731 explored frontiers (12255955 unique).
+NOT PROVEN: the abstract candidate could not be concretized within the search bounds; the grammar is neither proven unambiguous nor shown ambiguous. Raising --prove may remove the spurious candidate.

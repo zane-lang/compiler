@@ -1,0 +1,212 @@
+# Candidates parsed for real, and a refinement aimed by the result
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1; Menhir 20231231.
+# State numbers are Menhir-version sensitive.
+# Grammar: lib/cst/parser.mly at 2ebc3c0.
+# Command: ambiguity prove 1 quick --refine 10 --refine-rounds 60 --timeout 20m
+# AMBIGUITY_MEMORY_MB=6144, JOBS=4 on a 4-core 16GB machine.
+#
+# The first run with the recognizer check in place, and what it says about the
+# generics blind spot is sharper than anything the abstraction alone reported.
+# Every candidate the eight rounds produced is spurious, and seven of the eight
+# are not even sentences:
+#
+#   round 1  x Foo(y(Bar          rejected   leaves the real parse at EOF
+#   round 2  x Int = [(Bar)       rejected   leaves the real parse at EOF
+#   round 3  x Int = match Foo {} one parse  never leaves the real parse
+#   rounds 4-8  x Foo(y(Bar)      rejected   leaves the real parse at EOF
+#
+# Round 3 is the one worth reading. It is a real program with exactly one
+# derivation, and the abstraction's stacks match the recognizer's at every
+# step, so nothing in the walk says where the second parse came from -- that is
+# the blind spot itself rather than an artifact of a missing bracket.
+#
+# Refinement then stopped for the reason that matters: "it survives every stack
+# --prove-refine 10 allows", with 71 of 1096 states deepened. The candidate's
+# chains have been given every depth they ask for and the pair still accepts a
+# sentence the recognizer rejects, which is the shape of an imprecision the
+# request scan does not model rather than one more depth would remove.
+#
+Proof level 1, concretization profile: quick
+Fast breadth-first feedback while editing the grammar.
+Tokens 0..16 · timeout 20m · 20 witnesses · breadth-first
+Report: /tmp/claude-0/-home-user-compiler/d3142a5a-2131-54a5-835b-1cb10299f03a/scratchpad/prove-aimed.txt
+
+Search constraints: 0..16 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 4737096 abstract pairs (single-threaded; the 4-worker split does not apply).
+● abstract level 1 | pairs 298 | queued 170 | accepting 0 | 00:00
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on EOF
+Refinement round 1: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF, retaining up to 9 (state 352 to 7, state 215 to 7, state 50 to 7, state 260 to 7, state 240 to 7, state 640 to 7, state 268 to 7, state 264 to 7, state 67 to 7, state 44 to 7, state 242 to 7, state 258 to 7, state 250 to 7, state 1089 to 3, state 62 to 9, state 30 to 7, state 499 to 6, state 266 to 7, state 244 to 7, state 507 to 2, state 252 to 7, state 223 to 7, state 248 to 7, state 213 to 7, state 262 to 7, state 233 to 7, state 224 to 6, state 270 to 7, state 341 to 6, state 256 to 7, state 1047 to 7, state 254 to 7, state 63 to 7, state 209 to 7, state 7 to 7, state 8 to 8, state 123 to 7, state 1088 to 2, state 246 to 7, state 238 to 7, state 235 to 7, state 211 to 7, state 870 to 5).
+● abstract level 9 | pairs 7.4k | queued 5.3k | accepting 0 | 01:00
+● abstract level 9 | pairs 11.1k | queued 8.0k | accepting 0 | 01:16
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on EOF
+Refinement round 2: deepened the stacks behind LIDENT UIDENT EQUAL LBRACKET LPAREN UIDENT RPAREN EOF, retaining up to 9 (state 957 to 6, state 115 to 6, state 228 to 6, state 65 to 9, state 191 to 6, state 535 to 6, state 531 to 6, state 193 to 6, state 968 to 6, state 351 to 6, state 353 to 8, state 64 to 8, state 169 to 6, state 96 to 6, state 86 to 6).
+● abstract level 9 | pairs 8.4k | queued 6.2k | accepting 0 | 01:03
+● abstract level 9 | pairs 10.9k | queued 8.0k | accepting 0 | 01:17
+  the recognizer accepts it exactly once, so the pair is spurious
+Refinement round 3: deepened the stacks behind LIDENT UIDENT EQUAL MATCH UIDENT LCURLY RCURLY EOF, retaining up to 9 (state 1046 to 6, state 142 to 7, state 133 to 5, state 1043 to 9, state 1019 to 7, state 168 to 6, state 1007 to 9, state 1018 to 6, state 1006 to 8, state 1095 to 3, state 1042 to 8).
+● abstract level 9 | pairs 9.7k | queued 7.1k | accepting 0 | 01:05
+● abstract level 9 | pairs 12.6k | queued 9.1k | accepting 0 | 01:19
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on EOF
+Refinement round 4: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN EOF, retaining up to 9 (state 226 to 5, state 197 to 8).
+● abstract level 9 | pairs 9.7k | queued 7.1k | accepting 0 | 01:06
+● abstract level 9 | pairs 12.6k | queued 9.1k | accepting 0 | 01:20
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on EOF
+Refinement round 5: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN EOF, retaining up to 10 (state 115 to 7, state 65 to 10, state 67 to 8, state 44 to 8, state 63 to 8, state 30 to 8, state 64 to 9, state 96 to 7, state 86 to 7, state 197 to 9).
+● abstract level 10 | pairs 9.7k | queued 7.1k | accepting 0 | 01:04
+● abstract level 10 | pairs 12.6k | queued 9.1k | accepting 0 | 01:19
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on EOF
+Refinement round 6: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN EOF, retaining up to 10 (state 115 to 8, state 67 to 9, state 44 to 9, state 63 to 9, state 30 to 9, state 64 to 10, state 96 to 8, state 86 to 8, state 197 to 10).
+● abstract level 10 | pairs 9.7k | queued 7.1k | accepting 0 | 01:03
+● abstract level 10 | pairs 12.6k | queued 9.1k | accepting 0 | 01:17
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on EOF
+Refinement round 7: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN EOF, retaining up to 10 (state 115 to 9, state 67 to 10, state 44 to 10, state 63 to 10, state 30 to 10, state 96 to 9, state 86 to 9).
+● abstract level 10 | pairs 9.7k | queued 7.1k | accepting 0 | 01:04
+● abstract level 10 | pairs 12.6k | queued 9.1k | accepting 0 | 01:18
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on EOF
+Refinement round 8: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN EOF, retaining up to 10 (state 115 to 10, state 96 to 10, state 86 to 10).
+● abstract level 10 | pairs 9.7k | queued 7.1k | accepting 0 | 01:06
+● abstract level 10 | pairs 12.6k | queued 9.1k | accepting 0 | 01:21
+Abstract ambiguity candidate at level 1 after 16442 pairs (spurious): LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN EOF
+  divergence site on lookahead LPAREN
+  abstract stack (top first): 356
+  conflict at stack 356:
+    reduce loption_generics_ -> 
+    shift to 357
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on EOF
+Refinement stopped after 8 round(s): it survives every stack --prove-refine 10 allows.
+Refinement reached: 8 refinement round(s); 71 of 1096 state(s) deepened past level 1, to a retained stack of 10 at the deepest.
+Stack height: refused 1034041 move(s) onto a state no stack that short can carry; the height stops being counted past 18.
+Attempting to concretize with the bounded search...
+
+Memory budget: 6144 MiB total across 4 worker(s); workers compact at 1229 MiB and stop admitting frontiers at 1382 MiB each (10% reserved); per-worker limits are 1184274 queued frontiers and 1184274 retained dedup frontiers (ratio 1).
+● search 3/16 | amb 0 | explored 50 | unique 254 | RAM [------------] 0.2/6.0G | 00:08
+● search 9/16 | amb 0 | explored 285.6k | unique 2.0M | RAM [####--------] 1.9/6.0G | 00:18
+● search 9/16 | amb 0 | explored 515.8k | unique 3.7M | RAM [#######-----] 3.3/6.0G | 00:28
+● search 10/16 | amb 0 | explored 704.6k | unique 5.2M | RAM [#######-----] 3.4/6.0G | 00:38
+● search 10/16 | amb 0 | explored 1.1M | unique 5.8M | RAM [#######-----] 3.6/6.0G | 00:48
+● search 10/16 | amb 0 | explored 1.1M | unique 5.8M | RAM [#######-----] 3.6/6.0G | 00:58
+● search 10/16 | amb 0 | explored 1.2M | unique 6.0M | RAM [########----] 3.9/6.0G | 01:08
+● search 10/16 | amb 0 | explored 1.6M | unique 6.3M | RAM [########----] 3.9/6.0G | 01:19
+● search 10/16 | amb 0 | explored 1.6M | unique 6.4M | RAM [########----] 4.0/6.0G | 01:29
+● search 10/16 | amb 0 | explored 1.9M | unique 6.6M | RAM [########----] 4.1/6.0G | 01:39
+● search 10/16 | amb 0 | explored 2.1M | unique 6.8M | RAM [########----] 4.1/6.0G | 01:49
+● search 10/16 | amb 0 | explored 2.2M | unique 6.9M | RAM [#########---] 4.4/6.0G | 01:59
+● search 10/16 | amb 0 | explored 2.5M | unique 7.2M | RAM [#########---] 4.5/6.0G | 02:09
+● search 10/16 | amb 0 | explored 2.6M | unique 7.3M | RAM [#########---] 4.3/6.0G | 02:19
+● search 10/16 | amb 0 | explored 2.9M | unique 7.6M | RAM [########----] 4.2/6.0G | 02:29
+● search 10/16 | amb 0 | explored 3.0M | unique 7.7M | RAM [########----] 4.2/6.0G | 02:39
+● search 10/16 | amb 0 | explored 3.1M | unique 7.9M | RAM [#########---] 4.4/6.0G | 02:49
+● search 10/16 | amb 0 | explored 3.4M | unique 8.1M | RAM [#########---] 4.6/6.0G | 02:59
+● search 10/16 | amb 0 | explored 3.5M | unique 8.2M | RAM [#########---] 4.5/6.0G | 03:09
+● search 10/16 | amb 0 | explored 3.8M | unique 8.6M | RAM [#########---] 4.5/6.0G | 03:19
+● search 10/16 | amb 0 | explored 3.9M | unique 8.7M | RAM [#########---] 4.7/6.0G | 03:29
+● search 10/16 | amb 0 | explored 4.2M | unique 8.9M | RAM [##########--] 4.8/6.0G | 03:39
+● search 10/16 | amb 0 | explored 4.3M | unique 9.1M | RAM [##########--] 4.9/6.0G | 03:49
+● search 10/16 | amb 0 | explored 4.4M | unique 9.2M | RAM [##########--] 5.0/6.0G | 03:59
+● search 10/16 | amb 0 | explored 4.7M | unique 9.4M | RAM [##########--] 5.1/6.0G | 04:09
+● search 10/16 | amb 0 | explored 4.9M | unique 9.6M | RAM [##########--] 5.1/6.0G | 04:19
+● search 10/16 | amb 0 | explored 5.0M | unique 9.7M | RAM [##########--] 5.1/6.0G | 04:29
+● search 11/16 | amb 0 | explored 5.3M | unique 10.0M | RAM [##########--] 5.1/6.0G | 04:39
+● search 11/16 | amb 0 | explored 5.4M | unique 10.2M | RAM [##########--] 5.1/6.0G | 04:49
+● search 11/16 | amb 0 | explored 5.6M | unique 10.4M | RAM [##########--] 5.1/6.0G | 04:59
+● search 11/16 | amb 0 | explored 5.9M | unique 10.7M | RAM [##########--] 5.1/6.0G | 05:10
+● search 11/16 | amb 0 | explored 6.0M | unique 10.7M | RAM [##########--] 5.2/6.0G | 05:20
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 05:30
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 05:40
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 05:50
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 06:00
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 06:10
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 06:20
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 06:30
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 06:40
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 06:50
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 07:00
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 07:10
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 07:20
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 07:30
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 07:40
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 07:50
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 08:00
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 08:10
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 08:20
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 08:30
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 08:40
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 08:50
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 09:01
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 09:11
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 09:21
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 09:31
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 09:41
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 09:51
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 10:01
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 10:11
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 10:21
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 10:31
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 10:41
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 10:51
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 11:01
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 11:11
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 11:21
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 11:31
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 11:41
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 11:51
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 12:01
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 12:11
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 12:21
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 12:31
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 12:41
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 12:52
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 13:02
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 13:12
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 13:22
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 13:32
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 13:42
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 13:52
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 14:02
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 14:12
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 14:22
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 14:32
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 14:42
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 14:52
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 15:02
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 15:12
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 15:22
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 15:32
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 15:42
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 15:52
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 16:02
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 16:12
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 16:22
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 16:33
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 16:43
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 16:53
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 17:03
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 17:13
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 17:23
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 17:33
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 17:43
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 17:53
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 18:03
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 18:13
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 18:23
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 18:33
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 18:43
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 18:53
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 19:03
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 19:13
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 19:23
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 19:33
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 19:43
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [###########-] 5.3/6.0G | 19:53
+● search 11/16 | amb 0 | explored 6.1M | unique 10.8M | RAM [########----] 4.0/6.0G | 20:03
+Search ended at depth 11 because one or more workers reached a search limit; no complete ambiguity was found in 6082917 explored frontiers (10819799 unique).
+NOT PROVEN: the abstract candidate could not be concretized within the search bounds; the grammar is neither proven unambiguous nor shown ambiguous. Raising --prove may remove the spurious candidate.

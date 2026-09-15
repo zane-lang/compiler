@@ -1,0 +1,75 @@
+# Widening the aim: fourteen sites instead of one
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1; Menhir 20231231.
+# State numbers are Menhir-version sensitive.
+# Grammar: lib/cst/parser.mly at 214de5c.
+# Command: ambiguity_search --prove 1 --prove-refine 18 --prove-refine-rounds 80
+#          --max-tokens 8 --timeout 1500
+# AMBIGUITY_MEMORY_MB=3072, JOBS=2 on a 4-core 16GB machine, sharing it with
+# the run this is paired against.
+#
+# The pair of runs that settled how a refinement round should be aimed. Both
+# carry the recognizer check and the aim; this one also widens an aim that
+# stops moving the site.
+#
+#   aimed only, ceiling 18   rounds 4-15 all on `x Foo(y(Bar)`, one entry per
+#                            round, still standing at a retained stack of 18
+#   widened on repeat        the same site closes at round 5, and rounds 6-14
+#                            are nine different sentences at nine other sites
+#
+# The verdict is still NOT PROVEN, but the reason has moved. It is no longer
+# one blind spot that no depth reaches; it is the clock, with fourteen rounds
+# spent and 146 of 1096 states deepened. Each round re-runs the whole abstract
+# phase at the precision the last one left behind, so the rounds get more
+# expensive as they go: this run reached 448190 pairs at level 11 in the round
+# the deadline caught.
+#
+# Every candidate in it is spurious, and the reports say which kind: eleven are
+# sentences the recognizer rejects outright, three are real programs with
+# exactly one derivation. The latter are the blind spots worth attacking; the
+# former used to be indistinguishable from them.
+#
+Search constraints: 0..8 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 2809208 abstract pairs (single-threaded; the 2-worker split does not apply).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on EOF
+Refinement round 1: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF, retaining up to 9 (state 352 to 7, state 215 to 7, state 50 to 7, state 260 to 7, state 240 to 7, state 640 to 7, state 268 to 7, state 264 to 7, state 67 to 7, state 44 to 7, state 242 to 7, state 258 to 7, state 250 to 7, state 1089 to 3, state 62 to 9, state 30 to 7, state 499 to 6, state 266 to 7, state 244 to 7, state 507 to 2, state 252 to 7, state 223 to 7, state 248 to 7, state 213 to 7, state 262 to 7, state 233 to 7, state 224 to 6, state 270 to 7, state 341 to 6, state 256 to 7, state 1047 to 7, state 254 to 7, state 63 to 7, state 209 to 7, state 7 to 7, state 8 to 8, state 123 to 7, state 1088 to 2, state 246 to 7, state 238 to 7, state 235 to 7, state 211 to 7, state 870 to 5).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on EOF
+Refinement round 2: deepened the stacks behind LIDENT UIDENT EQUAL LBRACKET LPAREN UIDENT RPAREN EOF, retaining up to 9 (state 957 to 6, state 115 to 6, state 228 to 6, state 65 to 9, state 191 to 6, state 535 to 6, state 531 to 6, state 193 to 6, state 968 to 6, state 351 to 6, state 353 to 8, state 64 to 8, state 169 to 6, state 96 to 6, state 86 to 6).
+  the recognizer accepts it exactly once, so the pair is spurious
+Refinement round 3: deepened the stacks behind LIDENT UIDENT EQUAL MATCH UIDENT LCURLY RCURLY EOF, retaining up to 9 (state 1046 to 6, state 142 to 7, state 133 to 5, state 1043 to 9, state 1019 to 7, state 168 to 6, state 1007 to 9, state 1018 to 6, state 1006 to 8, state 1095 to 3, state 1042 to 8).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on EOF
+Refinement round 4: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN EOF, retaining up to 9 (state 226 to 5, state 197 to 8).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on EOF
+Refinement round 5: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN EOF, retaining up to 9 (state 196 to 7, state 6 to 6, state 194 to 6, state 169 to 7, state 195 to 7, state 135 to 5, state 107 to 5).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on LBRACKET
+Refinement round 6: deepened the stacks behind UIDENT LCURLY RCURLY LCURLY FALSE LBRACKET FALSE EOF, retaining up to 9 (state 352 to 8, state 625 to 7, state 588 to 7, state 582 to 7, state 228 to 8, state 640 to 8, state 268 to 8, state 264 to 8, state 537 to 8, state 258 to 8, state 250 to 8, state 193 to 8, state 1055 to 7, state 266 to 8, state 654 to 8, state 244 to 8, state 544 to 8, state 223 to 8, state 155 to 8, state 262 to 8, state 221 to 7, state 645 to 2, state 291 to 9, state 289 to 8, state 270 to 8, state 1054 to 8, state 256 to 8, state 531 to 8, state 209 to 8, state 502 to 9, state 246 to 8, state 235 to 8, state 281 to 8, state 956 to 8, state 215 to 8, state 642 to 8, state 649 to 8, state 576 to 7, state 260 to 8, state 240 to 8, state 600 to 7, state 218 to 7, state 191 to 8, state 958 to 8, state 242 to 8, state 613 to 7, state 594 to 7, state 510 to 7, state 506 to 4, state 564 to 7, state 969 to 8, state 252 to 8, state 970 to 9, state 248 to 8, state 1060 to 7, state 213 to 8, state 233 to 8, state 957 to 8, state 631 to 7, state 916 to 8, state 224 to 7, state 535 to 8, state 1047 to 8, state 254 to 8, state 619 to 7, state 968 to 8, state 501 to 8, state 881 to 7, state 238 to 8, state 211 to 8, state 570 to 7).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on LBRACKET
+Refinement round 7: deepened the stacks behind UIDENT LCURLY RCURLY LCURLY INT LBRACKET INT EOF, retaining up to 9 (state 149 to 8).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on LBRACKET
+Refinement round 8: deepened the stacks behind UIDENT LCURLY RCURLY LCURLY THIS LBRACKET RBRACKET EOF, retaining up to 9 (state 127 to 8).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on LCURLY
+Refinement round 9: deepened the stacks behind LIDENT UIDENT EQUAL LBRACKET TILDE UIDENT LCURLY RCURLY EOF, retaining up to 9 (state 230 to 6).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on LCURLY
+Refinement round 10: deepened the stacks behind LIDENT UIDENT EQUAL LBRACKET TILDE UIDENT LCURLY RCURLY EOF, retaining up to 10 (state 142 to 8, state 168 to 7, state 1007 to 10, state 148 to 5, state 1006 to 9, state 126 to 6).
+  the recognizer accepts it exactly once, so the pair is spurious
+Refinement round 11: deepened the stacks behind LIDENT UIDENT EQUAL LPAREN UIDENT RPAREN LBRACKET RBRACKET EOF, retaining up to 11 (state 32 to 8, state 18 to 8, state 60 to 10, state 59 to 9, state 79 to 8, state 61 to 11, state 28 to 8, state 134 to 5, state 24 to 8, state 37 to 8, state 231 to 7, state 232 to 8, state 9 to 8, state 229 to 6, state 43 to 8).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 9 token(s), on EOF
+Refinement round 12: deepened the stacks behind LIDENT UIDENT EQUAL MATCH AMPERSAND LPAREN UIDENT RPAREN EOF, retaining up to 11 (state 32 to 10, state 200 to 6, state 960 to 8, state 62 to 10, state 353 to 9, state 31 to 9, state 8 to 9, state 123 to 8, state 959 to 7).
+  the recognizer accepts it exactly once, so the pair is spurious
+Refinement round 13: deepened the stacks behind LIDENT UIDENT EQUAL UIDENT LESS LIDENT DOLLAR UIDENT EOF, retaining up to 11 (state 249 to 6, state 18 to 11, state 17 to 10, state 80 to 7, state 15 to 8, state 137 to 9, state 96 to 7, state 16 to 9, state 115 to 7, state 136 to 8, state 135 to 7, state 86 to 7, state 2 to 6).
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on LBRACKET
+Refinement round 14: deepened the stacks behind UIDENT LCURLY RCURLY LCURLY LBRACKET RBRACKET LBRACKET RBRACKET EOF, retaining up to 11 (state 1002 to 10).
+NOT PROVEN: the timeout (1500s) expired during the abstract phase at level 1, after 448190 pairs. Raise --timeout, or lower --prove.
+Refinement reached: 14 refinement round(s); 146 of 1096 state(s) deepened past level 1, to a retained stack of 11 at the deepest.
+Stack height: refused 900340 move(s) onto a state no stack that short can carry; the height stops being counted past 18.
