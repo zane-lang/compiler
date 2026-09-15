@@ -223,6 +223,48 @@ direction needs the spec to say what separates two adjacent declarations when
 the first ends in a name; until it does, the compiler cannot drop the `;`
 without re-admitting the ambiguity.
 
+## 6. Only a bare name may be passed as a type
+
+**Spec** — [`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
+§5.3: "A type or number can instead be passed as an ordinary argument by
+declaring a value parameter of concept type `Type` or `Number`. The argument is
+then written positionally in `()`, like any other value." A type is whatever a
+type expression describes, so nothing in that sentence narrows it to a name.
+
+**Compiler** — a type name may be written where a value is expected; no other
+type spelling may.
+
+```zane
+arr Array(Int, 10000);        // accepted, and §6.2's own example
+room Slots(math$Vector, 4);   // accepted: a qualified name is still a name
+held Slot = @primitives$I64;  // accepted: so is an intrinsic one
+
+register(Array<Int, 4>);      // rejected
+register(&Int);               // rejected
+register(Int[3]);             // rejected
+```
+
+What separates the two lists is whether the spelling **ends at the name**. A
+bare name does, so the parser reads it and is finished. Every other type
+spelling continues into a bracket that already means something else after an
+expression: `<` opens a comparison, `[` a subscript, and a leading `&` belongs
+to a lambda's return type
+([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
+§3.8). The parser would have to complete the type-value reading before seeing
+which, and it cannot.
+
+Measured, that is not a fork GLR resolves but a cost paid in the automaton:
+admitting the applied form adds three **reduce/reduce** states, every one of
+them `expr -> <name> loption_generics_` against `list_verb_type_suffix_ ->`.
+The bare form adds four shift/reduce states and no reduce/reduce state at all.
+`docs/ambiguity.md` carries the full measurement.
+
+The narrowing costs nothing the spec demonstrates: every §5.3 and §6.2 example
+passes a bare name, and a parameterized type reaches a verb through inference
+instead — `values Array<T Type, n Number>` introduces both parameters from the
+argument. What is out of reach is passing an *already applied* type as a value,
+which the spec neither shows nor rules out.
+
 ---
 
 ## Closed at the `034f11a` re-pin

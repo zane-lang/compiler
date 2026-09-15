@@ -397,6 +397,62 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "type_member",
         )
 
+    def test_a_type_passed_as_a_value_is_not_a_postfix_base(self) -> None:
+        # A type may be written where a value is expected (generics.md §5.3),
+        # and the production sits at expression level rather than among the
+        # postfix bases. That is what keeps the three uppercase forms below at
+        # one reading each: written as a `primary` the type name would reach
+        # `.`, `(` and `[` through `app`, and each of them would gain a second
+        # derivation as an access, a call, or a subscript on a type value.
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "LIDENT LPAREN UIDENT RPAREN SEMICOLON RCURLY EOF",
+            "Int length() { abort register(Int); }",
+            "call(name, type_value)",
+        )
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "UIDENT LPAREN LIDENT RPAREN SEMICOLON RCURLY EOF",
+            "Int length() { abort Int(seed); }",
+            "ctor(name)",
+        )
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "UIDENT DOT LIDENT DOT LIDENT SEMICOLON RCURLY EOF",
+            "Int length() { abort Operator.add.identity; }",
+            "dot(type_member)",
+        )
+
+    def test_only_a_bare_name_may_be_passed_as_a_type(self) -> None:
+        # An applied generic type, a guest type, and a verb type all have a
+        # spelling that a following bracket continues, so admitting them here
+        # would fork on the token after the name rather than on the name
+        # itself. See docs/spec-divergences.md.
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN UIDENT "
+            "COMMA INT RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { arr Array(Int, 10000); }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT LESS "
+            "UIDENT COMMA INT MORE RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { register(Array<Int, 4>); }",
+            0,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN AMPERSAND "
+            "UIDENT RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { register(&Int); }",
+            0,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT "
+            "LBRACKET INT RBRACKET RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { register(Int[3]); }",
+            0,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,23 @@
+Search profile: general (run by hand, not through a profile)
+Broad shortest-first search over the grammar after a type became writable where
+a value is expected.
+
+Run with the no-devbox fallback rig: the apt `menhir` (20231231) as
+AMBIGUITY_MENHIR, and `ambiguity_search.exe` built with plain `ocamlopt`,
+because devbox cannot provision in this session. The recognizer is the same one
+`ambiguity search` drives; only the profile plumbing and the memory budget
+differ.
+
+Tokens 0..9 · timeout 7m · 4 workers · 4096 MiB
+
+Search constraints: 0..9 total tokens; 0-token prefix; breadth-first scheduling.
+Memory budget: 4096 MiB total across 4 worker(s); workers compact at 819 MiB and stop admitting frontiers at 922 MiB each (10% reserved); per-worker limits are 915120 queued frontiers and 915120 retained dedup frontiers (ratio 1).
+● search 0/9 | amb 0 | explored 46 | unique 143 | RAM [------------] 0.0/4.0G | 00:00
+● search 9/9 | amb 0 | explored 617.1k | unique 851.9k | RAM [##----------] 0.6/4.0G | 00:10
+Search ended at depth 9 because the search space within the token bound was exhausted; no complete ambiguity was found in 851826 explored frontiers (851923 unique).
+This is a bounded result, not a proof of unambiguity.
+
+The bound was exhausted rather than cut short, so this is a theorem about every
+sentence of at most nine tokens: none of them is ambiguous. It says nothing
+about longer ones, so the four states the rule adds are forks on this evidence
+rather than proved to be.

@@ -5,9 +5,10 @@
 /// also the parser's fixture, so it reaches on purpose for most of the shapes
 /// the grammar accepts: enums and the maps hung off them, variants and `match`,
 /// value and reference types, the constructor forms and the calls that trail a
-/// block into them, methods, operators, subscripts, lambdas, generics, abort
-/// handlers, `spawn`, map literals, the import forms, and the block arguments
-/// everything that reads as control flow is built from.
+/// block into them, methods, operators, subscripts, lambdas, generics both
+/// inferred and passed, abort handlers, `spawn`, map literals, the import
+/// forms, and the block arguments everything that reads as control flow is
+/// built from.
 package main;
 
 /// Every import form, since what an import writes after `import` is what the
@@ -336,6 +337,18 @@ Unit record(entries @concepts$Map<String, Float>) {
 	return Unit();
 }
 
+/// A type parameter reaches a verb one of two ways. Every generic above uses
+/// the inferred one, where the parameter rides on a value parameter's type and
+/// the arguments fix it. This is the other: the parameter *is* the value
+/// parameter, of concept type `Type`, so the call writes a type where a value
+/// goes. Types are compile-time values, which is what makes that an ordinary
+/// argument rather than a second kind of bracket at the call.
+type Slots<T Type, n Number> = struct {
+	items Array<T, n>;
+}
+
+Slots<T, n>(T Type, n Number) => init{ items = Array(T, n); }
+
 // ---------------------------------------------------------------------------
 // Retrying: constructors that take the last argument after the `)`
 // ---------------------------------------------------------------------------
@@ -490,6 +503,10 @@ Unit main() {
 		return Retry(1, { std$print("made"); });
 	}
 
+	// `Int` is written where a value goes, and `4` beside it: the explicit
+	// half of the generic parameters, passed rather than inferred.
+	room Slots(Int, 4);
+
 	// Both maps again, in a context that wants an `Int` rather than a String.
 	spread Int = Operator.mul.precedence - Operator.add.precedence;
 
@@ -540,6 +557,7 @@ Unit main() {
 	std$print(direct.attempts);
 	std$print(taken.label);
 	std$print(make().attempts);
+	std$print(room.items[1]);
 
 	// The other way into a map: straight off the member name.
 	std$print(Operator.add.identity);

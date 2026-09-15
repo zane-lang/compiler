@@ -134,6 +134,16 @@ module rec Expr : sig
     | CollectionLit of t list
     | NameExpr of Name_expr.t
     | TypeMember of { type_ : Name_type.t; member : string }
+    (* A type written where a value is expected: the explicit type argument of
+       generics.md §5.3, as in `Array(Int, 10000)`. Types are compile-time
+       values, so a name in this position is an ordinary argument rather than a
+       second kind of parameter list.
+
+       Only a bare name may be written this way, which is why this carries a
+       [Name_type.t] rather than a [Type_expr.t]: an applied `Array<Int, 4>`
+       cannot be told from the start of a verb-type suffix list without
+       lookahead the parser does not have. See docs/spec-divergences.md. *)
+    | TypeValue of Name_type.t
     | DotAccess of { target : t; field : string }
     | Subscript of { target : t; args : t list }
     | Ref of t
