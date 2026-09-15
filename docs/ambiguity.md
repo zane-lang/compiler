@@ -341,6 +341,33 @@ genuine overlap in the surface syntax — `x Foo(…)` is either a constructor
 shorthand or a lambda declaration whose return type is `Foo`, and nothing
 before the closing bracket says which.
 
+### The loose operator tier costs nothing
+
+The loose forms of [`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
+§3.1 — `'*` `'/` `'+` `'-` `'<` `'>` `'<=` `'>=` `'==` `'~=` — add ten terminals,
+three precedence levels and three `expr` productions, and **no conflict at
+all**. Not a smaller number than the rest of the ledger: the same one. Measured
+with the project's own `--GLR` build and again without it, every conflict block
+before and after this change matches family for family, on
+`(kind, tokens involved, reductions)`, with none new and none gone.
+
+Two things make that so. A loose operator is strictly infix and lexically
+distinct, so no loose token can begin an expression or end one — the decision
+the parser faces at each is the same decision it already faces at the operator
+being mirrored, and the precedence declaration settles it before it can become
+a conflict, exactly as `%left STAR SLASH` settles `*`. And the mirror is one
+tier deep by construction: the levels are fixed in the grammar rather than
+chosen by a program, so there is no recursion between the tiers for a state to
+have to unwind.
+
+The lexer carries the part of §3.1 that the grammar would have found expensive.
+Each loose form is a single token, so `'` must touch its operator, and the three
+spellings the spec calls illegal — `a ''* b`, `'~a`, `a '| f()` — are rejected
+for want of a token to spell them rather than by a rule that has to be stated
+and then defended. A `'` between digits stays the separator of an integer
+literal: that separator wants digits on both sides, and no loose form has them,
+so `1'000'000 '* Int(2)` and even `2'*3` come apart the one way.
+
 ### Restructurings that were measured and rejected
 
 `enum_map_tail` removed twelve conflicts by shifting every bracket group before

@@ -432,6 +432,20 @@ let terminated_statement stat =
 %token MOREEQ      ">="
 %token LESS        "<"
 %token MORE        ">"
+
+(* The loose forms of operators.md §3.1: one token each, so the `'` must touch
+   the operator it prefixes. *)
+%token LOOSE_STAR   "'*"
+%token LOOSE_SLASH  "'/"
+%token LOOSE_PLUS   "'+"
+%token LOOSE_MINUS  "'-"
+%token LOOSE_EQEQ   "'=="
+%token LOOSE_NOTEQ  "'~="
+%token LOOSE_LESSEQ "'<="
+%token LOOSE_MOREEQ "'>="
+%token LOOSE_LESS   "'<"
+%token LOOSE_MORE   "'>"
+
 %token LTYPE       "type"
 %token ALIAS       "alias"
 %token UTYPE       "Type"
@@ -462,6 +476,11 @@ let terminated_statement stat =
 %right THICK_ARROW
 %left OR                                        /* short-circuit or */
 %left AND                                       /* short-circuit and */
+/* The loose tier of operators.md §3.1: levels 6-8 mirror 3-5 in the same
+   relative order, one tier deep, below every unprefixed operator. */
+%left LOOSE_EQEQ LOOSE_NOTEQ LOOSE_LESSEQ LOOSE_MOREEQ LOOSE_LESS LOOSE_MORE
+%left LOOSE_PLUS LOOSE_MINUS
+%left LOOSE_STAR LOOSE_SLASH
 %left EQEQ NOTEQ LESSEQ MOREEQ LESS MORE       /* comparisons */
 %left PLUS MINUS
 %left STAR SLASH
@@ -1072,6 +1091,30 @@ block_call:
   | "*" { Nodes.Operator.Mul }
   | "/" { Nodes.Operator.Div }
 
+(* The loose forms carry the same [Operator.t] as the operators they mirror,
+   because a loose operator "calls the same implementation as its unprefixed
+   form and differs only in where it groups" (operators.md §3.1) and the
+   grouping is the tree. Nothing downstream asks which spelling was written,
+   and §3.1 is explicit that the loose forms add no token to the operator
+   vocabulary of §5.1 -- so they declare nothing either, and [operator] above,
+   which is the declaration form, does not admit them. *)
+
+%inline loose_comparison_op:
+  | "'==" { Nodes.Operator.Eq }
+  | "'~=" { Nodes.Operator.NotEq }
+  | "'<=" { Nodes.Operator.LessEq }
+  | "'>=" { Nodes.Operator.MoreEq }
+  | "'<"  { Nodes.Operator.Less }
+  | "'>"  { Nodes.Operator.More }
+
+%inline loose_additive_op:
+  | "'+" { Nodes.Operator.Add }
+  | "'-" { Nodes.Operator.Sub }
+
+%inline loose_multiplicative_op:
+  | "'*" { Nodes.Operator.Mul }
+  | "'/" { Nodes.Operator.Div }
+
 %inline match_selector:
   | case=LIDENT {
       [case]
@@ -1192,6 +1235,30 @@ expr:
       })
     }
   | left=expr op=multiplicative_op right=expr %prec STAR {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
+        op;
+        left;
+        right;
+        abort_handle = None;
+      })
+    }
+  | left=expr op=loose_comparison_op right=expr %prec LOOSE_EQEQ {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
+        op;
+        left;
+        right;
+        abort_handle = None;
+      })
+    }
+  | left=expr op=loose_additive_op right=expr %prec LOOSE_PLUS {
+      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
+        op;
+        left;
+        right;
+        abort_handle = None;
+      })
+    }
+  | left=expr op=loose_multiplicative_op right=expr %prec LOOSE_STAR {
       Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
         op;
         left;

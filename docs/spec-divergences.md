@@ -75,13 +75,16 @@ and both operands are evaluated. A deferred right operand is an overload taking
 one, "visible at the call site rather than implied by the token".
 
 **Compiler** — `and` and `or` are keywords producing a `Logic` node, with `or`
-binding loosest, then `and`, then the comparison level, all left-associative.
-So `a and b or c` groups as `(a and b) or c`.
+binding loosest, then `and`, then the loose tier of §3.1, then the comparison
+level, all left-associative. So `a and b or c` groups as `(a and b) or c`.
 
 The grouping was the compiler's own decision, taken while the spec still spelled
 these as short-circuiting keywords without placing them. The spec has since
 removed them, so what is left to reconcile is the whole construct rather than
-its precedence.
+its precedence. The two levels below everything else are the one part of that
+placement the spec now speaks to, and it gives them to `'*` and `'+` instead:
+`a '* b '+ c` is what `a and b or c` was reaching for, and it groups the same
+way.
 
 ## 3. A constructor call with nothing else to pass may not trail
 

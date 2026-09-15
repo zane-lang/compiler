@@ -56,6 +56,25 @@ let rec token buf =
   | '#'                         -> HASH
   | '&'                         -> AMPERSAND
   | '@'                         -> AT
+
+  (* The loose forms of operators.md §3.1. Each is a single token, so the `'`
+     must touch its operator: `a ' * b` does not lex. The three spellings the
+     spec calls illegal are illegal here for want of a token to spell them --
+     there is no `''`, no `'~` and no `'|` -- so `a ''* b`, `'~a` and `a '| f()`
+     all stop at the lexer rather than needing a rule of their own.
+
+     A `'` between digits stays the separator of an integer literal: the
+     separator wants digits on both sides, and none of these does. *)
+  | "'=="                       -> LOOSE_EQEQ
+  | "'~="                       -> LOOSE_NOTEQ
+  | "'<="                       -> LOOSE_LESSEQ
+  | "'>="                       -> LOOSE_MOREEQ
+  | "'<"                        -> LOOSE_LESS
+  | "'>"                        -> LOOSE_MORE
+  | "'+"                        -> LOOSE_PLUS
+  | "'-"                        -> LOOSE_MINUS
+  | "'*"                        -> LOOSE_STAR
+  | "'/"                        -> LOOSE_SLASH
   | float_lit                   -> FLOAT (Utf8.lexeme buf)
   | int_lit                     -> INT (Utf8.lexeme buf)
   | '"', Star str_char, '"'     ->

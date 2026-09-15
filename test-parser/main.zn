@@ -524,6 +524,11 @@ Unit main() {
 	// Comparisons are ordinary calls, and `and` binds tighter than `or`.
 	settled Bool = Float(0) < middle and middle < Float(100) or answer == Float(42);
 
+	// A `'` prefix selects the loose form of a binary operator, which groups
+	// below every unprefixed one. Both comparisons close before `'*` joins
+	// them, so the line needs no parentheses to say what it means.
+	inRange Bool = Float(0) < middle '* middle < Float(100);
+
 	// An implicit constructor covers the `span` field from a bare offset.
 	summary Report{ severity = Severity.note; message = "read four slots"; span = Int(3); }
 	loudest Severity = worst(summary.severity, Severity.warning);
