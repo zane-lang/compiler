@@ -93,8 +93,6 @@ let rec token buf =
   | "implicit"                  -> IMPLICIT
   | "init"                      -> INIT
   | "match"                     -> MATCH
-  | "and"                       -> AND
-  | "or"                        -> OR
   | "spawn"                     -> SPAWN
   | "true"                      -> TRUE
   | "false"                     -> FALSE

@@ -1,0 +1,27 @@
+Search profile: general (run by hand, not through a profile)
+Broad shortest-first search over the grammar with `and` and `or` removed, so
+this covers the operator set the spec actually gives `Bool`: the loose tier of
+operators.md §3.1 in place of the two keywords, and no `Logic` node.
+
+Run with the real toolchain: menhir 20260209 from the project's own opam
+switch as AMBIGUITY_MENHIR, and `ambiguity_search.exe` built by dune.
+
+Tokens 0..9 · timeout 7m · 4 workers · 4096 MiB
+
+Search constraints: 0..9 total tokens; 0-token prefix; breadth-first scheduling.
+Memory budget: 4096 MiB total across 4 worker(s); workers compact at 819 MiB and stop admitting frontiers at 922 MiB each (10% reserved); per-worker limits are 915120 queued frontiers and 915120 retained dedup frontiers (ratio 1).
+● search 3/9 | amb 0 | explored 47 | unique 164 | RAM [------------] 0.0/4.0G | 00:00
+● search 8/9 | amb 0 | explored 418.3k | unique 802.5k | RAM [###---------] 1.0/4.0G | 00:10
+Search ended at depth 9 because the search space within the token bound was exhausted; no complete ambiguity was found in 882038 explored frontiers (882135 unique).
+This is a bounded result, not a proof of unambiguity.
+
+The bound was exhausted rather than cut short, so this is a theorem about every
+sentence of at most nine tokens: none of them is ambiguous once the keywords
+are gone. It explored 882038 frontiers against 943566 for the same bound with
+them still in, which is the whole of what removing two infix terminals does to
+the search space -- a smaller space, no different an answer.
+
+The conflict census is unchanged by the removal: 90 blocks under `--GLR` before
+and after, matching family for family on (kind, tokens involved, reductions).
+An infix level settled by a precedence declaration never reaches the automaton
+as a conflict, so taking one away frees none.

@@ -80,7 +80,6 @@ and in_expr (expr : Nodes.Expr.t) =
       match first_of [ callee; value ] with
       | Some found -> Some found
       | None -> in_abort_handle abort_handle)
-  | Nodes.Expr.Logic { left; right; _ } -> first_of [ left; right ]
   | Nodes.Expr.MethodTarget { callee; this; _ } -> first_of [ callee; this ]
   | Nodes.Expr.DotAccess { target; _ } -> in_expr target
   | Nodes.Expr.Subscript { target; args } -> first_of (target :: args)

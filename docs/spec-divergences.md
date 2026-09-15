@@ -27,8 +27,9 @@ Three entries closed at this re-pin, when the spec moved to `;`-terminated
 statements and a brace that ends one. What was the widest divergence — the
 spec separating statements by newline where the compiler terminated them — is
 gone, and with it the same-line rule for a trailing block and the disagreement
-over what may follow one. The **Closed** section at the end records them, since
-an entry that simply vanishes reads as an oversight.
+over what may follow one. The **Closed** section at the end records those and
+everything else that has closed since; an entry that simply vanishes reads as
+an oversight.
 
 ---
 
@@ -66,27 +67,7 @@ wanted name => env:lookup(wanted) ? missing {
 };                        // accepted, and the `;` is required
 ```
 
-## 2. `and` and `or` are still keywords here
-
-**Spec** — [`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
-§2.4 has no `and` or `or` at all. `Bool` draws from the same fixed operator set
-as every other type: `*` is conjunction, `+` is disjunction, `~` is complement,
-and both operands are evaluated. A deferred right operand is an overload taking
-one, "visible at the call site rather than implied by the token".
-
-**Compiler** — `and` and `or` are keywords producing a `Logic` node, with `or`
-binding loosest, then `and`, then the loose tier of §3.1, then the comparison
-level, all left-associative. So `a and b or c` groups as `(a and b) or c`.
-
-The grouping was the compiler's own decision, taken while the spec still spelled
-these as short-circuiting keywords without placing them. The spec has since
-removed them, so what is left to reconcile is the whole construct rather than
-its precedence. The two levels below everything else are the one part of that
-placement the spec now speaks to, and it gives them to `'*` and `'+` instead:
-`a '* b '+ c` is what `a and b or c` was reaching for, and it groups the same
-way.
-
-## 3. A constructor call with nothing else to pass may not trail
+## 2. A constructor call with nothing else to pass may not trail
 
 **Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
 §4.9: "A call's **last** argument may instead **trail** [...] Only a `{ }`
@@ -139,7 +120,7 @@ the grammar was refusing the trailing form everywhere on the strength of it.
 Narrowing it to the empty argument list keeps every spelling the declaration
 and the lambda literal can take, and gives the rest back to the call.
 
-## 4. A declaration inside a body is terminated like the statement it is
+## 3. A declaration inside a body is terminated like the statement it is
 
 **Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
 §6.3: "A **package-scope declaration** is not a statement and takes no
@@ -173,7 +154,7 @@ spelled, which is a real cost and worth stating out loud rather than
 discovering.
 
 A raw `type`/`alias`, a positional instantiation that does not trail its last
-argument (entry 3 above), a `=> expr` verb **whose expression does not itself
+argument (entry 2 above), a `=> expr` verb **whose expression does not itself
 end in a `}`**, and a type cast from the **peer mould** are the forms this is
 visible on — the peer mould's contents are a flat list of names, so it takes
 `[ ]` and closes on a `]` rather than a brace.
@@ -185,7 +166,7 @@ same at both levels. The parser reads this off the expression rather than off
 the form, so `Int f() => match c { … }` needs no `;` in a body while
 `Int f() => c` does.
 
-## 5. `package` and `import` are terminated
+## 4. `package` and `import` are terminated
 
 **Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
 §6.3: "A **package-scope declaration** is not a statement and takes no
@@ -226,7 +207,7 @@ direction needs the spec to say what separates two adjacent declarations when
 the first ends in a name; until it does, the compiler cannot drop the `;`
 without re-admitting the ambiguity.
 
-## 6. Only a bare name may be passed as a type
+## 5. Only a bare name may be passed as a type
 
 **Spec** — [`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
 §5.3: "A type or number can instead be passed as an ordinary argument by
@@ -270,10 +251,13 @@ which the spec neither shows nor rules out.
 
 ---
 
-## Closed at the `034f11a` re-pin
+## Closed
 
 Kept briefly so a reader who remembers them can see they were closed on
-purpose, and by which spec change.
+purpose, and by what. The first three closed at the `034f11a` re-pin, when the
+spec moved to `;`-terminated statements and a brace that ends one. The last
+closed from the other side, when the compiler adopted a spec rule it had been
+standing in for.
 
 - **Statements are terminated, not separated.** The spec separated statements
   by newline and called it "the one place a newline is structural"; the
@@ -324,3 +308,26 @@ purpose, and by which spec change.
       resolve Unit();
   }
   ```
+
+- **`and` and `or` were keywords here.** The spec's
+  [`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
+  §2.4 has no `and` or `or`: `Bool` draws from the same fixed operator set as
+  every other type, where `*` is conjunction and `+` is disjunction, and a
+  deferred right operand is an overload taking one rather than a token that
+  implies it. The compiler kept them as keywords producing a `Logic` node,
+  because dropping them would have left nothing to write in their place —
+  `a * b` binds too tightly to join two comparisons, so every such line would
+  have needed parentheses the spec does not write.
+
+  §3.1's loose tier is what the spec puts there instead, and adding it removed
+  the reason to keep them. `a '* b '+ c` groups exactly as `a and b or c` did,
+  so the rewrite is one-for-one and the grouping is unchanged:
+
+  ```zane
+  settled Bool = Float(0) < middle '* middle < Float(100) '+ answer == Float(42);
+  ```
+
+  The `Logic` node and `Logic_op` went with the keywords, since a loose
+  operator is an ordinary `Op` carrying the same `Operator.t` as the operator
+  it mirrors. `and` and `or` are ordinary lowercase names again, reserved by
+  nothing.

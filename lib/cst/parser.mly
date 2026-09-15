@@ -93,7 +93,6 @@ let rec expr_ends_in_brace (expr : Nodes.Expr.t) =
   | Nodes.Expr.Pipe { abort_handle = Some handle; _ } ->
       abort_handle_ends_in_brace handle
   | Nodes.Expr.Pipe { value; _ } -> expr_ends_in_brace value
-  | Nodes.Expr.Logic { right; _ } -> expr_ends_in_brace right
   | Nodes.Expr.FuncLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.MethLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.Ref value -> expr_ends_in_brace value
@@ -193,7 +192,6 @@ let rec ends_in_trailing_call (expr : Nodes.Expr.t) =
       ends_in_trailing_call right
   | Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle = None }) ->
       ends_in_trailing_call value
-  | Nodes.Expr.Logic { right; _ } -> ends_in_trailing_call right
   | Nodes.Expr.Pipe { value; abort_handle = None; _ } ->
       ends_in_trailing_call value
   | Nodes.Expr.Ref value -> ends_in_trailing_call value
@@ -222,9 +220,6 @@ let rec continues_past_trailing (expr : Nodes.Expr.t) =
       ends_in_trailing_call left || continues_past_trailing left
       || continues_past_trailing right
       || handler_continues_past_trailing abort_handle
-  | Nodes.Expr.Logic { left; right; _ } ->
-      ends_in_trailing_call left || continues_past_trailing left
-      || continues_past_trailing right
   | Nodes.Expr.Pipe { callee; value; abort_handle } ->
       ends_in_trailing_call callee || continues_past_trailing callee
       || continues_past_trailing value
@@ -459,8 +454,6 @@ let terminated_statement stat =
 %token IMPLICIT    "implicit"
 %token INIT        "init"
 %token MATCH       "match"
-%token AND         "and"
-%token OR          "or"
 %token SPAWN       "spawn"
 %token TRUE        "true"
 %token FALSE       "false"
@@ -471,22 +464,22 @@ let terminated_statement stat =
 %token RESOLVE     "resolve"
 %token EOF          "<eof>"
 
-(* Keep the existing grouping decisions. New syntax is inserted around them
-   rather than respelling existing programs to match the prose spec. *)
+(* The precedence table of operators.md §3, loosest first -- which is Menhir's
+   order, so the declarations below read as that table upside down. The numbered
+   lines are that table exactly, and are every operator the language has. The
+   unnumbered ones carry no level in the spec because they are not operators:
+   they are abort handling and the postfix chain, placed where each has to be
+   for the chain to thread. *)
 %right THICK_ARROW
-%left OR                                        /* short-circuit or */
-%left AND                                       /* short-circuit and */
-/* The loose tier of operators.md §3.1: levels 6-8 mirror 3-5 in the same
-   relative order, one tier deep, below every unprefixed operator. */
-%left LOOSE_EQEQ LOOSE_NOTEQ LOOSE_LESSEQ LOOSE_MOREEQ LOOSE_LESS LOOSE_MORE
-%left LOOSE_PLUS LOOSE_MINUS
-%left LOOSE_STAR LOOSE_SLASH
-%left EQEQ NOTEQ LESSEQ MOREEQ LESS MORE       /* comparisons */
-%left PLUS MINUS
-%left STAR SLASH
-%left PIPE                                      /* pipe */
+%left LOOSE_EQEQ LOOSE_NOTEQ LOOSE_LESSEQ LOOSE_MOREEQ LOOSE_LESS LOOSE_MORE  /* 8 */
+%left LOOSE_PLUS LOOSE_MINUS                    /* 7 */
+%left LOOSE_STAR LOOSE_SLASH                    /* 6 -- the loose tier, §3.1 */
+%left EQEQ NOTEQ LESSEQ MOREEQ LESS MORE        /* 5 -- comparisons */
+%left PLUS MINUS                                /* 4 */
+%left STAR SLASH                                /* 3 */
+%left PIPE                                      /* 2 -- pipe syntax */
 %nonassoc QSTNMARK QSTNQSTN                    /* abort handling */
-%nonassoc TILDE AMPERSAND                       /* prefix ~ and & */
+%nonassoc TILDE AMPERSAND                       /* 1 -- prefix ~, and & */
 %left DOT                                       /* field access */
 %left LBRACKET                                  /* subscript */
 %left LPAREN                                    /* function application */
@@ -1273,12 +1266,6 @@ expr:
     }
   | callee=expr "|" value=expr %prec PIPE {
       Nodes.Expr.Pipe { callee; value; abort_handle = None }
-    }
-  | left=expr "and" right=expr %prec AND {
-      Nodes.Expr.Logic { op = Nodes.Logic_op.And; left; right }
-    }
-  | left=expr "or" right=expr %prec OR {
-      Nodes.Expr.Logic { op = Nodes.Logic_op.Or; left; right }
     }
   | "~" value=expr %prec TILDE {
       Nodes.Expr.VerbCall (Nodes.Verb_call.Flip {
