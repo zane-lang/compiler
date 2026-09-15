@@ -492,6 +492,24 @@ past any fixed lookahead, which is what the prover is for.
   verdict from a broken invocation. Only proof mode reports a verdict: a plain
   `ambiguity search` exits 0 whether or not it found witnesses, since a bounded
   finding is not one.
+  **A candidate is parsed for real before anything is spent on it.** The
+  abstract phase reasons about every sentence at once and has to approximate to
+  do it, but a single candidate sentence is short, and the engine already
+  carries the exact GLR recognizer that `ambiguity check` drives. So the
+  sentence is recognized the moment the abstraction names it, and the answer
+  decides what happens next. Two derivations settle the grammar: it is
+  ambiguous, refining would be sharpening an abstraction that turned out to be
+  right, and the run goes straight to the bounded search to render the witness
+  family. Nought or one makes the pair spurious, and the report says which
+  rather than leaving it to be inferred. Both directions are worth what they
+  cost. Every candidate this grammar has produced since the terminator change
+  is a sentence the recognizer rejects outright — `x Foo(y(Bar` and its
+  neighbours, unclosed parentheses and all — and each one used to cost a
+  refinement round to find that out; the one time a candidate was a real
+  ambiguity, the `import pkg$` bug in [`reports/prove/`](../reports/prove), the
+  recognizer would have settled it in milliseconds rather than at the end of
+  the bounded search.
+
   Because unambiguity is undecidable in general, the "not proven" verdict can
   never be eliminated entirely; the prover is validated against known-ambiguous
   grammars, LR(1) grammars, precedence-resolved expression grammars, and
@@ -613,6 +631,24 @@ past any fixed lookahead, which is what the prover is for.
   Because the retained depth is a property of the state on top rather than of
   the run, deepening one blind spot leaves the rest of the automaton at the
   base level.
+
+  **A round is aimed by the real parse, not by the whole path.** Replaying the
+  candidate through the recognizer says which stacks a real parse of that
+  sentence was standing on after each of its tokens, and the abstraction's own
+  stacks are compared against them step by step. The first step whose abstract
+  stack no real stack carries is where the abstraction left the language: the
+  steps before it were tracking a parse that exists, the ones after are a walk
+  the real parse never took. The round asks for the depth the guesses at that
+  one step wanted, and the whole-path scan stays as the fallback for a
+  candidate that never parts from a real parse — which is what a genuinely
+  ambiguous sentence does, since both of its parses are real. The saving is
+  rounds rather than milliseconds: the palindrome in the corpus reaches the
+  same verdict in five rounds where the unaimed scan took eight. How much it
+  narrows a single round depends on where the step falls. A candidate whose
+  real parse dies in the middle of the sentence names a step with a short chain
+  in it; this grammar's standing candidate dies at end of input, where the
+  chain that unwinds the whole package is the longest one there is, so aiming
+  takes its first round from 52 states down to 43 rather than to a handful.
 
   A round grants the depth at the state that asked for it and nowhere else.
   Nothing has to be bought behind it: a reduction chain keeps the entries its
@@ -893,6 +929,32 @@ markers that motivated it sit at height five and deeper.
 **Keeping every stack under a height bound exact.** The same idea reached from
 the other side, and the same blowup: "exact below height H" and "keep H entries
 from the bottom" describe the same set of stacks.
+
+**Ruling a candidate's sentence out by counting its terminals.** A production's
+right-hand side spells exactly what its reduction pops, so a count relation
+holding of every production is inherited by every sentence the grammar derives:
+on this grammar every one of the 391 expanded productions contains as many `(`
+as `)`, `{` as `}` and `[` as `]`, so no sentence can be unbalanced. Three of
+the four candidates recorded in [`reports/prove/`](../reports/prove) are
+unbalanced sentences, and refusing to report a pair whose sentence breaks such
+an invariant removes all of them at no measurable cost — a 60-second survey
+walks the same 21,018 pairs either way. It was implemented, measured, and taken
+back out, because it is **unsound as a filter on reports**, for a reason worth
+recording: pairs are deduplicated on first arrival, so the sentence a pair
+carries is the first one that reached it, not the only one. A pair reached
+first by an unbalanced sentence and later by a balanced ambiguous one is pushed
+once, tested against the unbalanced sentence, and suppressed — and a run that
+suppressed the only accepting pair prints a proof. The invariant is a fact
+about sentences, and the abstraction's nodes are not sentences.
+
+Made sound, it stops paying for itself. The counts have to become part of the
+node, which is the same as saying the abstraction tracks them: nesting is
+unbounded, so the counter needs a saturating domain, an unknown value that
+cannot rule anything out, and one node per count vector where there was one
+before. That buys precision the proof was not short of and multiplies a space
+it already cannot walk. What the recognizer does instead is answer the same
+question exactly, for the one sentence in hand, without touching the node
+space.
 
 **Labelling the backward walk with the production's symbols.** A reduction of
 `A -> X1 ... XW` pops entries that spell the right-hand side, so walking down

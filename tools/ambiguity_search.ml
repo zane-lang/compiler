@@ -756,6 +756,40 @@ let accepted_count engine frontier =
       else total)
     (closure engine frontier "#") 0
 
+(* One sentence, parsed for real, keeping the frontier the recognizer stood on
+   after each of its tokens.
+
+   The abstract phase reasons about every sentence at once and has to
+   approximate to do it. A single candidate is short enough to parse exactly,
+   and the exact parse is the ground truth the abstraction is being measured
+   against: what it accepts, and which stacks it was ever standing on. *)
+let replay engine tokens =
+  let initial = IntMap.singleton engine.stacks.root.id 1 in
+  let collected =
+    List.fold_left
+      (fun frontiers token ->
+        match frontiers with
+        | [] -> assert false
+        | current :: _ -> shift engine current token :: frontiers)
+      [ initial ] tokens
+  in
+  Array.of_list (List.rev collected)
+
+(* The top [depth] states of one concrete stack, deepest entry last, written
+   the way an abstract suffix is. A stack with fewer entries than that returns
+   all of them: it has reached the initial state, and a suffix that matches it
+   there has matched the whole stack. *)
+let concrete_suffix engine stack_id depth =
+  let rec walk node remaining collected =
+    if remaining <= 0 then List.rev collected
+    else
+      let collected = node.Stack_pool.state :: collected in
+      match node.Stack_pool.parent with
+      | None -> List.rev collected
+      | Some parent -> walk parent (remaining - 1) collected
+  in
+  walk (Stack_pool.find engine.stacks stack_id) depth []
+
 let possible_tokens engine frontier =
   IntMap.fold
     (fun stack_id _ tokens ->
@@ -1780,6 +1814,19 @@ type abstract_candidate = {
      This one does not, which is what lets the loop ask whether a round bought
      anything. *)
   candidate_site : int * int * string;
+  (* What the exact recognizer makes of the candidate's own sentence: 0 if it
+     rejects it, 1 if it has a single parse, 2 if the abstraction was right and
+     this is a real ambiguity. The abstract phase cannot answer this -- it
+     reasons about every sentence at once -- but one sentence is cheap to parse
+     for real, and the answer decides whether there is anything to refine. *)
+  candidate_derivations : int;
+  (* The first step at which the abstraction was standing on a stack no real
+     parse of this sentence stands on, as the number of tokens consumed before
+     it and the token that produced it. That is where the abstraction went
+     wrong, so it is where a refinement is worth spending: the requests the
+     candidate carries are the ones made at that step, rather than every guess
+     anywhere along a path whose tail the real parse never reached. *)
+  candidate_decisive : (int * string) option;
 }
 
 type prove_result =
@@ -2370,18 +2417,85 @@ let prove engine (precision : precision) pair_limit deadline survey_limit trace
     match !candidate with
     | Some node ->
         let site = accepting_site node in
+        let tokens = List.rev (trail node) in
+        (* The candidate, parsed for real. Two things come back that the
+           abstract phase cannot know: whether the sentence is ambiguous at
+           all, and - step by step - which stacks a real parse of it was
+           standing on. *)
+        let frontiers = replay engine tokens in
+        let parses = accepted_count engine frontiers.(Array.length frontiers - 1) in
+        let steps = Array.of_list (path_steps node) in
+        let pair_at index =
+          if index < Array.length steps then fst steps.(index) else node
+        in
+        (* Whether any stack the recognizer really built after [index] tokens
+           ends the way this abstract stack says it does. An abstract stack
+           with no such counterpart is one the abstraction invented: either
+           the real parse died before here, or it went somewhere else. *)
+        let carried index stack =
+          match stack.suffix with
+          | [] -> true
+          | _ ->
+              let depth = List.length stack.suffix in
+              IntMap.exists
+                (fun stack_id _ ->
+                  concrete_suffix engine stack_id depth = stack.suffix)
+                frontiers.(index)
+        in
+        let decisive_step =
+          let limit = min (Array.length frontiers - 1) (Array.length steps) in
+          let rec scan index =
+            if index > limit then None
+            else
+              let left, right, _ = pair_at index in
+              if carried index left && carried index right then
+                scan (index + 1)
+              else
+                let parent, token = steps.(index - 1) in
+                Some (index, token, parent)
+          in
+          (* The initial pair is the real initial stack, so the walk starts
+             one step in: the first stack the abstraction could have got wrong
+             is the one the first move produced. *)
+          scan 1
+        in
+        (* The guesses made at one step, which is what a refinement aimed by
+           the real parse asks for. [candidate_refinements] asks the same of
+           every step on the path; that is the right question when nothing
+           says which step was the wrong one, and the wrong one to pay for
+           when something does. *)
+        let requests_at (left, right, _) token =
+          let wanted = Hashtbl.create 16 in
+          let record (top, depth) =
+            match Hashtbl.find_opt wanted top with
+            | Some existing when existing >= depth -> ()
+            | _ -> Hashtbl.replace wanted top depth
+          in
+          List.iter
+            (fun stack ->
+              List.iter record (chain_imprecision automaton moves stack token);
+              List.iter record (chain_truncations descend moves stack token))
+            (if left = right then [ left ] else [ left; right ]);
+          Hashtbl.fold (fun top depth found -> (top, depth) :: found) wanted []
+        in
+        let aimed =
+          match decisive_step with
+          | None -> []
+          | Some (_, token, parent) -> requests_at parent token
+        in
         Abstract_candidate
           {
-            candidate_tokens = List.rev (trail node);
+            candidate_tokens = tokens;
             candidate_pairs = explored;
             candidate_example =
-              {
-                example_tokens = List.rev (trail node);
-                example_site = describe_site site;
-              };
+              { example_tokens = tokens; example_site = describe_site site };
             candidate_forward = (if trace then describe_forward node else []);
-            candidate_requests = candidate_refinements node;
+            candidate_requests =
+              (if aimed <> [] then aimed else candidate_refinements node);
             candidate_site = site_identity site;
+            candidate_derivations = parses;
+            candidate_decisive =
+              Option.map (fun (index, token, _) -> (index, token)) decisive_step;
           }
     | None ->
         if !overflow then Pair_overflow explored
@@ -3533,12 +3647,45 @@ let main () =
            rather than as a property of the grammar. *)
         let last_site = ref None in
         let streak = ref 0 in
+        (* What the exact recognizer made of a candidate's own sentence, said
+           once per candidate wherever the candidate is handled. A spurious
+           pair and a real one read identically in the abstract phase's own
+           output, and the difference decides whether the next round is work
+           or waste. *)
+        let report_candidate_parse candidate =
+          (match candidate.candidate_derivations with
+          | 0 ->
+              printf
+                "  the recognizer rejects this sentence, so the pair is \
+                 spurious\n"
+          | 1 ->
+              printf
+                "  the recognizer accepts it exactly once, so the pair is \
+                 spurious\n"
+          | count -> printf "  the recognizer finds %d derivations of it\n" count);
+          Option.iter
+            (fun (index, token) ->
+              printf
+                "  the abstraction leaves the real parse's stacks after %d \
+                 token(s), on %s\n"
+                index token)
+            candidate.candidate_decisive
+        in
         let rec attempt () =
           let result =
             prove engine precision prove_limits.max_frontiers deadline
               !survey_limit !trace_forward retired
           in
           match result with
+          (* Settled by the grammar rather than by the abstraction: the
+             recognizer found two parses of the candidate's own sentence.
+             Refining sharpens an abstraction that was right, so there is
+             nothing here for another round to buy -- the run goes straight to
+             the bounded search, which renders the witness family and reports
+             the ambiguity. *)
+          | Abstract_candidate candidate
+            when candidate.candidate_derivations >= 2 ->
+              result
           | Abstract_candidate candidate when !refine_max > 0 ->
               let tokens = candidate.candidate_tokens in
               let requests = candidate.candidate_requests in
@@ -3664,6 +3811,7 @@ let main () =
                   (fun (state, depth) -> deepen precision state depth)
                   deeper;
                 incr rounds;
+                report_candidate_parse candidate;
                 printf
                   "Refinement round %d: deepened the stacks behind %s, \
                    retaining up to %d (%s).\n"
@@ -3861,9 +4009,12 @@ let main () =
             let forward = candidate.candidate_forward in
             report_retirements ~exhaustive:false ();
             printf
-              "Abstract ambiguity candidate at level %d after %d pairs \
-               (possibly spurious): %s\n"
+              "Abstract ambiguity candidate at level %d after %d pairs (%s): \
+               %s\n"
               !prove_level candidate.candidate_pairs
+              (if candidate.candidate_derivations >= 2 then
+                 "confirmed by the recognizer"
+               else "spurious")
               (String.concat " " tokens);
             (* Where it stalled, not just what it stalled on. A candidate
                sentence says nothing about which context the abstraction lost,
@@ -3872,6 +4023,7 @@ let main () =
             List.iter
               (fun line -> printf "  %s\n" line)
               example.example_site;
+            report_candidate_parse candidate;
             List.iter (fun line -> printf "  %s\n" line) forward;
             (* Why refinement gave up is the part worth reading. A candidate
                that outlived an abstraction made exact along its own path is
