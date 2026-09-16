@@ -141,6 +141,29 @@ CANDIDATE_DECISIVE = re.compile(
     r"on (\S+)$",
     re.MULTILINE,
 )
+# What a round costs now that rounds share one walk: the pairs a deepening put
+# back into play, out of the ones already settled, and how many pairs they are
+# reached from.
+# A proof reached after refinement is re-proved from the initial pair at the
+# precision the run ended on, because every round after the first inherits a
+# table built at blunter precisions.
+REPROVING_LINE = re.compile(
+    r"^Re-proving from the initial pair at the precision this run ended on, ",
+    re.MULTILINE,
+)
+REOPENED_LINE = re.compile(
+    r"^  reopened (\d+) of (\d+) settled pair\(s\) from (\d+) entry point\(s\), "
+    r"discarding (\d+) queued$",
+    re.MULTILINE,
+)
+# The third way a run says a blind spot outlived every depth it could try: the
+# deepening climbed to the ceiling the caller set and the candidate was still
+# there.
+REFINEMENT_CEILING = re.compile(
+    r"^Refinement stopped after \d+ round\(s\): it survives every stack "
+    r"--prove-refine \d+ allows\.$",
+    re.MULTILINE,
+)
 REFINEMENT_EXHAUSTED = re.compile(
     r"^Refinement stopped after \d+ round\(s\): the candidate's chains never "
     r"needed the abstraction to invent a goto and never stood on a stack it "
@@ -306,6 +329,26 @@ p:
 # not one of the terminals the survey iterates -- it is a separate sentinel --
 # so a grammar whose only divergence lives there is what catches a survey that
 # counts sites on regular lookaheads alone.
+# A blind spot that accepts sentences the grammar does not derive. Every `a`
+# has to be matched by a trailing `a` and the core is four `b`s, so `a b b b b
+# b` is not a sentence -- but the top-1 abstraction loses the `a` it is standing
+# on and accepts it anyway, and does so on a shorter sentence than any it
+# accepts legitimately. That ordering is what makes it a fixture: the walk
+# reports the shortest accepting pair it can find, so a grammar whose shortest
+# ones are real never exercises a rejected candidate.
+ACCEPTS_NON_SENTENCES = """\
+%token A "a"
+%token B "b"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: p EOF { () }
+p:
+  | B B B B { () }
+  | A p A { () }
+  | B p B { () }
+"""
+
 EOF_REDUCE_REDUCE = """\
 %token A "a"
 %token EOF "<eof>"
@@ -707,12 +750,21 @@ class RefinementTests(ProverTestCase):
         # a run has to say so rather than leave it to be inferred from a verdict
         # that looks the same either way.
         #
-        # There are two ways it can say so, and which one a grammar gets depends
-        # on how much context the abstraction can recover. The palindrome's
-        # middle is unbounded, so either the counterexample grows a nesting per
-        # round, or -- once the descent rebuilds its stacks to full depth -- the
-        # chain stops asking for depth at all and the run reports that no
-        # retained stack rules the candidate out. Both are the same conclusion.
+        # There are three ways it can say so, and which one a grammar gets
+        # depends on how much context the abstraction can recover. The
+        # palindrome's middle is unbounded, so either the counterexample grows a
+        # nesting per round, or -- once the descent rebuilds its stacks to full
+        # depth -- the chain stops asking for depth at all and the run reports
+        # that no retained stack rules the candidate out, or the deepening
+        # climbs to the ceiling and the run reports that the candidate survived
+        # every stack the ceiling allowed. All three are the same conclusion.
+        #
+        # The third became reachable when rounds stopped restarting the walk.
+        # A restarting round re-derived the whole space and so met the shortest
+        # *remaining* candidate, which lengthened as the short ones were
+        # settled; a round that resumes meets the shortest one there is, which
+        # need not move. What it reports instead is the ceiling, which is the
+        # same statement about the same blind spot.
         _, output = self.prove(
             EVEN_PALINDROME, 1, extra=("--prove-refine", "8")
         )
@@ -724,10 +776,13 @@ class RefinementTests(ProverTestCase):
         # whose descent rebuilds the stacks in the first round and stops there.
         self.assertTrue(candidates, output)
         stopped = REFINEMENT_EXHAUSTED.search(output)
+        ceiling = REFINEMENT_CEILING.search(output)
         widened = len(candidates) >= 2 and len(candidates[-1].split()) > len(
             candidates[0].split()
         )
-        self.assertTrue(widened or stopped is not None, output)
+        self.assertTrue(
+            widened or stopped is not None or ceiling is not None, output
+        )
         self.assertRegex(output, NOT_PROVEN_LINE)
 
     def test_a_request_past_the_ceiling_is_reported_not_swallowed(self) -> None:
@@ -754,6 +809,48 @@ class RefinementTests(ProverTestCase):
         )
         self.assertRegex(output, REFINEMENT_ROUND_LINE)
         self.assertNotRegex(output, REFINEMENT_CAPPED)
+
+    def test_a_round_keeps_what_the_last_one_settled(self) -> None:
+        # Rounds share one walk. A deepening sharpens the abstraction the walk
+        # is using, and a pair explored under the blunter one and found not to
+        # accept cannot start accepting once the stacks behind it get longer --
+        # so a round pays only for the pairs the deepening actually stood on,
+        # where it used to re-derive the whole space from the initial pair.
+        _, output = self.prove(
+            ACCEPTS_NON_SENTENCES,
+            1,
+            max_tokens="10",
+            extra=("--prove-refine", "8"),
+        )
+        rounds = REOPENED_LINE.findall(output)
+        self.assertGreaterEqual(len(rounds), 2, output)
+        for reopened, settled, _, _ in rounds:
+            # Reopening everything would be the old behaviour wearing a new
+            # line of output.
+            self.assertLess(int(reopened), int(settled), output)
+        # The walk keeps growing across rounds rather than starting again.
+        self.assertGreater(int(rounds[-1][1]), int(rounds[0][1]), output)
+        # And the stale queued pairs go. Without this the test passes on a run
+        # that leaves them in the buckets, which is the failure the count was
+        # added to make visible: the round then walks the blunt pair it set out
+        # to replace. This grammar discards on some rounds and not others, so
+        # what is pinned is that discarding happens at all.
+        self.assertTrue(
+            any(int(discarded) > 0 for _, _, _, discarded in rounds), output
+        )
+
+    def test_a_proof_without_rounds_is_not_reproved(self) -> None:
+        # The fresh walk under a proof exists because rounds carry a table
+        # built at blunter precisions. A run that never refined carries
+        # nothing, so re-proving it would be paying twice for one walk.
+        for name, grammar in CONFLICT_FREE_GRAMMARS.items():
+            with self.subTest(grammar=name):
+                status, output = self.prove(
+                    grammar, 1, extra=("--prove-refine", "8")
+                )
+                self.assertEqual(status, PROVEN, output)
+                self.assertNotRegex(output, REFINEMENT_ROUND_LINE)
+                self.assertNotRegex(output, REPROVING_LINE)
 
     def test_the_round_limit_is_honoured(self) -> None:
         # The loop reruns a whole proof per round, so an unbounded blind spot
@@ -1116,13 +1213,10 @@ class CandidateParseTests(ProverTestCase):
         self.assertNotRegex(output, CANDIDATE_AMBIGUOUS)
 
     def test_a_candidate_outside_the_language_is_named_as_one(self) -> None:
-        # Refinement walks the palindrome on to candidates of odd length, which
-        # the recognizer rejects outright: not an ambiguity, not even a
-        # sentence. That is the answer a round would otherwise be spent
-        # discovering.
-        _, output = self.prove(
-            EVEN_PALINDROME, 1, extra=("--prove-refine", "8")
-        )
+        # The other spurious answer: a candidate the recognizer rejects
+        # outright. Not an ambiguity, not even a sentence -- and the answer a
+        # refinement round would otherwise have been spent discovering.
+        _, output = self.prove(ACCEPTS_NON_SENTENCES, 1, max_tokens="10")
         self.assertRegex(output, CANDIDATE_REJECTED)
         self.assertNotRegex(output, CANDIDATE_AMBIGUOUS)
 
@@ -1155,19 +1249,18 @@ class CandidateParseTests(ProverTestCase):
         # abstract stack no real stack carries is where the abstraction left
         # the language -- the steps before it were tracking a parse that
         # exists, the ones after are a walk no parse takes.
-        _, output = self.prove(
-            EVEN_PALINDROME, 1, extra=("--prove-refine", "8")
-        )
+        _, output = self.prove(ACCEPTS_NON_SENTENCES, 1, max_tokens="10")
         decisive = CANDIDATE_DECISIVE.search(output)
         self.assertIsNotNone(decisive, output)
         # A step is only named where the abstraction did leave the language, so
         # the sentence it was found on is one the recognizer rejects, and the
         # step is inside that sentence or at its end -- never past it.
         self.assertRegex(output, CANDIDATE_REJECTED)
-        rounds = REFINEMENT_ROUND_LINE.findall(output)
-        self.assertTrue(rounds, output)
-        longest = max(len(match[1].split()) for match in rounds)
-        self.assertLessEqual(int(decisive.group(1)), longest, output)
+        candidate = CANDIDATE_LINE.search(output)
+        self.assertIsNotNone(candidate, output)
+        self.assertLessEqual(
+            int(decisive.group(1)), len(candidate.group(1).split()), output
+        )
 
     def test_a_confirmed_ambiguity_outlives_the_search_bound(self) -> None:
         # The dangling else's shortest witness is ten tokens, so a search

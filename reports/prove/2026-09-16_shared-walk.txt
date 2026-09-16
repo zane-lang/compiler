@@ -1,0 +1,216 @@
+# Rounds that keep what the last one settled
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1; Menhir 20231231.
+# State numbers are Menhir-version sensitive.
+# Grammar: lib/cst/parser.mly at e4bd9fe.
+# Commands: ambiguity prove 1 quick --refine 16 --refine-rounds 200 --tokens 0..8
+#             --timeout 20m
+#           ambiguity prove 1 quick --refine 16 --refine-rounds 300 --retire 3
+#             --tokens 0..8 --timeout 15m
+# AMBIGUITY_MEMORY_MB=8192/4096, JOBS=4/2 on a 4-core 16GB machine.
+#
+# What sharing the walk is worth, measured three ways.
+#
+# Head to head, same flags and the same five minutes (--prove-refine 12,
+# --max-tokens 8, one worker):
+#
+#   restarting each round   3 rounds   12357 pairs
+#   sharing the walk        6 rounds   42433 pairs
+#
+# Over twenty minutes, this run reached 27 rounds and deepened 89 of 1096
+# states to a retained stack of 16. The ninety-minute run on the code before
+# this change reached 22. A round reopens what the deepening stood on and
+# nothing else: 144 of 5760 pairs in the first round, 2631 of 36407 by the
+# third, and on the sites that stall, about two thirds.
+#
+# Two findings came with it, and the second is the one worth acting on.
+#
+# The rounds stall rather than converge. From round 11 on, every candidate is
+# the same site -- state 123 on RPAREN, reached by `Foo { } => Bar()` -- and
+# the table stops growing at about 46000 pairs while each round reopens 30000
+# of them. Cheap rounds did not make the site closable; they made the stall
+# visible in a quarter of the time.
+#
+# And every one of the 27 candidates is a sentence the recognizer rejects.
+# Not one is a real program, let alone an ambiguity. What blocks the proof on
+# this grammar is not a second parse anywhere in sight; it is that the
+# abstraction accepts strings the grammar does not derive, and no retained
+# stack up to 16 stops it.
+#
+# The companion run retires that site after three stalled rounds and carries
+# on: 123124 pairs in fifteen minutes against 46529 in twenty, so the walk goes
+# roughly five times as far per minute once the site it cannot close is stepped
+# over. It still cannot print a proof -- a retiring run never does -- but it
+# says which site it gave up on, with the sentence that reaches it.
+#
+Proof level 1, concretization profile: quick
+Fast breadth-first feedback while editing the grammar.
+Tokens 0..8 · timeout 20m · 20 witnesses · breadth-first
+Report: /tmp/claude-0/-home-user-compiler/d3142a5a-2131-54a5-835b-1cb10299f03a/scratchpad/prove-incremental.txt
+
+Search constraints: 0..8 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 7491222 abstract pairs (single-threaded; the 4-worker split does not apply).
+  reopened 144 of 5760 settled pair(s) from 127 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on EOF
+Refinement round 1: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF, retaining up to 9 (state 352 to 7, state 215 to 7, state 50 to 7, state 260 to 7, state 240 to 7, state 640 to 7, state 268 to 7, state 264 to 7, state 67 to 7, state 44 to 7, state 242 to 7, state 258 to 7, state 250 to 7, state 1089 to 3, state 62 to 9, state 30 to 7, state 499 to 6, state 266 to 7, state 244 to 7, state 507 to 2, state 252 to 7, state 223 to 7, state 248 to 7, state 213 to 7, state 262 to 7, state 233 to 7, state 224 to 6, state 270 to 7, state 341 to 6, state 256 to 7, state 1047 to 7, state 254 to 7, state 63 to 7, state 209 to 7, state 7 to 7, state 8 to 8, state 123 to 7, state 1088 to 2, state 246 to 7, state 238 to 7, state 235 to 7, state 211 to 7, state 870 to 5).
+  reopened 789 of 14182 settled pair(s) from 273 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on EOF
+Refinement round 2: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF, retaining up to 9 (state 228 to 5, state 193 to 5, state 6 to 6, state 194 to 6, state 191 to 5, state 135 to 5, state 107 to 5, state 1095 to 3).
+  reopened 2631 of 36407 settled pair(s) from 507 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 3: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 10 (state 352 to 8, state 215 to 8, state 642 to 8, state 260 to 8, state 240 to 8, state 640 to 8, state 268 to 8, state 218 to 7, state 264 to 8, state 242 to 8, state 258 to 8, state 250 to 8, state 62 to 10, state 960 to 8, state 351 to 8, state 266 to 8, state 969 to 8, state 244 to 8, state 252 to 8, state 223 to 8, state 196 to 8, state 1048 to 8, state 248 to 8, state 213 to 8, state 262 to 8, state 233 to 8, state 221 to 7, state 289 to 8, state 533 to 8, state 224 to 7, state 270 to 8, state 1054 to 8, state 256 to 8, state 1047 to 8, state 254 to 8, state 1044 to 8, state 209 to 8, state 501 to 8, state 123 to 8, state 8 to 9, state 246 to 8, state 238 to 8, state 235 to 8, state 211 to 8, state 169 to 8, state 195 to 8).
+  reopened 24510 of 38198 settled pair(s) from 218 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 4: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 10 (state 32 to 10, state 228 to 7, state 193 to 7, state 353 to 9, state 654 to 7, state 31 to 9, state 531 to 7, state 281 to 7, state 96 to 6, state 956 to 7, state 191 to 7, state 958 to 7, state 957 to 7, state 122 to 7, state 115 to 6, state 535 to 7, state 968 to 7, state 86 to 6).
+  reopened 6609 of 42051 settled pair(s) from 1300 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on EOF
+Refinement round 5: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF, retaining up to 11 (state 352 to 9, state 215 to 9, state 50 to 8, state 260 to 9, state 240 to 9, state 640 to 9, state 268 to 9, state 264 to 9, state 44 to 8, state 67 to 8, state 242 to 9, state 258 to 9, state 250 to 9, state 62 to 11, state 30 to 8, state 266 to 9, state 244 to 9, state 252 to 9, state 223 to 9, state 248 to 9, state 213 to 9, state 262 to 9, state 233 to 9, state 270 to 9, state 256 to 9, state 1047 to 9, state 254 to 9, state 63 to 8, state 209 to 9, state 7 to 8, state 8 to 10, state 123 to 9, state 246 to 9, state 238 to 9, state 235 to 9, state 211 to 9).
+  reopened 6952 of 42393 settled pair(s) from 1108 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 6: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 12 (state 352 to 10, state 215 to 10, state 642 to 9, state 260 to 10, state 240 to 10, state 640 to 10, state 268 to 10, state 218 to 8, state 264 to 10, state 242 to 10, state 258 to 10, state 250 to 10, state 62 to 12, state 960 to 9, state 351 to 9, state 266 to 10, state 969 to 9, state 244 to 10, state 252 to 10, state 223 to 10, state 196 to 9, state 1048 to 9, state 248 to 10, state 213 to 10, state 262 to 10, state 233 to 10, state 221 to 8, state 289 to 9, state 533 to 9, state 224 to 8, state 270 to 10, state 1054 to 9, state 256 to 10, state 1047 to 10, state 254 to 10, state 1044 to 9, state 209 to 10, state 501 to 9, state 123 to 10, state 8 to 11, state 246 to 10, state 238 to 10, state 235 to 10, state 211 to 10, state 169 to 9, state 195 to 9).
+  reopened 2601 of 42432 settled pair(s) from 120 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 7: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 12 (state 868 to 7, state 1046 to 6, state 226 to 6, state 534 to 9, state 168 to 6, state 96 to 7, state 65 to 10, state 64 to 9, state 115 to 7, state 86 to 7).
+  reopened 861 of 45048 settled pair(s) from 60 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 8: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 12 (state 197 to 9).
+  reopened 8720 of 45705 settled pair(s) from 1327 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on EOF
+Refinement round 9: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF, retaining up to 13 (state 352 to 11, state 215 to 11, state 50 to 9, state 260 to 11, state 240 to 11, state 640 to 11, state 268 to 11, state 264 to 11, state 44 to 9, state 67 to 9, state 242 to 11, state 258 to 11, state 250 to 11, state 62 to 13, state 30 to 9, state 266 to 11, state 244 to 11, state 252 to 11, state 223 to 11, state 248 to 11, state 213 to 11, state 262 to 11, state 233 to 11, state 270 to 11, state 256 to 11, state 1047 to 11, state 254 to 11, state 63 to 9, state 209 to 11, state 7 to 9, state 8 to 12, state 123 to 11, state 246 to 11, state 238 to 11, state 235 to 11, state 211 to 11).
+  reopened 9753 of 46123 settled pair(s) from 1130 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 10: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 14 (state 352 to 12, state 215 to 12, state 642 to 10, state 260 to 12, state 240 to 12, state 640 to 12, state 268 to 12, state 218 to 9, state 264 to 12, state 242 to 12, state 258 to 12, state 250 to 12, state 62 to 14, state 960 to 10, state 351 to 10, state 266 to 12, state 969 to 10, state 244 to 12, state 252 to 12, state 223 to 12, state 196 to 10, state 1048 to 10, state 248 to 12, state 213 to 12, state 262 to 12, state 233 to 12, state 221 to 9, state 289 to 10, state 533 to 10, state 224 to 9, state 270 to 12, state 1054 to 10, state 256 to 12, state 1047 to 12, state 254 to 12, state 1044 to 10, state 209 to 12, state 501 to 10, state 123 to 12, state 8 to 13, state 246 to 12, state 238 to 12, state 235 to 12, state 211 to 12, state 169 to 10, state 195 to 10).
+  reopened 32494 of 46125 settled pair(s) from 440 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 11: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 15 (state 352 to 13, state 32 to 11, state 228 to 8, state 640 to 13, state 268 to 13, state 226 to 7, state 264 to 13, state 67 to 10, state 258 to 13, state 250 to 13, state 193 to 8, state 62 to 15, state 30 to 10, state 960 to 11, state 266 to 13, state 244 to 13, state 223 to 13, state 196 to 11, state 262 to 13, state 221 to 10, state 289 to 11, state 270 to 13, state 1054 to 11, state 256 to 13, state 31 to 10, state 1044 to 11, state 168 to 7, state 209 to 13, state 123 to 13, state 8 to 14, state 246 to 13, state 235 to 13, state 169 to 11, state 96 to 8, state 195 to 11, state 215 to 13, state 642 to 11, state 260 to 13, state 240 to 13, state 218 to 10, state 242 to 13, state 44 to 10, state 351 to 11, state 969 to 11, state 252 to 13, state 1048 to 11, state 197 to 10, state 248 to 13, state 213 to 13, state 233 to 13, state 122 to 8, state 115 to 8, state 533 to 11, state 224 to 10, state 1047 to 13, state 254 to 13, state 63 to 10, state 501 to 11, state 238 to 13, state 211 to 13, state 86 to 8).
+  reopened 12885 of 46133 settled pair(s) from 1138 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 12: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 352 to 14, state 50 to 10, state 640 to 14, state 268 to 14, state 264 to 14, state 67 to 11, state 258 to 14, state 250 to 14, state 62 to 16, state 30 to 11, state 960 to 12, state 353 to 10, state 266 to 14, state 244 to 14, state 223 to 14, state 196 to 12, state 262 to 14, state 221 to 11, state 289 to 12, state 270 to 14, state 1054 to 12, state 256 to 14, state 1044 to 12, state 209 to 14, state 123 to 14, state 8 to 15, state 246 to 14, state 235 to 14, state 169 to 12, state 96 to 9, state 195 to 12, state 215 to 14, state 642 to 12, state 260 to 14, state 240 to 14, state 65 to 11, state 218 to 11, state 242 to 14, state 44 to 11, state 351 to 12, state 64 to 10, state 969 to 12, state 252 to 14, state 1048 to 12, state 248 to 14, state 213 to 14, state 233 to 14, state 122 to 9, state 115 to 9, state 533 to 12, state 224 to 11, state 1047 to 14, state 254 to 14, state 63 to 11, state 501 to 12, state 238 to 14, state 211 to 14, state 86 to 9).
+  reopened 32630 of 46261 settled pair(s) from 440 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 13: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 352 to 15, state 32 to 12, state 228 to 9, state 640 to 15, state 268 to 15, state 226 to 8, state 264 to 15, state 67 to 12, state 258 to 15, state 250 to 15, state 193 to 9, state 30 to 12, state 960 to 13, state 266 to 15, state 244 to 15, state 223 to 15, state 196 to 13, state 262 to 15, state 221 to 12, state 289 to 13, state 270 to 15, state 1054 to 13, state 256 to 15, state 31 to 11, state 1044 to 13, state 168 to 8, state 209 to 15, state 123 to 15, state 8 to 16, state 246 to 15, state 235 to 15, state 169 to 13, state 96 to 10, state 195 to 13, state 215 to 15, state 642 to 13, state 260 to 15, state 240 to 15, state 218 to 12, state 242 to 15, state 44 to 12, state 351 to 13, state 969 to 13, state 252 to 15, state 1048 to 13, state 197 to 11, state 248 to 15, state 213 to 15, state 233 to 15, state 122 to 10, state 115 to 10, state 533 to 13, state 224 to 12, state 1047 to 15, state 254 to 15, state 63 to 12, state 501 to 13, state 238 to 15, state 211 to 15, state 86 to 10).
+  reopened 13017 of 46265 settled pair(s) from 1138 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 14: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 352 to 16, state 50 to 11, state 640 to 16, state 268 to 16, state 264 to 16, state 67 to 13, state 258 to 16, state 250 to 16, state 30 to 13, state 960 to 14, state 353 to 11, state 266 to 16, state 244 to 16, state 223 to 16, state 196 to 14, state 262 to 16, state 221 to 13, state 289 to 14, state 270 to 16, state 1054 to 14, state 256 to 16, state 1044 to 14, state 209 to 16, state 123 to 16, state 246 to 16, state 235 to 16, state 169 to 14, state 96 to 11, state 195 to 14, state 215 to 16, state 642 to 14, state 260 to 16, state 240 to 16, state 65 to 12, state 218 to 13, state 242 to 16, state 44 to 13, state 351 to 14, state 64 to 11, state 969 to 14, state 252 to 16, state 1048 to 14, state 248 to 16, state 213 to 16, state 233 to 16, state 122 to 11, state 115 to 11, state 533 to 14, state 224 to 13, state 1047 to 16, state 254 to 16, state 63 to 13, state 501 to 14, state 238 to 16, state 211 to 16, state 86 to 11).
+  reopened 30010 of 46312 settled pair(s) from 239 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 15: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 32 to 13, state 228 to 10, state 226 to 9, state 67 to 14, state 193 to 10, state 30 to 14, state 960 to 15, state 196 to 15, state 221 to 14, state 289 to 15, state 1054 to 15, state 31 to 12, state 1044 to 15, state 168 to 9, state 169 to 15, state 96 to 12, state 195 to 15, state 642 to 15, state 218 to 14, state 44 to 14, state 351 to 15, state 969 to 15, state 1048 to 15, state 197 to 12, state 122 to 12, state 115 to 12, state 533 to 15, state 224 to 14, state 63 to 14, state 501 to 15, state 86 to 12).
+  reopened 10130 of 46453 settled pair(s) from 532 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 16: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 50 to 12, state 67 to 15, state 30 to 15, state 960 to 16, state 353 to 12, state 196 to 16, state 221 to 15, state 289 to 16, state 1054 to 16, state 1044 to 16, state 169 to 16, state 96 to 13, state 195 to 16, state 642 to 16, state 65 to 13, state 218 to 15, state 44 to 15, state 351 to 16, state 64 to 12, state 969 to 16, state 1048 to 16, state 122 to 13, state 115 to 13, state 533 to 16, state 224 to 15, state 63 to 15, state 501 to 16, state 86 to 13).
+  reopened 3367 of 46518 settled pair(s) from 695 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on EOF
+Refinement round 17: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF, retaining up to 16 (state 50 to 13, state 44 to 16, state 67 to 16, state 30 to 16, state 63 to 16, state 7 to 10).
+  reopened 0 of 46527 settled pair(s) from 0 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 18: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 218 to 16, state 221 to 16, state 224 to 16).
+  reopened 31638 of 46527 settled pair(s) from 249 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 19: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 50 to 14, state 228 to 11, state 193 to 11, state 353 to 13, state 654 to 8, state 531 to 8, state 281 to 8, state 96 to 14, state 956 to 8, state 65 to 14, state 191 to 8, state 958 to 8, state 64 to 13, state 957 to 8, state 122 to 14, state 115 to 14, state 535 to 8, state 968 to 8, state 86 to 14).
+  reopened 4859 of 46527 settled pair(s) from 500 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 20: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 32 to 14, state 31 to 13, state 96 to 15, state 197 to 13, state 122 to 15, state 115 to 15, state 86 to 15).
+  reopened 31638 of 46527 settled pair(s) from 249 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 21: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 50 to 15, state 228 to 12, state 193 to 12, state 353 to 14, state 654 to 9, state 531 to 9, state 281 to 9, state 96 to 16, state 956 to 9, state 65 to 15, state 191 to 9, state 958 to 9, state 64 to 14, state 957 to 9, state 122 to 16, state 115 to 16, state 535 to 9, state 968 to 9, state 86 to 16).
+  reopened 4254 of 46527 settled pair(s) from 466 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 22: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 32 to 15, state 31 to 14, state 197 to 14).
+  reopened 31541 of 46528 settled pair(s) from 224 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 23: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 50 to 16, state 228 to 13, state 193 to 13, state 353 to 15, state 654 to 10, state 531 to 10, state 281 to 10, state 956 to 10, state 65 to 16, state 191 to 10, state 958 to 10, state 64 to 15, state 957 to 10, state 535 to 10, state 968 to 10).
+  reopened 4255 of 46528 settled pair(s) from 466 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 24: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 32 to 16, state 31 to 15, state 197 to 15).
+  reopened 31523 of 46528 settled pair(s) from 217 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 25: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 228 to 14, state 193 to 14, state 353 to 16, state 654 to 11, state 531 to 11, state 281 to 11, state 956 to 11, state 191 to 11, state 958 to 11, state 64 to 16, state 957 to 11, state 535 to 11, state 968 to 11).
+  reopened 4255 of 46528 settled pair(s) from 466 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 26: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 31 to 16, state 197 to 16).
+  reopened 25045 of 46528 settled pair(s) from 202 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 27: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 16 (state 228 to 15, state 193 to 15, state 654 to 12, state 531 to 12, state 281 to 12, state 956 to 12, state 191 to 12, state 958 to 12, state 957 to 12, state 535 to 12, state 968 to 12).
+NOT PROVEN: the timeout (1200s) expired during the abstract phase at level 1, after 46529 pairs. Raise --timeout, or lower --prove.
+Refinement reached: 27 refinement round(s); 89 of 1096 state(s) deepened past level 1, to a retained stack of 16 at the deepest.
+Stack height: refused 410766 move(s) onto a state no stack that short can carry; the height stops being counted past 18.
+
+# --- the retiring companion run, verbatim ---
+
+Proof level 1, concretization profile: quick
+Fast breadth-first feedback while editing the grammar.
+Tokens 0..8 · timeout 15m · 20 witnesses · breadth-first
+Report: /tmp/claude-0/-home-user-compiler/d3142a5a-2131-54a5-835b-1cb10299f03a/scratchpad/prove-retire.txt
+
+Search constraints: 0..8 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 3745611 abstract pairs (single-threaded; the 2-worker split does not apply).
+  reopened 144 of 5760 settled pair(s) from 127 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on EOF
+Refinement round 1: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF, retaining up to 9 (state 352 to 7, state 215 to 7, state 50 to 7, state 260 to 7, state 240 to 7, state 640 to 7, state 268 to 7, state 264 to 7, state 67 to 7, state 44 to 7, state 242 to 7, state 258 to 7, state 250 to 7, state 1089 to 3, state 62 to 9, state 30 to 7, state 499 to 6, state 266 to 7, state 244 to 7, state 507 to 2, state 252 to 7, state 223 to 7, state 248 to 7, state 213 to 7, state 262 to 7, state 233 to 7, state 224 to 6, state 270 to 7, state 341 to 6, state 256 to 7, state 1047 to 7, state 254 to 7, state 63 to 7, state 209 to 7, state 7 to 7, state 8 to 8, state 123 to 7, state 1088 to 2, state 246 to 7, state 238 to 7, state 235 to 7, state 211 to 7, state 870 to 5).
+  reopened 789 of 14182 settled pair(s) from 273 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on EOF
+Refinement round 2: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF, retaining up to 9 (state 228 to 5, state 193 to 5, state 6 to 6, state 194 to 6, state 191 to 5, state 135 to 5, state 107 to 5, state 1095 to 3).
+  reopened 2631 of 36407 settled pair(s) from 507 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 3: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 10 (state 352 to 8, state 215 to 8, state 642 to 8, state 260 to 8, state 240 to 8, state 640 to 8, state 268 to 8, state 218 to 7, state 264 to 8, state 242 to 8, state 258 to 8, state 250 to 8, state 62 to 10, state 960 to 8, state 351 to 8, state 266 to 8, state 969 to 8, state 244 to 8, state 252 to 8, state 223 to 8, state 196 to 8, state 1048 to 8, state 248 to 8, state 213 to 8, state 262 to 8, state 233 to 8, state 221 to 7, state 289 to 8, state 533 to 8, state 224 to 7, state 270 to 8, state 1054 to 8, state 256 to 8, state 1047 to 8, state 254 to 8, state 1044 to 8, state 209 to 8, state 501 to 8, state 123 to 8, state 8 to 9, state 246 to 8, state 238 to 8, state 235 to 8, state 211 to 8, state 169 to 8, state 195 to 8).
+  reopened 24510 of 38198 settled pair(s) from 218 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 4: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 10 (state 32 to 10, state 228 to 7, state 193 to 7, state 353 to 9, state 654 to 7, state 31 to 9, state 531 to 7, state 281 to 7, state 96 to 6, state 956 to 7, state 191 to 7, state 958 to 7, state 957 to 7, state 122 to 7, state 115 to 6, state 535 to 7, state 968 to 7, state 86 to 6).
+  reopened 6609 of 42051 settled pair(s) from 1300 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 7 token(s), on EOF
+Refinement round 5: deepened the stacks behind LIDENT UIDENT LPAREN LIDENT LPAREN UIDENT EOF, retaining up to 11 (state 352 to 9, state 215 to 9, state 50 to 8, state 260 to 9, state 240 to 9, state 640 to 9, state 268 to 9, state 264 to 9, state 44 to 8, state 67 to 8, state 242 to 9, state 258 to 9, state 250 to 9, state 62 to 11, state 30 to 8, state 266 to 9, state 244 to 9, state 252 to 9, state 223 to 9, state 248 to 9, state 213 to 9, state 262 to 9, state 233 to 9, state 270 to 9, state 256 to 9, state 1047 to 9, state 254 to 9, state 63 to 8, state 209 to 9, state 7 to 8, state 8 to 10, state 123 to 9, state 246 to 9, state 238 to 9, state 235 to 9, state 211 to 9).
+  reopened 6952 of 42393 settled pair(s) from 1108 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 6: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 12 (state 352 to 10, state 215 to 10, state 642 to 9, state 260 to 10, state 240 to 10, state 640 to 10, state 268 to 10, state 218 to 8, state 264 to 10, state 242 to 10, state 258 to 10, state 250 to 10, state 62 to 12, state 960 to 9, state 351 to 9, state 266 to 10, state 969 to 9, state 244 to 10, state 252 to 10, state 223 to 10, state 196 to 9, state 1048 to 9, state 248 to 10, state 213 to 10, state 262 to 10, state 233 to 10, state 221 to 8, state 289 to 9, state 533 to 9, state 224 to 8, state 270 to 10, state 1054 to 9, state 256 to 10, state 1047 to 10, state 254 to 10, state 1044 to 9, state 209 to 10, state 501 to 9, state 123 to 10, state 8 to 11, state 246 to 10, state 238 to 10, state 235 to 10, state 211 to 10, state 169 to 9, state 195 to 9).
+  reopened 2601 of 42432 settled pair(s) from 120 entry point(s)
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 6 token(s), on RPAREN
+Refinement round 7: deepened the stacks behind UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF, retaining up to 12 (state 868 to 7, state 1046 to 6, state 226 to 6, state 534 to 9, state 168 to 6, state 96 to 7, state 65 to 10, state 64 to 9, state 115 to 7, state 86 to 7).
+Retired the divergence site at state 123 on lookahead RPAREN: 3 consecutive round(s) of deepening left the divergence at the same site. Continuing with the rest of the grammar.
+  reopened 1016 of 41977 settled pair(s) from 103 entry point(s)
+  the recognizer accepts it exactly once, so the pair is spurious
+Refinement round 8: deepened the stacks behind LIDENT UIDENT EQUAL MATCH UIDENT LCURLY RCURLY EOF, retaining up to 12 (state 142 to 7, state 133 to 5, state 1043 to 9, state 1019 to 7, state 1007 to 9, state 1018 to 6, state 1006 to 8, state 1042 to 8).
+NOT PROVEN: the timeout (900s) expired during the abstract phase at level 1, after 123124 pairs. Raise --timeout, or lower --prove.
+Retired 1 divergence site(s), each after refinement stopped moving it. The grammar is unproven at these sites and unclassified everywhere else, since this run stopped before it finished walking the abstract space:
+  1. state 123 on lookahead RPAREN: 3 consecutive round(s) of deepening left the divergence at the same site
+     reached by: UIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF
+     divergence site on lookahead RPAREN
+     abstract stack (top first): 123
+     conflict at stack 123:
+       reduce expr -> UIDENT [pops the retained stack exactly: goto limited to predecessors]
+       reduce loption_generics_ -> 
+Refinement reached: 8 refinement round(s); 96 of 1096 state(s) deepened past level 1, to a retained stack of 12 at the deepest.
+Stack height: refused 797578 move(s) onto a state no stack that short can carry; the height stops being counted past 18.

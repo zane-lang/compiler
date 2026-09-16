@@ -1852,6 +1852,261 @@ let ambiguous_status = 1
 let not_proven_status = 3
 
 
+(* What a refinement round inherits from the one before it.
+
+   A round used to re-prove the grammar from nothing at the precision the last
+   one left behind, and that is what made the rounds get dearer as they went:
+   the twenty-second round of a ninety-minute run was re-deriving the first
+   round's pairs before it could reach anything new. Nothing about the previous
+   round's work goes stale, though. Deepening a retained stack only ever
+   sharpens the abstraction, and a sharper abstraction has fewer behaviours
+   than the one it refines -- so a pair explored under the blunt abstraction
+   and found not to accept cannot start accepting once the stacks behind it get
+   longer. The pairs are a result about the grammar, not about the round that
+   found them.
+
+   So the table and the queue live across rounds, and a round pays only for
+   what it has not already settled. What does go stale is everything derived
+   from the precision array: the two caches are keyed by stacks whose
+   truncation the deepening just changed, so they are emptied and refilled
+   lazily by the walk that follows.
+
+   [requeue] is the exception that keeps this sound. The one pair a finished
+   round did *not* settle is the candidate it stopped at, and the finer pairs
+   that replace it are reached from the pair before it. That parent is pushed
+   again by hand, and the candidate is dropped from the table so that a
+   deepening which fails to split it can rediscover it rather than mistake it
+   for settled. *)
+type prove_state = {
+  parents :
+    ( stack * stack * bool,
+      (string * (stack * stack * bool)) option )
+    Hashtbl.t;
+  (* Queued pairs, in buckets by how many tokens it took to reach them, so the
+     walk stays shortest-first across every round. One queue would not: a round
+     resumes with deep pairs left over from the round before it and shallow
+     ones just reopened by a deepening, and whichever went in first would come
+     out first. The walk would then report whatever candidate lay nearest to
+     where it stopped rather than the shortest one in the grammar, and a blind
+     spot that answers each deepening with a longer sentence -- the signature
+     of one no depth closes -- would stop being visible as one. *)
+  buckets : (int, (stack * stack * bool) Queue.t) Hashtbl.t;
+  depths : (stack * stack * bool, int) Hashtbl.t;
+  (* Pairs that are in the table but have not been walked yet. [parents] holds
+     a pair from the moment it is pushed, so it is not by itself a record of
+     what has been settled, and a deepening has to treat the two differently:
+     a settled pair stays as the result it is, an unsettled one is only a plan
+     to look, and a stale plan is worth less than the sharper one that
+     replaces it. *)
+  waiting : (stack * stack * bool, unit) Hashtbl.t;
+  mutable pending : int;
+  (* The shallowest bucket that may still hold anything. Children are one
+     deeper than their parent, so it only moves forward, except where a
+     reopened pair puts something shallower back. *)
+  mutable cursor : int;
+  mutable requeue : (stack * stack * bool) list;
+  mutable seeded : bool;
+}
+
+let enqueue state node depth =
+  let bucket =
+    match Hashtbl.find_opt state.buckets depth with
+    | Some bucket -> bucket
+    | None ->
+        let bucket = Queue.create () in
+        Hashtbl.add state.buckets depth bucket;
+        bucket
+  in
+  Queue.add node bucket;
+  Hashtbl.replace state.waiting node ();
+  state.pending <- state.pending + 1;
+  if depth < state.cursor then state.cursor <- depth
+
+let dequeue state =
+  let rec take () =
+    if state.pending <= 0 then None
+    else
+      match Hashtbl.find_opt state.buckets state.cursor with
+      | Some bucket when not (Queue.is_empty bucket) ->
+          state.pending <- state.pending - 1;
+          let node = Queue.take bucket in
+          Hashtbl.remove state.waiting node;
+          Some node
+      | _ ->
+          state.cursor <- state.cursor + 1;
+          take ()
+  in
+  take ()
+
+let node_depth state node =
+  Option.value (Hashtbl.find_opt state.depths node) ~default:0
+
+(* Retiring a site is the one thing that invalidates the walk behind it.
+
+   A pair is deduplicated on first arrival, so it keeps the ancestry it was
+   first reached by -- and after a retirement that ancestry decides whether it
+   is pruned, since a pair under a retired divergence is stepped over. A pair
+   first reached through the site that has just been retired is therefore
+   written off, while the same pair reached from somewhere else would not be,
+   and a site lying behind it goes with it. Restarting each round hid this,
+   because every round reached every pair afresh; carrying the table across
+   rounds does not, and the palindrome loses its second site to it.
+
+   So a retirement empties the walk. That costs the one round it happens in and
+   keeps the rest, which is the trade the whole persistence is: deepening never
+   invalidates a settled pair, retiring always can. *)
+let reset_prove_state state =
+  Hashtbl.reset state.parents;
+  Hashtbl.reset state.buckets;
+  Hashtbl.reset state.depths;
+  Hashtbl.reset state.waiting;
+  state.pending <- 0;
+  state.cursor <- 0;
+  state.requeue <- [];
+  state.seeded <- false
+
+(* What a deepening puts back into play: the pairs standing on it.
+
+   A stack is truncated to what the state on top of it is granted, so deepening
+   a state changes every stack that state appears in. What that means for a
+   pair depends on whether the walk has been through it.
+
+   A **settled** pair -- one the walk has already taken its successors from --
+   is still true: a pair explored under a blunter abstraction and found not to
+   accept cannot start accepting once the stacks get longer. It stays in the
+   table, and deleting it would strand the ancestry of everything below it,
+   which the trail and the site both read. What is missing is the sharper pair
+   that would stand in its place now, and that is reached by asking the pair
+   before it again.
+
+   An **unsettled** pair -- pushed but not yet walked -- is not a result at
+   all, only a plan to look. Leaving a stale one in the queue means the walk
+   will look at the blunt pair rather than the sharp one, which is the round's
+   own work undone: the deepening buys nothing wherever the queue still holds
+   the shape it was meant to replace. So those are dropped from the queue and
+   from the table, and their parents rebuild them at the precision that now
+   applies. Dropping them loses nothing, because a pair that has never been
+   walked has nothing below it to strand.
+
+   Everything the deepening did not touch stands. That is the point: on a
+   grammar with a thousand states, deepening a handful of them leaves almost
+   the whole table alone, where restarting the round threw all of it away. *)
+let invalidate_prove_state state deepened =
+  match deepened with
+  | [] -> ()
+  | _ ->
+      let touched = Hashtbl.create (2 * List.length deepened) in
+      List.iter (fun id -> Hashtbl.replace touched id ()) deepened;
+      let standing_on stack =
+        List.exists (fun id -> Hashtbl.mem touched id) stack.suffix
+      in
+      (* The table holds queued pairs beside settled ones, so the count of what
+         a round kept has to take them back out -- and the reopened count is
+         the stale pairs that stayed, not the ones discarded below. *)
+      let settled = Hashtbl.length state.parents - Hashtbl.length state.waiting in
+      let stale = Hashtbl.create 1_009 in
+      Hashtbl.iter
+        (fun ((left, right, _) as node) _ ->
+          if standing_on left || standing_on right then
+            Hashtbl.replace stale node ())
+        state.parents;
+      (* The unsettled ones leave altogether, so that the parent's rebuild can
+         push their replacement -- keeping them in the table would let the
+         replacement be dropped as already seen. *)
+      let dropped = Hashtbl.create 1_009 in
+      let orphaned = ref [] in
+      Hashtbl.iter
+        (fun node () ->
+          if Hashtbl.mem state.waiting node then begin
+            (* The parent is read before the entry goes, because it is what
+               rebuilds this pair at the new precision. Losing it here would
+               lose the pair altogether, which is the one thing this must not
+               do. *)
+            (match Hashtbl.find_opt state.parents node with
+            | Some (Some (_, parent)) -> orphaned := parent :: !orphaned
+            | Some None | None -> state.seeded <- false);
+            Hashtbl.replace dropped node ();
+            Hashtbl.remove state.parents node;
+            Hashtbl.remove state.waiting node;
+            Hashtbl.remove state.depths node
+          end)
+        stale;
+      if Hashtbl.length dropped > 0 then begin
+        let buckets = Hashtbl.copy state.buckets in
+        Hashtbl.reset state.buckets;
+        state.pending <- 0;
+        state.cursor <- max_int;
+        Hashtbl.iter
+          (fun depth bucket ->
+            Queue.iter
+              (fun node ->
+                if not (Hashtbl.mem dropped node) then enqueue state node depth)
+              bucket)
+          buckets;
+        if state.cursor = max_int then state.cursor <- 0
+      end;
+      (* The pair the last round asked for again stays on the list even when
+         the deepening made it stale, and this is load-bearing. Asking a stale
+         settled pair again is how its children are rebuilt at the new
+         precision -- and where the deepening does not change that pair at all,
+         it is the only way, because the unchanged rebuild is dropped as
+         already seen and its own parent then has nothing new to push. Filter
+         it out and the candidate hanging off it disappears with it: the walk
+         drains, and the run prints a proof of a grammar it stopped looking at.
+         The palindrome does exactly that, which is what the fresh walk below a
+         proof is there to catch. Entries the table no longer has are another
+         matter, since nothing can be asked of a pair that is gone. *)
+      state.requeue <-
+        List.filter (fun node -> Hashtbl.mem state.parents node) state.requeue;
+      (* A pair whose own parent is stale is left to that parent, so one sweep
+         pushes the shallowest edge of the affected region rather than every
+         pair in it. Seeded with what the list already holds, so a pair asked
+         for twice is queued once -- twice would walk it twice and leave the
+         waiting set disagreeing with the buckets after the first dequeue. *)
+      let queued = Hashtbl.create 1_009 in
+      List.iter (fun node -> Hashtbl.replace queued node ()) state.requeue;
+      let ask parent =
+        if
+          (not (Hashtbl.mem stale parent))
+          && (not (Hashtbl.mem queued parent))
+          && Hashtbl.mem state.parents parent
+        then begin
+          Hashtbl.replace queued parent ();
+          state.requeue <- parent :: state.requeue
+        end
+      in
+      Hashtbl.iter
+        (fun node () ->
+          match Hashtbl.find_opt state.parents node with
+          | Some (Some (_, parent)) -> ask parent
+          | Some None ->
+              (* The initial pair itself was truncated differently. It has no
+                 earlier pair to ask, so it is dropped and the walk re-seeds. *)
+              Hashtbl.remove state.parents node;
+              state.seeded <- false
+          | None ->
+              (* Dropped above as unsettled; its parent was taken then. *)
+              ())
+        stale;
+      List.iter ask !orphaned;
+      printf
+        "  reopened %d of %d settled pair(s) from %d entry point(s), \
+         discarding %d queued\n"
+        (Hashtbl.length stale - Hashtbl.length dropped)
+        settled (Hashtbl.length queued) (Hashtbl.length dropped)
+
+let create_prove_state pair_limit =
+  {
+    parents = Hashtbl.create (min 100_003 (max 1 pair_limit));
+    buckets = Hashtbl.create 64;
+    depths = Hashtbl.create (min 100_003 (max 1 pair_limit));
+    waiting = Hashtbl.create (min 100_003 (max 1 pair_limit));
+    pending = 0;
+    cursor = 0;
+    requeue = [];
+    seeded = false;
+  }
+
 (* [deadline] is absolute rather than a duration because refinement runs this
    several times over: the rounds share one budget for the abstract phase, so a
    proof that needed four of them is not four times as patient as one that
@@ -1862,7 +2117,8 @@ let not_proven_status = 3
    for every other question about the grammar. Retiring is the caller's
    judgement and not a fact about the grammar, which is why a run that used it
    can never print a proof - see the verdict below. *)
-let prove engine (precision : precision) pair_limit deadline survey_limit trace
+let prove engine (state : prove_state) (precision : precision) pair_limit
+    deadline survey_limit trace
     (retired : (int * int * string, unit) Hashtbl.t) =
   let automaton = engine.automaton in
   let gotos = goto_edges automaton in
@@ -1953,11 +2209,7 @@ let prove engine (precision : precision) pair_limit deadline survey_limit trace
         Hashtbl.add joint_cache (pair, token) outcomes;
         outcomes
   in
-  let parents :
-      (stack * stack * bool, (string * (stack * stack * bool)) option) Hashtbl.t =
-    Hashtbl.create 100_003
-  in
-  let queue = Queue.create () in
+  let parents = state.parents in
   let overflow = ref false in
   let candidate = ref None in
   (* A site is the stack pair and lookahead at which two parses first part
@@ -1980,7 +2232,13 @@ let prove engine (precision : precision) pair_limit deadline survey_limit trace
       if Hashtbl.length parents >= pair_limit then overflow := true
       else begin
         Hashtbl.add parents node origin;
-        Queue.add node queue
+        let depth =
+          match origin with
+          | None -> 0
+          | Some (_, parent) -> node_depth state parent + 1
+        in
+        Hashtbl.replace state.depths node depth;
+        enqueue state node depth
       end
   in
   let rec trail node =
@@ -2305,8 +2563,19 @@ let prove engine (precision : precision) pair_limit deadline survey_limit trace
     in
     (header :: stacks) @ conflict
   in
-  let start = { suffix = [ 0 ]; height = 1 } in
-  push None (start, start, false);
+  if not state.seeded then begin
+    let start = { suffix = [ 0 ]; height = 1 } in
+    state.seeded <- true;
+    push None (start, start, false)
+  end;
+  (* The pairs a deepening put back into play. They are already in [parents]
+     from the round that explored them, so [push] would drop them as seen:
+     they go onto the queue directly, and keep the origin edge they already
+     have so their trail still reads back to the initial pair. *)
+  List.iter
+    (fun node -> enqueue state node (node_depth state node))
+    state.requeue;
+  state.requeue <- [];
   (* The abstract phase used to run in silence: minutes on a real grammar,
      often the whole timeout, with the verdict as the first line of output. A
      reader watching it wants to know the same three things the concretization
@@ -2328,7 +2597,7 @@ let prove engine (precision : precision) pair_limit deadline survey_limit trace
            "● abstract level %d | pairs %s | queued %s | accepting %d%s | %s"
            (Array.fold_left max 0 precision)
            (compact_number (Hashtbl.length parents))
-           (compact_number (Queue.length queue))
+           (compact_number state.pending)
            !accepting
            (* Sites are only recorded while surveying, so a run that is not
               surveying would report a standing zero that says nothing. *)
@@ -2341,12 +2610,16 @@ let prove engine (precision : precision) pair_limit deadline survey_limit trace
      reads it once per expanded frontier: a pair costs a joint-outcome pass
      over every terminal class, so the read does not show up beside it. *)
   while
-    (not (Queue.is_empty queue))
+    state.pending > 0
     && (surveying || !candidate = None)
     && (not !overflow)
     && Unix.gettimeofday () < deadline
   do
-    let (left, right, diverged) as node = Queue.take queue in
+    (* [pending] counts what the buckets hold, so a dequeue under it always
+       finds a pair. *)
+    let (left, right, diverged) as node =
+      match dequeue state with Some node -> node | None -> assert false
+    in
     incr since_progress;
     if !since_progress >= 128 then begin
       since_progress := 0;
@@ -2408,7 +2681,7 @@ let prove engine (precision : precision) pair_limit deadline survey_limit trace
      verdict, so it - not the clock - is what says the deadline cut the search
      short. Draining the queue exactly as time runs out is a completed proof,
      and is reported as one. *)
-  let ran_out_of_time = not (Queue.is_empty queue) in
+  let ran_out_of_time = state.pending > 0 in
   if surveying then
     Surveyed
       {
@@ -2490,20 +2763,41 @@ let prove engine (precision : precision) pair_limit deadline survey_limit trace
           | Some (_, token, parent) -> requests_at parent token
         in
         let along_the_path = candidate_refinements node in
-        Abstract_candidate
-          {
-            candidate_tokens = tokens;
-            candidate_pairs = explored;
-            candidate_example =
-              { example_tokens = tokens; example_site = describe_site site };
-            candidate_forward = (if trace then describe_forward node else []);
-            candidate_requests = (if aimed <> [] then aimed else along_the_path);
-            candidate_site = site_identity site;
-            candidate_derivations = parses;
-            candidate_decisive =
-              Option.map (fun (index, token, _) -> (index, token)) decisive_step;
-            candidate_path_requests = along_the_path;
-          }
+        let found =
+          Abstract_candidate
+            {
+              candidate_tokens = tokens;
+              candidate_pairs = explored;
+              candidate_example =
+                { example_tokens = tokens; example_site = describe_site site };
+              candidate_forward = (if trace then describe_forward node else []);
+              candidate_requests = (if aimed <> [] then aimed else along_the_path);
+              candidate_site = site_identity site;
+              candidate_derivations = parses;
+              candidate_decisive =
+                Option.map (fun (index, token, _) -> (index, token)) decisive_step;
+              candidate_path_requests = along_the_path;
+            }
+        in
+        (* The one pair this round did not settle. Everything else it walked
+           stays settled however the abstraction is sharpened, but this pair
+           accepted, so the round after this one has to see whatever replaces
+           it: the pair before it goes back on the queue, and this one leaves
+           the table so that a deepening which does not split it rediscovers it
+           instead of walking past it as seen.
+
+           Done after the record is built, because every diagnostic in it --
+           the trail, the site, the forward walk -- reads this node's entry. *)
+        (match Hashtbl.find_opt parents node with
+        | Some (Some (_, parent)) ->
+            Hashtbl.remove parents node;
+            state.requeue <- [ parent ]
+        | Some None | None ->
+            (* The initial pair accepted, so there is no earlier pair to push:
+               the next round starts the walk again from the beginning. *)
+            Hashtbl.remove parents node;
+            state.seeded <- false);
+        found
     | None ->
         if !overflow then Pair_overflow explored
         else if ran_out_of_time then Prove_timeout explored
@@ -3686,9 +3980,14 @@ let main () =
                 index token)
             candidate.candidate_decisive
         in
+        (* One walk, carried across every round. A deepening sharpens the
+           abstraction the walk is using; it does not invalidate what the walk
+           has already settled, so the rounds share a table and a queue instead
+           of each starting from the initial pair again. *)
+        let walk = create_prove_state prove_limits.max_frontiers in
         let rec attempt () =
           let result =
-            prove engine precision prove_limits.max_frontiers deadline
+            prove engine walk precision prove_limits.max_frontiers deadline
               !survey_limit !trace_forward retired
           in
           match result with
@@ -3786,6 +4085,7 @@ let main () =
               let retire reason =
                 let state, other, lookahead = site in
                 Hashtbl.replace retired site ();
+                reset_prove_state walk;
                 retirements :=
                   (site, reason, candidate.candidate_example) :: !retirements;
                 last_site := None;
@@ -3837,6 +4137,7 @@ let main () =
                 List.iter
                   (fun (state, depth) -> deepen precision state depth)
                   deeper;
+                invalidate_prove_state walk (List.map fst deeper);
                 incr rounds;
                 report_candidate_parse candidate;
                 printf
@@ -3971,6 +4272,48 @@ let main () =
             printf
               "Attempting to concretize with the bounded search...\n\n"
         | Proven pairs ->
+            (* A proof is the one verdict that cannot be allowed to be an
+               artifact of how the walk was carried. Every round after the
+               first inherits a table built at blunter precisions, and the
+               argument for keeping it -- that a pair found not to accept stays
+               that way as the stacks get longer -- is exactly the kind of
+               argument that a bookkeeping slip turns into a false theorem.
+               So a refined proof is re-proved from nothing at the precision it
+               ended on. The walk it doubts is the cheap one; this is paid once,
+               only where a proof was claimed, and it is the difference between
+               a theorem and a theorem about a table. *)
+            let confirmed =
+              if !rounds = 0 then true
+              else begin
+                printf
+                  "Re-proving from the initial pair at the precision this run \
+                   ended on, because a proof carried across rounds is worth \
+                   only what a fresh walk says it is...\n";
+                match
+                  prove engine
+                    (create_prove_state prove_limits.max_frontiers)
+                    precision prove_limits.max_frontiers deadline
+                    !survey_limit false retired
+                with
+                | Proven fresh ->
+                    printf
+                      "Confirmed: the fresh walk reaches the same verdict (%d \
+                       abstract pairs).\n"
+                      fresh;
+                    true
+                | _ -> false
+              end
+            in
+            if not confirmed then begin
+              printf
+                "NOT PROVEN: the shared walk reported a proof that a fresh \
+                 walk at the same precision does not reach, so the proof was \
+                 an artifact of what the rounds carried rather than a fact \
+                 about the grammar. This is a bug in the prover, not a \
+                 verdict about the grammar.\n";
+              report_refinement ~exhaustive:false ();
+              exit not_proven_status
+            end;
             printf
               "PROVEN UNAMBIGUOUS: no diverging pair of accepting parses \
                exists in the top-%d stack abstraction (%d abstract pairs \
