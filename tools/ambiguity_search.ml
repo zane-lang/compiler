@@ -1892,6 +1892,13 @@ type prove_state = {
      of one no depth closes -- would stop being visible as one. *)
   buckets : (int, (stack * stack * bool) Queue.t) Hashtbl.t;
   depths : (stack * stack * bool, int) Hashtbl.t;
+  (* Pairs that are in the table but have not been walked yet. [parents] holds
+     a pair from the moment it is pushed, so it is not by itself a record of
+     what has been settled, and a deepening has to treat the two differently:
+     a settled pair stays as the result it is, an unsettled one is only a plan
+     to look, and a stale plan is worth less than the sharper one that
+     replaces it. *)
+  waiting : (stack * stack * bool, unit) Hashtbl.t;
   mutable pending : int;
   (* The shallowest bucket that may still hold anything. Children are one
      deeper than their parent, so it only moves forward, except where a
@@ -1911,6 +1918,7 @@ let enqueue state node depth =
         bucket
   in
   Queue.add node bucket;
+  Hashtbl.replace state.waiting node ();
   state.pending <- state.pending + 1;
   if depth < state.cursor then state.cursor <- depth
 
@@ -1921,7 +1929,9 @@ let dequeue state =
       match Hashtbl.find_opt state.buckets state.cursor with
       | Some bucket when not (Queue.is_empty bucket) ->
           state.pending <- state.pending - 1;
-          Some (Queue.take bucket)
+          let node = Queue.take bucket in
+          Hashtbl.remove state.waiting node;
+          Some node
       | _ ->
           state.cursor <- state.cursor + 1;
           take ()
@@ -1949,6 +1959,7 @@ let reset_prove_state state =
   Hashtbl.reset state.parents;
   Hashtbl.reset state.buckets;
   Hashtbl.reset state.depths;
+  Hashtbl.reset state.waiting;
   state.pending <- 0;
   state.cursor <- 0;
   state.requeue <- [];
@@ -1957,18 +1968,25 @@ let reset_prove_state state =
 (* What a deepening puts back into play: the pairs standing on it.
 
    A stack is truncated to what the state on top of it is granted, so deepening
-   a state changes every stack that state appears in. The pairs built on those
-   stacks are still true -- a pair explored under a blunter abstraction and
-   found not to accept cannot start accepting once the stacks get longer -- but
-   they are no longer the pairs the walk would build now, and the sharper ones
-   that replace them have never been looked at.
+   a state changes every stack that state appears in. What that means for a
+   pair depends on whether the walk has been through it.
 
-   They are reached by asking the pair before them again. Nothing is deleted:
-   the blunt pairs stay in the table as the settled results they are, and
-   deleting them would strand the ancestry of everything below them, which the
-   trail and the site both read. A pair whose own parent is stale is left to
-   that parent, so one sweep pushes the shallowest edge of the affected region
-   rather than every pair in it.
+   A **settled** pair -- one the walk has already taken its successors from --
+   is still true: a pair explored under a blunter abstraction and found not to
+   accept cannot start accepting once the stacks get longer. It stays in the
+   table, and deleting it would strand the ancestry of everything below it,
+   which the trail and the site both read. What is missing is the sharper pair
+   that would stand in its place now, and that is reached by asking the pair
+   before it again.
+
+   An **unsettled** pair -- pushed but not yet walked -- is not a result at
+   all, only a plan to look. Leaving a stale one in the queue means the walk
+   will look at the blunt pair rather than the sharp one, which is the round's
+   own work undone: the deepening buys nothing wherever the queue still holds
+   the shape it was meant to replace. So those are dropped from the queue and
+   from the table, and their parents rebuild them at the precision that now
+   applies. Dropping them loses nothing, because a pair that has never been
+   walked has nothing below it to strand.
 
    Everything the deepening did not touch stands. That is the point: on a
    grammar with a thousand states, deepening a handful of them leaves almost
@@ -1982,37 +2000,90 @@ let invalidate_prove_state state deepened =
       let standing_on stack =
         List.exists (fun id -> Hashtbl.mem touched id) stack.suffix
       in
+      let settled = Hashtbl.length state.parents in
       let stale = Hashtbl.create 1_009 in
       Hashtbl.iter
         (fun ((left, right, _) as node) _ ->
           if standing_on left || standing_on right then
             Hashtbl.replace stale node ())
         state.parents;
-      let settled = Hashtbl.length state.parents in
-      let queued = Hashtbl.create 1_009 in
+      (* The unsettled ones leave altogether, so that the parent's rebuild can
+         push their replacement -- keeping them in the table would let the
+         replacement be dropped as already seen. *)
+      let dropped = Hashtbl.create 1_009 in
+      let orphaned = ref [] in
       Hashtbl.iter
         (fun node () ->
-          match Hashtbl.find state.parents node with
-          | Some (_, parent) ->
-              if (not (Hashtbl.mem stale parent)) && not (Hashtbl.mem queued parent)
-              then begin
-                Hashtbl.replace queued parent ();
-                state.requeue <- parent :: state.requeue
-              end
-          | None ->
+          if Hashtbl.mem state.waiting node then begin
+            (* The parent is read before the entry goes, because it is what
+               rebuilds this pair at the new precision. Losing it here would
+               lose the pair altogether, which is the one thing this must not
+               do. *)
+            (match Hashtbl.find_opt state.parents node with
+            | Some (Some (_, parent)) -> orphaned := parent :: !orphaned
+            | Some None | None -> state.seeded <- false);
+            Hashtbl.replace dropped node ();
+            Hashtbl.remove state.parents node;
+            Hashtbl.remove state.waiting node;
+            Hashtbl.remove state.depths node
+          end)
+        stale;
+      if Hashtbl.length dropped > 0 then begin
+        let buckets = Hashtbl.copy state.buckets in
+        Hashtbl.reset state.buckets;
+        state.pending <- 0;
+        state.cursor <- max_int;
+        Hashtbl.iter
+          (fun depth bucket ->
+            Queue.iter
+              (fun node ->
+                if not (Hashtbl.mem dropped node) then enqueue state node depth)
+              bucket)
+          buckets;
+        if state.cursor = max_int then state.cursor <- 0;
+        state.requeue <-
+          List.filter (fun node -> not (Hashtbl.mem dropped node)) state.requeue
+      end;
+      (* A pair whose own parent is stale is left to that parent, so one sweep
+         pushes the shallowest edge of the affected region rather than every
+         pair in it. *)
+      let queued = Hashtbl.create 1_009 in
+      let ask parent =
+        if
+          (not (Hashtbl.mem stale parent))
+          && (not (Hashtbl.mem queued parent))
+          && Hashtbl.mem state.parents parent
+        then begin
+          Hashtbl.replace queued parent ();
+          state.requeue <- parent :: state.requeue
+        end
+      in
+      Hashtbl.iter
+        (fun node () ->
+          match Hashtbl.find_opt state.parents node with
+          | Some (Some (_, parent)) -> ask parent
+          | Some None ->
               (* The initial pair itself was truncated differently. It has no
                  earlier pair to ask, so it is dropped and the walk re-seeds. *)
               Hashtbl.remove state.parents node;
-              state.seeded <- false)
+              state.seeded <- false
+          | None ->
+              (* Dropped above as unsettled; its parent was taken then. *)
+              ())
         stale;
-      printf "  reopened %d of %d settled pair(s) from %d entry point(s)\n"
+      List.iter ask !orphaned;
+      printf
+        "  reopened %d of %d settled pair(s) from %d entry point(s), \
+         discarding %d queued\n"
         (Hashtbl.length stale) settled (Hashtbl.length queued)
+        (Hashtbl.length dropped)
 
 let create_prove_state pair_limit =
   {
     parents = Hashtbl.create (min 100_003 (max 1 pair_limit));
     buckets = Hashtbl.create 64;
     depths = Hashtbl.create (min 100_003 (max 1 pair_limit));
+    waiting = Hashtbl.create (min 100_003 (max 1 pair_limit));
     pending = 0;
     cursor = 0;
     requeue = [];

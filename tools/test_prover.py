@@ -145,7 +145,8 @@ CANDIDATE_DECISIVE = re.compile(
 # back into play, out of the ones already settled, and how many pairs they are
 # reached from.
 REOPENED_LINE = re.compile(
-    r"^  reopened (\d+) of (\d+) settled pair\(s\) from (\d+) entry point\(s\)$",
+    r"^  reopened (\d+) of (\d+) settled pair\(s\) from (\d+) entry point\(s\), "
+    r"discarding (\d+) queued$",
     re.MULTILINE,
 )
 # The third way a run says a blind spot outlived every depth it could try: the
@@ -816,7 +817,7 @@ class RefinementTests(ProverTestCase):
         )
         rounds = REOPENED_LINE.findall(output)
         self.assertGreaterEqual(len(rounds), 2, output)
-        for reopened, settled, _ in rounds:
+        for reopened, settled, _, _ in rounds:
             # Reopening everything would be the old behaviour wearing a new
             # line of output.
             self.assertLess(int(reopened), int(settled), output)
