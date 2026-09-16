@@ -106,6 +106,41 @@ REFINEMENT_CAPPED = re.compile(
 REFINEMENT_DEEPEST = re.compile(
     r"to a retained stack of (\d+) at the deepest\.", re.MULTILINE
 )
+# A recognizer-confirmed ambiguity the bounded search could not reach. The
+# abstract phase has no token bound and the search does, so the witness family
+# can be out of the search's reach while the finding itself is settled.
+AMBIGUOUS_BEYOND_BOUND = re.compile(
+    r"^AMBIGUOUS: the recognizer found two derivations of (.+) \((.*)\), which "
+    r"the bounded search did not reach within (\d+) tokens, so no witness "
+    r"family is rendered\. Raise the token bound to render it\.$",
+    re.MULTILINE,
+)
+CANDIDATE_LINE = re.compile(
+    r"^Abstract ambiguity candidate at level \d+ after \d+ pairs "
+    r"\((?:spurious|confirmed by the recognizer)\): (.+)$",
+    re.MULTILINE,
+)
+# What the exact recognizer made of a candidate's own sentence. The abstract
+# phase cannot answer this and used to leave it to the reader; the answer is
+# what decides whether a refinement round is work or waste.
+CANDIDATE_REJECTED = re.compile(
+    r"^  the recognizer rejects this sentence, so the pair is spurious$",
+    re.MULTILINE,
+)
+CANDIDATE_SINGLE_PARSE = re.compile(
+    r"^  the recognizer accepts it exactly once, so the pair is spurious$",
+    re.MULTILINE,
+)
+CANDIDATE_AMBIGUOUS = re.compile(
+    r"^  the recognizer finds (\d+) derivations of it$", re.MULTILINE
+)
+# Where the abstraction left the language, which is where a refinement aimed by
+# the real parse spends its round.
+CANDIDATE_DECISIVE = re.compile(
+    r"^  the abstraction leaves the real parse's stacks after (\d+) token\(s\), "
+    r"on (\S+)$",
+    re.MULTILINE,
+)
 REFINEMENT_EXHAUSTED = re.compile(
     r"^Refinement stopped after \d+ round\(s\): the candidate's chains never "
     r"needed the abstraction to invent a goto and never stood on a stack it "
@@ -159,31 +194,35 @@ REACHABILITY_LINE = re.compile(
 )
 
 
-# Two blind spots that share nothing: the expression conflict and the dangling
-# else, reachable from one start symbol through disjoint alternatives. Retiring
-# prunes the subtree under a site it gave up on, and the property that pruning
-# could break is exactly the one retirement exists for -- reaching what lies
-# behind the site. A grammar with one site cannot tell the two apart.
+# Two blind spots that share nothing: one palindrome over `a` and another over
+# `x`, reachable from one start symbol through disjoint alternatives, each
+# behind an opening token of its own so that the two empty sentences stay
+# distinct. Retiring prunes the subtree under a site it gave up on, and the
+# property that pruning could break is exactly the one retirement exists for --
+# reaching what lies behind the site. A grammar with one site cannot tell the
+# two apart.
+#
+# Both sites have to be blind spots rather than ambiguities. A real ambiguity
+# is settled by the recognizer as soon as the abstraction names a candidate,
+# and a settled grammar has nothing left to retire: the run reports the witness
+# instead, which is the right answer and the wrong fixture.
 TWO_INDEPENDENT_SITES = """\
+%token L "l"
+%token R "r"
 %token A "a"
-%token PLUS "+"
-%token IF "if"
-%token THEN "then"
-%token ELSE "else"
 %token X "x"
 %token EOF "<eof>"
 %start <unit> main
 %%
 main:
-  | e EOF { () }
-  | s EOF { () }
-e:
-  | A { () }
-  | e PLUS e { () }
-s:
-  | X { () }
-  | IF X THEN s { () }
-  | IF X THEN s ELSE s { () }
+  | L p EOF { () }
+  | R q EOF { () }
+p:
+  | { () }
+  | A p A { () }
+q:
+  | { () }
+  | X q X { () }
 """
 
 # Ambiguous: `a + a + a` groups two ways with nothing to choose between them.
@@ -706,11 +745,12 @@ class RefinementTests(ProverTestCase):
 
     def test_no_cap_is_reported_when_every_request_fits(self) -> None:
         # The guard against the line above appearing whenever refinement runs.
-        # This grammar's blind spot is bounded -- refinement walks it and the
-        # concretization search then finds the real sentence -- so a ceiling of
-        # eight covers every request and there is nothing to cut down.
+        # The palindrome's chain asks for a retained stack of four and widens
+        # by one per round after that, so a ceiling of eight covers every
+        # request it makes and there is nothing to cut down -- where the
+        # ceiling of two above cuts down the very first one.
         _, output = self.prove(
-            AMBIGUOUS_EXPRESSION, 1, extra=("--prove-refine", "8")
+            EVEN_PALINDROME, 1, extra=("--prove-refine", "8")
         )
         self.assertRegex(output, REFINEMENT_ROUND_LINE)
         self.assertNotRegex(output, REFINEMENT_CAPPED)
@@ -908,7 +948,7 @@ class RetirementTests(ProverTestCase):
         lookaheads = {
             match.group(1) for match in RETIRED_ANNOUNCEMENT.finditer(output)
         }
-        self.assertEqual(lookaheads, {"PLUS", "ELSE"}, output)
+        self.assertEqual(lookaheads, {"A", "X"}, output)
 
     def test_the_round_limit_bounds_retirements_too(self) -> None:
         # What the round limit is bounding is abstract phases, and a
@@ -1052,6 +1092,108 @@ class StackHeightTests(ProverTestCase):
                     status, output = self.prove(grammar, level)
                     self.assertNotRegex(output, PROVEN_LINE)
                     self.assertNotEqual(status, PROVEN, output)
+
+
+class CandidateParseTests(ProverTestCase):
+    """A candidate is parsed for real before anything is spent on it.
+
+    The abstract phase reasons about every sentence at once and approximates to
+    do it, so a candidate may be a real ambiguity or an artifact of the
+    approximation. One sentence is short enough to parse exactly, and the
+    engine already carries the recognizer, so the answer is available for the
+    asking -- and it decides both what the report says and whether another
+    refinement round is worth running.
+    """
+
+    def test_a_spurious_candidate_is_named_as_one(self) -> None:
+        # The palindrome's first candidate is a sentence the grammar does
+        # derive -- the abstraction simply cannot tell its one parse from a
+        # second. One derivation is as spurious as none, and saying so is the
+        # difference between a reader who knows the pair is an artifact and one
+        # who has to go and check.
+        _, output = self.prove(EVEN_PALINDROME, 1)
+        self.assertRegex(output, CANDIDATE_SINGLE_PARSE)
+        self.assertNotRegex(output, CANDIDATE_AMBIGUOUS)
+
+    def test_a_candidate_outside_the_language_is_named_as_one(self) -> None:
+        # Refinement walks the palindrome on to candidates of odd length, which
+        # the recognizer rejects outright: not an ambiguity, not even a
+        # sentence. That is the answer a round would otherwise be spent
+        # discovering.
+        _, output = self.prove(
+            EVEN_PALINDROME, 1, extra=("--prove-refine", "8")
+        )
+        self.assertRegex(output, CANDIDATE_REJECTED)
+        self.assertNotRegex(output, CANDIDATE_AMBIGUOUS)
+
+    def test_a_real_ambiguity_is_confirmed_not_suspected(self) -> None:
+        # The other direction. Two derivations of the candidate's own sentence
+        # settle the grammar, and the run says the recognizer found them rather
+        # than reporting a suspicion the bounded search then has to chase.
+        status, output = self.prove(AMBIGUOUS_EXPRESSION, 1)
+        self.assertEqual(status, AMBIGUOUS, output)
+        confirmed = CANDIDATE_AMBIGUOUS.search(output)
+        self.assertIsNotNone(confirmed, output)
+        self.assertEqual(confirmed.group(1), "2", output)
+        self.assertRegex(output, WITNESS_LINE)
+
+    def test_a_confirmed_ambiguity_is_not_refined(self) -> None:
+        # Refining a candidate the recognizer has confirmed is sharpening an
+        # abstraction that turned out to be right. There is nothing for a round
+        # to buy, and the rounds are the expensive part of a proof run: the
+        # grammar is already settled, so the run goes to the witness instead.
+        status, output = self.prove(
+            AMBIGUOUS_EXPRESSION, 1, extra=("--prove-refine", "8")
+        )
+        self.assertEqual(status, AMBIGUOUS, output)
+        self.assertNotRegex(output, REFINEMENT_ROUND_LINE)
+        self.assertRegex(output, WITNESS_LINE)
+
+    def test_the_decisive_step_is_reported(self) -> None:
+        # What aims a refinement round. The recognizer's stacks are compared
+        # against the abstraction's step by step, and the first step whose
+        # abstract stack no real stack carries is where the abstraction left
+        # the language -- the steps before it were tracking a parse that
+        # exists, the ones after are a walk no parse takes.
+        _, output = self.prove(
+            EVEN_PALINDROME, 1, extra=("--prove-refine", "8")
+        )
+        decisive = CANDIDATE_DECISIVE.search(output)
+        self.assertIsNotNone(decisive, output)
+        # A step is only named where the abstraction did leave the language, so
+        # the sentence it was found on is one the recognizer rejects, and the
+        # step is inside that sentence or at its end -- never past it.
+        self.assertRegex(output, CANDIDATE_REJECTED)
+        rounds = REFINEMENT_ROUND_LINE.findall(output)
+        self.assertTrue(rounds, output)
+        longest = max(len(match[1].split()) for match in rounds)
+        self.assertLessEqual(int(decisive.group(1)), longest, output)
+
+    def test_a_confirmed_ambiguity_outlives_the_search_bound(self) -> None:
+        # The dangling else's shortest witness is ten tokens, so a search
+        # bounded at eight cannot render it -- but the abstract phase has no
+        # token bound, and the recognizer has already parsed the candidate
+        # twice. Reporting "neither proven unambiguous nor shown ambiguous"
+        # there would be the run disclaiming a finding it is holding.
+        status, output = self.prove(DANGLING_ELSE, 1, max_tokens="8")
+        self.assertEqual(status, AMBIGUOUS, output)
+        beyond = AMBIGUOUS_BEYOND_BOUND.search(output)
+        self.assertIsNotNone(beyond, output)
+        self.assertEqual(beyond.group(3), "8", output)
+        self.assertNotRegex(output, NOT_PROVEN_LINE)
+        # The witness is named even though no family is rendered: a sentence
+        # the reader can feed back to `ambiguity check` is the whole of what
+        # the search would have added.
+        self.assertGreater(len(beyond.group(1).split()), 8, output)
+
+    def test_an_unambiguous_grammar_still_proves(self) -> None:
+        # The guard on all of the above: a check that runs on candidates must
+        # not disturb a run that never produces one.
+        for name, grammar in CONFLICT_FREE_GRAMMARS.items():
+            with self.subTest(grammar=name):
+                status, output = self.prove(grammar, 1)
+                self.assertEqual(status, PROVEN, output)
+                self.assertRegex(output, PROVEN_LINE)
 
 
 class ForwardTraceTests(ProverTestCase):
