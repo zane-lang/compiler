@@ -676,18 +676,23 @@ past any fixed lookahead, which is what the prover is for.
   behind it get longer. The pairs are a result about the grammar, not about the
   round that found them, so the table and the queue live across rounds.
 
-  What a deepening does put back into play is the pairs standing on it. A stack
-  is truncated to what the state on top is granted, so deepening a state
-  changes every stack that state appears in; those pairs are still true and
-  stay in the table — deleting them would strand the ancestry that the trail
-  and the site read — but the sharper pairs that replace them have never been
-  looked at, and are reached by asking the pair before them again. Each round
-  prints what that cost: `reopened 2631 of 36407 settled pair(s) from 507 entry
-  point(s)`. On this grammar a round reopens a few per cent of the table and
+  What a deepening does put back into play is the pairs standing on it, and
+  what that means depends on whether the walk has been through them. A stack is
+  truncated to what the state on top is granted, so deepening a state changes
+  every stack that state appears in. A **settled** pair — one the walk has
+  already taken its successors from — is still true, and stays: deleting it
+  would strand the ancestry that the trail and the site read. What is missing
+  is the sharper pair that would stand in its place, and that is reached by
+  asking the pair before it again. An **unsettled** pair — pushed but not yet
+  walked — is not a result at all, only a plan to look, and a stale plan is
+  the round's own work undone: left in the queue, the walk looks at the blunt
+  pair instead of the sharp one. Those are discarded, and their parents rebuild
+  them at the precision that now applies. Each round prints both: `reopened
+  2631 of 36407 settled pair(s) from 507 entry point(s), discarding 4551
+  queued`. On this grammar a round reopens a few per cent of the table and
   occasionally two thirds of it, where restarting reopened all of it every
   time. Measured against the same run without it — same flags, same five
-  minutes — the walk reaches six rounds and 42,433 pairs where restarting
-  reached three rounds and 12,357.
+  minutes — the walk reaches eight rounds where restarting reached three.
 
   Two things follow from sharing the walk. **A retirement empties it**: a pair
   is deduplicated on first arrival, so it keeps the ancestry it was first
