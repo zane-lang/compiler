@@ -665,6 +665,42 @@ past any fixed lookahead, which is what the prover is for.
   retained stack of 18; widened on the repeat, it closes at round 5 and the run
   moves on to sites behind it.
 
+  **Rounds share one walk.** A round used to re-prove the grammar from nothing
+  at the precision the last one left behind, which is what made the rounds get
+  dearer as they went: the twenty-second round of a ninety-minute run was
+  re-deriving the first round's pairs before it could reach anything new.
+  Nothing about the previous round's work goes stale, though. Deepening a
+  retained stack only sharpens the abstraction, and a sharper abstraction has
+  fewer behaviours than the one it refines — so a pair explored under the blunt
+  abstraction and found not to accept cannot start accepting once the stacks
+  behind it get longer. The pairs are a result about the grammar, not about the
+  round that found them, so the table and the queue live across rounds.
+
+  What a deepening does put back into play is the pairs standing on it. A stack
+  is truncated to what the state on top is granted, so deepening a state
+  changes every stack that state appears in; those pairs are still true and
+  stay in the table — deleting them would strand the ancestry that the trail
+  and the site read — but the sharper pairs that replace them have never been
+  looked at, and are reached by asking the pair before them again. Each round
+  prints what that cost: `reopened 2631 of 36407 settled pair(s) from 507 entry
+  point(s)`. On this grammar a round reopens a few per cent of the table and
+  occasionally two thirds of it, where restarting reopened all of it every
+  time. Measured against the same run without it — same flags, same five
+  minutes — the walk reaches six rounds and 42,433 pairs where restarting
+  reached three rounds and 12,357.
+
+  Two things follow from sharing the walk. **A retirement empties it**: a pair
+  is deduplicated on first arrival, so it keeps the ancestry it was first
+  reached by, and after a retirement that ancestry decides whether it is
+  stepped over — a pair first reached through the site just retired is written
+  off, and a site behind it goes with it. Restarting every round hid that;
+  carrying the table does not, and the palindrome loses its second site to it.
+  So retiring resets the walk, which costs the round it happens in and keeps
+  the rest. **And the queue is bucketed by depth** rather than a single FIFO,
+  so the walk still meets the shortest candidate first: a round otherwise
+  resumes with deep pairs left over beside shallow ones just reopened, and
+  would report whichever lay nearest to where it stopped.
+
   A round grants the depth at the state that asked for it and nowhere else.
   Nothing has to be bought behind it: a reduction chain keeps the entries its
   own pops leave behind, so depth survives a chain rather than being re-capped
