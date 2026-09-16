@@ -2000,7 +2000,10 @@ let invalidate_prove_state state deepened =
       let standing_on stack =
         List.exists (fun id -> Hashtbl.mem touched id) stack.suffix
       in
-      let settled = Hashtbl.length state.parents in
+      (* The table holds queued pairs beside settled ones, so the count of what
+         a round kept has to take them back out -- and the reopened count is
+         the stale pairs that stayed, not the ones discarded below. *)
+      let settled = Hashtbl.length state.parents - Hashtbl.length state.waiting in
       let stale = Hashtbl.create 1_009 in
       Hashtbl.iter
         (fun ((left, right, _) as node) _ ->
@@ -2040,14 +2043,28 @@ let invalidate_prove_state state deepened =
                 if not (Hashtbl.mem dropped node) then enqueue state node depth)
               bucket)
           buckets;
-        if state.cursor = max_int then state.cursor <- 0;
-        state.requeue <-
-          List.filter (fun node -> not (Hashtbl.mem dropped node)) state.requeue
+        if state.cursor = max_int then state.cursor <- 0
       end;
+      (* The pair the last round asked for again stays on the list even when
+         the deepening made it stale, and this is load-bearing. Asking a stale
+         settled pair again is how its children are rebuilt at the new
+         precision -- and where the deepening does not change that pair at all,
+         it is the only way, because the unchanged rebuild is dropped as
+         already seen and its own parent then has nothing new to push. Filter
+         it out and the candidate hanging off it disappears with it: the walk
+         drains, and the run prints a proof of a grammar it stopped looking at.
+         The palindrome does exactly that, which is what the fresh walk below a
+         proof is there to catch. Entries the table no longer has are another
+         matter, since nothing can be asked of a pair that is gone. *)
+      state.requeue <-
+        List.filter (fun node -> Hashtbl.mem state.parents node) state.requeue;
       (* A pair whose own parent is stale is left to that parent, so one sweep
          pushes the shallowest edge of the affected region rather than every
-         pair in it. *)
+         pair in it. Seeded with what the list already holds, so a pair asked
+         for twice is queued once -- twice would walk it twice and leave the
+         waiting set disagreeing with the buckets after the first dequeue. *)
       let queued = Hashtbl.create 1_009 in
+      List.iter (fun node -> Hashtbl.replace queued node ()) state.requeue;
       let ask parent =
         if
           (not (Hashtbl.mem stale parent))
@@ -2075,8 +2092,8 @@ let invalidate_prove_state state deepened =
       printf
         "  reopened %d of %d settled pair(s) from %d entry point(s), \
          discarding %d queued\n"
-        (Hashtbl.length stale) settled (Hashtbl.length queued)
-        (Hashtbl.length dropped)
+        (Hashtbl.length stale - Hashtbl.length dropped)
+        settled (Hashtbl.length queued) (Hashtbl.length dropped)
 
 let create_prove_state pair_limit =
   {
@@ -4255,6 +4272,48 @@ let main () =
             printf
               "Attempting to concretize with the bounded search...\n\n"
         | Proven pairs ->
+            (* A proof is the one verdict that cannot be allowed to be an
+               artifact of how the walk was carried. Every round after the
+               first inherits a table built at blunter precisions, and the
+               argument for keeping it -- that a pair found not to accept stays
+               that way as the stacks get longer -- is exactly the kind of
+               argument that a bookkeeping slip turns into a false theorem.
+               So a refined proof is re-proved from nothing at the precision it
+               ended on. The walk it doubts is the cheap one; this is paid once,
+               only where a proof was claimed, and it is the difference between
+               a theorem and a theorem about a table. *)
+            let confirmed =
+              if !rounds = 0 then true
+              else begin
+                printf
+                  "Re-proving from the initial pair at the precision this run \
+                   ended on, because a proof carried across rounds is worth \
+                   only what a fresh walk says it is...\n";
+                match
+                  prove engine
+                    (create_prove_state prove_limits.max_frontiers)
+                    precision prove_limits.max_frontiers deadline
+                    !survey_limit false retired
+                with
+                | Proven fresh ->
+                    printf
+                      "Confirmed: the fresh walk reaches the same verdict (%d \
+                       abstract pairs).\n"
+                      fresh;
+                    true
+                | _ -> false
+              end
+            in
+            if not confirmed then begin
+              printf
+                "NOT PROVEN: the shared walk reported a proof that a fresh \
+                 walk at the same precision does not reach, so the proof was \
+                 an artifact of what the rounds carried rather than a fact \
+                 about the grammar. This is a bug in the prover, not a \
+                 verdict about the grammar.\n";
+              report_refinement ~exhaustive:false ();
+              exit not_proven_status
+            end;
             printf
               "PROVEN UNAMBIGUOUS: no diverging pair of accepting parses \
                exists in the top-%d stack abstraction (%d abstract pairs \

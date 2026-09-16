@@ -144,6 +144,13 @@ CANDIDATE_DECISIVE = re.compile(
 # What a round costs now that rounds share one walk: the pairs a deepening put
 # back into play, out of the ones already settled, and how many pairs they are
 # reached from.
+# A proof reached after refinement is re-proved from the initial pair at the
+# precision the run ended on, because every round after the first inherits a
+# table built at blunter precisions.
+REPROVING_LINE = re.compile(
+    r"^Re-proving from the initial pair at the precision this run ended on, ",
+    re.MULTILINE,
+)
 REOPENED_LINE = re.compile(
     r"^  reopened (\d+) of (\d+) settled pair\(s\) from (\d+) entry point\(s\), "
     r"discarding (\d+) queued$",
@@ -823,6 +830,27 @@ class RefinementTests(ProverTestCase):
             self.assertLess(int(reopened), int(settled), output)
         # The walk keeps growing across rounds rather than starting again.
         self.assertGreater(int(rounds[-1][1]), int(rounds[0][1]), output)
+        # And the stale queued pairs go. Without this the test passes on a run
+        # that leaves them in the buckets, which is the failure the count was
+        # added to make visible: the round then walks the blunt pair it set out
+        # to replace. This grammar discards on some rounds and not others, so
+        # what is pinned is that discarding happens at all.
+        self.assertTrue(
+            any(int(discarded) > 0 for _, _, _, discarded in rounds), output
+        )
+
+    def test_a_proof_without_rounds_is_not_reproved(self) -> None:
+        # The fresh walk under a proof exists because rounds carry a table
+        # built at blunter precisions. A run that never refined carries
+        # nothing, so re-proving it would be paying twice for one walk.
+        for name, grammar in CONFLICT_FREE_GRAMMARS.items():
+            with self.subTest(grammar=name):
+                status, output = self.prove(
+                    grammar, 1, extra=("--prove-refine", "8")
+                )
+                self.assertEqual(status, PROVEN, output)
+                self.assertNotRegex(output, REFINEMENT_ROUND_LINE)
+                self.assertNotRegex(output, REPROVING_LINE)
 
     def test_the_round_limit_is_honoured(self) -> None:
         # The loop reruns a whole proof per round, so an unbounded blind spot

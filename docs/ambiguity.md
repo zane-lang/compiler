@@ -688,10 +688,12 @@ past any fixed lookahead, which is what the prover is for.
   the round's own work undone: left in the queue, the walk looks at the blunt
   pair instead of the sharp one. Those are discarded, and their parents rebuild
   them at the precision that now applies. Each round prints both: `reopened
-  2631 of 36407 settled pair(s) from 507 entry point(s), discarding 4551
-  queued`. On this grammar a round reopens a few per cent of the table and
-  occasionally two thirds of it, where restarting reopened all of it every
-  time. Measured against the same run without it — same flags, same five
+  355 of 4955 settled pair(s) from 399 entry point(s), discarding 4674 queued`.
+  The two counts are of different things and usually of different sizes: at any
+  moment most of the table is queued rather than settled, so a round on this
+  grammar reopens between a twentieth and a third of what it had settled while
+  discarding several times that many plans to look, where restarting threw away
+  both entirely every time. Measured against the same run without it — same flags, same five
   minutes — the walk reaches eight rounds where restarting reached three.
 
   Two things follow from sharing the walk. **A retirement empties it**: a pair
