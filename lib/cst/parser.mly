@@ -903,23 +903,33 @@ map_lit:
         : Nodes.Constructor_field.t)
     }
   (* The field's type is not written: it is the constructor being called, read
-     as a type. So the type node takes the constructor name's span, which is the
-     only thing in the source it stands for. *)
+     as a type. It stands for the *type* part of that name and not the whole of
+     it -- `x Span.point(0)` declares a field of type `Span`, so the type node
+     takes the span of `Span` rather than of `Span.point`, which is wider than
+     anything it represents.
+
+     The default is the call, so it runs from the constructor name through the
+     arguments. The production's own span would start at the field binder,
+     which is not part of the call. *)
   | name=lname constructor=constructor_name args=constructor_args {
-      let name_span = constructor.Nodes.Constructor_name.span in
+      let type_span =
+        constructor.Nodes.Constructor_name.type_.Nodes.Name_type.span
+      in
       let type_ =
         ({
           Nodes.Type_expr.node =
             Nodes.Type_expr.Path
               { name = constructor.Nodes.Constructor_name.type_; generics = [] };
-          span = name_span;
+          span = type_span;
         } : Nodes.Type_expr.t)
       in
-      let default = constructor_expr $loc constructor args in
+      let default =
+        constructor_expr ($startpos(constructor), $endpos(args)) constructor args
+      in
       ({
         Nodes.Constructor_field.name;
         type_ =
-          { Nodes.Param_type.node = Nodes.Param_type.Concrete type_; span = name_span };
+          { Nodes.Param_type.node = Nodes.Param_type.Concrete type_; span = type_span };
         default = Some default;
         span = Span.of_loc $loc;
       } : Nodes.Constructor_field.t)
@@ -1059,7 +1069,13 @@ body_decl(body_form):
                 is_implicit = false;
               })))
     }
-  | IMPLICIT type_=named_type_expr "(" param=param ")" body=body_form {
+  (* The parameter list is `( param )`, brackets included, so its node spans
+     them: the sole parameter's own span would leave the parentheses out of the
+     thing that is precisely a parenthesized list. *)
+  | IMPLICIT type_=named_type_expr open_=LPAREN param=param close=RPAREN
+    body=body_form {
+      ignore open_;
+      ignore close;
       decl $loc
         (Nodes.Decl.Verb
            (verb_decl $loc
@@ -1067,7 +1083,8 @@ body_decl(body_form):
                 type_;
                 member = None;
                 params =
-                  constructor_params $loc(param)
+                  constructor_params
+                    ($startpos(open_), $endpos(close))
                     (Nodes.Constructor_params.Positional [param]);
                 body;
                 is_implicit = true;
@@ -1116,13 +1133,19 @@ simple_decl:
      may not be empty, or `name Foo() { ... }` would read both as this and as
      the lambda-variable shorthand two rules down. *)
   | name=lname constructor=constructor_name
-    "(" args=separated_nonempty_list(",", call_arg) ")" tail=trailing_arg {
+    open_=LPAREN args=separated_nonempty_list(",", call_arg) RPAREN
+    tail=trailing_arg {
+      ignore open_;
       decl $loc
         (Nodes.Decl.VarShorthand {
           name;
           constructor;
+          (* The arguments run from the `(` through the trailing argument. The
+             production's own span would start at the binder and the
+             constructor name, neither of which is an argument. *)
           args =
-            constructor_args $loc
+            constructor_args
+              ($startpos(open_), $endpos(tail))
               (Nodes.Constructor_args.Positional (args @ tail));
           trailing = true;
         })
@@ -1344,9 +1367,14 @@ block_call:
      reading, which is why `do() { ... }` is unambiguous and `Foo() { ... }`
      is not. A constructor call whose only argument is a block writes it
      inside the list. See docs/spec-divergences.md. *)
-  | name=constructor_name "(" args=separated_nonempty_list(",", call_arg) ")"
+  | name=constructor_name
+    open_=LPAREN args=separated_nonempty_list(",", call_arg) RPAREN
     tail=trailing_arg {
+      ignore open_;
       let span = Span.of_loc $loc in
+      (* As above: the call spans the whole production, its arguments only the
+         `( )` list and the trailing argument -- not the callee. *)
+      let args_span = ($startpos(open_), $endpos(tail)) in
       fun abort_handle ->
         ({
           Nodes.Verb_call.span;
@@ -1354,7 +1382,7 @@ block_call:
             Nodes.Verb_call.Constructor {
               name;
               args =
-                constructor_args $loc
+                constructor_args args_span
                   (Nodes.Constructor_args.Positional (args @ tail));
               abort_handle;
               trailing = true;
