@@ -1,6 +1,81 @@
 %{
-let attach_abort_handle expr abort_handle =
-  let attach = function
+(* Node constructors, one per spanned module.
+
+   Every action builds its node from a variant and the production's own [$loc],
+   so each is written [expr $loc (Nodes.Expr.IntLit i)] rather than spelling the
+   record out. They exist because the span is not optional: a node built without
+   one does not typecheck, which is what keeps a production from quietly
+   dropping the position it was reduced from. *)
+let expr loc node = ({ Nodes.Expr.node; span = Span.of_loc loc } : Nodes.Expr.t)
+
+let abort_handle_node loc node =
+  ({ Nodes.Abort_handle.node; span = Span.of_loc loc } : Nodes.Abort_handle.t)
+
+let call_arg loc node =
+  ({ Nodes.Call_arg.node; span = Span.of_loc loc } : Nodes.Call_arg.t)
+
+let constructor_args loc node =
+  ({ Nodes.Constructor_args.node; span = Span.of_loc loc }
+    : Nodes.Constructor_args.t)
+
+let verb_call loc node =
+  ({ Nodes.Verb_call.node; span = Span.of_loc loc } : Nodes.Verb_call.t)
+
+let mould loc node = ({ Nodes.Mould.node; span = Span.of_loc loc } : Nodes.Mould.t)
+
+let generic_arg loc node =
+  ({ Nodes.Generic_arg.node; span = Span.of_loc loc } : Nodes.Generic_arg.t)
+
+let verb_type loc node =
+  ({ Nodes.Verb_type.node; span = Span.of_loc loc } : Nodes.Verb_type.t)
+
+let type_expr loc node =
+  ({ Nodes.Type_expr.node; span = Span.of_loc loc } : Nodes.Type_expr.t)
+
+let param_type loc node =
+  ({ Nodes.Param_type.node; span = Span.of_loc loc } : Nodes.Param_type.t)
+
+let constructor_params loc node =
+  ({ Nodes.Constructor_params.node; span = Span.of_loc loc }
+    : Nodes.Constructor_params.t)
+
+let stat loc node = ({ Nodes.Stat.node; span = Span.of_loc loc } : Nodes.Stat.t)
+
+let body loc node = ({ Nodes.Body.node; span = Span.of_loc loc } : Nodes.Body.t)
+
+let ret_type loc node =
+  ({ Nodes.Ret_type.node; span = Span.of_loc loc } : Nodes.Ret_type.t)
+
+let type_or_moulded loc node =
+  ({ Nodes.Type_or_moulded.node; span = Span.of_loc loc }
+    : Nodes.Type_or_moulded.t)
+
+let verb_decl loc node =
+  ({ Nodes.Verb_decl.node; span = Span.of_loc loc } : Nodes.Verb_decl.t)
+
+let decl loc node = ({ Nodes.Decl.node; span = Span.of_loc loc } : Nodes.Decl.t)
+
+let operator loc node =
+  ({ Nodes.Operator.node; span = Span.of_loc loc } : Nodes.Operator.t)
+
+let concept loc node =
+  ({ Nodes.Concept.node; span = Span.of_loc loc } : Nodes.Concept.t)
+
+let name_type loc node =
+  ({ Nodes.Name_type.node; span = Span.of_loc loc } : Nodes.Name_type.t)
+
+let name_expr loc node =
+  ({ Nodes.Name_expr.node; span = Span.of_loc loc } : Nodes.Name_expr.t)
+
+let import loc node =
+  ({ Nodes.Import.node; span = Span.of_loc loc } : Nodes.Import.t)
+
+let type_axis loc node =
+  ({ Nodes.Type_axis.node; span = Span.of_loc loc } : Nodes.Type_axis.t)
+
+let attach_abort_handle abort_handle span value =
+  let attach (call : Nodes.Verb_call.t) =
+    match call.Nodes.Verb_call.node with
     (* A trailing argument ends its statement, so nothing may continue the call
        past that `}` -- a handler included. The same call written with the
        argument inside the parentheses takes one. *)
@@ -12,60 +87,91 @@ let attach_abort_handle expr abort_handle =
              "a trailing argument ends the statement, so an abort handler \
               cannot follow it; write the argument inside the argument list")
     | Nodes.Verb_call.Func { callee; args; abort_handle = None; trailing } ->
-        Nodes.Verb_call.Func {
-          callee;
-          args;
-          abort_handle = Some abort_handle;
-          trailing;
-        }
+        { call with
+          Nodes.Verb_call.node =
+            Nodes.Verb_call.Func {
+              callee;
+              args;
+              abort_handle = Some abort_handle;
+              trailing;
+            } }
     | Nodes.Verb_call.Meth { callee; this; args; abort_handle = None; is_mut; trailing } ->
-        Nodes.Verb_call.Meth {
-          callee;
-          this;
-          args;
-          abort_handle = Some abort_handle;
-          is_mut;
-          trailing;
-        }
+        { call with
+          Nodes.Verb_call.node =
+            Nodes.Verb_call.Meth {
+              callee;
+              this;
+              args;
+              abort_handle = Some abort_handle;
+              is_mut;
+              trailing;
+            } }
     | Nodes.Verb_call.Constructor { name; args; abort_handle = None; trailing } ->
-        Nodes.Verb_call.Constructor {
-          name;
-          args;
-          abort_handle = Some abort_handle;
-          trailing;
-        }
+        { call with
+          Nodes.Verb_call.node =
+            Nodes.Verb_call.Constructor {
+              name;
+              args;
+              abort_handle = Some abort_handle;
+              trailing;
+            } }
     | Nodes.Verb_call.Op { op; left; right; abort_handle = None } ->
-        Nodes.Verb_call.Op {
-          op;
-          left;
-          right;
-          abort_handle = Some abort_handle;
-        }
+        { call with
+          Nodes.Verb_call.node =
+            Nodes.Verb_call.Op {
+              op;
+              left;
+              right;
+              abort_handle = Some abort_handle;
+            } }
     | Nodes.Verb_call.Flip { value; abort_handle = None } ->
-        Nodes.Verb_call.Flip { value; abort_handle = Some abort_handle }
+        { call with
+          Nodes.Verb_call.node =
+            Nodes.Verb_call.Flip { value; abort_handle = Some abort_handle } }
     | _ ->
         raise
           (Parse_error.Rejected "an operation can only have one abort handler")
   in
-  let rec loop = function
-    | Nodes.Expr.VerbCall call -> Nodes.Expr.VerbCall (attach call)
-    | Nodes.Expr.Spawn call -> Nodes.Expr.Spawn (attach call)
+  (* The handler is written to the right of the operation it handles, so the
+     node it attaches to now ends later than it did when it was built. Each
+     rebuilt node therefore takes the span the caller passes, which is the
+     `expr abort_handle` production's own -- the operation through the handler.
+     What is not rebuilt keeps the span it had. *)
+  let rec loop span (value : Nodes.Expr.t) =
+    match value.Nodes.Expr.node with
+    | Nodes.Expr.VerbCall call ->
+        { Nodes.Expr.node = Nodes.Expr.VerbCall (attach call); span }
+    | Nodes.Expr.Spawn call ->
+        { Nodes.Expr.node = Nodes.Expr.Spawn (attach call); span }
     | Nodes.Expr.Match ({ abort_handle = None; _ } as match_) ->
-        Nodes.Expr.Match { match_ with abort_handle = Some abort_handle }
-    | Nodes.Expr.Pipe ({ abort_handle = None; _ } as pipe) ->
-        Nodes.Expr.Pipe { pipe with abort_handle = Some abort_handle }
-    | Nodes.Expr.Parenthized value -> Nodes.Expr.Parenthized (loop value)
+        {
+          Nodes.Expr.node =
+            Nodes.Expr.Match
+              { match_ with Nodes.Match_expr.abort_handle = Some abort_handle; span };
+          span;
+        }
+    | Nodes.Expr.Pipe { callee; value = piped; abort_handle = None } ->
+        {
+          Nodes.Expr.node =
+            Nodes.Expr.Pipe
+              { callee; value = piped; abort_handle = Some abort_handle };
+          span;
+        }
+    | Nodes.Expr.Parenthized inner ->
+        { Nodes.Expr.node = Nodes.Expr.Parenthized (loop span inner); span }
     | _ ->
         raise
           (Parse_error.Rejected
              "an abort handler must follow an abortable operation")
   in
-  loop expr
+  loop span value
 
-let constructor_expr name args =
-  Nodes.Expr.VerbCall
-    (Nodes.Verb_call.Constructor
-       { name; args; abort_handle = None; trailing = false })
+let constructor_expr loc name args =
+  expr loc
+    (Nodes.Expr.VerbCall
+       (verb_call loc
+          (Nodes.Verb_call.Constructor
+             { name; args; abort_handle = None; trailing = false })))
 
 (* Does this statement's last token close a brace?
 
@@ -82,8 +188,8 @@ let constructor_expr name args =
    because its right operand does -- which means two copies of the expression
    grammar and two of every operator production. One function over the tree
    says the same thing once. *)
-let rec expr_ends_in_brace (expr : Nodes.Expr.t) =
-  match expr with
+let rec expr_ends_in_brace (value : Nodes.Expr.t) =
+  match value.Nodes.Expr.node with
   | Nodes.Expr.Init _ | Nodes.Expr.MapLit _ -> true
   | Nodes.Expr.Match { abort_handle = Some handle; _ } ->
       abort_handle_ends_in_brace handle
@@ -106,7 +212,7 @@ let rec expr_ends_in_brace (expr : Nodes.Expr.t) =
       false
 
 and verb_call_ends_in_brace (call : Nodes.Verb_call.t) =
-  match call with
+  match call.Nodes.Verb_call.node with
   | Nodes.Verb_call.Func { abort_handle = Some handle; _ }
   | Nodes.Verb_call.Meth { abort_handle = Some handle; _ }
   | Nodes.Verb_call.Constructor { abort_handle = Some handle; _ }
@@ -118,19 +224,20 @@ and verb_call_ends_in_brace (call : Nodes.Verb_call.t) =
       trailing
   (* A field constructor call closes on the `}` of its own field body, which is
      why that form never trails: it has no `)` to elide. *)
-  | Nodes.Verb_call.Constructor { args = Nodes.Constructor_args.Fields _; _ } ->
+  | Nodes.Verb_call.Constructor
+      { args = { Nodes.Constructor_args.node = Nodes.Constructor_args.Fields _; _ }; _ } ->
       true
   | Nodes.Verb_call.Constructor { trailing; _ } -> trailing
   | Nodes.Verb_call.Op { right; _ } -> expr_ends_in_brace right
   | Nodes.Verb_call.Flip { value; _ } -> expr_ends_in_brace value
 
 and abort_handle_ends_in_brace (handle : Nodes.Abort_handle.t) =
-  match handle with
+  match handle.Nodes.Abort_handle.node with
   | Nodes.Abort_handle.Shorthand value -> expr_ends_in_brace value
   | Nodes.Abort_handle.Longhand { body; _ } -> body_ends_in_brace body
 
-and body_ends_in_brace (body : Nodes.Body.t) =
-  match body with
+and body_ends_in_brace (value : Nodes.Body.t) =
+  match value.Nodes.Body.node with
   | Nodes.Body.Longhand _ -> true
   | Nodes.Body.Shorthand value -> expr_ends_in_brace value
 
@@ -139,31 +246,38 @@ and body_ends_in_brace (body : Nodes.Body.t) =
    so the shape has to be read rather than assumed from the value being
    moulded at all. *)
 let moulded_ends_in_brace (moulded : Nodes.Moulded.t) =
-  match moulded.Nodes.Moulded.mould with
+  match moulded.Nodes.Moulded.mould.Nodes.Mould.node with
   | Nodes.Mould.Struct _ | Nodes.Mould.Variant _ -> true
   | Nodes.Mould.Enum _ -> false
 
-let decl_ends_in_brace (decl : Nodes.Decl.t) =
-  match decl with
+let verb_decl_ends_in_brace (value : Nodes.Verb_decl.t) =
+  match value.Nodes.Verb_decl.node with
+  | Nodes.Verb_decl.Subscript { value; _ } -> expr_ends_in_brace value
+  | Nodes.Verb_decl.Func { body; _ }
+  | Nodes.Verb_decl.Meth { body; _ }
+  | Nodes.Verb_decl.Op { body; _ }
+  | Nodes.Verb_decl.Constructor { body; _ }
+  | Nodes.Verb_decl.Flip { body; _ } ->
+      body_ends_in_brace body
+
+let decl_ends_in_brace (value : Nodes.Decl.t) =
+  match value.Nodes.Decl.node with
   | Nodes.Decl.Package _ | Nodes.Decl.Import _ -> false
   | Nodes.Decl.Var { value; _ } -> expr_ends_in_brace value
-  | Nodes.Decl.VarShorthand { args = Nodes.Constructor_args.Fields _; _ } -> true
+  | Nodes.Decl.VarShorthand
+      { args = { Nodes.Constructor_args.node = Nodes.Constructor_args.Fields _; _ }; _ } ->
+      true
   | Nodes.Decl.VarShorthand { trailing; _ } -> trailing
-  | Nodes.Decl.Type { value = Nodes.Type_or_moulded.Moulded moulded; _ }
-  | Nodes.Decl.Alias { value = Nodes.Type_or_moulded.Moulded moulded; _ } ->
+  | Nodes.Decl.Type
+      { value = { Nodes.Type_or_moulded.node = Nodes.Type_or_moulded.Moulded moulded; _ }; _ }
+  | Nodes.Decl.Alias
+      { value = { Nodes.Type_or_moulded.node = Nodes.Type_or_moulded.Moulded moulded; _ }; _ } ->
       moulded_ends_in_brace moulded
   (* Cast from a bare type expression, which closes on a name, `]`, `>` or `)`. *)
   | Nodes.Decl.Type _ | Nodes.Decl.Alias _ -> false
   (* Its entries are a `{ }` body. *)
   | Nodes.Decl.EnumMap _ -> true
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Subscript { value; _ }) ->
-      expr_ends_in_brace value
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Func { body; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Meth { body; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Op { body; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Constructor { body; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Flip { body; _ }) ->
-      body_ends_in_brace body
+  | Nodes.Decl.Verb verb -> verb_decl_ends_in_brace verb
 
 (* An `as` alias renames one member, and casing is what says whether a name is
    a type or a value, so a rename across the two classes would change what the
@@ -182,16 +296,19 @@ let import_alias (member : Nodes.Import_member.t)
 
 (* Does this expression end with a call that closed itself with a trailing
    argument? That `}` ends the statement too, so nothing may follow it. *)
-let rec ends_in_trailing_call (expr : Nodes.Expr.t) =
-  match expr with
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Func { abort_handle = None; trailing; _ })
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Meth { abort_handle = None; trailing; _ })
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Constructor { abort_handle = None; trailing; _ }) ->
-      trailing
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Op { right; abort_handle = None; _ }) ->
-      ends_in_trailing_call right
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle = None }) ->
-      ends_in_trailing_call value
+let rec ends_in_trailing_call (value : Nodes.Expr.t) =
+  match value.Nodes.Expr.node with
+  | Nodes.Expr.VerbCall { Nodes.Verb_call.node = call; _ } -> (
+      match call with
+      | Nodes.Verb_call.Func { abort_handle = None; trailing; _ }
+      | Nodes.Verb_call.Meth { abort_handle = None; trailing; _ }
+      | Nodes.Verb_call.Constructor { abort_handle = None; trailing; _ } ->
+          trailing
+      | Nodes.Verb_call.Op { right; abort_handle = None; _ } ->
+          ends_in_trailing_call right
+      | Nodes.Verb_call.Flip { value; abort_handle = None } ->
+          ends_in_trailing_call value
+      | _ -> false)
   | Nodes.Expr.Pipe { value; abort_handle = None; _ } ->
       ends_in_trailing_call value
   | Nodes.Expr.Ref value -> ends_in_trailing_call value
@@ -214,33 +331,15 @@ let rec ends_in_trailing_call (expr : Nodes.Expr.t) =
 
    What is not searched is a nested statement -- a `{ }` body or block
    argument. Those carry their own marks, put there when they were built. *)
-let rec continues_past_trailing (expr : Nodes.Expr.t) =
-  match expr with
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Op { left; right; abort_handle }) ->
-      ends_in_trailing_call left || continues_past_trailing left
-      || continues_past_trailing right
-      || handler_continues_past_trailing abort_handle
+let rec continues_past_trailing (value : Nodes.Expr.t) =
+  match value.Nodes.Expr.node with
+  | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call ->
+      verb_call_continues_past_trailing call
   | Nodes.Expr.Pipe { callee; value; abort_handle } ->
       ends_in_trailing_call callee || continues_past_trailing callee
       || continues_past_trailing value
       || handler_continues_past_trailing abort_handle
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Flip { value; abort_handle }) ->
-      continues_past_trailing value
-      || handler_continues_past_trailing abort_handle
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Func { callee; args; abort_handle; _ }) ->
-      continues_past_trailing callee
-      || List.exists arg_continues_past_trailing args
-      || handler_continues_past_trailing abort_handle
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Meth { callee; this; args; abort_handle; _ }) ->
-      continues_past_trailing callee || continues_past_trailing this
-      || List.exists arg_continues_past_trailing args
-      || handler_continues_past_trailing abort_handle
-  | Nodes.Expr.VerbCall (Nodes.Verb_call.Constructor { args; abort_handle; _ }) ->
-      constructor_args_continue_past_trailing args
-      || handler_continues_past_trailing abort_handle
-  | Nodes.Expr.Spawn call ->
-      continues_past_trailing (Nodes.Expr.VerbCall call)
-  | Nodes.Expr.Match { scrutinees; arms; abort_handle } ->
+  | Nodes.Expr.Match { scrutinees; arms; abort_handle; _ } ->
       List.exists continues_past_trailing scrutinees
       || List.exists
            (fun (arm : Nodes.Match_arm.t) ->
@@ -268,14 +367,35 @@ let rec continues_past_trailing (expr : Nodes.Expr.t) =
   | Nodes.Expr.TypeValue _ ->
       false
 
+and verb_call_continues_past_trailing (call : Nodes.Verb_call.t) =
+  match call.Nodes.Verb_call.node with
+  | Nodes.Verb_call.Op { left; right; abort_handle; _ } ->
+      ends_in_trailing_call left || continues_past_trailing left
+      || continues_past_trailing right
+      || handler_continues_past_trailing abort_handle
+  | Nodes.Verb_call.Flip { value; abort_handle } ->
+      continues_past_trailing value
+      || handler_continues_past_trailing abort_handle
+  | Nodes.Verb_call.Func { callee; args; abort_handle; _ } ->
+      continues_past_trailing callee
+      || List.exists arg_continues_past_trailing args
+      || handler_continues_past_trailing abort_handle
+  | Nodes.Verb_call.Meth { callee; this; args; abort_handle; _ } ->
+      continues_past_trailing callee || continues_past_trailing this
+      || List.exists arg_continues_past_trailing args
+      || handler_continues_past_trailing abort_handle
+  | Nodes.Verb_call.Constructor { args; abort_handle; _ } ->
+      constructor_args_continue_past_trailing args
+      || handler_continues_past_trailing abort_handle
+
 and arg_continues_past_trailing (arg : Nodes.Call_arg.t) =
-  match arg with
+  match arg.Nodes.Call_arg.node with
   | Nodes.Call_arg.Value value -> continues_past_trailing value
   (* A block argument holds statements, which carry their own marks. *)
   | Nodes.Call_arg.Block _ -> false
 
 and constructor_args_continue_past_trailing (args : Nodes.Constructor_args.t) =
-  match args with
+  match args.Nodes.Constructor_args.node with
   | Nodes.Constructor_args.Positional args ->
       List.exists arg_continues_past_trailing args
   | Nodes.Constructor_args.Fields fields ->
@@ -290,7 +410,7 @@ and field_args_continue_past_trailing (fields : Nodes.Field_arg.t list) =
     fields
 
 and constructor_params_continue_past_trailing (params : Nodes.Constructor_params.t) =
-  match params with
+  match params.Nodes.Constructor_params.node with
   | Nodes.Constructor_params.Positional _ -> false
   | Nodes.Constructor_params.Fields fields ->
       List.exists
@@ -303,35 +423,39 @@ and constructor_params_continue_past_trailing (params : Nodes.Constructor_params
 and handler_continues_past_trailing (handle : Nodes.Abort_handle.t option) =
   match handle with
   | None -> false
-  | Some (Nodes.Abort_handle.Shorthand value) -> continues_past_trailing value
-  | Some (Nodes.Abort_handle.Longhand { body; _ }) ->
+  | Some { Nodes.Abort_handle.node = Nodes.Abort_handle.Shorthand value; _ } ->
+      continues_past_trailing value
+  | Some { Nodes.Abort_handle.node = Nodes.Abort_handle.Longhand { body; _ }; _ } ->
       body_continues_past_trailing body
 
 (* A `{ }` body is a run of statements, each already marked when it was built;
    only a `=> expr` body is part of this statement's own expression. *)
-and body_continues_past_trailing (body : Nodes.Body.t) =
-  match body with
+and body_continues_past_trailing (value : Nodes.Body.t) =
+  match value.Nodes.Body.node with
   | Nodes.Body.Longhand _ -> false
   | Nodes.Body.Shorthand value -> continues_past_trailing value
 
+let verb_decl_continues_past_trailing (value : Nodes.Verb_decl.t) =
+  match value.Nodes.Verb_decl.node with
+  | Nodes.Verb_decl.Subscript { value; _ } -> continues_past_trailing value
+  | Nodes.Verb_decl.Constructor { params; body; _ } ->
+      constructor_params_continue_past_trailing params
+      || body_continues_past_trailing body
+  | Nodes.Verb_decl.Func { body; _ }
+  | Nodes.Verb_decl.Meth { body; _ }
+  | Nodes.Verb_decl.Op { body; _ }
+  | Nodes.Verb_decl.Flip { body; _ } ->
+      body_continues_past_trailing body
+
 (* A declaration's own expression, for the same question. *)
-let decl_continues_past_trailing (decl : Nodes.Decl.t) =
-  match decl with
+let decl_continues_past_trailing (value : Nodes.Decl.t) =
+  match value.Nodes.Decl.node with
   | Nodes.Decl.Var { value; _ } -> continues_past_trailing value
   | Nodes.Decl.VarShorthand { args; _ } ->
       constructor_args_continue_past_trailing args
   | Nodes.Decl.EnumMap { entries; _ } ->
       List.exists (fun (_, value) -> continues_past_trailing value) entries
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Subscript { value; _ }) ->
-      continues_past_trailing value
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Constructor { params; body; _ }) ->
-      constructor_params_continue_past_trailing params
-      || body_continues_past_trailing body
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Func { body; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Meth { body; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Op { body; _ })
-  | Nodes.Decl.Verb (Nodes.Verb_decl.Flip { body; _ }) ->
-      body_continues_past_trailing body
+  | Nodes.Decl.Verb verb -> verb_decl_continues_past_trailing verb
   | Nodes.Decl.Package _ | Nodes.Decl.Import _ | Nodes.Decl.Type _
   | Nodes.Decl.Alias _ ->
       false
@@ -348,7 +472,7 @@ let decl_continues_past_trailing (decl : Nodes.Decl.t) =
    it is live on perfectly good input -- raising there would end the parse
    rather than the branch. [Statement_check] reads the mark off the tree that
    actually survived. *)
-let statement ~ends_in_brace ~terminated ~ends_at ~continued stat =
+let statement ~ends_in_brace ~terminated ~ends_at ~continued ~loc node =
   let defect =
     if continued then
       Some (Nodes.Statement_defect.Continued_trailing_argument, ends_at)
@@ -357,13 +481,15 @@ let statement ~ends_in_brace ~terminated ~ends_at ~continued stat =
       Some (Nodes.Statement_defect.Stray_semicolon, ends_at)
     else Some (Nodes.Statement_defect.Missing_semicolon, ends_at)
   in
-  ({ Nodes.Statement.stat; defect } : Nodes.Statement.t)
+  let span = Span.of_loc loc in
+  ({ Nodes.Statement.stat = { Nodes.Stat.node; span }; defect; span }
+    : Nodes.Statement.t)
 
 (* A statement whose tail is an expression. *)
-let expr_statement ~terminated ~ends_at build value =
+let expr_statement ~terminated ~ends_at ~loc build value =
   statement
     ~ends_in_brace:(expr_ends_in_brace value)
-    ~terminated ~ends_at
+    ~terminated ~ends_at ~loc
     ~continued:(continues_past_trailing value)
     (build value)
 
@@ -372,19 +498,23 @@ let expr_statement ~terminated ~ends_at build value =
    be written inside such a statement -- in an argument of the call that closed
    it, or in a constructor field's default -- and the rule does not bend for
    where the enclosing statement happens to end. *)
-let braced_statement ~ends_at ~continued stat =
+let braced_statement ~ends_at ~continued ~loc node =
   let defect =
     if continued then
       Some (Nodes.Statement_defect.Continued_trailing_argument, ends_at)
     else None
   in
-  ({ Nodes.Statement.stat; defect } : Nodes.Statement.t)
+  let span = Span.of_loc loc in
+  ({ Nodes.Statement.stat = { Nodes.Stat.node; span }; defect; span }
+    : Nodes.Statement.t)
 
 (* Terminated by a `;` the grammar itself requires, so there was never a
    terminator to get wrong here either -- the parse fails without it rather
    than the tree carrying a defect to [Statement_check]. *)
-let terminated_statement stat =
-  ({ Nodes.Statement.stat; defect = None } : Nodes.Statement.t)
+let terminated_statement ~loc node =
+  let span = Span.of_loc loc in
+  ({ Nodes.Statement.stat = { Nodes.Stat.node; span }; defect = None; span }
+    : Nodes.Statement.t)
 %}
 
 (*****************************)
@@ -503,7 +633,9 @@ let terminated_statement stat =
    it ends in a `}`; see [stat]. That is the one place the two levels differ in
    how a declaration is spelled. *)
 package:
-  | decls=list(top_decl) EOF { { Nodes.Package.decls = decls } }
+  | decls=list(top_decl) EOF {
+      ({ Nodes.Package.decls; span = Span.of_loc $loc } : Nodes.Package.t)
+    }
 
 top_decl:
   | value=block_decl { value }
@@ -512,36 +644,44 @@ top_decl:
 
 %inline func_lambda(body_form):
   | ret_type=ret_type "(" params=separated_list(COMMA, param) ")" body=body_form {
-      { Nodes.Func_lambda.params; ret_type; body }
+      ({ Nodes.Func_lambda.params; ret_type; body; span = Span.of_loc $loc }
+        : Nodes.Func_lambda.t)
     }
 
 %inline meth_lambda(body_form):
   | ret_type=ret_type "(" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param)))
     ")" is_mut=boption(MUT) body=body_form {
-      { Nodes.Meth_lambda.this_type; params; ret_type; is_mut; body }
+      ({
+        Nodes.Meth_lambda.this_type;
+        params;
+        ret_type;
+        is_mut;
+        body;
+        span = Span.of_loc $loc;
+      } : Nodes.Meth_lambda.t)
     }
 
 %inline concept:
   | "Type" {
-      Nodes.Concept.Type
+      concept $loc Nodes.Concept.Type
     }
   | "Number" {
-      Nodes.Concept.Number
+      concept $loc Nodes.Concept.Number
     }
 
 %inline generic_arg:
   | type_expr=type_expr {
-      Nodes.Generic_arg.Type type_expr
+      generic_arg $loc (Nodes.Generic_arg.Type type_expr)
     }
   | number=INT {
-      Nodes.Generic_arg.Number number
+      generic_arg $loc (Nodes.Generic_arg.Number number)
     }
   | name=LIDENT {
-      Nodes.Generic_arg.NumberRef name
+      generic_arg $loc (Nodes.Generic_arg.NumberRef name)
     }
   | param=param {
-      Nodes.Generic_arg.Inferred param
+      generic_arg $loc (Nodes.Generic_arg.Inferred param)
     }
 
 %inline generics:
@@ -551,7 +691,7 @@ top_decl:
 
 %inline named_type_expr:
   | name=name_type generics=loption(generics) {
-      Nodes.Type_expr.Path { name; generics }
+      type_expr $loc (Nodes.Type_expr.Path { name; generics })
     }
 
 %inline type_base:
@@ -559,7 +699,7 @@ top_decl:
       type_
     }
   | "(" type_=type_expr ")" {
-      Nodes.Type_expr.Parenthesized type_
+      type_expr $loc (Nodes.Type_expr.Parenthesized type_)
     }
 
 %inline type_atom:
@@ -567,59 +707,108 @@ top_decl:
       type_
     }
   | "&" type_=type_base {
-      Nodes.Type_expr.Guest type_
+      type_expr $loc (Nodes.Type_expr.Guest type_)
     }
 
+(* A suffix is parsed as its own bracket group and only then applied to the
+   return type written to its left, so neither the suffix's `$loc` nor the
+   return type's span covers the node it builds. The span runs from the return
+   type's start to the suffix's end, which is what [Span.join] is for. *)
 %inline verb_type_suffix:
   | "[" params=separated_list(",", param_type) "]" {
-      fun ret_type ->
-        Nodes.Type_expr.Verb (Nodes.Verb_type.Func { params; ret_type })
+      let suffix_span = Span.of_loc $loc in
+      fun (ret_type : Nodes.Ret_type.t) ->
+        let span = Span.join ret_type.Nodes.Ret_type.span suffix_span in
+        ({
+          Nodes.Type_expr.span;
+          node =
+            Nodes.Type_expr.Verb
+              { Nodes.Verb_type.span; node = Nodes.Verb_type.Func { params; ret_type } };
+        } : Nodes.Type_expr.t)
     }
   | "[" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param_type)))
     "]" is_mut=boption(MUT) {
-      fun ret_type ->
-        Nodes.Type_expr.Verb (Nodes.Verb_type.Meth {
-          this_type;
-          params;
-          ret_type;
-          is_mut;
-        })
+      let suffix_span = Span.of_loc $loc in
+      fun (ret_type : Nodes.Ret_type.t) ->
+        let span = Span.join ret_type.Nodes.Ret_type.span suffix_span in
+        ({
+          Nodes.Type_expr.span;
+          node =
+            Nodes.Type_expr.Verb
+              {
+                Nodes.Verb_type.span;
+                node =
+                  Nodes.Verb_type.Meth { this_type; params; ret_type; is_mut };
+              };
+        } : Nodes.Type_expr.t)
     }
 
 (* Verb-type brackets bind more tightly than an unparenthesized abort return:
    `Int ? Error[]` is `Int ? (Error[])`. To make the abort return feed the
    verb type instead, group it explicitly: `(Int ? Error)[]`. *)
+(* The [Ret_type.Safe] cast introduces no syntax of its own -- it is the type
+   to its left, read as a return type -- so it takes that type's span. *)
 type_expr:
   | atom=type_atom suffixes=list(verb_type_suffix) {
       List.fold_left
-        (fun type_ suffix -> suffix (Nodes.Ret_type.Safe type_))
+        (fun (type_ : Nodes.Type_expr.t) suffix ->
+          suffix
+            {
+              Nodes.Ret_type.node = Nodes.Ret_type.Safe type_;
+              span = type_.Nodes.Type_expr.span;
+            })
         atom suffixes
     }
-  | "(" ret_type=abort_ret_type ")"
+  | open_=LPAREN ret_type=abort_ret_type close=RPAREN
     first=verb_type_suffix rest=list(verb_type_suffix) {
-      let type_ = first (Nodes.Ret_type.Parenthesized ret_type) in
+      ignore open_;
+      ignore close;
+      let parenthesized =
+        ({
+          Nodes.Ret_type.node = Nodes.Ret_type.Parenthesized ret_type;
+          span = Span.join (Span.of_loc $loc(open_)) (Span.of_loc $loc(close));
+        } : Nodes.Ret_type.t)
+      in
+      let type_ = first parenthesized in
       List.fold_left
-        (fun type_ suffix -> suffix (Nodes.Ret_type.Safe type_))
+        (fun (type_ : Nodes.Type_expr.t) suffix ->
+          suffix
+            {
+              Nodes.Ret_type.node = Nodes.Ret_type.Safe type_;
+              span = type_.Nodes.Type_expr.span;
+            })
         type_ rest
     }
 
 %inline generic_param:
-  | name=UIDENT "Type" {
-      ({ Nodes.Generic_param.name; type_ = Nodes.Concept.Type } : Nodes.Generic_param.t)
+  | name=UIDENT concept_=UTYPE {
+      ignore concept_;
+      ({
+        Nodes.Generic_param.name;
+        type_ = concept $loc(concept_) Nodes.Concept.Type;
+        span = Span.of_loc $loc;
+      } : Nodes.Generic_param.t)
     }
-  | name=LIDENT "Number" {
-      ({ Nodes.Generic_param.name; type_ = Nodes.Concept.Number } : Nodes.Generic_param.t)
+  | name=LIDENT concept_=NUMBER {
+      ignore concept_;
+      ({
+        Nodes.Generic_param.name;
+        type_ = concept $loc(concept_) Nodes.Concept.Number;
+        span = Span.of_loc $loc;
+      } : Nodes.Generic_param.t)
     }
 
 %inline constructor_name:
   | type_=name_type member=ioption(preceded(".", LIDENT)) {
-      ({ Nodes.Constructor_name.type_; member } : Nodes.Constructor_name.t)
+      ({ Nodes.Constructor_name.type_; member; span = Span.of_loc $loc }
+        : Nodes.Constructor_name.t)
     }
 
 %inline field_arg:
   | name=LIDENT value=ioption(preceded("=", expr)) {
-      ({ Nodes.Field_arg.name; value } : Nodes.Field_arg.t)
+      ({ Nodes.Field_arg.name; value; span = Span.of_loc $loc }
+        : Nodes.Field_arg.t)
     }
 
 (* A braced run of statements handed to a call and run by the callee. It is not
@@ -627,7 +816,7 @@ type_expr:
    what keeps a block from being stored, returned, or bound to a symbol. *)
 %inline block_arg:
   | "{" stats=list(stat) "}" {
-      Nodes.Call_arg.Block stats
+      call_arg $loc (Nodes.Call_arg.Block stats)
     }
 
 (* A `{ }` body of `;`-terminated `key, value` entries. It stands in a value
@@ -642,11 +831,11 @@ type_expr:
 
 map_lit:
   | "{" entries=nonempty_list(terminated(map_entry, ";")) "}" {
-      Nodes.Expr.MapLit entries
+      expr $loc (Nodes.Expr.MapLit entries)
     }
 
 %inline call_arg:
-  | value=expr { Nodes.Call_arg.Value value }
+  | value=expr { call_arg $loc (Nodes.Call_arg.Value value) }
   | block=block_arg { block }
 
 %inline call_args:
@@ -664,13 +853,13 @@ map_lit:
    enclosing brace. *)
 %inline constructor_args:
   | "(" ")" {
-      Nodes.Constructor_args.Positional []
+      constructor_args $loc (Nodes.Constructor_args.Positional [])
     }
   | "(" args=separated_nonempty_list(",", call_arg) ")" {
-      Nodes.Constructor_args.Positional args
+      constructor_args $loc (Nodes.Constructor_args.Positional args)
     }
   | "{" args=list(terminated(field_arg, ";")) "}" {
-      Nodes.Constructor_args.Fields args
+      constructor_args $loc (Nodes.Constructor_args.Fields args)
     }
 
 (* A named type after the binder either is the field's own type or introduces an
@@ -678,32 +867,49 @@ map_lit:
    same way, so both take it from here. *)
 %inline field_type:
   | type_=type_expr {
-      Nodes.Param_type.Concrete type_
+      param_type $loc (Nodes.Param_type.Concrete type_)
     }
-  | name=UIDENT "Type" {
-      Nodes.Param_type.InferredType { name; concept = Nodes.Concept.Type }
+  | name=UIDENT concept_=UTYPE {
+      ignore concept_;
+      param_type $loc
+        (Nodes.Param_type.InferredType
+           { name; concept = concept $loc(concept_) Nodes.Concept.Type })
     }
 
 %inline constructor_field:
   | name=LIDENT type_=field_type default=ioption(preceded("=", expr)) {
-      ({ Nodes.Constructor_field.name; type_; default } : Nodes.Constructor_field.t)
+      ({ Nodes.Constructor_field.name; type_; default; span = Span.of_loc $loc }
+        : Nodes.Constructor_field.t)
     }
+  (* The field's type is not written: it is the constructor being called, read
+     as a type. So the type node takes the constructor name's span, which is the
+     only thing in the source it stands for. *)
   | name=LIDENT constructor=constructor_name args=constructor_args {
-      let type_ = Nodes.Type_expr.Path { name = constructor.type_; generics = [] } in
-      let default = constructor_expr constructor args in
+      let name_span = constructor.Nodes.Constructor_name.span in
+      let type_ =
+        ({
+          Nodes.Type_expr.node =
+            Nodes.Type_expr.Path
+              { name = constructor.Nodes.Constructor_name.type_; generics = [] };
+          span = name_span;
+        } : Nodes.Type_expr.t)
+      in
+      let default = constructor_expr $loc constructor args in
       ({
         Nodes.Constructor_field.name;
-        type_ = Nodes.Param_type.Concrete type_;
+        type_ =
+          { Nodes.Param_type.node = Nodes.Param_type.Concrete type_; span = name_span };
         default = Some default;
+        span = Span.of_loc $loc;
       } : Nodes.Constructor_field.t)
     }
 
 %inline constructor_params:
   | "(" params=separated_list(",", param) ")" {
-      Nodes.Constructor_params.Positional params
+      constructor_params $loc (Nodes.Constructor_params.Positional params)
     }
   | "{" fields=list(terminated(constructor_field, ";")) "}" {
-      Nodes.Constructor_params.Fields fields
+      constructor_params $loc (Nodes.Constructor_params.Fields fields)
     }
 
 %inline constructor_decl_name:
@@ -732,10 +938,12 @@ map_lit:
 (* A name taken from a package, in either casing class. *)
 %inline import_member:
   | name=LIDENT {
-      ({ Nodes.Import_member.name; is_type = false } : Nodes.Import_member.t)
+      ({ Nodes.Import_member.name; is_type = false; span = Span.of_loc $loc }
+        : Nodes.Import_member.t)
     }
   | name=UIDENT {
-      ({ Nodes.Import_member.name; is_type = true } : Nodes.Import_member.t)
+      ({ Nodes.Import_member.name; is_type = true; span = Span.of_loc $loc }
+        : Nodes.Import_member.t)
     }
 
 (* The four import forms. What the file writes at the use site is what the
@@ -747,22 +955,23 @@ map_lit:
    requires, not by reading on: see there. *)
 import_decl:
   | IMPORT package=LIDENT alias=ioption(preceded(AS, LIDENT)) {
-      Nodes.Import.Package { package; alias }
+      import $loc (Nodes.Import.Package { package; alias })
     }
   | IMPORT package=LIDENT "$" member=import_member
     alias=ioption(preceded(AS, import_member)) {
-      Nodes.Import.Member {
-        package;
-        member;
-        alias = Option.map (import_alias member) alias;
-      }
+      import $loc
+        (Nodes.Import.Member {
+          package;
+          member;
+          alias = Option.map (import_alias member) alias;
+        })
     }
   | IMPORT package=LIDENT "$"
     "[" members=separated_nonempty_list(",", import_member) "]" {
-      Nodes.Import.Members { package; members }
+      import $loc (Nodes.Import.Members { package; members })
     }
   | IMPORT package=LIDENT "$" {
-      Nodes.Import.All { package }
+      import $loc (Nodes.Import.All { package })
     }
 
 (* The two declarations that end in a bare name, and the only two that carry a
@@ -786,63 +995,83 @@ import_decl:
    import forms that do end in a name. *)
 header_decl:
   | PACKAGE name=LIDENT {
-      Nodes.Decl.Package name
+      decl $loc (Nodes.Decl.Package name)
     }
   | value=import_decl {
-      Nodes.Decl.Import value
+      decl $loc (Nodes.Decl.Import value)
     }
 
+(* A verb declaration and the declaration wrapping it span the same tokens:
+   there is nothing in a `Decl.Verb` but the verb. Both take `$loc`. *)
 body_decl(body_form):
   | ret_type=ret_type name=LIDENT "(" params=separated_list(",", param) ")" body=body_form {
-      Nodes.Decl.Verb (Nodes.Verb_decl.Func { name; params; ret_type; body })
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc
+              (Nodes.Verb_decl.Func { name; params; ret_type; body })))
     }
   | ret_type=ret_type name=LIDENT "(" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param)))
     ")" is_mut=boption(MUT) body=body_form {
-      Nodes.Decl.Verb (Nodes.Verb_decl.Meth {
-        name;
-        this_type;
-        params;
-        ret_type;
-        is_mut;
-        body;
-      })
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc
+              (Nodes.Verb_decl.Meth {
+                name;
+                this_type;
+                params;
+                ret_type;
+                is_mut;
+                body;
+              })))
     }
   | type_=constructor_decl_name params=constructor_params body=body_form {
       let type_, member = type_ in
-      Nodes.Decl.Verb (Nodes.Verb_decl.Constructor {
-        type_;
-        member;
-        params;
-        body;
-        is_implicit = false;
-      })
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc
+              (Nodes.Verb_decl.Constructor {
+                type_;
+                member;
+                params;
+                body;
+                is_implicit = false;
+              })))
     }
   | IMPLICIT type_=named_type_expr "(" param=param ")" body=body_form {
-      Nodes.Decl.Verb (Nodes.Verb_decl.Constructor {
-        type_;
-        member = None;
-        params = Nodes.Constructor_params.Positional [param];
-        body;
-        is_implicit = true;
-      })
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc
+              (Nodes.Verb_decl.Constructor {
+                type_;
+                member = None;
+                params =
+                  constructor_params $loc(param)
+                    (Nodes.Constructor_params.Positional [param]);
+                body;
+                is_implicit = true;
+              })))
     }
   | ret_type=ret_type op=operator "(" params=separated_list(",", param) ")" body=body_form {
-      Nodes.Decl.Verb (Nodes.Verb_decl.Op { op; params; ret_type; body })
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc (Nodes.Verb_decl.Op { op; params; ret_type; body })))
     }
   | ret_type=ret_type "~" "(" params=separated_list(",", param) ")" body=body_form {
-      Nodes.Decl.Verb (Nodes.Verb_decl.Flip { params; ret_type; body })
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc (Nodes.Verb_decl.Flip { params; ret_type; body })))
     }
 
 (* Ends in a `{ }` block, which closes the construct on its own. *)
 type_decl(value_form):
   | "type" name=UIDENT params=loption(delimited("<", separated_nonempty_list(",", generic_param), ">"))
     "=" value=value_form {
-      Nodes.Decl.Type { name; params; value }
+      decl $loc (Nodes.Decl.Type { name; params; value })
     }
   | "alias" name=UIDENT params=loption(delimited("<", separated_nonempty_list(",", generic_param), ">"))
     "=" value=value_form {
-      Nodes.Decl.Alias { name; params; value }
+      decl $loc (Nodes.Decl.Alias { name; params; value })
     }
 
 block_decl:
@@ -855,10 +1084,11 @@ simple_decl:
   | value=type_decl(raw_value) { value }
   | value=type_decl(enum_moulded_value) { value }
   | name=LIDENT type_=type_expr "=" value=expr {
-      Nodes.Decl.Var { name; type_; value }
+      decl $loc (Nodes.Decl.Var { name; type_; value })
     }
   | name=LIDENT constructor=constructor_name args=constructor_args {
-      Nodes.Decl.VarShorthand { name; constructor; args; trailing = false }
+      decl $loc
+        (Nodes.Decl.VarShorthand { name; constructor; args; trailing = false })
     }
   (* The same instantiation with the call's last argument trailing, under the
      same restriction the call itself is under: what stays inside the `( )`
@@ -866,49 +1096,57 @@ simple_decl:
      the lambda-variable shorthand two rules down. *)
   | name=LIDENT constructor=constructor_name
     "(" args=separated_nonempty_list(",", call_arg) ")" tail=trailing_arg {
-      Nodes.Decl.VarShorthand {
-        name;
-        constructor;
-        args = Nodes.Constructor_args.Positional (args @ tail);
-        trailing = true;
-      }
+      decl $loc
+        (Nodes.Decl.VarShorthand {
+          name;
+          constructor;
+          args =
+            constructor_args $loc
+              (Nodes.Constructor_args.Positional (args @ tail));
+          trailing = true;
+        })
     }
   | name=LIDENT func_lambda=func_lambda(body) {
-      Nodes.Decl.Var {
-        name;
-        type_ = Nodes.func_type_of_lambda func_lambda;
-        value = Nodes.Expr.FuncLambda func_lambda;
-      }
+      decl $loc
+        (Nodes.Decl.Var {
+          name;
+          type_ = Nodes.func_type_of_lambda func_lambda;
+          value = expr $loc(func_lambda) (Nodes.Expr.FuncLambda func_lambda);
+        })
     }
   | name=LIDENT meth_lambda=meth_lambda(body) {
-      Nodes.Decl.Var {
-        name;
-        type_ = Nodes.meth_type_of_lambda meth_lambda;
-        value = Nodes.Expr.MethLambda meth_lambda;
-      }
+      decl $loc
+        (Nodes.Decl.Var {
+          name;
+          type_ = Nodes.meth_type_of_lambda meth_lambda;
+          value = expr $loc(meth_lambda) (Nodes.Expr.MethLambda meth_lambda);
+        })
     }
   | enum=named_type_expr "." property=LIDENT type_=type_expr
     entries=enum_map_body {
-      Nodes.Decl.EnumMap { enum; property; type_; entries }
+      decl $loc (Nodes.Decl.EnumMap { enum; property; type_; entries })
     }
   | "(" THIS this_type=type_expr ")"
     "[" params=separated_list(",", param) "]" "=>" value=expr {
-      Nodes.Decl.Verb (Nodes.Verb_decl.Subscript { this_type; params; value })
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc
+              (Nodes.Verb_decl.Subscript { this_type; params; value })))
     }
 
 %inline moulded_value:
   | value=moulded(braced_mould) {
-      Nodes.Type_or_moulded.Moulded value
+      type_or_moulded $loc (Nodes.Type_or_moulded.Moulded value)
     }
 
 %inline enum_moulded_value:
   | value=moulded(enum_mould) {
-      Nodes.Type_or_moulded.Moulded value
+      type_or_moulded $loc (Nodes.Type_or_moulded.Moulded value)
     }
 
 %inline raw_value:
   | value=type_expr {
-      Nodes.Type_or_moulded.Raw value
+      type_or_moulded $loc (Nodes.Type_or_moulded.Raw value)
     }
 
 (* The moulds that close on a brace. A declaration ending in one is closed by
@@ -916,10 +1154,10 @@ simple_decl:
    reached through different declaration rules. *)
 %inline braced_mould:
   | STRUCT "{" fields=list(body_field) "}" {
-      Nodes.Mould.Struct fields
+      mould $loc (Nodes.Mould.Struct fields)
     }
   | VARIANT "{" fields=list(body_field) "}" {
-      Nodes.Mould.Variant fields
+      mould $loc (Nodes.Mould.Variant fields)
     }
 
 (* The peer mould's contents are a flat list of names, so it takes `[ ]` and
@@ -928,30 +1166,43 @@ simple_decl:
    terminated like any other that does not end in a brace. *)
 %inline enum_mould:
   | ENUM "[" members=separated_nonempty_list(",", LIDENT) "]" {
-      Nodes.Mould.Enum members
+      mould $loc (Nodes.Mould.Enum members)
     }
 
+(* The value axis is written by the absence of a `#`, so it has no tokens of
+   its own; it takes the mould's span, which is what a reader would be pointed
+   at anyway. The reference axis takes the `#`. *)
 %inline moulded(mould_form):
   | mould=mould_form {
-      { Nodes.Moulded.mould; axis = Nodes.Type_axis.Value }
+      ({
+        Nodes.Moulded.mould;
+        axis = type_axis $loc(mould) Nodes.Type_axis.Value;
+        span = Span.of_loc $loc;
+      } : Nodes.Moulded.t)
     }
-  | "#" mould=mould_form {
-      { Nodes.Moulded.mould; axis = Nodes.Type_axis.Reference }
+  | hash=HASH mould=mould_form {
+      ignore hash;
+      ({
+        Nodes.Moulded.mould;
+        axis = type_axis $loc(hash) Nodes.Type_axis.Reference;
+        span = Span.of_loc $loc;
+      } : Nodes.Moulded.t)
     }
 
 %inline body_field:
   | name=LIDENT type_=type_expr ";" {
-      ({ Nodes.Body_field.name; type_ } : Nodes.Body_field.t)
+      ({ Nodes.Body_field.name; type_; span = Span.of_loc $loc }
+        : Nodes.Body_field.t)
     }
 
 block_body:
   | "{" stats=list(stat) "}" {
-      Nodes.Body.Longhand stats
+      body $loc (Nodes.Body.Longhand stats)
     }
 
 shorthand_body:
   | "=>" value=expr {
-      Nodes.Body.Shorthand value
+      body $loc (Nodes.Body.Shorthand value)
     }
 
 body:
@@ -960,7 +1211,7 @@ body:
 
 ret_type:
   | value=type_expr {
-      Nodes.Ret_type.Safe value
+      ret_type $loc (Nodes.Ret_type.Safe value)
     }
   | value=abort_ret_type {
       value
@@ -968,7 +1219,7 @@ ret_type:
 
 abort_ret_type:
   | ok=type_expr "?" abort=type_expr {
-      Nodes.Ret_type.Abort { ok; abort }
+      ret_type $loc (Nodes.Ret_type.Abort { ok; abort })
     }
 
 %inline meth_part:
@@ -997,34 +1248,57 @@ abort_ret_type:
 
 %inline trailing_arg:
   | block=block_arg { [ block ] }
-  | lit=map_lit { [ Nodes.Call_arg.Value lit ] }
+  | lit=map_lit { [ call_arg $loc (Nodes.Call_arg.Value lit) ] }
 
+(* These build a function of the abort handler, because the handler is written
+   to the call's right and reaches it through [attach_abort_handle]. The span
+   captured here is the call's own -- through the `)` or the trailing argument,
+   without the handler. The handler extends the enclosing [Expr], which is
+   where [attach_abort_handle] re-spans. *)
 computed_call(trailer):
   | receiver=func_callee "(" args=call_args ")" tail=trailer {
-      fun abort_handle -> Nodes.Verb_call.Func {
-        callee = receiver;
-        args = args @ tail;
-        abort_handle;
-        trailing = tail <> [];
-      }
+      let span = Span.of_loc $loc in
+      fun abort_handle ->
+        ({
+          Nodes.Verb_call.span;
+          node =
+            Nodes.Verb_call.Func {
+              callee = receiver;
+              args = args @ tail;
+              abort_handle;
+              trailing = tail <> [];
+            };
+        } : Nodes.Verb_call.t)
     }
   | receiver=app part=meth_part "(" args=call_args ")" tail=trailer {
       let is_mut, callee = part in
-      fun abort_handle -> Nodes.Verb_call.Meth {
-        callee;
-        this = receiver;
-        args = args @ tail;
-        abort_handle;
-        is_mut;
-        trailing = tail <> [];
-      }
+      let span = Span.of_loc $loc in
+      fun abort_handle ->
+        ({
+          Nodes.Verb_call.span;
+          node =
+            Nodes.Verb_call.Meth {
+              callee;
+              this = receiver;
+              args = args @ tail;
+              abort_handle;
+              is_mut;
+              trailing = tail <> [];
+            };
+        } : Nodes.Verb_call.t)
     }
 
 verb_call:
   | call=computed_call(no_trailing_arg) { call }
   | name=constructor_name args=constructor_args {
+      let span = Span.of_loc $loc in
       fun abort_handle ->
-        Nodes.Verb_call.Constructor { name; args; abort_handle; trailing = false }
+        ({
+          Nodes.Verb_call.span;
+          node =
+            Nodes.Verb_call.Constructor
+              { name; args; abort_handle; trailing = false };
+        } : Nodes.Verb_call.t)
     }
 
 (* A call closed by a trailing block. It is an expression rather than a postfix
@@ -1051,13 +1325,20 @@ block_call:
      inside the list. See docs/spec-divergences.md. *)
   | name=constructor_name "(" args=separated_nonempty_list(",", call_arg) ")"
     tail=trailing_arg {
+      let span = Span.of_loc $loc in
       fun abort_handle ->
-        Nodes.Verb_call.Constructor {
-          name;
-          args = Nodes.Constructor_args.Positional (args @ tail);
-          abort_handle;
-          trailing = true;
-        }
+        ({
+          Nodes.Verb_call.span;
+          node =
+            Nodes.Verb_call.Constructor {
+              name;
+              args =
+                constructor_args $loc
+                  (Nodes.Constructor_args.Positional (args @ tail));
+              abort_handle;
+              trailing = true;
+            };
+        } : Nodes.Verb_call.t)
     }
 
 %inline operator:
@@ -1066,23 +1347,23 @@ block_call:
   | op=multiplicative_op  { op }
 
 %inline comparison_decl_op:
-  | "==" { Nodes.Operator.Eq }
-  | "<=" { Nodes.Operator.LessEq }
-  | ">=" { Nodes.Operator.MoreEq }
-  | "<"  { Nodes.Operator.Less }
-  | ">"  { Nodes.Operator.More }
+  | "==" { operator $loc Nodes.Operator.Eq }
+  | "<=" { operator $loc Nodes.Operator.LessEq }
+  | ">=" { operator $loc Nodes.Operator.MoreEq }
+  | "<"  { operator $loc Nodes.Operator.Less }
+  | ">"  { operator $loc Nodes.Operator.More }
 
 %inline comparison_op:
   | op=comparison_decl_op { op }
-  | "~=" { Nodes.Operator.NotEq }
+  | "~=" { operator $loc Nodes.Operator.NotEq }
 
 %inline additive_op:
-  | "+" { Nodes.Operator.Add }
-  | "-" { Nodes.Operator.Sub }
+  | "+" { operator $loc Nodes.Operator.Add }
+  | "-" { operator $loc Nodes.Operator.Sub }
 
 %inline multiplicative_op:
-  | "*" { Nodes.Operator.Mul }
-  | "/" { Nodes.Operator.Div }
+  | "*" { operator $loc Nodes.Operator.Mul }
+  | "/" { operator $loc Nodes.Operator.Div }
 
 (* The loose forms carry the same [Operator.t] as the operators they mirror,
    because a loose operator "calls the same implementation as its unprefixed
@@ -1093,20 +1374,20 @@ block_call:
    which is the declaration form, does not admit them. *)
 
 %inline loose_comparison_op:
-  | "'==" { Nodes.Operator.Eq }
-  | "'~=" { Nodes.Operator.NotEq }
-  | "'<=" { Nodes.Operator.LessEq }
-  | "'>=" { Nodes.Operator.MoreEq }
-  | "'<"  { Nodes.Operator.Less }
-  | "'>"  { Nodes.Operator.More }
+  | "'==" { operator $loc Nodes.Operator.Eq }
+  | "'~=" { operator $loc Nodes.Operator.NotEq }
+  | "'<=" { operator $loc Nodes.Operator.LessEq }
+  | "'>=" { operator $loc Nodes.Operator.MoreEq }
+  | "'<"  { operator $loc Nodes.Operator.Less }
+  | "'>"  { operator $loc Nodes.Operator.More }
 
 %inline loose_additive_op:
-  | "'+" { Nodes.Operator.Add }
-  | "'-" { Nodes.Operator.Sub }
+  | "'+" { operator $loc Nodes.Operator.Add }
+  | "'-" { operator $loc Nodes.Operator.Sub }
 
 %inline loose_multiplicative_op:
-  | "'*" { Nodes.Operator.Mul }
-  | "'/" { Nodes.Operator.Div }
+  | "'*" { operator $loc Nodes.Operator.Mul }
+  | "'/" { operator $loc Nodes.Operator.Div }
 
 %inline match_selector:
   | case=LIDENT {
@@ -1118,10 +1399,15 @@ block_call:
 
 %inline match_pattern:
   | cases=match_selector {
-      ({ Nodes.Match_pattern.binder = None; cases } : Nodes.Match_pattern.t)
+      ({ Nodes.Match_pattern.binder = None; cases; span = Span.of_loc $loc }
+        : Nodes.Match_pattern.t)
     }
   | binder=LIDENT cases=match_selector {
-      ({ Nodes.Match_pattern.binder = Some binder; cases } : Nodes.Match_pattern.t)
+      ({
+        Nodes.Match_pattern.binder = Some binder;
+        cases;
+        span = Span.of_loc $loc;
+      } : Nodes.Match_pattern.t)
     }
 
 (* An arm follows the same rule as a declaration body: `=> expr` needs the
@@ -1129,16 +1415,25 @@ block_call:
    docs/spec-divergences.md. *)
 %inline match_arm:
   | patterns=separated_nonempty_list(",", match_pattern) body=block_body {
-      ({ Nodes.Match_arm.patterns; body } : Nodes.Match_arm.t)
+      ({ Nodes.Match_arm.patterns; body; span = Span.of_loc $loc }
+        : Nodes.Match_arm.t)
     }
   | patterns=separated_nonempty_list(",", match_pattern) body=shorthand_body ";" {
-      ({ Nodes.Match_arm.patterns; body } : Nodes.Match_arm.t)
+      ({ Nodes.Match_arm.patterns; body; span = Span.of_loc $loc }
+        : Nodes.Match_arm.t)
     }
 
 %inline match_expr:
   | MATCH scrutinees=separated_nonempty_list(",", expr)
     "{" arms=list(match_arm) "}" {
-      Nodes.Expr.Match { scrutinees; arms; abort_handle = None }
+      expr $loc
+        (Nodes.Expr.Match
+           ({
+             Nodes.Match_expr.scrutinees;
+             arms;
+             abort_handle = None;
+             span = Span.of_loc $loc;
+           } : Nodes.Match_expr.t))
     }
 
 (* `spawn` takes the whole call, so it is an expression rather than a postfix
@@ -1147,7 +1442,7 @@ block_call:
    tokens two readings. Parenthesize to call what a spawn produces. *)
 %inline spawn_expr:
   | SPAWN call=verb_call {
-      Nodes.Expr.Spawn (call None)
+      expr $loc (Nodes.Expr.Spawn (call None))
     }
 
 (* Postfix bases are deliberately limited so that an uppercase `Type.member`
@@ -1155,24 +1450,29 @@ block_call:
    is immediately followed by constructor arguments it is a named constructor
    or variant-case call, never a generic function call. *)
 primary:
-  | i=INT    { Nodes.Expr.IntLit i }
-  | f=FLOAT  { Nodes.Expr.FloatLit f }
-  | s=STRING { Nodes.Expr.StrLit s }
-  | TRUE     { Nodes.Expr.BoolLit true }
-  | FALSE    { Nodes.Expr.BoolLit false }
-  | "[" items=separated_list(",", expr) "]" { Nodes.Expr.CollectionLit items }
-  | THIS     { Nodes.Expr.NameExpr (Nodes.Name_expr.Ident "this") }
-  | name_expr=name_expr { Nodes.Expr.NameExpr name_expr }
-  | "(" e=expr ")" { Nodes.Expr.Parenthized e }
+  | i=INT    { expr $loc (Nodes.Expr.IntLit i) }
+  | f=FLOAT  { expr $loc (Nodes.Expr.FloatLit f) }
+  | s=STRING { expr $loc (Nodes.Expr.StrLit s) }
+  | TRUE     { expr $loc (Nodes.Expr.BoolLit true) }
+  | FALSE    { expr $loc (Nodes.Expr.BoolLit false) }
+  | "[" items=separated_list(",", expr) "]" {
+      expr $loc (Nodes.Expr.CollectionLit items)
+    }
+  | THIS     {
+      expr $loc
+        (Nodes.Expr.NameExpr (name_expr $loc (Nodes.Name_expr.Ident "this")))
+    }
+  | name_expr=name_expr { expr $loc (Nodes.Expr.NameExpr name_expr) }
+  | "(" e=expr ")" { expr $loc (Nodes.Expr.Parenthized e) }
   | INIT "{" fields=list(terminated(field_arg, ";")) "}" {
-      Nodes.Expr.Init fields
+      expr $loc (Nodes.Expr.Init fields)
     }
   | value=map_lit { value }
   | value=match_expr { value }
 
 %inline type_member:
   | type_=name_type "." member=LIDENT {
-      Nodes.Expr.TypeMember { type_; member }
+      expr $loc (Nodes.Expr.TypeMember { type_; member })
     }
 
 (* `func_callee` excludes a bare type member. This is what keeps
@@ -1180,12 +1480,12 @@ primary:
    allowing postfixes on the value produced by `Colors.red`.) *)
 func_callee:
   | primary=primary { primary }
-  | call=verb_call { Nodes.Expr.VerbCall (call None) }
+  | call=verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
   | target=app "." field=LIDENT {
-      Nodes.Expr.DotAccess { target; field }
+      expr $loc (Nodes.Expr.DotAccess { target; field })
     }
   | target=app "[" args=separated_list(",", expr) "]" {
-      Nodes.Expr.Subscript { target; args }
+      expr $loc (Nodes.Expr.Subscript { target; args })
     }
 
 app:
@@ -1206,78 +1506,76 @@ expr:
      none of them and every one of those stays at a single derivation.
 
      Only a bare name, for the reason [Nodes.Expr.TypeValue] records. *)
-  | name=name_type { Nodes.Expr.TypeValue name }
-  | call=block_call { Nodes.Expr.VerbCall (call None) }
+  | name=name_type { expr $loc (Nodes.Expr.TypeValue name) }
+  | call=block_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
   | value=spawn_expr { value }
-  | func_lambda=func_lambda(body) { Nodes.Expr.FuncLambda func_lambda }
-  | meth_lambda=meth_lambda(body) { Nodes.Expr.MethLambda meth_lambda }
+  | func_lambda=func_lambda(body) {
+      expr $loc (Nodes.Expr.FuncLambda func_lambda)
+    }
+  | meth_lambda=meth_lambda(body) {
+      expr $loc (Nodes.Expr.MethLambda meth_lambda)
+    }
   | left=expr op=comparison_op right=expr %prec EQEQ {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
-        op;
-        left;
-        right;
-        abort_handle = None;
-      })
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
   | left=expr op=additive_op right=expr %prec PLUS {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
-        op;
-        left;
-        right;
-        abort_handle = None;
-      })
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
   | left=expr op=multiplicative_op right=expr %prec STAR {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
-        op;
-        left;
-        right;
-        abort_handle = None;
-      })
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
   | left=expr op=loose_comparison_op right=expr %prec LOOSE_EQEQ {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
-        op;
-        left;
-        right;
-        abort_handle = None;
-      })
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
   | left=expr op=loose_additive_op right=expr %prec LOOSE_PLUS {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
-        op;
-        left;
-        right;
-        abort_handle = None;
-      })
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
   | left=expr op=loose_multiplicative_op right=expr %prec LOOSE_STAR {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Op {
-        op;
-        left;
-        right;
-        abort_handle = None;
-      })
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
+  (* The method target is the receiver and the name after the `:` or `!`, which
+     together run from the receiver's start to the name's end. *)
   | receiver=app part=meth_part "|" value=expr %prec PIPE {
       let is_mut, callee = part in
-      let callee = Nodes.Expr.MethodTarget { callee; this = receiver; is_mut } in
-      Nodes.Expr.Pipe { callee; value; abort_handle = None }
+      let target =
+        expr
+          ($startpos(receiver), $endpos(part))
+          (Nodes.Expr.MethodTarget { callee; this = receiver; is_mut })
+      in
+      expr $loc (Nodes.Expr.Pipe { callee = target; value; abort_handle = None })
     }
   | callee=expr "|" value=expr %prec PIPE {
-      Nodes.Expr.Pipe { callee; value; abort_handle = None }
+      expr $loc (Nodes.Expr.Pipe { callee; value; abort_handle = None })
     }
   | "~" value=expr %prec TILDE {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Flip {
-        value;
-        abort_handle = None;
-      })
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Flip { value; abort_handle = None })))
     }
   | "&" value=ref_target %prec AMPERSAND {
-      Nodes.Expr.Ref value
+      expr $loc (Nodes.Expr.Ref value)
     }
   | value=expr abort_handle=abort_handle %prec QSTNQSTN {
-      attach_abort_handle value abort_handle
+      attach_abort_handle abort_handle (Span.of_loc $loc) value
     }
 
 (* What a reference may be taken of: a postfix chain, optionally under further
@@ -1287,21 +1585,21 @@ expr:
 ref_target:
   | value=app { value }
   | "&" value=ref_target %prec AMPERSAND {
-      Nodes.Expr.Ref value
+      expr $loc (Nodes.Expr.Ref value)
     }
   | "~" value=ref_target %prec TILDE {
-      Nodes.Expr.VerbCall (Nodes.Verb_call.Flip {
-        value;
-        abort_handle = None;
-      })
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Flip { value; abort_handle = None })))
     }
 
 abort_handle:
   | "?" binder=ioption(LIDENT) body=body %prec THICK_ARROW {
-      Nodes.Abort_handle.Longhand { binder; body }
+      abort_handle_node $loc (Nodes.Abort_handle.Longhand { binder; body })
     }
   | "??" value=expr %prec THICK_ARROW {
-      Nodes.Abort_handle.Shorthand value
+      abort_handle_node $loc (Nodes.Abort_handle.Shorthand value)
     }
 
 (* A `;` terminates a statement, unless the statement already ends in a `}` --
@@ -1315,12 +1613,12 @@ abort_handle:
    anything at this level belong to a declaration. *)
 stat:
   | target=app "=" value=expr terminated=boption(";") {
-      expr_statement ~terminated ~ends_at:$endpos
+      expr_statement ~terminated ~ends_at:$endpos ~loc:$loc
         (fun value -> Nodes.Stat.Assign { target; value }) value
     }
   (* Ends in its own `{ }` body, so there was no terminator to get wrong. *)
   | decl=block_decl {
-      braced_statement ~ends_at:$endpos
+      braced_statement ~ends_at:$endpos ~loc:$loc
         ~continued:(decl_continues_past_trailing decl)
         (Nodes.Stat.Decl decl)
     }
@@ -1330,12 +1628,12 @@ stat:
      the same terms package scope does -- so the requirement has to hold at
      both levels to close it at either. *)
   | decl=header_decl ";" {
-      terminated_statement (Nodes.Stat.Decl decl)
+      terminated_statement ~loc:$loc (Nodes.Stat.Decl decl)
     }
   | decl=simple_decl terminated=boption(";") {
       statement
         ~ends_in_brace:(decl_ends_in_brace decl)
-        ~terminated ~ends_at:$endpos
+        ~terminated ~ends_at:$endpos ~loc:$loc
         ~continued:(decl_continues_past_trailing decl)
         (Nodes.Stat.Decl decl)
     }
@@ -1343,64 +1641,88 @@ stat:
       let call = call abort_handle in
       statement
         ~ends_in_brace:(verb_call_ends_in_brace call)
-        ~terminated ~ends_at:$endpos
-        ~continued:(continues_past_trailing (Nodes.Expr.VerbCall call))
+        ~terminated ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
         (Nodes.Stat.VerbCall call)
     }
   (* Closed by its own trailing argument, so it takes no terminator and admits
      no abort handler -- nothing may continue the call past that brace. *)
   | call=block_call {
       let call = call None in
-      braced_statement ~ends_at:$endpos
-        ~continued:(continues_past_trailing (Nodes.Expr.VerbCall call))
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
         (Nodes.Stat.VerbCall call)
     }
   | SPAWN call=verb_call abort_handle=ioption(abort_handle) terminated=boption(";") {
       let call = call abort_handle in
       statement
         ~ends_in_brace:(verb_call_ends_in_brace call)
-        ~terminated ~ends_at:$endpos
-        ~continued:(continues_past_trailing (Nodes.Expr.VerbCall call))
+        ~terminated ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
         (Nodes.Stat.Spawn call)
     }
   | ABORT value=expr terminated=boption(";") {
-      expr_statement ~terminated ~ends_at:$endpos
+      expr_statement ~terminated ~ends_at:$endpos ~loc:$loc
         (fun value -> Nodes.Stat.Abort value) value
     }
   | RETURN value=expr terminated=boption(";") {
-      expr_statement ~terminated ~ends_at:$endpos
+      expr_statement ~terminated ~ends_at:$endpos ~loc:$loc
         (fun value -> Nodes.Stat.Ret value) value
     }
   | RESOLVE value=expr terminated=boption(";") {
-      expr_statement ~terminated ~ends_at:$endpos
+      expr_statement ~terminated ~ends_at:$endpos ~loc:$loc
         (fun value -> Nodes.Stat.Resolve value) value
     }
 
 %inline param_type:
   | type_=type_expr {
-      Nodes.Param_type.Concrete type_
+      param_type $loc (Nodes.Param_type.Concrete type_)
     }
   | type_=concept {
-      Nodes.Param_type.Concept type_
+      param_type $loc (Nodes.Param_type.Concept type_)
     }
 
 %inline param:
   | name=LIDENT type_=field_type {
-      ({ Nodes.Param.name; type_ } : Nodes.Param.t)
+      ({ Nodes.Param.name; type_; span = Span.of_loc $loc } : Nodes.Param.t)
     }
-  | name=UIDENT "Type" {
-      ({ Nodes.Param.name; type_ = Nodes.Param_type.Concept Nodes.Concept.Type } : Nodes.Param.t)
+  | name=UIDENT concept_=UTYPE {
+      ignore concept_;
+      ({
+        Nodes.Param.name;
+        type_ =
+          param_type $loc(concept_)
+            (Nodes.Param_type.Concept
+               (concept $loc(concept_) Nodes.Concept.Type));
+        span = Span.of_loc $loc;
+      } : Nodes.Param.t)
     }
-  | name=LIDENT "Number" {
-      ({ Nodes.Param.name; type_ = Nodes.Param_type.Concept Nodes.Concept.Number } : Nodes.Param.t)
+  | name=LIDENT concept_=NUMBER {
+      ignore concept_;
+      ({
+        Nodes.Param.name;
+        type_ =
+          param_type $loc(concept_)
+            (Nodes.Param_type.Concept
+               (concept $loc(concept_) Nodes.Concept.Number));
+        span = Span.of_loc $loc;
+      } : Nodes.Param.t)
     }
 
 %inline name_expr:
-  | name=LIDENT { Nodes.Name_expr.Ident name }
-  | pkg=LIDENT "$" name=LIDENT { Nodes.Name_expr.Qualified { package = pkg; ident = name } }
-  | "@" pkg=LIDENT "$" name=LIDENT { Nodes.Name_expr.Intrinsic { package = pkg; ident = name } }
+  | name=LIDENT { name_expr $loc (Nodes.Name_expr.Ident name) }
+  | pkg=LIDENT "$" name=LIDENT {
+      name_expr $loc (Nodes.Name_expr.Qualified { package = pkg; ident = name })
+    }
+  | "@" pkg=LIDENT "$" name=LIDENT {
+      name_expr $loc (Nodes.Name_expr.Intrinsic { package = pkg; ident = name })
+    }
 
 %inline name_type:
-  | name=UIDENT { Nodes.Name_type.Ident name }
-  | pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Qualified { package = pkg; ident = name } }
-  | "@" pkg=LIDENT "$" name=UIDENT { Nodes.Name_type.Intrinsic { package = pkg; ident = name } }
+  | name=UIDENT { name_type $loc (Nodes.Name_type.Ident name) }
+  | pkg=LIDENT "$" name=UIDENT {
+      name_type $loc (Nodes.Name_type.Qualified { package = pkg; ident = name })
+    }
+  | "@" pkg=LIDENT "$" name=UIDENT {
+      name_type $loc (Nodes.Name_type.Intrinsic { package = pkg; ident = name })
+    }

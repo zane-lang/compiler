@@ -45,7 +45,7 @@ let rec first_in_statements (statements : Nodes.Statement.t list) =
 (* A statement's own mark is checked by the caller; this looks inside it, since
    a block argument or a verb body holds statements of its own. *)
 and in_stat (stat : Nodes.Stat.t) =
-  match stat with
+  match stat.Nodes.Stat.node with
   | Nodes.Stat.VerbCall call | Nodes.Stat.Spawn call -> in_verb_call call
   | Nodes.Stat.Decl decl -> in_decl decl
   | Nodes.Stat.Assign { target; value } -> first_of [ target; value ]
@@ -58,11 +58,11 @@ and first_of exprs =
     None exprs
 
 and in_expr (expr : Nodes.Expr.t) =
-  match expr with
+  match expr.Nodes.Expr.node with
   | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call -> in_verb_call call
   | Nodes.Expr.FuncLambda { body; _ } -> in_body body
   | Nodes.Expr.MethLambda { body; _ } -> in_body body
-  | Nodes.Expr.Match { scrutinees; arms; abort_handle } -> (
+  | Nodes.Expr.Match { scrutinees; arms; abort_handle; _ } -> (
       match first_of scrutinees with
       | Some found -> Some found
       | None -> (
@@ -102,18 +102,18 @@ and in_call_args (args : Nodes.Call_arg.t list) =
       match found with
       | Some _ -> found
       | None -> (
-          match arg with
+          match arg.Nodes.Call_arg.node with
           | Nodes.Call_arg.Value value -> in_expr value
           | Nodes.Call_arg.Block statements -> first_in_statements statements))
     None args
 
 and in_constructor_args (args : Nodes.Constructor_args.t) =
-  match args with
+  match args.Nodes.Constructor_args.node with
   | Nodes.Constructor_args.Positional args -> in_call_args args
   | Nodes.Constructor_args.Fields fields -> in_field_args fields
 
 and in_verb_call (call : Nodes.Verb_call.t) =
-  match call with
+  match call.Nodes.Verb_call.node with
   | Nodes.Verb_call.Func { callee; args; abort_handle; _ } -> (
       match in_expr callee with
       | Some found -> Some found
@@ -144,16 +144,18 @@ and in_verb_call (call : Nodes.Verb_call.t) =
 and in_abort_handle (handle : Nodes.Abort_handle.t option) =
   match handle with
   | None -> None
-  | Some (Nodes.Abort_handle.Shorthand value) -> in_expr value
-  | Some (Nodes.Abort_handle.Longhand { body; _ }) -> in_body body
+  | Some { Nodes.Abort_handle.node = Nodes.Abort_handle.Shorthand value; _ } ->
+      in_expr value
+  | Some { Nodes.Abort_handle.node = Nodes.Abort_handle.Longhand { body; _ }; _ } ->
+      in_body body
 
 and in_body (body : Nodes.Body.t) =
-  match body with
+  match body.Nodes.Body.node with
   | Nodes.Body.Shorthand value -> in_expr value
   | Nodes.Body.Longhand statements -> first_in_statements statements
 
 and in_decl (decl : Nodes.Decl.t) =
-  match decl with
+  match decl.Nodes.Decl.node with
   | Nodes.Decl.Package _ | Nodes.Decl.Import _ | Nodes.Decl.Type _
   | Nodes.Decl.Alias _ ->
       None
@@ -163,7 +165,7 @@ and in_decl (decl : Nodes.Decl.t) =
   | Nodes.Decl.Verb verb -> in_verb_decl verb
 
 and in_verb_decl (verb : Nodes.Verb_decl.t) =
-  match verb with
+  match verb.Nodes.Verb_decl.node with
   | Nodes.Verb_decl.Func { body; _ }
   | Nodes.Verb_decl.Meth { body; _ }
   | Nodes.Verb_decl.Op { body; _ }
@@ -176,7 +178,7 @@ and in_verb_decl (verb : Nodes.Verb_decl.t) =
   | Nodes.Verb_decl.Subscript { value; _ } -> in_expr value
 
 and in_constructor_params (params : Nodes.Constructor_params.t) =
-  match params with
+  match params.Nodes.Constructor_params.node with
   | Nodes.Constructor_params.Positional _ -> None
   | Nodes.Constructor_params.Fields fields ->
       first_of

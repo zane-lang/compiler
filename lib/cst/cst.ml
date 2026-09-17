@@ -1,3 +1,4 @@
+module Span = Span
 module Nodes = Nodes
 module Parser = Parser
 module Lexer = Lexer
