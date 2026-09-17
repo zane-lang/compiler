@@ -14,6 +14,31 @@
    about a statement rather than something written in the source, and it is
    already paired with the position it points at. It stays bare. *)
 
+(* A name as it was written, and where.
+
+   Every identifier in the tree is one of these rather than a bare [string],
+   because a name is the thing a diagnostic most often has to point at and it
+   is usually smaller than the node holding it: "no field `foo`" wants the
+   `foo` in `target.foo`, and "case not covered" wants the one case name inside
+   `[a, b, c]`, not the whole selector. A [string] cannot carry that, and the
+   enclosing node's span is the wrong answer.
+
+   Where a node's span is already exactly the name -- [Name_type.Ident], say --
+   the two spans coincide. That is not worth a special case: a consumer that
+   wants a name's position reads it off the name, whichever variant it came
+   from, rather than case-splitting on whether this one happens to be
+   redundant.
+
+   Literals are not names and stay bare. [Expr.IntLit], [FloatLit], [StrLit]
+   and [Generic_arg.Number] each sit in a node whose span is exactly that
+   token, and none of them refers to anything a later pass resolves. *)
+module Name = struct
+  type t = {
+    text : string;
+    span : Span.t;
+  }
+end
+
 (* ---------------------------------------------------------------------- *)
 (* Leaf types: no back-references into the recursive core, so they live   *)
 (* outside the [module rec] chain as ordinary modules.                    *)
@@ -75,16 +100,16 @@ module Name_type = struct
   }
 
   and node =
-    | Ident of string
-    | Qualified of { package : string; ident : string }
+    | Ident of Name.t
+    | Qualified of { package : Name.t; ident : Name.t }
     (* intrinsic namespace, spelled @package$Ident, e.g. @primitives$I32 *)
-    | Intrinsic of { package : string; ident : string }
+    | Intrinsic of { package : Name.t; ident : Name.t }
 end
 
 module Constructor_name = struct
   type t = {
     type_ : Name_type.t;
-    member : string option;
+    member : Name.t option;
     span : Span.t;
   }
 end
@@ -124,23 +149,23 @@ module Import = struct
   and node =
     (* import pkg           -> pkg$member
        import pkg as alias  -> alias$member *)
-    | Package of { package : string; alias : string option }
+    | Package of { package : Name.t; alias : Name.t option }
     (* import pkg$member           -> member
        import pkg$member as alias  -> alias *)
     | Member of {
-        package : string;
+        package : Name.t;
         member : Import_member.t;
         alias : Import_member.t option;
       }
     (* import pkg$[memberA, memberB] -> memberA, memberB *)
-    | Members of { package : string; members : Import_member.t list }
+    | Members of { package : Name.t; members : Import_member.t list }
     (* import pkg$ -> every accessible member, unqualified *)
-    | All of { package : string }
+    | All of { package : Name.t }
 end
 
 module Generic_param = struct
   type t = {
-    name : string;
+    name : Name.t;
     type_ : Concept.t;
     span : Span.t;
   }
@@ -161,10 +186,10 @@ module Name_expr = struct
   }
 
   and node =
-    | Ident of string
-    | Qualified of { package : string; ident : string }
+    | Ident of Name.t
+    | Qualified of { package : Name.t; ident : Name.t }
     (* intrinsic namespace, spelled @package$ident, e.g. @funcs$strToI32 *)
-    | Intrinsic of { package : string; ident : string }
+    | Intrinsic of { package : Name.t; ident : Name.t }
 end
 
 module rec Expr : sig
@@ -180,7 +205,7 @@ module rec Expr : sig
     | BoolLit of bool
     | CollectionLit of t list
     | NameExpr of Name_expr.t
-    | TypeMember of { type_ : Name_type.t; member : string }
+    | TypeMember of { type_ : Name_type.t; member : Name.t }
     (* A type written where a value is expected: the explicit type argument of
        generics.md §5.3, as in `Array(Int, 10000)`. Types are compile-time
        values, so a name in this position is an ordinary argument rather than a
@@ -191,7 +216,7 @@ module rec Expr : sig
        cannot be told from the start of a verb-type suffix list without
        lookahead the parser does not have. See docs/spec-divergences.md. *)
     | TypeValue of Name_type.t
-    | DotAccess of { target : t; field : string }
+    | DotAccess of { target : t; field : Name.t }
     | Subscript of { target : t; args : t list }
     | Ref of t
     | Parenthized of t
@@ -220,12 +245,12 @@ and Abort_handle : sig
 
   and node =
     | Shorthand of Expr.t
-    | Longhand of { binder: string option; body: Body.t }
+    | Longhand of { binder: Name.t option; body: Body.t }
 end = Abort_handle
 
 and Field_arg : sig
   type t = {
-    name : string;
+    name : Name.t;
     value : Expr.t option;
     span : Span.t;
   }
@@ -280,7 +305,7 @@ end = Verb_call
 
 and Body_field : sig
   type t = {
-    name : string;
+    name : Name.t;
     type_ : Type_expr.t;
     span : Span.t;
   }
@@ -295,7 +320,7 @@ and Mould : sig
   and node =
     | Struct of Body_field.t list
     | Variant of Body_field.t list
-    | Enum of string list
+    | Enum of Name.t list
 end = Mould
 
 and Moulded : sig
@@ -315,7 +340,7 @@ and Generic_arg : sig
   and node =
     | Type of Type_expr.t
     | Number of string
-    | NumberRef of string
+    | NumberRef of Name.t
     | Inferred of Param.t
 end = Generic_arg
 
@@ -360,12 +385,12 @@ and Param_type : sig
   and node =
     | Concrete of Type_expr.t
     | Concept of Concept.t
-    | InferredType of { name : string; concept : Concept.t }
+    | InferredType of { name : Name.t; concept : Concept.t }
 end = Param_type
 
 and Param : sig
   type t = {
-    name : string;
+    name : Name.t;
     type_ : Param_type.t;
     span : Span.t;
   }
@@ -373,7 +398,7 @@ end = Param
 
 and Constructor_field : sig
   type t = {
-    name : string;
+    name : Name.t;
     type_ : Param_type.t;
     default : Expr.t option;
     span : Span.t;
@@ -393,8 +418,8 @@ end = Constructor_params
 
 and Match_pattern : sig
   type t = {
-    binder : string option;
-    cases : string list;
+    binder : Name.t option;
+    cases : Name.t list;
     span : Span.t;
   }
 end = Match_pattern
@@ -516,13 +541,13 @@ and Verb_decl : sig
 
   and node =
     | Func of {
-        name : string;
+        name : Name.t;
         params : Param.t list;
         ret_type : Ret_type.t;
         body : Body.t;
       }
     | Meth of {
-        name : string;
+        name : Name.t;
         this_type : Type_expr.t;
         params : Param.t list;
         ret_type : Ret_type.t;
@@ -537,7 +562,7 @@ and Verb_decl : sig
       }
     | Constructor of {
         type_ : Type_expr.t;
-        member : string option;
+        member : Name.t option;
         params : Constructor_params.t;
         body : Body.t;
         is_implicit : bool;
@@ -561,25 +586,25 @@ and Decl : sig
   }
 
   and node =
-    | Package of string
+    | Package of Name.t
     | Import of Import.t
-    | Var of { name : string; type_ : Type_expr.t; value : Expr.t }
-    | VarShorthand of { name : string; constructor : Constructor_name.t; args : Constructor_args.t; trailing : bool }
+    | Var of { name : Name.t; type_ : Type_expr.t; value : Expr.t }
+    | VarShorthand of { name : Name.t; constructor : Constructor_name.t; args : Constructor_args.t; trailing : bool }
     | Type of {
-        name : string;
+        name : Name.t;
         params : Generic_param.t list;
         value : Type_or_moulded.t;
       }
     | Alias of {
-        name : string;
+        name : Name.t;
         params : Generic_param.t list;
         value : Type_or_moulded.t;
       }
     | EnumMap of {
         enum : Type_expr.t;
-        property : string;
+        property : Name.t;
         type_ : Type_expr.t;
-        entries : (string * Expr.t) list;
+        entries : (Name.t * Expr.t) list;
       }
     | Verb of Verb_decl.t
 end = Decl

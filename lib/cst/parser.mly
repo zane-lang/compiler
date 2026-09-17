@@ -6,6 +6,11 @@
    record out. They exist because the span is not optional: a node built without
    one does not typecheck, which is what keeps a production from quietly
    dropping the position it was reduced from. *)
+(* Not called [name]: these are used from `%inline` rules, whose bodies are
+   expanded into their callers, and a caller binding `name=...` would capture
+   the reference. *)
+let mk_name loc text = ({ Nodes.Name.text; span = Span.of_loc loc } : Nodes.Name.t)
+
 let expr loc node = ({ Nodes.Expr.node; span = Span.of_loc loc } : Nodes.Expr.t)
 
 let abort_handle_node loc node =
@@ -642,6 +647,22 @@ top_decl:
   | value=simple_decl { value }
   | value=header_decl ";" { value }
 
+(* An identifier, carrying where it was written.
+
+   Every name position in the grammar goes through one of these rather than
+   reading the token directly, so no production can build a node with a name
+   the reader cannot be pointed at. Both are `%inline`, so they expand back
+   into their caller and the automaton is the same one the bare tokens built --
+   the conflict census in docs/ambiguity.md is unchanged by their introduction.
+
+   [import_member] is the one name position that does not use them: it is
+   already a record whose own span is exactly the name. *)
+%inline lname:
+  | text=LIDENT { mk_name $loc text }
+
+%inline uname:
+  | text=UIDENT { mk_name $loc text }
+
 %inline func_lambda(body_form):
   | ret_type=ret_type "(" params=separated_list(COMMA, param) ")" body=body_form {
       ({ Nodes.Func_lambda.params; ret_type; body; span = Span.of_loc $loc }
@@ -677,7 +698,7 @@ top_decl:
   | number=INT {
       generic_arg $loc (Nodes.Generic_arg.Number number)
     }
-  | name=LIDENT {
+  | name=lname {
       generic_arg $loc (Nodes.Generic_arg.NumberRef name)
     }
   | param=param {
@@ -782,7 +803,7 @@ type_expr:
     }
 
 %inline generic_param:
-  | name=UIDENT concept_=UTYPE {
+  | name=uname concept_=UTYPE {
       ignore concept_;
       ({
         Nodes.Generic_param.name;
@@ -790,7 +811,7 @@ type_expr:
         span = Span.of_loc $loc;
       } : Nodes.Generic_param.t)
     }
-  | name=LIDENT concept_=NUMBER {
+  | name=lname concept_=NUMBER {
       ignore concept_;
       ({
         Nodes.Generic_param.name;
@@ -800,13 +821,13 @@ type_expr:
     }
 
 %inline constructor_name:
-  | type_=name_type member=ioption(preceded(".", LIDENT)) {
+  | type_=name_type member=ioption(preceded(".", lname)) {
       ({ Nodes.Constructor_name.type_; member; span = Span.of_loc $loc }
         : Nodes.Constructor_name.t)
     }
 
 %inline field_arg:
-  | name=LIDENT value=ioption(preceded("=", expr)) {
+  | name=lname value=ioption(preceded("=", expr)) {
       ({ Nodes.Field_arg.name; value; span = Span.of_loc $loc }
         : Nodes.Field_arg.t)
     }
@@ -869,7 +890,7 @@ map_lit:
   | type_=type_expr {
       param_type $loc (Nodes.Param_type.Concrete type_)
     }
-  | name=UIDENT concept_=UTYPE {
+  | name=uname concept_=UTYPE {
       ignore concept_;
       param_type $loc
         (Nodes.Param_type.InferredType
@@ -877,14 +898,14 @@ map_lit:
     }
 
 %inline constructor_field:
-  | name=LIDENT type_=field_type default=ioption(preceded("=", expr)) {
+  | name=lname type_=field_type default=ioption(preceded("=", expr)) {
       ({ Nodes.Constructor_field.name; type_; default; span = Span.of_loc $loc }
         : Nodes.Constructor_field.t)
     }
   (* The field's type is not written: it is the constructor being called, read
      as a type. So the type node takes the constructor name's span, which is the
      only thing in the source it stands for. *)
-  | name=LIDENT constructor=constructor_name args=constructor_args {
+  | name=lname constructor=constructor_name args=constructor_args {
       let name_span = constructor.Nodes.Constructor_name.span in
       let type_ =
         ({
@@ -913,12 +934,12 @@ map_lit:
     }
 
 %inline constructor_decl_name:
-  | type_=named_type_expr member=ioption(preceded(".", LIDENT)) {
+  | type_=named_type_expr member=ioption(preceded(".", lname)) {
       (type_, member)
     }
 
 %inline enum_map_entry:
-  | member=LIDENT "=" value=expr {
+  | member=lname "=" value=expr {
       (member, value)
     }
 
@@ -954,10 +975,10 @@ map_lit:
    itself. What follows the `$` is settled by the terminator [header_decl]
    requires, not by reading on: see there. *)
 import_decl:
-  | IMPORT package=LIDENT alias=ioption(preceded(AS, LIDENT)) {
+  | IMPORT package=lname alias=ioption(preceded(AS, lname)) {
       import $loc (Nodes.Import.Package { package; alias })
     }
-  | IMPORT package=LIDENT "$" member=import_member
+  | IMPORT package=lname "$" member=import_member
     alias=ioption(preceded(AS, import_member)) {
       import $loc
         (Nodes.Import.Member {
@@ -966,11 +987,11 @@ import_decl:
           alias = Option.map (import_alias member) alias;
         })
     }
-  | IMPORT package=LIDENT "$"
+  | IMPORT package=lname "$"
     "[" members=separated_nonempty_list(",", import_member) "]" {
       import $loc (Nodes.Import.Members { package; members })
     }
-  | IMPORT package=LIDENT "$" {
+  | IMPORT package=lname "$" {
       import $loc (Nodes.Import.All { package })
     }
 
@@ -994,7 +1015,7 @@ import_decl:
    declaration, and the same `;` is what ends `package pkg` and the three
    import forms that do end in a name. *)
 header_decl:
-  | PACKAGE name=LIDENT {
+  | PACKAGE name=lname {
       decl $loc (Nodes.Decl.Package name)
     }
   | value=import_decl {
@@ -1004,13 +1025,13 @@ header_decl:
 (* A verb declaration and the declaration wrapping it span the same tokens:
    there is nothing in a `Decl.Verb` but the verb. Both take `$loc`. *)
 body_decl(body_form):
-  | ret_type=ret_type name=LIDENT "(" params=separated_list(",", param) ")" body=body_form {
+  | ret_type=ret_type name=lname "(" params=separated_list(",", param) ")" body=body_form {
       decl $loc
         (Nodes.Decl.Verb
            (verb_decl $loc
               (Nodes.Verb_decl.Func { name; params; ret_type; body })))
     }
-  | ret_type=ret_type name=LIDENT "(" THIS this_type=type_expr
+  | ret_type=ret_type name=lname "(" THIS this_type=type_expr
     params=loption(preceded(",", separated_nonempty_list(",", param)))
     ")" is_mut=boption(MUT) body=body_form {
       decl $loc
@@ -1065,11 +1086,11 @@ body_decl(body_form):
 
 (* Ends in a `{ }` block, which closes the construct on its own. *)
 type_decl(value_form):
-  | "type" name=UIDENT params=loption(delimited("<", separated_nonempty_list(",", generic_param), ">"))
+  | "type" name=uname params=loption(delimited("<", separated_nonempty_list(",", generic_param), ">"))
     "=" value=value_form {
       decl $loc (Nodes.Decl.Type { name; params; value })
     }
-  | "alias" name=UIDENT params=loption(delimited("<", separated_nonempty_list(",", generic_param), ">"))
+  | "alias" name=uname params=loption(delimited("<", separated_nonempty_list(",", generic_param), ">"))
     "=" value=value_form {
       decl $loc (Nodes.Decl.Alias { name; params; value })
     }
@@ -1083,10 +1104,10 @@ simple_decl:
   | value=body_decl(shorthand_body) { value }
   | value=type_decl(raw_value) { value }
   | value=type_decl(enum_moulded_value) { value }
-  | name=LIDENT type_=type_expr "=" value=expr {
+  | name=lname type_=type_expr "=" value=expr {
       decl $loc (Nodes.Decl.Var { name; type_; value })
     }
-  | name=LIDENT constructor=constructor_name args=constructor_args {
+  | name=lname constructor=constructor_name args=constructor_args {
       decl $loc
         (Nodes.Decl.VarShorthand { name; constructor; args; trailing = false })
     }
@@ -1094,7 +1115,7 @@ simple_decl:
      same restriction the call itself is under: what stays inside the `( )`
      may not be empty, or `name Foo() { ... }` would read both as this and as
      the lambda-variable shorthand two rules down. *)
-  | name=LIDENT constructor=constructor_name
+  | name=lname constructor=constructor_name
     "(" args=separated_nonempty_list(",", call_arg) ")" tail=trailing_arg {
       decl $loc
         (Nodes.Decl.VarShorthand {
@@ -1106,7 +1127,7 @@ simple_decl:
           trailing = true;
         })
     }
-  | name=LIDENT func_lambda=func_lambda(body) {
+  | name=lname func_lambda=func_lambda(body) {
       decl $loc
         (Nodes.Decl.Var {
           name;
@@ -1114,7 +1135,7 @@ simple_decl:
           value = expr $loc(func_lambda) (Nodes.Expr.FuncLambda func_lambda);
         })
     }
-  | name=LIDENT meth_lambda=meth_lambda(body) {
+  | name=lname meth_lambda=meth_lambda(body) {
       decl $loc
         (Nodes.Decl.Var {
           name;
@@ -1122,7 +1143,7 @@ simple_decl:
           value = expr $loc(meth_lambda) (Nodes.Expr.MethLambda meth_lambda);
         })
     }
-  | enum=named_type_expr "." property=LIDENT type_=type_expr
+  | enum=named_type_expr "." property=lname type_=type_expr
     entries=enum_map_body {
       decl $loc (Nodes.Decl.EnumMap { enum; property; type_; entries })
     }
@@ -1165,7 +1186,7 @@ simple_decl:
    and only a brace ends a statement -- so a declaration cast from this one is
    terminated like any other that does not end in a brace. *)
 %inline enum_mould:
-  | ENUM "[" members=separated_nonempty_list(",", LIDENT) "]" {
+  | ENUM "[" members=separated_nonempty_list(",", lname) "]" {
       mould $loc (Nodes.Mould.Enum members)
     }
 
@@ -1190,7 +1211,7 @@ simple_decl:
     }
 
 %inline body_field:
-  | name=LIDENT type_=type_expr ";" {
+  | name=lname type_=type_expr ";" {
       ({ Nodes.Body_field.name; type_; span = Span.of_loc $loc }
         : Nodes.Body_field.t)
     }
@@ -1390,10 +1411,10 @@ block_call:
   | "'/" { operator $loc Nodes.Operator.Div }
 
 %inline match_selector:
-  | case=LIDENT {
+  | case=lname {
       [case]
     }
-  | "[" cases=separated_nonempty_list(",", LIDENT) "]" {
+  | "[" cases=separated_nonempty_list(",", lname) "]" {
       cases
     }
 
@@ -1402,7 +1423,7 @@ block_call:
       ({ Nodes.Match_pattern.binder = None; cases; span = Span.of_loc $loc }
         : Nodes.Match_pattern.t)
     }
-  | binder=LIDENT cases=match_selector {
+  | binder=lname cases=match_selector {
       ({
         Nodes.Match_pattern.binder = Some binder;
         cases;
@@ -1460,7 +1481,8 @@ primary:
     }
   | THIS     {
       expr $loc
-        (Nodes.Expr.NameExpr (name_expr $loc (Nodes.Name_expr.Ident "this")))
+        (Nodes.Expr.NameExpr
+           (name_expr $loc (Nodes.Name_expr.Ident (mk_name $loc "this"))))
     }
   | name_expr=name_expr { expr $loc (Nodes.Expr.NameExpr name_expr) }
   | "(" e=expr ")" { expr $loc (Nodes.Expr.Parenthized e) }
@@ -1471,7 +1493,7 @@ primary:
   | value=match_expr { value }
 
 %inline type_member:
-  | type_=name_type "." member=LIDENT {
+  | type_=name_type "." member=lname {
       expr $loc (Nodes.Expr.TypeMember { type_; member })
     }
 
@@ -1481,7 +1503,7 @@ primary:
 func_callee:
   | primary=primary { primary }
   | call=verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
-  | target=app "." field=LIDENT {
+  | target=app "." field=lname {
       expr $loc (Nodes.Expr.DotAccess { target; field })
     }
   | target=app "[" args=separated_list(",", expr) "]" {
@@ -1595,7 +1617,7 @@ ref_target:
     }
 
 abort_handle:
-  | "?" binder=ioption(LIDENT) body=body %prec THICK_ARROW {
+  | "?" binder=ioption(lname) body=body %prec THICK_ARROW {
       abort_handle_node $loc (Nodes.Abort_handle.Longhand { binder; body })
     }
   | "??" value=expr %prec THICK_ARROW {
@@ -1683,10 +1705,10 @@ stat:
     }
 
 %inline param:
-  | name=LIDENT type_=field_type {
+  | name=lname type_=field_type {
       ({ Nodes.Param.name; type_; span = Span.of_loc $loc } : Nodes.Param.t)
     }
-  | name=UIDENT concept_=UTYPE {
+  | name=uname concept_=UTYPE {
       ignore concept_;
       ({
         Nodes.Param.name;
@@ -1697,7 +1719,7 @@ stat:
         span = Span.of_loc $loc;
       } : Nodes.Param.t)
     }
-  | name=LIDENT concept_=NUMBER {
+  | name=lname concept_=NUMBER {
       ignore concept_;
       ({
         Nodes.Param.name;
@@ -1710,19 +1732,19 @@ stat:
     }
 
 %inline name_expr:
-  | name=LIDENT { name_expr $loc (Nodes.Name_expr.Ident name) }
-  | pkg=LIDENT "$" name=LIDENT {
+  | name=lname { name_expr $loc (Nodes.Name_expr.Ident name) }
+  | pkg=lname "$" name=lname {
       name_expr $loc (Nodes.Name_expr.Qualified { package = pkg; ident = name })
     }
-  | "@" pkg=LIDENT "$" name=LIDENT {
+  | "@" pkg=lname "$" name=lname {
       name_expr $loc (Nodes.Name_expr.Intrinsic { package = pkg; ident = name })
     }
 
 %inline name_type:
-  | name=UIDENT { name_type $loc (Nodes.Name_type.Ident name) }
-  | pkg=LIDENT "$" name=UIDENT {
+  | name=uname { name_type $loc (Nodes.Name_type.Ident name) }
+  | pkg=lname "$" name=uname {
       name_type $loc (Nodes.Name_type.Qualified { package = pkg; ident = name })
     }
-  | "@" pkg=LIDENT "$" name=UIDENT {
+  | "@" pkg=lname "$" name=uname {
       name_type $loc (Nodes.Name_type.Intrinsic { package = pkg; ident = name })
     }

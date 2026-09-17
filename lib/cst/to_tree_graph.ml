@@ -23,15 +23,19 @@ open Tree_graph
 (* that wanted a different label or no label at all.   *)
 (* =================================================== *)
 
+(* A name renders as its text: the span it now carries is for a diagnostic to
+   point at, not for a reader of the tree, so the rendering is unchanged. *)
+let text (n: Nodes.Name.t) = n.Nodes.Name.text
+
 let name_type_to_node (x: Nodes.Name_type.t) = match x.Nodes.Name_type.node with
-  | Ident s -> Leaf s
-  | Qualified { package; ident } -> Leaf (package ^ "$" ^ ident)
-  | Intrinsic { package; ident } -> Leaf ("@" ^ package ^ "$" ^ ident)
+  | Ident s -> Leaf (text s)
+  | Qualified { package; ident } -> Leaf (text package ^ "$" ^ text ident)
+  | Intrinsic { package; ident } -> Leaf ("@" ^ text package ^ "$" ^ text ident)
 
 let name_expr_to_node (x: Nodes.Name_expr.t) = match x.Nodes.Name_expr.node with
-  | Ident s -> Leaf s
-  | Qualified { package; ident } -> Leaf (package ^ "$" ^ ident)
-  | Intrinsic { package; ident } -> Leaf ("@" ^ package ^ "$" ^ ident)
+  | Ident s -> Leaf (text s)
+  | Qualified { package; ident } -> Leaf (text package ^ "$" ^ text ident)
+  | Intrinsic { package; ident } -> Leaf ("@" ^ text package ^ "$" ^ text ident)
 
 let rec concept_to_node (x: Nodes.Concept.t) = match x.Nodes.Concept.node with
   | Type -> Leaf "Type"
@@ -42,7 +46,7 @@ and param_type_to_node (x: Nodes.Param_type.t) = match x.Nodes.Param_type.node w
   | Concept x -> concept_to_node x
   | InferredType { name; concept } ->
       fields [
-        ("name", Leaf name);
+        ("name", Leaf (text name));
         ("concept", concept_to_node concept);
       ]
 
@@ -62,19 +66,19 @@ and verb_type_to_node (x: Nodes.Verb_type.t) = match x.Nodes.Verb_type.node with
 
 and body_field_to_node (x: Nodes.Body_field.t) =
   fields [
-    ("name", Leaf x.name);
+    ("name", Leaf (text x.name));
     ("type", type_to_node x.type_);
   ]
 
 and mould_to_node (x: Nodes.Mould.t) = match x.Nodes.Mould.node with
   | Struct x -> group "struct" (map_seq body_field_to_node x)
   | Variant x -> group "variant" (map_seq body_field_to_node x)
-  | Enum x -> group "enum" (map_seq (fun x -> Leaf x) x)
+  | Enum x -> group "enum" (map_seq (fun x -> Leaf (text x)) x)
 
 and generic_arg_to_node (x: Nodes.Generic_arg.t) = match x.Nodes.Generic_arg.node with
   | Type x -> type_to_node x
   | Number x -> group "number" (Leaf x)
-  | NumberRef x -> group "number_ref" (Leaf x)
+  | NumberRef x -> group "number_ref" (Leaf (text x))
   | Inferred x -> group "param" (param_to_node x)
 
 and type_to_node (x: Nodes.Type_expr.t) = match x.Nodes.Type_expr.node with
@@ -94,7 +98,7 @@ and abort_field abort_handle =
    front, here and everywhere below, so the list reads the way the construct
    does. *)
 and field_arg_to_node (x: Nodes.Field_arg.t) =
-  let fs = [("name", Leaf x.name)] in
+  let fs = [("name", Leaf (text x.name))] in
   let fs = match x.value with
     | Some value -> fs @ [("value", expr_to_node value)]
     | None -> fs
@@ -130,7 +134,7 @@ and verb_call_to_node (x: Nodes.Verb_call.t) = match x.Nodes.Verb_call.node with
   | Constructor { name; args; abort_handle; trailing } ->
       let fs = [("type", name_type_to_node name.type_)] in
       let fs = match name.member with
-        | Some member -> fs @ [("member", Leaf member)]
+        | Some member -> fs @ [("member", Leaf (text member))]
         | None -> fs
       in
       group "ctor_call" (fields (fs @ [
@@ -152,9 +156,9 @@ and verb_call_to_node (x: Nodes.Verb_call.t) = match x.Nodes.Verb_call.node with
       ])
 
 and match_pattern_to_node (x: Nodes.Match_pattern.t) =
-  let fs = [("cases", map_seq (fun case -> Leaf case) x.cases)] in
+  let fs = [("cases", map_seq (fun case -> Leaf (text case)) x.cases)] in
   let fs = match x.binder with
-    | Some binder -> ("binder", Leaf binder) :: fs
+    | Some binder -> ("binder", Leaf (text binder)) :: fs
     | None -> fs
   in
   fields fs
@@ -182,14 +186,14 @@ and expr_to_node (x: Nodes.Expr.t) = match x.Nodes.Expr.node with
   | TypeMember { type_; member } ->
       group "type_member" (fields [
         ("type", name_type_to_node type_);
-        ("member", Leaf member);
+        ("member", Leaf (text member));
       ])
   | TypeValue type_ ->
       group "type_value" (fields [ ("type", name_type_to_node type_) ])
   | DotAccess { target; field } ->
       group "dot_access" (fields [
         ("target", expr_to_node target);
-        ("field", Leaf field);
+        ("field", Leaf (text field));
       ])
   | Subscript { target; args } ->
       group "subscript" (fields [
@@ -243,7 +247,7 @@ and abort_handle_to_node (x: Nodes.Abort_handle.t) = match x.Nodes.Abort_handle.
   | Longhand { binder; body } ->
       let fs = [("body", body_to_node body)] in
       let fs = match binder with
-        | Some b -> ("binder", Leaf b) :: fs
+        | Some b -> ("binder", Leaf (text b)) :: fs
         | None   -> fs
       in
       group "longhand" (fields fs)
@@ -251,7 +255,7 @@ and abort_handle_to_node (x: Nodes.Abort_handle.t) = match x.Nodes.Abort_handle.
 
 and param_to_node (x: Nodes.Param.t) =
   fields [
-    ("name", Leaf x.name);
+    ("name", Leaf (text x.name));
     ("type", param_type_to_node x.type_);
   ]
 
@@ -260,7 +264,7 @@ and params_to_node (x: Nodes.Param.t list) =
 
 and constructor_field_to_node (x: Nodes.Constructor_field.t) =
   let fs = [
-    ("name", Leaf x.name);
+    ("name", Leaf (text x.name));
     ("type", param_type_to_node x.type_);
   ] in
   let fs = match x.default with
@@ -341,15 +345,15 @@ and import_member_to_node (x: Nodes.Import_member.t) =
 
 and import_to_node (x: Nodes.Import.t) = match x.Nodes.Import.node with
   | Package { package; alias } ->
-      let fs = [("package", Leaf package)] in
+      let fs = [("package", Leaf (text package))] in
       let fs = match alias with
-        | Some alias -> fs @ [("alias", Leaf alias)]
+        | Some alias -> fs @ [("alias", Leaf (text alias))]
         | None -> fs
       in
       group "import_package" (fields fs)
   | Member { package; member; alias } ->
       let fs = [
-        ("package", Leaf package);
+        ("package", Leaf (text package));
         ("member", import_member_to_node member);
       ] in
       let fs = match alias with
@@ -359,11 +363,11 @@ and import_to_node (x: Nodes.Import.t) = match x.Nodes.Import.node with
       group "import_member" (fields fs)
   | Members { package; members } ->
       group "import_members" (fields [
-        ("package", Leaf package);
+        ("package", Leaf (text package));
         ("members", map_seq import_member_to_node members);
       ])
   | All { package } ->
-      group "import_all" (fields [("package", Leaf package)])
+      group "import_all" (fields [("package", Leaf (text package))])
 
 and map_entry_to_node (key, value) =
   fields [
@@ -373,26 +377,26 @@ and map_entry_to_node (key, value) =
 
 and enum_map_entry_to_node (member, value) =
   fields [
-    ("member", Leaf member);
+    ("member", Leaf (text member));
     ("value", expr_to_node value);
   ]
 
 and decl_to_node (x: Nodes.Decl.t) = match x.Nodes.Decl.node with
-  | Package name -> group "package_decl" (Leaf name)
+  | Package name -> group "package_decl" (Leaf (text name))
   | Import value -> group "import_decl" (import_to_node value)
   | Var { name; type_; value } ->
       group "var_decl" (fields [
-        ("name",  Leaf name);
+        ("name",  Leaf (text name));
         ("type",  type_to_node type_);
         ("value", expr_to_node value);
       ])
   | VarShorthand { name; constructor; args; trailing } ->
       let fs = [
-        ("name", Leaf name);
+        ("name", Leaf (text name));
         ("type", name_type_to_node constructor.type_);
       ] in
       let fs = match constructor.member with
-        | Some member -> fs @ [("member", Leaf member)]
+        | Some member -> fs @ [("member", Leaf (text member))]
         | None -> fs
       in
       group "var_decl_shorthand"
@@ -402,20 +406,20 @@ and decl_to_node (x: Nodes.Decl.t) = match x.Nodes.Decl.node with
         ]))
   | Type x ->
       group "type_decl" (fields [
-        ("name",   Leaf x.name);
+        ("name",   Leaf (text x.name));
         ("params", map_seq generic_param_to_node x.params);
         ("value",  type_or_moulded_to_node x.value);
       ])
   | Alias x ->
       group "alias_decl" (fields [
-        ("name",   Leaf x.name);
+        ("name",   Leaf (text x.name));
         ("params", map_seq generic_param_to_node x.params);
         ("value",  type_or_moulded_to_node x.value);
       ])
   | EnumMap x ->
       group "enum_map_decl" (fields [
         ("enum", type_to_node x.enum);
-        ("property", Leaf x.property);
+        ("property", Leaf (text x.property));
         ("type", type_to_node x.type_);
         ("entries", map_seq enum_map_entry_to_node x.entries);
       ])
@@ -424,14 +428,14 @@ and decl_to_node (x: Nodes.Decl.t) = match x.Nodes.Decl.node with
 and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x.Nodes.Verb_decl.node with
   | Func x ->
       group "func_decl" (fields [
-        ("name",     Leaf x.name);
+        ("name",     Leaf (text x.name));
         ("param",    params_to_node x.params);
         ("ret_type", ret_to_node x.ret_type);
         ("body",     body_to_node x.body);
       ])
   | Meth x ->
       group "meth_decl" (fields [
-        ("name",      Leaf x.name);
+        ("name",      Leaf (text x.name));
         ("this_type", type_to_node x.this_type);
         ("param",     params_to_node x.params);
         ("ret_type",  ret_to_node x.ret_type);
@@ -450,7 +454,7 @@ and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x.Nodes.Verb_decl.node with
       in
       let fs = [("type", type_to_node x.type_)] in
       let fs = match x.member with
-        | Some member -> fs @ [("member", Leaf member)]
+        | Some member -> fs @ [("member", Leaf (text member))]
         | None -> fs
       in
       let fs = fs @ [
@@ -481,7 +485,7 @@ and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x.Nodes.Verb_decl.node with
 
 and generic_param_to_node (x: Nodes.Generic_param.t) =
   fields [
-    ("name", Leaf x.name);
+    ("name", Leaf (text x.name));
     ("type", concept_to_node x.type_);
   ]
 
