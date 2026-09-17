@@ -1,12 +1,56 @@
 (* The CST's job is to represent what was parsed, not what's valid. *)
 
+(* Every node carries where it was written.
+
+   Two shapes, chosen by what the node already is. A node whose [t] is a
+   variant becomes a record [{ node; span }] whose [node] is that variant; a
+   node whose [t] is already a record gains a [span] field. Either way [t] is
+   the spanned thing, so a reference to [Expr.t] cannot accidentally be the
+   unspanned one -- the alternative, a generic [`a spanned`] wrapper applied at
+   each reference site, makes that a decision to get wrong once per mention.
+   This is the shape OCaml's own Parsetree uses, for the same reason.
+
+   [Statement_defect] is the one type here that is not a node: it is a note
+   about a statement rather than something written in the source, and it is
+   already paired with the position it points at. It stays bare. *)
+
+(* A name as it was written, and where.
+
+   Every identifier in the tree is one of these rather than a bare [string],
+   because a name is the thing a diagnostic most often has to point at and it
+   is usually smaller than the node holding it: "no field `foo`" wants the
+   `foo` in `target.foo`, and "case not covered" wants the one case name inside
+   `[a, b, c]`, not the whole selector. A [string] cannot carry that, and the
+   enclosing node's span is the wrong answer.
+
+   Where a node's span is already exactly the name -- [Name_type.Ident], say --
+   the two spans coincide. That is not worth a special case: a consumer that
+   wants a name's position reads it off the name, whichever variant it came
+   from, rather than case-splitting on whether this one happens to be
+   redundant.
+
+   Literals are not names and stay bare. [Expr.IntLit], [FloatLit], [StrLit]
+   and [Generic_arg.Number] each sit in a node whose span is exactly that
+   token, and none of them refers to anything a later pass resolves. *)
+module Name = struct
+  type t = {
+    text : string;
+    span : Span.t;
+  }
+end
+
 (* ---------------------------------------------------------------------- *)
 (* Leaf types: no back-references into the recursive core, so they live   *)
 (* outside the [module rec] chain as ordinary modules.                    *)
 (* ---------------------------------------------------------------------- *)
 
 module Operator = struct
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Add
     | Sub
     | Mul
@@ -20,14 +64,22 @@ module Operator = struct
 end
 
 module Type_axis = struct
-  type t = Value | Reference
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node = Value | Reference
 end
 
 (* How a statement disagreed with the rules about where it ends.
 
    All three are decided by the statement's tail, which the grammar cannot see
    at the point it has to choose, so they are recorded on the statement and
-   read back afterwards rather than rejected in an action. *)
+   read back afterwards rather than rejected in an action.
+
+   Not a node: it records something about a statement rather than something
+   written, and it already travels with the position it points at. *)
 module Statement_defect = struct
   type t =
     (* Ends in `}`, which closes it, and carries a `;` that marks nothing. *)
@@ -42,22 +94,33 @@ module Statement_defect = struct
 end
 
 module Name_type = struct
-  type t =
-    | Ident of string
-    | Qualified of { package : string; ident : string }
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
+    | Ident of Name.t
+    | Qualified of { package : Name.t; ident : Name.t }
     (* intrinsic namespace, spelled @package$Ident, e.g. @primitives$I32 *)
-    | Intrinsic of { package : string; ident : string }
+    | Intrinsic of { package : Name.t; ident : Name.t }
 end
 
 module Constructor_name = struct
   type t = {
     type_ : Name_type.t;
-    member : string option;
+    member : Name.t option;
+    span : Span.t;
   }
 end
 
 module Concept = struct
-  type t = Type | Number
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node = Type | Number
 end
 
 (* One name taken from a package. The casing class is kept rather than
@@ -67,6 +130,7 @@ module Import_member = struct
   type t = {
     name : string;
     is_type : bool;
+    span : Span.t;
   }
 end
 
@@ -77,27 +141,33 @@ end
    two combinations are therefore unrepresentable here rather than rejected
    later. *)
 module Import = struct
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     (* import pkg           -> pkg$member
        import pkg as alias  -> alias$member *)
-    | Package of { package : string; alias : string option }
+    | Package of { package : Name.t; alias : Name.t option }
     (* import pkg$member           -> member
        import pkg$member as alias  -> alias *)
     | Member of {
-        package : string;
+        package : Name.t;
         member : Import_member.t;
         alias : Import_member.t option;
       }
     (* import pkg$[memberA, memberB] -> memberA, memberB *)
-    | Members of { package : string; members : Import_member.t list }
+    | Members of { package : Name.t; members : Import_member.t list }
     (* import pkg$ -> every accessible member, unqualified *)
-    | All of { package : string }
+    | All of { package : Name.t }
 end
 
 module Generic_param = struct
   type t = {
-    name : string;
+    name : Name.t;
     type_ : Concept.t;
+    span : Span.t;
   }
 end
 
@@ -110,22 +180,32 @@ end
 (* ---------------------------------------------------------------------- *)
 
 module Name_expr = struct
-  type t =
-    | Ident of string
-    | Qualified of { package : string; ident : string }
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
+    | Ident of Name.t
+    | Qualified of { package : Name.t; ident : Name.t }
     (* intrinsic namespace, spelled @package$ident, e.g. @funcs$strToI32 *)
-    | Intrinsic of { package : string; ident : string }
+    | Intrinsic of { package : Name.t; ident : Name.t }
 end
 
 module rec Expr : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | IntLit of string
     | FloatLit of string
     | StrLit of string
     | BoolLit of bool
     | CollectionLit of t list
     | NameExpr of Name_expr.t
-    | TypeMember of { type_ : Name_type.t; member : string }
+    | TypeMember of { type_ : Name_type.t; member : Name.t }
     (* A type written where a value is expected: the explicit type argument of
        generics.md §5.3, as in `Array(Int, 10000)`. Types are compile-time
        values, so a name in this position is an ordinary argument rather than a
@@ -136,7 +216,7 @@ module rec Expr : sig
        cannot be told from the start of a verb-type suffix list without
        lookahead the parser does not have. See docs/spec-divergences.md. *)
     | TypeValue of Name_type.t
-    | DotAccess of { target : t; field : string }
+    | DotAccess of { target : t; field : Name.t }
     | Subscript of { target : t; args : t list }
     | Ref of t
     | Parenthized of t
@@ -158,15 +238,21 @@ module rec Expr : sig
 end = Expr
 
 and Abort_handle : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Shorthand of Expr.t
-    | Longhand of { binder: string option; body: Body.t }
+    | Longhand of { binder: Name.t option; body: Body.t }
 end = Abort_handle
 
 and Field_arg : sig
   type t = {
-    name : string;
+    name : Name.t;
     value : Expr.t option;
+    span : Span.t;
   }
 end = Field_arg
 
@@ -174,13 +260,23 @@ end = Field_arg
    the callee runs, and it is spelled here rather than in [Expr.t] because it is
    never a value: the grammar admits one only in an argument position. *)
 and Call_arg : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Value of Expr.t
     | Block of Statement.t list
 end = Call_arg
 
 and Constructor_args : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Positional of Call_arg.t list
     | Fields of Field_arg.t list
 end = Constructor_args
@@ -194,7 +290,12 @@ end = Constructor_args
    follows and forbids an abort handler after it. That is surface information,
    and a CST that could not tell the two apart could not apply either rule. *)
 and Verb_call : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Func        of { callee: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; trailing: bool; }
     | Meth        of { callee: Expr.t; this: Expr.t; args: Call_arg.t list; abort_handle: Abort_handle.t option; is_mut: bool; trailing: bool; }
     | Constructor of { name: Constructor_name.t; args: Constructor_args.t; abort_handle: Abort_handle.t option; trailing: bool; }
@@ -204,35 +305,52 @@ end = Verb_call
 
 and Body_field : sig
   type t = {
-    name : string;
+    name : Name.t;
     type_ : Type_expr.t;
+    span : Span.t;
   }
 end = Body_field
 
 and Mould : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Struct of Body_field.t list
     | Variant of Body_field.t list
-    | Enum of string list
+    | Enum of Name.t list
 end = Mould
 
 and Moulded : sig
   type t = {
     mould : Mould.t;
     axis : Type_axis.t;
+    span : Span.t;
   }
 end = Moulded
 
 and Generic_arg : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Type of Type_expr.t
     | Number of string
-    | NumberRef of string
+    | NumberRef of Name.t
     | Inferred of Param.t
 end = Generic_arg
 
 and Verb_type : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Func of {
         params: Param_type.t list;
         ret_type: Ret_type.t
@@ -246,7 +364,12 @@ and Verb_type : sig
 end = Verb_type
 
 and Type_expr : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Path of { name : Name_type.t; generics : Generic_arg.t list }
     | Guest of t
     | Verb of Verb_type.t
@@ -254,37 +377,50 @@ and Type_expr : sig
 end = Type_expr
 
 and Param_type : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Concrete of Type_expr.t
     | Concept of Concept.t
-    | InferredType of { name : string; concept : Concept.t }
+    | InferredType of { name : Name.t; concept : Concept.t }
 end = Param_type
 
 and Param : sig
   type t = {
-    name : string;
+    name : Name.t;
     type_ : Param_type.t;
+    span : Span.t;
   }
 end = Param
 
 and Constructor_field : sig
   type t = {
-    name : string;
+    name : Name.t;
     type_ : Param_type.t;
     default : Expr.t option;
+    span : Span.t;
   }
 end = Constructor_field
 
 and Constructor_params : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Positional of Param.t list
     | Fields of Constructor_field.t list
 end = Constructor_params
 
 and Match_pattern : sig
   type t = {
-    binder : string option;
-    cases : string list;
+    binder : Name.t option;
+    cases : Name.t list;
+    span : Span.t;
   }
 end = Match_pattern
 
@@ -292,6 +428,7 @@ and Match_arm : sig
   type t = {
     patterns : Match_pattern.t list;
     body : Body.t;
+    span : Span.t;
   }
 end = Match_arm
 
@@ -300,11 +437,17 @@ and Match_expr : sig
     scrutinees : Expr.t list;
     arms : Match_arm.t list;
     abort_handle : Abort_handle.t option;
+    span : Span.t;
   }
 end = Match_expr
 
 and Stat : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | VerbCall of Verb_call.t
     | Spawn of Verb_call.t
     | Decl of Decl.t
@@ -332,17 +475,28 @@ and Statement : sig
     (* [None] when the statement is well formed. Otherwise how it is not, and
        where to point. *)
     defect : (Statement_defect.t * Lexing.position) option;
+    span : Span.t;
   }
 end = Statement
 
 and Body : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Shorthand of Expr.t
     | Longhand of Statement.t list
 end = Body
 
 and Ret_type : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Safe of Type_expr.t
     | Abort of { ok : Type_expr.t; abort : Type_expr.t }
     | Parenthesized of t
@@ -353,6 +507,7 @@ and Func_lambda : sig
     params : Param.t list;
     ret_type : Ret_type.t;
     body : Body.t;
+    span : Span.t;
   }
 end = Func_lambda
 
@@ -363,25 +518,36 @@ and Meth_lambda : sig
     ret_type : Ret_type.t;
     is_mut : bool;
     body : Body.t;
+    span : Span.t;
   }
 end = Meth_lambda
 
 and Type_or_moulded : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Raw of Type_expr.t
     | Moulded of Moulded.t
 end = Type_or_moulded
 
 and Verb_decl : sig
-  type t =
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
     | Func of {
-        name : string;
+        name : Name.t;
         params : Param.t list;
         ret_type : Ret_type.t;
         body : Body.t;
       }
     | Meth of {
-        name : string;
+        name : Name.t;
         this_type : Type_expr.t;
         params : Param.t list;
         ret_type : Ret_type.t;
@@ -396,7 +562,7 @@ and Verb_decl : sig
       }
     | Constructor of {
         type_ : Type_expr.t;
-        member : string option;
+        member : Name.t option;
         params : Constructor_params.t;
         body : Body.t;
         is_implicit : bool;
@@ -414,26 +580,31 @@ and Verb_decl : sig
 end = Verb_decl
 
 and Decl : sig
-  type t =
-    | Package of string
+  type t = {
+    node : node;
+    span : Span.t;
+  }
+
+  and node =
+    | Package of Name.t
     | Import of Import.t
-    | Var of { name : string; type_ : Type_expr.t; value : Expr.t }
-    | VarShorthand of { name : string; constructor : Constructor_name.t; args : Constructor_args.t; trailing : bool }
+    | Var of { name : Name.t; type_ : Type_expr.t; value : Expr.t }
+    | VarShorthand of { name : Name.t; constructor : Constructor_name.t; args : Constructor_args.t; trailing : bool }
     | Type of {
-        name : string;
+        name : Name.t;
         params : Generic_param.t list;
         value : Type_or_moulded.t;
       }
     | Alias of {
-        name : string;
+        name : Name.t;
         params : Generic_param.t list;
         value : Type_or_moulded.t;
       }
     | EnumMap of {
         enum : Type_expr.t;
-        property : string;
+        property : Name.t;
         type_ : Type_expr.t;
-        entries : (string * Expr.t) list;
+        entries : (Name.t * Expr.t) list;
       }
     | Verb of Verb_decl.t
 end = Decl
@@ -444,21 +615,51 @@ end = Decl
 (* ---------------------------------------------------------------------- *)
 
 module Package = struct
-  type t = { decls : Decl.t list }
+  type t = {
+    decls : Decl.t list;
+    span : Span.t;
+  }
 end
 
+(* The type a lambda's own shape gives it. The written lambda is the only
+   source for this type, so the type node and its parts take the lambda's
+   span: nothing narrower was written for them to point at. *)
 let func_type_of_lambda (x : Func_lambda.t) : Type_expr.t =
-  Type_expr.Verb
-    (Verb_type.Func {
-        params = List.map (fun (p : Param.t) -> p.Param.type_) x.Func_lambda.params;
-        ret_type = x.Func_lambda.ret_type;
-      })
+  let span = x.Func_lambda.span in
+  {
+    Type_expr.span;
+    node =
+      Type_expr.Verb
+        {
+          Verb_type.span;
+          node =
+            Verb_type.Func
+              {
+                params =
+                  List.map (fun (p : Param.t) -> p.Param.type_)
+                    x.Func_lambda.params;
+                ret_type = x.Func_lambda.ret_type;
+              };
+        };
+  }
 
 let meth_type_of_lambda (x : Meth_lambda.t) : Type_expr.t =
-  Type_expr.Verb
-    (Verb_type.Meth {
-        this_type = x.Meth_lambda.this_type;
-        params = List.map (fun (p : Param.t) -> p.Param.type_) x.Meth_lambda.params;
-        ret_type = x.Meth_lambda.ret_type;
-        is_mut = x.Meth_lambda.is_mut;
-      })
+  let span = x.Meth_lambda.span in
+  {
+    Type_expr.span;
+    node =
+      Type_expr.Verb
+        {
+          Verb_type.span;
+          node =
+            Verb_type.Meth
+              {
+                this_type = x.Meth_lambda.this_type;
+                params =
+                  List.map (fun (p : Param.t) -> p.Param.type_)
+                    x.Meth_lambda.params;
+                ret_type = x.Meth_lambda.ret_type;
+                is_mut = x.Meth_lambda.is_mut;
+              };
+        };
+  }

@@ -1,13 +1,19 @@
+module Span = Span
 module Nodes = Nodes
 module Parser = Parser
 module Lexer = Lexer
 include To_tree_graph
 
-(* [Parse_error.format_parse_error] indexes [input] with [String.sub] and
-   [String.length], so it needs byte offsets. [Sedlexing.lexing_positions]
-   counts code points, which drifts the caret on non-ASCII input; ask for the
-   byte positions instead. *)
-let error_positions lexbuf = Sedlexing.lexing_bytes_positions lexbuf
+(* Positions as byte offsets, which is what every consumer of one here needs.
+
+   [Parse_error.format_parse_error] indexes [input] with [String.sub] and
+   [String.length]. So does anything that reads the source a [Span.t] covers,
+   which is now every node in the tree. [Sedlexing.lexing_positions] counts code
+   points instead, which agrees with the byte offset only while the input is
+   ASCII and drifts one position per extra byte after that -- and Zane
+   identifiers are Unicode ([Lexer]'s [alphabetic], [lowercase] and [uppercase]
+   classes), so non-ASCII input is ordinary rather than exotic. *)
+let byte_positions lexbuf = Sedlexing.lexing_bytes_positions lexbuf
 
 let parse filename input =
   (* [Sedlexing.Utf8.from_string] raises [Sedlexing.MalFormed] on invalid UTF-8,
@@ -22,9 +28,22 @@ let parse filename input =
         (Parse_error.format_parse_error ~message:"Malformed UTF-8 input"
            filename input position position)
   | lexbuf -> (
-      let tokenizer = Sedlexing.with_tokenizer Lexer.token lexbuf in
+      (* Without this the lexbuf carries the empty filename sedlex starts it
+         with, and every position Menhir derives from it -- so every [Span.t] in
+         the tree -- names no file. The error path never noticed, because it is
+         handed [filename] separately. *)
+      Sedlexing.set_filename lexbuf filename;
+      (* Not [Sedlexing.with_tokenizer]: it reports code-point positions, and
+         the spans built from them are what the tree keeps. Same reason
+         [byte_positions] exists for the error path, applied one layer earlier
+         so the tree is right rather than only the message. *)
+      let tokenizer () =
+        let token = Lexer.token lexbuf in
+        let pos_start, pos_end = byte_positions lexbuf in
+        (token, pos_start, pos_end)
+      in
       let located ?message () =
-        let pos_start, pos_end = error_positions lexbuf in
+        let pos_start, pos_end = byte_positions lexbuf in
         Error
           (Parse_error.format_parse_error ?message filename input pos_start
              pos_end)

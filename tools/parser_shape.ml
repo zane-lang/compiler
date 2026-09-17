@@ -9,7 +9,7 @@ let parts name shapes = name ^ "(" ^ String.concat ", " shapes ^ ")"
    shows. `a > b '* c > d` and `a > b * c > d` are told apart here by their
    shape, not by a tag. *)
 let operator_name (op : Cst.Nodes.Operator.t) =
-  match op with
+  match op.Cst.Nodes.Operator.node with
   | Cst.Nodes.Operator.Add -> "add"
   | Cst.Nodes.Operator.Sub -> "sub"
   | Cst.Nodes.Operator.Mul -> "mul"
@@ -25,12 +25,36 @@ let operator_name (op : Cst.Nodes.Operator.t) =
    call a block joined and in which position, which is the grouping question a
    trailing block raises. *)
 let rec arg_shape (arg : Cst.Nodes.Call_arg.t) =
-  match arg with
+  match arg.Cst.Nodes.Call_arg.node with
   | Cst.Nodes.Call_arg.Value value -> expr_shape value
   | Cst.Nodes.Call_arg.Block _ -> "block"
 
+and verb_call_shape (call : Cst.Nodes.Verb_call.t) =
+  match call.Cst.Nodes.Verb_call.node with
+  | Cst.Nodes.Verb_call.Func { callee; args; _ } ->
+      parts "call" (expr_shape callee :: List.map arg_shape args)
+  | Cst.Nodes.Verb_call.Meth { callee; this; args; _ } ->
+      parts "meth" (expr_shape this :: expr_shape callee :: List.map arg_shape args)
+  (* A constructor call renders its arguments for the same reason a function
+     call does: a trailing block is the last of them, and the shape is what
+     says it joined this call rather than something inside it. *)
+  | Cst.Nodes.Verb_call.Constructor { name; args; _ } ->
+      let tag =
+        match name.Cst.Nodes.Constructor_name.member with
+        | Some _ -> "named_ctor"
+        | None -> "ctor"
+      in
+      (match args.Cst.Nodes.Constructor_args.node with
+      | Cst.Nodes.Constructor_args.Positional args ->
+          parts tag (List.map arg_shape args)
+      | Cst.Nodes.Constructor_args.Fields _ -> parts tag [ "fields" ])
+  | Cst.Nodes.Verb_call.Op { op; left; right; _ } ->
+      parts (operator_name op) [ expr_shape left; expr_shape right ]
+  | Cst.Nodes.Verb_call.Flip { value; _ } ->
+      "flip(" ^ expr_shape value ^ ")"
+
 and expr_shape (expr : Cst.Nodes.Expr.t) =
-  match expr with
+  match expr.Cst.Nodes.Expr.node with
   | Cst.Nodes.Expr.BoolLit _ -> "bool"
   | Cst.Nodes.Expr.NameExpr _ -> "name"
   | Cst.Nodes.Expr.TypeMember _ -> "type_member"
@@ -39,41 +63,19 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
   | Cst.Nodes.Expr.TypeValue _ -> "type_value"
   | Cst.Nodes.Expr.DotAccess { target; _ } -> "dot(" ^ expr_shape target ^ ")"
   | Cst.Nodes.Expr.Parenthized inner -> "paren(" ^ expr_shape inner ^ ")"
-  | Cst.Nodes.Expr.VerbCall (Cst.Nodes.Verb_call.Func { callee; args; _ }) ->
-      parts "call" (expr_shape callee :: List.map arg_shape args)
-  | Cst.Nodes.Expr.VerbCall
-      (Cst.Nodes.Verb_call.Meth { callee; this; args; _ }) ->
-      parts "meth" (expr_shape this :: expr_shape callee :: List.map arg_shape args)
-  (* A constructor call renders its arguments for the same reason a function
-     call does: a trailing block is the last of them, and the shape is what
-     says it joined this call rather than something inside it. *)
-  | Cst.Nodes.Expr.VerbCall (Cst.Nodes.Verb_call.Constructor { name; args; _ })
-    ->
-      let tag =
-        match name.Cst.Nodes.Constructor_name.member with
-        | Some _ -> "named_ctor"
-        | None -> "ctor"
-      in
-      (match args with
-      | Cst.Nodes.Constructor_args.Positional args ->
-          parts tag (List.map arg_shape args)
-      | Cst.Nodes.Constructor_args.Fields _ -> parts tag [ "fields" ])
-  | Cst.Nodes.Expr.VerbCall (Cst.Nodes.Verb_call.Op { op; left; right; _ }) ->
-      parts (operator_name op) [ expr_shape left; expr_shape right ]
-  | Cst.Nodes.Expr.VerbCall (Cst.Nodes.Verb_call.Flip { value; _ }) ->
-      "flip(" ^ expr_shape value ^ ")"
+  | Cst.Nodes.Expr.VerbCall call -> verb_call_shape call
   | Cst.Nodes.Expr.FuncLambda {
-      body = Cst.Nodes.Body.Shorthand body;
+      body = { Cst.Nodes.Body.node = Cst.Nodes.Body.Shorthand body; _ };
       _;
     } ->
       "lambda(" ^ expr_shape body ^ ")"
   (* A `{ }`-bodied lambda renders as [block] for the same reason a block
      argument does: `Foo() { ... }` is one of these and not a constructor call
      with a trailing block, and the shape is what says so. *)
-  | Cst.Nodes.Expr.FuncLambda { body = Cst.Nodes.Body.Longhand _; _ } ->
+  | Cst.Nodes.Expr.FuncLambda
+      { body = { Cst.Nodes.Body.node = Cst.Nodes.Body.Longhand _; _ }; _ } ->
       "lambda(block)"
-  | Cst.Nodes.Expr.Spawn call ->
-      "spawn(" ^ expr_shape (Cst.Nodes.Expr.VerbCall call) ^ ")"
+  | Cst.Nodes.Expr.Spawn call -> "spawn(" ^ verb_call_shape call ^ ")"
   | Cst.Nodes.Expr.Match { scrutinees; _ } ->
       parts "match" (List.map expr_shape scrutinees)
   | Cst.Nodes.Expr.Ref value -> "ref(" ^ expr_shape value ^ ")"
@@ -87,14 +89,22 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
   | _ -> "other"
 
 let abort_expr (package : Cst.Nodes.Package.t) =
-  match package.decls with
-  | [ Cst.Nodes.Decl.Verb
-        (Cst.Nodes.Verb_decl.Func {
-          body =
-            Cst.Nodes.Body.Longhand
-              [ { Cst.Nodes.Statement.stat = Cst.Nodes.Stat.Abort expr; _ } ];
-          _;
-        }) ] ->
+  match package.Cst.Nodes.Package.decls with
+  | [ { Cst.Nodes.Decl.node =
+          Cst.Nodes.Decl.Verb
+            { Cst.Nodes.Verb_decl.node =
+                Cst.Nodes.Verb_decl.Func
+                  { body =
+                      { Cst.Nodes.Body.node =
+                          Cst.Nodes.Body.Longhand
+                            [ { Cst.Nodes.Statement.stat =
+                                  { Cst.Nodes.Stat.node =
+                                      Cst.Nodes.Stat.Abort expr; _ };
+                                _ } ];
+                        _ };
+                    _ };
+              _ };
+        _ } ] ->
       expr
   | _ -> failwith "expected one function containing one abort statement"
 
