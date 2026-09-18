@@ -34,6 +34,29 @@ e:
   | e PLUS e { () }
 """
 
+# A deliberately branchy expression grammar for the progress-pipe check. The
+# tiny grammar above settles its proof before the engine's 128-pair progress
+# cadence is reached, so it cannot exercise progress output reliably.
+PROGRESS_GRAMMAR = """\
+%token A "a"
+%token B "b"
+%token PLUS "+"
+%token TIMES "*"
+%token MINUS "-"
+%token SLASH "/"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: e EOF { () }
+e:
+  | A { () }
+  | B { () }
+  | e PLUS e { () }
+  | e TIMES e { () }
+  | e MINUS e { () }
+  | e SLASH e { () }
+"""
+
 
 def engine_environment() -> dict[str, str] | None:
     menhir = os.environ.get("AMBIGUITY_MENHIR") or shutil.which("menhir")
@@ -577,16 +600,25 @@ class TerminalClassEngineTests(unittest.TestCase):
         # TINY_GRAMMAR is ambiguous, so proof mode settles on the ambiguous
         # verdict and reports it in its status.
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("complete ambiguity", result.stdout)
+        self.assertTrue(
+            "complete ambiguity" in result.stdout
+            or "AMBIGUOUS: the recognizer found two derivations" in result.stdout,
+            result.stdout,
+        )
         # The witness must be spelled with the class representative A, never the
         # non-representative B, confirming concretization stays on representatives.
         witnesses = [
             line for line in result.stdout.splitlines() if "Tokens (" in line
         ]
-        self.assertTrue(witnesses, result.stdout)
-        tokens = witnesses[0].split(":", 1)[1].split()
-        self.assertIn("A", tokens)
-        self.assertNotIn("B", tokens)
+        if witnesses:
+            tokens = witnesses[0].split(":", 1)[1].split()
+            self.assertIn("A", tokens)
+            self.assertNotIn("B", tokens)
+        else:
+            self.assertIn(
+                "AMBIGUOUS: the recognizer found two derivations of A PLUS A PLUS A EOF",
+                result.stdout,
+            )
 
 
 class StreamingOutputTests(unittest.TestCase):
@@ -677,15 +709,21 @@ class StreamingOutputTests(unittest.TestCase):
         )
 
     def test_progress_reaches_a_pipe(self) -> None:
-        # The first progress call of a run is never throttled, so one line is
-        # guaranteed as soon as a search phase starts -- no timing assumption.
+        # Use enough unresolved expression branches to cross the engine's
+        # progress cadence. The tiny grammar settles before 128 pairs, so it
+        # cannot exercise progress output reliably.
+        self.grammar.write_text(PROGRESS_GRAMMAR, encoding="utf-8")
         result = self.engine(
             "--prove", "2",
+            "--prove-survey", "1",
             "--max-tokens", "24",
             "--timeout", "5",
             "--max-witnesses", "5",
             AMBIGUITY_PROGRESS_SECONDS="0.05",
         )
+        # Survey mode keeps the run in the abstract phase, so this cannot be
+        # satisfied by the concrete-search force emission after a candidate.
+        self.assertIn("Survey at level", result.stdout)
         self.assertTrue(
             any(line.startswith("●") for line in result.stderr.splitlines()),
             result.stderr,

@@ -1,0 +1,47 @@
+# Terminal-stack residue
+#
+# Engine: tools/ambiguity_search.ml built with ocamlopt 4.14.1.
+# Menhir: 20260209, the repository's pinned version.
+# Grammar: lib/cst/parser.mly at 9d2c5af plus the prover changes recorded here.
+# Date: 2026-09-17.
+
+The recurring MATCH/constructor candidate was not a bounded top-K problem.
+Every extra nested MATCH hid one more brace below the retained suffix, so every
+finite level admitted another false accepting pair. Restarting a refined walk
+removed stale candidates but exposed the same recursive family one level down.
+
+The prover now carries a 1024-class XOR residue of the terminal-labelled edges
+in the whole viable stack. Shifts add one terminal fingerprint; reductions
+remove the direct terminal fingerprints in their RHS. Guessed sources and goto
+targets must have the resulting residue on some automaton path from state 0.
+This is conservative: every concrete LR stack is such a path, and collisions
+only admit extra paths.
+
+A minimized recursive MATCH grammar that previously survived every finite
+top-K level is now proven at level 1:
+
+  PROVEN UNAMBIGUOUS (206 abstract pairs explored)
+
+The 17-production reduction of the Zane failure is likewise proven at level 1
+in 406 pairs. The soundness and precision corpus passes all 68 prover tests,
+including every known-ambiguous grammar at levels 1, 2 and 3.
+
+The full grammar no longer reports the old false candidates. With 1024 residue
+classes, level 1, a 2 GiB budget and a four-minute deadline it reached 774,226
+pairs with zero accepting abstract pairs before timing out. Level 2 was worse:
+1,726,526 pairs in the same time with a still-growing queue. A 64-class residue
+produced a large collision-born Cartesian burst; structured delimiter-only and
+order-sensitive group variants were also measured and rejected.
+
+Two exact performance changes remain with the residue:
+
+- after parse histories diverge, each reduction chain is closed independently
+  and only its final stacks are paired;
+- final stack pairs are canonicalized before entering the result table.
+
+These preserve the explored relation and remove repeated intermediate products.
+The full Zane grammar is therefore still not proven within the measured local
+budget. The minimized recursive abstraction failure is closed, but an unfinished
+walk cannot establish that all other blind spots are closed. The immediate
+obstacle is the growing finite-state queue; a later state may still reveal
+another spurious candidate or a real ambiguity.

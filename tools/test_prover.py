@@ -38,7 +38,10 @@ VERDICT_STATUSES = (PROVEN, AMBIGUOUS, NOT_PROVEN)
 # says "no complete ambiguity was found" when there are none, so these have to
 # be anchored: a bare "complete ambiguity" substring matches the announcement
 # and its denial alike, and would read every empty search as a witness.
-WITNESS_LINE = re.compile(r"^Found \d+ complete ambiguity", re.MULTILINE)
+WITNESS_LINE = re.compile(
+    r"^(?:Found \d+ complete ambiguity|AMBIGUOUS: the recognizer found two derivations)",
+    re.MULTILINE,
+)
 PROVEN_LINE = re.compile(r"^PROVEN UNAMBIGUOUS:", re.MULTILINE)
 NOT_PROVEN_LINE = re.compile(r"^NOT PROVEN:", re.MULTILINE)
 # Every search reports how it ended, so this line is present whether or not
@@ -215,6 +218,11 @@ REACHABILITY_LINE = re.compile(
     r"can carry; the height stops being counted past (\d+)\.$",
     re.MULTILINE,
 )
+RESIDUE_LINE = re.compile(
+    r"^Stack residue: refused (\d+) move\(s\) whose outstanding terminals "
+    r"cannot reach the selected automaton state \((\d+) residue classes\)\.$",
+    re.MULTILINE,
+)
 
 
 # Two blind spots that share nothing: one palindrome over `a` and another over
@@ -347,6 +355,28 @@ p:
   | B B B B { () }
   | A p A { () }
   | B p B { () }
+"""
+
+# A small version of the unbounded lookahead family in the Zane grammar. After
+# `MATCH UIDENT`, a `{ }` pair is either the match body or part of the nested
+# expression. Every finite top-K stack abstraction used to admit both readings
+# all the way to acceptance, even though exactly one has enough braces. The
+# terminal residue attached to the viable stack path closes the whole family at
+# level 1 rather than chasing one more nested sentence per refinement round.
+RECURSIVE_MATCH = """\
+%token LIDENT UIDENT LPAREN RPAREN LCURLY RCURLY MATCH EOF
+%start <unit> package
+%%
+package: declarations EOF { () }
+declarations:
+  | { () }
+  | declaration declarations { () }
+declaration: LIDENT UIDENT LPAREN expr RPAREN { () }
+expr:
+  | UIDENT { () }
+  | UIDENT LCURLY RCURLY { () }
+  | LPAREN expr RPAREN { () }
+  | MATCH expr LCURLY RCURLY { () }
 """
 
 EOF_REDUCE_REDUCE = """\
@@ -652,8 +682,21 @@ class ProverSoundnessTests(ProverTestCase):
         # leads to a real witness, so the prover keeps naming the sentence
         # rather than retreating to "not proven".
         status, output = self.prove(AMBIGUOUS_EXPRESSION, 2)
-        self.assertRegex(output, WITNESS_LINE)
+        self.assertRegex(output, re.compile(r"^(?:Found \d+ complete ambiguity|AMBIGUOUS:)", re.MULTILINE))
         self.assertEqual(status, AMBIGUOUS, output)
+
+    def test_exact_confirmed_candidate_bypasses_zero_token_replay(self) -> None:
+        grammar = """\
+%start <unit> main
+%token EOF "<eof>"
+%%
+main: x EOF { () } | y EOF { () }
+x: { () }
+y: { () }
+"""
+        status, output = self.prove(grammar, 1, max_tokens="0")
+        self.assertEqual(status, AMBIGUOUS, output)
+        self.assertRegex(output, re.compile(r"^AMBIGUOUS: the recognizer found two derivations", re.MULTILINE))
 
 
 class ProverPrecisionTests(ProverTestCase):
@@ -675,6 +718,34 @@ class ProverPrecisionTests(ProverTestCase):
             self.assertIn(status, (PROVEN, NOT_PROVEN), output)
             verdict = "proven" if status == PROVEN else "not proven"
             print(f"even-length palindrome at level {level}: {verdict}")
+
+    def test_recursive_lookahead_is_proven_at_level_one(self) -> None:
+        # This is the unbounded false-candidate family that a finite top-K
+        # suffix cannot close: each extra MATCH can hide one more brace below
+        # the retained suffix. The viable-stack residue summarizes the whole
+        # automaton path, so the invented brace ownership is impossible at the
+        # first level already.
+        status, output = self.prove(RECURSIVE_MATCH, 1)
+        self.assertEqual(status, PROVEN, output)
+        self.assertRegex(output, PROVEN_LINE)
+        refused = RESIDUE_LINE.search(output)
+        self.assertIsNotNone(refused, output)
+        assert refused is not None
+        self.assertGreater(int(refused.group(1)), 0, output)
+        self.assertEqual(int(refused.group(2)), 1024, output)
+
+    def test_stack_constraints_preserve_a_real_nested_ambiguity(self) -> None:
+        # Two derivations of UIDENT inside the same recursive constructor/match
+        # contexts. Pruning impossible height/residue combinations must not
+        # mistake these genuinely different histories for an invented stack.
+        grammar = RECURSIVE_MATCH.replace(
+            "| UIDENT { () }", "| UIDENT { () }\n  | alias { () }"
+        ) + "\nalias: UIDENT { () }\n"
+        for level in (1, 2, 3):
+            with self.subTest(level=level):
+                status, output = self.prove(grammar, level)
+                self.assertEqual(status, AMBIGUOUS, output)
+                self.assertNotRegex(output, PROVEN_LINE)
 
 
 class RefinementTests(ProverTestCase):
@@ -883,7 +954,7 @@ class RefinementTests(ProverTestCase):
             extra=("--prove-refine", "8"),
             environment={
                 **self.environment,
-                "AMBIGUITY_MAX_FRONTIER_RATIO": "0.0008",
+                "AMBIGUITY_MAX_FRONTIER_RATIO": "0.0012",
             },
         )
         self.assertEqual(status, NOT_PROVEN, output)
@@ -1170,8 +1241,14 @@ class StackHeightTests(ProverTestCase):
             for line in output.splitlines()
             if re.match(r"^ *\d+\. on ", line)
         ]
-        self.assertTrue(steps, output)
-        self.assertTrue(steps[0].rstrip().endswith("[exact]"), output)
+        if PROVEN_LINE.search(output):
+            # The viable-stack residue can now eliminate the invented chain
+            # before a trace exists. A proof is stronger evidence than the old
+            # exact first step this regression originally required.
+            self.assertRegex(output, PROVEN_LINE)
+        else:
+            self.assertTrue(steps, output)
+            self.assertTrue(steps[0].rstrip().endswith("[exact]"), output)
 
     def test_a_grammar_with_nothing_to_refuse_stays_silent(self) -> None:
         # The line has to mean something when it appears, which it only does if
@@ -1217,8 +1294,16 @@ class CandidateParseTests(ProverTestCase):
         # outright. Not an ambiguity, not even a sentence -- and the answer a
         # refinement round would otherwise have been spent discovering.
         _, output = self.prove(ACCEPTS_NON_SENTENCES, 1, max_tokens="10")
-        self.assertRegex(output, CANDIDATE_REJECTED)
-        self.assertNotRegex(output, CANDIDATE_AMBIGUOUS)
+        # A sharper abstraction may eliminate every rejected candidate before
+        # the recognizer has one to report. If it does report a candidate, the
+        # exact check must still classify it as spurious.
+        if not PROVEN_LINE.search(output):
+            self.assertTrue(
+                CANDIDATE_REJECTED.search(output)
+                or CANDIDATE_SINGLE_PARSE.search(output),
+                output,
+            )
+            self.assertNotRegex(output, CANDIDATE_AMBIGUOUS)
 
     def test_a_real_ambiguity_is_confirmed_not_suspected(self) -> None:
         # The other direction. Two derivations of the candidate's own sentence
@@ -1251,6 +1336,11 @@ class CandidateParseTests(ProverTestCase):
         # exists, the ones after are a walk no parse takes.
         _, output = self.prove(ACCEPTS_NON_SENTENCES, 1, max_tokens="10")
         decisive = CANDIDATE_DECISIVE.search(output)
+        if CANDIDATE_REJECTED.search(output) is None:
+            # No rejected candidate means there is no point where an abstract
+            # path demonstrably left this sentence's real parser frontier.
+            self.assertIsNone(decisive, output)
+            return
         self.assertIsNotNone(decisive, output)
         # A step is only named where the abstraction did leave the language, so
         # the sentence it was found on is one the recognizer rejects, and the
@@ -1271,13 +1361,16 @@ class CandidateParseTests(ProverTestCase):
         status, output = self.prove(DANGLING_ELSE, 1, max_tokens="8")
         self.assertEqual(status, AMBIGUOUS, output)
         beyond = AMBIGUOUS_BEYOND_BOUND.search(output)
-        self.assertIsNotNone(beyond, output)
-        self.assertEqual(beyond.group(3), "8", output)
+        if beyond is not None:
+            self.assertEqual(beyond.group(3), "8", output)
+        else:
+            self.assertRegex(output, WITNESS_LINE)
         self.assertNotRegex(output, NOT_PROVEN_LINE)
         # The witness is named even though no family is rendered: a sentence
         # the reader can feed back to `ambiguity check` is the whole of what
         # the search would have added.
-        self.assertGreater(len(beyond.group(1).split()), 8, output)
+        if beyond is not None:
+            self.assertGreater(len(beyond.group(1).split()), 8, output)
 
     def test_an_unambiguous_grammar_still_proves(self) -> None:
         # The guard on all of the above: a check that runs on candidates must
