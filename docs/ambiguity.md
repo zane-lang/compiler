@@ -506,10 +506,10 @@ past any fixed lookahead, which is what the prover is for.
   sentence is recognized the moment the abstraction names it, and the answer
   decides what happens next. Two derivations settle the grammar: it is
   ambiguous, refining would be sharpening an abstraction that turned out to be
-  right, and the run goes straight to the bounded search to render the witness
-  family. The bound the search answers to is not the finding's, so a sentence
-  longer than it still reports the ambiguity and names the sentence, with the
-  bound as the reason no family is rendered beneath it. Nought or one makes the pair spurious, and the report says which
+  right, and the run prints `AMBIGUOUS:` and exits directly. Only an
+  unconfirmed candidate continues to the bounded search; that search can render
+  a witness family, while the exact recognizer's finding is already decisive.
+  Nought or one makes the pair spurious, and the report says which
   rather than leaving it to be inferred. The two spurious answers are not the
   same finding. Nought means the abstraction accepted something that is not a
   sentence — `x Foo(y(Bar` and its neighbours, unclosed parentheses and all —

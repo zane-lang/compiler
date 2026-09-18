@@ -715,11 +715,15 @@ class StreamingOutputTests(unittest.TestCase):
         self.grammar.write_text(PROGRESS_GRAMMAR, encoding="utf-8")
         result = self.engine(
             "--prove", "2",
+            "--prove-survey", "1",
             "--max-tokens", "24",
             "--timeout", "5",
             "--max-witnesses", "5",
             AMBIGUITY_PROGRESS_SECONDS="0.05",
         )
+        # Survey mode keeps the run in the abstract phase, so this cannot be
+        # satisfied by the concrete-search force emission after a candidate.
+        self.assertIn("Survey at level", result.stdout)
         self.assertTrue(
             any(line.startswith("●") for line in result.stderr.splitlines()),
             result.stderr,
