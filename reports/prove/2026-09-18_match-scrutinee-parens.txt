@@ -1,0 +1,138 @@
+# Closing the full-grammar ambiguity by parenthesizing the scrutinee list
+# Grammar: lib/cst/parser.mly (match_expr changed)
+# Checked with Menhir 20231231 and ambiguity_search --check-tokens / search.
+#
+# NOTE ON TOOLING. This run used apt's Menhir 20231231 and OCaml 4.14 rather
+# than the devbox toolchain, which could not provision here (nixpkgs resolution
+# needs api.github.com, which the egress policy refuses). ambiguity_search
+# depends only on unix and str and shells out to Menhir with stock flags, so it
+# builds without dune. Automaton state numbers therefore do not line up with
+# those in the 2026-09-17 reports; derivation counts do, and the witness of
+# 2026-09-18_full-grammar-ambiguity.txt reproduces exactly at 2 before the
+# change, which is what pins the pipeline.
+
+## 1. The reported witness is gone
+
+Before (bare scrutinee), after (parenthesized), by --check-tokens:
+
+  LIDENT AMPERSAND UIDENT EQUAL MATCH UIDENT LCURLY RCURLY
+  LOOSE_LESSEQ UIDENT LCURLY RCURLY EOF                          2  ->  0
+
+Each grouping now has to be written out, and each has exactly one derivation:
+
+  x Foo = match (A) { } <= B { }                                       1
+  x Foo = match (A { } <= B) { }                                       1
+
+## 2. The operator was incidental
+
+The 2026-09-18 report named LOOSE_LESSEQ. Every binary operator in the language
+produces the same 2 in the same shape, so the loose tier carried no part of it:
+
+  '<= '+ '*   (loose tier)                                             2
+  <= >= < > == ~=                                                      2
+  + - * /                                                              2
+  |           (pipe)                                                   2
+
+The reference `&` was incidental too. The shortest sentence in this family is
+12 tokens, one shorter than the one reported:
+
+  LIDENT UIDENT EQUAL MATCH UIDENT LCURLY RCURLY LESSEQ UIDENT
+  LCURLY RCURLY EOF                                              2  ->  0
+
+  x Foo = match A { } <= B { }
+
+## 3. Both braces had to be empty
+
+Filling either one collapses the pair, which is why the family sat below the
+corpus rather than in it:
+
+  match A { }    <= B { }                                              2
+  match A { x; } <= B { }                                              1
+  match A { }    <= B { x; }                                           1
+  match A { x; } <= B { x; }                                           0
+
+It is not confined to constructor field bodies. A call's trailing block
+argument reaches the same pair:
+
+  match f() { } <= B { }                                               2
+
+## 4. What the change does to the conflict set
+
+Conflict counts are unchanged: 72 states with shift/reduce conflicts, 10 with
+reduce/reduce, 113 and 44 arbitrarily resolved, before and after. The fifteen
+`{` states of docs/ambiguity.md are all still there. What changed is what they
+are about -- counted over the conflict blocks Menhir explains:
+
+                                        before      after
+  conflict blocks on LCURLY alone         15          15
+    mentioning list_match_arm_            18*          0
+    mentioning list_stat_                 15          15
+
+  (* count over the whole .conflicts file, not over the 15 blocks.)
+
+The arms are out of the fork entirely; what remains in those states is the
+trailing argument against the opening brace of the next statement, which a
+statement may have because a map literal is a `primary`. That obligation is
+unchanged by this PR and stays open.
+
+## 5. Bounded search over the match family
+
+Breadth-first, exhaustive, behind the prefix `LIDENT UIDENT EQUAL MATCH` so
+that the 12-token witness depth is reachable at all. Same bound, same budget
+(11000 MiB, 4 workers), both grammars.
+
+  BEFORE  Found 2 complete ambiguity families.
+          Explored 15009061 frontiers (15010094 unique); 970779 conflict seeds.
+          Search ended at depth 12 because one or more workers reached a
+          search limit.
+
+    1. LIDENT UIDENT EQUAL MATCH UIDENT LCURLY RCURLY EQEQ UIDENT LCURLY
+       RCURLY EOF
+       length Int = match Int { } == Int { }
+       Conflict origins: state 123 on LCURLY
+
+    2. LIDENT UIDENT EQUAL MATCH UIDENT LCURLY RCURLY LPAREN RPAREN LCURLY
+       RCURLY EOF
+       length Int = match Int { } ( ) { }
+       Conflict origins: state 123 on LCURLY, state 193 on LPAREN,
+                         state 197 on LCURLY
+
+  AFTER   Search ended at depth 12 because the search space within the token
+          bound was exhausted; no complete ambiguity was found in 2405709
+          explored frontiers (2405818 unique).
+
+The second family is worth naming separately. A binary operator is not what
+supplies the arms' second owner -- a postfix call on the match does as well,
+because a call may trail a block. `match A { } ( ) { }` reads as
+`(match A { })( ) { }` and as `match (A { } ( )) { }`. Both spellings are
+0 after the change, and each written-out grouping is 1.
+
+The old run ended on a worker limit rather than exhaustion, so its 2 is a floor
+and not a count. The new run exhausted the same space on a sixth of the
+frontiers, which is the paren form collapsing it rather than the search giving
+up.
+
+## 6. What the abstract prover says, and does not
+
+Two `--prove 1 --max-tokens 0` runs, one per grammar, are inconclusive **and
+identical**. Both stop at the same first divergence, which is nothing to do
+with `match`:
+
+  Abstract ambiguity candidate at level 1 (spurious):
+    UIDENT DOT LIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF
+    divergence site on lookahead RPAREN, abstract stack 123
+    reduce expr -> UIDENT  against  reduce loption_generics_ ->
+    the recognizer rejects this sentence, so the pair is spurious
+
+  NOT PROVEN (exit 3), before and after; 1557299 pairs before, 1262324 after.
+
+`--prove-survey 12` does not separate them either: both exhaust the 4493897
+pair budget and report their site counts as a floor -- 61044 sites and still
+climbing before, 60452 after.
+
+This is a null result, recorded because the level-1 abstraction stopping at an
+unrelated generics site is worth knowing the next time someone reaches for
+`--prove` to answer a question about one construct. It is not evidence either
+way about the match family. What is evidence is section 1 and section 5: the
+exact recognizer on the witnesses, and an exhausted search over the family's
+own prefix.

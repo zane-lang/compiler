@@ -235,6 +235,10 @@ derivations — `(match A { }) <= (B { })` and `match (A { } <= B) { }` — beca
 an expression may itself end in a brace and an operator gives both groupings
 enough to finish on. Every binary operator in the language produced it, and no
 declaration in the precedence table could reach it, since `{` carries no level.
+An operator was not even required: a postfix call on the match supplies the
+second owner as well, and `match A { } ( ) { }` was the second family the
+search found. Behind the family's own prefix that search now exhausts its
+bound without a witness, on a sixth of the frontiers it explored before.
 
 Twelve of the fifteen are the same question asked of a constructor call, which
 reaches the fork through `verb_call` and through the instantiation shorthand

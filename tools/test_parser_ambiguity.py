@@ -246,6 +246,30 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             1,
         )
 
+    def test_a_postfix_call_reaches_the_arms_brace_the_same_way(self) -> None:
+        # An operator is not what supplies the second owner: a postfix call on
+        # the match itself does as well, since a call may trail a block. The
+        # search finds this shape and the operator shape as two families of the
+        # bare spelling; the parentheses settle both.
+        self.assert_derivations(
+            "LIDENT UIDENT EQUAL MATCH UIDENT LCURLY RCURLY LPAREN RPAREN "
+            "LCURLY RCURLY EOF",
+            "x Foo = match A { } ( ) { }",
+            0,
+        )
+        self.assert_derivations(
+            "LIDENT UIDENT EQUAL MATCH LPAREN UIDENT RPAREN LCURLY RCURLY "
+            "LPAREN RPAREN LCURLY RCURLY EOF",
+            "x Foo = match (A) { } ( ) { }",
+            1,
+        )
+        self.assert_derivations(
+            "LIDENT UIDENT EQUAL MATCH LPAREN UIDENT LCURLY RCURLY LPAREN "
+            "RPAREN RPAREN LCURLY RCURLY EOF",
+            "x Foo = match (A { } ( )) { }",
+            1,
+        )
+
     def test_several_scrutinees_share_one_pair_of_parentheses(self) -> None:
         # The parentheses delimit the list; they do not build a value out of it.
         self.assert_derivations(
