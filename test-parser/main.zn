@@ -248,7 +248,7 @@ Float peek(this Cursor) => this.env[this.position]
 /// One arm per case, no default. Abort flows through a `match`, so handling
 /// an arm's abort is the caller's job rather than this block's.
 Float?String evaluate(node Expr, env &Environment) {
-	return match node {
+	return match (node) {
 		value number => value;
 		wanted name => env:lookup(wanted) ? missing {
 			abort missing;
@@ -280,7 +280,7 @@ Float?String apply(op Operator, left Float, right Float) {
 		abort "division by zero";
 	}
 
-	return match op {
+	return match (op) {
 		add => left + right;
 		sub => left - right;
 		mul => left * right;
@@ -288,9 +288,10 @@ Float?String apply(op Operator, left Float, right Float) {
 	}
 }
 
-/// Several scrutinees are a bare comma list, and a `[ ]` selector shares one
-/// arm between cases. Every combination has to be covered.
-Severity worst(left Severity, right Severity) => match left, right {
+/// Several scrutinees are a `,` list inside the scrutinee parentheses, and a
+/// `[ ]` selector shares one arm between cases. Every combination has to be
+/// covered.
+Severity worst(left Severity, right Severity) => match (left, right) {
 	failure, [note, warning, failure] => Severity.failure;
 	[note, warning], failure => Severity.failure;
 	warning, [note, warning] => Severity.warning;
@@ -533,7 +534,7 @@ Unit main() {
 
 	// An assignment ends in a brace too, and takes no terminator for the same
 	// reason a declaration does not.
-	total = match loudest {
+	total = match (loudest) {
 		note => total;
 		warning => total;
 		failure => Float(0);

@@ -199,20 +199,60 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
     def test_a_match_keeps_the_brace_that_holds_its_arms(self) -> None:
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
-            "MATCH LIDENT LPAREN RPAREN LCURLY RCURLY RCURLY EOF",
-            "Int length() { abort match value() { } }",
+            "MATCH LPAREN LIDENT LPAREN RPAREN RPAREN LCURLY RCURLY "
+            "RCURLY EOF",
+            "Int length() { abort match (value()) { } }",
             "match(call(name))",
         )
 
-    def test_a_scrutinee_takes_a_block_only_when_the_arms_still_have_one(
+    def test_a_scrutinee_closes_its_own_block_inside_the_parentheses(
         self,
     ) -> None:
+        # The scrutinee's `)` is written after its trailing block, so the block
+        # is the call's and the brace that follows holds the arms.
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
-            "MATCH LIDENT LPAREN RPAREN LCURLY RCURLY LCURLY RCURLY "
-            "RCURLY EOF",
-            "Int length() { abort match value() { } { } }",
+            "MATCH LPAREN LIDENT LPAREN RPAREN LCURLY RCURLY RPAREN "
+            "LCURLY RCURLY RCURLY EOF",
+            "Int length() { abort match (value() { }) { } }",
             "match(call(name, block))",
+        )
+
+    def test_the_scrutinee_parentheses_end_it_before_the_arms_brace(
+        self,
+    ) -> None:
+        # An expression may end in a brace of its own -- a constructor's field
+        # body, a map literal, a call's trailing argument -- so a bare scrutinee
+        # would leave the following `{` with two owners, and an operator gives
+        # each owner enough to finish on. The `)` names the owner before the
+        # brace is read, so the bare spelling is not a sentence and each
+        # grouping has to be written out.
+        self.assert_derivations(
+            "LIDENT UIDENT EQUAL MATCH UIDENT LCURLY RCURLY LESSEQ UIDENT "
+            "LCURLY RCURLY EOF",
+            "x Foo = match A { } <= B { }",
+            0,
+        )
+        self.assert_derivations(
+            "LIDENT UIDENT EQUAL MATCH LPAREN UIDENT RPAREN LCURLY RCURLY "
+            "LESSEQ UIDENT LCURLY RCURLY EOF",
+            "x Foo = match (A) { } <= B { }",
+            1,
+        )
+        self.assert_derivations(
+            "LIDENT UIDENT EQUAL MATCH LPAREN UIDENT LCURLY RCURLY LESSEQ "
+            "UIDENT RPAREN LCURLY RCURLY EOF",
+            "x Foo = match (A { } <= B) { }",
+            1,
+        )
+
+    def test_several_scrutinees_share_one_pair_of_parentheses(self) -> None:
+        # The parentheses delimit the list; they do not build a value out of it.
+        self.assert_derivations(
+            "LIDENT UIDENT EQUAL MATCH LPAREN LIDENT COMMA LIDENT RPAREN "
+            "LCURLY RCURLY EOF",
+            "x Foo = match (left, right) { }",
+            1,
         )
 
     def test_a_brace_argument_is_told_from_a_block_by_its_first_mark(
@@ -326,23 +366,24 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "ctor(block)",
         )
 
-    def test_a_constructor_scrutinee_takes_a_block_only_when_the_arms_do(
+    def test_a_constructor_scrutinee_closes_itself_the_same_way(
         self,
     ) -> None:
-        # The same fork the function-call scrutinee is in, reached through a
-        # constructor call: the first brace is the call's trailing argument
-        # only when a second one is left to hold the arms.
+        # A constructor call reaches the trailing form through its own
+        # production, and the scrutinee parentheses close it just as they close
+        # a function call's.
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
-            "MATCH UIDENT LPAREN LIDENT RPAREN LCURLY RCURLY LCURLY RCURLY "
-            "RCURLY EOF",
-            "Int length() { abort match Vector2(first) { } { } }",
+            "MATCH LPAREN UIDENT LPAREN LIDENT RPAREN LCURLY RCURLY RPAREN "
+            "LCURLY RCURLY RCURLY EOF",
+            "Int length() { abort match (Vector2(first) { }) { } }",
             "match(ctor(name, block))",
         )
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
-            "MATCH UIDENT LPAREN LIDENT RPAREN LCURLY RCURLY RCURLY EOF",
-            "Int length() { abort match Vector2(first) { } }",
+            "MATCH LPAREN UIDENT LPAREN LIDENT RPAREN RPAREN LCURLY RCURLY "
+            "RCURLY EOF",
+            "Int length() { abort match (Vector2(first)) { } }",
             "match(ctor(name))",
         )
 
