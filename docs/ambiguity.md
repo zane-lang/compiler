@@ -148,7 +148,7 @@ case measured, and the one that survives is then accepted or rejected by
 alternative — splitting the expression grammar into brace-ending and
 non-brace-ending halves so that the terminator is decided by the shape — would
 resolve them at the cost of two copies of every operator production, since
-`a + match e { … }` ends in a brace because its right operand does. That trade
+`a + match (e) { … }` ends in a brace because its right operand does. That trade
 has not been made.
 
 What removed twelve conflicts and what brought them back is worth recording
@@ -214,34 +214,50 @@ obligations below are open on the same footing.
 
 The fifteen `{` states that reduce a completed call are **open obligations**.
 A call may be closed by a trailing argument, so after `f(x)` a following `{` is
-either that argument or a brace belonging to whatever encloses the call — in
-`match f(x) { … }`, the arms. The smallest grouping rule attaches following
-syntax to the nearest preceding construct that can accept it, which reads the
-brace as the call's argument and leaves the `match` unclosed, so the rule and
-the intended reading point opposite ways here. Settling that is a language
-decision, and until it is settled these states carry neither a precedence
-resolution nor a transience argument.
+either that argument or the first token of the next statement — a statement may
+open with a brace, since a map literal is a `primary` and so may be called or
+assigned through. The smallest grouping rule attaches following syntax to the
+nearest preceding construct that can accept it, which reads the brace as the
+call's argument. Exactly one reading survives every case measured, but the
+argument that one always does is the map-literal mark below, and it is not
+written as a transience argument yet; until it is, these states carry neither a
+precedence resolution nor a transience argument.
+
+**A `match` does not reach this fork.** Its scrutinee list is parenthesized, so
+the brace that opens the arms is read after a `)` rather than after an
+expression, and `list_match_arm_` appears in no conflict explanation the
+grammar produces. What made that necessary is recorded in
+[`2026-09-18_full-grammar-ambiguity.txt`](../reports/prove/2026-09-18_full-grammar-ambiguity.txt)
+and closed in
+[`2026-09-18_match-scrutinee-parens.txt`](../reports/prove/2026-09-18_match-scrutinee-parens.txt):
+with a bare scrutinee, `x Foo = match A { } <= B { }` had two complete
+derivations — `(match A { }) <= (B { })` and `match (A { } <= B) { }` — because
+an expression may itself end in a brace and an operator gives both groupings
+enough to finish on. Every binary operator in the language produced it, and no
+declaration in the precedence table could reach it, since `{` carries no level.
+An operator was not even required: a postfix call on the match supplies the
+second owner as well, and `match A { } ( ) { }` was the second family the
+search found. Behind the family's own prefix that search now exhausts its
+bound without a witness, on a sixth of the frontiers it explored before.
 
 Twelve of the fifteen are the same question asked of a constructor call, which
 reaches the fork through `verb_call` and through the instantiation shorthand
 rather than through `computed_call`. The witnesses below are written with a
 function call; the constructor spelling of each measures the same.
 
-What the grammar does today is pinned by three witnesses. Two are accepted by
-exactly one derivation, so the fork is resolved rather than ambiguous on them,
-and the third is rejected outright:
+What the grammar does today is pinned by two witnesses, each accepted by
+exactly one derivation, so the fork is resolved rather than ambiguous on them:
 
 ```sh
-ambiguity check LIDENT UIDENT EQUAL MATCH LIDENT LPAREN RPAREN LCURLY RCURLY LCURLY LIDENT THICK_ARROW INT SEMICOLON RCURLY EOF
+ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN SEMICOLON RCURLY RCURLY EOF
 ```
 
-`x Int = match f() { } { a => 1; }` is accepted, and reads the first brace as
-the call's block and the second as the arms. `x Int = match f() { a => 1; }`
-is accepted the only way it can be, since `a => 1;` is not a statement and so
-cannot be the call's block. `x Int = match f() { a => 1; } { }` is rejected
-for the same reason, once the arms are spent there is nothing left to take the
-last brace. The first of the three is what block arguments added: before them
-it was rejected. That every arm list which is not also a statement list escapes
+`Unit use() { f() { g(); } }` reads the brace as the call's block argument,
+since `g();` is a statement and the brace has no other owner once the body's
+own `}` is spoken for. `Unit use() { f() { k, v; }(x); }` reads the same brace
+as a map literal handed to `f`, because `k, v;` is an entry rather than a
+statement — and not as a separate statement calling a map literal, which would
+leave `f()` unterminated. That every brace whose contents read one way escapes
 the fork is the shape a transience argument would have to take, and it is not
 one yet — the case where a brace's contents read as both has not been ruled
 out.

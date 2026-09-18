@@ -163,7 +163,7 @@ a terminator at both. A `struct`/`variant` mould, a `{ }` verb body, an
 enum map, and a `=> expr` verb whose expression *does* end in a `}` — a
 `match`, a handler, a trailing call — all end in a brace and are spelled the
 same at both levels. The parser reads this off the expression rather than off
-the form, so `Int f() => match c { … }` needs no `;` in a body while
+the form, so `Int f() => match (c) { … }` needs no `;` in a body while
 `Int f() => c` does.
 
 ## 4. `package` and `import` are terminated
@@ -248,6 +248,42 @@ passes a bare name, and a parameterized type reaches a verb through inference
 instead — `values Array<T Type, n Number>` introduces both parameters from the
 argument. What is out of reach is passing an *already applied* type as a value,
 which the spec neither shows nor rules out.
+
+## 6. A `match` parenthesizes its scrutinee list
+
+**Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
+§4.8: a `match` "names one or more scrutinees — a bare `,`-separated list, never
+parenthesised — then a `{ }` block of `;`-terminated arms".
+[`adt.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/adt.md) §5.6
+gives the reason: "Parenthesising them as `(state, event)` would imply a tuple
+to destructure — the pattern-matching road — so the list stays bare."
+
+**Compiler** — the list is written in `( )`. The semantics are the spec's: the
+scrutinees stay independent values matched jointly on their tags, with one
+selector per position and cross-product exhaustiveness.
+
+```zane
+result String = match (e) { … }            // accepted
+worst Severity = match (left, right) { … } // accepted
+result String = match e { … }              // rejected
+```
+
+The bare list is not a syntax the compiler can accept unambiguously. An `expr`
+may end in a brace of its own — a constructor's field body, a map literal, a
+call's trailing argument — so a bare scrutinee leaves the arms' `{` with two
+owners, and a binary operator gives each owner enough to finish on:
+`x Foo = match A { } <= B { }` has a complete derivation as
+`(match A { }) <= (B { })` and another as `match (A { } <= B) { }`. Measured at
+2 for every binary operator the language has, `{` carries no precedence level,
+and `docs/ambiguity.md` does not permit two accepting parses to be narrowed
+afterward. The `)` ends the scrutinee before the brace is read.
+
+Nothing is lost to the tuple reading §5.6 guards against, because Zane has no
+`(a, b)` expression form for the list to collapse into: the parentheses delimit
+it rather than build a value from it. What the divergence does cost is the
+spelling, which is why it is recorded here rather than treated as a bug fix.
+Reconciling it means changing §4.8 and the §5.6 rationale together; if the spec
+later adds tuples, a tuple scrutinee needs its own `( )`.
 
 ---
 

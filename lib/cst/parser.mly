@@ -189,7 +189,7 @@ let constructor_expr loc name args =
    The grammar accepts a terminator either way and the check below rejects the
    spelling that does not match, rather than the language being split into
    brace-ending and non-brace-ending halves. A grammatical split would have to
-   reach through every binary operator -- `a + match e { ... }` ends in a brace
+   reach through every binary operator -- `a + match (e) { ... }` ends in a brace
    because its right operand does -- which means two copies of the expression
    grammar and two of every operator production. One function over the tree
    says the same thing once. *)
@@ -1472,8 +1472,20 @@ block_call:
         : Nodes.Match_arm.t)
     }
 
+(* The scrutinee list is parenthesized, and that is what keeps the arms' `{`
+   attached to the `match` rather than to whatever the last scrutinee turned out
+   to be. Written bare, the brace after the scrutinee has two owners: an `expr`
+   may itself end in a brace -- a constructor's field body, a map literal, a
+   call's trailing argument -- so `match A { } <= B { }` reads both as
+   `(match A { }) <= (B { })` and as `match (A { } <= B) { }`. Both are complete
+   derivations, which is the one thing docs/ambiguity.md does not allow; the `)`
+   ends the scrutinee before the brace is read and neither reading survives it.
+
+   The parentheses delimit the list; they do not build a value out of it. The
+   scrutinees stay independent values matched jointly on their tags, exactly as
+   before -- Zane has no `(a, b)` expression form for them to collapse into. *)
 %inline match_expr:
-  | MATCH scrutinees=separated_nonempty_list(",", expr)
+  | MATCH "(" scrutinees=separated_nonempty_list(",", expr) ")"
     "{" arms=list(match_arm) "}" {
       expr $loc
         (Nodes.Expr.Match

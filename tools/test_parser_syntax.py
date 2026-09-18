@@ -134,7 +134,7 @@ class ParserSyntaxTests(unittest.TestCase):
             "Unit use() { f Int(this Node) mut => run() { g(); } + Int(1); }"
         )
         self.assert_rejects(
-            "Unit use() { total Int = match c { red => run() { g(); } + Int(1); } }"
+            "Unit use() { total Int = match (c) { red => run() { g(); } + Int(1); } }"
         )
         self.assert_rejects(
             "Unit use() { wrap(run() { g(); } + Int(1)); }"
@@ -233,7 +233,7 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_parses(
             '''
             Unit use(c Color) {
-                picked String = match c {
+                picked String = match (c) {
                     red => "Red";
                     green => "Green";
                 }
@@ -259,7 +259,7 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_parses(
             '''
             Unit use(loudest Severity) {
-                total = match loudest {
+                total = match (loudest) {
                     note => total;
                 }
                 clamp Float(value Float) {
@@ -272,7 +272,7 @@ class ParserSyntaxTests(unittest.TestCase):
             '''
         )
         self.assert_rejects(
-            "Unit use() { total = match loudest { note => total; }; }"
+            "Unit use() { total = match (loudest) { note => total; }; }"
         )
         self.assert_rejects(
             "Unit use() { clamp Float(value Float) { return value; }; }"
@@ -427,7 +427,7 @@ class ParserSyntaxTests(unittest.TestCase):
                 green = "Green";
             }
 
-            String show(c Color) => match c {
+            String show(c Color) => match (c) {
                 red => Color.red.label;
                 green => "Green";
             }
@@ -460,7 +460,7 @@ class ParserSyntaxTests(unittest.TestCase):
             type Color = enum [ red, green ]
 
             String show(c Color) {
-                label String = match c {
+                label String = match (c) {
                     red {
                         return "Red";
                     }
