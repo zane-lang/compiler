@@ -950,7 +950,70 @@ type precision = int array
    what the abstraction assumed everywhere before. The ceiling only has to
    clear the widest reduction in the grammar, because past that the answer to
    "are there enough entries" is yes regardless. *)
-type stack = { suffix : int list; height : int }
+(* A small fingerprint of the terminal-labelled edges in the whole viable
+   stack. It complements the exact suffix: when a reduction pops beyond that
+   suffix, its goto source is guessed, but the guess still has to occur on an
+   automaton path with the terminal residue the concrete stack would have.
+
+   XOR makes shift and reduction updates exact: a shift adds its terminal and
+   a reduction removes the direct terminals in its right-hand side. Collisions
+   only merge concrete stacks and therefore admit extra moves; they cannot
+   remove one. Keeping the residue in [stack] also means deduplication never
+   substitutes the fingerprint of one path for another. *)
+let residue_count = 1024
+
+let terminal_residue token =
+  let value = Hashtbl.hash token land (residue_count - 1) in
+  if value = 0 then 1 else value
+
+type stack = { suffix : int list; height : int; residue : int }
+
+let production_residue automaton prod =
+  let text = production_name automaton prod in
+  match String.split_on_char '>' text with
+  | _lhs :: rest ->
+      List.fold_left
+        (fun residue symbol ->
+          if StringSet.mem symbol automaton.terminals then
+            residue lxor terminal_residue symbol
+          else residue)
+        0 (words (String.concat ">" rest))
+  | [] -> 0
+
+let production_residues automaton =
+  Array.init (Hashtbl.length automaton.production_text)
+    (production_residue automaton)
+
+(* Residues of terminal symbols along every automaton path from the initial
+   state. Every concrete LR stack is such a path. This regular over-approximation
+   cheaply rules out a guessed reduction base whose outstanding terminals could
+   not occur below that state; hash collisions only admit extra paths. *)
+let reachable_stack_residues automaton =
+  let reachable =
+    Array.init (Array.length automaton.states) (fun _ ->
+        Array.make residue_count false)
+  in
+  let queue = Queue.create () in
+  let push state residue =
+    if not reachable.(state).(residue) then begin
+      reachable.(state).(residue) <- true;
+      Queue.add (state, residue) queue
+    end
+  in
+  push 0 0;
+  while not (Queue.is_empty queue) do
+    let state, residue = Queue.take queue in
+    Hashtbl.iter
+      (fun symbol target ->
+        let next =
+          if StringSet.mem symbol automaton.terminals then
+            residue lxor terminal_residue symbol
+          else residue
+        in
+        push target next)
+      automaton.states.(state).transitions
+  done;
+  reachable
 
 (* Every stack the abstraction can still tell apart at this depth.
 
@@ -1007,9 +1070,10 @@ let descent_limit =
          | Some chosen when chosen >= 1 -> chosen
          | _ -> invalid_arg "AMBIGUITY_DESCENT_LIMIT must be a positive integer"))
 
-let cap_variants preds below (precision : precision) keep ceiling height states =
+let cap_variants preds below (precision : precision) keep ceiling height
+    ?(residue = 0) states =
   match states with
-  | [] -> [ { suffix = []; height } ]
+  | [] -> [ { suffix = []; height; residue } ]
   | top :: _ ->
       (* The suffix can never be longer than the stack it is a suffix of, so a
          known height bounds the retained depth as surely as the precision
@@ -1025,7 +1089,11 @@ let cap_variants preds below (precision : precision) keep ceiling height states 
            else min precision.(top) height)
       in
       let kept = truncate_suffix limit states in
-      let wrap suffix = { suffix; height } in
+      (* Descent reveals entries that were already in the whole viable stack;
+         it does not push them. Their terminal-labelled edges are therefore
+         already included in [residue], even when the retained suffix had
+         hidden them, so reconstruction preserves the residue unchanged. *)
+      let wrap suffix = { suffix; height; residue } in
       (match List.rev kept with
       | [] -> [ wrap kept ]
       | deepest :: _ as reversed ->
@@ -1182,21 +1250,32 @@ let rec last_state = function
    says which. Refinement re-runs the proof, so these describe its final round.
 *)
 let refused_stacks = ref 0
+let refused_residues = ref 0
 let tracked_height = ref 0
 
 type side_move =
   | Reduce of int * stack (* production id, the stack afterwards *)
   | Terminate of stack (* the stack after the shift, or at acceptance *)
 
-let side_moves automaton gotos below preds (precision : precision) ceiling cache
-    stack token =
+let side_moves automaton gotos below preds reachable reachable_height prod_residues
+    (precision : precision) ceiling reduction_cache cache stack token =
   match Hashtbl.find_opt cache (stack, token) with
   | Some moves -> moves
   | None ->
-      let { suffix; height } = stack in
+      let { suffix; height; residue } = stack in
       let moves = ref [] in
       let depth = List.length suffix in
       let raise_height h = min ceiling (h + 1) in
+      let residue_fits height state residue =
+        if reachable.(state).(residue)
+           && (height >= ceiling
+               || Bytes.get reachable_height.(height).(state) residue = '\001')
+        then true
+        else begin
+          incr refused_residues;
+          false
+        end
+      in
       (* A stack too short to be carrying the state the move puts on top of it.
          The goto source of an imprecise reduction is guessed from the
          automaton's shape, which admits states that need a taller stack than
@@ -1219,23 +1298,34 @@ let side_moves automaton gotos below preds (precision : precision) ceiling cache
       | top :: _ ->
           let state = automaton.states.(top) in
           if token = "#" then begin
-            if StringSet.mem "#" state.accepts then
+            if StringSet.mem "#" state.accepts && residue = 0 then
               moves := Terminate stack :: !moves
           end
           else
             Option.iter
               (fun target ->
-                if fits (raise_height height) target then
+                let shifted_residue = residue lxor terminal_residue token in
+                if fits (raise_height height) target
+                   && residue_fits (raise_height height) target shifted_residue
+                then
                   moves :=
                     List.rev_append
                       (List.rev_map
                          (fun variant -> Terminate variant)
                          (cap_variants preds below precision 0 ceiling
-                            (raise_height height) (target :: suffix)))
+                            (raise_height height)
+                            ~residue:shifted_residue
+                            (target :: suffix)))
                       !moves)
               (Hashtbl.find_opt state.transitions token);
           List.iter
             (fun reduction ->
+              match Hashtbl.find_opt reduction_cache (stack, reduction.prod) with
+              | Some reduced -> moves := List.rev_append reduced !moves
+              | None ->
+              let previous = !moves in
+              moves := [];
+              (
               (* A reduction pops [width] entries and leaves the parser on the
                  state below the last of them, so a stack of exactly that many
                  entries has nothing left to goto from. While the height is
@@ -1253,6 +1343,9 @@ let side_moves automaton gotos below preds (precision : precision) ceiling cache
                 let after =
                   if height >= ceiling then ceiling
                   else min ceiling (height - reduction.width + 1)
+                in
+                let reduced_residue =
+                  residue lxor prod_residues.(reduction.prod)
                 in
                 (* What is left after the pop is kept whole rather than cut
                    back to what the state on top is granted. A reduction chain
@@ -1272,7 +1365,9 @@ let side_moves automaton gotos below preds (precision : precision) ceiling cache
                   | base :: _ as remaining ->
                       Option.iter
                         (fun target ->
-                          if fits after target then
+                          if fits after target
+                             && residue_fits after target reduced_residue
+                          then
                             moves :=
                               List.rev_append
                                 (List.rev_map
@@ -1280,7 +1375,8 @@ let side_moves automaton gotos below preds (precision : precision) ceiling cache
                                      Reduce (reduction.prod, variant))
                                    (cap_variants preds below precision
                                       (depth - reduction.width + 1) ceiling
-                                      after (target :: remaining)))
+                                      after ~residue:reduced_residue
+                                      (target :: remaining)))
                                 !moves)
                         (Hashtbl.find_opt
                            automaton.states.(base).transitions reduction.lhs)
@@ -1318,18 +1414,26 @@ let side_moves automaton gotos below preds (precision : precision) ceiling cache
                     (fun (source, target) ->
                       if
                         IntSet.mem source sources && grounded source
+                        && residue_fits (if after >= ceiling then ceiling else after - 1) source reduced_residue
                         && fits after target
+                        && residue_fits after target reduced_residue
                       then
                         moves :=
                           List.rev_append
                             (List.rev_map
                                (fun variant -> Reduce (reduction.prod, variant))
                                (cap_variants preds below precision 0 ceiling
-                                  after [ target; source ]))
+                                  after ~residue:reduced_residue [ target; source ]))
                             !moves)
                     (Option.value
                        (Hashtbl.find_opt gotos reduction.lhs)
-                       ~default:[]))
+                       ~default:[]));
+              let reduced = !moves in
+              (* A reduction's result depends on its stack and production,
+                 not on the lookahead that enabled it. Share it across tokens
+                 within this precision round. *)
+              Hashtbl.add reduction_cache (stack, reduction.prod) reduced;
+              moves := List.rev_append reduced previous)
             (reductions state token));
       Hashtbl.add cache (stack, token) !moves;
       !moves
@@ -1345,22 +1449,72 @@ type chain_status = Running of stack | Finished of stack
    must part ways, and marks the pair diverged. Goto and shift-target
    differences alone are abstraction artifacts, never a first divergence, so
    they are deliberately not compared. *)
-let joint_outcomes moves (start_left, start_right) token =
+let joint_outcomes moves finish_cache ~diverged (start_left, start_right) token =
   let seen = Hashtbl.create 64 in
   let results = Hashtbl.create 16 in
   let queue = Queue.create () in
+  let add_result left right diverged =
+    if compare left right <= 0 then
+      Hashtbl.replace results (left, right, diverged) ()
+    else Hashtbl.replace results (right, left, diverged) ()
+  in
   let push node =
     if not (Hashtbl.mem seen node) then begin
       Hashtbl.add seen node ();
       Queue.add node queue
     end
   in
-  push (Running start_left, Running start_right, false);
+  (* Once the two histories have diverged, their remaining reduction chains
+     are independent. Walking their product one reduction at a time visits
+     every pair of intermediate stacks even though only the two sets of final
+     stacks matter. On a wide nullable chain that product can be orders of
+     magnitude larger than its result. Close each side separately and take the
+     product only at the end. This is the same relation: after divergence no
+     later production comparison can undo the difference already found. *)
+  let finishes = function
+    | Finished stack -> [ stack ]
+    | Running start -> (
+        match Hashtbl.find_opt finish_cache (start, token) with
+        | Some finished -> finished
+        | None ->
+            let side_seen = Hashtbl.create 16 in
+            let side_results = Hashtbl.create 8 in
+            let side_queue = Queue.create () in
+            let side_push stack =
+              if not (Hashtbl.mem side_seen stack) then begin
+                Hashtbl.add side_seen stack ();
+                Queue.add stack side_queue
+              end
+            in
+            side_push start;
+            while not (Queue.is_empty side_queue) do
+              let stack = Queue.take side_queue in
+              List.iter
+                (function
+                  | Reduce (_, next) -> side_push next
+                  | Terminate result -> Hashtbl.replace side_results result ())
+                (moves stack token)
+            done;
+            let finished =
+              Hashtbl.fold (fun stack () all -> stack :: all) side_results []
+            in
+            Hashtbl.add finish_cache (start, token) finished;
+            finished)
+  in
+  push (Running start_left, Running start_right, diverged);
   while not (Queue.is_empty queue) do
     let (left, right, diverged) = Queue.take queue in
+    if diverged then
+      List.iter
+        (fun result_left ->
+          List.iter
+            (fun result_right -> add_result result_left result_right true)
+            (finishes right))
+        (finishes left)
+    else
     match (left, right) with
     | Finished result_left, Finished result_right ->
-        Hashtbl.replace results (result_left, result_right, diverged) ()
+        add_result result_left result_right diverged
     | Running suffix_left, Running suffix_right ->
         let paired move_left move_right =
           match (move_left, move_right) with
@@ -2124,11 +2278,14 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
   let gotos = goto_edges automaton in
   let preds = predecessors automaton in
   let below = below_steps preds in
+  let reachable = reachable_stack_residues automaton in
+  let prod_residues = production_residues automaton in
   (* Past the widest reduction in the grammar the exact height stops deciding
      anything: every reduction has the entries it needs and one to spare, which
      is what the abstraction assumed before it counted at all. So that is where
      the count saturates, and the abstract stack space stays finite. *)
   refused_stacks := 0;
+  refused_residues := 0;
   let widest_reduction =
     Array.fold_left
       (fun widest state ->
@@ -2170,12 +2327,77 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
         | None -> invalid_arg "AMBIGUITY_HEIGHT_CEILING must be an integer")
   in
   tracked_height := height_ceiling;
+  (* Joint height/residue reachability, not the intersection of two unrelated
+     existential paths. Saturated heights retain the unrestricted table. *)
+  let reachable_height =
+    Array.init height_ceiling (fun _ ->
+        Array.init (Array.length automaton.states) (fun _ ->
+            Bytes.make residue_count '\000'))
+  in
+  Bytes.set reachable_height.(1).(0) 0 '\001';
+  for height = 1 to height_ceiling - 2 do
+    Array.iteri
+      (fun source state ->
+        Hashtbl.iter
+          (fun symbol target ->
+            let edge =
+              if StringSet.mem symbol automaton.terminals then
+                terminal_residue symbol else 0
+            in
+            for residue = 0 to residue_count - 1 do
+              if Bytes.get reachable_height.(height).(source) residue = '\001'
+              then Bytes.set reachable_height.(height + 1).(target)
+                  (residue lxor edge) '\001'
+            done)
+          state.transitions)
+      automaton.states
+  done;
   (* Keyed by a single suffix rather than a pair, so this stays small and is
      read by every pair that reaches the same stack: worth keeping whole. *)
   let moves_cache = Hashtbl.create 100_003 in
+  let reduction_cache = Hashtbl.create 100_003 in
+  let incoming = Array.make (Array.length automaton.states) IntSet.empty in
+  Array.iter
+    (fun state -> Hashtbl.iter
+        (fun symbol target ->
+          let edge = if StringSet.mem symbol automaton.terminals then
+              terminal_residue symbol else 0 in
+          incoming.(target) <- IntSet.add edge incoming.(target))
+        state.transitions)
+    automaton.states;
+  let viable stack =
+    let rec check height residue = function
+      | [] -> true
+      | top :: rest ->
+          let fits = reachable.(top).(residue)
+            && (height >= height_ceiling
+                || (height > 0 && Bytes.get reachable_height.(height).(top)
+                    residue = '\001')) in
+          fits && (match rest with
+            | [] -> true
+            | _ when IntSet.cardinal incoming.(top) = 1 ->
+                check (if height >= height_ceiling then height else height - 1)
+                  (residue lxor IntSet.choose incoming.(top)) rest
+            | _ -> true)
+    in
+    let fits = check stack.height stack.residue stack.suffix in
+    if not fits then incr refused_residues;
+    fits
+  in
+  let viable_cache = Hashtbl.create 16_384 in
+  let viable stack =
+    match Hashtbl.find_opt viable_cache stack with
+    | Some fits -> fits
+    | None ->
+        let fits = viable stack in
+        Hashtbl.add viable_cache stack fits;
+        fits
+  in
   let moves =
-    side_moves automaton gotos below preds precision height_ceiling
-      moves_cache
+    let raw = side_moves automaton gotos below preds reachable reachable_height
+        prod_residues precision height_ceiling reduction_cache moves_cache in
+    fun stack token ->
+      if viable stack then raw stack token else []
   in
   (* One stack walked back down to its full height, for the refinement scan to
      ask whether anything was lost by cutting it short. A saturated height is
@@ -2199,14 +2421,21 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
      fill, and a large one should still grow on demand rather than reserve its
      ceiling up front. *)
   let joint_cache = Hashtbl.create (min 100_003 joint_capacity) in
-  let joint pair token =
-    match Hashtbl.find_opt joint_cache (pair, token) with
+  (* Many pairs share one side. Its completed reduction closure is independent
+     of the other side; retaining it across pairs avoids repeating that walk.
+     Clear this optional cache at the same capacity bound as the joint cache.
+     Both are local to one precision round. *)
+  let finish_cache = Hashtbl.create (min 100_003 joint_capacity) in
+  let joint pair token diverged =
+    match Hashtbl.find_opt joint_cache (pair, token, diverged) with
     | Some outcomes -> outcomes
     | None ->
-        let outcomes = joint_outcomes moves pair token in
+        if Hashtbl.length finish_cache >= joint_capacity then
+          Hashtbl.reset finish_cache;
+        let outcomes = joint_outcomes moves finish_cache ~diverged pair token in
         if Hashtbl.length joint_cache >= joint_capacity then
           Hashtbl.reset joint_cache;
-        Hashtbl.add joint_cache (pair, token) outcomes;
+        Hashtbl.add joint_cache (pair, token, diverged) outcomes;
         outcomes
   in
   let parents = state.parents in
@@ -2564,7 +2793,7 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
     (header :: stacks) @ conflict
   in
   if not state.seeded then begin
-    let start = { suffix = [ 0 ]; height = 1 } in
+    let start = { suffix = [ 0 ]; height = 1; residue = 0 } in
     state.seeded <- true;
     push None (start, start, false)
   end;
@@ -2629,7 +2858,7 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
        the sentinel the joint outcomes take separately - so a pair that first
        parts ways on end of input would otherwise never have its site recorded
        while still counting as an accepting divergence. *)
-    let eof_outcomes = joint (left, right) "#" in
+    let eof_outcomes = joint (left, right) "#" diverged in
     let accepts_diverged =
       List.exists
         (fun (_, _, chain_diverged) -> diverged || chain_diverged)
@@ -2672,7 +2901,7 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
               push
                 (Some (token, node))
                 (next_left, next_right, diverged || chain_diverged))
-            (joint (left, right) token))
+            (joint (left, right) token diverged))
         terminals
   done;
   clear_progress ();
@@ -3956,6 +4185,15 @@ let main () =
            rather than as a property of the grammar. *)
         let last_site = ref None in
         let streak = ref 0 in
+        (* The persistent walk is an optimisation, but its ancestry is an
+           abstraction result.  After a refinement, a settled pair can still
+           be reached through an ancestry that was only valid at the previous
+           precision.  On the first repeated site at a given precision,
+           replay the walk from its root once.  This is a cheap completeness
+           guard for the refinement driver: it discards stale ancestry before
+           spending another depth increment, while the marker prevents the
+           fresh replay from recursively replaying itself. *)
+        let fresh_checked_round = ref (-1) in
         (* What the exact recognizer made of a candidate's own sentence, said
            once per candidate wherever the candidate is handled. A spurious
            pair and a real one read identically in the abstract phase's own
@@ -4003,6 +4241,19 @@ let main () =
           | Abstract_candidate candidate when !refine_max > 0 ->
               let tokens = candidate.candidate_tokens in
               let site = candidate.candidate_site in
+              if
+                !last_site = Some site
+                && !rounds > 0
+                && !fresh_checked_round <> !rounds
+              then begin
+                fresh_checked_round := !rounds;
+                reset_prove_state walk;
+                printf
+                  "  repeated site at refinement round %d; restarting the abstract walk at the current precision\n"
+                  !rounds;
+                attempt ()
+              end
+              else begin
               if !last_site = Some site then incr streak
               else begin
                 last_site := Some site;
@@ -4153,6 +4404,7 @@ let main () =
                         deeper));
                 attempt ()
               end
+              end
           | result -> result
         in
         let capped_summary () =
@@ -4199,7 +4451,13 @@ let main () =
             printf
               "Stack height: refused %d move(s) onto a state no stack that \
                short can carry; the height stops being counted past %d.\n"
-              !refused_stacks !tracked_height
+              !refused_stacks !tracked_height;
+          if !refused_residues > 0 then
+            printf
+              "Stack residue: refused %d move(s) whose outstanding terminals \
+               cannot reach the selected automaton state (%d residue \
+               classes).\n"
+              !refused_residues residue_count
         in
         (* The retired sites are the part of a retiring run that is not in its
            verdict: the verdict says the rest of the grammar came out clean,
@@ -4418,6 +4676,16 @@ let main () =
                looked and the moves were real". Leaving it off this path made
                the test look inert on every run that did not end in a proof. *)
             report_reachability ();
+            (* The candidate sentence has already been checked by the exact
+               recognizer. Once it has two derivations, the bounded replay
+               below cannot change the verdict; it can only fail to reach a
+               sentence that is already known ambiguous. *)
+            if candidate.candidate_derivations >= 2 then begin
+              printf
+                "AMBIGUOUS: the recognizer found two derivations of %s (%s).\n"
+                (String.concat " " tokens) (render automaton tokens);
+              exit ambiguous_status
+            end;
             printf
               "Attempting to concretize with the bounded search...\n\n"
       end;

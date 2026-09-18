@@ -1,0 +1,51 @@
+# Full-grammar follow-up: joint height/residue reachability
+# Menhir 20260209; grammar unchanged from 9d2c5af.
+# Includes joint height/residue and retained-suffix checks, plus cached reductions
+# and single-side closures. Run predates only memoization of suffix viability.
+# AMBIGUITY_MEMORY_MB=4096 AMBIGUITY_MAX_FRONTIER_RATIO=1 AMBIGUITY_JOBS=1
+# ambiguity_search --prove 1 --max-tokens 0 --timeout 300 --max-witnesses 1 lib/cst/parser.mly
+# Outcome: NOT PROVEN. The exact recognizer rejects the candidate below.
+# Discovered pair counts include queued pairs; they are not all expanded.
+
+Search constraints: 0..0 total tokens; 0-token prefix; breadth-first scheduling.
+Proof budget: 4601750 abstract pairs (single-threaded; the 1-worker split does not apply).
+● abstract level 1 | pairs 400 | queued 272 | accepting 0 | 00:00
+● abstract level 1 | pairs 106.7k | queued 80.8k | accepting 0 | 00:10
+● abstract level 1 | pairs 169.3k | queued 124.5k | accepting 0 | 00:20
+● abstract level 1 | pairs 222.5k | queued 159.6k | accepting 0 | 00:30
+● abstract level 1 | pairs 279.2k | queued 210.4k | accepting 0 | 00:40
+● abstract level 1 | pairs 322.2k | queued 247.8k | accepting 0 | 00:50
+● abstract level 1 | pairs 390.7k | queued 308.1k | accepting 0 | 01:00
+● abstract level 1 | pairs 443.0k | queued 354.8k | accepting 0 | 01:10
+● abstract level 1 | pairs 488.8k | queued 392.4k | accepting 0 | 01:20
+● abstract level 1 | pairs 525.8k | queued 418.6k | accepting 0 | 01:32
+● abstract level 1 | pairs 556.6k | queued 441.1k | accepting 0 | 01:42
+● abstract level 1 | pairs 579.4k | queued 462.0k | accepting 0 | 01:52
+● abstract level 1 | pairs 676.8k | queued 557.4k | accepting 0 | 02:02
+● abstract level 1 | pairs 755.1k | queued 634.1k | accepting 0 | 02:22
+● abstract level 1 | pairs 834.5k | queued 710.4k | accepting 0 | 02:32
+● abstract level 1 | pairs 859.6k | queued 733.2k | accepting 0 | 02:43
+● abstract level 1 | pairs 879.4k | queued 751.6k | accepting 0 | 02:53
+● abstract level 1 | pairs 925.5k | queued 783.1k | accepting 0 | 03:03
+● abstract level 1 | pairs 980.9k | queued 817.1k | accepting 0 | 03:13
+● abstract level 1 | pairs 1.0M | queued 846.1k | accepting 0 | 03:24
+● abstract level 1 | pairs 1.1M | queued 880.2k | accepting 0 | 03:34
+● abstract level 1 | pairs 1.2M | queued 1.0M | accepting 0 | 03:44
+● abstract level 1 | pairs 1.3M | queued 1.1M | accepting 0 | 03:55
+● abstract level 1 | pairs 1.3M | queued 1.1M | accepting 0 | 04:05
+● abstract level 1 | pairs 1.5M | queued 1.3M | accepting 0 | 04:17
+Abstract ambiguity candidate at level 1 after 1557191 pairs (spurious): UIDENT DOT LIDENT LCURLY RCURLY THICK_ARROW UIDENT RPAREN EOF
+  divergence site on lookahead RPAREN
+  abstract stack (top first): 123
+  conflict at stack 123:
+    reduce expr -> UIDENT [pops the retained stack exactly: goto limited to predecessors]
+    reduce loption_generics_ -> 
+  the recognizer rejects this sentence, so the pair is spurious
+  the abstraction leaves the real parse's stacks after 8 token(s), on RPAREN
+Stack height: refused 2761001 move(s) onto a state no stack that short can carry; the height stops being counted past 18.
+Stack residue: refused 4882143 move(s) whose outstanding terminals cannot reach the selected automaton state (1024 residue classes).
+Attempting to concretize with the bounded search...
+
+Memory budget: 4096 MiB total across 1 worker(s); workers compact at 3277 MiB and stop admitting frontiers at 3686 MiB each (10% reserved); per-worker limits are 4601750 queued frontiers and 4601750 retained dedup frontiers (ratio 1).
+Search ended at depth 0 because the search space within the token bound was exhausted; no complete ambiguity was found in 1 explored frontiers (1 unique).
+NOT PROVEN: the abstract candidate could not be concretized within the search bounds; the grammar is neither proven unambiguous nor shown ambiguous. Raising --prove may remove the spurious candidate.

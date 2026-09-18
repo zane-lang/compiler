@@ -492,6 +492,13 @@ past any fixed lookahead, which is what the prover is for.
   verdict from a broken invocation. Only proof mode reports a verdict: a plain
   `ambiguity search` exits 0 whether or not it found witnesses, since a bounded
   finding is not one.
+
+  Reduction chains are compared only until their histories first differ. Once
+  a pair has diverged, later reductions cannot make the two derivations equal
+  again, so each side is closed independently and only their final stacks are
+  paired. Final pairs are unordered, just like the global pair table. This
+  avoids constructing the Cartesian product of every intermediate reduction
+  state without changing the relation the proof explores.
   **A candidate is parsed for real before anything is spent on it.** The
   abstract phase reasons about every sentence at once and has to approximate to
   do it, but a single candidate sentence is short, and the engine already
@@ -614,6 +621,47 @@ past any fixed lookahead, which is what the prover is for.
   as long as the height is the whole stack, so the descent stops there rather
   than inventing entries below the initial state, and the reductions that would
   have popped past it are gone.
+
+  **Which terminals remain on the viable stack** is another finite fact the
+  suffix used to discard. Each terminal labels an automaton edge. The prover
+  assigns those labels a nonzero 10-bit fingerprint and carries their XOR in
+  every abstract stack. A shift XORs in its terminal; a reduction XORs out the
+  terminals written directly in that production's right-hand side. These are
+  exact updates for every concrete LR stack, including arbitrarily deep ones.
+
+  Before the walk starts, the prover computes which `(state, residue)` pairs
+  occur on paths from the initial automaton state. Every concrete viable stack
+  is such a path. A guessed reduction base whose residue cannot reach its
+  selected state is therefore invented context and can be refused. This closes
+  recursive families where every finite suffix loses one more delimiter, such
+  as nested `MATCH` expressions whose braces were falsely reassigned between a
+  constructor and the match body.
+
+  The fingerprint is conservative. Hash collisions merge paths and admit
+  extra moves; they cannot rule out a concrete one. The residue is part of the
+  abstract node, so two paths with different fingerprints are not collapsed by
+  pair deduplication. Acceptance requires residue zero because the accepting
+  stack contains the initial state and the start-symbol goto, with no terminal
+  edge left on it. A run reports how many moves this test refused and the
+  number of residue classes used.
+
+  While height is exact, the reachability check now asks for a single path
+  with both that height and that residue. Separate tests would allow one path
+  to supply the height and another to supply the residue, even when no stack
+  satisfies both. A bounded dynamic program over automaton edges computes
+  this joint table. Saturated heights use unrestricted residue reachability,
+  so saturation never manufactures an exact height.
+
+  The retained suffix adds further constraints. Where all incoming edges to a
+  state have the same residue, removing that edge's contribution gives the
+  residue at the next retained state. Each such prefix must also be reachable
+  at its corresponding height. If incoming edge residues disagree, the check
+  conservatively stops; it never guesses which label a concrete path used.
+
+  Reduction results are cached by stack and production, since lookahead only
+  enables a reduction and does not change its result. Completed single-stack
+  closures are also shared across pairs, under a bounded optional cache. All
+  these caches are rebuilt for each refinement precision.
 
   A run says what the height test refused, for the same reason it says when a
   refinement request was clamped: a test that removes moves silently leaves the
@@ -1013,6 +1061,13 @@ before. That buys precision the proof was not short of and multiplies a space
 it already cannot walk. What the recognizer does instead is answer the same
 question exactly, for the one sentence in hand, without touching the node
 space.
+
+This does not conflict with the viable-stack residue used by the prover. The
+rejected experiment attached a fact about one reported sentence to a pair that
+may be reached by many sentences. The residue is part of the pair's stack
+identity and is updated by every parser move. It summarizes terminal-labelled
+edges still present on the parser stack, rather than totals in the input, and
+is checked only against an over-approximation of reachable automaton paths.
 
 **Labelling the backward walk with the production's symbols.** A reduction of
 `A -> X1 ... XW` pops entries that spell the right-hand side, so walking down

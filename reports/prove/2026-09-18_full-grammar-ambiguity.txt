@@ -1,0 +1,19 @@
+# Full-grammar exact ambiguity witness
+# Grammar: lib/cst/parser.mly (unchanged)
+# Checked with Menhir 20260209 and ambiguity_search --check-tokens.
+
+Tokens (13):
+  LIDENT AMPERSAND UIDENT EQUAL MATCH UIDENT LCURLY RCURLY
+  LOOSE_LESSEQ UIDENT LCURLY RCURLY EOF
+
+The exact recognizer reports two accepting derivations. The two parse shapes
+are distinct:
+
+  1. outer operator(MATCH A{}, verbcall B{}, ...)
+  2. MATCH(operator(verbcall A{}, atom B{}), ...)
+
+where A is the first UIDENT and B is the UIDENT after LOOSE_LESSEQ. This is a
+concrete ambiguity in the unchanged full grammar, not an abstract candidate
+or a bounded-search failure. The prover must not downgrade this candidate to
+NOT PROVEN merely because bounded concretization is configured with zero token
+budget; exact confirmation is already decisive.
