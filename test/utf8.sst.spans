@@ -1,0 +1,171 @@
+package | package main; import core$ … uadrat)); return Unit(); }
+  decl Package | package main
+    name main | main
+  decl Import | import core$
+    import | import core$
+      package core | core
+  decl Type | type Größe = struct { höhe Int; breite Int; }
+    name Größe | Größe
+    type_or_moulded Moulded | struct { höhe Int; breite Int; }
+      moulded | struct { höhe Int; breite Int; }
+        mould Struct | struct { höhe Int; breite Int; }
+          body_field | höhe Int;
+            name höhe | höhe
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+          body_field | breite Int;
+            name breite | breite
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+        type_axis Value | struct { höhe Int; breite Int; }
+  decl Verb | Größe.quadrat(seite Int) … = seite; breite = seite; }
+    verb_decl Constructor | Größe.quadrat(seite Int) … = seite; breite = seite; }
+      type_expr Path | Größe
+        name_type | Größe
+          ident Größe | Größe
+      member quadrat | quadrat
+      constructor_params Positional | (seite Int)
+        param | seite Int
+          name seite | seite
+          param_type Concrete | Int
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+      block | => init{ höhe = seite; breite = seite; }
+        stat Ret | => init{ höhe = seite; breite = seite; }
+          expr Init | init{ höhe = seite; breite = seite; }
+            field_arg | höhe = seite
+              name höhe | höhe
+              expr NameExpr | seite
+                name_expr | seite
+                  ident seite | seite
+            field_arg | breite = seite
+              name breite | breite
+              expr NameExpr | seite
+                name_expr | seite
+                  ident seite | seite
+  decl Verb | String beschreiben(größe …  " + fläche:toString(); }
+    verb_decl Func | String beschreiben(größe …  " + fläche:toString(); }
+      name beschreiben | beschreiben
+      param | größe Größe
+        name größe | größe
+        param_type Concrete | Größe
+          type_expr Path | Größe
+            name_type | Größe
+              ident Größe | Größe
+      ret_type Safe | String
+        type_expr Path | String
+          name_type | String
+            ident String | String
+      block | { fläche Int = größe.h …  " + fläche:toString(); }
+        stat Decl | fläche Int = größe.höhe * größe.breite;
+          decl Var | fläche Int = größe.höhe * größe.breite
+            name fläche | fläche
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | größe.höhe * größe.breite
+              verb_call Op | größe.höhe * größe.breite
+                operator Mul | *
+                expr DotAccess | größe.höhe
+                  expr NameExpr | größe
+                    name_expr | größe
+                      ident größe | größe
+                  field höhe | höhe
+                expr DotAccess | größe.breite
+                  expr NameExpr | größe
+                    name_expr | größe
+                      ident größe | größe
+                  field breite | breite
+        stat Ret | return "fläche: " + fläche:toString();
+          expr VerbCall | "fläche: " + fläche:toString()
+            verb_call Op | "fläche: " + fläche:toString()
+              operator Add | +
+              expr StrLit | "fläche: "
+              expr VerbCall | fläche:toString()
+                verb_call Call method: | fläche:toString()
+                  expr NameExpr | toString
+                    name_expr | toString
+                      ident toString | toString
+                  call_arg Value | fläche
+                    expr NameExpr | fläche
+                      name_expr | fläche
+                        ident fläche | fläche
+  decl Type | type Ausrichtung = enum [ oben, unten, außen ]
+    name Ausrichtung | Ausrichtung
+    type_or_moulded Moulded | enum [ oben, unten, außen ]
+      moulded | enum [ oben, unten, außen ]
+        mould Enum | enum [ oben, unten, außen ]
+          member oben | oben
+          member unten | unten
+          member außen | außen
+        type_axis Value | enum [ oben, unten, außen ]
+  decl EnumMap | Ausrichtung.kürzel String … ten = "u"; außen = "a"; }
+    type_expr Path | Ausrichtung
+      name_type | Ausrichtung
+        ident Ausrichtung | Ausrichtung
+    property kürzel | kürzel
+    type_expr Path | String
+      name_type | String
+        ident String | String
+    member oben | oben
+    expr StrLit | "o"
+    member unten | unten
+    expr StrLit | "u"
+    member außen | außen
+    expr StrLit | "a"
+  decl Verb | Unit main() { quadrat Grö … uadrat)); return Unit(); }
+    verb_decl Func | Unit main() { quadrat Grö … uadrat)); return Unit(); }
+      name main | main
+      ret_type Safe | Unit
+        type_expr Path | Unit
+          name_type | Unit
+            ident Unit | Unit
+      block | { quadrat Größe = Größ … uadrat)); return Unit(); }
+        stat Decl | quadrat Größe = Größe.quadrat(Int(3));
+          decl Var | quadrat Größe = Größe.quadrat(Int(3))
+            name quadrat | quadrat
+            type_expr Path | Größe
+              name_type | Größe
+                ident Größe | Größe
+            expr VerbCall | Größe.quadrat(Int(3))
+              verb_call Constructor | Größe.quadrat(Int(3))
+                constructor_name | Größe.quadrat
+                  name_type | Größe
+                    ident Größe | Größe
+                  member quadrat | quadrat
+                constructor_args Positional | (Int(3))
+                  call_arg Value | Int(3)
+                    expr VerbCall | Int(3)
+                      verb_call Constructor | Int(3)
+                        constructor_name | Int
+                          name_type | Int
+                            ident Int | Int
+                        constructor_args Positional | (3)
+                          call_arg Value | 3
+                            expr IntLit | 3
+        stat VerbCall | std$print(beschreiben(quadrat));
+          verb_call Call function | std$print(beschreiben(quadrat))
+            expr NameExpr | std$print
+              name_expr | std$print
+                package std | std
+                ident print | print
+            call_arg Value | beschreiben(quadrat)
+              expr VerbCall | beschreiben(quadrat)
+                verb_call Call function | beschreiben(quadrat)
+                  expr NameExpr | beschreiben
+                    name_expr | beschreiben
+                      ident beschreiben | beschreiben
+                  call_arg Value | quadrat
+                    expr NameExpr | quadrat
+                      name_expr | quadrat
+                        ident quadrat | quadrat
+        stat Ret | return Unit();
+          expr VerbCall | Unit()
+            verb_call Constructor | Unit()
+              constructor_name | Unit
+                name_type | Unit
+                  ident Unit | Unit
+              constructor_args Positional | ()

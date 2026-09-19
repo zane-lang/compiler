@@ -2,5 +2,5 @@
  (name main)
  (public_name zanec)
  (package zane-compiler)
- (libraries cst tree_graph)
+ (libraries cst sst tree_graph)
  (modules main))

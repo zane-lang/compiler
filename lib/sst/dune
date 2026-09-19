@@ -1,0 +1,3 @@
+(library
+ (name sst)
+ (libraries cst tree_graph))

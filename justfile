@@ -17,10 +17,11 @@ syntax-experiment-test:
 # present, so build them first and fail loudly on a missing Menhir rather than
 # reporting a green run that silently skipped them.
 #
-# `dune runtest` carries the span expectation in test/, which the Python suite
+# `dune runtest` carries the expectations in test/, which the Python suite
 # cannot cover: those tests ask whether a file parses and what shape it parsed
-# to, and neither question reads a position. A moved span is a diff there and
-# nothing anywhere else. Promote an intended move with `just promote`.
+# to, and neither question reads a position or looks at the desugared tree. A
+# moved span is a diff there and nothing anywhere else, and so is a rewrite
+# that stopped happening. Promote an intended move with `just promote`.
 test:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
 	dune build tools/ambiguity_search.exe tools/parser_shape.exe tools/parser_accept.exe

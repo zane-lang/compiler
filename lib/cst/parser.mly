@@ -61,7 +61,15 @@ let verb_decl loc node =
 let decl loc node = ({ Nodes.Decl.node; span = Span.of_loc loc } : Nodes.Decl.t)
 
 let operator loc node =
-  ({ Nodes.Operator.node; span = Span.of_loc loc } : Nodes.Operator.t)
+  ({ Nodes.Operator.node; is_loose = false; span = Span.of_loc loc }
+    : Nodes.Operator.t)
+
+(* The same operator, written with its `'` prefix. Two constructors rather than
+   a flag at each of the twenty call sites, so the ten loose productions are
+   the only ones that say so. *)
+let loose_operator loc node =
+  ({ Nodes.Operator.node; is_loose = true; span = Span.of_loc loc }
+    : Nodes.Operator.t)
 
 let concept loc node =
   ({ Nodes.Concept.node; span = Span.of_loc loc } : Nodes.Concept.t)
@@ -1390,20 +1398,31 @@ block_call:
         } : Nodes.Verb_call.t)
     }
 
-%inline operator:
-  | op=comparison_decl_op { op }
-  | op=additive_op        { op }
-  | op=multiplicative_op  { op }
+(* The operators a program may declare: the primitive set of operators.md
+   §2.1, which is "implementable and define[s] the operator surface area".
 
-%inline comparison_decl_op:
+   The five the use sites below also admit -- `-`, `~=`, `>`, `<=` and `>=` --
+   are derived (§2.3): each is a fixed desugaring into this set and "**not**
+   independently implementable". They are rejected here rather than accepted
+   and ignored, because the SST rewrites every use of one into its primitive
+   form (docs/desugaring.md §2.3), so a declaration of `>` would parse, check,
+   and then never be reached by any call.
+
+   `~` is primitive too and has its own production, since it is the one unary
+   operator and takes one parameter rather than two. *)
+%inline operator:
+  | "==" { operator $loc Nodes.Operator.Eq }
+  | "<"  { operator $loc Nodes.Operator.Less }
+  | "+"  { operator $loc Nodes.Operator.Add }
+  | "*"  { operator $loc Nodes.Operator.Mul }
+  | "/"  { operator $loc Nodes.Operator.Div }
+
+%inline comparison_op:
   | "==" { operator $loc Nodes.Operator.Eq }
   | "<=" { operator $loc Nodes.Operator.LessEq }
   | ">=" { operator $loc Nodes.Operator.MoreEq }
   | "<"  { operator $loc Nodes.Operator.Less }
   | ">"  { operator $loc Nodes.Operator.More }
-
-%inline comparison_op:
-  | op=comparison_decl_op { op }
   | "~=" { operator $loc Nodes.Operator.NotEq }
 
 %inline additive_op:
@@ -1414,29 +1433,32 @@ block_call:
   | "*" { operator $loc Nodes.Operator.Mul }
   | "/" { operator $loc Nodes.Operator.Div }
 
-(* The loose forms carry the same [Operator.t] as the operators they mirror,
+(* The loose forms carry the same [Operator.node] as the operators they mirror,
    because a loose operator "calls the same implementation as its unprefixed
    form and differs only in where it groups" (operators.md §3.1) and the
-   grouping is the tree. Nothing downstream asks which spelling was written,
-   and §3.1 is explicit that the loose forms add no token to the operator
-   vocabulary of §5.1 -- so they declare nothing either, and [operator] above,
-   which is the declaration form, does not admit them. *)
+   grouping is the tree. What they do not share is [is_loose], because the two
+   spellings are two different pieces of source and the CST records what was
+   parsed; collapsing them is the SST's job (docs/desugaring.md §2.2).
+
+   §3.1 is explicit that the loose forms add no token to the operator
+   vocabulary of §5.1 -- so they declare nothing either, and the declaration
+   productions, which read the unprefixed rules below, do not admit them. *)
 
 %inline loose_comparison_op:
-  | "'==" { operator $loc Nodes.Operator.Eq }
-  | "'~=" { operator $loc Nodes.Operator.NotEq }
-  | "'<=" { operator $loc Nodes.Operator.LessEq }
-  | "'>=" { operator $loc Nodes.Operator.MoreEq }
-  | "'<"  { operator $loc Nodes.Operator.Less }
-  | "'>"  { operator $loc Nodes.Operator.More }
+  | "'==" { loose_operator $loc Nodes.Operator.Eq }
+  | "'~=" { loose_operator $loc Nodes.Operator.NotEq }
+  | "'<=" { loose_operator $loc Nodes.Operator.LessEq }
+  | "'>=" { loose_operator $loc Nodes.Operator.MoreEq }
+  | "'<"  { loose_operator $loc Nodes.Operator.Less }
+  | "'>"  { loose_operator $loc Nodes.Operator.More }
 
 %inline loose_additive_op:
-  | "'+" { operator $loc Nodes.Operator.Add }
-  | "'-" { operator $loc Nodes.Operator.Sub }
+  | "'+" { loose_operator $loc Nodes.Operator.Add }
+  | "'-" { loose_operator $loc Nodes.Operator.Sub }
 
 %inline loose_multiplicative_op:
-  | "'*" { operator $loc Nodes.Operator.Mul }
-  | "'/" { operator $loc Nodes.Operator.Div }
+  | "'*" { loose_operator $loc Nodes.Operator.Mul }
+  | "'/" { loose_operator $loc Nodes.Operator.Div }
 
 %inline match_selector:
   | case=lname {

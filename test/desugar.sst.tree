@@ -1,0 +1,871 @@
+└── package:
+    ├── declarations[0] > package_decl: desugar
+    ├── declarations[1] > import_decl > import_all:
+    │   └── package: core
+    ├── declarations[2] > type_decl:
+    │   ├── name: Vec
+    │   ├── params:
+    │   └── value:
+    │       ├── mould > struct[0]:
+    │       │   ├── name: x
+    │       │   └── type:
+    │       │       ├── qualifier: Int
+    │       │       └── args:
+    │       ├── mould > struct[1]:
+    │       │   ├── name: y
+    │       │   └── type:
+    │       │       ├── qualifier: Int
+    │       │       └── args:
+    │       └── type_axis: value
+    ├── declarations[3] > type_decl:
+    │   ├── name: Shape
+    │   ├── params:
+    │   └── value:
+    │       ├── mould > enum[0]: round
+    │       ├── mould > enum[1]: square
+    │       ├── mould > enum[2]: oblong
+    │       └── type_axis: value
+    ├── declarations[4] > type_decl:
+    │   ├── name: Phase
+    │   ├── params:
+    │   └── value:
+    │       ├── mould > enum[0]: early
+    │       ├── mould > enum[1]: late
+    │       └── type_axis: value
+    ├── declarations[5] > type_decl:
+    │   ├── name: Expr
+    │   ├── params:
+    │   └── value:
+    │       ├── mould > variant[0]:
+    │       │   ├── name: intLit
+    │       │   └── type:
+    │       │       ├── qualifier: Int
+    │       │       └── args:
+    │       ├── mould > variant[1]:
+    │       │   ├── name: strLit
+    │       │   └── type:
+    │       │       ├── qualifier: String
+    │       │       └── args:
+    │       ├── mould > variant[2]:
+    │       │   ├── name: boolLit
+    │       │   └── type:
+    │       │       ├── qualifier: Bool
+    │       │       └── args:
+    │       └── type_axis: value
+    ├── declarations[6] > ctor_decl:
+    │   ├── type:
+    │   │   ├── qualifier: Vec
+    │   │   └── args:
+    │   ├── param > fields[0]:
+    │   │   ├── name: x
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── param > fields[1]:
+    │   │   ├── name: y
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── body > scope:
+    │   │   ├── stat[0] > ret_stat > init[0]:
+    │   │   │   ├── name: x
+    │   │   │   └── value: x
+    │   │   └── stat[0] > ret_stat > init[1]:
+    │   │       ├── name: y
+    │   │       └── value: y
+    │   └── is_implicit: false
+    ├── declarations[7] > ctor_decl:
+    │   ├── type:
+    │   │   ├── qualifier: Vec
+    │   │   └── args:
+    │   ├── member: origin
+    │   ├── param:
+    │   ├── body > scope:
+    │   │   ├── stat[0] > ret_stat > init[0]:
+    │   │   │   ├── name: x
+    │   │   │   └── value > ctor_call:
+    │   │   │       ├── type: Int
+    │   │   │       ├── args[0]: 0
+    │   │   │       └── abort: none
+    │   │   └── stat[0] > ret_stat > init[1]:
+    │   │       ├── name: y
+    │   │       └── value > ctor_call:
+    │   │           ├── type: Int
+    │   │           ├── args[0]: 0
+    │   │           └── abort: none
+    │   └── is_implicit: false
+    ├── declarations[8] > ctor_decl:
+    │   ├── type:
+    │   │   ├── qualifier: Vec
+    │   │   └── args:
+    │   ├── param[0]:
+    │   │   ├── name: both
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── body > scope:
+    │   │   ├── stat[0] > ret_stat > init[0]:
+    │   │   │   ├── name: x
+    │   │   │   └── value: both
+    │   │   └── stat[0] > ret_stat > init[1]:
+    │   │       ├── name: y
+    │   │       └── value: both
+    │   └── is_implicit: true
+    ├── declarations[9] > func_decl:
+    │   ├── name: doubled
+    │   ├── param[0]:
+    │   │   ├── name: value
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Int
+    │   │   └── args:
+    │   └── body > scope:
+    │       └── stat[0] > ret_stat > op_call:
+    │           ├── op: *
+    │           ├── left: value
+    │           ├── right > ctor_call:
+    │           │   ├── type: Int
+    │           │   ├── args[0]: 2
+    │           │   └── abort: none
+    │           └── abort: none
+    ├── declarations[10] > meth_decl:
+    │   ├── name: scaled
+    │   ├── this_type:
+    │   │   ├── qualifier: Vec
+    │   │   └── args:
+    │   ├── param[0]:
+    │   │   ├── name: factor
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Int
+    │   │   └── args:
+    │   ├── body > scope:
+    │   │   └── stat[0] > ret_stat > op_call:
+    │   │       ├── op: *
+    │   │       ├── left > dot_access:
+    │   │       │   ├── target: this
+    │   │       │   └── field: x
+    │   │       ├── right: factor
+    │   │       └── abort: none
+    │   └── is_mut: false
+    ├── declarations[11] > op_decl:
+    │   ├── op: +
+    │   ├── param[0]:
+    │   │   ├── name: left
+    │   │   └── type:
+    │   │       ├── qualifier: Vec
+    │   │       └── args:
+    │   ├── param[1]:
+    │   │   ├── name: right
+    │   │   └── type:
+    │   │       ├── qualifier: Vec
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Vec
+    │   │   └── args:
+    │   └── body > scope:
+    │       └── stat[0] > ret_stat > ctor_call:
+    │           ├── type: Vec
+    │           ├── args[0] > op_call:
+    │           │   ├── op: +
+    │           │   ├── left > dot_access:
+    │           │   │   ├── target: left
+    │           │   │   └── field: x
+    │           │   ├── right > dot_access:
+    │           │   │   ├── target: right
+    │           │   │   └── field: x
+    │           │   └── abort: none
+    │           ├── args[1] > op_call:
+    │           │   ├── op: +
+    │           │   ├── left > dot_access:
+    │           │   │   ├── target: left
+    │           │   │   └── field: y
+    │           │   ├── right > dot_access:
+    │           │   │   ├── target: right
+    │           │   │   └── field: y
+    │           │   └── abort: none
+    │           └── abort: none
+    ├── declarations[12] > flip_decl:
+    │   ├── param[0]:
+    │   │   ├── name: value
+    │   │   └── type:
+    │   │       ├── qualifier: Vec
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Vec
+    │   │   └── args:
+    │   └── body > scope:
+    │       └── stat[0] > ret_stat > ctor_call:
+    │           ├── type: Vec
+    │           ├── args[0] > flip_call:
+    │           │   ├── value > dot_access:
+    │           │   │   ├── target: value
+    │           │   │   └── field: x
+    │           │   └── abort: none
+    │           ├── args[1] > flip_call:
+    │           │   ├── value > dot_access:
+    │           │   │   ├── target: value
+    │           │   │   └── field: y
+    │           │   └── abort: none
+    │           └── abort: none
+    ├── declarations[13] > func_decl:
+    │   ├── name: tripled
+    │   ├── param[0]:
+    │   │   ├── name: value
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Int
+    │   │   └── args:
+    │   └── body > scope:
+    │       └── stat[0] > ret_stat > op_call:
+    │           ├── op: *
+    │           ├── left: value
+    │           ├── right > ctor_call:
+    │           │   ├── type: Int
+    │           │   ├── args[0]: 3
+    │           │   └── abort: none
+    │           └── abort: none
+    ├── declarations[14] > func_decl:
+    │   ├── name: derived
+    │   ├── param[0]:
+    │   │   ├── name: a
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── param[1]:
+    │   │   ├── name: b
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Unit
+    │   │   └── args:
+    │   └── body > scope:
+    │       ├── stat[0] > var_decl:
+    │       │   ├── name: difference
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > op_call:
+    │       │       ├── op: +
+    │       │       ├── left: a
+    │       │       ├── right > flip_call:
+    │       │       │   ├── value: b
+    │       │       │   └── abort: none
+    │       │       └── abort: none
+    │       ├── stat[1] > var_decl:
+    │       │   ├── name: unequal
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Bool
+    │       │   │   └── args:
+    │       │   └── value > flip_call:
+    │       │       ├── value > op_call:
+    │       │       │   ├── op: ==
+    │       │       │   ├── left: a
+    │       │       │   ├── right: b
+    │       │       │   └── abort: none
+    │       │       └── abort: none
+    │       ├── stat[2] > var_decl:
+    │       │   ├── name: greater
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Bool
+    │       │   │   └── args:
+    │       │   └── value > op_call:
+    │       │       ├── op: <
+    │       │       ├── left: b
+    │       │       ├── right: a
+    │       │       └── abort: none
+    │       ├── stat[3] > var_decl:
+    │       │   ├── name: atMost
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Bool
+    │       │   │   └── args:
+    │       │   └── value > flip_call:
+    │       │       ├── value > op_call:
+    │       │       │   ├── op: <
+    │       │       │   ├── left: b
+    │       │       │   ├── right: a
+    │       │       │   └── abort: none
+    │       │       └── abort: none
+    │       ├── stat[4] > var_decl:
+    │       │   ├── name: atLeast
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Bool
+    │       │   │   └── args:
+    │       │   └── value > flip_call:
+    │       │       ├── value > op_call:
+    │       │       │   ├── op: <
+    │       │       │   ├── left: a
+    │       │       │   ├── right: b
+    │       │       │   └── abort: none
+    │       │       └── abort: none
+    │       ├── stat[5] > var_decl:
+    │       │   ├── name: sum
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > op_call:
+    │       │       ├── op: +
+    │       │       ├── left: a
+    │       │       ├── right: b
+    │       │       └── abort: none
+    │       ├── stat[6] > var_decl:
+    │       │   ├── name: less
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Bool
+    │       │   │   └── args:
+    │       │   └── value > op_call:
+    │       │       ├── op: <
+    │       │       ├── left: a
+    │       │       ├── right: b
+    │       │       └── abort: none
+    │       ├── stat[7] > var_decl:
+    │       │   ├── name: chained
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Bool
+    │       │   │   └── args:
+    │       │   └── value > flip_call:
+    │       │       ├── value > op_call:
+    │       │       │   ├── op: <
+    │       │       │   ├── left > op_call:
+    │       │       │   │   ├── op: +
+    │       │       │   │   ├── left: a
+    │       │       │   │   ├── right > flip_call:
+    │       │       │   │   │   ├── value: b
+    │       │       │   │   │   └── abort: none
+    │       │       │   │   └── abort: none
+    │       │       │   ├── right > op_call:
+    │       │       │   │   ├── op: +
+    │       │       │   │   ├── left: b
+    │       │       │   │   ├── right > flip_call:
+    │       │       │   │   │   ├── value: a
+    │       │       │   │   │   └── abort: none
+    │       │       │   │   └── abort: none
+    │       │       │   └── abort: none
+    │       │       └── abort: none
+    │       ├── stat[8] > var_decl:
+    │       │   ├── name: bracketed
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > op_call:
+    │       │       ├── op: +
+    │       │       ├── left: a
+    │       │       ├── right > flip_call:
+    │       │       │   ├── value: b
+    │       │       │   └── abort: none
+    │       │       └── abort: none
+    │       └── stat[9] > ret_stat > ctor_call:
+    │           ├── type: Unit
+    │           ├── args:
+    │           └── abort: none
+    ├── declarations[15] > func_decl:
+    │   ├── name: loose
+    │   ├── param[0]:
+    │   │   ├── name: a
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── param[1]:
+    │   │   ├── name: b
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── param[2]:
+    │   │   ├── name: ok
+    │   │   └── type:
+    │   │       ├── qualifier: Bool
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Bool
+    │   │   └── args:
+    │   └── body > scope:
+    │       ├── stat[0] > var_decl:
+    │       │   ├── name: mixed
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Bool
+    │       │   │   └── args:
+    │       │   └── value > op_call:
+    │       │       ├── op: +
+    │       │       ├── left > op_call:
+    │       │       │   ├── op: *
+    │       │       │   ├── left > op_call:
+    │       │       │   │   ├── op: <
+    │       │       │   │   ├── left: a
+    │       │       │   │   ├── right: b
+    │       │       │   │   └── abort: none
+    │       │       │   ├── right > op_call:
+    │       │       │   │   ├── op: <
+    │       │       │   │   ├── left: b
+    │       │       │   │   ├── right: a
+    │       │       │   │   └── abort: none
+    │       │       │   └── abort: none
+    │       │       ├── right: ok
+    │       │       └── abort: none
+    │       ├── stat[1] > var_decl:
+    │       │   ├── name: derivedLoose
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Bool
+    │       │   │   └── args:
+    │       │   └── value > op_call:
+    │       │       ├── op: *
+    │       │       ├── left > flip_call:
+    │       │       │   ├── value > op_call:
+    │       │       │   │   ├── op: <
+    │       │       │   │   ├── left: a
+    │       │       │   │   ├── right: b
+    │       │       │   │   └── abort: none
+    │       │       │   └── abort: none
+    │       │       ├── right: ok
+    │       │       └── abort: none
+    │       └── stat[2] > ret_stat > op_call:
+    │           ├── op: +
+    │           ├── left: mixed
+    │           ├── right: derivedLoose
+    │           └── abort: none
+    ├── declarations[16] > func_decl:
+    │   ├── name: risky
+    │   ├── param[0]:
+    │   │   ├── name: value
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── safe_type:
+    │   │   │   ├── qualifier: Int
+    │   │   │   └── args:
+    │   │   └── abort_type:
+    │   │       ├── qualifier: String
+    │   │       └── args:
+    │   └── body > scope:
+    │       ├── stat[0] > call:
+    │       │   ├── form: function
+    │       │   ├── callee: guard
+    │       │   ├── args[0] > op_call:
+    │       │   │   ├── op: <
+    │       │   │   ├── left: value
+    │       │   │   ├── right > ctor_call:
+    │       │   │   │   ├── type: Int
+    │       │   │   │   ├── args[0]: 0
+    │       │   │   │   └── abort: none
+    │       │   │   └── abort: none
+    │       │   └── abort: none
+    │       └── stat[1] > ret_stat: value
+    ├── declarations[17] > func_decl:
+    │   ├── name: handlers
+    │   ├── param:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Unit
+    │   │   └── args:
+    │   └── body > scope:
+    │       ├── stat[0] > var_decl:
+    │       │   ├── name: short
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > call:
+    │       │       ├── form: function
+    │       │       ├── callee: risky
+    │       │       ├── args[0] > ctor_call:
+    │       │       │   ├── type: Int
+    │       │       │   ├── args[0]: 1
+    │       │       │   └── abort: none
+    │       │       └── abort:
+    │       │           └── body > scope:
+    │       │               └── stat[0] > resolve_stat > ctor_call:
+    │       │                   ├── type: Int
+    │       │                   ├── args[0]: 0
+    │       │                   └── abort: none
+    │       ├── stat[1] > var_decl:
+    │       │   ├── name: long
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > call:
+    │       │       ├── form: function
+    │       │       ├── callee: risky
+    │       │       ├── args[0] > ctor_call:
+    │       │       │   ├── type: Int
+    │       │       │   ├── args[0]: 2
+    │       │       │   └── abort: none
+    │       │       └── abort:
+    │       │           ├── binder: err
+    │       │           └── body > scope:
+    │       │               ├── stat[0] > call:
+    │       │               │   ├── form: function
+    │       │               │   ├── callee: print
+    │       │               │   ├── args[0]: err
+    │       │               │   └── abort: none
+    │       │               └── stat[1] > resolve_stat > ctor_call:
+    │       │                   ├── type: Int
+    │       │                   ├── args[0]: 0
+    │       │                   └── abort: none
+    │       └── stat[2] > ret_stat > ctor_call:
+    │           ├── type: Unit
+    │           ├── args:
+    │           └── abort: none
+    ├── declarations[18] > func_decl:
+    │   ├── name: describe
+    │   ├── param[0]:
+    │   │   ├── name: shape
+    │   │   └── type:
+    │   │       ├── qualifier: Shape
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: String
+    │   │   └── args:
+    │   └── body > scope:
+    │       └── stat[0] > ret_stat > match:
+    │           ├── scrutinees[0]: shape
+    │           ├── arms[0]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: round
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: curved
+    │           ├── arms[1]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: oblong
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: curved
+    │           ├── arms[2]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: square
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: angular
+    │           └── abort: none
+    ├── declarations[19] > func_decl:
+    │   ├── name: combined
+    │   ├── param[0]:
+    │   │   ├── name: shape
+    │   │   └── type:
+    │   │       ├── qualifier: Shape
+    │   │       └── args:
+    │   ├── param[1]:
+    │   │   ├── name: phase
+    │   │   └── type:
+    │   │       ├── qualifier: Phase
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: String
+    │   │   └── args:
+    │   └── body > scope:
+    │       └── stat[0] > ret_stat > match:
+    │           ├── scrutinees[0]: shape
+    │           ├── scrutinees[1]: phase
+    │           ├── arms[0]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: round
+    │           │   ├── patterns[1]:
+    │           │   │   └── case: early
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: known
+    │           ├── arms[1]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: round
+    │           │   ├── patterns[1]:
+    │           │   │   └── case: late
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: known
+    │           ├── arms[2]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: square
+    │           │   ├── patterns[1]:
+    │           │   │   └── case: early
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: known
+    │           ├── arms[3]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: square
+    │           │   ├── patterns[1]:
+    │           │   │   └── case: late
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: known
+    │           ├── arms[4]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: oblong
+    │           │   ├── patterns[1]:
+    │           │   │   └── case: early
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: growing
+    │           ├── arms[5]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: oblong
+    │           │   ├── patterns[1]:
+    │           │   │   └── case: late
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: settled
+    │           └── abort: none
+    ├── declarations[20] > func_decl:
+    │   ├── name: render
+    │   ├── param[0]:
+    │   │   ├── name: e
+    │   │   └── type:
+    │   │       ├── qualifier: Expr
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: String
+    │   │   └── args:
+    │   └── body > scope:
+    │       └── stat[0] > ret_stat > match:
+    │           ├── scrutinees[0]: e
+    │           ├── arms[0]:
+    │           │   ├── patterns[0]:
+    │           │   │   ├── binder: x
+    │           │   │   └── case: strLit
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: x
+    │           ├── arms[1]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: intLit
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: literal
+    │           ├── arms[2]:
+    │           │   ├── patterns[0]:
+    │           │   │   └── case: boolLit
+    │           │   └── body > scope:
+    │           │       └── stat[0] > ret_stat: literal
+    │           └── abort: none
+    ├── declarations[21] > func_decl:
+    │   ├── name: shorthands
+    │   ├── param:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Unit
+    │   │   └── args:
+    │   └── body > scope:
+    │       ├── stat[0] > var_decl:
+    │       │   ├── name: origin
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Vec
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Vec
+    │       │       ├── member: origin
+    │       │       ├── args:
+    │       │       └── abort: none
+    │       ├── stat[1] > var_decl:
+    │       │   ├── name: square
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Vec
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Vec
+    │       │       ├── args > fields[0]:
+    │       │       │   ├── name: x
+    │       │       │   └── value > ctor_call:
+    │       │       │       ├── type: Int
+    │       │       │       ├── args[0]: 2
+    │       │       │       └── abort: none
+    │       │       ├── args > fields[1]:
+    │       │       │   ├── name: y
+    │       │       │   └── value > ctor_call:
+    │       │       │       ├── type: Int
+    │       │       │       ├── args[0]: 2
+    │       │       │       └── abort: none
+    │       │       └── abort: none
+    │       ├── stat[2] > var_decl:
+    │       │   ├── name: literal
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Expr
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Expr
+    │       │       ├── member: intLit
+    │       │       ├── args[0] > ctor_call:
+    │       │       │   ├── type: Int
+    │       │       │   ├── args[0]: 5
+    │       │       │   └── abort: none
+    │       │       └── abort: none
+    │       ├── stat[3] > var_decl:
+    │       │   ├── name: two
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Int
+    │       │       ├── args[0]: 2
+    │       │       └── abort: none
+    │       ├── stat[4] > var_decl:
+    │       │   ├── name: four
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Int
+    │       │       ├── args[0]: 4
+    │       │       └── abort: none
+    │       ├── stat[5] > var_decl:
+    │       │   ├── name: implied
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Vec
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Vec
+    │       │       ├── args > fields[0]:
+    │       │       │   ├── name: x
+    │       │       │   └── value: two
+    │       │       ├── args > fields[1]:
+    │       │       │   ├── name: y
+    │       │       │   └── value: four
+    │       │       └── abort: none
+    │       ├── stat[6] > var_decl:
+    │       │   ├── name: grouped
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > op_call:
+    │       │       ├── op: *
+    │       │       ├── left > op_call:
+    │       │       │   ├── op: +
+    │       │       │   ├── left: two
+    │       │       │   ├── right: four
+    │       │       │   └── abort: none
+    │       │       ├── right > op_call:
+    │       │       │   ├── op: +
+    │       │       │   ├── left: two
+    │       │       │   ├── right > flip_call:
+    │       │       │   │   ├── value: four
+    │       │       │   │   └── abort: none
+    │       │       │   └── abort: none
+    │       │       └── abort: none
+    │       ├── stat[7] > var_decl:
+    │       │   ├── name: ran
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Bool
+    │       │   │   └── args:
+    │       │   └── value > call:
+    │       │       ├── form: function
+    │       │       ├── callee: if
+    │       │       ├── args[0] > op_call:
+    │       │       │   ├── op: <
+    │       │       │   ├── left: two
+    │       │       │   ├── right: four
+    │       │       │   └── abort: none
+    │       │       ├── args[1] > block > scope:
+    │       │       │   └── stat[0] > call:
+    │       │       │       ├── form: function
+    │       │       │       ├── callee: print
+    │       │       │       ├── args[0]: smaller
+    │       │       │       └── abort: none
+    │       │       └── abort: none
+    │       ├── stat[8] > call:
+    │       │   ├── form: method:
+    │       │   ├── callee: else
+    │       │   ├── args[0]: ran
+    │       │   ├── args[1] > block > scope:
+    │       │   │   └── stat[0] > call:
+    │       │   │       ├── form: function
+    │       │   │       ├── callee: print
+    │       │   │       ├── args[0]: not smaller
+    │       │   │       └── abort: none
+    │       │   └── abort: none
+    │       └── stat[9] > ret_stat > ctor_call:
+    │           ├── type: Unit
+    │           ├── args:
+    │           └── abort: none
+    ├── declarations[22] > func_decl:
+    │   ├── name: lambdas
+    │   ├── param:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Unit
+    │   │   └── args:
+    │   └── body > scope:
+    │       ├── stat[0] > var_decl:
+    │       │   ├── name: twice
+    │       │   ├── type:
+    │       │   │   ├── param[0]:
+    │       │   │   │   ├── qualifier: Int
+    │       │   │   │   └── args:
+    │       │   │   └── type:
+    │       │   │       ├── qualifier: Int
+    │       │   │       └── args:
+    │       │   └── value > func_lambda:
+    │       │       ├── param[0]:
+    │       │       │   ├── name: value
+    │       │       │   └── type:
+    │       │       │       ├── qualifier: Int
+    │       │       │       └── args:
+    │       │       ├── ret_type:
+    │       │       │   ├── qualifier: Int
+    │       │       │   └── args:
+    │       │       └── body > scope:
+    │       │           └── stat[0] > ret_stat > op_call:
+    │       │               ├── op: *
+    │       │               ├── left: value
+    │       │               ├── right > ctor_call:
+    │       │               │   ├── type: Int
+    │       │               │   ├── args[0]: 2
+    │       │               │   └── abort: none
+    │       │               └── abort: none
+    │       ├── stat[1] > var_decl:
+    │       │   ├── name: longer
+    │       │   ├── type:
+    │       │   │   ├── param[0]:
+    │       │   │   │   ├── qualifier: Int
+    │       │   │   │   └── args:
+    │       │   │   └── type:
+    │       │   │       ├── qualifier: Int
+    │       │   │       └── args:
+    │       │   └── value > func_lambda:
+    │       │       ├── param[0]:
+    │       │       │   ├── name: value
+    │       │       │   └── type:
+    │       │       │       ├── qualifier: Int
+    │       │       │       └── args:
+    │       │       ├── ret_type:
+    │       │       │   ├── qualifier: Int
+    │       │       │   └── args:
+    │       │       └── body > scope:
+    │       │           └── stat[0] > ret_stat > op_call:
+    │       │               ├── op: +
+    │       │               ├── left: value
+    │       │               ├── right > ctor_call:
+    │       │               │   ├── type: Int
+    │       │               │   ├── args[0]: 1
+    │       │               │   └── abort: none
+    │       │               └── abort: none
+    │       └── stat[2] > ret_stat > ctor_call:
+    │           ├── type: Unit
+    │           ├── args:
+    │           └── abort: none
+    └── declarations[23] > func_decl:
+        ├── name: main
+        ├── param:
+        ├── ret_type:
+        │   ├── qualifier: Unit
+        │   └── args:
+        └── body > scope:
+            ├── stat[0] > call:
+            │   ├── form: function
+            │   ├── callee: print
+            │   ├── args[0] > call:
+            │   │   ├── form: function
+            │   │   ├── callee: describe
+            │   │   ├── args[0] > type_member:
+            │   │   │   ├── type: Shape
+            │   │   │   └── member: round
+            │   │   └── abort: none
+            │   └── abort: none
+            ├── stat[1] > call:
+            │   ├── form: function
+            │   ├── callee: print
+            │   ├── args[0] > call:
+            │   │   ├── form: function
+            │   │   ├── callee: combined
+            │   │   ├── args[0] > type_member:
+            │   │   │   ├── type: Shape
+            │   │   │   └── member: oblong
+            │   │   ├── args[1] > type_member:
+            │   │   │   ├── type: Phase
+            │   │   │   └── member: early
+            │   │   └── abort: none
+            │   └── abort: none
+            └── stat[2] > ret_stat > ctor_call:
+                ├── type: Unit
+                ├── args:
+                └── abort: none

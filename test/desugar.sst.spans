@@ -1,0 +1,1248 @@
+package | package desugar; import co … .early)); return Unit(); }
+  decl Package | package desugar
+    name desugar | desugar
+  decl Import | import core$
+    import | import core$
+      package core | core
+  decl Type | type Vec = struct { x Int; y Int; }
+    name Vec | Vec
+    type_or_moulded Moulded | struct { x Int; y Int; }
+      moulded | struct { x Int; y Int; }
+        mould Struct | struct { x Int; y Int; }
+          body_field | x Int;
+            name x | x
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+          body_field | y Int;
+            name y | y
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+        type_axis Value | struct { x Int; y Int; }
+  decl Type | type Shape = enum [ round, square, oblong ]
+    name Shape | Shape
+    type_or_moulded Moulded | enum [ round, square, oblong ]
+      moulded | enum [ round, square, oblong ]
+        mould Enum | enum [ round, square, oblong ]
+          member round | round
+          member square | square
+          member oblong | oblong
+        type_axis Value | enum [ round, square, oblong ]
+  decl Type | type Phase = enum [ early, late ]
+    name Phase | Phase
+    type_or_moulded Moulded | enum [ early, late ]
+      moulded | enum [ early, late ]
+        mould Enum | enum [ early, late ]
+          member early | early
+          member late | late
+        type_axis Value | enum [ early, late ]
+  decl Type | type Expr = variant { intL … it String; boolLit Bool; }
+    name Expr | Expr
+    type_or_moulded Moulded | variant { intLit Int; strLit String; boolLit Bool; }
+      moulded | variant { intLit Int; strLit String; boolLit Bool; }
+        mould Variant | variant { intLit Int; strLit String; boolLit Bool; }
+          body_field | intLit Int;
+            name intLit | intLit
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+          body_field | strLit String;
+            name strLit | strLit
+            type_expr Path | String
+              name_type | String
+                ident String | String
+          body_field | boolLit Bool;
+            name boolLit | boolLit
+            type_expr Path | Bool
+              name_type | Bool
+                ident Bool | Bool
+        type_axis Value | variant { intLit Int; strLit String; boolLit Bool; }
+  decl Verb | Vec{x Int; y Int;} => init{x; y;}
+    verb_decl Constructor | Vec{x Int; y Int;} => init{x; y;}
+      type_expr Path | Vec
+        name_type | Vec
+          ident Vec | Vec
+      constructor_params Fields | {x Int; y Int;}
+        constructor_field | x Int
+          name x | x
+          param_type Concrete | Int
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+        constructor_field | y Int
+          name y | y
+          param_type Concrete | Int
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+      block | => init{x; y;}
+        stat Ret | => init{x; y;}
+          expr Init | init{x; y;}
+            field_arg | x
+              name x | x
+              expr NameExpr | x
+                name_expr | x
+                  ident x | x
+            field_arg | y
+              name y | y
+              expr NameExpr | y
+                name_expr | y
+                  ident y | y
+  decl Verb | Vec.origin() => init{x = Int(0); y = Int(0);}
+    verb_decl Constructor | Vec.origin() => init{x = Int(0); y = Int(0);}
+      type_expr Path | Vec
+        name_type | Vec
+          ident Vec | Vec
+      member origin | origin
+      constructor_params Positional | ()
+      block | => init{x = Int(0); y = Int(0);}
+        stat Ret | => init{x = Int(0); y = Int(0);}
+          expr Init | init{x = Int(0); y = Int(0);}
+            field_arg | x = Int(0)
+              name x | x
+              expr VerbCall | Int(0)
+                verb_call Constructor | Int(0)
+                  constructor_name | Int
+                    name_type | Int
+                      ident Int | Int
+                  constructor_args Positional | (0)
+                    call_arg Value | 0
+                      expr IntLit | 0
+            field_arg | y = Int(0)
+              name y | y
+              expr VerbCall | Int(0)
+                verb_call Constructor | Int(0)
+                  constructor_name | Int
+                    name_type | Int
+                      ident Int | Int
+                  constructor_args Positional | (0)
+                    call_arg Value | 0
+                      expr IntLit | 0
+  decl Verb | implicit Vec(both Int) => init{x = both; y = both;}
+    verb_decl Constructor implicit | implicit Vec(both Int) => init{x = both; y = both;}
+      type_expr Path | Vec
+        name_type | Vec
+          ident Vec | Vec
+      constructor_params Positional | (both Int)
+        param | both Int
+          name both | both
+          param_type Concrete | Int
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+      block | => init{x = both; y = both;}
+        stat Ret | => init{x = both; y = both;}
+          expr Init | init{x = both; y = both;}
+            field_arg | x = both
+              name x | x
+              expr NameExpr | both
+                name_expr | both
+                  ident both | both
+            field_arg | y = both
+              name y | y
+              expr NameExpr | both
+                name_expr | both
+                  ident both | both
+  decl Verb | Int doubled(value Int) => value * Int(2)
+    verb_decl Func | Int doubled(value Int) => value * Int(2)
+      name doubled | doubled
+      param | value Int
+        name value | value
+        param_type Concrete | Int
+          type_expr Path | Int
+            name_type | Int
+              ident Int | Int
+      ret_type Safe | Int
+        type_expr Path | Int
+          name_type | Int
+            ident Int | Int
+      block | => value * Int(2)
+        stat Ret | => value * Int(2)
+          expr VerbCall | value * Int(2)
+            verb_call Op | value * Int(2)
+              operator Mul | *
+              expr NameExpr | value
+                name_expr | value
+                  ident value | value
+              expr VerbCall | Int(2)
+                verb_call Constructor | Int(2)
+                  constructor_name | Int
+                    name_type | Int
+                      ident Int | Int
+                  constructor_args Positional | (2)
+                    call_arg Value | 2
+                      expr IntLit | 2
+  decl Verb | Int scaled(this Vec, factor Int) => this.x * factor
+    verb_decl Meth | Int scaled(this Vec, factor Int) => this.x * factor
+      name scaled | scaled
+      type_expr Path | Vec
+        name_type | Vec
+          ident Vec | Vec
+      param | factor Int
+        name factor | factor
+        param_type Concrete | Int
+          type_expr Path | Int
+            name_type | Int
+              ident Int | Int
+      ret_type Safe | Int
+        type_expr Path | Int
+          name_type | Int
+            ident Int | Int
+      block | => this.x * factor
+        stat Ret | => this.x * factor
+          expr VerbCall | this.x * factor
+            verb_call Op | this.x * factor
+              operator Mul | *
+              expr DotAccess | this.x
+                expr NameExpr | this
+                  name_expr | this
+                    ident this | this
+                field x | x
+              expr NameExpr | factor
+                name_expr | factor
+                  ident factor | factor
+  decl Verb | Vec +(left Vec, right Vec) … right.x, left.y + right.y)
+    verb_decl Op | Vec +(left Vec, right Vec) … right.x, left.y + right.y)
+      operator Add | +
+      param | left Vec
+        name left | left
+        param_type Concrete | Vec
+          type_expr Path | Vec
+            name_type | Vec
+              ident Vec | Vec
+      param | right Vec
+        name right | right
+        param_type Concrete | Vec
+          type_expr Path | Vec
+            name_type | Vec
+              ident Vec | Vec
+      ret_type Safe | Vec
+        type_expr Path | Vec
+          name_type | Vec
+            ident Vec | Vec
+      block | => Vec(left.x + right.x, left.y + right.y)
+        stat Ret | => Vec(left.x + right.x, left.y + right.y)
+          expr VerbCall | Vec(left.x + right.x, left.y + right.y)
+            verb_call Constructor | Vec(left.x + right.x, left.y + right.y)
+              constructor_name | Vec
+                name_type | Vec
+                  ident Vec | Vec
+              constructor_args Positional | (left.x + right.x, left.y + right.y)
+                call_arg Value | left.x + right.x
+                  expr VerbCall | left.x + right.x
+                    verb_call Op | left.x + right.x
+                      operator Add | +
+                      expr DotAccess | left.x
+                        expr NameExpr | left
+                          name_expr | left
+                            ident left | left
+                        field x | x
+                      expr DotAccess | right.x
+                        expr NameExpr | right
+                          name_expr | right
+                            ident right | right
+                        field x | x
+                call_arg Value | left.y + right.y
+                  expr VerbCall | left.y + right.y
+                    verb_call Op | left.y + right.y
+                      operator Add | +
+                      expr DotAccess | left.y
+                        expr NameExpr | left
+                          name_expr | left
+                            ident left | left
+                        field y | y
+                      expr DotAccess | right.y
+                        expr NameExpr | right
+                          name_expr | right
+                            ident right | right
+                        field y | y
+  decl Verb | Vec ~(value Vec) => Vec(~value.x, ~value.y)
+    verb_decl Flip | Vec ~(value Vec) => Vec(~value.x, ~value.y)
+      param | value Vec
+        name value | value
+        param_type Concrete | Vec
+          type_expr Path | Vec
+            name_type | Vec
+              ident Vec | Vec
+      ret_type Safe | Vec
+        type_expr Path | Vec
+          name_type | Vec
+            ident Vec | Vec
+      block | => Vec(~value.x, ~value.y)
+        stat Ret | => Vec(~value.x, ~value.y)
+          expr VerbCall | Vec(~value.x, ~value.y)
+            verb_call Constructor | Vec(~value.x, ~value.y)
+              constructor_name | Vec
+                name_type | Vec
+                  ident Vec | Vec
+              constructor_args Positional | (~value.x, ~value.y)
+                call_arg Value | ~value.x
+                  expr VerbCall | ~value.x
+                    verb_call Flip | ~value.x
+                      expr DotAccess | value.x
+                        expr NameExpr | value
+                          name_expr | value
+                            ident value | value
+                        field x | x
+                call_arg Value | ~value.y
+                  expr VerbCall | ~value.y
+                    verb_call Flip | ~value.y
+                      expr DotAccess | value.y
+                        expr NameExpr | value
+                          name_expr | value
+                            ident value | value
+                        field y | y
+  decl Verb | Int tripled(value Int) { return value * Int(3); }
+    verb_decl Func | Int tripled(value Int) { return value * Int(3); }
+      name tripled | tripled
+      param | value Int
+        name value | value
+        param_type Concrete | Int
+          type_expr Path | Int
+            name_type | Int
+              ident Int | Int
+      ret_type Safe | Int
+        type_expr Path | Int
+          name_type | Int
+            ident Int | Int
+      block | { return value * Int(3); }
+        stat Ret | return value * Int(3);
+          expr VerbCall | value * Int(3)
+            verb_call Op | value * Int(3)
+              operator Mul | *
+              expr NameExpr | value
+                name_expr | value
+                  ident value | value
+              expr VerbCall | Int(3)
+                verb_call Constructor | Int(3)
+                  constructor_name | Int
+                    name_type | Int
+                      ident Int | Int
+                  constructor_args Positional | (3)
+                    call_arg Value | 3
+                      expr IntLit | 3
+  decl Verb | Unit derived(a Int, b Int) …  a - (b); return Unit(); }
+    verb_decl Func | Unit derived(a Int, b Int) …  a - (b); return Unit(); }
+      name derived | derived
+      param | a Int
+        name a | a
+        param_type Concrete | Int
+          type_expr Path | Int
+            name_type | Int
+              ident Int | Int
+      param | b Int
+        name b | b
+        param_type Concrete | Int
+          type_expr Path | Int
+            name_type | Int
+              ident Int | Int
+      ret_type Safe | Unit
+        type_expr Path | Unit
+          name_type | Unit
+            ident Unit | Unit
+      block | { difference Int = a - b;  …  a - (b); return Unit(); }
+        stat Decl | difference Int = a - b;
+          decl Var | difference Int = a - b
+            name difference | difference
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | a - b
+              verb_call Op | a - b
+                operator Add | -
+                expr NameExpr | a
+                  name_expr | a
+                    ident a | a
+                expr VerbCall | - b
+                  verb_call Flip | - b
+                    expr NameExpr | b
+                      name_expr | b
+                        ident b | b
+        stat Decl | unequal Bool = a ~= b;
+          decl Var | unequal Bool = a ~= b
+            name unequal | unequal
+            type_expr Path | Bool
+              name_type | Bool
+                ident Bool | Bool
+            expr VerbCall | a ~= b
+              verb_call Flip | a ~= b
+                expr VerbCall | a ~= b
+                  verb_call Op | a ~= b
+                    operator Eq | ~=
+                    expr NameExpr | a
+                      name_expr | a
+                        ident a | a
+                    expr NameExpr | b
+                      name_expr | b
+                        ident b | b
+        stat Decl | greater Bool = a > b;
+          decl Var | greater Bool = a > b
+            name greater | greater
+            type_expr Path | Bool
+              name_type | Bool
+                ident Bool | Bool
+            expr VerbCall | a > b
+              verb_call Op | a > b
+                operator Less | >
+                expr NameExpr | b
+                  name_expr | b
+                    ident b | b
+                expr NameExpr | a
+                  name_expr | a
+                    ident a | a
+        stat Decl | atMost Bool = a <= b;
+          decl Var | atMost Bool = a <= b
+            name atMost | atMost
+            type_expr Path | Bool
+              name_type | Bool
+                ident Bool | Bool
+            expr VerbCall | a <= b
+              verb_call Flip | a <= b
+                expr VerbCall | a <= b
+                  verb_call Op | a <= b
+                    operator Less | <=
+                    expr NameExpr | b
+                      name_expr | b
+                        ident b | b
+                    expr NameExpr | a
+                      name_expr | a
+                        ident a | a
+        stat Decl | atLeast Bool = a >= b;
+          decl Var | atLeast Bool = a >= b
+            name atLeast | atLeast
+            type_expr Path | Bool
+              name_type | Bool
+                ident Bool | Bool
+            expr VerbCall | a >= b
+              verb_call Flip | a >= b
+                expr VerbCall | a >= b
+                  verb_call Op | a >= b
+                    operator Less | >=
+                    expr NameExpr | a
+                      name_expr | a
+                        ident a | a
+                    expr NameExpr | b
+                      name_expr | b
+                        ident b | b
+        stat Decl | sum Int = a + b;
+          decl Var | sum Int = a + b
+            name sum | sum
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | a + b
+              verb_call Op | a + b
+                operator Add | +
+                expr NameExpr | a
+                  name_expr | a
+                    ident a | a
+                expr NameExpr | b
+                  name_expr | b
+                    ident b | b
+        stat Decl | less Bool = a < b;
+          decl Var | less Bool = a < b
+            name less | less
+            type_expr Path | Bool
+              name_type | Bool
+                ident Bool | Bool
+            expr VerbCall | a < b
+              verb_call Op | a < b
+                operator Less | <
+                expr NameExpr | a
+                  name_expr | a
+                    ident a | a
+                expr NameExpr | b
+                  name_expr | b
+                    ident b | b
+        stat Decl | chained Bool = (a - b) >= (b - a);
+          decl Var | chained Bool = (a - b) >= (b - a)
+            name chained | chained
+            type_expr Path | Bool
+              name_type | Bool
+                ident Bool | Bool
+            expr VerbCall | (a - b) >= (b - a)
+              verb_call Flip | (a - b) >= (b - a)
+                expr VerbCall | (a - b) >= (b - a)
+                  verb_call Op | (a - b) >= (b - a)
+                    operator Less | >=
+                    expr VerbCall | a - b
+                      verb_call Op | a - b
+                        operator Add | -
+                        expr NameExpr | a
+                          name_expr | a
+                            ident a | a
+                        expr VerbCall | - b
+                          verb_call Flip | - b
+                            expr NameExpr | b
+                              name_expr | b
+                                ident b | b
+                    expr VerbCall | b - a
+                      verb_call Op | b - a
+                        operator Add | -
+                        expr NameExpr | b
+                          name_expr | b
+                            ident b | b
+                        expr VerbCall | - a
+                          verb_call Flip | - a
+                            expr NameExpr | a
+                              name_expr | a
+                                ident a | a
+        stat Decl | bracketed Int = a - (b);
+          decl Var | bracketed Int = a - (b)
+            name bracketed | bracketed
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | a - (b)
+              verb_call Op | a - (b)
+                operator Add | -
+                expr NameExpr | a
+                  name_expr | a
+                    ident a | a
+                expr VerbCall | - (b)
+                  verb_call Flip | - (b)
+                    expr NameExpr | b
+                      name_expr | b
+                        ident b | b
+        stat Ret | return Unit();
+          expr VerbCall | Unit()
+            verb_call Constructor | Unit()
+              constructor_name | Unit
+                name_type | Unit
+                  ident Unit | Unit
+              constructor_args Positional | ()
+  decl Verb | Bool loose(a Int, b Int, o … n mixed '+ derivedLoose; }
+    verb_decl Func | Bool loose(a Int, b Int, o … n mixed '+ derivedLoose; }
+      name loose | loose
+      param | a Int
+        name a | a
+        param_type Concrete | Int
+          type_expr Path | Int
+            name_type | Int
+              ident Int | Int
+      param | b Int
+        name b | b
+        param_type Concrete | Int
+          type_expr Path | Int
+            name_type | Int
+              ident Int | Int
+      param | ok Bool
+        name ok | ok
+        param_type Concrete | Bool
+          type_expr Path | Bool
+            name_type | Bool
+              ident Bool | Bool
+      ret_type Safe | Bool
+        type_expr Path | Bool
+          name_type | Bool
+            ident Bool | Bool
+      block | { mixed Bool = a < b '* b  … n mixed '+ derivedLoose; }
+        stat Decl | mixed Bool = a < b '* b < a '+ ok;
+          decl Var | mixed Bool = a < b '* b < a '+ ok
+            name mixed | mixed
+            type_expr Path | Bool
+              name_type | Bool
+                ident Bool | Bool
+            expr VerbCall | a < b '* b < a '+ ok
+              verb_call Op | a < b '* b < a '+ ok
+                operator Add | '+
+                expr VerbCall | a < b '* b < a
+                  verb_call Op | a < b '* b < a
+                    operator Mul | '*
+                    expr VerbCall | a < b
+                      verb_call Op | a < b
+                        operator Less | <
+                        expr NameExpr | a
+                          name_expr | a
+                            ident a | a
+                        expr NameExpr | b
+                          name_expr | b
+                            ident b | b
+                    expr VerbCall | b < a
+                      verb_call Op | b < a
+                        operator Less | <
+                        expr NameExpr | b
+                          name_expr | b
+                            ident b | b
+                        expr NameExpr | a
+                          name_expr | a
+                            ident a | a
+                expr NameExpr | ok
+                  name_expr | ok
+                    ident ok | ok
+        stat Decl | derivedLoose Bool = a >= b '* ok;
+          decl Var | derivedLoose Bool = a >= b '* ok
+            name derivedLoose | derivedLoose
+            type_expr Path | Bool
+              name_type | Bool
+                ident Bool | Bool
+            expr VerbCall | a >= b '* ok
+              verb_call Op | a >= b '* ok
+                operator Mul | '*
+                expr VerbCall | a >= b
+                  verb_call Flip | a >= b
+                    expr VerbCall | a >= b
+                      verb_call Op | a >= b
+                        operator Less | >=
+                        expr NameExpr | a
+                          name_expr | a
+                            ident a | a
+                        expr NameExpr | b
+                          name_expr | b
+                            ident b | b
+                expr NameExpr | ok
+                  name_expr | ok
+                    ident ok | ok
+        stat Ret | return mixed '+ derivedLoose;
+          expr VerbCall | mixed '+ derivedLoose
+            verb_call Op | mixed '+ derivedLoose
+              operator Add | '+
+              expr NameExpr | mixed
+                name_expr | mixed
+                  ident mixed | mixed
+              expr NameExpr | derivedLoose
+                name_expr | derivedLoose
+                  ident derivedLoose | derivedLoose
+  decl Verb | Int?String risky(value Int … < Int(0)); return value; }
+    verb_decl Func | Int?String risky(value Int … < Int(0)); return value; }
+      name risky | risky
+      param | value Int
+        name value | value
+        param_type Concrete | Int
+          type_expr Path | Int
+            name_type | Int
+              ident Int | Int
+      ret_type Abort | Int?String
+        type_expr Path | Int
+          name_type | Int
+            ident Int | Int
+        type_expr Path | String
+          name_type | String
+            ident String | String
+      block | { guard(value < Int(0)); return value; }
+        stat VerbCall | guard(value < Int(0));
+          verb_call Call function | guard(value < Int(0))
+            expr NameExpr | guard
+              name_expr | guard
+                ident guard | guard
+            call_arg Value | value < Int(0)
+              expr VerbCall | value < Int(0)
+                verb_call Op | value < Int(0)
+                  operator Less | <
+                  expr NameExpr | value
+                    name_expr | value
+                      ident value | value
+                  expr VerbCall | Int(0)
+                    verb_call Constructor | Int(0)
+                      constructor_name | Int
+                        name_type | Int
+                          ident Int | Int
+                      constructor_args Positional | (0)
+                        call_arg Value | 0
+                          expr IntLit | 0
+        stat Ret | return value;
+          expr NameExpr | value
+            name_expr | value
+              ident value | value
+  decl Verb | Unit handlers() { short In … Int(0); } return Unit(); }
+    verb_decl Func | Unit handlers() { short In … Int(0); } return Unit(); }
+      name handlers | handlers
+      ret_type Safe | Unit
+        type_expr Path | Unit
+          name_type | Unit
+            ident Unit | Unit
+      block | { short Int = risky(Int(1) … Int(0); } return Unit(); }
+        stat Decl | short Int = risky(Int(1)) ?? Int(0);
+          decl Var | short Int = risky(Int(1)) ?? Int(0)
+            name short | short
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | risky(Int(1)) ?? Int(0)
+              verb_call Call function | risky(Int(1))
+                expr NameExpr | risky
+                  name_expr | risky
+                    ident risky | risky
+                call_arg Value | Int(1)
+                  expr VerbCall | Int(1)
+                    verb_call Constructor | Int(1)
+                      constructor_name | Int
+                        name_type | Int
+                          ident Int | Int
+                      constructor_args Positional | (1)
+                        call_arg Value | 1
+                          expr IntLit | 1
+                abort_handle | ?? Int(0)
+                  block | ?? Int(0)
+                    stat Resolve | ?? Int(0)
+                      expr VerbCall | Int(0)
+                        verb_call Constructor | Int(0)
+                          constructor_name | Int
+                            name_type | Int
+                              ident Int | Int
+                          constructor_args Positional | (0)
+                            call_arg Value | 0
+                              expr IntLit | 0
+        stat Decl | long Int = risky(Int(2)) ? … nt(err); resolve Int(0); }
+          decl Var | long Int = risky(Int(2)) ? … nt(err); resolve Int(0); }
+            name long | long
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | risky(Int(2)) ? err { print(err); resolve Int(0); }
+              verb_call Call function | risky(Int(2))
+                expr NameExpr | risky
+                  name_expr | risky
+                    ident risky | risky
+                call_arg Value | Int(2)
+                  expr VerbCall | Int(2)
+                    verb_call Constructor | Int(2)
+                      constructor_name | Int
+                        name_type | Int
+                          ident Int | Int
+                      constructor_args Positional | (2)
+                        call_arg Value | 2
+                          expr IntLit | 2
+                abort_handle | ? err { print(err); resolve Int(0); }
+                  binder err | err
+                  block | { print(err); resolve Int(0); }
+                    stat VerbCall | print(err);
+                      verb_call Call function | print(err)
+                        expr NameExpr | print
+                          name_expr | print
+                            ident print | print
+                        call_arg Value | err
+                          expr NameExpr | err
+                            name_expr | err
+                              ident err | err
+                    stat Resolve | resolve Int(0);
+                      expr VerbCall | Int(0)
+                        verb_call Constructor | Int(0)
+                          constructor_name | Int
+                            name_type | Int
+                              ident Int | Int
+                          constructor_args Positional | (0)
+                            call_arg Value | 0
+                              expr IntLit | 0
+        stat Ret | return Unit();
+          expr VerbCall | Unit()
+            verb_call Constructor | Unit()
+              constructor_name | Unit
+                name_type | Unit
+                  ident Unit | Unit
+              constructor_args Positional | ()
+  decl Verb | String describe(shape Shap … d"; square => "angular"; }
+    verb_decl Func | String describe(shape Shap … d"; square => "angular"; }
+      name describe | describe
+      param | shape Shape
+        name shape | shape
+        param_type Concrete | Shape
+          type_expr Path | Shape
+            name_type | Shape
+              ident Shape | Shape
+      ret_type Safe | String
+        type_expr Path | String
+          name_type | String
+            ident String | String
+      block | => match (shape) { [round, … d"; square => "angular"; }
+        stat Ret | => match (shape) { [round, … d"; square => "angular"; }
+          expr Match | match (shape) { [round, ob … d"; square => "angular"; }
+            match_expr | match (shape) { [round, ob … d"; square => "angular"; }
+              expr NameExpr | shape
+                name_expr | shape
+                  ident shape | shape
+              match_arm | [round, oblong] => "curved";
+                match_pattern | [round, oblong]
+                  case round | round
+                block | => "curved"
+                  stat Ret | => "curved"
+                    expr StrLit | "curved"
+              match_arm | [round, oblong] => "curved";
+                match_pattern | [round, oblong]
+                  case oblong | oblong
+                block | => "curved"
+                  stat Ret | => "curved"
+                    expr StrLit | "curved"
+              match_arm | square => "angular";
+                match_pattern | square
+                  case square | square
+                block | => "angular"
+                  stat Ret | => "angular"
+                    expr StrLit | "angular"
+  decl Verb | String combined(shape Shap … long, late => "settled"; }
+    verb_decl Func | String combined(shape Shap … long, late => "settled"; }
+      name combined | combined
+      param | shape Shape
+        name shape | shape
+        param_type Concrete | Shape
+          type_expr Path | Shape
+            name_type | Shape
+              ident Shape | Shape
+      param | phase Phase
+        name phase | phase
+        param_type Concrete | Phase
+          type_expr Path | Phase
+            name_type | Phase
+              ident Phase | Phase
+      ret_type Safe | String
+        type_expr Path | String
+          name_type | String
+            ident String | String
+      block | => match (shape, phase) {  … long, late => "settled"; }
+        stat Ret | => match (shape, phase) {  … long, late => "settled"; }
+          expr Match | match (shape, phase) { [ro … long, late => "settled"; }
+            match_expr | match (shape, phase) { [ro … long, late => "settled"; }
+              expr NameExpr | shape
+                name_expr | shape
+                  ident shape | shape
+              expr NameExpr | phase
+                name_expr | phase
+                  ident phase | phase
+              match_arm | [round, square], [early, late] => "known";
+                match_pattern | [round, square]
+                  case round | round
+                match_pattern | [early, late]
+                  case early | early
+                block | => "known"
+                  stat Ret | => "known"
+                    expr StrLit | "known"
+              match_arm | [round, square], [early, late] => "known";
+                match_pattern | [round, square]
+                  case round | round
+                match_pattern | [early, late]
+                  case late | late
+                block | => "known"
+                  stat Ret | => "known"
+                    expr StrLit | "known"
+              match_arm | [round, square], [early, late] => "known";
+                match_pattern | [round, square]
+                  case square | square
+                match_pattern | [early, late]
+                  case early | early
+                block | => "known"
+                  stat Ret | => "known"
+                    expr StrLit | "known"
+              match_arm | [round, square], [early, late] => "known";
+                match_pattern | [round, square]
+                  case square | square
+                match_pattern | [early, late]
+                  case late | late
+                block | => "known"
+                  stat Ret | => "known"
+                    expr StrLit | "known"
+              match_arm | oblong, early => "growing";
+                match_pattern | oblong
+                  case oblong | oblong
+                match_pattern | early
+                  case early | early
+                block | => "growing"
+                  stat Ret | => "growing"
+                    expr StrLit | "growing"
+              match_arm | oblong, late => "settled";
+                match_pattern | oblong
+                  case oblong | oblong
+                match_pattern | late
+                  case late | late
+                block | => "settled"
+                  stat Ret | => "settled"
+                    expr StrLit | "settled"
+  decl Verb | String render(e Expr) => m … , boolLit] => "literal"; }
+    verb_decl Func | String render(e Expr) => m … , boolLit] => "literal"; }
+      name render | render
+      param | e Expr
+        name e | e
+        param_type Concrete | Expr
+          type_expr Path | Expr
+            name_type | Expr
+              ident Expr | Expr
+      ret_type Safe | String
+        type_expr Path | String
+          name_type | String
+            ident String | String
+      block | => match (e) { x strLit => … , boolLit] => "literal"; }
+        stat Ret | => match (e) { x strLit => … , boolLit] => "literal"; }
+          expr Match | match (e) { x strLit => x; … , boolLit] => "literal"; }
+            match_expr | match (e) { x strLit => x; … , boolLit] => "literal"; }
+              expr NameExpr | e
+                name_expr | e
+                  ident e | e
+              match_arm | x strLit => x;
+                match_pattern | x strLit
+                  binder x | x
+                  case strLit | strLit
+                block | => x
+                  stat Ret | => x
+                    expr NameExpr | x
+                      name_expr | x
+                        ident x | x
+              match_arm | [intLit, boolLit] => "literal";
+                match_pattern | [intLit, boolLit]
+                  case intLit | intLit
+                block | => "literal"
+                  stat Ret | => "literal"
+                    expr StrLit | "literal"
+              match_arm | [intLit, boolLit] => "literal";
+                match_pattern | [intLit, boolLit]
+                  case boolLit | boolLit
+                block | => "literal"
+                  stat Ret | => "literal"
+                    expr StrLit | "literal"
+  decl Verb | Unit shorthands() { origin … ller"); } return Unit(); }
+    verb_decl Func | Unit shorthands() { origin … ller"); } return Unit(); }
+      name shorthands | shorthands
+      ret_type Safe | Unit
+        type_expr Path | Unit
+          name_type | Unit
+            ident Unit | Unit
+      block | { origin Vec.origin(); squ … ller"); } return Unit(); }
+        stat Decl | origin Vec.origin();
+          decl Var | origin Vec.origin()
+            name origin | origin
+            type_expr Path | Vec
+              name_type | Vec
+                ident Vec | Vec
+            expr VerbCall | Vec.origin()
+              verb_call Constructor | Vec.origin()
+                constructor_name | Vec.origin
+                  name_type | Vec
+                    ident Vec | Vec
+                  member origin | origin
+                constructor_args Positional | ()
+        stat Decl | square Vec{x = Int(2); y = Int(2);}
+          decl Var | square Vec{x = Int(2); y = Int(2);}
+            name square | square
+            type_expr Path | Vec
+              name_type | Vec
+                ident Vec | Vec
+            expr VerbCall | Vec{x = Int(2); y = Int(2);}
+              verb_call Constructor | Vec{x = Int(2); y = Int(2);}
+                constructor_name | Vec
+                  name_type | Vec
+                    ident Vec | Vec
+                constructor_args Fields | {x = Int(2); y = Int(2);}
+                  field_arg | x = Int(2)
+                    name x | x
+                    expr VerbCall | Int(2)
+                      verb_call Constructor | Int(2)
+                        constructor_name | Int
+                          name_type | Int
+                            ident Int | Int
+                        constructor_args Positional | (2)
+                          call_arg Value | 2
+                            expr IntLit | 2
+                  field_arg | y = Int(2)
+                    name y | y
+                    expr VerbCall | Int(2)
+                      verb_call Constructor | Int(2)
+                        constructor_name | Int
+                          name_type | Int
+                            ident Int | Int
+                        constructor_args Positional | (2)
+                          call_arg Value | 2
+                            expr IntLit | 2
+        stat Decl | literal Expr.intLit(Int(5));
+          decl Var | literal Expr.intLit(Int(5))
+            name literal | literal
+            type_expr Path | Expr
+              name_type | Expr
+                ident Expr | Expr
+            expr VerbCall | Expr.intLit(Int(5))
+              verb_call Constructor | Expr.intLit(Int(5))
+                constructor_name | Expr.intLit
+                  name_type | Expr
+                    ident Expr | Expr
+                  member intLit | intLit
+                constructor_args Positional | (Int(5))
+                  call_arg Value | Int(5)
+                    expr VerbCall | Int(5)
+                      verb_call Constructor | Int(5)
+                        constructor_name | Int
+                          name_type | Int
+                            ident Int | Int
+                        constructor_args Positional | (5)
+                          call_arg Value | 5
+                            expr IntLit | 5
+        stat Decl | two Int = Int(2);
+          decl Var | two Int = Int(2)
+            name two | two
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | Int(2)
+              verb_call Constructor | Int(2)
+                constructor_name | Int
+                  name_type | Int
+                    ident Int | Int
+                constructor_args Positional | (2)
+                  call_arg Value | 2
+                    expr IntLit | 2
+        stat Decl | four Int = Int(4);
+          decl Var | four Int = Int(4)
+            name four | four
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | Int(4)
+              verb_call Constructor | Int(4)
+                constructor_name | Int
+                  name_type | Int
+                    ident Int | Int
+                constructor_args Positional | (4)
+                  call_arg Value | 4
+                    expr IntLit | 4
+        stat Decl | implied Vec{x = two; y = four;}
+          decl Var | implied Vec{x = two; y = four;}
+            name implied | implied
+            type_expr Path | Vec
+              name_type | Vec
+                ident Vec | Vec
+            expr VerbCall | Vec{x = two; y = four;}
+              verb_call Constructor | Vec{x = two; y = four;}
+                constructor_name | Vec
+                  name_type | Vec
+                    ident Vec | Vec
+                constructor_args Fields | {x = two; y = four;}
+                  field_arg | x = two
+                    name x | x
+                    expr NameExpr | two
+                      name_expr | two
+                        ident two | two
+                  field_arg | y = four
+                    name y | y
+                    expr NameExpr | four
+                      name_expr | four
+                        ident four | four
+        stat Decl | grouped Int = (two + four) * (two - four);
+          decl Var | grouped Int = (two + four) * (two - four)
+            name grouped | grouped
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | (two + four) * (two - four)
+              verb_call Op | (two + four) * (two - four)
+                operator Mul | *
+                expr VerbCall | two + four
+                  verb_call Op | two + four
+                    operator Add | +
+                    expr NameExpr | two
+                      name_expr | two
+                        ident two | two
+                    expr NameExpr | four
+                      name_expr | four
+                        ident four | four
+                expr VerbCall | two - four
+                  verb_call Op | two - four
+                    operator Add | -
+                    expr NameExpr | two
+                      name_expr | two
+                        ident two | two
+                    expr VerbCall | - four
+                      verb_call Flip | - four
+                        expr NameExpr | four
+                          name_expr | four
+                            ident four | four
+        stat Decl | ran Bool = if(two < four) { print("smaller"); }
+          decl Var | ran Bool = if(two < four) { print("smaller"); }
+            name ran | ran
+            type_expr Path | Bool
+              name_type | Bool
+                ident Bool | Bool
+            expr VerbCall | if(two < four) { print("smaller"); }
+              verb_call Call function | if(two < four) { print("smaller"); }
+                expr NameExpr | if
+                  name_expr | if
+                    ident if | if
+                call_arg Value | two < four
+                  expr VerbCall | two < four
+                    verb_call Op | two < four
+                      operator Less | <
+                      expr NameExpr | two
+                        name_expr | two
+                          ident two | two
+                      expr NameExpr | four
+                        name_expr | four
+                          ident four | four
+                call_arg Block | { print("smaller"); }
+                  block | { print("smaller"); }
+                    stat VerbCall | print("smaller");
+                      verb_call Call function | print("smaller")
+                        expr NameExpr | print
+                          name_expr | print
+                            ident print | print
+                        call_arg Value | "smaller"
+                          expr StrLit | "smaller"
+        stat VerbCall | ran:else() { print("not smaller"); }
+          verb_call Call method: | ran:else() { print("not smaller"); }
+            expr NameExpr | else
+              name_expr | else
+                ident else | else
+            call_arg Value | ran
+              expr NameExpr | ran
+                name_expr | ran
+                  ident ran | ran
+            call_arg Block | { print("not smaller"); }
+              block | { print("not smaller"); }
+                stat VerbCall | print("not smaller");
+                  verb_call Call function | print("not smaller")
+                    expr NameExpr | print
+                      name_expr | print
+                        ident print | print
+                    call_arg Value | "not smaller"
+                      expr StrLit | "not smaller"
+        stat Ret | return Unit();
+          expr VerbCall | Unit()
+            verb_call Constructor | Unit()
+              constructor_name | Unit
+                name_type | Unit
+                  ident Unit | Unit
+              constructor_args Positional | ()
+  decl Verb | Unit lambdas() { twice Int … Int(1); } return Unit(); }
+    verb_decl Func | Unit lambdas() { twice Int … Int(1); } return Unit(); }
+      name lambdas | lambdas
+      ret_type Safe | Unit
+        type_expr Path | Unit
+          name_type | Unit
+            ident Unit | Unit
+      block | { twice Int(value Int) =>  … Int(1); } return Unit(); }
+        stat Decl | twice Int(value Int) => value * Int(2);
+          decl Var | twice Int(value Int) => value * Int(2)
+            name twice | twice
+            type_expr Verb | Int(value Int) => value * Int(2)
+              verb_type Func | Int(value Int) => value * Int(2)
+                param_type Concrete | Int
+                  type_expr Path | Int
+                    name_type | Int
+                      ident Int | Int
+                ret_type Safe | Int
+                  type_expr Path | Int
+                    name_type | Int
+                      ident Int | Int
+            expr FuncLambda | Int(value Int) => value * Int(2)
+              func_lambda | Int(value Int) => value * Int(2)
+                param | value Int
+                  name value | value
+                  param_type Concrete | Int
+                    type_expr Path | Int
+                      name_type | Int
+                        ident Int | Int
+                ret_type Safe | Int
+                  type_expr Path | Int
+                    name_type | Int
+                      ident Int | Int
+                block | => value * Int(2)
+                  stat Ret | => value * Int(2)
+                    expr VerbCall | value * Int(2)
+                      verb_call Op | value * Int(2)
+                        operator Mul | *
+                        expr NameExpr | value
+                          name_expr | value
+                            ident value | value
+                        expr VerbCall | Int(2)
+                          verb_call Constructor | Int(2)
+                            constructor_name | Int
+                              name_type | Int
+                                ident Int | Int
+                            constructor_args Positional | (2)
+                              call_arg Value | 2
+                                expr IntLit | 2
+        stat Decl | longer Int(value Int) { return value + Int(1); }
+          decl Var | longer Int(value Int) { return value + Int(1); }
+            name longer | longer
+            type_expr Verb | Int(value Int) { return value + Int(1); }
+              verb_type Func | Int(value Int) { return value + Int(1); }
+                param_type Concrete | Int
+                  type_expr Path | Int
+                    name_type | Int
+                      ident Int | Int
+                ret_type Safe | Int
+                  type_expr Path | Int
+                    name_type | Int
+                      ident Int | Int
+            expr FuncLambda | Int(value Int) { return value + Int(1); }
+              func_lambda | Int(value Int) { return value + Int(1); }
+                param | value Int
+                  name value | value
+                  param_type Concrete | Int
+                    type_expr Path | Int
+                      name_type | Int
+                        ident Int | Int
+                ret_type Safe | Int
+                  type_expr Path | Int
+                    name_type | Int
+                      ident Int | Int
+                block | { return value + Int(1); }
+                  stat Ret | return value + Int(1);
+                    expr VerbCall | value + Int(1)
+                      verb_call Op | value + Int(1)
+                        operator Add | +
+                        expr NameExpr | value
+                          name_expr | value
+                            ident value | value
+                        expr VerbCall | Int(1)
+                          verb_call Constructor | Int(1)
+                            constructor_name | Int
+                              name_type | Int
+                                ident Int | Int
+                            constructor_args Positional | (1)
+                              call_arg Value | 1
+                                expr IntLit | 1
+        stat Ret | return Unit();
+          expr VerbCall | Unit()
+            verb_call Constructor | Unit()
+              constructor_name | Unit
+                name_type | Unit
+                  ident Unit | Unit
+              constructor_args Positional | ()
+  decl Verb | Unit main() { print(descri … .early)); return Unit(); }
+    verb_decl Func | Unit main() { print(descri … .early)); return Unit(); }
+      name main | main
+      ret_type Safe | Unit
+        type_expr Path | Unit
+          name_type | Unit
+            ident Unit | Unit
+      block | { print(describe(Shape.rou … .early)); return Unit(); }
+        stat VerbCall | print(describe(Shape.round));
+          verb_call Call function | print(describe(Shape.round))
+            expr NameExpr | print
+              name_expr | print
+                ident print | print
+            call_arg Value | describe(Shape.round)
+              expr VerbCall | describe(Shape.round)
+                verb_call Call function | describe(Shape.round)
+                  expr NameExpr | describe
+                    name_expr | describe
+                      ident describe | describe
+                  call_arg Value | Shape.round
+                    expr TypeMember | Shape.round
+                      name_type | Shape
+                        ident Shape | Shape
+                      member round | round
+        stat VerbCall | print(combined(Shape.oblong, Phase.early));
+          verb_call Call function | print(combined(Shape.oblong, Phase.early))
+            expr NameExpr | print
+              name_expr | print
+                ident print | print
+            call_arg Value | combined(Shape.oblong, Phase.early)
+              expr VerbCall | combined(Shape.oblong, Phase.early)
+                verb_call Call function | combined(Shape.oblong, Phase.early)
+                  expr NameExpr | combined
+                    name_expr | combined
+                      ident combined | combined
+                  call_arg Value | Shape.oblong
+                    expr TypeMember | Shape.oblong
+                      name_type | Shape
+                        ident Shape | Shape
+                      member oblong | oblong
+                  call_arg Value | Phase.early
+                    expr TypeMember | Phase.early
+                      name_type | Phase
+                        ident Phase | Phase
+                      member early | early
+        stat Ret | return Unit();
+          expr VerbCall | Unit()
+            verb_call Constructor | Unit()
+              constructor_name | Unit
+                name_type | Unit
+                  ident Unit | Unit
+              constructor_args Positional | ()

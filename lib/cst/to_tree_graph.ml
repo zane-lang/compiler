@@ -231,7 +231,14 @@ and expr_to_node (x: Nodes.Expr.t) = match x.Nodes.Expr.node with
   | VerbCall x ->
       verb_call_to_node x
 
-and op_to_name (x: Nodes.Operator.t) = match x.Nodes.Operator.node with
+(* The `'` prefix is part of what was written, so the rendered tree shows it.
+   A tree that printed `a '* b` and `a * b` the same way could not be read back
+   to tell which the source held. *)
+and op_to_name (x: Nodes.Operator.t) =
+  let prefix = if x.Nodes.Operator.is_loose then "'" else "" in
+  prefix ^ op_token x
+
+and op_token (x: Nodes.Operator.t) = match x.Nodes.Operator.node with
   | Add     -> "+"
   | Sub     -> "-"
   | Mul     -> "*"
