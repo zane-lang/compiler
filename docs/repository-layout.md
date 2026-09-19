@@ -119,7 +119,6 @@ This is a target shape, not a requirement to create every directory at once.
 │   │   ├── cli.py
 │   │   ├── profiles.py
 │   │   ├── runner.py
-│   │   ├── profiles.toml
 │   │   ├── explain_automaton.py
 │   │   ├── precision_sweep.py
 │   │   └── grammars/
@@ -183,7 +182,7 @@ This is a target shape, not a requirement to create every directory at once.
 │       ├── search/
 │       └── prove/
 │
-├── ambiguity-searches.toml   # temporary compatibility path while migrating
+├── ambiguity-searches.toml   # repository-level ambiguity search profiles
 ├── devbox.json
 ├── dune-project
 └── justfile
@@ -199,9 +198,12 @@ A few details in that tree are intentional:
 - Tests mirror the subsystem they test.
 - The user-facing `ambiguity` command can stay in `dev/bin/`; only its
   implementation moves.
-- `ambiguity-searches.toml` can stay at the repository root during migration
-  so existing workflows keep working, then move once the wrapper can resolve a
-  subsystem-local default without surprising users.
+- `ambiguity-searches.toml` should stay at the repository root. It is
+  repository-level configuration for the user-facing `ambiguity` command, not
+  an implementation detail of `tools/ambiguity/`. Keeping its existing path
+  also preserves the current default and named-profile behavior without a
+  compatibility fallback or precedence rule. Explicit `--profiles-file`
+  paths remain an override exactly as they are today.
 
 ## 1. Split the ambiguity engine first
 
@@ -706,7 +708,19 @@ Merge `test-parser/` into `test/parser/fixtures/`, move golden files beside
 it, and move Python tests from `tools/` into mirrored test subdirectories.
 
 Do this in one mechanical PR so fixture/golden renames do not linger half
-migrated.
+migrated. The move must also update path-derived repository roots in the Python
+tests. They currently live one directory below the root and use
+`Path(__file__).resolve().parents[1]`; after moving them two levels below the
+root, those tests must use `parents[2]` so engine, grammar, and fixture paths
+still resolve from the repository root. For example,
+`tools/test_ambiguity_cli.py -> test/ambiguity/cli_test.py` requires:
+
+```python
+ROOT = Path(__file__).resolve().parents[2]
+```
+
+Update the corresponding `justfile` unittest module paths in the same
+mechanical change.
 
 ### Phase 4 — developer tool directories
 
