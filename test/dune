@@ -1,0 +1,42 @@
+; Every node's span, read back out of the source it points at.
+;
+; `span_dump` prints one line per node in `test-parser/main.zn`: the node's kind
+; and the text between its span's two positions. That output is checked in as
+; `main.spans`, and this rule fails when the two differ.
+;
+; What it is for: a span is only ever wrong by pointing somewhere, and the rest
+; of the suite cannot see where. The acceptance tests ask whether a file parses,
+; and the grouping tests ask which shape it parsed to -- neither reads a
+; position. So a grammar change that widens a span to swallow a binder, or
+; narrows one past its own bracket, passes everything and is noticed only in
+; review, if at all.
+;
+; A failing diff is not by itself a bug: a change to the grammar or to the
+; fixture is expected to move spans. Read the diff, satisfy yourself that each
+; moved span still covers what its node stands for, and promote it with
+; `dune promote`.
+; Two fixtures. `main.zn` is the one the parser suite already reaches for, and
+; it covers the breadth of the grammar. `utf8.zn` covers the one input class it
+; does not: spans are byte offsets, and while a file is ASCII a code-point
+; offset is indistinguishable from a byte one. They diverge at the first
+; multibyte character and every span after it shifts -- which is exactly the bug
+; found on #86, after the suite had been green through it.
+(rule
+ (with-stdout-to
+  main.spans.actual
+  (run %{exe:../tools/span_dump.exe} %{dep:../test-parser/main.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff main.spans main.spans.actual)))
+
+(rule
+ (with-stdout-to
+  utf8.spans.actual
+  (run %{exe:../tools/span_dump.exe} %{dep:../test-parser/utf8.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff utf8.spans utf8.spans.actual)))

@@ -48,9 +48,10 @@ jobs:
       - name: Build
         run: devbox run -- just rebuild
 
-      # Covers the parser acceptance tests, the grammar ambiguity checks, and
-      # the search engine's own tests. The recipe fails loudly when Menhir is
-      # missing rather than reporting a green run that skipped them.
+      # Covers the parser acceptance tests, the grammar ambiguity checks, the
+      # search engine's own tests, and the span expectation in test/. The recipe
+      # fails loudly when Menhir is missing rather than reporting a green run
+      # that skipped them.
       - name: Parser and ambiguity tests
         run: devbox run -- just test
 

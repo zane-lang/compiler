@@ -16,10 +16,22 @@ syntax-experiment-test:
 # engine-backed tests skip themselves unless the executables and Menhir are
 # present, so build them first and fail loudly on a missing Menhir rather than
 # reporting a green run that silently skipped them.
+#
+# `dune runtest` carries the span expectation in test/, which the Python suite
+# cannot cover: those tests ask whether a file parses and what shape it parsed
+# to, and neither question reads a position. A moved span is a diff there and
+# nothing anywhere else. Promote an intended move with `just promote`.
 test:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
 	dune build tools/ambiguity_search.exe tools/parser_shape.exe tools/parser_accept.exe
+	dune runtest
 	python3 -m unittest tools.test_ambiguity_cli tools.test_parser_ambiguity tools.test_parser_syntax tools.test_precision_sweep tools.test_prover -v
+
+# Accept the span expectation as it currently stands, after reading the diff
+# `just test` printed and satisfying yourself that each moved span still covers
+# what its node stands for.
+promote:
+	dune promote
 
 # Sweep the prover's abstraction level over a grammar to tell a bounded blind
 # spot from an unbounded one. A bounded one keeps its shape and disappears once

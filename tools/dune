@@ -9,3 +9,10 @@
 (executable
  (name parser_accept)
  (libraries cst))
+
+; Walks a parsed file and prints every node with the source text its span
+; covers. test/dune diffs its output against a checked-in expectation.
+(executable
+ (name span_dump)
+ (modules span_dump)
+ (libraries cst))
