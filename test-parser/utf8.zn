@@ -1,0 +1,47 @@
+/// A fixture whose text is not ASCII.
+///
+/// Spans are byte offsets, because everything that reads the source a span
+/// covers indexes it by byte. Menhir's positions come from the lexer, and
+/// sedlex will report either, so the two can be confused -- and while a file is
+/// ASCII the confusion is invisible, since the counts agree. They stop agreeing
+/// at the first multibyte character, and every span after it shifts by the
+/// bytes that character added.
+///
+/// That is not an exotic case for Zane: `lexical.md` builds identifiers from
+/// the Unicode letter classes, so `größe` is an ordinary name. This file exists
+/// so the span expectation covers it.
+package main;
+
+import core$;
+
+/// Multibyte in a type name, in field names, and in the type's own body.
+type Größe = struct {
+	höhe Int;
+	breite Int;
+}
+
+/// Multibyte in a constructor's parameters, and in a default.
+Größe.quadrat(seite Int) => init{ höhe = seite; breite = seite; }
+
+/// Multibyte in a parameter name, a method subject, a field access, and a
+/// string literal -- and an ASCII statement after all of them, which is the one
+/// that moves if byte and code-point offsets are confused.
+String beschreiben(größe Größe) {
+	fläche Int = größe.höhe * größe.breite;
+	return "fläche: " + fläche:toString();
+}
+
+/// An enum whose members are multibyte, and the map hung off it.
+type Ausrichtung = enum [ oben, unten, außen ]
+
+Ausrichtung.kürzel String {
+	oben = "o";
+	unten = "u";
+	außen = "a";
+}
+
+Unit main() {
+	quadrat Größe = Größe.quadrat(Int(3));
+	std$print(beschreiben(quadrat));
+	return Unit();
+}

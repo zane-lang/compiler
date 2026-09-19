@@ -32,12 +32,30 @@ let squeeze text =
     text;
   String.trim (Buffer.contents out)
 
+(* A UTF-8 continuation byte is the tail of a character that starts earlier, so
+   a cut landing on one would split that character and put an invalid byte
+   sequence in the expectation file. The same fact [Parse_error] uses to keep a
+   caret from drifting, for the same reason: this file's business is positions
+   in text that is not necessarily ASCII. *)
+let is_continuation text i = Char.code text.[i] land 0xC0 = 0x80
+
 let elide text =
   let limit = 56 and keep = 26 in
-  if String.length text <= limit then text
+  let length = String.length text in
+  if length <= limit then text
   else
-    String.sub text 0 keep ^ " … "
-    ^ String.sub text (String.length text - keep) keep
+    (* Back the head's cut off a continuation byte, and move the tail's cut
+       forward off one, so both land between characters. Each moves at most
+       three bytes, since no UTF-8 character is longer than four. *)
+    let head = ref keep in
+    while !head > 0 && is_continuation text !head do
+      decr head
+    done;
+    let tail = ref (length - keep) in
+    while !tail < length && is_continuation text !tail do
+      incr tail
+    done;
+    String.sub text 0 !head ^ " … " ^ String.sub text !tail (length - !tail)
 
 let source = ref ""
 

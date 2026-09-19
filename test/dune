@@ -15,6 +15,12 @@
 ; fixture is expected to move spans. Read the diff, satisfy yourself that each
 ; moved span still covers what its node stands for, and promote it with
 ; `dune promote`.
+; Two fixtures. `main.zn` is the one the parser suite already reaches for, and
+; it covers the breadth of the grammar. `utf8.zn` covers the one input class it
+; does not: spans are byte offsets, and while a file is ASCII a code-point
+; offset is indistinguishable from a byte one. They diverge at the first
+; multibyte character and every span after it shifts -- which is exactly the bug
+; found on #86, after the suite had been green through it.
 (rule
  (with-stdout-to
   main.spans.actual
@@ -24,3 +30,13 @@
  (alias runtest)
  (action
   (diff main.spans main.spans.actual)))
+
+(rule
+ (with-stdout-to
+  utf8.spans.actual
+  (run %{exe:../tools/span_dump.exe} %{dep:../test-parser/utf8.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff utf8.spans utf8.spans.actual)))

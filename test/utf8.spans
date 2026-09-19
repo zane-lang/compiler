@@ -1,0 +1,174 @@
+package | package main; import core$ … uadrat)); return Unit(); }
+  decl | package main
+    name main | main
+  decl | import core$
+    import | import core$
+      package core | core
+  decl | type Größe = struct { höhe Int; breite Int; }
+    name Größe | Größe
+    type_or_moulded | struct { höhe Int; breite Int; }
+      moulded | struct { höhe Int; breite Int; }
+        mould | struct { höhe Int; breite Int; }
+          body_field | höhe Int;
+            name höhe | höhe
+            type_expr | Int
+              name_type | Int
+                ident Int | Int
+          body_field | breite Int;
+            name breite | breite
+            type_expr | Int
+              name_type | Int
+                ident Int | Int
+        type_axis | struct { höhe Int; breite Int; }
+  decl | Größe.quadrat(seite Int) … = seite; breite = seite; }
+    verb_decl | Größe.quadrat(seite Int) … = seite; breite = seite; }
+      type_expr | Größe
+        name_type | Größe
+          ident Größe | Größe
+      member quadrat | quadrat
+      constructor_params | (seite Int)
+        param | seite Int
+          name seite | seite
+          param_type | Int
+            type_expr | Int
+              name_type | Int
+                ident Int | Int
+      body | => init{ höhe = seite; breite = seite; }
+        expr | init{ höhe = seite; breite = seite; }
+          field_arg | höhe = seite
+            name höhe | höhe
+            expr | seite
+              name_expr | seite
+                ident seite | seite
+          field_arg | breite = seite
+            name breite | breite
+            expr | seite
+              name_expr | seite
+                ident seite | seite
+  decl | String beschreiben(größe …  " + fläche:toString(); }
+    verb_decl | String beschreiben(größe …  " + fläche:toString(); }
+      name beschreiben | beschreiben
+      param | größe Größe
+        name größe | größe
+        param_type | Größe
+          type_expr | Größe
+            name_type | Größe
+              ident Größe | Größe
+      ret_type | String
+        type_expr | String
+          name_type | String
+            ident String | String
+      body | { fläche Int = größe.h …  " + fläche:toString(); }
+        statement | fläche Int = größe.höhe * größe.breite;
+          stat | fläche Int = größe.höhe * größe.breite;
+            decl | fläche Int = größe.höhe * größe.breite
+              name fläche | fläche
+              type_expr | Int
+                name_type | Int
+                  ident Int | Int
+              expr | größe.höhe * größe.breite
+                verb_call | größe.höhe * größe.breite
+                  operator | *
+                  expr | größe.höhe
+                    expr | größe
+                      name_expr | größe
+                        ident größe | größe
+                    field höhe | höhe
+                  expr | größe.breite
+                    expr | größe
+                      name_expr | größe
+                        ident größe | größe
+                    field breite | breite
+        statement | return "fläche: " + fläche:toString();
+          stat | return "fläche: " + fläche:toString();
+            expr | "fläche: " + fläche:toString()
+              verb_call | "fläche: " + fläche:toString()
+                operator | +
+                expr | "fläche: "
+                expr | fläche:toString()
+                  verb_call | fläche:toString()
+                    expr | toString
+                      name_expr | toString
+                        ident toString | toString
+                    expr | fläche
+                      name_expr | fläche
+                        ident fläche | fläche
+  decl | type Ausrichtung = enum [ oben, unten, außen ]
+    name Ausrichtung | Ausrichtung
+    type_or_moulded | enum [ oben, unten, außen ]
+      moulded | enum [ oben, unten, außen ]
+        mould | enum [ oben, unten, außen ]
+          member oben | oben
+          member unten | unten
+          member außen | außen
+        type_axis | enum [ oben, unten, außen ]
+  decl | Ausrichtung.kürzel String … ten = "u"; außen = "a"; }
+    type_expr | Ausrichtung
+      name_type | Ausrichtung
+        ident Ausrichtung | Ausrichtung
+    property kürzel | kürzel
+    type_expr | String
+      name_type | String
+        ident String | String
+    entry oben | oben
+    expr | "o"
+    entry unten | unten
+    expr | "u"
+    entry außen | außen
+    expr | "a"
+  decl | Unit main() { quadrat Grö … uadrat)); return Unit(); }
+    verb_decl | Unit main() { quadrat Grö … uadrat)); return Unit(); }
+      name main | main
+      ret_type | Unit
+        type_expr | Unit
+          name_type | Unit
+            ident Unit | Unit
+      body | { quadrat Größe = Größ … uadrat)); return Unit(); }
+        statement | quadrat Größe = Größe.quadrat(Int(3));
+          stat | quadrat Größe = Größe.quadrat(Int(3));
+            decl | quadrat Größe = Größe.quadrat(Int(3))
+              name quadrat | quadrat
+              type_expr | Größe
+                name_type | Größe
+                  ident Größe | Größe
+              expr | Größe.quadrat(Int(3))
+                verb_call | Größe.quadrat(Int(3))
+                  constructor_name | Größe.quadrat
+                    name_type | Größe
+                      ident Größe | Größe
+                    member quadrat | quadrat
+                  constructor_args | (Int(3))
+                    call_arg | Int(3)
+                      expr | Int(3)
+                        verb_call | Int(3)
+                          constructor_name | Int
+                            name_type | Int
+                              ident Int | Int
+                          constructor_args | (3)
+                            call_arg | 3
+                              expr | 3
+        statement | std$print(beschreiben(quadrat));
+          stat | std$print(beschreiben(quadrat));
+            verb_call | std$print(beschreiben(quadrat))
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | beschreiben(quadrat)
+                expr | beschreiben(quadrat)
+                  verb_call | beschreiben(quadrat)
+                    expr | beschreiben
+                      name_expr | beschreiben
+                        ident beschreiben | beschreiben
+                    call_arg | quadrat
+                      expr | quadrat
+                        name_expr | quadrat
+                          ident quadrat | quadrat
+        statement | return Unit();
+          stat | return Unit();
+            expr | Unit()
+              verb_call | Unit()
+                constructor_name | Unit
+                  name_type | Unit
+                    ident Unit | Unit
+                constructor_args | ()
