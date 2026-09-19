@@ -502,7 +502,7 @@ let () =
       prerr_string message;
       exit 1
   | Ok parsed ->
-      let package = Sst.Lower.package parsed in
+      let package = Sst.of_cst parsed in
       line 0 "package" package.Package.span;
       each 1 decl package.Package.decls;
       print_string (Span_text.contents !printer)

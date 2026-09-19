@@ -5,8 +5,12 @@ typed tree: still untyped, but fully desugared. This file is the inventory of
 what "fully desugared" means, so the SST's node set can be justified one entry
 at a time rather than argued about as a whole.
 
-The tree is `lib/sst/nodes.ml` and the pass that builds it is
-`lib/sst/lower.ml`. This file is the argument for what is in them.
+`lib/sst/` mirrors `lib/cst/`: `nodes.ml` is the tree, `to_tree_graph.ml`
+renders it, `sst.ml` is the entry module, and `lower.ml` is the pass that
+builds one from the other. This file is the argument for what is in them.
+
+The compiler binary prints either tree — `--cst` for what the source says,
+`--sst` for what it means.
 
 Entries were checked against spec commit
 [`034f11a`](https://github.com/zane-lang/spec/tree/034f11a), the same commit
@@ -71,9 +75,13 @@ rule reserves for later.
 ## 2. The desugarings
 
 All ten are implemented in `lib/sst/lower.ml`, one function each, and
-`test/desugar.sst` is the expectation that carries them: it is a dump of
-`test-parser/desugar.zn` in which every rewrite below appears at least once,
-with each node's variant printed, so a rewrite that stops happening is a diff.
+`test-parser/desugar.zn` is the fixture that exercises them: every rewrite
+below appears in it at least once. Two expectations carry it.
+`test/desugar.sst.spans` prints each node's variant against the source its span
+covers, so a rewrite that stops happening is a diff and so is a span that
+moves. `test/desugar.sst.tree` renders the same file as a named-field tree, and
+sits beside `test/desugar.cst.tree` — reading the two together is the shortest
+statement of what this section does.
 
 Ordered roughly by how much each simplifies the tree. None depends on another
 — every one is a local rewrite.
