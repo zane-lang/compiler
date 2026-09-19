@@ -1,0 +1,143 @@
+/// One file exercising every rewrite in `docs/desugaring.md` §2.
+///
+/// `main.zn` covers the breadth of the grammar, but it was written to prove
+/// the parser and reaches only two of the five derived operators — so three of
+/// them had no expectation at all until this file existed. A desugaring with
+/// no fixture is a desugaring whose test passes whether or not it happens.
+///
+/// Each section names the rewrite it is for. Read `test/desugar.sst` next to
+/// it: the dump prints each node's variant, so the expectation shows what each
+/// construct below turned into.
+package desugar;
+
+import core$;
+
+type Vec = struct {
+	x Int;
+	y Int;
+}
+
+type Shape = enum [ round, square, oblong ]
+
+type Phase = enum [ early, late ]
+
+type Expr = variant {
+	intLit Int;
+	strLit String;
+	boolLit Bool;
+}
+
+/// §2.1 — `=> expr` bodies, on every verb that can carry one.
+/// §2.6 — `init{x; y;}` is `init{x = x; y = y;}`.
+Vec{x Int; y Int;} => init{x; y;}
+
+Vec.origin() => init{x = Int(0); y = Int(0);}
+
+implicit Vec(both Int) => init{x = both; y = both;}
+
+Int doubled(value Int) => value * Int(2)
+
+Int scaled(this Vec, factor Int) => this.x * factor
+
+Vec +(left Vec, right Vec) => Vec(left.x + right.x, left.y + right.y)
+
+Vec ~(value Vec) => Vec(~value.x, ~value.y)
+
+/// The block-bodied forms, which the same rewrite must leave alone.
+Int tripled(value Int) {
+	return value * Int(3);
+}
+
+/// §2.3 — the five derived operators, each written once so the expectation
+/// carries the shape it lowers to.
+Unit derived(a Int, b Int) {
+	difference Int = a - b;
+	unequal Bool = a ~= b;
+	greater Bool = a > b;
+	atMost Bool = a <= b;
+	atLeast Bool = a >= b;
+	/// The two primitives they are defined in terms of, for contrast.
+	sum Int = a + b;
+	less Bool = a < b;
+	/// Nested, so the rewrite has to reach inside its own output.
+	chained Bool = (a - b) >= (b - a);
+	return Unit();
+}
+
+/// §2.2 — the loose forms, which carry the same operator at a lower tier.
+Bool loose(a Int, b Int, ok Bool) {
+	mixed Bool = a < b '* b < a '+ ok;
+	derivedLoose Bool = a >= b '* ok;
+	return mixed '+ derivedLoose;
+}
+
+/// §2.4 — `??` is a handler whose only path resolves the fallback, and `?`
+/// longhand next to it for contrast.
+Int?String risky(value Int) {
+	guard(value < Int(0));
+	return value;
+}
+
+Unit handlers() {
+	short Int = risky(Int(1)) ?? Int(0);
+	long Int = risky(Int(2)) ? err {
+		print(err);
+		resolve Int(0);
+	}
+	return Unit();
+}
+
+/// §2.5 — a case group is one arm per case, and with two scrutinees the arms
+/// are the cross product of the groups.
+String describe(shape Shape) => match (shape) {
+	[round, oblong] => "curved";
+	square          => "angular";
+}
+
+String combined(shape Shape, phase Phase) => match (shape, phase) {
+	[round, square], [early, late] => "known";
+	oblong,          early         => "growing";
+	oblong,          late          => "settled";
+}
+
+/// A binder, and a block-bodied arm, so neither is left to the group cases.
+String render(e Expr) => match (e) {
+	x strLit             => x;
+	[intLit, boolLit]    => "literal";
+}
+
+/// §2.7 — the instantiation shorthand, in both its positional and field forms,
+/// and for a variant case as well as a constructor.
+/// §2.8 — parentheses, which group and nothing else.
+/// §2.9 — a trailing argument, which is the same call as the parenthesized one.
+Unit shorthands() {
+	origin Vec.origin();
+	square Vec{x = Int(2); y = Int(2);}
+	literal Expr.intLit(Int(5));
+	two Int = Int(2);
+	four Int = Int(4);
+	implied Vec{x = two; y = four;}
+	grouped Int = (two + four) * (two - four);
+	ran Bool = if(two < four) {
+		print("smaller");
+	}
+	ran:else() {
+		print("not smaller");
+	}
+	return Unit();
+}
+
+/// A lambda, whose body takes the same `=> expr` rewrite as a named verb.
+Unit lambdas() {
+	twice Int(value Int) => value * Int(2);
+	longer Int(value Int) {
+		return value + Int(1);
+	}
+	return Unit();
+}
+
+Unit main() {
+	print(describe(Shape.round));
+	print(combined(Shape.oblong, Phase.early));
+	return Unit();
+}

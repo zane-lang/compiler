@@ -11,67 +11,10 @@
    on #86, and the two after them, were all invisible to a suite that only asks
    whether a file parses. *)
 
-let buf = Buffer.create (1 lsl 16)
-
-(* Long spans are elided in the middle. Both ends are what a wrong span usually
-   gets wrong -- it starts at the binder instead of the name, or stops before
-   the `)` -- and keeping them whole would put a whole function body on one
-   line. Whitespace runs collapse so a node's text stays on its own line. *)
-let squeeze text =
-  let out = Buffer.create (String.length text) in
-  let in_space = ref false in
-  String.iter
-    (fun c ->
-      match c with
-      | ' ' | '\t' | '\n' | '\r' ->
-          if not !in_space then Buffer.add_char out ' ';
-          in_space := true
-      | c ->
-          Buffer.add_char out c;
-          in_space := false)
-    text;
-  String.trim (Buffer.contents out)
-
-(* A UTF-8 continuation byte is the tail of a character that starts earlier, so
-   a cut landing on one would split that character and put an invalid byte
-   sequence in the expectation file. The same fact [Parse_error] uses to keep a
-   caret from drifting, for the same reason: this file's business is positions
-   in text that is not necessarily ASCII. *)
-let is_continuation text i = Char.code text.[i] land 0xC0 = 0x80
-
-let elide text =
-  let limit = 56 and keep = 26 in
-  let length = String.length text in
-  if length <= limit then text
-  else
-    (* Back the head's cut off a continuation byte, and move the tail's cut
-       forward off one, so both land between characters. Each moves at most
-       three bytes, since no UTF-8 character is longer than four. *)
-    let head = ref keep in
-    while !head > 0 && is_continuation text !head do
-      decr head
-    done;
-    let tail = ref (length - keep) in
-    while !tail < length && is_continuation text !tail do
-      incr tail
-    done;
-    String.sub text 0 !head ^ " … " ^ String.sub text !tail (length - !tail)
-
-let source = ref ""
-
-let line depth kind (span : Cst.Span.t) =
-  let a = span.Cst.Span.start_.Lexing.pos_cnum
-  and b = span.Cst.Span.end_.Lexing.pos_cnum in
-  let text =
-    if a >= 0 && b >= a && b <= String.length !source then
-      elide (squeeze (String.sub !source a (b - a)))
-    else "<INVALID SPAN>"
-  in
-  Buffer.add_string buf (String.make (depth * 2) ' ');
-  Buffer.add_string buf kind;
-  Buffer.add_string buf " | ";
-  Buffer.add_string buf text;
-  Buffer.add_char buf '\n'
+(* [Span_text] holds the reading-a-span-back-out-of-the-source part, which the
+   SST dump does the same way; see lib/span_text/span_text.ml. *)
+let printer = ref (Span_text.create "")
+let line depth kind span = Span_text.line !printer depth kind span
 
 open Cst.Nodes
 
@@ -439,7 +382,7 @@ let () =
   end;
   let path = Sys.argv.(1) in
   let input = In_channel.with_open_text path In_channel.input_all in
-  source := input;
+  printer := Span_text.create input;
   match Cst.parse path input with
   | Error message ->
       prerr_string message;
@@ -447,4 +390,4 @@ let () =
   | Ok package ->
       line 0 "package" package.Package.span;
       each 1 decl package.Package.decls;
-      print_string (Buffer.contents buf)
+      print_string (Span_text.contents !printer)

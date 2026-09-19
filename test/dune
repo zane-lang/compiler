@@ -40,3 +40,62 @@
  (alias runtest)
  (action
   (diff utf8.spans utf8.spans.actual)))
+
+; The same two fixtures through the desugaring, checked the same way.
+;
+; `sst_dump` prints each node's variant as well as its kind, so these
+; expectations carry two claims at once: that every span still lands on real
+; source after nodes have been synthesized, and that each rewrite in
+; docs/desugaring.md still produces the shape it says. A `>=` that stopped
+; becoming `~(a < b)` is a diff here and nothing anywhere else.
+;
+; Read a failing diff the same way as the ones above -- a change to the
+; grammar, the fixture or the lowering is expected to move these -- then
+; promote it with `dune promote`.
+(rule
+ (with-stdout-to
+  main.sst.actual
+  (run %{exe:../tools/sst_dump.exe} %{dep:../test-parser/main.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff main.sst main.sst.actual)))
+
+(rule
+ (with-stdout-to
+  utf8.sst.actual
+  (run %{exe:../tools/sst_dump.exe} %{dep:../test-parser/utf8.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff utf8.sst utf8.sst.actual)))
+
+; The desugaring fixture. Unlike the two above it was written for this test:
+; every rewrite in docs/desugaring.md 2 appears in it at least once, which the
+; other two do not manage -- main.zn reaches only two of the five derived
+; operators, so three of them had no expectation before this file.
+;
+; It gets both dumps. The CST one is what says a rewrite's input was parsed the
+; way the fixture means it, which a diff in the SST one alone could not
+; distinguish from a lowering change.
+(rule
+ (with-stdout-to
+  desugar.spans.actual
+  (run %{exe:../tools/span_dump.exe} %{dep:../test-parser/desugar.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff desugar.spans desugar.spans.actual)))
+
+(rule
+ (with-stdout-to
+  desugar.sst.actual
+  (run %{exe:../tools/sst_dump.exe} %{dep:../test-parser/desugar.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff desugar.sst desugar.sst.actual)))

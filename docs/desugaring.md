@@ -5,6 +5,9 @@ typed tree: still untyped, but fully desugared. This file is the inventory of
 what "fully desugared" means, so the SST's node set can be justified one entry
 at a time rather than argued about as a whole.
 
+The tree is `lib/sst/nodes.ml` and the pass that builds it is
+`lib/sst/lower.ml`. This file is the argument for what is in them.
+
 Entries were checked against spec commit
 [`034f11a`](https://github.com/zane-lang/spec/tree/034f11a), the same commit
 [`spec-divergences.md`](spec-divergences.md) is pinned to, and against
@@ -65,11 +68,15 @@ rule reserves for later.
 
 ---
 
-## 2. Desugarings to do
+## 2. The desugarings
 
-Ordered roughly by how much they simplify the tree. None of them depends on
-another — every one is a local rewrite — so they can land in any order, or
-one per commit.
+All ten are implemented in `lib/sst/lower.ml`, one function each, and
+`test/desugar.sst` is the expectation that carries them: it is a dump of
+`test-parser/desugar.zn` in which every rewrite below appears at least once,
+with each node's variant printed, so a rewrite that stops happening is a diff.
+
+Ordered roughly by how much each simplifies the tree. None depends on another
+— every one is a local rewrite.
 
 ### 2.1 `=> expr` bodies
 
@@ -162,7 +169,7 @@ question attached.
 ### 2.4 `??` fallback handlers
 
 ```
-expr ?? fallback    ->    expr ? <binder> { resolve fallback; }
+expr ?? fallback    ->    expr ? { resolve fallback; }
 ```
 
 [`error-handling.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/error-handling.md)
@@ -172,12 +179,14 @@ to a `?` block that only resolves a default value."
 **CST → SST.** `Abort_handle.t` loses its `Shorthand` arm and becomes a plain
 record.
 
-The binder has to be synthesized, since `??` writes none. The spec requires a
-written binder even when the abort type is `Unit` (§3.1), so the SST supplies
-one that no expanded body reads. A name no source can produce keeps it from
-colliding with anything the author wrote — the
-[`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
-§4 identifier rules are what decide which names those are.
+**No binder is synthesized.** An earlier draft of this file said one would be,
+on the grounds that §3.1 requires a written binder even when the abort type is
+`Unit`. That rule is about what a `?` handler must write, and `??` is the form
+that writes neither the binder nor the block; inventing an identifier no source
+could collide with, to bind a value the expanded body does not mention, would
+have been a name that exists only to satisfy a reading of the rule that does
+not apply to it. The field stays `Name.t option`, which is what the CST already
+carries, and `??` leaves it `None`.
 
 ### 2.5 Match case groups
 
@@ -441,7 +450,7 @@ it, since the CST comment says it is "only ever a `Pipe`'s callee".
 
 ## 6. What the SST costs and buys
 
-Doing §2 in full, and taking the recommendations in §5:
+§2 in full, with the recommendations in §5 taken:
 
 | | CST | SST |
 |---|---|---|

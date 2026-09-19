@@ -15,4 +15,12 @@
 (executable
  (name span_dump)
  (modules span_dump)
- (libraries cst))
+ (libraries cst span_text))
+
+; The same, over the desugared tree. Its lines carry which variant each node
+; is, not just its kind, so the expectation shows the rewrites of
+; docs/desugaring.md happening and not only that the spans survived them.
+(executable
+ (name sst_dump)
+ (modules sst_dump)
+ (libraries cst sst span_text))
