@@ -658,6 +658,50 @@ class ParserSyntaxTests(unittest.TestCase):
             """
         )
 
+    def test_only_a_primitive_operator_may_be_declared(self) -> None:
+        # operators.md 2.1 lists the implementable operators; 2.3 gives the
+        # other five as fixed desugarings into that set and says they are
+        # "not independently implementable".
+        for source in (
+            "Int +(a Int, b Int) => a",
+            "Int *(a Int, b Int) => a",
+            "Int /(a Int, b Int) => a",
+            "Bool ==(a Int, b Int) => Bool(true)",
+            "Bool <(a Int, b Int) => Bool(true)",
+            # The one unary operator, with a production of its own.
+            "Int ~(a Int) => a",
+        ):
+            with self.subTest(source=source):
+                self.assert_parses(source)
+
+        # A derived operator is rejected at its declaration. Accepting one
+        # would be worse than it looks: every use of `>` is rewritten into a
+        # `<` before any call is resolved (docs/desugaring.md 2.3), so the
+        # declaration would parse, check, and never be called.
+        for source in (
+            "Int -(a Int, b Int) => a",
+            "Bool ~=(a Int, b Int) => Bool(true)",
+            "Bool >(a Int, b Int) => Bool(true)",
+            "Bool <=(a Int, b Int) => Bool(true)",
+            "Bool >=(a Int, b Int) => Bool(true)",
+        ):
+            with self.subTest(source=source):
+                self.assert_rejects(source)
+
+        # Only the declaration is restricted. Every one of them is still an
+        # ordinary operator at a use site.
+        self.assert_parses(
+            """
+            Unit use() {
+                a Int = x - y;
+                b Bool = x ~= y;
+                c Bool = x > y;
+                d Bool = x <= y;
+                e Bool = x >= y;
+                return Unit();
+            }
+            """
+        )
 
 
 if __name__ == "__main__":

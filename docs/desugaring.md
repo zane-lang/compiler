@@ -157,7 +157,7 @@ rewrite later anyway.
 that is observable.** See §5.1 — this is the one entry on the list with a
 question attached.
 
-**This rewrite needs a guard first.** See §3.
+**This rewrite needed a guard first, and it is in place.** See §3.
 
 ### 2.4 `??` fallback handlers
 
@@ -284,38 +284,36 @@ left to carry.
 
 ---
 
-## 3. A guard the desugar pass needs first
+## 3. The guard the desugar pass needed first — closed
 
-**The grammar lets a program declare three of the five derived operators, and
-§2.3 would silently discard those declarations.**
-
-Verified against the current parser:
+**The grammar let a program declare four of the five derived operators, which
+§2.3 would then have silently discarded.** As the parser stood:
 
 ```zane
-Int -(left Int, right Int) => left          // accepted
+Int  -(left Int, right Int) => left         // accepted
 Bool >(left Int, right Int) => Bool(true)   // accepted
 Bool <=(left Int, right Int) => Bool(true)  // accepted
 Bool >=(left Int, right Int) => Bool(true)  // accepted
 Bool ~=(left Int, right Int) => Bool(true)  // rejected
 ```
 
-`~=` is correctly rejected — `comparison_decl_op` omits it — but `-`, `>`, `<=`
-and `>=` are all reachable from the `operator` rule the declaration production
-uses. [`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
+`~=` was already rejected, but `-`, `>`, `<=` and `>=` were all reachable from
+the `operator` rule the declaration production reads.
+[`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
 §2.3 says all five "are **not** independently implementable", and §2.1 lists
 the implementable set as exactly `~ * / + == <`.
 
-Left as is, a user who writes `Bool >(...)` gets a declaration that parses,
-type-checks, and is never called, because every `>` at a use site was rewritten
-into a `<`. That is the worst kind of wrong: silent.
+Left alone, a user who wrote `Bool >(...)` would have got a declaration that
+parses, type-checks, and is never called, because every `>` at a use site is
+rewritten into a `<` before any call is resolved. That is the worst kind of
+wrong: silent.
 
-The fix is small — a `primitive_decl_op` rule for the declaration position,
-leaving `comparison_op` alone for use sites — and it is a grammar change, so it
-wants its own change and its own acceptance test. It is listed here rather than
-in [`spec-divergences.md`](spec-divergences.md) because it is not a deliberate
-divergence; it is a gap.
-
----
+The declaration production now admits `==`, `<`, `+`, `*` and `/` only, with
+`~` keeping its own production as the one unary operator. The use sites are
+untouched — `a - b` and `a >= b` parse exactly as before, which is the point:
+the restriction is on what may be *declared*, not on what may be written.
+`tools/test_parser_syntax.py` carries all eleven cases, and reverting the
+grammar change fails it on exactly the four that were wrongly accepted.
 
 ## 4. Not the SST's job
 

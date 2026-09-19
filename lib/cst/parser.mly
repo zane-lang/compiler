@@ -1398,20 +1398,31 @@ block_call:
         } : Nodes.Verb_call.t)
     }
 
-%inline operator:
-  | op=comparison_decl_op { op }
-  | op=additive_op        { op }
-  | op=multiplicative_op  { op }
+(* The operators a program may declare: the primitive set of operators.md
+   §2.1, which is "implementable and define[s] the operator surface area".
 
-%inline comparison_decl_op:
+   The five the use sites below also admit -- `-`, `~=`, `>`, `<=` and `>=` --
+   are derived (§2.3): each is a fixed desugaring into this set and "**not**
+   independently implementable". They are rejected here rather than accepted
+   and ignored, because the SST rewrites every use of one into its primitive
+   form (docs/desugaring.md §2.3), so a declaration of `>` would parse, check,
+   and then never be reached by any call.
+
+   `~` is primitive too and has its own production, since it is the one unary
+   operator and takes one parameter rather than two. *)
+%inline operator:
+  | "==" { operator $loc Nodes.Operator.Eq }
+  | "<"  { operator $loc Nodes.Operator.Less }
+  | "+"  { operator $loc Nodes.Operator.Add }
+  | "*"  { operator $loc Nodes.Operator.Mul }
+  | "/"  { operator $loc Nodes.Operator.Div }
+
+%inline comparison_op:
   | "==" { operator $loc Nodes.Operator.Eq }
   | "<=" { operator $loc Nodes.Operator.LessEq }
   | ">=" { operator $loc Nodes.Operator.MoreEq }
   | "<"  { operator $loc Nodes.Operator.Less }
   | ">"  { operator $loc Nodes.Operator.More }
-
-%inline comparison_op:
-  | op=comparison_decl_op { op }
   | "~=" { operator $loc Nodes.Operator.NotEq }
 
 %inline additive_op:
