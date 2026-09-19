@@ -322,8 +322,8 @@ package | package desugar; import co … .early)); return Unit(); }
                   constructor_args Positional | (3)
                     call_arg Value | 3
                       expr IntLit | 3
-  decl Verb | Unit derived(a Int, b Int) …  (b - a); return Unit(); }
-    verb_decl Func | Unit derived(a Int, b Int) …  (b - a); return Unit(); }
+  decl Verb | Unit derived(a Int, b Int) …  a - (b); return Unit(); }
+    verb_decl Func | Unit derived(a Int, b Int) …  a - (b); return Unit(); }
       name derived | derived
       param | a Int
         name a | a
@@ -341,7 +341,7 @@ package | package desugar; import co … .early)); return Unit(); }
         type_expr Path | Unit
           name_type | Unit
             ident Unit | Unit
-      block | { difference Int = a - b;  …  (b - a); return Unit(); }
+      block | { difference Int = a - b;  …  a - (b); return Unit(); }
         stat Decl | difference Int = a - b;
           decl Var | difference Int = a - b
             name difference | difference
@@ -488,6 +488,23 @@ package | package desugar; import co … .early)); return Unit(); }
                             expr NameExpr | a
                               name_expr | a
                                 ident a | a
+        stat Decl | bracketed Int = a - (b);
+          decl Var | bracketed Int = a - (b)
+            name bracketed | bracketed
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | a - (b)
+              verb_call Op | a - (b)
+                operator Add | -
+                expr NameExpr | a
+                  name_expr | a
+                    ident a | a
+                expr VerbCall | - (b)
+                  verb_call Flip | - (b)
+                    expr NameExpr | b
+                      name_expr | b
+                        ident b | b
         stat Ret | return Unit();
           expr VerbCall | Unit()
             verb_call Constructor | Unit()

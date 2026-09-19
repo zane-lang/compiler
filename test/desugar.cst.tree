@@ -332,7 +332,17 @@
     │       │       │   ├── right: a
     │       │       │   └── abort: none
     │       │       └── abort: none
-    │       └── stat[8] > ret_stat > ctor_call:
+    │       ├── stat[8] > var_decl:
+    │       │   ├── name: bracketed
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > op_call:
+    │       │       ├── op: -
+    │       │       ├── left: a
+    │       │       ├── right > parenthized: b
+    │       │       └── abort: none
+    │       └── stat[9] > ret_stat > ctor_call:
     │           ├── type: Unit
     │           ├── args:
     │           ├── trailing: false

@@ -310,8 +310,8 @@ package | package desugar; import co … .early)); return Unit(); }
                     constructor_args | (3)
                       call_arg | 3
                         expr | 3
-  decl | Unit derived(a Int, b Int) …  (b - a); return Unit(); }
-    verb_decl | Unit derived(a Int, b Int) …  (b - a); return Unit(); }
+  decl | Unit derived(a Int, b Int) …  a - (b); return Unit(); }
+    verb_decl | Unit derived(a Int, b Int) …  a - (b); return Unit(); }
       name derived | derived
       param | a Int
         name a | a
@@ -329,7 +329,7 @@ package | package desugar; import co … .early)); return Unit(); }
         type_expr | Unit
           name_type | Unit
             ident Unit | Unit
-      body | { difference Int = a - b;  …  (b - a); return Unit(); }
+      body | { difference Int = a - b;  …  a - (b); return Unit(); }
         statement | difference Int = a - b;
           stat | difference Int = a - b;
             decl | difference Int = a - b
@@ -472,6 +472,23 @@ package | package desugar; import co … .early)); return Unit(); }
                         expr | a
                           name_expr | a
                             ident a | a
+        statement | bracketed Int = a - (b);
+          stat | bracketed Int = a - (b);
+            decl | bracketed Int = a - (b)
+              name bracketed | bracketed
+              type_expr | Int
+                name_type | Int
+                  ident Int | Int
+              expr | a - (b)
+                verb_call | a - (b)
+                  operator | -
+                  expr | a
+                    name_expr | a
+                      ident a | a
+                  expr | (b)
+                    expr | b
+                      name_expr | b
+                        ident b | b
         statement | return Unit();
           stat | return Unit();
             expr | Unit()

@@ -28,11 +28,16 @@ let arguments () =
   let rec go stage rest =
     match rest with
     | [] -> (stage, read default_path)
-    | [ "--cst" ] -> go Cst []
-    | [ "--sst" ] -> go Sst []
     | "--cst" :: rest -> go Cst rest
     | "--sst" :: rest -> go Sst rest
-    | [ source ] -> (stage, read source)
+    (* `-` is the stdin source, not an option, so it is taken before the guard
+       below rejects everything else that starts with a dash. Without that
+       guard a mistyped `--ss` reads as a path, and the error names a file the
+       author never meant to open rather than the option they meant to
+       write. *)
+    | [ "-" ] -> (stage, read "-")
+    | [ source ] when not (String.starts_with ~prefix:"-" source) ->
+        (stage, read source)
     | _ -> usage ()
   in
   go Cst (List.tl (Array.to_list Sys.argv))

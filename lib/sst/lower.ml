@@ -297,6 +297,7 @@ and verb_call_of (x : C.Verb_call.t) : S.Verb_call.t =
            })
   | C.Verb_call.Op { op; left; right; abort_handle } ->
       derived_op span op (expression left) (expression right)
+        ~written_right:right.C.Expr.span
         (option handler abort_handle)
 
 (* §2.3: the five derived operators of operators.md §2.3, written out into the
@@ -316,8 +317,8 @@ and verb_call_of (x : C.Verb_call.t) : S.Verb_call.t =
    evaluation order for operators, so nothing here is contradicted; see
    docs/desugaring.md §5.1, which is the open question this implements one
    answer to. *)
-and derived_op span (op : C.Operator.t) left right abort_handle :
-    S.Verb_call.t =
+and derived_op span (op : C.Operator.t) left right ~written_right abort_handle
+    : S.Verb_call.t =
   let at = op.C.Operator.span in
   let primitive node : S.Operator.t = { S.Operator.node; span = at } in
   let binop ?(handle = abort_handle) node l r =
@@ -331,9 +332,15 @@ and derived_op span (op : C.Operator.t) left right abort_handle :
   | C.Operator.Eq -> verb_call span (binop S.Operator.Eq left right)
   | C.Operator.Less -> verb_call span (binop S.Operator.Less left right)
   (* `a - b` is `a + ~b`. The flip spans `- b`, which is the text it was made
-     from; `a` and `b` keep their own spans either side of it. *)
+     from; `a` and `b` keep their own spans either side of it.
+
+     The join reaches for the operand's span *as written*, not the lowered
+     one. They differ exactly when the operand is parenthesized: lowering has
+     already dropped the parentheses by this point, so the lowered `(b)` spans
+     only `b`, and joining with that would end the flip inside the brackets --
+     `- (b`, which is not text anyone wrote. *)
   | C.Operator.Sub ->
-      let negated = flip (Span.join at right.S.Expr.span) right in
+      let negated = flip (Span.join at written_right) right in
       verb_call span (binop S.Operator.Add left negated)
   (* `a ~= b` is `~(a == b)`. *)
   | C.Operator.NotEq ->

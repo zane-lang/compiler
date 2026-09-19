@@ -5,9 +5,12 @@
 /// them had no expectation at all until this file existed. A desugaring with
 /// no fixture is a desugaring whose test passes whether or not it happens.
 ///
-/// Each section names the rewrite it is for. Read `test/desugar.sst` next to
-/// it: the dump prints each node's variant, so the expectation shows what each
-/// construct below turned into.
+/// Each section names the rewrite it is for. Two expectations are checked in
+/// beside it: `test/desugar.sst.spans`, which prints each node's variant
+/// against the source its span covers, and `test/desugar.sst.tree`, which
+/// renders the same tree with every field named. `test/desugar.cst.tree` is
+/// the undesugared twin of the second, and reading the two together is the
+/// shortest statement of what these constructs turn into.
 package desugar;
 
 import core$;
@@ -61,6 +64,11 @@ Unit derived(a Int, b Int) {
 	less Bool = a < b;
 	/// Nested, so the rewrite has to reach inside its own output.
 	chained Bool = (a - b) >= (b - a);
+	/// A parenthesized right operand. The synthesized `~` spans the operator
+	/// and the operand as *written*, brackets included -- lowering has already
+	/// dropped them from the operand's own span by then, so a span built from
+	/// the lowered one would stop inside the brackets.
+	bracketed Int = a - (b);
 	return Unit();
 }
 
