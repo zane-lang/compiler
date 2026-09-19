@@ -726,7 +726,11 @@ mechanical change.
 
 Group parser tools, ambiguity tools, and syntax-experiment code into subsystem
 directories. Update `dev/bin/`, `justfile`, and Dune paths without changing
-the user-facing commands.
+the user-facing commands. As in Phase 3, update repository-root calculations in
+Python files that move one directory deeper: `ambiguity.py`,
+`precision_sweep.py`, and `explain_automaton.py` currently resolve the root
+from their position directly under `tools/`, so their new locations under
+`tools/ambiguity/` must account for the extra path component.
 
 ### Phase 5 — split Python tool internals
 
