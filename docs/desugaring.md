@@ -24,8 +24,8 @@ desugaring; it is name resolution or type checking wearing a desugaring's
 clothes. Those are listed in §4 so they are refused deliberately rather than
 attempted and abandoned.
 
-Two rewrites in §2 sit right on that line, and both are called out where they
-appear.
+Two rewrites sit right on that line — the instantiation shorthand of §2.7 and
+the method-call question of §5.3 — and both say so where they appear.
 
 ### Spans
 
@@ -45,26 +45,23 @@ would read as a bug the moment it printed.
 
 ## 1. Already desugared, in the parser
 
-These are done. They are listed so the SST does not redo them, and because
-both are places where the parser reaches past what
+One rewrite is done already. It is listed so the SST does not redo it, and
+because it is a place where the parser reaches past what
 [`stages.md`](stages.md) says it does.
 
 | Form | Becomes | Where |
 |---|---|---|
-| `'*`, `'+`, `'<`, … (loose operators) | the same `Operator.t` as the unprefixed form | `lib/cst/parser.mly`, `loose_multiplicative_op` and friends |
 | `name ReturnType(params) { body }` (lambda-variable) | `Decl.Var { name; type_ = <the function type>; value = <the lambda> }` | `lib/cst/parser.mly`, via `Nodes.func_type_of_lambda` |
-
-The loose forms collapse because
-[`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
-§3.1 says a loose operator "calls the same implementation as its unprefixed
-form and differs only in where it groups" — and where it groups is already
-settled by the time the node exists. The `Operator.t` still carries the span of
-the written `'*`, so a diagnostic about it points at what the author typed.
 
 The lambda-variable expansion is the one
 [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
 §3.8 spells out in full, and `func_type_of_lambda` / `meth_type_of_lambda`
 build the function type it calls for.
+
+The loose operators used to be the second entry here. They are now §2.2
+instead: the parser records the `'` prefix and the SST drops it, because a
+parser that collapsed the two spellings was deciding something the CST's own
+rule reserves for later.
 
 ---
 
@@ -98,7 +95,42 @@ constructors, both lambda kinds, match arms, and abort handlers.
 `.Constructor`, `.Flip`), both lambdas (`Func_lambda`, `Meth_lambda`), and
 match arms (`Match_arm.body`).
 
-### 2.2 Derived operators
+### 2.2 Loose operators
+
+```
+a '* b    ->    a * b
+```
+
+[`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
+§3.1: a loose operator "calls the same implementation as its unprefixed form
+and differs only in where it groups". Where it groups is settled by the parser,
+so by the time the node exists the `'` has already done its whole job.
+
+**CST → SST.** `Operator.is_loose` goes.
+
+That flag is the CST's half of this entry, and it is worth saying why it exists
+at all, because the obvious thing is for the parser to drop the prefix on the
+spot — which is what it used to do. Two reasons not to. The CST's stated job is
+to represent what was parsed, and `a '* b` and `a * b` are two different pieces
+of source; a tree that cannot tell them apart cannot be rendered back to say
+which the file held, which is what `to_tree_graph` is for.
+[`stages.md`](stages.md) is the other: desugaring belongs to the semantics
+stage, and a parser that collapses the two spellings is doing semantics work in
+the one stage that is supposed to be a transcription.
+
+Neither reason is about diagnostics. The spec's one illegal loose form,
+`a ''* b`, is rejected by the grammar before any `Operator.t` exists, so no
+flag on the node could be what reports it.
+
+The flag is always `false` on a declaration. §3.1 is explicit that the loose
+forms "add no token to the operator vocabulary" of §5.1, so there is nothing
+for a program to declare, and the declaration productions read the unprefixed
+rules only.
+
+This is the cheapest entry on the list — the SST reads one field and ignores it
+— and it is the one that keeps the boundary in `stages.md` true.
+
+### 2.3 Derived operators
 
 [`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
 §2.3 gives five fixed desugarings and says they are "**not** independently
@@ -115,8 +147,8 @@ implementable":
 This is not optional in the way most entries here are. The spec's promise is
 that "if a type provides `<` for an operand pair, users automatically get `>`,
 `<=`, and `>=` for that same pair" — a compiler that keeps `>` as its own node
-has to either implement it separately, which §2.3 forbids, or do this rewrite
-later anyway.
+has to either implement it separately, which the spec forbids, or do this
+rewrite later anyway.
 
 **CST → SST.** `Operator.t` drops from ten variants to five: `Add`, `Mul`,
 `Div`, `Eq`, `Less`. `Sub`, `NotEq`, `More`, `LessEq` and `MoreEq` disappear.
@@ -127,7 +159,7 @@ question attached.
 
 **This rewrite needs a guard first.** See §3.
 
-### 2.3 `??` fallback handlers
+### 2.4 `??` fallback handlers
 
 ```
 expr ?? fallback    ->    expr ? <binder> { resolve fallback; }
@@ -147,7 +179,7 @@ colliding with anything the author wrote — the
 [`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
 §4 identifier rules are what decide which names those are.
 
-### 2.4 Match case groups
+### 2.5 Match case groups
 
 ```
 x [ident, qualifiedIdent] => body ;   ->   x ident => body ;
@@ -167,7 +199,7 @@ expanded arms are exactly what a later pass needs to check independently.
 product.** `[a, b], [c, d] => body` expands to four arms carrying four copies
 of `body`. §5.2 has the options.
 
-### 2.5 Implicit field names
+### 2.6 Implicit field names
 
 ```
 init{ x; y; }        ->   init{ x = x; y = y; }
@@ -184,7 +216,7 @@ for `init{ }` and §3.5 for a field-constructor call site. Both are the same
 The synthesized `NameExpr` takes the field name's span, which is the whole of
 what was written.
 
-### 2.6 Instantiation shorthand
+### 2.7 Instantiation shorthand
 
 ```
 e Expr.intLit("5")         ->   e Expr = Expr.intLit("5")
@@ -200,14 +232,15 @@ of the two spellings that "the two lines declare the same thing", and
 **CST → SST.** `Decl.VarShorthand` disappears; `Decl.Var` is the only
 declaration form left.
 
-**This is the first of the two entries that sit on the line in §0.** The
+**This is the first of the two entries that sit on the line drawn at the top of
+this file.** The
 declared type comes from `Constructor_name.type_`, which is the syntax, so no
 resolution is needed — but note what the rewrite does *not* settle: whether
 `Expr.intLit(...)` is a variant case form or a named constructor call is
 decided by what `Expr` turns out to be, and the SST does not know. It does not
 have to. Both yield the base type, which is all this rewrite claims.
 
-### 2.7 Parentheses
+### 2.8 Parentheses
 
 `Expr.Parenthized`, `Type_expr.Parenthesized` and `Ret_type.Parenthesized` all
 go. Grouping is in the tree's shape once the tree exists;
@@ -219,7 +252,7 @@ its own span, which covers only what is inside them. Nothing on the roadmap
 wants the wider one; a formatter or a "redundant parentheses" lint would, and
 both would read the CST rather than the SST.
 
-### 2.8 Trailing arguments
+### 2.9 Trailing arguments
 
 ```
 f() { body }    ->    f({ body })
@@ -238,9 +271,9 @@ belongs. That check has already run by the time the SST is built, so the SST
 drops the flag.
 
 **CST → SST.** Four `trailing : bool` fields go: `Verb_call.Func`, `.Meth`,
-`.Constructor`, and `Decl.VarShorthand` (which §2.6 removes outright).
+`.Constructor`, and `Decl.VarShorthand` (which §2.7 removes outright).
 
-### 2.9 Statement defects
+### 2.10 Statement defects
 
 `Statement.defect` records how a statement disagreed with the termination
 rules. `Cst.parse` runs `Statement_check.check` and returns `Error` when any
@@ -254,7 +287,7 @@ left to carry.
 ## 3. A guard the desugar pass needs first
 
 **The grammar lets a program declare three of the five derived operators, and
-§2.2 would silently discard those declarations.**
+§2.3 would silently discard those declarations.**
 
 Verified against the current parser:
 
@@ -334,7 +367,7 @@ Four ways out:
    Keeps the SST small at the cost of a field that means "undo me later".
 4. **Desugar only the three that do not reorder**, and leave `>` and `<=` to a
    later stage. Splits one spec rule across two stages, which is the thing
-   §2.2 exists to avoid.
+   §2.3 exists to avoid.
 
 **Recommendation: (1).** The spec already treats these five as one rule, and
 three of them are unaffected; a compiler decision is the wrong place to record
@@ -383,7 +416,7 @@ producing a callee that is already qualified and the unqualified form producing
 one that is not — which is the same distinction `Name_expr.Ident` and
 `.Qualified` already draw.
 
-This is the second of the two entries on the §0 line, and it is the one I am
+This is the second of the two entries on that line, and it is the one I am
 least sure of. (1) is a perfectly defensible answer if the extra call shape
 costs less than a callee that is sometimes resolved and sometimes not.
 
@@ -417,6 +450,7 @@ Doing §2 in full, and taking the recommendations in §5:
 | `Body.t` | `Shorthand` \| `Longhand` | a statement list |
 | `Abort_handle.t` | `Shorthand` \| `Longhand` | one record |
 | `Operator.t` | 10 variants | 5 |
+| `Operator.is_loose` | `bool` | gone |
 | `Field_arg.value` | `Expr.t option` | `Expr.t` |
 | `Match_pattern.cases` | `Name.t list` | `Name.t` |
 | declaration forms | `Var` + `VarShorthand` | `Var` |

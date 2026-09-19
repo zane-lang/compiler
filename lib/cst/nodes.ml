@@ -44,9 +44,26 @@ end
 (* outside the [module rec] chain as ordinary modules.                    *)
 (* ---------------------------------------------------------------------- *)
 
+(* [is_loose] records whether the `'` prefix was written.
+
+   A loose operator calls the same implementation as its unprefixed form and
+   differs only in where it groups (operators.md §3.1), and the grouping is
+   already the tree by the time this node exists -- so the flag changes nothing
+   about what the expression means. It is kept because the CST's job is to
+   represent what was parsed: `a '* b` and `a * b` are two different pieces of
+   source, and a tree that cannot tell them apart cannot be rendered back,
+   cannot report `a ''* b` against what was written, and makes the parser the
+   stage that dropped the distinction. Collapsing the two is a desugaring, and
+   desugaring belongs to the SST (see docs/desugaring.md §2.2 and
+   docs/stages.md).
+
+   The flag is always [false] on a declaration: §3.1 is explicit that the loose
+   forms add no token to the operator vocabulary of §5.1, so there is nothing
+   for a program to declare. *)
 module Operator = struct
   type t = {
     node : node;
+    is_loose : bool;
     span : Span.t;
   }
 
