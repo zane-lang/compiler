@@ -1,0 +1,3363 @@
+package | package main; /// Every im … ettled"); return Unit(); }
+  decl | package main
+    name main | main
+  decl | import core$
+    import | import core$
+      package core | core
+  decl | import std
+    import | import std
+      package std | std
+  decl | import text as fmt
+    import | import text as fmt
+      package text | text
+      alias fmt | fmt
+  decl | import math$sqrt
+    import | import math$sqrt
+      package math | math
+      import_member sqrt | sqrt
+  decl | import math$Vector as Vec
+    import | import math$Vector as Vec
+      package math | math
+      import_member Vector | Vector
+      import_member Vec | Vec
+  decl | import math$[floor, ceil]
+    import | import math$[floor, ceil]
+      package math | math
+      import_member floor | floor
+      import_member ceil | ceil
+  decl | type Operator = enum [ add, sub, mul, div ]
+    name Operator | Operator
+    type_or_moulded | enum [ add, sub, mul, div ]
+      moulded | enum [ add, sub, mul, div ]
+        mould | enum [ add, sub, mul, div ]
+          member add | add
+          member sub | sub
+          member mul | mul
+          member div | div
+        type_axis | enum [ add, sub, mul, div ]
+  decl | Operator.symbol String { a … "; mul = "*"; div = "/"; }
+    type_expr | Operator
+      name_type | Operator
+        ident Operator | Operator
+    property symbol | symbol
+    type_expr | String
+      name_type | String
+        ident String | String
+    entry add | add
+    expr | "+"
+    entry sub | sub
+    expr | "-"
+    entry mul | mul
+    expr | "*"
+    entry div | div
+    expr | "/"
+  decl | Operator.precedence Int {  … b = 1; mul = 2; div = 2; }
+    type_expr | Operator
+      name_type | Operator
+        ident Operator | Operator
+    property precedence | precedence
+    type_expr | Int
+      name_type | Int
+        ident Int | Int
+    entry add | add
+    expr | 1
+    entry sub | sub
+    expr | 1
+    entry mul | mul
+    expr | 2
+    entry div | div
+    expr | 2
+  decl | Operator.identity Float {  … loat(1); div = Float(1); }
+    type_expr | Operator
+      name_type | Operator
+        ident Operator | Operator
+    property identity | identity
+    type_expr | Float
+      name_type | Float
+        ident Float | Float
+    entry add | add
+    expr | Float(0)
+      verb_call | Float(0)
+        constructor_name | Float
+          name_type | Float
+            ident Float | Float
+        constructor_args | (0)
+          call_arg | 0
+            expr | 0
+    entry sub | sub
+    expr | Float(0)
+      verb_call | Float(0)
+        constructor_name | Float
+          name_type | Float
+            ident Float | Float
+        constructor_args | (0)
+          call_arg | 0
+            expr | 0
+    entry mul | mul
+    expr | Float(1)
+      verb_call | Float(1)
+        constructor_name | Float
+          name_type | Float
+            ident Float | Float
+        constructor_args | (1)
+          call_arg | 1
+            expr | 1
+    entry div | div
+    expr | Float(1)
+      verb_call | Float(1)
+        constructor_name | Float
+          name_type | Float
+            ident Float | Float
+        constructor_args | (1)
+          call_arg | 1
+            expr | 1
+  decl | Operator.fold Float[Float, … loat, b Float) => a / b; }
+    type_expr | Operator
+      name_type | Operator
+        ident Operator | Operator
+    property fold | fold
+    type_expr | Float[Float, Float]
+      verb_type | Float[Float, Float]
+        param_type | Float
+          type_expr | Float
+            name_type | Float
+              ident Float | Float
+        param_type | Float
+          type_expr | Float
+            name_type | Float
+              ident Float | Float
+        ret_type | Float
+          type_expr | Float
+            name_type | Float
+              ident Float | Float
+    entry add | add
+    expr | Float(a Float, b Float) => a + b
+      func_lambda | Float(a Float, b Float) => a + b
+        param | a Float
+          name a | a
+          param_type | Float
+            type_expr | Float
+              name_type | Float
+                ident Float | Float
+        param | b Float
+          name b | b
+          param_type | Float
+            type_expr | Float
+              name_type | Float
+                ident Float | Float
+        ret_type | Float
+          type_expr | Float
+            name_type | Float
+              ident Float | Float
+        body | => a + b
+          expr | a + b
+            verb_call | a + b
+              operator | +
+              expr | a
+                name_expr | a
+                  ident a | a
+              expr | b
+                name_expr | b
+                  ident b | b
+    entry sub | sub
+    expr | Float(a Float, b Float) => a - b
+      func_lambda | Float(a Float, b Float) => a - b
+        param | a Float
+          name a | a
+          param_type | Float
+            type_expr | Float
+              name_type | Float
+                ident Float | Float
+        param | b Float
+          name b | b
+          param_type | Float
+            type_expr | Float
+              name_type | Float
+                ident Float | Float
+        ret_type | Float
+          type_expr | Float
+            name_type | Float
+              ident Float | Float
+        body | => a - b
+          expr | a - b
+            verb_call | a - b
+              operator | -
+              expr | a
+                name_expr | a
+                  ident a | a
+              expr | b
+                name_expr | b
+                  ident b | b
+    entry mul | mul
+    expr | Float(a Float, b Float) => a * b
+      func_lambda | Float(a Float, b Float) => a * b
+        param | a Float
+          name a | a
+          param_type | Float
+            type_expr | Float
+              name_type | Float
+                ident Float | Float
+        param | b Float
+          name b | b
+          param_type | Float
+            type_expr | Float
+              name_type | Float
+                ident Float | Float
+        ret_type | Float
+          type_expr | Float
+            name_type | Float
+              ident Float | Float
+        body | => a * b
+          expr | a * b
+            verb_call | a * b
+              operator | *
+              expr | a
+                name_expr | a
+                  ident a | a
+              expr | b
+                name_expr | b
+                  ident b | b
+    entry div | div
+    expr | Float(a Float, b Float) => a / b
+      func_lambda | Float(a Float, b Float) => a / b
+        param | a Float
+          name a | a
+          param_type | Float
+            type_expr | Float
+              name_type | Float
+                ident Float | Float
+        param | b Float
+          name b | b
+          param_type | Float
+            type_expr | Float
+              name_type | Float
+                ident Float | Float
+        ret_type | Float
+          type_expr | Float
+            name_type | Float
+              ident Float | Float
+        body | => a / b
+          expr | a / b
+            verb_call | a / b
+              operator | /
+              expr | a
+                name_expr | a
+                  ident a | a
+              expr | b
+                name_expr | b
+                  ident b | b
+  decl | type Severity = enum [ note, warning, failure ]
+    name Severity | Severity
+    type_or_moulded | enum [ note, warning, failure ]
+      moulded | enum [ note, warning, failure ]
+        mould | enum [ note, warning, failure ]
+          member note | note
+          member warning | warning
+          member failure | failure
+        type_axis | enum [ note, warning, failure ]
+  decl | Severity.label String { no … g"; failure = "failure"; }
+    type_expr | Severity
+      name_type | Severity
+        ident Severity | Severity
+    property label | label
+    type_expr | String
+      name_type | String
+        ident String | String
+    entry note | note
+    expr | "note"
+    entry warning | warning
+    expr | "warning"
+    entry failure | failure
+    expr | "failure"
+  decl | Severity.exitCode Int { no … arning = 0; failure = 1; }
+    type_expr | Severity
+      name_type | Severity
+        ident Severity | Severity
+    property exitCode | exitCode
+    type_expr | Int
+      name_type | Int
+        ident Int | Int
+    entry note | note
+    expr | 0
+    entry warning | warning
+    expr | 0
+    entry failure | failure
+    expr | 1
+  decl | type Column = Int
+    name Column | Column
+    type_or_moulded | Int
+      type_expr | Int
+        name_type | Int
+          ident Int | Int
+  decl | alias Offset = Int
+    name Offset | Offset
+    type_or_moulded | Int
+      type_expr | Int
+        name_type | Int
+          ident Int | Int
+  decl | type Span = struct { start Offset; length Int; }
+    name Span | Span
+    type_or_moulded | struct { start Offset; length Int; }
+      moulded | struct { start Offset; length Int; }
+        mould | struct { start Offset; length Int; }
+          body_field | start Offset;
+            name start | start
+            type_expr | Offset
+              name_type | Offset
+                ident Offset | Offset
+          body_field | length Int;
+            name length | length
+            type_expr | Int
+              name_type | Int
+                ident Int | Int
+        type_axis | struct { start Offset; length Int; }
+  decl | Span.point(start Offset) = …  start; length = Int(1); }
+    verb_decl | Span.point(start Offset) = …  start; length = Int(1); }
+      type_expr | Span
+        name_type | Span
+          ident Span | Span
+      member point | point
+      constructor_params | (start Offset)
+        param | start Offset
+          name start | start
+          param_type | Offset
+            type_expr | Offset
+              name_type | Offset
+                ident Offset | Offset
+      body | => init{ start; length = Int(1); }
+        expr | init{ start; length = Int(1); }
+          field_arg | start
+            name start | start
+          field_arg | length = Int(1)
+            name length | length
+            expr | Int(1)
+              verb_call | Int(1)
+                constructor_name | Int
+                  name_type | Int
+                    ident Int | Int
+                constructor_args | (1)
+                  call_arg | 1
+                    expr | 1
+  decl | Span{ start Offset; length …  => init{ start; length; }
+    verb_decl | Span{ start Offset; length …  => init{ start; length; }
+      type_expr | Span
+        name_type | Span
+          ident Span | Span
+      constructor_params | { start Offset; length Int = Int(1); }
+        constructor_field | start Offset
+          name start | start
+          param_type | Offset
+            type_expr | Offset
+              name_type | Offset
+                ident Offset | Offset
+        constructor_field | length Int = Int(1)
+          name length | length
+          param_type | Int
+            type_expr | Int
+              name_type | Int
+                ident Int | Int
+          expr | Int(1)
+            verb_call | Int(1)
+              constructor_name | Int
+                name_type | Int
+                  ident Int | Int
+              constructor_args | (1)
+                call_arg | 1
+                  expr | 1
+      body | => init{ start; length; }
+        expr | init{ start; length; }
+          field_arg | start
+            name start | start
+          field_arg | length
+            name length | length
+  decl | implicit Span(start Offset …  start; length = Int(1); }
+    verb_decl | implicit Span(start Offset …  start; length = Int(1); }
+      type_expr | Span
+        name_type | Span
+          ident Span | Span
+      constructor_params | (start Offset)
+        param | start Offset
+          name start | start
+          param_type | Offset
+            type_expr | Offset
+              name_type | Offset
+                ident Offset | Offset
+      body | => init{ start; length = Int(1); }
+        expr | init{ start; length = Int(1); }
+          field_arg | start
+            name start | start
+          field_arg | length = Int(1)
+            name length | length
+            expr | Int(1)
+              verb_call | Int(1)
+                constructor_name | Int
+                  name_type | Int
+                    ident Int | Int
+                constructor_args | (1)
+                  call_arg | 1
+                    expr | 1
+  decl | Unit widen(this Span, extr …  + extra; return Unit(); }
+    verb_decl | Unit widen(this Span, extr …  + extra; return Unit(); }
+      name widen | widen
+      type_expr | Span
+        name_type | Span
+          ident Span | Span
+      param | extra Int
+        name extra | extra
+        param_type | Int
+          type_expr | Int
+            name_type | Int
+              ident Int | Int
+      ret_type | Unit
+        type_expr | Unit
+          name_type | Unit
+            ident Unit | Unit
+      body | { this.length = this.length + extra; return Unit(); }
+        statement | this.length = this.length + extra;
+          stat | this.length = this.length + extra;
+            expr | this.length
+              expr | this
+                name_expr | this
+                  ident this | this
+              field length | length
+            expr | this.length + extra
+              verb_call | this.length + extra
+                operator | +
+                expr | this.length
+                  expr | this
+                    name_expr | this
+                      ident this | this
+                  field length | length
+                expr | extra
+                  name_expr | extra
+                    ident extra | extra
+        statement | return Unit();
+          stat | return Unit();
+            expr | Unit()
+              verb_call | Unit()
+                constructor_name | Unit
+                  name_type | Unit
+                    ident Unit | Unit
+                constructor_args | ()
+  decl | type Report = struct { sev … ssage String; span Span; }
+    name Report | Report
+    type_or_moulded | struct { severity Severity; message String; span Span; }
+      moulded | struct { severity Severity; message String; span Span; }
+        mould | struct { severity Severity; message String; span Span; }
+          body_field | severity Severity;
+            name severity | severity
+            type_expr | Severity
+              name_type | Severity
+                ident Severity | Severity
+          body_field | message String;
+            name message | message
+            type_expr | String
+              name_type | String
+                ident String | String
+          body_field | span Span;
+            name span | span
+            type_expr | Span
+              name_type | Span
+                ident Span | Span
+        type_axis | struct { severity Severity; message String; span Span; }
+  decl | Report{ severity Severity; … severity; message; span; }
+    verb_decl | Report{ severity Severity; … severity; message; span; }
+      type_expr | Report
+        name_type | Report
+          ident Report | Report
+      constructor_params | { severity Severity; messa … ing; span Span.point(0); }
+        constructor_field | severity Severity
+          name severity | severity
+          param_type | Severity
+            type_expr | Severity
+              name_type | Severity
+                ident Severity | Severity
+        constructor_field | message String
+          name message | message
+          param_type | String
+            type_expr | String
+              name_type | String
+                ident String | String
+        constructor_field | span Span.point(0)
+          name span | span
+          param_type | Span
+            type_expr | Span
+              name_type | Span
+                ident Span | Span
+          expr | Span.point(0)
+            verb_call | Span.point(0)
+              constructor_name | Span.point
+                name_type | Span
+                  ident Span | Span
+                member point | point
+              constructor_args | (0)
+                call_arg | 0
+                  expr | 0
+      body | => init{ severity; message; span; }
+        expr | init{ severity; message; span; }
+          field_arg | severity
+            name severity | severity
+          field_arg | message
+            name message | message
+          field_arg | span
+            name span | span
+  decl | type Formatter = #struct { render String[Float]; }
+    name Formatter | Formatter
+    type_or_moulded | #struct { render String[Float]; }
+      moulded | #struct { render String[Float]; }
+        mould | struct { render String[Float]; }
+          body_field | render String[Float];
+            name render | render
+            type_expr | String[Float]
+              verb_type | String[Float]
+                param_type | Float
+                  type_expr | Float
+                    name_type | Float
+                      ident Float | Float
+                ret_type | String
+                  type_expr | String
+                    name_type | String
+                      ident String | String
+        type_axis | #
+  decl | Formatter.plain() => init{ … return String(value); }; }
+    verb_decl | Formatter.plain() => init{ … return String(value); }; }
+      type_expr | Formatter
+        name_type | Formatter
+          ident Formatter | Formatter
+      member plain | plain
+      constructor_params | ()
+      body | => init{ render = String(v … return String(value); }; }
+        expr | init{ render = String(valu … return String(value); }; }
+          field_arg | render = String(value Float) { return String(value); }
+            name render | render
+            expr | String(value Float) { return String(value); }
+              func_lambda | String(value Float) { return String(value); }
+                param | value Float
+                  name value | value
+                  param_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+                ret_type | String
+                  type_expr | String
+                    name_type | String
+                      ident String | String
+                body | { return String(value); }
+                  statement | return String(value);
+                    stat | return String(value);
+                      expr | String(value)
+                        verb_call | String(value)
+                          constructor_name | String
+                            name_type | String
+                              ident String | String
+                          constructor_args | (value)
+                            call_arg | value
+                              expr | value
+                                name_expr | value
+                                  ident value | value
+  decl | String render(this Report) … abel + ": " + this.message
+    verb_decl | String render(this Report) … abel + ": " + this.message
+      name render | render
+      type_expr | Report
+        name_type | Report
+          ident Report | Report
+      ret_type | String
+        type_expr | String
+          name_type | String
+            ident String | String
+      body | => this.severity.label + ": " + this.message
+        expr | this.severity.label + ": " + this.message
+          verb_call | this.severity.label + ": " + this.message
+            operator | +
+            expr | this.severity.label + ": "
+              verb_call | this.severity.label + ": "
+                operator | +
+                expr | this.severity.label
+                  expr | this.severity
+                    expr | this
+                      name_expr | this
+                        ident this | this
+                    field severity | severity
+                  field label | label
+                expr | ": "
+            expr | this.message
+              expr | this
+                name_expr | this
+                  ident this | this
+              field message | message
+  decl | type Operation = #struct { … right Expr; op Operator; }
+    name Operation | Operation
+    type_or_moulded | #struct { left Expr; right Expr; op Operator; }
+      moulded | #struct { left Expr; right Expr; op Operator; }
+        mould | struct { left Expr; right Expr; op Operator; }
+          body_field | left Expr;
+            name left | left
+            type_expr | Expr
+              name_type | Expr
+                ident Expr | Expr
+          body_field | right Expr;
+            name right | right
+            type_expr | Expr
+              name_type | Expr
+                ident Expr | Expr
+          body_field | op Operator;
+            name op | op
+            type_expr | Operator
+              name_type | Operator
+                ident Operator | Operator
+        type_axis | #
+  decl | Operation(left Expr, right … > init{ left; right; op; }
+    verb_decl | Operation(left Expr, right … > init{ left; right; op; }
+      type_expr | Operation
+        name_type | Operation
+          ident Operation | Operation
+      constructor_params | (left Expr, right Expr, op Operator)
+        param | left Expr
+          name left | left
+          param_type | Expr
+            type_expr | Expr
+              name_type | Expr
+                ident Expr | Expr
+        param | right Expr
+          name right | right
+          param_type | Expr
+            type_expr | Expr
+              name_type | Expr
+                ident Expr | Expr
+        param | op Operator
+          name op | op
+          param_type | Operator
+            type_expr | Operator
+              name_type | Operator
+                ident Operator | Operator
+      body | => init{ left; right; op; }
+        expr | init{ left; right; op; }
+          field_arg | left
+            name left | left
+          field_arg | right
+            name right | right
+          field_arg | op
+            name op | op
+  decl | type Expr = #variant { num … peration; negation Expr; }
+    name Expr | Expr
+    type_or_moulded | #variant { number Float; n … peration; negation Expr; }
+      moulded | #variant { number Float; n … peration; negation Expr; }
+        mould | variant { number Float; na … peration; negation Expr; }
+          body_field | number Float;
+            name number | number
+            type_expr | Float
+              name_type | Float
+                ident Float | Float
+          body_field | name String;
+            name name | name
+            type_expr | String
+              name_type | String
+                ident String | String
+          body_field | operation Operation;
+            name operation | operation
+            type_expr | Operation
+              name_type | Operation
+                ident Operation | Operation
+          body_field | negation Expr;
+            name negation | negation
+            type_expr | Expr
+              name_type | Expr
+                ident Expr | Expr
+        type_axis | #
+  decl | type Environment = #struct … y<Float, 4>; _count Int; }
+    name Environment | Environment
+    type_or_moulded | #struct { names Array<Stri … y<Float, 4>; _count Int; }
+      moulded | #struct { names Array<Stri … y<Float, 4>; _count Int; }
+        mould | struct { names Array<Strin … y<Float, 4>; _count Int; }
+          body_field | names Array<String, 4>;
+            name names | names
+            type_expr | Array<String, 4>
+              name_type | Array
+                ident Array | Array
+              generic_arg | String
+                type_expr | String
+                  name_type | String
+                    ident String | String
+              generic_arg | 4
+          body_field | values Array<Float, 4>;
+            name values | values
+            type_expr | Array<Float, 4>
+              name_type | Array
+                ident Array | Array
+              generic_arg | Float
+                type_expr | Float
+                  name_type | Float
+                    ident Float | Float
+              generic_arg | 4
+          body_field | _count Int;
+            name _count | _count
+            type_expr | Int
+              name_type | Int
+                ident Int | Int
+        type_axis | #
+  decl | Environment.of(names Array … values; _count = Int(3); }
+    verb_decl | Environment.of(names Array … values; _count = Int(3); }
+      type_expr | Environment
+        name_type | Environment
+          ident Environment | Environment
+      member of | of
+      constructor_params | (names Array<String, 4>, values Array<Float, 4>)
+        param | names Array<String, 4>
+          name names | names
+          param_type | Array<String, 4>
+            type_expr | Array<String, 4>
+              name_type | Array
+                ident Array | Array
+              generic_arg | String
+                type_expr | String
+                  name_type | String
+                    ident String | String
+              generic_arg | 4
+        param | values Array<Float, 4>
+          name values | values
+          param_type | Array<Float, 4>
+            type_expr | Array<Float, 4>
+              name_type | Array
+                ident Array | Array
+              generic_arg | Float
+                type_expr | Float
+                  name_type | Float
+                    ident Float | Float
+              generic_arg | 4
+      body | => init{ names; values; _count = Int(3); }
+        expr | init{ names; values; _count = Int(3); }
+          field_arg | names
+            name names | names
+          field_arg | values
+            name values | values
+          field_arg | _count = Int(3)
+            name _count | _count
+            expr | Int(3)
+              verb_call | Int(3)
+                constructor_name | Int
+                  name_type | Int
+                    ident Int | Int
+                constructor_args | (3)
+                  call_arg | 3
+                    expr | 3
+  decl | (this Environment)[index Int] => this.values[index]
+    verb_decl | (this Environment)[index Int] => this.values[index]
+      type_expr | Environment
+        name_type | Environment
+          ident Environment | Environment
+      param | index Int
+        name index | index
+        param_type | Int
+          type_expr | Int
+            name_type | Int
+              ident Int | Int
+      expr | this.values[index]
+        expr | this.values
+          expr | this
+            name_expr | this
+              ident this | this
+          field values | values
+        expr | index
+          name_expr | index
+            ident index | index
+  decl | Float?String lookup(this E … nknown name: " + wanted; }
+    verb_decl | Float?String lookup(this E … nknown name: " + wanted; }
+      name lookup | lookup
+      type_expr | Environment
+        name_type | Environment
+          ident Environment | Environment
+      param | wanted String
+        name wanted | wanted
+        param_type | String
+          type_expr | String
+            name_type | String
+              ident String | String
+      ret_type | Float?String
+        type_expr | Float
+          name_type | Float
+            ident Float | Float
+        type_expr | String
+          name_type | String
+            ident String | String
+      body | { index Int = Int(1); inde … nknown name: " + wanted; }
+        statement | index Int = Int(1);
+          stat | index Int = Int(1);
+            decl | index Int = Int(1)
+              name index | index
+              type_expr | Int
+                name_type | Int
+                  ident Int | Int
+              expr | Int(1)
+                verb_call | Int(1)
+                  constructor_name | Int
+                    name_type | Int
+                      ident Int | Int
+                  constructor_args | (1)
+                    call_arg | 1
+                      expr | 1
+        statement | index!to(this._count) { // … rn this.values[index]; } }
+          stat | index!to(this._count) { // … rn this.values[index]; } }
+            verb_call | index!to(this._count) { // … rn this.values[index]; } }
+              expr | to
+                name_expr | to
+                  ident to | to
+              expr | index
+                name_expr | index
+                  ident index | index
+              call_arg | this._count
+                expr | this._count
+                  expr | this
+                    name_expr | this
+                      ident this | this
+                  field _count | _count
+              call_arg | { // `if` is a call too: i … rn this.values[index]; } }
+                statement | if(this.names[index] == wa … turn this.values[index]; }
+                  stat | if(this.names[index] == wa … turn this.values[index]; }
+                    verb_call | if(this.names[index] == wa … turn this.values[index]; }
+                      expr | if
+                        name_expr | if
+                          ident if | if
+                      call_arg | this.names[index] == wanted
+                        expr | this.names[index] == wanted
+                          verb_call | this.names[index] == wanted
+                            operator | ==
+                            expr | this.names[index]
+                              expr | this.names
+                                expr | this
+                                  name_expr | this
+                                    ident this | this
+                                field names | names
+                              expr | index
+                                name_expr | index
+                                  ident index | index
+                            expr | wanted
+                              name_expr | wanted
+                                ident wanted | wanted
+                      call_arg | { return this.values[index]; }
+                        statement | return this.values[index];
+                          stat | return this.values[index];
+                            expr | this.values[index]
+                              expr | this.values
+                                expr | this
+                                  name_expr | this
+                                    ident this | this
+                                field values | values
+                              expr | index
+                                name_expr | index
+                                  ident index | index
+        statement | abort "unknown name: " + wanted;
+          stat | abort "unknown name: " + wanted;
+            expr | "unknown name: " + wanted
+              verb_call | "unknown name: " + wanted
+                operator | +
+                expr | "unknown name: "
+                expr | wanted
+                  name_expr | wanted
+                    ident wanted | wanted
+  decl | Unit bind(this Environment … ount + 1; return Unit(); }
+    verb_decl | Unit bind(this Environment … ount + 1; return Unit(); }
+      name bind | bind
+      type_expr | Environment
+        name_type | Environment
+          ident Environment | Environment
+      param | wanted String
+        name wanted | wanted
+        param_type | String
+          type_expr | String
+            name_type | String
+              ident String | String
+      param | value Float
+        name value | value
+        param_type | Float
+          type_expr | Float
+            name_type | Float
+              ident Float | Float
+      ret_type | Unit
+        type_expr | Unit
+          name_type | Unit
+            ident Unit | Unit
+      body | { if(4 <= this._count) { s … ount + 1; return Unit(); }
+        statement | if(4 <= this._count) { std … s full"); return Unit(); }
+          stat | if(4 <= this._count) { std … s full"); return Unit(); }
+            verb_call | if(4 <= this._count) { std … s full"); return Unit(); }
+              expr | if
+                name_expr | if
+                  ident if | if
+              call_arg | 4 <= this._count
+                expr | 4 <= this._count
+                  verb_call | 4 <= this._count
+                    operator | <=
+                    expr | 4
+                    expr | this._count
+                      expr | this
+                        name_expr | this
+                          ident this | this
+                      field _count | _count
+              call_arg | { std$print("environment is full"); return Unit(); }
+                statement | std$print("environment is full");
+                  stat | std$print("environment is full");
+                    verb_call | std$print("environment is full")
+                      expr | std$print
+                        name_expr | std$print
+                          package std | std
+                          ident print | print
+                      call_arg | "environment is full"
+                        expr | "environment is full"
+                statement | return Unit();
+                  stat | return Unit();
+                    expr | Unit()
+                      verb_call | Unit()
+                        constructor_name | Unit
+                          name_type | Unit
+                            ident Unit | Unit
+                        constructor_args | ()
+        statement | this.names[this._count + 1] = wanted;
+          stat | this.names[this._count + 1] = wanted;
+            expr | this.names[this._count + 1]
+              expr | this.names
+                expr | this
+                  name_expr | this
+                    ident this | this
+                field names | names
+              expr | this._count + 1
+                verb_call | this._count + 1
+                  operator | +
+                  expr | this._count
+                    expr | this
+                      name_expr | this
+                        ident this | this
+                    field _count | _count
+                  expr | 1
+            expr | wanted
+              name_expr | wanted
+                ident wanted | wanted
+        statement | this.values[this._count + 1] = value;
+          stat | this.values[this._count + 1] = value;
+            expr | this.values[this._count + 1]
+              expr | this.values
+                expr | this
+                  name_expr | this
+                    ident this | this
+                field values | values
+              expr | this._count + 1
+                verb_call | this._count + 1
+                  operator | +
+                  expr | this._count
+                    expr | this
+                      name_expr | this
+                        ident this | this
+                    field _count | _count
+                  expr | 1
+            expr | value
+              name_expr | value
+                ident value | value
+        statement | this._count = this._count + 1;
+          stat | this._count = this._count + 1;
+            expr | this._count
+              expr | this
+                name_expr | this
+                  ident this | this
+              field _count | _count
+            expr | this._count + 1
+              verb_call | this._count + 1
+                operator | +
+                expr | this._count
+                  expr | this
+                    name_expr | this
+                      ident this | this
+                  field _count | _count
+                expr | 1
+        statement | return Unit();
+          stat | return Unit();
+            expr | Unit()
+              verb_call | Unit()
+                constructor_name | Unit
+                  name_type | Unit
+                    ident Unit | Unit
+                constructor_args | ()
+  decl | type Cursor = #struct { en … vironment; position Int; }
+    name Cursor | Cursor
+    type_or_moulded | #struct { env &Environment; position Int; }
+      moulded | #struct { env &Environment; position Int; }
+        mould | struct { env &Environment; position Int; }
+          body_field | env &Environment;
+            name env | env
+            type_expr | &Environment
+              type_expr | Environment
+                name_type | Environment
+                  ident Environment | Environment
+          body_field | position Int;
+            name position | position
+            type_expr | Int
+              name_type | Int
+                ident Int | Int
+        type_axis | #
+  decl | Cursor(env &Environment) = …  env; position = Int(1); }
+    verb_decl | Cursor(env &Environment) = …  env; position = Int(1); }
+      type_expr | Cursor
+        name_type | Cursor
+          ident Cursor | Cursor
+      constructor_params | (env &Environment)
+        param | env &Environment
+          name env | env
+          param_type | &Environment
+            type_expr | &Environment
+              type_expr | Environment
+                name_type | Environment
+                  ident Environment | Environment
+      body | => init{ env; position = Int(1); }
+        expr | init{ env; position = Int(1); }
+          field_arg | env
+            name env | env
+          field_arg | position = Int(1)
+            name position | position
+            expr | Int(1)
+              verb_call | Int(1)
+                constructor_name | Int
+                  name_type | Int
+                    ident Int | Int
+                constructor_args | (1)
+                  call_arg | 1
+                    expr | 1
+  decl | Float peek(this Cursor) => this.env[this.position]
+    verb_decl | Float peek(this Cursor) => this.env[this.position]
+      name peek | peek
+      type_expr | Cursor
+        name_type | Cursor
+          ident Cursor | Cursor
+      ret_type | Float
+        type_expr | Float
+          name_type | Float
+            ident Float | Float
+      body | => this.env[this.position]
+        expr | this.env[this.position]
+          expr | this.env
+            expr | this
+              name_expr | this
+                ident this | this
+            field env | env
+          expr | this.position
+            expr | this
+              name_expr | this
+                ident this | this
+            field position | position
+  decl | Float?String evaluate(node … d { abort refused; } } } }
+    verb_decl | Float?String evaluate(node … d { abort refused; } } } }
+      name evaluate | evaluate
+      param | node Expr
+        name node | node
+        param_type | Expr
+          type_expr | Expr
+            name_type | Expr
+              ident Expr | Expr
+      param | env &Environment
+        name env | env
+        param_type | &Environment
+          type_expr | &Environment
+            type_expr | Environment
+              name_type | Environment
+                ident Environment | Environment
+      ret_type | Float?String
+        type_expr | Float
+          name_type | Float
+            ident Float | Float
+        type_expr | String
+          name_type | String
+            ident String | String
+      body | { return match (node) { va … d { abort refused; } } } }
+        statement | return match (node) { valu … sed { abort refused; } } }
+          stat | return match (node) { valu … sed { abort refused; } } }
+            expr | match (node) { value numbe … sed { abort refused; } } }
+              match_expr | match (node) { value numbe … sed { abort refused; } } }
+                expr | node
+                  name_expr | node
+                    ident node | node
+                match_arm | value number => value;
+                  match_pattern | value number
+                    binder value | value
+                    case number | number
+                  body | => value
+                    expr | value
+                      name_expr | value
+                        ident value | value
+                match_arm | wanted name => env:lookup( … issing { abort missing; };
+                  match_pattern | wanted name
+                    binder wanted | wanted
+                    case name | name
+                  body | => env:lookup(wanted) ? missing { abort missing; }
+                    expr | env:lookup(wanted) ? missing { abort missing; }
+                      verb_call | env:lookup(wanted)
+                        expr | lookup
+                          name_expr | lookup
+                            ident lookup | lookup
+                        expr | env
+                          name_expr | env
+                            ident env | env
+                        call_arg | wanted
+                          expr | wanted
+                            name_expr | wanted
+                              ident wanted | wanted
+                        abort_handle | ? missing { abort missing; }
+                          binder missing | missing
+                          body | { abort missing; }
+                            statement | abort missing;
+                              stat | abort missing;
+                                expr | missing
+                                  name_expr | missing
+                                    ident missing | missing
+                match_arm | inner negation { value Flo … issing; } return ~value; }
+                  match_pattern | inner negation
+                    binder inner | inner
+                    case negation | negation
+                  body | { value Float = evaluate(i … issing; } return ~value; }
+                    statement | value Float = evaluate(inn … missing { abort missing; }
+                      stat | value Float = evaluate(inn … missing { abort missing; }
+                        decl | value Float = evaluate(inn … missing { abort missing; }
+                          name value | value
+                          type_expr | Float
+                            name_type | Float
+                              ident Float | Float
+                          expr | evaluate(inner, env) ? missing { abort missing; }
+                            verb_call | evaluate(inner, env)
+                              expr | evaluate
+                                name_expr | evaluate
+                                  ident evaluate | evaluate
+                              call_arg | inner
+                                expr | inner
+                                  name_expr | inner
+                                    ident inner | inner
+                              call_arg | env
+                                expr | env
+                                  name_expr | env
+                                    ident env | env
+                              abort_handle | ? missing { abort missing; }
+                                binder missing | missing
+                                body | { abort missing; }
+                                  statement | abort missing;
+                                    stat | abort missing;
+                                      expr | missing
+                                        name_expr | missing
+                                          ident missing | missing
+                    statement | return ~value;
+                      stat | return ~value;
+                        expr | ~value
+                          verb_call | ~value
+                            expr | value
+                              name_expr | value
+                                ident value | value
+                match_arm | call operation { left Floa … fused { abort refused; } }
+                  match_pattern | call operation
+                    binder call | call
+                    case operation | operation
+                  body | { left Float = evaluate(ca … fused { abort refused; } }
+                    statement | left Float = evaluate(call … missing { abort missing; }
+                      stat | left Float = evaluate(call … missing { abort missing; }
+                        decl | left Float = evaluate(call … missing { abort missing; }
+                          name left | left
+                          type_expr | Float
+                            name_type | Float
+                              ident Float | Float
+                          expr | evaluate(call.left, env) ? missing { abort missing; }
+                            verb_call | evaluate(call.left, env)
+                              expr | evaluate
+                                name_expr | evaluate
+                                  ident evaluate | evaluate
+                              call_arg | call.left
+                                expr | call.left
+                                  expr | call
+                                    name_expr | call
+                                      ident call | call
+                                  field left | left
+                              call_arg | env
+                                expr | env
+                                  name_expr | env
+                                    ident env | env
+                              abort_handle | ? missing { abort missing; }
+                                binder missing | missing
+                                body | { abort missing; }
+                                  statement | abort missing;
+                                    stat | abort missing;
+                                      expr | missing
+                                        name_expr | missing
+                                          ident missing | missing
+                    statement | right Float = evaluate(cal … missing { abort missing; }
+                      stat | right Float = evaluate(cal … missing { abort missing; }
+                        decl | right Float = evaluate(cal … missing { abort missing; }
+                          name right | right
+                          type_expr | Float
+                            name_type | Float
+                              ident Float | Float
+                          expr | evaluate(call.right, env) ? missing { abort missing; }
+                            verb_call | evaluate(call.right, env)
+                              expr | evaluate
+                                name_expr | evaluate
+                                  ident evaluate | evaluate
+                              call_arg | call.right
+                                expr | call.right
+                                  expr | call
+                                    name_expr | call
+                                      ident call | call
+                                  field right | right
+                              call_arg | env
+                                expr | env
+                                  name_expr | env
+                                    ident env | env
+                              abort_handle | ? missing { abort missing; }
+                                binder missing | missing
+                                body | { abort missing; }
+                                  statement | abort missing;
+                                    stat | abort missing;
+                                      expr | missing
+                                        name_expr | missing
+                                          ident missing | missing
+                    statement | return apply(call.op, left … refused { abort refused; }
+                      stat | return apply(call.op, left … refused { abort refused; }
+                        expr | apply(call.op, left, right) ? refused { abort refused; }
+                          verb_call | apply(call.op, left, right)
+                            expr | apply
+                              name_expr | apply
+                                ident apply | apply
+                            call_arg | call.op
+                              expr | call.op
+                                expr | call
+                                  name_expr | call
+                                    ident call | call
+                                field op | op
+                            call_arg | left
+                              expr | left
+                                name_expr | left
+                                  ident left | left
+                            call_arg | right
+                              expr | right
+                                name_expr | right
+                                  ident right | right
+                            abort_handle | ? refused { abort refused; }
+                              binder refused | refused
+                              body | { abort refused; }
+                                statement | abort refused;
+                                  stat | abort refused;
+                                    expr | refused
+                                      name_expr | refused
+                                        ident refused | refused
+  decl | Float?String apply(op Oper … ; div => left / right; } }
+    verb_decl | Float?String apply(op Oper … ; div => left / right; } }
+      name apply | apply
+      param | op Operator
+        name op | op
+        param_type | Operator
+          type_expr | Operator
+            name_type | Operator
+              ident Operator | Operator
+      param | left Float
+        name left | left
+        param_type | Float
+          type_expr | Float
+            name_type | Float
+              ident Float | Float
+      param | right Float
+        name right | right
+        param_type | Float
+          type_expr | Float
+            name_type | Float
+              ident Float | Float
+      ret_type | Float?String
+        type_expr | Float
+          name_type | Float
+            ident Float | Float
+        type_expr | String
+          name_type | String
+            ident String | String
+      body | { empty Bool = right == Fl … ; div => left / right; } }
+        statement | empty Bool = right == Float(0);
+          stat | empty Bool = right == Float(0);
+            decl | empty Bool = right == Float(0)
+              name empty | empty
+              type_expr | Bool
+                name_type | Bool
+                  ident Bool | Bool
+              expr | right == Float(0)
+                verb_call | right == Float(0)
+                  operator | ==
+                  expr | right
+                    name_expr | right
+                      ident right | right
+                  expr | Float(0)
+                    verb_call | Float(0)
+                      constructor_name | Float
+                        name_type | Float
+                          ident Float | Float
+                      constructor_args | (0)
+                        call_arg | 0
+                          expr | 0
+        statement | if(empty '* Operator.div = … bort "division by zero"; }
+          stat | if(empty '* Operator.div = … bort "division by zero"; }
+            verb_call | if(empty '* Operator.div = … bort "division by zero"; }
+              expr | if
+                name_expr | if
+                  ident if | if
+              call_arg | empty '* Operator.div == op
+                expr | empty '* Operator.div == op
+                  verb_call | empty '* Operator.div == op
+                    operator | '*
+                    expr | empty
+                      name_expr | empty
+                        ident empty | empty
+                    expr | Operator.div == op
+                      verb_call | Operator.div == op
+                        operator | ==
+                        expr | Operator.div
+                          name_type | Operator
+                            ident Operator | Operator
+                          member div | div
+                        expr | op
+                          name_expr | op
+                            ident op | op
+              call_arg | { abort "division by zero"; }
+                statement | abort "division by zero";
+                  stat | abort "division by zero";
+                    expr | "division by zero"
+        statement | return match (op) { add => … ht; div => left / right; }
+          stat | return match (op) { add => … ht; div => left / right; }
+            expr | match (op) { add => left + … ht; div => left / right; }
+              match_expr | match (op) { add => left + … ht; div => left / right; }
+                expr | op
+                  name_expr | op
+                    ident op | op
+                match_arm | add => left + right;
+                  match_pattern | add
+                    case add | add
+                  body | => left + right
+                    expr | left + right
+                      verb_call | left + right
+                        operator | +
+                        expr | left
+                          name_expr | left
+                            ident left | left
+                        expr | right
+                          name_expr | right
+                            ident right | right
+                match_arm | sub => left - right;
+                  match_pattern | sub
+                    case sub | sub
+                  body | => left - right
+                    expr | left - right
+                      verb_call | left - right
+                        operator | -
+                        expr | left
+                          name_expr | left
+                            ident left | left
+                        expr | right
+                          name_expr | right
+                            ident right | right
+                match_arm | mul => left * right;
+                  match_pattern | mul
+                    case mul | mul
+                  body | => left * right
+                    expr | left * right
+                      verb_call | left * right
+                        operator | *
+                        expr | left
+                          name_expr | left
+                            ident left | left
+                        expr | right
+                          name_expr | right
+                            ident right | right
+                match_arm | div => left / right;
+                  match_pattern | div
+                    case div | div
+                  body | => left / right
+                    expr | left / right
+                      verb_call | left / right
+                        operator | /
+                        expr | left
+                          name_expr | left
+                            ident left | left
+                        expr | right
+                          name_expr | right
+                            ident right | right
+  decl | Severity worst(left Severi … , note => Severity.note; }
+    verb_decl | Severity worst(left Severi … , note => Severity.note; }
+      name worst | worst
+      param | left Severity
+        name left | left
+        param_type | Severity
+          type_expr | Severity
+            name_type | Severity
+              ident Severity | Severity
+      param | right Severity
+        name right | right
+        param_type | Severity
+          type_expr | Severity
+            name_type | Severity
+              ident Severity | Severity
+      ret_type | Severity
+        type_expr | Severity
+          name_type | Severity
+            ident Severity | Severity
+      body | => match (left, right) { f … , note => Severity.note; }
+        expr | match (left, right) { fail … , note => Severity.note; }
+          match_expr | match (left, right) { fail … , note => Severity.note; }
+            expr | left
+              name_expr | left
+                ident left | left
+            expr | right
+              name_expr | right
+                ident right | right
+            match_arm | failure, [note, warning, failure] => Severity.failure;
+              match_pattern | failure
+                case failure | failure
+              match_pattern | [note, warning, failure]
+                case note | note
+                case warning | warning
+                case failure | failure
+              body | => Severity.failure
+                expr | Severity.failure
+                  name_type | Severity
+                    ident Severity | Severity
+                  member failure | failure
+            match_arm | [note, warning], failure => Severity.failure;
+              match_pattern | [note, warning]
+                case note | note
+                case warning | warning
+              match_pattern | failure
+                case failure | failure
+              body | => Severity.failure
+                expr | Severity.failure
+                  name_type | Severity
+                    ident Severity | Severity
+                  member failure | failure
+            match_arm | warning, [note, warning] => Severity.warning;
+              match_pattern | warning
+                case warning | warning
+              match_pattern | [note, warning]
+                case note | note
+                case warning | warning
+              body | => Severity.warning
+                expr | Severity.warning
+                  name_type | Severity
+                    ident Severity | Severity
+                  member warning | warning
+            match_arm | note, warning => Severity.warning;
+              match_pattern | note
+                case note | note
+              match_pattern | warning
+                case warning | warning
+              body | => Severity.warning
+                expr | Severity.warning
+                  name_type | Severity
+                    ident Severity | Severity
+                  member warning | warning
+            match_arm | note, note => Severity.note;
+              match_pattern | note
+                case note | note
+              match_pattern | note
+                case note | note
+              body | => Severity.note
+                expr | Severity.note
+                  name_type | Severity
+                    ident Severity | Severity
+                  member note | note
+  decl | String describe(op Operato …  + op.symbol + " operator"
+    verb_decl | String describe(op Operato …  + op.symbol + " operator"
+      name describe | describe
+      param | op Operator
+        name op | op
+        param_type | Operator
+          type_expr | Operator
+            name_type | Operator
+              ident Operator | Operator
+      ret_type | String
+        type_expr | String
+          name_type | String
+            ident String | String
+      body | => "the " + op.symbol + " operator"
+        expr | "the " + op.symbol + " operator"
+          verb_call | "the " + op.symbol + " operator"
+            operator | +
+            expr | "the " + op.symbol
+              verb_call | "the " + op.symbol
+                operator | +
+                expr | "the "
+                expr | op.symbol
+                  expr | op
+                    name_expr | op
+                      ident op | op
+                  field symbol | symbol
+            expr | " operator"
+  decl | type Pair<T Type> = struct { left T; right T; }
+    name Pair | Pair
+    generic_param | T Type
+      name T | T
+      concept Type | Type
+    type_or_moulded | struct { left T; right T; }
+      moulded | struct { left T; right T; }
+        mould | struct { left T; right T; }
+          body_field | left T;
+            name left | left
+            type_expr | T
+              name_type | T
+                ident T | T
+          body_field | right T;
+            name right | right
+            type_expr | T
+              name_type | T
+                ident T | T
+        type_axis | struct { left T; right T; }
+  decl | Pair<T>(left T Type, right T) => init{ left; right; }
+    verb_decl | Pair<T>(left T Type, right T) => init{ left; right; }
+      type_expr | Pair<T>
+        name_type | Pair
+          ident Pair | Pair
+        generic_arg | T
+          type_expr | T
+            name_type | T
+              ident T | T
+      constructor_params | (left T Type, right T)
+        param | left T Type
+          name left | left
+          param_type | T Type
+            name T | T
+            concept Type | Type
+        param | right T
+          name right | right
+          param_type | T
+            type_expr | T
+              name_type | T
+                ident T | T
+      body | => init{ left; right; }
+        expr | init{ left; right; }
+          field_arg | left
+            name left | left
+          field_arg | right
+            name right | right
+  decl | Pair<T> +(a Pair<T Type>,  … b.left, a.right + b.right)
+    verb_decl | Pair<T> +(a Pair<T Type>,  … b.left, a.right + b.right)
+      operator | +
+      param | a Pair<T Type>
+        name a | a
+        param_type | Pair<T Type>
+          type_expr | Pair<T Type>
+            name_type | Pair
+              ident Pair | Pair
+            generic_arg | T Type
+              param | T Type
+                name T | T
+                param_type | Type
+                  concept Type | Type
+      param | b Pair<T>
+        name b | b
+        param_type | Pair<T>
+          type_expr | Pair<T>
+            name_type | Pair
+              ident Pair | Pair
+            generic_arg | T
+              type_expr | T
+                name_type | T
+                  ident T | T
+      ret_type | Pair<T>
+        type_expr | Pair<T>
+          name_type | Pair
+            ident Pair | Pair
+          generic_arg | T
+            type_expr | T
+              name_type | T
+                ident T | T
+      body | => Pair(a.left + b.left, a.right + b.right)
+        expr | Pair(a.left + b.left, a.right + b.right)
+          verb_call | Pair(a.left + b.left, a.right + b.right)
+            constructor_name | Pair
+              name_type | Pair
+                ident Pair | Pair
+            constructor_args | (a.left + b.left, a.right + b.right)
+              call_arg | a.left + b.left
+                expr | a.left + b.left
+                  verb_call | a.left + b.left
+                    operator | +
+                    expr | a.left
+                      expr | a
+                        name_expr | a
+                          ident a | a
+                      field left | left
+                    expr | b.left
+                      expr | b
+                        name_expr | b
+                          ident b | b
+                      field left | left
+              call_arg | a.right + b.right
+                expr | a.right + b.right
+                  verb_call | a.right + b.right
+                    operator | +
+                    expr | a.right
+                      expr | a
+                        name_expr | a
+                          ident a | a
+                      field right | right
+                    expr | b.right
+                      expr | b
+                        name_expr | b
+                          ident b | b
+                      field right | right
+  decl | Pair<T> ~(value Pair<T Typ … ~value.left, ~value.right)
+    verb_decl | Pair<T> ~(value Pair<T Typ … ~value.left, ~value.right)
+      param | value Pair<T Type>
+        name value | value
+        param_type | Pair<T Type>
+          type_expr | Pair<T Type>
+            name_type | Pair
+              ident Pair | Pair
+            generic_arg | T Type
+              param | T Type
+                name T | T
+                param_type | Type
+                  concept Type | Type
+      ret_type | Pair<T>
+        type_expr | Pair<T>
+          name_type | Pair
+            ident Pair | Pair
+          generic_arg | T
+            type_expr | T
+              name_type | T
+                ident T | T
+      body | => Pair(~value.left, ~value.right)
+        expr | Pair(~value.left, ~value.right)
+          verb_call | Pair(~value.left, ~value.right)
+            constructor_name | Pair
+              name_type | Pair
+                ident Pair | Pair
+            constructor_args | (~value.left, ~value.right)
+              call_arg | ~value.left
+                expr | ~value.left
+                  verb_call | ~value.left
+                    expr | value.left
+                      expr | value
+                        name_expr | value
+                          ident value | value
+                      field left | left
+              call_arg | ~value.right
+                expr | ~value.right
+                  verb_call | ~value.right
+                    expr | value.right
+                      expr | value
+                        name_expr | value
+                          ident value | value
+                      field right | right
+  decl | T first(values Array<T Type, n Number>) => values[1]
+    verb_decl | T first(values Array<T Type, n Number>) => values[1]
+      name first | first
+      param | values Array<T Type, n Number>
+        name values | values
+        param_type | Array<T Type, n Number>
+          type_expr | Array<T Type, n Number>
+            name_type | Array
+              ident Array | Array
+            generic_arg | T Type
+              param | T Type
+                name T | T
+                param_type | Type
+                  concept Type | Type
+            generic_arg | n Number
+              param | n Number
+                name n | n
+                param_type | Number
+                  concept Number | Number
+      ret_type | T
+        type_expr | T
+          name_type | T
+            ident T | T
+      body | => values[1]
+        expr | values[1]
+          expr | values
+            name_expr | values
+              ident values | values
+          expr | 1
+  decl | String quote(text @concept … "\"" + String(text) + "\""
+    verb_decl | String quote(text @concept … "\"" + String(text) + "\""
+      name quote | quote
+      param | text @concepts$Text
+        name text | text
+        param_type | @concepts$Text
+          type_expr | @concepts$Text
+            name_type | @concepts$Text
+              package concepts | concepts
+              ident Text | Text
+      ret_type | String
+        type_expr | String
+          name_type | String
+            ident String | String
+      body | => "\"" + String(text) + "\""
+        expr | "\"" + String(text) + "\""
+          verb_call | "\"" + String(text) + "\""
+            operator | +
+            expr | "\"" + String(text)
+              verb_call | "\"" + String(text)
+                operator | +
+                expr | "\""
+                expr | String(text)
+                  verb_call | String(text)
+                    constructor_name | String
+                      name_type | String
+                        ident String | String
+                    constructor_args | (text)
+                      call_arg | text
+                        expr | text
+                          name_expr | text
+                            ident text | text
+            expr | "\""
+  decl | Unit record(entries @conce … Float>) { return Unit(); }
+    verb_decl | Unit record(entries @conce … Float>) { return Unit(); }
+      name record | record
+      param | entries @concepts$Map<String, Float>
+        name entries | entries
+        param_type | @concepts$Map<String, Float>
+          type_expr | @concepts$Map<String, Float>
+            name_type | @concepts$Map
+              package concepts | concepts
+              ident Map | Map
+            generic_arg | String
+              type_expr | String
+                name_type | String
+                  ident String | String
+            generic_arg | Float
+              type_expr | Float
+                name_type | Float
+                  ident Float | Float
+      ret_type | Unit
+        type_expr | Unit
+          name_type | Unit
+            ident Unit | Unit
+      body | { return Unit(); }
+        statement | return Unit();
+          stat | return Unit();
+            expr | Unit()
+              verb_call | Unit()
+                constructor_name | Unit
+                  name_type | Unit
+                    ident Unit | Unit
+                constructor_args | ()
+  decl | type Slots<T Type, n Numbe … uct { items Array<T, n>; }
+    name Slots | Slots
+    generic_param | T Type
+      name T | T
+      concept Type | Type
+    generic_param | n Number
+      name n | n
+      concept Number | Number
+    type_or_moulded | struct { items Array<T, n>; }
+      moulded | struct { items Array<T, n>; }
+        mould | struct { items Array<T, n>; }
+          body_field | items Array<T, n>;
+            name items | items
+            type_expr | Array<T, n>
+              name_type | Array
+                ident Array | Array
+              generic_arg | T
+                type_expr | T
+                  name_type | T
+                    ident T | T
+              generic_arg | n
+                number_ref n | n
+        type_axis | struct { items Array<T, n>; }
+  decl | Slots<T, n>(T Type, n Numb … it{ items = Array(T, n); }
+    verb_decl | Slots<T, n>(T Type, n Numb … it{ items = Array(T, n); }
+      type_expr | Slots<T, n>
+        name_type | Slots
+          ident Slots | Slots
+        generic_arg | T
+          type_expr | T
+            name_type | T
+              ident T | T
+        generic_arg | n
+          number_ref n | n
+      constructor_params | (T Type, n Number)
+        param | T Type
+          name T | T
+          param_type | Type
+            concept Type | Type
+        param | n Number
+          name n | n
+          param_type | Number
+            concept Number | Number
+      body | => init{ items = Array(T, n); }
+        expr | init{ items = Array(T, n); }
+          field_arg | items = Array(T, n)
+            name items | items
+            expr | Array(T, n)
+              verb_call | Array(T, n)
+                constructor_name | Array
+                  name_type | Array
+                    ident Array | Array
+                constructor_args | (T, n)
+                  call_arg | T
+                    expr | T
+                      name_type | T
+                        ident T | T
+                  call_arg | n
+                    expr | n
+                      name_expr | n
+                        ident n | n
+  decl | type Retry = struct { attempts Int; }
+    name Retry | Retry
+    type_or_moulded | struct { attempts Int; }
+      moulded | struct { attempts Int; }
+        mould | struct { attempts Int; }
+          body_field | attempts Int;
+            name attempts | attempts
+            type_expr | Int
+              name_type | Int
+                ident Int | Int
+        type_axis | struct { attempts Int; }
+  decl | Retry(attempts Int, body @ … return init{ attempts; } }
+    verb_decl | Retry(attempts Int, body @ … return init{ attempts; } }
+      type_expr | Retry
+        name_type | Retry
+          ident Retry | Retry
+      constructor_params | (attempts Int, body @concepts$Block)
+        param | attempts Int
+          name attempts | attempts
+          param_type | Int
+            type_expr | Int
+              name_type | Int
+                ident Int | Int
+        param | body @concepts$Block
+          name body | body
+          param_type | @concepts$Block
+            type_expr | @concepts$Block
+              name_type | @concepts$Block
+                package concepts | concepts
+                ident Block | Block
+      body | { @controlflow$repeat(atte … return init{ attempts; } }
+        statement | @controlflow$repeat(attempts, body);
+          stat | @controlflow$repeat(attempts, body);
+            verb_call | @controlflow$repeat(attempts, body)
+              expr | @controlflow$repeat
+                name_expr | @controlflow$repeat
+                  package controlflow | controlflow
+                  ident repeat | repeat
+              call_arg | attempts
+                expr | attempts
+                  name_expr | attempts
+                    ident attempts | attempts
+              call_arg | body
+                expr | body
+                  name_expr | body
+                    ident body | body
+        statement | return init{ attempts; }
+          stat | return init{ attempts; }
+            expr | init{ attempts; }
+              field_arg | attempts
+                name attempts | attempts
+  decl | Retry.upTo(limit Int, body … nit{ attempts = limit; } }
+    verb_decl | Retry.upTo(limit Int, body … nit{ attempts = limit; } }
+      type_expr | Retry
+        name_type | Retry
+          ident Retry | Retry
+      member upTo | upTo
+      constructor_params | (limit Int, body @concepts$Block)
+        param | limit Int
+          name limit | limit
+          param_type | Int
+            type_expr | Int
+              name_type | Int
+                ident Int | Int
+        param | body @concepts$Block
+          name body | body
+          param_type | @concepts$Block
+            type_expr | @concepts$Block
+              name_type | @concepts$Block
+                package concepts | concepts
+                ident Block | Block
+      body | { @controlflow$repeat(limi … nit{ attempts = limit; } }
+        statement | @controlflow$repeat(limit, body);
+          stat | @controlflow$repeat(limit, body);
+            verb_call | @controlflow$repeat(limit, body)
+              expr | @controlflow$repeat
+                name_expr | @controlflow$repeat
+                  package controlflow | controlflow
+                  ident repeat | repeat
+              call_arg | limit
+                expr | limit
+                  name_expr | limit
+                    ident limit | limit
+              call_arg | body
+                expr | body
+                  name_expr | body
+                    ident body | body
+        statement | return init{ attempts = limit; }
+          stat | return init{ attempts = limit; }
+            expr | init{ attempts = limit; }
+              field_arg | attempts = limit
+                name attempts | attempts
+                expr | limit
+                  name_expr | limit
+                    ident limit | limit
+  decl | type Snapshot = #struct {  … aken Map<String, Float>; }
+    name Snapshot | Snapshot
+    type_or_moulded | #struct { label String; taken Map<String, Float>; }
+      moulded | #struct { label String; taken Map<String, Float>; }
+        mould | struct { label String; taken Map<String, Float>; }
+          body_field | label String;
+            name label | label
+            type_expr | String
+              name_type | String
+                ident String | String
+          body_field | taken Map<String, Float>;
+            name taken | taken
+            type_expr | Map<String, Float>
+              name_type | Map
+                ident Map | Map
+              generic_arg | String
+                type_expr | String
+                  name_type | String
+                    ident String | String
+              generic_arg | Float
+                type_expr | Float
+                  name_type | Float
+                    ident Float | Float
+        type_axis | #
+  decl | Snapshot(label String, tak … ) => init{ label; taken; }
+    verb_decl | Snapshot(label String, tak … ) => init{ label; taken; }
+      type_expr | Snapshot
+        name_type | Snapshot
+          ident Snapshot | Snapshot
+      constructor_params | (label String, taken @concepts$Map<String, Float>)
+        param | label String
+          name label | label
+          param_type | String
+            type_expr | String
+              name_type | String
+                ident String | String
+        param | taken @concepts$Map<String, Float>
+          name taken | taken
+          param_type | @concepts$Map<String, Float>
+            type_expr | @concepts$Map<String, Float>
+              name_type | @concepts$Map
+                package concepts | concepts
+                ident Map | Map
+              generic_arg | String
+                type_expr | String
+                  name_type | String
+                    ident String | String
+              generic_arg | Float
+                type_expr | Float
+                  name_type | Float
+                    ident Float | Float
+      body | => init{ label; taken; }
+        expr | init{ label; taken; }
+          field_arg | label
+            name label | label
+          field_arg | taken
+            name taken | taken
+  decl | Unit announce(entry Report … der()); } return Unit(); }
+    verb_decl | Unit announce(entry Report … der()); } return Unit(); }
+      name announce | announce
+      param | entry Report
+        name entry | entry
+        param_type | Report
+          type_expr | Report
+            name_type | Report
+              ident Report | Report
+      ret_type | Unit
+        type_expr | Unit
+          name_type | Unit
+            ident Unit | Unit
+      body | { guard(entry.span.length  … der()); } return Unit(); }
+        statement | guard(entry.span.length < 1);
+          stat | guard(entry.span.length < 1);
+            verb_call | guard(entry.span.length < 1)
+              expr | guard
+                name_expr | guard
+                  ident guard | guard
+              call_arg | entry.span.length < 1
+                expr | entry.span.length < 1
+                  verb_call | entry.span.length < 1
+                    operator | <
+                    expr | entry.span.length
+                      expr | entry.span
+                        expr | entry
+                          name_expr | entry
+                            ident entry | entry
+                        field span | span
+                      field length | length
+                    expr | 1
+        statement | ran Bool = if(Severity.fai … ed: " + entry:render()); }
+          stat | ran Bool = if(Severity.fai … ed: " + entry:render()); }
+            decl | ran Bool = if(Severity.fai … ed: " + entry:render()); }
+              name ran | ran
+              type_expr | Bool
+                name_type | Bool
+                  ident Bool | Bool
+              expr | if(Severity.failure == ent … ed: " + entry:render()); }
+                verb_call | if(Severity.failure == ent … ed: " + entry:render()); }
+                  expr | if
+                    name_expr | if
+                      ident if | if
+                  call_arg | Severity.failure == entry.severity
+                    expr | Severity.failure == entry.severity
+                      verb_call | Severity.failure == entry.severity
+                        operator | ==
+                        expr | Severity.failure
+                          name_type | Severity
+                            ident Severity | Severity
+                          member failure | failure
+                        expr | entry.severity
+                          expr | entry
+                            name_expr | entry
+                              ident entry | entry
+                          field severity | severity
+                  call_arg | { std$print("stopped: " + entry:render()); }
+                    statement | std$print("stopped: " + entry:render());
+                      stat | std$print("stopped: " + entry:render());
+                        verb_call | std$print("stopped: " + entry:render())
+                          expr | std$print
+                            name_expr | std$print
+                              package std | std
+                              ident print | print
+                          call_arg | "stopped: " + entry:render()
+                            expr | "stopped: " + entry:render()
+                              verb_call | "stopped: " + entry:render()
+                                operator | +
+                                expr | "stopped: "
+                                expr | entry:render()
+                                  verb_call | entry:render()
+                                    expr | render
+                                      name_expr | render
+                                        ident render | render
+                                    expr | entry
+                                      name_expr | entry
+                                        ident entry | entry
+        statement | ran!elif({ resolve Severit … on: " + entry:render()); }
+          stat | ran!elif({ resolve Severit … on: " + entry:render()); }
+            verb_call | ran!elif({ resolve Severit … on: " + entry:render()); }
+              expr | elif
+                name_expr | elif
+                  ident elif | elif
+              expr | ran
+                name_expr | ran
+                  ident ran | ran
+              call_arg | { resolve Severity.warning == entry.severity; }
+                statement | resolve Severity.warning == entry.severity;
+                  stat | resolve Severity.warning == entry.severity;
+                    expr | Severity.warning == entry.severity
+                      verb_call | Severity.warning == entry.severity
+                        operator | ==
+                        expr | Severity.warning
+                          name_type | Severity
+                            ident Severity | Severity
+                          member warning | warning
+                        expr | entry.severity
+                          expr | entry
+                            name_expr | entry
+                              ident entry | entry
+                          field severity | severity
+              call_arg | { std$print("carrying on: " + entry:render()); }
+                statement | std$print("carrying on: " + entry:render());
+                  stat | std$print("carrying on: " + entry:render());
+                    verb_call | std$print("carrying on: " + entry:render())
+                      expr | std$print
+                        name_expr | std$print
+                          package std | std
+                          ident print | print
+                      call_arg | "carrying on: " + entry:render()
+                        expr | "carrying on: " + entry:render()
+                          verb_call | "carrying on: " + entry:render()
+                            operator | +
+                            expr | "carrying on: "
+                            expr | entry:render()
+                              verb_call | entry:render()
+                                expr | render
+                                  name_expr | render
+                                    ident render | render
+                                expr | entry
+                                  name_expr | entry
+                                    ident entry | entry
+        statement | ran:else() { std$print(entry:render()); }
+          stat | ran:else() { std$print(entry:render()); }
+            verb_call | ran:else() { std$print(entry:render()); }
+              expr | else
+                name_expr | else
+                  ident else | else
+              expr | ran
+                name_expr | ran
+                  ident ran | ran
+              call_arg | { std$print(entry:render()); }
+                statement | std$print(entry:render());
+                  stat | std$print(entry:render());
+                    verb_call | std$print(entry:render())
+                      expr | std$print
+                        name_expr | std$print
+                          package std | std
+                          ident print | print
+                      call_arg | entry:render()
+                        expr | entry:render()
+                          verb_call | entry:render()
+                            expr | render
+                              name_expr | render
+                                ident render | render
+                            expr | entry
+                              name_expr | entry
+                                ident entry | entry
+        statement | return Unit();
+          stat | return Unit();
+            expr | Unit()
+              verb_call | Unit()
+                constructor_name | Unit
+                  name_type | Unit
+                    ident Unit | Unit
+                constructor_args | ()
+  decl | Unit main() { // The insta … ettled"); return Unit(); }
+    verb_decl | Unit main() { // The insta … ettled"); return Unit(); }
+      name main | main
+      ret_type | Unit
+        type_expr | Unit
+          name_type | Unit
+            ident Unit | Unit
+      body | { // The instantiation sho … ettled"); return Unit(); }
+        statement | env Environment.of( Array( … ), Float(0), Float(0)]) );
+          stat | env Environment.of( Array( … ), Float(0), Float(0)]) );
+            decl | env Environment.of( Array( … 4), Float(0), Float(0)]) )
+              name env | env
+              constructor_name | Environment.of
+                name_type | Environment
+                  ident Environment | Environment
+                member of | of
+              constructor_args | ( Array(["x", "y", "z", "" … 4), Float(0), Float(0)]) )
+                call_arg | Array(["x", "y", "z", ""])
+                  expr | Array(["x", "y", "z", ""])
+                    verb_call | Array(["x", "y", "z", ""])
+                      constructor_name | Array
+                        name_type | Array
+                          ident Array | Array
+                      constructor_args | (["x", "y", "z", ""])
+                        call_arg | ["x", "y", "z", ""]
+                          expr | ["x", "y", "z", ""]
+                            expr | "x"
+                            expr | "y"
+                            expr | "z"
+                            expr | ""
+                call_arg | Array([Float(3), Float(4), Float(0), Float(0)])
+                  expr | Array([Float(3), Float(4), Float(0), Float(0)])
+                    verb_call | Array([Float(3), Float(4), Float(0), Float(0)])
+                      constructor_name | Array
+                        name_type | Array
+                          ident Array | Array
+                      constructor_args | ([Float(3), Float(4), Float(0), Float(0)])
+                        call_arg | [Float(3), Float(4), Float(0), Float(0)]
+                          expr | [Float(3), Float(4), Float(0), Float(0)]
+                            expr | Float(3)
+                              verb_call | Float(3)
+                                constructor_name | Float
+                                  name_type | Float
+                                    ident Float | Float
+                                constructor_args | (3)
+                                  call_arg | 3
+                                    expr | 3
+                            expr | Float(4)
+                              verb_call | Float(4)
+                                constructor_name | Float
+                                  name_type | Float
+                                    ident Float | Float
+                                constructor_args | (4)
+                                  call_arg | 4
+                                    expr | 4
+                            expr | Float(0)
+                              verb_call | Float(0)
+                                constructor_name | Float
+                                  name_type | Float
+                                    ident Float | Float
+                                constructor_args | (0)
+                                  call_arg | 0
+                                    expr | 0
+                            expr | Float(0)
+                              verb_call | Float(0)
+                                constructor_name | Float
+                                  name_type | Float
+                                    ident Float | Float
+                                constructor_args | (0)
+                                  call_arg | 0
+                                    expr | 0
+        statement | env!bind("answer", Float(42));
+          stat | env!bind("answer", Float(42));
+            verb_call | env!bind("answer", Float(42))
+              expr | bind
+                name_expr | bind
+                  ident bind | bind
+              expr | env
+                name_expr | env
+                  ident env | env
+              call_arg | "answer"
+                expr | "answer"
+              call_arg | Float(42)
+                expr | Float(42)
+                  verb_call | Float(42)
+                    constructor_name | Float
+                      name_type | Float
+                        ident Float | Float
+                    constructor_args | (42)
+                      call_arg | 42
+                        expr | 42
+        statement | program Expr = Expr.operat … or.mul)), Operator.add ));
+          stat | program Expr = Expr.operat … or.mul)), Operator.add ));
+            decl | program Expr = Expr.operat … tor.mul)), Operator.add ))
+              name program | program
+              type_expr | Expr
+                name_type | Expr
+                  ident Expr | Expr
+              expr | Expr.operation(Operation(  … tor.mul)), Operator.add ))
+                verb_call | Expr.operation(Operation(  … tor.mul)), Operator.add ))
+                  constructor_name | Expr.operation
+                    name_type | Expr
+                      ident Expr | Expr
+                    member operation | operation
+                  constructor_args | (Operation( Expr.name("x") … tor.mul)), Operator.add ))
+                    call_arg | Operation( Expr.name("x"), … ator.mul)), Operator.add )
+                      expr | Operation( Expr.name("x"), … ator.mul)), Operator.add )
+                        verb_call | Operation( Expr.name("x"), … ator.mul)), Operator.add )
+                          constructor_name | Operation
+                            name_type | Operation
+                              ident Operation | Operation
+                          constructor_args | ( Expr.name("x"), Expr.ope … ator.mul)), Operator.add )
+                            call_arg | Expr.name("x")
+                              expr | Expr.name("x")
+                                verb_call | Expr.name("x")
+                                  constructor_name | Expr.name
+                                    name_type | Expr
+                                      ident Expr | Expr
+                                    member name | name
+                                  constructor_args | ("x")
+                                    call_arg | "x"
+                                      expr | "x"
+                            call_arg | Expr.operation(Operation(E … (Float(2)), Operator.mul))
+                              expr | Expr.operation(Operation(E … (Float(2)), Operator.mul))
+                                verb_call | Expr.operation(Operation(E … (Float(2)), Operator.mul))
+                                  constructor_name | Expr.operation
+                                    name_type | Expr
+                                      ident Expr | Expr
+                                    member operation | operation
+                                  constructor_args | (Operation(Expr.name("y"), … (Float(2)), Operator.mul))
+                                    call_arg | Operation(Expr.name("y"),  … r(Float(2)), Operator.mul)
+                                      expr | Operation(Expr.name("y"),  … r(Float(2)), Operator.mul)
+                                        verb_call | Operation(Expr.name("y"),  … r(Float(2)), Operator.mul)
+                                          constructor_name | Operation
+                                            name_type | Operation
+                                              ident Operation | Operation
+                                          constructor_args | (Expr.name("y"), Expr.number(Float(2)), Operator.mul)
+                                            call_arg | Expr.name("y")
+                                              expr | Expr.name("y")
+                                                verb_call | Expr.name("y")
+                                                  constructor_name | Expr.name
+                                                    name_type | Expr
+                                                      ident Expr | Expr
+                                                    member name | name
+                                                  constructor_args | ("y")
+                                                    call_arg | "y"
+                                                      expr | "y"
+                                            call_arg | Expr.number(Float(2))
+                                              expr | Expr.number(Float(2))
+                                                verb_call | Expr.number(Float(2))
+                                                  constructor_name | Expr.number
+                                                    name_type | Expr
+                                                      ident Expr | Expr
+                                                    member number | number
+                                                  constructor_args | (Float(2))
+                                                    call_arg | Float(2)
+                                                      expr | Float(2)
+                                                        verb_call | Float(2)
+                                                          constructor_name | Float
+                                                            name_type | Float
+                                                              ident Float | Float
+                                                          constructor_args | (2)
+                                                            call_arg | 2
+                                                              expr | 2
+                                            call_arg | Operator.mul
+                                              expr | Operator.mul
+                                                name_type | Operator
+                                                  ident Operator | Operator
+                                                member mul | mul
+                            call_arg | Operator.add
+                              expr | Operator.add
+                                name_type | Operator
+                                  ident Operator | Operator
+                                member add | add
+        statement | result Float = evaluate(pr … ntry); resolve Float(0); }
+          stat | result Float = evaluate(pr … ntry); resolve Float(0); }
+            decl | result Float = evaluate(pr … ntry); resolve Float(0); }
+              name result | result
+              type_expr | Float
+                name_type | Float
+                  ident Float | Float
+              expr | evaluate(program, &env) ?  … ntry); resolve Float(0); }
+                verb_call | evaluate(program, &env)
+                  expr | evaluate
+                    name_expr | evaluate
+                      ident evaluate | evaluate
+                  call_arg | program
+                    expr | program
+                      name_expr | program
+                        ident program | program
+                  call_arg | &env
+                    expr | &env
+                      expr | env
+                        name_expr | env
+                          ident env | env
+                  abort_handle | ? failure { entry Report{  … ntry); resolve Float(0); }
+                    binder failure | failure
+                    body | { entry Report{ severity = … ntry); resolve Float(0); }
+                      statement | entry Report{ severity = S … lure; message = failure; }
+                        stat | entry Report{ severity = S … lure; message = failure; }
+                          decl | entry Report{ severity = S … lure; message = failure; }
+                            name entry | entry
+                            constructor_name | Report
+                              name_type | Report
+                                ident Report | Report
+                            constructor_args | { severity = Severity.failure; message = failure; }
+                              field_arg | severity = Severity.failure
+                                name severity | severity
+                                expr | Severity.failure
+                                  name_type | Severity
+                                    ident Severity | Severity
+                                  member failure | failure
+                              field_arg | message = failure
+                                name message | message
+                                expr | failure
+                                  name_expr | failure
+                                    ident failure | failure
+                      statement | announce(entry);
+                        stat | announce(entry);
+                          verb_call | announce(entry)
+                            expr | announce
+                              name_expr | announce
+                                ident announce | announce
+                            call_arg | entry
+                              expr | entry
+                                name_expr | entry
+                                  ident entry | entry
+                      statement | resolve Float(0);
+                        stat | resolve Float(0);
+                          expr | Float(0)
+                            verb_call | Float(0)
+                              constructor_name | Float
+                                name_type | Float
+                                  ident Float | Float
+                              constructor_args | (0)
+                                call_arg | 0
+                                  expr | 0
+        statement | answer Float = env:lookup("answer") ?? Float(0);
+          stat | answer Float = env:lookup("answer") ?? Float(0);
+            decl | answer Float = env:lookup("answer") ?? Float(0)
+              name answer | answer
+              type_expr | Float
+                name_type | Float
+                  ident Float | Float
+              expr | env:lookup("answer") ?? Float(0)
+                verb_call | env:lookup("answer")
+                  expr | lookup
+                    name_expr | lookup
+                      ident lookup | lookup
+                  expr | env
+                    name_expr | env
+                      ident env | env
+                  call_arg | "answer"
+                    expr | "answer"
+                  abort_handle | ?? Float(0)
+                    expr | Float(0)
+                      verb_call | Float(0)
+                        constructor_name | Float
+                          name_type | Float
+                            ident Float | Float
+                        constructor_args | (0)
+                          call_arg | 0
+                            expr | 0
+        statement | blend Float[Float, Float]  … at) => (a + b) / Float(2);
+          stat | blend Float[Float, Float]  … at) => (a + b) / Float(2);
+            decl | blend Float[Float, Float]  … oat) => (a + b) / Float(2)
+              name blend | blend
+              type_expr | Float[Float, Float]
+                verb_type | Float[Float, Float]
+                  param_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+                  param_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+                  ret_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+              expr | Float(a Float, b Float) => (a + b) / Float(2)
+                func_lambda | Float(a Float, b Float) => (a + b) / Float(2)
+                  param | a Float
+                    name a | a
+                    param_type | Float
+                      type_expr | Float
+                        name_type | Float
+                          ident Float | Float
+                  param | b Float
+                    name b | b
+                    param_type | Float
+                      type_expr | Float
+                        name_type | Float
+                          ident Float | Float
+                  ret_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+                  body | => (a + b) / Float(2)
+                    expr | (a + b) / Float(2)
+                      verb_call | (a + b) / Float(2)
+                        operator | /
+                        expr | (a + b)
+                          expr | a + b
+                            verb_call | a + b
+                              operator | +
+                              expr | a
+                                name_expr | a
+                                  ident a | a
+                              expr | b
+                                name_expr | b
+                                  ident b | b
+                        expr | Float(2)
+                          verb_call | Float(2)
+                            constructor_name | Float
+                              name_type | Float
+                                ident Float | Float
+                            constructor_args | (2)
+                              call_arg | 2
+                                expr | 2
+        statement | double Float(value Float) => value * Float(2);
+          stat | double Float(value Float) => value * Float(2);
+            decl | double Float(value Float) => value * Float(2)
+              name double | double
+              type_expr | Float(value Float) => value * Float(2)
+                verb_type | Float(value Float) => value * Float(2)
+                  param_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+                  ret_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+              expr | Float(value Float) => value * Float(2)
+                func_lambda | Float(value Float) => value * Float(2)
+                  param | value Float
+                    name value | value
+                    param_type | Float
+                      type_expr | Float
+                        name_type | Float
+                          ident Float | Float
+                  ret_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+                  body | => value * Float(2)
+                    expr | value * Float(2)
+                      verb_call | value * Float(2)
+                        operator | *
+                        expr | value
+                          name_expr | value
+                            ident value | value
+                        expr | Float(2)
+                          verb_call | Float(2)
+                            constructor_name | Float
+                              name_type | Float
+                                ident Float | Float
+                            constructor_args | (2)
+                              call_arg | 2
+                                expr | 2
+        statement | clamp Float(value Float) { return value; }
+          stat | clamp Float(value Float) { return value; }
+            decl | clamp Float(value Float) { return value; }
+              name clamp | clamp
+              type_expr | Float(value Float) { return value; }
+                verb_type | Float(value Float) { return value; }
+                  param_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+                  ret_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+              expr | Float(value Float) { return value; }
+                func_lambda | Float(value Float) { return value; }
+                  param | value Float
+                    name value | value
+                    param_type | Float
+                      type_expr | Float
+                        name_type | Float
+                          ident Float | Float
+                  ret_type | Float
+                    type_expr | Float
+                      name_type | Float
+                        ident Float | Float
+                  body | { return value; }
+                    statement | return value;
+                      stat | return value;
+                        expr | value
+                          name_expr | value
+                            ident value | value
+        statement | middle Float = double(blend(result, answer));
+          stat | middle Float = double(blend(result, answer));
+            decl | middle Float = double(blend(result, answer))
+              name middle | middle
+              type_expr | Float
+                name_type | Float
+                  ident Float | Float
+              expr | double(blend(result, answer))
+                verb_call | double(blend(result, answer))
+                  expr | double
+                    name_expr | double
+                      ident double | double
+                  call_arg | blend(result, answer)
+                    expr | blend(result, answer)
+                      verb_call | blend(result, answer)
+                        expr | blend
+                          name_expr | blend
+                            ident blend | blend
+                        call_arg | result
+                          expr | result
+                            name_expr | result
+                              ident result | result
+                        call_arg | answer
+                          expr | answer
+                            name_expr | answer
+                              ident answer | answer
+        statement | reading String = describe|Operator.mul;
+          stat | reading String = describe|Operator.mul;
+            decl | reading String = describe|Operator.mul
+              name reading | reading
+              type_expr | String
+                name_type | String
+                  ident String | String
+              expr | describe|Operator.mul
+                expr | describe
+                  name_expr | describe
+                    ident describe | describe
+                expr | Operator.mul
+                  name_type | Operator
+                    ident Operator | Operator
+                  member mul | mul
+        statement | labels Map<String, Float>  … Float(3); "y", Float(4); }
+          stat | labels Map<String, Float>  … Float(3); "y", Float(4); }
+            decl | labels Map<String, Float>  … Float(3); "y", Float(4); }
+              name labels | labels
+              type_expr | Map<String, Float>
+                name_type | Map
+                  ident Map | Map
+                generic_arg | String
+                  type_expr | String
+                    name_type | String
+                      ident String | String
+                generic_arg | Float
+                  type_expr | Float
+                    name_type | Float
+                      ident Float | Float
+              expr | { "x", Float(3); "y", Float(4); }
+                expr | "x"
+                expr | Float(3)
+                  verb_call | Float(3)
+                    constructor_name | Float
+                      name_type | Float
+                        ident Float | Float
+                    constructor_args | (3)
+                      call_arg | 3
+                        expr | 3
+                expr | "y"
+                expr | Float(4)
+                  verb_call | Float(4)
+                    constructor_name | Float
+                      name_type | Float
+                        ident Float | Float
+                    constructor_args | (4)
+                      call_arg | 4
+                        expr | 4
+        statement | record({ "z", Float(0); });
+          stat | record({ "z", Float(0); });
+            verb_call | record({ "z", Float(0); })
+              expr | record
+                name_expr | record
+                  ident record | record
+              call_arg | { "z", Float(0); }
+                expr | { "z", Float(0); }
+                  expr | "z"
+                  expr | Float(0)
+                    verb_call | Float(0)
+                      constructor_name | Float
+                        name_type | Float
+                          ident Float | Float
+                      constructor_args | (0)
+                        call_arg | 0
+                          expr | 0
+        statement | record() { "answer", answer; }
+          stat | record() { "answer", answer; }
+            verb_call | record() { "answer", answer; }
+              expr | record
+                name_expr | record
+                  ident record | record
+              call_arg | { "answer", answer; }
+                expr | { "answer", answer; }
+                  expr | "answer"
+                  expr | answer
+                    name_expr | answer
+                      ident answer | answer
+        statement | retried Retry(2) { std$print("retrying"); }
+          stat | retried Retry(2) { std$print("retrying"); }
+            decl | retried Retry(2) { std$print("retrying"); }
+              name retried | retried
+              constructor_name | Retry
+                name_type | Retry
+                  ident Retry | Retry
+              constructor_args | (2) { std$print("retrying"); }
+                call_arg | 2
+                  expr | 2
+                call_arg | { std$print("retrying"); }
+                  statement | std$print("retrying");
+                    stat | std$print("retrying");
+                      verb_call | std$print("retrying")
+                        expr | std$print
+                          name_expr | std$print
+                            package std | std
+                            ident print | print
+                        call_arg | "retrying"
+                          expr | "retrying"
+        statement | capped Retry.upTo(3) { std … ring(retried.attempts)); }
+          stat | capped Retry.upTo(3) { std … ring(retried.attempts)); }
+            decl | capped Retry.upTo(3) { std … ring(retried.attempts)); }
+              name capped | capped
+              constructor_name | Retry.upTo
+                name_type | Retry
+                  ident Retry | Retry
+                member upTo | upTo
+              constructor_args | (3) { std$print("capped at … ring(retried.attempts)); }
+                call_arg | 3
+                  expr | 3
+                call_arg | { std$print("capped at " + String(retried.attempts)); }
+                  statement | std$print("capped at " + String(retried.attempts));
+                    stat | std$print("capped at " + String(retried.attempts));
+                      verb_call | std$print("capped at " + String(retried.attempts))
+                        expr | std$print
+                          name_expr | std$print
+                            package std | std
+                            ident print | print
+                        call_arg | "capped at " + String(retried.attempts)
+                          expr | "capped at " + String(retried.attempts)
+                            verb_call | "capped at " + String(retried.attempts)
+                              operator | +
+                              expr | "capped at "
+                              expr | String(retried.attempts)
+                                verb_call | String(retried.attempts)
+                                  constructor_name | String
+                                    name_type | String
+                                      ident String | String
+                                  constructor_args | (retried.attempts)
+                                    call_arg | retried.attempts
+                                      expr | retried.attempts
+                                        expr | retried
+                                          name_expr | retried
+                                            ident retried | retried
+                                        field attempts | attempts
+        statement | direct Retry(1, { std$print("once"); });
+          stat | direct Retry(1, { std$print("once"); });
+            decl | direct Retry(1, { std$print("once"); })
+              name direct | direct
+              constructor_name | Retry
+                name_type | Retry
+                  ident Retry | Retry
+              constructor_args | (1, { std$print("once"); })
+                call_arg | 1
+                  expr | 1
+                call_arg | { std$print("once"); }
+                  statement | std$print("once");
+                    stat | std$print("once");
+                      verb_call | std$print("once")
+                        expr | std$print
+                          name_expr | std$print
+                            package std | std
+                            ident print | print
+                        call_arg | "once"
+                          expr | "once"
+        statement | Retry(1) { std$print("dropped"); }
+          stat | Retry(1) { std$print("dropped"); }
+            verb_call | Retry(1) { std$print("dropped"); }
+              constructor_name | Retry
+                name_type | Retry
+                  ident Retry | Retry
+              constructor_args | (1) { std$print("dropped"); }
+                call_arg | 1
+                  expr | 1
+                call_arg | { std$print("dropped"); }
+                  statement | std$print("dropped");
+                    stat | std$print("dropped");
+                      verb_call | std$print("dropped")
+                        expr | std$print
+                          name_expr | std$print
+                            package std | std
+                            ident print | print
+                        call_arg | "dropped"
+                          expr | "dropped"
+        statement | taken Snapshot("final") {  … Float(3); "y", Float(4); }
+          stat | taken Snapshot("final") {  … Float(3); "y", Float(4); }
+            decl | taken Snapshot("final") {  … Float(3); "y", Float(4); }
+              name taken | taken
+              constructor_name | Snapshot
+                name_type | Snapshot
+                  ident Snapshot | Snapshot
+              constructor_args | ("final") { "x", Float(3); "y", Float(4); }
+                call_arg | "final"
+                  expr | "final"
+                call_arg | { "x", Float(3); "y", Float(4); }
+                  expr | { "x", Float(3); "y", Float(4); }
+                    expr | "x"
+                    expr | Float(3)
+                      verb_call | Float(3)
+                        constructor_name | Float
+                          name_type | Float
+                            ident Float | Float
+                        constructor_args | (3)
+                          call_arg | 3
+                            expr | 3
+                    expr | "y"
+                    expr | Float(4)
+                      verb_call | Float(4)
+                        constructor_name | Float
+                          name_type | Float
+                            ident Float | Float
+                        constructor_args | (4)
+                          call_arg | 4
+                            expr | 4
+        statement | make Retry() { return Retr … { std$print("made"); }); }
+          stat | make Retry() { return Retr … { std$print("made"); }); }
+            decl | make Retry() { return Retr … { std$print("made"); }); }
+              name make | make
+              type_expr | Retry() { return Retry(1, { std$print("made"); }); }
+                verb_type | Retry() { return Retry(1, { std$print("made"); }); }
+                  ret_type | Retry
+                    type_expr | Retry
+                      name_type | Retry
+                        ident Retry | Retry
+              expr | Retry() { return Retry(1, { std$print("made"); }); }
+                func_lambda | Retry() { return Retry(1, { std$print("made"); }); }
+                  ret_type | Retry
+                    type_expr | Retry
+                      name_type | Retry
+                        ident Retry | Retry
+                  body | { return Retry(1, { std$print("made"); }); }
+                    statement | return Retry(1, { std$print("made"); });
+                      stat | return Retry(1, { std$print("made"); });
+                        expr | Retry(1, { std$print("made"); })
+                          verb_call | Retry(1, { std$print("made"); })
+                            constructor_name | Retry
+                              name_type | Retry
+                                ident Retry | Retry
+                            constructor_args | (1, { std$print("made"); })
+                              call_arg | 1
+                                expr | 1
+                              call_arg | { std$print("made"); }
+                                statement | std$print("made");
+                                  stat | std$print("made");
+                                    verb_call | std$print("made")
+                                      expr | std$print
+                                        name_expr | std$print
+                                          package std | std
+                                          ident print | print
+                                      call_arg | "made"
+                                        expr | "made"
+        statement | room Slots(Int, 4);
+          stat | room Slots(Int, 4);
+            decl | room Slots(Int, 4)
+              name room | room
+              constructor_name | Slots
+                name_type | Slots
+                  ident Slots | Slots
+              constructor_args | (Int, 4)
+                call_arg | Int
+                  expr | Int
+                    name_type | Int
+                      ident Int | Int
+                call_arg | 4
+                  expr | 4
+        statement | spread Int = Operator.mul. … - Operator.add.precedence;
+          stat | spread Int = Operator.mul. … - Operator.add.precedence;
+            decl | spread Int = Operator.mul. …  - Operator.add.precedence
+              name spread | spread
+              type_expr | Int
+                name_type | Int
+                  ident Int | Int
+              expr | Operator.mul.precedence - Operator.add.precedence
+                verb_call | Operator.mul.precedence - Operator.add.precedence
+                  operator | -
+                  expr | Operator.mul.precedence
+                    expr | Operator.mul
+                      name_type | Operator
+                        ident Operator | Operator
+                      member mul | mul
+                    field precedence | precedence
+                  expr | Operator.add.precedence
+                    expr | Operator.add
+                      name_type | Operator
+                        ident Operator | Operator
+                      member add | add
+                    field precedence | precedence
+        statement | total Float = Float(0);
+          stat | total Float = Float(0);
+            decl | total Float = Float(0)
+              name total | total
+              type_expr | Float
+                name_type | Float
+                  ident Float | Float
+              expr | Float(0)
+                verb_call | Float(0)
+                  constructor_name | Float
+                    name_type | Float
+                      ident Float | Float
+                  constructor_args | (0)
+                    call_arg | 0
+                      expr | 0
+        statement | index Int = Int(1);
+          stat | index Int = Int(1);
+            decl | index Int = Int(1)
+              name index | index
+              type_expr | Int
+                name_type | Int
+                  ident Int | Int
+              expr | Int(1)
+                verb_call | Int(1)
+                  constructor_name | Int
+                    name_type | Int
+                      ident Int | Int
+                  constructor_args | (1)
+                    call_arg | 1
+                      expr | 1
+        statement | index!to(4) { total = total + env[index]; }
+          stat | index!to(4) { total = total + env[index]; }
+            verb_call | index!to(4) { total = total + env[index]; }
+              expr | to
+                name_expr | to
+                  ident to | to
+              expr | index
+                name_expr | index
+                  ident index | index
+              call_arg | 4
+                expr | 4
+              call_arg | { total = total + env[index]; }
+                statement | total = total + env[index];
+                  stat | total = total + env[index];
+                    expr | total
+                      name_expr | total
+                        ident total | total
+                    expr | total + env[index]
+                      verb_call | total + env[index]
+                        operator | +
+                        expr | total
+                          name_expr | total
+                            ident total | total
+                        expr | env[index]
+                          expr | env
+                            name_expr | env
+                              ident env | env
+                          expr | index
+                            name_expr | index
+                              ident index | index
+        statement | walker Cursor(&env);
+          stat | walker Cursor(&env);
+            decl | walker Cursor(&env)
+              name walker | walker
+              constructor_name | Cursor
+                name_type | Cursor
+                  ident Cursor | Cursor
+              constructor_args | (&env)
+                call_arg | &env
+                  expr | &env
+                    expr | env
+                      name_expr | env
+                        ident env | env
+        statement | settled Bool = Float(0) <  … 0) '+ answer == Float(42);
+          stat | settled Bool = Float(0) <  … 0) '+ answer == Float(42);
+            decl | settled Bool = Float(0) <  … 00) '+ answer == Float(42)
+              name settled | settled
+              type_expr | Bool
+                name_type | Bool
+                  ident Bool | Bool
+              expr | Float(0) < middle '* middl … 00) '+ answer == Float(42)
+                verb_call | Float(0) < middle '* middl … 00) '+ answer == Float(42)
+                  operator | '+
+                  expr | Float(0) < middle '* middle < Float(100)
+                    verb_call | Float(0) < middle '* middle < Float(100)
+                      operator | '*
+                      expr | Float(0) < middle
+                        verb_call | Float(0) < middle
+                          operator | <
+                          expr | Float(0)
+                            verb_call | Float(0)
+                              constructor_name | Float
+                                name_type | Float
+                                  ident Float | Float
+                              constructor_args | (0)
+                                call_arg | 0
+                                  expr | 0
+                          expr | middle
+                            name_expr | middle
+                              ident middle | middle
+                      expr | middle < Float(100)
+                        verb_call | middle < Float(100)
+                          operator | <
+                          expr | middle
+                            name_expr | middle
+                              ident middle | middle
+                          expr | Float(100)
+                            verb_call | Float(100)
+                              constructor_name | Float
+                                name_type | Float
+                                  ident Float | Float
+                              constructor_args | (100)
+                                call_arg | 100
+                                  expr | 100
+                  expr | answer == Float(42)
+                    verb_call | answer == Float(42)
+                      operator | ==
+                      expr | answer
+                        name_expr | answer
+                          ident answer | answer
+                      expr | Float(42)
+                        verb_call | Float(42)
+                          constructor_name | Float
+                            name_type | Float
+                              ident Float | Float
+                          constructor_args | (42)
+                            call_arg | 42
+                              expr | 42
+        statement | summary Report{ severity = … r slots"; span = Int(3); }
+          stat | summary Report{ severity = … r slots"; span = Int(3); }
+            decl | summary Report{ severity = … r slots"; span = Int(3); }
+              name summary | summary
+              constructor_name | Report
+                name_type | Report
+                  ident Report | Report
+              constructor_args | { severity = Severity.note … r slots"; span = Int(3); }
+                field_arg | severity = Severity.note
+                  name severity | severity
+                  expr | Severity.note
+                    name_type | Severity
+                      ident Severity | Severity
+                    member note | note
+                field_arg | message = "read four slots"
+                  name message | message
+                  expr | "read four slots"
+                field_arg | span = Int(3)
+                  name span | span
+                  expr | Int(3)
+                    verb_call | Int(3)
+                      constructor_name | Int
+                        name_type | Int
+                          ident Int | Int
+                      constructor_args | (3)
+                        call_arg | 3
+                          expr | 3
+        statement | loudest Severity = worst(s … verity, Severity.warning);
+          stat | loudest Severity = worst(s … verity, Severity.warning);
+            decl | loudest Severity = worst(s … everity, Severity.warning)
+              name loudest | loudest
+              type_expr | Severity
+                name_type | Severity
+                  ident Severity | Severity
+              expr | worst(summary.severity, Severity.warning)
+                verb_call | worst(summary.severity, Severity.warning)
+                  expr | worst
+                    name_expr | worst
+                      ident worst | worst
+                  call_arg | summary.severity
+                    expr | summary.severity
+                      expr | summary
+                        name_expr | summary
+                          ident summary | summary
+                      field severity | severity
+                  call_arg | Severity.warning
+                    expr | Severity.warning
+                      name_type | Severity
+                        ident Severity | Severity
+                      member warning | warning
+        statement | total = match (loudest) {  … al; failure => Float(0); }
+          stat | total = match (loudest) {  … al; failure => Float(0); }
+            expr | total
+              name_expr | total
+                ident total | total
+            expr | match (loudest) { note =>  … al; failure => Float(0); }
+              match_expr | match (loudest) { note =>  … al; failure => Float(0); }
+                expr | loudest
+                  name_expr | loudest
+                    ident loudest | loudest
+                match_arm | note => total;
+                  match_pattern | note
+                    case note | note
+                  body | => total
+                    expr | total
+                      name_expr | total
+                        ident total | total
+                match_arm | warning => total;
+                  match_pattern | warning
+                    case warning | warning
+                  body | => total
+                    expr | total
+                      name_expr | total
+                        ident total | total
+                match_arm | failure => Float(0);
+                  match_pattern | failure
+                    case failure | failure
+                  body | => Float(0)
+                    expr | Float(0)
+                      verb_call | Float(0)
+                        constructor_name | Float
+                          name_type | Float
+                            ident Float | Float
+                        constructor_args | (0)
+                          call_arg | 0
+                            expr | 0
+        statement | announce(summary);
+          stat | announce(summary);
+            verb_call | announce(summary)
+              expr | announce
+                name_expr | announce
+                  ident announce | announce
+              call_arg | summary
+                expr | summary
+                  name_expr | summary
+                    ident summary | summary
+        statement | mark Span.point(12);
+          stat | mark Span.point(12);
+            decl | mark Span.point(12)
+              name mark | mark
+              constructor_name | Span.point
+                name_type | Span
+                  ident Span | Span
+                member point | point
+              constructor_args | (12)
+                call_arg | 12
+                  expr | 12
+        statement | mark!widen(spread);
+          stat | mark!widen(spread);
+            verb_call | mark!widen(spread)
+              expr | widen
+                name_expr | widen
+                  ident widen | widen
+              expr | mark
+                name_expr | mark
+                  ident mark | mark
+              call_arg | spread
+                expr | spread
+                  name_expr | spread
+                    ident spread | spread
+        statement | shifted Pair<Int> = ~Pair( … mark.length) + Pair(1, 1);
+          stat | shifted Pair<Int> = ~Pair( … mark.length) + Pair(1, 1);
+            decl | shifted Pair<Int> = ~Pair( …  mark.length) + Pair(1, 1)
+              name shifted | shifted
+              type_expr | Pair<Int>
+                name_type | Pair
+                  ident Pair | Pair
+                generic_arg | Int
+                  type_expr | Int
+                    name_type | Int
+                      ident Int | Int
+              expr | ~Pair(spread, mark.length) + Pair(1, 1)
+                verb_call | ~Pair(spread, mark.length) + Pair(1, 1)
+                  operator | +
+                  expr | ~Pair(spread, mark.length)
+                    verb_call | ~Pair(spread, mark.length)
+                      expr | Pair(spread, mark.length)
+                        verb_call | Pair(spread, mark.length)
+                          constructor_name | Pair
+                            name_type | Pair
+                              ident Pair | Pair
+                          constructor_args | (spread, mark.length)
+                            call_arg | spread
+                              expr | spread
+                                name_expr | spread
+                                  ident spread | spread
+                            call_arg | mark.length
+                              expr | mark.length
+                                expr | mark
+                                  name_expr | mark
+                                    ident mark | mark
+                                field length | length
+                  expr | Pair(1, 1)
+                    verb_call | Pair(1, 1)
+                      constructor_name | Pair
+                        name_type | Pair
+                          ident Pair | Pair
+                      constructor_args | (1, 1)
+                        call_arg | 1
+                          expr | 1
+                        call_arg | 1
+                          expr | 1
+        statement | bits @primitives$I64(loudest.exitCode);
+          stat | bits @primitives$I64(loudest.exitCode);
+            decl | bits @primitives$I64(loudest.exitCode)
+              name bits | bits
+              constructor_name | @primitives$I64
+                name_type | @primitives$I64
+                  package primitives | primitives
+                  ident I64 | I64
+              constructor_args | (loudest.exitCode)
+                call_arg | loudest.exitCode
+                  expr | loudest.exitCode
+                    expr | loudest
+                      name_expr | loudest
+                        ident loudest | loudest
+                    field exitCode | exitCode
+        statement | head String = first(Array(["x", "y", "z", ""]));
+          stat | head String = first(Array(["x", "y", "z", ""]));
+            decl | head String = first(Array(["x", "y", "z", ""]))
+              name head | head
+              type_expr | String
+                name_type | String
+                  ident String | String
+              expr | first(Array(["x", "y", "z", ""]))
+                verb_call | first(Array(["x", "y", "z", ""]))
+                  expr | first
+                    name_expr | first
+                      ident first | first
+                  call_arg | Array(["x", "y", "z", ""])
+                    expr | Array(["x", "y", "z", ""])
+                      verb_call | Array(["x", "y", "z", ""])
+                        constructor_name | Array
+                          name_type | Array
+                            ident Array | Array
+                        constructor_args | (["x", "y", "z", ""])
+                          call_arg | ["x", "y", "z", ""]
+                            expr | ["x", "y", "z", ""]
+                              expr | "x"
+                              expr | "y"
+                              expr | "z"
+                              expr | ""
+        statement | std$print(quote(head));
+          stat | std$print(quote(head));
+            verb_call | std$print(quote(head))
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | quote(head)
+                expr | quote(head)
+                  verb_call | quote(head)
+                    expr | quote
+                      name_expr | quote
+                        ident quote | quote
+                    call_arg | head
+                      expr | head
+                        name_expr | head
+                          ident head | head
+        statement | std$print(reading);
+          stat | std$print(reading);
+            verb_call | std$print(reading)
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | reading
+                expr | reading
+                  name_expr | reading
+                    ident reading | reading
+        statement | std$print(walker:peek());
+          stat | std$print(walker:peek());
+            verb_call | std$print(walker:peek())
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | walker:peek()
+                expr | walker:peek()
+                  verb_call | walker:peek()
+                    expr | peek
+                      name_expr | peek
+                        ident peek | peek
+                    expr | walker
+                      name_expr | walker
+                        ident walker | walker
+        statement | std$print(shifted.left);
+          stat | std$print(shifted.left);
+            verb_call | std$print(shifted.left)
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | shifted.left
+                expr | shifted.left
+                  expr | shifted
+                    name_expr | shifted
+                      ident shifted | shifted
+                  field left | left
+        statement | std$print(bits);
+          stat | std$print(bits);
+            verb_call | std$print(bits)
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | bits
+                expr | bits
+                  name_expr | bits
+                    ident bits | bits
+        statement | std$print(capped.attempts);
+          stat | std$print(capped.attempts);
+            verb_call | std$print(capped.attempts)
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | capped.attempts
+                expr | capped.attempts
+                  expr | capped
+                    name_expr | capped
+                      ident capped | capped
+                  field attempts | attempts
+        statement | std$print(direct.attempts);
+          stat | std$print(direct.attempts);
+            verb_call | std$print(direct.attempts)
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | direct.attempts
+                expr | direct.attempts
+                  expr | direct
+                    name_expr | direct
+                      ident direct | direct
+                  field attempts | attempts
+        statement | std$print(taken.label);
+          stat | std$print(taken.label);
+            verb_call | std$print(taken.label)
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | taken.label
+                expr | taken.label
+                  expr | taken
+                    name_expr | taken
+                      ident taken | taken
+                  field label | label
+        statement | std$print(make().attempts);
+          stat | std$print(make().attempts);
+            verb_call | std$print(make().attempts)
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | make().attempts
+                expr | make().attempts
+                  expr | make()
+                    verb_call | make()
+                      expr | make
+                        name_expr | make
+                          ident make | make
+                  field attempts | attempts
+        statement | std$print(room.items[1]);
+          stat | std$print(room.items[1]);
+            verb_call | std$print(room.items[1])
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | room.items[1]
+                expr | room.items[1]
+                  expr | room.items
+                    expr | room
+                      name_expr | room
+                        ident room | room
+                    field items | items
+                  expr | 1
+        statement | std$print(Operator.add.identity);
+          stat | std$print(Operator.add.identity);
+            verb_call | std$print(Operator.add.identity)
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | Operator.add.identity
+                expr | Operator.add.identity
+                  expr | Operator.add
+                    name_type | Operator
+                      ident Operator | Operator
+                    member add | add
+                  field identity | identity
+        statement | spawn std$print(total);
+          stat | spawn std$print(total);
+            verb_call | std$print(total)
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | total
+                expr | total
+                  name_expr | total
+                    ident total | total
+        statement | spawn evaluate(program, &env) ?? Float(0);
+          stat | spawn evaluate(program, &env) ?? Float(0);
+            verb_call | evaluate(program, &env)
+              expr | evaluate
+                name_expr | evaluate
+                  ident evaluate | evaluate
+              call_arg | program
+                expr | program
+                  name_expr | program
+                    ident program | program
+              call_arg | &env
+                expr | &env
+                  expr | env
+                    name_expr | env
+                      ident env | env
+              abort_handle | ?? Float(0)
+                expr | Float(0)
+                  verb_call | Float(0)
+                    constructor_name | Float
+                      name_type | Float
+                        ident Float | Float
+                    constructor_args | (0)
+                      call_arg | 0
+                        expr | 0
+        statement | if(settled) { std$print("settled"); return Unit(); }
+          stat | if(settled) { std$print("settled"); return Unit(); }
+            verb_call | if(settled) { std$print("settled"); return Unit(); }
+              expr | if
+                name_expr | if
+                  ident if | if
+              call_arg | settled
+                expr | settled
+                  name_expr | settled
+                    ident settled | settled
+              call_arg | { std$print("settled"); return Unit(); }
+                statement | std$print("settled");
+                  stat | std$print("settled");
+                    verb_call | std$print("settled")
+                      expr | std$print
+                        name_expr | std$print
+                          package std | std
+                          ident print | print
+                      call_arg | "settled"
+                        expr | "settled"
+                statement | return Unit();
+                  stat | return Unit();
+                    expr | Unit()
+                      verb_call | Unit()
+                        constructor_name | Unit
+                          name_type | Unit
+                            ident Unit | Unit
+                        constructor_args | ()
+        statement | std$print("unsettled");
+          stat | std$print("unsettled");
+            verb_call | std$print("unsettled")
+              expr | std$print
+                name_expr | std$print
+                  package std | std
+                  ident print | print
+              call_arg | "unsettled"
+                expr | "unsettled"
+        statement | return Unit();
+          stat | return Unit();
+            expr | Unit()
+              verb_call | Unit()
+                constructor_name | Unit
+                  name_type | Unit
+                    ident Unit | Unit
+                constructor_args | ()
