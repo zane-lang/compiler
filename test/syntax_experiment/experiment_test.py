@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 
-from tools.syntax_experiment import cli as experiments
+from tools.syntax_experiment import model, runner, transforms
 
 ROOT = Path(__file__).resolve().parents[2]
 GRAMMAR = ROOT / "lib" / "cst" / "parser.mly"
@@ -15,16 +15,16 @@ class SyntaxExperimentTests(unittest.TestCase):
 
     def test_every_predefined_variant_applies(self) -> None:
         names = set()
-        for variant in experiments.VARIANTS:
+        for variant in model.VARIANTS:
             self.assertNotIn(variant.name, names)
             names.add(variant.name)
-            grammar = experiments.apply_variant(self.source, variant)
+            grammar = transforms.apply_variant(self.source, variant)
             self.assertIn(f"Variant: {variant.name}", grammar)
 
     def test_semicolon_variants_replace_every_statement_list(self) -> None:
         for transform in (
-            experiments.semicolon_separated,
-            experiments.semicolon_terminated,
+            transforms.semicolon_separated,
+            transforms.semicolon_terminated,
         ):
             grammar = transform(self.source)
             self.assertNotIn("decls=list(decl)", grammar)
@@ -33,13 +33,13 @@ class SyntaxExperimentTests(unittest.TestCase):
             self.assertIn("statements=stat_sequence", grammar)
 
     def test_named_statement_variant_keeps_computed_calls_in_expressions(self) -> None:
-        grammar = experiments.named_statement_calls(self.source)
+        grammar = transforms.named_statement_calls(self.source)
         self.assertIn("verb_call:\n  | receiver=app", grammar)
         self.assertIn("verb_call=statement_verb_call", grammar)
-        self.assertNotIn(experiments.STAT_CALL, grammar)
+        self.assertNotIn(transforms.STAT_CALL, grammar)
 
     def test_anchored_abort_handles_leave_no_expression_slots(self) -> None:
-        grammar = experiments.anchored_abort_handles(self.source)
+        grammar = transforms.anchored_abort_handles(self.source)
         self.assertNotIn("abort_handle=ioption(abort_handle) %prec", grammar)
         self.assertIn("handled_expr:", grammar)
         self.assertIn(
@@ -50,9 +50,9 @@ class SyntaxExperimentTests(unittest.TestCase):
         self.assertEqual(grammar.count("separated_list(COMMA, handled_expr)"), 3)
 
     def test_grouping_variants_are_mutually_distinct(self) -> None:
-        bracket = experiments.bracket_grouping(self.source)
-        keyword = experiments.keyword_grouping(self.source)
-        none = experiments.no_grouping(self.source)
+        bracket = transforms.bracket_grouping(self.source)
+        keyword = transforms.keyword_grouping(self.source)
+        none = transforms.no_grouping(self.source)
         self.assertIn('| "[" e=expr "]"', bracket)
         self.assertIn('| GROUP "(" e=expr ")"', keyword)
         self.assertNotIn("Nodes.Expr.Parenthized", none)
@@ -60,19 +60,19 @@ class SyntaxExperimentTests(unittest.TestCase):
 
 class WitnessSpellingTests(unittest.TestCase):
     @staticmethod
-    def variant(name: str) -> experiments.Variant:
-        return next(v for v in experiments.VARIANTS if v.name == name)
+    def variant(name: str) -> model.Variant:
+        return next(v for v in model.VARIANTS if v.name == name)
 
     @staticmethod
     def tokens(case_name: str, variant_name: str) -> str | None:
-        case = next(c for c in experiments.KNOWN_CASES if c.name == case_name)
-        return experiments.case_tokens(
+        case = next(c for c in model.KNOWN_CASES if c.name == case_name)
+        return model.case_tokens(
             case, WitnessSpellingTests.variant(variant_name)
         )
 
     def test_every_transform_has_a_spelling_update(self) -> None:
         self.assertEqual(
-            set(experiments.TRANSFORMS), set(experiments.SPELLINGS)
+            set(transforms.TRANSFORMS), set(model.SPELLINGS)
         )
 
     def test_baseline_spelling_reproduces_original_witnesses(self) -> None:
@@ -158,7 +158,7 @@ class SearchReportParsingTests(unittest.TestCase):
         # `stopped` means "a limit intervened" to metric() and the summary
         # table, so the reason for a completed bound has to come back as None
         # even though the engine now always prints one.
-        result = experiments.parse_search_output(self.EXHAUSTED, 1.0)
+        result = runner.parse_search_output(self.EXHAUSTED, 1.0)
         self.assertIsNone(result.error)
         self.assertIsNone(result.stopped)
         self.assertEqual(result.deepest, 8)
@@ -166,7 +166,7 @@ class SearchReportParsingTests(unittest.TestCase):
         self.assertEqual(result.explored, 25842)
 
     def test_a_curtailed_search_keeps_its_reason(self) -> None:
-        result = experiments.parse_search_output(self.CURTAILED, 1.0)
+        result = runner.parse_search_output(self.CURTAILED, 1.0)
         self.assertIsNone(result.error)
         self.assertEqual(result.stopped, "one or more workers reached a search limit")
         self.assertEqual(result.deepest, 13)
@@ -176,7 +176,7 @@ class SearchReportParsingTests(unittest.TestCase):
         # evidence the bound completed, and a None reason would be read as a
         # confidently clean result -- the one conclusion the output cannot
         # support.
-        result = experiments.parse_search_output(
+        result = runner.parse_search_output(
             "No complete ambiguity satisfying the search constraints was "
             "found after exploring 25842 frontiers (25937 unique).\n",
             1.0,

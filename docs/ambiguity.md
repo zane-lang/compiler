@@ -544,7 +544,7 @@ past any fixed lookahead, which is what the prover is for.
   never be eliminated entirely; the prover is validated against known-ambiguous
   grammars, LR(1) grammars, precedence-resolved expression grammars, and
   unambiguous non-LR grammars such as palindromes. That corpus lives in
-  `test/ambiguity/prover_test.py`, which pins both directions of soundness — an
+  `test/ambiguity/prover/`, which pins both directions of soundness — an
   ambiguous grammar is never proven, and an unambiguous one never yields a
   witness — so a change that sharpens the abstraction cannot quietly start
   proving false theorems. A conflict-free automaton offers one action per state
@@ -810,7 +810,7 @@ past any fixed lookahead, which is what the prover is for.
   suffix and nothing ever invents one, so a sharper abstraction can remove
   spurious pairs but never a real parse. That is what lets the choice of where
   to deepen be a heuristic without putting the verdict at risk, and it is
-  pinned in `test/ambiguity/prover_test.py` against grammars known ambiguous by
+  pinned in `test/ambiguity/prover/` against grammars known ambiguous by
   construction.
 
   The round lines are worth as much as the verdict. Each names the candidate

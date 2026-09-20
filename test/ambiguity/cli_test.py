@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 from typing import TextIO
 import unittest
 
-from tools.ambiguity import cli as ambiguity
+from tools.ambiguity import cli, profiles, runner
 
 ROOT = Path(__file__).resolve().parents[2]
 ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "ambiguity_search.exe"
@@ -73,22 +73,22 @@ def engine_environment() -> dict[str, str] | None:
 
 class ValueParsingTests(unittest.TestCase):
     def test_token_range_accepts_whitespace(self) -> None:
-        self.assertEqual(ambiguity.parse_token_range(" 12 .. 50 "), (12, 50))
+        self.assertEqual(profiles.parse_token_range(" 12 .. 50 "), (12, 50))
 
     def test_token_range_rejects_a_descending_range(self) -> None:
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "minimum must not exceed"
+            profiles.ConfigurationError, "minimum must not exceed"
         ):
-            ambiguity.parse_token_range("50..12")
+            profiles.parse_token_range("50..12")
 
     def test_duration_accepts_friendly_and_composed_units(self) -> None:
-        self.assertEqual(ambiguity.parse_duration("1h30m"), 5400)
-        self.assertEqual(ambiguity.parse_duration("250ms"), 0.25)
-        self.assertEqual(ambiguity.parse_duration(90), 90)
+        self.assertEqual(profiles.parse_duration("1h30m"), 5400)
+        self.assertEqual(profiles.parse_duration("250ms"), 0.25)
+        self.assertEqual(profiles.parse_duration(90), 90)
 
     def test_duration_rejects_trailing_text(self) -> None:
-        with self.assertRaisesRegex(ambiguity.ConfigurationError, "invalid duration"):
-            ambiguity.parse_duration("30 minutes")
+        with self.assertRaisesRegex(profiles.ConfigurationError, "invalid duration"):
+            profiles.parse_duration("30 minutes")
 
 
 class ProfileTests(unittest.TestCase):
@@ -102,7 +102,7 @@ class ProfileTests(unittest.TestCase):
     def override_namespace(self, **overrides: object) -> argparse.Namespace:
         # Mirror argparse defaults: every override dest is None (store_true
         # flags are False) unless the test sets it.
-        namespace = {setting.dest: None for setting in ambiguity.SETTINGS}
+        namespace = {setting.dest: None for setting in profiles.SETTINGS}
         namespace["breadth_first"] = False
         namespace.update(overrides)
         return argparse.Namespace(**namespace)
@@ -124,7 +124,7 @@ nodes-per-depth = 4
 output = "reports/{profile}-{date}.txt"
 """
         )
-        profile = ambiguity.load_profiles(path)["deep"]
+        profile = profiles.load_profiles(path)["deep"]
         self.assertEqual(profile.description, "Broad search.")
         self.assertEqual((profile.min_tokens, profile.max_tokens), (12, 50))
         self.assertEqual(profile.timeout_seconds, 120)
@@ -139,7 +139,7 @@ output = "reports/{profile}-{date}.txt"
             prefix_tokens="UIDENT LIDENT",
             breadth_first=True,
         )
-        overridden = ambiguity.apply_overrides(profile, arguments)
+        overridden = profiles.apply_overrides(profile, arguments)
         self.assertEqual((overridden.min_tokens, overridden.max_tokens), (10, 30))
         self.assertEqual(overridden.timeout_seconds, 3600)
         self.assertEqual(overridden.witnesses, 25)
@@ -158,9 +158,9 @@ witnesses = 5
 output = "reports/{profile}.txt"
 """
         )
-        profile = ambiguity.load_profiles(path)["quick"]
+        profile = profiles.load_profiles(path)["quick"]
         self.assertEqual(profile.output, Path("reports/{profile}.txt"))
-        overridden = ambiguity.apply_overrides(
+        overridden = profiles.apply_overrides(
             profile, self.override_namespace(output=Path("elsewhere.txt"))
         )
         self.assertEqual(overridden.output, Path("elsewhere.txt"))
@@ -176,9 +176,9 @@ output = 5
 """
         )
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "output must be a string path"
+            profiles.ConfigurationError, "output must be a string path"
         ):
-            ambiguity.load_profiles(path)
+            profiles.load_profiles(path)
 
     def test_prefix_must_leave_room_for_eof(self) -> None:
         # A prefix that fills the entire max_tokens budget leaves no slot for the
@@ -193,23 +193,23 @@ prefix-tokens = ["UIDENT", "LPAREN", "RPAREN"]
 """
         )
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "no room for the EOF token"
+            profiles.ConfigurationError, "no room for the EOF token"
         ):
-            ambiguity.load_profiles(path)
+            profiles.load_profiles(path)
 
     def test_single_registry_drives_flags_and_keys(self) -> None:
         # The whole point of the registry: one list enumerates every flag, and
         # each entry marks whether it is also a TOML key. Every setting registers
         # a flag; only profile_key settings are valid TOML keys.
-        search = ambiguity.parser().parse_args(["search"])
-        for setting in ambiguity.SETTINGS:
+        search = cli.parser().parse_args(["search"])
+        for setting in profiles.SETTINGS:
             self.assertTrue(hasattr(search, setting.dest))
             self.assertEqual(
-                setting.profile_key, setting.key in ambiguity.PROFILE_KEYS
+                setting.profile_key, setting.key in profiles.PROFILE_KEYS
             )
         # dry-run is a mode, so it is the one flag that is not a TOML key.
-        self.assertNotIn("dry-run", ambiguity.PROFILE_KEYS)
-        self.assertIn("breadth-first", ambiguity.PROFILE_KEYS)
+        self.assertNotIn("dry-run", profiles.PROFILE_KEYS)
+        self.assertIn("breadth-first", profiles.PROFILE_KEYS)
 
     def test_breadth_first_profile_key(self) -> None:
         path = self.write_profiles(
@@ -221,7 +221,7 @@ witnesses = 5
 breadth-first = true
 """
         )
-        self.assertIsNone(ambiguity.load_profiles(path)["quick"].nodes_per_depth)
+        self.assertIsNone(profiles.load_profiles(path)["quick"].nodes_per_depth)
 
     def test_breadth_first_must_be_true(self) -> None:
         path = self.write_profiles(
@@ -234,9 +234,9 @@ breadth-first = false
 """
         )
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "breadth-first must be true"
+            profiles.ConfigurationError, "breadth-first must be true"
         ):
-            ambiguity.load_profiles(path)
+            profiles.load_profiles(path)
 
     def test_scheduling_keys_are_mutually_exclusive(self) -> None:
         path = self.write_profiles(
@@ -250,9 +250,9 @@ breadth-first = true
 """
         )
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "at most one of nodes-per-depth"
+            profiles.ConfigurationError, "at most one of nodes-per-depth"
         ):
-            ambiguity.load_profiles(path)
+            profiles.load_profiles(path)
 
     def test_child_breadth_first_overrides_inherited_depth(self) -> None:
         path = self.write_profiles(
@@ -268,7 +268,7 @@ extends = "base"
 breadth-first = true
 """
         )
-        self.assertIsNone(ambiguity.load_profiles(path)["child"].nodes_per_depth)
+        self.assertIsNone(profiles.load_profiles(path)["child"].nodes_per_depth)
 
     def test_child_depth_overrides_inherited_breadth_first(self) -> None:
         path = self.write_profiles(
@@ -284,7 +284,7 @@ extends = "base"
 nodes-per-depth = 8
 """
         )
-        self.assertEqual(ambiguity.load_profiles(path)["child"].nodes_per_depth, 8)
+        self.assertEqual(profiles.load_profiles(path)["child"].nodes_per_depth, 8)
 
     def test_dry_run_is_not_a_profile_key(self) -> None:
         path = self.write_profiles(
@@ -297,9 +297,9 @@ dry-run = true
 """
         )
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "unknown settings: dry-run"
+            profiles.ConfigurationError, "unknown settings: dry-run"
         ):
-            ambiguity.load_profiles(path)
+            profiles.load_profiles(path)
 
     def test_snake_case_key_is_rejected(self) -> None:
         path = self.write_profiles(
@@ -312,9 +312,9 @@ prefix_tokens = ["UIDENT"]
 """
         )
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "unknown settings: prefix_tokens"
+            profiles.ConfigurationError, "unknown settings: prefix_tokens"
         ):
-            ambiguity.load_profiles(path)
+            profiles.load_profiles(path)
 
     def test_inheritance_cycle_is_reported(self) -> None:
         path = self.write_profiles(
@@ -327,9 +327,9 @@ extends = "one"
 """
         )
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "one -> two -> one"
+            profiles.ConfigurationError, "one -> two -> one"
         ):
-            ambiguity.load_profiles(path)
+            profiles.load_profiles(path)
 
     def test_unknown_setting_is_reported(self) -> None:
         path = self.write_profiles(
@@ -342,20 +342,20 @@ surprise = true
 """
         )
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "unknown settings: surprise"
+            profiles.ConfigurationError, "unknown settings: surprise"
         ):
-            ambiguity.load_profiles(path)
+            profiles.load_profiles(path)
 
 
 class OutputPatternTests(unittest.TestCase):
     def test_profile_and_date_placeholders_expand(self) -> None:
-        path = ambiguity.expand_output_path(
+        path = profiles.expand_output_path(
             Path("reports/{profile}-{date}.txt"), "general"
         )
         self.assertRegex(str(path), r"^reports/general-\d{4}-\d{2}-\d{2}\.txt$")
 
     def test_timestamp_placeholders_expand(self) -> None:
-        path = ambiguity.expand_output_path(
+        path = profiles.expand_output_path(
             Path("{profile}_{datetime}--{time}"), "deep"
         )
         self.assertRegex(
@@ -365,68 +365,68 @@ class OutputPatternTests(unittest.TestCase):
 
     def test_plain_path_is_unchanged(self) -> None:
         self.assertEqual(
-            ambiguity.expand_output_path(Path("report.txt"), "general"),
+            profiles.expand_output_path(Path("report.txt"), "general"),
             Path("report.txt"),
         )
 
     def test_unknown_placeholder_is_reported(self) -> None:
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "unknown placeholder"
+            profiles.ConfigurationError, "unknown placeholder"
         ):
-            ambiguity.expand_output_path(Path("reports/{oops}.txt"), "general")
+            profiles.expand_output_path(Path("reports/{oops}.txt"), "general")
 
     def test_unbalanced_brace_is_reported(self) -> None:
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "invalid --output pattern"
+            profiles.ConfigurationError, "invalid --output pattern"
         ):
-            ambiguity.expand_output_path(Path("reports/{profile.txt"), "general")
+            profiles.expand_output_path(Path("reports/{profile.txt"), "general")
 
     def test_literal_braces_are_preserved(self) -> None:
         self.assertEqual(
-            ambiguity.expand_output_path(Path("reports/{{profile}}.txt"), "general"),
+            profiles.expand_output_path(Path("reports/{{profile}}.txt"), "general"),
             Path("reports/{profile}.txt"),
         )
 
     def test_indexed_placeholder_is_rejected(self) -> None:
         # str.format_map would silently expand this to the first character.
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "unknown placeholder"
+            profiles.ConfigurationError, "unknown placeholder"
         ):
-            ambiguity.expand_output_path(Path("{profile[0]}.txt"), "general")
+            profiles.expand_output_path(Path("{profile[0]}.txt"), "general")
 
     def test_attribute_placeholder_is_rejected(self) -> None:
         # str.format_map would raise an uncaught AttributeError here.
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "unknown placeholder"
+            profiles.ConfigurationError, "unknown placeholder"
         ):
-            ambiguity.expand_output_path(Path("{profile.foo}.txt"), "general")
+            profiles.expand_output_path(Path("{profile.foo}.txt"), "general")
 
     def test_format_spec_is_rejected(self) -> None:
         with self.assertRaisesRegex(
-            ambiguity.ConfigurationError, "no format spec or conversion"
+            profiles.ConfigurationError, "no format spec or conversion"
         ):
-            ambiguity.expand_output_path(Path("{profile:>10}.txt"), "general")
+            profiles.expand_output_path(Path("{profile:>10}.txt"), "general")
 
 
 class CommandLineTests(unittest.TestCase):
     def test_search_defaults_to_general(self) -> None:
-        arguments = ambiguity.parser().parse_args(["search"])
+        arguments = cli.parser().parse_args(["search"])
         self.assertEqual(arguments.profile, "general")
 
     def test_prove_defaults_to_quick(self) -> None:
-        arguments = ambiguity.parser().parse_args(["prove", "3"])
+        arguments = cli.parser().parse_args(["prove", "3"])
         self.assertEqual(arguments.profile, "quick")
 
     def test_check_accepts_quoted_or_individual_tokens(self) -> None:
-        cli = ambiguity.parser()
-        quoted = cli.parse_args(["check", "UIDENT LPAREN RPAREN EOF"])
-        separate = cli.parse_args(
+        command = cli.parser()
+        quoted = command.parse_args(["check", "UIDENT LPAREN RPAREN EOF"])
+        separate = command.parse_args(
             ["check", "UIDENT", "LPAREN", "RPAREN", "EOF"]
         )
         self.assertEqual(" ".join(quoted.tokens), " ".join(separate.tokens))
 
     def test_engine_arguments_are_stable_and_low_level(self) -> None:
-        profile = ambiguity.SearchProfile(
+        profile = profiles.SearchProfile(
             name="deep",
             description="",
             min_tokens=12,
@@ -437,7 +437,7 @@ class CommandLineTests(unittest.TestCase):
             nodes_per_depth=10,
         )
         self.assertEqual(
-            ambiguity.engine_arguments(profile),
+            runner.engine_arguments(profile),
             [
                 "--max-tokens",
                 "50",
@@ -458,8 +458,8 @@ class CommandLineTests(unittest.TestCase):
 class SurveyFlagTests(unittest.TestCase):
     """The survey reaches the engine only when asked for."""
 
-    def profile(self) -> ambiguity.SearchProfile:
-        return ambiguity.SearchProfile(
+    def profile(self) -> profiles.SearchProfile:
+        return profiles.SearchProfile(
             name="quick",
             description="",
             min_tokens=0,
@@ -471,34 +471,34 @@ class SurveyFlagTests(unittest.TestCase):
         )
 
     def test_a_survey_is_absent_unless_requested(self) -> None:
-        arguments = ambiguity.engine_arguments(self.profile(), 3)
+        arguments = runner.engine_arguments(self.profile(), 3)
         self.assertNotIn("--prove-survey", arguments)
 
     def test_a_requested_survey_reaches_the_engine(self) -> None:
-        arguments = ambiguity.engine_arguments(self.profile(), 3, 5)
+        arguments = runner.engine_arguments(self.profile(), 3, 5)
         self.assertIn("--prove-survey", arguments)
         self.assertEqual(
             arguments[arguments.index("--prove-survey") + 1], "5"
         )
 
     def test_refinement_is_absent_unless_requested(self) -> None:
-        arguments = ambiguity.engine_arguments(self.profile(), 3)
+        arguments = runner.engine_arguments(self.profile(), 3)
         self.assertNotIn("--prove-refine", arguments)
         self.assertNotIn("--prove-refine-rounds", arguments)
 
     def test_requested_refinement_reaches_the_engine(self) -> None:
-        arguments = ambiguity.engine_arguments(self.profile(), 3, refine=9)
+        arguments = runner.engine_arguments(self.profile(), 3, refine=9)
         self.assertIn("--prove-refine", arguments)
         self.assertEqual(arguments[arguments.index("--prove-refine") + 1], "9")
 
     def test_a_round_limit_only_travels_with_refinement(self) -> None:
         # The engine has its own default, so passing a round limit without
         # refinement would set a bound on something that is not running.
-        arguments = ambiguity.engine_arguments(
+        arguments = runner.engine_arguments(
             self.profile(), 3, refine=0, refine_rounds=4
         )
         self.assertNotIn("--prove-refine-rounds", arguments)
-        arguments = ambiguity.engine_arguments(
+        arguments = runner.engine_arguments(
             self.profile(), 3, refine=9, refine_rounds=4
         )
         self.assertEqual(
@@ -508,16 +508,16 @@ class SurveyFlagTests(unittest.TestCase):
     def test_retirement_only_travels_with_refinement(self) -> None:
         # Retiring names what refinement failed to close, so on its own it has
         # nothing to act on and the engine would never see the option.
-        arguments = ambiguity.engine_arguments(self.profile(), 3, refine=0, retire=2)
+        arguments = runner.engine_arguments(self.profile(), 3, refine=0, retire=2)
         self.assertNotIn("--prove-retire", arguments)
-        arguments = ambiguity.engine_arguments(self.profile(), 3, refine=9, retire=2)
+        arguments = runner.engine_arguments(self.profile(), 3, refine=9, retire=2)
         self.assertEqual(arguments[arguments.index("--prove-retire") + 1], "2")
 
     def test_a_trace_only_travels_when_asked(self) -> None:
-        self.assertNotIn("--prove-trace", ambiguity.engine_arguments(self.profile(), 3))
+        self.assertNotIn("--prove-trace", runner.engine_arguments(self.profile(), 3))
         self.assertIn(
             "--prove-trace",
-            ambiguity.engine_arguments(self.profile(), 3, trace=True),
+            runner.engine_arguments(self.profile(), 3, trace=True),
         )
 
     def test_the_wrapper_rejects_its_own_invalid_refinements(self) -> None:
@@ -534,13 +534,13 @@ class SurveyFlagTests(unittest.TestCase):
         ):
             with self.subTest(combination=name):
                 with self.assertRaises(SystemExit):
-                    ambiguity.main([*argv, "--dry-run"])
+                    cli.main([*argv, "--dry-run"])
 
     def test_the_wrapper_accepts_a_valid_refinement(self) -> None:
         # The guard against the test above passing because every prove
         # invocation is rejected.
         self.assertEqual(
-            ambiguity.main(
+            cli.main(
                 ["prove", "1", "--refine", "4", "--refine-rounds", "2", "--dry-run"]
             ),
             0,

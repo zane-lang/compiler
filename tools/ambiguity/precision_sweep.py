@@ -296,16 +296,16 @@ def run_level(
 def corpus_grammars() -> dict[str, str]:
     """The prover's own fixtures, whose verdicts are known by construction."""
     sys.path.insert(0, str(ROOT))
-    from test.ambiguity import prover_test as test_prover
+    from test.ambiguity.prover import fixtures
 
     return {
-        "ambiguous-expression": test_prover.AMBIGUOUS_EXPRESSION,
-        "dangling-else": test_prover.DANGLING_ELSE,
-        "precedence-expression": test_prover.PRECEDENCE_EXPRESSION,
-        "lr1-list": test_prover.LR1_LIST,
-        "even-palindrome": test_prover.EVEN_PALINDROME,
-        "eof-reduce-reduce": test_prover.EOF_REDUCE_REDUCE,
-        "wide-reduce-reduce": test_prover.WIDE_REDUCE_REDUCE,
+        "ambiguous-expression": fixtures.AMBIGUOUS_EXPRESSION,
+        "dangling-else": fixtures.DANGLING_ELSE,
+        "precedence-expression": fixtures.PRECEDENCE_EXPRESSION,
+        "lr1-list": fixtures.LR1_LIST,
+        "even-palindrome": fixtures.EVEN_PALINDROME,
+        "eof-reduce-reduce": fixtures.EOF_REDUCE_REDUCE,
+        "wide-reduce-reduce": fixtures.WIDE_REDUCE_REDUCE,
     }
 
 

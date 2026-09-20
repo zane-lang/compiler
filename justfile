@@ -27,7 +27,17 @@ test:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
 	dune build tools/ambiguity/ambiguity_search.exe tools/parser/parser_shape.exe tools/parser/parser_accept.exe
 	dune runtest
-	python3 -m unittest test.ambiguity.cli_test test.ambiguity.precision_sweep_test test.ambiguity.prover_test test.parser.ambiguity_test test.parser.syntax_test -v
+	python3 -m unittest \
+		test.ambiguity.cli_test \
+		test.ambiguity.precision_sweep_test \
+		test.ambiguity.prover.soundness_test \
+		test.ambiguity.prover.refinement_test \
+		test.ambiguity.prover.diagnostics_test \
+		test.ambiguity.prover.verdict_test \
+		test.ambiguity.prover.survey_test \
+		test.parser.ambiguity_test \
+		test.parser.syntax_test \
+		-v
 
 # Accept the span expectation as it currently stands, after reading the diff
 # `just test` printed and satisfying yourself that each moved span still covers
