@@ -35,7 +35,10 @@
   depth, ambiguity families found at that depth, explored and unique frontiers,
   elapsed time, and a RAM bar against the configured memory budget. The
   coordinator deduplicates ambiguity families across workers before displaying
-  the count. Redirected output and saved reports contain no progress line.
+  the count. Redirected output and saved reports have no transient line to
+  rewrite, so the same numbers go out as ordinary lines at the configured
+  cadence instead; only `AMBIGUITY_PROGRESS_SECONDS` at zero or less turns
+  progress off.
   `--nodes-per-depth N` expands up to `N` queued frontiers at one depth before
   descending to the next populated depth. When a deep wave ends, the search
   returns to the shallowest unfinished depth, so earlier token choices rotate

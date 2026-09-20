@@ -1,9 +1,9 @@
 # Syntax experiments
 
-`syntax_experiment.py` compares small, explicit changes to Zane's concrete
-syntax. It generates a temporary Menhir grammar for every selected variant,
-replays the known complete-ambiguity witnesses, runs the bounded ambiguity
-search, and produces Markdown and JSON reports.
+The `tools/syntax_experiment/` package compares small, explicit changes to
+Zane's concrete syntax. It generates a temporary Menhir grammar for every
+selected variant, replays the known complete-ambiguity witnesses, runs the
+bounded ambiguity search, and produces Markdown and JSON reports.
 
 This is deliberately not a grammar-rewriting model. Every mutation is named,
 reviewable, composable, and assigned an approximate edit cost.
@@ -128,14 +128,15 @@ human judgment.
 
 ## Adding an experiment
 
-1. Add a transformation function that uses `replace_once` or another checked
-   structural edit. A changed grammar anchor must fail loudly rather than silently
-   producing the baseline grammar.
-2. Register it in `TRANSFORMS`, and register a matching spelling update in
-   `SPELLINGS` (the identity update for transforms that do not change how the
-   known witnesses are spelled). The two tables must cover the same names.
-3. Add one or more `Variant` entries, including useful combinations and an edit
-   cost.
+1. Add a transformation function in `transforms.py` that uses `replace_once` or
+   another checked structural edit. A changed grammar anchor must fail loudly
+   rather than silently producing the baseline grammar.
+2. Register it in `TRANSFORMS`, in that same `transforms.py`, and register a
+   matching spelling update in `SPELLINGS` in `model.py` (the identity update
+   for transforms that do not change how the known witnesses are spelled). The
+   two tables must cover the same names.
+3. Add one or more `Variant` entries in `model.py`, including useful
+   combinations and an edit cost.
 4. Add focused assertions to `test/syntax_experiment/experiment_test.py`.
 5. Run `just syntax-experiment-test`, then a short single-variant search before
    comparing the full matrix.

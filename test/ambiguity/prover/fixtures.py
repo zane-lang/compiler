@@ -119,11 +119,6 @@ p:
   | B p B { () }
 """
 
-# Ambiguous, and the divergence is born on the EOF lookahead: `a` reduces to
-# either `x` or `y`, and nothing before end of input distinguishes them. EOF is
-# not one of the terminals the survey iterates -- it is a separate sentinel --
-# so a grammar whose only divergence lives there is what catches a survey that
-# counts sites on regular lookaheads alone.
 # A blind spot that accepts sentences the grammar does not derive. Every `a`
 # has to be matched by a trailing `a` and the core is four `b`s, so `a b b b b
 # b` is not a sentence -- but the top-1 abstraction loses the `a` it is standing
@@ -166,6 +161,11 @@ expr:
   | MATCH expr LCURLY RCURLY { () }
 """
 
+# Ambiguous, and the divergence is born on the EOF lookahead: `a` reduces to
+# either `x` or `y`, and nothing before end of input distinguishes them. EOF is
+# not one of the terminals the survey iterates -- it is a separate sentinel --
+# so a grammar whose only divergence lives there is what catches a survey that
+# counts sites on regular lookaheads alone.
 EOF_REDUCE_REDUCE = """\
 %token A "a"
 %token EOF "<eof>"
