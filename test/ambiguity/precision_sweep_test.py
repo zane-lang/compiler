@@ -15,7 +15,7 @@ import unittest
 from threading import Thread
 from unittest import mock
 
-from tools import precision_sweep
+from tools.ambiguity import precision_sweep
 
 
 class StreamTests(unittest.TestCase):

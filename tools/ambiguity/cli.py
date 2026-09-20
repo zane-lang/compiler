@@ -16,7 +16,7 @@ import tomllib
 from typing import Any, Callable, Sequence, TextIO
 
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PROFILES = ROOT / "ambiguity-searches.toml"
 ENGINE_RUNNER = ROOT / "dev" / "bin" / "ambiguity"
 

@@ -9,7 +9,7 @@
 
    A proof run is long -- an abstract phase that can hold the whole timeout,
    then a bounded search that can run for an hour -- and it is nearly always
-   read through a pipe: `tools/ambiguity.py` folds stderr into stdout, streams
+   read through a pipe: `tools/ambiguity/cli.py` folds stderr into stdout, streams
    both to the terminal, and copies every line into the saved report. On a pipe
    OCaml block-buffers stdout, so the survey, the retirements and the line
    announcing that concretization has started all sat in a 64 KiB buffer until

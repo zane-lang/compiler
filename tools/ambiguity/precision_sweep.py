@@ -22,8 +22,8 @@ prefix, so a sweep is readable while it runs rather than a row at a time;
 `--quiet` leaves only the table.
 
 Usage:
-    python3 tools/precision_sweep.py GRAMMAR.mly [--levels 1-6] [--timeout 60]
-    python3 tools/precision_sweep.py --corpus even-palindrome
+    python3 tools/ambiguity/precision_sweep.py GRAMMAR.mly [--levels 1-6] [--timeout 60]
+    python3 tools/ambiguity/precision_sweep.py --corpus even-palindrome
 
 The corpus grammars come from the prover tests, where their status is known by
 construction, so they calibrate a reading of this table before it is trusted on
@@ -47,7 +47,7 @@ from threading import Thread
 from typing import TextIO
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "ambiguity_search.exe"
 
 # Proof-mode exit statuses, matching the engine: a proof is a verdict rather
@@ -331,7 +331,9 @@ def parse_levels(text: str) -> list[int]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        prog="precision_sweep.py", description=__doc__
+    )
     parser.add_argument(
         "grammar", type=Path, nargs="?", help="path to a .mly grammar"
     )

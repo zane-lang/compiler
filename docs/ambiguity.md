@@ -998,7 +998,7 @@ past any fixed lookahead, which is what the prover is for.
   visible. The same classes bound the prover's terminal alphabet.
 - `syntax-experiment` — compares candidate grammar changes under
   equal search bounds before they are adopted
-  (`tools/SYNTAX_EXPERIMENT.md`).
+  (`tools/syntax_experiment/README.md`).
 - `menhir --explain` — enumerates the conflict states that constitute the
   obligation ledger.
 
@@ -1125,7 +1125,7 @@ Every profile setting has an identically named override flag: the TOML key and
 the `--flag` share the same kebab-case spelling (`tokens`, `timeout`,
 `witnesses`, `prefix-tokens`, `nodes-per-depth`, `breadth-first`, `output`), and
 the command line overrides the profile. A single registry in
-`tools/ambiguity.py` declares every flag once — value flags, the `breadth-first`
+`tools/ambiguity/cli.py` declares every flag once — value flags, the `breadth-first`
 toggle, and the `dry-run` mode alike — and marks which ones profiles may set, so
 the flags and the profile keys are one list and cannot drift apart. The only
 flag that is not a profile key is `--dry-run`, which is a run mode (show the

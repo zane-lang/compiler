@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# `__engine` is the private entry point tools/ambiguity.py re-enters to reach
+# `__engine` is the private entry point tools/ambiguity/cli.py re-enters to reach
 # the engine with the machine configuration loaded and the executable built. It
 # is not part of the command-line interface; use the subcommands instead.
 if [[ "${1:-}" == "__engine" ]]; then
@@ -16,4 +16,4 @@ if [[ "${1:-}" == "__engine" ]]; then
 		"$@"
 fi
 
-exec python3 "$ROOT/tools/ambiguity.py" "$@"
+exec python3 "$ROOT/tools/ambiguity/cli.py" "$@"

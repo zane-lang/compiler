@@ -1,16 +1,21 @@
+; Parser developer tools. Small executables for looking at what the grammar
+; did with a file -- not part of the compiler library, and not ambiguity-engine
+; internals.
 (executable
  (name parser_shape)
+ (modules parser_shape)
  (libraries cst))
 
 (executable
  (name parser_accept)
+ (modules parser_accept)
  (libraries cst))
 
 ; Reads a source file and prints every node with the source text its span
 ; covers. The walk over each stage's nodes lives with that stage --
 ; `Cst.To_span_text` and `Sst.To_span_text` -- so this is a frontend that picks
-; one with `--cst` or `--sst`. test/dune diffs its output against a checked-in
-; expectation for both.
+; one with `--cst` or `--sst`. test/parser/dune diffs its output against a
+; checked-in expectation for both.
 (executable
  (name span_dump)
  (modules span_dump)

@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 
-from tools import syntax_experiment as experiments
+from tools.syntax_experiment import cli as experiments
 
 ROOT = Path(__file__).resolve().parents[2]
 GRAMMAR = ROOT / "lib" / "cst" / "parser.mly"

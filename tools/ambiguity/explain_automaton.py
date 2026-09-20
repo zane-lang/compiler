@@ -13,9 +13,9 @@ This runs the same two steps in the same order, so a state number printed by
 `ambiguity prove` selects the state that produced it.
 
 Usage:
-    python3 tools/explain_automaton.py --state 27
-    python3 tools/explain_automaton.py --conflicts
-    python3 tools/explain_automaton.py --search list_verb_type_suffix_
+    python3 tools/ambiguity/explain_automaton.py --state 27
+    python3 tools/ambiguity/explain_automaton.py --conflicts
+    python3 tools/ambiguity/explain_automaton.py --search list_verb_type_suffix_
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_GRAMMAR = ROOT / "lib" / "cst" / "parser.mly"
 STATE_RE = re.compile(r"^State (\d+):$")
 
@@ -92,7 +92,9 @@ def state_block(automaton: Path, wanted: int) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        prog="explain_automaton.py", description=__doc__
+    )
     parser.add_argument("--grammar", type=Path, default=DEFAULT_GRAMMAR)
     parser.add_argument(
         "--state",

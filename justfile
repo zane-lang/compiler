@@ -25,7 +25,7 @@ syntax-experiment-test:
 # that stopped happening. Promote an intended move with `just promote`.
 test:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
-	dune build tools/ambiguity/ambiguity_search.exe tools/parser_shape.exe tools/parser_accept.exe
+	dune build tools/ambiguity/ambiguity_search.exe tools/parser/parser_shape.exe tools/parser/parser_accept.exe
 	dune runtest
 	python3 -m unittest test.ambiguity.cli_test test.ambiguity.precision_sweep_test test.ambiguity.prover_test test.parser.ambiguity_test test.parser.syntax_test -v
 
@@ -45,7 +45,7 @@ promote:
 sweep GRAMMAR="lib/cst/parser.mly" *ARGS:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
 	dune build tools/ambiguity/ambiguity_search.exe
-	python3 tools/precision_sweep.py {{GRAMMAR}} {{ARGS}}
+	python3 tools/ambiguity/precision_sweep.py {{GRAMMAR}} {{ARGS}}
 
 # Dump Menhir's LR automaton or its conflict explanations -- the obligation
 # ledger docs/ambiguity.md refers to. Expanded exactly as the ambiguity tools
@@ -57,4 +57,4 @@ sweep GRAMMAR="lib/cst/parser.mly" *ARGS:
 #   just explain --search list_verb_type_suffix_
 explain *ARGS:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
-	python3 tools/explain_automaton.py {{ARGS}}
+	python3 tools/ambiguity/explain_automaton.py {{ARGS}}

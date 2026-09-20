@@ -34,7 +34,7 @@
 (rule
  (with-stdout-to
   main.cst.spans.actual
-  (run %{exe:../../tools/span_dump.exe} --cst %{dep:fixtures/main.zn})))
+  (run %{exe:../../tools/parser/span_dump.exe} --cst %{dep:fixtures/main.zn})))
 
 (rule
  (alias runtest)
@@ -44,7 +44,7 @@
 (rule
  (with-stdout-to
   utf8.cst.spans.actual
-  (run %{exe:../../tools/span_dump.exe} --cst %{dep:fixtures/utf8.zn})))
+  (run %{exe:../../tools/parser/span_dump.exe} --cst %{dep:fixtures/utf8.zn})))
 
 (rule
  (alias runtest)
@@ -54,7 +54,7 @@
 (rule
  (with-stdout-to
   desugar.cst.spans.actual
-  (run %{exe:../../tools/span_dump.exe} --cst %{dep:fixtures/desugar.zn})))
+  (run %{exe:../../tools/parser/span_dump.exe} --cst %{dep:fixtures/desugar.zn})))
 
 (rule
  (alias runtest)
@@ -64,7 +64,7 @@
 (rule
  (with-stdout-to
   main.sst.spans.actual
-  (run %{exe:../../tools/span_dump.exe} --sst %{dep:fixtures/main.zn})))
+  (run %{exe:../../tools/parser/span_dump.exe} --sst %{dep:fixtures/main.zn})))
 
 (rule
  (alias runtest)
@@ -74,7 +74,7 @@
 (rule
  (with-stdout-to
   utf8.sst.spans.actual
-  (run %{exe:../../tools/span_dump.exe} --sst %{dep:fixtures/utf8.zn})))
+  (run %{exe:../../tools/parser/span_dump.exe} --sst %{dep:fixtures/utf8.zn})))
 
 (rule
  (alias runtest)
@@ -84,7 +84,7 @@
 (rule
  (with-stdout-to
   desugar.sst.spans.actual
-  (run %{exe:../../tools/span_dump.exe} --sst %{dep:fixtures/desugar.zn})))
+  (run %{exe:../../tools/parser/span_dump.exe} --sst %{dep:fixtures/desugar.zn})))
 
 (rule
  (alias runtest)

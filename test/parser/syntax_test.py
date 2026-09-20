@@ -5,7 +5,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PARSER_ACCEPT = ROOT / "_build" / "default" / "tools" / "parser_accept.exe"
+PARSER_ACCEPT = ROOT / "_build" / "default" / "tools" / "parser" / "parser_accept.exe"
 
 
 class ParserSyntaxTests(unittest.TestCase):

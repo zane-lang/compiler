@@ -30,7 +30,7 @@ on:
         # seconds and is what makes the question answerable at all.
         description: Repository-relative path to the .mly grammar to sweep
         required: true
-        default: tools/grammars/verb_suffix_vs_enum_map.mly
+        default: tools/ambiguity/grammars/verb_suffix_vs_enum_map.mly
         type: string
       levels:
         # Cost grows roughly an order of magnitude per level, so a wide range

@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 from typing import TextIO
 import unittest
 
-from tools import ambiguity
+from tools.ambiguity import cli as ambiguity
 
 ROOT = Path(__file__).resolve().parents[2]
 ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "ambiguity_search.exe"
