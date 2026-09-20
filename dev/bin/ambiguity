@@ -10,8 +10,8 @@ if [[ "${1:-}" == "__engine" ]]; then
 	shift
 	# shellcheck source=../lib/ambiguity-config.sh
 	. "$ROOT/dev/lib/ambiguity-config.sh"
-	dune build --root "$ROOT" tools/ambiguity_search.exe
-	exec "$ROOT/_build/default/tools/ambiguity_search.exe" \
+	dune build --root "$ROOT" tools/ambiguity/ambiguity_search.exe
+	exec "$ROOT/_build/default/tools/ambiguity/ambiguity_search.exe" \
 		"$ROOT/lib/cst/parser.mly" \
 		"$@"
 fi

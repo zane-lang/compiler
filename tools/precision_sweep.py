@@ -48,7 +48,7 @@ from typing import TextIO
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity_search.exe"
+ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "ambiguity_search.exe"
 
 # Proof-mode exit statuses, matching the engine: a proof is a verdict rather
 # than a success or a failure, and 2 stays reserved for a run that went wrong.
@@ -112,7 +112,7 @@ def engine_environment() -> dict[str, str]:
         )
     if not ENGINE.exists():
         sys.exit(
-            f"{ENGINE} not built; run: dune build tools/ambiguity_search.exe"
+            f"{ENGINE} not built; run: dune build tools/ambiguity/ambiguity_search.exe"
         )
     return {
         **os.environ,

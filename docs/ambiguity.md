@@ -424,7 +424,7 @@ past any fixed lookahead, which is what the prover is for.
 ## Tooling
 
 - `ambiguity search [PROFILE]` — bounded, parallel GLR search for complete
-  ambiguous sentences (`tools/ambiguity_search.ml`). A completed bound is a theorem
+  ambiguous sentences (`tools/ambiguity/`). A completed bound is a theorem
   ("no ambiguous sentence of at most N tokens"), up to the astronomically
   unlikely collision of the 124-bit frontier digests used for
   deduplication; an interrupted bound is evidence only.

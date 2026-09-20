@@ -172,7 +172,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          devbox run -- dune build tools/ambiguity_search.exe
+          devbox run -- dune build tools/ambiguity/ambiguity_search.exe
 
       - name: Run unambiguity proof
         id: proof

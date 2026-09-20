@@ -1210,9 +1210,9 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--emit-dir", type=Path, help="keep generated grammars in this directory")
     result.add_argument(
         "--search-command",
-        default="_build/default/tools/ambiguity_search.exe",
+        default="_build/default/tools/ambiguity/ambiguity_search.exe",
         help="command prefix used to invoke the ambiguity search; the default"
-        " expects a prior `dune build tools/ambiguity_search.exe`",
+        " expects a prior `dune build tools/ambiguity/ambiguity_search.exe`",
     )
     result.add_argument("--max-tokens", type=int)
     result.add_argument("--timeout", type=float)
@@ -1267,7 +1267,7 @@ def validate_args(args: argparse.Namespace, cli: argparse.ArgumentParser) -> Non
     if not args.emit_only and os.path.dirname(executable) and not Path(executable).is_file():
         cli.error(
             f"search executable does not exist: {executable};"
-            " run `dune build tools/ambiguity_search.exe` first"
+            " run `dune build tools/ambiguity/ambiguity_search.exe` first"
         )
     # --emit-only produces grammars and nothing else, so without a directory to
     # keep them in they would be written to a temporary directory and deleted

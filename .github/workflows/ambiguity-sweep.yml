@@ -138,7 +138,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          devbox run -- dune build tools/ambiguity_search.exe
+          devbox run -- dune build tools/ambiguity/ambiguity_search.exe
 
       - name: Sweep the abstraction level
         id: sweep

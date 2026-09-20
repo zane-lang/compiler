@@ -24,7 +24,7 @@ syntax-experiment-test:
 # that stopped happening. Promote an intended move with `just promote`.
 test:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
-	dune build tools/ambiguity_search.exe tools/parser_shape.exe tools/parser_accept.exe
+	dune build tools/ambiguity/ambiguity_search.exe tools/parser_shape.exe tools/parser_accept.exe
 	dune runtest
 	python3 -m unittest tools.test_ambiguity_cli tools.test_parser_ambiguity tools.test_parser_syntax tools.test_precision_sweep tools.test_prover -v
 
@@ -43,7 +43,7 @@ promote:
 # Levels cost roughly an order of magnitude each, so start narrow and widen.
 sweep GRAMMAR="lib/cst/parser.mly" *ARGS:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
-	dune build tools/ambiguity_search.exe
+	dune build tools/ambiguity/ambiguity_search.exe
 	python3 tools/precision_sweep.py {{GRAMMAR}} {{ARGS}}
 
 # Dump Menhir's LR automaton or its conflict explanations -- the obligation
