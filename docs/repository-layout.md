@@ -39,8 +39,9 @@ The strongest part of the current layout is the stage-oriented compiler core:
 - `bin/` contains product entry points.
 - `lib/cst/` owns parsing and the concrete syntax tree.
 - `lib/sst/` owns the simplified syntax tree and CST -> SST lowering.
-- `lib/tree_graph/` and `lib/span_text/` are small focused support libraries;
-  importantly, both are shared rendering primitives rather than compiler stages.
+- `lib/tree_graph/` is a small focused shared rendering library. The logic in
+  `lib/span_text/` is similarly well-scoped and should stay shared, although
+  its dependency direction and final location can be improved.
 - `dev/bin/` exposes development commands without mixing their shell wrappers
   with shipped binaries.
 - `docs/stages.md` gives the architecture a clear stage model.
@@ -61,6 +62,7 @@ distinct responsibilities:
 | `tools/syntax_experiment.py` | 1,386 lines | experiment model, source transforms, process execution, evaluation, reporting, and CLI are combined |
 | `tools/ambiguity.py` | 813 lines | profile schema/loading, argument coercion, rendering, process execution, and CLI dispatch are combined |
 | `lib/cst/parser.mly` | 1,813 lines | the grammar is cohesive, but roughly the first 535 lines are OCaml helper logic rather than grammar productions |
+| `tools/span_dump.ml` + `tools/sst_dump.ml` | parallel tree walks | stage-specific span traversal lives in tools while the analogous structural traversal lives beside each stage; additionally, shared `span_text` depends upward on `cst` only for the span type |
 | `docs/ambiguity.md` | 1,177 lines | policy, proof obligations, tool manual, historical experiments, configuration, and soundness notes are all one document |
 | `tools/` | flat | parser inspection, ambiguity research, syntax experiments, tests, and helper grammars all share one namespace |
 | `test-parser/` + `test/` | two roots | parser inputs and their golden outputs are separated by naming rather than by a common test hierarchy |
@@ -798,7 +800,8 @@ walkers from `tools/span_dump.ml` and `tools/sst_dump.ml` into
 
 Keep this behavior-preserving: the existing span golden files should render
 identically before and after the move. Once the adapters exist, reduce the tool
-layer to a thin stage-selecting frontend.
+layer to a thin stage-selecting frontend and update the Dune golden rules to
+invoke that frontend with the appropriate CST/SST stage flag.
 
 ### Phase 4 — test tree
 
@@ -824,7 +827,7 @@ mechanical change.
 
 Group parser tools, ambiguity tools, and syntax-experiment code into subsystem
 directories. Update `dev/bin/`, `justfile`, and Dune paths without changing
-the user-facing commands. As in Phase 3, update repository-root calculations in
+the user-facing commands. As in Phase 4, update repository-root calculations in
 Python files that move one directory deeper: `ambiguity.py`,
 `precision_sweep.py`, and `explain_automaton.py` currently resolve the root
 from their position directly under `tools/`, so their new locations under
