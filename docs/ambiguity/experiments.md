@@ -61,11 +61,12 @@ right-hand side spells exactly what its reduction pops, so a count relation
 holding of every production is inherited by every sentence the grammar derives:
 on this grammar every one of the 391 expanded productions contains as many `(`
 as `)`, `{` as `}` and `[` as `]`, so no sentence can be unbalanced. Three of
-the four candidates recorded in [`reports/prove/`](../../reports/prove) are
-unbalanced sentences, and refusing to report a pair whose sentence breaks such
-an invariant removes all of them at no measurable cost — a 60-second survey
-walks the same 21,018 pairs either way. It was implemented, measured, and taken
-back out, because it is **unsound as a filter on reports**, for a reason worth
+the four candidates recorded in
+[`reports/ambiguity/prove/`](../../reports/ambiguity/prove) are unbalanced
+sentences, and refusing to report a pair whose sentence breaks such an
+invariant removes all of them at no measurable cost — a 60-second survey walks
+the same 21,018 pairs either way. It was implemented, measured, and taken back
+out, because it is **unsound as a filter on reports**, for a reason worth
 recording: pairs are deduplicated on first arrival, so the sentence a pair
 carries is the first one that reached it, not the only one. A pair reached
 first by an unbalanced sentence and later by a balanced ambiguous one is pushed
