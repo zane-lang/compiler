@@ -1,6 +1,6 @@
-(* Print every node of the desugared tree with the source text its span covers.
+(* Every node of the desugared tree, with the source text its span covers.
 
-   This is `span_dump` over the SST, and it answers one more question than that
+   [Cst.To_span_text] over the SST, and it answers one more question than that
    one does. Each line carries the node's *variant*, not just its kind, so the
    expectation shows the rewrites of docs/desugaring.md having happened:
 
@@ -13,15 +13,19 @@
    when a span moves and when a desugaring changes shape, which is what a pass
    whose whole job is to change shape needs from a test.
 
-   The second thing it checks is the rule [Sst.Lower] holds itself to: every
+   The second thing it checks is the rule [Lower] holds itself to: every
    synthesized node takes the span of the syntax it came from. A node that
    pointed nowhere would print `<INVALID SPAN>`, and one that pointed at the
-   wrong thing would print the wrong text. *)
+   wrong thing would print the wrong text.
 
-let printer = ref (Span_text.create "")
-let line depth kind span = Span_text.line !printer depth kind span
+   The printer is a module-level reference for the same reason it is one in
+   [Cst.To_span_text]: [render] is the only entry point and sets it before
+   walking. *)
 
-open Sst.Nodes
+let printer = ref (Source.Span_text.create "")
+let line depth kind span = Source.Span_text.line !printer depth kind span
+
+open Nodes
 
 let name d label (n : Name.t) = line d (label ^ " " ^ n.Name.text) n.Name.span
 let opt d f = function None -> () | Some x -> f d x
@@ -489,20 +493,11 @@ and decl d (x : Decl.t) =
       line d "decl Verb" at;
       verb_decl (d + 1) v
 
-let () =
-  if Array.length Sys.argv <> 2 then begin
-    prerr_endline "usage: sst_dump SOURCE";
-    exit 2
-  end;
-  let path = Sys.argv.(1) in
-  let input = In_channel.with_open_text path In_channel.input_all in
-  printer := Span_text.create input;
-  match Cst.parse path input with
-  | Error message ->
-      prerr_string message;
-      exit 1
-  | Ok parsed ->
-      let package = Sst.of_cst parsed in
-      line 0 "package" package.Package.span;
-      each 1 decl package.Package.decls;
-      print_string (Span_text.contents !printer)
+(* [source] is the text the spans index into -- the text the CST this tree was
+   lowered from was parsed out of, since a desugared node keeps the span of the
+   syntax it came from. *)
+let render ~source (package : Package.t) =
+  printer := Source.Span_text.create source;
+  line 0 "package" package.Package.span;
+  each 1 decl package.Package.decls;
+  Source.Span_text.contents !printer

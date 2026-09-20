@@ -1,5 +1,10 @@
 (* The CST's job is to represent what was parsed, not what's valid. *)
 
+(* The span type lives below the stages, in [Source], because a source
+   location is not CST-specific: SST and everything after it point at the same
+   text. Aliased rather than spelled out at each mention. *)
+module Span = Source.Span
+
 (* Every node carries where it was written.
 
    Two shapes, chosen by what the node already is. A node whose [t] is a

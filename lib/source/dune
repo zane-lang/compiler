@@ -1,0 +1,9 @@
+; Source positions and the reading of them back out of the text they point at.
+;
+; Below the compiler stages rather than beside them: a span is a location in a
+; source file, which CST, SST and everything after them all need, and none of
+; them owns it. `span_text` is the shared presentation half, the counterpart of
+; `tree_graph` on the span side; the walk over a particular stage's nodes lives
+; with that stage.
+(library
+ (name source))

@@ -43,9 +43,9 @@ same span the original `Op` node had. Nothing in this document needs
 `Span.none`, and it should stay unused after the SST lands.
 
 This is worth holding to, because it keeps the SST checkable by the same means
-as the CST: `tools/span_dump.ml` renders each node against the source its span
-covers, and a desugared tree whose spans still land on real source can be
-checked by pointing the same tool at it. A synthesized node pointing nowhere
+as the CST: `Sst.To_span_text` renders each node against the source its span
+covers, exactly as `Cst.To_span_text` does for the parsed tree, and
+`span_dump --sst` prints it. A synthesized node pointing nowhere
 would read as a bug the moment it printed.
 
 ---

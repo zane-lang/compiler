@@ -6,17 +6,12 @@
  (name parser_accept)
  (libraries cst))
 
-; Walks a parsed file and prints every node with the source text its span
-; covers. test/dune diffs its output against a checked-in expectation.
+; Reads a source file and prints every node with the source text its span
+; covers. The walk over each stage's nodes lives with that stage --
+; `Cst.To_span_text` and `Sst.To_span_text` -- so this is a frontend that picks
+; one with `--cst` or `--sst`. test/dune diffs its output against a checked-in
+; expectation for both.
 (executable
  (name span_dump)
  (modules span_dump)
- (libraries cst span_text))
-
-; The same, over the desugared tree. Its lines carry which variant each node
-; is, not just its kind, so the expectation shows the rewrites of
-; docs/desugaring.md happening and not only that the spans survived them.
-(executable
- (name sst_dump)
- (modules sst_dump)
- (libraries cst sst span_text))
+ (libraries cst sst))

@@ -9,6 +9,11 @@
    the defects recorded here: this module decides the shape while the tree is
    still being built, that one reads the marks off the tree that survived. *)
 
+(* The span type lives below the stages, in [Source], because a source
+   location is not CST-specific: SST and everything after it point at the same
+   text. Aliased rather than spelled out at each mention. *)
+module Span = Source.Span
+
 (* Does this statement's last token close a brace?
 
    A statement ends with `;`, unless it ends with a `}` -- then that brace ends

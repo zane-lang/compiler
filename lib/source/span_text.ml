@@ -1,9 +1,11 @@
 (* Reading a span back out of the source it points at.
 
    A span is only ever wrong by pointing somewhere, and the cheapest way to see
-   where is to print the text between its two positions. Both the CST dump and
-   the SST dump do that, and they do it the same way, so the doing of it lives
-   here rather than twice.
+   where is to print the text between its two positions. [Cst.To_span_text] and
+   [Sst.To_span_text] both do that, and they do it the same way, so the doing
+   of it lives here rather than twice. This is to the span side what
+   [Tree_graph] is to the structure side: the shared rendering, with the walk
+   over a stage's own nodes left to that stage.
 
    That is not tidiness. The cut logic below has to respect UTF-8, and it got
    that wrong once already: an elision landing mid-character wrote invalid
@@ -69,9 +71,9 @@ let elide text =
    raising, because a dump that stops at the first bad span hides every one
    after it -- and the run that most wants this tool is the one where a span is
    wrong. *)
-let line printer depth kind (span : Cst.Span.t) =
-  let a = span.Cst.Span.start_.Lexing.pos_cnum
-  and b = span.Cst.Span.end_.Lexing.pos_cnum in
+let line printer depth kind (span : Span.t) =
+  let a = span.Span.start_.Lexing.pos_cnum
+  and b = span.Span.end_.Lexing.pos_cnum in
   let text =
     if a >= 0 && b >= a && b <= String.length printer.source then
       elide (squeeze (String.sub printer.source a (b - a)))

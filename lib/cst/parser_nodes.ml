@@ -9,6 +9,11 @@
    They live beside the grammar rather than inside it because they are record
    boilerplate, not syntax design: nothing here decides what Zane accepts. *)
 
+(* The span type lives below the stages, in [Source], because a source
+   location is not CST-specific: SST and everything after it point at the same
+   text. Aliased rather than spelled out at each mention. *)
+module Span = Source.Span
+
 (* Not called [name]: these are used from `%inline` rules, whose bodies are
    expanded into their callers, and a caller binding `name=...` would capture
    the reference. *)

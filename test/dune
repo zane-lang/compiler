@@ -1,10 +1,10 @@
 ; Every node's span, read back out of the source it points at.
 ;
-; `span_dump` prints one line per node: the node's kind and the text between
-; its span's two positions. `sst_dump` does the same over the desugared tree
-; and prints each node's variant as well, so its expectations show the rewrites
-; of docs/desugaring.md having happened and not merely that spans survived
-; them.
+; `span_dump --cst` prints one line per node: the node's kind and the text
+; between its span's two positions. `span_dump --sst` does the same over the
+; desugared tree and prints each node's variant as well, so its expectations
+; show the rewrites of docs/desugaring.md having happened and not merely that
+; spans survived them.
 ;
 ; What these are for: a span is only ever wrong by pointing somewhere, and the
 ; rest of the suite cannot see where. The acceptance tests ask whether a file
@@ -34,7 +34,7 @@
 (rule
  (with-stdout-to
   main.spans.actual
-  (run %{exe:../tools/span_dump.exe} %{dep:../test-parser/main.zn})))
+  (run %{exe:../tools/span_dump.exe} --cst %{dep:../test-parser/main.zn})))
 
 (rule
  (alias runtest)
@@ -44,7 +44,7 @@
 (rule
  (with-stdout-to
   utf8.spans.actual
-  (run %{exe:../tools/span_dump.exe} %{dep:../test-parser/utf8.zn})))
+  (run %{exe:../tools/span_dump.exe} --cst %{dep:../test-parser/utf8.zn})))
 
 (rule
  (alias runtest)
@@ -54,7 +54,7 @@
 (rule
  (with-stdout-to
   desugar.spans.actual
-  (run %{exe:../tools/span_dump.exe} %{dep:../test-parser/desugar.zn})))
+  (run %{exe:../tools/span_dump.exe} --cst %{dep:../test-parser/desugar.zn})))
 
 (rule
  (alias runtest)
@@ -64,7 +64,7 @@
 (rule
  (with-stdout-to
   main.sst.spans.actual
-  (run %{exe:../tools/sst_dump.exe} %{dep:../test-parser/main.zn})))
+  (run %{exe:../tools/span_dump.exe} --sst %{dep:../test-parser/main.zn})))
 
 (rule
  (alias runtest)
@@ -74,7 +74,7 @@
 (rule
  (with-stdout-to
   utf8.sst.spans.actual
-  (run %{exe:../tools/sst_dump.exe} %{dep:../test-parser/utf8.zn})))
+  (run %{exe:../tools/span_dump.exe} --sst %{dep:../test-parser/utf8.zn})))
 
 (rule
  (alias runtest)
@@ -84,7 +84,7 @@
 (rule
  (with-stdout-to
   desugar.sst.spans.actual
-  (run %{exe:../tools/sst_dump.exe} %{dep:../test-parser/desugar.zn})))
+  (run %{exe:../tools/span_dump.exe} --sst %{dep:../test-parser/desugar.zn})))
 
 (rule
  (alias runtest)

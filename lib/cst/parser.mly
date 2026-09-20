@@ -4,6 +4,7 @@
    spanned-node constructors, [Parser_actions] for the actions that build or
    reject a larger node, and [Statement_shape] for where a statement ends and
    whether it was spelled to match. *)
+module Span = Source.Span
 open Parser_nodes
 open Parser_actions
 open Statement_shape

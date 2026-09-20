@@ -18,7 +18,7 @@
 
 module C = Cst.Nodes
 module S = Nodes
-module Span = Cst.Span
+module Span = Source.Span
 
 (* ---------------------------------------------------------------------- *)
 (* Leaves reused from the CST pass through by identity. Named rather than  *)
