@@ -11,7 +11,7 @@ SST
   ↓ semantics
 TST
   ↓ optimization
-OTST
+OST
   ↓ codegen
 binary
 ```
@@ -20,9 +20,8 @@ binary
 2. **desugaring** — lowers the CST to the simplified syntax tree (SST).
 3. **semantics** — resolves names, checks types, and lowers the SST to the typed
    syntax tree (TST).
-4. **optimization** — transforms the TST into the optimized typed syntax tree
-   (OTST).
-5. **codegen** — lowers the OTST to the target representation and produces the
+4. **optimization** — transforms the TST into the optimized syntax tree (OST).
+5. **codegen** — lowers the OST to the target representation and produces the
    binary.
 
 The CST captures only what the source says: every shorthand the grammar admits
@@ -36,14 +35,17 @@ the ones that look like they belong and do not.
 The TST represents the semantically checked program. Names are resolved and
 expressions are typed, so later stages do not need to recover semantic
 information from syntax. "TST" is used instead of the more common "typed AST"
-because CST, SST, and TST name the role of each tree directly.
+because CST, SST, TST, and OST name the role of each tree directly. Their names
+describe what distinguishes each representation rather than accumulating every
+property inherited from earlier stages: the TST remains simplified, and the OST
+remains typed, without encoding those inherited properties in their names.
 
-The OTST is deliberately a distinct representation rather than merely a TST
+The OST is deliberately a distinct representation rather than merely a TST
 that has had optimization passes run over it. Optimization may introduce
 backend-oriented forms, stronger invariants, explicit compiler-generated
 structure, or other representations chosen for efficient code generation.
 Keeping that freedom out of the TST lets the TST remain the language-facing
-representation of the typed program while the OTST can evolve around backend
+representation of the typed program while the OST can evolve around backend
 needs.
 
 The line between stages 2 and 3 is what a rewrite needs to know. A desugaring
