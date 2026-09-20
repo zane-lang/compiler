@@ -201,11 +201,11 @@ statements and the same two readings meet. That is stricter than §6.3's
 statement rule, which would let `check_terminator` accept the `;` and reject
 its absence after the parse — too late, because both spellings parse.
 
-`docs/ambiguity.md` has the full account, in the ledger entry for the state
-reducing `import_decl -> IMPORT LIDENT DOLLAR`. Reconciling in the spec's
-direction needs the spec to say what separates two adjacent declarations when
-the first ends in a name; until it does, the compiler cannot drop the `;`
-without re-admitting the ambiguity.
+`docs/ambiguity/proof-obligations.md` has the full account, in the ledger entry
+for the state reducing `import_decl -> IMPORT LIDENT DOLLAR`. Reconciling in
+the spec's direction needs the spec to say what separates two adjacent
+declarations when the first ends in a name; until it does, the compiler cannot
+drop the `;` without re-admitting the ambiguity.
 
 ## 5. Only a bare name may be passed as a type
 
@@ -241,7 +241,7 @@ Measured, that is not a fork GLR resolves but a cost paid in the automaton:
 admitting the applied form adds three **reduce/reduce** states, every one of
 them `expr -> <name> loption_generics_` against `list_verb_type_suffix_ ->`.
 The bare form adds four shift/reduce states and no reduce/reduce state at all.
-`docs/ambiguity.md` carries the full measurement.
+`docs/ambiguity/proof-obligations.md` carries the full measurement.
 
 The narrowing costs nothing the spec demonstrates: every §5.3 and §6.2 example
 passes a bare name, and a parameterized type reaches a verb through inference
@@ -275,8 +275,8 @@ owners, and a binary operator gives each owner enough to finish on:
 `x Foo = match A { } <= B { }` has a complete derivation as
 `(match A { }) <= (B { })` and another as `match (A { } <= B) { }`. Measured at
 2 for every binary operator the language has, `{` carries no precedence level,
-and `docs/ambiguity.md` does not permit two accepting parses to be narrowed
-afterward. The `)` ends the scrutinee before the brace is read.
+and `docs/ambiguity/policy.md` does not permit two accepting parses to be
+narrowed afterward. The `)` ends the scrutinee before the brace is read.
 
 Nothing is lost to the tuple reading §5.6 guards against, because Zane has no
 `(a, b)` expression form for the list to collapse into: the parentheses delimit
