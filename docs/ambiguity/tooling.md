@@ -195,11 +195,12 @@ Every profile setting has an identically named override flag: the TOML key and
 the `--flag` share the same kebab-case spelling (`tokens`, `timeout`,
 `witnesses`, `prefix-tokens`, `nodes-per-depth`, `breadth-first`, `output`), and
 the command line overrides the profile. A single registry in
-`tools/ambiguity/cli.py` declares every flag once — value flags, the `breadth-first`
-toggle, and the `dry-run` mode alike — and marks which ones profiles may set, so
-the flags and the profile keys are one list and cannot drift apart. The only
-flag that is not a profile key is `--dry-run`, which is a run mode (show the
-resolved settings without running the engine), not saved search intent.
+`tools/ambiguity/profiles.py` declares every flag once — value flags, the
+`breadth-first` toggle, and the `dry-run` mode alike — and marks which ones
+profiles may set, so the flags and the profile keys are one list and cannot
+drift apart. The only flag that is not a profile key is `--dry-run`, which is a
+run mode (show the resolved settings without running the engine), not saved
+search intent.
 
 Scheduling is one slot with two spellings: a profile sets either
 `nodes-per-depth = N` (depth waves) or `breadth-first = true` (shortest-first),
