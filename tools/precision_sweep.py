@@ -25,7 +25,7 @@ Usage:
     python3 tools/precision_sweep.py GRAMMAR.mly [--levels 1-6] [--timeout 60]
     python3 tools/precision_sweep.py --corpus even-palindrome
 
-The corpus grammars come from `test_prover.py`, where their status is known by
+The corpus grammars come from the prover tests, where their status is known by
 construction, so they calibrate a reading of this table before it is trusted on
 a grammar whose answer is the question.
 """
@@ -296,7 +296,7 @@ def run_level(
 def corpus_grammars() -> dict[str, str]:
     """The prover's own fixtures, whose verdicts are known by construction."""
     sys.path.insert(0, str(ROOT))
-    from tools import test_prover
+    from test.ambiguity import prover_test as test_prover
 
     return {
         "ambiguous-expression": test_prover.AMBIGUOUS_EXPRESSION,

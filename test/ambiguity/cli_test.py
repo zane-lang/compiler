@@ -12,7 +12,7 @@ import unittest
 
 from tools import ambiguity
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "ambiguity_search.exe"
 
 # A minimal grammar whose two atoms A and B are interchangeable (both reduce to

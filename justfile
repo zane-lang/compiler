@@ -9,7 +9,7 @@ watch:
 	dune build --watch
 
 syntax-experiment-test:
-	python3 -m unittest tools.test_syntax_experiment -v
+	python3 -m unittest test.syntax_experiment.experiment_test -v
 
 # The parser suite: acceptance, grammar ambiguity, the prover's soundness
 # corpus, the search CLI's own tests, and the sweep's process runner. The
@@ -17,8 +17,9 @@ syntax-experiment-test:
 # present, so build them first and fail loudly on a missing Menhir rather than
 # reporting a green run that silently skipped them.
 #
-# `dune runtest` carries the expectations in test/, which the Python suite
-# cannot cover: those tests ask whether a file parses and what shape it parsed
+# `dune runtest` carries the expectations in test/parser/golden/, which the
+# Python suite cannot cover: those tests ask whether a file parses and what
+# shape it parsed
 # to, and neither question reads a position or looks at the desugared tree. A
 # moved span is a diff there and nothing anywhere else, and so is a rewrite
 # that stopped happening. Promote an intended move with `just promote`.
@@ -26,7 +27,7 @@ test:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
 	dune build tools/ambiguity/ambiguity_search.exe tools/parser_shape.exe tools/parser_accept.exe
 	dune runtest
-	python3 -m unittest tools.test_ambiguity_cli tools.test_parser_ambiguity tools.test_parser_syntax tools.test_precision_sweep tools.test_prover -v
+	python3 -m unittest test.ambiguity.cli_test test.ambiguity.precision_sweep_test test.ambiguity.prover_test test.parser.ambiguity_test test.parser.syntax_test -v
 
 # Accept the span expectation as it currently stands, after reading the diff
 # `just test` printed and satisfying yourself that each moved span still covers

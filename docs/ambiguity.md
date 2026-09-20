@@ -281,8 +281,9 @@ call itself, and the instantiation shorthand that writes a name in front of it
 construct's, and three that double the `app -> ... DOT LIDENT` family, where a
 named constructor's `.member` now opens the trailing form as well as a field
 access. Under GLR both readings are explored and one survives, measured on
-every case in [`test_parser_ambiguity.py`](../tools/test_parser_ambiguity.py)
-and searched for in [`reports/general/`](../reports/general), where the run
+every case in
+[`test/parser/ambiguity_test.py`](../test/parser/ambiguity_test.py) and
+searched for in [`reports/general/`](../reports/general), where the run
 that added the rule exhausted every sentence of at most nine tokens without
 finding one.
 
@@ -333,11 +334,12 @@ fourth doubles the `primary -> LIDENT` state. No reduce/reduce state is added.
 
 That they are forks rather than ambiguities is measured, not proved. Both
 readings are explored and exactly one survives on every case in
-[`test_parser_ambiguity.py`](../tools/test_parser_ambiguity.py), and the search
-in [`reports/general/`](../reports/general) exhausted every sentence of at most
-nine tokens without finding one. Neither reaches inputs of every length, so
-these four stand where the rest of the ledger does: **open obligations**, until
-`ambiguity prove` closes them or a longer search finds a witness.
+[`test/parser/ambiguity_test.py`](../test/parser/ambiguity_test.py), and the
+search in [`reports/general/`](../reports/general) exhausted every sentence of
+at most nine tokens without finding one. Neither reaches inputs of every
+length, so these four stand where the rest of the ledger does: **open
+obligations**, until `ambiguity prove` closes them or a longer search finds a
+witness.
 
 **Only a bare name may be written that way**, and the measurement is what drew
 the line. Admitting an applied `Array<Int, 4>` as well costs three
@@ -542,7 +544,7 @@ past any fixed lookahead, which is what the prover is for.
   never be eliminated entirely; the prover is validated against known-ambiguous
   grammars, LR(1) grammars, precedence-resolved expression grammars, and
   unambiguous non-LR grammars such as palindromes. That corpus lives in
-  `tools/test_prover.py`, which pins both directions of soundness — an
+  `test/ambiguity/prover_test.py`, which pins both directions of soundness — an
   ambiguous grammar is never proven, and an unambiguous one never yields a
   witness — so a change that sharpens the abstraction cannot quietly start
   proving false theorems. A conflict-free automaton offers one action per state
@@ -808,7 +810,7 @@ past any fixed lookahead, which is what the prover is for.
   suffix and nothing ever invents one, so a sharper abstraction can remove
   spurious pairs but never a real parse. That is what lets the choice of where
   to deepen be a heuristic without putting the verdict at risk, and it is
-  pinned in `tools/test_prover.py` against grammars known ambiguous by
+  pinned in `test/ambiguity/prover_test.py` against grammars known ambiguous by
   construction.
 
   The round lines are worth as much as the verdict. Each names the candidate

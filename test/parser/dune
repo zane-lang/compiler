@@ -20,76 +20,76 @@
 ; `dune promote`.
 ;
 ; Three fixtures. `main.zn` is the one the parser suite already reaches for,
-; and it covers the breadth of the grammar. `utf8.zn` covers the one input
+; and it covers the breadth of the grammar. `fixtures/utf8.zn` covers the one input
 ; class it does not: spans are byte offsets, and while a file is ASCII a
 ; code-point offset is indistinguishable from a byte one. They diverge at the
 ; first multibyte character and every span after it shifts -- which is exactly
 ; the bug found on #86, after the suite had been green through it.
 ;
-; `desugar.zn` is the third, and unlike the other two it was written for these
+; `fixtures/desugar.zn` is the third, and unlike the other two it was written for these
 ; tests: every rewrite in docs/desugaring.md 2 appears in it at least once.
-; The other two do not manage that -- main.zn reaches only two of the five
+; The other two do not manage that -- `main.zn` reaches only two of the five
 ; derived operators, so three of them had no expectation anywhere.
 
 (rule
  (with-stdout-to
-  main.spans.actual
-  (run %{exe:../tools/span_dump.exe} --cst %{dep:../test-parser/main.zn})))
+  main.cst.spans.actual
+  (run %{exe:../../tools/span_dump.exe} --cst %{dep:fixtures/main.zn})))
 
 (rule
  (alias runtest)
  (action
-  (diff main.spans main.spans.actual)))
+  (diff golden/main.cst.spans main.cst.spans.actual)))
 
 (rule
  (with-stdout-to
-  utf8.spans.actual
-  (run %{exe:../tools/span_dump.exe} --cst %{dep:../test-parser/utf8.zn})))
+  utf8.cst.spans.actual
+  (run %{exe:../../tools/span_dump.exe} --cst %{dep:fixtures/utf8.zn})))
 
 (rule
  (alias runtest)
  (action
-  (diff utf8.spans utf8.spans.actual)))
+  (diff golden/utf8.cst.spans utf8.cst.spans.actual)))
 
 (rule
  (with-stdout-to
-  desugar.spans.actual
-  (run %{exe:../tools/span_dump.exe} --cst %{dep:../test-parser/desugar.zn})))
+  desugar.cst.spans.actual
+  (run %{exe:../../tools/span_dump.exe} --cst %{dep:fixtures/desugar.zn})))
 
 (rule
  (alias runtest)
  (action
-  (diff desugar.spans desugar.spans.actual)))
+  (diff golden/desugar.cst.spans desugar.cst.spans.actual)))
 
 (rule
  (with-stdout-to
   main.sst.spans.actual
-  (run %{exe:../tools/span_dump.exe} --sst %{dep:../test-parser/main.zn})))
+  (run %{exe:../../tools/span_dump.exe} --sst %{dep:fixtures/main.zn})))
 
 (rule
  (alias runtest)
  (action
-  (diff main.sst.spans main.sst.spans.actual)))
+  (diff golden/main.sst.spans main.sst.spans.actual)))
 
 (rule
  (with-stdout-to
   utf8.sst.spans.actual
-  (run %{exe:../tools/span_dump.exe} --sst %{dep:../test-parser/utf8.zn})))
+  (run %{exe:../../tools/span_dump.exe} --sst %{dep:fixtures/utf8.zn})))
 
 (rule
  (alias runtest)
  (action
-  (diff utf8.sst.spans utf8.sst.spans.actual)))
+  (diff golden/utf8.sst.spans utf8.sst.spans.actual)))
 
 (rule
  (with-stdout-to
   desugar.sst.spans.actual
-  (run %{exe:../tools/span_dump.exe} --sst %{dep:../test-parser/desugar.zn})))
+  (run %{exe:../../tools/span_dump.exe} --sst %{dep:fixtures/desugar.zn})))
 
 (rule
  (alias runtest)
  (action
-  (diff desugar.sst.spans desugar.sst.spans.actual)))
+  (diff golden/desugar.sst.spans desugar.sst.spans.actual)))
 
 ; The two structure renderings, which name every field rather than printing a
 ; span. `lib/cst/to_tree_graph.ml` had no test of any kind before this -- five
@@ -104,19 +104,19 @@
 (rule
  (with-stdout-to
   desugar.cst.tree.actual
-  (run %{exe:../bin/compiler/main.exe} --cst %{dep:../test-parser/desugar.zn})))
+  (run %{exe:../../bin/compiler/main.exe} --cst %{dep:fixtures/desugar.zn})))
 
 (rule
  (alias runtest)
  (action
-  (diff desugar.cst.tree desugar.cst.tree.actual)))
+  (diff golden/desugar.cst.tree desugar.cst.tree.actual)))
 
 (rule
  (with-stdout-to
   desugar.sst.tree.actual
-  (run %{exe:../bin/compiler/main.exe} --sst %{dep:../test-parser/desugar.zn})))
+  (run %{exe:../../bin/compiler/main.exe} --sst %{dep:fixtures/desugar.zn})))
 
 (rule
  (alias runtest)
  (action
-  (diff desugar.sst.tree desugar.sst.tree.actual)))
+  (diff golden/desugar.sst.tree desugar.sst.tree.actual)))

@@ -23,7 +23,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "ambiguity_search.exe"
 
 # Proof-mode exit statuses. A proof is a verdict rather than a success or a

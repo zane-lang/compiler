@@ -1,6 +1,6 @@
 (* Parsing the checked-in sample is the common case while the front end is the
    only stage, so it stays the default when no source is named. *)
-let default_path = "test-parser/main.zn"
+let default_path = "test/parser/fixtures/main.zn"
 
 (* Which tree to print. The CST stays the default because it is what the source
    says, and a reader checking the parser wants that one; `--sst` is for
