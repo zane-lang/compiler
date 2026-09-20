@@ -39,7 +39,8 @@ The strongest part of the current layout is the stage-oriented compiler core:
 - `bin/` contains product entry points.
 - `lib/cst/` owns parsing and the concrete syntax tree.
 - `lib/sst/` owns the simplified syntax tree and CST -> SST lowering.
-- `lib/tree_graph/` and `lib/span_text/` are small focused support libraries.
+- `lib/tree_graph/` and `lib/span_text/` are small focused support libraries;
+  importantly, both are shared rendering primitives rather than compiler stages.
 - `dev/bin/` exposes development commands without mixing their shell wrappers
   with shipped binaries.
 - `docs/stages.md` gives the architecture a clear stage model.
@@ -85,23 +86,28 @@ This is a target shape, not a requirement to create every directory at once.
 │   │   ├── dune
 │   │   ├── cst.ml
 │   │   ├── nodes.ml
-│   │   ├── span.ml
 │   │   ├── lexer.ml
 │   │   ├── parser.mly
 │   │   ├── parser_nodes.ml
 │   │   ├── parser_actions.ml
 │   │   ├── statement_shape.ml
 │   │   ├── statement_check.ml
-│   │   └── to_tree_graph.ml
+│   │   ├── to_tree_graph.ml
+│   │   └── to_span_text.ml
 │   │
 │   ├── sst/
 │   │   ├── dune
 │   │   ├── sst.ml
 │   │   ├── nodes.ml
 │   │   ├── lower.ml
-│   │   └── to_tree_graph.ml
+│   │   ├── to_tree_graph.ml
+│   │   └── to_span_text.ml
 │   │
-│   ├── span_text/
+│   ├── source/
+│   │   ├── dune
+│   │   ├── span.ml
+│   │   └── span_text.ml
+│   │
 │   └── tree_graph/
 │
 ├── tools/
@@ -127,8 +133,7 @@ This is a target shape, not a requirement to create every directory at once.
 │   │   ├── dune
 │   │   ├── parser_accept.ml
 │   │   ├── parser_shape.ml
-│   │   ├── span_dump.ml
-│   │   └── sst_dump.ml
+│   │   └── span_dump.ml
 │   │
 │   └── syntax_experiment/
 │       ├── cli.py
@@ -196,6 +201,12 @@ A few details in that tree are intentional:
   Python wrapper, helper scripts, and grammars for ambiguity work belong
   together even though they are implemented in different languages.
 - Tests mirror the subsystem they test.
+- Shared output machinery stays central, while traversal of a particular
+  compiler-stage tree stays with that stage. In the target layout,
+  `tree_graph` is the shared structural rendering format,
+  `Cst.To_tree_graph` / `Sst.To_tree_graph` are stage adapters, and the span
+  side follows the same pattern with shared `Source.Span_text` plus
+  `Cst.To_span_text` / `Sst.To_span_text`.
 - The user-facing `ambiguity` command can stay in `dev/bin/`; only its
   implementation moves.
 - `ambiguity-searches.toml` should stay at the repository root. It is
@@ -469,7 +480,78 @@ sst/
 but only once those are actual passes rather than functions in one recursive
 walk.
 
-## 5. Turn `tools/` into subsystem directories
+## 5. Make stage renderers symmetric
+
+The current tree looks asymmetric because structural rendering and span
+rendering are split at different layers:
+
+```text
+CST nodes -> lib/cst/to_tree_graph.ml -> Tree_graph
+SST nodes -> lib/sst/to_tree_graph.ml -> Tree_graph
+
+CST nodes -> tools/span_dump.ml -> Span_text
+SST nodes -> tools/sst_dump.ml  -> Span_text
+```
+
+The important distinction is between a **shared rendering primitive** and a
+**stage-specific traversal**.
+
+`Tree_graph` is shared because it only knows generic output concepts such as
+leaves, fields, sequences, grouping, and rendering. It does not know CST or
+SST. `Cst.To_tree_graph` and `Sst.To_tree_graph` necessarily remain separate
+because they pattern-match on different tree schemas.
+
+`Span_text` has the same role as `Tree_graph`: it owns generic source-span
+presentation such as source slicing, whitespace squeezing, UTF-8-safe elision,
+invalid-span handling, and line formatting. The CST/SST traversal currently
+lives in the executable tools instead, which is the inconsistent part.
+
+Prefer the same shape on both sides:
+
+```text
+CST nodes -> Cst.To_tree_graph -> Tree_graph
+SST nodes -> Sst.To_tree_graph -> Tree_graph
+
+CST nodes -> Cst.To_span_text  -> Source.Span_text
+SST nodes -> Sst.To_span_text  -> Source.Span_text
+```
+
+Move the tree-walking portions of `tools/span_dump.ml` and `tools/sst_dump.ml`
+into `lib/cst/to_span_text.ml` and `lib/sst/to_span_text.ml`. The developer
+tool should become a thin frontend that parses the source, selects CST or SST,
+and delegates to the corresponding adapter.
+
+### Put the span type below the compiler stages
+
+There is one dependency wrinkle in the current implementation:
+`lib/span_text/` depends on the entire `cst` library solely so it can accept
+`Cst.Span.t`, while SST in turn aliases that same type with
+`module Span = Cst.Span`.
+
+The span itself is not CST-specific. It is a source location used by CST, SST,
+and later stages, so the target layout should move it below those stages:
+
+```text
+lib/source/
+  span.ml
+  span_text.ml
+```
+
+Then CST and SST depend on `Source.Span`, while the CST public module can
+temporarily keep `module Span = Source.Span` as a compatibility re-export.
+That removes the inverted `span_text -> cst` dependency without duplicating
+span logic between stages.
+
+This follows a useful repository rule:
+
+> Shared representation/rendering belongs centrally; traversal of a compiler
+> stage belongs to that stage.
+
+Do **not** create separate `cst/span_text.ml` and `sst/span_text.ml` copies of
+the UTF-8/source-slicing logic. The stage-specific files should only own the
+walk over their respective node types.
+
+## 6. Turn `tools/` into subsystem directories
 
 Today `tools/` mixes:
 
@@ -510,11 +592,16 @@ Group the small parser inspection/debug executables:
 
 - `parser_accept.ml`;
 - `parser_shape.ml`;
-- `span_dump.ml`;
-- `sst_dump.ml`.
+- `span_dump.ml`.
 
-They are not part of the compiler library and they are not ambiguity-engine
-internals; “parser developer tools” is their shared responsibility.
+The span tool should be a thin frontend over `Cst.To_span_text` and
+`Sst.To_span_text` rather than owning either tree traversal itself. One
+`span_dump` command can select the stage in the same way the compiler frontend
+already selects `--cst` or `--sst`.
+
+These executables are not part of the compiler library and they are not
+ambiguity-engine internals; “parser developer tools” is their shared
+responsibility.
 
 ### `tools/syntax_experiment/`
 
@@ -529,7 +616,7 @@ internals; “parser developer tools” is their shared responsibility.
 This is a better split than one file per experiment variant: variants are data;
 the responsibilities above are actual modules.
 
-## 6. Give tests one root and mirror the implementation
+## 7. Give tests one root and mirror the implementation
 
 `test-parser/` contains parser fixture source while `test/` contains golden
 outputs and Dune rules. That relationship is not obvious until the build files
@@ -607,7 +694,7 @@ test/ambiguity/prover/
 This removes the largest source of duplication without scattering each feature
 across dozens of files.
 
-## 7. Split `docs/ambiguity.md` into a small index plus focused documents
+## 8. Split `docs/ambiguity.md` into a small index plus focused documents
 
 The ambiguity document is valuable, but it currently serves several audiences
 at once.
@@ -633,7 +720,7 @@ tool?” and “what is the policy?” quick to find.
 documents for now; they already have one clear subject and good internal
 sectioning.
 
-## 8. Reports should say which subsystem generated them
+## 9. Reports should say which subsystem generated them
 
 Every current checked-in report is ambiguity-related. If reports remain
 versioned, prefer:
@@ -702,7 +789,18 @@ Move the Menhir prologue helpers into:
 
 Keep grammar rules in one `parser.mly`.
 
-### Phase 3 — test tree
+### Phase 3 — source spans and stage rendering adapters
+
+Move the stage-neutral span primitives to `lib/source/`, initially preserving
+`Cst.Span` as a re-export of `Source.Span`. Extract the CST and SST span
+walkers from `tools/span_dump.ml` and `tools/sst_dump.ml` into
+`Cst.To_span_text` and `Sst.To_span_text`.
+
+Keep this behavior-preserving: the existing span golden files should render
+identically before and after the move. Once the adapters exist, reduce the tool
+layer to a thin stage-selecting frontend.
+
+### Phase 4 — test tree
 
 Merge `test-parser/` into `test/parser/fixtures/`, move golden files beside
 it, and move Python tests from `tools/` into mirrored test subdirectories.
@@ -722,7 +820,7 @@ ROOT = Path(__file__).resolve().parents[2]
 Update the corresponding `justfile` unittest module paths in the same
 mechanical change.
 
-### Phase 4 — developer tool directories
+### Phase 5 — developer tool directories
 
 Group parser tools, ambiguity tools, and syntax-experiment code into subsystem
 directories. Update `dev/bin/`, `justfile`, and Dune paths without changing
@@ -732,13 +830,13 @@ Python files that move one directory deeper: `ambiguity.py`,
 from their position directly under `tools/`, so their new locations under
 `tools/ambiguity/` must account for the extra path component.
 
-### Phase 5 — split Python tool internals
+### Phase 6 — split Python tool internals
 
 Refactor `ambiguity.py` and `syntax_experiment.py` into their packages after
 the directory moves, so file movement and behavioral refactoring are not mixed
 in the same diff.
 
-### Phase 6 — documentation and report cleanup
+### Phase 7 — documentation and report cleanup
 
 Split `docs/ambiguity.md` while retaining the old path as an index, then
 optionally nest historical reports.
