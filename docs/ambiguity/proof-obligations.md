@@ -159,8 +159,9 @@ evidence behind the obligation had tried every continuation but this one: a
 following `import`, a lowercase *variable* declaration, an uppercase verb
 declaration, a `type` declaration, a constructor declaration and an enum map
 each resolve to one derivation, and a lowercase *lambda-valued* declaration was
-not among them. The reports are in [`reports/prove/`](../../reports/prove) — the
-run that found it, and the run that no longer does — and
+not among them. The reports are in
+[`reports/ambiguity/prove/`](../../reports/ambiguity/prove) — the run that
+found it, and the run that no longer does — and
 [`spec-divergences.md`](../spec-divergences.md) §5 records what the terminator
 costs against the spec.
 
@@ -183,9 +184,9 @@ precedence resolution nor a transience argument.
 the brace that opens the arms is read after a `)` rather than after an
 expression, and `list_match_arm_` appears in no conflict explanation the
 grammar produces. What made that necessary is recorded in
-[`2026-09-18_full-grammar-ambiguity.txt`](../../reports/prove/2026-09-18_full-grammar-ambiguity.txt)
+[`2026-09-18_full-grammar-ambiguity.txt`](../../reports/ambiguity/prove/2026-09-18_full-grammar-ambiguity.txt)
 and closed in
-[`2026-09-18_match-scrutinee-parens.txt`](../../reports/prove/2026-09-18_match-scrutinee-parens.txt):
+[`2026-09-18_match-scrutinee-parens.txt`](../../reports/ambiguity/prove/2026-09-18_match-scrutinee-parens.txt):
 with a bare scrutinee, `x Foo = match A { } <= B { }` had two complete
 derivations — `(match A { }) <= (B { })` and `match (A { } <= B) { }` — because
 an expression may itself end in a brace and an operator gives both groupings
@@ -239,9 +240,10 @@ named constructor's `.member` now opens the trailing form as well as a field
 access. Under GLR both readings are explored and one survives, measured on
 every case in
 [`test/parser/ambiguity_test.py`](../../test/parser/ambiguity_test.py) and
-searched for in [`reports/general/`](../../reports/general), where the run
-that added the rule exhausted every sentence of at most nine tokens without
-finding one.
+searched for in
+[`reports/ambiguity/search/general/`](../../reports/ambiguity/search/general),
+where the run that added the rule exhausted every sentence of at most nine
+tokens without finding one.
 
 Which token carries the fork was a choice. The trailing form reads a non-empty
 argument list, and if the plain form reads `( )` as a list that may be empty,
@@ -291,11 +293,12 @@ fourth doubles the `primary -> LIDENT` state. No reduce/reduce state is added.
 That they are forks rather than ambiguities is measured, not proved. Both
 readings are explored and exactly one survives on every case in
 [`test/parser/ambiguity_test.py`](../../test/parser/ambiguity_test.py), and the
-search in [`reports/general/`](../../reports/general) exhausted every sentence of
-at most nine tokens without finding one. Neither reaches inputs of every
-length, so these four stand where the rest of the ledger does: **open
-obligations**, until `ambiguity prove` closes them or a longer search finds a
-witness.
+search in
+[`reports/ambiguity/search/general/`](../../reports/ambiguity/search/general)
+exhausted every sentence of at most nine tokens without finding one. Neither
+reaches inputs of every length, so these four stand where the rest of the
+ledger does: **open obligations**, until `ambiguity prove` closes them or a
+longer search finds a witness.
 
 **Only a bare name may be written that way**, and the measurement is what drew
 the line. Admitting an applied `Array<Int, 4>` as well costs three

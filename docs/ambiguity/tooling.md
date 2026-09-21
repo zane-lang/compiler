@@ -89,34 +89,34 @@
   `ambiguity search` exits 0 whether or not it found witnesses, since a bounded
   finding is not one.
 
-  Reduction chains are compared only until their histories first differ. Once
-  a pair has diverged, later reductions cannot make the two derivations equal
+  Reduction chains are compared only until their histories first differ. Once a
+  pair has diverged, later reductions cannot make the two derivations equal
   again, so each side is closed independently and only their final stacks are
   paired. Final pairs are unordered, just like the global pair table. This
   avoids constructing the Cartesian product of every intermediate reduction
-  state without changing the relation the proof explores.
-  **A candidate is parsed for real before anything is spent on it.** The
-  abstract phase reasons about every sentence at once and has to approximate to
-  do it, but a single candidate sentence is short, and the engine already
-  carries the exact GLR recognizer that `ambiguity check` drives. So the
-  sentence is recognized the moment the abstraction names it, and the answer
-  decides what happens next. Two derivations settle the grammar: it is
-  ambiguous, refining would be sharpening an abstraction that turned out to be
-  right, and the run prints `AMBIGUOUS:` and exits directly. Only an
-  unconfirmed candidate continues to the bounded search; that search can render
-  a witness family, while the exact recognizer's finding is already decisive.
-  Nought or one makes the pair spurious, and the report says which
-  rather than leaving it to be inferred. The two spurious answers are not the
-  same finding. Nought means the abstraction accepted something that is not a
-  sentence — `x Foo(y(Bar` and its neighbours, unclosed parentheses and all —
-  and a round spent on one buys nothing. One means the sentence is a real
-  program whose single parse the abstraction cannot tell from a second, which
-  is the blind spot itself. Of the twenty-two candidates the ninety-minute run
-  in [`reports/prove/`](../../reports/prove) worked through, sixteen are the first
-  kind and six the second, and before this check they were indistinguishable.
-  The third answer has been seen once: the `import pkg$` bug, where the
-  recognizer would have settled it in milliseconds rather than at the end of
-  the bounded search.
+  state without changing the relation the proof explores. **A candidate is
+  parsed for real before anything is spent on it.** The abstract phase reasons
+  about every sentence at once and has to approximate to do it, but a single
+  candidate sentence is short, and the engine already carries the exact GLR
+  recognizer that `ambiguity check` drives. So the sentence is recognized the
+  moment the abstraction names it, and the answer decides what happens next.
+  Two derivations settle the grammar: it is ambiguous, refining would be
+  sharpening an abstraction that turned out to be right, and the run prints
+  `AMBIGUOUS:` and exits directly. Only an unconfirmed candidate continues to
+  the bounded search; that search can render a witness family, while the exact
+  recognizer's finding is already decisive. Nought or one makes the pair
+  spurious, and the report says which rather than leaving it to be inferred.
+  The two spurious answers are not the same finding. Nought means the
+  abstraction accepted something that is not a sentence — `x Foo(y(Bar` and its
+  neighbours, unclosed parentheses and all — and a round spent on one buys
+  nothing. One means the sentence is a real program whose single parse the
+  abstraction cannot tell from a second, which is the blind spot itself. Of the
+  twenty-two candidates the ninety-minute run in
+  [`reports/ambiguity/prove/`](../../reports/ambiguity/prove) worked through,
+  sixteen are the first kind and six the second, and before this check they
+  were indistinguishable. The third answer has been seen once: the
+  `import pkg$` bug, where the recognizer would have settled it in
+  milliseconds rather than at the end of the bounded search.
 
   Because unambiguity is undecidable in general, the "not proven" verdict can
   never be eliminated entirely; the prover is validated against known-ambiguous
