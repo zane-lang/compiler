@@ -6,8 +6,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=../lib/ambiguity-config.sh
 . "$ROOT/dev/lib/ambiguity-config.sh"
 
-dune build --root "$ROOT" tools/ambiguity_search.exe
-exec python3 "$ROOT/tools/syntax_experiment.py" \
+dune build --root "$ROOT" tools/ambiguity/ambiguity_search.exe
+exec python3 "$ROOT/tools/syntax_experiment/cli.py" \
 	"$ROOT/lib/cst/parser.mly" \
-	--search-command "$ROOT/_build/default/tools/ambiguity_search.exe" \
+	--search-command "$ROOT/_build/default/tools/ambiguity/ambiguity_search.exe" \
 	"$@"

@@ -1,6 +1,7 @@
 (library
  (name cst)
  (libraries
+  source
   menhirLib
   sedlex
   tree_graph

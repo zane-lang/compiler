@@ -31,7 +31,7 @@ mkdir -p "$(dirname "$REPORT")"
 # not close. Reaching any of those means the sweep did its job, so the job
 # result is decided below from what the table actually says.
 status=0
-python3 "$ROOT/tools/precision_sweep.py" \
+python3 "$ROOT/tools/ambiguity/precision_sweep.py" \
 	"$ROOT/$GRAMMAR" \
 	--levels "$LEVELS" \
 	--timeout "$LEVEL_TIMEOUT" \

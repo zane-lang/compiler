@@ -25,7 +25,7 @@
 
    The coupling this creates is the right one: if [Name_type] ever grows a
    case, a name written that way is a name the SST has to represent too. *)
-module Span = Cst.Span
+module Span = Source.Span
 module Name = Cst.Nodes.Name
 module Name_type = Cst.Nodes.Name_type
 module Name_expr = Cst.Nodes.Name_expr

@@ -10,6 +10,11 @@ _opam/
 *.term
 machine-config.txt
 
+# menhir --explain and --dump write these beside the grammar when it is run
+# by hand, which is how conflicts and automaton states are read outside dune.
+*.conflicts
+*.automaton
+
 # ocamlopt writes these beside the source when a module is compiled
 # outside dune, which is how the prover gets built without the full switch.
 *.cmi

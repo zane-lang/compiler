@@ -30,7 +30,7 @@ on:
         # seconds and is what makes the question answerable at all.
         description: Repository-relative path to the .mly grammar to sweep
         required: true
-        default: tools/grammars/verb_suffix_vs_enum_map.mly
+        default: tools/ambiguity/grammars/verb_suffix_vs_enum_map.mly
         type: string
       levels:
         # Cost grows roughly an order of magnitude per level, so a wide range
@@ -108,7 +108,7 @@ jobs:
       # allows past it -- the engine's timeout alone under-counts a level, and
       # across eight of them by half an hour.
       SWEEP_BUDGET: "14400"
-      REPORT: reports/actions/sweep-${{ github.run_id }}-${{ github.run_attempt }}.txt
+      REPORT: reports/ambiguity/actions/sweep-${{ github.run_id }}-${{ github.run_attempt }}.txt
 
     steps:
       - name: Check out requested revision
@@ -138,7 +138,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          devbox run -- dune build tools/ambiguity_search.exe
+          devbox run -- dune build tools/ambiguity/ambiguity_search.exe
 
       - name: Sweep the abstraction level
         id: sweep
@@ -170,6 +170,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ambiguity-sweep-${{ github.run_id }}-${{ github.run_attempt }}
-          path: reports/actions/
+          path: reports/ambiguity/actions/
           if-no-files-found: warn
           retention-days: 30

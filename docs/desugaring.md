@@ -43,9 +43,9 @@ same span the original `Op` node had. Nothing in this document needs
 `Span.none`, and it should stay unused after the SST lands.
 
 This is worth holding to, because it keeps the SST checkable by the same means
-as the CST: `tools/span_dump.ml` renders each node against the source its span
-covers, and a desugared tree whose spans still land on real source can be
-checked by pointing the same tool at it. A synthesized node pointing nowhere
+as the CST: `Sst.To_span_text` renders each node against the source its span
+covers, exactly as `Cst.To_span_text` does for the parsed tree, and
+`span_dump --sst` prints it. A synthesized node pointing nowhere
 would read as a bug the moment it printed.
 
 ---
@@ -75,7 +75,7 @@ rule reserves for later.
 ## 2. The desugarings
 
 All ten are implemented in `lib/sst/lower.ml`, one function each, and
-`test-parser/desugar.zn` is the fixture that exercises them: every rewrite
+`test/parser/fixtures/desugar.zn` is the fixture that exercises them: every rewrite
 below appears in it at least once. Two expectations carry it.
 `test/desugar.sst.spans` prints each node's variant against the source its span
 covers, so a rewrite that stops happening is a diff and so is a span that
@@ -329,7 +329,7 @@ The declaration production now admits `==`, `<`, `+`, `*` and `/` only, with
 `~` keeping its own production as the one unary operator. The use sites are
 untouched — `a - b` and `a >= b` parse exactly as before, which is the point:
 the restriction is on what may be *declared*, not on what may be written.
-`tools/test_parser_syntax.py` carries all eleven cases, and reverting the
+`test/parser/syntax_test.py` carries all eleven cases, and reverting the
 grammar change fails it on exactly the four that were wrongly accepted.
 
 ## 4. Not the SST's job

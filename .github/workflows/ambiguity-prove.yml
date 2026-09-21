@@ -142,7 +142,7 @@ jobs:
       AMBIGUITY_MAX_FRONTIER_RATIO: "1.0"
       AMBIGUITY_JOBS: "4"
       AMBIGUITY_MENHIR: menhir
-      REPORT: reports/actions/prove-${{ github.run_id }}-${{ github.run_attempt }}.txt
+      REPORT: reports/ambiguity/actions/prove-${{ github.run_id }}-${{ github.run_attempt }}.txt
 
     steps:
       - name: Check out requested revision
@@ -172,7 +172,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          devbox run -- dune build tools/ambiguity_search.exe
+          devbox run -- dune build tools/ambiguity/ambiguity_search.exe
 
       - name: Run unambiguity proof
         id: proof
@@ -216,6 +216,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ambiguity-prove-${{ github.run_id }}-${{ github.run_attempt }}
-          path: reports/actions/
+          path: reports/ambiguity/actions/
           if-no-files-found: warn
           retention-days: 30

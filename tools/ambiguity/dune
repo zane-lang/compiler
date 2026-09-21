@@ -1,0 +1,7 @@
+; The ambiguity engine. One executable built from the modules beside it:
+; `automaton` prepares what is being proved, `stack_pool` and `recognizer` own
+; the exact GLR side, `abstraction` and `prover` the abstract one, `search` the
+; bounded concrete witness hunt, and `output`/`config` the caller-facing edges.
+(executable
+ (name ambiguity_search)
+ (libraries unix str))
