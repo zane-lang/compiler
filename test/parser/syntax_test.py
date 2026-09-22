@@ -161,26 +161,36 @@ class ParserSyntaxTests(unittest.TestCase):
         )
 
     def test_a_statement_ends_where_its_terminator_says(self) -> None:
-        # The sentence the 2026-09-21 proof run found, and the valid program
-        # beside it that the grammar cannot yet parse.
-        #
-        # `boption(";")` lets a statement end without its terminator, so after
-        # `abort false` the `[` is either a subscript continuing the
-        # expression or the first token of a new statement -- the two tokens a
-        # statement can begin with are exactly `[` and `(`. Both readings run
-        # to EOF, and with no merge function menhirGLR fails rather than
-        # choosing. `Statement_check` never sees either: it reads a finished
-        # tree, and there is none.
-        #
-        # So the second assertion fails until the terminator is decided by the
-        # statement's shape in the grammar. It is the falsification of the
-        # vanished-terminator obligation in docs/ambiguity/proof-obligations.md,
-        # which claims exactly one reading survives in every case measured.
+        # A statement is closed by a `;` or by a `}`, and the grammar decides
+        # which (lexical.md §6.3). The terminator used to be optional there,
+        # with the mismatch checked after the parse -- and then after
+        # `abort false` a `[` could either continue the expression or open the
+        # next statement, since `[` and `(` are the two tokens a statement can
+        # begin with. Both readings reached the end of the input, and with two
+        # finished parses the parser stopped before `Statement_check` had a tree
+        # to read. The 2026-09-21 proof run found it.
         self.assert_rejects("Int {} { abort false[]() }")
         self.assert_parses("Int {} { abort false[](); }")
         # Not special to `abort`: any statement whose expression ends `[](...)`.
         self.assert_parses("Unit f() { return false[](); }")
         self.assert_parses("Unit f() { x Int = false[](); }")
+        self.assert_parses("Unit f() { a = false[](); }")
+
+    def test_a_statement_closed_by_a_brace_is_closed_by_the_grammar(self) -> None:
+        # Every form that can end on a `}` has to reach it without a `;`: the
+        # grammar no longer takes the terminator as optional, so a form it did
+        # not list as brace-closing would now be a parse error.
+        self.assert_parses("Unit f() { abort a + match (x) { } }")
+        self.assert_parses("Unit f() { x Foo = Foo{a = b;} }")
+        self.assert_parses("Unit f() { x Foo{a = b;} }")
+        self.assert_parses("Unit f() { Foo{a = b;} }")
+        self.assert_parses("Unit f() { f Int() => match (x) { } }")
+        self.assert_parses("Unit f() { f() ? e { } }")
+        self.assert_parses("Unit f() { f() ?? match (x) { } }")
+        # And a statement that does not end in one is refused by the grammar
+        # itself, rather than parsed and checked afterwards.
+        self.assert_rejects("Unit f() { abort false }")
+        self.assert_rejects("Unit f() { x Int = y }")
 
     def test_a_constructor_call_trails_its_last_argument(self) -> None:
         # Spec syntax.md §4.9 says this of calls in general, and a constructor

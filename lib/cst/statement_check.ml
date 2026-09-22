@@ -1,29 +1,29 @@
 (* Whether every statement agrees with the rules about where it ends.
 
    The rule is that a `;` ends a statement, unless the statement ends in a `}`
-   -- then that brace ends it and a `;` would mark nothing. Which of the two a
-   statement needs is a property of its tail, and the grammar has to choose
-   whether to end the statement before it can see that tail: after
-   `ran Bool = if(ready)` the next token decides, and a `{` there continues the
-   call rather than starting anything.
+   -- then that brace ends it and a `;` would mark nothing (lexical.md §6.3).
+   The grammar carries the first half: every statement is closed by one of the
+   two, so a missing `;` never reaches here. What it still admits is a `;`
+   after a closing brace, and a trailing argument's `}` with something written
+   after it; each of those has a single parse, so [Parser] records it on the
+   statement and this walk reports it.
 
-   So the grammar admits both spellings and [Parser] records the mismatch on
-   each statement instead of rejecting it. It records rather than raises
-   because the parser is GLR: an action runs on every branch that is live at
-   the time, and the branch that ends the statement early is live on input that
-   parses perfectly well a token later. Raising there ends the parse, not the
-   branch -- which is what made a whole test suite fail on readings none of
-   those programs kept.
+   It records rather than raises because the parser is GLR: an action runs on
+   every branch that is live at the time, including ones that lose a token
+   later. Raising there ends the parse, not the branch. Walking the finished
+   tree has neither problem: the branches that lost are gone, and what is left
+   is what was really parsed.
 
-   Walking the finished tree has neither problem: the branches that lost are
-   gone, and what is left is what was really parsed. *)
+   That needs a finished tree, which is also why a missing `;` is the grammar's
+   to reject rather than this walk's. A statement allowed to end without one
+   could end early, the next could open with `[` or `(`, and
+   `abort false[]();` would have two complete parses -- the parser stops before
+   there is a tree to walk. *)
 
 let message (defect : Nodes.Statement_defect.t) =
   match defect with
   | Nodes.Statement_defect.Stray_semicolon ->
       "a statement ending in `}` is closed by that brace and takes no `;`"
-  | Nodes.Statement_defect.Missing_semicolon ->
-      "a statement not ending in `}` needs a `;`"
   | Nodes.Statement_defect.Continued_trailing_argument ->
       "a trailing argument ends the statement, so nothing may continue it; \
        parenthesize the call to go on using its value"

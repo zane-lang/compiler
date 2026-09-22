@@ -22,13 +22,10 @@ module Span = Source.Span
    shape at the tail of its tree: every form below either closes with a brace
    itself or hands the question to whatever it ends with.
 
-   The grammar accepts a terminator either way and the check below rejects the
-   spelling that does not match, rather than the language being split into
-   brace-ending and non-brace-ending halves. A grammatical split would have to
-   reach through every binary operator -- `a + match (e) { ... }` ends in a brace
-   because its right operand does -- which means two copies of the expression
-   grammar and two of every operator production. One function over the tree
-   says the same thing once. *)
+   The grammar decides this too -- a statement without a `;` must end in one of
+   the `_braced` forms in [Parser] -- so the one place the answer is still read
+   off the tree is a statement that was closed with a `;`: if it also ends in a
+   brace, that `;` marks nothing. *)
 let rec expr_ends_in_brace (value : Nodes.Expr.t) =
   match value.Nodes.Expr.node with
   | Nodes.Expr.Init _ | Nodes.Expr.MapLit _ -> true
@@ -286,36 +283,35 @@ let decl_continues_past_trailing (value : Nodes.Decl.t) =
   | Nodes.Decl.Alias _ ->
       false
 
-(* Build a statement, recording how it disagrees with the rules about where a
-   statement ends, if it does.
+(* Build a statement the grammar closed with a `;`, recording how it disagrees
+   with the rules about where a statement ends, if it does.
 
-   The terminator is the first of those: it disagrees exactly when the two are
-   equal, since a statement ending in `}` is closed by that brace and takes no
-   `;`, and one that does not end in `}` has nothing else to close it.
+   The grammar decides whether a statement needs its `;` -- a missing one is a
+   parse error -- but it still admits one after a statement that ends in a `}`,
+   where the brace has already closed it. That spelling has one parse, since no
+   statement begins with a `;`, so it is marked here rather than refused there.
 
    None of this raises. An action here runs on every branch the GLR parser has
-   live, and the branch that ends a statement one token before a `{` continues
-   it is live on perfectly good input -- raising there would end the parse
-   rather than the branch. [Statement_check] reads the mark off the tree that
-   actually survived. *)
-let statement ~ends_in_brace ~terminated ~ends_at ~continued ~loc node =
+   live, and a branch that loses is still live when its actions run -- raising
+   there would end the parse rather than the branch. [Statement_check] reads the
+   mark off the tree that actually survived. *)
+let statement ~ends_in_brace ~ends_at ~continued ~loc node =
   let defect =
     if continued then
       Some (Nodes.Statement_defect.Continued_trailing_argument, ends_at)
-    else if ends_in_brace <> terminated then None
-    else if terminated then
+    else if ends_in_brace then
       Some (Nodes.Statement_defect.Stray_semicolon, ends_at)
-    else Some (Nodes.Statement_defect.Missing_semicolon, ends_at)
+    else None
   in
   let span = Span.of_loc loc in
   ({ Nodes.Statement.stat = { Nodes.Stat.node; span }; defect; span }
     : Nodes.Statement.t)
 
-(* A statement whose tail is an expression. *)
-let expr_statement ~terminated ~ends_at ~loc build value =
+(* A `;`-closed statement whose tail is an expression. *)
+let expr_statement ~ends_at ~loc build value =
   statement
     ~ends_in_brace:(expr_ends_in_brace value)
-    ~terminated ~ends_at ~loc
+    ~ends_at ~loc
     ~continued:(continues_past_trailing value)
     (build value)
 

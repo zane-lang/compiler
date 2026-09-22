@@ -96,9 +96,11 @@ end
 
 (* How a statement disagreed with the rules about where it ends.
 
-   All three are decided by the statement's tail, which the grammar cannot see
-   at the point it has to choose, so they are recorded on the statement and
-   read back afterwards rather than rejected in an action.
+   The grammar requires every statement to be closed by a `;` or by a `}`, so a
+   missing terminator is a parse error and has no defect here. What it still
+   admits are the two spellings below, each with a single parse, so they are
+   recorded on the statement and read back afterwards rather than rejected in
+   an action.
 
    Not a node: it records something about a statement rather than something
    written, and it already travels with the position it points at. *)
@@ -106,8 +108,6 @@ module Statement_defect = struct
   type t =
     (* Ends in `}`, which closes it, and carries a `;` that marks nothing. *)
     | Stray_semicolon
-    (* Does not end in `}`, so nothing else closes it. *)
-    | Missing_semicolon
     (* A trailing argument's `}` closes the call and the statement together, so
        nothing may continue it -- `run() { } + Int(1)` writes an operand after
        the statement has already ended. The parenthesized form, `(run() { })
