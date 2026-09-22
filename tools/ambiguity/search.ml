@@ -484,7 +484,17 @@ let initial_partitions engine jobs max_tokens initial =
                       branched;
                     }
                   in
-                  let key = (branched, signature frontier) in
+                  (* The validity context belongs in this key for the same
+                     reason it belongs in [Seen_cache.digest]: two prefixes
+                     reaching the same stacks with different tokens behind
+                     them part ways at the next statement reduction, so
+                     collapsing them here would hand one worker a prefix
+                     standing for a sibling it cannot reach. *)
+                  let key =
+                    ( branched,
+                      validity_context engine item.tokens_rev,
+                      signature frontier )
+                  in
                   if not (Hashtbl.mem seen key) then begin
                     Hashtbl.add seen key ();
                     next := item :: !next
