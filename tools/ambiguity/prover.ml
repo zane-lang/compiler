@@ -1017,7 +1017,10 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
            all, and - step by step - which stacks a real parse of it was
            standing on. *)
         let frontiers = replay engine tokens in
-        let parses = accepted_count engine frontiers.(Array.length frontiers - 1) in
+        let parses =
+          accepted_count engine ~shifted:(List.rev tokens)
+            frontiers.(Array.length frontiers - 1)
+        in
         let steps = Array.of_list (path_steps node) in
         let pair_at index =
           if index < Array.length steps then fst steps.(index) else node

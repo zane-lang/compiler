@@ -44,6 +44,7 @@ let refine_rounds = ref 12
 let retire_after = ref 0
 let trace_forward = ref false
 let dump_classes = ref false
+let raw_derivations = ref false
 
 type memory_limits = {
   max_queue : int;
@@ -142,6 +143,12 @@ let options =
     ( "--dump-terminal-classes",
       Arg.Set dump_classes,
       " list the terminal equivalence classes the search collapses, then exit" );
+    ( "--raw-derivations",
+      Arg.Set raw_derivations,
+      " count every derivation the grammar admits, including those the \
+       compiler rejects after parsing; without it a grammar the validity \
+       model recognizes has those derivations refused, so a count is of \
+       readings that are programs" );
   ]
 
 (* Everything a run needs to know before it builds anything, read and checked

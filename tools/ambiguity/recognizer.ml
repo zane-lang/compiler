@@ -23,14 +23,38 @@ let derivations frontier =
 type engine = {
   automaton : automaton;
   stacks : Stack_pool.t;
-  closure_cache : ((int * string), frontier) Hashtbl.t;
+  (* The post-parse syntax rules this grammar's derivations must also satisfy,
+     where it has any. A derivation the compiler rejects is not a parse, so a
+     sentence with two of them is not an ambiguity of the language; see
+     [Validity]. [None] counts what the raw grammar admits. *)
+  validity : Validity.t option;
+  (* Keyed by the validity context as well as the stack and the lookahead,
+     because the model's answer is a property of the step rather than of the
+     stack: the same reduction is refused where a statement would be spelled
+     wrong and taken where it would not. *)
+  closure_cache : ((int * string * int), frontier) Hashtbl.t;
 }
 
 let reductions state token =
   Option.value (Hashtbl.find_opt state.reductions token) ~default:[]
 
-let closure_one engine stack_id token =
-  match Hashtbl.find_opt engine.closure_cache (stack_id, token) with
+(* The reductions a real parse may take at this point: the state's own, less
+   those the validity model refuses. The unfiltered [reductions] stays for the
+   abstract side, which reasons about every sentence at once and so has no
+   position in one to read the model at. *)
+let admitted_reductions engine context state token =
+  let available = reductions state token in
+  match engine.validity with
+  | None -> available
+  | Some model -> List.filter (Validity.admits model context) available
+
+let validity_context engine shifted =
+  match engine.validity with
+  | None -> 0
+  | Some model -> Validity.context model shifted
+
+let closure_one engine context stack_id token =
+  match Hashtbl.find_opt engine.closure_cache (stack_id, token, context) with
   | Some result -> result
   | None ->
       let closure = ref (IntMap.singleton stack_id 1) in
@@ -66,13 +90,18 @@ let closure_one engine stack_id token =
                       in
                       closure := updated;
                       if delta > 0 then Queue.add reduced.id queue))
-            (reductions state token)
+            (admitted_reductions engine context state token)
         end
       done;
-      Hashtbl.add engine.closure_cache (stack_id, token) !closure;
+      Hashtbl.add engine.closure_cache (stack_id, token, context) !closure;
       !closure
 
-let closure engine frontier token =
+(* [~shifted] is the sentence so far, most recent token first -- what the
+   validity model reads to know how a statement reduced here would be spelled.
+   Every caller already has it: the bounded search carries each frontier's own
+   [tokens_rev], and a replay knows the sentence it is replaying. *)
+let closure engine ~shifted frontier token =
+  let context = validity_context engine shifted in
   IntMap.fold
     (fun stack_id outer_count result ->
       IntMap.fold
@@ -81,10 +110,10 @@ let closure engine frontier token =
             (add_count reduced_id
                (min 2 (outer_count * inner_count))
                result))
-        (closure_one engine stack_id token) result)
+        (closure_one engine context stack_id token) result)
     frontier IntMap.empty
 
-let shift engine frontier token =
+let shift engine ~shifted frontier token =
   IntMap.fold
     (fun stack_id count result ->
       let stack = Stack_pool.find engine.stacks stack_id in
@@ -93,11 +122,11 @@ let shift engine frontier token =
       with
       | None -> result
       | Some target ->
-          let shifted = Stack_pool.push engine.stacks stack target in
-          fst (add_count shifted.id count result))
-    (closure engine frontier token) IntMap.empty
+          let pushed = Stack_pool.push engine.stacks stack target in
+          fst (add_count pushed.id count result))
+    (closure engine ~shifted frontier token) IntMap.empty
 
-let accepted_count engine frontier =
+let accepted_count engine ~shifted frontier =
   IntMap.fold
     (fun stack_id count total ->
       let stack = Stack_pool.find engine.stacks stack_id in
@@ -106,7 +135,7 @@ let accepted_count engine frontier =
           engine.automaton.states.(stack.state).accepts
       then cap_add total count
       else total)
-    (closure engine frontier "#") 0
+    (closure engine ~shifted frontier "#") 0
 
 (* One sentence, parsed for real, keeping the frontier the recognizer stood on
    after each of its tokens.
@@ -117,13 +146,14 @@ let accepted_count engine frontier =
    against: what it accepts, and which stacks it was ever standing on. *)
 let replay engine tokens =
   let initial = IntMap.singleton engine.stacks.root.id 1 in
-  let collected =
+  let collected, _ =
     List.fold_left
-      (fun frontiers token ->
+      (fun (frontiers, shifted) token ->
         match frontiers with
         | [] -> assert false
-        | current :: _ -> shift engine current token :: frontiers)
-      [ initial ] tokens
+        | current :: _ ->
+            (shift engine ~shifted current token :: frontiers, token :: shifted))
+      ([ initial ], []) tokens
   in
   Array.of_list (List.rev collected)
 

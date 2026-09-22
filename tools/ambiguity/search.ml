@@ -48,9 +48,10 @@ let render automaton tokens =
 
 let conflict_profile engine tokens =
   let frontier = ref (IntMap.singleton engine.stacks.root.id 1) in
+  let shifted = ref [] in
   let conflicts = ref ConflictSet.empty in
   let inspect token =
-    let reduced = closure engine !frontier token in
+    let reduced = closure engine ~shifted:!shifted !frontier token in
     IntMap.iter
       (fun stack_id _ ->
         let stack = Stack_pool.find engine.stacks stack_id in
@@ -65,7 +66,8 @@ let conflict_profile engine tokens =
   List.iter
     (fun token ->
       inspect token;
-      frontier := shift engine !frontier token)
+      frontier := shift engine ~shifted:!shifted !frontier token;
+      shifted := token :: !shifted)
     tokens;
   inspect "#";
   ConflictSet.elements !conflicts
@@ -205,7 +207,9 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
      memory budget (see Seen_cache above): a smaller table simply prunes less. *)
   let add item =
     if item.depth <= max_tokens then
-      if derivations item.frontier >= 2 && accepted_count engine item.frontier >= 2
+      if
+        derivations item.frontier >= 2
+        && accepted_count engine ~shifted:item.tokens_rev item.frontier >= 2
       then enqueue item
       else if not !admit_new then dropped := true
       else
@@ -364,7 +368,7 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
       incr explored;
       last_depth := item.depth;
       deepest := max !deepest item.depth;
-      if accepted_count engine item.frontier >= 2 then begin
+      if accepted_count engine ~shifted:item.tokens_rev item.frontier >= 2 then begin
         if item.depth >= min_tokens then begin
           let tokens = List.rev item.tokens_rev in
           let profile = conflict_profile engine tokens in
@@ -375,7 +379,7 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
       else if item.depth < max_tokens then
         StringSet.iter
           (fun token ->
-            let next = shift engine item.frontier token in
+            let next = shift engine ~shifted:item.tokens_rev item.frontier token in
             if not (IntMap.is_empty next) then begin
               let branched = item.branched || derivations next >= 2 in
               if branched && not item.branched then incr conflict_seeds;
@@ -442,12 +446,14 @@ let initial_partitions engine jobs max_tokens initial =
       let next = ref [] in
       List.iter
         (fun item ->
-          if accepted_count engine item.frontier >= 2 then
+          if accepted_count engine ~shifted:item.tokens_rev item.frontier >= 2 then
             next := item :: !next
           else
             StringSet.iter
               (fun token ->
-                let frontier = shift engine item.frontier token in
+                let frontier =
+                  shift engine ~shifted:item.tokens_rev item.frontier token
+                in
                 if not (IntMap.is_empty frontier) then begin
                   let branched = item.branched || derivations frontier >= 2 in
                   if branched && not item.branched then incr conflict_seeds;
