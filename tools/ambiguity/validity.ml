@@ -74,7 +74,33 @@ let detect automaton =
     reduces_to automaton zane.statement
     && StringSet.mem zane.closer automaton.terminals
     && StringSet.mem zane.terminator automaton.terminals
-  then Some zane
+  then begin
+    (* The search tries one terminal per equivalence class, which is sound
+       because swapping two members is an automorphism of the recognition
+       relation. This model gives [closer] and [terminator] meaning beyond the
+       automaton's shape, so a class holding either alongside another terminal
+       would no longer be interchangeable and the search would skip sentences
+       that differ where the model reads. Both are singletons in the grammar
+       today; a grammar change that merged one is a broken assumption rather
+       than a slower run, so it stops the tool instead of being counted on. *)
+    List.iter
+      (fun terminal ->
+        let identity = Hashtbl.find_opt automaton.terminal_class terminal in
+        let shared =
+          Hashtbl.fold
+            (fun other other_identity found ->
+              found || (other <> terminal && Some other_identity = identity))
+            automaton.terminal_class false
+        in
+        if shared then
+          failwith
+            (terminal
+           ^ " shares a terminal equivalence class, which the validity model \
+              cannot be applied under; pass --raw-derivations to measure the \
+              grammar without it"))
+      [ zane.closer; zane.terminator ];
+    Some zane
+  end
   else None
 
 (* What the tokens already shifted say about a statement ending here, as three

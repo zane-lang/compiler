@@ -118,12 +118,27 @@ module Seen_cache = struct
   (* Two independently seeded 62-bit lanes make colliding distinct frontiers
      astronomically unlikely even across billions of entries. A collision
      could only skip a frontier wrongly, never produce a false witness. *)
-  let digest branched progress frontier =
+
+  (* [context] is the validity model's reading of the tokens already shifted,
+     and it has to be part of the key: a frontier no longer determines what
+     happens next on its own. Two sentences can reach the same stacks with
+     different tokens behind them -- `abort false ;` and `abort v() { } ;`
+     leave the same chain of states, an [expr] entry either way -- and the
+     statement reduction waiting at the next token is refused after the brace
+     and taken after the name. Keyed on the frontier alone, whichever arrived
+     first would stand for both, and the one that was still going anywhere
+     would be the one dropped.
+
+     Every other fact about the future is in the frontier. An LR state is
+     reached by one symbol, so the stacks already say which token was shifted
+     last; only whether a closer sits behind a terminator is not recoverable
+     from them, and that is the bit this carries. *)
+  let digest branched progress context frontier =
     let lane seed =
       IntMap.fold
         (fun stack_id count hash -> mix (mix hash stack_id) count)
         frontier
-        (mix (mix seed (Bool.to_int branched)) progress)
+        (mix (mix (mix seed (Bool.to_int branched)) progress) context)
     in
     (lane 0x2545F4914F6CDD1D, lane 0x27220A95FE4D1D65)
 
@@ -218,7 +233,11 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
            produce a witness long enough to report. Once the minimum is met,
            the usual shortest-path deduplication applies. *)
         let progress = min item.depth min_tokens in
-        let key = Seen_cache.digest item.branched progress item.frontier in
+        let key =
+          Seen_cache.digest item.branched progress
+            (validity_context engine item.tokens_rev)
+            item.frontier
+        in
         match Seen_cache.find seen key with
         | Some depth when depth <= item.depth ->
             Seen_cache.refresh seen key depth
