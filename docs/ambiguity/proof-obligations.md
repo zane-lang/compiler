@@ -33,14 +33,14 @@ handler following a trailing argument, and no valid program has one, so no
 accepted input reaches it.
 
 The statement terminator is the case that taught this. Whether a statement
-needs `;` depends on whether it ends in `}`, which the grammar cannot see when
-it has to choose — after `ran Bool = if(ready)` the next token decides, and a
-`{` there continues the call. So the grammar takes either spelling and the
-mismatch is checked afterward. Checked from a raise in the action, it failed 18
-tests at once, every one of them on the early-ending branch of a program that
-parses correctly one token later. The check now records the mismatch on the
-statement and `Statement_check` walks the finished tree, where the losing
-branches are gone.
+needs `;` depends on whether it ends in `}` — after `ran Bool = if(ready)` the
+next token decides, and a `{` there continues the call. Checked from a raise in
+an action, it failed 18 tests at once, every one of them on the early-ending
+branch of a program that parses correctly one token later. The checks that stay
+after the parse — a `;` after a closing brace, and a trailing argument
+continued past its `}` — record the mismatch on the statement, and
+`Statement_check` walks the finished tree, where the losing branches are gone.
+Whether the `;` is there at all is the grammar's to decide, below.
 
 The rule that follows: a check that depends on more than the branch it is in
 belongs **after the parse**, over the tree that survived. A check that is local
@@ -117,8 +117,8 @@ ambiguity check UIDENT LCURLY RCURLY LCURLY ABORT FALSE LBRACKET RBRACKET LPAREN
 failed on it before `Statement_check` had a tree to read. `return` and an
 assignment reached it the same way; `false[]` alone and `false()` alone did not.
 
-Requiring the mark removed 29 shift/reduce states and both reduce/reduce
-conflicts of that family: every `[` state reducing an empty verb-type suffix,
+Requiring the mark removed 29 shift/reduce states and the `boption`
+reduce/reduce conflict of that family: every `[` state reducing an empty verb-type suffix,
 the `[` states closing an `app` before a subscript, and the fifteen `{` states
 below that reduce a completed call. Each of those witnesses now has one
 derivation, and a statement with no mark is a parse error rather than a tree
