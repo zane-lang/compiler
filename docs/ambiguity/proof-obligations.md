@@ -17,14 +17,6 @@ Every LR conflict state must carry exactly one of:
 A grammar change that introduces a new conflict state is incomplete until
 the state is triaged into one of these categories.
 
-**A witness is a sentence with two readings that are both programs.** Two
-derivations in the raw automaton are not enough, because the accepted language
-is deliberately narrower than the grammar — the section below is about the one
-place it is narrower, and the tools model that rule rather than counting raw
-derivations ([tooling.md](tooling.md), "What a counted derivation is"). A
-sentence whose every derivation is rejected afterwards leaves its obligation
-exactly as open as it was.
-
 ## What a semantic action may do
 
 An action runs on **every branch the parser has live**, not only on the branch

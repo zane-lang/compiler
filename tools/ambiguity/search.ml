@@ -48,10 +48,9 @@ let render automaton tokens =
 
 let conflict_profile engine tokens =
   let frontier = ref (IntMap.singleton engine.stacks.root.id 1) in
-  let shifted = ref [] in
   let conflicts = ref ConflictSet.empty in
   let inspect token =
-    let reduced = closure engine ~shifted:!shifted !frontier token in
+    let reduced = closure engine !frontier token in
     IntMap.iter
       (fun stack_id _ ->
         let stack = Stack_pool.find engine.stacks stack_id in
@@ -66,8 +65,7 @@ let conflict_profile engine tokens =
   List.iter
     (fun token ->
       inspect token;
-      frontier := shift engine ~shifted:!shifted !frontier token;
-      shifted := token :: !shifted)
+      frontier := shift engine !frontier token)
     tokens;
   inspect "#";
   ConflictSet.elements !conflicts
@@ -118,27 +116,12 @@ module Seen_cache = struct
   (* Two independently seeded 62-bit lanes make colliding distinct frontiers
      astronomically unlikely even across billions of entries. A collision
      could only skip a frontier wrongly, never produce a false witness. *)
-
-  (* [context] is the validity model's reading of the tokens already shifted,
-     and it has to be part of the key: a frontier no longer determines what
-     happens next on its own. Two sentences can reach the same stacks with
-     different tokens behind them -- `abort false ;` and `abort v() { } ;`
-     leave the same chain of states, an [expr] entry either way -- and the
-     statement reduction waiting at the next token is refused after the brace
-     and taken after the name. Keyed on the frontier alone, whichever arrived
-     first would stand for both, and the one that was still going anywhere
-     would be the one dropped.
-
-     Every other fact about the future is in the frontier. An LR state is
-     reached by one symbol, so the stacks already say which token was shifted
-     last; only whether a closer sits behind a terminator is not recoverable
-     from them, and that is the bit this carries. *)
-  let digest branched progress context frontier =
+  let digest branched progress frontier =
     let lane seed =
       IntMap.fold
         (fun stack_id count hash -> mix (mix hash stack_id) count)
         frontier
-        (mix (mix (mix seed (Bool.to_int branched)) progress) context)
+        (mix (mix seed (Bool.to_int branched)) progress)
     in
     (lane 0x2545F4914F6CDD1D, lane 0x27220A95FE4D1D65)
 
@@ -222,9 +205,7 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
      memory budget (see Seen_cache above): a smaller table simply prunes less. *)
   let add item =
     if item.depth <= max_tokens then
-      if
-        derivations item.frontier >= 2
-        && accepted_count engine ~shifted:item.tokens_rev item.frontier >= 2
+      if derivations item.frontier >= 2 && accepted_count engine item.frontier >= 2
       then enqueue item
       else if not !admit_new then dropped := true
       else
@@ -233,11 +214,7 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
            produce a witness long enough to report. Once the minimum is met,
            the usual shortest-path deduplication applies. *)
         let progress = min item.depth min_tokens in
-        let key =
-          Seen_cache.digest item.branched progress
-            (validity_context engine item.tokens_rev)
-            item.frontier
-        in
+        let key = Seen_cache.digest item.branched progress item.frontier in
         match Seen_cache.find seen key with
         | Some depth when depth <= item.depth ->
             Seen_cache.refresh seen key depth
@@ -387,7 +364,7 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
       incr explored;
       last_depth := item.depth;
       deepest := max !deepest item.depth;
-      if accepted_count engine ~shifted:item.tokens_rev item.frontier >= 2 then begin
+      if accepted_count engine item.frontier >= 2 then begin
         if item.depth >= min_tokens then begin
           let tokens = List.rev item.tokens_rev in
           let profile = conflict_profile engine tokens in
@@ -398,7 +375,7 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
       else if item.depth < max_tokens then
         StringSet.iter
           (fun token ->
-            let next = shift engine ~shifted:item.tokens_rev item.frontier token in
+            let next = shift engine item.frontier token in
             if not (IntMap.is_empty next) then begin
               let branched = item.branched || derivations next >= 2 in
               if branched && not item.branched then incr conflict_seeds;
@@ -465,14 +442,12 @@ let initial_partitions engine jobs max_tokens initial =
       let next = ref [] in
       List.iter
         (fun item ->
-          if accepted_count engine ~shifted:item.tokens_rev item.frontier >= 2 then
+          if accepted_count engine item.frontier >= 2 then
             next := item :: !next
           else
             StringSet.iter
               (fun token ->
-                let frontier =
-                  shift engine ~shifted:item.tokens_rev item.frontier token
-                in
+                let frontier = shift engine item.frontier token in
                 if not (IntMap.is_empty frontier) then begin
                   let branched = item.branched || derivations frontier >= 2 in
                   if branched && not item.branched then incr conflict_seeds;
@@ -484,17 +459,7 @@ let initial_partitions engine jobs max_tokens initial =
                       branched;
                     }
                   in
-                  (* The validity context belongs in this key for the same
-                     reason it belongs in [Seen_cache.digest]: two prefixes
-                     reaching the same stacks with different tokens behind
-                     them part ways at the next statement reduction, so
-                     collapsing them here would hand one worker a prefix
-                     standing for a sibling it cannot reach. *)
-                  let key =
-                    ( branched,
-                      validity_context engine item.tokens_rev,
-                      signature frontier )
-                  in
+                  let key = (branched, signature frontier) in
                   if not (Hashtbl.mem seen key) then begin
                     Hashtbl.add seen key ();
                     next := item :: !next

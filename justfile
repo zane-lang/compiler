@@ -30,7 +30,6 @@ test:
 	python3 -m unittest \
 		test.ambiguity.cli_test \
 		test.ambiguity.precision_sweep_test \
-		test.ambiguity.validity_test \
 		test.ambiguity.prover.soundness_test \
 		test.ambiguity.prover.refinement_test \
 		test.ambiguity.prover.diagnostics_test \

@@ -52,28 +52,8 @@ let main () =
       in
       let automaton = parse_automaton automaton_path terminals aliases in
       let stacks = Stack_pool.create () in
-      let validity = if !raw_derivations then None else Validity.detect automaton in
       let engine =
-        { automaton; stacks; validity; closure_cache = Hashtbl.create 16_384 }
-      in
-      (* Said out loud on every run that counts a derivation, because the
-         number means two different things with and without it: how many
-         readings the raw grammar admits, or how many of them are programs.
-         A filter that changed the count silently would be indistinguishable
-         from a grammar that had changed. *)
-      let announce_validity () =
-        match validity with
-        | None ->
-            printf
-              "Validity model: none; derivations are counted as the raw \
-               grammar admits them%s.\n"
-              (if !raw_derivations then " (--raw-derivations)"
-               else ", this grammar having no model")
-        | Some model ->
-            printf
-              "Validity model: statement terminators (%s); a derivation it \
-               refuses is not counted as a parse.\n"
-              (Validity.describe model)
+        { automaton; stacks; closure_cache = Hashtbl.create 16_384 }
       in
       if !dump_classes then begin
         let members = Hashtbl.create 64 in
@@ -101,13 +81,12 @@ let main () =
         exit 0
       end;
       if !check_tokens <> [] then begin
-        announce_validity ();
-        let frontiers = replay engine !check_tokens in
-        let count =
-          accepted_count engine
-            ~shifted:(List.rev !check_tokens)
-            frontiers.(Array.length frontiers - 1)
+        let frontier =
+          List.fold_left (shift engine)
+            (IntMap.singleton engine.stacks.root.id 1)
+            !check_tokens
         in
+        let count = accepted_count engine frontier in
         printf "Accepting derivations: %d\n" count;
         exit 0
       end;
@@ -119,8 +98,9 @@ let main () =
         invalid_arg
           "--prefix-tokens must not contain more tokens than --max-tokens";
       let initial_frontier =
-        let frontiers = replay engine !prefix_tokens in
-        frontiers.(Array.length frontiers - 1)
+        List.fold_left (shift engine)
+          (IntMap.singleton engine.stacks.root.id 1)
+          !prefix_tokens
       in
       if IntMap.is_empty initial_frontier then
         invalid_arg "--prefix-tokens is not a valid grammar prefix";
@@ -139,10 +119,6 @@ let main () =
         | None -> "breadth-first scheduling"
         | Some 1 -> "1 node per depth"
         | Some limit -> Printf.sprintf "%d nodes per depth" limit);
-      (* After the constraints rather than before them: the first line a run
-         prints is what says it is streaming rather than buffering, and
-         `test/ambiguity/cli_test.py` reads it to check that. *)
-      announce_validity ();
       if !prefix_tokens <> [] then
         printf "Prefix tokens: %s\n" (String.concat " " !prefix_tokens);
       (* Sites refinement stopped pursuing, and the evidence for stopping. It

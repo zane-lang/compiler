@@ -81,15 +81,6 @@ def parser() -> argparse.ArgumentParser:
         metavar="TOKEN",
         help="terminal names, including EOF when required",
     )
-    check.add_argument(
-        "--raw",
-        action="store_true",
-        help=(
-            "count every derivation the grammar admits, including readings the "
-            "compiler rejects after parsing; the default counts only readings "
-            "that are programs"
-        ),
-    )
 
     prove = commands.add_parser(
         "prove", help="attempt an unbounded top-K proof, then concretize if needed"
@@ -163,15 +154,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = cli.parse_args(argv)
     try:
         if arguments.command == "check":
-            # Only `check` offers the raw count. It is a measurement of the
-            # grammar, which is a fair question to ask directly; a search or a
-            # proof asking it would be hunting ambiguities of a language
-            # nobody writes.
-            check_arguments = ["--check-tokens", " ".join(arguments.tokens)]
-            if arguments.raw:
-                check_arguments.append("--raw-derivations")
             return run_engine(
-                check_arguments,
+                ["--check-tokens", " ".join(arguments.tokens)],
                 "Exact ambiguity check",
                 None,
             )

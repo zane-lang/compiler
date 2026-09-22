@@ -160,16 +160,27 @@ class ParserSyntaxTests(unittest.TestCase):
             "Unit use() { Foo{ a Int = wrap() { g(); } + Int(1); } { h(); } }"
         )
 
-    def test_neither_reading_of_an_unterminated_abort_is_a_program(self) -> None:
-        # The sentence the 2026-09-21 proof run reported as an ambiguous
-        # grammar. The raw grammar derives it twice -- as `abort ((false[])())`
-        # and as `abort false` followed by `([])()` -- and neither is a
-        # program, because each leaves a statement without the `;` its shape
-        # calls for. This is the ground truth `tools/ambiguity/validity.ml`
-        # models: the prover must not call two rejected readings an ambiguity,
-        # and this is what makes them rejected.
+    def test_a_statement_ends_where_its_terminator_says(self) -> None:
+        # The sentence the 2026-09-21 proof run found, and the valid program
+        # beside it that the grammar cannot yet parse.
+        #
+        # `boption(";")` lets a statement end without its terminator, so after
+        # `abort false` the `[` is either a subscript continuing the
+        # expression or the first token of a new statement -- the two tokens a
+        # statement can begin with are exactly `[` and `(`. Both readings run
+        # to EOF, and with no merge function menhirGLR fails rather than
+        # choosing. `Statement_check` never sees either: it reads a finished
+        # tree, and there is none.
+        #
+        # So the second assertion fails until the terminator is decided by the
+        # statement's shape in the grammar. It is the falsification of the
+        # vanished-terminator obligation in docs/ambiguity/proof-obligations.md,
+        # which claims exactly one reading survives in every case measured.
         self.assert_rejects("Int {} { abort false[]() }")
         self.assert_parses("Int {} { abort false[](); }")
+        # Not special to `abort`: any statement whose expression ends `[](...)`.
+        self.assert_parses("Unit f() { return false[](); }")
+        self.assert_parses("Unit f() { x Int = false[](); }")
 
     def test_a_constructor_call_trails_its_last_argument(self) -> None:
         # Spec syntax.md §4.9 says this of calls in general, and a constructor
