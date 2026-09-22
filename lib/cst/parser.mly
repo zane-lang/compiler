@@ -1169,7 +1169,7 @@ abort_handle:
 (* A `;` terminates a statement, unless the statement already ends in a `}` --
    then that brace closes it and a `;` would mark nothing. Every form below
    therefore takes the terminator as optional and hands it to
-   [check_terminator], which rejects whichever of the two spellings the
+   [Statement_check], which rejects whichever of the two spellings the
    statement's own shape did not call for.
 
    Note what is *not* here: a bare `{ }` is not a statement. Scoping a run of

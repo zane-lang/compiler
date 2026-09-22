@@ -448,6 +448,47 @@ under its own deadline, and the concretization search that may follow starts
 a fresh one, so a proof run's worst case is twice the value passed. A proof
 cut short by either deadline reports "not proven", never a proof.
 
+## What a derivation has to be
+
+Everything above is about which *derivations* the abstraction can tell apart.
+What counts as one is a separate question, and the answer is not "whatever the
+automaton accepts": the grammar admits both spellings of a statement's
+terminator on purpose and `Statement_check` rejects the wrong one after the
+parse, so a raw accepting derivation may be no reading at all. Two of those are
+not an ambiguity, and a run that reported them would be reporting a bug in a
+language nobody can write. The scheduled proof run of 2026-09-21 did exactly
+that, on `Int {} { abort false[]() }`, whose two derivations leave a statement
+unterminated apiece.
+
+`Validity` closes that where a derivation is still separable: at the reduction
+that completes a statement, which is the only place the rule is about. The
+predicate is positional rather than structural, and it is the same rule.
+`Statement_shape` walks the tail of a statement's tree to decide one thing —
+whether its last token is a `}` — and at that reduction the token last shifted
+*is* that token, for every form in the walk: a map literal, a field body, a
+match's arms and a trailing argument end on the brace, while a subscript, a
+collection, parentheses and a bare name end on `]`, `)` or the name. So
+refusing the reduction removes exactly the derivations carrying a defective
+statement, which is what makes the count a count of programs.
+
+Two things follow for the verdicts. **The filter is concrete-side only.** The
+abstract phase reasons about every sentence at once and so has no position in
+one to read the model at, so it keeps over-approximating; a candidate it raises
+is settled by the recognizer as before, and one whose derivations are not
+programs is now answered "not proven" rather than "ambiguous". That is the
+honest verdict: the obligation behind such a candidate is neither discharged
+nor refuted. **And the filter can only remove candidates, never a proof.**
+Refusing a reduction removes derivations, so a grammar the abstraction proves
+unambiguous over raw derivations is proven over this subset of them too.
+
+What it does not model is the other half of `Statement_check`: a trailing
+argument's `}` ends its statement, so nothing may continue past it. That is not
+a property of the statement's last token, so the reduction's position does not
+decide it. Leaving it out over-counts, which can leave a spurious witness
+standing but cannot hide a real ambiguity — so a reported witness is still to
+be read rather than believed, and that is the direction the omission has to
+point.
+
 ## Why this is sound
 
 Unambiguity of an arbitrary grammar admits no complete decision procedure,

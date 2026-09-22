@@ -198,7 +198,7 @@ is now rejected.
 
 The terminator is required inside a body too, where the same two forms are
 statements and the same two readings meet. That is stricter than §6.3's
-statement rule, which would let `check_terminator` accept the `;` and reject
+statement rule, which would let `Statement_check` accept the `;` and reject
 its absence after the parse — too late, because both spellings parse.
 
 `docs/ambiguity/proof-obligations.md` has the full account, in the ledger entry

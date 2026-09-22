@@ -17,6 +17,14 @@ Every LR conflict state must carry exactly one of:
 A grammar change that introduces a new conflict state is incomplete until
 the state is triaged into one of these categories.
 
+**A witness is a sentence with two readings that are both programs.** Two
+derivations in the raw automaton are not enough, because the accepted language
+is deliberately narrower than the grammar — the section below is about the one
+place it is narrower, and the tools model that rule rather than counting raw
+derivations ([tooling.md](tooling.md), "What a counted derivation is"). A
+sentence whose every derivation is rejected afterwards leaves its obligation
+exactly as open as it was.
+
 ## What a semantic action may do
 
 An action runs on **every branch the parser has live**, not only on the branch
@@ -100,7 +108,7 @@ These are **open obligations**, and the reason they are permitted rather than
 resolved is that the conflict is an artifact of where the check lives, not of
 the language. Exactly one of the two readings survives the grammar in every
 case measured, and the one that survives is then accepted or rejected by
-`check_terminator`, which reads the statement's own tail off the tree. The
+`Statement_check`, which reads the statement's own tail off the tree. The
 alternative — splitting the expression grammar into brace-ending and
 non-brace-ending halves so that the terminator is decided by the shape — would
 resolve them at the cost of two copies of every operator production, since

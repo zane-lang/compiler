@@ -160,6 +160,17 @@ class ParserSyntaxTests(unittest.TestCase):
             "Unit use() { Foo{ a Int = wrap() { g(); } + Int(1); } { h(); } }"
         )
 
+    def test_neither_reading_of_an_unterminated_abort_is_a_program(self) -> None:
+        # The sentence the 2026-09-21 proof run reported as an ambiguous
+        # grammar. The raw grammar derives it twice -- as `abort ((false[])())`
+        # and as `abort false` followed by `([])()` -- and neither is a
+        # program, because each leaves a statement without the `;` its shape
+        # calls for. This is the ground truth `tools/ambiguity/validity.ml`
+        # models: the prover must not call two rejected readings an ambiguity,
+        # and this is what makes them rejected.
+        self.assert_rejects("Int {} { abort false[]() }")
+        self.assert_parses("Int {} { abort false[](); }")
+
     def test_a_constructor_call_trails_its_last_argument(self) -> None:
         # Spec syntax.md §4.9 says this of calls in general, and a constructor
         # call is one. The empty argument list is the exception; it has its own

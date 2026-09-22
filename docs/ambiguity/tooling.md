@@ -240,3 +240,36 @@ Exact witnesses can be checked without quoting their token names:
 ```sh
 ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN EOF
 ```
+
+## What a counted derivation is
+
+A count is of readings that are **programs**, not of readings the raw grammar
+admits. The two are deliberately different: a statement's `;` is optional in
+the grammar because whether it is required depends on whether the statement
+ends in a `}`, so the grammar takes either spelling and `Statement_check`
+rejects the mismatch after the parse
+([proof-obligations.md](proof-obligations.md), "What a semantic action may
+do"). A sentence can therefore have two derivations and no readings, and
+reporting that as an ambiguity is reporting a bug in a language nobody writes.
+
+`Validity` applies that rule where a derivation is still separable — at the
+reduction that completes a statement — so the recognizer, the bounded search
+and the proof's own confirmation all count the same thing. Every run says
+which count it is giving, on a line of its own, because the number means two
+different things and a filter that changed it silently would look like a
+grammar that had changed.
+
+The model names Zane's statement rule, so it applies to a grammar that reduces
+a `stat` and declares both `RCURLY` and `SEMICOLON`: Zane's grammar and
+reproducers cut from it. Every other grammar — the soundness corpus among them
+— is counted raw, which is what keeps those measurements about the grammars
+they are for.
+
+`ambiguity check --raw` asks for the raw count on this grammar too. That is a
+measurement of the grammar and a fair question; a search or a proof does not
+offer it, since a witness it produced would not be a witness of Zane.
+
+One rule is **not** modelled: a trailing argument's `}` ends its statement, so
+nothing may continue past it, and that is not a property of the statement's
+last token. Leaving it out can only leave a spurious witness standing, never
+hide a real ambiguity, so a witness is still read rather than believed.
