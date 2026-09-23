@@ -83,8 +83,8 @@ language change rather than a restructuring, so it is a measurement here and
 not a proposal.
 
 The two package-scope rows are the one place a declaration still ends without
-a mark of its own. At package scope no declaration takes a terminator, and one
-may open with `(` — the subscript declaration `(this T)[…] => …` — so a value
+a mark of its own. At package scope only `package` and `import` take a
+terminator, and a declaration may open with `(` — the subscript declaration `(this T)[…] => …` — so a value
 ending in a name or a type member meets a `(` that is either a call on it or
 the next declaration.
 
@@ -196,8 +196,9 @@ found it, and the run that no longer does — and
 costs against the spec.
 
 What it leaves behind is the general lesson the ledger is for: a continuation
-survey is evidence that an obligation is *plausible*, never that it holds. The
-obligations below are open on the same footing.
+survey is evidence that an obligation is *plausible*, never that it holds.
+Every entry below that rests on measurement rather than proof is open on the
+same footing; the two that follow are settled by the grammar's shape.
 
 **A call's trailing argument has one owner.** A call may be closed by a
 trailing argument, so after `f(x)` a following `{` is that argument — the next
