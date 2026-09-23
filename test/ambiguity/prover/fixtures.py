@@ -178,6 +178,37 @@ x: A { () }
 y: A { () }
 """
 
+# Two identical-looking alternatives are still two distinct reductions and
+# therefore two derivations. Menhir prints both as `e -> A`, which makes this
+# fixture exercise production-occurrence identity rather than just a conflict
+# between differently named nonterminals.
+DUPLICATE_PRODUCTION = """\
+%token A "a"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: e EOF { () }
+e:
+  | A { () }
+  | A { () }
+"""
+
+# The duplicate reductions live on non-representative terminal B. If terminal
+# equivalence discards reduction multiplicity, A and B merge and the prover
+# only searches A, missing the ambiguous sentence `B EOF`.
+DUPLICATE_NONREPRESENTATIVE_TERMINAL = """\
+%token A "a"
+%token B "b"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: e EOF { () }
+e:
+  | A { () }
+  | B { () }
+  | B { () }
+"""
+
 # The same reduce/reduce conflict, but reached over two symbols instead of one.
 # At proof level 1 the retained stack is a single state, so the competing
 # reductions here are strictly wider than it while `EOF_REDUCE_REDUCE`'s are
@@ -354,6 +385,8 @@ AMBIGUOUS_GRAMMARS = {
     "expression without precedence": AMBIGUOUS_EXPRESSION,
     "dangling else": DANGLING_ELSE,
     "reduce/reduce on eof": EOF_REDUCE_REDUCE,
+    "duplicate production text": DUPLICATE_PRODUCTION,
+    "duplicate non-representative terminal": DUPLICATE_NONREPRESENTATIVE_TERMINAL,
 }
 
 UNAMBIGUOUS_GRAMMARS = {

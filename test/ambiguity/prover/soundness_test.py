@@ -8,6 +8,7 @@ retained stack wide enough to tell the competing reductions apart.
 """
 
 import re
+import subprocess
 import unittest
 
 from test.ambiguity.prover import fixtures, harness
@@ -40,6 +41,52 @@ class ProverSoundnessTests(harness.ProverTestCase):
         status, output = self.prove(fixtures.AMBIGUOUS_EXPRESSION, 2)
         self.assertRegex(output, re.compile(r"^(?:Found \d+ complete ambiguity|AMBIGUOUS:)", re.MULTILINE))
         self.assertEqual(status, harness.AMBIGUOUS, output)
+
+    def test_duplicate_reductions_keep_distinct_derivations(self) -> None:
+        # These exercise both identity boundaries in the native engine. The
+        # exact recognizer must count the two concrete parses, and proof mode
+        # must surface that ambiguity instead of proving it away.
+        cases = (
+            (
+                "duplicate production text",
+                fixtures.DUPLICATE_PRODUCTION,
+                "A EOF",
+            ),
+            (
+                "duplicate non-representative terminal",
+                fixtures.DUPLICATE_NONREPRESENTATIVE_TERMINAL,
+                "B EOF",
+            ),
+        )
+        path = self.directory / "grammar.mly"
+        for name, grammar, tokens in cases:
+            with self.subTest(grammar=name):
+                path.write_text(grammar, encoding="utf-8")
+                checked = subprocess.run(
+                    [str(harness.ENGINE), "--check-tokens", tokens, str(path)],
+                    env=self.environment,
+                    text=True,
+                    capture_output=True,
+                    timeout=180,
+                )
+                self.assertEqual(
+                    checked.returncode, 0, checked.stdout + checked.stderr
+                )
+                self.assertRegex(
+                    checked.stdout,
+                    re.compile(r"^Accepting derivations: 2$", re.MULTILINE),
+                )
+
+                status, output = self.prove(grammar, 1)
+                self.assertEqual(status, harness.AMBIGUOUS, output)
+                self.assertRegex(
+                    output,
+                    re.compile(
+                        r"^AMBIGUOUS: the recognizer found two derivations",
+                        re.MULTILINE,
+                    ),
+                )
+                self.assertNotRegex(output, harness.PROVEN_LINE)
 
     def test_exact_confirmed_candidate_bypasses_zero_token_replay(self) -> None:
         grammar = """\
