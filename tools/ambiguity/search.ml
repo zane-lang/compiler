@@ -426,53 +426,88 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
     },
     !conflict_seeds )
 
-let initial_partitions engine jobs max_tokens min_tokens initial =
+let initial_partitions engine jobs max_tokens min_tokens ~max_queue
+    ~max_frontiers ~hard_heap_bytes ~deadline initial =
   if jobs <= 1 || initial.depth = max_tokens then
-    ( [| [ initial ] |],
-      0,
-      0,
-      0 )
+    ([| [ initial ] |], 0, 0, 0, None)
   else begin
     let split_depth = min 3 (max_tokens - initial.depth) in
     let current = ref [ initial ] in
     let explored = ref 0 in
     let unique = ref 1 in
     let conflict_seeds = ref 0 in
-    for _ = 1 to split_depth do
-      explored := !explored + List.length !current;
-      let seen = Hashtbl.create 1024 in
+    let stopped = ref None in
+    let stop reason =
+      if !stopped = None then stopped := Some reason
+    in
+    let over_budget () =
+      if Unix.gettimeofday () >= deadline then begin
+        stop "the timeout was reached during initial partitioning";
+        true
+      end
+      else if managed_heap_bytes () >= hard_heap_bytes then begin
+        stop "the memory budget stopped initial partitioning";
+        true
+      end
+      else false
+    in
+    let depth = ref 0 in
+    while !depth < split_depth && !stopped = None && !current <> [] do
+      let current_count = List.length !current in
+      explored := !explored + current_count;
+      let seen = Hashtbl.create (min 1_024 max_frontiers) in
       let next = ref [] in
+      let next_count = ref 0 in
       List.iter
         (fun item ->
-          if accepted_count engine item.frontier >= 2
-             && item.depth >= min_tokens then
-            next := item :: !next
+          if !stopped = None && over_budget () then ()
+          else if accepted_count engine item.frontier >= 2
+             && item.depth >= min_tokens then begin
+            if current_count + !next_count >= max_queue then
+              stop "the queue budget stopped initial partitioning"
+            else begin
+              next := item :: !next;
+              incr next_count
+            end
+          end
           else
             StringSet.iter
               (fun token ->
-                let frontier = shift engine item.frontier token in
-                if not (IntMap.is_empty frontier) then begin
-                  let branched = item.branched || derivations frontier >= 2 in
-                  if branched && not item.branched then incr conflict_seeds;
-                  let item =
-                    {
-                      tokens_rev = token :: item.tokens_rev;
-                      depth = item.depth + 1;
-                      frontier;
-                      branched;
-                    }
-                  in
-                  let key = (branched, signature frontier) in
-                  if not (Hashtbl.mem seen key) then begin
-                    Hashtbl.add seen key ();
-                    next := item :: !next
+                if !stopped = None && not (over_budget ()) then begin
+                  let frontier = shift engine item.frontier token in
+                  if not (IntMap.is_empty frontier) then begin
+                    let branched =
+                      item.branched || derivations frontier >= 2
+                    in
+                    if branched && not item.branched then incr conflict_seeds;
+                    let item =
+                      {
+                        tokens_rev = token :: item.tokens_rev;
+                        depth = item.depth + 1;
+                        frontier;
+                        branched;
+                      }
+                    in
+                    let key = (branched, signature frontier) in
+                    if not (Hashtbl.mem seen key) then begin
+                      if current_count + !next_count >= max_queue then
+                        stop "the queue budget stopped initial partitioning"
+                      else if !unique >= max_frontiers then
+                        stop "the frontier budget stopped initial partitioning"
+                      else begin
+                        Hashtbl.add seen key ();
+                        incr unique;
+                        incr next_count;
+                        next := item :: !next
+                      end
+                    end
                   end
                 end)
               (class_representatives engine.automaton
                  (possible_tokens engine item.frontier)))
         !current;
-      unique := !unique + Hashtbl.length seen;
-      current := !next
+      current := !next;
+      incr depth
     done;
     (* Never hand back an empty bucket: [parallel_unified_search] forks one
        worker per partition, and a worker with no frontiers is a wasted process
@@ -498,7 +533,7 @@ let initial_partitions engine jobs max_tokens min_tokens initial =
         | non_empty -> Array.of_list non_empty
       end
     in
-    (buckets, !explored, !unique, !conflict_seeds)
+    (buckets, !explored, !unique, !conflict_seeds, !stopped)
   end
 
 let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
@@ -509,9 +544,13 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
   let memory_budget =
     hard_heap_bytes /. 0.90 *. float_of_int (max 1 jobs)
   in
-  let partitions, prefix_explored, prefix_unique, prefix_seeds =
-    initial_partitions engine (max 1 jobs) max_tokens min_tokens initial
+  let deadline = started +. timeout in
+  let partitions, prefix_explored, prefix_unique, prefix_seeds,
+      prefix_stopped =
+    initial_partitions engine (max 1 jobs) max_tokens min_tokens
+      ~max_queue ~max_frontiers ~hard_heap_bytes ~deadline initial
   in
+  let remaining_timeout = max 0. (deadline -. Unix.gettimeofday ()) in
   let prefix_progress =
     {
       depth = initial.depth;
@@ -528,7 +567,8 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
     in
     let outcome, seeds =
       unified_search engine partitions.(0) ~max_tokens ~min_tokens
-        ~nodes_per_depth ~timeout ~max_frontiers ~max_queue ~max_witnesses
+        ~nodes_per_depth ~timeout:remaining_timeout ~max_frontiers ~max_queue
+        ~max_witnesses
         ~soft_heap_bytes ~hard_heap_bytes
         ~show_progress:(progress_is_visible ())
         ~on_progress:show conflict_distance accept_distance
@@ -538,6 +578,8 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
         outcome with
         explored = prefix_explored + outcome.explored;
         unique = prefix_unique + outcome.unique;
+        stopped =
+          (match prefix_stopped with Some _ -> prefix_stopped | None -> outcome.stopped);
       },
       prefix_seeds + seeds )
   else begin
@@ -562,7 +604,7 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
             in
             let result =
               unified_search engine initial ~max_tokens ~min_tokens
-                ~nodes_per_depth ~timeout ~max_frontiers ~max_queue
+                ~nodes_per_depth ~timeout:remaining_timeout ~max_frontiers ~max_queue
                 ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
                 ~show_progress:(progress_is_visible ()) ~on_progress:report
                 conflict_distance accept_distance
@@ -693,8 +735,9 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
             unique = combined.unique + outcome.unique;
             deepest = max combined.deepest outcome.deepest;
             stopped =
-              (match (combined.stopped, outcome.stopped) with
-              | None, None -> None
+              (match (combined.stopped, outcome.stopped, prefix_stopped) with
+              | _, _, Some reason -> Some reason
+              | None, None, None -> None
               | _ -> Some "one or more workers reached a search limit");
           },
           seeds + worker_seeds ))

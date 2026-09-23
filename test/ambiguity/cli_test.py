@@ -673,6 +673,70 @@ class MinTokenEngineTests(unittest.TestCase):
                 self.assertIn("Tokens (4): A EOF X EOF", result.stdout)
 
 
+class PartitionBudgetEngineTests(unittest.TestCase):
+    """The parallel prepass must stay within budget and report truncation."""
+
+    def setUp(self) -> None:
+        self.environment = engine_environment()
+        if self.environment is None:
+            self.skipTest(
+                "requires a built _build/default/tools/ambiguity/ambiguity_search.exe and menhir"
+            )
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.grammar = Path(directory.name) / "branching_min_tokens.mly"
+        count = 300
+        tokens = "\n".join(
+            f'%token X{index} "x{index}"\n%token Y{index} "y{index}"'
+            for index in range(count)
+        )
+        continuations = "\n".join(
+            f"  | e EOF X{index} Y{index} Z EOF {{ () }}"
+            for index in range(count)
+        )
+        self.grammar.write_text(
+            f"""%token A "a"
+%token Z "z"
+%token EOF "<eof>"
+{tokens}
+%start <unit> main
+%%
+main:
+  | e EOF {{ () }}
+{continuations}
+e:
+  | A {{ () }}
+  | A {{ () }}
+""",
+            encoding="utf-8",
+        )
+
+    def test_parallel_prepass_reports_frontier_budget_truncation(self) -> None:
+        result = subprocess.run(
+            [
+                str(ENGINE),
+                "--min-tokens", "6",
+                "--max-tokens", "6",
+                "--timeout", "30",
+                "--max-witnesses", "1",
+                str(self.grammar),
+            ],
+            env={
+                **self.environment,
+                "AMBIGUITY_JOBS": "4",
+                "AMBIGUITY_MEMORY_MB": "512",
+                "AMBIGUITY_MAX_FRONTIER_RATIO": "0.001",
+            },
+            text=True,
+            capture_output=True,
+            timeout=120,
+        )
+        self.assertIn(
+            "the frontier budget stopped initial partitioning", result.stdout
+        )
+        self.assertNotIn("the search space within the token bound was exhausted", result.stdout)
+
+
 class StreamingOutputTests(unittest.TestCase):
     """The engine's output has to arrive while a run is happening, not when it
     ends.
