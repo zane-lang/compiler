@@ -2,6 +2,7 @@
  (name cst)
  (libraries
   source
+  diagnostic
   menhirLib
   sedlex
   tree_graph

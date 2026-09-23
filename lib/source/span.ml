@@ -4,15 +4,14 @@
    [$loc], which is the pair of positions delimiting the production that built
    the node, so a span covers exactly the tokens the node was reduced from.
 
-   The pair is what [Parse_error.format_parse_error] already takes: it draws a
-   caret from a start and an end position. Before spans, that pair existed only
-   at the instant a parse failed, read off the lexbuf and used once. Storing it
-   on the node is what lets a pass that runs *after* the parse -- the statement
-   check today, the desugaring and everything downstream of it later -- point at
-   source the same way.
+   It is also where a [Diagnostic.t] points, and its renderer draws a caret
+   from the two positions. Keeping the pair on the node is what lets a pass
+   that runs *after* the parse -- the statement check today, the desugaring and
+   everything downstream of it later -- report against source the same way the
+   parser does.
 
    Positions are byte offsets, not code points, because that is what indexing
-   the source text needs; see [Cst.error_positions]. *)
+   the source text needs; see [Cst.byte_positions]. *)
 type t = {
   start_ : Lexing.position;
   end_ : Lexing.position;

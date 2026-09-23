@@ -5,6 +5,6 @@ let () =
   end;
   match Cst.parse "<parser-syntax-test>" Sys.argv.(1) with
   | Ok _ -> ()
-  | Error message ->
-      prerr_string message;
+  | Error diagnostic ->
+      prerr_string (Diagnostic.render ~source:Sys.argv.(1) diagnostic);
       exit 1

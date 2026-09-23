@@ -38,9 +38,9 @@ let squeeze text =
 
 (* A UTF-8 continuation byte is the tail of a character that starts earlier, so
    a cut landing on one would split that character and put an invalid byte
-   sequence in the expectation file. The same fact [Parse_error] uses to keep a
-   caret from drifting, for the same reason: this file's business is positions
-   in text that is not necessarily ASCII. *)
+   sequence in the expectation file. The same fact [Diagnostic.Render] uses to
+   keep a caret from drifting, for the same reason: this file's business is
+   positions in text that is not necessarily ASCII. *)
 let is_continuation text i = Char.code text.[i] land 0xC0 = 0x80
 
 (* Long spans are elided in the middle. Both ends are what a wrong span usually
