@@ -360,16 +360,25 @@ map_lit:
    twelve; what changes is which fork they are, and this one is the fork
    docs/ambiguity.md already carries for a call's trailing argument against an
    enclosing brace. *)
-%inline constructor_args:
+%inline positional_constructor_args:
   | "(" ")" {
       constructor_args $loc (Nodes.Constructor_args.Positional [])
     }
   | "(" args=separated_nonempty_list(",", call_arg) ")" {
       constructor_args $loc (Nodes.Constructor_args.Positional args)
     }
+
+(* The field form closes on its own `}`, so a statement ending in one is closed
+   by it; see [stat]. It is named apart from the positional form for that
+   reason alone. *)
+%inline field_constructor_args:
   | "{" args=list(terminated(field_arg, ";")) "}" {
       constructor_args $loc (Nodes.Constructor_args.Fields args)
     }
+
+%inline constructor_args:
+  | args=positional_constructor_args { args }
+  | args=field_constructor_args { args }
 
 (* A named type after the binder either is the field's own type or introduces an
    inferred type parameter. Constructor fields and parameters spell that pair the
@@ -604,7 +613,10 @@ block_decl:
   | value=body_decl(block_body) { value }
   | value=type_decl(moulded_value) { value }
 
-(* Ends in an expression, so it needs the terminator. *)
+(* Every declaration that is not closed by its own `{ }` body. At package scope
+   none of them takes a terminator; in a body each is a statement closed by a
+   `;`, and the ones that can end in a brace are written again in
+   [simple_decl_braced] for the statement that closes on it instead. *)
 simple_decl:
   | value=body_decl(shorthand_body) { value }
   | value=type_decl(raw_value) { value }
@@ -612,14 +624,83 @@ simple_decl:
   | name=lname type_=type_expr "=" value=expr {
       decl $loc (Nodes.Decl.Var { name; type_; value })
     }
-  | name=lname constructor=constructor_name args=constructor_args {
+  | name=lname constructor=constructor_name args=positional_constructor_args {
       decl $loc
         (Nodes.Decl.VarShorthand { name; constructor; args; trailing = false })
     }
-  (* The same instantiation with the call's last argument trailing, under the
-     same restriction the call itself is under: what stays inside the `( )`
-     may not be empty, or `name Foo() { ... }` would read both as this and as
-     the lambda-variable shorthand two rules down. *)
+  | value=fields_var_shorthand { value }
+  | value=trailing_var_shorthand { value }
+  | name=lname func_lambda=func_lambda(body) {
+      decl $loc
+        (Nodes.Decl.Var {
+          name;
+          type_ = Nodes.func_type_of_lambda func_lambda;
+          value = expr $loc(func_lambda) (Nodes.Expr.FuncLambda func_lambda);
+        })
+    }
+  | name=lname meth_lambda=meth_lambda(body) {
+      decl $loc
+        (Nodes.Decl.Var {
+          name;
+          type_ = Nodes.meth_type_of_lambda meth_lambda;
+          value = expr $loc(meth_lambda) (Nodes.Expr.MethLambda meth_lambda);
+        })
+    }
+  | value=enum_map_decl { value }
+  | "(" THIS this_type=type_expr ")"
+    "[" params=separated_list(",", param) "]" "=>" value=expr {
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc
+              (Nodes.Verb_decl.Subscript { this_type; params; value })))
+    }
+
+(* The declarations a statement can end on a `}` with, and so the ones that
+   take no terminator there; see [stat]. At package scope no declaration takes
+   one, so [top_decl] reads [simple_decl] and never needs these. *)
+simple_decl_braced:
+  | value=body_decl(shorthand_body_braced) { value }
+  | name=lname type_=type_expr "=" value=expr_braced {
+      decl $loc (Nodes.Decl.Var { name; type_; value })
+    }
+  | value=fields_var_shorthand { value }
+  | value=trailing_var_shorthand { value }
+  | name=lname func_lambda=func_lambda(body_braced) {
+      decl $loc
+        (Nodes.Decl.Var {
+          name;
+          type_ = Nodes.func_type_of_lambda func_lambda;
+          value = expr $loc(func_lambda) (Nodes.Expr.FuncLambda func_lambda);
+        })
+    }
+  | name=lname meth_lambda=meth_lambda(body_braced) {
+      decl $loc
+        (Nodes.Decl.Var {
+          name;
+          type_ = Nodes.meth_type_of_lambda meth_lambda;
+          value = expr $loc(meth_lambda) (Nodes.Expr.MethLambda meth_lambda);
+        })
+    }
+  | value=enum_map_decl { value }
+  | "(" THIS this_type=type_expr ")"
+    "[" params=separated_list(",", param) "]" "=>" value=expr_braced {
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc
+              (Nodes.Verb_decl.Subscript { this_type; params; value })))
+    }
+
+fields_var_shorthand:
+  | name=lname constructor=constructor_name args=field_constructor_args {
+      decl $loc
+        (Nodes.Decl.VarShorthand { name; constructor; args; trailing = false })
+    }
+
+(* The same instantiation with the call's last argument trailing, under the
+   same restriction the call itself is under: what stays inside the `( )` may
+   not be empty, or `name Foo() { ... }` would read both as this and as the
+   lambda-variable shorthand in [simple_decl]. *)
+trailing_var_shorthand:
   | name=lname constructor=constructor_name
     open_=LPAREN args=separated_nonempty_list(",", call_arg) RPAREN
     tail=trailing_arg {
@@ -638,32 +719,12 @@ simple_decl:
           trailing = true;
         })
     }
-  | name=lname func_lambda=func_lambda(body) {
-      decl $loc
-        (Nodes.Decl.Var {
-          name;
-          type_ = Nodes.func_type_of_lambda func_lambda;
-          value = expr $loc(func_lambda) (Nodes.Expr.FuncLambda func_lambda);
-        })
-    }
-  | name=lname meth_lambda=meth_lambda(body) {
-      decl $loc
-        (Nodes.Decl.Var {
-          name;
-          type_ = Nodes.meth_type_of_lambda meth_lambda;
-          value = expr $loc(meth_lambda) (Nodes.Expr.MethLambda meth_lambda);
-        })
-    }
+
+(* Its entries are a `{ }` body, so it always closes on a `}`. *)
+enum_map_decl:
   | enum=named_type_expr "." property=lname type_=type_expr
     entries=enum_map_body {
       decl $loc (Nodes.Decl.EnumMap { enum; property; type_; entries })
-    }
-  | "(" THIS this_type=type_expr ")"
-    "[" params=separated_list(",", param) "]" "=>" value=expr {
-      decl $loc
-        (Nodes.Decl.Verb
-           (verb_decl $loc
-              (Nodes.Verb_decl.Subscript { this_type; params; value })))
     }
 
 %inline moulded_value:
@@ -740,6 +801,17 @@ shorthand_body:
 body:
   | value=block_body { value }
   | value=shorthand_body { value }
+
+(* A body that closes on a `}`: its own block, or a shorthand whose expression
+   does. See [expr_braced]. *)
+shorthand_body_braced:
+  | "=>" value=expr_braced {
+      body $loc (Nodes.Body.Shorthand value)
+    }
+
+body_braced:
+  | value=block_body { value }
+  | value=shorthand_body_braced { value }
 
 ret_type:
   | value=type_expr {
@@ -822,7 +894,21 @@ computed_call(trailer):
 
 verb_call:
   | call=computed_call(no_trailing_arg) { call }
-  | name=constructor_name args=constructor_args {
+  | name=constructor_name args=positional_constructor_args {
+      let span = Span.of_loc $loc in
+      fun abort_handle ->
+        ({
+          Nodes.Verb_call.span;
+          node =
+            Nodes.Verb_call.Constructor
+              { name; args; abort_handle; trailing = false };
+        } : Nodes.Verb_call.t)
+    }
+  | call=braced_verb_call { call }
+
+(* The one [verb_call] that closes on a `}`: a constructor call by fields. *)
+braced_verb_call:
+  | name=constructor_name args=field_constructor_args {
       let span = Span.of_loc $loc in
       fun abort_handle ->
         ({
@@ -1028,6 +1114,10 @@ primary:
     }
   | name_expr=name_expr { expr $loc (Nodes.Expr.NameExpr name_expr) }
   | "(" e=expr ")" { expr $loc (Nodes.Expr.Parenthized e) }
+  | value=primary_braced { value }
+
+(* The primaries that close on a `}`. *)
+primary_braced:
   | INIT "{" fields=list(terminated(field_arg, ";")) "}" {
       expr $loc (Nodes.Expr.Init fields)
     }
@@ -1166,19 +1256,146 @@ abort_handle:
       abort_handle_node $loc (Nodes.Abort_handle.Shorthand value)
     }
 
-(* A `;` terminates a statement, unless the statement already ends in a `}` --
-   then that brace closes it and a `;` would mark nothing. Every form below
-   therefore takes the terminator as optional and hands it to
-   [check_terminator], which rejects whichever of the two spellings the
-   statement's own shape did not call for.
+(* An expression whose last token is a `}` -- the ones a statement may end on
+   without a `;` (lexical.md §6.3).
+
+   Whether an expression ends in a brace is decided by its rightmost part:
+   `a + match (e) { }` does because its right operand does. So this is the
+   right spine of [expr] again, each form with its tail restricted to one that
+   closes on a brace, and every left operand still a plain [expr].
+
+   It is a parallel rule rather than a half of [expr]. Splitting [expr] into
+   two flavours joined by unit productions would put a reduce/reduce conflict
+   between `a + b` and the `b` of `a + b * c`, where precedence cannot reach,
+   and GLR would keep both groupings. Beside [expr], the only new decision is
+   the one that should exist: at the `}`, whether the statement ends. *)
+expr_braced:
+  | value=app_braced { value }
+  | call=block_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
+  | SPAWN call=braced_verb_call {
+      expr $loc (Nodes.Expr.Spawn (call None))
+    }
+  | func_lambda=func_lambda(body_braced) {
+      expr $loc (Nodes.Expr.FuncLambda func_lambda)
+    }
+  | meth_lambda=meth_lambda(body_braced) {
+      expr $loc (Nodes.Expr.MethLambda meth_lambda)
+    }
+  | left=expr op=comparison_op right=expr_braced {
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
+    }
+  | left=expr op=additive_op right=expr_braced {
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
+    }
+  | left=expr op=multiplicative_op right=expr_braced {
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
+    }
+  | left=expr op=loose_comparison_op right=expr_braced {
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
+    }
+  | left=expr op=loose_additive_op right=expr_braced {
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
+    }
+  | left=expr op=loose_multiplicative_op right=expr_braced {
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
+    }
+  | receiver=app part=meth_part "|" value=expr_braced {
+      let is_mut, callee = part in
+      let target =
+        expr
+          ($startpos(receiver), $endpos(part))
+          (Nodes.Expr.MethodTarget { callee; this = receiver; is_mut })
+      in
+      expr $loc (Nodes.Expr.Pipe { callee = target; value; abort_handle = None })
+    }
+  | callee=expr "|" value=expr_braced {
+      expr $loc (Nodes.Expr.Pipe { callee; value; abort_handle = None })
+    }
+  | "~" value=expr_braced {
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Flip { value; abort_handle = None })))
+    }
+  | "&" value=ref_target_braced {
+      expr $loc (Nodes.Expr.Ref value)
+    }
+  | value=expr abort_handle=abort_handle_braced {
+      attach_abort_handle abort_handle (Span.of_loc $loc) value
+    }
+
+(* The postfix bases that close on a `}`. Every other [app] ends on a name, a
+   `)` or a `]`. *)
+app_braced:
+  | value=primary_braced { value }
+  | call=braced_verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
+
+ref_target_braced:
+  | value=app_braced { value }
+  | "&" value=ref_target_braced {
+      expr $loc (Nodes.Expr.Ref value)
+    }
+  | "~" value=ref_target_braced {
+      expr $loc
+        (Nodes.Expr.VerbCall
+           (verb_call $loc
+              (Nodes.Verb_call.Flip { value; abort_handle = None })))
+    }
+
+abort_handle_braced:
+  | "?" binder=ioption(lname) body=body_braced {
+      abort_handle_node $loc (Nodes.Abort_handle.Longhand { binder; body })
+    }
+  | "??" value=expr_braced {
+      abort_handle_node $loc (Nodes.Abort_handle.Shorthand value)
+    }
+
+(* A `;` terminates a statement, unless the statement ends in a `}` -- then that
+   brace closes it and nothing else may (lexical.md §6.3). So every statement
+   is closed by exactly one of the two, and the grammar says which: each form
+   below comes once with a `;` and, where its tail can close on a brace, once
+   more ending in a [_braced] tail with none.
+
+   Neither mark is optional. A statement that could end on any token would
+   leave a `[` or `(` after it -- the two tokens a statement can open with --
+   with two owners, and both readings would reach the end of the input. GLR
+   has no way to choose between two finished parses, so that would be a
+   program the compiler cannot parse rather than a fork.
+
+   What the grammar still admits is a `;` after a statement that ends in a
+   brace. That spelling has one parse -- nothing can begin with the `;` -- so
+   [Statement_check] reads it off the tree and rejects it there.
 
    Note what is *not* here: a bare `{ }` is not a statement. Scoping a run of
    work is a call taking a block argument, so the only braces that open
    anything at this level belong to a declaration. *)
 stat:
-  | target=app "=" value=expr terminated=boption(";") {
-      expr_statement ~terminated ~ends_at:$endpos ~loc:$loc
+  | target=app "=" value=expr ";" {
+      expr_statement ~ends_at:$endpos ~loc:$loc
         (fun value -> Nodes.Stat.Assign { target; value }) value
+    }
+  | target=app "=" value=expr_braced {
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(continues_past_trailing value)
+        (Nodes.Stat.Assign { target; value })
     }
   (* Ends in its own `{ }` body, so there was no terminator to get wrong. *)
   | decl=block_decl {
@@ -1194,18 +1411,43 @@ stat:
   | decl=header_decl ";" {
       terminated_statement ~loc:$loc (Nodes.Stat.Decl decl)
     }
-  | decl=simple_decl terminated=boption(";") {
+  | decl=simple_decl ";" {
       statement
         ~ends_in_brace:(decl_ends_in_brace decl)
-        ~terminated ~ends_at:$endpos ~loc:$loc
+        ~ends_at:$endpos ~loc:$loc
         ~continued:(decl_continues_past_trailing decl)
         (Nodes.Stat.Decl decl)
     }
-  | call=verb_call abort_handle=ioption(abort_handle) terminated=boption(";") {
-      let call = call abort_handle in
+  | decl=simple_decl_braced {
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(decl_continues_past_trailing decl)
+        (Nodes.Stat.Decl decl)
+    }
+  | call=verb_call ";" {
+      let call = call None in
       statement
         ~ends_in_brace:(verb_call_ends_in_brace call)
-        ~terminated ~ends_at:$endpos ~loc:$loc
+        ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
+        (Nodes.Stat.VerbCall call)
+    }
+  | call=verb_call abort_handle=abort_handle ";" {
+      let call = call (Some abort_handle) in
+      statement
+        ~ends_in_brace:(verb_call_ends_in_brace call)
+        ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
+        (Nodes.Stat.VerbCall call)
+    }
+  | call=braced_verb_call {
+      let call = call None in
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
+        (Nodes.Stat.VerbCall call)
+    }
+  | call=verb_call abort_handle=abort_handle_braced {
+      let call = call (Some abort_handle) in
+      braced_statement ~ends_at:$endpos ~loc:$loc
         ~continued:(verb_call_continues_past_trailing call)
         (Nodes.Stat.VerbCall call)
     }
@@ -1217,25 +1459,60 @@ stat:
         ~continued:(verb_call_continues_past_trailing call)
         (Nodes.Stat.VerbCall call)
     }
-  | SPAWN call=verb_call abort_handle=ioption(abort_handle) terminated=boption(";") {
-      let call = call abort_handle in
+  | SPAWN call=verb_call ";" {
+      let call = call None in
       statement
         ~ends_in_brace:(verb_call_ends_in_brace call)
-        ~terminated ~ends_at:$endpos ~loc:$loc
+        ~ends_at:$endpos ~loc:$loc
         ~continued:(verb_call_continues_past_trailing call)
         (Nodes.Stat.Spawn call)
     }
-  | ABORT value=expr terminated=boption(";") {
-      expr_statement ~terminated ~ends_at:$endpos ~loc:$loc
+  | SPAWN call=verb_call abort_handle=abort_handle ";" {
+      let call = call (Some abort_handle) in
+      statement
+        ~ends_in_brace:(verb_call_ends_in_brace call)
+        ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
+        (Nodes.Stat.Spawn call)
+    }
+  | SPAWN call=braced_verb_call {
+      let call = call None in
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
+        (Nodes.Stat.Spawn call)
+    }
+  | SPAWN call=verb_call abort_handle=abort_handle_braced {
+      let call = call (Some abort_handle) in
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
+        (Nodes.Stat.Spawn call)
+    }
+  | ABORT value=expr ";" {
+      expr_statement ~ends_at:$endpos ~loc:$loc
         (fun value -> Nodes.Stat.Abort value) value
     }
-  | RETURN value=expr terminated=boption(";") {
-      expr_statement ~terminated ~ends_at:$endpos ~loc:$loc
+  | ABORT value=expr_braced {
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(continues_past_trailing value)
+        (Nodes.Stat.Abort value)
+    }
+  | RETURN value=expr ";" {
+      expr_statement ~ends_at:$endpos ~loc:$loc
         (fun value -> Nodes.Stat.Ret value) value
     }
-  | RESOLVE value=expr terminated=boption(";") {
-      expr_statement ~terminated ~ends_at:$endpos ~loc:$loc
+  | RETURN value=expr_braced {
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(continues_past_trailing value)
+        (Nodes.Stat.Ret value)
+    }
+  | RESOLVE value=expr ";" {
+      expr_statement ~ends_at:$endpos ~loc:$loc
         (fun value -> Nodes.Stat.Resolve value) value
+    }
+  | RESOLVE value=expr_braced {
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(continues_past_trailing value)
+        (Nodes.Stat.Resolve value)
     }
 
 %inline param_type:

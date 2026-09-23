@@ -33,14 +33,14 @@ handler following a trailing argument, and no valid program has one, so no
 accepted input reaches it.
 
 The statement terminator is the case that taught this. Whether a statement
-needs `;` depends on whether it ends in `}`, which the grammar cannot see when
-it has to choose — after `ran Bool = if(ready)` the next token decides, and a
-`{` there continues the call. So the grammar takes either spelling and the
-mismatch is checked afterward. Checked from a raise in the action, it failed 18
-tests at once, every one of them on the early-ending branch of a program that
-parses correctly one token later. The check now records the mismatch on the
-statement and `Statement_check` walks the finished tree, where the losing
-branches are gone.
+needs `;` depends on whether it ends in `}` — after `ran Bool = if(ready)` the
+next token decides, and a `{` there continues the call. Checked from a raise in
+an action, it failed 18 tests at once, every one of them on the early-ending
+branch of a program that parses correctly one token later. The checks that stay
+after the parse — a `;` after a closing brace, and a trailing argument
+continued past its `}` — record the mismatch on the statement, and
+`Statement_check` walks the finished tree, where the losing branches are gone.
+Whether the `;` is there at all is the grammar's to decide, below.
 
 The rule that follows: a check that depends on more than the branch it is in
 belongs **after the parse**, over the tree that survived. A check that is local
@@ -49,29 +49,29 @@ the rule in the grammar where the grammar can carry it.
 
 ## Where the current conflicts come from
 
-Menhir reports 72 states with shift/reduce conflicts and 2 with reduce/reduce
-conflicts; the explanations file accounts for 74 conflict blocks, since a state
-carrying both kinds is explained once per kind. The table counts states rather
-than token occurrences. They are not independent problems:
+A plain `menhir --explain` of the grammar — the stock build, without the
+`--GLR` flag the compiler is built with — reports 43 states with
+shift/reduce conflicts and 12 with reduce/reduce conflicts, and the
+explanations file accounts for 49 conflict blocks. The census of the `--GLR`
+build is larger and is tracked in
+[#97](https://github.com/zane-lang/compiler/issues/97). The table counts states rather than
+token occurrences. They are not independent problems:
 
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
 | `(`             | 6 | `loption_generics_ ->` | before a call or a lambda |
-| `)` `?` `(` `<` `{` `[` | 3 | `loption_generics_ ->` | the same, where a type may also be the whole argument |
+| `)` `?` `(` `<` | 3 | `loption_generics_ ->` | the same, where a type may also be the whole argument |
 | operators, `(` `<` `{` `.` | 3 | `loption_generics_ ->` | the same, where a type may also be an operand |
 | `<`             | 9 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<`         | 3 | `loption_generics_ ->` | a named type opening a call or a generic list |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
-| `[`             | 12 | `list_verb_type_suffix_ ->` | a vanished terminator against a verb-type suffix |
-| `(`             | 3 | `list_verb_type_suffix_ ->` | the same, before a call |
-| `(`             | 2 | `app -> func_callee` | a vanished terminator against a call |
-| `[`             | 2 | `expr -> app`, `ref_target -> app` | a vanished terminator against a subscript |
-| `(` `[`         | 2 | `boption_SEMICOLON_ ->`, `expr -> SPAWN verb_call` | *(reduce/reduce)* the same, on `spawn` |
-| `?` `??` `(` `[` | 2 | `expr -> SPAWN verb_call`, `func_callee -> verb_call` | a spawned call against what follows it |
-| `{`             | 3 | `computed_call_no_trailing_arg_ -> ... RPAREN` | a call's trailing argument against an enclosing brace |
-| `{`             | 12 | `verb_call -> ... RPAREN`, `simple_decl -> ... RPAREN` | a constructor call's trailing argument against the same |
-| `{` / `(` `{`   | 6 | `app -> ... DOT LIDENT` | a field access against a constructor body or its trailing form |
+| `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
+| `(`             | 6 | `app -> ... DOT LIDENT` | a type member ending a package-scope declaration, against a named constructor call |
+| `(`             | 2 | `app -> func_callee` | a package-scope declaration's value, against a call |
 | `(`             | 3 | `primary -> LIDENT`, `primary -> THIS` | a bare name against a call or a lambda |
+| `?` `??`        | 2 | `expr -> SPAWN verb_call`, `func_callee -> verb_call` | a spawned call against what follows it |
+| `(`             | 1 | `expr -> SPAWN verb_call`, `func_callee -> verb_call` | *(reduce/reduce)* the same, before a call |
+| `(` `[`         | 5 | a `_braced` rule against the same form continued | *(reduce/reduce)* a statement closed by a `}`, against a call or subscript written after it |
 
 The `<` row is about the declaration form, not the comparison. Its nine states
 all reduce toward `ret_type "<" "(" params ")" body`, the declaration of the
@@ -82,30 +82,60 @@ removes all nine and nothing else, which is what identifies the family; it is a
 language change rather than a restructuring, so it is a measurement here and
 not a proposal.
 
-**The vanished terminator is one root, not six.** Twenty-one shift/reduce
-states and both reduce/reduce conflicts — 23 of the 74 — trace to a single
-fact: a statement's `;` is optional
-in the grammar, because whether it is required depends on whether the statement
-ends in a `}`, and that is not a question a bracket answers. So the token that
-used to end a statement can now be the first token of the next one, and every
-reduction that used to be decided by seeing `;` is decided by seeing `[` or `(`
-instead — the two tokens a statement can begin with. `type T = Int[]` followed
-by a statement opening `[a] = b;` is the shape; the parser must close the
-verb-type suffix list before it can know. The import state shared this root and
-forked over a name rather than a bracket; it is the one place the missing
-terminator produced an ambiguity rather than a fork, and what closed it is
-below.
+The two package-scope rows are the one place a declaration still ends without
+a mark of its own. At package scope only `package` and `import` take a
+terminator, and a declaration may open with `(` — the subscript declaration `(this T)[…] => …` — so a value
+ending in a name or a type member meets a `(` that is either a call on it or
+the next declaration.
 
-These are **open obligations**, and the reason they are permitted rather than
-resolved is that the conflict is an artifact of where the check lives, not of
-the language. Exactly one of the two readings survives the grammar in every
-case measured, and the one that survives is then accepted or rejected by
-`check_terminator`, which reads the statement's own tail off the tree. The
-alternative — splitting the expression grammar into brace-ending and
-non-brace-ending halves so that the terminator is decided by the shape — would
-resolve them at the cost of two copies of every operator production, since
-`a + match (e) { … }` ends in a brace because its right operand does. That trade
-has not been made.
+**A statement is closed by its own terminator, and the grammar says which.**
+lexical.md §6.3 requires a `;` after every statement except one that ends in a
+`}`, where the brace closes it. [`stat`](../../lib/cst/parser.mly) writes each
+form twice: once followed by `";"`, and — where its tail can end in a brace —
+once ending in a `_braced` rule and nothing after it. `expr_braced` is the
+right spine of `expr` with the tail restricted to a form that closes on `}`,
+since `a + match (e) { … }` ends in a brace because its right operand does;
+every left operand is still a plain `expr`, so the precedence table decides the
+same groupings it decides everywhere else. `simple_decl_braced`,
+`body_braced`, `abort_handle_braced` and `ref_target_braced` carry the same
+restriction through the forms that reach an expression.
+
+This was the ledger's largest open obligation, and it was a bug. The terminator
+used to be optional, `boption(";")`, with the mismatch checked after the parse
+by `Statement_check`. So a statement could end on any token, and then a `[` or
+`(` after it — the two tokens a statement can begin with — had two owners. The
+obligation claimed exactly one reading always survived; the scheduled proof run
+of 2026-09-21 found `Int {} { abort false[]() }`, and the valid program next to
+it measured two complete derivations:
+
+```sh
+ambiguity check UIDENT LCURLY RCURLY LCURLY ABORT FALSE LBRACKET RBRACKET LPAREN RPAREN SEMICOLON RCURLY EOF
+```
+
+— `abort false[]();` as one statement, and as `abort false` followed by
+`[]();`. GLR has no way to choose between two finished parses, so the compiler
+failed on it before `Statement_check` had a tree to read. `return` and an
+assignment reached it the same way; `false[]` alone and `false()` alone did not.
+
+Requiring the mark removed 29 shift/reduce states and the `boption`
+reduce/reduce conflict of that family: every `[` state reducing an empty verb-type suffix,
+the `[` states closing an `app` before a subscript, and the fifteen `{` states
+below that reduce a completed call. Each of those witnesses now has one
+derivation, and a statement with no mark is a parse error rather than a tree
+`Statement_check` has to reject. What the grammar still admits is a `;` after a
+statement that ends in a brace; that spelling has one parse, since nothing
+begins with a `;`, so `Statement_check` still rejects it from the tree.
+
+**The `(` `[` row is an ambiguity, not a fork.** It is what is left of the same
+question, one step later. A statement closed by a `}` is followed by the next
+statement, which may open with `(` or `[` — and a brace-closing primary or
+constructor call may also take a call or a subscript after it. So
+`abort match (x) { } (y)();` reads both as one statement and as
+`abort match (x) { }` followed by `(y)();`, and both finish. lexical.md §6.3
+settles which is meant — nothing may continue a statement past the brace that
+closed it — but the grammar does not carry that yet. It measured two
+derivations before the terminator was required and measures two now; it is
+open, and it is a bug.
 
 What removed twelve conflicts and what brought them back is worth recording
 together. The twelve were on `[`, and all twelve were one adjacency: an enum
@@ -122,9 +152,9 @@ the adjacency went with it: the entry list no longer shares a bracket with the
 suffixes, so the decision is made at the opening bracket by the bracket itself.
 `enum_map_tail`, the classifier that carried a group's kind, and the two
 rejected orders are all gone, and the enum map is a `type_expr` followed by a
-`{ }` body again. The twelve `[` states in the table above are a different
-family that happens to be the same size — they are the vanished terminator, and
-they appear on a plain `type` declaration with no enum map in sight.
+`{ }` body again. Twelve more `[` states of the same size appeared later on a
+plain `type` declaration with no enum map in sight; they were a different
+family — the optional statement terminator — and went with it.
 
 **`package` and `import` carry a `;`, and the grammar requires it.** They are
 the two declarations that end on a bare name — `import pkg$` ends just before
@@ -133,8 +163,8 @@ says it instead. Every other package-scope declaration ends in a body, a
 bracket, or an expression and still takes none. The rule lives in `header_decl`
 and applies inside a body too, where the same two forms are statements.
 
-This one is worth recording in full, because it is the only obligation so far
-that was a bug rather than a fork. The state reducing
+This one is worth recording in full, because it was the first obligation that
+turned out to be a bug rather than a fork. The state reducing
 `import_decl -> IMPORT LIDENT DOLLAR` was tracked as an open obligation: after
 the `$`, a name was either the member being imported or the first token of the
 next declaration, and with no terminator there was nothing between them to
@@ -166,19 +196,16 @@ found it, and the run that no longer does — and
 costs against the spec.
 
 What it leaves behind is the general lesson the ledger is for: a continuation
-survey is evidence that an obligation is *plausible*, never that it holds. The
-obligations below are open on the same footing.
+survey is evidence that an obligation is *plausible*, never that it holds.
+Every entry below that rests on measurement rather than proof is open on the
+same footing; the two that follow are settled by the grammar's shape.
 
-The fifteen `{` states that reduce a completed call are **open obligations**.
-A call may be closed by a trailing argument, so after `f(x)` a following `{` is
-either that argument or the first token of the next statement — a statement may
-open with a brace, since a map literal is a `primary` and so may be called or
-assigned through. The smallest grouping rule attaches following syntax to the
-nearest preceding construct that can accept it, which reads the brace as the
-call's argument. Exactly one reading survives every case measured, but the
-argument that one always does is the map-literal mark below, and it is not
-written as a transience argument yet; until it is, these states carry neither a
-precedence resolution nor a transience argument.
+**A call's trailing argument has one owner.** A call may be closed by a
+trailing argument, so after `f(x)` a following `{` is that argument — the next
+statement cannot begin there, because `f(x)` does not end in a brace and so is
+not closed until its `;`. The fifteen `{` states that reduced a completed call
+against that brace were open obligations while the terminator was optional;
+requiring it removed all fifteen.
 
 **A `match` does not reach this fork.** Its scrutinee list is parenthesized, so
 the brace that opens the arms is read after a `)` rather than after an
@@ -197,30 +224,21 @@ second owner as well, and `match A { } ( ) { }` was the second family the
 search found. Behind the family's own prefix that search now exhausts its
 bound without a witness, on a sixth of the frontiers it explored before.
 
-Twelve of the fifteen are the same question asked of a constructor call, which
-reaches the fork through `verb_call` and through the instantiation shorthand
-rather than through `computed_call`. The witnesses below are written with a
-function call; the constructor spelling of each measures the same.
-
-What the grammar does today is pinned by two witnesses, each accepted by
-exactly one derivation, so the fork is resolved rather than ambiguous on them:
+What the grammar does is pinned by two witnesses, each accepted by exactly
+one derivation. They are written with a function call; the constructor
+spelling of each measures the same:
 
 ```sh
 ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN SEMICOLON RCURLY RCURLY EOF
 ```
 
 `Unit use() { f() { g(); } }` reads the brace as the call's block argument,
-since `g();` is a statement and the brace has no other owner once the body's
-own `}` is spoken for. `Unit use() { f() { k, v; }(x); }` reads the same brace
-as a map literal handed to `f`, because `k, v;` is an entry rather than a
-statement — and not as a separate statement calling a map literal, which would
-leave `f()` unterminated. That every brace whose contents read one way escapes
-the fork is the shape a transience argument would have to take, and it is not
-one yet — the case where a brace's contents read as both has not been ruled
-out.
+since `g();` is a statement. `Unit use() { f() { k, v; } }` reads the same
+brace as a map literal handed to `f`, because `k, v;` is an entry rather than a
+statement.
 
-That shape is now load-bearing in a second place. A **map literal** stands in a
-value position behind no introducing token, and so does a block argument, so in
+What tells a block from a map literal is load-bearing on its own. A **map
+literal** stands in a value position behind no introducing token, and so does a block argument, so in
 argument position the two can meet. They are told apart by the mark after the
 first expression — a `,` opens an entry's value, a `;` ends a statement — which
 is a parse rather than a scan, since both now hold `;`-terminated things. Both
@@ -231,27 +249,21 @@ scrutinee commas before the entry's mark is reached. `f({ a, b; })` and
 spellings.
 
 **A constructor call may trail its last argument, unless that would leave the
-`( )` empty.** The fifteen states that rule adds are the fork above, reached
-from six more places: twelve on `{` where a completed constructor call — the
-call itself, and the instantiation shorthand that writes a name in front of it
-— meets a brace that is either its trailing argument or the enclosing
-construct's, and three that double the `app -> ... DOT LIDENT` family, where a
-named constructor's `.member` now opens the trailing form as well as a field
-access. Under GLR both readings are explored and one survives, measured on
-every case in
+`( )` empty.** The call and the instantiation shorthand that writes a name in
+front of it both reach the trailing form, and a named constructor's `.member`
+opens it as well as a field access; that last is three of the six
+`app -> ... DOT LIDENT` states in the table. Under GLR both readings are
+explored and one survives, measured on every case in
 [`test/parser/ambiguity_test.py`](../../test/parser/ambiguity_test.py) and
 searched for in
 [`reports/ambiguity/search/general/`](../../reports/ambiguity/search/general),
 where the run that added the rule exhausted every sentence of at most nine
 tokens without finding one.
 
-Which token carries the fork was a choice. The trailing form reads a non-empty
-argument list, and if the plain form reads `( )` as a list that may be empty,
-the two diverge while the list is being reduced: the parser picks at the `)`,
-before the `{` that decides is in view, and that spelling measures twelve
-states on `)` instead. Giving the empty list its own production lets both
-spellings share the non-empty one, so the `)` is shifted either way. The count
-is the same; the fork is the one already on this ledger.
+The trailing form reads a non-empty argument list, and the plain form's empty
+`( )` is a production of its own rather than a list that may be empty. Both
+spellings then share the non-empty list, so the `)` is shifted either way and
+the decision falls on the token after it.
 
 The empty list is the case the grammar has to keep out, and the reason is not
 the constructor declaration the divergence entry used to name. `Foo() { ... }`

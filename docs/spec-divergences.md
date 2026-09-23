@@ -196,10 +196,10 @@ declaration, and as a member import of `main` and a constructor declaration for
 before the `;` was required; each terminated spelling has one, and the bare one
 is now rejected.
 
-The terminator is required inside a body too, where the same two forms are
-statements and the same two readings meet. That is stricter than §6.3's
-statement rule, which would let `check_terminator` accept the `;` and reject
-its absence after the parse — too late, because both spellings parse.
+Inside a body the same two forms are statements and the same two readings
+meet, and there the terminator is no divergence: §6.3 requires a `;` after
+every statement that does not end in a `}`, and the grammar carries that rule
+for every statement.
 
 `docs/ambiguity/proof-obligations.md` has the full account, in the ledger entry
 for the state reducing `import_decl -> IMPORT LIDENT DOLLAR`. Reconciling in
@@ -317,8 +317,9 @@ standing in for.
   What the compiler did not have at all was the rule stated over a statement's
   **tail** rather than its form, which is what reaches a variable bound to a
   `match`, an assignment, a `return`, and a `=> expr` verb whose expression
-  ends in a brace. That is now decided per statement and checked after the
-  parse.
+  ends in a brace. The grammar now decides whether a statement takes a `;`;
+  only a stray `;` after its closing brace, and a trailing argument's `}` with
+  something after it, are checked after the parse.
 
 - **A trailing block is placed by position, not by line.** The spec required a
   trailing block's `{` to open on the same line as its call, to tell it from a
