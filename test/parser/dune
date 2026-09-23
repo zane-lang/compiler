@@ -167,3 +167,75 @@
  (alias runtest)
  (action
   (diff golden/stock.conflicts.census stock.conflicts.census.actual)))
+
+; How a rejected file is reported: the source line, the caret under the
+; offending text, and the message. Everything else in the suite asks only
+; whether a file was rejected, so a change to the renderer in lib/diagnostic/
+; -- a caret one column off after a tab or a multibyte character, a message
+; lost on the way out -- would pass it unseen.
+;
+; One fixture per way the parse can fail, each reaching a different producer:
+; `syntax.zn` the parser itself, after a tab and multibyte text on the same
+; line; `lexing.zn` a character no token starts with; `malformed-utf8.zn` a
+; byte that is not UTF-8; `rejected.zn` a grammar action; and `statement.zn`
+; the statement check that walks the finished tree, whose span is empty.
+
+(rule
+ (with-stderr-to
+  reject.syntax.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/compiler/main.exe} %{dep:fixtures/reject/syntax.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.syntax.err reject.syntax.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.lexing.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/compiler/main.exe} %{dep:fixtures/reject/lexing.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.lexing.err reject.lexing.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.malformed-utf8.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/compiler/main.exe} %{dep:fixtures/reject/malformed-utf8.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.malformed-utf8.err reject.malformed-utf8.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.rejected.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/compiler/main.exe} %{dep:fixtures/reject/rejected.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.rejected.err reject.rejected.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.statement.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/compiler/main.exe} %{dep:fixtures/reject/statement.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.statement.err reject.statement.err.actual)))

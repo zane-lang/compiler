@@ -45,8 +45,8 @@ let arguments () =
 let () =
   let stage, (filename, input) = arguments () in
   match Cst.parse filename input with
-  | Error message ->
-      prerr_string message;
+  | Error diagnostic ->
+      prerr_string (Diagnostic.render ~source:input diagnostic);
       exit 1
   | Ok cst ->
       let output =

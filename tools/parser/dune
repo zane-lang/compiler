@@ -4,12 +4,12 @@
 (executable
  (name parser_shape)
  (modules parser_shape)
- (libraries cst))
+ (libraries cst diagnostic))
 
 (executable
  (name parser_accept)
  (modules parser_accept)
- (libraries cst))
+ (libraries cst diagnostic))
 
 ; Reads a source file and prints every node with the source text its span
 ; covers. The walk over each stage's nodes lives with that stage --
@@ -19,4 +19,4 @@
 (executable
  (name span_dump)
  (modules span_dump)
- (libraries cst sst))
+ (libraries cst diagnostic sst))

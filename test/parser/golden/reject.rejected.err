@@ -1,0 +1,4 @@
+File "fixtures/reject/rejected.zn", line 3, characters 23-26:
+3 | import math$Vector as vec;
+  |                       ^^^
+Error: an `as` alias has to keep the casing of the name it renames, since an uppercase-initial name is a type and a lowercase one a value

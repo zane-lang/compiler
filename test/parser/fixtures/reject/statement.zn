@@ -1,0 +1,8 @@
+package main;
+
+Unit run(two Int, four Int) {
+	ran Bool = if(two < four) {
+		print("smaller");
+	};
+	return Unit();
+}

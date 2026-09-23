@@ -115,6 +115,6 @@ let () =
   end;
   match Cst.parse "<parser-grouping-test>" Sys.argv.(1) with
   | Ok package -> print_endline (expr_shape (abort_expr package))
-  | Error message ->
-      prerr_string message;
+  | Error diagnostic ->
+      prerr_string (Diagnostic.render ~source:Sys.argv.(1) diagnostic);
       exit 1

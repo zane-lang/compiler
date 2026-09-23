@@ -1,0 +1,11 @@
+; What a stage reports when it refuses its input, and the rendering of that
+; report for a person at a terminal.
+;
+; Below the compiler stages for the same reason `source` is: a diagnostic
+; points at source, and every stage from the parser on has something to
+; refuse. The structure is what a stage hands back -- a caller can read its
+; span and severity, sort, filter, or serialise it -- and `Render` is one way
+; of printing it, applied by whichever binary decides the text is for a human.
+(library
+ (name diagnostic)
+ (libraries source))

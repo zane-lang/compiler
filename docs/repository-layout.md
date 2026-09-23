@@ -42,6 +42,9 @@ The strongest part of the current layout is the stage-oriented compiler core:
 - `lib/tree_graph/` is a small focused shared rendering library. The logic in
   `lib/span_text/` is similarly well-scoped and should stay shared, although
   its dependency direction and final location can be improved.
+- `lib/diagnostic/` holds what a stage reports when it refuses its input -- a
+  span, a severity and a message -- and the terminal rendering of one. Stages
+  return the structure; the binaries decide to print it.
 - `dev/bin/` exposes development commands without mixing their shell wrappers
   with shipped binaries.
 - `docs/stages.md` gives the architecture a clear stage model.

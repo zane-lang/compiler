@@ -38,8 +38,8 @@ let () =
   let stage, path = arguments () in
   let input = In_channel.with_open_text path In_channel.input_all in
   match Cst.parse path input with
-  | Error message ->
-      prerr_string message;
+  | Error diagnostic ->
+      prerr_string (Diagnostic.render ~source:input diagnostic);
       exit 1
   | Ok package ->
       print_string

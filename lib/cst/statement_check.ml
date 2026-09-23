@@ -187,7 +187,9 @@ and in_constructor_params (params : Nodes.Constructor_params.t) =
            fields)
 
 (* [Ok ()] when every statement in the package ends the way its shape calls
-   for. *)
+   for. Otherwise a diagnostic at the position recorded on the first offender,
+   as an empty span: a statement is wrong where it ends, not across its
+   text. *)
 let check (package : Nodes.Package.t) =
   match
     List.fold_left
@@ -196,4 +198,8 @@ let check (package : Nodes.Package.t) =
       None package.Nodes.Package.decls
   with
   | None -> Ok ()
-  | Some (defect, position) -> Error (message defect, position)
+  | Some (defect, position) ->
+      Error
+        (Diagnostic.error
+           (Source.Span.of_loc (position, position))
+           (message defect))
