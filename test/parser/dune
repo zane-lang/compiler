@@ -120,3 +120,50 @@
  (alias runtest)
  (action
   (diff golden/desugar.sst.tree desugar.sst.tree.actual)))
+
+; The conflict census of docs/ambiguity/proof-obligations.md, read from the
+; explanations file the parser's own build writes. That file is the shipped
+; parser's: Menhir in `--GLR` mode rewrites the grammar before building the
+; automaton, so a stock `menhir --explain` counts a different set of states.
+;
+; A grammar change that adds, removes or moves a conflict state moves this, and
+; a moved census is a ledger change: update the table and the counts in
+; proof-obligations.md to match, then promote with `dune promote`.
+
+(rule
+ (with-stdout-to
+  parser.conflicts.census.actual
+  (run
+   python3
+   %{dep:../../tools/ambiguity/conflict_census.py}
+   %{dep:../../lib/cst/parser.conflicts})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/parser.conflicts.census parser.conflicts.census.actual)))
+
+; The same census of the stock automaton -- the grammar as written, with no
+; `--GLR` rewrite -- which is the one `just explain` and the ambiguity tools
+; read, and the one the ledger's family table is tallied on.
+
+(rule
+ (copy ../../lib/cst/parser.mly stock.mly))
+
+(rule
+ (targets stock.conflicts)
+ (action
+  (run %{bin:menhir} --no-code-generation --explain %{dep:stock.mly})))
+
+(rule
+ (with-stdout-to
+  stock.conflicts.census.actual
+  (run
+   python3
+   %{dep:../../tools/ambiguity/conflict_census.py}
+   %{dep:stock.conflicts})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/stock.conflicts.census stock.conflicts.census.actual)))
