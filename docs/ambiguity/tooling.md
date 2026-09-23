@@ -144,7 +144,11 @@
   equal search bounds before they are adopted
   (`tools/syntax_experiment/README.md`).
 - `menhir --explain` — enumerates the conflict states that constitute the
-  obligation ledger.
+  obligation ledger. `just explain --conflicts` prints them for the stock
+  automaton, and `tools/ambiguity/conflict_census.py` summarises an
+  explanations file by family, which is how `dune runtest` checks the census
+  [`proof-obligations.md`](proof-obligations.md#where-the-current-conflicts-come-from)
+  states.
 
 ## Watching a run
 

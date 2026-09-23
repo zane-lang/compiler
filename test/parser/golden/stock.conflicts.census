@@ -1,0 +1,24 @@
+46 conflict states
+
+  9  shift/reduce  [LESS]  loption(generics) ->
+  2  shift/reduce  [LPAREN]  app -> AT LIDENT DOLLAR UIDENT DOT LIDENT
+  2  shift/reduce  [LPAREN]  app -> LIDENT DOLLAR UIDENT DOT LIDENT
+  2  shift/reduce  [LPAREN]  app -> UIDENT DOT LIDENT
+  2  shift/reduce  [LPAREN]  app -> func_callee
+  1  reduce/reduce  [LPAREN]  expr -> SPAWN unbraced_verb_call ; func_callee -> unbraced_verb_call
+  3  shift/reduce  [LPAREN]  list(verb_type_suffix) ->
+  6  shift/reduce  [LPAREN]  loption(generics) ->
+  2  shift/reduce  [LPAREN]  primary -> LIDENT
+  1  shift/reduce  [LPAREN]  primary -> THIS
+  3  shift/reduce  [LPAREN LESS]  loption(generics) ->
+  3  shift/reduce  [LPAREN LESS LCURLY DOT]  loption(generics) ->
+  1  shift/reduce  [QSTNQSTN QSTNMARK]  app_braced -> braced_verb_call
+  1  shift/reduce  [QSTNQSTN QSTNMARK]  expr -> SPAWN braced_verb_call
+  1  shift/reduce  [QSTNQSTN QSTNMARK]  expr -> SPAWN unbraced_verb_call
+  1  shift/reduce  [QSTNQSTN QSTNMARK]  func_callee -> unbraced_verb_call
+  1  shift/reduce  [RPAREN QSTNMARK LPAREN LESS]  expr -> AT LIDENT DOLLAR UIDENT
+  1  shift/reduce  [RPAREN QSTNMARK LPAREN LESS]  expr -> LIDENT DOLLAR UIDENT
+  1  shift/reduce  [RPAREN QSTNMARK LPAREN LESS]  expr -> UIDENT
+  1  shift/reduce/reduce  [STAR SLASH QSTNMARK PLUS LPAREN LESS LCURLY EQEQ DOT]  expr -> AT LIDENT DOLLAR UIDENT ; loption(generics) ->
+  1  shift/reduce/reduce  [STAR SLASH QSTNMARK PLUS LPAREN LESS LCURLY EQEQ DOT]  expr -> LIDENT DOLLAR UIDENT ; loption(generics) ->
+  1  shift/reduce/reduce  [STAR SLASH QSTNMARK PLUS LPAREN LESS LCURLY EQEQ DOT]  expr -> UIDENT ; loption(generics) ->

@@ -49,13 +49,48 @@ the rule in the grammar where the grammar can carry it.
 
 ## Where the current conflicts come from
 
-A plain `menhir --explain` of the grammar — the stock build, without the
-`--GLR` flag the compiler is built with — reports 45 states with
-shift/reduce conflicts and 7 with reduce/reduce conflicts, and the
-explanations file accounts for 46 conflict blocks. The census of the `--GLR`
-build is larger and is tracked in
-[#97](https://github.com/zane-lang/compiler/issues/97). The table counts states rather than
-token occurrences. They are not independent problems:
+The grammar has two censuses, because Menhir builds two different automata from
+it. The parser that ships is built with `--GLR`, and in that mode Menhir first
+rewrites every production ending in a nullable symbol into an empty and a
+non-empty alternative (the Menhir manual, §13.6, "Expansion of nullable
+suffixes"). The stock automaton is the grammar as written — what a plain
+`menhir --explain`, `just explain` and the ambiguity tools read, and what state
+numbers in a proof report refer to.
+
+| Automaton | Conflict states | with shift/reduce | with reduce/reduce |
+| --------- | --------------: | ----------------: | -----------------: |
+| `--GLR`, the parser that ships | 54 | 53 | 8 |
+| stock | 46 | 45 | 7 |
+
+Menhir explains each conflict state once, so the explanations file holds one
+block per state; a state with both kinds of conflict counts in both of Menhir's
+warnings, which is why those do not add up to the state count. The state count
+and its families are checked for both automata; the per-kind columns are
+Menhir's own warnings, which `dune build` prints and nothing compares. `dune
+runtest` summarises each explanations file by family into
+[`test/parser/golden/`](../../test/parser/golden) — `parser.conflicts.census`
+for the build's own, `stock.conflicts.census` for the stock one — and a grammar
+change that moves either is a diff to read, reconcile with this section, and
+promote.
+
+The two are the same forks, reported at different places. With the empty
+generic list expanded away, a fork the stock automaton reports as reducing
+`loption_generics_ ->` is reported as reducing the name itself —
+`type_expr -> UIDENT` and its qualified and `&` forms — and a fork on whether
+an empty `( )` is a call or a parameter list, which the stock automaton decides
+at the `(` by reducing the empty generics, the `--GLR` one decides at the `)`,
+by reducing the empty parameter list. Every family in one census has its
+counterpart in the other; what differs is the productions it is reported under
+and how many states it spans.
+
+The rewrite happens only on the way to generated code, so
+`menhir --GLR --no-code-generation --explain` reports the stock census. The
+shipped one is what `dune build` prints and writes to
+`_build/default/lib/cst/parser.conflicts`.
+
+The table below is tallied on the stock automaton, since that is the one the
+tools number states by. It counts states rather than token occurrences. They
+are not independent problems:
 
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
