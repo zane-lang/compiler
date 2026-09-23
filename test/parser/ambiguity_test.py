@@ -257,17 +257,73 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "x Foo = match A { } ( ) { }",
             0,
         )
+        # A value that closes on a `}` is not a postfix base at all, so the
+        # call is written on the parenthesized match, and on the parenthesized
+        # constructor inside the scrutinee list.
         self.assert_derivations(
             "LIDENT UIDENT EQUAL MATCH LPAREN UIDENT RPAREN LCURLY RCURLY "
             "LPAREN RPAREN LCURLY RCURLY EOF",
             "x Foo = match (A) { } ( ) { }",
+            0,
+        )
+        self.assert_derivations(
+            "LIDENT UIDENT EQUAL LPAREN MATCH LPAREN UIDENT RPAREN LCURLY "
+            "RCURLY RPAREN LPAREN RPAREN LCURLY RCURLY EOF",
+            "x Foo = (match (A) { }) ( ) { }",
             1,
         )
         self.assert_derivations(
             "LIDENT UIDENT EQUAL MATCH LPAREN UIDENT LCURLY RCURLY LPAREN "
             "RPAREN RPAREN LCURLY RCURLY EOF",
             "x Foo = match (A { } ( )) { }",
+            0,
+        )
+        self.assert_derivations(
+            "LIDENT UIDENT EQUAL MATCH LPAREN LPAREN UIDENT LCURLY RCURLY "
+            "RPAREN LPAREN RPAREN RPAREN LCURLY RCURLY EOF",
+            "x Foo = match ((A { }) ( )) { }",
             1,
+        )
+
+    def test_a_value_closed_by_a_brace_takes_no_postfix(self) -> None:
+        # After the `}` of a match, a map literal, an `init` or a constructor
+        # call by fields, a `(` or `[` opens the next statement: it is not a
+        # call or subscript on that value (lexical.md §6.3). Were it both, a
+        # statement like this one would have two complete parses.
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT MATCH LPAREN LIDENT "
+            "RPAREN LCURLY RCURLY LPAREN LIDENT RPAREN LPAREN RPAREN SEMICOLON "
+            "RCURLY EOF",
+            "Unit f() { abort match (x) { } (y)(); }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LCURLY LIDENT COMMA "
+            "LIDENT SEMICOLON RCURLY LBRACKET LIDENT RBRACKET LPAREN RPAREN "
+            "SEMICOLON RCURLY EOF",
+            "Unit f() { abort { k, v; } [y](); }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT UIDENT LCURLY LIDENT "
+            "SEMICOLON RCURLY LPAREN LIDENT RPAREN LPAREN RPAREN SEMICOLON "
+            "RCURLY EOF",
+            "Unit f() { abort Foo { a; } (y)(); }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT INIT LCURLY LIDENT "
+            "SEMICOLON RCURLY LPAREN LIDENT RPAREN LPAREN RPAREN SEMICOLON "
+            "RCURLY EOF",
+            "Unit f() { abort init { a; } (y)(); }",
+            1,
+        )
+        # With nothing to open the next statement, the `(y);` has no reading.
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT MATCH LPAREN LIDENT "
+            "RPAREN LCURLY RCURLY LPAREN LIDENT RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { abort match (x) { } (y); }",
+            0,
         )
 
     def test_several_scrutinees_share_one_pair_of_parentheses(self) -> None:

@@ -192,6 +192,29 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_rejects("Unit f() { abort false }")
         self.assert_rejects("Unit f() { x Int = y }")
 
+    def test_a_value_closed_by_a_brace_takes_no_postfix(self) -> None:
+        # The `}` of a match, a map literal, an `init` or a constructor call by
+        # fields may end its statement (lexical.md §6.3), so what follows it is
+        # the next statement rather than a call, subscript or member on it --
+        # the rule a trailing argument already follows.
+        self.assert_parses("Unit f() { abort match (x) { } (y)(); }")
+        self.assert_parses("Unit f() { abort { k, v; } [y](); }")
+        self.assert_parses("Unit f() { abort Foo{a = b;} (y)(); }")
+        self.assert_rejects("Unit f() { abort match (x) { } (y); }")
+        self.assert_rejects("Unit f() { x Int = { k, v; }[k]; }")
+        self.assert_rejects("Unit f() { x Int = Foo{a = b;}.a; }")
+        self.assert_rejects("Unit f() { x Int = Foo{a = b;}:size(); }")
+        self.assert_rejects("Unit f() { use(match (x) { } (y)); }")
+        # Parentheses close the value first, which is how it is continued.
+        self.assert_parses("Unit f() { abort (match (x) { })(y); }")
+        self.assert_parses("Unit f() { x Int = ({ k, v; })[k]; }")
+        self.assert_parses("Unit f() { x Int = (Foo{a = b;}).a; }")
+        self.assert_parses("Unit f() { x Int = (Foo{a = b;}):size(); }")
+        self.assert_parses("Unit f() { use((match (x) { })(y)); }")
+        # As an argument or an operand the value itself is unchanged.
+        self.assert_parses("Unit f() { use(match (x) { }, &{ k, v; }); }")
+        self.assert_parses("Unit f() { x Int = Foo{a = b;} ?? y; }")
+
     def test_a_constructor_call_trails_its_last_argument(self) -> None:
         # Spec syntax.md §4.9 says this of calls in general, and a constructor
         # call is one. The empty argument list is the exception; it has its own
