@@ -232,10 +232,9 @@ ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN LCURLY L
 ```
 
 `Unit use() { f() { g(); } }` reads the brace as the call's block argument,
-since `g();` is a statement. `Unit use() { f() { k, v; }(x); }` reads the same
+since `g();` is a statement. `Unit use() { f() { k, v; } }` reads the same
 brace as a map literal handed to `f`, because `k, v;` is an entry rather than a
-statement; a separate statement calling a map literal would leave `f()` without
-its `;`, which the grammar does not admit.
+statement.
 
 What tells a block from a map literal is load-bearing on its own. A **map
 literal** stands in a value position behind no introducing token, and so does a block argument, so in

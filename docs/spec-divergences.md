@@ -317,8 +317,9 @@ standing in for.
   What the compiler did not have at all was the rule stated over a statement's
   **tail** rather than its form, which is what reaches a variable bound to a
   `match`, an assignment, a `return`, and a `=> expr` verb whose expression
-  ends in a brace. That is now decided per statement and checked after the
-  parse.
+  ends in a brace. The grammar now decides whether a statement takes a `;`;
+  only a stray `;` after its closing brace, and a trailing argument's `}` with
+  something after it, are checked after the parse.
 
 - **A trailing block is placed by position, not by line.** The spec required a
   trailing block's `{` to open on the same line as its call, to tell it from a

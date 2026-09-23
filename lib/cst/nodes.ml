@@ -481,9 +481,9 @@ end = Stat
 
 (* A statement together with what its terminator turned out to be.
 
-   Whether a `;` was needed is decided by the statement's own tail, which the
-   grammar cannot see at the point it has to choose: it accepts either
-   spelling, and a mismatch is recorded here rather than raised.
+   The grammar closes every statement with a `;` or its own `}`, so what can
+   still be wrong is a `;` after that brace, or a trailing argument's `}` with
+   something written after it. Either is recorded here rather than raised.
 
    Recorded, because the parser is GLR and a semantic action runs on every
    live branch -- including the branch that reads `ran Bool = if(ready)` as a
