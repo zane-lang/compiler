@@ -285,6 +285,44 @@ spelling, which is why it is recorded here rather than treated as a bug fix.
 Reconciling it means changing §4.8 and the §5.6 rationale together; if the spec
 later adds tuples, a tuple scrutinee needs its own `( )`.
 
+## 7. A value closed by a brace takes no postfix
+
+Checked against spec commit `f61c11b`, not the pin above.
+
+**Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/f61c11b/spec/lexical.md)
+§6.3: a statement ending in `}` is closed by that brace, and "nothing may
+continue the statement past it either — a call or a subscript written there has
+nothing left to attach to". That is said of a statement's tail. Elsewhere the
+spec does not say whether a call, method call or member access may be written
+directly on a `match`, a map literal, an `init` or a constructor call by
+fields; [`syntax.md`](https://github.com/zane-lang/spec/blob/f61c11b/spec/syntax.md)
+§4.7 lets a `match` appear "anywhere an expression is legal". §4.5 already rules
+out a subscript on one, since a subscript needs a place expression and each of
+these is a temporary.
+
+**Compiler** — none of the four is a postfix base, in any position. A value
+closed by a `}` is continued through parentheses, which is the rule a trailing
+argument follows in syntax.md §4.8:
+
+```zane
+abort match (x) { } (y)();          // accepted: two statements, the second `(y)()`
+abort (match (x) { })(y);           // accepted
+use(match (x) { } (y));             // rejected
+size Int = (Foo{a = b;}):size();    // accepted
+size Int = Foo{a = b;}:size();      // rejected
+```
+
+At a statement's tail this is §6.3, and the grammar has to carry it there: the
+`(` and `[` a postfix opens with are the two tokens a statement can open with,
+so a braced value that took a postfix gave `abort match (x) { } (y)();` two
+complete parses
+([#102](https://github.com/zane-lang/compiler/issues/102)). Carrying it at the
+tail only would need the grammar to know where a statement ends while it is
+still inside an expression. Holding it in every position does not, and reads
+the same everywhere. What that costs is the parentheses in an argument or an
+operand, where the spec is silent; reconciling it means stating the rule in
+§4.7 and §4.1–4.2 of syntax.md.
+
 ---
 
 ## Closed

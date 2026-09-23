@@ -50,9 +50,9 @@ the rule in the grammar where the grammar can carry it.
 ## Where the current conflicts come from
 
 A plain `menhir --explain` of the grammar — the stock build, without the
-`--GLR` flag the compiler is built with — reports 43 states with
-shift/reduce conflicts and 12 with reduce/reduce conflicts, and the
-explanations file accounts for 49 conflict blocks. The census of the `--GLR`
+`--GLR` flag the compiler is built with — reports 45 states with
+shift/reduce conflicts and 7 with reduce/reduce conflicts, and the
+explanations file accounts for 46 conflict blocks. The census of the `--GLR`
 build is larger and is tracked in
 [#97](https://github.com/zane-lang/compiler/issues/97). The table counts states rather than
 token occurrences. They are not independent problems:
@@ -69,9 +69,8 @@ token occurrences. They are not independent problems:
 | `(`             | 6 | `app -> ... DOT LIDENT` | a type member ending a package-scope declaration, against a named constructor call |
 | `(`             | 2 | `app -> func_callee` | a package-scope declaration's value, against a call |
 | `(`             | 3 | `primary -> LIDENT`, `primary -> THIS` | a bare name against a call or a lambda |
-| `?` `??`        | 2 | `expr -> SPAWN verb_call`, `func_callee -> verb_call` | a spawned call against what follows it |
-| `(`             | 1 | `expr -> SPAWN verb_call`, `func_callee -> verb_call` | *(reduce/reduce)* the same, before a call |
-| `(` `[`         | 5 | a `_braced` rule against the same form continued | *(reduce/reduce)* a statement closed by a `}`, against a call or subscript written after it |
+| `?` `??`        | 4 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `func_callee -> unbraced_verb_call`, `app_braced -> braced_verb_call` | a spawned call against what follows it |
+| `(`             | 1 | `expr -> SPAWN unbraced_verb_call`, `func_callee -> unbraced_verb_call` | *(reduce/reduce)* the same, before a call |
 
 The `<` row is about the declaration form, not the comparison. Its nine states
 all reduce toward `ret_type "<" "(" params ")" body`, the declaration of the
@@ -126,16 +125,31 @@ derivation, and a statement with no mark is a parse error rather than a tree
 statement that ends in a brace; that spelling has one parse, since nothing
 begins with a `;`, so `Statement_check` still rejects it from the tree.
 
-**The `(` `[` row is an ambiguity, not a fork.** It is what is left of the same
-question, one step later. A statement closed by a `}` is followed by the next
-statement, which may open with `(` or `[` — and a brace-closing primary or
-constructor call may also take a call or a subscript after it. So
-`abort match (x) { } (y)();` reads both as one statement and as
-`abort match (x) { }` followed by `(y)();`, and both finish. lexical.md §6.3
-settles which is meant — nothing may continue a statement past the brace that
-closed it — but the grammar does not carry that yet. It measured two
-derivations before the terminator was required and measures two now; it is
-open, and it is a bug.
+**A value closed by a brace is not a postfix base.** The same question comes
+back one step later. A statement closed by a `}` is followed by the next
+statement, which may open with `(` or `[` — the two tokens a postfix opens
+with. So if a `match`, a map literal, an `init` or a constructor call by
+fields could take a call or a subscript, `abort match (x) { } (y)();` would
+read both as one statement and as `abort match (x) { }` followed by `(y)();`,
+and both would finish. That was
+[#102](https://github.com/zane-lang/compiler/issues/102), five reduce/reduce
+states on `(` and `[`, and it measured two derivations in every statement form.
+
+So none of them is a postfix base: `primary_braced` and `braced_verb_call` are
+reached from `expr` through `app_braced`, beside `block_call`, which was
+already written that way for the same reason. The postfix forms take only
+`primary` and `unbraced_verb_call`, and a value that closes on a `}` is
+continued through parentheses — `(match (x) { })(y)`. That holds in every
+position, not only at a statement's tail, which is what lets the grammar decide
+it without knowing where the statement ends; lexical.md §6.3 requires it at the
+tail and says nothing elsewhere, so the rest is recorded in
+[`spec-divergences.md`](../spec-divergences.md).
+
+Each witness now has one derivation, the five reduce/reduce states are gone,
+and a postfix with nothing to open the next statement — `abort match (x) { }
+(y);` — is a parse error. The two `?` `??` states of the spawned-call row
+became four: the fork is the one it always was, now counted once per closing
+bracket of the call.
 
 What removed twelve conflicts and what brought them back is worth recording
 together. The twelve were on `[`, and all twelve were one adjacency: an enum

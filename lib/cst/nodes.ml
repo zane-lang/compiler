@@ -102,10 +102,6 @@ end
    recorded on the statement and read back afterwards rather than rejected in
    an action.
 
-   A call or subscript written after a brace-closing primary is neither of
-   them: `abort match (x) { } (y)();` still has two parses, and is recorded as
-   open in docs/ambiguity/proof-obligations.md.
-
    Not a node: it records something about a statement rather than something
    written, and it already travels with the position it points at. *)
 module Statement_defect = struct

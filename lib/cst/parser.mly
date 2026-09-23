@@ -892,7 +892,12 @@ computed_call(trailer):
         } : Nodes.Verb_call.t)
     }
 
-verb_call:
+%inline verb_call:
+  | call=unbraced_verb_call { call }
+  | call=braced_verb_call { call }
+
+(* The [verb_call]s that close on a `)`, and so the ones a postfix may follow. *)
+unbraced_verb_call:
   | call=computed_call(no_trailing_arg) { call }
   | name=constructor_name args=positional_constructor_args {
       let span = Span.of_loc $loc in
@@ -904,9 +909,10 @@ verb_call:
               { name; args; abort_handle; trailing = false };
         } : Nodes.Verb_call.t)
     }
-  | call=braced_verb_call { call }
 
-(* The one [verb_call] that closes on a `}`: a constructor call by fields. *)
+(* The one [verb_call] that closes on a `}`: a constructor call by fields. Like
+   a [block_call] it is an expression rather than a postfix base (see
+   [app_braced]). *)
 braced_verb_call:
   | name=constructor_name args=field_constructor_args {
       let span = Span.of_loc $loc in
@@ -1114,9 +1120,9 @@ primary:
     }
   | name_expr=name_expr { expr $loc (Nodes.Expr.NameExpr name_expr) }
   | "(" e=expr ")" { expr $loc (Nodes.Expr.Parenthized e) }
-  | value=primary_braced { value }
 
-(* The primaries that close on a `}`. *)
+(* The values that close on a `}` without being a call. They are not [primary]
+   for the reason [app_braced] gives. *)
 primary_braced:
   | INIT "{" fields=list(terminated(field_arg, ";")) "}" {
       expr $loc (Nodes.Expr.Init fields)
@@ -1134,7 +1140,7 @@ primary_braced:
    allowing postfixes on the value produced by `Colors.red`.) *)
 func_callee:
   | primary=primary { primary }
-  | call=verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
+  | call=unbraced_verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
   | target=app "." field=lname {
       expr $loc (Nodes.Expr.DotAccess { target; field })
     }
@@ -1161,6 +1167,7 @@ expr:
 
      Only a bare name, for the reason [Nodes.Expr.TypeValue] records. *)
   | name=name_type { expr $loc (Nodes.Expr.TypeValue name) }
+  | value=app_braced { value }
   | call=block_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
   | value=spawn_expr { value }
   | func_lambda=func_lambda(body) {
@@ -1238,6 +1245,7 @@ expr:
    Parenthesize the lambda to take a reference to it. *)
 ref_target:
   | value=app { value }
+  | value=app_braced { value }
   | "&" value=ref_target %prec AMPERSAND {
       expr $loc (Nodes.Expr.Ref value)
     }
@@ -1342,8 +1350,12 @@ expr_braced:
       attach_abort_handle abort_handle (Span.of_loc $loc) value
     }
 
-(* The postfix bases that close on a `}`. Every other [app] ends on a name, a
-   `)` or a `]`. *)
+(* The values other than a [block_call] that close on a `}`. None of them is a
+   postfix base: the brace that closes one may close its statement too
+   (lexical.md §6.3), and the two tokens a postfix can open with, `(` and `[`,
+   are the two a statement can open with. Were `match (x) { } (y)()` a call on
+   the match, it would also be the match's statement followed by the statement
+   `(y)()`. Parenthesize one to go on using its value. *)
 app_braced:
   | value=primary_braced { value }
   | call=braced_verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
