@@ -1,0 +1,4 @@
+File "fixtures/reject/malformed-utf8.zn", line 3, characters 1-7:
+3 | // café is Latin-1, not UTF-8
+  | ^^^^^^
+Error: Parse error

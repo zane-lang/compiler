@@ -1,0 +1,4 @@
+File "fixtures/reject/syntax.zn", line 4, characters 25-26:
+4 |     fläche Int = wert * * wert;
+  |                         ^
+Error: Parse error

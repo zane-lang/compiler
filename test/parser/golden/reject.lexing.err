@@ -1,0 +1,4 @@
+File "fixtures/reject/lexing.zn", line 4, characters 19-20:
+4 |     return Int(4) @ Int(2);
+  |                   ^
+Error: Parse error

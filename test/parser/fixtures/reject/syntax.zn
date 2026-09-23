@@ -1,0 +1,6 @@
+package main;
+
+Int größe(wert Int) {
+	fläche Int = wert * * wert;
+	return fläche;
+}

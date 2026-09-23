@@ -1,0 +1,4 @@
+File "fixtures/reject/statement.zn", line 6, characters 7-7:
+6 |     };
+  |       ^
+Error: a statement ending in `}` is closed by that brace and takes no `;`
