@@ -34,6 +34,22 @@ e:
   | e PLUS e { () }
 """
 
+# The short derivation accepts at A EOF; a longer accepted derivation needs
+# that prefix to remain expandable until the requested four-token boundary.
+MIN_TOKENS_GRAMMAR = """\
+%token A "a"
+%token X "x"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main:
+  | e EOF { () }
+  | e EOF X EOF { () }
+e:
+  | A { () }
+  | A { () }
+"""
+
 # A deliberately branchy expression grammar for the progress-pipe check. The
 # tiny grammar above settles its proof before the engine's 128-pair progress
 # cadence is reached, so it cannot exercise progress output reliably.
@@ -619,6 +635,42 @@ class TerminalClassEngineTests(unittest.TestCase):
                 "AMBIGUOUS: the recognizer found two derivations of A PLUS A PLUS A EOF",
                 result.stdout,
             )
+
+
+class MinTokenEngineTests(unittest.TestCase):
+    """Accepted prefixes below --min-tokens must stay expandable and bounded."""
+
+    def setUp(self) -> None:
+        self.environment = engine_environment()
+        if self.environment is None:
+            self.skipTest(
+                "requires a built _build/default/tools/ambiguity/ambiguity_search.exe and menhir"
+            )
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.grammar = Path(directory.name) / "min_tokens.mly"
+        self.grammar.write_text(MIN_TOKENS_GRAMMAR, encoding="utf-8")
+
+    def test_expands_an_accepted_prefix_to_the_requested_boundary(self) -> None:
+        for jobs in (1, 2):
+            with self.subTest(jobs=jobs):
+                result = subprocess.run(
+                    [
+                        str(ENGINE),
+                        "--min-tokens", "4",
+                        "--max-tokens", "4",
+                        "--timeout", "30",
+                        "--max-witnesses", "1",
+                        str(self.grammar),
+                    ],
+                    env={**self.environment, "AMBIGUITY_JOBS": str(jobs)},
+                    text=True,
+                    capture_output=True,
+                    timeout=120,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assertIn("Found 1 complete ambiguity family.", result.stdout)
+                self.assertIn("Tokens (4): A EOF X EOF", result.stdout)
 
 
 class StreamingOutputTests(unittest.TestCase):

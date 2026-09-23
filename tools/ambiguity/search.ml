@@ -205,14 +205,14 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
      memory budget (see Seen_cache above): a smaller table simply prunes less. *)
   let add item =
     if item.depth <= max_tokens then
-      if derivations item.frontier >= 2 && accepted_count engine item.frontier >= 2
-      then enqueue item
-      else if not !admit_new then dropped := true
+      if not !admit_new then dropped := true
       else
         (* Before [min_tokens], revisiting the same parser frontier at a
            greater depth is useful rather than redundant: it can eventually
            produce a witness long enough to report. Once the minimum is met,
-           the usual shortest-path deduplication applies. *)
+           the usual shortest-path deduplication applies. Accepted prefixes
+           use this same admission path, so they obey the queue and memory
+           limits instead of bypassing them. *)
         let progress = min item.depth min_tokens in
         let key = Seen_cache.digest item.branched progress item.frontier in
         match Seen_cache.find seen key with
@@ -364,15 +364,17 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
       incr explored;
       last_depth := item.depth;
       deepest := max !deepest item.depth;
-      if accepted_count engine item.frontier >= 2 then begin
-        if item.depth >= min_tokens then begin
-          let tokens = List.rev item.tokens_rev in
-          let profile = conflict_profile engine tokens in
-          if not (Hashtbl.mem witnesses profile) then
-            Hashtbl.add witnesses profile tokens
-        end
-      end
-      else if item.depth < max_tokens then
+      let accepting = accepted_count engine item.frontier >= 2 in
+      if accepting && item.depth >= min_tokens then begin
+        let tokens = List.rev item.tokens_rev in
+        let profile = conflict_profile engine tokens in
+        if not (Hashtbl.mem witnesses profile) then
+          Hashtbl.add witnesses profile tokens
+      end;
+      (* An accepted prefix below [min_tokens] is not reportable yet. Keep
+         expanding it so the lower bound cannot hide a longer witness. *)
+      if item.depth < max_tokens && (not accepting || item.depth < min_tokens)
+      then
         StringSet.iter
           (fun token ->
             let next = shift engine item.frontier token in
@@ -424,7 +426,7 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
     },
     !conflict_seeds )
 
-let initial_partitions engine jobs max_tokens initial =
+let initial_partitions engine jobs max_tokens min_tokens initial =
   if jobs <= 1 || initial.depth = max_tokens then
     ( [| [ initial ] |],
       0,
@@ -442,7 +444,8 @@ let initial_partitions engine jobs max_tokens initial =
       let next = ref [] in
       List.iter
         (fun item ->
-          if accepted_count engine item.frontier >= 2 then
+          if accepted_count engine item.frontier >= 2
+             && item.depth >= min_tokens then
             next := item :: !next
           else
             StringSet.iter
@@ -507,7 +510,7 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
     hard_heap_bytes /. 0.90 *. float_of_int (max 1 jobs)
   in
   let partitions, prefix_explored, prefix_unique, prefix_seeds =
-    initial_partitions engine (max 1 jobs) max_tokens initial
+    initial_partitions engine (max 1 jobs) max_tokens min_tokens initial
   in
   let prefix_progress =
     {
