@@ -64,8 +64,10 @@ numbers in a proof report refer to.
 
 Menhir explains each conflict state once, so the explanations file holds one
 block per state; a state with both kinds of conflict counts in both of Menhir's
-warnings, which is why those do not add up to the state count. Both censuses
-are checked: `dune runtest` summarises each explanations file by family into
+warnings, which is why those do not add up to the state count. The state count
+and its families are checked for both automata; the per-kind columns are
+Menhir's own warnings, which `dune build` prints and nothing compares. `dune
+runtest` summarises each explanations file by family into
 [`test/parser/golden/`](../../test/parser/golden) — `parser.conflicts.census`
 for the build's own, `stock.conflicts.census` for the stock one — and a grammar
 change that moves either is a diff to read, reconcile with this section, and
