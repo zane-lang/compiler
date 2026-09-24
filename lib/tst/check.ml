@@ -267,8 +267,10 @@ let implicit_constructors ~src ~dst =
                          else None))
              | _ -> None)
 
-let coerce_value ~at (e : T.Expr.t) (s, subst) =
-  request s subst at;
+(* Building the node requests nothing: a candidate being tried may still be
+   dropped, and only the one resolution picks asks for instances
+   ([request_coercions]). *)
+let coerce_value (e : T.Expr.t) (s, subst) =
   mk (T.Expr.Coerce { ctor = verb_ref s subst; value = e }) (Ty.subst subst s.S.ret) e.T.Expr.span
 
 (* Bind an explicit `T Type` or `n Number` parameter from its argument. *)
@@ -346,7 +348,7 @@ let try_candidate ~phase (s : S.t) (slots : actual option list) : outcome option
                           if Ty.free_params dst <> [] then None
                           else
                             match implicit_constructors ~src:a.aty ~dst with
-                            | [ found ] -> Some (Some (T.Arg.Value (coerce_value ~at:a.aspan e found)))
+                            | [ found ] -> Some (Some (T.Arg.Value (coerce_value e found)))
                             | [] -> None
                             | several ->
                                 site_errors :=
@@ -411,10 +413,26 @@ let list_candidates cands =
   String.concat "; " (List.map (fun s -> quote (S.to_string s)) shown)
   ^ if List.length cands > 4 then "; ..." else ""
 
+(* The implicit constructors the chosen candidate inserted, instantiated
+   now that it is chosen. *)
+let request_coercions (o : outcome) =
+  List.iter
+    (function
+      | Some
+          (T.Arg.Value
+             { T.Expr.node = T.Expr.Coerce { ctor = { T.Verb_ref.owner = S.Declared id; instance; _ }; _ }; span; _ })
+        when instance <> [] -> (
+          match Hashtbl.find_opt signatures id with
+          | Some s -> request s (List.map (fun ((p : Ty.param), a) -> (p.id, a)) instance) span
+          | None -> ())
+      | _ -> ())
+    o.converted
+
 let report_resolution ?(literal = false) ~span ~what ~args result cands =
   match result with
   | Resolved o ->
       List.iter (fun (at, message) -> error at message) o.site_errors;
+      request_coercions o;
       Some o
   | Ambiguous several ->
       error span
@@ -711,11 +729,8 @@ and private_access ctx tid =
    in the current one. *)
 and map_read ctx span target tid property ~missing =
   let maps = Option.value ~default:[] (Hashtbl.find_opt enum_maps (tid, property)) in
-  let visible =
-    List.filter
-      (fun m -> m.map_decl.package = tid.Ty.package || m.map_decl.package = ctx.package)
-      maps
-  in
+  let in_package p = List.filter (fun m -> m.map_decl.package = p) maps in
+  let visible = in_package tid.Ty.package @ in_package ctx.package in
   match visible with
   | m :: _ -> mk (T.Expr.Map_read { target; map = m.map_decl.id; property }) m.map_ty span
   | [] ->
@@ -1905,7 +1920,9 @@ let coerce_to ctx (v : T.Expr.t) dst =
   if Ty.assignable ~dst ~src:v.T.Expr.ty then v
   else
     match implicit_constructors ~src:v.T.Expr.ty ~dst with
-    | [ found ] -> coerce_value ~at:v.T.Expr.span v found
+    | [ ((s, subst) as found) ] ->
+        request s subst v.T.Expr.span;
+        coerce_value v found
     | [] ->
         error v.T.Expr.span
           (Printf.sprintf "this entry is %s, and the map holds %s, with no implicit constructor between them"

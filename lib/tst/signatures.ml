@@ -135,6 +135,15 @@ let type_key (t : Ty.t) =
   | Ty.Intrinsic { namespace; name; _ } -> Some (Intrinsic_type (namespace, name))
   | _ -> None
 
+(* The type a constructor builds, as its overload set is keyed: the defining
+   package and the name, and not the arguments, which mention each
+   declaration's own parameter names. *)
+let type_head (t : Ty.t) =
+  match t with
+  | Ty.Named (tid, _) -> tid.Ty.package ^ "$" ^ tid.Ty.name
+  | Ty.Intrinsic { namespace; name; _ } -> "@" ^ namespace ^ "$" ^ name
+  | t -> Ty.to_string t
+
 let type_name (t : Ty.t) =
   match t with
   | Ty.Named (tid, _) -> tid.Ty.name
@@ -505,7 +514,7 @@ let run () =
             is its own overload set. *)
          | S.Constructor { member; fields; _ } ->
              ( d.package,
-               "constructor " ^ type_name s.S.ret
+               "constructor " ^ type_head s.S.ret
                ^ Option.fold ~none:"" ~some:(fun m -> "." ^ m) member
                ^ if fields then "{}" else "()" )
          | _ -> key item)
