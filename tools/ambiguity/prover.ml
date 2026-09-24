@@ -12,6 +12,18 @@ open Abstraction
 
 type pair_node = stack * stack * bool * int
 
+(* Proof states are long-lived keys containing two linked stack suffixes.
+   Default polymorphic hashing walks both suffixes on every table probe. The
+   immutable stack digest is computed once by Abstraction.make_stack; use it
+   only for bucket selection and retain complete structural equality, which
+   preserves exact pair identity even if digests collide. *)
+module PairTable = Hashtbl.Make (struct
+  type t = pair_node
+  let equal (a, b, x, c) (d, e, y, f) =
+    x = y && c = f && a = d && b = e
+  let hash (a, b, x, c) = Hashtbl.hash (a.digest, b.digest, x, c)
+end)
+
 (* A survey answers a different question from a proof. The proof stops at the
    first divergence it can reach, which says nothing about how many more lie
    behind it - and that count is what decides whether refining the abstraction
@@ -127,8 +139,7 @@ let not_proven_status = 3
    for settled. *)
 type prove_state = {
   parents :
-    ( pair_node, (string * pair_node) option )
-    Hashtbl.t;
+    (pair_node, (string * pair_node) option) PairTable.t;
   (* Queued pairs, in buckets by how many tokens it took to reach them, so the
      walk stays shortest-first across every round. One queue would not: a round
      resumes with deep pairs left over from the round before it and shallow
@@ -138,14 +149,14 @@ type prove_state = {
      spot that answers each deepening with a longer sentence -- the signature
      of one no depth closes -- would stop being visible as one. *)
   buckets : (int, pair_node Queue.t) Hashtbl.t;
-  depths : (pair_node, int) Hashtbl.t;
+  depths : (pair_node, int) PairTable.t;
   (* Pairs that are in the table but have not been walked yet. [parents] holds
      a pair from the moment it is pushed, so it is not by itself a record of
      what has been settled, and a deepening has to treat the two differently:
      a settled pair stays as the result it is, an unsettled one is only a plan
      to look, and a stale plan is worth less than the sharper one that
      replaces it. *)
-  waiting : (pair_node, unit) Hashtbl.t;
+  waiting : (pair_node, unit) PairTable.t;
   mutable pending : int;
   (* The shallowest bucket that may still hold anything. Children are one
      deeper than their parent, so it only moves forward, except where a
@@ -165,7 +176,7 @@ let enqueue state node depth =
         bucket
   in
   Queue.add node bucket;
-  Hashtbl.replace state.waiting node ();
+  PairTable.replace state.waiting node ();
   state.pending <- state.pending + 1;
   if depth < state.cursor then state.cursor <- depth
 
@@ -177,7 +188,7 @@ let dequeue state =
       | Some bucket when not (Queue.is_empty bucket) ->
           state.pending <- state.pending - 1;
           let node = Queue.take bucket in
-          Hashtbl.remove state.waiting node;
+          PairTable.remove state.waiting node;
           Some node
       | _ ->
           state.cursor <- state.cursor + 1;
@@ -186,7 +197,7 @@ let dequeue state =
   take ()
 
 let node_depth state node =
-  Option.value (Hashtbl.find_opt state.depths node) ~default:0
+  Option.value (PairTable.find_opt state.depths node) ~default:0
 
 (* Retiring a site is the one thing that invalidates the walk behind it.
 
@@ -203,10 +214,10 @@ let node_depth state node =
    keeps the rest, which is the trade the whole persistence is: deepening never
    invalidates a settled pair, retiring always can. *)
 let reset_prove_state state =
-  Hashtbl.reset state.parents;
+  PairTable.reset state.parents;
   Hashtbl.reset state.buckets;
-  Hashtbl.reset state.depths;
-  Hashtbl.reset state.waiting;
+  PairTable.reset state.depths;
+  PairTable.reset state.waiting;
   state.pending <- 0;
   state.cursor <- 0;
   state.requeue <- [];
@@ -250,9 +261,9 @@ let invalidate_prove_state state deepened =
       (* The table holds queued pairs beside settled ones, so the count of what
          a round kept has to take them back out -- and the reopened count is
          the stale pairs that stayed, not the ones discarded below. *)
-      let settled = Hashtbl.length state.parents - Hashtbl.length state.waiting in
+      let settled = PairTable.length state.parents - PairTable.length state.waiting in
       let stale = Hashtbl.create 1_009 in
-      Hashtbl.iter
+      PairTable.iter
         (fun ((left, right, _, _) as node) _ ->
           if standing_on left || standing_on right then
             Hashtbl.replace stale node ())
@@ -264,18 +275,18 @@ let invalidate_prove_state state deepened =
       let orphaned = ref [] in
       Hashtbl.iter
         (fun node () ->
-          if Hashtbl.mem state.waiting node then begin
+          if PairTable.mem state.waiting node then begin
             (* The parent is read before the entry goes, because it is what
                rebuilds this pair at the new precision. Losing it here would
                lose the pair altogether, which is the one thing this must not
                do. *)
-            (match Hashtbl.find_opt state.parents node with
+            (match PairTable.find_opt state.parents node with
             | Some (Some (_, parent)) -> orphaned := parent :: !orphaned
             | Some None | None -> state.seeded <- false);
             Hashtbl.replace dropped node ();
-            Hashtbl.remove state.parents node;
-            Hashtbl.remove state.waiting node;
-            Hashtbl.remove state.depths node
+            PairTable.remove state.parents node;
+            PairTable.remove state.waiting node;
+            PairTable.remove state.depths node
           end)
         stale;
       if Hashtbl.length dropped > 0 then begin
@@ -304,7 +315,7 @@ let invalidate_prove_state state deepened =
          proof is there to catch. Entries the table no longer has are another
          matter, since nothing can be asked of a pair that is gone. *)
       state.requeue <-
-        List.filter (fun node -> Hashtbl.mem state.parents node) state.requeue;
+        List.filter (fun node -> PairTable.mem state.parents node) state.requeue;
       (* A pair whose own parent is stale is left to that parent, so one sweep
          pushes the shallowest edge of the affected region rather than every
          pair in it. Seeded with what the list already holds, so a pair asked
@@ -316,7 +327,7 @@ let invalidate_prove_state state deepened =
         if
           (not (Hashtbl.mem stale parent))
           && (not (Hashtbl.mem queued parent))
-          && Hashtbl.mem state.parents parent
+          && PairTable.mem state.parents parent
         then begin
           Hashtbl.replace queued parent ();
           state.requeue <- parent :: state.requeue
@@ -324,12 +335,12 @@ let invalidate_prove_state state deepened =
       in
       Hashtbl.iter
         (fun node () ->
-          match Hashtbl.find_opt state.parents node with
+          match PairTable.find_opt state.parents node with
           | Some (Some (_, parent)) -> ask parent
           | Some None ->
               (* The initial pair itself was truncated differently. It has no
                  earlier pair to ask, so it is dropped and the walk re-seeds. *)
-              Hashtbl.remove state.parents node;
+              PairTable.remove state.parents node;
               state.seeded <- false
           | None ->
               (* Dropped above as unsettled; its parent was taken then. *)
@@ -344,10 +355,10 @@ let invalidate_prove_state state deepened =
 
 let create_prove_state pair_limit =
   {
-    parents = Hashtbl.create (min 100_003 (max 1 pair_limit));
+    parents = PairTable.create (min 100_003 (max 1 pair_limit));
     buckets = Hashtbl.create 64;
-    depths = Hashtbl.create (min 100_003 (max 1 pair_limit));
-    waiting = Hashtbl.create (min 100_003 (max 1 pair_limit));
+    depths = PairTable.create (min 100_003 (max 1 pair_limit));
+    waiting = PairTable.create (min 100_003 (max 1 pair_limit));
     pending = 0;
     cursor = 0;
     requeue = [];
@@ -610,28 +621,60 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
   let accepting = ref 0 in
   let examples = ref [] in
   let example_count = ref 0 in
+  let history_subsumption_checks = ref 0 in
+  let history_subsumed = ref 0 in
   let surveying = survey_limit > 0 in
   let canonical (left, right, diverged, history) =
     if compare left right <= 0 then (left, right, diverged, history)
     else (right, left, diverged, history)
   in
+  (* An Other-history pair has at least one concrete prefix which has already
+     left every excluded sentence's prefix trie. At identical abstract stacks,
+     its continuation moves are the same as a trie-prefix pair's, and every
+     accepting continuation from Other remains outside the finite exclusion
+     set. So it subsumes that trie-prefix pair for this existential proof
+     search. The converse is false: a trie prefix may be the only way to reach
+     an excluded acceptance. A diverged Other pair may cover an undiverged
+     trie pair, but not vice versa. Keep this deliberately narrower than stack
+     subsumption; no abstract stack simulation is involved. If a site has been
+     retired, disable the shortcut because retirement is ancestry-sensitive. *)
+  let subsumed_by_other (left, right, diverged, history) =
+    if
+      not
+        (History_filter.history_subsumption_enabled ~surveying
+           ~has_retired_sites:(Hashtbl.length retired > 0))
+      || History_filter.is_other history_filter history
+    then false
+    else begin
+      incr history_subsumption_checks;
+      List.exists
+        (fun other_diverged ->
+          History_filter.other_history_subsumes ~covering_other:true
+            ~covering_diverged:other_diverged ~covered_other:false
+            ~covered_diverged:diverged
+          && PairTable.mem parents
+               (left, right, other_diverged, History_filter.other))
+        [ false; true ]
+    end
+  in
   let push origin node =
     let node = canonical node in
-    if not (Hashtbl.mem parents node) then
-      if Hashtbl.length parents >= pair_limit then overflow := true
+    if not (PairTable.mem parents node) then
+      if subsumed_by_other node then incr history_subsumed
+      else if PairTable.length parents >= pair_limit then overflow := true
       else begin
-        Hashtbl.add parents node origin;
+        PairTable.add parents node origin;
         let depth =
           match origin with
           | None -> 0
           | Some (_, parent) -> node_depth state parent + 1
         in
-        Hashtbl.replace state.depths node depth;
+        PairTable.replace state.depths node depth;
         enqueue state node depth
       end
   in
   let rec trail node =
-    match Hashtbl.find parents node with
+    match PairTable.find parents node with
     | None -> []
     | Some (token, parent) -> token :: trail parent
   in
@@ -645,7 +688,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
     let rec climb ((_, _, diverged, _) as node) =
       if not diverged then None
       else
-        match Hashtbl.find parents node with
+        match PairTable.find parents node with
         | None -> None
         | Some
             ( token,
@@ -699,7 +742,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
     let rec climb ((_, _, diverged, _) as node) =
       if not diverged then None
       else
-        match Hashtbl.find parents node with
+        match PairTable.find parents node with
         | None -> None
         | Some (_, ((_, _, parent_diverged, _) as parent)) ->
             if parent_diverged then climb parent else Some parent
@@ -711,7 +754,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
      same walk [trail] makes, keeping the nodes instead of discarding them. *)
   let path_steps node =
     let rec walk node collected =
-      match Hashtbl.find parents node with
+      match PairTable.find parents node with
       | None -> collected
       | Some (token, parent) -> walk parent ((parent, token) :: collected)
     in
@@ -815,7 +858,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
         (if left = right then [ left ] else [ left; right ])
     in
     let rec walk node =
-      match Hashtbl.find parents node with
+      match PairTable.find parents node with
       | None -> ()
       | Some (token, parent) ->
           scan parent token;
@@ -863,7 +906,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
           (if left = right then [ left ] else [ left; right ])
       in
       let rec walk node =
-        match Hashtbl.find parents node with
+        match PairTable.find parents node with
         | None -> ()
         | Some (token, parent) ->
             widen parent token;
@@ -957,7 +1000,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
     (header :: stacks) @ conflict
   in
   if not state.seeded then begin
-    let start = { suffix = [ 0 ]; height = 1; residue = 0 } in
+    let start = make_stack [ 0 ] 1 0 in
     state.seeded <- true;
     push None (start, start, false, History_filter.root history_filter)
   end;
@@ -989,7 +1032,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
         (Printf.sprintf
            "● abstract level %d | pairs %s | queued %s | accepting %d%s | %s"
            (Array.fold_left max 0 precision)
-           (compact_number (Hashtbl.length parents))
+           (compact_number (PairTable.length parents))
            (compact_number state.pending)
            !accepting
            (* Sites are only recorded while surveying, so a run that is not
@@ -1076,12 +1119,16 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
         terminals
   done;
   clear_progress ();
-  let explored = Hashtbl.length parents in
+  let explored = PairTable.length parents in
   (* A queue left with work in it is the only way past the loop other than a
      verdict, so it - not the clock - is what says the deadline cut the search
      short. Draining the queue exactly as time runs out is a completed proof,
      and is reported as one. *)
   let ran_out_of_time = state.pending > 0 in
+  if !history_subsumption_checks > 0 then
+    printf
+      "History subsumption: checked %d trie-prefix enqueue(s); skipped %d already covered by an existing Other-history pair.\n"
+      !history_subsumption_checks !history_subsumed;
   if surveying then
     Surveyed
       {
@@ -1188,14 +1235,14 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
 
            Done after the record is built, because every diagnostic in it --
            the trail, the site, the forward walk -- reads this node's entry. *)
-        (match Hashtbl.find_opt parents node with
+        (match PairTable.find_opt parents node with
         | Some (Some (_, parent)) ->
-            Hashtbl.remove parents node;
+            PairTable.remove parents node;
             state.requeue <- [ parent ]
         | Some None | None ->
             (* The initial pair accepted, so there is no earlier pair to push:
                the next round starts the walk again from the beginning. *)
-            Hashtbl.remove parents node;
+            PairTable.remove parents node;
             state.seeded <- false);
         found
     | None ->

@@ -40,6 +40,23 @@ let create sentences =
 
 let root filter = filter.root
 
+(* Once a token history leaves the finite exclusion trie, no continuation can
+   turn it back into an excluded sentence. The Other state therefore carries
+   an unrestricted continuation language. *)
+let is_other filter state = state = filter.other
+
+(* The first state must be the unrestricted, absorbing history. Its language
+   includes every completion of a trie prefix, while the reverse inclusion
+   fails. Divergence is also monotone: an already-diverged pair can cover an
+   undiverged one, but not the reverse. *)
+let other_history_subsumes ~covering_other ~covering_diverged ~covered_other
+    ~covered_diverged =
+  covering_other && not covered_other
+  && (covering_diverged || not covered_diverged)
+
+let history_subsumption_enabled ~surveying ~has_retired_sites =
+  not surveying && not has_retired_sites
+
 let advance filter state token =
   if state = filter.other then filter.other
   else

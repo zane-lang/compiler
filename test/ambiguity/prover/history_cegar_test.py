@@ -25,6 +25,9 @@ class HistoryCegarTests(harness.ProverTestCase):
         # The first history has one parse and the reverse ordering has two.
         # A sentence-only block keyed by merged parser states used to erase the
         # second history and falsely report PROVEN after filtering the first.
+        # Other-history subsumption is directional: an already-seen Other
+        # pair may cover a trie-prefix pair, but the blocked prefix must never
+        # erase the Other pair that carries this reverse-order witness.
         self.assertIn(
             "Accepting derivations: 1",
             self.check_tokens(
