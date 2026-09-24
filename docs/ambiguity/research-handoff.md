@@ -11,6 +11,13 @@ verdict. Follow-up review commit
 caches terminal-class members during exact replay; this document does not
 record a full-grammar probe result for that later commit.
 
+The temporary 21-minute proof-probe step and artifact upload were removed in
+[`6ce1ba8`](https://github.com/zane-lang/compiler/commit/6ce1ba85b7bd947d75ef7b3ac898aac7d2cd6535)
+after these measurements were captured. Normal CI on that head passed in
+[run #128](https://github.com/zane-lang/compiler/actions/runs/35977109651);
+it did not run a full-grammar proof probe, so run #125 remains the latest such
+result.
+
 ## Current CEGAR behavior
 
 `--prove-cegar N` is opt-in. For a candidate history, the exact recognizer
@@ -46,6 +53,11 @@ parallelize the abstract pair walk.
 The report artifacts are named `ambiguity-proof-probe-35970922044-1` and
 `ambiguity-proof-probe-35973025701-1`. The run links carry the artifacts; this
 document keeps the results because artifact retention is temporary.
+
+Run #128 is a separate post-cleanup CI check: its build and parser/ambiguity
+tests passed, but it has no proof verdict because the temporary probe had been
+removed. A green CI check and a decisive ambiguity-proof result are separate
+things.
 
 The exact engine invocations were:
 
@@ -92,8 +104,12 @@ ambiguity in the current grammar.
   four-token regression in [`cli_test.py`](../../test/ambiguity/cli_test.py).
 - **Earlier CEGAR false proof:** sentence blocking keyed only by merged parser
   states erased a second, ambiguous history after excluding the first history.
-  The current filter tracks history in the DFA product; the
-  AM/AO-permutation regression fails if the second history is lost.
+  In `CEGAR_AM_AO_PERMUTATIONS`, `AM AO A LB RB SEMI EOF` has one parse while
+  `AO AM A LB RB SEMI EOF` has two. Blocking the first by merged parser state
+  erased the reverse-order history and falsely reported `PROVEN`. The current
+  filter tracks history in the DFA product; regression
+  `test_blocking_first_AM_AO_history_preserves_ambiguous_permutation` checks
+  both exact counts and requires the proof run to report `AMBIGUOUS`.
 - **Rejected terminal-count filter:** filtering a pair using balance counts
   from its first-arriving sentence was unsound: the same abstract pair may be
   reached later by a balanced ambiguous sentence. The experiment was removed;
@@ -111,6 +127,18 @@ was addressed by [#88](https://github.com/zane-lang/compiler/pull/88), which
 parenthesized match scrutinees. #90 does not track the present, inconclusive
 proof status. The current obligations remain listed in
 [`proof-obligations.md`](proof-obligations.md).
+
+One context-specific refinement direction remains unfinished. The measured
+bottom-entry experiment in [`experiments.md`](experiments.md#sharpenings-that-were-measured-and-rejected)
+cost about 10k level-2 pairs with no bottom entries, 90k with three, and did
+not finish within five minutes with five, even though the context markers of
+interest sit at height five or deeper. The current soundness argument descends
+through forced predecessors and stops at a branch; carrying one stack for
+each predecessor would make the pair work quadratic in the branch count.
+An on-demand, conflict-context-specific split at just the needed markers has
+not been implemented or measured. The proposed single-run, conflict-origin
+closure is tracked separately in [issue #108](https://github.com/zane-lang/compiler/issues/108);
+the global pair-cap/proof objective remains [#107](https://github.com/zane-lang/compiler/issues/107).
 
 ## Toolchain and limits
 
@@ -131,5 +159,5 @@ deadline.
 
 1. Track the present proof blocker in [issue #107](https://github.com/zane-lang/compiler/issues/107). Compare CEGAR disabled and 1–3 rounds against stack refinement under the same pair and memory limits, then profile pair-key and queue storage in `tools/ambiguity/prover.ml`. Any larger budget should include measured resident memory and pair counts.
 2. Keep the proof obligation ledger honest: report only a sound proof, a recognizer-confirmed two-parse witness, or `NOT PROVEN` with its stopping limit.
-3. Before marking PR #106 ready, remove the temporary “Ambiguity proof probe” and artifact-upload steps from `.github/workflows/ci.yml` and revert its 1,260-second engine, 22-minute outer, and 23-minute step limits to the normal CI policy. The run commands and results are retained above.
-4. PR review suggested two performance checks. Caching terminal-class member lists during each exact exclusion check was implemented in [`40af4bd`](https://github.com/zane-lang/compiler/commit/40af4bd96d10321981e5a42cd9899373d9388694), with a regression that verifies the substitution product is reported. A separate suggestion to remove the per-terminal `over_budget()` call in [`search.ml`](https://github.com/zane-lang/compiler/blob/40af4bd96d10321981e5a42cd9899373d9388694/tools/ambiguity/search.ml#L461-L477) was resolved in review without a source change; treat it as a profiling question only. See [review comment 1](https://github.com/zane-lang/compiler/pull/106#discussion_r4090931970) and [review comment 2](https://github.com/zane-lang/compiler/pull/106#discussion_r4090931978). Neither is evidence for the full proof's pair-cap cause.
+3. The one-off 21-minute proof step, its artifact upload, and its extended timeout were removed in [`6ce1ba8`](https://github.com/zane-lang/compiler/commit/6ce1ba85b7bd947d75ef7b3ac898aac7d2cd6535); standard CI passed afterward in [run #128](https://github.com/zane-lang/compiler/actions/runs/35977109651). The exact probe commands and results are retained above.
+4. PR review suggested two performance checks. The repeated-terminal-class rescan during exact exclusion was removed by caching class-member lists by class ID for each candidate check in [`40af4bd`](https://github.com/zane-lang/compiler/commit/40af4bd96d10321981e5a42cd9899373d9388694), so repeated positions reuse a list instead of rescanning all terminals; the regression verifies that the full substitution product is reported. A separate suggestion to remove the per-token `over_budget()` call in [`search.ml`](https://github.com/zane-lang/compiler/blob/40af4bd96d10321981e5a42cd9899373d9388694/tools/ambiguity/search.ml#L461-L477) was declined: the outer guard runs once per queued item, but one item may have many token transitions. The inner guard checks deadline and heap budget before each shift, while queue/frontier caps are checked after shifting, so dropping it could overshoot a hard budget. See [review comment 1](https://github.com/zane-lang/compiler/pull/106#discussion_r4090931970), the [maintainer reply](https://github.com/zane-lang/compiler/pull/106#discussion_r4091574556), and [review comment 2](https://github.com/zane-lang/compiler/pull/106#discussion_r4090931978). This guard rationale is separate from the full proof's pair-cap cause.
