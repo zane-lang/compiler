@@ -249,7 +249,7 @@ and verb_call_of (x : C.Verb_call.t) : S.Verb_call.t =
              form = S.Call_form.Function;
              abort_handle = option handler abort_handle;
            })
-  (* §5.2: the subject becomes the first argument, which is what
+  (* §2.11: the subject becomes the first argument, which is what
      functions.md §2.6 desugars it to and what §2.1 means by a method being a
      verb whose first parameter is `this`. The marker stays on the call: it
      decides how the name resolves, and `:` against `!` is a check a later

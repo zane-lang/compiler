@@ -32,7 +32,7 @@ clothes. Those are listed in §4 so they are refused deliberately rather than
 attempted and abandoned.
 
 Two rewrites sit right on that line — the instantiation shorthand of §2.7 and
-the method-call question of §5.2 — and both say so where they appear.
+the method-call rewrite of §2.11 — and both say so where they appear.
 
 ### Spans
 
@@ -74,14 +74,14 @@ rule reserves for later.
 
 ## 2. The desugarings
 
-All ten are implemented in `lib/sst/lower.ml`, one function each, and
+All eleven are implemented in `lib/sst/lower.ml`, one function each, and
 `test/parser/fixtures/desugar.zn` is the fixture that exercises them: every rewrite
-below appears in it at least once. Two expectations carry it.
-`test/desugar.sst.spans` prints each node's variant against the source its span
-covers, so a rewrite that stops happening is a diff and so is a span that
-moves. `test/desugar.sst.tree` renders the same file as a named-field tree, and
-sits beside `test/desugar.cst.tree` — reading the two together is the shortest
-statement of what this section does.
+below appears in it at least once. Two expectations in `test/parser/golden/`
+carry it. `desugar.sst.spans` prints each node's variant against the source its
+span covers, so a rewrite that stops happening is a diff and so is a span that
+moves. `desugar.sst.tree` renders the same file as a named-field tree, and sits
+beside `desugar.cst.tree` — reading the two together is the shortest statement
+of what this section does.
 
 Ordered roughly by how much each simplifies the tree. None depends on another
 — every one is a local rewrite.
@@ -225,9 +225,16 @@ expanded arms are exactly what a later pass needs to check independently.
 **CST → SST.** `Match_pattern.cases : Name.t list` becomes a single
 `Name.t`.
 
-**The cost is body duplication, and with several scrutinees it is a cross
-product.** `[a, b], [c, d] => body` expands to four arms carrying four copies
-of `body`. §5.1 has the options.
+**With several scrutinees the expansion is a cross product, and the arms
+share one body.** `[a, b], [c, d] => body` expands to four arms, one per
+combination, and all four point at the same `body` node. So the expansion costs
+one arm record per combination, and the body is never copied. The combinations
+cannot be avoided:
+[`adt.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/adt.md) §5.6
+requires every combination to be covered and has no wildcard, so an arm that
+ignores a scrutinee names every one of its cases. Sharing the body does not let
+it be checked once, though: each arm binds its binder at its own case's
+payload type, so the type checker checks the body once per arm.
 
 ### 2.6 Implicit field names
 
@@ -312,6 +319,37 @@ defect is set, so a package that reaches the SST has `None` everywhere.
 **CST → SST.** `Statement.t` collapses into `Stat.t`; the wrapper has nothing
 left to carry.
 
+### 2.11 Method calls
+
+```
+subject:method(a)       ->   method(subject, a)        form Method, not mut
+subject!method(a)       ->   method(subject, a)        form Method, mut
+subject:Pkg$method(a)   ->   Pkg$method(subject, a)    form Method, not mut
+```
+
+[`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md)
+§2.1 makes a method an ordinary verb whose first parameter is `this`, and §2.6
+desugars `subject:method(arg)` to `ResolvedPkg$method(subject, arg)`. Moving the
+subject into the argument list needs only the syntax, so it happens here;
+finding `ResolvedPkg` does not.
+
+**CST → SST.** `Verb_call.Func` and `Verb_call.Meth` become one `Call` node.
+The subject is its first argument, and its `form` records how it was written:
+`Function`, or `Method` with the marker's `is_mut`.
+
+**This is the second of the two entries that sit on the line drawn at the top
+of this file.** The rewrite stops at the callee's name. An unqualified method
+lives in its subject's home package (`functions.md` §6.1), and finding that
+package needs the subject's type, so `method` stays an unresolved name for
+semantics to qualify. A qualified callee such as `Pkg$method` already names its
+package. `form` stays on the call for two reasons:
+
+- A method and a function resolve differently. A method is found through its
+  subject's type, and a function by plain name and imports. The two calls
+  have the same shape once the subject has moved.
+- The `:` or `!` marker is checked against the declaration (`functions.md`
+  §2.5), and that check needs `is_mut`.
+
 ---
 
 ## 3. The guard the desugar pass needed first — closed
@@ -353,70 +391,19 @@ the syntax does not carry. They are listed so the refusal is on the record.
 | Construct | Why it is not a desugaring |
 |---|---|
 | `if`, `elif`, `else`, `guard`, `i!to(n)` | **Not sugar at all.** [`control-flow.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/control-flow.md) §1: "Zane has no `if` statement, no `loop` statement, and no exit keyword." They are `core` declarations called like any other verb, and they reach the SST as ordinary `Verb_call`s. Nothing to do — but a reader arriving from another language will expect an entry here, so this is it. |
-| `subject:method(a)` → `Pkg$method(subject, a)` | [`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md) §2.6 titles this "Method desugaring", and the *qualified* form is indeed syntactic. The unqualified form rewrites to `ResolvedPkg$method`, and resolving that package is method lookup (§6.1), which needs the subject's type. See §5.2. |
+| `subject:method(a)` → `Pkg$method(subject, a)` | [`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md) §2.6 titles this "Method desugaring", and the *qualified* form is indeed syntactic. The unqualified form rewrites to `ResolvedPkg$method`, and resolving that package is method lookup (§6.1), which needs the subject's type. §2.11 does the syntactic half. |
 | Block-taking verbs expanded at the call site | [`control-flow.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/control-flow.md) §2.3 requires it, and it is what makes `guard` exit the right frame. It needs the callee's declaration, across packages. A lowering, after typing. |
 | `implicit` constructor insertion at coercion sites | [`types.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/types.md) §4.2. Needs both types at the site. |
 | `import pkg$` → an explicit member list | [`packages.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/packages.md) §3.3. Needs the other package's exported members. It is also name resolution rather than desugaring: "An import is a **spelling**, not a linkage." |
 | `Constructor_args.Positional` vs `.Fields` | Unifying them needs the constructor's declared field order. Both arms stay. |
 | `Expr.Ref` (`&x`) | A passing mode, not sugar. [`memory.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/memory.md) §2.4. |
-| `:` vs `!` call markers | A check, not sugar: calling a `mut` method with `:` is illegal and vice versa ([`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md) §2.5). Whatever §5.2 decides about the subject, the flag survives. |
+| `:` vs `!` call markers | A check, not sugar: calling a `mut` method with `:` is illegal and vice versa ([`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md) §2.5). §2.11 keeps the flag on the call for that check. |
 
 ---
 
-## 5. Open questions
+## 5. What the SST costs and buys
 
-### 5.1 Match groups duplicate their bodies
-
-Expanding `[a, b], [c, d] => body` gives four arms and four copies of `body`.
-For the arm shapes in the spec's own examples that is nothing, but the
-exhaustiveness rule pushes the other way:
-[`adt.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/adt.md) §5.6
-requires every *combination* to be covered with no wildcard, so a
-"regardless of `state`" arm names every state in a group — exactly the shape
-that multiplies.
-
-Three options:
-
-1. **Expand eagerly.** Matches the spec's wording, gives each arm its own
-   binder type, and makes every later pass simpler. Bodies are duplicated.
-2. **Expand the selector, share the body.** Arms point at one body node.
-   Halfway: the binder still needs a per-arm type, so the shared body cannot be
-   checked once.
-3. **Keep a tag set on the arm** and expand in codegen. Smallest tree,
-   but it leaves a piece of surface syntax in an allegedly desugared tree.
-
-**Recommendation: (1),** on the grounds that the spec's reason for the
-expansion is the binder's per-case type, and that reason survives every attempt
-to share. If duplication ever measures as a problem, it is a codegen concern —
-identical arm bodies converging on one tag jump is a standard thing to do
-there.
-
-### 5.2 How far to take the method-call rewrite
-
-`subject:method(a)` has two halves. Moving the subject into the argument list
-is syntactic. Resolving which package `method` came from is not.
-
-1. **Do nothing.** `Verb_call.Meth` survives into the SST with its `this`,
-   `is_mut` and callee. Honest, and leaves the tree with two call shapes.
-2. **Normalize the shape only** — subject becomes the first argument, callee
-   stays an unresolved name, `is_mut` moves onto the call. One call node; the
-   `:`/`!` check still has what it needs; the package is filled in later.
-3. **Full rewrite.** Needs types. Not available here.
-
-**Recommendation: (2),** with the qualified form (`subject:Pkg$method(a)`)
-producing a callee that is already qualified and the unqualified form producing
-one that is not — which is the same distinction `Name_expr.Ident` and
-`.Qualified` already draw.
-
-This is the second of the two entries on that line, and it is the one I am
-least sure of. (1) is a perfectly defensible answer if the extra call shape
-costs less than a callee that is sometimes resolved and sometimes not.
-
----
-
-## 6. What the SST costs and buys
-
-§2 in full, with the recommendations in §5 taken:
+§2 in full:
 
 | | CST | SST |
 |---|---|---|
@@ -430,7 +417,7 @@ costs less than a callee that is sometimes resolved and sometimes not.
 | parenthesis nodes | 3 | 0 |
 | `trailing` flags | 4 | 0 |
 | `Statement.t` wrapper | statement + defect | `Stat.t` |
-| call shapes | `Func` \| `Meth` \| … | `Func` \| … (§5.2) |
+| call shapes | `Func` \| `Meth` \| … | `Call` with a `form` \| … |
 
 Two things stay that a reader might expect to go: control flow (§4 — it was
 never sugar) and `Constructor_args`' two arms (§4 — needs the declaration).
