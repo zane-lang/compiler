@@ -10,12 +10,17 @@ type stage = Cst | Sst
 
 (* What the binary was asked to do. One file is enough for the first two
    stages, which never look past it. Semantics takes packages instead
-   (docs/semantics.md §2): each `--package DIR` names one, the first is the
-   root, and until the later passes exist what it prints is the packages it
-   assembled. *)
+   (docs/semantics.md §2): each `--package DIR` names one, and the first is the
+   root.
+
+   A package build prints one of three views: the packages it assembled (the
+   default), the declarations with everything passes 1 to 4 resolved about
+   them (`--decls`), or the whole typed tree (`--tst`). *)
+type view = Assembled | Declarations | Typed
+
 type request =
   | File of stage * (string * string)
-  | Packages of string list
+  | Packages of view * string list
 
 let read_file path =
   try In_channel.with_open_text path In_channel.input_all
@@ -25,7 +30,7 @@ let read_file path =
 
 let usage () =
   prerr_endline "usage: compiler [--cst|--sst] [SOURCE|-]";
-  prerr_endline "       compiler --package DIR [--package DIR ...]";
+  prerr_endline "       compiler [--decls|--tst] --package DIR [--package DIR ...]";
   exit 2
 
 (* The name reported in parse errors travels with the text, so reading from
@@ -50,15 +55,18 @@ let arguments () =
         File (stage, read source)
     | _ -> usage ()
   in
-  (* A package build takes nothing but `--package` flags: a tree flag or a
-     single source alongside them would ask for two different runs at once. *)
-  let rec packages dirs = function
-    | [] -> Packages (List.rev dirs)
-    | "--package" :: dir :: rest -> packages (dir :: dirs) rest
+  (* A package build takes nothing but `--package` flags after its view: a
+     tree flag or a single source alongside them would ask for two different
+     runs at once. *)
+  let rec packages view dirs = function
+    | [] -> if dirs = [] then usage () else Packages (view, List.rev dirs)
+    | "--package" :: dir :: rest -> packages view (dir :: dirs) rest
     | _ -> usage ()
   in
   match List.tl (Array.to_list Sys.argv) with
-  | "--package" :: _ as rest -> packages [] rest
+  | "--package" :: _ as rest -> packages Assembled [] rest
+  | "--decls" :: rest -> packages Declarations [] rest
+  | "--tst" :: rest -> packages Typed [] rest
   | rest -> go Cst rest
 
 let run_file stage (filename, input) =
@@ -74,17 +82,34 @@ let run_file stage (filename, input) =
       in
       print_string (Tree_graph.render output)
 
-let run_packages dirs =
+(* Semantics reports every problem it finds (docs/semantics.md D4) and prints
+   no tree when there is one, since a tree with holes in it is not what either
+   view promises. *)
+let run_packages view dirs =
   match Tst.Assembly.assemble dirs with
   | Error problems ->
       List.iter
         (fun problem -> prerr_string (Tst.Assembly.render_problem problem))
         problems;
       exit 1
-  | Ok packages ->
-      print_string (Tree_graph.render (Tst.Assembly.to_node packages))
+  | Ok packages -> (
+      match view with
+      | Assembled ->
+          print_string (Tree_graph.render (Tst.Assembly.to_node packages))
+      | Declarations | Typed -> (
+          let result = Tst.check packages in
+          match result.Tst.Semantics.diagnostics with
+          | [] ->
+              print_string
+                (Tree_graph.render
+                   (Tst.to_node ~bodies:(view = Typed) result.Tst.Semantics.program))
+          | diagnostics ->
+              List.iter
+                (fun d -> prerr_string (Tst.render_diagnostic packages d))
+                diagnostics;
+              exit 1))
 
 let () =
   match arguments () with
   | File (stage, input) -> run_file stage input
-  | Packages dirs -> run_packages dirs
+  | Packages (view, dirs) -> run_packages view dirs

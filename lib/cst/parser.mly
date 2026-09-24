@@ -149,6 +149,20 @@ top_decl:
 %inline uname:
   | text=UIDENT { mk_name $loc text }
 
+(* The member of an intrinsic namespace that names a type. `Number` is a
+   keyword, since it is the concept a number parameter is declared with, but
+   the concept type of a numeric literal is spelled with the same word:
+   `@concepts$Number` (syntax.md §2.8). After `@pkg$` the keyword can mean
+   nothing else, so it is read back as the name it spells.
+
+   Not `%inline`, unlike [uname]: inlined, each production that writes an
+   intrinsic type would be written twice, once per spelling, and so would
+   every conflict in docs/ambiguity.md that involves one. As a nonterminal of
+   its own, the census only renames the symbol. *)
+intrinsic_uname:
+  | name=uname { name }
+  | "Number" { mk_name $loc "Number" }
+
 %inline func_lambda(body_form):
   | ret_type=ret_type "(" params=separated_list(COMMA, param) ")" body=body_form {
       ({ Nodes.Func_lambda.params; ret_type; body; span = Span.of_loc $loc }
@@ -1548,6 +1562,6 @@ stat:
   | pkg=lname "$" name=uname {
       name_type $loc (Nodes.Name_type.Qualified { package = pkg; ident = name })
     }
-  | "@" pkg=lname "$" name=uname {
+  | "@" pkg=lname "$" name=intrinsic_uname {
       name_type $loc (Nodes.Name_type.Intrinsic { package = pkg; ident = name })
     }

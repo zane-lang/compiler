@@ -1,0 +1,19 @@
+/// A dependency for the import checks, and the one non-root package: it may
+/// not reach `@program$`.
+package lib;
+
+import core$;
+
+type Thing = struct {
+	value Int;
+}
+
+Int helper(value Int) => value
+Int _secret() => Int(1)
+Int area(this Thing) => this.value
+Int twin(value Int) => value
+
+Unit shout() {
+	console Console(@program$console);
+	return Unit();
+}

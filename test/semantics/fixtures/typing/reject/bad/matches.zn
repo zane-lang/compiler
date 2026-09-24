@@ -1,0 +1,21 @@
+package bad;
+
+import core$;
+
+type Answer = variant { yes Int; no Bool; maybe Float; }
+type Light = enum [ red, green ]
+
+Int answer(value Answer) => match (value) {
+	x yes => x;
+	yes => Int(1);
+	unsure => Int(2);
+}
+
+Int light(value Light) => match (value) {
+	x red => Int(1);
+	green => Bool(true);
+}
+
+Int plain(value Int) => match (value) {
+	red => Int(1);
+}

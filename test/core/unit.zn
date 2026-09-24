@@ -1,0 +1,9 @@
+/// The unit type: an empty value struct with one value (types.md §2.6).
+package core;
+
+type Unit = struct { }
+
+Unit() => init{ }
+
+/// What an intrinsic that returns nothing returns, carried into `Unit`.
+implicit Unit(value @primitives$Unit) => init{ }

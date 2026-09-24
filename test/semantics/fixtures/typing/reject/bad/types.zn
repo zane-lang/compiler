@@ -1,0 +1,18 @@
+package bad;
+
+import core$;
+
+type Box<T Type> = struct { item T; }
+
+type Holder = struct {
+	many Box<Int, Int>;
+	sized Array<Int, Int>;
+	text String;
+	guest &Int;
+	literal @concepts$Number;
+	inline Box<T Type>;
+}
+
+alias Loop = Loop
+type Round = Robin
+type Robin = Round

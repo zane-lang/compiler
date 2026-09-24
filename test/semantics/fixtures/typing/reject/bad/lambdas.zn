@@ -1,0 +1,10 @@
+package bad;
+
+import core$;
+
+Unit lambdas() {
+	outer Int = Int(1);
+	reads Int() => outer;
+	generic Int(value T Type) => Int(1);
+	return Unit();
+}

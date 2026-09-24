@@ -1,0 +1,36 @@
+package bad;
+
+import core$;
+
+Int pair(a Int, b Float) => a
+Int pair(a Float, b Int) => b
+Int one(value Int) => value
+Int one(value Float) => Int(1)
+T echo(value T Type) => value
+Int?String parse(text String) => Int(0)
+Unit repeat(body @concepts$Block) => Unit()
+Unit bump(this Int) mut => Unit()
+Int peek(this Int) => this
+
+type Pick = variant { yes Int; no Bool; }
+
+Unit calls() {
+	a Int = pair(Int(1), Int(2));
+	b Int = pair(1, 2);
+	c Int = echo(4);
+	d Int = parse(String("1"));
+	e Int = one(Int(1)) ?? Int(0);
+	n Int = Int(1);
+	n:bump();
+	f Int = n!peek();
+	g Int = n:missing();
+	spawn repeat({ n!bump(); });
+	choice Pick = Pick.yes(Int(1));
+	h Int = choice.yes;
+	i @primitives$Int = n.raw ?? n.raw;
+	j Int = parse(String("2")) ? err {
+		console Int = Int(0);
+	}
+	resolve Int(1);
+	return Unit();
+}

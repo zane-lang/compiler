@@ -1,0 +1,280 @@
+File "fixtures/typing/reject/bad/bodies.zn", line 10, characters 23-37:
+10 | Account(owner Int) => init{ owner; }
+  |                       ^^^^^^^^^^^^^^
+Error: `init{ }` assigns every field, and this one leaves out `_balance`
+File "fixtures/typing/reject/bad/bodies.zn", line 14, characters 25-26:
+14 | Int noReturn(value Int) {
+  |                         ^
+Error: not every path through `noReturn` returns; a block-bodied verb returns explicitly on every path, `Unit` included (functions.md §3.5)
+File "fixtures/typing/reject/bad/bodies.zn", line 19, characters 13-15:
+19 |     x Int = 20;
+  |             ^^
+Error: `x` is declared `core$Int`, and its value is `@concepts$Number`; a declaration is not a coercion site, so a conversion is written out
+File "fixtures/typing/reject/bad/bodies.zn", line 20, characters 5-10:
+20 |     value = Int(2);
+  |     ^^^^^
+Error: `value` is a parameter, and a parameter is read-only
+File "fixtures/typing/reject/bad/bodies.zn", line 21, characters 5-11:
+21 |     frozen = Int(3);
+  |     ^^^^^^
+Error: a package constant is immutable: package scope holds no mutable state
+File "fixtures/typing/reject/bad/bodies.zn", line 23, characters 5-6:
+23 |     y Int = Int(2);
+  |     ^
+Error: `y` is already declared at fixtures/typing/reject/bad/bodies.zn:22, and a local may not shadow a name in scope
+File "fixtures/typing/reject/bad/bodies.zn", line 24, characters 5-13:
+24 |     noReturn Int = Int(3);
+  |     ^^^^^^^^
+Error: `noReturn` names the declaration at fixtures/typing/reject/bad/bodies.zn:14, and a local may not shadow a name in scope
+File "fixtures/typing/reject/bad/bodies.zn", line 25, characters 21-44:
+25 |     built Account = init{ owner = Int(1); }
+  |                     ^^^^^^^^^^^^^^^^^^^^^^^
+Error: `init{ }` is valid only in a constructor body, which is what naming a verb after a type unlocks
+File "fixtures/typing/reject/bad/bodies.zn", line 26, characters 24-32:
+26 |     peek Int = account._balance;
+  |                        ^^^^^^^^
+Error: `_balance` is private: only a method whose subject is `Account` may read it (types.md §2.3)
+File "fixtures/typing/reject/bad/bodies.zn", line 27, characters 12-18:
+27 |     return Int(4);
+  |            ^^^^^^
+Error: this returns `core$Int`, and the verb returns `core$Unit`; `return` is not a coercion site, so a conversion is written out
+File "fixtures/typing/reject/bad/bodies.zn", line 31, characters 5-15:
+31 |     this.owner = Int(2);
+  |     ^^^^^^^^^^
+Error: a method that is not `mut` may not write through `this`
+File "fixtures/typing/reject/bad/bodies.zn", line 37, characters 5-19:
+37 |     return Int(1);
+  |     ^^^^^^^^^^^^^^
+Error: `return` leaves a verb, and this is not in one
+File "fixtures/typing/reject/bad/calls.zn", line 18, characters 13-33:
+18 |     a Int = pair(Int(1), Int(2));
+  |             ^^^^^^^^^^^^^^^^^^^^
+Error: no `pair` accepts (core$Int, core$Int); the candidates are `core$Int pair(core$Int, core$Float)`; `core$Int pair(core$Float, core$Int)`
+File "fixtures/typing/reject/bad/calls.zn", line 19, characters 13-23:
+19 |     b Int = pair(1, 2);
+  |             ^^^^^^^^^^
+Error: the call to `pair` is ambiguous: `core$Int pair(core$Int, core$Float)`; `core$Int pair(core$Float, core$Int)` both accept (@concepts$Number, @concepts$Number)
+File "fixtures/typing/reject/bad/calls.zn", line 20, characters 13-20:
+20 |     c Int = echo(4);
+  |             ^^^^^^^
+Error: no `echo` accepts (@concepts$Number); the candidate is `T echo(T)`; a bare literal fixes no type, so it cannot drive inference: wrap it in the type it is meant to be, as `Int(4)`
+File "fixtures/typing/reject/bad/calls.zn", line 21, characters 13-31:
+21 |     d Int = parse(String("1"));
+  |             ^^^^^^^^^^^^^^^^^^
+Error: `parse` can abort with `core$String`, so the call needs a `?` or `??` handler
+File "fixtures/typing/reject/bad/calls.zn", line 22, characters 25-34:
+22 |     e Int = one(Int(1)) ?? Int(0);
+  |                         ^^^^^^^^^
+Error: `one` cannot abort, so it takes no handler
+File "fixtures/typing/reject/bad/calls.zn", line 24, characters 5-13:
+24 |     n:bump();
+  |     ^^^^^^^^
+Error: `bump` is a `mut` method, so it is called with `!`
+File "fixtures/typing/reject/bad/calls.zn", line 25, characters 13-21:
+25 |     f Int = n!peek();
+  |             ^^^^^^^^
+Error: `peek` is not a `mut` method, so it is called with `:`
+File "fixtures/typing/reject/bad/calls.zn", line 26, characters 13-24:
+26 |     g Int = n:missing();
+  |             ^^^^^^^^^^^
+Error: no method named `missing` is declared in `core`, the home of `core$Int`, or in this package
+File "fixtures/typing/reject/bad/calls.zn", line 27, characters 11-32:
+27 |     spawn repeat({ n!bump(); });
+  |           ^^^^^^^^^^^^^^^^^^^^^
+Error: `repeat` takes a block, and a verb that takes a block cannot be spawned
+File "fixtures/typing/reject/bad/calls.zn", line 29, characters 13-23:
+29 |     h Int = choice.yes;
+  |             ^^^^^^^^^^
+Error: reading the case `yes` of `Pick` fails when another case is live, so it takes a `?` or `??` handler
+File "fixtures/typing/reject/bad/calls.zn", line 30, characters 31-39:
+30 |     i @primitives$Int = n.raw ?? n.raw;
+  |                               ^^^^^^^^
+Error: reading `raw` cannot fail, so it takes no handler
+File "fixtures/typing/reject/bad/calls.zn", line 31, characters 32-39:
+31 |     j Int = parse(String("2")) ? err {
+  |                                ^^^^^^^
+Error: every path through a handler ends in `resolve`, `return` or `abort`; this one can fall through (error-handling.md §3.2)
+File "fixtures/typing/reject/bad/calls.zn", line 34, characters 5-20:
+34 |     resolve Int(1);
+  |     ^^^^^^^^^^^^^^^
+Error: `resolve` finishes a handler or a block argument, and this is in neither
+File "fixtures/typing/reject/bad/imports.zn", line 4, characters 8-15:
+4 | import missing;
+  |        ^^^^^^^
+Error: no package named `missing` is part of this build
+File "fixtures/typing/reject/bad/imports.zn", line 5, characters 8-11:
+5 | import bad;
+  |        ^^^
+Error: `bad` is this file's own package; its members are available without an import
+File "fixtures/typing/reject/bad/imports.zn", line 6, characters 12-19:
+6 | import lib$nothing;
+  |            ^^^^^^^
+Error: the package `lib` has no member `nothing`
+File "fixtures/typing/reject/bad/imports.zn", line 7, characters 12-19:
+7 | import lib$_secret;
+  |            ^^^^^^^
+Error: `_secret` is private to the package `lib`
+File "fixtures/typing/reject/bad/imports.zn", line 8, characters 12-16:
+8 | import lib$area;
+  |            ^^^^
+Error: `area` is a method, and a method is not importable: it is reached by its subject, as `subject:lib$area()`
+File "fixtures/typing/reject/bad/imports.zn", line 10, characters 1-11:
+10 | import lib;
+  | ^^^^^^^^^^
+Error: `import lib` gives the members of `lib` a second spelling, after `import lib$Thing` at fixtures/typing/reject/bad/imports.zn:9; a member has one spelling per file
+File "fixtures/typing/reject/bad/imports.zn", line 11, characters 1-16:
+11 | import lib$twin;
+  | ^^^^^^^^^^^^^^^
+Error: this import brings `twin` from `lib`, which takes the same parameter types as the `twin` declared at fixtures/typing/reject/bad/twin.zn:6; the two cannot be told apart at a call
+File "fixtures/typing/reject/bad/instances.zn", line 7, characters 25-38:
+7 | T half(value T Type) => value / value
+  |                         ^^^^^^^^^^^^^
+Error: no operator `/` accepts (core$String, core$String); the candidates are `core$Int /(core$Int, core$Int)`; `core$Float /(core$Float, core$Float)` (in `half` with T = core$String, required at fixtures/typing/reject/bad/instances.zn:11)
+File "fixtures/typing/reject/bad/lambdas.zn", line 7, characters 20-25:
+7 |     reads Int() => outer;
+  |                    ^^^^^
+Error: no name `outer` is in scope
+File "fixtures/typing/reject/bad/lambdas.zn", line 8, characters 23-29:
+8 |     generic Int(value T Type) => Int(1);
+  |                       ^^^^^^
+Error: `T` introduces a parameter, and only a named verb may: a generic function value is not specified (generics.md §9)
+File "fixtures/typing/reject/bad/matches.zn", line 8, characters 29-44:
+8 | Int answer(value Answer) => match (value) {
+  |                             ^^^^^^^^^^^^^^^
+Error: the match does not cover `no`, `maybe`; every case needs an arm, and there is no default
+File "fixtures/typing/reject/bad/matches.zn", line 10, characters 5-19:
+10 |     yes => Int(1);
+  |     ^^^^^^^^^^^^^^
+Error: `yes` is already covered by the arm at fixtures/typing/reject/bad/matches.zn:9; every case is covered exactly once
+File "fixtures/typing/reject/bad/matches.zn", line 11, characters 5-11:
+11 |     unsure => Int(2);
+  |     ^^^^^^
+Error: `Answer` has no case `unsure`
+File "fixtures/typing/reject/bad/matches.zn", line 15, characters 5-6:
+15 |     x red => Int(1);
+  |     ^
+Error: `red` is an enum member and carries no payload to bind
+File "fixtures/typing/reject/bad/matches.zn", line 16, characters 14-24:
+16 |     green => Bool(true);
+  |              ^^^^^^^^^^
+Error: every arm of a match yields one type: this yields `core$Bool`, and the first arm yields `core$Int`; an arm is not a coercion site
+File "fixtures/typing/reject/bad/matches.zn", line 19, characters 32-37:
+19 | Int plain(value Int) => match (value) {
+  |                                ^^^^^
+Error: a match dispatches on a variant or an enum, and `core$Int` is neither
+File "fixtures/typing/reject/bad/names.zn", line 6, characters 6-11:
+6 | type Twice = struct { b Int; }
+  |      ^^^^^
+Error: the type `Twice` is already declared at fixtures/typing/reject/bad/names.zn:5
+File "fixtures/typing/reject/bad/names.zn", line 9, characters 1-6:
+9 | limit Int(4)
+  | ^^^^^
+Error: the name `limit` is already declared at fixtures/typing/reject/bad/names.zn:8
+File "fixtures/typing/reject/bad/names.zn", line 12, characters 1-8:
+12 | limited Int(5)
+  | ^^^^^^^
+Error: the name `limited` is already declared at fixtures/typing/reject/bad/names.zn:11
+File "fixtures/typing/reject/bad/names.zn", line 15, characters 13-20:
+15 |     x Int = unknown;
+  |             ^^^^^^^
+Error: no name `unknown` is in scope
+File "fixtures/typing/reject/bad/names.zn", line 16, characters 7-14:
+16 |     y Nowhere = Int(1);
+  |       ^^^^^^^
+Error: no type named `Nowhere` is in scope
+File "fixtures/typing/reject/bad/names.zn", line 17, characters 13-17:
+17 |     f Int = twin;
+  |             ^^^^
+Error: `twin` is a function, and a function has no value form: call it, or hold a function value in a lambda-variable (functions.md §7.1)
+File "fixtures/typing/reject/bad/names.zn", line 18, characters 13-17:
+18 |     z Int = nope$value;
+  |             ^^^^
+Error: no import in this file spells a package `nope`
+File "fixtures/typing/reject/bad/overloads.zn", line 8, characters 1-29:
+8 | Int same(other Int) => other
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: this function takes the same parameter types as the one at fixtures/typing/reject/bad/overloads.zn:7, so no call could tell them apart; parameter names, `this`, `mut` and the return type do not distinguish overloads
+File "fixtures/typing/reject/bad/overloads.zn", line 11, characters 1-39:
+11 | Unit consume(engine &Engine) => Unit()
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: illegal overload set: this function differs from the one at fixtures/typing/reject/bad/overloads.zn:10 only by the passing mode on a parameter; rename one declaration or choose a single signature
+File "fixtures/typing/reject/bad/overloads.zn", line 14, characters 1-36:
+14 | Int +(left Int, right Bool) => left
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: the operator `+` on `core$Int` and `core$Bool` may be declared only in the home package of an operand type, and `bad` is not one
+File "fixtures/typing/reject/bad/overloads.zn", line 17, characters 1-38:
+17 | implicit Int(engine Engine) => Int(1)
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: the source of an implicit constructor must be a value type or a concept type, and `bad$Engine` is a reference type
+File "fixtures/typing/reject/bad/overloads.zn", line 20, characters 1-39:
+20 | implicit Float(value Bool) => Float(0)
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: an implicit constructor from `core$Bool` to `core$Float` may be declared only in the home package of one of them, and `bad` is neither
+File "fixtures/typing/reject/bad/overloads.zn", line 24, characters 1-19:
+24 | Level.weight Int {
+  | ^^^^^^^^^^^^^^^^^^
+Error: an enum map covers every member, and this one has no entry for `high`
+File "fixtures/typing/reject/bad/overloads.zn", line 26, characters 5-11:
+26 |     middle = 2;
+  |     ^^^^^^
+Error: `Level` has no member `middle`
+File "fixtures/typing/reject/bad/overloads.zn", line 27, characters 5-8:
+27 |     low = 3;
+  |     ^^^
+Error: the member `low` already has an entry
+File "fixtures/typing/reject/bad/overloads.zn", line 30, characters 1-7:
+30 | Engine.power Int {
+  | ^^^^^^
+Error: an enum map ranges over an enum, and `bad$Engine` is not one
+File "fixtures/typing/reject/bad/overloads.zn", line 34, characters 1-34:
+34 | Unit main(argument Int) => Unit()
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `main` takes no parameters: the root package reaches the console and runtime through `@program$`
+File "fixtures/typing/reject/bad/types.zn", line 7, characters 1-23:
+7 | type Holder = struct {
+  | ^^^^^^^^^^^^^^^^^^^^^^
+Error: `Holder` is a value type, so its member `guest` cannot be an `&`; only a `#` mould may hold one
+File "fixtures/typing/reject/bad/types.zn", line 7, characters 1-23:
+7 | type Holder = struct {
+  | ^^^^^^^^^^^^^^^^^^^^^^
+Error: `Holder` is a value type, so its member `text` cannot hold `core$String`, a reference type; a value type is a value all the way down
+File "fixtures/typing/reject/bad/types.zn", line 8, characters 10-23:
+8 |     many Box<Int, Int>;
+  |          ^^^^^^^^^^^^^
+Error: `Box` takes 1 type argument, and 2 were written
+File "fixtures/typing/reject/bad/types.zn", line 9, characters 22-25:
+9 |     sized Array<Int, Int>;
+  |                      ^^^
+Error: `Array` expects a number here, not a type
+File "fixtures/typing/reject/bad/types.zn", line 11, characters 11-15:
+11 |     guest &Int;
+  |           ^^^^
+Error: `core$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
+File "fixtures/typing/reject/bad/types.zn", line 12, characters 13-29:
+12 |     literal @concepts$Number;
+  |             ^^^^^^^^^^^^^^^^
+Error: `@concepts$Number` is a concept type, which may type a parameter but is never storage, so it cannot be a field
+File "fixtures/typing/reject/bad/types.zn", line 13, characters 16-22:
+13 |     inline Box<T Type>;
+  |                ^^^^^^
+Error: `T` introduces a parameter, which only a verb signature may do; a type lists its parameters in its `< >` header
+File "fixtures/typing/reject/bad/types.zn", line 16, characters 1-18:
+16 | alias Loop = Loop
+  | ^^^^^^^^^^^^^^^^^
+Error: the alias `Loop` is defined in terms of itself
+File "fixtures/typing/reject/bad/types.zn", line 17, characters 1-19:
+17 | type Round = Robin
+  | ^^^^^^^^^^^^^^^^^^
+Error: the type `Round` is defined in terms of itself
+File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 1-4:
+5 | Int unimported() => guard(true)
+  | ^^^
+Error: no type named `Int` is in scope; the package `core` declares one, and like every package it needs an import
+File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 21-26:
+5 | Int unimported() => guard(true)
+  |                     ^^^^^
+Error: no function named `guard` is in scope; the package `core` declares one, and like every package it needs an import
+File "fixtures/typing/reject/lib/lib.zn", line 17, characters 21-37:
+17 |     console Console(@program$console);
+  |                     ^^^^^^^^^^^^^^^^
+Error: only the root package reaches `@program$`; `lib` receives the console and runtime from it as an argument

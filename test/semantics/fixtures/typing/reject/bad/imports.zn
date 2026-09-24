@@ -1,0 +1,11 @@
+package bad;
+
+import core$;
+import missing;
+import bad;
+import lib$nothing;
+import lib$_secret;
+import lib$area;
+import lib$Thing;
+import lib;
+import lib$twin;

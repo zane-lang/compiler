@@ -1,0 +1,20 @@
+package bad;
+
+import core$;
+
+type Twice = struct { a Int; }
+type Twice = struct { b Int; }
+
+limit Int(3)
+limit Int(4)
+
+Int limited(value Int) => value
+limited Int(5)
+
+Unit names() {
+	x Int = unknown;
+	y Nowhere = Int(1);
+	f Int = twin;
+	z Int = nope$value;
+	return Unit();
+}
