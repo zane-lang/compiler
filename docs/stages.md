@@ -57,7 +57,7 @@ faster. A pass preserves every invariant lowering establishes, so codegen
 handles an optimized and an unoptimized CGT alike, and an unoptimized build is
 the same pipeline with an empty pass list. Because the two builds share one
 lowering and one codegen, a program that behaves differently with and without
-optimization points at a pass.
+optimization points to a bug in an optimization pass.
 
 The line between stages 2 and 3 is what a rewrite needs to know. A desugaring
 needs nothing but the syntax tree; anything that has to know what a name refers

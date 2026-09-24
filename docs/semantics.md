@@ -70,7 +70,7 @@ callee. The right column needs a resolved, typed tree and changes nothing in
 it.
 
 Block-taking verbs expanded at the call site (`control-flow.md` §2.3) are
-neither. That is a lowering, and it belongs to lowering, the stage that builds the CGT.
+neither. That is a lowering, and it belongs to the lowering stage, which builds the CGT.
 
 ---
 
