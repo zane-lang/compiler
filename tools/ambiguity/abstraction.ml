@@ -83,10 +83,7 @@ let terminal_residue token =
   let value = Hashtbl.hash token land (residue_count - 1) in
   if value = 0 then 1 else value
 
-type stack = { suffix : int list; height : int; residue : int; digest : int }
-
-let make_stack suffix height residue =
-  { suffix; height; residue; digest = Hashtbl.hash (suffix, height, residue) }
+type stack = { suffix : int list; height : int; residue : int }
 
 let production_residue automaton prod =
   let text = production_name automaton prod in
@@ -193,7 +190,7 @@ let descent_limit =
 let cap_variants preds below (precision : precision) keep ceiling height
     ?(residue = 0) states =
   match states with
-  | [] -> [ make_stack [] height residue ]
+  | [] -> [ { suffix = []; height; residue } ]
   | top :: _ ->
       (* The suffix can never be longer than the stack it is a suffix of, so a
          known height bounds the retained depth as surely as the precision
@@ -213,7 +210,7 @@ let cap_variants preds below (precision : precision) keep ceiling height
          it does not push them. Their terminal-labelled edges are therefore
          already included in [residue], even when the retained suffix had
          hidden them, so reconstruction preserves the residue unchanged. *)
-      let wrap suffix = make_stack suffix height residue in
+      let wrap suffix = { suffix; height; residue } in
       (match List.rev kept with
       | [] -> [ wrap kept ]
       | deepest :: _ as reversed ->
@@ -382,7 +379,7 @@ let side_moves automaton gotos below preds reachable reachable_height prod_resid
   match Hashtbl.find_opt cache (stack, token) with
   | Some moves -> moves
   | None ->
-      let { suffix; height; residue; _ } = stack in
+      let { suffix; height; residue } = stack in
       let moves = ref [] in
       let depth = List.length suffix in
       let raise_height h = min ceiling (h + 1) in
