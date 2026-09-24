@@ -1,0 +1,4 @@
+/// In a subdirectory, so it belongs to a package `nested`, not to `app`:
+/// only the files directly in a directory make up its package (§2.3). It
+/// would be rejected if it were read as part of `app`.
+package nested;

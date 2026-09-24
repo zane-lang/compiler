@@ -1,0 +1,3 @@
+package geometry;
+
+Int area(width Int, height Int) => width * height

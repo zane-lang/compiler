@@ -9,8 +9,8 @@ at a time rather than argued about as a whole.
 renders it, `sst.ml` is the entry module, and `lower.ml` is the pass that
 builds one from the other. This file is the argument for what is in them.
 
-The compiler binary prints either tree — `--cst` for what the source says,
-`--sst` for what it means.
+The compiler binary prints either tree for one file — `--cst` for what the
+source says, `--sst` for what it means.
 
 Entries were checked against spec commit
 [`034f11a`](https://github.com/zane-lang/spec/tree/034f11a), the same commit

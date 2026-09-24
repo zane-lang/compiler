@@ -8,6 +8,15 @@ let default_path = "test/parser/fixtures/main.zn"
    there. *)
 type stage = Cst | Sst
 
+(* What the binary was asked to do. One file is enough for the first two
+   stages, which never look past it. Semantics takes packages instead
+   (docs/semantics.md §2): each `--package DIR` names one, the first is the
+   root, and until the later passes exist what it prints is the packages it
+   assembled. *)
+type request =
+  | File of stage * (string * string)
+  | Packages of string list
+
 let read_file path =
   try In_channel.with_open_text path In_channel.input_all
   with Sys_error message ->
@@ -16,6 +25,7 @@ let read_file path =
 
 let usage () =
   prerr_endline "usage: compiler [--cst|--sst] [SOURCE|-]";
+  prerr_endline "       compiler --package DIR [--package DIR ...]";
   exit 2
 
 (* The name reported in parse errors travels with the text, so reading from
@@ -27,7 +37,7 @@ let read = function
 let arguments () =
   let rec go stage rest =
     match rest with
-    | [] -> (stage, read default_path)
+    | [] -> File (stage, read default_path)
     | "--cst" :: rest -> go Cst rest
     | "--sst" :: rest -> go Sst rest
     (* `-` is the stdin source, not an option, so it is taken before the guard
@@ -35,15 +45,23 @@ let arguments () =
        guard a mistyped `--ss` reads as a path, and the error names a file the
        author never meant to open rather than the option they meant to
        write. *)
-    | [ "-" ] -> (stage, read "-")
+    | [ "-" ] -> File (stage, read "-")
     | [ source ] when not (String.starts_with ~prefix:"-" source) ->
-        (stage, read source)
+        File (stage, read source)
     | _ -> usage ()
   in
-  go Cst (List.tl (Array.to_list Sys.argv))
+  (* A package build takes nothing but `--package` flags: a tree flag or a
+     single source alongside them would ask for two different runs at once. *)
+  let rec packages dirs = function
+    | [] -> Packages (List.rev dirs)
+    | "--package" :: dir :: rest -> packages (dir :: dirs) rest
+    | _ -> usage ()
+  in
+  match List.tl (Array.to_list Sys.argv) with
+  | "--package" :: _ as rest -> packages [] rest
+  | rest -> go Cst rest
 
-let () =
-  let stage, (filename, input) = arguments () in
+let run_file stage (filename, input) =
   match Cst.parse filename input with
   | Error diagnostic ->
       prerr_string (Diagnostic.render ~source:input diagnostic);
@@ -55,3 +73,18 @@ let () =
         | Sst -> Sst.to_node (Sst.of_cst cst)
       in
       print_string (Tree_graph.render output)
+
+let run_packages dirs =
+  match Tst.Assembly.assemble dirs with
+  | Error problems ->
+      List.iter
+        (fun problem -> prerr_string (Tst.Assembly.render_problem problem))
+        problems;
+      exit 1
+  | Ok packages ->
+      print_string (Tree_graph.render (Tst.Assembly.to_node packages))
+
+let () =
+  match arguments () with
+  | File (stage, input) -> run_file stage input
+  | Packages dirs -> run_packages dirs
