@@ -63,6 +63,25 @@ class HistoryCegarTests(harness.ProverTestCase):
         self.assertRegex(output, re.compile(r"^CEGAR refinement 1:", re.MULTILINE))
         self.assertRegex(output, re.compile(r"representative has 0 parse\(s\)"))
 
+    def test_incomplete_exact_check_falls_through_to_stack_refinement(self) -> None:
+        status, output = self.prove(
+            fixtures.CEGAR_INCOMPLETE_EXCLUSION,
+            1,
+            max_tokens="0",
+            extra=("--prove-cegar", "1", "--prove-refine", "4"),
+        )
+        self.assertRegex(
+            output,
+            re.compile(
+                r"^CEGAR check skipped: the candidate represents more than "
+                r"4096 concrete terminal sequence\(s\); continuing with stack "
+                r"refinement for this candidate\.$",
+                re.MULTILINE,
+            ),
+        )
+        self.assertRegex(output, re.compile(r"^Refinement round 1:", re.MULTILINE))
+        self.assertIn(status, (harness.PROVEN, harness.NOT_PROVEN), output)
+
     def test_CEGAR_reaches_a_second_independent_candidate(self) -> None:
         # L/p and R/q are independent blind spots. Excluding the first exact
         # nonambiguous sentence must not merge its history with the second

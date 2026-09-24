@@ -166,6 +166,13 @@ let main () =
         let deadline = Unix.gettimeofday () +. timeout in
         let rounds = ref 0 in
         let cegar_used = ref 0 in
+        (* A candidate whose complete terminal-class product exceeds the exact
+           check budget cannot be excluded by CEGAR at any stack precision.
+           Remember that sentence so a refinement retry can reach the normal
+           stack-refinement branch instead of repeating the same incomplete
+           check forever. *)
+        let cegar_skipped : (string list, unit) Hashtbl.t =
+          Hashtbl.create 16
         let blocked_sentences = ref [] in
         let stalled = ref None in
         (* A request for more depth than --prove-refine allows is clamped to the
@@ -246,7 +253,9 @@ let main () =
             when candidate.candidate_derivations >= 2 ->
               result
           | Abstract_candidate candidate
-            when !cegar_used < !cegar_rounds ->
+            when
+              !cegar_used < !cegar_rounds
+              && not (Hashtbl.mem cegar_skipped candidate.candidate_tokens) ->
               (match
                  check_exclusion engine candidate.candidate_tokens
                    ~variant_limit:4096 ~deadline
@@ -266,22 +275,23 @@ let main () =
                     candidate.candidate_derivations variants;
                   attempt ()
               | Exclusion_ambiguous tokens ->
-                  Abstract_candidate
-                    {
-                      candidate with
-                      candidate_tokens = tokens;
-                      candidate_derivations = 2;
-                      candidate_decisive = None;
-                      candidate_forward = [];
-                      candidate_example =
-                        { candidate.candidate_example with example_tokens = tokens };
-                    }
+                  Exact_ambiguity tokens
               | Exclusion_incomplete reason ->
-                  printf
-                    "CEGAR stopped: %s; the candidate remains in the proof \
-                     language.\n"
-                    reason;
-                  result)
+                  Hashtbl.replace cegar_skipped candidate.candidate_tokens ();
+                  if !refine_max > 0 && Unix.gettimeofday () < deadline then begin
+                    printf
+                      "CEGAR check skipped: %s; continuing with stack \
+                       refinement for this candidate.\n"
+                      reason;
+                    attempt ()
+                  end
+                  else begin
+                    printf
+                      "CEGAR stopped: %s; the candidate remains available as \
+                       an abstract candidate.\n"
+                      reason;
+                    result
+                  end)
           | Abstract_candidate candidate when !refine_max > 0 ->
               let tokens = candidate.candidate_tokens in
               let site = candidate.candidate_site in
@@ -680,6 +690,12 @@ let main () =
               timeout !prove_level pairs;
             report_refinement ~exhaustive:false ();
             exit not_proven_status
+        | Exact_ambiguity tokens ->
+            printf
+              "AMBIGUOUS: exact validation of the candidate's terminal-class \
+               substitutions found two derivations of %s (%s).\n"
+              (String.concat " " tokens) (render automaton tokens);
+            exit ambiguous_status
         | Abstract_candidate candidate ->
             let tokens = candidate.candidate_tokens in
             let example = candidate.candidate_example in

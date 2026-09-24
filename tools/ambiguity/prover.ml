@@ -80,6 +80,7 @@ type abstract_candidate = {
 type prove_result =
   | Proven of int
   | Abstract_candidate of abstract_candidate
+  | Exact_ambiguity of string list
   | Pair_overflow of int
   | Prove_timeout of int
   | Surveyed of prove_survey

@@ -501,6 +501,13 @@ class SurveyFlagTests(unittest.TestCase):
         arguments = runner.engine_arguments(self.profile(), 3, cegar=2)
         self.assertEqual(arguments[arguments.index("--prove-cegar") + 1], "2")
 
+    def test_CEGAR_and_refinement_can_be_requested_together(self) -> None:
+        arguments = runner.engine_arguments(
+            self.profile(), 3, refine=9, cegar=2
+        )
+        self.assertEqual(arguments[arguments.index("--prove-cegar") + 1], "2")
+        self.assertEqual(arguments[arguments.index("--prove-refine") + 1], "9")
+
     def test_refinement_is_absent_unless_requested(self) -> None:
         arguments = runner.engine_arguments(self.profile(), 3)
         self.assertNotIn("--prove-refine", arguments)
