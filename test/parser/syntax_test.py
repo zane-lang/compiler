@@ -680,6 +680,19 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_rejects("Unit use() { r String = Color.red:render|label; }")
         self.assert_parses("Unit use() { label String = show(Color.red); }")
 
+    def test_a_member_read_takes_a_handler(self) -> None:
+        # adt.md §3: a variant member read "is therefore an **abortable**
+        # access (`?` / `??`)". Whether a read is of a variant is a question
+        # of types, so the parser takes a handler on any member read.
+        self.assert_parses("Unit f() { x Int = e.a ?? Int(0); }")
+        self.assert_parses("Unit f() { x Int = e.a ? err { resolve Int(0); } }")
+        self.assert_parses("Unit f() { x Int = (e.a) ?? Int(0); }")
+        self.assert_parses("Unit f() { x Int = f().a.b ?? Int(0); }")
+        # A handler's `}` ends the statement, as it does after a call.
+        self.assert_rejects(
+            "Unit f() { x Int = e.a ? err { resolve Int(0); }; }"
+        )
+
     def test_a_loose_operator_declares_nothing(self) -> None:
         # §3.1: the loose forms "add no token to the operator vocabulary" of
         # §5.1, so an operator declaration names the unprefixed form only.

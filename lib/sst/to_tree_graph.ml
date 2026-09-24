@@ -201,10 +201,14 @@ and expr_to_node (x : Nodes.Expr.t) =
            ])
   | TypeValue type_ ->
       group "type_value" (fields [ ("type", name_type_to_node type_) ])
-  | DotAccess { target; field } ->
+  | DotAccess { target; field; abort_handle } ->
       group "dot_access"
         (fields
-           [ ("target", expr_to_node target); ("field", Leaf (text field)) ])
+           [
+             ("target", expr_to_node target);
+             ("field", Leaf (text field));
+             abort_field abort_handle;
+           ])
   | Subscript { target; args } ->
       group "subscript"
         (fields

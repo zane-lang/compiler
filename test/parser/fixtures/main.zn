@@ -442,6 +442,10 @@ Unit main() {
 	// `??` is the resolve-only shorthand for the same thing.
 	answer Float = env:lookup("answer") ?? Float(0);
 
+	// Reading a variant's member can fail too, since the case may not be the
+	// live one, so it takes a handler the same way.
+	literal Float = program.number ?? Float(0);
+
 	// A lambda-variable is an ordinary symbol whose type is a function type.
 	blend Float[Float, Float] = Float(a Float, b Float) => (a + b) / Float(2);
 

@@ -323,20 +323,6 @@ the same everywhere. What that costs is the parentheses in an argument or an
 operand, where the spec is silent; reconciling it means stating the rule in
 §4.7 and §4.1–4.2 of syntax.md.
 
-## 8. A variant member read cannot take a handler
-
-Checked against spec commit `e0b4249`, not the pin above.
-
-**Spec** — [`adt.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/adt.md)
-§3: reading a member of a variant value "is **partial**: the case may not be the
-live one. A member read is therefore an **abortable** access (`?` / `??`)".
-
-**Compiler** — an abort handler attaches only to a call, an operator, a flip or
-a `match`, so `e.a ?? fallback` is rejected with "an abort handler must follow
-an abortable operation". This divergence is not deliberate. It closes when
-`DotAccess` takes an abort handle, as planned in
-[`semantics.md`](semantics.md) D13.
-
 ---
 
 ## Closed

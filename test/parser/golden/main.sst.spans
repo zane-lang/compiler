@@ -2478,6 +2478,28 @@ package | package main; /// Every im … ettled"); return Unit(); }
                           constructor_args Positional | (0)
                             call_arg Value | 0
                               expr IntLit | 0
+        stat Decl | literal Float = program.number ?? Float(0);
+          decl Var | literal Float = program.number ?? Float(0)
+            name literal | literal
+            type_expr Path | Float
+              name_type | Float
+                ident Float | Float
+            expr DotAccess | program.number ?? Float(0)
+              expr NameExpr | program
+                name_expr | program
+                  ident program | program
+              field number | number
+              abort_handle | ?? Float(0)
+                block | ?? Float(0)
+                  stat Resolve | ?? Float(0)
+                    expr VerbCall | Float(0)
+                      verb_call Constructor | Float(0)
+                        constructor_name | Float
+                          name_type | Float
+                            ident Float | Float
+                        constructor_args Positional | (0)
+                          call_arg Value | 0
+                            expr IntLit | 0
         stat Decl | blend Float[Float, Float]  … at) => (a + b) / Float(2);
           decl Var | blend Float[Float, Float]  … oat) => (a + b) / Float(2)
             name blend | blend

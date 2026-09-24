@@ -37,6 +37,8 @@ let rec expr_ends_in_brace (value : Nodes.Expr.t) =
   | Nodes.Expr.FuncLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.MethLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.Ref value -> expr_ends_in_brace value
+  | Nodes.Expr.DotAccess { abort_handle = Some handle; _ } ->
+      abort_handle_ends_in_brace handle
   (* Closed by `)`, `]`, or the name itself. *)
   | Nodes.Expr.IntLit _ | Nodes.Expr.FloatLit _ | Nodes.Expr.StrLit _
   | Nodes.Expr.BoolLit _ | Nodes.Expr.CollectionLit _ | Nodes.Expr.NameExpr _
@@ -162,7 +164,9 @@ let rec continues_past_trailing (value : Nodes.Expr.t) =
       body_continues_past_trailing body
   | Nodes.Expr.Ref value | Nodes.Expr.Parenthized value ->
       continues_past_trailing value
-  | Nodes.Expr.DotAccess { target; _ } -> continues_past_trailing target
+  | Nodes.Expr.DotAccess { target; abort_handle; _ } ->
+      continues_past_trailing target
+      || handler_continues_past_trailing abort_handle
   | Nodes.Expr.Subscript { target; args } ->
       continues_past_trailing target || List.exists continues_past_trailing args
   | Nodes.Expr.CollectionLit items -> List.exists continues_past_trailing items

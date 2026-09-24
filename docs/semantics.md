@@ -318,9 +318,6 @@ what it added, the way the SST landed:
    span check the SST has.
 7. Generic instantiation (D12).
 
-Variant member reads (D13) need a parser change before step 6 can type them.
-That change is independent of the rest and can land at any point.
-
 Reject fixtures grow alongside: one `.zn` per diagnostic, as in
 `test/parser/fixtures/reject/`.
 
@@ -341,17 +338,13 @@ it. This fits the home-package instantiation plan in
 [`generics.md`](generics.md). The spec does not yet say when a generic body is
 checked, and needs a sentence saying this.
 
-**D13. The grammar grows a handler on a member read.** `adt.md` §3 makes a
-variant member read "an **abortable** access (`?` / `??`)". The parser only
-attaches a handler to a call, an operator, a flip or a `match`
-(`attach_abort_handle` in `lib/cst/parser_actions.ml`), so `e.a ?? fallback` is
-rejected today. The fix belongs in the grammar: `DotAccess` takes an optional
-abort handle in the CST, SST and TST. Whether one is required is a typing
-question, because only the target's type says whether the read is of a
-variant. So the parser accepts a handler on any member read. Typing then
-requires one on a variant read and rejects one on a total read, the same rule
-it applies to calls. Until the parser changes, this is entry 8 of
-[`spec-divergences.md`](spec-divergences.md).
+**D13. A member read takes an abort handler.** `adt.md` §3 makes a variant
+member read "an **abortable** access (`?` / `??`)". Whether a read is of a
+variant is a question about the target's type, so the grammar accepts a handler
+on any member read: `DotAccess` carries an optional abort handle in the CST and
+the SST, attached by `attach_abort_handle` in `lib/cst/parser_actions.ml` as a
+call's is. Typing then requires one on a variant read and rejects one on a
+total read, the same rule it applies to calls.
 
 **D14. A local may not shadow a name already in scope.** The spec says nothing
 about locals, but it forbids an import from shadowing (`packages.md` §3.8). A

@@ -157,8 +157,13 @@ and expression (x : C.Expr.t) : S.Expr.t =
             S.Expr.TypeMember
               { type_ = name_type type_; member = name member }
         | C.Expr.TypeValue t -> S.Expr.TypeValue (name_type t)
-        | C.Expr.DotAccess { target; field } ->
-            S.Expr.DotAccess { target = expression target; field = name field }
+        | C.Expr.DotAccess { target; field; abort_handle } ->
+            S.Expr.DotAccess
+              {
+                target = expression target;
+                field = name field;
+                abort_handle = option handler abort_handle;
+              }
         | C.Expr.Subscript { target; args } ->
             S.Expr.Subscript
               { target = expression target; args = List.map expression args }
