@@ -57,8 +57,6 @@ ambiguity search
 ambiguity search deep-function-body --timeout 1h --output deep-search.txt
 ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY RCURLY EOF
 ambiguity prove 3
-syntax-experiment --max-tokens 12 --timeout 15 --max-witnesses 10
-syntax-experiment --variant semicolon-separated --max-tokens 12 --timeout 15 --max-witnesses 10
 grammar-stat
 grammar-sentence
 ```

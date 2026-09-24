@@ -140,9 +140,6 @@
 - `ambiguity classes` — lists the terminal equivalence classes the search
   collapses, so a grammar change that unexpectedly splits or merges a class is
   visible. The same classes bound the prover's terminal alphabet.
-- `syntax-experiment` — compares candidate grammar changes under
-  equal search bounds before they are adopted
-  (`tools/syntax_experiment/README.md`).
 - `menhir --explain` — enumerates the conflict states that constitute the
   obligation ledger. `just explain --conflicts` prints them for the stock
   automaton, and `tools/ambiguity/conflict_census.py` summarises an
@@ -177,9 +174,8 @@ nothing, one reading as switched off and the other as enabled but never due. Unl
 four settings below it is optional, so it does not belong in
 `machine-config.txt` — it is a property of how a particular run is being
 watched, not of the machine. The sweep's `--quiet` (`just sweep GRAMMAR
---quiet`) and `syntax-experiment --quiet` suppress the pass-through of the
-engine's output without touching what the sweep or the experiment prints
-itself.
+--quiet`) suppresses the pass-through of the engine's output without touching
+what the sweep prints itself.
 
 ## Local machine configuration
 

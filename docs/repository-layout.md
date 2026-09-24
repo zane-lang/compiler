@@ -139,13 +139,6 @@ This is a target shape, not a requirement to create every directory at once.
 │   │   ├── parser_accept.ml
 │   │   ├── parser_shape.ml
 │   │   └── span_dump.ml
-│   │
-│   └── syntax_experiment/
-│       ├── cli.py
-│       ├── model.py
-│       ├── transforms.py
-│       ├── runner.py
-│       └── report.py
 │
 ├── dev/
 │   ├── bin/
@@ -166,13 +159,10 @@ This is a target shape, not a requirement to create every directory at once.
 │   │   ├── syntax_test.py
 │   │   └── ambiguity_test.py
 │   │
-│   ├── ambiguity/
-│   │   ├── cli_test.py
-│   │   ├── prover_test.py
-│   │   └── precision_sweep_test.py
-│   │
-│   └── syntax_experiment/
-│       └── experiment_test.py
+│   └── ambiguity/
+│       ├── cli_test.py
+│       ├── prover_test.py
+│       └── precision_sweep_test.py
 │
 ├── docs/
 │   ├── stages.md
@@ -609,6 +599,11 @@ ambiguity-engine internals; “parser developer tools” is their shared
 responsibility.
 
 ### `tools/syntax_experiment/`
+
+This tool has since been retired. Its variants explored statement
+terminators, call and grouping spellings and abort-handler attachment, which
+the grammar has since settled, and its transforms anchored on grammar text
+that no longer exists. The split below is kept as the record of the plan.
 
 `syntax_experiment.py` has cleanly separable concerns:
 

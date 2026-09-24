@@ -99,7 +99,3 @@ jobs:
         if: steps.suites.outputs.ambiguity-tools == 'true'
         run: devbox run -- just test-ambiguity-tools
 
-      # `just syntax-experiment-test` is deliberately absent. Its transforms
-      # anchor on grammar text that has since moved, so it fails on `main`
-      # today (one failure, three errors) independently of any pull request.
-      # Add the step back once the anchors track the grammar again.
