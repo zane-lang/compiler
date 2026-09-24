@@ -165,6 +165,8 @@ let main () =
         in
         let deadline = Unix.gettimeofday () +. timeout in
         let rounds = ref 0 in
+        let cegar_used = ref 0 in
+        let blocked_sentences = ref [] in
         let stalled = ref None in
         (* A request for more depth than --prove-refine allows is clamped to the
            ceiling rather than skipped, so refinement still makes what progress
@@ -229,8 +231,9 @@ let main () =
         let walk = create_prove_state prove_limits.max_frontiers in
         let rec attempt () =
           let result =
-            prove engine walk precision prove_limits.max_frontiers deadline
-              !survey_limit !trace_forward retired
+            prove ~blocked_sentences:!blocked_sentences engine walk precision
+              prove_limits.max_frontiers deadline !survey_limit !trace_forward
+              retired
           in
           match result with
           (* Settled by the grammar rather than by the abstraction: the
@@ -242,6 +245,41 @@ let main () =
           | Abstract_candidate candidate
             when candidate.candidate_derivations >= 2 ->
               result
+          | Abstract_candidate candidate
+            when !cegar_used < !cegar_rounds ->
+              (match
+                 check_exclusion engine candidate.candidate_tokens
+                   ~variant_limit:4096 ~deadline
+               with
+              | Exclusion_checked variants ->
+                  incr cegar_used;
+                  blocked_sentences :=
+                    candidate.candidate_tokens :: !blocked_sentences;
+                  reset_prove_state walk;
+                  printf
+                    "CEGAR refinement %d: excluded complete history %s after \
+                     exact-checking all %d terminal-class substitution(s) for \
+                     at most one parse; restarting with a history-trie product.\n"
+                    !cegar_used
+                    (String.concat " " candidate.candidate_tokens) variants;
+                  attempt ()
+              | Exclusion_ambiguous tokens ->
+                  Abstract_candidate
+                    {
+                      candidate with
+                      candidate_tokens = tokens;
+                      candidate_derivations = 2;
+                      candidate_decisive = None;
+                      candidate_forward = [];
+                      candidate_example =
+                        { candidate.candidate_example with example_tokens = tokens };
+                    }
+              | Exclusion_incomplete reason ->
+                  printf
+                    "CEGAR stopped: %s; the candidate remains in the proof \
+                     language.\n"
+                    reason;
+                  result)
           | Abstract_candidate candidate when !refine_max > 0 ->
               let tokens = candidate.candidate_tokens in
               let site = candidate.candidate_site in
@@ -545,14 +583,14 @@ let main () =
                only where a proof was claimed, and it is the difference between
                a theorem and a theorem about a table. *)
             let confirmed =
-              if !rounds = 0 then true
+              if !rounds = 0 && !cegar_used = 0 then true
               else begin
                 printf
-                  "Re-proving from the initial pair at the precision this run \
-                   ended on, because a proof carried across rounds is worth \
-                   only what a fresh walk says it is...\n";
+                  "Re-proving from the initial pair at the precision and \
+                   history filter this run ended on, against the same \
+                   complete language...\n";
                 match
-                  prove engine
+                  prove ~blocked_sentences:!blocked_sentences engine
                     (create_prove_state prove_limits.max_frontiers)
                     precision prove_limits.max_frontiers deadline
                     !survey_limit false retired
@@ -579,8 +617,13 @@ let main () =
             printf
               "PROVEN UNAMBIGUOUS: no diverging pair of accepting parses \
                exists in the top-%d stack abstraction (%d abstract pairs \
-               explored).\n"
-              !prove_level pairs;
+               explored%s).\n"
+              !prove_level pairs
+              (if !cegar_used = 0 then ""
+               else
+                 Printf.sprintf
+                   ", after %d exact-checked complete-history exclusion(s)"
+                   !cegar_used);
             (* What a regression run has to reproduce. A refined proof holds of
                a sharper abstraction than the level alone names, so the level
                alone does not identify it. *)
