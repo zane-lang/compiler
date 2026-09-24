@@ -1140,7 +1140,7 @@ func_callee:
   | primary=primary { primary }
   | call=unbraced_verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
   | target=app "." field=lname {
-      expr $loc (Nodes.Expr.DotAccess { target; field })
+      expr $loc (Nodes.Expr.DotAccess { target; field; abort_handle = None })
     }
   | target=app "[" args=separated_list(",", expr) "]" {
       expr $loc (Nodes.Expr.Subscript { target; args })

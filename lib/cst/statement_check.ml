@@ -76,7 +76,10 @@ and in_expr (expr : Nodes.Expr.t) =
           with
           | Some found -> Some found
           | None -> in_abort_handle abort_handle))
-  | Nodes.Expr.DotAccess { target; _ } -> in_expr target
+  | Nodes.Expr.DotAccess { target; abort_handle; _ } -> (
+      match in_expr target with
+      | Some found -> Some found
+      | None -> in_abort_handle abort_handle)
   | Nodes.Expr.Subscript { target; args } -> first_of (target :: args)
   | Nodes.Expr.CollectionLit items -> first_of items
   | Nodes.Expr.MapLit entries ->

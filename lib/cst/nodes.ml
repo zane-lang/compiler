@@ -238,7 +238,17 @@ module rec Expr : sig
        cannot be told from the start of a verb-type suffix list without
        lookahead the parser does not have. See docs/spec-divergences.md. *)
     | TypeValue of Name_type.t
-    | DotAccess of { target : t; field : Name.t }
+    (* [abort_handle] because a member read can fail: reading a member of a
+       variant "is **partial**: the case may not be the live one", so it is
+       "an **abortable** access (`?` / `??`)" (adt.md §3). Whether a read is of
+       a variant is a question about [target]'s type, which this tree does not
+       know, so every member read may carry one and typing decides whether it
+       must. *)
+    | DotAccess of {
+        target : t;
+        field : Name.t;
+        abort_handle : Abort_handle.t option;
+      }
     | Subscript of { target : t; args : t list }
     | Ref of t
     | Parenthized of t

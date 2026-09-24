@@ -2367,6 +2367,27 @@ package | package main; /// Every im … ettled"); return Unit(); }
                         constructor_args | (0)
                           call_arg | 0
                             expr | 0
+        statement | literal Float = program.number ?? Float(0);
+          stat | literal Float = program.number ?? Float(0);
+            decl | literal Float = program.number ?? Float(0)
+              name literal | literal
+              type_expr | Float
+                name_type | Float
+                  ident Float | Float
+              expr | program.number ?? Float(0)
+                expr | program
+                  name_expr | program
+                    ident program | program
+                field number | number
+                abort_handle | ?? Float(0)
+                  expr | Float(0)
+                    verb_call | Float(0)
+                      constructor_name | Float
+                        name_type | Float
+                          ident Float | Float
+                      constructor_args | (0)
+                        call_arg | 0
+                          expr | 0
         statement | blend Float[Float, Float]  … at) => (a + b) / Float(2);
           stat | blend Float[Float, Float]  … at) => (a + b) / Float(2);
             decl | blend Float[Float, Float]  … oat) => (a + b) / Float(2)

@@ -199,10 +199,11 @@ and expr d (x : Expr.t) =
   | Expr.TypeValue t ->
       line d "expr TypeValue" at;
       name_type (d + 1) t
-  | Expr.DotAccess { target; field } ->
+  | Expr.DotAccess { target; field; abort_handle } ->
       line d "expr DotAccess" at;
       expr (d + 1) target;
-      name (d + 1) "field" field
+      name (d + 1) "field" field;
+      opt (d + 1) abort_handle_ abort_handle
   | Expr.Subscript { target; args } ->
       line d "expr Subscript" at;
       expr (d + 1) target;

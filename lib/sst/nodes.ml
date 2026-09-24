@@ -116,7 +116,11 @@ module rec Expr : sig
     | NameExpr of Name_expr.t
     | TypeMember of { type_ : Name_type.t; member : Name.t }
     | TypeValue of Name_type.t
-    | DotAccess of { target : t; field : Name.t }
+    | DotAccess of {
+        target : t;
+        field : Name.t;
+        abort_handle : Abort_handle.t option;
+      }
     | Subscript of { target : t; args : t list }
     | Ref of t
     (* No [Parenthized]. Parentheses "group an inner expression explicitly"

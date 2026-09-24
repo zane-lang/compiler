@@ -245,9 +245,10 @@ and expr d (x : Expr.t) =
       name_type d type_;
       name d "member" member
   | Expr.TypeValue t -> name_type d t
-  | Expr.DotAccess { target; field } ->
+  | Expr.DotAccess { target; field; abort_handle = h } ->
       expr d target;
-      name d "field" field
+      name d "field" field;
+      opt d abort_handle h
   | Expr.Subscript { target; args } ->
       expr d target;
       each d expr args

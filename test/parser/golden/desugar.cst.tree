@@ -144,7 +144,8 @@
     │   │   ├── op: *
     │   │   ├── left > dot_access:
     │   │   │   ├── target: this
-    │   │   │   └── field: x
+    │   │   │   ├── field: x
+    │   │   │   └── abort: none
     │   │   ├── right: factor
     │   │   └── abort: none
     │   └── is_mut: false
@@ -169,19 +170,23 @@
     │       │   ├── op: +
     │       │   ├── left > dot_access:
     │       │   │   ├── target: left
-    │       │   │   └── field: x
+    │       │   │   ├── field: x
+    │       │   │   └── abort: none
     │       │   ├── right > dot_access:
     │       │   │   ├── target: right
-    │       │   │   └── field: x
+    │       │   │   ├── field: x
+    │       │   │   └── abort: none
     │       │   └── abort: none
     │       ├── args[1] > op_call:
     │       │   ├── op: +
     │       │   ├── left > dot_access:
     │       │   │   ├── target: left
-    │       │   │   └── field: y
+    │       │   │   ├── field: y
+    │       │   │   └── abort: none
     │       │   ├── right > dot_access:
     │       │   │   ├── target: right
-    │       │   │   └── field: y
+    │       │   │   ├── field: y
+    │       │   │   └── abort: none
     │       │   └── abort: none
     │       ├── trailing: false
     │       └── abort: none
@@ -199,12 +204,14 @@
     │       ├── args[0] > flip_call:
     │       │   ├── value > dot_access:
     │       │   │   ├── target: value
-    │       │   │   └── field: x
+    │       │   │   ├── field: x
+    │       │   │   └── abort: none
     │       │   └── abort: none
     │       ├── args[1] > flip_call:
     │       │   ├── value > dot_access:
     │       │   │   ├── target: value
-    │       │   │   └── field: y
+    │       │   │   ├── field: y
+    │       │   │   └── abort: none
     │       │   └── abort: none
     │       ├── trailing: false
     │       └── abort: none
