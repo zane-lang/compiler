@@ -456,8 +456,7 @@ Unit main() {
 
 	middle Float = double(blend(result, answer));
 
-	// A pipe hands one value to a callable.
-	reading String = describe|Operator.mul;
+	reading String = describe(Operator.mul);
 
 	// A map literal is a `{ }` body of `;`-terminated `key, value` entries. It
 	// carries no introducing token, so what tells it from a block argument is

@@ -220,17 +220,6 @@ and expr d (x : Expr.t) =
           expr (d + 1) k;
           expr (d + 1) v)
         entries
-  | Expr.MethodTarget { callee; this; is_mut } ->
-      line d
-        (if is_mut then "expr MethodTarget mut" else "expr MethodTarget")
-        at;
-      expr (d + 1) callee;
-      expr (d + 1) this
-  | Expr.Pipe { callee; value; abort_handle } ->
-      line d "expr Pipe" at;
-      expr (d + 1) callee;
-      expr (d + 1) value;
-      opt (d + 1) abort_handle_ abort_handle
   | Expr.Spawn call ->
       line d "expr Spawn" at;
       verb_call (d + 1) call

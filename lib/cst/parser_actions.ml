@@ -92,13 +92,6 @@ let attach_abort_handle abort_handle span value =
               { match_ with Nodes.Match_expr.abort_handle = Some abort_handle; span };
           span;
         }
-    | Nodes.Expr.Pipe { callee; value = piped; abort_handle = None } ->
-        {
-          Nodes.Expr.node =
-            Nodes.Expr.Pipe
-              { callee; value = piped; abort_handle = Some abort_handle };
-          span;
-        }
     | Nodes.Expr.Parenthized inner ->
         { Nodes.Expr.node = Nodes.Expr.Parenthized (loop span inner); span }
     | _ ->

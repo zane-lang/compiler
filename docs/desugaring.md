@@ -435,25 +435,6 @@ This is the second of the two entries on that line, and it is the one I am
 least sure of. (1) is a perfectly defensible answer if the extra call shape
 costs less than a callee that is sometimes resolved and sometimes not.
 
-### 5.4 What `|` means
-
-`callableExpr|expr` is a strong desugaring candidate — if it means
-`callableExpr(expr)`, it is a call and the `Pipe` and `MethodTarget` nodes both
-disappear.
-
-But the spec only fixes its **grouping**, never its meaning.
-[`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§4.4 gives precedence and three examples of where the brackets fall;
-[`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
-§3 places it at level 2 and says twice that it is not part of the operator set.
-No section says what it does. `Vec2(2)|100` grouping "as `Vec2(2)|100`" hints
-that the left side may already be a call, which a plain
-`callee|arg -> callee(arg)` reading would not explain.
-
-**No recommendation — this needs a spec answer before it can be a desugaring.**
-Until then `Expr.Pipe` passes through untouched, and `Expr.MethodTarget` with
-it, since the CST comment says it is "only ever a `Pipe`'s callee".
-
 ---
 
 ## 6. What the SST costs and buys
@@ -474,6 +455,5 @@ it, since the CST comment says it is "only ever a `Pipe`'s callee".
 | `Statement.t` wrapper | statement + defect | `Stat.t` |
 | call shapes | `Func` \| `Meth` \| … | `Func` \| … (§5.3) |
 
-Three things stay that a reader might expect to go: control flow (§4 — it was
-never sugar), `Pipe` (§5.4 — undecided), and `Constructor_args`' two arms (§4 —
-needs the declaration).
+Two things stay that a reader might expect to go: control flow (§4 — it was
+never sugar) and `Constructor_args`' two arms (§4 — needs the declaration).

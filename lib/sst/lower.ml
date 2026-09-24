@@ -167,18 +167,6 @@ and expression (x : C.Expr.t) : S.Expr.t =
         | C.Expr.MapLit entries ->
             S.Expr.MapLit
               (List.map (fun (k, v) -> (expression k, expression v)) entries)
-        | C.Expr.MethodTarget { callee; this; is_mut } ->
-            S.Expr.MethodTarget
-              { callee = expression callee; this = expression this; is_mut }
-        (* §5.4: pipe keeps its shape, because the spec fixes where it groups
-           and never what it does. *)
-        | C.Expr.Pipe { callee; value; abort_handle } ->
-            S.Expr.Pipe
-              {
-                callee = expression callee;
-                value = expression value;
-                abort_handle = option handler abort_handle;
-              }
         | C.Expr.Spawn call -> S.Expr.Spawn (verb_call_of call)
         | C.Expr.Match m -> S.Expr.Match (match_expr m)
         | C.Expr.VerbCall call -> S.Expr.VerbCall (verb_call_of call)

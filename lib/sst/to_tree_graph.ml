@@ -214,22 +214,6 @@ and expr_to_node (x : Nodes.Expr.t) =
   | Ref x -> group "ref" (expr_to_node x)
   | Init fields_ -> group "init" (map_seq field_arg_to_node fields_)
   | MapLit entries -> group "map_lit" (map_seq map_entry_to_node entries)
-  | MethodTarget { callee; this; is_mut } ->
-      group "method_target"
-        (fields
-           [
-             ("callee", expr_to_node callee);
-             ("this", expr_to_node this);
-             ("is_mut", Leaf (string_of_bool is_mut));
-           ])
-  | Pipe { callee; value; abort_handle } ->
-      group "pipe"
-        (fields
-           [
-             ("callee", expr_to_node callee);
-             ("value", expr_to_node value);
-             abort_field abort_handle;
-           ])
   | Spawn call -> group "spawn" (verb_call_to_node call)
   | Match match_ -> group "match" (match_expr_to_node match_)
   | FuncLambda x -> group "func_lambda" (func_lambda_to_node x)

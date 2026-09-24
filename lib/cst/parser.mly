@@ -34,7 +34,6 @@ open Statement_shape
 %token MINUS       "-"
 %token STAR        "*"
 %token SLASH       "/"
-%token PIPE        "|"
 %token DOLLAR      "$"
 %token HASH        "#"
 %token AMPERSAND   "&"
@@ -94,13 +93,12 @@ open Statement_shape
    they are abort handling and the postfix chain, placed where each has to be
    for the chain to thread. *)
 %right THICK_ARROW
-%left LOOSE_EQEQ LOOSE_NOTEQ LOOSE_LESSEQ LOOSE_MOREEQ LOOSE_LESS LOOSE_MORE  /* 8 */
-%left LOOSE_PLUS LOOSE_MINUS                    /* 7 */
-%left LOOSE_STAR LOOSE_SLASH                    /* 6 -- the loose tier, §3.1 */
-%left EQEQ NOTEQ LESSEQ MOREEQ LESS MORE        /* 5 -- comparisons */
-%left PLUS MINUS                                /* 4 */
-%left STAR SLASH                                /* 3 */
-%left PIPE                                      /* 2 -- pipe syntax */
+%left LOOSE_EQEQ LOOSE_NOTEQ LOOSE_LESSEQ LOOSE_MOREEQ LOOSE_LESS LOOSE_MORE  /* 7 */
+%left LOOSE_PLUS LOOSE_MINUS                    /* 6 */
+%left LOOSE_STAR LOOSE_SLASH                    /* 5 -- the loose tier, §3.1 */
+%left EQEQ NOTEQ LESSEQ MOREEQ LESS MORE        /* 4 -- comparisons */
+%left PLUS MINUS                                /* 3 */
+%left STAR SLASH                                /* 2 */
 %nonassoc QSTNMARK QSTNQSTN                    /* abort handling */
 %nonassoc TILDE AMPERSAND                       /* 1 -- prefix ~, and & */
 %left DOT                                       /* field access */
@@ -1212,20 +1210,6 @@ expr:
            (verb_call $loc
               (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
-  (* The method target is the receiver and the name after the `:` or `!`, which
-     together run from the receiver's start to the name's end. *)
-  | receiver=app part=meth_part "|" value=expr %prec PIPE {
-      let is_mut, callee = part in
-      let target =
-        expr
-          ($startpos(receiver), $endpos(part))
-          (Nodes.Expr.MethodTarget { callee; this = receiver; is_mut })
-      in
-      expr $loc (Nodes.Expr.Pipe { callee = target; value; abort_handle = None })
-    }
-  | callee=expr "|" value=expr %prec PIPE {
-      expr $loc (Nodes.Expr.Pipe { callee; value; abort_handle = None })
-    }
   | "~" value=expr %prec TILDE {
       expr $loc
         (Nodes.Expr.VerbCall
@@ -1324,18 +1308,6 @@ expr_braced:
         (Nodes.Expr.VerbCall
            (verb_call $loc
               (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
-    }
-  | receiver=app part=meth_part "|" value=expr_braced {
-      let is_mut, callee = part in
-      let target =
-        expr
-          ($startpos(receiver), $endpos(part))
-          (Nodes.Expr.MethodTarget { callee; this = receiver; is_mut })
-      in
-      expr $loc (Nodes.Expr.Pipe { callee = target; value; abort_handle = None })
-    }
-  | callee=expr "|" value=expr_braced {
-      expr $loc (Nodes.Expr.Pipe { callee; value; abort_handle = None })
     }
   | "~" value=expr_braced {
       expr $loc

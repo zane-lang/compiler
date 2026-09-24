@@ -2631,20 +2631,22 @@ package | package main; /// Every im … ettled"); return Unit(); }
                         expr NameExpr | answer
                           name_expr | answer
                             ident answer | answer
-        stat Decl | reading String = describe|Operator.mul;
-          decl Var | reading String = describe|Operator.mul
+        stat Decl | reading String = describe(Operator.mul);
+          decl Var | reading String = describe(Operator.mul)
             name reading | reading
             type_expr Path | String
               name_type | String
                 ident String | String
-            expr Pipe | describe|Operator.mul
-              expr NameExpr | describe
-                name_expr | describe
-                  ident describe | describe
-              expr TypeMember | Operator.mul
-                name_type | Operator
-                  ident Operator | Operator
-                member mul | mul
+            expr VerbCall | describe(Operator.mul)
+              verb_call Call function | describe(Operator.mul)
+                expr NameExpr | describe
+                  name_expr | describe
+                    ident describe | describe
+                call_arg Value | Operator.mul
+                  expr TypeMember | Operator.mul
+                    name_type | Operator
+                      ident Operator | Operator
+                    member mul | mul
         stat Decl | labels Map<String, Float>  … Float(3); "y", Float(4); }
           decl Var | labels Map<String, Float>  … Float(3); "y", Float(4); }
             name labels | labels

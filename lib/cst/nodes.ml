@@ -246,12 +246,6 @@ module rec Expr : sig
     (* A `{ }` body of `;`-terminated `key, value` entries. Never empty: an
        empty `{ }` in a value position is a block, so the two never compete. *)
     | MapLit of (t * t) list
-    | MethodTarget of { callee : t; this : t; is_mut : bool }
-    | Pipe of {
-        callee : t;
-        value : t;
-        abort_handle : Abort_handle.t option;
-      }
     | Spawn of Verb_call.t
     | Match of Match_expr.t
     | VerbCall of Verb_call.t

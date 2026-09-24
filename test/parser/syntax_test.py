@@ -117,7 +117,6 @@ class ParserSyntaxTests(unittest.TestCase):
         # An operand continues the statement past the brace just as a postfix
         # would, so the binary forms are closed off too.
         self.assert_rejects("Unit use() { total Int = run() { g(); } + Int(1); }")
-        self.assert_rejects("Unit use() { total Int = run() { g(); } | other; }")
         self.assert_rejects("Unit use() { ok Bool = run() { g(); } '* other; }")
         self.assert_rejects("Unit use() { ok Bool = run() { g(); } == other; }")
         # Parentheses close the call before the operator sees it, which is how
@@ -470,7 +469,7 @@ class ParserSyntaxTests(unittest.TestCase):
         # An entry is exactly a key and a value.
         self.assert_rejects("Unit use() { m Map = { String(\"a\"); }; }")
 
-    def test_match_enum_map_type_members_pipe_and_inequality(self) -> None:
+    def test_match_enum_map_type_members_and_inequality(self) -> None:
         self.assert_parses(
             '''
             package demo;
@@ -489,8 +488,7 @@ class ParserSyntaxTests(unittest.TestCase):
 
             Unit use() {
                 different Bool = true ~= false;
-                label String = show|Color.red;
-                rendered String = Color.red:render|label;
+                label String = show(Color.red);
                 first String = label[0];
                 return Unit();
             }
@@ -674,6 +672,13 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_rejects("Unit use() { x Bool = a '| f(); }")
         # The `'` must touch its operator: the loose form is one token.
         self.assert_rejects("Unit use() { x Bool = a ' * b; }")
+
+    def test_there_is_no_pipe(self) -> None:
+        # `|` is not a token, so a pipe stops at the lexer whatever its
+        # operands; the callable is called instead.
+        self.assert_rejects("Unit use() { label String = show|Color.red; }")
+        self.assert_rejects("Unit use() { r String = Color.red:render|label; }")
+        self.assert_parses("Unit use() { label String = show(Color.red); }")
 
     def test_a_loose_operator_declares_nothing(self) -> None:
         # §3.1: the loose forms "add no token to the operator vocabulary" of
