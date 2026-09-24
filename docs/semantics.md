@@ -225,7 +225,7 @@ Where the typing rules need care:
 | Name | Looked up in local scopes, then the file's import map and own package (§2–§3 of `packages.md`). A lambda body sees no enclosing locals: "Lambdas do not capture" (`functions.md` §7.4). A block argument does (`control-flow.md` §2.2). |
 | Method call | Candidates from the subject type's home package, then the current package (`functions.md` §6.1); a qualified callee names its package. The subject is never coerced (`types.md` §4.6). `:` must call a non-`mut` method and `!` a `mut` one (§2.5). |
 | Operator | Candidates from the operand types' home packages only; imports add none (`operators.md` §2.2). A swapped `Op` is resolved as the primitive with operands in passed order (see D8). |
-| Abort handler | Required on every abortable call; the handler's `resolve` values must have the call's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
+| Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
 | Block argument | Typed `@concepts$Block<T>` from its `resolve` statements, or `@concepts$Block` if it has none (`control-flow.md` §2.4). |
 | Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). |
@@ -335,8 +335,8 @@ is checked once per distinct set of arguments, memoized by `(Decl_id, args)`,
 and the TST holds one body per instance. An error in a generic body is reported
 at the instantiation that exposed it, and names the call site that asked for
 it. This fits the home-package instantiation plan in
-[`generics.md`](generics.md). The spec does not yet say when a generic body is
-checked, and needs a sentence saying this.
+[`generics.md`](generics.md). When a body is checked is a property of this
+compiler, not of the language, so it stays out of the spec.
 
 **D13. A member read takes an abort handler.** `adt.md` §3 makes a variant
 member read "an **abortable** access (`?` / `??`)". Whether a read is of a
@@ -350,7 +350,8 @@ total read, the same rule it applies to calls.
 about locals, but it forbids an import from shadowing (`packages.md` §3.8). A
 local declared with a name already bound — an enclosing local, a parameter, or
 a package-scope name the file can write — is an error, reported at the new
-declaration.
+declaration. Like D12, this is the compiler's rule and stays out of the spec
+for now.
 
 The fourth question, what `core` declares, turned out not to be one. `core` is
 an ordinary package, so the compiler has no more need to know its declarations
