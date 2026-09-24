@@ -693,6 +693,16 @@ class ParserSyntaxTests(unittest.TestCase):
             "Unit f() { x Int = e.a ? err { resolve Int(0); }; }"
         )
 
+    def test_the_number_concept_is_spelled_with_its_keyword(self) -> None:
+        # syntax.md §2.8 spells a numeric literal's concept type
+        # `@concepts$Number`, with the word that is also the keyword a number
+        # parameter is declared with. After `@pkg$` it can only be a name.
+        self.assert_parses("implicit Int(value @concepts$Number) => init{ }")
+        self.assert_parses("Unit f(values Array<@concepts$Number, 3>) => Unit()")
+        # Everywhere else it is still the keyword.
+        self.assert_parses("Int size(this Buffer<T Type, n Number>) => Int(n)")
+        self.assert_rejects("Unit f(value core$Number) => Unit()")
+
     def test_a_loose_operator_declares_nothing(self) -> None:
         # §3.1: the loose forms "add no token to the operator vocabulary" of
         # §5.1, so an operator declaration names the unprefixed form only.
