@@ -1,10 +1,10 @@
 # Designing the TST
 
-> **Status: draft.** Nothing here is built yet. This is the plan for stage 3 —
-> the passes that turn the SST into the typed syntax tree — written down so the
-> decisions can be argued with one at a time before any of it is code. Each
-> decision is numbered (**D1**…). The questions the first draft left open are
-> answered in §8.
+> **Status: built.** Stage 3 — the passes that turn the SST into the typed
+> syntax tree — follows this design. Each decision is numbered (**D1**…). The
+> questions the first draft left open are answered in §8. Where the spec is
+> silent and the compiler had to choose, §9 says what it chose. §10 lists what
+> stage 3 does not do yet.
 
 The **TST** is the SST with every name resolved and every expression typed
 ([`stages.md`](stages.md)). Where the SST answers "what was written, said one
@@ -13,10 +13,22 @@ overload each call picked, which implicit constructor each coercion site
 inserted, and what type every expression has. No later stage should ever need
 to repeat a lookup.
 
-`lib/tst/` will mirror `lib/sst/`: `nodes.ml` is the tree, `to_tree_graph.ml`
-and `to_span_text.ml` render it, `tst.ml` is the entry module. Unlike
-`lib/sst/lower.ml`, the pass that builds it is several passes (§3), because
-each one needs the tables the previous one built.
+`lib/tst/` mirrors `lib/sst/` where it can: `nodes.ml` is the tree,
+`to_tree_graph.ml` renders it, and `tst.ml` is the entry module. Unlike
+`lib/sst/lower.ml`, the code that builds it is several passes (§3), because
+each one needs the tables the previous one built:
+
+| Module | Holds |
+|---|---|
+| `assembly.ml` | The packages, read from their directories (§2) |
+| `env.ml` | The declaration tables, each file's import map, and the diagnostics |
+| `collect.ml` | Passes 1 and 2 |
+| `types.ml` | Type-expression resolution, and pass 3 |
+| `signatures.ml` | Pass 4 |
+| `check.ml` | Pass 5, with overload resolution and instantiation |
+| `ty.ml`, `signature.ml` | Types (§4), and what a call site needs to know about a verb |
+| `intrinsics.ml` | The intrinsic namespaces (D3) |
+| `semantics.ml` | The passes, run in order |
 
 Rules are cited against spec commit
 [`e0b4249`](https://github.com/zane-lang/spec/tree/e0b4249), the current
@@ -90,9 +102,11 @@ with a `package` line naming it (§2.2), and no two directories may share a
 name.
 
 **D3. A minimal `core` is checked in as a test fixture** — `test/core/`, holding
-`Int`, `Bool`, `Unit` and `String` over `@primitives$`, their operators, and the
-implicit constructors from `@concepts$Number` and `@concepts$Text` that carry
-literals into them (`types.md` §2.6). It is the first real multi-file,
+`Int`, `Float`, `Bool`, `Unit`, `String`, `Array` and `List` over
+`@primitives$`, their operators, the implicit constructors from
+`@concepts$Number` and `@concepts$Text` that carry literals into them
+(`types.md` §2.6), the control-flow verbs of `control-flow.md` §3, and a
+`Console` over `@runtime$Console`. It is the first real multi-file,
 multi-package test input. It is also the first code in the repository that has
 to type-check.
 
@@ -107,7 +121,11 @@ The intrinsic namespaces (`@primitives$`, `@concepts$`, `@controlflow$`,
 `@runtime$`, `@program$`) are not packages. They are an OCaml table in
 `lib/tst/intrinsics.ml`. Each intrinsic operation has exactly one signature
 ([`syntax.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/syntax.md)
-§2.7), so the table is a plain map, with no overload sets.
+§2.7), so the table is a plain map, with no overload sets. Operators and
+methods are the exception §2.7 itself makes: they are found by their operands'
+or subject's home, which for an intrinsic type is the namespace that holds it
+(`functions.md` §6.1). What the table holds beyond what the spec names is in
+§9.
 
 ---
 
@@ -297,36 +315,45 @@ The SST's `TypeMember`, `TypeValue` and `DotAccess` resolve the same way:
 | `TypeMember` | enum member; variant case; named constructor |
 | `TypeValue` | a `Type` argument passed to an explicit `Type` parameter (`generics.md` §5.3) |
 
+An expression that failed to type is an `Invalid` node of type `Ty.Error`
+(D4). A declaration carries what passes 3 and 4 resolved about it, and a verb
+its typed body — or, for a generic verb, none: its bodies are the instances
+(D12), which the tree lists after the packages.
+
 **D11. Facts for later analyses live beside the tree, not in it.** Effect level
 per verb, resting places per parameter, and the list of generic instances are
 side tables keyed by `Decl_id`. The tree stays one shape for every consumer.
 
 ---
 
-## 7. How to build it
+## 7. How it was built, and how to look at it
 
-Each step is one PR that ends with `dune runtest` green and a golden file for
+Each step of the plan ended with `dune runtest` green and a golden file for
 what it added, the way the SST landed:
 
-1. **Done.** `--package DIR` in the driver, and assembly: files grouped by
-   package, a package-line mismatch reported. Golden output: the package list
-   (`test/semantics/golden/`).
-2. The `core` fixture (D3) and the intrinsic table. At this point the fixture
-   only has to parse.
-3. Passes 1–2: declaration table and import maps, with a `--decls` dump as the
-   golden output.
-4. Pass 3 and `Ty`: type declarations, with a `--types` dump.
+1. `--package DIR` in the driver, and assembly: files grouped by package, a
+   package-line mismatch reported.
+2. The `core` fixture (D3) and the intrinsic table.
+3. Passes 1–2: declaration table and import maps.
+4. Pass 3 and `Ty`: type declarations.
 5. Pass 4: signatures and overload-set checks.
-6. Pass 5 for expressions without calls (literals, locals, fields), then calls
-   and overload resolution, then coercion, abort handlers, `match`.
-   `--tst` renders the tree with a type on every node; `to_span_text` keeps the
-   span check the SST has.
+6. Pass 5: expressions, calls and overload resolution, coercion, abort
+   handlers, `match`.
 7. Generic instantiation (D12).
 
-Reject fixtures grow alongside: one `.zn` per diagnostic, as in
-`test/parser/fixtures/reject/`.
+The driver prints three views of a package build:
 
----
+| Flag | Prints |
+|---|---|
+| none | The packages assembled from the directories |
+| `--decls` | Every declaration with what passes 1–4 resolved: definitions, alias targets, signatures |
+| `--tst` | The whole typed tree: every body, with a type on every expression, and every generic instance |
+
+Either of the last two prints every diagnostic and no tree when there is one.
+The goldens in `test/semantics/golden/` are those views: `typed.decls` and
+`typed.tst` for a build of `app`, `shapes` and `core` that checks, and
+`typing.err` for a build that fails every way the passes can report, one
+fixture file per area.
 
 ## 8. Answered questions
 
@@ -361,3 +388,74 @@ for now.
 The fourth question, what `core` declares, turned out not to be one. `core` is
 an ordinary package, so the compiler has no more need to know its declarations
 than any other package's. D3 says so.
+
+---
+
+## 9. Where the spec is silent
+
+These are this compiler's choices, not the language's, so like D12 and D14
+they stay out of the spec.
+
+**Literals.** `true` and `false` have the type `@primitives$Bool`; the spec
+names concept types only for numeric and text literals (`syntax.md` §2.8).
+`core`'s implicit `Bool` constructor is what makes them a `Bool` at a coercion
+site. An integer and a decimal literal are both `@concepts$Number`.
+
+**The intrinsic table.** Beyond what the spec names, `intrinsics.ml` holds
+what `core` needs to be written at all: the machine arithmetic and comparisons
+on `@primitives$Int`, `I32`, `I64` and `Float`, the Boolean operators on
+`@primitives$Bool`, concatenation and equality on the opaque
+`@primitives$String`, the implicit constructors that carry a
+`@concepts$Number` into each scalar and a `@concepts$Text` into
+`@primitives$String`, element access on `@primitives$Array` and
+`@primitives$List`, and `push` and `size` on `@primitives$List`.
+
+**A `match` arm is where its `return` goes.** `=> expr` is `{ return expr }`
+(`adt.md` §5.1), so a `return` in an arm gives the arm's value, not the verb's.
+An `abort` in an arm, and an unhandled abortable call in an arm's `return`, are
+the arm aborting: that is what makes the `match` abortable (§5.4), and the
+`match` then needs a handler like any abortable expression. Aborting arms must
+agree on one abort type.
+
+**A failed case read aborts with `@primitives$Unit`.** `adt.md` §3 makes a
+variant's member read abortable without giving it an abort type, and a handler
+may bind one.
+
+**Subscript arguments are coercion sites.** They are positional arguments to
+a declaration with parameters, and `types.md` §3.9 indexes a `List` with a
+literal, `weapons[1]`, which only a coercion site allows.
+
+**A number parameter read as a value is `@concepts$Number`.** `generics.md`
+§3.5 says it "resolves to its number value" and gives it no type. As a
+concept, it reaches a storage type the way a literal does.
+
+**Where constructors and enum maps are found.** A type's constructors are the
+ones declared in its home package and in the current package, the order
+`functions.md` §6.1 gives methods; an enum map is found the same way. An
+import brings a type's constructors with it (`packages.md` §3.5) because they
+live in its home.
+
+**A field constructor and a positional one are separate overload sets.** They
+are called with different brackets, so no call could confuse the two, and
+`types.md` §3.3 gives a type both.
+
+**A generic type named bare in a local declaration** takes its arguments from
+the value: `p Pair(Int(1), Int(2))` declares `p` as `Pair`, since the shorthand
+writes the constructor's name and a call carries no `< >` (`generics.md`
+§5.1).
+
+**`main`** is not required, since a library built on its own is also a root.
+When the root declares one, it takes no parameters (`packages.md` §6.2).
+
+---
+
+## 10. Not done yet
+
+- The analyses of D1's right-hand column: moves, stores and lifetimes, resting
+  places, effect levels, `spawn` safety beyond the block-parameter rule, and
+  block escape beyond a `return` of one. The passing mode (`T` or `&T`) is
+  never compared when typing; that is the lifetime analysis's question.
+- A generic verb that is never called has no instance, so its body is not
+  checked (D12).
+- The TST has no `to_span_text` rendering, so its spans are not checked the
+  way the CST's and SST's are.
