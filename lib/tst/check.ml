@@ -273,16 +273,24 @@ let implicit_constructors ~src ~dst =
 let coerce_value (e : T.Expr.t) (s, subst) =
   mk (T.Expr.Coerce { ctor = verb_ref s subst; value = e }) (Ty.subst subst s.S.ret) e.T.Expr.span
 
-(* Bind an explicit `T Type` or `n Number` parameter from its argument. *)
+(* Bind an explicit `T Type` or `n @concepts$Integer` parameter from its
+   argument. Another argument may already have fixed it -- `n` in
+   `measured(values Array<Int, n>, n @concepts$Integer)` -- and then the two
+   must agree. *)
 let bind_explicit (p : Ty.param) (a : actual) subst =
+  let bind arg =
+    match List.assoc_opt p.id subst with
+    | None -> Some ((p.id, arg) :: subst)
+    | Some bound -> if Ty.arg_equal bound arg then Some subst else None
+  in
   match (p.kind, a.arg) with
-  | Ty.Type_kind, T.Arg.Value { T.Expr.node = T.Expr.Type_arg t; _ } -> Some ((p.id, Ty.Type t) :: subst)
-  | Ty.Number_kind, T.Arg.Value { T.Expr.node = T.Expr.Number_lit text; _ } -> (
-      match int_of_string_opt text with
-      | Some n -> Some ((p.id, Ty.Number (Ty.Known n)) :: subst)
+  | Ty.Type_kind, T.Arg.Value { T.Expr.node = T.Expr.Type_arg t; _ } -> bind (Ty.Type t)
+  | Ty.Number_kind, T.Arg.Value { T.Expr.node = T.Expr.Integer_lit text; _ } -> (
+      match Types.integer_value text with
+      | Some n -> bind (Ty.Number (Ty.Known n))
       | None -> None)
   | Ty.Number_kind, T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Number_param { value; _ }); _ } ->
-      Some ((p.id, Ty.Number value) :: subst)
+      bind (Ty.Number value)
   | _, T.Arg.Value { T.Expr.ty = Ty.Error; _ } -> Some subst
   | _ -> None
 
@@ -405,6 +413,21 @@ let has_literal actuals =
       || match a.aty with Ty.Concept (Ty.Array_lit (t, _)) -> Ty.is_bare_literal t | _ -> false)
     actuals
 
+(* Whether a bare literal sits where some generic candidate would have to
+   infer a parameter from it -- the one mistake generics.md §5.4's hint is
+   for. A literal that fills an explicit `n @concepts$Integer` is not one. *)
+let literal_drives_inference (cands : S.t list) actuals =
+  List.exists
+    (fun (s : S.t) ->
+      s.generics <> []
+      &&
+      if List.length s.params = List.length actuals then
+        List.exists2
+          (fun (p : S.param) a -> p.binds = None && Ty.free_params p.ty <> [] && has_literal [ a ])
+          s.params actuals
+      else has_literal actuals)
+    cands
+
 let describe_args actuals =
   "(" ^ String.concat ", " (List.map (fun a -> Ty.to_string a.aty) actuals) ^ ")"
 
@@ -445,7 +468,7 @@ let report_resolution ?(literal = false) ~span ~what ~args result cands =
       (* The one no-match with a fix worth naming: a literal offered where
          only inference could have placed it (generics.md §5.4). *)
       let hint =
-        if literal && List.exists (fun (s : S.t) -> s.generics <> []) cands then
+        if literal then
           "; a bare literal fixes no type, so it cannot drive inference: wrap it in \
            the type it is meant to be, as `Int(4)`"
         else ""
@@ -480,7 +503,8 @@ let ends ~resolve (stats : T.Stat.t list) =
 let rec expr ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   let span = e.N.Expr.span in
   match e.N.Expr.node with
-  | N.Expr.IntLit s | N.Expr.FloatLit s -> mk (T.Expr.Number_lit s) (Ty.Concept Ty.Number_lit) span
+  | N.Expr.IntLit s -> mk (T.Expr.Integer_lit s) (Ty.Concept Ty.Integer_lit) span
+  | N.Expr.DecimalLit s -> mk (T.Expr.Decimal_lit s) (Ty.Concept Ty.Decimal_lit) span
   | N.Expr.StrLit s -> mk (T.Expr.Text_lit s) (Ty.Concept Ty.Text_lit) span
   | N.Expr.BoolLit b -> mk (T.Expr.Bool_lit b) Ty.bool_primitive span
   | N.Expr.CollectionLit items -> array_literal ctx span items
@@ -583,7 +607,7 @@ and name_value ctx (n : N.Name_expr.t) =
       | None -> (
           match List.assoc_opt text ctx.params with
           | Some (Ty.Number value) ->
-              mk (T.Expr.Var (T.Name_ref.Number_param { name = text; value })) (Ty.Concept Ty.Number_lit) span
+              mk (T.Expr.Var (T.Name_ref.Number_param { name = text; value })) (Ty.Concept Ty.Integer_lit) span
           | Some (Ty.Type t) -> mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span
           | None -> (
               match lookup_values ctx.file text with
@@ -933,8 +957,8 @@ and function_call ~flow ctx span (callee : N.Expr.t) actuals handle =
     end
     else
       match
-        report_resolution ~literal:(has_literal actuals) ~span ~what:(quote name) ~args:(describe_args actuals)
-          (resolve cands (positional actuals)) cands
+        report_resolution ~literal:(literal_drives_inference cands actuals) ~span ~what:(quote name)
+          ~args:(describe_args actuals) (resolve cands (positional actuals)) cands
       with
       | None ->
           skip_handler ctx handle;
@@ -1082,7 +1106,8 @@ and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
       end
       else
         match
-          report_resolution ~literal:(has_literal actuals) ~span ~what:(Printf.sprintf "method %s" (quote name))
+          report_resolution ~literal:(literal_drives_inference all actuals) ~span
+            ~what:(Printf.sprintf "method %s" (quote name))
             ~args:(describe_args actuals) (try_stages stages) all
         with
         | None ->
@@ -1231,7 +1256,8 @@ and constructor_call ctx span (name : N.Constructor_name.t) (args : N.Constructo
                 if any_error actuals then invalid span
                 else
                   match
-                    report_resolution ~literal:(has_literal actuals) ~span ~what ~args:(describe_args actuals)
+                    report_resolution ~literal:(literal_drives_inference cands actuals) ~span ~what
+                      ~args:(describe_args actuals)
                       (resolve (List.filter (fun (s : S.t) -> match s.kind with S.Constructor { fields; _ } -> not fields | _ -> false) cands)
                          (positional actuals))
                       cands
@@ -1839,7 +1865,7 @@ and param_spans (d : decl) =
   | _ -> []
 
 (* The context a verb's body is checked in, at one set of generic arguments:
-   its parameters as locals, and the explicit `T Type` / `n Number` ones as the
+   its parameters as locals, and the explicit `T Type` / `n @concepts$Integer` ones as the
    types and numbers they were given. *)
 and verb_context (d : decl) (s : S.t) subst =
   let pkg = package d.package in

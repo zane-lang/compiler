@@ -5,7 +5,7 @@
    that spans survived it:
 
      expr Coerce Point       | 3
-       expr Number_lit       | 3
+       expr Integer_lit      | 3
 
    Two lines that say the checker inserted an implicit constructor around a
    literal (D9), and that the inserted node points at the argument it
@@ -41,7 +41,8 @@ let rec expr d (e : Expr.t) =
   let at kind = line d ("expr " ^ kind) e.Expr.span in
   let d = d + 1 in
   match e.Expr.node with
-  | Expr.Number_lit _ -> at "Number_lit"
+  | Expr.Integer_lit _ -> at "Integer_lit"
+  | Expr.Decimal_lit _ -> at "Decimal_lit"
   | Expr.Text_lit _ -> at "Text_lit"
   | Expr.Bool_lit _ -> at "Bool_lit"
   | Expr.Var r ->

@@ -34,7 +34,7 @@ module Span = Source.Span
    from, rather than case-splitting on whether this one happens to be
    redundant.
 
-   Literals are not names and stay bare. [Expr.IntLit], [FloatLit], [StrLit]
+   Literals are not names and stay bare. [Expr.IntLit], [DecimalLit], [StrLit]
    and [Generic_arg.Number] each sit in a node whose span is exactly that
    token, and none of them refers to anything a later pass resolves. *)
 module Name = struct
@@ -136,13 +136,19 @@ module Constructor_name = struct
   }
 end
 
+(* What a parameter is declared with when it is not a value's type: `Type`,
+   the concept of a type parameter, or -- in a type's `<>` header only -- the
+   named concept a number parameter is declared with, `n @concepts$Integer`
+   (generics.md §3.3). The header takes a name rather than a keyword because
+   the spec spells the number concept as an ordinary intrinsic type; which
+   names a header may hold is semantics' question, not the grammar's. *)
 module Concept = struct
   type t = {
     node : node;
     span : Span.t;
   }
 
-  and node = Type | Number
+  and node = Type | Named of Name_type.t
 end
 
 (* One name taken from a package. The casing class is kept rather than
@@ -222,7 +228,7 @@ module rec Expr : sig
 
   and node =
     | IntLit of string
-    | FloatLit of string
+    | DecimalLit of string
     | StrLit of string
     | BoolLit of bool
     | CollectionLit of t list

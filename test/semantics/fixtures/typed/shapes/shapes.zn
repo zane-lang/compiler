@@ -12,10 +12,10 @@ type Vec2 = struct {
 Vec2(x Float, y Float) => init{ x; y; }
 
 /// A named constructor yields the base type.
-Vec2.zero() => init{ x = Float(0); y = Float(0); }
+Vec2.zero() => init{ x = Float(0.0); y = Float(0.0); }
 
 /// A field constructor, with a default.
-Vec2{ x Float; y Float = Float(0); } => init{ x; y; }
+Vec2{ x Float; y Float = Float(0.0); } => init{ x; y; }
 
 /// Found through `Vec2`'s home, whatever the caller imports.
 Vec2 +(left Vec2, right Vec2) => Vec2(left.x + right.x, left.y + right.y)
@@ -30,7 +30,7 @@ Unit scale(this Vec2, by Float) mut {
 }
 
 /// A bare number is a vector along the diagonal wherever a `Vec2` is wanted.
-implicit Vec2(value @concepts$Number) => init{ x = Float(value); y = Float(value); }
+implicit Vec2(value @concepts$Decimal) => init{ x = Float(value); y = Float(value); }
 
 type Shape = #variant {
 	circle Float;
@@ -48,10 +48,10 @@ Corner.label String {
 }
 
 /// A private helper is invisible to every other package.
-Float _half(value Float) => value / Float(2)
+Float _half(value Float) => value / Float(2.0)
 
 Float area(shape Shape) => match (shape) {
 	r circle => r * r;
 	s square => _half(s + s);
-	point => Float(0);
+	point => Float(0.0);
 }

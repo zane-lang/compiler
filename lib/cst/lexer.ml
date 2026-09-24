@@ -7,8 +7,13 @@ exception Lexing_error
 
 let digit      = [%sedlex.regexp? '0'..'9']
 let digits     = [%sedlex.regexp? Plus digit]
+(* The two numeric literals of lexical.md §7: an integer literal is digits,
+   and a decimal literal is digits, a `.` and digits. The spelling alone picks
+   which, so `3.0` is a decimal literal whatever its value, and neither `3.`
+   nor `.5` is a literal at all. A `'` between digits separates groups of
+   them, which the spec does not have (docs/spec-divergences.md). *)
 let int_lit    = [%sedlex.regexp? digits, Star ('\'', digits)]
-let float_lit  = [%sedlex.regexp? int_lit, '.', digits]
+let decimal_lit = [%sedlex.regexp? int_lit, '.', digits]
 let str_char   = [%sedlex.regexp? Compl ('"' | '\\') | '\\', any]
 let line_char  = [%sedlex.regexp? Compl ('\n' | '\r')]
 
@@ -74,7 +79,7 @@ let rec token buf =
   | "'-"                        -> LOOSE_MINUS
   | "'*"                        -> LOOSE_STAR
   | "'/"                        -> LOOSE_SLASH
-  | float_lit                   -> FLOAT (Utf8.lexeme buf)
+  | decimal_lit                 -> DECIMAL (Utf8.lexeme buf)
   | int_lit                     -> INT (Utf8.lexeme buf)
   | '"', Star str_char, '"'     ->
       let s = Utf8.lexeme buf in
@@ -82,7 +87,6 @@ let rec token buf =
   | "type"                      -> LTYPE
   | "alias"                     -> ALIAS
   | "Type"                      -> UTYPE
-  | "Number"                    -> NUMBER
   | "struct"                    -> STRUCT
   | "variant"                   -> VARIANT
   | "enum"                      -> ENUM

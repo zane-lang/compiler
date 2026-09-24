@@ -1,28 +1,28 @@
 54 conflict states
 
-  1  shift/reduce  [LESS]  type_expr -> AMPERSAND AT LIDENT DOLLAR intrinsic_uname
+  1  shift/reduce  [LESS]  type_expr -> AMPERSAND AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LESS]  type_expr -> AMPERSAND LIDENT DOLLAR UIDENT
   1  shift/reduce  [LESS]  type_expr -> AMPERSAND UIDENT
-  3  shift/reduce  [LESS]  type_expr -> AT LIDENT DOLLAR intrinsic_uname
+  3  shift/reduce  [LESS]  type_expr -> AT LIDENT DOLLAR UIDENT
   3  shift/reduce  [LESS]  type_expr -> LIDENT DOLLAR UIDENT
   3  shift/reduce  [LESS]  type_expr -> UIDENT
-  2  shift/reduce  [LPAREN]  app -> AT LIDENT DOLLAR intrinsic_uname DOT LIDENT
+  2  shift/reduce  [LPAREN]  app -> AT LIDENT DOLLAR UIDENT DOT LIDENT
   2  shift/reduce  [LPAREN]  app -> LIDENT DOLLAR UIDENT DOT LIDENT
   2  shift/reduce  [LPAREN]  app -> UIDENT DOT LIDENT
   2  shift/reduce  [LPAREN]  app -> func_callee
   1  reduce/reduce  [LPAREN]  expr -> SPAWN unbraced_verb_call ; func_callee -> unbraced_verb_call
   3  shift/reduce  [LPAREN]  primary -> LIDENT
   1  shift/reduce  [LPAREN]  primary -> THIS
-  1  shift/reduce  [LPAREN]  type_expr -> AMPERSAND AT LIDENT DOLLAR intrinsic_uname
+  1  shift/reduce  [LPAREN]  type_expr -> AMPERSAND AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> AMPERSAND LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> AMPERSAND UIDENT
-  1  shift/reduce  [LPAREN]  type_expr -> AT LIDENT DOLLAR intrinsic_uname
-  1  shift/reduce  [LPAREN]  type_expr -> AT LIDENT DOLLAR intrinsic_uname nonempty_loption(generics)
+  1  shift/reduce  [LPAREN]  type_expr -> AT LIDENT DOLLAR UIDENT
+  1  shift/reduce  [LPAREN]  type_expr -> AT LIDENT DOLLAR UIDENT nonempty_loption(generics)
   1  shift/reduce  [LPAREN]  type_expr -> LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> LIDENT DOLLAR UIDENT nonempty_loption(generics)
   1  shift/reduce  [LPAREN]  type_expr -> UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> UIDENT nonempty_loption(generics)
-  1  shift/reduce  [LPAREN LESS]  type_expr -> AMPERSAND AT LIDENT DOLLAR intrinsic_uname
+  1  shift/reduce  [LPAREN LESS]  type_expr -> AMPERSAND AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN LESS]  type_expr -> AMPERSAND LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN LESS]  type_expr -> AMPERSAND UIDENT
   1  shift/reduce  [QSTNQSTN QSTNMARK]  app_braced -> braced_verb_call
@@ -30,9 +30,9 @@
   1  shift/reduce  [QSTNQSTN QSTNMARK]  expr -> SPAWN unbraced_verb_call
   1  shift/reduce  [QSTNQSTN QSTNMARK]  func_callee -> unbraced_verb_call
   6  shift/reduce  [RPAREN]  loption(separated_nonempty_list(COMMA,param)) ->
-  1  shift/reduce  [RPAREN QSTNMARK LPAREN LESS]  type_expr -> AT LIDENT DOLLAR intrinsic_uname
+  1  shift/reduce  [RPAREN QSTNMARK LPAREN LESS]  type_expr -> AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [RPAREN QSTNMARK LPAREN LESS]  type_expr -> LIDENT DOLLAR UIDENT
   2  shift/reduce  [RPAREN QSTNMARK LPAREN LESS]  type_expr -> UIDENT
-  1  shift/reduce  [STAR SLASH QSTNMARK PLUS LPAREN LESS EQEQ]  type_expr -> AT LIDENT DOLLAR intrinsic_uname
+  1  shift/reduce  [STAR SLASH QSTNMARK PLUS LPAREN LESS EQEQ]  type_expr -> AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [STAR SLASH QSTNMARK PLUS LPAREN LESS EQEQ]  type_expr -> LIDENT DOLLAR UIDENT
   1  shift/reduce  [STAR SLASH QSTNMARK PLUS LPAREN LESS EQEQ]  type_expr -> UIDENT

@@ -245,8 +245,10 @@ The bare form adds four shift/reduce states and no reduce/reduce state at all.
 
 The narrowing costs nothing the spec demonstrates: every §5.3 and §6.2 example
 passes a bare name, and a parameterized type reaches a verb through inference
-instead — `values Array<T Type, n Number>` introduces both parameters from the
-argument. What is out of reach is passing an *already applied* type as a value,
+instead — `values Array<T Type, n @concepts$Integer>` introduces both
+parameters from the argument. (Since spec commit `c4295ca` the number concept
+this entry quotes as `Number` is spelled `@concepts$Integer`; the divergence is
+unchanged.) What is out of reach is passing an *already applied* type as a value,
 which the spec neither shows nor rules out.
 
 ## 6. A `match` parenthesizes its scrutinee list
@@ -322,6 +324,31 @@ still inside an expression. Holding it in every position does not, and reads
 the same everywhere. What that costs is the parentheses in an argument or an
 operand, where the spec is silent; reconciling it means stating the rule in
 §4.7 and §4.1–4.2 of syntax.md.
+
+## 8. A `'` separates groups of digits in a numeric literal
+
+**Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/c4295ca/spec/lexical.md)
+§7: "A numeric literal consists of digits and at most one `.`, which has at
+least one digit on each side." This entry was checked against `c4295ca`, which
+added that section, rather than the `034f11a` the others are pinned to.
+
+**Compiler** — a `'` may also sit between two digits, in either literal form,
+and only separates them: it changes neither the value nor which concept type
+the literal carries.
+
+```zane
+count Int = 1'000'000;        // accepted: an integer literal
+ratio Float = 1'000.25;       // accepted: a decimal literal
+bad Int = 1''000;             // rejected
+bad Int = 1'000';             // rejected
+```
+
+The separator predates the spec's section on numeric literals, which does not
+mention one. It needs a digit on each side, and none of the loose operators of
+[`operators.md`](https://github.com/zane-lang/spec/blob/c4295ca/spec/operators.md)
+§3.1 has one before its `'`, so `2'*3` still lexes as `2 '* 3`
+(`docs/ambiguity/proof-obligations.md`). Reconciling means either the spec
+adopting the separator or the lexer dropping it.
 
 ---
 

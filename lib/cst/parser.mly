@@ -14,7 +14,7 @@ open Statement_shape
 (*     token definitions     *)
 (*****************************)
 %token <string> INT "43"
-%token <string> FLOAT "8.647"
+%token <string> DECIMAL "8.647"
 %token <string> STRING "\"john\""
 %token <string> LIDENT "length"
 %token <string> UIDENT "Int"
@@ -66,7 +66,6 @@ open Statement_shape
 %token LTYPE       "type"
 %token ALIAS       "alias"
 %token UTYPE       "Type"
-%token NUMBER      "Number"
 %token STRUCT      "struct"
 %token VARIANT     "variant"
 %token ENUM        "enum"
@@ -149,20 +148,6 @@ top_decl:
 %inline uname:
   | text=UIDENT { mk_name $loc text }
 
-(* The member of an intrinsic namespace that names a type. `Number` is a
-   keyword, since it is the concept a number parameter is declared with, but
-   the concept type of a numeric literal is spelled with the same word:
-   `@concepts$Number` (syntax.md §2.8). After `@pkg$` the keyword can mean
-   nothing else, so it is read back as the name it spells.
-
-   Not `%inline`, unlike [uname]: inlined, each production that writes an
-   intrinsic type would be written twice, once per spelling, and so would
-   every conflict in docs/ambiguity.md that involves one. As a nonterminal of
-   its own, the census only renames the symbol. *)
-intrinsic_uname:
-  | name=uname { name }
-  | "Number" { mk_name $loc "Number" }
-
 %inline func_lambda(body_form):
   | ret_type=ret_type "(" params=separated_list(COMMA, param) ")" body=body_form {
       ({ Nodes.Func_lambda.params; ret_type; body; span = Span.of_loc $loc }
@@ -186,9 +171,6 @@ intrinsic_uname:
 %inline concept:
   | "Type" {
       concept $loc Nodes.Concept.Type
-    }
-  | "Number" {
-      concept $loc Nodes.Concept.Number
     }
 
 %inline generic_arg:
@@ -311,11 +293,13 @@ type_expr:
         span = Span.of_loc $loc;
       } : Nodes.Generic_param.t)
     }
-  | name=lname concept_=NUMBER {
-      ignore concept_;
+  (* A number parameter is declared with a named concept,
+     `n @concepts$Integer` (generics.md §3.3). Any name parses here; that it
+     names that concept is checked where names are resolved. *)
+  | name=lname type_=name_type {
       ({
         Nodes.Generic_param.name;
-        type_ = concept $loc(concept_) Nodes.Concept.Number;
+        type_ = concept $loc(type_) (Nodes.Concept.Named type_);
         span = Span.of_loc $loc;
       } : Nodes.Generic_param.t)
     }
@@ -1118,7 +1102,7 @@ block_call:
    or variant-case call, never a generic function call. *)
 primary:
   | i=INT    { expr $loc (Nodes.Expr.IntLit i) }
-  | f=FLOAT  { expr $loc (Nodes.Expr.FloatLit f) }
+  | d=DECIMAL { expr $loc (Nodes.Expr.DecimalLit d) }
   | s=STRING { expr $loc (Nodes.Expr.StrLit s) }
   | TRUE     { expr $loc (Nodes.Expr.BoolLit true) }
   | FALSE    { expr $loc (Nodes.Expr.BoolLit false) }
@@ -1536,17 +1520,6 @@ stat:
         span = Span.of_loc $loc;
       } : Nodes.Param.t)
     }
-  | name=lname concept_=NUMBER {
-      ignore concept_;
-      ({
-        Nodes.Param.name;
-        type_ =
-          param_type $loc(concept_)
-            (Nodes.Param_type.Concept
-               (concept $loc(concept_) Nodes.Concept.Number));
-        span = Span.of_loc $loc;
-      } : Nodes.Param.t)
-    }
 
 %inline name_expr:
   | name=lname { name_expr $loc (Nodes.Name_expr.Ident name) }
@@ -1562,6 +1535,6 @@ stat:
   | pkg=lname "$" name=uname {
       name_type $loc (Nodes.Name_type.Qualified { package = pkg; ident = name })
     }
-  | "@" pkg=lname "$" name=intrinsic_uname {
+  | "@" pkg=lname "$" name=uname {
       name_type $loc (Nodes.Name_type.Intrinsic { package = pkg; ident = name })
     }

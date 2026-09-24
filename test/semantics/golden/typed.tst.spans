@@ -3,23 +3,44 @@ package app
   decl Type Pair | type Pair<T Type> = struct { left T; right T; }
   decl Verb Pair | Pair<T>(left T Type, right T) => init{ left; right; }
   decl Verb sum | T sum(pair Pair<T Type>) => pair.left + pair.right
-  decl Verb count | Int count(values Array<T Type, n Number>) => Int(n)
+  decl Verb count | Int count(values Array<T T … ncepts$Integer>) => Int(n)
+  decl Verb measured | Int measured(values Array< … oncepts$Integer) => Int(n)
+  decl Verb pairOf | Pair<Int> pairOf(x @concep … r) => Pair(Int(x), Int(y))
+    param x | x @concepts$Integer
+    param y | y @concepts$Integer
+    block | => Pair(Int(x), Int(y))
+      stat Return | => Pair(Int(x), Int(y))
+        expr Construct Pair | Pair(Int(x), Int(y))
+          expr Construct Int | Int(x)
+            expr Var x | x
+          expr Construct Int | Int(y)
+            expr Var y | y
+  decl Verb pairOf | Pair<Float> pairOf(x @conc … > Pair(Float(x), Float(y))
+    param x | x @concepts$Decimal
+    param y | y @concepts$Decimal
+    block | => Pair(Float(x), Float(y))
+      stat Return | => Pair(Float(x), Float(y))
+        expr Construct Pair | Pair(Float(x), Float(y))
+          expr Construct Float | Float(x)
+            expr Var x | x
+          expr Construct Float | Float(y)
+            expr Var y | y
   decl Verb safeDivide | Float?String safeDivide(nu … numerator / denominator; }
     param numerator | numerator Float
     param denominator | denominator Float
     block | { guard(denominator == Flo … numerator / denominator; }
-      stat Expr | guard(denominator == Float(0));
-        expr Call guard | guard(denominator == Float(0))
-          expr Op == | denominator == Float(0)
+      stat Expr | guard(denominator == Float(0.0));
+        expr Call guard | guard(denominator == Float(0.0))
+          expr Op == | denominator == Float(0.0)
             expr Var denominator | denominator
-            expr Construct Float | Float(0)
-              expr Number_lit | 0
-      stat Expr | if(denominator < Float(0)) { abort String("negative"); }
-        expr Call if | if(denominator < Float(0)) { abort String("negative"); }
-          expr Op < | denominator < Float(0)
+            expr Construct Float | Float(0.0)
+              expr Decimal_lit | 0.0
+      stat Expr | if(denominator < Float(0.0 … bort String("negative"); }
+        expr Call if | if(denominator < Float(0.0 … bort String("negative"); }
+          expr Op < | denominator < Float(0.0)
             expr Var denominator | denominator
-            expr Construct Float | Float(0)
-              expr Number_lit | 0
+            expr Construct Float | Float(0.0)
+              expr Decimal_lit | 0.0
           block | { abort String("negative"); }
             stat Abort | abort String("negative");
               expr Construct String | String("negative")
@@ -72,68 +93,68 @@ package app
       stat Let | origin Vec2.zero();
         local origin | origin
         expr Construct Vec2.zero | Vec2.zero()
-      stat Let | moved Vec2 = origin + 3;
+      stat Let | moved Vec2 = origin + 3.0;
         local moved | moved
-        expr Op + | origin + 3
+        expr Op + | origin + 3.0
           expr Var origin | origin
-          expr Coerce Vec2 | 3
-            expr Number_lit | 3
-      stat Expr | moved!scale(Float(2));
-        expr Call scale | moved!scale(Float(2))
+          expr Coerce Vec2 | 3.0
+            expr Decimal_lit | 3.0
+      stat Expr | moved!scale(Float(2.0));
+        expr Call scale | moved!scale(Float(2.0))
           expr Var moved | moved
-          expr Construct Float | Float(2)
-            expr Number_lit | 2
-      stat Let | flat Vec2{ x = Float(1); }
+          expr Construct Float | Float(2.0)
+            expr Decimal_lit | 2.0
+      stat Let | flat Vec2{ x = Float(1.0); }
         local flat | flat
-        expr Construct_fields Vec2 | Vec2{ x = Float(1); }
-          field x | x = Float(1)
-            expr Construct Float | Float(1)
-              expr Number_lit | 1
+        expr Construct_fields Vec2 | Vec2{ x = Float(1.0); }
+          field x | x = Float(1.0)
+            expr Construct Float | Float(1.0)
+              expr Decimal_lit | 1.0
       stat Let | size Float = moved:length();
         local size | size
         expr Call length | moved:length()
           expr Var moved | moved
-      stat Let | shape Shape = Shape.circle(Float(2));
+      stat Let | shape Shape = Shape.circle(Float(2.0));
         local shape | shape
-        expr Case circle | Shape.circle(Float(2))
-          expr Construct Float | Float(2)
-            expr Number_lit | 2
+        expr Case circle | Shape.circle(Float(2.0))
+          expr Construct Float | Float(2.0)
+            expr Decimal_lit | 2.0
       stat Let | covered Float = area(shape);
         local covered | covered
         expr Call area | area(shape)
           expr Var shape | shape
-      stat Let | radius Float = shape.circle ?? Float(0);
+      stat Let | radius Float = shape.circle ?? Float(0.0);
         local radius | radius
-        expr Case_read circle | shape.circle ?? Float(0)
+        expr Case_read circle | shape.circle ?? Float(0.0)
           expr Var shape | shape
-          handler | ?? Float(0)
-            block | ?? Float(0)
-              stat Resolve | ?? Float(0)
-                expr Construct Float | Float(0)
-                  expr Number_lit | 0
-      stat Let | half Float = safeDivide(co … ason); resolve Float(0); }
+          handler | ?? Float(0.0)
+            block | ?? Float(0.0)
+              stat Resolve | ?? Float(0.0)
+                expr Construct Float | Float(0.0)
+                  expr Decimal_lit | 0.0
+      stat Let | half Float = safeDivide(co … on); resolve Float(0.0); }
         local half | half
-        expr Call safeDivide | safeDivide(covered, Float(2))
+        expr Call safeDivide | safeDivide(covered, Float(2.0))
           expr Var covered | covered
-          expr Construct Float | Float(2)
-            expr Number_lit | 2
-          handler | ? reason { console!print(reason); resolve Float(0); }
+          expr Construct Float | Float(2.0)
+            expr Decimal_lit | 2.0
+          handler | ? reason { console!print(reason); resolve Float(0.0); }
             binder reason | reason
-            block | { console!print(reason); resolve Float(0); }
+            block | { console!print(reason); resolve Float(0.0); }
               stat Expr | console!print(reason);
                 expr Call print | console!print(reason)
                   expr Var console | console
                   expr Var reason | reason
-              stat Resolve | resolve Float(0);
-                expr Construct Float | Float(0)
-                  expr Number_lit | 0
+              stat Resolve | resolve Float(0.0);
+                expr Construct Float | Float(0.0)
+                  expr Decimal_lit | 0.0
       stat Let | picked Int = pick(Int(1), Int(2), true);
         local picked | picked
         expr Call pick | pick(Int(1), Int(2), true)
           expr Construct Int | Int(1)
-            expr Number_lit | 1
+            expr Integer_lit | 1
           expr Construct Int | Int(2)
-            expr Number_lit | 2
+            expr Integer_lit | 2
           expr Coerce Bool | true
             expr Bool_lit | true
       stat Let | name String = pick(String("a"), String("b"), false);
@@ -149,20 +170,20 @@ package app
         local pair | pair
         expr Construct Pair | Pair(Int(3), Int(4))
           expr Construct Int | Int(3)
-            expr Number_lit | 3
+            expr Integer_lit | 3
           expr Construct Int | Int(4)
-            expr Number_lit | 4
+            expr Integer_lit | 4
       stat Let | total Int = sum(pair);
         local total | total
         expr Call sum | sum(pair)
           expr Var pair | pair
-      stat Let | floats Pair(Float(1), Float(2));
+      stat Let | floats Pair(Float(1.0), Float(2.0));
         local floats | floats
-        expr Construct Pair | Pair(Float(1), Float(2))
-          expr Construct Float | Float(1)
-            expr Number_lit | 1
-          expr Construct Float | Float(2)
-            expr Number_lit | 2
+        expr Construct Pair | Pair(Float(1.0), Float(2.0))
+          expr Construct Float | Float(1.0)
+            expr Decimal_lit | 1.0
+          expr Construct Float | Float(2.0)
+            expr Decimal_lit | 2.0
       stat Let | both Float = sum(floats);
         local both | both
         expr Call sum | sum(floats)
@@ -172,21 +193,36 @@ package app
         expr Construct Array | Array([Int(1), Int(2), Int(3)])
           expr Array_lit | [Int(1), Int(2), Int(3)]
             expr Construct Int | Int(1)
-              expr Number_lit | 1
+              expr Integer_lit | 1
             expr Construct Int | Int(2)
-              expr Number_lit | 2
+              expr Integer_lit | 2
             expr Construct Int | Int(3)
-              expr Number_lit | 3
+              expr Integer_lit | 3
       stat Let | first Int = numbers[1];
         local first | first
         expr Subscript | numbers[1]
           expr Var numbers | numbers
           expr Coerce Int | 1
-            expr Number_lit | 1
+            expr Integer_lit | 1
       stat Let | length Int = count(numbers);
         local length | length
         expr Call count | count(numbers)
           expr Var numbers | numbers
+      stat Let | sized Int = measured(numbers, 3);
+        local sized | sized
+        expr Call measured | measured(numbers, 3)
+          expr Var numbers | numbers
+          expr Integer_lit | 3
+      stat Let | ints Pair<Int> = pairOf(2, 3);
+        local ints | ints
+        expr Call pairOf | pairOf(2, 3)
+          expr Integer_lit | 2
+          expr Integer_lit | 3
+      stat Let | decimals Pair<Float> = pairOf(2.5, 3.5);
+        local decimals | decimals
+        expr Call pairOf | pairOf(2.5, 3.5)
+          expr Decimal_lit | 2.5
+          expr Decimal_lit | 3.5
       stat Let | label String = Corner.topLeft.label;
         local label | label
         expr Map_read label | Corner.topLeft.label
@@ -198,27 +234,27 @@ package app
       stat Let | i Int = Int(1);
         local i | i
         expr Construct Int | Int(1)
-          expr Number_lit | 1
+          expr Integer_lit | 1
       stat Expr | i!to(3) { console!print(side); }
         expr Call to | i!to(3) { console!print(side); }
           expr Var i | i
           expr Coerce Int | 3
-            expr Number_lit | 3
+            expr Integer_lit | 3
           block | { console!print(side); }
             stat Expr | console!print(side);
               expr Call print | console!print(side)
                 expr Var console | console
                 expr Var side | side
-      stat Let | double Float(value Float) => value * Float(2);
+      stat Let | double Float(value Float) => value * Float(2.0);
         local double | double
-        expr Lambda | Float(value Float) => value * Float(2)
+        expr Lambda | Float(value Float) => value * Float(2.0)
           param value | value Float
-          block | => value * Float(2)
-            stat Return | => value * Float(2)
-              expr Op * | value * Float(2)
+          block | => value * Float(2.0)
+            stat Return | => value * Float(2.0)
+              expr Op * | value * Float(2.0)
                 expr Var value | value
-                expr Construct Float | Float(2)
-                  expr Number_lit | 2
+                expr Construct Float | Float(2.0)
+                  expr Decimal_lit | 2.0
       stat Let | doubled Float = double(half);
         local doubled | doubled
         expr Call_value | double(half)
@@ -230,7 +266,7 @@ package app
           expr Op < | total < Int(5)
             expr Var total | total
             expr Construct Int | Int(5)
-              expr Number_lit | 5
+              expr Integer_lit | 5
           block | { console!print("small"); }
             stat Expr | console!print("small");
               expr Call print | console!print("small")
@@ -243,7 +279,7 @@ package app
           expr Op == | total == Int(7)
             expr Var total | total
             expr Construct Int | Int(7)
-              expr Number_lit | 7
+              expr Integer_lit | 7
           block | { console!print("seven"); }
             stat Expr | console!print("seven");
               expr Call print | console!print("seven")
@@ -273,19 +309,19 @@ package shapes
             expr Var x | x
           field y | y
             expr Var y | y
-  decl Verb Vec2.zero | Vec2.zero() => init{ x = Float(0); y = Float(0); }
-    block | => init{ x = Float(0); y = Float(0); }
-      stat Return | => init{ x = Float(0); y = Float(0); }
-        expr Init | init{ x = Float(0); y = Float(0); }
-          field x | x = Float(0)
-            expr Construct Float | Float(0)
-              expr Number_lit | 0
-          field y | y = Float(0)
-            expr Construct Float | Float(0)
-              expr Number_lit | 0
-  decl Verb Vec2 | Vec2{ x Float; y Float = Float(0); } => init{ x; y; }
+  decl Verb Vec2.zero | Vec2.zero() => init{ x = Float(0.0); y = Float(0.0); }
+    block | => init{ x = Float(0.0); y = Float(0.0); }
+      stat Return | => init{ x = Float(0.0); y = Float(0.0); }
+        expr Init | init{ x = Float(0.0); y = Float(0.0); }
+          field x | x = Float(0.0)
+            expr Construct Float | Float(0.0)
+              expr Decimal_lit | 0.0
+          field y | y = Float(0.0)
+            expr Construct Float | Float(0.0)
+              expr Decimal_lit | 0.0
+  decl Verb Vec2 | Vec2{ x Float; y Float = Float(0.0); } => init{ x; y; }
     param x | x Float
-    param y | y Float = Float(0)
+    param y | y Float = Float(0.0)
     block | => init{ x; y; }
       stat Return | => init{ x; y; }
         expr Init | init{ x; y; }
@@ -356,7 +392,7 @@ package shapes
       stat Return | return Unit();
         expr Construct Unit | Unit()
   decl Verb Vec2 | implicit Vec2(value @conce … alue); y = Float(value); }
-    param value | value @concepts$Number
+    param value | value @concepts$Decimal
     block | => init{ x = Float(value); y = Float(value); }
       stat Return | => init{ x = Float(value); y = Float(value); }
         expr Init | init{ x = Float(value); y = Float(value); }
@@ -377,19 +413,19 @@ package shapes
       expr Text_lit | "bottom left"
     expr Coerce String | "bottom right"
       expr Text_lit | "bottom right"
-  decl Verb _half | Float _half(value Float) => value / Float(2)
+  decl Verb _half | Float _half(value Float) => value / Float(2.0)
     param value | value Float
-    block | => value / Float(2)
-      stat Return | => value / Float(2)
-        expr Op / | value / Float(2)
+    block | => value / Float(2.0)
+      stat Return | => value / Float(2.0)
+        expr Op / | value / Float(2.0)
           expr Var value | value
-          expr Construct Float | Float(2)
-            expr Number_lit | 2
-  decl Verb area | Float area(shape Shape) => … + s); point => Float(0); }
+          expr Construct Float | Float(2.0)
+            expr Decimal_lit | 2.0
+  decl Verb area | Float area(shape Shape) => … s); point => Float(0.0); }
     param shape | shape Shape
-    block | => match (shape) { r circl … + s); point => Float(0); }
-      stat Return | => match (shape) { r circl … + s); point => Float(0); }
-        expr Match | match (shape) { r circle = … + s); point => Float(0); }
+    block | => match (shape) { r circl … s); point => Float(0.0); }
+      stat Return | => match (shape) { r circl … s); point => Float(0.0); }
+        expr Match | match (shape) { r circle = … s); point => Float(0.0); }
           expr Var shape | shape
           arm | r circle => r * r;
             pattern circle | r circle
@@ -408,12 +444,12 @@ package shapes
                   expr Op + | s + s
                     expr Var s | s
                     expr Var s | s
-          arm | point => Float(0);
+          arm | point => Float(0.0);
             pattern point | point
-            block | => Float(0)
-              stat Return | => Float(0)
-                expr Construct Float | Float(0)
-                  expr Number_lit | 0
+            block | => Float(0.0)
+              stat Return | => Float(0.0)
+                expr Construct Float | Float(0.0)
+                  expr Decimal_lit | 0.0
 package core
   decl Type Bool | type Bool = struct { raw @primitives$Bool; }
   decl Verb Bool | implicit Bool(raw @primitives$Bool) => init{ raw; }
@@ -490,10 +526,10 @@ package core
             expr Var text | text
       stat Return | return Unit();
         expr Construct Unit | Unit()
-  decl Type Array | type Array<T Type, n Numbe … @primitives$Array<T, n>; }
+  decl Type Array | type Array<T Type, n @conc … @primitives$Array<T, n>; }
   decl Verb Array | Array<T, n>(values @concep … rimitives$Array(values); }
-  decl Subscript [] | (this Array<T Type, n Numb … Int] => this._items[index]
-  decl Verb size | Int size(this Array<T Type, n Number>) => Int(n)
+  decl Subscript [] | (this Array<T Type, n @con … Int] => this._items[index]
+  decl Verb size | Int size(this Array<T Type … ncepts$Integer>) => Int(n)
   decl Type List | type List<T Type> = #struc … ems @primitives$List<T>; }
   decl Verb List | List<T>(T Type) => init{ _items = @primitives$List(T); }
   decl Verb push | Unit push(this List<T Type … h(value); return Unit(); }
@@ -568,7 +604,7 @@ package core
                 expr Flip | - this
                   expr Var this | this
               expr Construct Int | Int(1)
-                expr Number_lit | 1
+                expr Integer_lit | 1
           block | { @controlflow$branch(true … ); this = this + Int(1); }
             stat Expr | @controlflow$branch(true, body);
               expr Call @controlflow$branch | @controlflow$branch(true, body)
@@ -579,12 +615,12 @@ package core
               expr Op + | this + Int(1)
                 expr Var this | this
                 expr Construct Int | Int(1)
-                  expr Number_lit | 1
+                  expr Integer_lit | 1
       stat Return | return Unit();
         expr Construct Unit | Unit()
   decl Type Int | type Int = struct { raw @primitives$Int; }
   decl Verb Int | implicit Int(value @concep …  @primitives$Int(value); }
-    param value | value @concepts$Number
+    param value | value @concepts$Integer
     block | => init{ raw = @primitives$Int(value); }
       stat Return | => init{ raw = @primitives$Int(value); }
         expr Init | init{ raw = @primitives$Int(value); }
@@ -669,7 +705,7 @@ package core
               expr Var right | right
   decl Type Float | type Float = struct { raw @primitives$Float; }
   decl Verb Float | implicit Float(value @conc … primitives$Float(value); }
-    param value | value @concepts$Number
+    param value | value @concepts$Decimal
     block | => init{ raw = @primitives$Float(value); }
       stat Return | => init{ raw = @primitives$Float(value); }
         expr Init | init{ raw = @primitives$Float(value); }
@@ -869,22 +905,28 @@ instances
             expr Var pair | pair
           expr Field right | pair.right
             expr Var pair | pair
-  instance count with T = core$Int, n = 3 | Int count(values Array<T Type, n Number>) => Int(n)
-    param values | values Array<T Type, n Number>
+  instance count with T = core$Int, n = 3 | Int count(values Array<T T … ncepts$Integer>) => Int(n)
+    param values | values Array<T Type, n @concepts$Integer>
+    block | => Int(n)
+      stat Return | => Int(n)
+        expr Construct Int | Int(n)
+          expr Var n | n
+  instance measured with n = 3 | Int measured(values Array< … oncepts$Integer) => Int(n)
+    param values | values Array<Int, n>
     block | => Int(n)
       stat Return | => Int(n)
         expr Construct Int | Int(n)
           expr Var n | n
   instance Array with T = core$Int, n = 3 | Array<T, n>(values @concep … rimitives$Array(values); }
-    param values | values @concepts$Array<T Type, n Number>
+    param values | values @concepts$Array<T Type, n @concepts$Integer>
     block | => init{ _items = @primitives$Array(values); }
       stat Return | => init{ _items = @primitives$Array(values); }
         expr Init | init{ _items = @primitives$Array(values); }
           field _items | _items = @primitives$Array(values)
             expr Construct @primitives$Array | @primitives$Array(values)
               expr Var values | values
-  instance [] with T = core$Int, n = 3 | (this Array<T Type, n Numb … Int] => this._items[index]
-    param this | Array<T Type, n Number>
+  instance [] with T = core$Int, n = 3 | (this Array<T Type, n @con … Int] => this._items[index]
+    param this | Array<T Type, n @concepts$Integer>
     param index | index Int
     block | this._items[index]
       stat Return | this._items[index]

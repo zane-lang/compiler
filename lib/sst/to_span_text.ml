@@ -31,13 +31,6 @@ let name d label (n : Name.t) = line d (label ^ " " ^ n.Name.text) n.Name.span
 let opt d f = function None -> () | Some x -> f d x
 let each d f xs = List.iter (f d) xs
 
-let concept d (x : Concept.t) =
-  line d
-    (match x.Concept.node with
-    | Concept.Type -> "concept Type"
-    | Concept.Number -> "concept Number")
-    x.Concept.span
-
 let name_type d (x : Name_type.t) =
   line d "name_type" x.Name_type.span;
   match x.Name_type.node with
@@ -46,6 +39,14 @@ let name_type d (x : Name_type.t) =
     ->
       name (d + 1) "package" package;
       name (d + 1) "ident" ident
+
+
+let concept d (x : Concept.t) =
+  match x.Concept.node with
+  | Concept.Type -> line d "concept Type" x.Concept.span
+  | Concept.Named n ->
+      line d "concept Named" x.Concept.span;
+      name_type (d + 1) n
 
 let name_expr d (x : Name_expr.t) =
   line d "name_expr" x.Name_expr.span;
@@ -183,7 +184,7 @@ and expr d (x : Expr.t) =
   let at = x.Expr.span in
   match x.Expr.node with
   | Expr.IntLit _ -> line d "expr IntLit" at
-  | Expr.FloatLit _ -> line d "expr FloatLit" at
+  | Expr.DecimalLit _ -> line d "expr DecimalLit" at
   | Expr.StrLit _ -> line d "expr StrLit" at
   | Expr.BoolLit _ -> line d "expr BoolLit" at
   | Expr.CollectionLit items ->

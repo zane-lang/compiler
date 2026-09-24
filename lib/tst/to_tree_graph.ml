@@ -16,7 +16,7 @@ let params (ps : Ty.param list) =
   String.concat ", "
     (List.map
        (fun (p : Ty.param) ->
-         p.name ^ match p.kind with Ty.Type_kind -> " Type" | Ty.Number_kind -> " Number")
+         p.name ^ match p.kind with Ty.Type_kind -> " Type" | Ty.Number_kind -> " @concepts$Integer")
        ps)
 
 let verb_ref (r : Verb_ref.t) =
@@ -46,7 +46,7 @@ let rec expr (e : Expr.t) : node =
   let leaf text = Leaf (text ^ " : " ^ Ty.to_string e.ty) in
   let node title children = group title (fields (("type", ty e.ty) :: children)) in
   match e.node with
-  | Expr.Number_lit s -> leaf s
+  | Expr.Integer_lit s | Expr.Decimal_lit s -> leaf s
   | Expr.Text_lit s -> leaf (Printf.sprintf "%S" s)
   | Expr.Bool_lit b -> leaf (string_of_bool b)
   | Expr.Var r -> leaf (name_ref r)

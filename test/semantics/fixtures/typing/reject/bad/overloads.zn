@@ -17,7 +17,7 @@ Int +(left Int, right Bool) => left
 implicit Int(engine Engine) => Int(1)
 
 /// Neither end is declared here.
-implicit Float(value Bool) => Float(0)
+implicit Float(value Bool) => Float(0.0)
 
 type Level = enum [ low, high ]
 

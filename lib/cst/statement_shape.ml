@@ -40,7 +40,7 @@ let rec expr_ends_in_brace (value : Nodes.Expr.t) =
   | Nodes.Expr.DotAccess { abort_handle = Some handle; _ } ->
       abort_handle_ends_in_brace handle
   (* Closed by `)`, `]`, or the name itself. *)
-  | Nodes.Expr.IntLit _ | Nodes.Expr.FloatLit _ | Nodes.Expr.StrLit _
+  | Nodes.Expr.IntLit _ | Nodes.Expr.DecimalLit _ | Nodes.Expr.StrLit _
   | Nodes.Expr.BoolLit _ | Nodes.Expr.CollectionLit _ | Nodes.Expr.NameExpr _
   | Nodes.Expr.TypeMember _ | Nodes.Expr.TypeValue _ | Nodes.Expr.DotAccess _
   | Nodes.Expr.Subscript _ | Nodes.Expr.Parenthized _ ->
@@ -176,7 +176,7 @@ let rec continues_past_trailing (value : Nodes.Expr.t) =
           continues_past_trailing key || continues_past_trailing value)
         entries
   | Nodes.Expr.Init fields -> field_args_continue_past_trailing fields
-  | Nodes.Expr.IntLit _ | Nodes.Expr.FloatLit _ | Nodes.Expr.StrLit _
+  | Nodes.Expr.IntLit _ | Nodes.Expr.DecimalLit _ | Nodes.Expr.StrLit _
   | Nodes.Expr.BoolLit _ | Nodes.Expr.NameExpr _ | Nodes.Expr.TypeMember _
   | Nodes.Expr.TypeValue _ ->
       false
