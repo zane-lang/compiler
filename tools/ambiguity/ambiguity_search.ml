@@ -173,6 +173,7 @@ let main () =
            check forever. *)
         let cegar_skipped : (string list, unit) Hashtbl.t =
           Hashtbl.create 16
+        in
         let blocked_sentences = ref [] in
         let stalled = ref None in
         (* A request for more depth than --prove-refine allows is clamped to the
