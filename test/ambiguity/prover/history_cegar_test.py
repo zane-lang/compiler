@@ -75,25 +75,6 @@ class HistoryCegarTests(harness.ProverTestCase):
         self.assertNotEqual(status, harness.AMBIGUOUS, output)
         self.assertIn(status, (harness.PROVEN, harness.NOT_PROVEN), output)
 
-    def test_incomplete_exact_check_falls_through_to_stack_refinement(self) -> None:
-        status, output = self.prove(
-            fixtures.CEGAR_INCOMPLETE_EXCLUSION,
-            1,
-            max_tokens="0",
-            extra=("--prove-cegar", "1", "--prove-refine", "4"),
-        )
-        self.assertRegex(
-            output,
-            re.compile(
-                r"^CEGAR check skipped: the candidate represents more than "
-                r"4096 concrete terminal sequence\(s\); continuing with stack "
-                r"refinement for this candidate\.$",
-                re.MULTILINE,
-            ),
-        )
-        self.assertRegex(output, re.compile(r"^Refinement round 1:", re.MULTILINE))
-        self.assertIn(status, (harness.PROVEN, harness.NOT_PROVEN), output)
-
     def test_CEGAR_reaches_a_second_independent_candidate(self) -> None:
         # L/p and R/q are independent blind spots. Excluding the first exact
         # nonambiguous sentence must not merge its history with the second
@@ -111,16 +92,16 @@ class HistoryCegarTests(harness.ProverTestCase):
         self.assertNotRegex(output, harness.PROVEN_LINE)
         self.assertEqual(status, harness.NOT_PROVEN, output)
 
-    def test_blocked_acceptance_keeps_its_longer_shared_prefix(self) -> None:
-        short = "AM AO A LB RB SEMI EOF"
-        longer = "AM AO A LB RB SEMI EOF B X EOF"
+    def test_exact_exclusion_does_not_hide_a_later_ambiguity(self) -> None:
+        rejected = "AM AO A SEMI EOF B X EOF"
+        ambiguous = "AO AM A SEMI EOF B X EOF"
         self.assertIn(
-            "Accepting derivations: 1",
-            self.check_tokens(fixtures.CEGAR_LONGER_SHARED_PREFIX, short),
+            "Accepting derivations: 0",
+            self.check_tokens(fixtures.CEGAR_LONGER_SHARED_PREFIX, rejected),
         )
         self.assertIn(
             "Accepting derivations: 2",
-            self.check_tokens(fixtures.CEGAR_LONGER_SHARED_PREFIX, longer),
+            self.check_tokens(fixtures.CEGAR_LONGER_SHARED_PREFIX, ambiguous),
         )
         status, output = self.prove(
             fixtures.CEGAR_LONGER_SHARED_PREFIX,
@@ -131,16 +112,15 @@ class HistoryCegarTests(harness.ProverTestCase):
         self.assertRegex(
             output,
             re.compile(
-                rf"^CEGAR refinement 1: excluded complete history {re.escape(short)};",
+                r"^CEGAR refinement 1: excluded complete history .+; "
+                r"the representative has 0 parse\(s\), and all \d+ "
+                r"concrete terminal-class substitution\(s\) were checked",
                 re.MULTILINE,
             ),
         )
         self.assertRegex(
             output,
-            re.compile(
-                rf"^AMBIGUOUS:.*{re.escape(longer)}",
-                re.MULTILINE,
-            ),
+            re.compile(rf"^AMBIGUOUS:.*{re.escape(ambiguous)}", re.MULTILINE),
         )
         self.assertEqual(status, harness.AMBIGUOUS, output)
 

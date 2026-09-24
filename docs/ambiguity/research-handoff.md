@@ -33,9 +33,12 @@ checking exceeds its variant or deadline limit, CEGAR skips that candidate and
 falls through to stack refinement; it does not exclude an unchecked history.
 
 Regression coverage includes reversed histories where the first sentence has
-one parse but the other has two, longer sentences sharing a blocked prefix,
-independent candidates, incomplete class expansion, and duplicate and
-nullable reductions. See [`history_cegar_test.py`](../../test/ambiguity/prover/history_cegar_test.py)
+one parse but the other has two, an exact-rejected candidate followed by a
+confirmed ambiguity, independent candidates, and duplicate and nullable
+reductions. The 4,096-substitution fail-closed path is not currently reached by
+an end-to-end fixture; the longer shared-prefix behavior is tested directly in
+[`history_filter_test.ml`](../../tools/ambiguity/history_filter_test.ml).
+See [`history_cegar_test.py`](../../test/ambiguity/prover/history_cegar_test.py)
 and the filter construction in [`prover.ml`](../../tools/ambiguity/prover.ml).
 
 ## Full-grammar CI probes

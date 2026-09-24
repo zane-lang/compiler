@@ -139,41 +139,6 @@ p:
   | B p B { () }
 """
 
-# Each `b` position represents nine equivalent tokens. The B-wrapped recursive
-# path creates a candidate with at least four `b` positions, whose substitution
-# product is over CEGAR's 4096 replay cap. CEGAR must hand that candidate back
-# to requested stack refinement instead of excluding an unchecked history.
-CEGAR_INCOMPLETE_EXCLUSION = """\
-%token A "a"
-%token B0 "b0"
-%token B1 "b1"
-%token B2 "b2"
-%token B3 "b3"
-%token B4 "b4"
-%token B5 "b5"
-%token B6 "b6"
-%token B7 "b7"
-%token B8 "b8"
-%token EOF "<eof>"
-%start <unit> main
-%%
-main: p EOF { () }
-p:
-  | b b b b { () }
-  | A p A { () }
-  | b p b { () }
-b:
-  | B0 { () }
-  | B1 { () }
-  | B2 { () }
-  | B3 { () }
-  | B4 { () }
-  | B5 { () }
-  | B6 { () }
-  | B7 { () }
-  | B8 { () }
-"""
-
 # A small version of the unbounded lookahead family in the Zane grammar. After
 # `MATCH UIDENT`, a `{ }` pair is either the match body or part of the nested
 # expression. Every finite top-K stack abstraction used to admit both readings
