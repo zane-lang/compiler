@@ -81,8 +81,9 @@ end
 
    What cannot go is the marker itself. `a:f(b)` and `f(a, b)` are the same
    shape after the subject moves, but they do not resolve the same way: an
-   unqualified method is looked up in its subject's home package (§6.1) while a
-   function is found by plain name and imports, and packages.md §3.6 is
+   unqualified method is looked up in its subject type's home package, then
+   the current package (§6.1), while a function is found by plain name and
+   imports, and packages.md §3.6 is
    explicit that "methods and operators are therefore not importable members".
    A tree that recorded only [is_mut] would have made the two
    indistinguishable, so [Function] and [Method] stay apart.

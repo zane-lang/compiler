@@ -339,10 +339,11 @@ The subject is its first argument, and its `form` records how it was written:
 
 **This is the second of the two entries that sit on the line drawn at the top
 of this file.** The rewrite stops at the callee's name. An unqualified method
-lives in its subject's home package (`functions.md` §6.1), and finding that
-package needs the subject's type, so `method` stays an unresolved name for
-semantics to qualify. A qualified callee such as `Pkg$method` already names its
-package. `form` stays on the call for two reasons:
+is looked up in its subject type's home package first, then in the current
+package (`functions.md` §6.1). The first of those needs the subject's type, so
+`method` stays an unresolved name for semantics to resolve. A qualified callee
+such as `Pkg$method` already names its package. `form` stays on the call for
+two reasons:
 
 - A method and a function resolve differently. A method is found through its
   subject's type, and a function by plain name and imports. The two calls
