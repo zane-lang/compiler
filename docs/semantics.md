@@ -14,7 +14,8 @@ inserted, and what type every expression has. No later stage should ever need
 to repeat a lookup.
 
 `lib/tst/` mirrors `lib/sst/` where it can: `nodes.ml` is the tree,
-`to_tree_graph.ml` renders it, and `tst.ml` is the entry module. Unlike
+`to_tree_graph.ml` renders it, `to_span_text.ml` reads its spans back out of
+the source, and `tst.ml` is the entry module. Unlike
 `lib/sst/lower.ml`, the code that builds it is several passes (§3), because
 each one needs the tables the previous one built:
 
@@ -355,6 +356,14 @@ The goldens in `test/semantics/golden/` are those views: `typed.decls` and
 `typing.err` for a build that fails every way the passes can report, one
 fixture file per area.
 
+`typed.tst.spans` checks the spans of the same build, the way
+`test/parser/golden/` checks the CST's and SST's: `span_dump --tst` takes the
+same `--package` flags and prints every node of the typed tree, generic
+instances included, with the source text its span covers. The TST is built
+from many files, so each line reads its text out of the file its own span
+names. A node the checker built -- a `Coerce`, a parameter's local -- shows
+there what it points at.
+
 ## 8. Answered questions
 
 The first draft left four questions open. These are the answers.
@@ -457,5 +466,3 @@ When the root declares one, it takes no parameters (`packages.md` §6.2).
   never compared when typing; that is the lifetime analysis's question.
 - A generic verb that is never called has no instance, so its body is not
   checked (D12).
-- The TST has no `to_span_text` rendering, so its spans are not checked the
-  way the CST's and SST's are.

@@ -9,7 +9,10 @@
    span-side counterparts of [Cst.To_tree_graph] and [Sst.To_tree_graph]. This
    file is the frontend: it reads the source, parses it, picks the stage, and
    prints what the adapter returns. The stage is selected the same way the
-   compiler frontend selects it, with `--cst` or `--sst`.
+   compiler frontend selects it, with `--cst` or `--sst`, or `--tst` for the
+   typed tree [Tst.To_span_text] walks. The TST is built from packages, not a
+   file, so `--tst` takes `--package DIR` flags the way the compiler's own
+   `--tst` does.
 
    The output is checked in under `test/parser/golden/` and compared on every
    run, so a grammar change that moves a span shows the move as a diff rather
@@ -19,8 +22,11 @@
    the source says, and a reader checking the parser wants that one. *)
 type stage = Cst | Sst
 
+type request = File of stage * string | Packages of string list
+
 let usage () =
   prerr_endline "usage: span_dump [--cst|--sst] SOURCE";
+  prerr_endline "       span_dump --tst --package DIR [--package DIR ...]";
   exit 2
 
 let arguments () =
@@ -29,13 +35,34 @@ let arguments () =
     | "--cst" :: rest -> go Cst rest
     | "--sst" :: rest -> go Sst rest
     | [ source ] when not (String.starts_with ~prefix:"-" source) ->
-        (stage, source)
+        File (stage, source)
     | _ -> usage ()
   in
-  go Cst (List.tl (Array.to_list Sys.argv))
+  let rec packages dirs = function
+    | [] -> if dirs = [] then usage () else Packages (List.rev dirs)
+    | "--package" :: dir :: rest -> packages (dir :: dirs) rest
+    | _ -> usage ()
+  in
+  match List.tl (Array.to_list Sys.argv) with
+  | "--tst" :: rest -> packages [] rest
+  | rest -> go Cst rest
 
-let () =
-  let stage, path = arguments () in
+(* A build that does not check prints its diagnostics and no spans, as the
+   compiler's `--tst` prints no tree. *)
+let run_packages dirs =
+  match Tst.Assembly.assemble dirs with
+  | Error problems ->
+      List.iter (fun p -> prerr_string (Tst.Assembly.render_problem p)) problems;
+      exit 1
+  | Ok packages -> (
+      let result = Tst.check packages in
+      match result.Tst.Semantics.diagnostics with
+      | [] -> print_string (Tst.to_span_text packages result.Tst.Semantics.program)
+      | diagnostics ->
+          List.iter (fun d -> prerr_string (Tst.render_diagnostic packages d)) diagnostics;
+          exit 1)
+
+let run_file stage path =
   let input = In_channel.with_open_text path In_channel.input_all in
   match Cst.parse path input with
   | Error diagnostic ->
@@ -46,3 +73,8 @@ let () =
         (match stage with
         | Cst -> Cst.To_span_text.render ~source:input package
         | Sst -> Sst.To_span_text.render ~source:input (Sst.of_cst package))
+
+let () =
+  match arguments () with
+  | File (stage, path) -> run_file stage path
+  | Packages dirs -> run_packages dirs

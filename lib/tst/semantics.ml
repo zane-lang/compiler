@@ -27,16 +27,17 @@ let check (packages : Assembly.package list) =
   in
   { program; diagnostics }
 
-(* A diagnostic points into one of the build's files; this finds the text it
-   points into, which is what the renderer draws the caret under. *)
-let render (packages : Assembly.package list) (d : Diagnostic.t) =
+(* The text a build read from [path]: what a diagnostic's caret is drawn
+   under, and what a span is read back out of. *)
+let source (packages : Assembly.package list) path =
+  List.find_map
+    (fun (p : Assembly.package) ->
+      List.find_map
+        (fun (f : Assembly.file) -> if String.equal f.path path then Some f.source else None)
+        p.files)
+    packages
+
+(* A diagnostic points into one of the build's files. *)
+let render packages (d : Diagnostic.t) =
   let path, _ = position d in
-  let source =
-    List.find_map
-      (fun (p : Assembly.package) ->
-        List.find_map
-          (fun (f : Assembly.file) -> if String.equal f.path path then Some f.source else None)
-          p.files)
-      packages
-  in
-  Diagnostic.render ~source:(Option.value ~default:"" source) d
+  Diagnostic.render ~source:(Option.value ~default:"" (source packages path)) d

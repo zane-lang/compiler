@@ -20,6 +20,10 @@ type t = {
 let create source = { source; out = Buffer.create (1 lsl 16) }
 let contents printer = Buffer.contents printer.out
 
+(* The same output, reading spans out of another text: for a tree whose nodes
+   come from more than one file, as the TST's do. *)
+let with_source printer source = { printer with source }
+
 (* Whitespace runs collapse so a node's text stays on its own line. *)
 let squeeze text =
   let out = Buffer.create (String.length text) in
@@ -83,4 +87,11 @@ let line printer depth kind (span : Span.t) =
   Buffer.add_string printer.out kind;
   Buffer.add_string printer.out " | ";
   Buffer.add_string printer.out text;
+  Buffer.add_char printer.out '\n'
+
+(* A line with no span: a grouping the tree has but the source does not, such
+   as a package, which is a directory rather than text. *)
+let heading printer depth kind =
+  Buffer.add_string printer.out (String.make (depth * 2) ' ');
+  Buffer.add_string printer.out kind;
   Buffer.add_char printer.out '\n'

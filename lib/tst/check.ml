@@ -1815,11 +1815,36 @@ and subscript_result (d : decl) (s : S.t) subst at =
 (* Verb bodies                                                            *)
 (* ---------------------------------------------------------------------- *)
 
+(* Where each of a verb's parameters was written, by name: the spans its
+   locals take, the same ones a lambda's parameters take. *)
+and param_spans (d : decl) =
+  let params ps = List.map (fun (p : N.Param.t) -> (p.N.Param.name.N.Name.text, p.N.Param.span)) ps in
+  let this_ (t : N.Type_expr.t) = ("this", t.N.Type_expr.span) in
+  match d.kind with
+  | Verb v -> (
+      match v.N.Verb_decl.node with
+      | N.Verb_decl.Func { params = ps; _ }
+      | N.Verb_decl.Op { params = ps; _ }
+      | N.Verb_decl.Flip { params = ps; _ } ->
+          params ps
+      | N.Verb_decl.Meth { this_type; params = ps; _ }
+      | N.Verb_decl.Subscript { this_type; params = ps; _ } ->
+          this_ this_type :: params ps
+      | N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Positional ps; _ }; _ } ->
+          params ps
+      | N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Fields fs; _ }; _ } ->
+          List.map
+            (fun (f : N.Constructor_field.t) -> (f.N.Constructor_field.name.N.Name.text, f.N.Constructor_field.span))
+            fs)
+  | _ -> []
+
 (* The context a verb's body is checked in, at one set of generic arguments:
    its parameters as locals, and the explicit `T Type` / `n Number` ones as the
    types and numbers they were given. *)
 and verb_context (d : decl) (s : S.t) subst =
   let pkg = package d.package in
+  let spans = param_spans d in
+  let span_of name = Option.value ~default:d.span (List.assoc_opt name spans) in
   let params = List.map (fun ((p : Ty.param), a) -> (p.name, a)) (binding_args s subst) in
   let scope = Hashtbl.create 8 in
   let locals =
@@ -1828,7 +1853,7 @@ and verb_context (d : decl) (s : S.t) subst =
         match p.binds with
         | Some _ -> None
         | None ->
-            let local = fresh_local p.name (Ty.subst subst p.ty) d.span in
+            let local = fresh_local p.name (Ty.subst subst p.ty) (span_of p.name) in
             let role = if p.name = "this" && S.is_method s then This else Parameter in
             Hashtbl.replace scope p.name { local; role };
             Some local)
