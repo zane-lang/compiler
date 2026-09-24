@@ -224,7 +224,17 @@ let instance spans d (i : Instance.t) =
    path the build read it from. *)
 let render ~source (p : Program.t) =
   printer := Source.Span_text.create "";
-  sources := source;
+  (* Every line looks its file up, and [source] may scan the whole build to
+     find one, so each file is found once. *)
+  let found = Hashtbl.create 16 in
+  (sources :=
+     fun path ->
+       match Hashtbl.find_opt found path with
+       | Some text -> text
+       | None ->
+           let text = source path in
+           Hashtbl.add found path text;
+           text);
   let spans = Hashtbl.create 64 in
   List.iter
     (fun (pkg : Package.t) ->
