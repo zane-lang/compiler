@@ -34,7 +34,8 @@ the ones that look like they belong and do not.
 
 The TST represents the semantically checked program. Names are resolved and
 expressions are typed, so later stages do not need to recover semantic
-information from syntax. "TST" is used instead of the more common "typed AST"
+information from syntax. The design for building it is drafted in
+[`semantics.md`](semantics.md). "TST" is used instead of the more common "typed AST"
 because CST, SST, TST, and OST name the role of each tree directly. Their names
 describe what distinguishes each representation rather than accumulating every
 property inherited from earlier stages: the TST remains simplified, and the OST
