@@ -1,0 +1,40 @@
+# Parenthesis-balance proof experiment, 2026-09-24
+
+Grammar: lib/cst/parser.mly at c9a146e (unchanged).
+Toolchain: OCaml 5.3.0, dune 3.24.1, Menhir 20260209, sedlex 3.7.
+
+The generated automaton has 484 distinct reduction texts; every reduction
+contains equal numbers of LPAREN and RPAREN terminals. The prover now verifies
+that condition at runtime before carrying a bounded exact parenthesis count
+in its history state. An unmatched RPAREN is pruned immediately, and an EOF
+with a known positive count cannot accept. Counts above 8 become unknown and
+remain unknown, so this cannot discard a concrete derivation.
+
+Short comparison, each with AMBIGUITY_MEMORY_MB=6144,
+AMBIGUITY_MAX_FRONTIER_RATIO=1, AMBIGUITY_JOBS=1,
+AMBIGUITY_MENHIR=menhir, AMBIGUITY_PROGRESS_SECONDS=0:
+
+  ambiguity_search.exe lib/cst/parser.mly --max-tokens 0 --timeout 60 \
+    --max-witnesses 1 --prove 1
+
+  Base c9a146e: NOT PROVEN (timeout); 342,190 pairs;
+                 peak resident memory 1,264,360 KiB.
+  With balance: NOT PROVEN (timeout); 452,548 pairs;
+                peak resident memory 1,295,660 KiB.
+
+Full grammar probe with this change, AMBIGUITY_MEMORY_MB=6144,
+AMBIGUITY_MAX_FRONTIER_RATIO=1, AMBIGUITY_JOBS=2,
+AMBIGUITY_MENHIR=menhir, AMBIGUITY_PROGRESS_SECONDS=30:
+
+  ambiguity_search.exe lib/cst/parser.mly --max-tokens 0 --timeout 360 \
+    --max-witnesses 1 --prove 1 --prove-refine 12 \
+    --prove-refine-rounds 16
+
+  Exit 3: NOT PROVEN (abstract timeout), 1,602,468 pairs at level 1;
+  about 1.2M queued at the last progress update; zero accepting pairs.
+  No refinement round ran because the abstract walk did not find a candidate.
+
+The 13-token historical witness from 2026-09-18 has zero derivations in the
+current grammar. This experiment removes a particular source of spurious
+paths, but it does not close the remaining full-grammar proof obligation in
+issue #107. A larger complete run or a stronger sound abstraction is needed.

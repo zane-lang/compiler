@@ -29,4 +29,22 @@ let () =
   check (not (History_filter.is_blocked filter other))
     "Other must contain only nonblocked histories";
   check (History_filter.state_count filter >= 8)
-    "all distinct trie prefixes must remain represented"
+    "all distinct trie prefixes must remain represented";
+  let parens = History_filter.create ~paren_limit:2 [ [ "X" ] ] in
+  let next = History_filter.advance parens in
+  let start = History_filter.root parens in
+  check (History_filter.is_dead parens (next start "RPAREN"))
+    "an unmatched closing parenthesis cannot begin a derivation";
+  let one = next start "LPAREN" in
+  check (History_filter.is_blocked parens one)
+    "a known unclosed parenthesis cannot accept";
+  check (next one "RPAREN" = next start "Y")
+    "closing a known parenthesis restores zero depth outside the trie";
+  check (History_filter.is_blocked parens (next start "X"))
+    "the trie must still exclude a complete history";
+  let unknown = next (next (next start "LPAREN") "LPAREN") "LPAREN" in
+  check (not (History_filter.is_blocked parens unknown))
+    "a saturated count cannot rule out a complete sentence";
+  check (not (History_filter.is_dead parens
+                 (next (next (next unknown "RPAREN") "RPAREN") "RPAREN")))
+    "closing a saturated count cannot be treated as exact"

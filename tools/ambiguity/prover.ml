@@ -434,7 +434,30 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
   let automaton = engine.automaton in
   (* Filter states are included in every abstract pair key. Any added sentence
      therefore requires a fresh walk and fresh caches. *)
-  let history_filter = History_filter.create blocked_sentences in
+  (* A complete derivation cannot have an unmatched parenthesis if each
+     production has balanced direct terminals. Check that fact against the
+     generated automaton, including Menhir's expanded list productions, before
+     using it to prune an abstract history. An unbalanced future grammar
+     simply keeps the original unrestricted proof search. *)
+  let balanced_parentheses =
+    Hashtbl.fold
+      (fun _ production balanced ->
+        let rhs = match String.split_on_char '>' production with
+          | _ :: rest -> words (String.concat ">" rest)
+          | [] -> [] in
+        let count token =
+          List.fold_left (fun n symbol -> if symbol = token then n + 1 else n)
+            0 rhs in
+        balanced && count "LPAREN" = count "RPAREN")
+      automaton.production_text true
+  in
+  let history_filter =
+    History_filter.create ~paren_limit:(if balanced_parentheses then 8 else 0)
+      blocked_sentences
+  in
+  if balanced_parentheses then
+    printf
+      "Parenthesis balance: every reduction is balanced; exact counts through 8, unknown above 8.\n";
   let gotos = goto_edges automaton in
   let preds = predecessors automaton in
   let below = below_steps preds in
@@ -1069,9 +1092,10 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
               let next_history =
                 History_filter.advance history_filter history token
               in
-              push
-                (Some (token, node))
-                (next_left, next_right, diverged || chain_diverged, next_history))
+              if not (History_filter.is_dead history_filter next_history) then
+                push
+                  (Some (token, node))
+                  (next_left, next_right, diverged || chain_diverged, next_history))
             (joint (left, right) token diverged))
         terminals
   done;

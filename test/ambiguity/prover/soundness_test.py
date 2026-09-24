@@ -103,6 +103,24 @@ y: { () }
 
 
 class ProverPrecisionTests(harness.ProverTestCase):
+    def test_parenthesis_pruning_disables_itself_for_unbalanced_grammar(self) -> None:
+        grammar = """\
+%token LPAREN "("
+%token A "a"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: LPAREN value EOF { () }
+value:
+  | A { () }
+  | alias { () }
+alias: A { () }
+"""
+        status, output = self.prove(grammar, 1)
+        self.assertEqual(status, harness.AMBIGUOUS, output)
+        self.assertNotRegex(output, harness.PROVEN_LINE)
+        self.assertNotIn("Parenthesis balance: every reduction is balanced", output)
+
     def test_conflict_free_grammars_are_proven_at_every_level(self) -> None:
         for name, grammar in fixtures.CONFLICT_FREE_GRAMMARS.items():
             for level in (1, 2, 3):
