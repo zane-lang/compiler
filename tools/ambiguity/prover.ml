@@ -139,7 +139,7 @@ let not_proven_status = 3
    for settled. *)
 type prove_state = {
   parents :
-    (pair_node, (string * pair_node) option) PairTable.t;
+    (string * pair_node) option PairTable.t;
   (* Queued pairs, in buckets by how many tokens it took to reach them, so the
      walk stays shortest-first across every round. One queue would not: a round
      resumes with deep pairs left over from the round before it and shallow
@@ -149,14 +149,14 @@ type prove_state = {
      spot that answers each deepening with a longer sentence -- the signature
      of one no depth closes -- would stop being visible as one. *)
   buckets : (int, pair_node Queue.t) Hashtbl.t;
-  depths : (pair_node, int) PairTable.t;
+  depths : int PairTable.t;
   (* Pairs that are in the table but have not been walked yet. [parents] holds
      a pair from the moment it is pushed, so it is not by itself a record of
      what has been settled, and a deepening has to treat the two differently:
      a settled pair stays as the result it is, an unsettled one is only a plan
      to look, and a stale plan is worth less than the sharper one that
      replaces it. *)
-  waiting : (pair_node, unit) PairTable.t;
+  waiting : unit PairTable.t;
   mutable pending : int;
   (* The shallowest bucket that may still hold anything. Children are one
      deeper than their parent, so it only moves forward, except where a
