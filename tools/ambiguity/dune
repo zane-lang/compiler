@@ -2,6 +2,18 @@
 ; `automaton` prepares what is being proved, `stack_pool` and `recognizer` own
 ; the exact GLR side, `abstraction` and `prover` the abstract one, `search` the
 ; bounded concrete witness hunt, and `output`/`config` the caller-facing edges.
+(library
+ (name ambiguity_history)
+ (wrapped false)
+ (modules history_filter))
+
 (executable
  (name ambiguity_search)
- (libraries unix str))
+ (modules ambiguity_search output automaton config stack_pool recognizer
+   abstraction prover search)
+ (libraries unix str ambiguity_history))
+
+(test
+ (name history_filter_test)
+ (modules history_filter_test)
+ (libraries ambiguity_history))

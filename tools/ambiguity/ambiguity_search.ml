@@ -165,6 +165,16 @@ let main () =
         in
         let deadline = Unix.gettimeofday () +. timeout in
         let rounds = ref 0 in
+        let cegar_used = ref 0 in
+        (* A candidate whose complete terminal-class product exceeds the exact
+           check budget cannot be excluded by CEGAR at any stack precision.
+           Remember that sentence so a refinement retry can reach the normal
+           stack-refinement branch instead of repeating the same incomplete
+           check forever. *)
+        let cegar_skipped : (string list, unit) Hashtbl.t =
+          Hashtbl.create 16
+        in
+        let blocked_sentences = ref [] in
         let stalled = ref None in
         (* A request for more depth than --prove-refine allows is clamped to the
            ceiling rather than skipped, so refinement still makes what progress
@@ -229,8 +239,9 @@ let main () =
         let walk = create_prove_state prove_limits.max_frontiers in
         let rec attempt () =
           let result =
-            prove engine walk precision prove_limits.max_frontiers deadline
-              !survey_limit !trace_forward retired
+            prove ~blocked_sentences:!blocked_sentences engine walk precision
+              prove_limits.max_frontiers deadline !survey_limit !trace_forward
+              retired
           in
           match result with
           (* Settled by the grammar rather than by the abstraction: the
@@ -242,6 +253,46 @@ let main () =
           | Abstract_candidate candidate
             when candidate.candidate_derivations >= 2 ->
               result
+          | Abstract_candidate candidate
+            when
+              !cegar_used < !cegar_rounds
+              && not (Hashtbl.mem cegar_skipped candidate.candidate_tokens) ->
+              (match
+                 check_exclusion engine candidate.candidate_tokens
+                   ~variant_limit:4096 ~deadline
+               with
+              | Exclusion_checked variants ->
+                  incr cegar_used;
+                  blocked_sentences :=
+                    candidate.candidate_tokens :: !blocked_sentences;
+                  reset_prove_state walk;
+                  printf
+                    "CEGAR refinement %d: excluded complete history %s; the \
+                     representative has %d parse(s), and all %d concrete \
+                     terminal-class substitution(s) were checked for at most \
+                     one parse; restarting with a history-trie product.\n"
+                    !cegar_used
+                    (String.concat " " candidate.candidate_tokens)
+                    candidate.candidate_derivations variants;
+                  attempt ()
+              | Exclusion_ambiguous tokens ->
+                  Exact_ambiguity tokens
+              | Exclusion_incomplete reason ->
+                  Hashtbl.replace cegar_skipped candidate.candidate_tokens ();
+                  if !refine_max > 0 && Unix.gettimeofday () < deadline then begin
+                    printf
+                      "CEGAR check skipped: %s; continuing with stack \
+                       refinement for this candidate.\n"
+                      reason;
+                    attempt ()
+                  end
+                  else begin
+                    printf
+                      "CEGAR stopped: %s; the candidate remains available as \
+                       an abstract candidate.\n"
+                      reason;
+                    result
+                  end)
           | Abstract_candidate candidate when !refine_max > 0 ->
               let tokens = candidate.candidate_tokens in
               let site = candidate.candidate_site in
@@ -545,14 +596,14 @@ let main () =
                only where a proof was claimed, and it is the difference between
                a theorem and a theorem about a table. *)
             let confirmed =
-              if !rounds = 0 then true
+              if !rounds = 0 && !cegar_used = 0 then true
               else begin
                 printf
-                  "Re-proving from the initial pair at the precision this run \
-                   ended on, because a proof carried across rounds is worth \
-                   only what a fresh walk says it is...\n";
+                  "Re-proving from the initial pair at the precision and \
+                   history filter this run ended on, against the same \
+                   complete language...\n";
                 match
-                  prove engine
+                  prove ~blocked_sentences:!blocked_sentences engine
                     (create_prove_state prove_limits.max_frontiers)
                     precision prove_limits.max_frontiers deadline
                     !survey_limit false retired
@@ -579,8 +630,13 @@ let main () =
             printf
               "PROVEN UNAMBIGUOUS: no diverging pair of accepting parses \
                exists in the top-%d stack abstraction (%d abstract pairs \
-               explored).\n"
-              !prove_level pairs;
+               explored%s).\n"
+              !prove_level pairs
+              (if !cegar_used = 0 then ""
+               else
+                 Printf.sprintf
+                   ", after %d exact-checked complete-history exclusion(s)"
+                   !cegar_used);
             (* What a regression run has to reproduce. A refined proof holds of
                a sharper abstraction than the level alone names, so the level
                alone does not identify it. *)
@@ -635,6 +691,12 @@ let main () =
               timeout !prove_level pairs;
             report_refinement ~exhaustive:false ();
             exit not_proven_status
+        | Exact_ambiguity tokens ->
+            printf
+              "AMBIGUOUS: exact validation of the candidate's terminal-class \
+               substitutions found two derivations of %s (%s).\n"
+              (String.concat " " tokens) (render automaton tokens);
+            exit ambiguous_status
         | Abstract_candidate candidate ->
             let tokens = candidate.candidate_tokens in
             let example = candidate.candidate_example in

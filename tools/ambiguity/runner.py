@@ -32,6 +32,7 @@ def engine_arguments(
     refine_rounds: int = 0,
     retire: int = 0,
     trace: bool = False,
+    cegar: int = 0,
 ) -> list[str]:
     arguments: list[str] = []
     for setting in SETTINGS:
@@ -44,6 +45,8 @@ def engine_arguments(
     # the same: it says how hard to push on one run, not what the run is for.
     if survey > 0:
         arguments.extend(["--prove-survey", str(survey)])
+    if cegar > 0:
+        arguments.extend(["--prove-cegar", str(cegar)])
     if refine > 0:
         arguments.extend(["--prove-refine", str(refine)])
         if refine_rounds > 0:

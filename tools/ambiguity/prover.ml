@@ -10,6 +10,8 @@ open Automaton
 open Recognizer
 open Abstraction
 
+type pair_node = stack * stack * bool * int
+
 (* A survey answers a different question from a proof. The proof stops at the
    first divergence it can reach, which says nothing about how many more lie
    behind it - and that count is what decides whether refining the abstraction
@@ -78,9 +80,15 @@ type abstract_candidate = {
 type prove_result =
   | Proven of int
   | Abstract_candidate of abstract_candidate
+  | Exact_ambiguity of string list
   | Pair_overflow of int
   | Prove_timeout of int
   | Surveyed of prove_survey
+
+type exclusion_check =
+  | Exclusion_checked of int
+  | Exclusion_ambiguous of string list
+  | Exclusion_incomplete of string
 
 (* Proof-mode exit statuses. A proof is a verdict rather than a success or a
    failure, so `ambiguity prove` reports which of the three it reached in its
@@ -119,8 +127,7 @@ let not_proven_status = 3
    for settled. *)
 type prove_state = {
   parents :
-    ( stack * stack * bool,
-      (string * (stack * stack * bool)) option )
+    ( pair_node, (string * pair_node) option )
     Hashtbl.t;
   (* Queued pairs, in buckets by how many tokens it took to reach them, so the
      walk stays shortest-first across every round. One queue would not: a round
@@ -130,21 +137,21 @@ type prove_state = {
      where it stopped rather than the shortest one in the grammar, and a blind
      spot that answers each deepening with a longer sentence -- the signature
      of one no depth closes -- would stop being visible as one. *)
-  buckets : (int, (stack * stack * bool) Queue.t) Hashtbl.t;
-  depths : (stack * stack * bool, int) Hashtbl.t;
+  buckets : (int, pair_node Queue.t) Hashtbl.t;
+  depths : (pair_node, int) Hashtbl.t;
   (* Pairs that are in the table but have not been walked yet. [parents] holds
      a pair from the moment it is pushed, so it is not by itself a record of
      what has been settled, and a deepening has to treat the two differently:
      a settled pair stays as the result it is, an unsettled one is only a plan
      to look, and a stale plan is worth less than the sharper one that
      replaces it. *)
-  waiting : (stack * stack * bool, unit) Hashtbl.t;
+  waiting : (pair_node, unit) Hashtbl.t;
   mutable pending : int;
   (* The shallowest bucket that may still hold anything. Children are one
      deeper than their parent, so it only moves forward, except where a
      reopened pair puts something shallower back. *)
   mutable cursor : int;
-  mutable requeue : (stack * stack * bool) list;
+  mutable requeue : pair_node list;
   mutable seeded : bool;
 }
 
@@ -246,7 +253,7 @@ let invalidate_prove_state state deepened =
       let settled = Hashtbl.length state.parents - Hashtbl.length state.waiting in
       let stale = Hashtbl.create 1_009 in
       Hashtbl.iter
-        (fun ((left, right, _) as node) _ ->
+        (fun ((left, right, _, _) as node) _ ->
           if standing_on left || standing_on right then
             Hashtbl.replace stale node ())
         state.parents;
@@ -347,6 +354,69 @@ let create_prove_state pair_limit =
     seeded = false;
   }
 
+(* A representative token sequence stands for every sequence obtained by
+   substituting a member of the same terminal class at each position. Replay
+   every concrete substitution before excluding that representative history.
+   The cap fails closed instead of treating unchecked variants as harmless. *)
+let check_exclusion engine tokens ~variant_limit ~deadline =
+  let class_members = Hashtbl.create 16 in
+  let members token =
+    match Hashtbl.find_opt engine.automaton.terminal_class token with
+    | None -> [ token ]
+    | Some class_id -> (
+        match Hashtbl.find_opt class_members class_id with
+        | Some members -> members
+        | None ->
+            let members =
+              StringSet.elements engine.automaton.terminals
+              |> List.filter (fun candidate ->
+                     Hashtbl.find_opt engine.automaton.terminal_class candidate
+                     = Some class_id)
+            in
+            Hashtbl.add class_members class_id members;
+            members)
+  in
+  let choices = List.map members tokens in
+  let variants =
+    List.fold_left
+      (fun count choices ->
+        let width = List.length choices in
+        if width = 0 || count > variant_limit / max 1 width then
+          variant_limit + 1
+        else count * width)
+      1 choices
+  in
+  if variants > variant_limit then
+    Exclusion_incomplete
+      (Printf.sprintf
+         "the candidate represents more than %d concrete terminal sequence(s)"
+         variant_limit)
+  else
+    let rec visit prefix = function
+      | [] ->
+          if Unix.gettimeofday () >= deadline then
+            Exclusion_incomplete "the exact-check deadline expired"
+          else
+            let concrete = List.rev prefix in
+            let frontiers = replay engine concrete in
+            if
+              accepted_count engine
+                frontiers.(Array.length frontiers - 1)
+              >= 2
+            then Exclusion_ambiguous concrete
+            else Exclusion_checked variants
+      | choices :: rest ->
+          let rec try_choices = function
+            | [] -> Exclusion_checked variants
+            | token :: tail ->
+                (match visit (token :: prefix) rest with
+                | Exclusion_checked _ -> try_choices tail
+                | result -> result)
+          in
+          try_choices choices
+    in
+    visit [] choices
+
 (* [deadline] is absolute rather than a duration because refinement runs this
    several times over: the rounds share one budget for the abstract phase, so a
    proof that needed four of them is not four times as patient as one that
@@ -357,10 +427,14 @@ let create_prove_state pair_limit =
    for every other question about the grammar. Retiring is the caller's
    judgement and not a fact about the grammar, which is why a run that used it
    can never print a proof - see the verdict below. *)
-let prove engine (state : prove_state) (precision : precision) pair_limit
+let prove ?(blocked_sentences = []) engine (state : prove_state)
+    (precision : precision) pair_limit
     deadline survey_limit trace
     (retired : (int * int * string, unit) Hashtbl.t) =
   let automaton = engine.automaton in
+  (* Filter states are included in every abstract pair key. Any added sentence
+     therefore requires a fresh walk and fresh caches. *)
+  let history_filter = History_filter.create blocked_sentences in
   let gotos = goto_edges automaton in
   let preds = predecessors automaton in
   let below = below_steps preds in
@@ -537,9 +611,9 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
   let examples = ref [] in
   let example_count = ref 0 in
   let surveying = survey_limit > 0 in
-  let canonical (left, right, diverged) =
-    if compare left right <= 0 then (left, right, diverged)
-    else (right, left, diverged)
+  let canonical (left, right, diverged, history) =
+    if compare left right <= 0 then (left, right, diverged, history)
+    else (right, left, diverged, history)
   in
   let push origin node =
     let node = canonical node in
@@ -567,13 +641,15 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
      why the abstraction could not separate the two parses. A pair that is not
      itself diverged reached acceptance by parting ways on end of input, so its
      own stacks under "#" are the site. *)
-  let accepting_site ((left, right, _) as node) =
-    let rec climb ((_, _, diverged) as node) =
+  let accepting_site ((left, right, _, _) as node) =
+    let rec climb ((_, _, diverged, _) as node) =
       if not diverged then None
       else
         match Hashtbl.find parents node with
         | None -> None
-        | Some (token, ((parent_left, parent_right, parent_diverged) as parent))
+        | Some
+            ( token,
+              ((parent_left, parent_right, parent_diverged, _) as parent) )
           ->
             if parent_diverged then climb parent
             else Some (parent_left, parent_right, token)
@@ -614,16 +690,18 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
      elsewhere, and a site reachable only that way is not found. That is a
      reason a retiring run reports what it looked at rather than a proof; it
      already never claims one. *)
-  let prune_subtree ((_, _, diverged) as node) = diverged && is_retired node in
+  let prune_subtree ((_, _, diverged, _) as node) =
+    diverged && is_retired node
+  in
   (* The node the divergence was born at, rather than the triple describing it:
      the forward walk has to start somewhere it can walk down from. *)
   let divergence_origin node =
-    let rec climb ((_, _, diverged) as node) =
+    let rec climb ((_, _, diverged, _) as node) =
       if not diverged then None
       else
         match Hashtbl.find parents node with
         | None -> None
-        | Some (_, ((_, _, parent_diverged) as parent)) ->
+        | Some (_, ((_, _, parent_diverged, _) as parent)) ->
             if parent_diverged then climb parent else Some parent
     in
     climb node
@@ -661,10 +739,10 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
     let render_stack stack =
       String.concat " " (List.map string_of_int stack.suffix)
     in
-    let guesses (left, right, _) token child =
+    let guesses (left, right, _, _) token child =
       let target =
         Option.map
-          (fun (child_left, child_right, _) -> (child_left, child_right))
+          (fun (child_left, child_right, _, _) -> (child_left, child_right))
           child
       in
       List.map
@@ -672,7 +750,7 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
           Printf.sprintf "guessed at state %d (exact from %d)" top depth)
         (joint_imprecision automaton moves (left, right) token target)
     in
-    let step index ((left, right, _) as node) token child =
+    let step index ((left, right, _, _) as node) token child =
       let stacks =
         if left = right then Printf.sprintf "stack %s" (render_stack left)
         else
@@ -731,7 +809,7 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
       | Some existing when existing >= depth -> ()
       | _ -> Hashtbl.replace wanted top depth
     in
-    let scan (left, right, _) token =
+    let scan (left, right, _, _) token =
       List.iter
         (fun stack -> List.iter record (chain_imprecision automaton moves stack token))
         (if left = right then [ left ] else [ left; right ])
@@ -778,7 +856,7 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
          descent had invented. So walk the chains, exactly as the goto scan
          does. Each recorded stack is the first stack of its own chain, so this
          asks for everything the path-level widening asked for and more. *)
-      let widen (left, right, _) token =
+      let widen (left, right, _, _) token =
         List.iter
           (fun stack ->
             List.iter record (chain_truncations descend moves stack token))
@@ -881,7 +959,7 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
   if not state.seeded then begin
     let start = { suffix = [ 0 ]; height = 1; residue = 0 } in
     state.seeded <- true;
-    push None (start, start, false)
+    push None (start, start, false, History_filter.root history_filter)
   end;
   (* The pairs a deepening put back into play. They are already in [parents]
      from the round that explored them, so [push] would drop them as seen:
@@ -932,7 +1010,7 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
   do
     (* [pending] counts what the buckets hold, so a dequeue under it always
        finds a pair. *)
-    let (left, right, diverged) as node =
+    let (left, right, diverged, history) as node =
       match dequeue state with Some node -> node | None -> assert false
     in
     incr since_progress;
@@ -945,8 +1023,12 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
        parts ways on end of input would otherwise never have its site recorded
        while still counting as an accepting divergence. *)
     let eof_outcomes = joint (left, right) "#" diverged in
+    (* Only complete blocked histories are discarded, at an accepting EOF
+       outcome. Prefixes keep all continuations, including longer sentences. *)
+    let excluded_at_eof = History_filter.is_blocked history_filter history in
     let accepts_diverged =
-      List.exists
+      (not excluded_at_eof)
+      && List.exists
         (fun (_, _, chain_diverged) -> diverged || chain_diverged)
         eof_outcomes
     in
@@ -984,9 +1066,12 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
                  the number of blind spots. *)
               if surveying && (not diverged) && chain_diverged then
                 Hashtbl.replace sites (left, right, token) ();
+              let next_history =
+                History_filter.advance history_filter history token
+              in
               push
                 (Some (token, node))
-                (next_left, next_right, diverged || chain_diverged))
+                (next_left, next_right, diverged || chain_diverged, next_history))
             (joint (left, right) token diverged))
         terminals
   done;
@@ -1041,7 +1126,7 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
           let rec scan index =
             if index > limit then None
             else
-              let left, right, _ = pair_at index in
+              let left, right, _, _ = pair_at index in
               if carried index left && carried index right then
                 scan (index + 1)
               else
@@ -1058,7 +1143,7 @@ let prove engine (state : prove_state) (precision : precision) pair_limit
            every step on the path; that is the right question when nothing
            says which step was the wrong one, and the wrong one to pay for
            when something does. *)
-        let requests_at (left, right, _) token =
+        let requests_at (left, right, _, _) token =
           let wanted = Hashtbl.create 16 in
           let record (top, depth) =
             match Hashtbl.find_opt wanted top with

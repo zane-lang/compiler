@@ -103,6 +103,16 @@ def parser() -> argparse.ArgumentParser:
         ),
     )
     prove.add_argument(
+        "--cegar",
+        type=int,
+        default=0,
+        metavar="N",
+        help=(
+            "after an exact-checkable spurious candidate, exclude its complete "
+            "token history in a DFA product and restart the abstract walk"
+        ),
+    )
+    prove.add_argument(
         "--refine",
         type=int,
         default=0,
@@ -197,6 +207,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         survey = getattr(arguments, "survey", 0)
         if survey < 0:
             raise ConfigurationError("--survey must be non-negative")
+        cegar = getattr(arguments, "cegar", 0)
+        if cegar < 0:
+            raise ConfigurationError("--cegar must be non-negative")
+        if cegar > 0 and proof_level is None:
+            raise ConfigurationError("--cegar requires prove mode")
+        if cegar > 0 and survey > 0:
+            raise ConfigurationError("--cegar cannot be combined with --survey")
         refine = getattr(arguments, "refine", 0)
         refine_rounds = getattr(arguments, "refine_rounds", 0)
         if refine < 0:
@@ -227,7 +244,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if trace and survey > 0:
             raise ConfigurationError("--trace cannot be combined with --survey")
         engine_args = engine_arguments(
-            profile, proof_level, survey, refine, refine_rounds, retire, trace
+            profile, proof_level, survey, refine, refine_rounds, retire, trace,
+            cegar,
         )
         if arguments.dry_run:
             print(summary)

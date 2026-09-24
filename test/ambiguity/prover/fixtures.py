@@ -178,6 +178,108 @@ x: A { () }
 y: A { () }
 """
 
+# Two nullable reductions remain distinct derivations before the final token.
+# This protects EOF and epsilon handling while CEGAR advances its history DFA.
+NULLABLE_REDUCE_REDUCE = """\
+%token EOF "<eof>"
+%start <unit> main
+%%
+main:
+  | x EOF { () }
+  | y EOF { () }
+x: { () }
+y: { () }
+"""
+
+# Two identical-looking alternatives are still two distinct reductions and
+# therefore two derivations. Menhir prints both as `e -> A`, which makes this
+# fixture exercise production-occurrence identity rather than just a conflict
+# between differently named nonterminals.
+DUPLICATE_PRODUCTION = """\
+%token A "a"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: e EOF { () }
+e:
+  | A { () }
+  | A { () }
+"""
+
+# The duplicate reductions live on non-representative terminal B. If terminal
+# equivalence discards reduction multiplicity, A and B merge and the prover
+# only searches A, missing the ambiguous sentence `B EOF`.
+DUPLICATE_NONREPRESENTATIVE_TERMINAL = """\
+%token A "a"
+%token B "b"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: e EOF { () }
+e:
+  | A { () }
+  | B { () }
+  | B { () }
+"""
+
+# A prior sentence-blocking CEGAR walk merged the AM/AO histories after they
+# reached the same abstract parser state and falsely reported a proof after
+# excluding the first, singly parsed sentence. The reversed prefix has two
+# parses, so a path-sensitive DFA product must keep it visible.
+CEGAR_AM_AO_PERMUTATIONS = """\
+%token AM "am"
+%token AO "ao"
+%token A "a"
+%token LB "["
+%token RB "]"
+%token SEMI ";"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main:
+  | AM AO d_outer EOF { () }
+  | AO AM d_outer EOF { () }
+  | AO AM d_suffix EOF { () }
+d_outer: ty LB RB SEMI { () }
+d_suffix: ty SEMI { () }
+ty: A suffixes { () }
+suffixes:
+  | { () }
+  | LB RB suffixes { () }
+"""
+
+# The short AM/AO sentence is an abstract one-parse candidate. The reverse
+# prefix has two derivations only after the B/X continuation. EOF is an
+# ordinary declared terminal here; the engine's end marker is separate, so
+# filtering the short acceptance must preserve longer continuations.
+CEGAR_LONGER_SHARED_PREFIX = """\
+%token AM "am"
+%token AO "ao"
+%token A "a"
+%token LB "["
+%token RB "]"
+%token SEMI ";"
+%token EOF "<eof>"
+%token B "b"
+%token X "x"
+%start <unit> main
+%%
+main:
+  | AM AO d_outer EOF { () }
+  | AM AO d_outer EOF B tail EOF { () }
+  | AO AM d_outer EOF B tail EOF { () }
+  | AO AM d_suffix EOF B tail EOF { () }
+d_outer: ty LB RB SEMI { () }
+d_suffix: ty SEMI { () }
+ty: A suffixes { () }
+suffixes:
+  | { () }
+  | LB RB suffixes { () }
+tail:
+  | X { () }
+  | X { () }
+"""
+
 # The same reduce/reduce conflict, but reached over two symbols instead of one.
 # At proof level 1 the retained stack is a single state, so the competing
 # reductions here are strictly wider than it while `EOF_REDUCE_REDUCE`'s are
@@ -354,6 +456,8 @@ AMBIGUOUS_GRAMMARS = {
     "expression without precedence": AMBIGUOUS_EXPRESSION,
     "dangling else": DANGLING_ELSE,
     "reduce/reduce on eof": EOF_REDUCE_REDUCE,
+    "duplicate production text": DUPLICATE_PRODUCTION,
+    "duplicate non-representative terminal": DUPLICATE_NONREPRESENTATIVE_TERMINAL,
 }
 
 UNAMBIGUOUS_GRAMMARS = {

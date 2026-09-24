@@ -28,10 +28,10 @@ type automaton = {
      automorphism of the recognition relation, so the search only needs to try
      one representative per class instead of every interchangeable token. *)
   terminal_class : (string, int) Hashtbl.t;
-  (* Production ids read back as the text Menhir printed for them. The search
-     itself only ever compares ids, but a diagnostic that names the two
-     productions a conflict is between is what makes the conflict findable in
-     the grammar, so the mapping is kept rather than discarded after parsing. *)
+  (* Production ids are unique to reduction occurrences in the automaton dump,
+     even when Menhir printed the same lhs/rhs text for two alternatives. The
+     search compares ids, while diagnostics need the text that gave each id a
+     name, so the mapping is kept rather than discarded after parsing. *)
   production_text : (int, string) Hashtbl.t;
   (* The fewest entries a stack can have with a state on top: the length of
      the shortest path from the initial state to it.
@@ -266,10 +266,14 @@ let solve_min_height states =
 
    Equivalence is computed in two steps. First a partition refinement over the
    states (a bisimulation on recognition behaviour: shift-target blocks,
-   reduction (lhs, width) sets, nonterminal goto-target blocks, and accepts)
+   reduction (lhs, width) multisets, nonterminal goto-target blocks, and
+   accepts)
    collapses states that differ only in which production they carry - so
    [primary -> INT], [primary -> FLOAT] and [primary -> STRING] states become
-   one block. Then terminals are grouped by their action across every state,
+   one block. The reduction entries are a multiset rather than a set: two
+   identical-looking alternatives are two actions and must keep a state out of
+   the same block as a state with only one such action. Then terminals are
+   grouped by their action across every state,
    comparing shift targets up to that state partition. This is why FLOAT and
    STRING merge even though they shift to distinct states, while INT stays
    separate: it is also valid as a const generic argument, a context the other
@@ -284,7 +288,14 @@ let compute_terminal_classes states terminals =
     match Hashtbl.find_opt state.reductions token with
     | None -> []
     | Some reductions ->
-        List.sort_uniq compare
+        (* Keep multiplicity. Distinct reductions can have the same rendered
+           [lhs] and width, and collapsing them makes a state with two
+           reductions look like a state with one. Their unique [prod] ids are
+           deliberately not part of this *state* bisimulation: swapping
+           interchangeable terminals is allowed to carry corresponding
+           grammar productions to one another, while the multiset still
+           records how many reductions there are. *)
+        List.sort compare
           (List.map (fun reduction -> (reduction.lhs, reduction.width)) reductions)
   in
   let shift_target state token =
@@ -345,6 +356,20 @@ let compute_terminal_classes states terminals =
     previous := !blocks;
     blocks := refine ()
   done;
+  (* Unlike the state partition above, a terminal's direct reduction action is
+     compared with production identity as well as multiplicity. This keeps
+     action signatures honest when two occurrences render identically; the
+     state partition still gives ordinary interchangeable terminals (such as
+     the A/B atoms in the tiny expression grammar) the same block. *)
+  let reduction_signature state token =
+    match Hashtbl.find_opt state.reductions token with
+    | None -> []
+    | Some reductions ->
+        List.sort compare
+          (List.map
+             (fun reduction -> (reduction.prod, reduction.lhs, reduction.width))
+             reductions)
+  in
   let terminal_signature token =
     List.init count (fun index ->
         let state = states.(index) in
@@ -353,7 +378,7 @@ let compute_terminal_classes states terminals =
           | Some target -> Some block.(target)
           | None -> None
         in
-        (shift, reduce_signature state token, StringSet.mem token state.accepts))
+        (shift, reduction_signature state token, StringSet.mem token state.accepts))
   in
   let signatures = Hashtbl.create 64 in
   let terminal_class = Hashtbl.create 64 in
@@ -402,14 +427,17 @@ let parse_automaton path terminals aliases =
   let table = Hashtbl.create 1024 in
   let current = ref None in
   let lookaheads = ref [] in
-  let productions = Hashtbl.create 512 in
-  let intern_production text =
-    match Hashtbl.find_opt productions text with
-    | Some id -> id
-    | None ->
-        let id = Hashtbl.length productions in
-        Hashtbl.add productions text id;
-        id
+  (* The automaton dump does not expose Menhir's internal production number.
+     A rendered [lhs -> rhs] is therefore only a label, not an identity: two
+     alternatives with the same text still represent two derivation steps.
+     Allocate one id for every reduction occurrence in the dump. Reusing a
+     text-keyed id here turns a reduce/reduce conflict into two copies of the
+     same move and lets the prover dismiss a real ambiguity. *)
+  let production_text = Hashtbl.create 512 in
+  let fresh_production text =
+    let id = Hashtbl.length production_text in
+    Hashtbl.add production_text id text;
+    id
   in
   let get_state number =
     match Hashtbl.find_opt table number with
@@ -445,7 +473,7 @@ let parse_automaton path terminals aliases =
                 {
                   lhs;
                   width = List.length (words rhs);
-                  prod = intern_production (lhs ^ " -> " ^ rhs);
+                  prod = fresh_production (lhs ^ " -> " ^ rhs);
                 }
               in
               List.iter
@@ -467,9 +495,5 @@ let parse_automaton path terminals aliases =
   let maximum = Hashtbl.fold (fun number _ value -> max number value) table 0 in
   let states = Array.init (maximum + 1) (fun number -> get_state number) in
   let terminal_class = compute_terminal_classes states terminals in
-  let production_text = Hashtbl.create (Hashtbl.length productions) in
-  Hashtbl.iter
-    (fun text id -> Hashtbl.replace production_text id text)
-    productions;
   let min_height = solve_min_height states in
   { states; terminals; aliases; terminal_class; production_text; min_height }

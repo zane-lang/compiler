@@ -34,6 +34,22 @@ e:
   | e PLUS e { () }
 """
 
+# The short derivation accepts at A EOF; a longer accepted derivation needs
+# that prefix to remain expandable until the requested four-token boundary.
+MIN_TOKENS_GRAMMAR = """\
+%token A "a"
+%token X "x"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main:
+  | e EOF { () }
+  | e EOF X EOF { () }
+e:
+  | A { () }
+  | A { () }
+"""
+
 # A deliberately branchy expression grammar for the progress-pipe check. The
 # tiny grammar above settles its proof before the engine's 128-pair progress
 # cadence is reached, so it cannot exercise progress output reliably.
@@ -481,6 +497,17 @@ class SurveyFlagTests(unittest.TestCase):
             arguments[arguments.index("--prove-survey") + 1], "5"
         )
 
+    def test_requested_CEGAR_reaches_the_engine(self) -> None:
+        arguments = runner.engine_arguments(self.profile(), 3, cegar=2)
+        self.assertEqual(arguments[arguments.index("--prove-cegar") + 1], "2")
+
+    def test_CEGAR_and_refinement_can_be_requested_together(self) -> None:
+        arguments = runner.engine_arguments(
+            self.profile(), 3, refine=9, cegar=2
+        )
+        self.assertEqual(arguments[arguments.index("--prove-cegar") + 1], "2")
+        self.assertEqual(arguments[arguments.index("--prove-refine") + 1], "9")
+
     def test_refinement_is_absent_unless_requested(self) -> None:
         arguments = runner.engine_arguments(self.profile(), 3)
         self.assertNotIn("--prove-refine", arguments)
@@ -531,6 +558,8 @@ class SurveyFlagTests(unittest.TestCase):
             ("rounds without refinement", ["prove", "1", "--refine-rounds", "4"]),
             ("trace with a survey", ["prove", "1", "--trace", "--survey", "1"]),
             ("retire without refinement", ["prove", "1", "--retire", "2"]),
+            ("negative CEGAR rounds", ["prove", "1", "--cegar", "-1"]),
+            ("CEGAR with a survey", ["prove", "1", "--cegar", "1", "--survey", "1"]),
         ):
             with self.subTest(combination=name):
                 with self.assertRaises(SystemExit):
@@ -545,6 +574,9 @@ class SurveyFlagTests(unittest.TestCase):
             ),
             0,
         )
+
+    def test_the_wrapper_accepts_CEGAR(self) -> None:
+        self.assertEqual(cli.main(["prove", "1", "--cegar", "2", "--dry-run"]), 0)
 
 
 class TerminalClassEngineTests(unittest.TestCase):
@@ -619,6 +651,110 @@ class TerminalClassEngineTests(unittest.TestCase):
                 "AMBIGUOUS: the recognizer found two derivations of A PLUS A PLUS A EOF",
                 result.stdout,
             )
+
+
+class MinTokenEngineTests(unittest.TestCase):
+    """Accepted prefixes below --min-tokens must stay expandable and bounded."""
+
+    def setUp(self) -> None:
+        self.environment = engine_environment()
+        if self.environment is None:
+            self.skipTest(
+                "requires a built _build/default/tools/ambiguity/ambiguity_search.exe and menhir"
+            )
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.grammar = Path(directory.name) / "min_tokens.mly"
+        self.grammar.write_text(MIN_TOKENS_GRAMMAR, encoding="utf-8")
+
+    def test_expands_an_accepted_prefix_to_the_requested_boundary(self) -> None:
+        for jobs in (1, 2):
+            with self.subTest(jobs=jobs):
+                result = subprocess.run(
+                    [
+                        str(ENGINE),
+                        "--min-tokens", "4",
+                        "--max-tokens", "4",
+                        "--timeout", "30",
+                        "--max-witnesses", "1",
+                        str(self.grammar),
+                    ],
+                    env={**self.environment, "AMBIGUITY_JOBS": str(jobs)},
+                    text=True,
+                    capture_output=True,
+                    timeout=120,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assertIn("Found 1 complete ambiguity family.", result.stdout)
+                self.assertIn("Tokens (4): A EOF X EOF", result.stdout)
+
+
+class PartitionBudgetEngineTests(unittest.TestCase):
+    """A stopped prepass must leave complete coverage to the workers."""
+
+    def setUp(self) -> None:
+        self.environment = engine_environment()
+        if self.environment is None:
+            self.skipTest(
+                "requires a built _build/default/tools/ambiguity/ambiguity_search.exe and menhir"
+            )
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.grammar = Path(directory.name) / "branching_min_tokens.mly"
+        count = 300
+        tokens = "\n".join(
+            f'%token X{index} "x{index}"\n%token Y{index} "y{index}"'
+            for index in range(count)
+        )
+        continuations = "\n".join(
+            f"  | e EOF X{index} Y{index} Z EOF {{ () }}"
+            for index in range(count)
+        )
+        # The only ambiguity is in the final branch, beyond the prepass
+        # frontier cap. Retaining only its partial [next] level misses it.
+        continuations += "\n  | e EOF X299 Y299 Z EOF { () }"
+        self.grammar.write_text(
+            f"""%token A "a"
+%token Z "z"
+%token EOF "<eof>"
+{tokens}
+%start <unit> main
+%%
+main:
+  | e EOF {{ () }}
+{continuations}
+e:
+  | A {{ () }}
+""",
+            encoding="utf-8",
+        )
+
+    def test_frontier_budget_stop_preserves_late_unique_witness(self) -> None:
+        result = subprocess.run(
+            [
+                str(ENGINE),
+                "--min-tokens", "6",
+                "--max-tokens", "6",
+                "--timeout", "30",
+                "--max-witnesses", "1",
+                str(self.grammar),
+            ],
+            env={
+                **self.environment,
+                "AMBIGUITY_JOBS": "4",
+                "AMBIGUITY_MEMORY_MB": "512",
+                "AMBIGUITY_MAX_FRONTIER_RATIO": "0.001",
+            },
+            text=True,
+            capture_output=True,
+            timeout=120,
+        )
+        self.assertIn("Found 1 complete ambiguity family.", result.stdout)
+        self.assertIn("Tokens (6): A EOF X299 Y299 Z EOF", result.stdout)
+        self.assertIn("the witness limit was reached", result.stdout)
+        self.assertNotIn(
+            "the frontier budget stopped initial partitioning", result.stdout
+        )
 
 
 class StreamingOutputTests(unittest.TestCase):

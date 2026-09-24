@@ -38,6 +38,7 @@ let timeout = ref None
 let max_witnesses = ref None
 let check_tokens = ref []
 let prove_level = ref 0
+let cegar_rounds = ref 0
 let survey_limit = ref 0
 let refine_max = ref 0
 let refine_rounds = ref 12
@@ -114,6 +115,11 @@ let options =
        exits 0 proven, 1 a concrete ambiguous sentence, 3 neither, \
        2 a failed run \
        (the derived dedup-frontier limit also bounds the abstract pair count)" );
+    ( "--prove-cegar",
+      Arg.Set_int cegar_rounds,
+      "N with --prove, after an exact-checked spurious candidate, add its \
+       complete token history to a DFA product and restart the abstract walk \
+       (0 disables; every terminal-class substitution is checked)" );
     ( "--prove-refine",
       Arg.Set_int refine_max,
       "K with --prove, treat a candidate as a reason to sharpen the \
@@ -198,6 +204,12 @@ let settings () =
     invalid_arg "--prove-survey must be non-negative";
   if !survey_limit > 0 && !prove_level <= 0 then
     invalid_arg "--prove-survey requires --prove";
+  if !cegar_rounds < 0 then
+    invalid_arg "--prove-cegar must be non-negative";
+  if !cegar_rounds > 0 && !prove_level <= 0 then
+    invalid_arg "--prove-cegar requires --prove";
+  if !cegar_rounds > 0 && !survey_limit > 0 then
+    invalid_arg "--prove-cegar cannot be combined with --prove-survey";
   if !refine_max < 0 then invalid_arg "--prove-refine must be non-negative";
   if !refine_max > 0 && !prove_level <= 0 then
     invalid_arg "--prove-refine requires --prove";
