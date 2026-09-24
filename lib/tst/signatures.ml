@@ -22,8 +22,8 @@ type introductions = {
   mutable found : (string * Ty.param) list;
   (* The explicit ones, by the value parameter that introduces them. *)
   mutable explicit : (string * Ty.param) list;
-  (* Every name the signature writes where a number goes, as in the `n` of
-     `Array<T, n>`. *)
+  (* Every name the verb writes where a number goes, as in the `n` of
+     `Array<T, n>`, in its signature or its body. *)
   numbers : string list;
 }
 
@@ -119,7 +119,7 @@ and scan_param_type intro (pt : N.Param_type.t) =
 (* A `T Type` value parameter always introduces a type parameter. An
    `@concepts$Integer` one is a compile-time integer either way, since that is
    a leaf concept type (syntax.md §2.8); it introduces a number parameter
-   when the signature writes its name where a number goes, as
+   when a type in the verb writes its name where a number goes, as
    `Array<T, n>(T Type, n @concepts$Integer)` does, and is otherwise an
    ordinary parameter that accepts an integer literal
    (docs/semantics.md §9). *)
@@ -200,18 +200,24 @@ let rec home (t : Ty.t) : S.home option =
   | Ty.Guest t -> home t
   | _ -> None
 
-let signature_number_refs (v : N.Verb_decl.t) =
+(* The names a verb writes where a number goes, in its signature or in any
+   type its body writes: a local `a Array<Int, n>` makes the body's types
+   depend on `n` as surely as the signature's would. *)
+let verb_number_refs (v : N.Verb_decl.t) =
   let params ps = List.concat_map (fun (p : N.Param.t) -> param_type_number_refs p.N.Param.type_) ps in
+  let body b = List.concat_map number_refs (Sst.Walk.type_exprs_of_block b) in
   match v.N.Verb_decl.node with
-  | N.Verb_decl.Func { params = ps; ret_type; _ }
-  | N.Verb_decl.Op { params = ps; ret_type; _ }
-  | N.Verb_decl.Flip { params = ps; ret_type; _ } ->
-      params ps @ ret_number_refs ret_type
-  | N.Verb_decl.Meth { this_type; params = ps; ret_type; _ } ->
-      number_refs this_type @ params ps @ ret_number_refs ret_type
-  | N.Verb_decl.Subscript { this_type; params = ps; _ } -> number_refs this_type @ params ps
-  | N.Verb_decl.Constructor { type_; params = cps; _ } -> (
-      number_refs type_
+  | N.Verb_decl.Func { params = ps; ret_type; body = b; _ }
+  | N.Verb_decl.Op { params = ps; ret_type; body = b; _ }
+  | N.Verb_decl.Flip { params = ps; ret_type; body = b } ->
+      params ps @ ret_number_refs ret_type @ body b
+  | N.Verb_decl.Meth { this_type; params = ps; ret_type; body = b; _ } ->
+      number_refs this_type @ params ps @ ret_number_refs ret_type @ body b
+  | N.Verb_decl.Subscript { this_type; params = ps; value } ->
+      number_refs this_type @ params ps
+      @ List.concat_map number_refs (Sst.Walk.type_exprs_of_expr value)
+  | N.Verb_decl.Constructor { type_; params = cps; body = b; _ } -> (
+      number_refs type_ @ body b
       @
       match cps.N.Constructor_params.node with
       | N.Constructor_params.Positional ps -> params ps
@@ -221,7 +227,7 @@ let signature_number_refs (v : N.Verb_decl.t) =
             fs)
 
 let build (d : decl) (v : N.Verb_decl.t) : S.t option =
-  let intro = { found = []; explicit = []; numbers = signature_number_refs v } in
+  let intro = { found = []; explicit = []; numbers = verb_number_refs v } in
   let make ?(is_mut = false) ?(abort = None) ~kind ~name params ret_ty =
     Some
       {

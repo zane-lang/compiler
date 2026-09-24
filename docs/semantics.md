@@ -438,13 +438,15 @@ a declaration with parameters, and `types.md` §3.9 indexes a `List` with a
 literal, `weapons[1]`, which only a coercion site allows.
 
 **An `@concepts$Integer` value parameter is a number parameter only when the
-signature uses it as one.** The spec spells an explicit number parameter,
+verb uses it as one.** The spec spells an explicit number parameter,
 `Array<T, n>(T Type, n @concepts$Integer)`, the same way as a parameter that
 takes an integer literal, `implicit Int(value @concepts$Integer)`
-(`generics.md` §5.3, §5.4). This compiler makes the first a generic parameter
-because the signature writes `n` where a number goes -- here, in the type it
-returns -- and the second an ordinary parameter, since nothing in its
-signature depends on the value. Both are compile-time integers either way
+(`generics.md` §5.3, §5.4). This compiler decides from the uses rather than
+the concept: a parameter is generic when some type the verb writes -- in its
+signature, or in its body's local declarations and lambdas -- puts its name
+where a number goes. `Array<T, n>` does, in the type it returns, so `n` is
+generic; nothing in `Int`'s constructor depends on `value`, so `value` is an
+ordinary parameter. Both are compile-time integers either way
 (`syntax.md` §2.8). The distinction is what keeps D12 affordable: were every
 such parameter generic, each distinct literal a program writes would be a new
 instance of `Int`'s constructor, and a program with more distinct literals
@@ -452,6 +454,11 @@ than the instance limit could not be built. An explicit number and one
 inferred from another argument must agree, so `measured(values Array<Int, n>,
 n @concepts$Integer)` called with a three-element array and `4` matches
 nothing.
+
+One use does not count: passing the parameter on to another verb's number
+parameter, `Array(Int, n)` in a body whose types never mention `n`. Telling
+that apart needs the call resolved, which pass 4 has not done, so such a call
+is an error until the verb's types mention `n` too.
 
 **Where constructors and enum maps are found.** A type's constructors are the
 ones declared in its home package and in the current package, the order

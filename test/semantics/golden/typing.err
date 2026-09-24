@@ -154,24 +154,28 @@ File "fixtures/typing/reject/bad/literals.zn", line 12, characters 32-37:
 12 | Int first(values Array<T Type, n Int>) => Int(1)
   |                                ^^^^^
 Error: `n` introduces a parameter, which takes `Type` or `@concepts$Integer` (generics.md §3.3)
-File "fixtures/typing/reject/bad/literals.zn", line 24, characters 17-25:
-24 |     whole Int = Int(2.5);
+File "fixtures/typing/reject/bad/literals.zn", line 18, characters 12-27:
+18 |     return measure(values);
+  |            ^^^^^^^^^^^^^^^
+Error: no `measure` accepts (core$Array<core$Int, 3>); the candidate is `core$Int measure(core$Array<core$Int, 4>)` (in `sizedLike` with n = 4, required at fixtures/typing/reject/bad/literals.zn:39)
+File "fixtures/typing/reject/bad/literals.zn", line 29, characters 17-25:
+29 |     whole Int = Int(2.5);
   |                 ^^^^^^^^
 Error: no `Int` accepts (@concepts$Decimal); the candidates are `implicit Int(bad$Engine)`; `implicit Int(@concepts$Integer)`; `implicit Int(@primitives$Int)`
-File "fixtures/typing/reject/bad/literals.zn", line 25, characters 22-30:
-25 |     fraction Float = Float(2);
+File "fixtures/typing/reject/bad/literals.zn", line 30, characters 22-30:
+30 |     fraction Float = Float(2);
   |                      ^^^^^^^^
 Error: no `Float` accepts (@concepts$Integer); the candidates are `implicit Float(core$Bool)`; `implicit Float(@concepts$Decimal)`; `implicit Float(@primitives$Float)`
-File "fixtures/typing/reject/bad/literals.zn", line 26, characters 15-27:
-26 |     sum Int = Int(1) + 2.5;
+File "fixtures/typing/reject/bad/literals.zn", line 31, characters 15-27:
+31 |     sum Int = Int(1) + 2.5;
   |               ^^^^^^^^^^^^
 Error: no operator `+` accepts (core$Int, @concepts$Decimal); the candidates are `core$Bool +(core$Bool, core$Bool)`; `core$Int +(core$Int, core$Int)`; `core$Float +(core$Float, core$Float)`; `core$String +(core$String, core$String)`
-File "fixtures/typing/reject/bad/literals.zn", line 29, characters 17-37:
-29 |     sized Int = measured(numbers, 4);
+File "fixtures/typing/reject/bad/literals.zn", line 34, characters 17-37:
+34 |     sized Int = measured(numbers, 4);
   |                 ^^^^^^^^^^^^^^^^^^^^
 Error: no `measured` accepts (core$Array<core$Int, 3>, @concepts$Integer); the candidate is `core$Int measured(core$Array<core$Int, n>, n @concepts$Integer)`
-File "fixtures/typing/reject/bad/literals.zn", line 32, characters 18-31:
-32 |     mixed Unit = twice(2, 3.5);
+File "fixtures/typing/reject/bad/literals.zn", line 42, characters 18-31:
+42 |     mixed Unit = twice(2, 3.5);
   |                  ^^^^^^^^^^^^^
 Error: no `twice` accepts (@concepts$Integer, @concepts$Decimal); the candidates are `core$Unit twice(@concepts$Integer, @concepts$Integer)`; `core$Unit twice(@concepts$Decimal, @concepts$Decimal)`
 File "fixtures/typing/reject/bad/matches.zn", line 8, characters 29-44:

@@ -1032,10 +1032,19 @@ and call_value ~flow ctx span (fn : T.Expr.t) actuals handle =
       let params =
         (match v.Ty.this_ with Some t -> [ t ] | None -> []) @ v.Ty.params
       in
+      (* A lambda-variable is named in a message by its own name; any other
+         function value has none to give. *)
+      let name, what =
+        match fn.T.Expr.node with
+        | T.Expr.Var (T.Name_ref.Local { T.Local.name; _ })
+        | T.Expr.Var (T.Name_ref.Global { name; _ }) ->
+            (name, quote name)
+        | _ -> ("this function value", "this function value")
+      in
       let s =
         {
           S.owner = S.Intrinsic "<value>";
-          name = "this function value";
+          name;
           home = S.Package ctx.package;
           kind = S.Function;
           generics = [];
@@ -1048,14 +1057,14 @@ and call_value ~flow ctx span (fn : T.Expr.t) actuals handle =
       if any_error actuals then (skip_handler ctx handle; (invalid span, None))
       else
         match
-          report_resolution ~span ~what:"this function value" ~args:(describe_args actuals)
+          report_resolution ~span ~what ~args:(describe_args actuals)
             (resolve [ s ] (positional actuals)) [ s ]
         with
         | None ->
             skip_handler ctx handle;
             (invalid span, None)
         | Some o ->
-            let handler = owe_handler ~flow ctx ~what:"this function value" ~span ~abort:v.Ty.abort ~ok:v.Ty.ret handle in
+            let handler = owe_handler ~flow ctx ~what ~span ~abort:v.Ty.abort ~ok:v.Ty.ret handle in
             let args = List.filter_map Fun.id o.converted in
             (mk (T.Expr.Call_value { callee = fn; args; handler }) v.Ty.ret span, None))
   | other ->
