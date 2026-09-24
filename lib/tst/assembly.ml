@@ -35,11 +35,23 @@ type package = {
 (* What went wrong, and whether there is source to point at.
 
    Most problems are in a file, and those are ordinary diagnostics. A few are
-   about a directory -- missing, empty, or named the same as another -- and
-   have no text to put a caret under, so they carry only the directory. *)
+   about a directory -- missing, unlistable, empty, or named the same as
+   another -- and have no text to put a caret under, so they carry only the
+   directory. A file that could not be read has no text either, and carries
+   only its path. *)
 type problem =
   | In_file of { diagnostic : Diagnostic.t; source : string }
+  | Unreadable of { path : string; message : string }
   | In_directory of { dir : string; message : string }
+
+(* What the file system said, without the path it starts with: [Sys_error]
+   messages read "PATH: reason", and a problem already names its path. *)
+let reason ~path message =
+  let prefix = path ^ ": " in
+  if String.starts_with ~prefix message then
+    String.sub message (String.length prefix)
+      (String.length message - String.length prefix)
+  else message
 
 let source_extension = ".zn"
 
@@ -57,10 +69,14 @@ let file_start path =
    golden file should depend on -- and file order is "semantically irrelevant"
    anyway, so no order is more correct than another. *)
 let source_files dir =
+  (* An entry that cannot be examined, such as a dangling link, is kept as a
+     file: reading it is what fails, and that failure is reported against its
+     path like any other file's. *)
+  let is_directory path = try Sys.is_directory path with Sys_error _ -> false in
   Sys.readdir dir |> Array.to_list
   |> List.filter (fun entry ->
          Filename.check_suffix entry source_extension
-         && not (Sys.is_directory (Filename.concat dir entry)))
+         && not (is_directory (Filename.concat dir entry)))
   |> List.sort String.compare
   |> List.map (Filename.concat dir)
 
@@ -138,17 +154,41 @@ let check_package_line ~name ~path ~source (cst : Cst.Nodes.Package.t) =
       placement @ mismatch @ repeated
 
 let load_file ~name path =
-  let source = read_file path in
-  match Cst.parse path source with
-  | Error diagnostic -> Error [ In_file { diagnostic; source } ]
-  | Ok cst -> (
-      match check_package_line ~name ~path ~source cst with
-      | [] -> Ok { path; source; sst = Sst.of_cst cst }
-      | problems -> Error problems)
+  match read_file path with
+  | exception Sys_error message ->
+      Error [ Unreadable { path; message = reason ~path message } ]
+  | source -> (
+      match Cst.parse path source with
+      | Error diagnostic -> Error [ In_file { diagnostic; source } ]
+      | Ok cst -> (
+          match check_package_line ~name ~path ~source cst with
+          | [] -> Ok { path; source; sst = Sst.of_cst cst }
+          | problems -> Error problems))
 
-(* The basename of a directory as written, which is the package's name. A
-   trailing separator is not part of it: `app/` is the package `app`. *)
-let package_name dir = Filename.basename dir
+(* The name of the directory a path leads to, which is the package's name.
+
+   Not the path's last component as written: `.` and `..` name a directory
+   without spelling its name, so `--package .` run inside `app` is the package
+   `app`. The path is made absolute and those components are resolved first.
+   A trailing separator is not part of the name either: `app/` is `app`.
+   Symbolic links are not followed; a link to `app` named `lib` is `lib`, the
+   same as the directory the link appears to be. *)
+let package_name dir =
+  let absolute =
+    if Filename.is_relative dir then Filename.concat (Sys.getcwd ()) dir
+    else dir
+  in
+  let components =
+    List.fold_left
+      (fun resolved component ->
+        match component with
+        | "" | "." -> resolved
+        | ".." -> ( match resolved with [] -> [] | _ :: parent -> parent)
+        | name -> name :: resolved)
+      []
+      (String.split_on_char '/' absolute)
+  in
+  match components with [] -> "" | last :: _ -> last
 
 let load_package ~is_root dir =
   let name = package_name dir in
@@ -156,6 +196,8 @@ let load_package ~is_root dir =
     Error [ In_directory { dir; message = "no such directory" } ]
   else
     match source_files dir with
+    | exception Sys_error message ->
+        Error [ In_directory { dir; message = reason ~path:dir message } ]
     | [] ->
         Error
           [
@@ -222,6 +264,8 @@ let render_problem = function
      there is none of. *)
   | In_directory { dir; message } ->
       Printf.sprintf "Directory \"%s\":\nError: %s\n" dir message
+  | Unreadable { path; message } ->
+      Printf.sprintf "File \"%s\":\nError: %s\n" path message
 
 let to_node packages =
   let open Tree_graph in
