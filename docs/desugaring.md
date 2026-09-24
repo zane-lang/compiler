@@ -181,9 +181,9 @@ So a swapped call keeps its operands where they were written and says the
 swap in a flag. `a > b` is an `Op` of `Less` with `left` `a`, `right` `b` and
 `swapped` set: evaluate `a`, evaluate `b`, then call `<` with `b` as its first
 argument. `a <= b` is the same call under a `Flip`. That costs one field on `Op`
-and no nodes;
-the alternative, binding both operands to temporaries ahead of a reordered
-call, needs an expression that binds, which the SST has no other use for.
+and no nodes; the alternative, binding both operands to temporaries ahead of a
+reordered call, needs an expression that binds, which the SST has no other use
+for.
 
 **This rewrite needed a guard first, and it is in place.** See §3.
 
