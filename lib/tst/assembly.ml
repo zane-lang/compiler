@@ -64,6 +64,17 @@ let source_files dir =
   |> List.sort String.compare
   |> List.map (Filename.concat dir)
 
+(* Whatever succeeded, if everything did; otherwise every problem, from every
+   part that failed. One pass over the results, splitting as it goes. *)
+let all_or_problems results =
+  match
+    List.partition_map
+      (function Ok value -> Either.Left value | Error problems -> Right problems)
+      results
+  with
+  | values, [] -> Ok values
+  | _, problems -> Error (List.concat problems)
+
 let read_file path = In_channel.with_open_bin path In_channel.input_all
 
 (* §2.2: every file "**MUST** begin with a `package packageName` declaration
@@ -159,15 +170,9 @@ let load_package ~is_root dir =
     | paths ->
         (* Every file is loaded, whichever fail: one mistake per file is one
            report per file, not one report per run (docs/semantics.md D4). *)
-        let loaded = List.map (load_file ~name) paths in
-        let files = List.filter_map Result.to_option loaded in
-        let problems =
-          List.concat_map
-            (function Ok _ -> [] | Error problems -> problems)
-            loaded
-        in
-        if problems = [] then Ok { name; dir; is_root; files }
-        else Error problems
+        List.map (load_file ~name) paths
+        |> all_or_problems
+        |> Result.map (fun files -> { name; dir; is_root; files })
 
 (* A package name names one package. Two directories with the same basename
    would both be that package, and which of them a `name$member` meant would
@@ -209,10 +214,7 @@ let assemble dirs =
         let earlier = if claimant = None then dir :: earlier else earlier in
         loaded :: go earlier (index + 1) rest
   in
-  let loaded = go [] 0 dirs in
-  match List.concat_map (function Ok _ -> [] | Error p -> p) loaded with
-  | [] -> Ok (List.filter_map Result.to_option loaded)
-  | problems -> Error problems
+  all_or_problems (go [] 0 dirs)
 
 let render_problem = function
   | In_file { diagnostic; source } -> Diagnostic.render ~source diagnostic
