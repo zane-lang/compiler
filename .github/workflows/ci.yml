@@ -58,7 +58,7 @@ jobs:
       # devbox provides, and the pins. It is hashed from the committed files,
       # before devbox has had a chance to rewrite its lock.
       - name: Restore the opam switch
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.opam
