@@ -3,8 +3,8 @@
 > **Status: draft.** Nothing here is built yet. This is the plan for stage 3 —
 > the passes that turn the SST into the typed syntax tree — written down so the
 > decisions can be argued with one at a time before any of it is code. Each
-> decision is numbered (**D1**…) and each unsettled point is an open question
-> (**Q1**…) in §8.
+> decision is numbered (**D1**…). The questions the first draft left open are
+> answered in §8.
 
 The **TST** is the SST with every name resolved and every expression typed
 ([`stages.md`](stages.md)). Where the SST answers "what was written, said one
@@ -90,7 +90,14 @@ them.
 implicit constructors from `@concepts$Number` and `@concepts$Text` that carry
 literals into them (`types.md` §2.6). It is the first real multi-file,
 multi-package test input. It is also the first code in the repository that has
-to type-check. Its exact declarations are not in the spec (**Q4**).
+to type-check.
+
+Nothing in stage 3 depends on what the fixture declares, or how. `core` is an
+ordinary package (`types.md` §2.6), so the compiler reads it as source and
+checks it by the same rules as every other package. It never names `core` or
+any of its members. Whether `Int` is a distinct type over `@primitives$Int` or a
+struct wrapping one is `core`'s own choice, and the compiler does not care which
+it makes, just as it does not care how any other package writes its types.
 
 The intrinsic namespaces (`@primitives$`, `@concepts$`, `@controlflow$`,
 `@runtime$`, `@program$`) are not packages. They are an OCaml table in
@@ -282,7 +289,7 @@ The SST's `TypeMember`, `TypeValue` and `DotAccess` resolve the same way:
 
 | SST node | Becomes one of |
 |---|---|
-| `DotAccess` | field read (a slot index); variant member read (abortable, see **Q2**); enum-map read |
+| `DotAccess` | field read (a slot index); variant member read (abortable, D13); enum-map read |
 | `TypeMember` | enum member; variant case; named constructor |
 | `TypeValue` | a `Type` argument passed to an explicit `Type` parameter (`generics.md` §5.3) |
 
@@ -309,43 +316,49 @@ what it added, the way the SST landed:
    and overload resolution, then coercion, abort handlers, `match`.
    `--tst` renders the tree with a type on every node; `to_span_text` keeps the
    span check the SST has.
-7. Generic instantiation (**Q1**).
+7. Generic instantiation (D12).
+
+Variant member reads (D13) need a parser change before step 6 can type them.
+That change is independent of the rest and can land at any point.
 
 Reject fixtures grow alongside: one `.zn` per diagnostic, as in
 `test/parser/fixtures/reject/`.
 
 ---
 
-## 8. Open questions
+## 8. Answered questions
 
-**Q1. Is a generic verb's body checked once, or once per instantiation?**
-The only bounds a parameter can have are `Type` and `Number`
+The first draft left four questions open. These are the answers.
+
+**D12. A generic verb's body is checked once per instantiation, as a C++
+template is.** A parameter's only bound is `Type` or `Number`
 (`generics.md` §3.3). So a body that writes `a + b` on a `T` has nothing to
-resolve `+` against until `T` is known. The spec calls types "templated
-functions" that are "executed" in an earlier stage ([`foundations.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/foundations.md) §3). That reads as template semantics, but the spec never says when a generic
-body is checked. **Recommendation:** check each signature once. Check bodies
-once per distinct instantiation, and memoize them by `(Decl_id, args)`. An error
-in a generic body is reported at the instantiation that exposed it, and it names
-the call site too. This also fits the home-package instantiation plan in
-[`generics.md`](generics.md). It needs a spec sentence either way.
+resolve `+` against until `T` is known. The signature is checked once. The body
+is checked once per distinct set of arguments, memoized by `(Decl_id, args)`,
+and the TST holds one body per instance. An error in a generic body is reported
+at the instantiation that exposed it, and names the call site that asked for
+it. This fits the home-package instantiation plan in
+[`generics.md`](generics.md). The spec does not yet say when a generic body is
+checked, and needs a sentence saying this.
 
-**Q2. A variant member read is abortable, but the grammar cannot handle one.**
-`adt.md` §3 says a member read of a variant "is therefore an **abortable**
-access (`?` / `??`)". The parser only attaches a handler to a call, an operator,
-a flip or a `match` (`lib/cst/parser_actions.ml`, `attach_abort_handle`). So
-`e.a ?? fallback` is rejected with "an abort handler must follow an abortable
-operation". Either the grammar grows a handler on field access, or the spec
-narrows variant reads to `match`. That is a spec or grammar decision, and it
-blocks typing `DotAccess` on a variant.
+**D13. The grammar grows a handler on a member read.** `adt.md` §3 makes a
+variant member read "an **abortable** access (`?` / `??`)". The parser only
+attaches a handler to a call, an operator, a flip or a `match`
+(`attach_abort_handle` in `lib/cst/parser_actions.ml`), so `e.a ?? fallback` is
+rejected today. The fix belongs in the grammar: `DotAccess` takes an optional
+abort handle in the CST, SST and TST. Whether one is required is a typing
+question, because only the target's type says whether the read is of a
+variant. So the parser accepts a handler on any member read. Typing then
+requires one on a variant read and rejects one on a total read, the same rule
+it applies to calls. Until the parser changes, this is entry 8 of
+[`spec-divergences.md`](spec-divergences.md).
 
-**Q3. Can a local shadow another local?** The spec forbids an import from
-shadowing (`packages.md` §3.8). It says nothing about a local declared in a
-nested block with a name already in scope. **Recommendation:** reject, matching
-the import rule's "never shadowing", until the spec says otherwise.
+**D14. A local may not shadow a name already in scope.** The spec says nothing
+about locals, but it forbids an import from shadowing (`packages.md` §3.8). A
+local declared with a name already bound — an enclosing local, a parameter, or
+a package-scope name the file can write — is an error, reported at the new
+declaration.
 
-**Q4. What exactly does `core` declare?** `types.md` §2.6 says `core` defines the
-fundamental types "over storage primitives" and declares the implicit
-constructors from the literal concepts. It does not show the declarations. For
-example, is `Int` written `type Int = @primitives$Int` or a struct wrapping
-one? The fixture of D3 has to pick one. Whichever it picks is a de facto
-proposal for the real `core`, and should be written down as one.
+The fourth question, what `core` declares, turned out not to be one. `core` is
+an ordinary package, so the compiler has no more need to know its declarations
+than any other package's. D3 says so.
