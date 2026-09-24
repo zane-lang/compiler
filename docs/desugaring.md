@@ -32,7 +32,7 @@ clothes. Those are listed in §4 so they are refused deliberately rather than
 attempted and abandoned.
 
 Two rewrites sit right on that line — the instantiation shorthand of §2.7 and
-the method-call question of §5.3 — and both say so where they appear.
+the method-call question of §5.2 — and both say so where they appear.
 
 ### Spans
 
@@ -151,7 +151,7 @@ This is the cheapest entry on the list — the SST reads one field and ignores i
 §2.3 gives five fixed desugarings and says they are "**not** independently
 implementable":
 
-| Written | Becomes | Reorders operands? |
+| Written | Becomes | Operands swapped? |
 |---|---|---|
 | `a - b` | `a + ~b` | no |
 | `a ~= b` | `~(a == b)` | no |
@@ -168,9 +168,19 @@ rewrite later anyway.
 **CST → SST.** `Operator.t` drops from ten variants to five: `Add`, `Mul`,
 `Div`, `Eq`, `Less`. `Sub`, `NotEq`, `More`, `LessEq` and `MoreEq` disappear.
 
-**Two of the five reorder their operands, and the spec does not say whether
-that is observable.** See §5.1 — this is the one entry on the list with a
-question attached.
+**Two of the five swap their operands, and evaluation order survives it.**
+Operands are evaluated left to right, in written order, whatever operator they
+reach — the rule spec [#184](https://github.com/zane-lang/spec/issues/184)
+settles for `operators.md` §2.3. An operator is an ordinary verb and only `~`
+must be pure (§4.1), so `f(log) > g(log)` can make two observable writes, and
+`f` has to make its write first.
+
+So a swapped call keeps its operands where they were written and says the
+swap in a flag. `a > b` is an `Op` of `Less` with `left` `a`, `right` `b` and
+`swapped` set: evaluate `a`, evaluate `b`, then call `<` with `b` first. `a <=
+b` is the same call under a `Flip`. That costs one field on `Op` and no nodes;
+the alternative, binding both operands to temporaries ahead of a reordered
+call, needs an expression that binds, which the SST has no other use for.
 
 **This rewrite needed a guard first, and it is in place.** See §3.
 
@@ -214,7 +224,7 @@ expanded arms are exactly what a later pass needs to check independently.
 
 **The cost is body duplication, and with several scrutinees it is a cross
 product.** `[a, b], [c, d] => body` expands to four arms carrying four copies
-of `body`. §5.2 has the options.
+of `body`. §5.1 has the options.
 
 ### 2.6 Implicit field names
 
@@ -340,55 +350,19 @@ the syntax does not carry. They are listed so the refusal is on the record.
 | Construct | Why it is not a desugaring |
 |---|---|
 | `if`, `elif`, `else`, `guard`, `i!to(n)` | **Not sugar at all.** [`control-flow.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/control-flow.md) §1: "Zane has no `if` statement, no `loop` statement, and no exit keyword." They are `core` declarations called like any other verb, and they reach the SST as ordinary `Verb_call`s. Nothing to do — but a reader arriving from another language will expect an entry here, so this is it. |
-| `subject:method(a)` → `Pkg$method(subject, a)` | [`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md) §2.6 titles this "Method desugaring", and the *qualified* form is indeed syntactic. The unqualified form rewrites to `ResolvedPkg$method`, and resolving that package is method lookup (§6.1), which needs the subject's type. See §5.3. |
+| `subject:method(a)` → `Pkg$method(subject, a)` | [`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md) §2.6 titles this "Method desugaring", and the *qualified* form is indeed syntactic. The unqualified form rewrites to `ResolvedPkg$method`, and resolving that package is method lookup (§6.1), which needs the subject's type. See §5.2. |
 | Block-taking verbs expanded at the call site | [`control-flow.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/control-flow.md) §2.3 requires it, and it is what makes `guard` exit the right frame. It needs the callee's declaration, across packages. A lowering, after typing. |
 | `implicit` constructor insertion at coercion sites | [`types.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/types.md) §4.2. Needs both types at the site. |
 | `import pkg$` → an explicit member list | [`packages.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/packages.md) §3.3. Needs the other package's exported members. It is also name resolution rather than desugaring: "An import is a **spelling**, not a linkage." |
 | `Constructor_args.Positional` vs `.Fields` | Unifying them needs the constructor's declared field order. Both arms stay. |
 | `Expr.Ref` (`&x`) | A passing mode, not sugar. [`memory.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/memory.md) §2.4. |
-| `:` vs `!` call markers | A check, not sugar: calling a `mut` method with `:` is illegal and vice versa ([`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md) §2.5). Whatever §5.3 decides about the subject, the flag survives. |
+| `:` vs `!` call markers | A check, not sugar: calling a `mut` method with `:` is illegal and vice versa ([`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md) §2.5). Whatever §5.2 decides about the subject, the flag survives. |
 
 ---
 
 ## 5. Open questions
 
-### 5.1 Two derived operators reorder their operands
-
-`a > b` becomes `b < a` and `a <= b` becomes `~(b < a)`. Both evaluate the
-written right operand first.
-
-The spec does not settle whether that is observable.
-[`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
-§2.4 says "Both operands are evaluated" but never fixes an order, and nothing
-elsewhere does either — the two places the spec *does* fix an order are map
-literal entries ([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§2.8) and `Unit` erasure ([`types.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/types.md)
-§2.6), both stated explicitly, which suggests the silence here is a gap rather
-than an omission meaning "unspecified".
-
-It is not hypothetical. An operator is an ordinary verb
-([`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
-§2.2) and only `~` is required to be pure (§4.1), so `f(log) > g(log)` can have
-two observable writes whose order the rewrite reverses.
-
-Four ways out:
-
-1. **Swap, and close the gap in the spec** — state that operand evaluation
-   order is unspecified, or that it follows the desugared call. Cheapest, and
-   it makes the other three rewrites uniform with these two.
-2. **Swap, and state left-to-right** — then the SST must bind both operands to
-   temporaries before the swapped call, which adds nodes to every `>` and `<=`.
-3. **Carry a `swapped` flag** on the call and let codegen order the evaluation.
-   Keeps the SST small at the cost of a field that means "undo me later".
-4. **Desugar only the three that do not reorder**, and leave `>` and `<=` to a
-   later stage. Splits one spec rule across two stages, which is the thing
-   §2.3 exists to avoid.
-
-**Recommendation: (1).** The spec already treats these five as one rule, and
-three of them are unaffected; a compiler decision is the wrong place to record
-an answer the spec should be giving.
-
-### 5.2 Match groups duplicate their bodies
+### 5.1 Match groups duplicate their bodies
 
 Expanding `[a, b], [c, d] => body` gives four arms and four copies of `body`.
 For the arm shapes in the spec's own examples that is nothing, but the
@@ -414,7 +388,7 @@ to share. If duplication ever measures as a problem, it is a codegen concern —
 identical arm bodies converging on one tag jump is a standard thing to do
 there.
 
-### 5.3 How far to take the method-call rewrite
+### 5.2 How far to take the method-call rewrite
 
 `subject:method(a)` has two halves. Moving the subject into the argument list
 is syntactic. Resolving which package `method` came from is not.
@@ -453,7 +427,7 @@ costs less than a callee that is sometimes resolved and sometimes not.
 | parenthesis nodes | 3 | 0 |
 | `trailing` flags | 4 | 0 |
 | `Statement.t` wrapper | statement + defect | `Stat.t` |
-| call shapes | `Func` \| `Meth` \| … | `Func` \| … (§5.3) |
+| call shapes | `Func` \| `Meth` \| … | `Func` \| … (§5.2) |
 
 Two things stay that a reader might expect to go: control flow (§4 — it was
 never sugar) and `Constructor_args`' two arms (§4 — needs the declaration).

@@ -213,10 +213,16 @@ and Verb_call : sig
         args : Constructor_args.t;
         abort_handle : Abort_handle.t option;
       }
+    (* [left] and [right] are the operands in the order they were written,
+       which is the order they are evaluated in (operators.md §2.3).
+       [swapped] says the operator receives them the other way round: `a > b`
+       is `b < a` (§2.3), so it is a [Less] with [left] `a`, [right] `b` and
+       [swapped] set -- `a` is evaluated first and passed second. *)
     | Op of {
         op : Operator.t;
         left : Expr.t;
         right : Expr.t;
+        swapped : bool;
         abort_handle : Abort_handle.t option;
       }
     | Flip of {

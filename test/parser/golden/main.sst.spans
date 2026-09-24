@@ -931,14 +931,14 @@ package | package main; /// Every im … ettled"); return Unit(); }
               expr VerbCall | 4 <= this._count
                 verb_call Flip | 4 <= this._count
                   expr VerbCall | 4 <= this._count
-                    verb_call Op | 4 <= this._count
+                    verb_call Op swapped | 4 <= this._count
                       operator Less | <=
+                      expr IntLit | 4
                       expr DotAccess | this._count
                         expr NameExpr | this
                           name_expr | this
                             ident this | this
                         field _count | _count
-                      expr IntLit | 4
             call_arg Block | { std$print("environment is full"); return Unit(); }
               block | { std$print("environment is full"); return Unit(); }
                 stat VerbCall | std$print("environment is full");

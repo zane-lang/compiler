@@ -145,13 +145,14 @@ and verb_call_to_node (x : Nodes.Verb_call.t) =
         (fields
            (fs
            @ [ ("args", constructor_args_to_node args); abort_field abort_handle ]))
-  | Op { op; left; right; abort_handle } ->
+  | Op { op; left; right; swapped; abort_handle } ->
       group "op_call"
         (fields
            [
              ("op", Leaf (op_to_name op));
              ("left", expr_to_node left);
              ("right", expr_to_node right);
+             ("swapped", Leaf (string_of_bool swapped));
              abort_field abort_handle;
            ])
   | Flip { value; abort_handle } ->

@@ -276,8 +276,8 @@ and verb_call d (x : Verb_call.t) =
       constructor_name (d + 1) n;
       constructor_args (d + 1) args;
       opt (d + 1) abort_handle_ abort_handle
-  | Verb_call.Op { op; left; right; abort_handle } ->
-      line d "verb_call Op" at;
+  | Verb_call.Op { op; left; right; swapped; abort_handle } ->
+      line d (if swapped then "verb_call Op swapped" else "verb_call Op") at;
       operator (d + 1) op;
       expr (d + 1) left;
       expr (d + 1) right;

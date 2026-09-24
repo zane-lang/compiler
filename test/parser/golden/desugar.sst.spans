@@ -383,14 +383,14 @@ package | package desugar; import co … .early)); return Unit(); }
               name_type | Bool
                 ident Bool | Bool
             expr VerbCall | a > b
-              verb_call Op | a > b
+              verb_call Op swapped | a > b
                 operator Less | >
-                expr NameExpr | b
-                  name_expr | b
-                    ident b | b
                 expr NameExpr | a
                   name_expr | a
                     ident a | a
+                expr NameExpr | b
+                  name_expr | b
+                    ident b | b
         stat Decl | atMost Bool = a <= b;
           decl Var | atMost Bool = a <= b
             name atMost | atMost
@@ -400,14 +400,14 @@ package | package desugar; import co … .early)); return Unit(); }
             expr VerbCall | a <= b
               verb_call Flip | a <= b
                 expr VerbCall | a <= b
-                  verb_call Op | a <= b
+                  verb_call Op swapped | a <= b
                     operator Less | <=
-                    expr NameExpr | b
-                      name_expr | b
-                        ident b | b
                     expr NameExpr | a
                       name_expr | a
                         ident a | a
+                    expr NameExpr | b
+                      name_expr | b
+                        ident b | b
         stat Decl | atLeast Bool = a >= b;
           decl Var | atLeast Bool = a >= b
             name atLeast | atLeast

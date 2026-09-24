@@ -249,7 +249,7 @@ and verb_call_of (x : C.Verb_call.t) : S.Verb_call.t =
              form = S.Call_form.Function;
              abort_handle = option handler abort_handle;
            })
-  (* §5.3: the subject becomes the first argument, which is what
+  (* §5.2: the subject becomes the first argument, which is what
      functions.md §2.6 desugars it to and what §2.1 means by a method being a
      verb whose first parameter is `this`. The marker stays on the call: it
      decides how the name resolves, and `:` against `!` is a check a later
@@ -300,17 +300,17 @@ and verb_call_of (x : C.Verb_call.t) : S.Verb_call.t =
    expression as a whole, and after the rewrite the outermost node is what that
    expression became.
 
-   Two of the five -- `>` and `<=` -- evaluate the written right operand first,
-   because `b < a` is what the spec defines them as. The spec fixes no operand
-   evaluation order for operators, so nothing here is contradicted; see
-   docs/desugaring.md §5.1, which is the open question this implements one
-   answer to. *)
+   Two of the five -- `>` and `<=` -- hand the primitive its operands the
+   other way round, because `b < a` is what the spec defines `a > b` as. The
+   operands still evaluate in written order (operators.md §2.3), so they stay
+   where they were written and the call is marked [swapped] instead of being
+   reordered; see docs/desugaring.md §2.3. *)
 and derived_op span (op : C.Operator.t) left right ~written_right abort_handle
     : S.Verb_call.t =
   let at = op.C.Operator.span in
   let primitive node : S.Operator.t = { S.Operator.node; span = at } in
-  let binop ?(handle = abort_handle) node l r =
-    S.Verb_call.Op { op = primitive node; left = l; right = r;
+  let binop ?(handle = abort_handle) ?(swapped = false) node l r =
+    S.Verb_call.Op { op = primitive node; left = l; right = r; swapped;
                      abort_handle = handle }
   in
   match op.C.Operator.node with
@@ -336,10 +336,14 @@ and derived_op span (op : C.Operator.t) left right ~written_right abort_handle
       verb_call span
         (S.Verb_call.Flip { value = equal; abort_handle })
   (* `a > b` is `b < a`. *)
-  | C.Operator.More -> verb_call span (binop S.Operator.Less right left)
+  | C.Operator.More ->
+      verb_call span (binop ~swapped:true S.Operator.Less left right)
   (* `a <= b` is `~(b < a)`. *)
   | C.Operator.LessEq ->
-      let less = call_expr span (binop ~handle:None S.Operator.Less right left) in
+      let less =
+        call_expr span
+          (binop ~handle:None ~swapped:true S.Operator.Less left right)
+      in
       verb_call span (S.Verb_call.Flip { value = less; abort_handle })
   (* `a >= b` is `~(a < b)`. *)
   | C.Operator.MoreEq ->
