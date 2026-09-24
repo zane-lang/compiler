@@ -3,13 +3,22 @@ name: CI
 # A pull request is where these checks are wanted, so they run there as well as
 # in the merge queue. `workflow_dispatch` allows a re-run against any branch
 # without opening a pull request.
+#
+# The push to main is what makes the caches below useful. GitHub lets a pull
+# request read caches saved on its own branch or on the default branch, and on
+# no other, so while CI ran only on pull requests every one of them started
+# cold. A run on main saves a cache every pull request can restore.
 on:
   pull_request:
   merge_group:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+  # `.github/scripts/ci-suites` lists a pull request's changed files.
+  pull-requests: read
 
 # Superseded pull request runs are cancelled; a merge queue run is not, since
 # the queue is waiting on its result.
@@ -27,6 +36,34 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
+
+      # The grammar and ambiguity-tool suites only answer something new when
+      # the grammar or the tools change, so a pull request that touches
+      # neither skips them. The merge queue and main run everything.
+      - name: Decide which suites to run
+        id: suites
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: .github/scripts/ci-suites
+
+      # The opam switch is most of a cold setup: dune, menhir and sedlex are
+      # built from source. It is restored before devbox starts because the
+      # devbox init hook runs `bootstrap-toolchain`, which finds a warm switch
+      # already at its pins and installs nothing.
+      #
+      # The key covers everything the switch is built from: the system OCaml
+      # devbox provides, and the pins. It is hashed from the committed files,
+      # before devbox has had a chance to rewrite its lock.
+      - name: Restore the opam switch
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.opam
+            _opam
+          key: opam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/bin/bootstrap-toolchain') }}
 
       - name: Install devbox + Nix + devbox.json packages
         uses: jetify-com/devbox-install-action@v0.15.0
@@ -48,12 +85,19 @@ jobs:
       - name: Build
         run: devbox run -- just rebuild
 
-      # Covers the parser acceptance tests, the grammar ambiguity checks, the
-      # search engine's own tests, and the span expectation in test/. The recipe
-      # fails loudly when Menhir is missing rather than reporting a green run
-      # that skipped them.
-      - name: Parser and ambiguity tests
-        run: devbox run -- just test
+      # The golden expectations under test/ and parser acceptance. Every
+      # change runs these. The recipes fail loudly when Menhir is missing
+      # rather than reporting a green run that skipped them.
+      - name: Compiler tests
+        run: devbox run -- just test-compiler
+
+      - name: Grammar ambiguity tests
+        if: steps.suites.outputs.grammar == 'true'
+        run: devbox run -- just test-grammar
+
+      - name: Ambiguity tool tests
+        if: steps.suites.outputs.ambiguity-tools == 'true'
+        run: devbox run -- just test-ambiguity-tools
 
       # `just syntax-experiment-test` is deliberately absent. Its transforms
       # anchor on grammar text that has since moved, so it fails on `main`
