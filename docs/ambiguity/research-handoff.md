@@ -1,8 +1,8 @@
 # CEGAR proof research handoff
 
 As of 2026-09-24, draft [PR #106](https://github.com/zane-lang/compiler/pull/106)
-remains exploratory. The last full-grammar probe, run #125, tested branch
-revision `7ab4e04dd50cfc90185ad14a2af4cd0f39438d02`; its CEGAR changes and
+remains exploratory. The last baseline full-grammar CI probe, run #125, tested
+branch revision `7ab4e04dd50cfc90185ad14a2af4cd0f39438d02`; its CEGAR changes and
 regression tests are in place, but the full grammar is **not proven
 unambiguous**. The CI job was green because its probe treats an inconclusive
 proof (exit 3) as an acceptable research result; green CI is not a proof
@@ -15,8 +15,10 @@ The temporary 21-minute proof-probe step and artifact upload were removed in
 [`6ce1ba8`](https://github.com/zane-lang/compiler/commit/6ce1ba85b7bd947d75ef7b3ac898aac7d2cd6535)
 after these measurements were captured. Normal CI on that head passed in
 [run #128](https://github.com/zane-lang/compiler/actions/runs/35977109651);
-it did not run a full-grammar proof probe, so run #125 remains the latest such
-result.
+it did not run a full-grammar proof probe, so run #125 remains the latest
+baseline CI result. Later isolated comparison probes on research variants are
+recorded separately below; they do not update the baseline CI result or prove
+the current grammar unambiguous.
 
 ## Current CEGAR behavior
 
@@ -165,7 +167,14 @@ deadline.
 
 ## Pair-hash and CEGAR comparison
 
-The isolated pair-hash trial did not establish a useful standalone speedup. The CEGAR history-subsumption trial produced only 31 skips across 113 enqueue checks, a small effect. All three reviewed variants built and passed the parser and ambiguity test suites; each full-grammar run below ended with the expected bounded `NOT PROVEN` verdict.
+These later isolated full-grammar probes compared research variants after the
+baseline CI run #125. They do not conflict with the statement above that #125
+was the latest probe in the baseline CI series. The isolated pair-hash trial
+did not establish a useful standalone speedup. The CEGAR history-subsumption
+trial produced only 31 skips across 113 enqueue checks, a small effect. All
+three reviewed variants built and passed the parser and ambiguity test suites;
+each full-grammar run below ended with the expected bounded `NOT PROVEN`
+verdict.
 
 | Run | Source variant | Terminal pair count | Peak RSS | Wall time | Result |
 | --- | --- | ---: | ---: | ---: | --- |

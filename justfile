@@ -31,6 +31,7 @@ test:
 		test.ambiguity.cli_test \
 		test.ambiguity.precision_sweep_test \
 		test.ambiguity.prover.soundness_test \
+		test.ambiguity.prover.history_cegar_test \
 		test.ambiguity.prover.refinement_test \
 		test.ambiguity.prover.diagnostics_test \
 		test.ambiguity.prover.verdict_test \
