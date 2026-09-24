@@ -2,6 +2,7 @@ module Span = Source.Span
 module Nodes = Nodes
 module Lower = Lower
 module To_span_text = To_span_text
+module Walk = Walk
 include To_tree_graph
 
 (* The entry point: a parsed package, with every shorthand written out.

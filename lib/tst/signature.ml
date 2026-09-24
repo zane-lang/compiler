@@ -24,7 +24,7 @@ type kind =
 type param = {
   name : string;
   ty : Ty.t;
-  (* For an explicit `T Type` or `n Number` value parameter: the generic
+  (* For an explicit `T Type` or `n @concepts$Integer` value parameter: the generic
      parameter the argument binds (generics.md §5.3). The argument is then a
      type or a number rather than a value of [ty]. *)
   binds : Ty.param option;
@@ -66,7 +66,7 @@ let to_string s =
   let param (p : param) =
     match p.binds with
     | Some b -> (
-        p.name ^ match b.Ty.kind with Ty.Type_kind -> " Type" | Ty.Number_kind -> " Number")
+        p.name ^ match b.Ty.kind with Ty.Type_kind -> " Type" | Ty.Number_kind -> " @concepts$Integer")
     | None ->
         let this_ = if is_method s && p.name = "this" then "this " else "" in
         this_ ^ Ty.to_string p.ty

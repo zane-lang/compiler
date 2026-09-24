@@ -78,6 +78,11 @@ let verb ?(generics = []) ?(abort = None) ?(is_mut = false) ~namespace ~kind
 
 let scalars = [ "Int"; "I32"; "I64"; "Float" ]
 
+(* The literal each scalar converts from, the way `core`'s own `Int` and
+   `Float` do (types.md §2.6): an integer literal into an integer, a decimal
+   literal into a `Float`. *)
+let literal = function "Float" -> Ty.Decimal_lit | _ -> Ty.Integer_lit
+
 let operator_token : Sst.Nodes.Operator.node -> string = function
   | Add -> "+"
   | Mul -> "*"
@@ -135,7 +140,7 @@ let constructors =
   let length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
   let list_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   List.map
-    (fun s -> ctor ~implicit:true s [ param "value" (Ty.Concept Ty.Number_lit) ] (prim s))
+    (fun s -> ctor ~implicit:true s [ param "value" (Ty.Concept (literal s)) ] (prim s))
     scalars
   @ [
       ctor ~implicit:true "String" [ param "value" (Ty.Concept Ty.Text_lit) ] (prim "String");

@@ -1,0 +1,44 @@
+package bad;
+
+import core$;
+
+/// A header holds `Type` and `@concepts$Integer` parameters only
+/// (generics.md §3.3).
+type Scaled<T Type, factor @concepts$Decimal> = struct { item T; }
+type Tagged<T Type, tag Int> = struct { item T; }
+
+/// A `< >` entry in a signature introduces with `Type` or
+/// `@concepts$Integer` and nothing else.
+Int first(values Array<T Type, n Int>) => Int(1)
+
+Int measured(values Array<Int, n>, n @concepts$Integer) => Int(n)
+
+Int sizedLike(values Array<Int, 3>, n @concepts$Integer) {
+	measure Int(held Array<Int, n>) => Int(n);
+	return measure(values);
+}
+
+Unit twice(x @concepts$Integer, y @concepts$Integer) => Unit()
+Unit twice(x @concepts$Decimal, y @concepts$Decimal) => Unit()
+
+Unit literals() {
+	numbers Array([Int(1), Int(2), Int(3)]);
+
+	/// `Int` converts from integer literals and `Float` from decimal ones
+	/// (types.md §2.6), so neither takes the other's.
+	whole Int = Int(2.5);
+	fraction Float = Float(2);
+	sum Int = Int(1) + 2.5;
+
+	/// The explicit number disagrees with the one the array carries.
+	sized Int = measured(numbers, 4);
+
+	/// `n` is a number parameter because the body writes it in a type, so
+	/// this call's instance is checked with `n = 4`, and its lambda cannot
+	/// take the three-element array.
+	like Int = sizedLike(numbers, 4);
+
+	/// No overload takes an integer and then a decimal (generics.md §5.4).
+	mixed Unit = twice(2, 3.5);
+	return Unit();
+}

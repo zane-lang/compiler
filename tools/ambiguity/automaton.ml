@@ -269,12 +269,12 @@ let solve_min_height states =
    reduction (lhs, width) multisets, nonterminal goto-target blocks, and
    accepts)
    collapses states that differ only in which production they carry - so
-   [primary -> INT], [primary -> FLOAT] and [primary -> STRING] states become
+   [primary -> INT], [primary -> DECIMAL] and [primary -> STRING] states become
    one block. The reduction entries are a multiset rather than a set: two
    identical-looking alternatives are two actions and must keep a state out of
    the same block as a state with only one such action. Then terminals are
    grouped by their action across every state,
-   comparing shift targets up to that state partition. This is why FLOAT and
+   comparing shift targets up to that state partition. This is why DECIMAL and
    STRING merge even though they shift to distinct states, while INT stays
    separate: it is also valid as a const generic argument, a context the other
    two never reach. *)

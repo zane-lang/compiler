@@ -1738,13 +1738,13 @@ package | package main; /// Every im … ettled"); return Unit(); }
                           name_expr | value
                             ident value | value
                         field right | right
-  decl Verb | T first(values Array<T Type, n Number>) => values[1]
-    verb_decl Func | T first(values Array<T Type, n Number>) => values[1]
+  decl Verb | T first(values Array<T Typ … pts$Integer>) => values[1]
+    verb_decl Func | T first(values Array<T Typ … pts$Integer>) => values[1]
       name first | first
-      param | values Array<T Type, n Number>
+      param | values Array<T Type, n @concepts$Integer>
         name values | values
-        param_type Concrete | Array<T Type, n Number>
-          type_expr Path | Array<T Type, n Number>
+        param_type Concrete | Array<T Type, n @concepts$Integer>
+          type_expr Path | Array<T Type, n @concepts$Integer>
             name_type | Array
               ident Array | Array
             generic_arg Inferred | T Type
@@ -1752,11 +1752,14 @@ package | package main; /// Every im … ettled"); return Unit(); }
                 name T | T
                 param_type Concept | Type
                   concept Type | Type
-            generic_arg Inferred | n Number
-              param | n Number
+            generic_arg Inferred | n @concepts$Integer
+              param | n @concepts$Integer
                 name n | n
-                param_type Concept | Number
-                  concept Number | Number
+                param_type Concrete | @concepts$Integer
+                  type_expr Path | @concepts$Integer
+                    name_type | @concepts$Integer
+                      package concepts | concepts
+                      ident Integer | Integer
       ret_type Safe | T
         type_expr Path | T
           name_type | T
@@ -1832,14 +1835,17 @@ package | package main; /// Every im … ettled"); return Unit(); }
                 name_type | Unit
                   ident Unit | Unit
               constructor_args Positional | ()
-  decl Type | type Slots<T Type, n Numbe … uct { items Array<T, n>; }
+  decl Type | type Slots<T Type, n @conc … uct { items Array<T, n>; }
     name Slots | Slots
     generic_param | T Type
       name T | T
       concept Type | Type
-    generic_param | n Number
+    generic_param | n @concepts$Integer
       name n | n
-      concept Number | Number
+      concept Named | @concepts$Integer
+        name_type | @concepts$Integer
+          package concepts | concepts
+          ident Integer | Integer
     type_or_moulded Moulded | struct { items Array<T, n>; }
       moulded | struct { items Array<T, n>; }
         mould Struct | struct { items Array<T, n>; }
@@ -1855,8 +1861,8 @@ package | package main; /// Every im … ettled"); return Unit(); }
               generic_arg NumberRef | n
                 name n | n
         type_axis Value | struct { items Array<T, n>; }
-  decl Verb | Slots<T, n>(T Type, n Numb … it{ items = Array(T, n); }
-    verb_decl Constructor | Slots<T, n>(T Type, n Numb … it{ items = Array(T, n); }
+  decl Verb | Slots<T, n>(T Type, n @con … it{ items = Array(T, n); }
+    verb_decl Constructor | Slots<T, n>(T Type, n @con … it{ items = Array(T, n); }
       type_expr Path | Slots<T, n>
         name_type | Slots
           ident Slots | Slots
@@ -1866,15 +1872,18 @@ package | package main; /// Every im … ettled"); return Unit(); }
               ident T | T
         generic_arg NumberRef | n
           name n | n
-      constructor_params Positional | (T Type, n Number)
+      constructor_params Positional | (T Type, n @concepts$Integer)
         param | T Type
           name T | T
           param_type Concept | Type
             concept Type | Type
-        param | n Number
+        param | n @concepts$Integer
           name n | n
-          param_type Concept | Number
-            concept Number | Number
+          param_type Concrete | @concepts$Integer
+            type_expr Path | @concepts$Integer
+              name_type | @concepts$Integer
+                package concepts | concepts
+                ident Integer | Integer
       block | => init{ items = Array(T, n); }
         stat Ret | => init{ items = Array(T, n); }
           expr Init | init{ items = Array(T, n); }

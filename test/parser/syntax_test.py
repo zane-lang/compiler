@@ -590,11 +590,11 @@ class ParserSyntaxTests(unittest.TestCase):
     def test_generic_parameter_introduction_and_collection_literals(self) -> None:
         self.assert_parses(
             '''
-            type Buffer<T Type, n Number> = struct {
+            type Buffer<T Type, n @concepts$Integer> = struct {
                 data Array<T, n>;
             }
 
-            T first(values Array<T Type, n Number>) => values[0]
+            T first(values Array<T Type, n @concepts$Integer>) => values[0]
 
             Unit literals() {
                 values Array<Int, 3> = Array([Int(1), Int(2), Int(3)]);
@@ -618,7 +618,7 @@ class ParserSyntaxTests(unittest.TestCase):
 
             Vector<T>(T Type) => init{ x = T(0); y = T(0); }
 
-            Array<T, n>(T Type, n Number) => init{ }
+            Array<T, n>(T Type, n @concepts$Integer) => init{ }
 
             Unit use() {
                 vec Vector(Int);
@@ -693,15 +693,32 @@ class ParserSyntaxTests(unittest.TestCase):
             "Unit f() { x Int = e.a ? err { resolve Int(0); }; }"
         )
 
-    def test_the_number_concept_is_spelled_with_its_keyword(self) -> None:
-        # syntax.md §2.8 spells a numeric literal's concept type
-        # `@concepts$Number`, with the word that is also the keyword a number
-        # parameter is declared with. After `@pkg$` it can only be a name.
-        self.assert_parses("implicit Int(value @concepts$Number) => init{ }")
-        self.assert_parses("Unit f(values Array<@concepts$Number, 3>) => Unit()")
-        # Everywhere else it is still the keyword.
-        self.assert_parses("Int size(this Buffer<T Type, n Number>) => Int(n)")
-        self.assert_rejects("Unit f(value core$Number) => Unit()")
+    def test_a_number_parameter_is_declared_with_the_integer_concept(self) -> None:
+        # generics.md §3.3: a number parameter is declared `n
+        # @concepts$Integer`, the concept type an integer literal carries, in
+        # a type's header, inline in a verb, and as an explicit parameter.
+        self.assert_parses(
+            "type Buffer<T Type, n @concepts$Integer> = struct { data Array<T, n>; }"
+        )
+        self.assert_parses(
+            "Int size(this Buffer<T Type, n @concepts$Integer>) => Int(n)"
+        )
+        self.assert_parses("Array<T, n>(T Type, n @concepts$Integer) => init{ }")
+        self.assert_parses("implicit Float(value @concepts$Decimal) => init{ }")
+        # There is no `Number` keyword, so the word is an ordinary type name.
+        self.assert_parses("type Number = struct { raw Int; }")
+        self.assert_parses("Unit f(value core$Number) => Unit()")
+
+    def test_the_spelling_picks_the_numeric_literal(self) -> None:
+        # lexical.md §7: digits are an integer literal, and digits, a `.` and
+        # digits a decimal one, with a digit on each side of the `.`.
+        self.assert_parses("Unit f() { a Int = 3; b Float = 3.0; return Unit(); }")
+        self.assert_rejects("Unit f() { b Float = 3.; return Unit(); }")
+        self.assert_rejects("Unit f() { b Float = .5; return Unit(); }")
+        # The compiler's `'` separator groups digits before the `.` only
+        # (docs/spec-divergences.md §8).
+        self.assert_parses("Unit f() { b Float = 1'000.25; return Unit(); }")
+        self.assert_rejects("Unit f() { b Float = 1.000'001; return Unit(); }")
 
     def test_a_loose_operator_declares_nothing(self) -> None:
         # §3.1: the loose forms "add no token to the operator vocabulary" of

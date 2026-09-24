@@ -147,7 +147,7 @@ and expression (x : C.Expr.t) : S.Expr.t =
         match node with
         | C.Expr.Parenthized _ -> assert false
         | C.Expr.IntLit s -> S.Expr.IntLit s
-        | C.Expr.FloatLit s -> S.Expr.FloatLit s
+        | C.Expr.DecimalLit s -> S.Expr.DecimalLit s
         | C.Expr.StrLit s -> S.Expr.StrLit s
         | C.Expr.BoolLit b -> S.Expr.BoolLit b
         | C.Expr.CollectionLit items ->

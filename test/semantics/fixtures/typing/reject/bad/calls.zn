@@ -14,10 +14,19 @@ Int peek(this Int) => this
 
 type Pick = variant { yes Int; no Bool; }
 
+/// Converts from an integer literal as `Int` does, so a literal fits either
+/// parameter of `tally` and neither overload is better.
+type Count = struct { raw Int; }
+implicit Count(value @concepts$Integer) => init{ raw = Int(value); }
+Int tally(a Int, b Count) => a
+Int tally(a Count, b Int) => b
+
 Unit calls() {
 	a Int = pair(Int(1), Int(2));
 	b Int = pair(1, 2);
+	k Int = tally(1, 2);
 	c Int = echo(4);
+	l Int = echo(4, 5);
 	d Int = parse(String("1"));
 	e Int = one(Int(1)) ?? Int(0);
 	n Int = Int(1);

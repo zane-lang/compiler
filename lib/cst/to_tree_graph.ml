@@ -39,7 +39,7 @@ let name_expr_to_node (x: Nodes.Name_expr.t) = match x.Nodes.Name_expr.node with
 
 let rec concept_to_node (x: Nodes.Concept.t) = match x.Nodes.Concept.node with
   | Type -> Leaf "Type"
-  | Number -> Leaf "Number"
+  | Named name -> name_type_to_node name
 
 and param_type_to_node (x: Nodes.Param_type.t) = match x.Nodes.Param_type.node with
   | Concrete x -> type_to_node x
@@ -178,7 +178,7 @@ and match_expr_to_node (x: Nodes.Match_expr.t) =
 
 and expr_to_node (x: Nodes.Expr.t) = match x.Nodes.Expr.node with
   | IntLit x   -> Leaf x
-  | FloatLit x -> Leaf x
+  | DecimalLit x -> Leaf x
   | StrLit x   -> Leaf x
   | BoolLit x  -> Leaf (string_of_bool x)
   | CollectionLit x -> group "collection" (map_seq expr_to_node x)

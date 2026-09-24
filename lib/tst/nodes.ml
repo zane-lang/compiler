@@ -43,7 +43,8 @@ module rec Expr : sig
   type t = { node : node; ty : Ty.t; span : Span.t }
 
   and node =
-    | Number_lit of string
+    | Integer_lit of string
+    | Decimal_lit of string
     | Text_lit of string
     | Bool_lit of bool
     | Array_lit of t list

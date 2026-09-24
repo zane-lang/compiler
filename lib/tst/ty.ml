@@ -8,8 +8,8 @@
    the namespace they live in -- `primitives` or `runtime` -- rather than a
    package, since the namespace is also where their operators and methods are
    found (functions.md §6.1). The concept types of `@concepts$` and the `Type`
-   and `Number` parameter concepts are [Concept]: they type literals, blocks and
-   explicit type arguments, and are never storage (syntax.md §2.8). *)
+   parameter concept are [Concept]: they type literals, blocks and explicit
+   type arguments, and are never storage (syntax.md §2.8). *)
 
 type kind = Type_kind | Number_kind
 
@@ -39,16 +39,17 @@ and arg = Type of t | Number of number
 and number = Known of int | Number_param of param
 
 and concept =
-  | Number_lit
+  (* `@concepts$Integer`: an integer literal, and what a number parameter is
+     declared with and reads as in a body (generics.md §3.3). *)
+  | Integer_lit
+  | Decimal_lit
   | Text_lit
   | Array_lit of t * number
   | Map_lit of t * t
   | Block of t option
-  (* The type of a type written where a value goes, and of a compile-time
-     number: what `T Type` and `n Number` parameters accept (generics.md
-     §5.3). *)
+  (* The type of a type written where a value goes: what a `T Type` value
+     parameter accepts (generics.md §5.3). *)
   | Type_value
-  | Number_value
 
 and verb = {
   this_ : t option;
@@ -116,7 +117,8 @@ and number_to_string = function
   | Number_param p -> p.name
 
 and concept_to_string = function
-  | Number_lit -> "@concepts$Number"
+  | Integer_lit -> "@concepts$Integer"
+  | Decimal_lit -> "@concepts$Decimal"
   | Text_lit -> "@concepts$Text"
   | Array_lit (t, n) ->
       "@concepts$Array<" ^ to_string t ^ ", " ^ number_to_string n ^ ">"
@@ -124,7 +126,6 @@ and concept_to_string = function
   | Block None -> "@concepts$Block"
   | Block (Some t) -> "@concepts$Block<" ^ to_string t ^ ">"
   | Type_value -> "Type"
-  | Number_value -> "Number"
 
 and ret_to_string ret abort =
   match abort with
@@ -279,7 +280,7 @@ let assignable ~dst ~src =
 (* A literal's concept type fixes no concrete type, so it "MUST NOT drive
    inference" (generics.md §5.4). *)
 let is_bare_literal = function
-  | Concept (Number_lit | Text_lit) -> true
+  | Concept (Integer_lit | Decimal_lit | Text_lit) -> true
   | _ -> false
 
 (* Match [pattern], which mentions the parameters in [open_], against

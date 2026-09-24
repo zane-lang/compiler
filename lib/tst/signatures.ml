@@ -4,8 +4,9 @@
 
    A verb has no `< >` header. It introduces each type or number parameter at
    the parameter's first *marked* occurrence -- `x T Type`, `Array<T Type, n
-   Number>`, or an explicit `T Type` value parameter -- and every other
-   occurrence of the name, before or after, refers to it (generics.md §3.2).
+   @concepts$Integer>`, or an explicit `T Type` or `n @concepts$Integer` value
+   parameter -- and every other occurrence of the name, before or after,
+   refers to it (generics.md §3.2).
    So the introductions are found first, over the whole signature, and only
    then is any type in it resolved. *)
 
@@ -21,6 +22,9 @@ type introductions = {
   mutable found : (string * Ty.param) list;
   (* The explicit ones, by the value parameter that introduces them. *)
   mutable explicit : (string * Ty.param) list;
+  (* Every name the verb writes where a number goes, as in the `n` of
+     `Array<T, n>`, in its signature or its body. *)
+  numbers : string list;
 }
 
 let introduce intro span name kind =
@@ -35,8 +39,35 @@ let introduce intro span name kind =
       intro.found <- intro.found @ [ (name, p) ];
       p
 
-let kind_of_concept (c : N.Concept.t) =
-  match c.N.Concept.node with N.Concept.Type -> Ty.Type_kind | N.Concept.Number -> Ty.Number_kind
+(* The names a type writes where a number goes. *)
+let rec number_refs (te : N.Type_expr.t) =
+  match te.N.Type_expr.node with
+  | N.Type_expr.Guest inner -> number_refs inner
+  | N.Type_expr.Verb v -> (
+      match v.N.Verb_type.node with
+      | N.Verb_type.Func { params; ret_type } ->
+          List.concat_map param_type_number_refs params @ ret_number_refs ret_type
+      | N.Verb_type.Meth { this_type; params; ret_type; _ } ->
+          number_refs this_type
+          @ List.concat_map param_type_number_refs params
+          @ ret_number_refs ret_type)
+  | N.Type_expr.Path { generics; _ } ->
+      List.concat_map
+        (fun (g : N.Generic_arg.t) ->
+          match g.N.Generic_arg.node with
+          | N.Generic_arg.Type t -> number_refs t
+          | N.Generic_arg.NumberRef n -> [ n.N.Name.text ]
+          | N.Generic_arg.Inferred p -> param_type_number_refs p.N.Param.type_
+          | N.Generic_arg.Number _ -> [])
+        generics
+
+and param_type_number_refs (pt : N.Param_type.t) =
+  match pt.N.Param_type.node with N.Param_type.Concrete t -> number_refs t | _ -> []
+
+and ret_number_refs (r : N.Ret_type.t) =
+  match r.N.Ret_type.node with
+  | N.Ret_type.Safe t -> number_refs t
+  | N.Ret_type.Abort { ok; abort } -> number_refs ok @ number_refs abort
 
 let rec scan_type intro (te : N.Type_expr.t) =
   match te.N.Type_expr.node with
@@ -56,12 +87,18 @@ let rec scan_type intro (te : N.Type_expr.t) =
           match g.N.Generic_arg.node with
           | N.Generic_arg.Type t -> scan_type intro t
           | N.Generic_arg.Inferred p -> (
+              let name = p.N.Param.name.N.Name.text in
               match p.N.Param.type_.N.Param_type.node with
-              | N.Param_type.Concept c ->
-                  ignore
-                    (introduce intro g.N.Generic_arg.span p.N.Param.name.N.Name.text
-                       (kind_of_concept c))
-              | _ -> ())
+              | N.Param_type.Concept { N.Concept.node = N.Concept.Type; _ } ->
+                  ignore (introduce intro g.N.Generic_arg.span name Ty.Type_kind)
+              | N.Param_type.Concrete t when Types.is_integer_concept_type t ->
+                  ignore (introduce intro g.N.Generic_arg.span name Ty.Number_kind)
+              | _ ->
+                  error g.N.Generic_arg.span
+                    (Printf.sprintf
+                       "%s introduces a parameter, which takes `Type` or \
+                        `@concepts$Integer` (generics.md §3.3)"
+                       (quote name)))
           | _ -> ())
         generics
 
@@ -76,23 +113,26 @@ and scan_param_type intro (pt : N.Param_type.t) =
   match pt.N.Param_type.node with
   | N.Param_type.Concrete t -> scan_type intro t
   | N.Param_type.Concept _ -> ()
-  | N.Param_type.InferredType { name; concept } ->
-      (* `x n Number` would make a number the type of a value, which is
-         meaningless (generics.md §3.1). *)
-      if concept.N.Concept.node = N.Concept.Number then
-        error pt.N.Param_type.span
-          (Printf.sprintf
-             "%s cannot be the type of a value: a number parameter is inferred \
-              from a type that carries it, as in `Array<T Type, n Number>`"
-             (quote name.N.Name.text))
-      else ignore (introduce intro pt.N.Param_type.span name.N.Name.text Ty.Type_kind)
+  | N.Param_type.InferredType { name; _ } ->
+      ignore (introduce intro pt.N.Param_type.span name.N.Name.text Ty.Type_kind)
 
+(* A `T Type` value parameter always introduces a type parameter. An
+   `@concepts$Integer` one is a compile-time integer either way, since that is
+   a leaf concept type (syntax.md §2.8); it introduces a number parameter
+   when a type in the verb writes its name where a number goes, as
+   `Array<T, n>(T Type, n @concepts$Integer)` does, and is otherwise an
+   ordinary parameter that accepts an integer literal
+   (docs/semantics.md §9). *)
 let scan_param intro (p : N.Param.t) =
+  let name = p.N.Param.name.N.Name.text in
+  let explicit kind =
+    let param = introduce intro p.N.Param.span name kind in
+    intro.explicit <- intro.explicit @ [ (name, param) ]
+  in
   match p.N.Param.type_.N.Param_type.node with
-  | N.Param_type.Concept c ->
-      let name = p.N.Param.name.N.Name.text in
-      let param = introduce intro p.N.Param.span name (kind_of_concept c) in
-      intro.explicit <- intro.explicit @ [ (name, param) ]
+  | N.Param_type.Concept { N.Concept.node = N.Concept.Type; _ } -> explicit Ty.Type_kind
+  | N.Param_type.Concrete t when Types.is_integer_concept_type t && List.mem name intro.numbers ->
+      explicit Ty.Number_kind
   | _ -> scan_param_type intro p.N.Param.type_
 
 (* ---------------------------------------------------------------------- *)
@@ -111,7 +151,7 @@ let param sc intro (p : N.Param.t) : S.param =
       let ty =
         match binds.Ty.kind with
         | Ty.Type_kind -> Ty.Concept Ty.Type_value
-        | Ty.Number_kind -> Ty.Concept Ty.Number_value
+        | Ty.Number_kind -> Ty.Concept Ty.Integer_lit
       in
       { S.name; ty; binds = Some binds; has_default = false }
   | None -> { S.name; ty = Types.param_type sc p.N.Param.type_; binds = None; has_default = false }
@@ -160,8 +200,34 @@ let rec home (t : Ty.t) : S.home option =
   | Ty.Guest t -> home t
   | _ -> None
 
+(* The names a verb writes where a number goes, in its signature or in any
+   type its body writes: a local `a Array<Int, n>` makes the body's types
+   depend on `n` as surely as the signature's would. *)
+let verb_number_refs (v : N.Verb_decl.t) =
+  let params ps = List.concat_map (fun (p : N.Param.t) -> param_type_number_refs p.N.Param.type_) ps in
+  let body b = List.concat_map number_refs (Sst.Walk.type_exprs_of_block b) in
+  match v.N.Verb_decl.node with
+  | N.Verb_decl.Func { params = ps; ret_type; body = b; _ }
+  | N.Verb_decl.Op { params = ps; ret_type; body = b; _ }
+  | N.Verb_decl.Flip { params = ps; ret_type; body = b } ->
+      params ps @ ret_number_refs ret_type @ body b
+  | N.Verb_decl.Meth { this_type; params = ps; ret_type; body = b; _ } ->
+      number_refs this_type @ params ps @ ret_number_refs ret_type @ body b
+  | N.Verb_decl.Subscript { this_type; params = ps; value } ->
+      number_refs this_type @ params ps
+      @ List.concat_map number_refs (Sst.Walk.type_exprs_of_expr value)
+  | N.Verb_decl.Constructor { type_; params = cps; body = b; _ } -> (
+      number_refs type_ @ body b
+      @
+      match cps.N.Constructor_params.node with
+      | N.Constructor_params.Positional ps -> params ps
+      | N.Constructor_params.Fields fs ->
+          List.concat_map
+            (fun (f : N.Constructor_field.t) -> param_type_number_refs f.N.Constructor_field.type_)
+            fs)
+
 let build (d : decl) (v : N.Verb_decl.t) : S.t option =
-  let intro = { found = []; explicit = [] } in
+  let intro = { found = []; explicit = []; numbers = verb_number_refs v } in
   let make ?(is_mut = false) ?(abort = None) ~kind ~name params ret_ty =
     Some
       {

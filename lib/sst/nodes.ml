@@ -109,7 +109,7 @@ module rec Expr : sig
 
   and node =
     | IntLit of string
-    | FloatLit of string
+    | DecimalLit of string
     | StrLit of string
     | BoolLit of bool
     | CollectionLit of t list

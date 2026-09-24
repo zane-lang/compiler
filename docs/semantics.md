@@ -105,8 +105,8 @@ name.
 **D3. A minimal `core` is checked in as a test fixture** — `test/core/`, holding
 `Int`, `Float`, `Bool`, `Unit`, `String`, `Array` and `List` over
 `@primitives$`, their operators, the implicit constructors from
-`@concepts$Number` and `@concepts$Text` that carry literals into them
-(`types.md` §2.6), the control-flow verbs of `control-flow.md` §3, and a
+`@concepts$Integer`, `@concepts$Decimal` and `@concepts$Text` that carry
+literals into them (`types.md` §2.6), the control-flow verbs of `control-flow.md` §3, and a
 `Console` over `@runtime$Console`. It is the first real multi-file,
 multi-package test input. It is also the first code in the repository that has
 to type-check.
@@ -192,11 +192,11 @@ and arg = Type of t | Number of number
 and number = Known of int | Param_num of Param_id.t
 
 and concept =
-  | Number_lit | Text_lit                          (* @concepts$Number, @concepts$Text *)
+  | Integer_lit | Decimal_lit | Text_lit           (* @concepts$Integer, Decimal, Text *)
   | Array_lit of t * number                        (* @concepts$Array<T, n> *)
   | Map_lit of t * t                               (* @concepts$Map<K, V> *)
   | Block of t option                              (* @concepts$Block, Block<T> *)
-  | Type_concept | Number_concept                  (* Type, Number *)
+  | Type_concept                                  (* Type *)
 ```
 
 **D5. An `alias` is expanded when it is resolved, and a `type` gets an identity
@@ -224,8 +224,9 @@ keeps, for each `Type_id`:
 **D6. Every expression's type is computed from its parts alone; no expected type
 flows down.** The spec supports this directly:
 
-- A literal's type is a concept type. `20` is `@concepts$Number`, not `Int`
-  (`syntax.md` §2.8).
+- A literal's type is a concept type. `20` is `@concepts$Integer` and `2.5`
+  is `@concepts$Decimal`, not `Int` or `Float` (`syntax.md` §2.8,
+  `lexical.md` §7).
 - A concept type becomes a storage type only through an implicit constructor at
   a coercion site (`types.md` §2.6, §4.2).
 - The coercion sites are exactly the positional arguments of calls and
@@ -294,7 +295,7 @@ where it is otherwise always false.
 `Coerce { ctor : Verb_ref.t; value : Expr.t }` wraps the argument it converted
 and takes that argument's span. A literal passed to an `Int` parameter is
 therefore a `Coerce` of core's implicit `Int` constructor around a
-`Number_lit`. No later stage re-derives a coercion, and a diagnostic about one
+`Integer_lit`. No later stage re-derives a coercion, and a diagnostic about one
 can point at the argument that caused it.
 
 **D10. Constructor calls resolve to what they are.** The SST's `Constructor`
@@ -369,7 +370,7 @@ there what it points at.
 The first draft left four questions open. These are the answers.
 
 **D12. A generic verb's body is checked once per instantiation, as a C++
-template is.** A parameter's only bound is `Type` or `Number`
+template is.** A parameter's only bound is `Type` or `@concepts$Integer`
 (`generics.md` §3.3). So a body that writes `a + b` on a `T` has nothing to
 resolve `+` against until `T` is known. The signature is checked once. The body
 is checked once per distinct set of arguments, memoized by `(Decl_id, args)`,
@@ -408,14 +409,16 @@ they stay out of the spec.
 **Literals.** `true` and `false` have the type `@primitives$Bool`; the spec
 names concept types only for numeric and text literals (`syntax.md` §2.8).
 `core`'s implicit `Bool` constructor is what makes them a `Bool` at a coercion
-site. An integer and a decimal literal are both `@concepts$Number`.
+site.
 
 **The intrinsic table.** Beyond what the spec names, `intrinsics.ml` holds
 what `core` needs to be written at all: the machine arithmetic and comparisons
 on `@primitives$Int`, `I32`, `I64` and `Float`, the Boolean operators on
 `@primitives$Bool`, concatenation and equality on the opaque
-`@primitives$String`, the implicit constructors that carry a
-`@concepts$Number` into each scalar and a `@concepts$Text` into
+`@primitives$String`, the implicit constructors that carry an
+`@concepts$Integer` into `@primitives$Int`, `I32` and `I64`, an
+`@concepts$Decimal` into `@primitives$Float` -- the split `types.md` §2.6
+makes for `core`'s `Int` and `Float` -- and a `@concepts$Text` into
 `@primitives$String`, element access on `@primitives$Array` and
 `@primitives$List`, and `push` and `size` on `@primitives$List`.
 
@@ -434,9 +437,28 @@ may bind one.
 a declaration with parameters, and `types.md` §3.9 indexes a `List` with a
 literal, `weapons[1]`, which only a coercion site allows.
 
-**A number parameter read as a value is `@concepts$Number`.** `generics.md`
-§3.5 says it "resolves to its number value" and gives it no type. As a
-concept, it reaches a storage type the way a literal does.
+**An `@concepts$Integer` value parameter is a number parameter only when the
+verb uses it as one.** The spec spells an explicit number parameter,
+`Array<T, n>(T Type, n @concepts$Integer)`, the same way as a parameter that
+takes an integer literal, `implicit Int(value @concepts$Integer)`
+(`generics.md` §5.3, §5.4). This compiler decides from the uses rather than
+the concept: a parameter is generic when some type the verb writes -- in its
+signature, or in its body's local declarations and lambdas -- puts its name
+where a number goes. `Array<T, n>` does, in the type it returns, so `n` is
+generic; nothing in `Int`'s constructor depends on `value`, so `value` is an
+ordinary parameter. Both are compile-time integers either way
+(`syntax.md` §2.8). The distinction is what keeps D12 affordable: were every
+such parameter generic, each distinct literal a program writes would be a new
+instance of `Int`'s constructor, and a program with more distinct literals
+than the instance limit could not be built. An explicit number and one
+inferred from another argument must agree, so `measured(values Array<Int, n>,
+n @concepts$Integer)` called with a three-element array and `4` matches
+nothing.
+
+One use does not count: passing the parameter on to another verb's number
+parameter, `Array(Int, n)` in a body whose types never mention `n`. Telling
+that apart needs the call resolved, which pass 4 has not done, so such a call
+is an error until the verb's types mention `n` too.
 
 **Where constructors and enum maps are found.** A type's constructors are the
 ones declared in its home package and in the current package, the order

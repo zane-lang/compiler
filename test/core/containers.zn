@@ -1,17 +1,17 @@
 /// `Array` and `List`, over the container primitives (generics.md §8).
 package core;
 
-type Array<T Type, n Number> = struct {
+type Array<T Type, n @concepts$Integer> = struct {
 	_items @primitives$Array<T, n>;
 }
 
 /// `T` and `n` are read off the literal (generics.md §6.1).
-Array<T, n>(values @concepts$Array<T Type, n Number>) => init{ _items = @primitives$Array(values); }
+Array<T, n>(values @concepts$Array<T Type, n @concepts$Integer>) => init{ _items = @primitives$Array(values); }
 
 /// Positions run from 1 (control-flow.md §3.4).
-(this Array<T Type, n Number>)[index Int] => this._items[index]
+(this Array<T Type, n @concepts$Integer>)[index Int] => this._items[index]
 
-Int size(this Array<T Type, n Number>) => Int(n)
+Int size(this Array<T Type, n @concepts$Integer>) => Int(n)
 
 type List<T Type> = #struct {
 	_items @primitives$List<T>;

@@ -61,7 +61,7 @@
   automorphism of the recognition relation. The search explores a single
   representative per class instead of every interchangeable token, which cuts
   the branching factor wherever a construct admits several equivalent terminals
-  (for the current grammar, the value atoms `FALSE`/`FLOAT`/`STRING`/`TRUE`
+  (for the current grammar, the value atoms `DECIMAL`/`FALSE`/`STRING`/`TRUE`
   collapse to one class, as do same-precedence operator groups such as
   `+`/`-` and `*`/`/`). Precedence and associativity are already resolved in
   the automaton's concrete actions, so tokens with different precedence never

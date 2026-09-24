@@ -23,11 +23,27 @@ Pair<T>(left T Type, right T) => init{ left; right; }
 T sum(pair Pair<T Type>) => pair.left + pair.right
 
 /// A number parameter, read in a body position.
-Int count(values Array<T Type, n Number>) => Int(n)
+Int count(values Array<T Type, n @concepts$Integer>) => Int(n)
+
+/// An `@concepts$Integer` value parameter the signature writes where a number
+/// goes, so it is an explicit number parameter.
+Int measured(values Array<Int, n>, n @concepts$Integer) => Int(n)
+
+/// Only the body writes `n` where a number goes, and that is enough: the
+/// body's types depend on it, so it is a number parameter too.
+Int sizedLike(values Array<Int, 3>, n @concepts$Integer) {
+	measure Int(held Array<Int, n>) => Int(n);
+	return measure(values);
+}
+
+/// Overloads on the two literal concepts: a bare literal picks one by its
+/// spelling (generics.md §5.4).
+Pair<Int> pairOf(x @concepts$Integer, y @concepts$Integer) => Pair(Int(x), Int(y))
+Pair<Float> pairOf(x @concepts$Decimal, y @concepts$Decimal) => Pair(Float(x), Float(y))
 
 Float?String safeDivide(numerator Float, denominator Float) {
-	guard(denominator == Float(0));
-	if(denominator < Float(0)) {
+	guard(denominator == Float(0.0));
+	if(denominator < Float(0.0)) {
 		abort String("negative");
 	}
 	return numerator / denominator;
@@ -43,18 +59,18 @@ Unit main() {
 	console!print("hello");
 
 	origin Vec2.zero();
-	moved Vec2 = origin + 3;
-	moved!scale(Float(2));
-	flat Vec2{ x = Float(1); }
+	moved Vec2 = origin + 3.0;
+	moved!scale(Float(2.0));
+	flat Vec2{ x = Float(1.0); }
 	size Float = moved:length();
 
-	shape Shape = Shape.circle(Float(2));
+	shape Shape = Shape.circle(Float(2.0));
 	covered Float = area(shape);
-	radius Float = shape.circle ?? Float(0);
+	radius Float = shape.circle ?? Float(0.0);
 
-	half Float = safeDivide(covered, Float(2)) ? reason {
+	half Float = safeDivide(covered, Float(2.0)) ? reason {
 		console!print(reason);
-		resolve Float(0);
+		resolve Float(0.0);
 	}
 
 	picked Int = pick(Int(1), Int(2), true);
@@ -62,12 +78,17 @@ Unit main() {
 
 	pair Pair(Int(3), Int(4));
 	total Int = sum(pair);
-	floats Pair(Float(1), Float(2));
+	floats Pair(Float(1.0), Float(2.0));
 	both Float = sum(floats);
 
 	numbers Array([Int(1), Int(2), Int(3)]);
 	first Int = numbers[1];
 	length Int = count(numbers);
+	sized Int = measured(numbers, 3);
+	like Int = sizedLike(numbers, 3);
+
+	ints Pair<Int> = pairOf(2, 3);
+	decimals Pair<Float> = pairOf(2.5, 3.5);
 
 	label String = Corner.topLeft.label;
 	side String = describe(Corner.bottomRight);
@@ -77,7 +98,7 @@ Unit main() {
 		console!print(side);
 	}
 
-	double Float(value Float) => value * Float(2);
+	double Float(value Float) => value * Float(2.0);
 	doubled Float = double(half);
 
 	chain Bool = if(total < Int(5)) {

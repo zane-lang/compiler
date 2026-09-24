@@ -22,6 +22,23 @@ type scope = {
 
 let scope ?(params = []) ?(signature = false) file = { file; params; signature }
 
+(* How a type name was written, for a message about it. *)
+let name_type_text (n : N.Name_type.t) =
+  match n.N.Name_type.node with
+  | N.Name_type.Ident i -> i.N.Name.text
+  | N.Name_type.Qualified { package; ident } -> package.N.Name.text ^ "$" ^ ident.N.Name.text
+  | N.Name_type.Intrinsic { package; ident } -> "@" ^ package.N.Name.text ^ "$" ^ ident.N.Name.text
+
+(* `@concepts$Integer`, the concept a number parameter is declared with
+   (generics.md §3.3). An intrinsic namespace is spelled the same in every
+   file, so this needs no scope. *)
+let is_integer_concept (n : N.Name_type.t) = name_type_text n = "@concepts$Integer"
+
+let is_integer_concept_type (te : N.Type_expr.t) =
+  match te.N.Type_expr.node with
+  | N.Type_expr.Path { name; generics = [] } -> is_integer_concept name
+  | _ -> false
+
 (* Once pass 3 has run, whether a type is a reference type can be asked of
    any type; before it has, the answer may depend on a definition not yet
    resolved, so the checks that need it wait. *)
@@ -100,7 +117,7 @@ type head =
   | Bound of Ty.arg
   | Unknown
 
-let concept_names = [ "Number"; "Text"; "Array"; "Map"; "Block" ]
+let concept_names = [ "Integer"; "Decimal"; "Text"; "Array"; "Map"; "Block" ]
 
 let resolve_head scope (name : N.Name_type.t) : head =
   let span = name.N.Name_type.span in
@@ -144,8 +161,12 @@ let resolve_head scope (name : N.Name_type.t) : head =
             error span (Printf.sprintf "no intrinsic type %s" (quote ("@" ^ ns ^ "$" ^ text)));
             Unknown)
 
+(* An integer literal's value. A `'` only separates groups of digits. *)
+let integer_value text =
+  int_of_string_opt (String.concat "" (String.split_on_char '\'' text))
+
 let parse_number span text =
-  match int_of_string_opt text with
+  match integer_value text with
   | Some n -> Ty.Known n
   | None ->
       error span (Printf.sprintf "%s is not a number this compiler can represent" (quote text));
@@ -269,7 +290,8 @@ and concept scope span c generics : Ty.t =
     else true
   in
   match c with
-  | "Number" -> if expect 0 then Ty.Concept Ty.Number_lit else Ty.Error
+  | "Integer" -> if expect 0 then Ty.Concept Ty.Integer_lit else Ty.Error
+  | "Decimal" -> if expect 0 then Ty.Concept Ty.Decimal_lit else Ty.Error
   | "Text" -> if expect 0 then Ty.Concept Ty.Text_lit else Ty.Error
   | "Block" -> (
       match args () with
@@ -316,7 +338,9 @@ and param_type scope (p : N.Param_type.t) : Ty.t =
   match p.N.Param_type.node with
   | N.Param_type.Concrete t -> resolve scope t
   | N.Param_type.Concept { N.Concept.node = N.Concept.Type; _ } -> Ty.Concept Ty.Type_value
-  | N.Param_type.Concept { N.Concept.node = N.Concept.Number; _ } -> Ty.Concept Ty.Number_value
+  (* Only a type's header entry is written this way, and the grammar builds
+     one nowhere else. *)
+  | N.Param_type.Concept { N.Concept.node = N.Concept.Named _; _ } -> Ty.Error
   | N.Param_type.InferredType { name; _ } -> (
       if not scope.signature then begin
         error p.N.Param_type.span
@@ -384,7 +408,14 @@ let header_params (params : N.Generic_param.t list) =
         let kind =
           match g.N.Generic_param.type_.N.Concept.node with
           | N.Concept.Type -> Ty.Type_kind
-          | N.Concept.Number -> Ty.Number_kind
+          | N.Concept.Named n ->
+              if not (is_integer_concept n) then
+                error g.N.Generic_param.type_.N.Concept.span
+                  (Printf.sprintf
+                     "a type's `< >` header holds `Type` and `@concepts$Integer` \
+                      parameters, and %s is neither (generics.md §3.3)"
+                     (quote (name_type_text n)));
+              Ty.Number_kind
         in
         Some (Ty.fresh_param ~name ~kind)
       end)
