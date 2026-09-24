@@ -257,11 +257,13 @@ let main () =
                     candidate.candidate_tokens :: !blocked_sentences;
                   reset_prove_state walk;
                   printf
-                    "CEGAR refinement %d: excluded complete history %s after \
-                     exact-checking all %d terminal-class substitution(s) for \
-                     at most one parse; restarting with a history-trie product.\n"
+                    "CEGAR refinement %d: excluded complete history %s; the \
+                     representative has %d parse(s), and all %d concrete \
+                     terminal-class substitution(s) were checked for at most \
+                     one parse; restarting with a history-trie product.\n"
                     !cegar_used
-                    (String.concat " " candidate.candidate_tokens) variants;
+                    (String.concat " " candidate.candidate_tokens)
+                    candidate.candidate_derivations variants;
                   attempt ()
               | Exclusion_ambiguous tokens ->
                   Abstract_candidate

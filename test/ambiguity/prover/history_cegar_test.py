@@ -50,6 +50,19 @@ class HistoryCegarTests(harness.ProverTestCase):
         self.assertNotRegex(output, harness.PROVEN_LINE)
         self.assertEqual(status, harness.AMBIGUOUS, output)
 
+    def test_a_rejected_candidate_is_filtered_only_after_exact_replay(self) -> None:
+        # This grammar's top-1 abstraction invents a short path outside the
+        # recognizer's language. CEGAR may exclude it only after the exact
+        # replay classifies the candidate as zero-parse.
+        _, output = self.prove(
+            fixtures.ACCEPTS_NON_SENTENCES,
+            1,
+            max_tokens="0",
+            extra=("--prove-cegar", "1"),
+        )
+        self.assertRegex(output, re.compile(r"^CEGAR refinement 1:", re.MULTILINE))
+        self.assertRegex(output, re.compile(r"representative has 0 parse\(s\)"))
+
     def test_CEGAR_reaches_a_second_independent_candidate(self) -> None:
         # L/p and R/q are independent blind spots. Excluding the first exact
         # nonambiguous sentence must not merge its history with the second
