@@ -170,10 +170,12 @@ rewrite later anyway.
 
 **Two of the five swap their operands, and evaluation order survives it.**
 Operands are evaluated left to right, in written order, whatever operator they
-reach — the rule spec [#184](https://github.com/zane-lang/spec/issues/184)
-settles for `operators.md` §2.3. An operator is an ordinary verb and only `~`
-must be pure (§4.1), so `f(log) > g(log)` can make two observable writes, and
-`f` has to make its write first.
+reach. The spec pinned above says nothing about operand order; spec
+[#184](https://github.com/zane-lang/spec/issues/184) raised the gap, and spec
+[#199](https://github.com/zane-lang/spec/pull/199) adds this rule to
+`operators.md` §2.3. An operator is an ordinary verb and only `~` must be pure
+(§4.1), so `f(log) > g(log)` can make two observable writes, and `f` has to make
+its write first.
 
 So a swapped call keeps its operands where they were written and says the
 swap in a flag. `a > b` is an `Op` of `Less` with `left` `a`, `right` `b` and
