@@ -50,27 +50,30 @@ class HistoryCegarTests(harness.ProverTestCase):
         self.assertNotRegex(output, harness.PROVEN_LINE)
         self.assertEqual(status, harness.AMBIGUOUS, output)
 
-    def test_a_rejected_candidate_is_filtered_only_after_exact_replay(self) -> None:
-        # This grammar's top-1 abstraction invents a short path outside the
-        # recognizer's language. CEGAR may exclude it only after the exact
-        # replay classifies the candidate as zero-parse. The candidate repeats
-        # one terminal class, so the report must include its full substitution
-        # product before excluding the history.
-        _, output = self.prove(
+    def test_single_parse_and_rejected_candidates_need_exact_replay(self) -> None:
+        # This grammar produces a one-parse abstraction candidate before a
+        # later rejected candidate. CEGAR may exclude either only after exact
+        # replay; neither verdict is enough by itself to prove the grammar.
+        status, output = self.prove(
             fixtures.ACCEPTS_NON_SENTENCES,
             1,
             max_tokens="0",
-            extra=("--prove-cegar", "1"),
+            extra=("--prove-cegar", "2"),
         )
         self.assertRegex(output, re.compile(r"^CEGAR refinement 1:", re.MULTILINE))
-        self.assertRegex(output, re.compile(r"representative has 0 parse\(s\)"))
-        self.assertRegex(
-            output,
-            re.compile(
-                r"representative has 0 parse\(s\), and all \d+ concrete "
-                r"terminal-class substitution\(s\) were checked"
-            ),
-        )
+        self.assertRegex(output, re.compile(r"^CEGAR refinement 2:", re.MULTILINE))
+        for round_number, count in ((1, 1), (2, 0)):
+            self.assertRegex(
+                output,
+                re.compile(
+                    rf"^CEGAR refinement {round_number}: excluded complete history .+; "
+                    rf"the representative has {count} parse\(s\), and all \d+ "
+                    r"concrete terminal-class substitution\(s\) were checked",
+                    re.MULTILINE,
+                ),
+            )
+        self.assertNotEqual(status, harness.AMBIGUOUS, output)
+        self.assertIn(status, (harness.PROVEN, harness.NOT_PROVEN), output)
 
     def test_incomplete_exact_check_falls_through_to_stack_refinement(self) -> None:
         status, output = self.prove(
@@ -125,8 +128,20 @@ class HistoryCegarTests(harness.ProverTestCase):
             max_tokens="0",
             extra=("--prove-cegar", "1"),
         )
-        self.assertIn(f"complete history {short}", output)
-        self.assertRegex(output, re.compile(r"^AMBIGUOUS:", re.MULTILINE))
+        self.assertRegex(
+            output,
+            re.compile(
+                rf"^CEGAR refinement 1: excluded complete history {re.escape(short)};",
+                re.MULTILINE,
+            ),
+        )
+        self.assertRegex(
+            output,
+            re.compile(
+                rf"^AMBIGUOUS:.*{re.escape(longer)}",
+                re.MULTILINE,
+            ),
+        )
         self.assertEqual(status, harness.AMBIGUOUS, output)
 
     def test_CEGAR_never_excludes_duplicate_production_ambiguity(self) -> None:

@@ -139,11 +139,10 @@ p:
   | B p B { () }
 """
 
-# This has the same rejected `A b b b b EOF` abstraction candidate as the
-# smaller fixture, but each `b` position represents nine equivalent tokens.
-# The exact substitution product is 9^4 (more than CEGAR's 4096 replay cap),
-# so `--prove-cegar` must hand the candidate back to requested stack refinement
-# instead of returning early.
+# Each `b` position represents nine equivalent tokens. The B-wrapped recursive
+# path creates a candidate with at least four `b` positions, whose substitution
+# product is over CEGAR's 4096 replay cap. CEGAR must hand that candidate back
+# to requested stack refinement instead of excluding an unchecked history.
 CEGAR_INCOMPLETE_EXCLUSION = """\
 %token A "a"
 %token B0 "b0"
@@ -162,6 +161,7 @@ main: p EOF { () }
 p:
   | b b b b { () }
   | A p A { () }
+  | b p b { () }
 b:
   | B0 { () }
   | B1 { () }
@@ -283,10 +283,10 @@ suffixes:
   | LB RB suffixes { () }
 """
 
-# The blocked short sentence is a proper prefix of a longer ambiguous one. EOF
-# is an ordinary declared terminal here; the actual end marker is internal to
-# the engine, so filtering the short acceptance must leave the B/X continuation
-# reachable in the product automaton.
+# The short AM/AO sentence is an abstract one-parse candidate. The reverse
+# prefix has two derivations only after the B/X continuation. EOF is an
+# ordinary declared terminal here; the engine's end marker is separate, so
+# filtering the short acceptance must preserve longer continuations.
 CEGAR_LONGER_SHARED_PREFIX = """\
 %token AM "am"
 %token AO "ao"
@@ -302,7 +302,10 @@ CEGAR_LONGER_SHARED_PREFIX = """\
 main:
   | AM AO d_outer EOF { () }
   | AM AO d_outer EOF B tail EOF { () }
+  | AO AM d_outer EOF B tail EOF { () }
+  | AO AM d_suffix EOF B tail EOF { () }
 d_outer: ty LB RB SEMI { () }
+d_suffix: ty SEMI { () }
 ty: A suffixes { () }
 suffixes:
   | { () }
