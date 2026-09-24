@@ -1,6 +1,9 @@
 let check condition message = if not condition then failwith message
 
 let () =
+  let empty = History_filter.create [] in
+  check (History_filter.root empty = History_filter.other)
+    "the disabled filter must add no extra history state";
   let filter =
     History_filter.create
       [ [ "AM"; "AO"; "A" ]; [ "AM"; "AO"; "A"; "B" ]; [ "AO"; "AM"; "A" ] ]

@@ -209,6 +209,32 @@ e:
   | B { () }
 """
 
+# A prior sentence-blocking CEGAR walk merged the AM/AO histories after they
+# reached the same abstract parser state and falsely reported a proof after
+# excluding the first, singly parsed sentence. The reversed prefix has two
+# parses, so a path-sensitive DFA product must keep it visible.
+CEGAR_AM_AO_PERMUTATIONS = """\
+%token AM "am"
+%token AO "ao"
+%token A "a"
+%token LB "["
+%token RB "]"
+%token SEMI ";"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main:
+  | AM AO d_outer EOF { () }
+  | AO AM d_outer EOF { () }
+  | AO AM d_suffix EOF { () }
+d_outer: ty LB RB SEMI { () }
+d_suffix: ty SEMI { () }
+ty: A suffixes { () }
+suffixes:
+  | { () }
+  | LB RB suffixes { () }
+"""
+
 # The same reduce/reduce conflict, but reached over two symbols instead of one.
 # At proof level 1 the retained stack is a single state, so the competing
 # reductions here are strictly wider than it while `EOF_REDUCE_REDUCE`'s are

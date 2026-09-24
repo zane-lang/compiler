@@ -497,6 +497,10 @@ class SurveyFlagTests(unittest.TestCase):
             arguments[arguments.index("--prove-survey") + 1], "5"
         )
 
+    def test_requested_CEGAR_reaches_the_engine(self) -> None:
+        arguments = runner.engine_arguments(self.profile(), 3, cegar=2)
+        self.assertEqual(arguments[arguments.index("--prove-cegar") + 1], "2")
+
     def test_refinement_is_absent_unless_requested(self) -> None:
         arguments = runner.engine_arguments(self.profile(), 3)
         self.assertNotIn("--prove-refine", arguments)
@@ -547,6 +551,8 @@ class SurveyFlagTests(unittest.TestCase):
             ("rounds without refinement", ["prove", "1", "--refine-rounds", "4"]),
             ("trace with a survey", ["prove", "1", "--trace", "--survey", "1"]),
             ("retire without refinement", ["prove", "1", "--retire", "2"]),
+            ("negative CEGAR rounds", ["prove", "1", "--cegar", "-1"]),
+            ("CEGAR with a survey", ["prove", "1", "--cegar", "1", "--survey", "1"]),
         ):
             with self.subTest(combination=name):
                 with self.assertRaises(SystemExit):
@@ -561,6 +567,9 @@ class SurveyFlagTests(unittest.TestCase):
             ),
             0,
         )
+
+    def test_the_wrapper_accepts_CEGAR(self) -> None:
+        self.assertEqual(cli.main(["prove", "1", "--cegar", "2", "--dry-run"]), 0)
 
 
 class TerminalClassEngineTests(unittest.TestCase):

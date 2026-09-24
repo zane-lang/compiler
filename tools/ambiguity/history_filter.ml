@@ -7,6 +7,8 @@ type t = { root : int; other : int; nodes : (int, node) Hashtbl.t }
 let other = -1
 
 let create sentences =
+  if sentences = [] then { root = other; other; nodes = Hashtbl.create 0 }
+  else
   let nodes = Hashtbl.create 32 in
   let next_id = ref 0 in
   let add_node () =
