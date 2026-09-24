@@ -598,24 +598,6 @@ These executables are not part of the compiler library and they are not
 ambiguity-engine internals; “parser developer tools” is their shared
 responsibility.
 
-### `tools/syntax_experiment/`
-
-This tool has since been retired. Its variants explored statement
-terminators, call and grouping spellings and abort-handler attachment, which
-the grammar has since settled, and its transforms anchored on grammar text
-that no longer exists. The split below is kept as the record of the plan.
-
-`syntax_experiment.py` has cleanly separable concerns:
-
-- `model.py`: `Variant`, `Spelling`, `KnownCase`, result dataclasses;
-- `transforms.py`: source-spelling transforms;
-- `runner.py`: process lifetime, search command execution, timeout behavior;
-- `report.py`: metrics, Pareto marking, Markdown rendering, report writing;
-- `cli.py`: parser, config loading, validation, main.
-
-This is a better split than one file per experiment variant: variants are data;
-the responsibilities above are actual modules.
-
 ## 7. Give tests one root and mirror the implementation
 
 `test-parser/` contains parser fixture source while `test/` contains golden
@@ -654,9 +636,6 @@ test/ambiguity/
 test/parser/
   syntax_test.py
   ambiguity_test.py
-
-test/syntax_experiment/
-  experiment_test.py
 ```
 
 ### Split `test_prover.py` by behavior
@@ -746,7 +725,7 @@ day-to-day value than splitting code and tests.
 A few naming conventions would keep the modular layout from becoming noisy:
 
 1. **Directories name subsystems/stages.**  
-   Examples: `cst`, `sst`, `ambiguity`, `syntax_experiment`.
+   Examples: `cst`, `sst`, `ambiguity`.
 
 2. **Files name responsibilities.**  
    Examples: `automaton.ml`, `recognizer.ml`, `prover.ml`,
