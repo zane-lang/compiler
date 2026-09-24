@@ -1,6 +1,6 @@
-name: Research CI and CEGAR probe
+name: Research CI and pair hash probe
 
-# Temporary research-branch checks and bounded proof probe for CEGAR history subsumption.
+# Temporary research-branch checks and bounded throughput comparison for cached pair-table hashing.
 # Keep the proof's derived pair cap equal to historical run #125 so pair count
 # and peak RSS are comparable; the engine clock is intentionally shorter.
 on:
@@ -26,7 +26,7 @@ jobs:
       AMBIGUITY_MAX_FRONTIER_RATIO: "1.0"
       AMBIGUITY_JOBS: "4"
       AMBIGUITY_MENHIR: menhir
-      REPORT: reports/ambiguity/actions/cegar-${{ github.run_id }}-${{ github.run_attempt }}.txt
+      REPORT: reports/ambiguity/actions/pairhash-${{ github.run_id }}-${{ github.run_attempt }}.txt
 
     steps:
       - name: Check out research revision
@@ -79,7 +79,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ambiguity-cegar-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ambiguity-pairhash-${{ github.run_id }}-${{ github.run_attempt }}
           path: reports/ambiguity/actions/
           if-no-files-found: warn
           retention-days: 30
