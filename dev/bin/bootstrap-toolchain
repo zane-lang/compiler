@@ -33,8 +33,12 @@ if [[ ! -d "${OPAMROOT:-$HOME/.opam}" ]]; then
 	opam init --bare --disable-sandboxing -y
 fi
 
+# `--no-install` keeps a local switch from installing the repository's own opam
+# package. That would resolve the newest dune rather than the pin below and
+# build the compiler as an opam package, only for the pins to be installed over
+# it -- the whole toolchain built twice on a cold switch.
 if ! opam switch list --short | grep -Fxq "$ROOT"; then
-	opam switch create "$ROOT" ocaml-system -y
+	opam switch create "$ROOT" ocaml-system --no-install -y
 fi
 
 eval "$(opam env --switch="$ROOT" --set-switch)"

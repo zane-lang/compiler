@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Decide which of CI's slower suites a change needs, and write the answer to
+# $GITHUB_OUTPUT as `grammar=true|false` and `ambiguity-tools=true|false`.
+#
+# On a pull request the answer comes from the files it changes. Anywhere else
+# -- the merge queue, a push to main, a manual run -- there is no single diff to
+# read, so every suite runs.
+#
+# A file matching SHARED can change how anything builds or runs, so it selects
+# every suite. The toolchain pins and this workflow are in it, and so is this
+# script, since a mistake in these patterns would otherwise pass unseen.
+set -euo pipefail
+
+: "${GITHUB_OUTPUT:?must be set}"
+
+grammar=true
+tools=true
+
+if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
+	: "${REPOSITORY:?must be set}"
+	: "${PR_NUMBER:?must be set}"
+
+	files="$(gh api --paginate "repos/$REPOSITORY/pulls/$PR_NUMBER/files" --jq '.[].filename')"
+
+	grammar=false
+	tools=false
+	while IFS= read -r file; do
+		case "$file" in
+			# SHARED
+			devbox.json | devbox.lock | dune-project | justfile | \
+				dev/bin/bootstrap-toolchain | \
+				.github/workflows/ci.yml | .github/scripts/ci-suites)
+				grammar=true
+				tools=true
+				;;
+		esac
+		case "$file" in
+			# What the grammar suite builds and runs: the grammar and the
+			# libraries `cst` links, the recognizer that counts derivations,
+			# and the shape printer.
+			lib/cst/* | lib/diagnostic/* | lib/source/* | lib/tree_graph/* | \
+				tools/ambiguity/* | tools/parser/* | \
+				test/parser/ambiguity_test.py)
+				grammar=true
+				;;
+		esac
+		case "$file" in
+			# The tools and their tests. The CLI's tests also run the engine
+			# over the real grammar, so a grammar change selects them too.
+			tools/ambiguity/* | test/ambiguity/* | lib/cst/parser.mly | \
+				dev/bin/ambiguity | dev/lib/* | ambiguity-searches.toml)
+				tools=true
+				;;
+		esac
+	done <<<"$files"
+fi
+
+echo "grammar suite: $grammar"
+echo "ambiguity tools suite: $tools"
+{
+	echo "grammar=$grammar"
+	echo "ambiguity-tools=$tools"
+} >>"$GITHUB_OUTPUT"
