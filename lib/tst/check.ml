@@ -1626,7 +1626,7 @@ and stat ctx (s : N.Stat.t) : T.Stat.t =
             r.aborts <- r.aborts @ [ (v.T.Expr.ty, v.T.Expr.span) ];
             T.Stat.Abort v
         | No_return ->
-            error span "`abort` is written in a verb body";
+            error span "`abort` leaves a verb, and this is not in one";
             T.Stat.Abort v)
     | N.Stat.Ret value -> (
         match ctx.ret_target with
@@ -1647,7 +1647,7 @@ and stat ctx (s : N.Stat.t) : T.Stat.t =
             T.Stat.Return v
         | No_return ->
             let v = expr ctx value in
-            error span "`return` is written in a verb body";
+            error span "`return` leaves a verb, and this is not in one";
             T.Stat.Return v)
     | N.Stat.Resolve value -> (
         let v = expr ctx value in

@@ -35,11 +35,7 @@ let deferred_guests : (Ty.t * Span.t) list ref = ref []
 let rec is_reference ?(seen = []) (t : Ty.t) =
   match t with
   | Ty.Named (tid, args) -> (
-      match
-        Hashtbl.fold
-          (fun _ (info : type_info) acc -> if info.tid = tid then Some info else acc)
-          type_infos None
-      with
+      match Hashtbl.find_opt type_infos_by_id tid with
       | None -> false
       | Some info -> (
           match info.reference with
@@ -57,10 +53,7 @@ let rec is_reference ?(seen = []) (t : Ty.t) =
   | Ty.Guest _ -> true
   | _ -> false
 
-let type_info_of_id tid =
-  Hashtbl.fold
-    (fun _ (info : type_info) acc -> if info.tid = tid then Some info else acc)
-    type_infos None
+let type_info_of_id tid = Hashtbl.find_opt type_infos_by_id tid
 
 (* A concept type is never storage (syntax.md §2.8): not a field, not a
    local, not an element of a stored type. *)
@@ -416,14 +409,17 @@ let register () =
                   Hashtbl.replace alias_infos d.id
                     { alias_decl = d; alias_params = params; target = None; resolving = false }
               | _ ->
-                  Hashtbl.replace type_infos d.id
+                  let info =
                     {
                       tid = { Ty.package = pkg_name; name = name.N.Name.text };
                       decl = d;
                       params;
                       definition = None;
                       reference = None;
-                    })
+                    }
+                  in
+                  Hashtbl.replace type_infos d.id info;
+                  Hashtbl.replace type_infos_by_id info.tid info)
           | _ -> ())
         pkg.decls)
     !package_order
@@ -489,9 +485,15 @@ let define (info : type_info) =
 
 (* A distinct type whose definition leads back to itself without passing
    through a mould has no layout at all: `type A = B` and `type B = A`. *)
+(* Declarations in source order, so what a whole-table check reports does not
+   depend on how a hash table happens to iterate. *)
+let infos_in_order () =
+  Hashtbl.fold (fun _ info acc -> info :: acc) type_infos []
+  |> List.sort (fun (a : type_info) b -> compare a.decl.id b.decl.id)
+
 let check_distinct_cycles () =
-  Hashtbl.iter
-    (fun _ (info : type_info) ->
+  List.iter
+    (fun (info : type_info) ->
       let rec follow seen (t : Ty.t) =
         match t with
         | Ty.Named (tid, _) -> (
@@ -508,15 +510,15 @@ let check_distinct_cycles () =
             (Printf.sprintf "the type %s is defined in terms of itself" (quote info.tid.name));
           info.definition <- Some (Distinct Ty.Error)
       | _ -> ())
-    type_infos
+    (infos_in_order ())
 
 (* A value type is transitively a value: no reference-type or `&` member,
    anywhere downstream (memory.md §2.10). Every member's own type obeys the
    same rule where it is declared, so checking one level is checking all of
    them. *)
 let check_value_downstream () =
-  Hashtbl.iter
-    (fun _ (info : type_info) ->
+  List.iter
+    (fun (info : type_info) ->
       if info.reference = Some false then
         let members =
           match info.definition with
@@ -541,15 +543,13 @@ let check_value_downstream () =
                         reference type; a value type is a value all the way down"
                        (quote info.tid.name) (quote name) (quote (Ty.to_string t))))
           members)
-    type_infos
+    (infos_in_order ())
 
 let run () =
   ready := false;
   deferred_guests := [];
   register ();
-  let infos = Hashtbl.fold (fun _ info acc -> info :: acc) type_infos [] in
-  let infos = List.sort (fun (a : type_info) b -> compare a.decl.id b.decl.id) infos in
-  List.iter define infos;
+  List.iter define (infos_in_order ());
   let aliases = Hashtbl.fold (fun _ a acc -> a :: acc) alias_infos [] in
   List.iter (fun a -> ignore (alias_target a)) (List.sort (fun a b -> compare a.alias_decl.id b.alias_decl.id) aliases);
   check_distinct_cycles ();

@@ -42,6 +42,10 @@ File "fixtures/typing/reject/bad/bodies.zn", line 31, characters 5-15:
 31 |     this.owner = Int(2);
   |     ^^^^^^^^^^
 Error: a method that is not `mut` may not write through `this`
+File "fixtures/typing/reject/bad/bodies.zn", line 37, characters 5-19:
+37 |     return Int(1);
+  |     ^^^^^^^^^^^^^^
+Error: `return` leaves a verb, and this is not in one
 File "fixtures/typing/reject/bad/calls.zn", line 18, characters 13-33:
 18 |     a Int = pair(Int(1), Int(2));
   |             ^^^^^^^^^^^^^^^^^^^^

@@ -141,6 +141,9 @@ type alias_info = {
 }
 
 let type_infos : (int, type_info) Hashtbl.t = Hashtbl.create 64
+
+(* The same records, by the type they declare. *)
+let type_infos_by_id : (Ty.type_id, type_info) Hashtbl.t = Hashtbl.create 64
 let alias_infos : (int, alias_info) Hashtbl.t = Hashtbl.create 16
 let signatures : (int, Signature.t) Hashtbl.t = Hashtbl.create 256
 let constant_types : (int, Ty.t) Hashtbl.t = Hashtbl.create 32
@@ -172,6 +175,7 @@ let reset () =
   package_order := [];
   Hashtbl.reset decls;
   Hashtbl.reset type_infos;
+  Hashtbl.reset type_infos_by_id;
   Hashtbl.reset alias_infos;
   Hashtbl.reset signatures;
   Hashtbl.reset constant_types;

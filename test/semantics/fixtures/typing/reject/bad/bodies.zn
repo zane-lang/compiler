@@ -31,3 +31,8 @@ Unit adjust(this Account) {
 	this.owner = Int(2);
 	return Unit();
 }
+
+/// A block argument is transparent to `return`, and a constant is in no verb.
+stray Bool = if(true) {
+	return Int(1);
+}
