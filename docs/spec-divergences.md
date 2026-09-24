@@ -332,13 +332,14 @@ operand, where the spec is silent; reconciling it means stating the rule in
 least one digit on each side." This entry was checked against `c4295ca`, which
 added that section, rather than the `034f11a` the others are pinned to.
 
-**Compiler** — a `'` may also sit between two digits, in either literal form,
-and only separates them: it changes neither the value nor which concept type
-the literal carries.
+**Compiler** — a `'` may also sit between two digits before any `.`, and only
+separates them: it changes neither the value nor which concept type the
+literal carries. The digits after a decimal literal's `.` take no separator.
 
 ```zane
 count Int = 1'000'000;        // accepted: an integer literal
 ratio Float = 1'000.25;       // accepted: a decimal literal
+bad Float = 1.000'001;        // rejected: no separator after the `.`
 bad Int = 1''000;             // rejected
 bad Int = 1'000';             // rejected
 ```

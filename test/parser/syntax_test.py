@@ -715,6 +715,10 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_parses("Unit f() { a Int = 3; b Float = 3.0; return Unit(); }")
         self.assert_rejects("Unit f() { b Float = 3.; return Unit(); }")
         self.assert_rejects("Unit f() { b Float = .5; return Unit(); }")
+        # The compiler's `'` separator groups digits before the `.` only
+        # (docs/spec-divergences.md §8).
+        self.assert_parses("Unit f() { b Float = 1'000.25; return Unit(); }")
+        self.assert_rejects("Unit f() { b Float = 1.000'001; return Unit(); }")
 
     def test_a_loose_operator_declares_nothing(self) -> None:
         # §3.1: the loose forms "add no token to the operator vocabulary" of

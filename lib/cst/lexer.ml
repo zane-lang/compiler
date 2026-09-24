@@ -10,8 +10,9 @@ let digits     = [%sedlex.regexp? Plus digit]
 (* The two numeric literals of lexical.md §7: an integer literal is digits,
    and a decimal literal is digits, a `.` and digits. The spelling alone picks
    which, so `3.0` is a decimal literal whatever its value, and neither `3.`
-   nor `.5` is a literal at all. A `'` between digits separates groups of
-   them, which the spec does not have (docs/spec-divergences.md). *)
+   nor `.5` is a literal at all. A `'` between digits before the `.`
+   separates groups of them, which the spec does not have
+   (docs/spec-divergences.md); the digits after it take none. *)
 let int_lit    = [%sedlex.regexp? digits, Star ('\'', digits)]
 let decimal_lit = [%sedlex.regexp? int_lit, '.', digits]
 let str_char   = [%sedlex.regexp? Compl ('"' | '\\') | '\\', any]
