@@ -8,9 +8,6 @@ rebuild:
 watch:
 	dune build --watch
 
-syntax-experiment-test:
-	python3 -m unittest test.syntax_experiment.experiment_test -v
-
 # Every suite below. CI runs the three separately, so that a change which
 # cannot affect the grammar or the ambiguity tools does not wait on them.
 test: test-compiler test-grammar test-ambiguity-tools

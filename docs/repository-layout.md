@@ -139,13 +139,6 @@ This is a target shape, not a requirement to create every directory at once.
 │   │   ├── parser_accept.ml
 │   │   ├── parser_shape.ml
 │   │   └── span_dump.ml
-│   │
-│   └── syntax_experiment/
-│       ├── cli.py
-│       ├── model.py
-│       ├── transforms.py
-│       ├── runner.py
-│       └── report.py
 │
 ├── dev/
 │   ├── bin/
@@ -166,13 +159,10 @@ This is a target shape, not a requirement to create every directory at once.
 │   │   ├── syntax_test.py
 │   │   └── ambiguity_test.py
 │   │
-│   ├── ambiguity/
-│   │   ├── cli_test.py
-│   │   ├── prover_test.py
-│   │   └── precision_sweep_test.py
-│   │
-│   └── syntax_experiment/
-│       └── experiment_test.py
+│   └── ambiguity/
+│       ├── cli_test.py
+│       ├── prover_test.py
+│       └── precision_sweep_test.py
 │
 ├── docs/
 │   ├── stages.md
@@ -608,19 +598,6 @@ These executables are not part of the compiler library and they are not
 ambiguity-engine internals; “parser developer tools” is their shared
 responsibility.
 
-### `tools/syntax_experiment/`
-
-`syntax_experiment.py` has cleanly separable concerns:
-
-- `model.py`: `Variant`, `Spelling`, `KnownCase`, result dataclasses;
-- `transforms.py`: source-spelling transforms;
-- `runner.py`: process lifetime, search command execution, timeout behavior;
-- `report.py`: metrics, Pareto marking, Markdown rendering, report writing;
-- `cli.py`: parser, config loading, validation, main.
-
-This is a better split than one file per experiment variant: variants are data;
-the responsibilities above are actual modules.
-
 ## 7. Give tests one root and mirror the implementation
 
 `test-parser/` contains parser fixture source while `test/` contains golden
@@ -659,9 +636,6 @@ test/ambiguity/
 test/parser/
   syntax_test.py
   ambiguity_test.py
-
-test/syntax_experiment/
-  experiment_test.py
 ```
 
 ### Split `test_prover.py` by behavior
@@ -751,7 +725,7 @@ day-to-day value than splitting code and tests.
 A few naming conventions would keep the modular layout from becoming noisy:
 
 1. **Directories name subsystems/stages.**  
-   Examples: `cst`, `sst`, `ambiguity`, `syntax_experiment`.
+   Examples: `cst`, `sst`, `ambiguity`.
 
 2. **Files name responsibilities.**  
    Examples: `automaton.ml`, `recognizer.ml`, `prover.ml`,
