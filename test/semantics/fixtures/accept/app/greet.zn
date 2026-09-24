@@ -1,0 +1,7 @@
+/// A second file of the same package: `greet` is reachable from `main.zn`
+/// with no import (packages.md §2.3).
+package app;
+
+Unit greet() {
+	return Unit();
+}

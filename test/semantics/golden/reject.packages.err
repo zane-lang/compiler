@@ -1,0 +1,28 @@
+File "fixtures/reject/mismatch/wrong.zn", line 1, characters 9-19:
+1 | package mismatched;
+  |         ^^^^^^^^^^
+Error: this file is in the directory `mismatch`, so it must declare `package mismatch;`
+File "fixtures/reject/missing/none.zn", line 1, characters 1-1:
+1 | Unit f() {
+  | ^
+Error: a source file must begin with `package missing;`, the name of its directory
+File "fixtures/reject/late/second.zn", line 2, characters 1-13:
+2 | package late;
+  | ^^^^^^^^^^^^
+Error: the `package` declaration must be the first declaration in the file
+File "fixtures/reject/twice/twice.zn", line 2, characters 1-14:
+2 | package twice;
+  | ^^^^^^^^^^^^^
+Error: a file declares its package once
+Directory "fixtures/reject/noSources":
+Error: no `.zn` files directly in the directory
+Directory "fixtures/reject/other/geometry":
+Error: the package `geometry` is already the directory `fixtures/accept/geometry`
+Directory "fixtures/reject/third/geometry":
+Error: the package `geometry` is already the directory `fixtures/accept/geometry`
+File "fixtures/reject/broken/broken.zn", line 3, characters 9-10:
+3 | Unit f( {
+  |         ^
+Error: Parse error
+Directory "fixtures/reject/absent":
+Error: no such directory

@@ -1,0 +1,51 @@
+; Stage 3's input: packages assembled from directories (docs/semantics.md §2,
+; step 1 of §7).
+;
+; `accept` is a build that assembles. Its root package `app` has two files,
+; which shows a package is its directory's files together, and a
+; subdirectory and a non-source file, which show what is left out. `geometry`
+; is a second package, listed after the root.
+;
+; `reject` is one build that fails every way assembly can. Every problem is
+; reported in one run rather than the first alone (D4), and the golden file
+; is what shows it: a run that stopped early would be a shorter diff.
+
+(rule
+ (deps (source_tree fixtures/accept))
+ (action
+  (with-stdout-to
+   accept.packages.actual
+   (run
+    %{exe:../../bin/compiler/main.exe}
+    --package fixtures/accept/app
+    --package fixtures/accept/geometry))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/accept.packages accept.packages.actual)))
+
+(rule
+ (deps (source_tree fixtures))
+ (action
+  (with-stderr-to
+   reject.packages.err.actual
+   (with-accepted-exit-codes
+    1
+    (run
+    %{exe:../../bin/compiler/main.exe}
+    --package fixtures/reject/mismatch
+    --package fixtures/reject/missing
+    --package fixtures/reject/late
+    --package fixtures/reject/twice
+    --package fixtures/reject/noSources
+    --package fixtures/accept/geometry
+    --package fixtures/reject/other/geometry
+    --package fixtures/reject/third/geometry
+    --package fixtures/reject/broken
+    --package fixtures/reject/absent)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.packages.err reject.packages.err.actual)))

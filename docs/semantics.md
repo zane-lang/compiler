@@ -81,9 +81,13 @@ for stages 1 and 2, which never look past the file. It is not enough for stage
 **D2. Semantics takes a set of packages: the root plus its dependencies, each
 given as a directory.** Fetching, versioning and the manifest
 ([`dependencies.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/dependencies.md))
-stay out of scope. The driver gets a `--package DIR` flag, repeatable. Each file
-parses and lowers exactly as today; stage 3 is the first stage that groups
-them.
+stay out of scope. The driver takes a `--package DIR` flag, repeatable, and the
+first directory given is the root (`packages.md` §6.1). Each file parses and
+lowers exactly as today; stage 3 is the first stage that groups them.
+`lib/tst/assembly.ml` does the grouping: a package is the `.zn` files directly
+in its directory (§2.3), named for the directory (§2.1). Each file must begin
+with a `package` line naming it (§2.2), and no two directories may share a
+name.
 
 **D3. A minimal `core` is checked in as a test fixture** — `test/core/`, holding
 `Int`, `Bool`, `Unit` and `String` over `@primitives$`, their operators, and the
@@ -304,8 +308,9 @@ side tables keyed by `Decl_id`. The tree stays one shape for every consumer.
 Each step is one PR that ends with `dune runtest` green and a golden file for
 what it added, the way the SST landed:
 
-1. `--package DIR` in the driver, and assembly: files grouped by package, a
-   package-line mismatch reported. Golden output: the package list.
+1. **Done.** `--package DIR` in the driver, and assembly: files grouped by
+   package, a package-line mismatch reported. Golden output: the package list
+   (`test/semantics/golden/`).
 2. The `core` fixture (D3) and the intrinsic table. At this point the fixture
    only has to parse.
 3. Passes 1–2: declaration table and import maps, with a `--decls` dump as the
