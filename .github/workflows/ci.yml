@@ -74,7 +74,7 @@ jobs:
           mkdir -p "$(dirname "$report")"
           {
             echo "Head SHA: $GITHUB_SHA"
-            echo "Resource limits: AMBIGUITY_MEMORY_MB=6144; AMBIGUITY_MAX_FRONTIER_RATIO=1.0; AMBIGUITY_JOBS=4; AMBIGUITY_MENHIR=menhir; engine timeout=330s; outer timeout=6m; step timeout=7m"
+            echo "Resource limits: AMBIGUITY_MEMORY_MB=6144; AMBIGUITY_MAX_FRONTIER_RATIO=1.0; AMBIGUITY_JOBS=4; AMBIGUITY_MENHIR=menhir; engine per-phase timeout=330s; total probe cap=360s; step timeout=7m"
             echo "Command: timeout --signal=TERM --kill-after=10s 6m devbox run -- dev/bin/ambiguity __engine --max-tokens 0 --min-tokens 0 --timeout 330 --max-witnesses 1 --prove 1 --prove-cegar 3 --prove-refine 4"
             echo
           } > "$report"
@@ -92,7 +92,7 @@ jobs:
             0) verdict="PROVEN" ;;
             1) verdict="CONCRETE AMBIGUITY" ;;
             3) verdict="NOT PROVEN" ;;
-            124|137) verdict="TIMEOUT" ;;
+            124|137) verdict="INCOMPLETE: OUTER TIMEOUT (not proven)" ;;
             *) verdict="PROBE FAILED" ;;
           esac
           echo "Verdict: $verdict (exit $probe_status)" >> "$report"
