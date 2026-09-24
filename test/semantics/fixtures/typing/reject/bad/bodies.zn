@@ -1,0 +1,33 @@
+package bad;
+
+import core$;
+
+type Account = struct {
+	_balance Int;
+	owner Int;
+}
+
+Account(owner Int) => init{ owner; }
+
+frozen Int(1)
+
+Int noReturn(value Int) {
+	copy Int = value;
+}
+
+Unit bodies(value Int, account Account) {
+	x Int = 20;
+	value = Int(2);
+	frozen = Int(3);
+	y Int = Int(1);
+	y Int = Int(2);
+	noReturn Int = Int(3);
+	built Account = init{ owner = Int(1); }
+	peek Int = account._balance;
+	return Int(4);
+}
+
+Unit adjust(this Account) {
+	this.owner = Int(2);
+	return Unit();
+}

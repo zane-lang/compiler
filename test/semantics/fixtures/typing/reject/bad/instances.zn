@@ -1,0 +1,13 @@
+/// A generic body is checked per instantiation, so the error is reported for
+/// the arguments that exposed it.
+package bad;
+
+import core$;
+
+T half(value T Type) => value / value
+
+Unit instances() {
+	fine Int = half(Int(4));
+	text String = half(String("x"));
+	return Unit();
+}

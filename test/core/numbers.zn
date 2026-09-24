@@ -1,0 +1,36 @@
+/// `Int` and `Float`, over the machine scalars. A literal is
+/// `@concepts$Number`, and the implicit constructors below are what carry one
+/// into either at a coercion site (types.md §2.6).
+package core;
+
+type Int = struct {
+	raw @primitives$Int;
+}
+
+implicit Int(value @concepts$Number) => init{ raw = @primitives$Int(value); }
+implicit Int(raw @primitives$Int) => init{ raw; }
+
+/// What carries a count into `@controlflow$repeat`, and an index into a
+/// storage primitive's subscript.
+implicit @primitives$Int(value Int) => value.raw
+
+Int +(left Int, right Int) => Int(left.raw + right.raw)
+Int *(left Int, right Int) => Int(left.raw * right.raw)
+Int /(left Int, right Int) => Int(left.raw / right.raw)
+Int ~(value Int) => Int(~value.raw)
+Bool ==(left Int, right Int) => Bool(left.raw == right.raw)
+Bool <(left Int, right Int) => Bool(left.raw < right.raw)
+
+type Float = struct {
+	raw @primitives$Float;
+}
+
+implicit Float(value @concepts$Number) => init{ raw = @primitives$Float(value); }
+implicit Float(raw @primitives$Float) => init{ raw; }
+
+Float +(left Float, right Float) => Float(left.raw + right.raw)
+Float *(left Float, right Float) => Float(left.raw * right.raw)
+Float /(left Float, right Float) => Float(left.raw / right.raw)
+Float ~(value Float) => Float(~value.raw)
+Bool ==(left Float, right Float) => Bool(left.raw == right.raw)
+Bool <(left Float, right Float) => Bool(left.raw < right.raw)

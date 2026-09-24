@@ -1,0 +1,94 @@
+package app;
+
+import core$;
+import shapes$[Vec2, Corner, Shape, area];
+
+/// A generic function: checked once per set of arguments it is called with.
+T pick(first T Type, second T, takeFirst Bool) {
+	chosen T = second;
+	ran Bool = if(takeFirst) {
+		chosen = first;
+	}
+	return chosen;
+}
+
+/// A generic type, and a constructor that infers its parameter.
+type Pair<T Type> = struct {
+	left T;
+	right T;
+}
+
+Pair<T>(left T Type, right T) => init{ left; right; }
+
+T sum(pair Pair<T Type>) => pair.left + pair.right
+
+/// A number parameter, read in a body position.
+Int count(values Array<T Type, n Number>) => Int(n)
+
+Float?String safeDivide(numerator Float, denominator Float) {
+	guard(denominator == Float(0));
+	if(denominator < Float(0)) {
+		abort String("negative");
+	}
+	return numerator / denominator;
+}
+
+String describe(corner Corner) => match (corner) {
+	[topLeft, topRight] => String("top");
+	[bottomLeft, bottomRight] => String("bottom");
+}
+
+Unit main() {
+	console Console(@program$console);
+	console!print("hello");
+
+	origin Vec2.zero();
+	moved Vec2 = origin + 3;
+	moved!scale(Float(2));
+	flat Vec2{ x = Float(1); }
+	size Float = moved:length();
+
+	shape Shape = Shape.circle(Float(2));
+	covered Float = area(shape);
+	radius Float = shape.circle ?? Float(0);
+
+	half Float = safeDivide(covered, Float(2)) ? reason {
+		console!print(reason);
+		resolve Float(0);
+	}
+
+	picked Int = pick(Int(1), Int(2), true);
+	name String = pick(String("a"), String("b"), false);
+
+	pair Pair(Int(3), Int(4));
+	total Int = sum(pair);
+	floats Pair(Float(1), Float(2));
+	both Float = sum(floats);
+
+	numbers Array([Int(1), Int(2), Int(3)]);
+	first Int = numbers[1];
+	length Int = count(numbers);
+
+	label String = Corner.topLeft.label;
+	side String = describe(Corner.bottomRight);
+
+	i Int = Int(1);
+	i!to(3) {
+		console!print(side);
+	}
+
+	double Float(value Float) => value * Float(2);
+	doubled Float = double(half);
+
+	chain Bool = if(total < Int(5)) {
+		console!print("small");
+	}
+	chain!elif(total == Int(7)) {
+		console!print("seven");
+	}
+	chain:else() {
+		console!print("large");
+	}
+
+	return Unit();
+}

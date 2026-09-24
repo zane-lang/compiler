@@ -1,0 +1,57 @@
+/// A second package: its types carry their methods, operators and implicit
+/// constructors with them, and an importer reaches them without naming them.
+package shapes;
+
+import core$;
+
+type Vec2 = struct {
+	x Float;
+	y Float;
+}
+
+Vec2(x Float, y Float) => init{ x; y; }
+
+/// A named constructor yields the base type.
+Vec2.zero() => init{ x = Float(0); y = Float(0); }
+
+/// A field constructor, with a default.
+Vec2{ x Float; y Float = Float(0); } => init{ x; y; }
+
+/// Found through `Vec2`'s home, whatever the caller imports.
+Vec2 +(left Vec2, right Vec2) => Vec2(left.x + right.x, left.y + right.y)
+Vec2 ~(value Vec2) => Vec2(~value.x, ~value.y)
+
+Float length(this Vec2) => this.x * this.x + this.y * this.y
+
+Unit scale(this Vec2, by Float) mut {
+	this.x = this.x * by;
+	this.y = this.y * by;
+	return Unit();
+}
+
+/// A bare number is a vector along the diagonal wherever a `Vec2` is wanted.
+implicit Vec2(value @concepts$Number) => init{ x = Float(value); y = Float(value); }
+
+type Shape = #variant {
+	circle Float;
+	square Float;
+	point Vec2;
+}
+
+type Corner = enum [ topLeft, topRight, bottomLeft, bottomRight ]
+
+Corner.label String {
+	topLeft = "top left";
+	topRight = "top right";
+	bottomLeft = "bottom left";
+	bottomRight = "bottom right";
+}
+
+/// A private helper is invisible to every other package.
+Float _half(value Float) => value / Float(2)
+
+Float area(shape Shape) => match (shape) {
+	r circle => r * r;
+	s square => _half(s + s);
+	point => Float(0);
+}

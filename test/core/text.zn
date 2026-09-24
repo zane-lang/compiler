@@ -1,0 +1,12 @@
+/// `String`, a reference type over the runtime's opaque string storage.
+package core;
+
+type String = #struct {
+	raw @primitives$String;
+}
+
+implicit String(value @concepts$Text) => init{ raw = @primitives$String(value); }
+String(raw @primitives$String) => init{ raw; }
+
+String +(left String, right String) => String(left.raw + right.raw)
+Bool ==(left String, right String) => Bool(left.raw == right.raw)
