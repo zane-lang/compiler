@@ -506,7 +506,10 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
               (class_representatives engine.automaton
                  (possible_tokens engine item.frontier)))
         !current;
-      current := !next;
+      (* If a budget stops this level partway through, [next] is only a
+         partial set of children. Keep the last complete level so workers
+         still cover every frontier within the token bound. *)
+      if !stopped = None then current := !next;
       incr depth
     done;
     (* Never hand back an empty bucket: [parallel_unified_search] forks one
@@ -550,6 +553,19 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
     initial_partitions engine (max 1 jobs) max_tokens min_tokens
       ~max_queue ~max_frontiers ~hard_heap_bytes ~deadline initial
   in
+  (* Queue, frontier, and heap limits here cap only the partitioning prepass.
+     When they fire, the complete previous level is handed to workers, which
+     compact and enforce their own limits. The deadline is global, so a
+     timeout during partitioning remains a result reason. *)
+  let prefix_stopped =
+    match prefix_stopped with
+    | Some reason
+      when String.starts_with ~prefix:"the queue budget" reason
+           || String.starts_with ~prefix:"the frontier budget" reason
+           || String.starts_with ~prefix:"the memory budget" reason ->
+        None
+    | stopped -> stopped
+  in
   let remaining_timeout = max 0. (deadline -. Unix.gettimeofday ()) in
   let prefix_progress =
     {
@@ -579,7 +595,11 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
         explored = prefix_explored + outcome.explored;
         unique = prefix_unique + outcome.unique;
         stopped =
-          (match prefix_stopped with Some _ -> prefix_stopped | None -> outcome.stopped);
+          (match (prefix_stopped, outcome.stopped) with
+          | Some _, Some reason
+            when reason = "the witness limit was reached" -> outcome.stopped
+          | Some _, _ -> prefix_stopped
+          | None, _ -> outcome.stopped);
       },
       prefix_seeds + seeds )
   else begin
@@ -736,6 +756,9 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
             deepest = max combined.deepest outcome.deepest;
             stopped =
               (match (combined.stopped, outcome.stopped, prefix_stopped) with
+              | Some "the witness limit was reached", _, _
+              | _, Some "the witness limit was reached", _ ->
+                  Some "the witness limit was reached"
               | _, _, Some reason -> Some reason
               | None, None, None -> None
               | _ -> Some "one or more workers reached a search limit");

@@ -690,7 +690,7 @@ class MinTokenEngineTests(unittest.TestCase):
 
 
 class PartitionBudgetEngineTests(unittest.TestCase):
-    """The parallel prepass must stay within budget and report truncation."""
+    """A stopped prepass must leave complete coverage to the workers."""
 
     def setUp(self) -> None:
         self.environment = engine_environment()
@@ -710,6 +710,9 @@ class PartitionBudgetEngineTests(unittest.TestCase):
             f"  | e EOF X{index} Y{index} Z EOF {{ () }}"
             for index in range(count)
         )
+        # The only ambiguity is in the final branch, beyond the prepass
+        # frontier cap. Retaining only its partial [next] level misses it.
+        continuations += "\n  | e EOF X299 Y299 Z EOF { () }"
         self.grammar.write_text(
             f"""%token A "a"
 %token Z "z"
@@ -722,12 +725,11 @@ main:
 {continuations}
 e:
   | A {{ () }}
-  | A {{ () }}
 """,
             encoding="utf-8",
         )
 
-    def test_parallel_prepass_reports_frontier_budget_truncation(self) -> None:
+    def test_frontier_budget_stop_preserves_late_unique_witness(self) -> None:
         result = subprocess.run(
             [
                 str(ENGINE),
@@ -747,10 +749,12 @@ e:
             capture_output=True,
             timeout=120,
         )
-        self.assertIn(
+        self.assertIn("Found 1 complete ambiguity family.", result.stdout)
+        self.assertIn("Tokens (6): A EOF X299 Y299 Z EOF", result.stdout)
+        self.assertIn("the witness limit was reached", result.stdout)
+        self.assertNotIn(
             "the frontier budget stopped initial partitioning", result.stdout
         )
-        self.assertNotIn("the search space within the token bound was exhausted", result.stdout)
 
 
 class StreamingOutputTests(unittest.TestCase):
