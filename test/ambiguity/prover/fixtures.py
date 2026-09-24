@@ -178,6 +178,19 @@ x: A { () }
 y: A { () }
 """
 
+# Two nullable reductions remain distinct derivations before the final token.
+# This protects EOF and epsilon handling while CEGAR advances its history DFA.
+NULLABLE_REDUCE_REDUCE = """\
+%token EOF "<eof>"
+%start <unit> main
+%%
+main:
+  | x EOF { () }
+  | y EOF { () }
+x: { () }
+y: { () }
+"""
+
 # Two identical-looking alternatives are still two distinct reductions and
 # therefore two derivations. Menhir prints both as `e -> A`, which makes this
 # fixture exercise production-occurrence identity rather than just a conflict
@@ -233,6 +246,35 @@ ty: A suffixes { () }
 suffixes:
   | { () }
   | LB RB suffixes { () }
+"""
+
+# The blocked short sentence is a proper prefix of a longer ambiguous one. EOF
+# is an ordinary declared terminal here; the actual end marker is internal to
+# the engine, so filtering the short acceptance must leave the B/X continuation
+# reachable in the product automaton.
+CEGAR_LONGER_SHARED_PREFIX = """\
+%token AM "am"
+%token AO "ao"
+%token A "a"
+%token LB "["
+%token RB "]"
+%token SEMI ";"
+%token EOF "<eof>"
+%token B "b"
+%token X "x"
+%start <unit> main
+%%
+main:
+  | AM AO d_outer EOF { () }
+  | AM AO d_outer EOF B tail EOF { () }
+d_outer: ty LB RB SEMI { () }
+ty: A suffixes { () }
+suffixes:
+  | { () }
+  | LB RB suffixes { () }
+tail:
+  | X { () }
+  | X { () }
 """
 
 # The same reduce/reduce conflict, but reached over two symbols instead of one.

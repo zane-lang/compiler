@@ -80,6 +80,27 @@ class HistoryCegarTests(harness.ProverTestCase):
         self.assertNotRegex(output, harness.PROVEN_LINE)
         self.assertEqual(status, harness.NOT_PROVEN, output)
 
+    def test_blocked_acceptance_keeps_its_longer_shared_prefix(self) -> None:
+        short = "AM AO A LB RB SEMI EOF"
+        longer = "AM AO A LB RB SEMI EOF B X EOF"
+        self.assertIn(
+            "Accepting derivations: 1",
+            self.check_tokens(fixtures.CEGAR_LONGER_SHARED_PREFIX, short),
+        )
+        self.assertIn(
+            "Accepting derivations: 2",
+            self.check_tokens(fixtures.CEGAR_LONGER_SHARED_PREFIX, longer),
+        )
+        status, output = self.prove(
+            fixtures.CEGAR_LONGER_SHARED_PREFIX,
+            1,
+            max_tokens="0",
+            extra=("--prove-cegar", "1"),
+        )
+        self.assertIn(f"complete history {short}", output)
+        self.assertRegex(output, re.compile(r"^AMBIGUOUS:", re.MULTILINE))
+        self.assertEqual(status, harness.AMBIGUOUS, output)
+
     def test_CEGAR_never_excludes_duplicate_production_ambiguity(self) -> None:
         for name, grammar in (
             ("duplicate production", fixtures.DUPLICATE_PRODUCTION),
@@ -87,7 +108,7 @@ class HistoryCegarTests(harness.ProverTestCase):
                 "duplicate nonrepresentative terminal",
                 fixtures.DUPLICATE_NONREPRESENTATIVE_TERMINAL,
             ),
-            ("nullable EOF reduction", fixtures.SENTINEL_REDUCE_REDUCE),
+            ("nullable EOF reduction", fixtures.NULLABLE_REDUCE_REDUCE),
         ):
             with self.subTest(grammar=name):
                 status, output = self.prove(
