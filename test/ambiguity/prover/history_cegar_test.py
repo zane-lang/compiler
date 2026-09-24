@@ -53,7 +53,9 @@ class HistoryCegarTests(harness.ProverTestCase):
     def test_a_rejected_candidate_is_filtered_only_after_exact_replay(self) -> None:
         # This grammar's top-1 abstraction invents a short path outside the
         # recognizer's language. CEGAR may exclude it only after the exact
-        # replay classifies the candidate as zero-parse.
+        # replay classifies the candidate as zero-parse. The candidate repeats
+        # one terminal class, so the report must include its full substitution
+        # product before excluding the history.
         _, output = self.prove(
             fixtures.ACCEPTS_NON_SENTENCES,
             1,
@@ -62,6 +64,13 @@ class HistoryCegarTests(harness.ProverTestCase):
         )
         self.assertRegex(output, re.compile(r"^CEGAR refinement 1:", re.MULTILINE))
         self.assertRegex(output, re.compile(r"representative has 0 parse\(s\)"))
+        self.assertRegex(
+            output,
+            re.compile(
+                r"representative has 0 parse\(s\), and all \d+ concrete "
+                r"terminal-class substitution\(s\) were checked"
+            ),
+        )
 
     def test_incomplete_exact_check_falls_through_to_stack_refinement(self) -> None:
         status, output = self.prove(

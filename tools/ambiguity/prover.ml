@@ -359,14 +359,22 @@ let create_prove_state pair_limit =
    every concrete substitution before excluding that representative history.
    The cap fails closed instead of treating unchecked variants as harmless. *)
 let check_exclusion engine tokens ~variant_limit ~deadline =
+  let class_members = Hashtbl.create 16 in
   let members token =
     match Hashtbl.find_opt engine.automaton.terminal_class token with
     | None -> [ token ]
-    | Some class_id ->
-        StringSet.elements engine.automaton.terminals
-        |> List.filter (fun candidate ->
-               Hashtbl.find_opt engine.automaton.terminal_class candidate
-               = Some class_id)
+    | Some class_id -> (
+        match Hashtbl.find_opt class_members class_id with
+        | Some members -> members
+        | None ->
+            let members =
+              StringSet.elements engine.automaton.terminals
+              |> List.filter (fun candidate ->
+                     Hashtbl.find_opt engine.automaton.terminal_class candidate
+                     = Some class_id)
+            in
+            Hashtbl.add class_members class_id members;
+            members)
   in
   let choices = List.map members tokens in
   let variants =
