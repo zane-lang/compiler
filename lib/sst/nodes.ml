@@ -125,19 +125,6 @@ module rec Expr : sig
        thing this rewrite loses, and nothing downstream wants it. *)
     | Init of Field_arg.t list
     | MapLit of (t * t) list
-    | MethodTarget of { callee : t; this : t; is_mut : bool }
-    (* Kept whole, and deliberately. `callableExpr|expr` looks like a call
-       waiting to be written out, but the spec fixes only where it *groups*
-       (syntax.md §4.4, operators.md §3) and never what it does. Desugaring it
-       would mean inventing the answer. See docs/desugaring.md §5.4.
-
-       [MethodTarget] above is here for the same reason: it is only ever a
-       pipe's callee. *)
-    | Pipe of {
-        callee : t;
-        value : t;
-        abort_handle : Abort_handle.t option;
-      }
     | Spawn of Verb_call.t
     | Match of Match_expr.t
     | VerbCall of Verb_call.t
@@ -226,10 +213,16 @@ and Verb_call : sig
         args : Constructor_args.t;
         abort_handle : Abort_handle.t option;
       }
+    (* [left] and [right] are the operands in the order they were written,
+       which is the order they are evaluated in (operators.md §2.3).
+       [swapped] says the operator receives them the other way round: `a > b`
+       is `b < a` (§2.3), so it is a [Less] with [left] `a`, [right] `b` and
+       [swapped] set -- `a` is evaluated first and passed second. *)
     | Op of {
         op : Operator.t;
         left : Expr.t;
         right : Expr.t;
+        swapped : bool;
         abort_handle : Abort_handle.t option;
       }
     | Flip of {

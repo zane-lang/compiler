@@ -259,13 +259,6 @@ and expr d (x : Expr.t) =
           expr d k;
           expr d v)
         entries
-  | Expr.MethodTarget { callee; this; _ } ->
-      expr d callee;
-      expr d this
-  | Expr.Pipe { callee; value; abort_handle = h } ->
-      expr d callee;
-      expr d value;
-      opt d abort_handle h
   | Expr.Spawn c | Expr.VerbCall c -> verb_call d c
   | Expr.Match m -> match_expr d m
   | Expr.FuncLambda l -> func_lambda d l

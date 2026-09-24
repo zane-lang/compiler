@@ -931,14 +931,14 @@ package | package main; /// Every im … ettled"); return Unit(); }
               expr VerbCall | 4 <= this._count
                 verb_call Flip | 4 <= this._count
                   expr VerbCall | 4 <= this._count
-                    verb_call Op | 4 <= this._count
+                    verb_call Op swapped | 4 <= this._count
                       operator Less | <=
+                      expr IntLit | 4
                       expr DotAccess | this._count
                         expr NameExpr | this
                           name_expr | this
                             ident this | this
                         field _count | _count
-                      expr IntLit | 4
             call_arg Block | { std$print("environment is full"); return Unit(); }
               block | { std$print("environment is full"); return Unit(); }
                 stat VerbCall | std$print("environment is full");
@@ -2631,20 +2631,22 @@ package | package main; /// Every im … ettled"); return Unit(); }
                         expr NameExpr | answer
                           name_expr | answer
                             ident answer | answer
-        stat Decl | reading String = describe|Operator.mul;
-          decl Var | reading String = describe|Operator.mul
+        stat Decl | reading String = describe(Operator.mul);
+          decl Var | reading String = describe(Operator.mul)
             name reading | reading
             type_expr Path | String
               name_type | String
                 ident String | String
-            expr Pipe | describe|Operator.mul
-              expr NameExpr | describe
-                name_expr | describe
-                  ident describe | describe
-              expr TypeMember | Operator.mul
-                name_type | Operator
-                  ident Operator | Operator
-                member mul | mul
+            expr VerbCall | describe(Operator.mul)
+              verb_call Call function | describe(Operator.mul)
+                expr NameExpr | describe
+                  name_expr | describe
+                    ident describe | describe
+                call_arg Value | Operator.mul
+                  expr TypeMember | Operator.mul
+                    name_type | Operator
+                      ident Operator | Operator
+                    member mul | mul
         stat Decl | labels Map<String, Float>  … Float(3); "y", Float(4); }
           decl Var | labels Map<String, Float>  … Float(3); "y", Float(4); }
             name labels | labels

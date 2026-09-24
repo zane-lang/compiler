@@ -34,14 +34,9 @@ let rec expr_ends_in_brace (value : Nodes.Expr.t) =
   | Nodes.Expr.Match _ -> true
   | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call ->
       verb_call_ends_in_brace call
-  | Nodes.Expr.Pipe { abort_handle = Some handle; _ } ->
-      abort_handle_ends_in_brace handle
-  | Nodes.Expr.Pipe { value; _ } -> expr_ends_in_brace value
   | Nodes.Expr.FuncLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.MethLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.Ref value -> expr_ends_in_brace value
-  (* Only ever a [Pipe]'s callee, which is never the tail of the statement. *)
-  | Nodes.Expr.MethodTarget _ -> false
   (* Closed by `)`, `]`, or the name itself. *)
   | Nodes.Expr.IntLit _ | Nodes.Expr.FloatLit _ | Nodes.Expr.StrLit _
   | Nodes.Expr.BoolLit _ | Nodes.Expr.CollectionLit _ | Nodes.Expr.NameExpr _
@@ -132,8 +127,6 @@ let rec ends_in_trailing_call (value : Nodes.Expr.t) =
       | Nodes.Verb_call.Flip { value; abort_handle = None } ->
           ends_in_trailing_call value
       | _ -> false)
-  | Nodes.Expr.Pipe { value; abort_handle = None; _ } ->
-      ends_in_trailing_call value
   | Nodes.Expr.Ref value -> ends_in_trailing_call value
   | _ -> false
 
@@ -158,10 +151,6 @@ let rec continues_past_trailing (value : Nodes.Expr.t) =
   match value.Nodes.Expr.node with
   | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call ->
       verb_call_continues_past_trailing call
-  | Nodes.Expr.Pipe { callee; value; abort_handle } ->
-      ends_in_trailing_call callee || continues_past_trailing callee
-      || continues_past_trailing value
-      || handler_continues_past_trailing abort_handle
   | Nodes.Expr.Match { scrutinees; arms; abort_handle; _ } ->
       List.exists continues_past_trailing scrutinees
       || List.exists
@@ -173,8 +162,6 @@ let rec continues_past_trailing (value : Nodes.Expr.t) =
       body_continues_past_trailing body
   | Nodes.Expr.Ref value | Nodes.Expr.Parenthized value ->
       continues_past_trailing value
-  | Nodes.Expr.MethodTarget { callee; this; _ } ->
-      continues_past_trailing callee || continues_past_trailing this
   | Nodes.Expr.DotAccess { target; _ } -> continues_past_trailing target
   | Nodes.Expr.Subscript { target; args } ->
       continues_past_trailing target || List.exists continues_past_trailing args

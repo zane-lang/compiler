@@ -2524,21 +2524,23 @@ package | package main; /// Every im … ettled"); return Unit(); }
                           expr | answer
                             name_expr | answer
                               ident answer | answer
-        statement | reading String = describe|Operator.mul;
-          stat | reading String = describe|Operator.mul;
-            decl | reading String = describe|Operator.mul
+        statement | reading String = describe(Operator.mul);
+          stat | reading String = describe(Operator.mul);
+            decl | reading String = describe(Operator.mul)
               name reading | reading
               type_expr | String
                 name_type | String
                   ident String | String
-              expr | describe|Operator.mul
-                expr | describe
-                  name_expr | describe
-                    ident describe | describe
-                expr | Operator.mul
-                  name_type | Operator
-                    ident Operator | Operator
-                  member mul | mul
+              expr | describe(Operator.mul)
+                verb_call | describe(Operator.mul)
+                  expr | describe
+                    name_expr | describe
+                      ident describe | describe
+                  call_arg | Operator.mul
+                    expr | Operator.mul
+                      name_type | Operator
+                        ident Operator | Operator
+                      member mul | mul
         statement | labels Map<String, Float>  … Float(3); "y", Float(4); }
           stat | labels Map<String, Float>  … Float(3); "y", Float(4); }
             decl | labels Map<String, Float>  … Float(3); "y", Float(4); }

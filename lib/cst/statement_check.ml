@@ -76,11 +76,6 @@ and in_expr (expr : Nodes.Expr.t) =
           with
           | Some found -> Some found
           | None -> in_abort_handle abort_handle))
-  | Nodes.Expr.Pipe { callee; value; abort_handle } -> (
-      match first_of [ callee; value ] with
-      | Some found -> Some found
-      | None -> in_abort_handle abort_handle)
-  | Nodes.Expr.MethodTarget { callee; this; _ } -> first_of [ callee; this ]
   | Nodes.Expr.DotAccess { target; _ } -> in_expr target
   | Nodes.Expr.Subscript { target; args } -> first_of (target :: args)
   | Nodes.Expr.CollectionLit items -> first_of items

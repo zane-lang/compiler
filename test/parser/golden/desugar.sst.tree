@@ -129,6 +129,7 @@
     │           │   ├── type: Int
     │           │   ├── args[0]: 2
     │           │   └── abort: none
+    │           ├── swapped: false
     │           └── abort: none
     ├── declarations[10] > meth_decl:
     │   ├── name: scaled
@@ -150,6 +151,7 @@
     │   │       │   ├── target: this
     │   │       │   └── field: x
     │   │       ├── right: factor
+    │   │       ├── swapped: false
     │   │       └── abort: none
     │   └── is_mut: false
     ├── declarations[11] > op_decl:
@@ -178,6 +180,7 @@
     │           │   ├── right > dot_access:
     │           │   │   ├── target: right
     │           │   │   └── field: x
+    │           │   ├── swapped: false
     │           │   └── abort: none
     │           ├── args[1] > op_call:
     │           │   ├── op: +
@@ -187,6 +190,7 @@
     │           │   ├── right > dot_access:
     │           │   │   ├── target: right
     │           │   │   └── field: y
+    │           │   ├── swapped: false
     │           │   └── abort: none
     │           └── abort: none
     ├── declarations[12] > flip_decl:
@@ -230,6 +234,7 @@
     │           │   ├── type: Int
     │           │   ├── args[0]: 3
     │           │   └── abort: none
+    │           ├── swapped: false
     │           └── abort: none
     ├── declarations[14] > func_decl:
     │   ├── name: derived
@@ -258,6 +263,7 @@
     │       │       ├── right > flip_call:
     │       │       │   ├── value: b
     │       │       │   └── abort: none
+    │       │       ├── swapped: false
     │       │       └── abort: none
     │       ├── stat[1] > var_decl:
     │       │   ├── name: unequal
@@ -269,6 +275,7 @@
     │       │       │   ├── op: ==
     │       │       │   ├── left: a
     │       │       │   ├── right: b
+    │       │       │   ├── swapped: false
     │       │       │   └── abort: none
     │       │       └── abort: none
     │       ├── stat[2] > var_decl:
@@ -278,8 +285,9 @@
     │       │   │   └── args:
     │       │   └── value > op_call:
     │       │       ├── op: <
-    │       │       ├── left: b
-    │       │       ├── right: a
+    │       │       ├── left: a
+    │       │       ├── right: b
+    │       │       ├── swapped: true
     │       │       └── abort: none
     │       ├── stat[3] > var_decl:
     │       │   ├── name: atMost
@@ -289,8 +297,9 @@
     │       │   └── value > flip_call:
     │       │       ├── value > op_call:
     │       │       │   ├── op: <
-    │       │       │   ├── left: b
-    │       │       │   ├── right: a
+    │       │       │   ├── left: a
+    │       │       │   ├── right: b
+    │       │       │   ├── swapped: true
     │       │       │   └── abort: none
     │       │       └── abort: none
     │       ├── stat[4] > var_decl:
@@ -303,6 +312,7 @@
     │       │       │   ├── op: <
     │       │       │   ├── left: a
     │       │       │   ├── right: b
+    │       │       │   ├── swapped: false
     │       │       │   └── abort: none
     │       │       └── abort: none
     │       ├── stat[5] > var_decl:
@@ -314,6 +324,7 @@
     │       │       ├── op: +
     │       │       ├── left: a
     │       │       ├── right: b
+    │       │       ├── swapped: false
     │       │       └── abort: none
     │       ├── stat[6] > var_decl:
     │       │   ├── name: less
@@ -324,6 +335,7 @@
     │       │       ├── op: <
     │       │       ├── left: a
     │       │       ├── right: b
+    │       │       ├── swapped: false
     │       │       └── abort: none
     │       ├── stat[7] > var_decl:
     │       │   ├── name: chained
@@ -339,6 +351,7 @@
     │       │       │   │   ├── right > flip_call:
     │       │       │   │   │   ├── value: b
     │       │       │   │   │   └── abort: none
+    │       │       │   │   ├── swapped: false
     │       │       │   │   └── abort: none
     │       │       │   ├── right > op_call:
     │       │       │   │   ├── op: +
@@ -346,7 +359,9 @@
     │       │       │   │   ├── right > flip_call:
     │       │       │   │   │   ├── value: a
     │       │       │   │   │   └── abort: none
+    │       │       │   │   ├── swapped: false
     │       │       │   │   └── abort: none
+    │       │       │   ├── swapped: false
     │       │       │   └── abort: none
     │       │       └── abort: none
     │       ├── stat[8] > var_decl:
@@ -360,6 +375,7 @@
     │       │       ├── right > flip_call:
     │       │       │   ├── value: b
     │       │       │   └── abort: none
+    │       │       ├── swapped: false
     │       │       └── abort: none
     │       └── stat[9] > ret_stat > ctor_call:
     │           ├── type: Unit
@@ -399,14 +415,18 @@
     │       │       │   │   ├── op: <
     │       │       │   │   ├── left: a
     │       │       │   │   ├── right: b
+    │       │       │   │   ├── swapped: false
     │       │       │   │   └── abort: none
     │       │       │   ├── right > op_call:
     │       │       │   │   ├── op: <
     │       │       │   │   ├── left: b
     │       │       │   │   ├── right: a
+    │       │       │   │   ├── swapped: false
     │       │       │   │   └── abort: none
+    │       │       │   ├── swapped: false
     │       │       │   └── abort: none
     │       │       ├── right: ok
+    │       │       ├── swapped: false
     │       │       └── abort: none
     │       ├── stat[1] > var_decl:
     │       │   ├── name: derivedLoose
@@ -420,14 +440,17 @@
     │       │       │   │   ├── op: <
     │       │       │   │   ├── left: a
     │       │       │   │   ├── right: b
+    │       │       │   │   ├── swapped: false
     │       │       │   │   └── abort: none
     │       │       │   └── abort: none
     │       │       ├── right: ok
+    │       │       ├── swapped: false
     │       │       └── abort: none
     │       └── stat[2] > ret_stat > op_call:
     │           ├── op: +
     │           ├── left: mixed
     │           ├── right: derivedLoose
+    │           ├── swapped: false
     │           └── abort: none
     ├── declarations[16] > func_decl:
     │   ├── name: risky
@@ -454,6 +477,7 @@
     │       │   │   │   ├── type: Int
     │       │   │   │   ├── args[0]: 0
     │       │   │   │   └── abort: none
+    │       │   │   ├── swapped: false
     │       │   │   └── abort: none
     │       │   └── abort: none
     │       └── stat[1] > ret_stat: value
@@ -724,6 +748,7 @@
     │       │       │   ├── op: +
     │       │       │   ├── left: two
     │       │       │   ├── right: four
+    │       │       │   ├── swapped: false
     │       │       │   └── abort: none
     │       │       ├── right > op_call:
     │       │       │   ├── op: +
@@ -731,7 +756,9 @@
     │       │       │   ├── right > flip_call:
     │       │       │   │   ├── value: four
     │       │       │   │   └── abort: none
+    │       │       │   ├── swapped: false
     │       │       │   └── abort: none
+    │       │       ├── swapped: false
     │       │       └── abort: none
     │       ├── stat[7] > var_decl:
     │       │   ├── name: ran
@@ -745,6 +772,7 @@
     │       │       │   ├── op: <
     │       │       │   ├── left: two
     │       │       │   ├── right: four
+    │       │       │   ├── swapped: false
     │       │       │   └── abort: none
     │       │       ├── args[1] > block > scope:
     │       │       │   └── stat[0] > call:
@@ -801,6 +829,7 @@
     │       │               │   ├── type: Int
     │       │               │   ├── args[0]: 2
     │       │               │   └── abort: none
+    │       │               ├── swapped: false
     │       │               └── abort: none
     │       ├── stat[1] > var_decl:
     │       │   ├── name: longer
@@ -828,6 +857,7 @@
     │       │               │   ├── type: Int
     │       │               │   ├── args[0]: 1
     │       │               │   └── abort: none
+    │       │               ├── swapped: false
     │       │               └── abort: none
     │       └── stat[2] > ret_stat > ctor_call:
     │           ├── type: Unit

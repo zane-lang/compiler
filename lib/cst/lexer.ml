@@ -51,7 +51,6 @@ let rec token buf =
   | '-'                         -> MINUS
   | '*'                         -> STAR
   | '/'                         -> SLASH
-  | '|'                         -> PIPE
   | '$'                         -> DOLLAR
   | '#'                         -> HASH
   | '&'                         -> AMPERSAND

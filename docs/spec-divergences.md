@@ -329,9 +329,10 @@ operand, where the spec is silent; reconciling it means stating the rule in
 
 Kept briefly so a reader who remembers them can see they were closed on
 purpose, and by what. The first three closed at the `034f11a` re-pin, when the
-spec moved to `;`-terminated statements and a brace that ends one. The last
+spec moved to `;`-terminated statements and a brace that ends one. The next
 closed from the other side, when the compiler adopted a spec rule it had been
-standing in for.
+standing in for, and the last when the compiler followed the spec in removing a
+form.
 
 - **Statements are terminated, not separated.** The spec separated statements
   by newline and called it "the one place a newline is structural"; the
@@ -406,3 +407,11 @@ standing in for.
   operator is an ordinary `Op` carrying the same `Operator.t` as the operator
   it mirrors. `and` and `or` are ordinary lowercase names again, reserved by
   nothing.
+
+- **The compiler had a pipe, `callable|value`.** The spec fixed only its
+  grouping, at level 2 of the precedence table, and never said what it did.
+  Spec [#190](https://github.com/zane-lang/spec/pull/190) removed it, and the
+  compiler followed: `|` is not a token, so `show|Color.red` stops at the
+  lexer, and the call is written `show(Color.red)`. The `Pipe` and
+  `MethodTarget` nodes went with it, since a method target was only ever a
+  pipe's callee.
