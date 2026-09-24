@@ -62,44 +62,48 @@ File "fixtures/typing/reject/bad/calls.zn", line 28, characters 13-20:
 28 |     c Int = echo(4);
   |             ^^^^^^^
 Error: no `echo` accepts (@concepts$Integer); the candidate is `T echo(T)`; a bare literal fixes no type, so it cannot drive inference: wrap it in the type it is meant to be, as `Int(4)`
-File "fixtures/typing/reject/bad/calls.zn", line 29, characters 13-31:
-29 |     d Int = parse(String("1"));
+File "fixtures/typing/reject/bad/calls.zn", line 29, characters 13-23:
+29 |     l Int = echo(4, 5);
+  |             ^^^^^^^^^^
+Error: no `echo` accepts (@concepts$Integer, @concepts$Integer); the candidate is `T echo(T)`
+File "fixtures/typing/reject/bad/calls.zn", line 30, characters 13-31:
+30 |     d Int = parse(String("1"));
   |             ^^^^^^^^^^^^^^^^^^
 Error: `parse` can abort with `core$String`, so the call needs a `?` or `??` handler
-File "fixtures/typing/reject/bad/calls.zn", line 30, characters 25-34:
-30 |     e Int = one(Int(1)) ?? Int(0);
+File "fixtures/typing/reject/bad/calls.zn", line 31, characters 25-34:
+31 |     e Int = one(Int(1)) ?? Int(0);
   |                         ^^^^^^^^^
 Error: `one` cannot abort, so it takes no handler
-File "fixtures/typing/reject/bad/calls.zn", line 32, characters 5-13:
-32 |     n:bump();
+File "fixtures/typing/reject/bad/calls.zn", line 33, characters 5-13:
+33 |     n:bump();
   |     ^^^^^^^^
 Error: `bump` is a `mut` method, so it is called with `!`
-File "fixtures/typing/reject/bad/calls.zn", line 33, characters 13-21:
-33 |     f Int = n!peek();
+File "fixtures/typing/reject/bad/calls.zn", line 34, characters 13-21:
+34 |     f Int = n!peek();
   |             ^^^^^^^^
 Error: `peek` is not a `mut` method, so it is called with `:`
-File "fixtures/typing/reject/bad/calls.zn", line 34, characters 13-24:
-34 |     g Int = n:missing();
+File "fixtures/typing/reject/bad/calls.zn", line 35, characters 13-24:
+35 |     g Int = n:missing();
   |             ^^^^^^^^^^^
 Error: no method named `missing` is declared in `core`, the home of `core$Int`, or in this package
-File "fixtures/typing/reject/bad/calls.zn", line 35, characters 11-32:
-35 |     spawn repeat({ n!bump(); });
+File "fixtures/typing/reject/bad/calls.zn", line 36, characters 11-32:
+36 |     spawn repeat({ n!bump(); });
   |           ^^^^^^^^^^^^^^^^^^^^^
 Error: `repeat` takes a block, and a verb that takes a block cannot be spawned
-File "fixtures/typing/reject/bad/calls.zn", line 37, characters 13-23:
-37 |     h Int = choice.yes;
+File "fixtures/typing/reject/bad/calls.zn", line 38, characters 13-23:
+38 |     h Int = choice.yes;
   |             ^^^^^^^^^^
 Error: reading the case `yes` of `Pick` fails when another case is live, so it takes a `?` or `??` handler
-File "fixtures/typing/reject/bad/calls.zn", line 38, characters 31-39:
-38 |     i @primitives$Int = n.raw ?? n.raw;
+File "fixtures/typing/reject/bad/calls.zn", line 39, characters 31-39:
+39 |     i @primitives$Int = n.raw ?? n.raw;
   |                               ^^^^^^^^
 Error: reading `raw` cannot fail, so it takes no handler
-File "fixtures/typing/reject/bad/calls.zn", line 39, characters 32-39:
-39 |     j Int = parse(String("2")) ? err {
+File "fixtures/typing/reject/bad/calls.zn", line 40, characters 32-39:
+40 |     j Int = parse(String("2")) ? err {
   |                                ^^^^^^^
 Error: every path through a handler ends in `resolve`, `return` or `abort`; this one can fall through (error-handling.md §3.2)
-File "fixtures/typing/reject/bad/calls.zn", line 42, characters 5-20:
-42 |     resolve Int(1);
+File "fixtures/typing/reject/bad/calls.zn", line 43, characters 5-20:
+43 |     resolve Int(1);
   |     ^^^^^^^^^^^^^^^
 Error: `resolve` finishes a handler or a block argument, and this is in neither
 File "fixtures/typing/reject/bad/imports.zn", line 4, characters 8-15:

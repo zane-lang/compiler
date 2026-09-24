@@ -26,6 +26,7 @@ Unit calls() {
 	b Int = pair(1, 2);
 	k Int = tally(1, 2);
 	c Int = echo(4);
+	l Int = echo(4, 5);
 	d Int = parse(String("1"));
 	e Int = one(Int(1)) ?? Int(0);
 	n Int = Int(1);

@@ -19,6 +19,8 @@ and stat acc (s : Stat.t) =
   | Stat.Assign { target; value } -> expr (expr acc target) value
   | Stat.Abort e | Stat.Ret e | Stat.Resolve e -> expr acc e
 
+(* A body declares symbols and nothing else; any other declaration there is
+   an error semantics reports, so it has no types worth collecting. *)
 and decl acc (d : Decl.t) =
   match d.Decl.node with
   | Decl.Var { type_; value; _ } -> expr (type_ :: acc) value

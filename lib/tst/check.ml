@@ -415,7 +415,8 @@ let has_literal actuals =
 
 (* Whether a bare literal sits where some generic candidate would have to
    infer a parameter from it -- the one mistake generics.md §5.4's hint is
-   for. A literal that fills an explicit `n @concepts$Integer` is not one. *)
+   for. A literal that fills an explicit `n @concepts$Integer` is not one, and
+   a call with the wrong number of arguments has a nearer problem to name. *)
 let literal_drives_inference (cands : S.t list) actuals =
   List.exists
     (fun (s : S.t) ->
@@ -425,7 +426,7 @@ let literal_drives_inference (cands : S.t list) actuals =
         List.exists2
           (fun (p : S.param) a -> p.binds = None && Ty.free_params p.ty <> [] && has_literal [ a ])
           s.params actuals
-      else has_literal actuals)
+      else false)
     cands
 
 let describe_args actuals =
