@@ -106,6 +106,42 @@ File "fixtures/typing/reject/bad/calls.zn", line 43, characters 5-20:
 43 |     resolve Int(1);
   |     ^^^^^^^^^^^^^^^
 Error: `resolve` finishes a handler or a block argument, and this is in neither
+File "fixtures/typing/reject/bad/guests.zn", line 31, characters 5-6:
+31 |     k!fill();
+  |     ^
+Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/guests.zn", line 33, characters 5-9:
+33 |     desk!use();
+  |     ^^^^
+Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/guests.zn", line 35, characters 5-9:
+35 |     back!fill();
+  |     ^^^^
+Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/guests.zn", line 40, characters 5-9:
+40 |     mine!use();
+  |     ^^^^
+Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/guests.zn", line 48, characters 5-6:
+48 |     k!fill();
+  |     ^
+Error: a `!` call writes its subject, and it reaches a guest taken from `this`, which is read-only in a method that is not `mut`
+File "fixtures/typing/reject/bad/guests.zn", line 56, characters 5-10:
+56 |     k.ink = Int(2);
+  |     ^^^^^
+Error: this writes through a guest taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/guests.zn", line 63, characters 5-9:
+63 |     this!use();
+  |     ^^^^
+Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/guests.zn", line 72, characters 9-13:
+72 |         desk!use();
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/guests.zn", line 73, characters 9-13:
+73 |         desk!hold(pen);
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
 File "fixtures/typing/reject/bad/imports.zn", line 4, characters 8-15:
 4 | import missing;
   |        ^^^^^^^

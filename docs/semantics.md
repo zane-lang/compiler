@@ -172,6 +172,16 @@ else.
    signatures. Every signature is known before this pass starts, so bodies
    check in any order, which is what "order-independent" asks for (§2.3).
 
+Then the analyses of D1's right-hand column run over the finished tree. The
+one written so far is **read-only guests** (`lib/tst/read_only.ml`,
+[`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §4.4): a `!` call whose subject reaches a guest taken from
+a read-only binding, or an assignment through one, is an error. It follows each
+guest through locals, fields, arguments and returns, and summarises every verb
+by which parameters reach its result and which come to rest in its `this`, the
+resting places of `lifetimes.md` §1.11 without their owners. A call substitutes
+its arguments into the callee's summary; summaries are computed to a fixed
+point first, because verbs may call each other in a cycle.
+
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
 mistake. Each pass collects diagnostics and keeps going. An expression that
@@ -500,6 +510,18 @@ the value: `p Pair(Int(1), Int(2))` declares `p` as `Pair`, since the shorthand
 writes the constructor's name and a call carries no `< >` (`generics.md`
 §5.1).
 
+**What the read-only analysis assumes where it cannot see.** Each choice can
+only reject more, never let a write through.
+- An intrinsic, or a call through a function value, has no body to summarise.
+  It is taken to hand every argument back in its result and, when it writes its
+  subject, to store every argument there — each only where the parameter's type
+  can hold a guest.
+- A path into a value is cut at four steps, since a recursive type would let
+  one grow without end. A cut path names the place that contains the real one.
+- A block argument may run any number of times, so it is walked until what it
+  stores stops growing. Every run is checked against what the last one stored.
+- A generic verb's summary is the union over its instances.
+
 **`main`** is not required, since a library built on its own is also a root.
 When the root declares one, it takes no parameters (`packages.md` §6.2).
 
@@ -508,6 +530,6 @@ When the root declares one, it takes no parameters (`packages.md` §6.2).
 ## 10. Not done yet
 
 - The analyses of D1's right-hand column: moves, stores and lifetimes, resting
-  places, read-only guests, `spawn` safety beyond the block-parameter rule,
-  and block escape beyond a `return` of one. The passing mode (`T` or `&T`) is
+  places, `spawn` safety beyond the block-parameter rule, and block escape
+  beyond a `return` of one. The passing mode (`T` or `&T`) is
   never compared when typing; that is the lifetime analysis's question.

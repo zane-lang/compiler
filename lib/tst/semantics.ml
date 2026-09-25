@@ -17,6 +17,8 @@ let check (packages : Assembly.package list) =
   Types.run ();
   Signatures.run ();
   let program = Check.run () in
+  (* The analyses over the finished tree (D1). *)
+  Read_only.run program;
   let diagnostics =
     List.sort_uniq
       (fun a b ->
