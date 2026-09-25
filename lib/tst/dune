@@ -1,7 +1,8 @@
 ; Stage 3: semantics, which builds the typed syntax tree. See
 ; docs/semantics.md: [Assembly] groups files into packages, [Collect],
-; [Types], [Signatures] and [Check] are the five passes, [Read_only] is an
-; analysis over the tree they build, and [Semantics] runs them in order.
+; [Types], [Signatures] and [Check] are the five passes, [Read_only] and
+; [Guests] are analyses over the tree they build, and [Semantics] runs them
+; in order.
 (library
  (name tst)
  (libraries cst diagnostic sst source tree_graph))

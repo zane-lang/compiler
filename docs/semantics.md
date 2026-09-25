@@ -173,15 +173,24 @@ else.
    signatures. Every signature is known before this pass starts, so bodies
    check in any order, which is what "order-independent" asks for (§2.3).
 
-Then the analyses of D1's right-hand column run over the finished tree. The
-one written so far is **read-only guests** (`lib/tst/read_only.ml`,
+Then the analyses of D1's right-hand column run over the finished tree.
+
+**Read-only guests** (`lib/tst/read_only.ml`,
 [`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §4.4): a `!` call whose subject reaches a guest taken from
-a read-only binding, or an assignment through one, is an error. It follows each
+a read-only binding is an error. It follows each
 guest through locals, fields, arguments and returns, and summarises every verb
 by which parameters reach its result and which come to rest in its `this`, the
 resting places of `lifetimes.md` §1.11 without their owners. A call substitutes
 its arguments into the callee's summary; summaries are computed to a fixed
 point first, because verbs may call each other in a cycle.
+
+**Guest sources and stores** (`lib/tst/guests.ml`) are the store rules that
+need nothing but the store in hand:
+- a new guest is minted only from a stable place: a symbol, or fields reached
+  from one, with no `[]` and no variant case on the way ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8);
+- a swallowed parameter is never bound into `&` storage ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.9);
+- a store never goes through a guest, unless that guest is a parameter the
+  path starts at ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.1).
 
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
@@ -524,6 +533,15 @@ only reject more, never let a write through.
   run adds nothing, and every run is checked against what the runs before it
   stored.
 - A generic verb's summary is the union over its instances.
+
+**Where a guest source is decided.**
+- A `match` binder is its case's payload, so no guest is minted from it.
+- A method's subject is a guest the call lends, not storage, so a call never
+  mints one for it: `list[i]:inspect()` is a read.
+- The swallowed-parameter rule looks at a store into a field, an element or a
+  case payload written in the body, directly or through a guest local that
+  ever held the parameter. One reached through a call waits for the resting
+  places of `lifetimes.md` §1.11.
 
 **`main`** is not required, since a library built on its own is also a root.
 When the root declares one, it takes no parameters (`packages.md` §6.2).

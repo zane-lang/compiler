@@ -1,0 +1,61 @@
+package bad;
+
+import core$;
+
+type Bell = #struct { tone Int; }
+type Rack = #struct { bell Bell; hook &Bell; }
+type Slot = #variant { full Bell; empty Int; }
+
+Bell(tone Int) => init{ tone; }
+
+&Bell ring(bell &Bell) => bell
+Bell forge() => Bell(Int(1))
+Int weight(bell &Bell) => bell.tone
+
+/// A new guest comes from a stable place: a symbol, or fields reached from
+/// one (memory.md §2.8). A value that is already a guest is copied, from
+/// wherever it is.
+Unit mint(rack Rack, bells List<Bell>, hooks List<&Bell>, slot Slot) {
+	a &Bell = rack.bell;
+	b &Bell = bells[Int(0)];
+	c &Bell = hooks[Int(0)];
+	d &Bell = slot.full ?? rack.bell;
+	e &Bell = forge();
+	f &Bell = ring(bells[Int(0)]);
+	g &Bell = ring(rack.bell);
+	h Int = match (slot) {
+		x full => ring(x).tone;
+		empty => Int(0);
+	}
+	tones List<Int> = List(Int);
+	tones[weight(bells[Int(0)])] = Int(1);
+	return Unit();
+}
+
+/// A swallowed parameter is hosted at the call site, so it is never bound
+/// into `&` storage; returning it as a guest is a different matter
+/// (memory.md §2.9).
+Unit hang(this Rack, bell Bell, spare &Bell) mut {
+	this.hook = bell;
+	this.hook = spare;
+	held &Bell = bell;
+	this.hook = held;
+	later &Bell = spare;
+	repeat({
+		this.hook = later;
+		later = bell;
+	});
+	return Unit();
+}
+
+&Bell lend(bell Bell) => bell
+
+/// A store never goes through a guest, unless the guest is a parameter the
+/// path starts at (lifetimes.md §1.1).
+Unit retone(this Rack, other &Rack) mut {
+	this.bell = Bell(Int(2));
+	this.hook.tone = Int(3);
+	own &Rack = other;
+	own.bell = Bell(Int(4));
+	return Unit();
+}
