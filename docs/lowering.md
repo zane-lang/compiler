@@ -69,7 +69,7 @@ one of:
   is statically sized and sits in a slot like a struct. Positions count from
   1 ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §5.1): element `i` is at
   byte offset `(i - 1) × stride`. What an index outside `1..n` does is not yet
-  specified (§5.2), so lowering emits one runtime check for it and leaves its
+  specified (`control-flow.md` §5.2), so lowering emits one runtime check for it and leaves its
   outcome to §9;
 - a handle: the fixed-size part of a `List`, a `String` or a boxed member
   ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.6), whose payload lives in the dynamic region.
@@ -120,7 +120,7 @@ waits for the scope's spawned work (the water tower, [`concurrency.md`](https://
 §4.1). Then it ends every hosting identity the scope still holds in bulk: it
 returns the terminal anchors of those identities and the forwarders on the
 scope's retirement stack ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §4.6), and unmaps
-the scope's fixed-size and dynamic chunks together (§3.2). There is no
+the scope's fixed-size and dynamic chunks together (`memory.md` §3.2). There is no
 per-object pass at a drain; an object that dies earlier — overwritten, or
 its container gone — is destroyed there, by its own `destroy` (L9). Lowering
 may fold nested scopes into one arena when nothing observes the difference
