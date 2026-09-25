@@ -1,0 +1,19 @@
+package bad;
+
+import core$;
+
+type Jar<T Type> = struct { item T; }
+
+Jar<T>(item T Type) => init{ item; }
+
+Jar<T> wrap(item T Type) => Jar(item)
+
+/// A block never escapes the call it is written at, so no type may hold one,
+/// even where no written type names it: each call below would build a `Jar`
+/// whose field is the block. Handing the block on is fine.
+Unit keep(body @concepts$Block) {
+	Jar(body);
+	wrap(body);
+	repeat(body);
+	return Unit();
+}
