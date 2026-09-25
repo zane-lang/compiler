@@ -226,8 +226,166 @@ let verb_number_refs (v : N.Verb_decl.t) =
             (fun (f : N.Constructor_field.t) -> param_type_number_refs f.N.Constructor_field.type_)
             fs)
 
+(* ---------------------------------------------------------------------- *)
+(* Number parameters passed on                                            *)
+(* ---------------------------------------------------------------------- *)
+
+(* A verb's `@concepts$Integer` parameter is a number parameter when the verb
+   writes it where a number goes. A type is one such place, and
+   [verb_number_refs] finds those. The other is an argument to another verb's
+   number parameter -- `outer(n @concepts$Integer) => measured(values, n)`
+   with `measured`'s `n` a number parameter -- and whether that callee's
+   parameter is one depends in turn on the callee's own body. So the answer
+   is a fixed point over every verb of the build: start from what the types
+   say, promote a parameter whenever a call hands it to a number parameter,
+   and repeat until nothing changes. It only grows, and there are finitely
+   many parameters, so it ends, cycles of calls included.
+
+   A call is matched here the way pass 5 will look it up, by name and arity,
+   before any overload is resolved: a parameter is promoted when some
+   candidate takes it as a number. Resolution then picks one candidate, and
+   one the promotion did not anticipate only costs a generic parameter where
+   an ordinary one would have done. *)
+
+let promoted : (int, string list) Hashtbl.t = Hashtbl.create 64
+let own_numbers : (int, string list) Hashtbl.t = Hashtbl.create 64
+
+let numbers_of (d : decl) v =
+  let own =
+    match Hashtbl.find_opt own_numbers d.id with
+    | Some r -> r
+    | None ->
+        let r = verb_number_refs v in
+        Hashtbl.replace own_numbers d.id r;
+        r
+  in
+  own @ Option.value ~default:[] (Hashtbl.find_opt promoted d.id)
+
+(* A verb's parameters in the order a call passes them -- a method's and a
+   subscript's subject first -- each as the name of an `@concepts$Integer`
+   parameter, or [None]. *)
+let positions (v : N.Verb_decl.t) =
+  let of_param (p : N.Param.t) =
+    match p.N.Param.type_.N.Param_type.node with
+    | N.Param_type.Concrete t when Types.is_integer_concept_type t -> Some p.N.Param.name.N.Name.text
+    | _ -> None
+  in
+  match v.N.Verb_decl.node with
+  | N.Verb_decl.Func { params; _ } | N.Verb_decl.Op { params; _ } | N.Verb_decl.Flip { params; _ } ->
+      List.map of_param params
+  | N.Verb_decl.Meth { params; _ } | N.Verb_decl.Subscript { params; _ } -> None :: List.map of_param params
+  | N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Positional ps; _ }; _ } ->
+      List.map of_param ps
+  | N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Fields _; _ }; _ } -> []
+
+let body_calls (v : N.Verb_decl.t) =
+  match v.N.Verb_decl.node with
+  | N.Verb_decl.Func { body; _ }
+  | N.Verb_decl.Meth { body; _ }
+  | N.Verb_decl.Op { body; _ }
+  | N.Verb_decl.Flip { body; _ }
+  | N.Verb_decl.Constructor { body; _ } ->
+      Sst.Walk.calls_of_block body
+  | N.Verb_decl.Subscript { value; _ } -> Sst.Walk.calls_of_expr value
+
+let all_verbs () =
+  Hashtbl.fold (fun _ (d : decl) acc -> match d.kind with Verb v -> (d, v) :: acc | _ -> acc) decls []
+
+(* The verbs a call could reach, by name, and the arguments it passes them. *)
+let call_targets verbs (d : decl) (c : N.Verb_call.t) =
+  let functions ds = List.filter_map (fun (x : decl) -> match x.kind with Verb v when is_function x -> Some (x, v) | _ -> None) ds in
+  match c.N.Verb_call.node with
+  | N.Verb_call.Call
+      { callee = { N.Expr.node = N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Ident id; _ }; _ }; args; form; _ } -> (
+      match form with
+      | N.Call_form.Function -> (functions (lookup_values d.file id.N.Name.text), args)
+      | N.Call_form.Method _ ->
+          ( List.filter
+              (fun (_, (v : N.Verb_decl.t)) ->
+                match v.N.Verb_decl.node with
+                | N.Verb_decl.Meth { name; _ } -> name.N.Name.text = id.N.Name.text
+                | _ -> false)
+              verbs,
+            args ))
+  | N.Verb_call.Call
+      {
+        callee = { N.Expr.node = N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Qualified { package; ident }; _ }; _ };
+        args;
+        _;
+      } -> (
+      match qualified d.file package.N.Name.text ident.N.Name.text ~members:package_values with
+      | Ok (_, _, reachable) -> (functions reachable, args)
+      | Error _ -> ([], args))
+  | N.Verb_call.Constructor
+      { name; args = { N.Constructor_args.node = N.Constructor_args.Positional args; _ }; _ } -> (
+      let member (m : N.Name.t option) = Option.map (fun (m : N.Name.t) -> m.N.Name.text) m in
+      match Types.resolve_head (Types.scope d.file) name.N.Constructor_name.type_ with
+      | Types.Declared built ->
+          ( List.filter
+              (fun ((x : decl), (v : N.Verb_decl.t)) ->
+                match v.N.Verb_decl.node with
+                | N.Verb_decl.Constructor
+                    { type_ = { N.Type_expr.node = N.Type_expr.Path { name = n; _ }; _ }; member = m; _ } -> (
+                    member m = member name.N.Constructor_name.member
+                    &&
+                    match Types.resolve_head (Types.scope x.file) n with
+                    | Types.Declared t -> t.id = built.id
+                    | _ -> false)
+                | _ -> false)
+              verbs,
+            args )
+      | _ -> ([], args))
+  | _ -> ([], [])
+
+let bare_name (a : N.Call_arg.t) =
+  match a.N.Call_arg.node with
+  | N.Call_arg.Value { N.Expr.node = N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Ident id; _ }; _ } ->
+      Some id.N.Name.text
+  | _ -> None
+
+let takes_number_at (d, v) arity i =
+  let ps = positions v in
+  List.length ps = arity
+  && match List.nth_opt ps i with Some (Some name) -> List.mem name (numbers_of d v) | _ -> false
+
+let promote () =
+  Hashtbl.reset promoted;
+  Hashtbl.reset own_numbers;
+  (* Names are looked up here ahead of pass 5, which looks them up again and
+     reports whatever is wrong with them; this pass reports nothing. *)
+  let saved = !diagnostics in
+  let verbs = all_verbs () in
+  let calls = Hashtbl.create 64 in
+  List.iter (fun ((d : decl), v) -> Hashtbl.replace calls d.id (List.map (call_targets verbs d) (body_calls v))) verbs;
+  let changed = ref true in
+  while !changed do
+    changed := false;
+    List.iter
+      (fun ((d : decl), v) ->
+        let ordinary () =
+          List.filter_map Fun.id (positions v) |> List.filter (fun n -> not (List.mem n (numbers_of d v)))
+        in
+        if ordinary () <> [] then
+          List.iter
+            (fun (targets, args) ->
+              List.iteri
+                (fun i a ->
+                  match bare_name a with
+                  | Some n
+                    when List.mem n (ordinary ())
+                         && List.exists (fun t -> takes_number_at t (List.length args) i) targets ->
+                      let before = Option.value ~default:[] (Hashtbl.find_opt promoted d.id) in
+                      Hashtbl.replace promoted d.id (before @ [ n ]);
+                      changed := true
+                  | _ -> ())
+                args)
+            (Hashtbl.find calls d.id))
+      verbs
+  done;
+  diagnostics := saved
+
 let build (d : decl) (v : N.Verb_decl.t) : S.t option =
-  let intro = { found = []; explicit = []; numbers = verb_number_refs v } in
+  let intro = { found = []; explicit = []; numbers = numbers_of d v } in
   let make ?(is_mut = false) ?(abort = None) ~kind ~name params ret_ty =
     Some
       {
@@ -512,6 +670,7 @@ let constant (d : decl) =
   | _ -> ()
 
 let run () =
+  promote ();
   let built = ref [] in
   List.iter
     (fun pkg_name ->

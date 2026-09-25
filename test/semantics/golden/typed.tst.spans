@@ -5,6 +5,8 @@ package app
   decl Verb sum | T sum(pair Pair<T Type>) => pair.left + pair.right
   decl Verb count | Int count(values Array<T T … ncepts$Integer>) => Int(n)
   decl Verb measured | Int measured(values Array< … oncepts$Integer) => Int(n)
+  decl Verb relayed | Int relayed(values Array<I … er) => measured(values, n)
+  decl Verb forwarded | Int forwarded(values Array …  => relayed(values, count)
   decl Verb sizedLike | Int sizedLike(values Array …  return measure(values); }
   decl Verb pairOf | Pair<Int> pairOf(x @concep … r) => Pair(Int(x), Int(y))
     param x | x @concepts$Integer
@@ -217,6 +219,11 @@ package app
       stat Let | like Int = sizedLike(numbers, 3);
         local like | like
         expr Call sizedLike | sizedLike(numbers, 3)
+          expr Var numbers | numbers
+          expr Integer_lit | 3
+      stat Let | passed Int = forwarded(numbers, 3);
+        local passed | passed
+        expr Call forwarded | forwarded(numbers, 3)
           expr Var numbers | numbers
           expr Integer_lit | 3
       stat Let | ints Pair<Int> = pairOf(2, 3);
@@ -923,6 +930,20 @@ instances
       stat Return | => Int(n)
         expr Construct Int | Int(n)
           expr Var n | n
+  instance relayed with n = 3 | Int relayed(values Array<I … er) => measured(values, n)
+    param values | values Array<Int, 3>
+    block | => measured(values, n)
+      stat Return | => measured(values, n)
+        expr Call measured | measured(values, n)
+          expr Var values | values
+          expr Var n | n
+  instance forwarded with count = 3 | Int forwarded(values Array …  => relayed(values, count)
+    param values | values Array<Int, 3>
+    block | => relayed(values, count)
+      stat Return | => relayed(values, count)
+        expr Call relayed | relayed(values, count)
+          expr Var values | values
+          expr Var count | count
   instance sizedLike with n = 3 | Int sizedLike(values Array …  return measure(values); }
     param values | values Array<Int, 3>
     block | { measure Int(held Array<I …  return measure(values); }

@@ -442,11 +442,24 @@ verb uses it as one.** The spec spells an explicit number parameter,
 `Array<T, n>(T Type, n @concepts$Integer)`, the same way as a parameter that
 takes an integer literal, `implicit Int(value @concepts$Integer)`
 (`generics.md` §5.3, §5.4). This compiler decides from the uses rather than
-the concept: a parameter is generic when some type the verb writes -- in its
-signature, or in its body's local declarations and lambdas -- puts its name
-where a number goes. `Array<T, n>` does, in the type it returns, so `n` is
-generic; nothing in `Int`'s constructor depends on `value`, so `value` is an
-ordinary parameter. Both are compile-time integers either way
+the concept: a parameter is generic when the verb puts its name where a number
+goes. That is either a type the verb writes -- in its signature, or in its
+body's local declarations and lambdas -- or an argument to another verb's
+number parameter. `Array<T, n>` writes `n` in the type it returns, so `n` is
+generic; `relayed(values Array<Int, 3>, n @concepts$Integer) =>
+measured(values, n)` hands `n` to `measured`'s number parameter, so it is
+generic too; nothing in `Int`'s constructor depends on `value`, so `value` is
+an ordinary parameter.
+
+Whether a callee's parameter is a number parameter can itself turn on the
+callee's body, so pass 4 settles this for the whole build before it builds a
+signature: it starts from what the types say and promotes a parameter
+whenever a call hands it, by name, to a number parameter of some candidate
+with the right arity, until nothing changes. Chains resolve, and a cycle of
+calls that never reaches a number parameter stays ordinary. The candidates are
+matched by name, ahead of overload resolution, so a call that resolves to an
+overload the promotion did not anticipate leaves a parameter generic that
+needed not be; that costs instances, never correctness. Both are compile-time integers either way
 (`syntax.md` §2.8). The distinction is what keeps D12 affordable: were every
 such parameter generic, each distinct literal a program writes would be a new
 instance of `Int`'s constructor, and a program with more distinct literals
@@ -454,11 +467,6 @@ than the instance limit could not be built. An explicit number and one
 inferred from another argument must agree, so `measured(values Array<Int, n>,
 n @concepts$Integer)` called with a three-element array and `4` matches
 nothing.
-
-One use does not count: passing the parameter on to another verb's number
-parameter, `Array(Int, n)` in a body whose types never mention `n`. Telling
-that apart needs the call resolved, which pass 4 has not done, so such a call
-is an error until the verb's types mention `n` too.
 
 **Where constructors and enum maps are found.** A type's constructors are the
 ones declared in its home package and in the current package, the order
