@@ -1,0 +1,123 @@
+package bad;
+
+import core$;
+
+type Pen = #struct { ink Int; }
+type Desk = #struct { pen &Pen; }
+
+Pen(ink Int) => init{ ink; }
+Desk(pen &Pen) => init{ pen; }
+
+Unit fill(this Pen) mut => Unit()
+
+/// A `mut` method writes what its `this` reaches, guests included.
+Unit use(this Desk) mut {
+	this.pen!fill();
+	return Unit();
+}
+
+Unit hold(this Desk, pen &Pen) mut {
+	this.pen = pen;
+	return Unit();
+}
+
+&Pen pass(pen &Pen) => pen
+
+/// A guest taken from a read-only parameter stays read-only wherever it
+/// goes: into a local, into a field through a constructor, back out of a
+/// call, or into `this` through a `mut` call (effects.md §4.4).
+Unit sneak(pen &Pen) {
+	k &Pen = pen;
+	k!fill();
+	desk Desk(pen);
+	desk!use();
+	back &Pen = pass(pen);
+	back!fill();
+	own Pen(Int(1));
+	mine Desk(own);
+	mine!use();
+	mine!hold(pen);
+	mine!use();
+	return Unit();
+}
+
+/// `this` is read-only in a method that is not `mut`, and so is a guest taken
+/// from it.
+Unit look(this Desk) {
+	k &Pen = this.pen;
+	k!fill();
+	return Unit();
+}
+
+/// Writing through such a guest is a write too, and so is writing through
+/// `this` once a call has stored one there.
+Unit scribble(pen &Pen) {
+	k &Pen = pen;
+	k.ink = Int(2);
+	return Unit();
+}
+
+Unit tidy(this Desk, pen &Pen) mut {
+	this!use();
+	this!hold(pen);
+	this!use();
+	return Unit();
+}
+
+/// A loop body sees what its last run stored.
+Unit loop(pen &Pen) {
+	own Pen(Int(3));
+	desk Desk(own);
+	repeat({
+		desk!use();
+		desk!hold(pen);
+	});
+	return Unit();
+}
+
+/// A value copied out of a read-only parameter is the verb's own, and a field
+/// that holds no guest carries nothing.
+type Caddy = #struct { count Int; pen &Pen; }
+
+Caddy(count Int, pen &Pen) => init{ count; pen; }
+
+Unit tap(this Caddy) mut => Unit()
+
+Unit stock(count Int) {
+	own Pen(Int(4));
+	caddy Caddy(count, own);
+	caddy!tap();
+	copy Int = count;
+	copy!bump();
+	return Unit();
+}
+
+/// Each run of a loop body sees what the last one stored, whatever a later
+/// statement of that run replaced: after two runs `b` holds `pen` too.
+Unit rotate(pen &Pen) {
+	own Pen(Int(5));
+	a &Pen = own;
+	b &Pen = pen;
+	repeat({
+		t &Pen = a;
+		a = b;
+		b = t;
+	});
+	a!fill();
+	b!fill();
+	return Unit();
+}
+
+/// A summary does not depend on the order verbs are declared in: `forward`
+/// is walked before `make`, and still learns that only `other` reaches the
+/// result.
+Desk forward(pen &Pen, other &Pen) => make(pen, other)
+
+Desk make(pen &Pen, other &Pen) => Desk(other)
+
+Unit order(pen &Pen) {
+	own Pen(Int(6));
+	desk Desk = forward(pen, own);
+	desk!use();
+	return Unit();
+}
