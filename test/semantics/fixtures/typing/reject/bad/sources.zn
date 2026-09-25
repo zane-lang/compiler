@@ -10,6 +10,7 @@ Bell(tone Int) => init{ tone; }
 
 &Bell ring(bell &Bell) => bell
 Bell forge() => Bell(Int(1))
+Int weight(bell &Bell) => bell.tone
 
 /// A new guest comes from a stable place: a symbol, or fields reached from
 /// one (memory.md §2.8). A value that is already a guest is copied, from
@@ -26,6 +27,8 @@ Unit mint(rack Rack, bells List<Bell>, hooks List<&Bell>, slot Slot) {
 		x full => ring(x).tone;
 		empty => Int(0);
 	}
+	tones List<Int> = List(Int);
+	tones[weight(bells[Int(0)])] = Int(1);
 	return Unit();
 }
 
@@ -35,6 +38,13 @@ Unit mint(rack Rack, bells List<Bell>, hooks List<&Bell>, slot Slot) {
 Unit hang(this Rack, bell Bell, spare &Bell) mut {
 	this.hook = bell;
 	this.hook = spare;
+	held &Bell = bell;
+	this.hook = held;
+	later &Bell = spare;
+	repeat({
+		this.hook = later;
+		later = bell;
+	});
 	return Unit();
 }
 

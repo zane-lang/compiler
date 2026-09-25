@@ -26,6 +26,13 @@ type walk = {
   params : (int, string * param_kind) Hashtbl.t;
   (* A match binder is its case's payload (adt.md §5), so it is not stable. *)
   binders : (int, unit) Hashtbl.t;
+  (* A guest local that may name a swallowed parameter's value, by that
+     parameter. A local is never taken off it, so where a block argument runs
+     again does not matter. *)
+  swallowed : (int, string) Hashtbl.t;
+  (* A body is walked until [swallowed] stops growing, and reports only on
+     the walk after. *)
+  mutable report : bool;
   (* Where a `return` and a `resolve` send their value. *)
   mutable ret : Ty.t;
   mutable resolve : Ty.t list;
@@ -33,6 +40,7 @@ type walk = {
 
 let quote s = "`" ^ s ^ "`"
 let is_guest = function Ty.Guest _ -> true | _ -> false
+let error w span message = if w.report then Env.error span message
 
 (* The declared type of a struct field or a variant case, with the type's
    arguments substituted. *)
@@ -86,7 +94,7 @@ let rec source w (e : T.Expr.t) =
   | _ -> `Temporary
 
 let mint w (v : T.Expr.t) =
-  let say = Env.error v.T.Expr.span in
+  let say = error w v.T.Expr.span in
   match source w v with
   | `Stable -> ()
   | `Subscript -> say "a new guest must come from a stable place, and this path crosses `[]`"
@@ -102,6 +110,20 @@ let rec root (e : T.Expr.t) =
       root target
   | _ -> None
 
+(* The swallowed parameter a value is reached from, directly or through a
+   guest local that holds one. *)
+let swallowed_of w (v : T.Expr.t) =
+  match root v with
+  | Some l -> (
+      match Hashtbl.find_opt w.params l.T.Local.id with
+      | Some (name, Swallow) -> Some name
+      | _ -> Hashtbl.find_opt w.swallowed l.T.Local.id)
+  | None -> None
+
+let hold w (l : T.Local.t) (v : T.Expr.t) =
+  if is_guest l.T.Local.ty && not (Hashtbl.mem w.swallowed l.T.Local.id) then
+    Option.iter (Hashtbl.replace w.swallowed l.T.Local.id) (swallowed_of w v)
+
 (* A value [v] stored where a value of type [into] goes. [storage] is a field,
    an element or a case payload: somewhere a guest comes to rest, rather than
    a local or an argument. *)
@@ -111,16 +133,13 @@ let store w ?(storage = false) (into : Ty.t) (v : T.Expr.t) =
     | Ty.Guest _ | Ty.Error | Ty.Param _ -> ()
     | _ -> mint w v);
     if storage then
-      match root v with
-      | Some l -> (
-          match Hashtbl.find_opt w.params l.T.Local.id with
-          | Some (name, Swallow) ->
-              Env.error v.T.Expr.span
-                (Printf.sprintf
-                   "%s swallows its argument, so it may not be bound into `&` storage; a \
-                    parameter stored as a guest is declared `&`"
-                   (quote name))
-          | _ -> ())
+      match swallowed_of w v with
+      | Some name ->
+          error w v.T.Expr.span
+            (Printf.sprintf
+               "%s swallows its argument, so it may not be bound into `&` storage; a \
+                parameter stored as a guest is declared `&`"
+               (quote name))
       | None -> ()
   end
 
@@ -137,7 +156,7 @@ let rec through w (e : T.Expr.t) =
         | _ -> false
       in
       if is_guest target.T.Expr.ty && not param_root then
-        Env.error target.T.Expr.span
+        error w target.T.Expr.span
           "a store may not go through a guest, since what it names belongs to a tree this \
            path's root does not own; change it with a `mut` method called through the guest"
       else through w target
@@ -268,16 +287,18 @@ and handler_block w ty (h : T.Handler.t) =
   w.resolve <- (match w.resolve with _ :: r -> r | [] -> [])
 
 and lambda w (e : T.Expr.t) (l : T.Lambda.t) =
-  match e.T.Expr.ty with
-  | Ty.Verb v ->
-      let saved = (w.ret, w.resolve) in
-      params w (Option.is_some v.Ty.this_) l.T.Lambda.params;
-      w.ret <- v.Ty.ret;
-      w.resolve <- [];
-      block w l.T.Lambda.body;
-      w.ret <- fst saved;
-      w.resolve <- snd saved
-  | _ -> block w l.T.Lambda.body
+  let has_this, ret =
+    match e.T.Expr.ty with
+    | Ty.Verb v -> (Option.is_some v.Ty.this_, v.Ty.ret)
+    | _ -> (false, Ty.Error)
+  in
+  let saved = (w.ret, w.resolve) in
+  params w has_this l.T.Lambda.params;
+  w.ret <- ret;
+  w.resolve <- [];
+  block w l.T.Lambda.body;
+  w.ret <- fst saved;
+  w.resolve <- snd saved
 
 and block w (b : T.Block.t) = List.iter (stat w) b.T.Block.stats
 
@@ -286,10 +307,15 @@ and stat w (s : T.Stat.t) =
   | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e -> expr w e
   | T.Stat.Let { local; value } ->
       expr w value;
-      store w local.T.Local.ty value
+      store w local.T.Local.ty value;
+      hold w local value
   | T.Stat.Assign { target; value } ->
       expr w value;
+      expr w target;
       through w target;
+      (match target.T.Expr.node with
+      | T.Expr.Var (T.Name_ref.Local l) -> hold w l value
+      | _ -> ());
       let storage = match target.T.Expr.node with T.Expr.Var _ -> false | _ -> true in
       store w ~storage target.T.Expr.ty value
   | T.Stat.Return e ->
@@ -315,12 +341,35 @@ and params w has_this (ps : T.Local.t list) =
 (* Declarations                                                           *)
 (* ---------------------------------------------------------------------- *)
 
-let fresh ret = { params = Hashtbl.create 8; binders = Hashtbl.create 8; ret; resolve = [] }
+let fresh ret =
+  {
+    params = Hashtbl.create 8;
+    binders = Hashtbl.create 8;
+    swallowed = Hashtbl.create 8;
+    report = false;
+    ret;
+    resolve = [];
+  }
+
+(* Walk until no guest local is found to hold a swallowed parameter it was
+   not known to, then once more to report. *)
+let walk ret run =
+  let w = fresh ret in
+  let rec settle () =
+    let before = Hashtbl.length w.swallowed in
+    w.ret <- ret;
+    run w;
+    if Hashtbl.length w.swallowed > before then settle ()
+  in
+  settle ();
+  w.report <- true;
+  w.ret <- ret;
+  run w
 
 let verb (sg : S.t) ps run =
-  let w = fresh sg.S.ret in
-  params w (S.is_method sg) ps;
-  run w
+  walk sg.S.ret (fun w ->
+      params w (S.is_method sg) ps;
+      run w)
 
 let run (p : T.Program.t) =
   List.iter
@@ -335,16 +384,16 @@ let run (p : T.Program.t) =
                   expr w v;
                   store w w.ret v)
           | T.Decl.Constant { ty; value; _ } ->
-              let w = fresh ty in
-              expr w value;
-              store w ty value
+              walk ty (fun w ->
+                  expr w value;
+                  store w ty value)
           | T.Decl.Enum_map { ty; entries; _ } ->
-              let w = fresh ty in
-              List.iter
-                (fun (_, v) ->
-                  expr w v;
-                  store w ty v)
-                entries
+              walk ty (fun w ->
+                  List.iter
+                    (fun (_, v) ->
+                      expr w v;
+                      store w ty v)
+                    entries)
           | _ -> ())
         pkg.T.Package.decls)
     p.T.Program.packages;

@@ -326,36 +326,48 @@ File "fixtures/typing/reject/bad/overloads.zn", line 34, characters 1-34:
 34 | Unit main(argument Int) => Unit()
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `main` takes no parameters: the root package reaches the console and runtime through `@program$`
-File "fixtures/typing/reject/bad/sources.zn", line 19, characters 15-28:
-19 |     b &Bell = bells[Int(0)];
+File "fixtures/typing/reject/bad/sources.zn", line 20, characters 15-28:
+20 |     b &Bell = bells[Int(0)];
   |               ^^^^^^^^^^^^^
 Error: a new guest must come from a stable place, and this path crosses `[]`
-File "fixtures/typing/reject/bad/sources.zn", line 21, characters 15-37:
-21 |     d &Bell = slot.full ?? rack.bell;
+File "fixtures/typing/reject/bad/sources.zn", line 22, characters 15-37:
+22 |     d &Bell = slot.full ?? rack.bell;
   |               ^^^^^^^^^^^^^^^^^^^^^^
 Error: a new guest must come from a stable place, and a variant case's payload is not one
-File "fixtures/typing/reject/bad/sources.zn", line 22, characters 15-22:
-22 |     e &Bell = forge();
+File "fixtures/typing/reject/bad/sources.zn", line 23, characters 15-22:
+23 |     e &Bell = forge();
   |               ^^^^^^^
 Error: a new guest names a place, and this is a temporary value
-File "fixtures/typing/reject/bad/sources.zn", line 23, characters 20-33:
-23 |     f &Bell = ring(bells[Int(0)]);
+File "fixtures/typing/reject/bad/sources.zn", line 24, characters 20-33:
+24 |     f &Bell = ring(bells[Int(0)]);
   |                    ^^^^^^^^^^^^^
 Error: a new guest must come from a stable place, and this path crosses `[]`
-File "fixtures/typing/reject/bad/sources.zn", line 26, characters 24-25:
-26 |         x full => ring(x).tone;
+File "fixtures/typing/reject/bad/sources.zn", line 27, characters 24-25:
+27 |         x full => ring(x).tone;
   |                        ^
 Error: a new guest must come from a stable place, and a variant case's payload is not one
-File "fixtures/typing/reject/bad/sources.zn", line 36, characters 17-21:
-36 |     this.hook = bell;
+File "fixtures/typing/reject/bad/sources.zn", line 31, characters 18-31:
+31 |     tones[weight(bells[Int(0)])] = Int(1);
+  |                  ^^^^^^^^^^^^^
+Error: a new guest must come from a stable place, and this path crosses `[]`
+File "fixtures/typing/reject/bad/sources.zn", line 39, characters 17-21:
+39 |     this.hook = bell;
   |                 ^^^^
 Error: `bell` swallows its argument, so it may not be bound into `&` storage; a parameter stored as a guest is declared `&`
-File "fixtures/typing/reject/bad/sources.zn", line 47, characters 5-14:
-47 |     this.hook.tone = Int(3);
+File "fixtures/typing/reject/bad/sources.zn", line 42, characters 17-21:
+42 |     this.hook = held;
+  |                 ^^^^
+Error: `bell` swallows its argument, so it may not be bound into `&` storage; a parameter stored as a guest is declared `&`
+File "fixtures/typing/reject/bad/sources.zn", line 45, characters 21-26:
+45 |         this.hook = later;
+  |                     ^^^^^
+Error: `bell` swallows its argument, so it may not be bound into `&` storage; a parameter stored as a guest is declared `&`
+File "fixtures/typing/reject/bad/sources.zn", line 57, characters 5-14:
+57 |     this.hook.tone = Int(3);
   |     ^^^^^^^^^
 Error: a store may not go through a guest, since what it names belongs to a tree this path's root does not own; change it with a `mut` method called through the guest
-File "fixtures/typing/reject/bad/sources.zn", line 49, characters 5-8:
-49 |     own.bell = Bell(Int(4));
+File "fixtures/typing/reject/bad/sources.zn", line 59, characters 5-8:
+59 |     own.bell = Bell(Int(4));
   |     ^^^
 Error: a store may not go through a guest, since what it names belongs to a tree this path's root does not own; change it with a `mut` method called through the guest
 File "fixtures/typing/reject/bad/types.zn", line 7, characters 1-23:

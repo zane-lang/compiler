@@ -539,8 +539,9 @@ only reject more, never let a write through.
 - A method's subject is a guest the call lends, not storage, so a call never
   mints one for it: `list[i]:inspect()` is a read.
 - The swallowed-parameter rule looks at a store into a field, an element or a
-  case payload written in the body. One reached through a call waits for the
-  resting places of `lifetimes.md` §1.11.
+  case payload written in the body, directly or through a guest local that
+  ever held the parameter. One reached through a call waits for the resting
+  places of `lifetimes.md` §1.11.
 
 **`main`** is not required, since a library built on its own is also a root.
 When the root declares one, it takes no parameters (`packages.md` §6.2).
