@@ -1,0 +1,81 @@
+package bad;
+
+import core$;
+
+type Leaf = #struct { size Int; }
+type Branch = #struct { leaf Leaf; }
+type Pin = #struct { leaf &Leaf; }
+type Tag = #variant { plain Int; pinned &Leaf; }
+
+Leaf(size Int) => init{ size; }
+Branch(leaf Leaf) => init{ leaf; }
+Pin(leaf &Leaf) => init{ leaf; }
+
+Unit inside(body @concepts$Block) => Unit()
+
+/// A store may not raise a value above what it names: a guest into a place
+/// owned by a block that outlives the host's (lifetimes.md §1.1).
+Unit raise() {
+	outer Branch(Leaf(Int(1)));
+	r &Leaf = outer.leaf;
+	inside({
+		kept &Leaf = outer.leaf;
+		inner Branch(Leaf(Int(2)));
+		r = inner.leaf;
+		mine &Leaf = inner.leaf;
+	});
+	return Unit();
+}
+
+/// A value carries the guests reachable inside it, and each store asks again
+/// (§1.10): a struct, and a case form.
+Unit carry() {
+	far Branch(Leaf(Int(3)));
+	parked Pin(far.leaf);
+	tag Tag = Tag.plain(Int(0));
+	inside({
+		near Branch(Leaf(Int(4)));
+		arriving Pin(near.leaf);
+		parked = arriving;
+		tag = Tag.pinned(near.leaf);
+		tag = Tag.plain(Int(5));
+	});
+	return Unit();
+}
+
+/// A returned guest is rooted in a parameter (§1.7), and so is one stored in
+/// `this`: the caller's frame outlives the body.
+&Leaf root(this Branch) => this.leaf
+&Leaf lost() {
+	value Leaf(Int(6));
+	return value;
+}
+
+Unit hold(this Pin, other &Leaf) mut {
+	this.leaf = other;
+	local Leaf(Int(7));
+	this.leaf = local;
+	return Unit();
+}
+
+/// A call's result names what its arguments do.
+&Leaf pass(leaf &Leaf) => leaf
+&Leaf relay() {
+	value Leaf(Int(8));
+	return pass(value);
+}
+
+/// A match binder is its scrutinee's payload, and names what it names.
+Unit bind() {
+	far Branch(Leaf(Int(9)));
+	r &Leaf = far.leaf;
+	inside({
+		near Branch(Leaf(Int(10)));
+		t Tag = Tag.pinned(near.leaf);
+		r = match (t) {
+			x pinned => x;
+			plain => r;
+		}
+	});
+	return Unit();
+}

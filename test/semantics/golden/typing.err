@@ -366,6 +366,34 @@ File "fixtures/typing/reject/bad/overloads.zn", line 34, characters 1-34:
 34 | Unit main(argument Int) => Unit()
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `main` takes no parameters: the root package reaches the console and runtime through `@program$`
+File "fixtures/typing/reject/bad/owners.zn", line 24, characters 13-23:
+24 |         r = inner.leaf;
+  |             ^^^^^^^^^^
+Error: this stores a guest to `inner`, whose block ends before `r`'s does
+File "fixtures/typing/reject/bad/owners.zn", line 39, characters 18-26:
+39 |         parked = arriving;
+  |                  ^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `parked`'s does
+File "fixtures/typing/reject/bad/owners.zn", line 40, characters 15-36:
+40 |         tag = Tag.pinned(near.leaf);
+  |               ^^^^^^^^^^^^^^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `tag`'s does
+File "fixtures/typing/reject/bad/owners.zn", line 51, characters 12-17:
+51 |     return value;
+  |            ^^^^^
+Error: this stores a guest to `value` in the caller's result, which outlives the body `value` is owned by
+File "fixtures/typing/reject/bad/owners.zn", line 57, characters 17-22:
+57 |     this.leaf = local;
+  |                 ^^^^^
+Error: this stores a guest to `local` in the caller's `this`, which outlives the body `local` is owned by
+File "fixtures/typing/reject/bad/owners.zn", line 65, characters 12-23:
+65 |     return pass(value);
+  |            ^^^^^^^^^^^
+Error: this stores a guest to `value` in the caller's result, which outlives the body `value` is owned by
+File "fixtures/typing/reject/bad/owners.zn", line 75, characters 13-24:
+75 |         r = match (t) {
+  |             ^^^^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `r`'s does
 File "fixtures/typing/reject/bad/sources.zn", line 20, characters 15-28:
 20 |     b &Bell = bells[Int(0)];
   |               ^^^^^^^^^^^^^
