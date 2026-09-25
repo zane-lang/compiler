@@ -258,6 +258,46 @@ File "fixtures/typing/reject/bad/matches.zn", line 19, characters 32-37:
 19 | Int plain(value Int) => match (value) {
   |                                ^^^^^
 Error: a match dispatches on a variant or an enum, and `core$Int` is neither
+File "fixtures/typing/reject/bad/moves.zn", line 22, characters 13-23:
+22 |     b Cup = saucer.cup;
+  |             ^^^^^^^^^^
+Error: a field is not a move-source: a host is moved only from a symbol, a verb's result or a case form
+File "fixtures/typing/reject/bad/moves.zn", line 23, characters 13-25:
+23 |     c Cup = cups[Int(1)];
+  |             ^^^^^^^^^^^^
+Error: an element of a container is not a move-source: a host is moved only from a symbol, a verb's result or a case form
+File "fixtures/typing/reject/bad/moves.zn", line 24, characters 13-18:
+24 |     d Cup = guest;
+  |             ^^^^^
+Error: `guest`, a guest, is not a move-source: a host is moved only from a symbol, a verb's result or a case form
+File "fixtures/typing/reject/bad/moves.zn", line 26, characters 11-35:
+26 |     drink(order.hot ?? Cup(Int(3)));
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a variant case's payload is not a move-source: a host is moved only from a symbol, a verb's result or a case form
+File "fixtures/typing/reject/bad/moves.zn", line 34, characters 15-20:
+34 |         drink(outer);
+  |               ^^^^^
+Error: `outer` is declared in an enclosing block, and a symbol is moved only in the block that declares it
+File "fixtures/typing/reject/bad/moves.zn", line 49, characters 10-13:
+49 |     look(cup);
+  |          ^^^
+Error: `cup` was moved on line 48, and is spent until a store refills it
+File "fixtures/typing/reject/bad/moves.zn", line 51, characters 9-12:
+51 |         cup = Cup(Int(7));
+  |         ^^^
+Error: `cup` is spent, and a store that refills it must be in the block that declares it
+File "fixtures/typing/reject/bad/moves.zn", line 56, characters 17-21:
+56 |     serve(both, both);
+  |                 ^^^^
+Error: `both` was moved on line 56, and is spent until a store refills it
+File "fixtures/typing/reject/bad/moves.zn", line 61, characters 29-33:
+61 | Saucer give(this Saucer) => this
+  |                             ^^^^
+Error: `this` is the object the method was called on, and a method never moves it
+File "fixtures/typing/reject/bad/moves.zn", line 67, characters 10-13:
+67 |     look(cup);
+  |          ^^^
+Error: `cup` was moved on line 66, and is spent until a store refills it
 File "fixtures/typing/reject/bad/names.zn", line 6, characters 6-11:
 6 | type Twice = struct { b Int; }
   |      ^^^^^

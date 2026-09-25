@@ -65,16 +65,18 @@ let signature_of (r : T.Verb_ref.t) =
         (fun (_, (sg : S.t)) -> if sg.S.owner = S.Intrinsic spelling then Some sg else None)
         Intrinsics.methods
 
-(* A parameter's types, the subject left out: a method takes its subject as a
-   guest, and never mints one for it (memory.md §2.9). *)
-let param_types (r : T.Verb_ref.t) =
+(* A call's parameter types, at the generic arguments it was instantiated
+   with. The subject is left out unless [subject]: a method takes its subject
+   as a guest, and never mints one for it (memory.md §2.9). *)
+let param_types ?(subject = false) (r : T.Verb_ref.t) =
   match signature_of r with
   | None -> []
   | Some sg ->
       let ps =
-        match sg.S.params with _ :: r when S.is_method sg -> r | ps -> ps
+        match sg.S.params with _ :: r when S.is_method sg && not subject -> r | ps -> ps
       in
-      List.map (fun (p : S.param) -> p.S.ty) ps
+      let s = List.map (fun ((p : Ty.param), a) -> (p.Ty.id, a)) r.T.Verb_ref.instance in
+      List.map (fun (p : S.param) -> Ty.subst s p.S.ty) ps
 
 (* ---------------------------------------------------------------------- *)
 (* The three rules                                                        *)
@@ -238,12 +240,7 @@ let rec expr w (e : T.Expr.t) =
       pass w (param_types impl) (List.map (fun a -> T.Arg.Value a) args)
   | T.Expr.Op { left; right; impl; swapped; handler; _ } ->
       let args = if swapped then [ right; left ] else [ left; right ] in
-      let tys =
-        match signature_of impl with
-        | Some sg -> List.map (fun (p : S.param) -> p.S.ty) sg.S.params
-        | None -> []
-      in
-      pass w tys (List.map (fun a -> T.Arg.Value a) args);
+      pass w (param_types ~subject:true impl) (List.map (fun a -> T.Arg.Value a) args);
       opt_handler w e.T.Expr.ty handler
   | T.Expr.Flip { impl; value; handler } ->
       pass w (param_types impl) [ T.Arg.Value value ];

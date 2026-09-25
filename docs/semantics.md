@@ -192,6 +192,19 @@ need nothing but the store in hand:
 - a store never goes through a guest, unless that guest is a parameter the
   path starts at ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.1).
 
+**Moves** (`lib/tst/moves.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.2–§1.3, §1.6, §1.8). A
+reference-type value stored where a host goes — a hosting local or field, a
+`T` parameter, a return, an element, a case payload — is moved:
+- only a symbol, a verb's result or a case form is moved; a field, an
+  element, a case payload, a package constant, a guest and `this` are not;
+- a symbol is moved only in the block that declares it, and a parameter is
+  declared at the top of the body;
+- a moved symbol is spent: using it is an error until a store refills it, in
+  that same block.
+
+A symbol is spent or refilled only in its own block, and a nested block can do
+neither, so one walk in source order sees every use against the right state.
+
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
 mistake. Each pass collects diagnostics and keeps going. An expression that
@@ -534,6 +547,15 @@ only reject more, never let a write through.
   stored.
 - A generic verb's summary is the union over its instances.
 
+**What moves, where the spec leaves it to the table.**
+- A subscript's body is a place (`functions.md` §2.9), so it moves nothing
+  out; reading `list[i]` into a host is what the move rule then rejects.
+- A case read and what its handler resolves are a place too: the store the
+  whole expression feeds decides whether it moves.
+- An intrinsic operator or constructor reads its operands. The runtime's
+  `print` takes `&@primitives$String`, so `core` can hand it `text.raw`, a
+  field, which could not be moved.
+
 **Where a guest source is decided.**
 - A `match` binder is its case's payload, so no guest is minted from it.
 - A method's subject is a guest the call lends, not storage, so a call never
@@ -550,7 +572,6 @@ When the root declares one, it takes no parameters (`packages.md` §6.2).
 
 ## 10. Not done yet
 
-- The analyses of D1's right-hand column: moves, stores and lifetimes, resting
-  places, and `spawn` safety beyond the block-parameter rule. The passing mode
-  (`T` or `&T`) is never compared when typing; that is the lifetime analysis's
-  question.
+- The analyses of D1's right-hand column: the owner comparison every store
+  makes (`lifetimes.md` §1.1, §1.4, §1.7, §1.10), resting places (§1.11), and
+  `spawn` safety beyond the block-parameter rule.

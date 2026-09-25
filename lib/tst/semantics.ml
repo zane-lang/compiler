@@ -20,6 +20,7 @@ let check (packages : Assembly.package list) =
   (* The analyses over the finished tree (D1). *)
   Read_only.run program;
   Guests.run program;
+  Moves.run program;
   let diagnostics =
     List.sort_uniq
       (fun a b ->
