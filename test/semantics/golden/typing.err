@@ -314,6 +314,22 @@ File "fixtures/typing/reject/bad/types.zn", line 17, characters 1-19:
 17 | type Round = Robin
   | ^^^^^^^^^^^^^^^^^^
 Error: the type `Round` is defined in terms of itself
+File "fixtures/typing/reject/bad/uncalled.zn", line 9, characters 17-37:
+9 |     total Int = Int(1) + String("a");
+  |                 ^^^^^^^^^^^^^^^^^^^^
+Error: no operator `+` accepts (core$Int, core$String); the candidates are `core$Bool +(core$Bool, core$Bool)`; `core$Int +(core$Int, core$Int)`; `core$Float +(core$Float, core$Float)`; `core$String +(core$String, core$String)` (in `neverCalled`, which nothing instantiates)
+File "fixtures/typing/reject/bad/uncalled.zn", line 10, characters 19-26:
+10 |     missing Int = nowhere;
+  |                   ^^^^^^^
+Error: no name `nowhere` is in scope (in `neverCalled`, which nothing instantiates)
+File "fixtures/typing/reject/bad/uncalled.zn", line 14, characters 62-74:
+14 | Int neverSized(values Array<T Type, n @concepts$Integer>) => Int(n) + 2.5
+  |                                                              ^^^^^^^^^^^^
+Error: no operator `+` accepts (core$Int, @concepts$Decimal); the candidates are `core$Bool +(core$Bool, core$Bool)`; `core$Int +(core$Int, core$Int)`; `core$Float +(core$Float, core$Float)`; `core$String +(core$String, core$String)` (in `neverSized`, which nothing instantiates)
+File "fixtures/typing/reject/bad/uncalled.zn", line 19, characters 41-48:
+19 | (this Shelf<T Type>)[index Int] => this.shelves[index]
+  |                                         ^^^^^^^
+Error: `Shelf` has no field `shelves` (in `[]`, which nothing instantiates)
 File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 1-4:
 5 | Int unimported() => guard(true)
   | ^^^

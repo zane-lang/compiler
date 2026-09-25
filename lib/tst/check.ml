@@ -179,8 +179,14 @@ let describe_instance (s : S.t) subst at =
 let verb_ref (s : S.t) subst =
   { T.Verb_ref.owner = s.owner; name = s.name; instance = binding_args s subst }
 
+(* Set while a generic verb nothing instantiates is checked where it is
+   declared: that check asks for no instances, since whatever it calls is
+   checked when something that runs calls it. *)
+let defining = ref false
+
 let request (s : S.t) subst at =
   match s.owner with
+  | _ when !defining -> ()
   | S.Declared id when s.generics <> [] ->
       let args = binding_args s subst in
       if List.exists (fun (_, a) -> Ty.arg_contains_error a) args then ()
@@ -1823,29 +1829,37 @@ and subscript_result (d : decl) (s : S.t) subst at =
       Ty.Error
   | None -> (
       Hashtbl.replace subscript_results key None;
-      match d.kind with
-      | Verb { N.Verb_decl.node = N.Verb_decl.Subscript { params; value; _ }; _ } ->
-          let ctx, locals = verb_context d s subst in
-          ignore params;
-          let saved = !note in
-          if subst <> [] then note := Some (describe_instance s subst at);
-          let v = expr ctx value in
-          let rec is_place (e : T.Expr.t) =
-            match e.T.Expr.node with
-            | T.Expr.Var (T.Name_ref.Local _) -> true
-            | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } -> is_place target
-            | T.Expr.Invalid -> true
-            | _ -> false
-          in
-          if not (is_place v) then
-            error v.T.Expr.span
-              "a subscript's body is a place expression: a symbol, a field of one, or a \
-               subscript of one (syntax.md §3.6)";
-          note := saved;
+      let saved = !note in
+      if subst <> [] then note := Some (describe_instance s subst at);
+      let checked = subscript_body d s subst in
+      note := saved;
+      match checked with
+      | Some (locals, v) ->
           Hashtbl.replace subscript_results key (Some v.T.Expr.ty);
           Hashtbl.replace subscript_instances key (s, subst, locals, v);
           v.T.Expr.ty
-      | _ -> Ty.Error)
+      | None -> Ty.Error)
+
+(* A subscript's body typed at one set of arguments, with its parameters as
+   locals. *)
+and subscript_body (d : decl) (s : S.t) subst =
+  match d.kind with
+  | Verb { N.Verb_decl.node = N.Verb_decl.Subscript { value; _ }; _ } ->
+      let ctx, locals = verb_context d s subst in
+      let v = expr ctx value in
+      let rec is_place (e : T.Expr.t) =
+        match e.T.Expr.node with
+        | T.Expr.Var (T.Name_ref.Local _) -> true
+        | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } -> is_place target
+        | T.Expr.Invalid -> true
+        | _ -> false
+      in
+      if not (is_place v) then
+        error v.T.Expr.span
+          "a subscript's body is a place expression: a symbol, a field of one, or a \
+           subscript of one (syntax.md §3.6)";
+      Some (locals, v)
+  | _ -> None
 
 (* ---------------------------------------------------------------------- *)
 (* Verb bodies                                                            *)
@@ -2104,6 +2118,50 @@ let run () : T.Program.t =
         | None -> ()));
     note := None
   done;
+  (* D12 checks a generic body once per instantiation, so one nothing
+     instantiates would go unchecked. It is checked once more where it is
+     declared, with every type parameter standing for [Ty.Error]: what depends
+     on the parameter is accepted as it is for any expression that failed to
+     type, and what does not -- a name that resolves nowhere, a call no
+     overload takes -- is reported. A number parameter stays the parameter it
+     is. Nothing from this check enters the tree; there is no instance to
+     hold it. *)
+  let instantiated_subscripts = Hashtbl.create 16 in
+  Hashtbl.iter
+    (fun _ ((t : S.t), _, _, _) ->
+      match t.S.owner with S.Declared id -> Hashtbl.replace instantiated_subscripts id () | _ -> ())
+    subscript_instances;
+  let instantiated (d : decl) (s : S.t) =
+    match s.S.kind with
+    | S.Subscript -> Hashtbl.mem instantiated_subscripts d.id
+    | _ -> Hashtbl.mem instance_counts d.id
+  in
+  defining := true;
+  Fun.protect
+    ~finally:(fun () -> defining := false)
+    (fun () ->
+      List.iter
+        (fun name ->
+          List.iter
+            (fun (d : decl) ->
+              match Hashtbl.find_opt signatures d.id with
+              | Some s when s.S.generics <> [] && not (instantiated d s) ->
+                  let subst =
+                    List.filter_map
+                      (fun (p : Ty.param) ->
+                        match p.Ty.kind with
+                        | Ty.Type_kind -> Some (p.Ty.id, Ty.Type Ty.Error)
+                        | Ty.Number_kind -> None)
+                      s.S.generics
+                  in
+                  note := Some (Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name));
+                  (match s.S.kind with
+                  | S.Subscript -> ignore (subscript_body d s subst)
+                  | _ -> ignore (check_body d s subst));
+                  note := None
+              | _ -> ())
+            (package name).decls)
+        !package_order);
   (* Generic subscripts were instantiated as their call sites were typed. *)
   let subscript_bodies =
     Hashtbl.fold

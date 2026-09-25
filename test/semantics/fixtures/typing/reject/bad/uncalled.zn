@@ -1,0 +1,19 @@
+package bad;
+
+import core$;
+
+/// Nothing calls these, so each is checked once where it is declared, with
+/// its type parameter unknown. What depends on `T` waits for an instance;
+/// what does not is wrong in every instance, and is reported here.
+T neverCalled(value T Type) {
+	total Int = Int(1) + String("a");
+	missing Int = nowhere;
+	return value + value;
+}
+
+Int neverSized(values Array<T Type, n @concepts$Integer>) => Int(n) + 2.5
+
+type Shelf<T Type> = #struct { items List<T>; }
+
+/// A generic subscript nothing indexes is checked the same way.
+(this Shelf<T Type>)[index Int] => this.shelves[index]
