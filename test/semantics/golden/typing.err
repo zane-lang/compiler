@@ -294,6 +294,10 @@ File "fixtures/typing/reject/bad/moves.zn", line 61, characters 29-33:
 61 | Saucer give(this Saucer) => this
   |                             ^^^^
 Error: `this` is the object the method was called on, and a method never moves it
+File "fixtures/typing/reject/bad/moves.zn", line 67, characters 10-13:
+67 |     look(cup);
+  |          ^^^
+Error: `cup` was moved on line 66, and is spent until a store refills it
 File "fixtures/typing/reject/bad/names.zn", line 6, characters 6-11:
 6 | type Twice = struct { b Int; }
   |      ^^^^^

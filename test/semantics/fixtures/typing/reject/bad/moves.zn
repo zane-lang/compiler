@@ -59,3 +59,25 @@ Unit spent() {
 
 /// A method never moves its subject.
 Saucer give(this Saucer) => this
+
+/// A generic parameter moves at the type it was called with.
+Unit stock(cup Cup) {
+	cups List<Cup> = List(Cup);
+	cups!push(cup);
+	look(cup);
+	return Unit();
+}
+
+/// A match arm hands its value to wherever the match's value goes: here a
+/// method's subject, which is not a move, so `kept` stays a host.
+Int sip(this Cup) => this.size
+
+Unit arms(order Order) {
+	kept Cup = Cup(Int(10));
+	n Int = (match (order) {
+		hot => kept;
+		none => kept;
+	}):sip();
+	drink(kept);
+	return Unit();
+}

@@ -88,7 +88,10 @@ let store w into v = if hosting into then move w v
 (* Walking a body                                                         *)
 (* ---------------------------------------------------------------------- *)
 
-let rec expr w (e : T.Expr.t) =
+(* [into] is where the expression's value goes: a `return` in one of its
+   match arms, or a `resolve` in its handler, hands a value on to that same
+   place, so whether it moves is the outer store's question. *)
+let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> (
       match Hashtbl.find_opt w.spent l.T.Local.id with
@@ -105,11 +108,7 @@ let rec expr w (e : T.Expr.t) =
       let element =
         match e.T.Expr.ty with Ty.Concept (Ty.Array_lit (t, _)) -> t | _ -> Ty.Error
       in
-      List.iter
-        (fun i ->
-          expr w i;
-          store w element i)
-        items
+      List.iter (value w element) items
   | T.Expr.Map_lit entries ->
       let k, v =
         match e.T.Expr.ty with
@@ -117,15 +116,12 @@ let rec expr w (e : T.Expr.t) =
         | _ -> (Ty.Error, Ty.Error)
       in
       List.iter
-        (fun (key, value) ->
-          expr w key;
-          store w k key;
-          expr w value;
-          store w v value)
+        (fun (key, item) ->
+          value w k key;
+          value w v item)
         entries
   | T.Expr.Case { case; payload } ->
-      expr w payload;
-      Option.iter (fun t -> store w t payload) (Guests.member_type e.T.Expr.ty case)
+      value w (Option.value ~default:Ty.Error (Guests.member_type e.T.Expr.ty case)) payload
   | T.Expr.Field { target; _ } | T.Expr.Map_read { target; _ } | T.Expr.Ref target
   | T.Expr.Spawn target ->
       expr w target
@@ -139,7 +135,7 @@ let rec expr w (e : T.Expr.t) =
       fields_ w
         (match Guests.signature_of ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty)
         fields;
-      opt_handler w e.T.Expr.ty handler
+      opt_handler w into handler
   | T.Expr.Match m ->
       List.iter (expr w) m.T.Match.scrutinees;
       List.iter
@@ -151,11 +147,11 @@ let rec expr w (e : T.Expr.t) =
           (* A `return` in an arm gives the arm's value (docs/semantics.md
              §9). *)
           let verb = w.ret in
-          w.ret <- e.T.Expr.ty;
+          w.ret <- into;
           block ~bind:binders w a.T.Arm.body;
           w.ret <- verb)
         m.T.Match.arms;
-      opt_handler w e.T.Expr.ty m.T.Match.handler
+      opt_handler w into m.T.Match.handler
   | T.Expr.Call { callee; args; handler } | T.Expr.Construct { ctor = callee; args; handler } ->
       let args =
         match (Guests.signature_of callee, args) with
@@ -165,7 +161,7 @@ let rec expr w (e : T.Expr.t) =
         | _ -> args
       in
       pass w (Guests.param_types callee) args;
-      opt_handler w e.T.Expr.ty handler
+      opt_handler w into handler
   | T.Expr.Call_value { callee; args; handler } ->
       expr w callee;
       (match (callee.T.Expr.ty, args) with
@@ -174,7 +170,7 @@ let rec expr w (e : T.Expr.t) =
           pass w params rest
       | Ty.Verb { Ty.params; _ }, _ -> pass w params args
       | _ -> List.iter (arg w) args);
-      opt_handler w e.T.Expr.ty handler
+      opt_handler w into handler
   | T.Expr.Subscript { target; impl; args } ->
       expr w target;
       pass w (Guests.param_types impl) (List.map (fun a -> T.Arg.Value a) args)
@@ -182,25 +178,33 @@ let rec expr w (e : T.Expr.t) =
       let args = if swapped then [ right; left ] else [ left; right ] in
       let tys =
         match Guests.signature_of impl with
-        | Some sg -> List.map (fun (p : S.param) -> p.S.ty) sg.S.params
-        | None -> []
+        (* An intrinsic operator reads its operands (docs/semantics.md §9). *)
+        | Some { S.owner = S.Intrinsic _; _ } | None -> []
+        | Some _ -> Guests.param_types ~subject:true impl
       in
       pass w tys (List.map (fun a -> T.Arg.Value a) args);
-      opt_handler w e.T.Expr.ty handler
+      opt_handler w into handler
   | T.Expr.Flip { impl; value; handler } ->
-      pass w (Guests.param_types impl) [ T.Arg.Value value ];
-      opt_handler w e.T.Expr.ty handler
-  | T.Expr.Coerce { ctor; value } -> pass w (Guests.param_types ctor) [ T.Arg.Value value ]
+      pass w (read_by impl) [ T.Arg.Value value ];
+      opt_handler w into handler
+  | T.Expr.Coerce { ctor; value } -> pass w (read_by ctor) [ T.Arg.Value value ]
   | T.Expr.Lambda l -> lambda w e l
+
+(* An intrinsic operator or constructor reads what it is given. *)
+and read_by (r : T.Verb_ref.t) =
+  match r.T.Verb_ref.owner with S.Intrinsic _ -> [] | S.Declared _ -> Guests.param_types r
+
+and value w into v =
+  expr ~into w v;
+  store w into v
 
 (* Arguments in order, each read and then, for a `T` parameter, moved: a
    symbol passed twice is spent by the first. *)
 and pass w tys args =
   let rec go tys args =
     match (tys, args) with
-    | ty :: tys, (T.Arg.Value v as a) :: args ->
-        arg w a;
-        store w ty v;
+    | ty :: tys, T.Arg.Value v :: args ->
+        value w ty v;
         go tys args
     | _ :: tys, a :: args ->
         arg w a;
@@ -217,9 +221,8 @@ and arg w = function T.Arg.Value e -> expr w e | T.Arg.Block b -> block w b
 and fields_ w ty fields =
   List.iter
     (fun (f : T.Field_value.t) ->
-      let v = f.T.Field_value.value in
-      expr w v;
-      Option.iter (fun t -> store w t v) (Guests.member_type ty f.T.Field_value.name))
+      let into = Guests.member_type ty f.T.Field_value.name in
+      value w (Option.value ~default:Ty.Error into) f.T.Field_value.value)
     fields
 
 and opt_handler w ty = Option.iter (handler_block w ty)
@@ -258,13 +261,11 @@ and block ?(bind = []) w (b : T.Block.t) =
 and stat w (s : T.Stat.t) =
   match s.T.Stat.node with
   | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e -> expr w e
-  | T.Stat.Let { local; value } ->
-      expr w value;
-      store w local.T.Local.ty value;
+  | T.Stat.Let { local; value = v } ->
+      value w local.T.Local.ty v;
       Hashtbl.replace w.declared local.T.Local.id w.block
-  | T.Stat.Assign { target; value } -> (
-      expr w value;
-      store w target.T.Expr.ty value;
+  | T.Stat.Assign { target; value = v } -> (
+      value w target.T.Expr.ty v;
       match target.T.Expr.node with
       | T.Expr.Var (T.Name_ref.Local l) when Hashtbl.mem w.spent l.T.Local.id ->
           (* A store into a spent symbol refills it (§1.6). *)
@@ -277,12 +278,9 @@ and stat w (s : T.Stat.t) =
                  (quote l.T.Local.name))
       | T.Expr.Var _ -> ()
       | _ -> expr w target)
-  | T.Stat.Return e ->
-      expr w e;
-      store w w.ret e
-  | T.Stat.Resolve e -> (
-      expr w e;
-      match w.resolve with ty :: _ -> store w ty e | [] -> ())
+  | T.Stat.Return e -> value w w.ret e
+  | T.Stat.Resolve e ->
+      value w (match w.resolve with ty :: _ -> ty | [] -> Ty.Error) e
 
 (* ---------------------------------------------------------------------- *)
 (* Declarations                                                           *)
