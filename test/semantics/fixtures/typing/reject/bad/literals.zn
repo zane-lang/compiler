@@ -13,6 +13,8 @@ Int first(values Array<T Type, n Int>) => Int(1)
 
 Int measured(values Array<Int, n>, n @concepts$Integer) => Int(n)
 
+Int relayed(values Array<Int, 3>, n @concepts$Integer) => measured(values, n)
+
 Int sizedLike(values Array<Int, 3>, n @concepts$Integer) {
 	measure Int(held Array<Int, n>) => Int(n);
 	return measure(values);
@@ -37,6 +39,11 @@ Unit literals() {
 	/// this call's instance is checked with `n = 4`, and its lambda cannot
 	/// take the three-element array.
 	like Int = sizedLike(numbers, 4);
+
+	/// `n` is a number parameter because `relayed` passes it on to
+	/// `measured`'s, so this instance is checked with `n = 4`, where the
+	/// three-element array and the `4` disagree.
+	passed Int = relayed(numbers, 4);
 
 	/// No overload takes an integer and then a decimal (generics.md §5.4).
 	mixed Unit = twice(2, 3.5);

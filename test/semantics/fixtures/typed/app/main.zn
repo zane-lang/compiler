@@ -29,6 +29,12 @@ Int count(values Array<T Type, n @concepts$Integer>) => Int(n)
 /// goes, so it is an explicit number parameter.
 Int measured(values Array<Int, n>, n @concepts$Integer) => Int(n)
 
+/// `n` reaches no type here, but it is handed to `measured`'s number
+/// parameter, and through `forwarded` to `relayed`'s: a number parameter
+/// passed on is a number parameter too.
+Int relayed(values Array<Int, 3>, n @concepts$Integer) => measured(values, n)
+Int forwarded(values Array<Int, 3>, count @concepts$Integer) => relayed(values, count)
+
 /// Only the body writes `n` where a number goes, and that is enough: the
 /// body's types depend on it, so it is a number parameter too.
 Int sizedLike(values Array<Int, 3>, n @concepts$Integer) {
@@ -86,6 +92,7 @@ Unit main() {
 	length Int = count(numbers);
 	sized Int = measured(numbers, 3);
 	like Int = sizedLike(numbers, 3);
+	passed Int = forwarded(numbers, 3);
 
 	ints Pair<Int> = pairOf(2, 3);
 	decimals Pair<Float> = pairOf(2.5, 3.5);
