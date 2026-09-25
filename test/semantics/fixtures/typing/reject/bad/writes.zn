@@ -1,0 +1,31 @@
+package bad;
+
+import core$;
+
+type Counter = struct { count Int; }
+type Tray = struct { counter Counter; }
+
+Counter(count Int) => init{ count; }
+
+Unit tick(this Counter) mut => Unit()
+
+/// A `!` call writes its subject, so a read-only binding may not be one:
+/// not a parameter, not a field reached through one, and not `this` in a
+/// method without `mut`. A verb's own local may be written.
+Unit report(counter Counter, tray Tray) {
+	counter!tick();
+	tray.counter!tick();
+	own Counter = Counter(Int(0));
+	own!tick();
+	return Unit();
+}
+
+Unit look(this Counter) {
+	this!tick();
+	return Unit();
+}
+
+Unit reset(this Counter) mut {
+	this!tick();
+	return Unit();
+}

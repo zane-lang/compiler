@@ -48,7 +48,7 @@ belong in the pass that builds the tree.
 **D1. The TST is the output of name resolution and type checking. Every other
 semantic check is an analysis *over* the finished TST.** An analysis reads the
 tree and reports diagnostics; it adds no nodes. Where it produces a fact a
-caller needs — an effect level, a parameter's resting place — the fact goes in a
+caller needs — a parameter's resting place — the fact goes in a
 side table keyed by declaration, not into the tree.
 
 That splits the work like this:
@@ -57,10 +57,11 @@ That splits the work like this:
 |---|---|
 | Package assembly and imports ([`packages.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/packages.md) §2–§3) | Moves, stores and lifetimes ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/lifetimes.md) §1) |
 | Type declarations, aliases, value-downstream ([`memory.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/memory.md) §2.10) | Resting places published with a signature ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/lifetimes.md) §1.11) |
-| Signatures, inline generic parameters ([`generics.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/generics.md) §3–§4) | Effect-level inference ([`effects.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/effects.md) §3–§5) |
+| Signatures, inline generic parameters ([`generics.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/generics.md) §3–§4) | Read-only guests: a guest derived from a parameter stays read-only ([`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §4.4) |
 | Overload identity and resolution ([`functions.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/functions.md) §4–§6) | `spawn` safety ([`concurrency.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/concurrency.md) §3–§4) |
 | Implicit constructors at coercion sites ([`types.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/types.md) §4) | Block escape ([`control-flow.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/control-flow.md) §2.2) |
 | `:`/`!` against `mut` ([`functions.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/functions.md) §2.5) | |
+| No write to a read-only binding: an assignment or a `!` call ([`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §4.1) | |
 | Abort handlers: required, and every path ends ([`error-handling.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/error-handling.md) §3) | |
 | `match` exhaustiveness and one result type ([`adt.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/adt.md) §5) | |
 | Every path of a block-bodied verb returns ([`functions.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/functions.md) §3.5) | |
@@ -72,6 +73,11 @@ it.
 
 Block-taking verbs expanded at the call site (`control-flow.md` §2.3) are
 neither. That is a lowering, and it belongs to the lowering stage, which builds the CGT.
+
+Whether a call touches capability-backed state and whether it terminates
+([`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §5.2) are not semantic checks either. No program is
+rejected for them: they decide only what may be evaluated at compile time or
+run in parallel, so optimization derives them.
 
 ---
 
@@ -322,9 +328,9 @@ An expression that failed to type is an `Invalid` node of type `Ty.Error`
 its typed body — or, for a generic verb, none: its bodies are the instances
 (D12), which the tree lists after the packages.
 
-**D11. Facts for later analyses live beside the tree, not in it.** Effect level
-per verb, resting places per parameter, and the list of generic instances are
-side tables keyed by `Decl_id`. The tree stays one shape for every consumer.
+**D11. Facts for later analyses live beside the tree, not in it.** Resting
+places per parameter and the list of generic instances are side tables keyed
+by `Decl_id`. The tree stays one shape for every consumer.
 
 ---
 
@@ -502,6 +508,6 @@ When the root declares one, it takes no parameters (`packages.md` §6.2).
 ## 10. Not done yet
 
 - The analyses of D1's right-hand column: moves, stores and lifetimes, resting
-  places, effect levels, `spawn` safety beyond the block-parameter rule, and
-  block escape beyond a `return` of one. The passing mode (`T` or `&T`) is
+  places, read-only guests, `spawn` safety beyond the block-parameter rule,
+  and block escape beyond a `return` of one. The passing mode (`T` or `&T`) is
   never compared when typing; that is the lifetime analysis's question.

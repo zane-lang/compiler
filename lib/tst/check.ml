@@ -1079,6 +1079,14 @@ and call_value ~flow ctx span (fn : T.Expr.t) actuals handle =
       skip_handler ctx handle;
       (invalid span, None)
 
+(* A `!` call runs a `mut` method, which writes its subject: the call is a
+   write, exactly as an assignment is (effects.md §4.1). A temporary is no
+   binding, so writing one is always legal. *)
+and write_subject ctx (subject : actual) =
+  match subject.arg with
+  | T.Arg.Value e -> check_writable ctx e ~bang:true
+  | T.Arg.Block _ -> ()
+
 (* functions.md §6.1: the subject type's home package first, then the
    current one; a qualified call names its package instead. *)
 and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
@@ -1131,6 +1139,7 @@ and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
             (invalid span, None)
         | Some o ->
             check_marker o.sig_;
+            if o.sig_.is_mut && is_mut then write_subject ctx subject;
             finish_call ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
                 T.Expr.Call { callee; args; handler })
   in
@@ -1148,7 +1157,8 @@ and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
           if m <> is_mut then
             error span
               (if m then "this function value is `mut`, so it is called with `!`"
-               else "this function value is not `mut`, so it is called with `:`");
+               else "this function value is not `mut`, so it is called with `:`")
+          else if m then write_subject ctx subject;
           call_value ~flow ctx span fn actuals handle
       | _ ->
           let home_stage =
@@ -1776,30 +1786,49 @@ and declared_type ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
       | head -> Types.apply (type_scope ctx) te.N.Type_expr.span head name [])
   | _ -> Types.resolve (type_scope ctx) te
 
+(* The binding a place is reached through. A field or an element of a
+   read-only binding is read-only too (effects.md §4.1). *)
+and place_root (e : T.Expr.t) =
+  match e.T.Expr.node with
+  | T.Expr.Var (T.Name_ref.Local l) -> `Local l
+  | T.Expr.Var (T.Name_ref.Global _) -> `Global
+  | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } -> place_root target
+  | T.Expr.Invalid -> `Invalid
+  | _ -> `Not_place
+
+(* effects.md §4.1: a verb writes a place by assigning to it or by making it
+   the subject of a `!` call, and a read-only binding admits neither. The
+   read-only bindings are every parameter other than `this`, and `this` in a
+   method without `mut`. [bang] says the write is a `!` call. *)
+and check_writable ctx (e : T.Expr.t) ~bang =
+  let say plain because =
+    error e.T.Expr.span
+      (if bang then "a `!` call writes its subject, and " ^ because else plain)
+  in
+  match place_root e with
+  | `Invalid | `Not_place -> ()
+  | `Global ->
+      say "a package constant is immutable: package scope holds no mutable state"
+        "a package constant is immutable"
+  | `Local l -> (
+      let name = quote l.T.Local.name in
+      match find_local ctx l.T.Local.name with
+      | Some { role = Parameter; _ } ->
+          say
+            (Printf.sprintf "%s is a parameter, and a parameter is read-only" name)
+            (Printf.sprintf "%s is a parameter, which is read-only" name)
+      | Some { role = This; _ } when not ctx.is_mut ->
+          say "a method that is not `mut` may not write through `this`"
+            "`this` is read-only in a method that is not `mut`"
+      | _ -> ())
+
 (* functions.md §2.3, §2.7; packages.md §5.1. *)
 and assign ctx span target value =
   let t = expr ctx target in
   let v = expr ctx value in
-  let rec root (e : T.Expr.t) ~projected =
-    match e.T.Expr.node with
-    | T.Expr.Var (T.Name_ref.Local l) -> `Local (l, projected)
-    | T.Expr.Var (T.Name_ref.Global _) -> `Global
-    | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } -> root target ~projected:true
-    | T.Expr.Invalid -> `Invalid
-    | _ -> `Not_place
-  in
-  (match root t ~projected:false with
-  | `Invalid -> ()
+  (match place_root t with
   | `Not_place -> error t.T.Expr.span "only a symbol, a field or a subscript can be assigned"
-  | `Global -> error t.T.Expr.span "a package constant is immutable: package scope holds no mutable state"
-  | `Local (l, _) -> (
-      match find_local ctx l.T.Local.name with
-      | Some { role = Parameter; _ } ->
-          error t.T.Expr.span
-            (Printf.sprintf "%s is a parameter, and a parameter is read-only" (quote l.T.Local.name))
-      | Some { role = This; _ } when not ctx.is_mut ->
-          error t.T.Expr.span "a method that is not `mut` may not write through `this`"
-      | _ -> ()));
+  | _ -> check_writable ctx t ~bang:false);
   if not (Ty.assignable ~dst:t.T.Expr.ty ~src:v.T.Expr.ty) then
     error v.T.Expr.span
       (Printf.sprintf

@@ -338,6 +338,18 @@ File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 21-26:
 5 | Int unimported() => guard(true)
   |                     ^^^^^
 Error: no function named `guard` is in scope; the package `core` declares one, and like every package it needs an import
+File "fixtures/typing/reject/bad/writes.zn", line 16, characters 5-12:
+16 |     counter!tick();
+  |     ^^^^^^^
+Error: a `!` call writes its subject, and `counter` is a parameter, which is read-only
+File "fixtures/typing/reject/bad/writes.zn", line 17, characters 5-17:
+17 |     tray.counter!tick();
+  |     ^^^^^^^^^^^^
+Error: a `!` call writes its subject, and `tray` is a parameter, which is read-only
+File "fixtures/typing/reject/bad/writes.zn", line 24, characters 5-9:
+24 |     this!tick();
+  |     ^^^^
+Error: a `!` call writes its subject, and `this` is read-only in a method that is not `mut`
 File "fixtures/typing/reject/lib/lib.zn", line 17, characters 21-37:
 17 |     console Console(@program$console);
   |                     ^^^^^^^^^^^^^^^^
