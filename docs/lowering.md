@@ -65,7 +65,7 @@ one of:
 - a sum: a tag and the widest case's bytes, aligned for every case;
 - a tether: a `u32` segmented offset ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §4.2);
 - a handle: the fixed-size part of a `List`, a `String` or a boxed member
-  (`memory.md` §3.6), whose payload lives in the dynamic region.
+  ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.6), whose payload lives in the dynamic region.
 
 `Unit` has no storage, and a verb that returns it returns nothing. A distinct
 type is its underlying type. A concept literal (`Integer_lit`, `Text_lit`) is
@@ -83,7 +83,7 @@ flip forms are gone. What each argument passes follows its parameter's mode
 | Parameter | Passed as |
 |---|---|
 | value type (a borrow) | the address of the caller's slot, or the value itself when it is a scalar |
-| `T`, a reference type (swallowed) | the address of the caller's slot, which keeps the value (`lifetimes.md` §1.5) |
+| `T`, a reference type (swallowed) | the address of the caller's slot, which keeps the value ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.5) |
 | `&T` (a guest) | a tether |
 | `this` | the address of the subject's place, resolved once at the call |
 
@@ -95,7 +95,7 @@ call.
 that returns something other than `Unit` or a scalar takes a pointer to the
 slot its result goes in. That is the spec's own model: a move into a return
 slot is initialization in place ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.7), and a fresh value
-is built directly where it will live (`memory.md` §2.3). A `let` of a call passes the new
+is built directly where it will live ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.3). A `let` of a call passes the new
 local's slot; a field or element store passes the field's.
 
 ---
@@ -116,7 +116,7 @@ may fold nested scopes into one arena when nothing observes the difference
 declares a local its own.
 
 **L9. Storage operations are CGT nodes, each a call into the runtime or a few
-instructions.** The set lowering writes, with the sections of `memory.md`
+instructions.** The set lowering writes, with the sections of [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md)
 that define each:
 
 - `slot` — a fixed-size slot in a scope's arena;
