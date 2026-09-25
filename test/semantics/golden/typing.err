@@ -353,11 +353,11 @@ Error: `bell` swallows its argument, so it may not be bound into `&` storage; a 
 File "fixtures/typing/reject/bad/sources.zn", line 47, characters 5-14:
 47 |     this.hook.tone = Int(3);
   |     ^^^^^^^^^
-Error: a store may not go through a guest: what it names belongs to a tree this path's root does not own
+Error: a store may not go through a guest, since what it names belongs to a tree this path's root does not own; change it with a `mut` method called through the guest
 File "fixtures/typing/reject/bad/sources.zn", line 49, characters 5-8:
 49 |     own.bell = Bell(Int(4));
   |     ^^^
-Error: a store may not go through a guest: what it names belongs to a tree this path's root does not own
+Error: a store may not go through a guest, since what it names belongs to a tree this path's root does not own; change it with a `mut` method called through the guest
 File "fixtures/typing/reject/bad/types.zn", line 7, characters 1-23:
 7 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^

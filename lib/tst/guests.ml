@@ -125,7 +125,8 @@ let store w ?(storage = false) (into : Ty.t) (v : T.Expr.t) =
   end
 
 (* lifetimes.md §1.1: no step of a store's destination goes through a guest,
-   unless it is the root and a parameter. *)
+   unless it is the root and a parameter. What a guest names is changed by a
+   `mut` call on it (effects.md §4.3), which the message points to. *)
 let rec through w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
@@ -137,8 +138,8 @@ let rec through w (e : T.Expr.t) =
       in
       if is_guest target.T.Expr.ty && not param_root then
         Env.error target.T.Expr.span
-          "a store may not go through a guest: what it names belongs to a tree this path's \
-           root does not own"
+          "a store may not go through a guest, since what it names belongs to a tree this \
+           path's root does not own; change it with a `mut` method called through the guest"
       else through w target
   | _ -> ()
 
