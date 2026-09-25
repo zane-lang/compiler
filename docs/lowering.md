@@ -64,6 +64,13 @@ one of:
   a `u32` backpointer first when it is a reference type;
 - a sum: a tag and the widest case's bytes, aligned for every case;
 - a tether: a `u32` segmented offset ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §4.2);
+- a fixed array: `@primitives$Array<T, n>` is `n` elements of `T` inline, one
+  after another at `T`'s stride (its size rounded up to its alignment), so it
+  is statically sized and sits in a slot like a struct. Positions count from
+  1 ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §5.1): element `i` is at
+  byte offset `(i - 1) × stride`. What an index outside `1..n` does is not yet
+  specified (§5.2), so lowering emits one runtime check for it and leaves its
+  outcome to §9;
 - a handle: the fixed-size part of a `List`, a `String` or a boxed member
   ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.6), whose payload lives in the dynamic region.
 
@@ -110,7 +117,12 @@ tracks what is live.
 that owns storage opens its scope's arena on entry and drains it on every way
 out: falling off the end, `return`, `abort`, or an exit (§4). Draining first
 waits for the scope's spawned work (the water tower, [`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md)
-§4.1), then destroys what the scope hosts, then unmaps its chunks. Lowering
+§4.1). Then it ends every hosting identity the scope still holds in bulk: it
+returns the terminal anchors of those identities and the forwarders on the
+scope's retirement stack ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §4.6), and unmaps
+the scope's fixed-size and dynamic chunks together (§3.2). There is no
+per-object pass at a drain; an object that dies earlier — overwritten, or
+its container gone — is destroyed there, by its own `destroy` (L9). Lowering
 may fold nested scopes into one arena when nothing observes the difference
 ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1); the first version gives every block that
 declares a local its own.
@@ -261,3 +273,5 @@ test passing.
 - **Which LLVM.** opam's `llvm` bindings stop at LLVM 19, and `devbox.json`
   provides LLVM 21. Step 2 moves devbox to the newest release the bindings
   cover, and CI installs the same one.
+- **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
+  §5.2). Until it says, the check L5 emits traps.
