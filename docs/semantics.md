@@ -205,7 +205,7 @@ reference-type value stored where a host goes — a hosting local or field, a
 A symbol is spent or refilled only in its own block, and a nested block can do
 neither, so one walk in source order sees every use against the right state.
 
-**Owners** (`lib/tst/owners.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.1, §1.4, §1.7, §1.10). A
+**Owners** (`lib/tst/owners.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.1, §1.4, §1.7, §1.10, §1.11). A
 local is owned by its declaring block, a field or element by its root's
 owner, and a parameter or `init{ }` by the call site, which outlives the body.
 A value names the owners of the hosts it reaches through a guest, its own and
@@ -213,6 +213,12 @@ those it carries. A `let`, an assignment, a field of `init{ }` and a return
 are legal only when every owner the value names outlives the destination's.
 A move needs no check of its own (§1.4): a symbol moves only in its declaring
 block, so the host it moves into is declared there or above.
+
+A store from one parameter into a place reached from another is where the first
+comes to rest (§1.11). It goes in the verb's summary, as a pair of parameter
+indices, and each call makes that store with its own arguments and compares
+there. A call in a body can store one parameter into another in turn, so the
+summaries are computed to a fixed point over every body before any reports.
 
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
@@ -562,8 +568,15 @@ only reject more, never let a write through.
 - A call's result names what each argument names as its parameter takes it,
   a guest parameter adding the owner of the place it is minted from: a verb
   may return a guest rooted in any parameter (`lifetimes.md` §1.7).
-- A store that reaches one parameter from another, a guest parameter into
-  `this`, is settled by the caller (§1.11) and not checked in the body.
+- A resting place (§1.11) is kept as the pair of parameters, not the path
+  between them. Every step of a path takes its root's owner, so the call
+  compares the owner of the argument's place, or, for an argument that is a
+  guest, the owners it names.
+- A value read through a guest parameter, `other.port`, names that
+  parameter's host. A guest the host carries outlives the host (§1.1), so the
+  host is the shorter of the two.
+- `push` keeps its value in `this`; no other intrinsic keeps anything. A call
+  through a function value keeps nothing, since its type carries no summary.
 
 **What moves, where the spec leaves it to the table.**
 - A subscript's body is a place (`functions.md` §2.9), so it moves nothing
@@ -580,8 +593,8 @@ only reject more, never let a write through.
   mints one for it: `list[i]:inspect()` is a read.
 - The swallowed-parameter rule looks at a store into a field, an element or a
   case payload written in the body, directly or through a guest local that
-  ever held the parameter. One reached through a call waits for the resting
-  places of `lifetimes.md` §1.11.
+  ever held the parameter. One reached through a call's resting places
+  (`lifetimes.md` §1.11) is not checked yet.
 
 **`main`** is not required, since a library built on its own is also a root.
 When the root declares one, it takes no parameters (`packages.md` §6.2).
@@ -590,5 +603,6 @@ When the root declares one, it takes no parameters (`packages.md` §6.2).
 
 ## 10. Not done yet
 
-- The analyses of D1's right-hand column: resting places (`lifetimes.md`
-  §1.11), and `spawn` safety beyond the block-parameter rule.
+- `spawn` safety beyond the block-parameter rule (D1's right-hand column).
+- Resting places for a function value, whose type would have to carry them,
+  and the swallowed-parameter rule applied through a call's resting places.

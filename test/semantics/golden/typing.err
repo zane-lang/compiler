@@ -394,6 +394,30 @@ File "fixtures/typing/reject/bad/owners.zn", line 75, characters 13-24:
 75 |         r = match (t) {
   |             ^^^^^^^^^^^
 Error: this stores a guest to `near`, whose block ends before `r`'s does
+File "fixtures/typing/reject/bad/rests.zn", line 37, characters 15-20:
+37 |     this!wire(local);
+  |               ^^^^^
+Error: this stores a guest to `local` in the caller's `this`, which outlives the body `local` is owned by (`wire` keeps `port` in `this`)
+File "fixtures/typing/reject/bad/rests.zn", line 47, characters 25-29:
+47 |         frame.plug!wire(near);
+  |                         ^^^^
+Error: this stores a guest to `near`, whose block ends before `frame`'s does (`wire` keeps `port` in `this`)
+File "fixtures/typing/reject/bad/rests.zn", line 48, characters 26-30:
+48 |         frame.plug!relay(near);
+  |                          ^^^^
+Error: this stores a guest to `near`, whose block ends before `frame`'s does (`relay` keeps `port` in `this`)
+File "fixtures/typing/reject/bad/rests.zn", line 51, characters 22-27:
+51 |         frame.plug = spare;
+  |                      ^^^^^
+Error: this stores a guest to `near`, whose block ends before `frame`'s does
+File "fixtures/typing/reject/bad/rests.zn", line 65, characters 20-28:
+65 |         plugs!push(arriving);
+  |                    ^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `plugs`'s does (`push` keeps `value` in `this`)
+File "fixtures/typing/reject/bad/rests.zn", line 67, characters 18-24:
+67 |         bay!dock(docked);
+  |                  ^^^^^^
+Error: this stores a guest to `near`, whose block ends before `bay`'s does (`dock` keeps `plug` in `this`)
 File "fixtures/typing/reject/bad/sources.zn", line 20, characters 15-28:
 20 |     b &Bell = bells[Int(0)];
   |               ^^^^^^^^^^^^^

@@ -1,5 +1,5 @@
 (* Owners: a store may not raise a value above what it names (lifetimes.md
-   §1.1, §1.4, §1.7, §1.10). An analysis over the finished TST
+   §1.1, §1.4, §1.7, §1.10, §1.11). An analysis over the finished TST
    (docs/semantics.md D1).
 
    Every place has an owner. A local is owned by the block that declares it,
@@ -18,15 +18,48 @@
    a body is walked until they stop growing and then once more to report. A
    call's result names what its arguments name, and the owner of every place a
    guest parameter mints one from, since a verb may return a guest rooted in
-   any parameter (§1.7). A store the body cannot settle -- one that reaches a
-   parameter from another -- is published with the signature (§1.11) and is
-   not checked here. §1.4 needs no check of its own: a symbol moves only in its
-   declaring block, so the host it moves into is declared there or above. *)
+   any parameter (§1.7). §1.4 needs no check of its own: a symbol moves only in
+   its declaring block, so the host it moves into is declared there or above.
+
+   A store the body cannot settle -- one from a parameter into a place reached
+   from another -- is where the first comes to rest (§1.11), and is published
+   in the verb's [summary]. Each call substitutes its arguments: what the one
+   names is stored into the place the other is, and compared there. A call in
+   a body can itself store a parameter into another, so summaries are
+   transitive, and are computed to a fixed point before any body reports. *)
 
 module T = Nodes
 module S = Signature
 
-type owner = Caller | Global | Block of int
+(* [Param i] is the verb's parameter [i], the subject first: the caller's,
+   like [Caller], but told apart from the others. *)
+type owner = Caller | Global | Block of int | Param of int
+
+(* Each parameter that comes to rest in a place reached from another, as the
+   pair of their indices. *)
+module Rests = Set.Make (struct
+  type t = int * int
+
+  let compare = compare
+end)
+
+let summaries : (int, Rests.t) Hashtbl.t = Hashtbl.create 64
+let changed = ref false
+
+let merge id r =
+  let old = Option.value ~default:Rests.empty (Hashtbl.find_opt summaries id) in
+  let now = Rests.union old r in
+  if not (Rests.equal old now) then begin
+    Hashtbl.replace summaries id now;
+    changed := true
+  end
+
+(* An intrinsic has no body to summarise: `push` keeps its value in `this`. *)
+let summary_of (r : T.Verb_ref.t) =
+  match r.T.Verb_ref.owner with
+  | S.Declared id -> Option.value ~default:Rests.empty (Hashtbl.find_opt summaries id)
+  | S.Intrinsic "@primitives$push" -> Rests.singleton (1, 0)
+  | S.Intrinsic _ -> Rests.empty
 
 (* An owner, and the symbol it was found through, for the message. *)
 module Names = Set.Make (struct
@@ -43,7 +76,10 @@ type walk = {
   (* The block each local is declared in, and each block's parent. *)
   declared : (int, int) Hashtbl.t;
   parent : (int, int) Hashtbl.t;
-  params : (int, unit) Hashtbl.t;
+  (* Each parameter's index; a lambda's are -1, since no summary names them. *)
+  params : (int, int) Hashtbl.t;
+  (* Where the verb's parameters come to rest. *)
+  mutable rests : Rests.t;
   mutable block : int;
   mutable fresh : int;
   (* Where a `return` sends its value: the verb's caller, or the match it is
@@ -66,8 +102,8 @@ let rec within w b d =
 (* Whether owner [a] outlives owner [d]: lives at least as long. *)
 let outlives w a d =
   match (a, d) with
-  | (Caller | Global), _ -> true
-  | Block _, (Caller | Global) -> false
+  | (Caller | Global | Param _), _ -> true
+  | Block _, (Caller | Global | Param _) -> false
   | Block b, Block d -> within w b d
 
 let names_of w (l : T.Local.t) =
@@ -84,8 +120,11 @@ let add w (l : T.Local.t) n =
   end
 
 let owner_of_local w (l : T.Local.t) =
-  if Hashtbl.mem w.params l.T.Local.id then Caller
-  else match Hashtbl.find_opt w.declared l.T.Local.id with Some b -> Block b | None -> Caller
+  match Hashtbl.find_opt w.params l.T.Local.id with
+  | Some i when i >= 0 -> Param i
+  | Some _ -> Caller
+  | None -> (
+      match Hashtbl.find_opt w.declared l.T.Local.id with Some b -> Block b | None -> Caller)
 
 let result w (e : T.Expr.t) =
   Option.value ~default:Names.empty (Hashtbl.find_opt w.results e.T.Expr.span)
@@ -185,23 +224,28 @@ and fields_names w ty fields =
 (* Stores                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
-(* §1.1: every owner a stored value names outlives the destination's. *)
-let check w (at : T.Expr.t) dest (what : string) n =
-  if w.report then
-    Names.iter
-      (fun (o, name) ->
-        if not (outlives w o dest) then
-          Env.error at.T.Expr.span
-            (match dest with
-            | Block _ ->
-                Printf.sprintf
-                  "this stores a guest to %s, whose block ends before %s's does" (quote name)
-                  what
-            | Caller | Global ->
-                Printf.sprintf
-                  "this stores a guest to %s in %s, which outlives the body %s is owned by"
-                  (quote name) what (quote name)))
-      n
+(* §1.1: every owner a stored value names outlives the destination's. One
+   parameter stored into another's place comes to rest there (§1.11), which
+   only a call can settle. [via] says which call stored it. *)
+let check ?(via = "") w (at : T.Expr.t) dest (what : string) n =
+  Names.iter
+    (fun (o, name) ->
+      match (o, dest) with
+      | Param i, Param j -> if i <> j then w.rests <- Rests.add (i, j) w.rests
+      | _ ->
+          if w.report && not (outlives w o dest) then
+            Env.error at.T.Expr.span
+              ((match dest with
+               | Block _ ->
+                   Printf.sprintf
+                     "this stores a guest to %s, whose block ends before %s's does" (quote name)
+                     what
+               | Caller | Global | Param _ ->
+                   Printf.sprintf
+                     "this stores a guest to %s in %s, which outlives the body %s is owned by"
+                     (quote name) what (quote name))
+              ^ via))
+    n
 
 (* The owner of an assignment's destination, the local it is reached from
    unless that is a parameter, and how a message names it. *)
@@ -209,10 +253,11 @@ let rec destination w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) ->
       let o = owner_of_local w l in
+      let param = Hashtbl.mem w.params l.T.Local.id in
       Some
         ( o,
-          (if Hashtbl.mem w.params l.T.Local.id then None else Some l),
-          if o = Caller then "the caller's " ^ quote l.T.Local.name else quote l.T.Local.name )
+          (if param then None else Some l),
+          if param then "the caller's " ^ quote l.T.Local.name else quote l.T.Local.name )
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
     ->
       destination w target
@@ -235,9 +280,11 @@ let rec expr w (e : T.Expr.t) =
           expr w v)
         entries
   | T.Expr.Case { payload = inner; _ } | T.Expr.Field { target = inner; _ }
-  | T.Expr.Map_read { target = inner; _ } | T.Expr.Ref inner | T.Expr.Spawn inner
-  | T.Expr.Coerce { value = inner; _ } ->
+  | T.Expr.Map_read { target = inner; _ } | T.Expr.Ref inner | T.Expr.Spawn inner ->
       expr w inner
+  | T.Expr.Coerce { ctor; value } ->
+      expr w value;
+      rest w ctor [ T.Arg.Value value ]
   | T.Expr.Case_read { target; handler; _ } ->
       expr w target;
       handler_block w e handler
@@ -282,8 +329,10 @@ let rec expr w (e : T.Expr.t) =
         m.T.Match.arms;
       record w e !acc;
       opt_handler w e m.T.Match.handler
-  | T.Expr.Call { args; handler; _ } | T.Expr.Construct { args; handler; _ } ->
+  | T.Expr.Call { callee; args; handler; _ } | T.Expr.Construct { ctor = callee; args; handler; _ }
+    ->
       List.iter (arg w e) args;
+      rest w callee args;
       opt_handler w e handler
   | T.Expr.Call_value { callee; args; handler } ->
       expr w callee;
@@ -292,17 +341,22 @@ let rec expr w (e : T.Expr.t) =
   | T.Expr.Subscript { target; args; _ } ->
       expr w target;
       List.iter (expr w) args
-  | T.Expr.Op { left; right; handler; _ } ->
+  | T.Expr.Op { left; right; impl; swapped; handler; _ } ->
       expr w left;
       expr w right;
+      let args = if swapped then [ right; left ] else [ left; right ] in
+      rest w impl (List.map (fun a -> T.Arg.Value a) args);
       opt_handler w e handler
-  | T.Expr.Flip { value; handler; _ } ->
+  | T.Expr.Flip { impl; value; handler; _ } ->
       expr w value;
+      rest w impl [ T.Arg.Value value ];
       opt_handler w e handler
   | T.Expr.Lambda l ->
       (* A lambda captures nothing (concurrency.md §5.2): its parameters are
          its caller's, and so is its return. *)
-      List.iter (fun (p : T.Local.t) -> Hashtbl.replace w.params p.T.Local.id ()) l.T.Lambda.params;
+      List.iter
+        (fun (p : T.Local.t) -> Hashtbl.replace w.params p.T.Local.id (-1))
+        l.T.Lambda.params;
       let ret = match e.T.Expr.ty with Ty.Verb v -> v.Ty.ret | _ -> Ty.Error in
       let saved = (w.ret, w.resolve) in
       w.ret <- Verb ret;
@@ -310,6 +364,62 @@ let rec expr w (e : T.Expr.t) =
       block w l.T.Lambda.body;
       w.ret <- fst saved;
       w.resolve <- snd saved
+
+(* §1.11: each parameter the callee keeps is stored into the place the
+   argument for the other names, and the local that place is in now names it
+   too. A subject is taken as a guest, never minted one for. *)
+and rest w callee args =
+  let rs = summary_of callee in
+  if not (Rests.is_empty rs) then begin
+    let sg = Guests.signature_of callee in
+    let method_ = match sg with Some sg -> S.is_method sg | None -> false in
+    let tys = Array.of_list (Guests.param_types ~subject:true callee) in
+    let args = Array.of_list args in
+    let name i =
+      match sg with
+      | Some sg -> (
+          match List.nth_opt sg.S.params i with Some p -> quote p.S.name | None -> "")
+      | None -> ""
+    in
+    Rests.iter
+      (fun (i, j) ->
+        if i < Array.length args && j < Array.length args && i < Array.length tys then
+          match (args.(i), args.(j)) with
+          | T.Arg.Value v, T.Arg.Value d ->
+              let n =
+                if method_ && i = 0 then if is_guest v.T.Expr.ty then names w v else host w v
+                else stored w tys.(i) v
+              in
+              let via =
+                match sg with
+                | Some sg ->
+                    Printf.sprintf " (%s keeps %s in %s)" (quote sg.S.name) (name i) (name j)
+                | None -> ""
+              in
+              Names.iter
+                (fun (o, root) ->
+                  let what =
+                    match o with
+                    | Caller | Param _ -> "the caller's " ^ quote root
+                    | Global | Block _ -> quote root
+                  in
+                  check ~via w v o what n)
+                (host w d);
+              Option.iter (fun l -> add w l n) (root_local w d)
+          | _ -> ())
+      rs
+  end
+
+(* The local an argument is a place in, unless it is a parameter or the place
+   is reached through a guest: that local holds what is stored there. *)
+and root_local w (e : T.Expr.t) =
+  match e.T.Expr.node with
+  | T.Expr.Var (T.Name_ref.Local l) when not (Hashtbl.mem w.params l.T.Local.id) -> Some l
+  | T.Expr.Ref inner -> root_local w inner
+  | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
+    when not (is_guest target.T.Expr.ty) ->
+      root_local w target
+  | _ -> None
 
 and record w (e : T.Expr.t) n =
   let old = result w e in
@@ -388,6 +498,7 @@ let fresh () =
     declared = Hashtbl.create 32;
     parent = Hashtbl.create 16;
     params = Hashtbl.create 8;
+    rests = Rests.empty;
     results = Hashtbl.create 8;
     block = 0;
     fresh = 0;
@@ -397,14 +508,14 @@ let fresh () =
     grew = false;
   }
 
-(* Walk until no local names anything new, then once more to report. Block
+(* Walk until no local names anything new, then once more if [report]. Block
    numbers restart each walk, so every walk numbers them alike. *)
-let walk ret (params : T.Local.t list) body =
+let walk ~report decl ret (params : T.Local.t list) body =
   let w = fresh () in
-  List.iter
-    (fun (p : T.Local.t) ->
-      Hashtbl.replace w.params p.T.Local.id ();
-      Hashtbl.replace w.names p.T.Local.id (Names.singleton (Caller, p.T.Local.name)))
+  List.iteri
+    (fun i (p : T.Local.t) ->
+      Hashtbl.replace w.params p.T.Local.id i;
+      Hashtbl.replace w.names p.T.Local.id (Names.singleton (Param i, p.T.Local.name)))
     params;
   let once () =
     w.fresh <- 0;
@@ -419,23 +530,44 @@ let walk ret (params : T.Local.t list) body =
     if w.grew then settle ()
   in
   settle ();
-  w.report <- true;
-  once ()
+  if report then begin
+    w.report <- true;
+    once ()
+  end;
+  merge decl w.rests
 
-let run (p : T.Program.t) =
-  List.iter
+let bodies (p : T.Program.t) =
+  List.concat_map
     (fun (pkg : T.Package.t) ->
-      List.iter
+      List.filter_map
         (fun (d : T.Decl.t) ->
           match d.T.Decl.node with
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
-              walk signature.S.ret params (fun w -> block w body)
-          | _ -> ())
+              Some (d.T.Decl.id, signature.S.ret, params, fun w -> block w body)
+          | _ -> None)
         pkg.T.Package.decls)
-    p.T.Program.packages;
-  List.iter
-    (fun (i : T.Instance.t) ->
-      if i.T.Instance.signature.S.kind <> S.Subscript then
-        walk i.T.Instance.signature.S.ret i.T.Instance.params (fun w ->
-            block w i.T.Instance.body))
-    p.T.Program.instances
+    p.T.Program.packages
+  @ List.filter_map
+      (fun (i : T.Instance.t) ->
+        if i.T.Instance.signature.S.kind = S.Subscript then None
+        else
+          Some
+            ( i.T.Instance.decl,
+              i.T.Instance.signature.S.ret,
+              i.T.Instance.params,
+              fun w -> block w i.T.Instance.body ))
+      p.T.Program.instances
+
+(* Summaries first, to a fixed point, since verbs may call each other in a
+   cycle; then each body once more to report. *)
+let run (p : T.Program.t) =
+  Hashtbl.reset summaries;
+  let bodies = bodies p in
+  let each report = List.iter (fun (d, ret, ps, b) -> walk ~report d ret ps b) bodies in
+  let rec settle () =
+    changed := false;
+    each false;
+    if !changed then settle ()
+  in
+  settle ();
+  each true
