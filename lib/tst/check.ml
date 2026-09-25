@@ -184,8 +184,26 @@ let verb_ref (s : S.t) subst =
    checked when something that runs calls it. *)
 let defining = ref false
 
+(* A concept type is never storage (syntax.md §2.8), and a generic call can
+   make it one no written type shows: `Jar(body)` builds a `Jar` whose field
+   holds the block, which never escapes the call it is written at
+   (control-flow.md §2.2). A call whose result is itself a concept, as
+   `echo(body)` is, stores nothing; where that value goes is checked there. *)
+let check_result (s : S.t) subst at =
+  let ret = Ty.subst subst s.ret in
+  match (ret, Types.concept_in ret) with
+  | Ty.Concept _, _ | _, None -> true
+  | _, Some c ->
+      error at
+        (Printf.sprintf "this call builds %s, which holds %s; a concept type is never storage"
+           (quote (Ty.to_string ret)) (quote (Ty.to_string c)));
+      false
+
+(* A call that builds storage out of a concept was reported, and its instance
+   would only report it again. *)
 let request (s : S.t) subst at =
   match s.owner with
+  | _ when not (check_result s subst at) -> ()
   | _ when !defining -> ()
   | S.Declared id when s.generics <> [] ->
       let args = binding_args s subst in

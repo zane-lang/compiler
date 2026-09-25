@@ -1,3 +1,11 @@
+File "fixtures/typing/reject/bad/blocks.zn", line 15, characters 5-14:
+15 |     Jar(body);
+  |     ^^^^^^^^^
+Error: this call builds `bad$Jar<@concepts$Block>`, which holds `@concepts$Block`; a concept type is never storage
+File "fixtures/typing/reject/bad/blocks.zn", line 16, characters 5-15:
+16 |     wrap(body);
+  |     ^^^^^^^^^^
+Error: this call builds `bad$Jar<@concepts$Block>`, which holds `@concepts$Block`; a concept type is never storage
 File "fixtures/typing/reject/bad/bodies.zn", line 10, characters 23-37:
 10 | Account(owner Int) => init{ owner; }
   |                       ^^^^^^^^^^^^^^

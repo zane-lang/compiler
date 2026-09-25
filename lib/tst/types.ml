@@ -74,21 +74,30 @@ let type_info_of_id tid = Hashtbl.find_opt type_infos_by_id tid
 
 (* A concept type is never storage (syntax.md §2.8): not a field, not a
    local, not an element of a stored type. *)
-let rec mentions_concept (t : Ty.t) =
+let rec concept_in (t : Ty.t) =
   match t with
-  | Ty.Concept _ -> true
+  | Ty.Concept _ -> Some t
   | Ty.Named (_, args) | Ty.Intrinsic { args; _ } ->
-      List.exists (function Ty.Type t -> mentions_concept t | Ty.Number _ -> false) args
-  | Ty.Guest t -> mentions_concept t
-  | _ -> false
+      List.find_map (function Ty.Type t -> concept_in t | Ty.Number _ -> None) args
+  | Ty.Guest t -> concept_in t
+  | _ -> None
+
+let mentions_concept t = Option.is_some (concept_in t)
+
+(* How a message names the concept a type holds: the type itself, or the
+   type argument that is one. *)
+let describe_concept (t : Ty.t) =
+  match concept_in t with
+  | Some c when c == t || Ty.equal c t -> Printf.sprintf "%s is a concept type" (quote (Ty.to_string t))
+  | Some c ->
+      Printf.sprintf "%s holds %s, a concept type" (quote (Ty.to_string t)) (quote (Ty.to_string c))
+  | None -> quote (Ty.to_string t)
 
 let check_storage span what (t : Ty.t) =
   if mentions_concept t then
     error span
-      (Printf.sprintf
-         "%s is a concept type, which may type a parameter but is never storage, \
-          so it cannot be %s"
-         (quote (Ty.to_string t)) what)
+      (Printf.sprintf "%s, which may type a parameter but is never storage, so it cannot be %s"
+         (describe_concept t) what)
 
 let check_guest span (inner : Ty.t) =
   if !ready then begin
