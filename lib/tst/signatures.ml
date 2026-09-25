@@ -362,21 +362,25 @@ let promote () =
     changed := false;
     List.iter
       (fun ((d : decl), v) ->
-        let ordinary () =
+        let ordinary =
           List.filter_map Fun.id (positions v) |> List.filter (fun n -> not (List.mem n (numbers_of d v)))
         in
-        if ordinary () <> [] then
+        if ordinary <> [] then
           List.iter
             (fun (targets, args) ->
               List.iteri
                 (fun i a ->
                   match bare_name a with
                   | Some n
-                    when List.mem n (ordinary ())
+                    when List.mem n ordinary
                          && List.exists (fun t -> takes_number_at t (List.length args) i) targets ->
+                      (* [ordinary] is this round's; an earlier call in the
+                         same body may already have promoted [n]. *)
                       let before = Option.value ~default:[] (Hashtbl.find_opt promoted d.id) in
-                      Hashtbl.replace promoted d.id (before @ [ n ]);
-                      changed := true
+                      if not (List.mem n before) then begin
+                        Hashtbl.replace promoted d.id (before @ [ n ]);
+                        changed := true
+                      end
                   | _ -> ())
                 args)
             (Hashtbl.find calls d.id))
