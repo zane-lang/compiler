@@ -310,9 +310,10 @@ and opt_handler w e = Option.iter (handler_block w e)
 
 and handler_block w (e : T.Expr.t) (h : T.Handler.t) =
   let acc = ref Names.empty in
-  w.resolve <- (e.T.Expr.ty, acc) :: w.resolve;
+  let saved = w.resolve in
+  w.resolve <- (e.T.Expr.ty, acc) :: saved;
   block ~bind:(Option.to_list h.T.Handler.binder) w h.T.Handler.body;
-  w.resolve <- (match w.resolve with _ :: r -> r | [] -> []);
+  w.resolve <- saved;
   record w e !acc
 
 and block ?(bind = []) w (b : T.Block.t) =
