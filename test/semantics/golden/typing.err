@@ -390,6 +390,10 @@ File "fixtures/typing/reject/bad/owners.zn", line 65, characters 12-23:
 65 |     return pass(value);
   |            ^^^^^^^^^^^
 Error: this stores a guest to `value` in the caller's result, which outlives the body `value` is owned by
+File "fixtures/typing/reject/bad/owners.zn", line 75, characters 13-24:
+75 |         r = match (t) {
+  |             ^^^^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `r`'s does
 File "fixtures/typing/reject/bad/sources.zn", line 20, characters 15-28:
 20 |     b &Bell = bells[Int(0)];
   |               ^^^^^^^^^^^^^

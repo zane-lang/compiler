@@ -261,19 +261,33 @@ let rec expr w (e : T.Expr.t) =
       let acc = ref Names.empty in
       List.iter
         (fun (a : T.Arm.t) ->
+          (* A binder is its scrutinee's payload, so it names what the
+             scrutinee does, and is declared in the arm. *)
+          let binders =
+            List.concat
+              (List.mapi
+                 (fun i (p : T.Pattern.t) ->
+                   match (List.nth_opt m.T.Match.scrutinees i, p.T.Pattern.binder) with
+                   | Some s, Some b ->
+                       add w b (names w s);
+                       [ b ]
+                   | _, Some b -> [ b ]
+                   | _, None -> [])
+                 a.T.Arm.patterns)
+          in
           let verb = w.ret in
           w.ret <- Value (e.T.Expr.ty, acc);
-          block w a.T.Arm.body;
+          block ~bind:binders w a.T.Arm.body;
           w.ret <- verb)
         m.T.Match.arms;
       record w e !acc;
       opt_handler w e m.T.Match.handler
   | T.Expr.Call { args; handler; _ } | T.Expr.Construct { args; handler; _ } ->
-      List.iter (arg w) args;
+      List.iter (arg w e) args;
       opt_handler w e handler
   | T.Expr.Call_value { callee; args; handler } ->
       expr w callee;
-      List.iter (arg w) args;
+      List.iter (arg w e) args;
       opt_handler w e handler
   | T.Expr.Subscript { target; args; _ } ->
       expr w target;
@@ -305,7 +319,17 @@ and record w (e : T.Expr.t) n =
     w.grew <- true
   end
 
-and arg w = function T.Arg.Value e -> expr w e | T.Arg.Block b -> block w b
+(* A block argument's `resolve` yields to the verb it is passed to
+   (control-flow.md §2), which may hand that value back as its result. *)
+and arg w (call : T.Expr.t) = function
+  | T.Arg.Value e -> expr w e
+  | T.Arg.Block b ->
+      let acc = ref Names.empty in
+      let saved = w.resolve in
+      w.resolve <- [ (call.T.Expr.ty, acc) ];
+      block w b;
+      w.resolve <- saved;
+      record w call !acc
 and opt_handler w e = Option.iter (handler_block w e)
 
 and handler_block w (e : T.Expr.t) (h : T.Handler.t) =

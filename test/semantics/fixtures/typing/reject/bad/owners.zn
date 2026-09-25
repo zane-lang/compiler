@@ -64,3 +64,18 @@ Unit hold(this Pin, other &Leaf) mut {
 	value Leaf(Int(8));
 	return pass(value);
 }
+
+/// A match binder is its scrutinee's payload, and names what it names.
+Unit bind() {
+	far Branch(Leaf(Int(9)));
+	r &Leaf = far.leaf;
+	inside({
+		near Branch(Leaf(Int(10)));
+		t Tag = Tag.pinned(near.leaf);
+		r = match (t) {
+			x pinned => x;
+			plain => r;
+		}
+	});
+	return Unit();
+}
