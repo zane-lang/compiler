@@ -25,8 +25,8 @@ binary
 4. **lowering** — lowers the TST to the code-generation tree (CGT).
 5. **optimization** — rewrites the CGT into a faster CGT. Each pass maps a CGT
    to a CGT, and an unoptimized build runs no passes.
-6. **codegen** — lowers the CGT to the target representation and produces the
-   binary.
+6. **codegen** — lowers the CGT to LLVM IR and produces the binary. How
+   lowering and codegen are designed is in [`lowering.md`](lowering.md).
 
 The CST captures only what the source says: every shorthand the grammar admits
 is a node of its own, and a form written two ways is two shapes in the tree.
