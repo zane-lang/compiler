@@ -205,6 +205,15 @@ reference-type value stored where a host goes — a hosting local or field, a
 A symbol is spent or refilled only in its own block, and a nested block can do
 neither, so one walk in source order sees every use against the right state.
 
+**Owners** (`lib/tst/owners.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.1, §1.4, §1.7, §1.10). A
+local is owned by its declaring block, a field or element by its root's
+owner, and a parameter or `init{ }` by the call site, which outlives the body.
+A value names the owners of the hosts it reaches through a guest, its own and
+those it carries. A `let`, an assignment, a field of `init{ }` and a return
+are legal only when every owner the value names outlives the destination's.
+A move needs no check of its own (§1.4): a symbol moves only in its declaring
+block, so the host it moves into is declared there or above.
+
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
 mistake. Each pass collects diagnostics and keeps going. An expression that
@@ -547,6 +556,15 @@ only reject more, never let a write through.
   stored.
 - A generic verb's summary is the union over its instances.
 
+**What the owner analysis assumes.** Each choice can only reject more.
+- A local names everything ever stored in it, at any path: the body is walked
+  until that stops growing, then once more to report.
+- A call's result names what each argument names as its parameter takes it,
+  a guest parameter adding the owner of the place it is minted from: a verb
+  may return a guest rooted in any parameter (`lifetimes.md` §1.7).
+- A store that reaches one parameter from another, a guest parameter into
+  `this`, is settled by the caller (§1.11) and not checked in the body.
+
 **What moves, where the spec leaves it to the table.**
 - A subscript's body is a place (`functions.md` §2.9), so it moves nothing
   out; reading `list[i]` into a host is what the move rule then rejects.
@@ -572,6 +590,5 @@ When the root declares one, it takes no parameters (`packages.md` §6.2).
 
 ## 10. Not done yet
 
-- The analyses of D1's right-hand column: the owner comparison every store
-  makes (`lifetimes.md` §1.1, §1.4, §1.7, §1.10), resting places (§1.11), and
-  `spawn` safety beyond the block-parameter rule.
+- The analyses of D1's right-hand column: resting places (`lifetimes.md`
+  §1.11), and `spawn` safety beyond the block-parameter rule.

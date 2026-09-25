@@ -21,6 +21,7 @@ let check (packages : Assembly.package list) =
   Read_only.run program;
   Guests.run program;
   Moves.run program;
+  Owners.run program;
   let diagnostics =
     List.sort_uniq
       (fun a b ->
