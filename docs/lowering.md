@@ -24,11 +24,19 @@ analysis of its own: whatever LLVM needs that the language does not say
 (sizes, alignments, which slot a value lives in, when it dies) is decided by
 lowering and is already in the tree.
 
-**L2. Codegen writes LLVM IR as text.** A `.ll` file is a stable, documented
-format that every LLVM since 3.x reads, and writing it needs no bindings, so
-the compiler keeps its dependency list as it is. `clang` compiles the `.ll`
-together with the runtime (§6) into the binary. The tests can read the `.ll`
-as a golden file, which is how the TST is tested today.
+**L2. Codegen builds the module through LLVM's OCaml bindings.** The opam
+`llvm` package wraps LLVM's C API, so codegen makes types, functions and
+instructions as values in the compiler's own process, and LLVM checks each
+one as it is made: a wrong operand type fails at the line that built it, not
+in a tool that reads a file later. The same bindings verify the module, run
+LLVM's own passes, and write the object file through the target machine, so
+no text is written and read back. Linking that object with the runtime (§6)
+is the one step left to a system linker, which `clang` drives.
+
+The bindings are tied to one LLVM release, so the opam `llvm` version and the
+LLVM that `devbox.json` provides move together. The tests read the module as
+LLVM prints it (`Llvm.string_of_llmodule`) as a golden file, which is how the
+TST is tested today.
 
 **L3. The CGT is a tree, not a control-flow graph.** It keeps structured
 control flow — a block, a branch, a counted loop — and names every exit
@@ -195,11 +203,11 @@ pool, the thread pool, and the few primitives a program cannot state in the
 language: printing, `List` growth, `String` storage. Its interface is a small
 set of C functions that CGT storage operations (L9) and intrinsic calls lower
 to, so a change to how an arena works changes the runtime and nothing in the
-compiler. It lives in `runtime/`, is built by `clang` like the program, and is
-tested in C on its own.
+compiler. It lives in `runtime/`, is built by `clang`, which already links
+every program, and is tested in C on its own.
 
-C because `clang` already builds the program, so the runtime adds no
-toolchain, and because an arena and an anchor pool are exactly the kind of
+C because it adds no toolchain beside the LLVM the compiler already uses, and
+because an arena and an anchor pool are exactly the kind of
 code C states without ceremony.
 
 ---
@@ -208,7 +216,8 @@ code C states without ceremony.
 
 Lowering lives in `lib/cgt/`, beside `lib/tst/`: `nodes.ml` for the tree,
 `lower.ml` for the TST → CGT walk, `to_tree_graph.ml` to render it. Codegen
-lives in `lib/llvm/`, with `emit.ml` writing the `.ll`. The binary gains
+lives in `lib/llvm/`, with `emit.ml` building the module through the
+bindings. The binary gains
 `--cgt` (print the tree) and `--ll` (print the IR), and a build flag that
 writes the binary.
 
@@ -249,3 +258,6 @@ test passing.
   a caller that must produce a value ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §4.2).
   Semantics does not check it yet; step 4 adds the check there, since lowering
   reports nothing.
+- **Which LLVM.** opam's `llvm` bindings stop at LLVM 19, and `devbox.json`
+  provides LLVM 21. Step 2 moves devbox to the newest release the bindings
+  cover, and CI installs the same one.
