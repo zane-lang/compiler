@@ -142,6 +142,14 @@ File "fixtures/typing/reject/bad/guests.zn", line 73, characters 9-13:
 73 |         desk!hold(pen);
   |         ^^^^
 Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/guests.zn", line 106, characters 5-6:
+106 |     a!fill();
+  |     ^
+Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/guests.zn", line 107, characters 5-6:
+107 |     b!fill();
+  |     ^
+Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
 File "fixtures/typing/reject/bad/imports.zn", line 4, characters 8-15:
 4 | import missing;
   |        ^^^^^^^
@@ -374,16 +382,20 @@ File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 21-26:
 5 | Int unimported() => guard(true)
   |                     ^^^^^
 Error: no function named `guard` is in scope; the package `core` declares one, and like every package it needs an import
-File "fixtures/typing/reject/bad/writes.zn", line 16, characters 5-12:
-16 |     counter!tick();
+File "fixtures/typing/reject/bad/writes.zn", line 17, characters 5-12:
+17 |     counter!tick();
   |     ^^^^^^^
 Error: a `!` call writes its subject, and `counter` is a parameter, which is read-only
-File "fixtures/typing/reject/bad/writes.zn", line 17, characters 5-17:
-17 |     tray.counter!tick();
+File "fixtures/typing/reject/bad/writes.zn", line 18, characters 5-17:
+18 |     tray.counter!tick();
   |     ^^^^^^^^^^^^
 Error: a `!` call writes its subject, and `tray` is a parameter, which is read-only
-File "fixtures/typing/reject/bad/writes.zn", line 24, characters 5-9:
-24 |     this!tick();
+File "fixtures/typing/reject/bad/writes.zn", line 19, characters 6-35:
+19 |     (crate.held ?? Counter(Int(0)))!tick();
+  |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a `!` call writes its subject, and `crate` is a parameter, which is read-only
+File "fixtures/typing/reject/bad/writes.zn", line 26, characters 5-9:
+26 |     this!tick();
   |     ^^^^
 Error: a `!` call writes its subject, and `this` is read-only in a method that is not `mut`
 File "fixtures/typing/reject/lib/lib.zn", line 17, characters 21-37:

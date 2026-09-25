@@ -207,8 +207,8 @@ let rec place (e : T.Expr.t) =
 
 and step target s = Option.map (fun (l, p) -> (l, p @ [ s ])) (place target)
 
-let taint_of w (l : T.Local.t) =
-  Option.value ~default:Taint.empty (Hashtbl.find_opt w.taints l.T.Local.id)
+let taint_by_id w id = Option.value ~default:Taint.empty (Hashtbl.find_opt w.taints id)
+let taint_of w (l : T.Local.t) = taint_by_id w l.T.Local.id
 
 (* §4.1 already reported a write whose place is reached straight from a
    read-only parameter; this rule adds the guests derived from one. *)
@@ -366,13 +366,26 @@ and arg w = function
   | T.Arg.Block b ->
       (* A block argument may run any number of times, each run seeing what
          the last one stored, so it is walked until that stops growing. *)
-      let size () = Hashtbl.fold (fun _ s n -> n + Taint.cardinal s) w.taints 0 in
-      let rec settle last =
+      (* After the block a local holds what any run stored, so each run is
+         joined into the one before, and the walk stops once a run adds
+         nothing. A `let` or an assignment replaces what a run sees, which is
+         why the join, and not the size of the table, decides. *)
+      let rec settle () =
+        let before = Hashtbl.copy w.taints in
         block w b;
-        let n = size () in
-        if n <> last then settle n
+        Hashtbl.iter
+          (fun id old -> Hashtbl.replace w.taints id (Taint.union old (taint_by_id w id)))
+          before;
+        let grew =
+          Hashtbl.fold
+            (fun id now grew ->
+              grew
+              || not (Taint.subset now (Option.value ~default:Taint.empty (Hashtbl.find_opt before id))))
+            w.taints false
+        in
+        if grew then settle ()
       in
-      settle (size ());
+      settle ();
       Taint.empty
 
 and call w (e : T.Expr.t) (callee : T.Verb_ref.t) taints args =
@@ -576,6 +589,9 @@ let bodies (p : T.Program.t) =
 let run (p : T.Program.t) =
   Hashtbl.reset summaries;
   let bodies = bodies p in
+  (* Every body starts from nothing, so a callee not yet walked is not
+     mistaken for one that has no body to walk. *)
+  List.iter (fun (b : body) -> Hashtbl.replace summaries b.decl empty) bodies;
   let rec settle () =
     changed := false;
     List.iter (walk_body ~report:false) bodies;

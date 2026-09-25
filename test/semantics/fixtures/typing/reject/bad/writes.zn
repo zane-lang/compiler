@@ -4,17 +4,19 @@ import core$;
 
 type Counter = struct { count Int; }
 type Tray = struct { counter Counter; }
+type Crate = variant { held Counter; none Int; }
 
 Counter(count Int) => init{ count; }
 
 Unit tick(this Counter) mut => Unit()
 
 /// A `!` call writes its subject, so a read-only binding may not be one:
-/// not a parameter, not a field reached through one, and not `this` in a
-/// method without `mut`. A verb's own local may be written.
-Unit report(counter Counter, tray Tray) {
+/// not a parameter, not a field or a case payload reached through one, and
+/// not `this` in a method without `mut`. A verb's own local may be written.
+Unit report(counter Counter, tray Tray, crate Crate) {
 	counter!tick();
 	tray.counter!tick();
+	(crate.held ?? Counter(Int(0)))!tick();
 	own Counter = Counter(Int(0));
 	own!tick();
 	return Unit();

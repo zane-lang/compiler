@@ -91,3 +91,33 @@ Unit stock(count Int) {
 	copy!bump();
 	return Unit();
 }
+
+/// Each run of a loop body sees what the last one stored, whatever a later
+/// statement of that run replaced: after two runs `b` holds `pen` too.
+Unit rotate(pen &Pen) {
+	own Pen(Int(5));
+	a &Pen = own;
+	b &Pen = pen;
+	repeat({
+		t &Pen = a;
+		a = b;
+		b = t;
+	});
+	a!fill();
+	b!fill();
+	return Unit();
+}
+
+/// A summary does not depend on the order verbs are declared in: `forward`
+/// is walked before `make`, and still learns that only `other` reaches the
+/// result.
+Desk forward(pen &Pen, other &Pen) => make(pen, other)
+
+Desk make(pen &Pen, other &Pen) => Desk(other)
+
+Unit order(pen &Pen) {
+	own Pen(Int(6));
+	desk Desk = forward(pen, own);
+	desk!use();
+	return Unit();
+}

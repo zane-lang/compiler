@@ -1786,13 +1786,16 @@ and declared_type ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
       | head -> Types.apply (type_scope ctx) te.N.Type_expr.span head name [])
   | _ -> Types.resolve (type_scope ctx) te
 
-(* The binding a place is reached through. A field or an element of a
-   read-only binding is read-only too (effects.md §4.1). *)
-and place_root (e : T.Expr.t) =
+(* The binding a place is reached through. A field, an element or a case
+   payload of a read-only binding is read-only too (effects.md §4.1). A case
+   read is a subject a `!` call may name, but not a place an assignment may
+   write, so only [~cases] follows it. *)
+and place_root ?(cases = false) (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> `Local l
   | T.Expr.Var (T.Name_ref.Global _) -> `Global
-  | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } -> place_root target
+  | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } -> place_root ~cases target
+  | T.Expr.Case_read { target; _ } when cases -> place_root ~cases target
   | T.Expr.Invalid -> `Invalid
   | _ -> `Not_place
 
@@ -1805,7 +1808,7 @@ and check_writable ctx (e : T.Expr.t) ~bang =
     error e.T.Expr.span
       (if bang then "a `!` call writes its subject, and " ^ because else plain)
   in
-  match place_root e with
+  match place_root ~cases:bang e with
   | `Invalid | `Not_place -> ()
   | `Global ->
       say "a package constant is immutable: package scope holds no mutable state"

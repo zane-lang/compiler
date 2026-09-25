@@ -518,8 +518,10 @@ only reject more, never let a write through.
   can hold a guest.
 - A path into a value is cut at four steps, since a recursive type would let
   one grow without end. A cut path names the place that contains the real one.
-- A block argument may run any number of times, so it is walked until what it
-  stores stops growing. Every run is checked against what the last one stored.
+- A block argument may run any number of times, so after it a local holds what
+  any run stored. It is walked again, each run joined into the last, until a
+  run adds nothing, and every run is checked against what the runs before it
+  stored.
 - A generic verb's summary is the union over its instances.
 
 **`main`** is not required, since a library built on its own is also a root.
