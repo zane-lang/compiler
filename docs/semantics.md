@@ -376,7 +376,16 @@ resolve `+` against until `T` is known. The signature is checked once. The body
 is checked once per distinct set of arguments, memoized by `(Decl_id, args)`,
 and the TST holds one body per instance. An error in a generic body is reported
 at the instantiation that exposed it, and names the call site that asked for
-it. This fits the home-package instantiation plan in
+it.
+
+A generic verb nothing instantiates is checked once more, where it is
+declared, so an unused one is not an unchecked one. Its type parameters stand
+for the type of an expression that failed to type, which every check accepts
+(D4): what depends on `T` waits for an instance, and what does not -- a name
+that resolves nowhere, `Int(1) + String("a")` -- is reported, since it is
+wrong in every instance. Its number parameters stay symbolic. That check asks
+for no instances, and nothing from it enters the tree. This fits the
+home-package instantiation plan in
 [`generics.md`](generics.md). When a body is checked is a property of this
 compiler, not of the language, so it stays out of the spec.
 
@@ -496,5 +505,3 @@ When the root declares one, it takes no parameters (`packages.md` §6.2).
   places, effect levels, `spawn` safety beyond the block-parameter rule, and
   block escape beyond a `return` of one. The passing mode (`T` or `&T`) is
   never compared when typing; that is the lifetime analysis's question.
-- A generic verb that is never called has no instance, so its body is not
-  checked (D12).

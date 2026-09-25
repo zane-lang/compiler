@@ -120,3 +120,7 @@ Unit main() {
 
 	return Unit();
 }
+
+/// Nothing calls this. Its body is checked where it is declared, and
+/// everything in it depends on `T`, so there is nothing to report.
+T twice(value T Type) => value + value

@@ -288,13 +288,16 @@ let is_bare_literal = function
 let rec unify ~open_ (s : subst) pattern actual : subst option =
   let is_open p = List.exists (fun q -> q.id = p.id) open_ in
   match (pattern, actual) with
-  | _, Error -> Some s
   | Error, _ -> Some s
+  (* An open parameter binds even to [Error], so a type that failed to
+     resolve -- or a generic body checked with its parameters unknown -- still
+     fixes it, and what depends on it is accepted rather than unbound. *)
   | Param p, _ when is_open p -> (
       match List.assoc_opt p.id s with
       | Some (Type bound) -> if equal bound actual then Some s else None
       | Some (Number _) -> None
       | None -> if is_bare_literal actual then None else Some ((p.id, Type actual) :: s))
+  | _, Error -> Some s
   | Named (x, xs), Named (y, ys) when x = y -> unify_args ~open_ s xs ys
   | Intrinsic x, Intrinsic y when x.namespace = y.namespace && x.name = y.name ->
       unify_args ~open_ s x.args y.args

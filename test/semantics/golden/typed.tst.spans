@@ -310,6 +310,7 @@ package app
                   expr Text_lit | "large"
       stat Return | return Unit();
         expr Construct Unit | Unit()
+  decl Verb twice | T twice(value T Type) => value + value
 package shapes
   decl Type Vec2 | type Vec2 = struct { x Float; y Float; }
   decl Verb Vec2 | Vec2(x Float, y Float) => init{ x; y; }
