@@ -2126,38 +2126,42 @@ let run () : T.Program.t =
      overload takes -- is reported. A number parameter stays the parameter it
      is. Nothing from this check enters the tree; there is no instance to
      hold it. *)
+  let instantiated_subscripts = Hashtbl.create 16 in
+  Hashtbl.iter
+    (fun _ ((t : S.t), _, _, _) ->
+      match t.S.owner with S.Declared id -> Hashtbl.replace instantiated_subscripts id () | _ -> ())
+    subscript_instances;
+  let instantiated (d : decl) (s : S.t) =
+    match s.S.kind with
+    | S.Subscript -> Hashtbl.mem instantiated_subscripts d.id
+    | _ -> Hashtbl.mem instance_counts d.id
+  in
   defining := true;
-  List.iter
-    (fun name ->
+  Fun.protect
+    ~finally:(fun () -> defining := false)
+    (fun () ->
       List.iter
-        (fun (d : decl) ->
-          let instantiated (s : S.t) =
-            match s.S.kind with
-            | S.Subscript ->
-                Hashtbl.fold
-                  (fun _ ((t : S.t), _, _, _) found -> found || t.S.owner = S.Declared d.id)
-                  subscript_instances false
-            | _ -> Hashtbl.mem instance_counts d.id
-          in
-          match Hashtbl.find_opt signatures d.id with
-          | Some s when s.S.generics <> [] && not (instantiated s) ->
-              let subst =
-                List.filter_map
-                  (fun (p : Ty.param) ->
-                    match p.Ty.kind with
-                    | Ty.Type_kind -> Some (p.Ty.id, Ty.Type Ty.Error)
-                    | Ty.Number_kind -> None)
-                  s.S.generics
-              in
-              note := Some (Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name));
-              (match s.S.kind with
-              | S.Subscript -> ignore (subscript_body d s subst)
-              | _ -> ignore (check_body d s subst));
-              note := None
-          | _ -> ())
-        (package name).decls)
-    !package_order;
-  defining := false;
+        (fun name ->
+          List.iter
+            (fun (d : decl) ->
+              match Hashtbl.find_opt signatures d.id with
+              | Some s when s.S.generics <> [] && not (instantiated d s) ->
+                  let subst =
+                    List.filter_map
+                      (fun (p : Ty.param) ->
+                        match p.Ty.kind with
+                        | Ty.Type_kind -> Some (p.Ty.id, Ty.Type Ty.Error)
+                        | Ty.Number_kind -> None)
+                      s.S.generics
+                  in
+                  note := Some (Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name));
+                  (match s.S.kind with
+                  | S.Subscript -> ignore (subscript_body d s subst)
+                  | _ -> ignore (check_body d s subst));
+                  note := None
+              | _ -> ())
+            (package name).decls)
+        !package_order);
   (* Generic subscripts were instantiated as their call sites were typed. *)
   let subscript_bodies =
     Hashtbl.fold
