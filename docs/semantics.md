@@ -449,7 +449,12 @@ number parameter. `Array<T, n>` writes `n` in the type it returns, so `n` is
 generic; `relayed(values Array<Int, 3>, n @concepts$Integer) =>
 measured(values, n)` hands `n` to `measured`'s number parameter, so it is
 generic too; nothing in `Int`'s constructor depends on `value`, so `value` is
-an ordinary parameter.
+an ordinary parameter. A generic and an ordinary `@concepts$Integer` parameter
+are compile-time integers either way (`syntax.md` §2.8). The distinction is
+what keeps D12 affordable: were every such parameter generic, each distinct
+literal a program writes would be a new instance of `Int`'s constructor, and a
+program with more distinct literals than the instance limit could not be
+built.
 
 Whether a callee's parameter is a number parameter can itself turn on the
 callee's body, so pass 4 settles this for the whole build before it builds a
@@ -458,15 +463,12 @@ whenever a call hands it, by name, to a number parameter of some candidate
 with the right arity, until nothing changes. Chains resolve, and a cycle of
 calls that never reaches a number parameter stays ordinary. The candidates are
 matched by name, ahead of overload resolution, so a call that resolves to an
-overload the promotion did not anticipate leaves a parameter generic that
-needed not be; that costs instances, never correctness. Both are compile-time integers either way
-(`syntax.md` §2.8). The distinction is what keeps D12 affordable: were every
-such parameter generic, each distinct literal a program writes would be a new
-instance of `Int`'s constructor, and a program with more distinct literals
-than the instance limit could not be built. An explicit number and one
-inferred from another argument must agree, so `measured(values Array<Int, n>,
-n @concepts$Integer)` called with a three-element array and `4` matches
-nothing.
+overload the promotion did not anticipate leaves a parameter generic that did
+not need to be; that costs instances, never correctness.
+
+An explicit number and one inferred from another argument must agree, so
+`measured(values Array<Int, n>, n @concepts$Integer)` called with a
+three-element array and `4` matches nothing.
 
 **Where constructors and enum maps are found.** A type's constructors are the
 ones declared in its home package and in the current package, the order
