@@ -49,14 +49,8 @@ Unit look(this Desk) {
 	return Unit();
 }
 
-/// Writing through such a guest is a write too, and so is writing through
-/// `this` once a call has stored one there.
-Unit scribble(pen &Pen) {
-	k &Pen = pen;
-	k.ink = Int(2);
-	return Unit();
-}
-
+/// Writing through `this` is a write once a call has stored such a guest
+/// there.
 Unit tidy(this Desk, pen &Pen) mut {
 	this!use();
 	this!hold(pen);

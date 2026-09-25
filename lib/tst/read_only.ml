@@ -501,15 +501,10 @@ and stat w (s : T.Stat.t) =
       let v = store target.T.Expr.ty (expr w value) in
       match place target with
       | Some (l, []) when not (direct w l) -> Hashtbl.replace w.taints l.T.Local.id v
-      | Some (l, p) ->
-          (* Writing a slot that holds a guest replaces the guest, which is
-             the holder's own storage; writing anything reached through one
-             writes what it names. *)
-          let through = Taint.filter (fun e -> is_prefix e.at p && e.at <> p) (taint_of w l) in
-          if (not (direct w l)) && read_only w through then
-            error w target.T.Expr.span
-              (Printf.sprintf "this writes through a guest taken from %s" (blame w through));
-          add w l p v
+      (* A store through a guest is rejected whatever the guest was taken
+         from (lifetimes.md §1.1, [Guests]), so only a `!` call is left for
+         this rule. *)
+      | Some (l, p) -> add w l p v
       | None -> ignore (expr w target))
   | T.Stat.Return e -> w.returned <- Taint.union w.returned (store e.T.Expr.ty (expr w e))
   | T.Stat.Resolve e -> (
