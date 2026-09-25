@@ -254,18 +254,18 @@
     │   │   │           ├── ctor: Bool #31
     │   │   │           └── value: true : @primitives$Bool
     │   │   ├── body[12] > let:
-    │   │   │   ├── local: name #19 : core$String
+    │   │   │   ├── local: chance #19 : core$Float
     │   │   │   └── value > call:
-    │   │   │       ├── type: core$String
-    │   │   │       ├── callee: pick #1 with T = core$String
+    │   │   │       ├── type: core$Float
+    │   │   │       ├── callee: pick #1 with T = core$Float
     │   │   │       ├── args[0] > construct:
-    │   │   │       │   ├── type: core$String
-    │   │   │       │   ├── ctor: String #74
-    │   │   │       │   └── args[0]: "a" : @concepts$Text
+    │   │   │       │   ├── type: core$Float
+    │   │   │       │   ├── ctor: Float #65
+    │   │   │       │   └── args[0]: 0.5 : @concepts$Decimal
     │   │   │       ├── args[1] > construct:
-    │   │   │       │   ├── type: core$String
-    │   │   │       │   ├── ctor: String #74
-    │   │   │       │   └── args[0]: "b" : @concepts$Text
+    │   │   │       │   ├── type: core$Float
+    │   │   │       │   ├── ctor: Float #65
+    │   │   │       │   └── args[0]: 1.5 : @concepts$Decimal
     │   │   │       └── args[2] > coerce:
     │   │   │           ├── type: core$Bool
     │   │   │           ├── ctor: Bool #31
@@ -390,13 +390,18 @@
     │   │   │       ├── type: core$String
     │   │   │       ├── callee: describe #13
     │   │   │       └── args[0]: .bottomRight : shapes$Corner
-    │   │   ├── body[27] > let:
+    │   │   ├── body[27] > do > call:
+    │   │   │   ├── type: core$Unit
+    │   │   │   ├── callee: print #39
+    │   │   │   ├── args[0]: console #8 : core$Console
+    │   │   │   └── args[1]: side #35 : core$String
+    │   │   ├── body[28] > let:
     │   │   │   ├── local: i #36 : core$Int
     │   │   │   └── value > construct:
     │   │   │       ├── type: core$Int
     │   │   │       ├── ctor: Int #55
     │   │   │       └── args[0]: 1 : @concepts$Integer
-    │   │   ├── body[28] > do > call:
+    │   │   ├── body[29] > do > call:
     │   │   │   ├── type: core$Unit
     │   │   │   ├── callee: to #53
     │   │   │   ├── args[0]: i #36 : core$Int
@@ -408,8 +413,11 @@
     │   │   │       ├── type: core$Unit
     │   │   │       ├── callee: print #39
     │   │   │       ├── args[0]: console #8 : core$Console
-    │   │   │       └── args[1]: side #35 : core$String
-    │   │   ├── body[29] > let:
+    │   │   │       └── args[1] > call:
+    │   │   │           ├── type: core$String
+    │   │   │           ├── callee: describe #13
+    │   │   │           └── args[0]: .topLeft : shapes$Corner
+    │   │   ├── body[30] > let:
     │   │   │   ├── local: double #38 : core$Float[core$Float]
     │   │   │   └── value > lambda:
     │   │   │       ├── type: core$Float[core$Float]
@@ -423,13 +431,13 @@
     │   │   │               ├── type: core$Float
     │   │   │               ├── ctor: Float #65
     │   │   │               └── args[0]: 2.0 : @concepts$Decimal
-    │   │   ├── body[30] > let:
+    │   │   ├── body[31] > let:
     │   │   │   ├── local: doubled #39 : core$Float
     │   │   │   └── value > call_value:
     │   │   │       ├── type: core$Float
     │   │   │       ├── callee: double #38 : core$Float[core$Float]
     │   │   │       └── args[0]: half #17 : core$Float
-    │   │   ├── body[31] > let:
+    │   │   ├── body[32] > let:
     │   │   │   ├── local: chain #40 : core$Bool
     │   │   │   └── value > call:
     │   │   │       ├── type: core$Bool
@@ -451,7 +459,7 @@
     │   │   │               ├── type: core$String
     │   │   │               ├── ctor: String #74
     │   │   │               └── value: "small" : @concepts$Text
-    │   │   ├── body[32] > do > call:
+    │   │   ├── body[33] > do > call:
     │   │   │   ├── type: core$Unit
     │   │   │   ├── callee: elif #50
     │   │   │   ├── args[0]: chain #40 : core$Bool
@@ -472,7 +480,7 @@
     │   │   │           ├── type: core$String
     │   │   │           ├── ctor: String #74
     │   │   │           └── value: "seven" : @concepts$Text
-    │   │   ├── body[33] > do > call:
+    │   │   ├── body[34] > do > call:
     │   │   │   ├── type: core$Unit
     │   │   │   ├── callee: else #51
     │   │   │   ├── args[0]: chain #40 : core$Bool
@@ -484,7 +492,7 @@
     │   │   │           ├── type: core$String
     │   │   │           ├── ctor: String #74
     │   │   │           └── value: "large" : @concepts$Text
-    │   │   └── body[34] > return > construct:
+    │   │   └── body[35] > return > construct:
     │   │       ├── type: core$Unit
     │   │       ├── ctor: Unit #79
     │   │       └── args:
@@ -727,11 +735,11 @@
     │   │           ├── ctor: Float #65
     │   │           └── args[0]: 2.0 : @concepts$Decimal
     │   └── decls[13] > verb:
-    │       ├── signature: core$Float area(shapes$Shape) #29
-    │       ├── params[0]: shape #55 : shapes$Shape
+    │       ├── signature: core$Float area(&shapes$Shape) #29
+    │       ├── params[0]: shape #55 : &shapes$Shape
     │       └── body[0] > return > match:
     │           ├── type: core$Float
-    │           ├── scrutinees[0]: shape #55 : shapes$Shape
+    │           ├── scrutinees[0]: shape #55 : &shapes$Shape
     │           ├── arms[0] > arm:
     │           │   ├── patterns[0]: r #56 : core$Float <- circle
     │           │   └── body[0] > return > op:
@@ -1388,6 +1396,24 @@
     │           ├── type: core$Unit
     │           └── fields:
     ├── instances[0] > instance:
+    │   ├── of: pick #1 with T = core$Float
+    │   ├── params[0]: first #124 : core$Float
+    │   ├── params[1]: second #125 : core$Float
+    │   ├── params[2]: takeFirst #126 : core$Bool
+    │   ├── body[0] > let:
+    │   │   ├── local: chosen #127 : core$Float
+    │   │   └── value: second #125 : core$Float
+    │   ├── body[1] > let:
+    │   │   ├── local: ran #128 : core$Bool
+    │   │   └── value > call:
+    │   │       ├── type: core$Bool
+    │   │       ├── callee: if #49
+    │   │       ├── args[0]: takeFirst #126 : core$Bool
+    │   │       └── args[1] > block[0] > assign:
+    │   │           ├── target: chosen #127 : core$Float
+    │   │           └── value: first #124 : core$Float
+    │   └── body[2] > return: chosen #127 : core$Float
+    ├── instances[1] > instance:
     │   ├── of: pick #1 with T = core$Int
     │   ├── params[0]: first #119 : core$Int
     │   ├── params[1]: second #120 : core$Int
@@ -1405,24 +1431,6 @@
     │   │           ├── target: chosen #122 : core$Int
     │   │           └── value: first #119 : core$Int
     │   └── body[2] > return: chosen #122 : core$Int
-    ├── instances[1] > instance:
-    │   ├── of: pick #1 with T = core$String
-    │   ├── params[0]: first #124 : core$String
-    │   ├── params[1]: second #125 : core$String
-    │   ├── params[2]: takeFirst #126 : core$Bool
-    │   ├── body[0] > let:
-    │   │   ├── local: chosen #127 : core$String
-    │   │   └── value: second #125 : core$String
-    │   ├── body[1] > let:
-    │   │   ├── local: ran #128 : core$Bool
-    │   │   └── value > call:
-    │   │       ├── type: core$Bool
-    │   │       ├── callee: if #49
-    │   │       ├── args[0]: takeFirst #126 : core$Bool
-    │   │       └── args[1] > block[0] > assign:
-    │   │           ├── target: chosen #127 : core$String
-    │   │           └── value: first #124 : core$String
-    │   └── body[2] > return: chosen #127 : core$String
     ├── instances[2] > instance:
     │   ├── of: Pair #3 with T = core$Float
     │   ├── params[0]: left #117 : core$Float

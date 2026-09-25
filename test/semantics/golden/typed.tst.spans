@@ -160,13 +160,13 @@ package app
             expr Integer_lit | 2
           expr Coerce Bool | true
             expr Bool_lit | true
-      stat Let | name String = pick(String("a"), String("b"), false);
-        local name | name
-        expr Call pick | pick(String("a"), String("b"), false)
-          expr Construct String | String("a")
-            expr Text_lit | "a"
-          expr Construct String | String("b")
-            expr Text_lit | "b"
+      stat Let | chance Float = pick(Float(0.5), Float(1.5), false);
+        local chance | chance
+        expr Call pick | pick(Float(0.5), Float(1.5), false)
+          expr Construct Float | Float(0.5)
+            expr Decimal_lit | 0.5
+          expr Construct Float | Float(1.5)
+            expr Decimal_lit | 1.5
           expr Coerce Bool | false
             expr Bool_lit | false
       stat Let | pair Pair(Int(3), Int(4));
@@ -244,20 +244,25 @@ package app
         local side | side
         expr Call describe | describe(Corner.bottomRight)
           expr Enum_member bottomRight | Corner.bottomRight
+      stat Expr | console!print(side);
+        expr Call print | console!print(side)
+          expr Var console | console
+          expr Var side | side
       stat Let | i Int = Int(1);
         local i | i
         expr Construct Int | Int(1)
           expr Integer_lit | 1
-      stat Expr | i!to(3) { console!print(side); }
-        expr Call to | i!to(3) { console!print(side); }
+      stat Expr | i!to(3) { console!print(describe(Corner.topLeft)); }
+        expr Call to | i!to(3) { console!print(describe(Corner.topLeft)); }
           expr Var i | i
           expr Coerce Int | 3
             expr Integer_lit | 3
-          block | { console!print(side); }
-            stat Expr | console!print(side);
-              expr Call print | console!print(side)
+          block | { console!print(describe(Corner.topLeft)); }
+            stat Expr | console!print(describe(Corner.topLeft));
+              expr Call print | console!print(describe(Corner.topLeft))
                 expr Var console | console
-                expr Var side | side
+                expr Call describe | describe(Corner.topLeft)
+                  expr Enum_member topLeft | Corner.topLeft
       stat Let | double Float(value Float) => value * Float(2.0);
         local double | double
         expr Lambda | Float(value Float) => value * Float(2.0)
@@ -435,8 +440,8 @@ package shapes
           expr Var value | value
           expr Construct Float | Float(2.0)
             expr Decimal_lit | 2.0
-  decl Verb area | Float area(shape Shape) => … s); point => Float(0.0); }
-    param shape | shape Shape
+  decl Verb area | Float area(shape &Shape) = … s); point => Float(0.0); }
+    param shape | shape &Shape
     block | => match (shape) { r circl … s); point => Float(0.0); }
       stat Return | => match (shape) { r circl … s); point => Float(0.0); }
         expr Match | match (shape) { r circle = … s); point => Float(0.0); }
@@ -845,7 +850,7 @@ package core
       stat Return | => init{ }
         expr Init | init{ }
 instances
-  instance pick with T = core$Int | T pick(first T Type, secon …  first; } return chosen; }
+  instance pick with T = core$Float | T pick(first T Type, secon …  first; } return chosen; }
     param first | first T Type
     param second | second T
     param takeFirst | takeFirst Bool
@@ -863,7 +868,7 @@ instances
               expr Var first | first
       stat Return | return chosen;
         expr Var chosen | chosen
-  instance pick with T = core$String | T pick(first T Type, secon …  first; } return chosen; }
+  instance pick with T = core$Int | T pick(first T Type, secon …  first; } return chosen; }
     param first | first T Type
     param second | second T
     param takeFirst | takeFirst Bool

@@ -187,7 +187,7 @@ let methods =
   in
   [
     meth ~is_mut:true "runtime" "print"
-      [ param "this" (runtime "Console"); param "text" (prim "String") ]
+      [ param "this" (runtime "Console"); param "text" (Ty.Guest (prim "String")) ]
       (prim "Unit");
     meth ~is_mut:true "runtime" "setThreads"
       [ param "this" (runtime "Runtime"); param "count" (prim "Int") ]

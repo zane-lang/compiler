@@ -77,7 +77,7 @@
     │   ├── decls[12] > verb:
     │   │   └── signature: core$Float _half(core$Float) #28
     │   └── decls[13] > verb:
-    │       └── signature: core$Float area(shapes$Shape) #29
+    │       └── signature: core$Float area(&shapes$Shape) #29
     └── packages[2] > package:
         ├── name: core
         ├── decls[0] > type:

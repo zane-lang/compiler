@@ -50,7 +50,7 @@ Corner.label String {
 /// A private helper is invisible to every other package.
 Float _half(value Float) => value / Float(2.0)
 
-Float area(shape Shape) => match (shape) {
+Float area(shape &Shape) => match (shape) {
 	r circle => r * r;
 	s square => _half(s + s);
 	point => Float(0.0);
