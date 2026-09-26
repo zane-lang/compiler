@@ -1,0 +1,17 @@
+/// An index outside a list stops the program with a failing status, after
+/// what it wrote so far (docs/lowering.md §9).
+package range;
+
+alias Int = @primitives$Int
+alias String = @primitives$String
+
+@primitives$Unit main() {
+	before String("before\n");
+	after String("after\n");
+	numbers @primitives$List<Int> = @primitives$List(Int);
+	numbers!push(Int(1));
+	@program$console!print(before);
+	missing Int = numbers[Int(2)];
+	@program$console!print(after);
+	return @primitives$Unit();
+}

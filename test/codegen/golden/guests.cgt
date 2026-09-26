@@ -1,5 +1,20 @@
 └── program:
     ├── entry: zane_main_17
+    ├── layouts[0] > layout:
+    │   ├── type: guests$Node
+    │   └── positions[0]: @0 (16 bytes)
+    ├── layouts[1] > layout:
+    │   ├── type: guests$Car
+    │   ├── positions[0]: @0 (24 bytes)
+    │   └── positions[1]: @8 (16 bytes)
+    ├── layouts[2] > layout:
+    │   ├── type: guests$Holder
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: @16 (16 bytes) when [8]=0
+    ├── layouts[3] > layout:
+    │   ├── type: @primitives$String
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: text @0
     ├── funcs[0] > func:
     │   ├── symbol: zane_main_17
     │   ├── params:
@@ -13,7 +28,7 @@
     │       │   │   ├── type: {i32, i64}
     │       │   │   ├── fn: zane_Node_8
     │       │   │   └── args[0]: 1 : i64
-    │       │   └── layout[0]: @0 (16 bytes)
+    │       │   └── layout: guests$Node
     │       ├── body[1] > let:
     │       │   ├── local: #3
     │       │   └── value > mint: address of #1 : ptr
@@ -88,8 +103,8 @@
     │       │   ├── value > take:
     │       │   │   ├── type: {i32, i64}
     │       │   │   ├── address: address of #1 : ptr
-    │       │   │   └── layout[0]: @0 (16 bytes)
-    │       │   └── layout[0]: @0 (16 bytes)
+    │       │   │   └── layout: guests$Node
+    │       │   └── layout: guests$Node
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_bump_9
@@ -111,7 +126,7 @@
     │       │   │   ├── type: {i32, i64}
     │       │   │   ├── fn: zane_Node_8
     │       │   │   └── args[0]: 100 : i64
-    │       │   └── layout[0]: @0 (16 bytes)
+    │       │   └── layout: guests$Node
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_check_16
@@ -131,7 +146,7 @@
     │       │   │   ├── type: {i32, i64}
     │       │   │   ├── fn: zane_Node_8
     │       │   │   └── args[0]: 7 : i64
-    │       │   └── layout[0]: @0 (16 bytes)
+    │       │   └── layout: guests$Node
     │       ├── body[14] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_check_16
@@ -152,7 +167,7 @@
     │       │   │   ├── type: {i32, i64}
     │       │   │   ├── fn: zane_Node_8
     │       │   │   └── args[0]: 20 : i64
-    │       │   └── layout[0]: @0 (16 bytes)
+    │       │   └── layout: guests$Node
     │       ├── body[16] > let:
     │       │   ├── local: #6
     │       │   └── value > mint: address of #5 : ptr
@@ -161,8 +176,8 @@
     │       │   ├── value > take:
     │       │   │   ├── type: {i32, i64}
     │       │   │   ├── address: address of #5 : ptr
-    │       │   │   └── layout[0]: @0 (16 bytes)
-    │       │   └── layout[0]: @0 (16 bytes)
+    │       │   │   └── layout: guests$Node
+    │       │   └── layout: guests$Node
     │       ├── body[18] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_bump_9
@@ -242,12 +257,11 @@
     │       │   │       │   │   ├── type: {i32, i64}
     │       │   │       │   │   ├── fn: zane_Node_8
     │       │   │       │   │   └── args[0]: 5 : i64
-    │       │   │       │   └── layout[0]: @0 (16 bytes)
+    │       │   │       │   └── layout: guests$Node
     │       │   │       └── body[1] > assign:
     │       │   │           ├── place: #9
     │       │   │           └── value: address of #7 : ptr
-    │       │   ├── layout[0]: @0 (24 bytes)
-    │       │   └── layout[1]: @8 (16 bytes)
+    │       │   └── layout: guests$Car
     │       ├── body[25] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_bump_9
@@ -278,10 +292,8 @@
     │       │   ├── value > take:
     │       │   │   ├── type: {i32, i32, {i32, i64}}
     │       │   │   ├── address: address of #10 : ptr
-    │       │   │   ├── layout[0]: @0 (24 bytes)
-    │       │   │   └── layout[1]: @8 (16 bytes)
-    │       │   ├── layout[0]: @0 (24 bytes)
-    │       │   └── layout[1]: @8 (16 bytes)
+    │       │   │   └── layout: guests$Car
+    │       │   └── layout: guests$Car
     │       ├── body[29] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_bump_9
@@ -309,7 +321,7 @@
     │       │   │   ├── type: {i32, i64}
     │       │   │   ├── fn: zane_Node_8
     │       │   │   └── args[0]: 50 : i64
-    │       │   └── layout[0]: @0 (16 bytes)
+    │       │   └── layout: guests$Node
     │       ├── body[32] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_check_16
@@ -330,7 +342,7 @@
     │       │   │   ├── type: {i32, i64}
     │       │   │   ├── fn: zane_Node_8
     │       │   │   └── args[0]: 9 : i64
-    │       │   └── layout[0]: @0 (16 bytes)
+    │       │   └── layout: guests$Node
     │       ├── body[34] > let:
     │       │   ├── local: #14
     │       │   └── value > mint: address of #13 : ptr
@@ -346,9 +358,8 @@
     │       │   │       └── payload > take:
     │       │   │           ├── type: {i32, i64}
     │       │   │           ├── address: address of #13 : ptr
-    │       │   │           └── layout[0]: @0 (16 bytes)
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: @16 (16 bytes) when [8]=0
+    │       │   │           └── layout: guests$Node
+    │       │   └── layout: guests$Holder
     │       ├── body[36] > overwrite:
     │       │   ├── address: address of #15 : ptr
     │       │   ├── value > record:
@@ -358,8 +369,7 @@
     │       │   │       ├── type: <{i32, i64} | void>
     │       │   │       ├── index: 1
     │       │   │       └── payload: unit : void
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: @16 (16 bytes) when [8]=0
+    │       │   └── layout: guests$Holder
     │       ├── body[37] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_check_16
@@ -403,8 +413,7 @@
     │       │   │           ├── type: {i32, i64}
     │       │   │           ├── fn: zane_Node_8
     │       │   │           └── args[0]: 30 : i64
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: @16 (16 bytes) when [8]=0
+    │       │   └── layout: guests$Holder
     │       ├── body[41] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_check_16
@@ -521,8 +530,7 @@
     │       │       │   │           ├── type: {i32, i64}
     │       │       │   │           ├── fn: zane_Node_8
     │       │       │   │           └── args[0]: 40 : i64
-    │       │       │   ├── layout[0]: @0 (32 bytes)
-    │       │       │   └── layout[1]: @16 (16 bytes) when [8]=0
+    │       │       │   └── layout: guests$Holder
     │       │       ├── body[1] > let:
     │       │       │   ├── local: #30
     │       │       │   └── value: address of #29 : ptr
@@ -601,7 +609,7 @@
     │       │   │   │       │   │   ├── type: {i32, i64}
     │       │   │   │       │   │   ├── fn: zane_Node_8
     │       │   │   │       │   │   └── args[0]: local #34 : i64
-    │       │   │   │       │   └── layout[0]: @0 (16 bytes)
+    │       │   │   │       │   └── layout: guests$Node
     │       │   │   │       ├── body[1] > let:
     │       │   │   │       │   ├── local: #41
     │       │   │   │       │   └── value > mint: address of #39 : ptr
@@ -667,21 +675,19 @@
     │       ├── body[0] > host:
     │       │   ├── local: #2
     │       │   ├── scope: %3
-    │       │   ├── value: "yes\n" : text
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: text @0
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: @primitives$String
     │       ├── body[1] > host:
     │       │   ├── local: #4
     │       │   ├── scope: %3
-    │       │   ├── value: "no\n" : text
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: text @0
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: @primitives$String
     │       ├── body[2] > if:
     │       │   ├── cond: local #1 : i1
     │       │   └── body[0] > eval > runtime:
     │       │       ├── type: void
     │       │       ├── fn: zane_print
-    │       │       └── args[0]: local #2 : text
+    │       │       └── args[0]: local #2 : handle
     │       ├── body[3] > if:
     │       │   ├── cond > flip:
     │       │   │   ├── type: i1
@@ -689,7 +695,7 @@
     │       │   └── body[0] > eval > runtime:
     │       │       ├── type: void
     │       │       ├── fn: zane_print
-    │       │       └── args[0]: local #4 : text
+    │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[4] > func:
     │   ├── symbol: zane_peek_11
@@ -761,4 +767,4 @@
             └── members[2] > member 2 > take:
                 ├── type: {i32, i64}
                 ├── address: local #2 : ptr
-                └── layout[0]: @0 (16 bytes)
+                └── layout: guests$Node

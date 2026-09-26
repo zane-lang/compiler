@@ -1,5 +1,9 @@
 └── program:
     ├── entry: zane_main_13
+    ├── layouts[0] > layout:
+    │   ├── type: @primitives$String
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: text @0
     ├── funcs[0] > func:
     │   ├── symbol: zane_main_13
     │   ├── params:
@@ -9,27 +13,23 @@
     │       ├── body[0] > host:
     │       │   ├── local: #1
     │       │   ├── scope: %2
-    │       │   ├── value: "yes\n" : text
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: text @0
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: @primitives$String
     │       ├── body[1] > host:
     │       │   ├── local: #3
     │       │   ├── scope: %2
-    │       │   ├── value: "no\n" : text
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: text @0
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: @primitives$String
     │       ├── body[2] > host:
     │       │   ├── local: #4
     │       │   ├── scope: %2
-    │       │   ├── value: "." : text
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: text @0
+    │       │   ├── value: "." : handle
+    │       │   └── layout: @primitives$String
     │       ├── body[3] > host:
     │       │   ├── local: #5
     │       │   ├── scope: %2
-    │       │   ├── value: "\n" : text
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: text @0
+    │       │   ├── value: "\n" : handle
+    │       │   └── layout: @primitives$String
     │       ├── body[4] > let:
     │       │   ├── local: #10
     │       │   └── value > expand:
@@ -51,7 +51,7 @@
     │       │       │   └── body[0] > eval > runtime:
     │       │       │       ├── type: void
     │       │       │       ├── fn: zane_print
-    │       │       │       └── args[0]: local #1 : text
+    │       │       │       └── args[0]: local #1 : handle
     │       │       ├── body[2] > assign:
     │       │       │   ├── place: #8
     │       │       │   └── value: local #6 : i1
@@ -66,7 +66,7 @@
     │       │   │   └── body[0] > eval > runtime:
     │       │   │       ├── type: void
     │       │   │       ├── fn: zane_print
-    │       │   │       └── args[0]: local #3 : text
+    │       │   │       └── args[0]: local #3 : handle
     │       │   ├── body[1] > eval: unit : void
     │       │   └── body[2]: leave @11
     │       ├── body[6] > eval > expand:
@@ -88,7 +88,7 @@
     │       │   │   └── body[0] > eval > runtime:
     │       │   │       ├── type: void
     │       │   │       ├── fn: zane_print
-    │       │   │       └── args[0]: local #1 : text
+    │       │   │       └── args[0]: local #1 : handle
     │       │   ├── body[2] > assign:
     │       │   │   ├── place: #15
     │       │   │   └── value: local #13 : i1
@@ -121,7 +121,7 @@
     │       │   │   └── body[0] > eval > runtime:
     │       │   │       ├── type: void
     │       │   │       ├── fn: zane_print
-    │       │   │       └── args[0]: local #1 : text
+    │       │   │       └── args[0]: local #1 : handle
     │       │   ├── body[2] > assign:
     │       │   │   ├── place: #19
     │       │   │   └── value: local #17 : i1
@@ -146,7 +146,7 @@
     │       │   │   └── body[0] > eval > runtime:
     │       │   │       ├── type: void
     │       │   │       ├── fn: zane_print
-    │       │   │       └── args[0]: local #1 : text
+    │       │   │       └── args[0]: local #1 : handle
     │       │   ├── body[2] > assign:
     │       │   │   ├── place: #23
     │       │   │   └── value: local #21 : i1
@@ -173,7 +173,7 @@
     │       │   │   └── body[0] > eval > runtime:
     │       │   │       ├── type: void
     │       │   │       ├── fn: zane_print
-    │       │   │       └── args[0]: local #1 : text
+    │       │   │       └── args[0]: local #1 : handle
     │       │   ├── body[2] > assign:
     │       │   │   ├── place: #27
     │       │   │   └── value: local #25 : i1
@@ -200,7 +200,7 @@
     │       │       │   └── body[0] > eval > runtime:
     │       │       │       ├── type: void
     │       │       │       ├── fn: zane_print
-    │       │       │       └── args[0]: local #3 : text
+    │       │       │       └── args[0]: local #3 : handle
     │       │       ├── body[2] > assign:
     │       │       │   ├── place: #31
     │       │       │   └── value: local #29 : i1
@@ -230,7 +230,7 @@
     │       │   │   └── body[0] > eval > runtime:
     │       │   │       ├── type: void
     │       │   │       ├── fn: zane_print
-    │       │   │       └── args[0]: local #1 : text
+    │       │   │       └── args[0]: local #1 : handle
     │       │   ├── body[2] > assign:
     │       │   │   ├── place: #33
     │       │   │   └── value > binary:
@@ -257,7 +257,7 @@
     │       │   │   └── body[0] > eval > runtime:
     │       │   │       ├── type: void
     │       │   │       ├── fn: zane_print
-    │       │   │       └── args[0]: local #3 : text
+    │       │   │       └── args[0]: local #3 : handle
     │       │   ├── body[2] > assign:
     │       │   │   ├── place: #33
     │       │   │   └── value > binary:
@@ -277,7 +277,7 @@
     │       │   │   └── body[0] > eval > runtime:
     │       │   │       ├── type: void
     │       │   │       ├── fn: zane_print
-    │       │   │       └── args[0]: local #3 : text
+    │       │   │       └── args[0]: local #3 : handle
     │       │   ├── body[1] > eval: unit : void
     │       │   └── body[2]: leave @40
     │       ├── body[14] > let:
@@ -329,7 +329,7 @@
     │       │   │   │   │   │   │   └── body[0] > eval > runtime:
     │       │   │   │   │   │   │       ├── type: void
     │       │   │   │   │   │   │       ├── fn: zane_print
-    │       │   │   │   │   │   │       └── args[0]: local #4 : text
+    │       │   │   │   │   │   │       └── args[0]: local #4 : handle
     │       │   │   │   │   │   └── body[1] > assign:
     │       │   │   │   │   │       ├── place: #47
     │       │   │   │   │   │       └── value > binary:
@@ -342,7 +342,7 @@
     │       │   │   │   └── body[2] > eval > runtime:
     │       │   │   │       ├── type: void
     │       │   │   │       ├── fn: zane_print
-    │       │   │   │       └── args[0]: local #5 : text
+    │       │   │   │       └── args[0]: local #5 : handle
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #42
     │       │   │       └── value > binary:

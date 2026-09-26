@@ -22,14 +22,14 @@ typedef struct {
 
 static const int64_t text_layout[] = {
 	2,
-	ZANE_HOST, 0, sizeof(zane_text), 0,
-	ZANE_TEXT, 0, sizeof(zane_text), 0,
+	ZANE_HOST, 0, sizeof(zane_text), 0, 0, 0,
+	ZANE_TEXT, 0, sizeof(zane_text), 0, 0, 0,
 };
 static const int64_t holder_layout[] = {
 	3,
-	ZANE_HOST, 0, sizeof(holder), 0,
-	ZANE_HOST, offsetof(holder, held), sizeof(zane_text), 1, offsetof(holder, tag), 0,
-	ZANE_TEXT, offsetof(holder, held), sizeof(zane_text), 1, offsetof(holder, tag), 0,
+	ZANE_HOST, 0, sizeof(holder), 0, 0, 0,
+	ZANE_HOST, offsetof(holder, held), sizeof(zane_text), 0, 0, 1, offsetof(holder, tag), 0,
+	ZANE_TEXT, offsetof(holder, held), sizeof(zane_text), 0, 0, 1, offsetof(holder, tag), 0,
 };
 
 void zane_main(void) {
@@ -68,7 +68,7 @@ void zane_main(void) {
 	/* An overwrite returns the block it replaces, and keeps the new one. */
 	zane_text incoming;
 	zane_text_join(&incoming, &cd, &cd);
-	zane_overwrite((char *)t, (char *)&incoming, sizeof(zane_text), text_layout);
+	zane_overwrite((char *)t, (char *)&incoming, sizeof(zane_text), text_layout, 0);
 	check(holds(t, "cdcd") && zane_blocks == 1);
 	zane_scope_drain(scope);
 	check(zane_blocks == 0);
@@ -82,11 +82,11 @@ void zane_main(void) {
 	zane_text_join(&h->held, &ab, &cd);
 	uint32_t g = zane_mint(&h->held);
 	holder emptied = { 0, 1, { 0 } };
-	zane_overwrite((char *)h, (char *)&emptied, sizeof(holder), holder_layout);
+	zane_overwrite((char *)h, (char *)&emptied, sizeof(holder), holder_layout, 0);
 	check(holds(zane_resolve(g), "abcd") && zane_blocks == 0);
 	h->tag = 0;
 	zane_text_join(&h->held, &cd, &ab);
-	zane_overwrite((char *)h, (char *)&emptied, sizeof(holder), holder_layout);
+	zane_overwrite((char *)h, (char *)&emptied, sizeof(holder), holder_layout, 0);
 	check(zane_blocks == 0);
 	zane_scope_drain(scope);
 }

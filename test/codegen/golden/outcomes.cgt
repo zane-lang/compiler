@@ -1,5 +1,9 @@
 └── program:
     ├── entry: zane_main_16
+    ├── layouts[0] > layout:
+    │   ├── type: @primitives$String
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: text @0
     ├── funcs[0] > func:
     │   ├── symbol: zane_main_16
     │   ├── params:
@@ -537,21 +541,19 @@
     │       ├── body[0] > host:
     │       │   ├── local: #2
     │       │   ├── scope: %3
-    │       │   ├── value: "yes\n" : text
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: text @0
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: @primitives$String
     │       ├── body[1] > host:
     │       │   ├── local: #4
     │       │   ├── scope: %3
-    │       │   ├── value: "no\n" : text
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: text @0
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: @primitives$String
     │       ├── body[2] > if:
     │       │   ├── cond: local #1 : i1
     │       │   └── body[0] > eval > runtime:
     │       │       ├── type: void
     │       │       ├── fn: zane_print
-    │       │       └── args[0]: local #2 : text
+    │       │       └── args[0]: local #2 : handle
     │       ├── body[3] > if:
     │       │   ├── cond > flip:
     │       │   │   ├── type: i1
@@ -559,7 +561,7 @@
     │       │   └── body[0] > eval > runtime:
     │       │       ├── type: void
     │       │       ├── fn: zane_print
-    │       │       └── args[0]: local #4 : text
+    │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[3] > func:
     │   ├── symbol: zane_doubled_9

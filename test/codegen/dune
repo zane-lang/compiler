@@ -321,3 +321,91 @@
  (alias runtest)
  (action
   (diff golden/texts.out texts.out.actual)))
+
+; `lists` is step 7's lists: pushed to, measured, indexed and written at an
+; index, of scalars, strings, hosts and lists, under a generic type with a
+; declared subscript. Guests follow hosts into a list and through its growth.
+
+(rule
+ (deps (source_tree fixtures/lists))
+ (action
+  (with-stdout-to
+   lists.cgt.actual
+   (run %{exe:../../bin/compiler/main.exe} --cgt --package fixtures/lists))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lists.cgt lists.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/lists))
+ (targets lists.exe)
+ (action
+  (run %{exe:../../bin/compiler/main.exe} --build lists.exe --package fixtures/lists)))
+
+(rule
+ (action
+  (with-stdout-to
+   lists.out.actual
+   (run ./lists.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lists.out lists.out.actual)))
+
+; `boxes` is step 7's boxed members: value types that contain themselves,
+; copied whole, a reference chain whose guests hold while it moves, and case
+; reads of boxed payloads.
+
+(rule
+ (deps (source_tree fixtures/boxes))
+ (action
+  (with-stdout-to
+   boxes.cgt.actual
+   (run %{exe:../../bin/compiler/main.exe} --cgt --package fixtures/boxes))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boxes.cgt boxes.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/boxes))
+ (targets boxes.exe)
+ (action
+  (run %{exe:../../bin/compiler/main.exe} --build boxes.exe --package fixtures/boxes)))
+
+(rule
+ (action
+  (with-stdout-to
+   boxes.out.actual
+   (run ./boxes.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boxes.out boxes.out.actual)))
+
+; `range` indexes past a list's end: the program stops with status 1 after
+; what it wrote so far, and says why on stderr.
+
+(rule
+ (deps (source_tree fixtures/range))
+ (targets range.exe)
+ (action
+  (run %{exe:../../bin/compiler/main.exe} --build range.exe --package fixtures/range)))
+
+(rule
+ (action
+  (with-outputs-to
+   range.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./range.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/range.out range.out.actual)))

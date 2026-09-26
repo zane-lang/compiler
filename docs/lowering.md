@@ -299,17 +299,14 @@ test passing.
    payload's address (L13). The runtime keeps, arrives, vacates, merges and
    floats identities from a per-type layout of where each host's
    backpointer is, and a drain retires the anchors its scope still hosts.
-7. **Handles**, in three parts:
-   1. **Strings.** `@primitives$String` as a host whose handle owns its
-      bytes: joined, compared and printed, and the block returned when its
-      owner dies, at an overwrite or at its scope's drain. The runtime is
-      tested in C on its own, and stops a program that ends with a block
-      still out.
-   2. **Lists.** Generic instances, `@primitives$List<T>`, `push`, `size`,
-      and a subscript as a place, with the anchors of hosts in a list's
-      block following them when it grows.
-   3. **Boxed members.** A value type that contains itself, a value copied
-      whole with its blocks, and a host read out of a variant case.
+7. **Handles.** `String`, `List`, boxed members, and `destroy` returning
+   dynamic blocks. A string's or a list's handle, and a boxed member, own a
+   block, which is returned when the owner dies, at an overwrite or at its
+   scope's drain, and a value copied whole gets copies of its own. A
+   subscript is a place, generic types and verbs lower per instance, and the
+   anchors of hosts in a list follow them when its block grows. The runtime
+   is tested in C on its own, and stops a program that ends with a block
+   still out.
 8. **`spawn`.** The thread pool, futures, and the water tower.
 
 ---
@@ -320,8 +317,9 @@ test passing.
   its own. For now only a block that hosts a reference-type local opens one,
   and a value-type local stays an LLVM stack slot, since nothing tells the
   two placements apart until a value owns dynamic storage, which it does
-  only through a boxed member (step 7). Folding arenas is allowed and saves
-  the most in loops; which ones to fold is left to measurement.
+  only through a boxed member; such a value is held in the arena too.
+  Folding arenas is allowed and saves the most in loops; which ones to fold
+  is left to measurement.
 - **Arenas share one chain of chunks.** Scopes nest last-in-first-out, so the
   runtime keeps one chain of 1 MiB chunks: a scope bumps from where the scope
   around it stopped, and draining it restores that point. A chunk stays
@@ -345,15 +343,29 @@ test passing.
   §3.1–3.2 gives each scope a dynamic region of 1 MiB chunks with exact-size
   stacks, reclaimed at its drain, and relocates a block into the
   destination's region when its owner moves to an older scope. Here a block
-  comes from the C heap and belongs to the handle that names it. A move
-  takes it along without relocating it, and it is returned when its owner
-  dies: at an overwrite, or at the drain of the scope that hosts the owner,
-  which walks the scope's hosts as it already does for their anchors. A
-  fresh host that nothing keeps, such as a result that is dropped or an
-  operand, is hosted where it is made, so that drain returns its blocks. The
-  runtime counts the blocks out and stops a program that ends with one
-  still out. Nothing a program does can tell the two apart; the region's
-  bulk release and exact-size reuse are left to measurement.
+  comes from the C heap and belongs to the handle or boxed member that names
+  it. A move takes it along without relocating it, so a host in a box stays
+  where it is; and it is returned when its owner dies: at an overwrite, or at
+  the drain of the scope that holds the owner, which walks the scope's hosts
+  as it already does for their anchors, down through each block. A value
+  that owns a block is held in its scope's arena like a host, so that drain
+  reaches it. A fresh host or value that nothing keeps, such as a result that
+  is dropped or an operand, is held where it is made. The runtime counts the
+  blocks out and stops a program that ends with one still out. A list's
+  block grows by doubling from 128 bytes, as §3.6 says, but always into a
+  new block. Nothing a program does can tell these apart; the region's bulk
+  release and exact-size reuse are left to measurement.
+- **A value parameter is borrowed.** A value that owns a block is copied
+  whole where it is stored from a place ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.3), and passed
+  as it is where it is only read: a value parameter is read-only (§2.9), so
+  the caller keeps it, and a fresh one is held in the caller's scope first.
+  A callee that stores its parameter copies it.
+- **A case read of a host.** What a case read gives is its payload, which
+  the variant keeps, or what its handler resolves, which is fresh. So a read
+  whose type is a host, or a value that owns a block, gives an address: the
+  payload's, or that of a slot reserved in the reading scope before the read,
+  which the handler's `resolve` fills. Either way what it gives has one
+  owner, and the drain ends the slot.
 - **A literal's bytes stay where the program keeps them.** A string view's
   handle points into the dynamic region ([`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.7). A literal's
   points at the bytes the program embeds instead, and the handle also holds
@@ -396,4 +408,10 @@ test passing.
   zero` to stderr, and the status is 1. The one other quotient an `i64` cannot
   hold, the most negative value over `-1`, wraps, as `+` and `*` do.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
-  §5.2). Until it says, the check L5 emits traps.
+  §5.2). Until it says, the program stops as it does at a division by zero:
+  what it wrote so far is kept, the runtime writes `index out of range` to
+  stderr, and the status is 1.
+- **A type argument passes nothing.** A generic verb is lowered once per
+  instance the TST checked ([`semantics.md`](semantics.md) D12), with a
+  symbol of its own, and a type written where a value goes has already
+  picked the instance, so the call passes nothing for it.

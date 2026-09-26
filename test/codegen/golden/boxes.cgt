@@ -1,0 +1,948 @@
+└── program:
+    ├── entry: zane_main_17
+    ├── layouts[0] > layout:
+    │   ├── type: boxes$Countdown
+    │   └── positions[0]: box @8 of boxes$Countdown (16 bytes) when [0]=1
+    ├── layouts[1] > layout:
+    │   ├── type: boxes$Tree
+    │   └── positions[0]: box @8 of boxes$Pair (16 bytes) when [0]=1
+    ├── layouts[2] > layout:
+    │   ├── type: boxes$Pair
+    │   ├── positions[0]: box @0 of boxes$Tree (16 bytes)
+    │   └── positions[1]: box @8 of boxes$Tree (16 bytes)
+    ├── layouts[3] > layout:
+    │   ├── type: @primitives$String
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: text @0
+    ├── layouts[4] > layout:
+    │   ├── type: boxes$Link
+    │   ├── positions[0]: @0 (48 bytes)
+    │   ├── positions[1]: @8 (32 bytes)
+    │   ├── positions[2]: text @8
+    │   └── positions[3]: box @40 of boxes$Chain (24 bytes)
+    ├── layouts[5] > layout:
+    │   ├── type: boxes$Chain
+    │   ├── positions[0]: @0 (24 bytes)
+    │   └── positions[1]: box @16 of boxes$Link (48 bytes) when [8]=1
+    ├── funcs[0] > func:
+    │   ├── symbol: zane_main_17
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %2
+    │       ├── body[0] > host:
+    │       │   ├── local: #1
+    │       │   ├── scope: %2
+    │       │   ├── value > case:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── index: 1
+    │       │   │   └── payload > box:
+    │       │   │       ├── value > case:
+    │       │   │       │   ├── type: <void | ptr>
+    │       │   │       │   ├── index: 1
+    │       │   │       │   └── payload > box:
+    │       │   │       │       ├── value > case:
+    │       │   │       │       │   ├── type: <void | ptr>
+    │       │   │       │       │   ├── index: 0
+    │       │   │       │       │   └── payload: unit : void
+    │       │   │       │       └── layout: boxes$Countdown
+    │       │   │       └── layout: boxes$Countdown
+    │       │   └── layout: boxes$Countdown
+    │       ├── body[1] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_depth_7
+    │       │       │   └── args[0]: local #1 : <void | ptr>
+    │       │       └── right: 2 : i64
+    │       ├── body[2] > host:
+    │       │   ├── local: #3
+    │       │   ├── scope: %2
+    │       │   ├── value > copy:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── value: local #1 : <void | ptr>
+    │       │   │   └── layout: boxes$Countdown
+    │       │   └── layout: boxes$Countdown
+    │       ├── body[3] > overwrite:
+    │       │   ├── address: address of #1 : ptr
+    │       │   ├── value > case:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── index: 0
+    │       │   │   └── payload: unit : void
+    │       │   └── layout: boxes$Countdown
+    │       ├── body[4] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_depth_7
+    │       │       │   └── args[0]: local #3 : <void | ptr>
+    │       │       └── right: 2 : i64
+    │       ├── body[5] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_depth_7
+    │       │       │   └── args[0]: local #1 : <void | ptr>
+    │       │       └── right: 0 : i64
+    │       ├── body[6] > host:
+    │       │   ├── local: #8
+    │       │   ├── scope: %2
+    │       │   ├── value > copy:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── value > deref:
+    │       │   │   │   ├── type: <void | ptr>
+    │       │   │   │   └── ptr > expand:
+    │       │   │   │       ├── type: ptr
+    │       │   │   │       ├── label: @4
+    │       │   │   │       ├── result: #5
+    │       │   │   │       ├── body[0] > reserve:
+    │       │   │   │       │   ├── local: #7
+    │       │   │   │       │   ├── scope: %2
+    │       │   │   │       │   ├── type: <void | ptr>
+    │       │   │   │       │   └── layout: boxes$Countdown
+    │       │   │   │       ├── body[1] > let:
+    │       │   │   │       │   ├── local: #6
+    │       │   │   │       │   └── value: address of #3 : ptr
+    │       │   │   │       ├── body[2] > switch:
+    │       │   │   │       │   ├── value > deref:
+    │       │   │   │       │   │   ├── type: <void | ptr>
+    │       │   │   │       │   │   └── ptr: local #6 : ptr
+    │       │   │   │       │   ├── cases[0] > case 0:
+    │       │   │   │       │   ├── cases[1] > case 1[0] > assign:
+    │       │   │   │       │   │   ├── place: #5
+    │       │   │   │       │   │   └── value > deref:
+    │       │   │   │       │   │       ├── type: ptr
+    │       │   │   │       │   │       └── ptr > offset:
+    │       │   │   │       │   │           ├── within: <void | ptr>
+    │       │   │   │       │   │           ├── path: 1
+    │       │   │   │       │   │           └── base: local #6 : ptr
+    │       │   │   │       │   └── cases[1] > case 1[1]: leave @4
+    │       │   │   │       ├── body[3] > eval: unit : void
+    │       │   │   │       ├── body[4] > place:
+    │       │   │   │       │   ├── address: address of #7 : ptr
+    │       │   │   │       │   ├── value > case:
+    │       │   │   │       │   │   ├── type: <void | ptr>
+    │       │   │   │       │   │   ├── index: 0
+    │       │   │   │       │   │   └── payload: unit : void
+    │       │   │   │       │   └── layout: boxes$Countdown
+    │       │   │   │       ├── body[5] > assign:
+    │       │   │   │       │   ├── place: #5
+    │       │   │   │       │   └── value: address of #7 : ptr
+    │       │   │   │       └── body[6]: leave @4
+    │       │   │   └── layout: boxes$Countdown
+    │       │   └── layout: boxes$Countdown
+    │       ├── body[7] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_depth_7
+    │       │       │   └── args[0]: local #8 : <void | ptr>
+    │       │       └── right: 1 : i64
+    │       ├── body[8] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_depth_7
+    │       │       │   └── args[0] > deref:
+    │       │       │       ├── type: <void | ptr>
+    │       │       │       └── ptr > expand:
+    │       │       │           ├── type: ptr
+    │       │       │           ├── label: @9
+    │       │       │           ├── result: #10
+    │       │       │           ├── body[0] > reserve:
+    │       │       │           │   ├── local: #12
+    │       │       │           │   ├── scope: %2
+    │       │       │           │   ├── type: <void | ptr>
+    │       │       │           │   └── layout: boxes$Countdown
+    │       │       │           ├── body[1] > let:
+    │       │       │           │   ├── local: #11
+    │       │       │           │   └── value: address of #1 : ptr
+    │       │       │           ├── body[2] > switch:
+    │       │       │           │   ├── value > deref:
+    │       │       │           │   │   ├── type: <void | ptr>
+    │       │       │           │   │   └── ptr: local #11 : ptr
+    │       │       │           │   ├── cases[0] > case 0:
+    │       │       │           │   ├── cases[1] > case 1[0] > assign:
+    │       │       │           │   │   ├── place: #10
+    │       │       │           │   │   └── value > deref:
+    │       │       │           │   │       ├── type: ptr
+    │       │       │           │   │       └── ptr > offset:
+    │       │       │           │   │           ├── within: <void | ptr>
+    │       │       │           │   │           ├── path: 1
+    │       │       │           │   │           └── base: local #11 : ptr
+    │       │       │           │   └── cases[1] > case 1[1]: leave @9
+    │       │       │           ├── body[3] > eval: unit : void
+    │       │       │           ├── body[4] > place:
+    │       │       │           │   ├── address: address of #12 : ptr
+    │       │       │           │   ├── value > case:
+    │       │       │           │   │   ├── type: <void | ptr>
+    │       │       │           │   │   ├── index: 1
+    │       │       │           │   │   └── payload > box:
+    │       │       │           │   │       ├── value > case:
+    │       │       │           │   │       │   ├── type: <void | ptr>
+    │       │       │           │   │       │   ├── index: 0
+    │       │       │           │   │       │   └── payload: unit : void
+    │       │       │           │   │       └── layout: boxes$Countdown
+    │       │       │           │   └── layout: boxes$Countdown
+    │       │       │           ├── body[5] > assign:
+    │       │       │           │   ├── place: #10
+    │       │       │           │   └── value: address of #12 : ptr
+    │       │       │           └── body[6]: leave @9
+    │       │       └── right: 1 : i64
+    │       ├── body[9] > host:
+    │       │   ├── local: #25
+    │       │   ├── scope: %2
+    │       │   ├── value > case:
+    │       │   │   ├── type: <i64 | ptr>
+    │       │   │   ├── index: 1
+    │       │   │   └── payload > box:
+    │       │   │       ├── value > call:
+    │       │   │       │   ├── type: {ptr, ptr}
+    │       │   │       │   ├── fn: zane_Pair_10
+    │       │   │       │   ├── args[0] > expand:
+    │       │   │       │   │   ├── type: <i64 | ptr>
+    │       │   │       │   │   ├── label: @14
+    │       │   │       │   │   ├── result: #15
+    │       │   │       │   │   ├── body[0] > host:
+    │       │   │       │   │   │   ├── local: #13
+    │       │   │       │   │   │   ├── scope: %2
+    │       │   │       │   │   │   ├── value > case:
+    │       │   │       │   │   │   │   ├── type: <i64 | ptr>
+    │       │   │       │   │   │   │   ├── index: 0
+    │       │   │       │   │   │   │   └── payload: 1 : i64
+    │       │   │       │   │   │   └── layout: boxes$Tree
+    │       │   │       │   │   └── body[1] > assign:
+    │       │   │       │   │       ├── place: #15
+    │       │   │       │   │       └── value: local #13 : <i64 | ptr>
+    │       │   │       │   └── args[1] > expand:
+    │       │   │       │       ├── type: <i64 | ptr>
+    │       │   │       │       ├── label: @23
+    │       │   │       │       ├── result: #24
+    │       │   │       │       ├── body[0] > host:
+    │       │   │       │       │   ├── local: #22
+    │       │   │       │       │   ├── scope: %2
+    │       │   │       │       │   ├── value > case:
+    │       │   │       │       │   │   ├── type: <i64 | ptr>
+    │       │   │       │       │   │   ├── index: 1
+    │       │   │       │       │   │   └── payload > box:
+    │       │   │       │       │   │       ├── value > call:
+    │       │   │       │       │   │       │   ├── type: {ptr, ptr}
+    │       │   │       │       │   │       │   ├── fn: zane_Pair_10
+    │       │   │       │       │   │       │   ├── args[0] > expand:
+    │       │   │       │       │   │       │   │   ├── type: <i64 | ptr>
+    │       │   │       │       │   │       │   │   ├── label: @17
+    │       │   │       │       │   │       │   │   ├── result: #18
+    │       │   │       │       │   │       │   │   ├── body[0] > host:
+    │       │   │       │       │   │       │   │   │   ├── local: #16
+    │       │   │       │       │   │       │   │   │   ├── scope: %2
+    │       │   │       │       │   │       │   │   │   ├── value > case:
+    │       │   │       │       │   │       │   │   │   │   ├── type: <i64 | ptr>
+    │       │   │       │       │   │       │   │   │   │   ├── index: 0
+    │       │   │       │       │   │       │   │   │   │   └── payload: 2 : i64
+    │       │   │       │       │   │       │   │   │   └── layout: boxes$Tree
+    │       │   │       │       │   │       │   │   └── body[1] > assign:
+    │       │   │       │       │   │       │   │       ├── place: #18
+    │       │   │       │       │   │       │   │       └── value: local #16 : <i64 | ptr>
+    │       │   │       │       │   │       │   └── args[1] > expand:
+    │       │   │       │       │   │       │       ├── type: <i64 | ptr>
+    │       │   │       │       │   │       │       ├── label: @20
+    │       │   │       │       │   │       │       ├── result: #21
+    │       │   │       │       │   │       │       ├── body[0] > host:
+    │       │   │       │       │   │       │       │   ├── local: #19
+    │       │   │       │       │   │       │       │   ├── scope: %2
+    │       │   │       │       │   │       │       │   ├── value > case:
+    │       │   │       │       │   │       │       │   │   ├── type: <i64 | ptr>
+    │       │   │       │       │   │       │       │   │   ├── index: 0
+    │       │   │       │       │   │       │       │   │   └── payload: 3 : i64
+    │       │   │       │       │   │       │       │   └── layout: boxes$Tree
+    │       │   │       │       │   │       │       └── body[1] > assign:
+    │       │   │       │       │   │       │           ├── place: #21
+    │       │   │       │       │   │       │           └── value: local #19 : <i64 | ptr>
+    │       │   │       │       │   │       └── layout: boxes$Pair
+    │       │   │       │       │   └── layout: boxes$Tree
+    │       │   │       │       └── body[1] > assign:
+    │       │   │       │           ├── place: #24
+    │       │   │       │           └── value: local #22 : <i64 | ptr>
+    │       │   │       └── layout: boxes$Pair
+    │       │   └── layout: boxes$Tree
+    │       ├── body[10] > host:
+    │       │   ├── local: #26
+    │       │   ├── scope: %2
+    │       │   ├── value > copy:
+    │       │   │   ├── type: <i64 | ptr>
+    │       │   │   ├── value: local #25 : <i64 | ptr>
+    │       │   │   └── layout: boxes$Tree
+    │       │   └── layout: boxes$Tree
+    │       ├── body[11] > overwrite:
+    │       │   ├── address: address of #25 : ptr
+    │       │   ├── value > case:
+    │       │   │   ├── type: <i64 | ptr>
+    │       │   │   ├── index: 0
+    │       │   │   └── payload: 0 : i64
+    │       │   └── layout: boxes$Tree
+    │       ├── body[12] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_total_11
+    │       │       │   └── args[0]: local #26 : <i64 | ptr>
+    │       │       └── right: 6 : i64
+    │       ├── body[13] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_total_11
+    │       │       │   └── args[0]: local #25 : <i64 | ptr>
+    │       │       └── right: 0 : i64
+    │       ├── body[14] > host:
+    │       │   ├── local: #39
+    │       │   ├── scope: %2
+    │       │   ├── value > record:
+    │       │   │   ├── type: {i32, <void | ptr>}
+    │       │   │   ├── members[0] > member 0: 0 : i32
+    │       │   │   └── members[1] > member 1 > case:
+    │       │   │       ├── type: <void | ptr>
+    │       │   │       ├── index: 1
+    │       │   │       └── payload > box:
+    │       │   │           ├── value > call:
+    │       │   │           │   ├── type: {i32, handle, ptr}
+    │       │   │           │   ├── fn: zane_Link_14
+    │       │   │           │   ├── args[0] > expand:
+    │       │   │           │   │   ├── type: ptr
+    │       │   │           │   │   ├── label: @28
+    │       │   │           │   │   ├── result: #29
+    │       │   │           │   │   ├── body[0] > host:
+    │       │   │           │   │   │   ├── local: #27
+    │       │   │           │   │   │   ├── scope: %2
+    │       │   │           │   │   │   ├── value: "a" : handle
+    │       │   │           │   │   │   └── layout: @primitives$String
+    │       │   │           │   │   └── body[1] > assign:
+    │       │   │           │   │       ├── place: #29
+    │       │   │           │   │       └── value: address of #27 : ptr
+    │       │   │           │   └── args[1] > expand:
+    │       │   │           │       ├── type: ptr
+    │       │   │           │       ├── label: @37
+    │       │   │           │       ├── result: #38
+    │       │   │           │       ├── body[0] > host:
+    │       │   │           │       │   ├── local: #36
+    │       │   │           │       │   ├── scope: %2
+    │       │   │           │       │   ├── value > record:
+    │       │   │           │       │   │   ├── type: {i32, <void | ptr>}
+    │       │   │           │       │   │   ├── members[0] > member 0: 0 : i32
+    │       │   │           │       │   │   └── members[1] > member 1 > case:
+    │       │   │           │       │   │       ├── type: <void | ptr>
+    │       │   │           │       │   │       ├── index: 1
+    │       │   │           │       │   │       └── payload > box:
+    │       │   │           │       │   │           ├── value > call:
+    │       │   │           │       │   │           │   ├── type: {i32, handle, ptr}
+    │       │   │           │       │   │           │   ├── fn: zane_Link_14
+    │       │   │           │       │   │           │   ├── args[0] > expand:
+    │       │   │           │       │   │           │   │   ├── type: ptr
+    │       │   │           │       │   │           │   │   ├── label: @31
+    │       │   │           │       │   │           │   │   ├── result: #32
+    │       │   │           │       │   │           │   │   ├── body[0] > host:
+    │       │   │           │       │   │           │   │   │   ├── local: #30
+    │       │   │           │       │   │           │   │   │   ├── scope: %2
+    │       │   │           │       │   │           │   │   │   ├── value: "b" : handle
+    │       │   │           │       │   │           │   │   │   └── layout: @primitives$String
+    │       │   │           │       │   │           │   │   └── body[1] > assign:
+    │       │   │           │       │   │           │   │       ├── place: #32
+    │       │   │           │       │   │           │   │       └── value: address of #30 : ptr
+    │       │   │           │       │   │           │   └── args[1] > expand:
+    │       │   │           │       │   │           │       ├── type: ptr
+    │       │   │           │       │   │           │       ├── label: @34
+    │       │   │           │       │   │           │       ├── result: #35
+    │       │   │           │       │   │           │       ├── body[0] > host:
+    │       │   │           │       │   │           │       │   ├── local: #33
+    │       │   │           │       │   │           │       │   ├── scope: %2
+    │       │   │           │       │   │           │       │   ├── value > record:
+    │       │   │           │       │   │           │       │   │   ├── type: {i32, <void | ptr>}
+    │       │   │           │       │   │           │       │   │   ├── members[0] > member 0: 0 : i32
+    │       │   │           │       │   │           │       │   │   └── members[1] > member 1 > case:
+    │       │   │           │       │   │           │       │   │       ├── type: <void | ptr>
+    │       │   │           │       │   │           │       │   │       ├── index: 0
+    │       │   │           │       │   │           │       │   │       └── payload: unit : void
+    │       │   │           │       │   │           │       │   └── layout: boxes$Chain
+    │       │   │           │       │   │           │       └── body[1] > assign:
+    │       │   │           │       │   │           │           ├── place: #35
+    │       │   │           │       │   │           │           └── value: address of #33 : ptr
+    │       │   │           │       │   │           └── layout: boxes$Link
+    │       │   │           │       │   └── layout: boxes$Chain
+    │       │   │           │       └── body[1] > assign:
+    │       │   │           │           ├── place: #38
+    │       │   │           │           └── value: address of #36 : ptr
+    │       │   │           └── layout: boxes$Link
+    │       │   └── layout: boxes$Chain
+    │       ├── body[15] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_length_15
+    │       │       │   └── args[0]: address of #39 : ptr
+    │       │       └── right: 2 : i64
+    │       ├── body[16] > let:
+    │       │   ├── local: #40
+    │       │   └── value > mint: address of #39 : ptr
+    │       ├── body[17] > host:
+    │       │   ├── local: #41
+    │       │   ├── scope: %2
+    │       │   ├── value > take:
+    │       │   │   ├── type: {i32, <void | ptr>}
+    │       │   │   ├── address: address of #39 : ptr
+    │       │   │   └── layout: boxes$Chain
+    │       │   └── layout: boxes$Chain
+    │       ├── body[18] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_length_15
+    │       │       │   └── args[0] > resolve: local #40 : i32
+    │       │       └── right: 2 : i64
+    │       ├── body[19] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > member:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── index: 1
+    │       │       │   │   └── value > deref:
+    │       │       │   │       ├── type: {i32, handle, ptr}
+    │       │       │   │       └── ptr > expand:
+    │       │       │   │           ├── type: ptr
+    │       │       │   │           ├── label: @42
+    │       │       │   │           ├── result: #43
+    │       │       │   │           ├── body[0] > reserve:
+    │       │       │   │           │   ├── local: #45
+    │       │       │   │           │   ├── scope: %2
+    │       │       │   │           │   ├── type: {i32, handle, ptr}
+    │       │       │   │           │   └── layout: boxes$Link
+    │       │       │   │           ├── body[1] > let:
+    │       │       │   │           │   ├── local: #44
+    │       │       │   │           │   └── value: address of #41 : ptr
+    │       │       │   │           ├── body[2] > switch:
+    │       │       │   │           │   ├── value > member:
+    │       │       │   │           │   │   ├── type: <void | ptr>
+    │       │       │   │           │   │   ├── index: 1
+    │       │       │   │           │   │   └── value > deref:
+    │       │       │   │           │   │       ├── type: {i32, <void | ptr>}
+    │       │       │   │           │   │       └── ptr: local #44 : ptr
+    │       │       │   │           │   ├── cases[0] > case 0:
+    │       │       │   │           │   ├── cases[1] > case 1[0] > assign:
+    │       │       │   │           │   │   ├── place: #43
+    │       │       │   │           │   │   └── value > deref:
+    │       │       │   │           │   │       ├── type: ptr
+    │       │       │   │           │   │       └── ptr > offset:
+    │       │       │   │           │   │           ├── within: {i32, <void | ptr>}
+    │       │       │   │           │   │           ├── path: 1.1
+    │       │       │   │           │   │           └── base: local #44 : ptr
+    │       │       │   │           │   └── cases[1] > case 1[1]: leave @42
+    │       │       │   │           ├── body[3] > eval: unit : void
+    │       │       │   │           └── body[4] > scope:
+    │       │       │   │               ├── id: %49
+    │       │       │   │               ├── body[0] > place:
+    │       │       │   │               │   ├── address: address of #45 : ptr
+    │       │       │   │               │   ├── value > call:
+    │       │       │   │               │   │   ├── type: {i32, handle, ptr}
+    │       │       │   │               │   │   ├── fn: zane_Link_14
+    │       │       │   │               │   │   ├── args[0] > expand:
+    │       │       │   │               │   │   │   ├── type: ptr
+    │       │       │   │               │   │   │   ├── label: @47
+    │       │       │   │               │   │   │   ├── result: #48
+    │       │       │   │               │   │   │   ├── body[0] > host:
+    │       │       │   │               │   │   │   │   ├── local: #46
+    │       │       │   │               │   │   │   │   ├── scope: %49
+    │       │       │   │               │   │   │   │   ├── value: "none" : handle
+    │       │       │   │               │   │   │   │   └── layout: @primitives$String
+    │       │       │   │               │   │   │   └── body[1] > assign:
+    │       │       │   │               │   │   │       ├── place: #48
+    │       │       │   │               │   │   │       └── value: address of #46 : ptr
+    │       │       │   │               │   │   └── args[1] > expand:
+    │       │       │   │               │   │       ├── type: ptr
+    │       │       │   │               │   │       ├── label: @51
+    │       │       │   │               │   │       ├── result: #52
+    │       │       │   │               │   │       ├── body[0] > host:
+    │       │       │   │               │   │       │   ├── local: #50
+    │       │       │   │               │   │       │   ├── scope: %49
+    │       │       │   │               │   │       │   ├── value > record:
+    │       │       │   │               │   │       │   │   ├── type: {i32, <void | ptr>}
+    │       │       │   │               │   │       │   │   ├── members[0] > member 0: 0 : i32
+    │       │       │   │               │   │       │   │   └── members[1] > member 1 > case:
+    │       │       │   │               │   │       │   │       ├── type: <void | ptr>
+    │       │       │   │               │   │       │   │       ├── index: 0
+    │       │       │   │               │   │       │   │       └── payload: unit : void
+    │       │       │   │               │   │       │   └── layout: boxes$Chain
+    │       │       │   │               │   │       └── body[1] > assign:
+    │       │       │   │               │   │           ├── place: #52
+    │       │       │   │               │   │           └── value: address of #50 : ptr
+    │       │       │   │               │   └── layout: boxes$Link
+    │       │       │   │               ├── body[1] > assign:
+    │       │       │   │               │   ├── place: #43
+    │       │       │   │               │   └── value: address of #45 : ptr
+    │       │       │   │               └── body[2]: leave @42
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @54
+    │       │       │       ├── result: #55
+    │       │       │       ├── body[0] > host:
+    │       │       │       │   ├── local: #53
+    │       │       │       │   ├── scope: %2
+    │       │       │       │   ├── value: "a" : handle
+    │       │       │       │   └── layout: @primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #55
+    │       │       │           └── value: local #53 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[20] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > member:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── index: 1
+    │       │       │   │   └── value > deref:
+    │       │       │   │       ├── type: {i32, handle, ptr}
+    │       │       │   │       └── ptr > expand:
+    │       │       │   │           ├── type: ptr
+    │       │       │   │           ├── label: @56
+    │       │       │   │           ├── result: #57
+    │       │       │   │           ├── body[0] > reserve:
+    │       │       │   │           │   ├── local: #59
+    │       │       │   │           │   ├── scope: %2
+    │       │       │   │           │   ├── type: {i32, handle, ptr}
+    │       │       │   │           │   └── layout: boxes$Link
+    │       │       │   │           ├── body[1] > let:
+    │       │       │   │           │   ├── local: #58
+    │       │       │   │           │   └── value > expand:
+    │       │       │   │           │       ├── type: ptr
+    │       │       │   │           │       ├── label: @68
+    │       │       │   │           │       ├── result: #69
+    │       │       │   │           │       ├── body[0] > host:
+    │       │       │   │           │       │   ├── local: #67
+    │       │       │   │           │       │   ├── scope: %2
+    │       │       │   │           │       │   ├── value > record:
+    │       │       │   │           │       │   │   ├── type: {i32, <void | ptr>}
+    │       │       │   │           │       │   │   ├── members[0] > member 0: 0 : i32
+    │       │       │   │           │       │   │   └── members[1] > member 1 > case:
+    │       │       │   │           │       │   │       ├── type: <void | ptr>
+    │       │       │   │           │       │   │       ├── index: 0
+    │       │       │   │           │       │   │       └── payload: unit : void
+    │       │       │   │           │       │   └── layout: boxes$Chain
+    │       │       │   │           │       └── body[1] > assign:
+    │       │       │   │           │           ├── place: #69
+    │       │       │   │           │           └── value: address of #67 : ptr
+    │       │       │   │           ├── body[2] > switch:
+    │       │       │   │           │   ├── value > member:
+    │       │       │   │           │   │   ├── type: <void | ptr>
+    │       │       │   │           │   │   ├── index: 1
+    │       │       │   │           │   │   └── value > deref:
+    │       │       │   │           │   │       ├── type: {i32, <void | ptr>}
+    │       │       │   │           │   │       └── ptr: local #58 : ptr
+    │       │       │   │           │   ├── cases[0] > case 0:
+    │       │       │   │           │   ├── cases[1] > case 1[0] > assign:
+    │       │       │   │           │   │   ├── place: #57
+    │       │       │   │           │   │   └── value > deref:
+    │       │       │   │           │   │       ├── type: ptr
+    │       │       │   │           │   │       └── ptr > offset:
+    │       │       │   │           │   │           ├── within: {i32, <void | ptr>}
+    │       │       │   │           │   │           ├── path: 1.1
+    │       │       │   │           │   │           └── base: local #58 : ptr
+    │       │       │   │           │   └── cases[1] > case 1[1]: leave @56
+    │       │       │   │           ├── body[3] > eval: unit : void
+    │       │       │   │           └── body[4] > scope:
+    │       │       │   │               ├── id: %63
+    │       │       │   │               ├── body[0] > place:
+    │       │       │   │               │   ├── address: address of #59 : ptr
+    │       │       │   │               │   ├── value > call:
+    │       │       │   │               │   │   ├── type: {i32, handle, ptr}
+    │       │       │   │               │   │   ├── fn: zane_Link_14
+    │       │       │   │               │   │   ├── args[0] > expand:
+    │       │       │   │               │   │   │   ├── type: ptr
+    │       │       │   │               │   │   │   ├── label: @61
+    │       │       │   │               │   │   │   ├── result: #62
+    │       │       │   │               │   │   │   ├── body[0] > host:
+    │       │       │   │               │   │   │   │   ├── local: #60
+    │       │       │   │               │   │   │   │   ├── scope: %63
+    │       │       │   │               │   │   │   │   ├── value: "none" : handle
+    │       │       │   │               │   │   │   │   └── layout: @primitives$String
+    │       │       │   │               │   │   │   └── body[1] > assign:
+    │       │       │   │               │   │   │       ├── place: #62
+    │       │       │   │               │   │   │       └── value: address of #60 : ptr
+    │       │       │   │               │   │   └── args[1] > expand:
+    │       │       │   │               │   │       ├── type: ptr
+    │       │       │   │               │   │       ├── label: @65
+    │       │       │   │               │   │       ├── result: #66
+    │       │       │   │               │   │       ├── body[0] > host:
+    │       │       │   │               │   │       │   ├── local: #64
+    │       │       │   │               │   │       │   ├── scope: %63
+    │       │       │   │               │   │       │   ├── value > record:
+    │       │       │   │               │   │       │   │   ├── type: {i32, <void | ptr>}
+    │       │       │   │               │   │       │   │   ├── members[0] > member 0: 0 : i32
+    │       │       │   │               │   │       │   │   └── members[1] > member 1 > case:
+    │       │       │   │               │   │       │   │       ├── type: <void | ptr>
+    │       │       │   │               │   │       │   │       ├── index: 0
+    │       │       │   │               │   │       │   │       └── payload: unit : void
+    │       │       │   │               │   │       │   └── layout: boxes$Chain
+    │       │       │   │               │   │       └── body[1] > assign:
+    │       │       │   │               │   │           ├── place: #66
+    │       │       │   │               │   │           └── value: address of #64 : ptr
+    │       │       │   │               │   └── layout: boxes$Link
+    │       │       │   │               ├── body[1] > assign:
+    │       │       │   │               │   ├── place: #57
+    │       │       │   │               │   └── value: address of #59 : ptr
+    │       │       │   │               └── body[2]: leave @56
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @71
+    │       │       │       ├── result: #72
+    │       │       │       ├── body[0] > host:
+    │       │       │       │   ├── local: #70
+    │       │       │       │   ├── scope: %2
+    │       │       │       │   ├── value: "none" : handle
+    │       │       │       │   └── layout: @primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #72
+    │       │       │           └── value: local #70 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[21] > let:
+    │       │   ├── local: #73
+    │       │   └── value: 1 : i64
+    │       ├── body[22] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @75
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #74
+    │       │   │   └── value: 1000 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #74 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #73 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > scope:
+    │       │   │   │       ├── id: %79
+    │       │   │   │       ├── body[0] > host:
+    │       │   │   │       │   ├── local: #78
+    │       │   │   │       │   ├── scope: %79
+    │       │   │   │       │   ├── value > case:
+    │       │   │   │       │   │   ├── type: <void | ptr>
+    │       │   │   │       │   │   ├── index: 1
+    │       │   │   │       │   │   └── payload > box:
+    │       │   │   │       │   │       ├── value > case:
+    │       │   │   │       │   │       │   ├── type: <void | ptr>
+    │       │   │   │       │   │       │   ├── index: 1
+    │       │   │   │       │   │       │   └── payload > box:
+    │       │   │   │       │   │       │       ├── value > case:
+    │       │   │   │       │   │       │       │   ├── type: <void | ptr>
+    │       │   │   │       │   │       │       │   ├── index: 0
+    │       │   │   │       │   │       │       │   └── payload: unit : void
+    │       │   │   │       │   │       │       └── layout: boxes$Countdown
+    │       │   │   │       │   │       └── layout: boxes$Countdown
+    │       │   │   │       │   └── layout: boxes$Countdown
+    │       │   │   │       ├── body[1] > host:
+    │       │   │   │       │   ├── local: #80
+    │       │   │   │       │   ├── scope: %79
+    │       │   │   │       │   ├── value > copy:
+    │       │   │   │       │   │   ├── type: <void | ptr>
+    │       │   │   │       │   │   ├── value: local #78 : <void | ptr>
+    │       │   │   │       │   │   └── layout: boxes$Countdown
+    │       │   │   │       │   └── layout: boxes$Countdown
+    │       │   │   │       └── body[2] > overwrite:
+    │       │   │   │           ├── address: address of #78 : ptr
+    │       │   │   │           ├── value > copy:
+    │       │   │   │           │   ├── type: <void | ptr>
+    │       │   │   │           │   ├── value: local #80 : <void | ptr>
+    │       │   │   │           │   └── layout: boxes$Countdown
+    │       │   │   │           └── layout: boxes$Countdown
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #73
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #73 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @75
+    │       └── body[23] > return: unit : void
+    ├── funcs[1] > func:
+    │   ├── symbol: zane_depth_7
+    │   ├── params[0]: local #1 : <void | ptr>
+    │   ├── ret: i64
+    │   └── body[0] > return > expand:
+    │       ├── type: i64
+    │       ├── label: @2
+    │       ├── result: #3
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value: address of #1 : ptr
+    │       └── body[1] > switch:
+    │           ├── value > deref:
+    │           │   ├── type: <void | ptr>
+    │           │   └── ptr: local #4 : ptr
+    │           ├── cases[0] > case 0[0] > let:
+    │           │   ├── local: #5
+    │           │   └── value > offset:
+    │           │       ├── within: <void | ptr>
+    │           │       ├── path: 0
+    │           │       └── base: local #4 : ptr
+    │           ├── cases[0] > case 0[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value: 0 : i64
+    │           ├── cases[0] > case 0[2]: leave @2
+    │           ├── cases[1] > case 1[0] > let:
+    │           │   ├── local: #6
+    │           │   └── value > deref:
+    │           │       ├── type: ptr
+    │           │       └── ptr > offset:
+    │           │           ├── within: <void | ptr>
+    │           │           ├── path: 1
+    │           │           └── base: local #4 : ptr
+    │           ├── cases[1] > case 1[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value > binary:
+    │           │       ├── type: i64
+    │           │       ├── op: +
+    │           │       ├── left: 1 : i64
+    │           │       └── right > call:
+    │           │           ├── type: i64
+    │           │           ├── fn: zane_depth_7
+    │           │           └── args[0] > deref:
+    │           │               ├── type: <void | ptr>
+    │           │               └── ptr: local #6 : ptr
+    │           └── cases[1] > case 1[2]: leave @2
+    ├── funcs[2] > func:
+    │   ├── symbol: zane_check_16
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > host:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: @primitives$String
+    │       ├── body[1] > host:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: @primitives$String
+    │       ├── body[2] > if:
+    │       │   ├── cond: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #2 : handle
+    │       ├── body[3] > if:
+    │       │   ├── cond > flip:
+    │       │   │   ├── type: i1
+    │       │   │   └── value: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #4 : handle
+    │       └── body[4] > return: unit : void
+    ├── funcs[3] > func:
+    │   ├── symbol: zane_Pair_10
+    │   ├── params[0]: local #1 : <i64 | ptr>
+    │   ├── params[1]: local #2 : <i64 | ptr>
+    │   ├── ret: {ptr, ptr}
+    │   └── body[0] > return > record:
+    │       ├── type: {ptr, ptr}
+    │       ├── members[0] > member 0 > box:
+    │       │   ├── value > copy:
+    │       │   │   ├── type: <i64 | ptr>
+    │       │   │   ├── value: local #1 : <i64 | ptr>
+    │       │   │   └── layout: boxes$Tree
+    │       │   └── layout: boxes$Tree
+    │       └── members[1] > member 1 > box:
+    │           ├── value > copy:
+    │           │   ├── type: <i64 | ptr>
+    │           │   ├── value: local #2 : <i64 | ptr>
+    │           │   └── layout: boxes$Tree
+    │           └── layout: boxes$Tree
+    ├── funcs[4] > func:
+    │   ├── symbol: zane_total_11
+    │   ├── params[0]: local #1 : <i64 | ptr>
+    │   ├── ret: i64
+    │   └── body[0] > return > expand:
+    │       ├── type: i64
+    │       ├── label: @2
+    │       ├── result: #3
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value: address of #1 : ptr
+    │       └── body[1] > switch:
+    │           ├── value > deref:
+    │           │   ├── type: <i64 | ptr>
+    │           │   └── ptr: local #4 : ptr
+    │           ├── cases[0] > case 0[0] > let:
+    │           │   ├── local: #5
+    │           │   └── value > offset:
+    │           │       ├── within: <i64 | ptr>
+    │           │       ├── path: 0
+    │           │       └── base: local #4 : ptr
+    │           ├── cases[0] > case 0[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value > deref:
+    │           │       ├── type: i64
+    │           │       └── ptr: local #5 : ptr
+    │           ├── cases[0] > case 0[2]: leave @2
+    │           ├── cases[1] > case 1[0] > let:
+    │           │   ├── local: #6
+    │           │   └── value > deref:
+    │           │       ├── type: ptr
+    │           │       └── ptr > offset:
+    │           │           ├── within: <i64 | ptr>
+    │           │           ├── path: 1
+    │           │           └── base: local #4 : ptr
+    │           ├── cases[1] > case 1[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value > binary:
+    │           │       ├── type: i64
+    │           │       ├── op: +
+    │           │       ├── left > call:
+    │           │       │   ├── type: i64
+    │           │       │   ├── fn: zane_total_11
+    │           │       │   └── args[0] > deref:
+    │           │       │       ├── type: <i64 | ptr>
+    │           │       │       └── ptr > deref:
+    │           │       │           ├── type: ptr
+    │           │       │           └── ptr > offset:
+    │           │       │               ├── within: {ptr, ptr}
+    │           │       │               ├── path: 0
+    │           │       │               └── base: local #6 : ptr
+    │           │       └── right > call:
+    │           │           ├── type: i64
+    │           │           ├── fn: zane_total_11
+    │           │           └── args[0] > deref:
+    │           │               ├── type: <i64 | ptr>
+    │           │               └── ptr > deref:
+    │           │                   ├── type: ptr
+    │           │                   └── ptr > offset:
+    │           │                       ├── within: {ptr, ptr}
+    │           │                       ├── path: 1
+    │           │                       └── base: local #6 : ptr
+    │           └── cases[1] > case 1[2]: leave @2
+    ├── funcs[5] > func:
+    │   ├── symbol: zane_Link_14
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : ptr
+    │   ├── ret: {i32, handle, ptr}
+    │   └── body[0] > return > record:
+    │       ├── type: {i32, handle, ptr}
+    │       ├── members[0] > member 0: 0 : i32
+    │       ├── members[1] > member 1 > take:
+    │       │   ├── type: handle
+    │       │   ├── address: local #1 : ptr
+    │       │   └── layout: @primitives$String
+    │       └── members[2] > member 2 > box:
+    │           ├── value > take:
+    │           │   ├── type: {i32, <void | ptr>}
+    │           │   ├── address: local #2 : ptr
+    │           │   └── layout: boxes$Chain
+    │           └── layout: boxes$Chain
+    └── funcs[6] > func:
+        ├── symbol: zane_length_15
+        ├── params[0]: local #1 : ptr
+        ├── ret: i64
+        └── body[0] > return > expand:
+            ├── type: i64
+            ├── label: @2
+            ├── result: #3
+            ├── body[0] > let:
+            │   ├── local: #4
+            │   └── value: local #1 : ptr
+            └── body[1] > switch:
+                ├── value > member:
+                │   ├── type: <void | ptr>
+                │   ├── index: 1
+                │   └── value > deref:
+                │       ├── type: {i32, <void | ptr>}
+                │       └── ptr: local #4 : ptr
+                ├── cases[0] > case 0[0] > let:
+                │   ├── local: #5
+                │   └── value > offset:
+                │       ├── within: {i32, <void | ptr>}
+                │       ├── path: 1.0
+                │       └── base: local #4 : ptr
+                ├── cases[0] > case 0[1] > assign:
+                │   ├── place: #3
+                │   └── value: 0 : i64
+                ├── cases[0] > case 0[2]: leave @2
+                ├── cases[1] > case 1[0] > let:
+                │   ├── local: #6
+                │   └── value > deref:
+                │       ├── type: ptr
+                │       └── ptr > offset:
+                │           ├── within: {i32, <void | ptr>}
+                │           ├── path: 1.1
+                │           └── base: local #4 : ptr
+                ├── cases[1] > case 1[1] > assign:
+                │   ├── place: #3
+                │   └── value > binary:
+                │       ├── type: i64
+                │       ├── op: +
+                │       ├── left: 1 : i64
+                │       └── right > call:
+                │           ├── type: i64
+                │           ├── fn: zane_length_15
+                │           └── args[0] > deref:
+                │               ├── type: ptr
+                │               └── ptr > offset:
+                │                   ├── within: {i32, handle, ptr}
+                │                   ├── path: 2
+                │                   └── base: local #6 : ptr
+                └── cases[1] > case 1[2]: leave @2

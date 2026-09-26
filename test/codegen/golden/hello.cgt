@@ -1,5 +1,9 @@
 └── program:
     ├── entry: zane_main_1
+    ├── layouts[0] > layout:
+    │   ├── type: @primitives$String
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: text @0
     └── funcs[0] > func:
         ├── symbol: zane_main_1
         ├── params:
@@ -9,11 +13,10 @@
             ├── body[0] > host:
             │   ├── local: #1
             │   ├── scope: %2
-            │   ├── value: "hello world" : text
-            │   ├── layout[0]: @0 (32 bytes)
-            │   └── layout[1]: text @0
+            │   ├── value: "hello world" : handle
+            │   └── layout: @primitives$String
             ├── body[1] > eval > runtime:
             │   ├── type: void
             │   ├── fn: zane_print
-            │   └── args[0]: local #1 : text
+            │   └── args[0]: local #1 : handle
             └── body[2] > return: unit : void

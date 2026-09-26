@@ -23,12 +23,12 @@ typedef struct {
 	node held;
 } car;
 
-static const int64_t node_layout[] = { 1, ZANE_HOST, 0, sizeof(node), 0 };
+static const int64_t node_layout[] = { 1, ZANE_HOST, 0, sizeof(node), 0, 0, 0 };
 static const int64_t car_layout[] = {
 	3,
-	ZANE_HOST, 0, sizeof(car), 0,
-	ZANE_HOST, offsetof(car, spare), sizeof(node), 0,
-	ZANE_HOST, offsetof(car, held), sizeof(node), 1, offsetof(car, tag), 1,
+	ZANE_HOST, 0, sizeof(car), 0, 0, 0,
+	ZANE_HOST, offsetof(car, spare), sizeof(node), 0, 0, 0,
+	ZANE_HOST, offsetof(car, held), sizeof(node), 0, 0, 1, offsetof(car, tag), 1,
 };
 
 void zane_main(void) {
@@ -49,7 +49,7 @@ void zane_main(void) {
 
 	/* A stable overwrite keeps the identity: the guest sees the new host. */
 	node fresh = { 0, 7 };
-	zane_overwrite((char *)b, (char *)&fresh, sizeof(node), node_layout);
+	zane_overwrite((char *)b, (char *)&fresh, sizeof(node), node_layout, 0);
 	check(zane_resolve(g) == b && b->value == 7 && b->bp == g);
 
 	/* Moving an anchored host into an anchored one merges them: the
@@ -59,7 +59,7 @@ void zane_main(void) {
 	uint32_t h = zane_mint(c);
 	node moving = *c;
 	zane_vacate((char *)c, node_layout);
-	zane_overwrite((char *)b, (char *)&moving, sizeof(node), node_layout);
+	zane_overwrite((char *)b, (char *)&moving, sizeof(node), node_layout, 0);
 	check(zane_terminal(h) == g && zane_resolve(h) == b && b->value == 3);
 
 	/* A variant payload's anchored occupant floats when the case changes,
@@ -68,7 +68,7 @@ void zane_main(void) {
 	*k = (car){ .spare = { 0, 5 }, .tag = 1, .held = { 0, 9 } };
 	uint32_t spare = zane_mint(&k->spare), held = zane_mint(&k->held);
 	car next = { .spare = { 0, 6 }, .tag = 0 };
-	zane_overwrite((char *)k, (char *)&next, sizeof(car), car_layout);
+	zane_overwrite((char *)k, (char *)&next, sizeof(car), car_layout, 0);
 	node *floating = zane_resolve(held);
 	check(floating != &k->held && floating->value == 9);
 	check(zane_resolve(spare) == &k->spare && k->spare.value == 6);

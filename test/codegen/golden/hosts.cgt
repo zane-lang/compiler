@@ -1,5 +1,16 @@
 └── program:
     ├── entry: zane_main_22
+    ├── layouts[0] > layout:
+    │   ├── type: hosts$Account
+    │   └── positions[0]: @0 (24 bytes)
+    ├── layouts[1] > layout:
+    │   ├── type: hosts$Slot
+    │   ├── positions[0]: @0 (40 bytes)
+    │   └── positions[1]: @16 (24 bytes) when [8]=1
+    ├── layouts[2] > layout:
+    │   ├── type: @primitives$String
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: text @0
     ├── funcs[0] > func:
     │   ├── symbol: zane_main_22
     │   ├── params:
@@ -14,7 +25,7 @@
     │       │   │   ├── fn: zane_opened_12
     │       │   │   ├── args[0]: 1 : i64
     │       │   │   └── args[1]: 5 : i64
-    │       │   └── layout[0]: @0 (24 bytes)
+    │       │   └── layout: hosts$Account
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_deposit_10
@@ -37,8 +48,8 @@
     │       │   ├── value > take:
     │       │   │   ├── type: {i32, i64, i64}
     │       │   │   ├── address: address of #1 : ptr
-    │       │   │   └── layout[0]: @0 (24 bytes)
-    │       │   └── layout[0]: @0 (24 bytes)
+    │       │   │   └── layout: hosts$Account
+    │       │   └── layout: hosts$Account
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_check_21
@@ -56,7 +67,7 @@
     │       │   │   ├── type: {i32, i64, i64}
     │       │   │   ├── fn: zane_Account_9
     │       │   │   └── args[0]: 2 : i64
-    │       │   └── layout[0]: @0 (24 bytes)
+    │       │   └── layout: hosts$Account
     │       ├── body[6] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_check_21
@@ -92,8 +103,7 @@
     │       │   │           ├── type: {i32, i64, i64}
     │       │   │           ├── fn: zane_Account_9
     │       │   │           └── args[0]: 3 : i64
-    │       │   ├── layout[0]: @0 (40 bytes)
-    │       │   └── layout[1]: @16 (24 bytes) when [8]=1
+    │       │   └── layout: hosts$Slot
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_check_21
@@ -270,7 +280,7 @@
     │       │       │           │   │   ├── type: {i32, i64, i64}
     │       │       │           │   │   ├── index: 1
     │       │       │           │   │   └── value: local #19 : <i64 | {i32, i64, i64} | void>
-    │       │       │           │   └── layout[0]: @0 (24 bytes)
+    │       │       │           │   └── layout: hosts$Account
     │       │       │           ├── body[1] > assign:
     │       │       │           │   ├── place: #18
     │       │       │           │   └── value > member:
@@ -313,7 +323,7 @@
     │       │       │           │   │   ├── type: {i32, i64, i64}
     │       │       │           │   │   ├── index: 1
     │       │       │           │   │   └── value: local #24 : <i64 | {i32, i64, i64} | void>
-    │       │       │           │   └── layout[0]: @0 (24 bytes)
+    │       │       │           │   └── layout: hosts$Account
     │       │       │           ├── body[1] > assign:
     │       │       │           │   ├── place: #23
     │       │       │           │   └── value > member:
@@ -400,15 +410,15 @@
     │       │   │   │       │   │   ├── fn: zane_opened_12
     │       │   │   │       │   │   ├── args[0]: local #28 : i64
     │       │   │   │       │   │   └── args[1]: 1 : i64
-    │       │   │   │       │   └── layout[0]: @0 (24 bytes)
+    │       │   │   │       │   └── layout: hosts$Account
     │       │   │   │       ├── body[1] > host:
     │       │   │   │       │   ├── local: #35
     │       │   │   │       │   ├── scope: %34
     │       │   │   │       │   ├── value > take:
     │       │   │   │       │   │   ├── type: {i32, i64, i64}
     │       │   │   │       │   │   ├── address: address of #33 : ptr
-    │       │   │   │       │   │   └── layout[0]: @0 (24 bytes)
-    │       │   │   │       │   └── layout[0]: @0 (24 bytes)
+    │       │   │   │       │   │   └── layout: hosts$Account
+    │       │   │   │       │   └── layout: hosts$Account
     │       │   │   │       └── body[2] > assign:
     │       │   │   │           ├── place: #27
     │       │   │   │           └── value > binary:
@@ -451,7 +461,7 @@
     │       │   │   ├── type: {i32, i64, i64}
     │       │   │   ├── fn: zane_Account_9
     │       │   │   └── args[0]: local #1 : i64
-    │       │   └── layout[0]: @0 (24 bytes)
+    │       │   └── layout: hosts$Account
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: zane_deposit_10
@@ -460,7 +470,7 @@
     │       └── body[2] > return > take:
     │           ├── type: {i32, i64, i64}
     │           ├── address: address of #3 : ptr
-    │           └── layout[0]: @0 (24 bytes)
+    │           └── layout: hosts$Account
     ├── funcs[2] > func:
     │   ├── symbol: zane_deposit_10
     │   ├── params[0]: local #1 : ptr
@@ -498,21 +508,19 @@
     │       ├── body[0] > host:
     │       │   ├── local: #2
     │       │   ├── scope: %3
-    │       │   ├── value: "yes\n" : text
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: text @0
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: @primitives$String
     │       ├── body[1] > host:
     │       │   ├── local: #4
     │       │   ├── scope: %3
-    │       │   ├── value: "no\n" : text
-    │       │   ├── layout[0]: @0 (32 bytes)
-    │       │   └── layout[1]: text @0
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: @primitives$String
     │       ├── body[2] > if:
     │       │   ├── cond: local #1 : i1
     │       │   └── body[0] > eval > runtime:
     │       │       ├── type: void
     │       │       ├── fn: zane_print
-    │       │       └── args[0]: local #2 : text
+    │       │       └── args[0]: local #2 : handle
     │       ├── body[3] > if:
     │       │   ├── cond > flip:
     │       │   │   ├── type: i1
@@ -520,7 +528,7 @@
     │       │   └── body[0] > eval > runtime:
     │       │       ├── type: void
     │       │       ├── fn: zane_print
-    │       │       └── args[0]: local #4 : text
+    │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[5] > func:
     │   ├── symbol: zane_Account_9
@@ -582,7 +590,7 @@
     │   │   │   │       │   │       ├── op: *
     │   │   │   │       │   │       ├── left: local #2 : i64
     │   │   │   │       │   │       └── right: 10 : i64
-    │   │   │   │       │   └── layout[0]: @0 (24 bytes)
+    │   │   │   │       │   └── layout: hosts$Account
     │   │   │   │       └── body[1] > eval > expand:
     │   │   │   │           ├── type: i1
     │   │   │   │           ├── label: @10
@@ -631,7 +639,7 @@
     │       │   │   ├── fn: zane_opened_12
     │       │   │   ├── args[0]: 9 : i64
     │       │   │   └── args[1]: 5 : i64
-    │       │   └── layout[0]: @0 (24 bytes)
+    │       │   └── layout: hosts$Account
     │       ├── body[1] > eval > expand:
     │       │   ├── type: i1
     │       │   ├── label: @5
@@ -658,7 +666,7 @@
     │       │   │       │   │   ├── fn: zane_opened_12
     │       │   │       │   │   ├── args[0]: 8 : i64
     │       │   │       │   │   └── args[1]: local #1 : i64
-    │       │   │       │   └── layout[0]: @0 (24 bytes)
+    │       │   │       │   └── layout: hosts$Account
     │       │   │       └── body[1] > return > case:
     │       │   │           ├── type: <i64 | i64 | void>
     │       │   │           ├── index: 1
@@ -720,7 +728,7 @@
     │   │   │   │           │   │   ├── fn: zane_opened_12
     │   │   │   │           │   │   ├── args[0]: local #3 : i64
     │   │   │   │           │   │   └── args[1]: local #3 : i64
-    │   │   │   │           │   └── layout[0]: @0 (24 bytes)
+    │   │   │   │           │   └── layout: hosts$Account
     │   │   │   │           ├── body[1] > eval > expand:
     │   │   │   │           │   ├── type: void
     │   │   │   │           │   ├── label: @10
@@ -826,7 +834,7 @@
     │           │   │   │   └── args[1] > deref:
     │           │   │   │       ├── type: i64
     │           │   │   │       └── ptr: local #5 : ptr
-    │           │   │   └── layout[0]: @0 (24 bytes)
+    │           │   │   └── layout: hosts$Account
     │           │   ├── body[1] > eval > expand:
     │           │   │   ├── type: i1
     │           │   │   ├── label: @9
@@ -851,8 +859,8 @@
     │           │   │   │       │   ├── value > take:
     │           │   │   │       │   │   ├── type: {i32, i64, i64}
     │           │   │   │       │   │   ├── address: address of #6 : ptr
-    │           │   │   │       │   │   └── layout[0]: @0 (24 bytes)
-    │           │   │   │       │   └── layout[0]: @0 (24 bytes)
+    │           │   │   │       │   │   └── layout: hosts$Account
+    │           │   │   │       │   └── layout: hosts$Account
     │           │   │   │       ├── body[1] > assign:
     │           │   │   │       │   ├── place: #3
     │           │   │   │       │   └── value > binary:
@@ -890,7 +898,7 @@
     │               │   │   ├── type: {i32, i64, i64}
     │               │   │   ├── fn: zane_Account_9
     │               │   │   └── args[0]: 6 : i64
-    │               │   └── layout[0]: @0 (24 bytes)
+    │               │   └── layout: hosts$Account
     │               ├── body[1] > assign:
     │               │   ├── place: #3
     │               │   └── value > binary:
