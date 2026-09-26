@@ -1,6 +1,6 @@
-; The runtime on its own (docs/lowering.md L17): `arenas.c` includes it and
-; exercises the scope arenas directly, and the golden file holds what it
-; printed.
+; The runtime on its own (docs/lowering.md L17): `arenas.c` and `anchors.c`
+; include it and exercise the scope arenas and the anchors directly, and the
+; golden files hold what each printed.
 
 (rule
  (deps arenas.c ../../runtime/zane.c)
@@ -18,3 +18,20 @@
  (alias runtest)
  (action
   (diff arenas.out arenas.out.actual)))
+
+(rule
+ (deps anchors.c ../../runtime/zane.c)
+ (targets anchors.exe)
+ (action
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -o anchors.exe anchors.c)))
+
+(rule
+ (action
+  (with-stdout-to
+   anchors.out.actual
+   (run ./anchors.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff anchors.out anchors.out.actual)))

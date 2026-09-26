@@ -248,3 +248,46 @@
  (alias runtest)
  (action
   (diff golden/hosts.out hosts.out.actual)))
+
+
+; `guests` is step 6: `&T` minted, read and written through, passed,
+; returned and stored, following its host through moves, stable overwrites,
+; merges and a variant payload's float.
+
+(rule
+ (deps (source_tree fixtures/guests) (source_tree ../core))
+ (action
+  (with-stdout-to
+   guests.cgt.actual
+   (run
+    %{exe:../../bin/compiler/main.exe}
+    --cgt
+    --package fixtures/guests
+    --package ../core))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/guests.cgt guests.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/guests) (source_tree ../core))
+ (targets guests.exe)
+ (action
+  (run
+   %{exe:../../bin/compiler/main.exe}
+   --build
+   guests.exe
+   --package fixtures/guests
+   --package ../core)))
+
+(rule
+ (action
+  (with-stdout-to
+   guests.out.actual
+   (run ./guests.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/guests.out guests.out.actual)))

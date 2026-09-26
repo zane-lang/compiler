@@ -4,6 +4,20 @@
 open Tree_graph
 open Nodes
 
+(* A layout, one host per line: `@8 (16 bytes) when [0]=1`. *)
+let layout (l : Layout.t) =
+  map_seq
+    (fun (p : Layout.position) ->
+      let tags =
+        match p.tags with
+        | [] -> ""
+        | ts ->
+            let tag (o, t) = Printf.sprintf "[%d]=%d" o t in
+            " when " ^ String.concat ", " (List.map tag ts)
+      in
+      Leaf (Printf.sprintf "@%d (%d bytes)%s" p.offset p.size tags))
+    l
+
 let rec expr (e : Expr.t) =
   let typed s = Leaf (s ^ " : " ^ Ty.to_string e.Expr.ty) in
   let call title fn args =
@@ -55,6 +69,25 @@ let rec expr (e : Expr.t) =
              ("index", Leaf (string_of_int index));
              ("value", expr value);
            ])
+  | Expr.Offset { base; within; path } ->
+      group "offset"
+        (fields
+           [
+             ("within", Leaf (Ty.to_string within));
+             ("path", Leaf (String.concat "." (List.map string_of_int path)));
+             ("base", expr base);
+           ])
+  | Expr.Mint p -> group "mint" (expr p)
+  | Expr.Resolve t -> group "resolve" (expr t)
+  | Expr.Terminal t -> group "terminal" (expr t)
+  | Expr.Take { address; layout = l } ->
+      group "take"
+        (fields
+           [
+             ("type", Leaf (Ty.to_string e.Expr.ty));
+             ("address", expr address);
+             ("layout", layout l);
+           ])
   | Expr.Call { fn; args } -> call "call" fn args
   | Expr.Runtime { fn; args } -> call "runtime" fn args
   | Expr.Binary { op; left; right } ->
@@ -83,14 +116,20 @@ let rec expr (e : Expr.t) =
 and stat = function
   | Stat.Let { id; value } ->
       group "let" (fields [ ("local", Leaf (Printf.sprintf "#%d" id)); ("value", expr value) ])
-  | Stat.Host { id; scope; value } ->
+  | Stat.Host { id; scope; value; layout = l } ->
       group "host"
         (fields
-           [
-             ("local", Leaf (Printf.sprintf "#%d" id));
-             ("scope", Leaf (Printf.sprintf "%%%d" scope));
-             ("value", expr value);
-           ])
+           ([
+              ("local", Leaf (Printf.sprintf "#%d" id));
+              ("scope", Leaf (Printf.sprintf "%%%d" scope));
+              ("value", expr value);
+            ]
+           @ if l = [] then [] else [ ("layout", layout l) ]))
+  | Stat.Store { address; value } ->
+      group "store" (fields [ ("address", expr address); ("value", expr value) ])
+  | Stat.Overwrite { address; value; layout = l } ->
+      group "overwrite"
+        (fields [ ("address", expr address); ("value", expr value); ("layout", layout l) ])
   | Stat.Scope { id; body } ->
       let arena = Leaf (Printf.sprintf "%%%d" id) in
       group "scope" (fields [ ("id", arena); ("body", map_seq stat body) ])
