@@ -125,6 +125,15 @@ Unit check(ok Bool) {
 		z none => Bool(false);
 	});
 
+	// A fresh scrutinee is hosted where it is matched.
+	check(match (Holder.some(Node(Int(40)))) {
+		k some {
+			k!bump();
+			return k.value == Int(41);
+		}
+		z none => Bool(false);
+	});
+
 	// Many guests minted and dropped: each pass's anchors retire with it.
 	total Int(0);
 	i Int(1);

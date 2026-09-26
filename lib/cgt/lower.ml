@@ -637,8 +637,9 @@ and match_ st ctx span scrutinees (arms : T.Arm.t list) handler ret =
               let value = value_of st ctx e in
               let id = fresh st in
               let pointer = fresh st in
+              (* A fresh instance is hosted here, like any other. *)
               let at = Stat.Let { id = pointer; value = ptr (Expr.Address id) } in
-              ([ Stat.Let { id; value }; at ], pointer)
+              ([ bind st ctx.scope span tsty id value; at ], pointer)
         in
         let whole = { Expr.node = Expr.Deref (local_ptr pointer); ty = within } in
         (pointer, sum_of st span tsty whole, tsty, lets))

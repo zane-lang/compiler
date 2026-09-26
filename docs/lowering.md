@@ -322,13 +322,13 @@ test passing.
   memory is released together, which this does.
 - **Anchors as the runtime keeps them.** An anchor cell holds its host's
   address rather than a segmented offset, and a tether or backpointer holds
-  a cell's index in one growable pool, where `memory.md` §4.1 has pages of
+  a cell's index in one growable pool, where [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §4.1 has pages of
   cells named by segmented offsets. A forwarder retires with the identity
   it forwards to rather than at its former source scope's drain, which is
   later but still after every guest that could name it. Nothing a program
   does can tell these apart.
 - **A floated host outlives its owner.** A variant payload's anchored
-  occupant floats (`memory.md` §2.8.1) into memory of its own that lives
+  occupant floats ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8.1) into memory of its own that lives
   until the program ends, rather than until its owner scope drains. A host
   has no destructor, so the longer life is not observable.
 - **A `this` address across a call that moves.** L10 resolves `this` once per
