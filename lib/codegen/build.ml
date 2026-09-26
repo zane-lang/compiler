@@ -22,13 +22,18 @@ let executable m output =
   let tm = prepare m in
   let obj = Filename.temp_file "zane" ".o" in
   let rt = Filename.temp_file "zane" ".c" in
-  Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm;
-  Out_channel.with_open_bin rt (fun oc -> output_string oc Runtime_source.text);
   let command =
     String.concat " " (List.map Filename.quote [ cc (); "-O2"; "-o"; output; obj; rt ])
   in
-  let status = Sys.command command in
-  List.iter (fun f -> try Sys.remove f with Sys_error _ -> ()) [ obj; rt ];
+  (* The temporary files go however the build ends, a raise included. *)
+  let status =
+    Fun.protect
+      ~finally:(fun () -> List.iter (fun f -> try Sys.remove f with Sys_error _ -> ()) [ obj; rt ])
+      (fun () ->
+        Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm;
+        Out_channel.with_open_bin rt (fun oc -> output_string oc Runtime_source.text);
+        Sys.command command)
+  in
   match status with
   | 0 -> Ok ()
   | n -> Error (Printf.sprintf "`%s` exited with %d" command n)

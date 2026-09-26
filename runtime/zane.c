@@ -14,7 +14,10 @@ void zane_print(const char *bytes, int64_t length) {
 	fwrite(bytes, 1, (size_t)length, stdout);
 }
 
+/* A program whose output did not all reach stdout did not succeed: a write
+   that failed earlier leaves the stream's error indicator set, even when the
+   final flush has nothing left to fail on. */
 int main(void) {
 	zane_main();
-	return fflush(stdout) == 0 ? 0 : 1;
+	return fflush(stdout) == 0 && !ferror(stdout) ? 0 : 1;
 }
