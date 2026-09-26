@@ -281,8 +281,8 @@ test passing.
    that builds and runs it. Then lowering for `Int`,
    `Float` and `Bool` arithmetic, functions, returns, and `branch`/`repeat`
    expanded from `core`'s `if` and `to`. A test that builds and runs a
-   program. Printing an `Int` waits for step 7, since it goes through a
-   `String`.
+   program. Printing an `Int` goes through a `String`, and waits for a
+   conversion from one to the other, which the spec does not name yet.
 3. **Values.** Value structs and sums: layout, copies, fields, `match`, and
    enum maps. A `mut` subject is passed by address. A value type that
    contains itself needs a boxed member, which waits for step 7, and a case
@@ -299,8 +299,17 @@ test passing.
    payload's address (L13). The runtime keeps, arrives, vacates, merges and
    floats identities from a per-type layout of where each host's
    backpointer is, and a drain retires the anchors its scope still hosts.
-7. **Handles.** `String`, `List`, boxed members, and `destroy` returning
-   dynamic blocks.
+7. **Handles**, in three parts:
+   1. **Strings.** `@primitives$String` as a host whose handle owns its
+      bytes: joined, compared and printed, and the block returned when its
+      owner dies, at an overwrite or at its scope's drain. The runtime is
+      tested in C on its own, and stops a program that ends with a block
+      still out.
+   2. **Lists.** Generic instances, `@primitives$List<T>`, `push`, `size`,
+      and a subscript as a place, with the anchors of hosts in a list's
+      block following them when it grows.
+   3. **Boxed members.** A value type that contains itself, a value copied
+      whole with its blocks, and a host read out of a variant case.
 8. **`spawn`.** The thread pool, futures, and the water tower.
 
 ---
@@ -310,9 +319,9 @@ test passing.
 - **How many scopes get an arena.** L8 gives every block that declares a local
   its own. For now only a block that hosts a reference-type local opens one,
   and a value-type local stays an LLVM stack slot, since nothing tells the
-  two placements apart until a value owns dynamic storage (step 7). Folding
-  arenas is allowed and saves the most in loops; which ones to fold is left
-  to measurement.
+  two placements apart until a value owns dynamic storage, which it does
+  only through a boxed member (step 7). Folding arenas is allowed and saves
+  the most in loops; which ones to fold is left to measurement.
 - **Arenas share one chain of chunks.** Scopes nest last-in-first-out, so the
   runtime keeps one chain of 1 MiB chunks: a scope bumps from where the scope
   around it stopped, and draining it restores that point. A chunk stays
@@ -329,8 +338,28 @@ test passing.
   does can tell these apart.
 - **A floated host outlives its owner.** A variant payload's anchored
   occupant floats ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8.1) into memory of its own that lives
-  until the program ends, rather than until its owner scope drains. A host
-  has no destructor, so the longer life is not observable.
+  until the program ends, rather than until its owner scope drains, and so
+  do the blocks it owns. A host has no destructor, so the longer life is not
+  observable.
+- **A block belongs to its owner, not to a scope.** [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md)
+  §3.1–3.2 gives each scope a dynamic region of 1 MiB chunks with exact-size
+  stacks, reclaimed at its drain, and relocates a block into the
+  destination's region when its owner moves to an older scope. Here a block
+  comes from the C heap and belongs to the handle that names it. A move
+  takes it along without relocating it, and it is returned when its owner
+  dies: at an overwrite, or at the drain of the scope that hosts the owner,
+  which walks the scope's hosts as it already does for their anchors. A
+  fresh host that nothing keeps, such as a result that is dropped or an
+  operand, is hosted where it is made, so that drain returns its blocks. The
+  runtime counts the blocks out and stops a program that ends with one
+  still out. Nothing a program does can tell the two apart; the region's
+  bulk release and exact-size reuse are left to measurement.
+- **A literal's bytes stay where the program keeps them.** A string view's
+  handle points into the dynamic region ([`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.7). A literal's
+  points at the bytes the program embeds instead, and the handle also holds
+  the room of the block it owns, which is 0 for a literal's, so a literal
+  takes no block and returns none. Like any reference type's instance, the
+  view starts with its backpointer.
 - **A `this` address across a call that moves.** L10 resolves `this` once per
   call. That is safe while nothing in the call relocates what it names, which
   the single-writer rule ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §4.3) should

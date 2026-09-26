@@ -23,12 +23,12 @@ typedef struct {
 	node held;
 } car;
 
-static const int64_t node_layout[] = { 1, 0, sizeof(node), 0 };
+static const int64_t node_layout[] = { 1, ZANE_HOST, 0, sizeof(node), 0 };
 static const int64_t car_layout[] = {
 	3,
-	0, sizeof(car), 0,
-	offsetof(car, spare), sizeof(node), 0,
-	offsetof(car, held), sizeof(node), 1, offsetof(car, tag), 1,
+	ZANE_HOST, 0, sizeof(car), 0,
+	ZANE_HOST, offsetof(car, spare), sizeof(node), 0,
+	ZANE_HOST, offsetof(car, held), sizeof(node), 1, offsetof(car, tag), 1,
 };
 
 void zane_main(void) {

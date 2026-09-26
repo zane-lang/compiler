@@ -291,3 +291,46 @@
  (alias runtest)
  (action
   (diff golden/guests.out guests.out.actual)))
+
+; `texts` is step 7's strings: `@primitives$String` handles that own their
+; bytes, joined, compared, printed, hosted, moved, guested, overwritten,
+; floated, returned, discarded and aborted with. The runtime stops a program
+; that ends with a block still out.
+
+(rule
+ (deps (source_tree fixtures/texts) (source_tree ../core))
+ (action
+  (with-stdout-to
+   texts.cgt.actual
+   (run
+    %{exe:../../bin/compiler/main.exe}
+    --cgt
+    --package fixtures/texts
+    --package ../core))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/texts.cgt texts.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/texts) (source_tree ../core))
+ (targets texts.exe)
+ (action
+  (run
+   %{exe:../../bin/compiler/main.exe}
+   --build
+   texts.exe
+   --package fixtures/texts
+   --package ../core)))
+
+(rule
+ (action
+  (with-stdout-to
+   texts.out.actual
+   (run ./texts.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/texts.out texts.out.actual)))

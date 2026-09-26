@@ -5,16 +5,20 @@
    be understood. It grows with each step of docs/lowering.md §8; what is here
    is what lowering handles so far. *)
 
-(* A CGT type is a machine layout (L5). [View] is `@primitives$String`, a
-   string view: a pointer to the first byte and a length in bytes, with no
-   terminator (types.md §2.7). [Void] is `Unit`, which has no storage.
+(* A CGT type is a machine layout (L5). [Text] is `@primitives$String`, the
+   string view (types.md §2.7), a reference type whose instance is its
+   backpointer and a handle (memory.md §3.6): a pointer to the first byte,
+   the length in bytes, with no terminator, and the room of the block the
+   bytes are in, which is 0 when it owns none: a literal's bytes are the
+   module's own.
+   [Void] is `Unit`, which has no storage.
    [Struct] is a value struct's members in declaration order, [Sum] a value
    variant's or enum's cases: a tag and room for the widest payload. [Ptr]
    is the address of a place, which is how a `mut` subject is passed (L6).
    [I32] is a reference-type instance's backpointer and a guest's tether,
    each an anchor's identity (memory.md §4.2). *)
 module Ty = struct
-  type t = Void | I1 | I32 | I64 | F64 | View | Ptr | Struct of t list | Sum of t list
+  type t = Void | I1 | I32 | I64 | F64 | Text | Ptr | Struct of t list | Sum of t list
 
   (* Size and alignment in bytes on a 64-bit target, where a struct is laid
      out as C lays it out, and a sum is its tag and then its payload room at
@@ -24,7 +28,7 @@ module Ty = struct
     | I1 -> (1, 1)
     | I32 -> (4, 4)
     | I64 | F64 | Ptr -> (8, 8)
-    | View -> (16, 8)
+    | Text -> (32, 8)
     | Struct ts ->
         let size, align =
           List.fold_left
@@ -61,18 +65,20 @@ module Ty = struct
     | I32 -> "i32"
     | I64 -> "i64"
     | F64 -> "f64"
-    | View -> "view"
+    | Text -> "text"
     | Ptr -> "ptr"
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"
     | Sum ts -> "<" ^ String.concat " | " (List.map to_string ts) ^ ">"
 end
 
-(* Where a type's hosts are (memory.md §4.5): the instance itself when it is
-   a reference type, and every reference-type host inside it, outermost
-   first. A host inside a variant payload is there only while each of
-   [tags] -- a tag's offset and the case it must hold -- is live. *)
+(* Where a type's hosts and owned blocks are (memory.md §3.6, §4.5): the
+   instance itself when it is a reference type, every reference-type host
+   inside it, outermost first, and every string, whose handle may own a
+   dynamic block. A position inside a variant payload is there only while
+   each of [tags] -- a tag's offset and the case it must hold -- is live. *)
 module Layout = struct
-  type position = { offset : int; size : int; tags : (int * int) list }
+  type kind = Host | Text
+  type position = { kind : kind; offset : int; size : int; tags : (int * int) list }
   type t = position list
 end
 
@@ -92,7 +98,8 @@ module Expr = struct
     | Deref of t
     (* A call to a function of the program, by its symbol (L6). *)
     | Call of { fn : string; args : t list }
-    (* A call into the C runtime (L17), by the runtime's symbol. *)
+    (* A call into the C runtime (L17), by the runtime's symbol. A string
+       goes to it, and comes back from it, through the address of a copy. *)
     | Runtime of { fn : string; args : t list }
     (* A scalar primitive's operator, on two operands of one type: [I64] and
        [F64] add, multiply, divide, compare; [I1] adds as `or`, multiplies as

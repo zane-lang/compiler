@@ -7,8 +7,6 @@ open Cgt.Nodes
 type env = {
   ctx : Llvm.llcontext;
   m : Llvm.llmodule;
-  (* A string view is passed to the runtime as its two halves, which is how C
-     receives a pointer and a length. *)
   ptr : Llvm.lltype;
   i64 : Llvm.lltype;
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
@@ -26,7 +24,7 @@ let rec lltype env (t : Ty.t) =
   | Ty.I32 -> Llvm.i32_type env.ctx
   | Ty.I64 -> env.i64
   | Ty.F64 -> Llvm.double_type env.ctx
-  | Ty.View -> Llvm.struct_type env.ctx [| env.ptr; env.i64 |]
+  | Ty.Text -> Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx; env.ptr; env.i64; env.i64 |]
   | Ty.Ptr -> env.ptr
   | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
   | Ty.Sum ts -> (
@@ -50,7 +48,10 @@ let runtime env name =
   | None ->
       let fty =
         match name with
-        | "zane_print" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.i64 |]
+        | "zane_print" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr |]
+        | "zane_text_join" ->
+            Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.ptr |]
+        | "zane_text_equal" -> Llvm.function_type env.i64 [| env.ptr; env.ptr |]
         | "zane_divide_by_zero" -> Llvm.function_type (Llvm.void_type env.ctx) [||]
         | "zane_scope_enter" -> Llvm.function_type env.i64 [||]
         | "zane_slot" -> Llvm.function_type env.ptr [| env.i64; env.i64; env.i64; env.ptr |]
@@ -69,8 +70,9 @@ let runtime env name =
       Hashtbl.replace env.funcs name (f, fty);
       (f, fty)
 
-(* A layout as the runtime reads it: a count, then per host its offset, its
-   size, and its tag conditions as a count and (offset, tag) pairs. *)
+(* A layout as the runtime reads it: a count, then per position its kind,
+   its offset, its size, and its tag conditions as a count and (offset, tag)
+   pairs. *)
 let layout env (l : Layout.t) =
   match Hashtbl.find_opt env.layouts l with
   | Some g -> g
@@ -79,7 +81,8 @@ let layout env (l : Layout.t) =
         List.length l
         :: List.concat_map
              (fun (p : Layout.position) ->
-               [ p.offset; p.size; List.length p.tags ]
+               let kind = match p.kind with Layout.Host -> 0 | Layout.Text -> 1 in
+               [ kind; p.offset; p.size; List.length p.tags ]
                @ List.concat_map (fun (o, t) -> [ o; t ]) p.tags)
              l
       in
@@ -92,14 +95,17 @@ let layout env (l : Layout.t) =
       Hashtbl.replace env.layouts l g;
       g
 
-(* A string literal is constant bytes the module owns, with no terminator. *)
+(* A string literal is constant bytes the module owns, with no terminator.
+   Its instance starts untethered, and owns no block. *)
 let text env s =
   let bytes = Llvm.const_string env.ctx s in
   let g = Llvm.define_global "zane.text" bytes env.m in
   Llvm.set_linkage Llvm.Linkage.Private g;
   Llvm.set_global_constant true g;
   Llvm.set_unnamed_addr true g;
-  Llvm.const_struct env.ctx [| g; Llvm.const_int env.i64 (String.length s) |]
+  let n = Llvm.const_int env.i64 in
+  Llvm.const_struct env.ctx
+    [| Llvm.const_int (Llvm.i32_type env.ctx) 0; g; n (String.length s); n 0 |]
 
 (* What a function being built keeps: its slots, the exit block of each
    expansion it is inside with how many arenas were open when it began, and
@@ -136,6 +142,12 @@ let slot env fr id t =
   let s = alloca env fr t in
   Hashtbl.replace fr.locals id (s, t);
   s
+
+(* A value stored where its address can be passed. *)
+let spill env fr b v =
+  let p = alloca env fr (Llvm.type_of v) in
+  ignore (Llvm.build_store v p b);
+  p
 
 let has_terminator b =
   match Llvm.block_terminator (Llvm.insertion_block b) with Some _ -> true | None -> false
@@ -255,22 +267,26 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
       let args = Array.of_list (List.filter_map (expr env fr b) args) in
       let v = Llvm.build_call fty f args "" b in
       if e.Expr.ty = Ty.Void then None else Some v
-  | Expr.Runtime { fn; args } ->
+  | Expr.Runtime { fn; args } -> (
       let f, fty = runtime env fn in
       let args =
-        List.concat_map
+        List.filter_map
           (fun (a : Expr.t) ->
             match (a.Expr.ty, expr env fr b a) with
-            | Ty.View, Some v ->
-                let bytes = Llvm.build_extractvalue v 0 "" b in
-                let length = Llvm.build_extractvalue v 1 "" b in
-                [ bytes; length ]
-            | _, Some v -> [ v ]
-            | _, None -> [])
+            | Ty.Text, Some v -> Some (spill env fr b v)
+            | _, v -> v)
           args
       in
-      ignore (Llvm.build_call fty f (Array.of_list args) "" b);
-      None
+      match e.Expr.ty with
+      | Ty.Void ->
+          ignore (Llvm.build_call fty f (Array.of_list args) "" b);
+          None
+      | Ty.Text ->
+          let t = lltype env Ty.Text in
+          let out = alloca env fr t in
+          ignore (Llvm.build_call fty f (Array.of_list (out :: args)) "" b);
+          Some (Llvm.build_load t out "" b)
+      | _ -> Some (Llvm.build_call fty f (Array.of_list args) "" b))
   | Expr.Binary { op; left; right } -> (
       (* The left operand's instructions come first. *)
       let l = expr env fr b left in

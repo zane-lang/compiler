@@ -4,7 +4,8 @@
 open Tree_graph
 open Nodes
 
-(* A layout, one host per line: `@8 (16 bytes) when [0]=1`. *)
+(* A layout, one position per line: a host as `@8 (16 bytes) when [0]=1`,
+   and a string's handle as `text @8`. *)
 let layout (l : Layout.t) =
   map_seq
     (fun (p : Layout.position) ->
@@ -15,7 +16,9 @@ let layout (l : Layout.t) =
             let tag (o, t) = Printf.sprintf "[%d]=%d" o t in
             " when " ^ String.concat ", " (List.map tag ts)
       in
-      Leaf (Printf.sprintf "@%d (%d bytes)%s" p.offset p.size tags))
+      match p.kind with
+      | Layout.Host -> Leaf (Printf.sprintf "@%d (%d bytes)%s" p.offset p.size tags)
+      | Layout.Text -> Leaf (Printf.sprintf "text @%d%s" p.offset tags))
     l
 
 let rec expr (e : Expr.t) =

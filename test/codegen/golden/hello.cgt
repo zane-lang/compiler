@@ -4,11 +4,16 @@
         ├── symbol: zane_main_1
         ├── params:
         ├── ret: void
-        ├── body[0] > let:
-        │   ├── local: #1
-        │   └── value: "hello world" : view
-        ├── body[1] > eval > runtime:
-        │   ├── type: void
-        │   ├── fn: zane_print
-        │   └── args[0]: local #1 : view
-        └── body[2] > return: unit : void
+        └── body[0] > scope:
+            ├── id: %2
+            ├── body[0] > host:
+            │   ├── local: #1
+            │   ├── scope: %2
+            │   ├── value: "hello world" : text
+            │   ├── layout[0]: @0 (32 bytes)
+            │   └── layout[1]: text @0
+            ├── body[1] > eval > runtime:
+            │   ├── type: void
+            │   ├── fn: zane_print
+            │   └── args[0]: local #1 : text
+            └── body[2] > return: unit : void

@@ -1,0 +1,106 @@
+/// Strings: `@primitives$String`, a reference type whose handle owns its
+/// bytes (memory.md §3.6). Joined, compared and printed; hosted, moved,
+/// guested, overwritten, floated, returned, discarded and aborted with. The
+/// runtime stops the program if a block outlives its owner or is returned
+/// twice, so a run that ends cleanly returned each block once. Each check
+/// prints `yes` when it holds and `no` when it does not.
+package texts;
+
+import core$;
+
+type Person = #struct {
+	name String;
+}
+
+Person(name String) => init{ name; }
+
+String greeting(this Person) => String(String("hello, ").raw + this.name.raw)
+
+type Tagged = #variant {
+	named String;
+	anonymous Unit;
+}
+
+type Holder = #variant {
+	some Person;
+	none Unit;
+}
+
+/// Whether a guest's string has the bytes of another.
+Bool same(text &String, other String) => Bool(text.raw == other.raw)
+
+String twice(text String) => String(text.raw + text.raw)
+
+String?String refuse(text String) {
+	abort String(text.raw + String("!").raw);
+}
+
+Unit show(text String) {
+	@program$console!print(text.raw);
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes @primitives$String("yes\n");
+	no @primitives$String("no\n");
+	ran Bool = if(ok) {
+		@program$console!print(yes);
+	}
+	ran:else() {
+		@program$console!print(no);
+	}
+	return Unit();
+}
+
+@primitives$Unit main() {
+	// Joined, compared and printed.
+	show(String("ab") + String("cd\n"));
+	check(String("ab") + String("cd") == String("abcd"));
+	check(~(String("ab") == String("cd")));
+	check(twice(String("ab")) == String("abab"));
+
+	// A move takes the bytes along, and a refill brings new ones.
+	a String = String("ab");
+	b String = a;
+	check(same(b, String("ab")));
+	a = String("again");
+	check(same(a, String("again")));
+
+	// A host holding a string: moved, guested, and its string replaced.
+	p Person(String("ada"));
+	g &Person = p;
+	q Person = p;
+	check(g:greeting() == String("hello, ada"));
+	q.name = String("grace");
+	check(g:greeting() == String("hello, grace"));
+	n &String = q.name;
+	check(same(n, String("grace")));
+
+	// A payload read through a binder, and one that floats.
+	t Tagged = Tagged.named(String("abcd?"));
+	check(match (t) {
+		k named => Bool(k.raw == String("abcd?").raw);
+		z anonymous => Bool(false);
+	});
+	t = Tagged.anonymous(Unit());
+	kept Person(String("floating"));
+	w &Person = kept;
+	holder Holder = Holder.some(kept);
+	holder = Holder.none(Unit());
+	check(w:greeting() == String("hello, floating"));
+
+	// A result nobody keeps, and a string aborted with.
+	twice(String("dropped"));
+	check((refuse(String("no")) ? e { resolve e; }) == String("no!"));
+
+	// Many strings made and replaced: each pass returns what it replaced,
+	// and what it made itself.
+	s String = String("");
+	i Int(1);
+	i!to(Int(10000)) {
+		made String = String("x") + String("y");
+		s = made + String("z");
+	}
+	check(s == String("xyz"));
+	return @primitives$Unit();
+}

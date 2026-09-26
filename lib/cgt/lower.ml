@@ -103,8 +103,15 @@ let is_guest = function Tty.Guest _ -> true | _ -> false
 (* What a guest names, or the type itself. *)
 let strip = function Tty.Guest t -> t | t -> t
 
-(* A reference type: a `#` type, whose instances are hosted (memory.md §2.1). *)
-let reference st t = match definition st t with Some (_, true) -> true | _ -> false
+(* `@primitives$String`, the one storage primitive that is a reference type. *)
+let is_text = function
+  | Tty.Intrinsic { namespace = "primitives"; name = "String"; args = [] } -> true
+  | _ -> false
+
+(* A reference type: a `#` type, whose instances are hosted (memory.md §2.1),
+   or `@primitives$String`, whose instance is a handle (§3.6). *)
+let reference st t =
+  is_text t || match definition st t with Some (_, true) -> true | _ -> false
 
 (* A value struct of one member is that member (L5), so reading or storing
    the member is reading or storing the struct. *)
@@ -130,7 +137,7 @@ let rec ty ?(seen = []) st span (t : Tty.t) : Nodes.Ty.t =
       | "Bool" -> Nodes.Ty.I1
       | "Int" | "I64" -> Nodes.Ty.I64
       | "Float" -> Nodes.Ty.F64
-      | "String" -> Nodes.Ty.View
+      | "String" -> Nodes.Ty.Text
       | _ -> unhandled span t)
   | Tty.Guest _ -> Nodes.Ty.I32
   | Tty.Named (id, []) -> (
@@ -155,40 +162,64 @@ let rec ty ?(seen = []) st span (t : Tty.t) : Nodes.Ty.t =
       | _ -> unhandled span t)
   | _ -> unhandled span t
 
+(* Where a type's hosts and owned blocks are (memory.md §3.6, §4.5): the
+   instance, when it is a reference type, each reference-type member, and
+   each `@primitives$String` handle, down through variant payloads under the
+   tag that makes each live. A guest is a tether, and owns nothing. *)
+let rec positions st span (t : Tty.t) base tags : Layout.t =
+  match t with
+  | Tty.Guest _ -> []
+  | t when is_text t ->
+      [
+        { Layout.kind = Layout.Host; offset = base; size = 32; tags };
+        { Layout.kind = Layout.Text; offset = base; size = 32; tags };
+      ]
+  | _ -> (
+      match definition st t with
+      | Some (T.Decl.Distinct u, _) -> positions st span u base tags
+      | Some (T.Decl.Struct [ (_, m) ], false) -> positions st span m base tags
+      | Some (definition, reference) -> (
+          let lowered = ty st span t in
+          let own =
+            if reference then
+              [
+                {
+                  Layout.kind = Layout.Host;
+                  offset = base;
+                  size = fst (Nodes.Ty.size_align lowered);
+                  tags;
+                };
+              ]
+            else []
+          in
+          (* Where the members or the sum start: after the backpointer, in a
+             reference type's instance. *)
+          let starts ts =
+            if reference then List.tl (Nodes.Ty.offsets ts) else Nodes.Ty.offsets ts
+          in
+          let variant cs sum =
+            List.concat
+              (List.mapi
+                 (fun i (_, c) ->
+                   positions st span c (sum + Nodes.Ty.payload_offset) (tags @ [ (sum, i) ]))
+                 cs)
+          in
+          match (definition, lowered) with
+          | T.Decl.Struct ms, Nodes.Ty.Struct ts ->
+              own
+              @ List.concat
+                  (List.map2 (fun (_, m) at -> positions st span m (base + at) tags) ms (starts ts))
+          | T.Decl.Variant cs, Nodes.Ty.Struct ts when reference ->
+              own @ variant cs (base + List.hd (starts ts))
+          | T.Decl.Variant cs, Nodes.Ty.Sum _ -> variant cs base
+          | _ -> own)
+      | None -> [])
+
+let layout st span t = positions st span t 0 []
+
 (* Whether a local of this type is a host: a reference type's instance lives
    in its scope's arena (memory.md §3.3). A guest is a tether, not a host. *)
 let hosted st t = (not (is_guest t)) && reference st t
-
-(* Where a type's hosts are (memory.md §4.5): the instance, when it is a
-   reference type, and each reference-type member, down through variant
-   payloads under the tag that makes each live. Value types hold no host
-   (§2.10), and a guest member is a tether. *)
-let rec positions st span (t : Tty.t) base tags : Layout.t =
-  if is_guest t then []
-  else
-    match definition st t with
-    | Some (T.Decl.Distinct u, _) -> positions st span u base tags
-    | Some (definition, true) -> (
-        let lowered = ty st span t in
-        let own = { Layout.offset = base; size = fst (Nodes.Ty.size_align lowered); tags } in
-        match (definition, lowered) with
-        | T.Decl.Struct ms, Nodes.Ty.Struct ts ->
-            let offsets = List.tl (Nodes.Ty.offsets ts) in
-            own
-            :: List.concat
-                 (List.map2 (fun (_, m) at -> positions st span m (base + at) tags) ms offsets)
-        | T.Decl.Variant cs, Nodes.Ty.Struct ts ->
-            let tag = base + List.nth (Nodes.Ty.offsets ts) 1 in
-            own
-            :: List.concat
-                 (List.mapi
-                    (fun i (_, c) ->
-                      positions st span c (tag + Nodes.Ty.payload_offset) (tags @ [ (tag, i) ]))
-                    cs)
-        | _ -> [ own ])
-    | _ -> []
-
-let layout st span t = positions st span t 0 []
 
 (* The sum inside a variant or enum: a reference one's comes after its
    backpointer. *)
@@ -290,7 +321,7 @@ let literal ctx span name (arg : T.Expr.t) : Expr.t =
       | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$Int`" s))
   | "Float", T.Expr.Decimal_lit s ->
       { Expr.node = Expr.Float (float_of_string s); ty = Nodes.Ty.F64 }
-  | "String", T.Expr.Text_lit s -> { Expr.node = Expr.Text (unescape s); ty = Nodes.Ty.View }
+  | "String", T.Expr.Text_lit s -> { Expr.node = Expr.Text (unescape s); ty = Nodes.Ty.Text }
   | _ -> refuse span (Printf.sprintf "lowering does not handle this `@primitives$%s` yet" name)
 
 (* ---------------------------------------------------------------------- *)
@@ -435,6 +466,21 @@ let ptr node = { Expr.node; ty = Nodes.Ty.Ptr }
 let resolve (tether : Expr.t) = ptr (Expr.Resolve tether)
 let local_ptr id = ptr (Expr.Local id)
 
+(* A storage primitive's operator. The scalars have the machine's own, and
+   `@primitives$String` joins and compares in the runtime. *)
+let primitive_op span op t (l : Expr.t) (r : Expr.t) =
+  match (l.Expr.ty, op) with
+  | Nodes.Ty.Text, Sst.Nodes.Operator.Add ->
+      { Expr.node = Expr.Runtime { fn = "zane_text_join"; args = [ l; r ] }; ty = t }
+  | Nodes.Ty.Text, Sst.Nodes.Operator.Eq ->
+      let same =
+        { Expr.node = Expr.Runtime { fn = "zane_text_equal"; args = [ l; r ] }; ty = Nodes.Ty.I64 }
+      in
+      let yes = { Expr.node = Expr.Int 1L; ty = Nodes.Ty.I64 } in
+      { Expr.node = Expr.Binary { op = Expr.Eq; left = same; right = yes }; ty = t }
+  | Nodes.Ty.Text, _ -> refuse span "`@primitives$String` has no such operator"
+  | _ -> { Expr.node = Expr.Binary { op = binop op; left = l; right = r }; ty = t }
+
 let rec expr st ctx (e : T.Expr.t) : Expr.t =
   let span = e.T.Expr.span in
   match e.T.Expr.node with
@@ -461,33 +507,34 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       match args with
       | [ T.Arg.Value _console; T.Arg.Value text ] ->
           {
-            Expr.node = Expr.Runtime { fn = "zane_print"; args = [ expr st ctx text ] };
+            Expr.node = Expr.Runtime { fn = "zane_print"; args = [ borrow st ctx span text ] };
             ty = Nodes.Ty.Void;
           }
       | _ -> refuse span "lowering does not handle this call to `print`")
-  | T.Expr.Op { op; impl = { owner; instance = []; _ }; left; right; swapped; handler } ->
+  | T.Expr.Op { op; impl = { owner; instance = []; _ }; left; right; swapped; handler } -> (
       let t = ty st span e.T.Expr.ty in
-      let apply l r =
-        match owner with
-        | S.Intrinsic _ ->
-            { Expr.node = Expr.Binary { op = binop op; left = l; right = r }; ty = t }
-        | S.Declared id -> (
-            match Hashtbl.find_opt st.verbs id with
-            | Some v
-              when (not (expands v))
-                   && not
-                        (List.exists
-                           (fun (p : T.Local.t) -> by_address st v p || is_guest p.T.Local.ty)
-                           v.params) ->
-                invoke st ctx span v [ l; r ] handler
-            | _ -> refuse span "lowering does not handle this operator yet")
-      in
       (* Operands run in the order they were written, which is the other way
          round when the desugaring swapped them (operators.md §2.3). *)
-      if swapped then in_order st ctx t right left (fun r l -> apply l r)
-      else
-        let l = expr st ctx left in
-        apply l (expr st ctx right)
+      let operands l r apply =
+        if swapped then in_order st t r l (fun r l -> apply l r)
+        else
+          let l = l () in
+          apply l (r ())
+      in
+      match owner with
+      | S.Intrinsic _ ->
+          operands
+            (fun () -> borrow st ctx span left)
+            (fun () -> borrow st ctx span right)
+            (fun l r -> primitive_op span op t l r)
+      | S.Declared id -> (
+          match Hashtbl.find_opt st.verbs id with
+          | Some ({ params = [ pl; pr ]; _ } as v) when not (expands v) ->
+              operands
+                (fun () -> argument st ctx span v pl left)
+                (fun () -> argument st ctx span v pr right)
+                (fun l r -> invoke st ctx span v [ l; r ] handler)
+          | _ -> refuse span "lowering does not handle this operator yet"))
   | T.Expr.Flip { impl = { owner = S.Intrinsic _; _ }; value; handler = None } ->
       { Expr.node = Expr.Flip (expr st ctx value); ty = ty st span e.T.Expr.ty }
   | T.Expr.Flip { impl = { owner = S.Declared id; instance = []; _ }; value; handler } ->
@@ -501,8 +548,8 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
         let base = resolve (expr st ctx target) in
         let within = ty st span owner in
         { Expr.node = Expr.Deref (ptr (Expr.Offset { base; within; path = [ index ] })); ty = t }
-      else if collapsed st owner then { (expr st ctx target) with ty = t }
-      else { Expr.node = Expr.Member { value = expr st ctx target; index }; ty = t }
+      else if collapsed st owner then { (borrow st ctx span target) with ty = t }
+      else { Expr.node = Expr.Member { value = borrow st ctx span target; index }; ty = t }
   | T.Expr.Init fields | T.Expr.Construct_fields { fields; handler = None; _ } ->
       record st ctx span e.T.Expr.ty fields
   | T.Expr.Case { case; payload } ->
@@ -594,9 +641,35 @@ and moved st ctx span dst (e : T.Expr.t) =
         | Some address ->
             let l = layout st span dst in
             { Expr.node = Expr.Take { address; layout = l }; ty = ty st span dst }
-        | None -> expr st ctx e)
+        | None -> refuse span "lowering does not move a host out of a fresh value yet")
     | _ -> expr st ctx e
   else expr st ctx e
+
+(* Whether an expression reads a value something else owns, rather than
+   making a fresh one: a place, or a member of any value, which a fresh
+   value is borrowed for. *)
+and is_place (e : T.Expr.t) =
+  is_guest e.T.Expr.ty
+  || match e.T.Expr.node with T.Expr.Var _ | T.Expr.Field _ -> true | _ -> false
+
+(* A value read where it is only looked at, as a value parameter or an
+   operand: a place is read where it is, and a fresh host is hosted in this
+   scope first, so the scope's drain ends it and returns its blocks. *)
+and borrow st ctx span (e : T.Expr.t) =
+  if hosted st e.T.Expr.ty && not (is_place e) then begin
+    let value = expr st ctx e in
+    let id = fresh st in
+    let label = fresh st in
+    let result = fresh st in
+    let body =
+      [
+        bind st ctx.scope span e.T.Expr.ty id value;
+        Stat.assign result { Expr.node = Expr.Local id; ty = value.Expr.ty };
+      ]
+    in
+    { Expr.node = Expr.Expand { label; body; result = Some result }; ty = value.Expr.ty }
+  end
+  else value_of st ctx e
 
 (* The address a callee is lent (L6): the caller's place, or a fresh value
    stored here first, which this scope then hosts. *)
@@ -747,7 +820,10 @@ and case_read st ctx span (target : T.Expr.t) case handler ret =
   let t = ty st span ret in
   let label = fresh st in
   let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
-  let value = value_of st ctx target in
+  (* A host read out of a payload stays the variant's, while one its handler
+     resolves is fresh, so what the read gives has no one owner. *)
+  if hosted st ret then refuse span "lowering does not read a host out of a variant case yet";
+  let value = borrow st ctx span target in
   let id = fresh st in
   let live = case_index st span target.T.Expr.ty case in
   let tsty = strip target.T.Expr.ty in
@@ -771,9 +847,9 @@ and leave label result value =
   | None -> [ Stat.Eval value; Stat.Leave label ]
 
 (* Two operands stored in the order they are given, then combined. *)
-and in_order st ctx t first second combine =
-  let store (e : T.Expr.t) =
-    let v = expr st ctx e in
+and in_order st t first second combine =
+  let store make =
+    let (v : Expr.t) = make () in
     let id = fresh st in
     ({ Expr.node = Expr.Local id; ty = v.Expr.ty }, Stat.Let { id; value = v })
   in
@@ -801,12 +877,19 @@ and call st ctx span id args handler ret : Expr.t =
         List.map2
           (fun (p : T.Local.t) arg ->
             match arg with
-            | T.Arg.Value a when by_address st v p -> lend st ctx span a
-            | T.Arg.Value a -> moved st ctx span p.T.Local.ty a
+            | T.Arg.Value a -> argument st ctx span v p a
             | T.Arg.Block _ -> refuse span "lowering does not expand block arguments here")
           v.params args
       in
       invoke st ctx span v args handler
+
+(* An argument as the callee takes it (L6): a place it may write or take
+   the host from is lent by its address, a guest is minted or copied, and
+   a value is borrowed. *)
+and argument st ctx span v (p : T.Local.t) a =
+  if by_address st v p then lend st ctx span a
+  else if is_guest p.T.Local.ty then guest st ctx span a
+  else borrow st ctx span a
 
 (* L12. A call that can end more than one way is switched on how it ended:
    done gives its result, aborted runs its handler, or the abort of the
@@ -883,7 +966,9 @@ and expand st ctx span v args handler ret =
                bind p (Pointer id);
                [ Stat.Let { id; value } ]
            | T.Arg.Value a, _ ->
-               let value = moved st ctx span p.T.Local.ty a in
+               let value =
+                 if is_guest p.T.Local.ty then guest st ctx span a else borrow st ctx span a
+               in
                let id = fresh st in
                bind p (Slot id);
                [ Stat.Let { id; value } ])
@@ -960,7 +1045,7 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       in
       if hosted st t then
         (* A host replaced in place keeps, merges or floats its identities
-           (memory.md §4.5). *)
+           (memory.md §4.5), and what it replaces returns its blocks. *)
         let address = address () in
         let value = moved st ctx span t value in
         [ Stat.Overwrite { address; value; layout = layout st span t } ]
@@ -986,6 +1071,9 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           [ Stat.Repeat { count; body = code st ctx span body } ]
       | "@controlflow$exitFromCall", [] -> ctx.exit_call span
       | _ -> refuse span (Printf.sprintf "lowering does not handle `%s` yet" spelling))
+  (* A fresh value nothing keeps is held here, so the drain ends it. *)
+  | T.Stat.Expr e when hosted st e.T.Expr.ty && not (is_place e) ->
+      [ bind st ctx.scope span e.T.Expr.ty (fresh st) (expr st ctx e) ]
   | T.Stat.Expr e -> [ Stat.Eval (expr st ctx e) ]
   | T.Stat.Return e -> (
       match ctx.exit with

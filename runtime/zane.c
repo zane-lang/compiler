@@ -10,11 +10,6 @@
 
 void zane_main(void);
 
-/* `@runtime$Console`'s `print` (effects.md §6.6): exactly the view's length
-   in bytes, with no terminator and nothing added. */
-void zane_print(const char *bytes, int64_t length) {
-	fwrite(bytes, 1, (size_t)length, stdout);
-}
 
 /* An integer division by zero (docs/lowering.md §9): what the program wrote
    so far is kept, and it stops with a failing status. */
@@ -98,13 +93,16 @@ static void *zane_bump(int64_t size, int64_t align) {
 /* ---------------------------------------------------------------------- */
 
 /* A reference-type instance begins with a `u32` backpointer, and so does
-   every host it contains. A layout lists where they are: a count, then for
-   each contained host, outermost first, its offset, its size, and the
-   variant tags that must be live for it to be there, as a count and then
-   (tag offset, tag) pairs. A host under no tag is stable; one under a tag
-   is a variant payload, a contingent place (memory.md §2.2). */
+   every host it contains; a handle that owns a block names it. A layout
+   lists where they are: a count, then for each position, outermost first,
+   its kind, its offset, its size, and the variant tags that must be live
+   for it to be there, as a count and then (tag offset, tag) pairs. A host
+   under no tag is stable; one under a tag is a variant payload, a
+   contingent place (memory.md §2.2). */
+enum { ZANE_HOST = 0, ZANE_TEXT = 1 };
+
 typedef struct {
-	int64_t offset, size, conditions;
+	int64_t kind, offset, size, conditions;
 	const int64_t *tags;
 } zane_position;
 
@@ -112,8 +110,8 @@ static int zane_next_position(const int64_t *layout, int64_t *cursor, int64_t *l
                               zane_position *p) {
 	if (*left == 0) return 0;
 	const int64_t *at = layout + *cursor;
-	*p = (zane_position){ at[0], at[1], at[2], at + 3 };
-	*cursor += 3 + 2 * at[2];
+	*p = (zane_position){ at[0], at[1], at[2], at[3], at + 4 };
+	*cursor += 4 + 2 * at[3];
 	(*left)--;
 	return 1;
 }
@@ -130,6 +128,11 @@ static int zane_present(const char *base, const zane_position *p) {
 
 static uint32_t *zane_backpointer(char *base, const zane_position *p) {
 	return (uint32_t *)(base + p->offset);
+}
+
+/* A host that is there, whose identity a caller may read. */
+static int zane_hosts(const char *base, const zane_position *p) {
+	return p->kind == ZANE_HOST && zane_present(base, p);
 }
 
 /* A cell is a payload anchor, naming the host's address, or a forwarder to
@@ -193,38 +196,130 @@ uint32_t zane_mint(void *payload) {
 	return *backpointer;
 }
 
+/* ---------------------------------------------------------------------- */
+/* Dynamic blocks (memory.md §3.6, docs/lowering.md §9)                   */
+/* ---------------------------------------------------------------------- */
+
+/* `@primitives$String`, the string view: a reference type whose instance is
+   its backpointer and a handle to its bytes, with no terminator. `room` is
+   the size of the block the handle owns, or 0 when it owns none: a
+   literal's bytes are the program's own and are never returned. */
+typedef struct {
+	uint32_t bp;
+	const char *bytes;
+	int64_t length, room;
+} zane_text;
+
+/* A block belongs to the handle that names it, and is returned when that
+   handle's owner dies. The count is how many are out, which is 0 once every
+   scope has drained, except for those a floated host took along. */
+static int64_t zane_blocks;
+
+static char *zane_block(int64_t size) {
+	char *block = malloc((size_t)size);
+	if (!block) zane_broken("out of memory for a dynamic block");
+	zane_blocks++;
+	return block;
+}
+
+static void zane_unblock(const void *block) {
+	free((void *)block);
+	zane_blocks--;
+}
+
+static zane_text *zane_text_at(char *base, const zane_position *p) {
+	return (zane_text *)(base + p->offset);
+}
+
+/* Whether `offset` is inside one of the `n` hosts that start at `from`,
+   each `size` bytes long. */
+static int zane_inside(int64_t offset, const int64_t *from, const int64_t *size, int64_t n) {
+	for (int64_t i = 0; i < n; i++)
+		if (offset >= from[i] && offset < from[i] + size[i]) return 1;
+	return 0;
+}
+
+/* The value at `base` died: every block it owns is returned. */
+static void zane_release(char *base, const int64_t *layout) {
+	zane_position p;
+	ZANE_EACH(layout, p) {
+		if (p.kind != ZANE_TEXT || !zane_present(base, &p)) continue;
+		zane_text *t = zane_text_at(base, &p);
+		if (t->room) zane_unblock(t->bytes);
+		t->bytes = NULL;
+		t->length = t->room = 0;
+	}
+}
+
+/* `@runtime$Console`'s `print` (effects.md §6.6): exactly the string's
+   length in bytes, with no terminator and nothing added. */
+void zane_print(const zane_text *text) {
+	fwrite(text->bytes, 1, (size_t)text->length, stdout);
+}
+
+/* `+` on `@primitives$String`: a new string that owns its bytes. */
+void zane_text_join(zane_text *out, const zane_text *left, const zane_text *right) {
+	int64_t length = left->length + right->length;
+	if (length == 0) {
+		*out = (zane_text){ 0, "", 0, 0 };
+		return;
+	}
+	char *bytes = zane_block(length);
+	memcpy(bytes, left->bytes, (size_t)left->length);
+	memcpy(bytes + left->length, right->bytes, (size_t)right->length);
+	*out = (zane_text){ 0, bytes, length, length };
+}
+
+/* `==` on `@primitives$String`: the same bytes. */
+int64_t zane_text_equal(const zane_text *left, const zane_text *right) {
+	return left->length == right->length &&
+	       memcmp(left->bytes, right->bytes, (size_t)left->length) == 0;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Hosts arriving, leaving and replaced (memory.md §3.7, §4.5)            */
+/* ---------------------------------------------------------------------- */
+
 /* A host arrived at `slot`, which had no identity: the anchors it carries
    follow it there (§4.5). */
 void zane_arrive(char *slot, const int64_t *layout) {
 	zane_position p;
 	ZANE_EACH(layout, p) {
 		uint32_t id;
-		if (zane_present(slot, &p) && (id = *zane_backpointer(slot, &p)))
+		if (zane_hosts(slot, &p) && (id = *zane_backpointer(slot, &p)))
 			zane_cells[id].target = slot + p.offset;
 	}
 }
 
-/* A host moved out of `slot`: the slot is spent, and its identities left
-   with the host. */
+/* A host moved out of `slot`: the slot is spent, and its identities and
+   blocks left with the host. */
 void zane_vacate(char *slot, const int64_t *layout) {
 	zane_position p;
 	ZANE_EACH(layout, p) {
-		if (zane_present(slot, &p)) *zane_backpointer(slot, &p) = 0;
+		if (!zane_present(slot, &p)) continue;
+		if (p.kind == ZANE_HOST) {
+			*zane_backpointer(slot, &p) = 0;
+		} else {
+			zane_text *t = zane_text_at(slot, &p);
+			t->bytes = NULL;
+			t->length = t->room = 0;
+		}
 	}
 }
 
-/* `incoming` replaces what `slot` hosts (memory.md §3.7, §4.5). A variant
+/* `incoming` replaces what `slot` holds (memory.md §3.7, §4.5). A variant
    payload's anchored occupant first floats into an anonymous host, taking
-   the anchors of every host inside it along. Then each stable host keeps
-   its identity: the incoming one takes it, and an identity the incoming one
+   the anchors of every host inside it along, and its blocks. What stays
+   dies, and its blocks are returned. Then each stable host keeps its
+   identity: the incoming one takes it, and an identity the incoming one
    brought forwards to it. A payload keeps the incoming host's own. */
 void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *layout) {
 	zane_position p, q;
-	int64_t floated_from = -1, floated_to = -1;
+	int64_t n = 0, from[layout[0] + 1], length[layout[0] + 1];
 	ZANE_EACH(layout, p) {
 		uint32_t id;
-		if (p.conditions == 0 || !zane_present(slot, &p)) continue;
-		if (p.offset >= floated_from && p.offset < floated_to) continue;
+		if (p.conditions == 0 || !zane_hosts(slot, &p)) continue;
+		if (zane_inside(p.offset, from, length, n)) continue;
 		if (!(id = *zane_backpointer(slot, &p))) continue;
 		char *anonymous = malloc((size_t)p.size);
 		if (!anonymous) zane_broken("out of memory for a floating host");
@@ -232,14 +327,24 @@ void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *lay
 		ZANE_EACH(layout, q) {
 			uint32_t inner;
 			if (q.offset < p.offset || q.offset >= p.offset + p.size) continue;
-			if (zane_present(slot, &q) && (inner = *zane_backpointer(slot, &q)))
+			if (!zane_present(slot, &q)) continue;
+			/* A floated host lives until the program ends, and so do its
+			   blocks (docs/lowering.md §9). */
+			if (q.kind == ZANE_TEXT && zane_text_at(slot, &q)->room) zane_blocks--;
+			if (zane_hosts(slot, &q) && (inner = *zane_backpointer(slot, &q)))
 				zane_cells[inner].target = anonymous + (q.offset - p.offset);
 		}
-		floated_from = p.offset;
-		floated_to = p.offset + p.size;
+		from[n] = p.offset;
+		length[n++] = p.size;
 	}
 	ZANE_EACH(layout, p) {
-		if (!zane_present(incoming, &p)) continue;
+		if (p.kind != ZANE_TEXT || zane_inside(p.offset, from, length, n)) continue;
+		if (!zane_present(slot, &p)) continue;
+		zane_text *t = zane_text_at(slot, &p);
+		if (t->room) zane_unblock(t->bytes);
+	}
+	ZANE_EACH(layout, p) {
+		if (!zane_hosts(incoming, &p)) continue;
 		uint32_t *brought = zane_backpointer(incoming, &p);
 		uint32_t kept = p.conditions == 0 ? *zane_backpointer(slot, &p) : 0;
 		if (kept) {
@@ -257,8 +362,8 @@ void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *lay
 }
 
 /* A slot in the innermost scope's arena, which is the only one a program
-   ever places a slot in. A host's slot is listed, with its layout, so the
-   drain can end the identities it holds. */
+   ever places a slot in. A slot holding hosts or blocks is listed, with its
+   layout, so the drain can end the identities and return the blocks. */
 void *zane_slot(int64_t scope, int64_t size, int64_t align, const int64_t *layout) {
 	if (scope != zane_depth - 1) zane_broken("a slot placed in a scope that is not innermost");
 	char *slot = zane_bump(size, align);
@@ -271,15 +376,17 @@ void *zane_slot(int64_t scope, int64_t size, int64_t align, const int64_t *layou
 }
 
 /* Everything the scope placed is released together, and every identity it
-   still hosts ends: its anchors, and the forwarders to them, retire. */
+   still hosts ends: its anchors, and the forwarders to them, retire. The
+   blocks its values still own are returned. */
 void zane_scope_drain(int64_t scope) {
 	if (scope != zane_depth - 1) zane_broken("a scope drained out of order");
 	for (zane_hosted *h = zane_marks[scope].hosts; h; h = h->next) {
 		zane_position p;
 		ZANE_EACH(h->layout, p) {
 			uint32_t id;
-			if (zane_present(h->slot, &p) && (id = *zane_backpointer(h->slot, &p))) zane_retire(id);
+			if (zane_hosts(h->slot, &p) && (id = *zane_backpointer(h->slot, &p))) zane_retire(id);
 		}
+		zane_release(h->slot, h->layout);
 	}
 	zane_depth--;
 	zane_chunks = zane_marks[zane_depth].chunks;
@@ -289,9 +396,10 @@ void zane_scope_drain(int64_t scope) {
 /* A program whose output did not all reach stdout did not succeed: a write
    that failed earlier leaves the stream's error indicator set, even when the
    final flush has nothing left to fail on. Every scope has drained by the
-   time `main` returns. */
+   time `main` returns, and every block its owner returned. */
 int main(void) {
 	zane_main();
 	if (zane_depth != 0) zane_broken("a scope was left without draining");
+	if (zane_blocks != 0) zane_broken("a dynamic block outlived its owner");
 	return fflush(stdout) == 0 && !ferror(stdout) ? 0 : 1;
 }
