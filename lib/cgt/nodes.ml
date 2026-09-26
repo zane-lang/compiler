@@ -10,19 +10,70 @@
    terminator (types.md §2.7). [Void] is `Unit`, which has no storage.
    [Struct] is a value struct's members in declaration order, [Sum] a value
    variant's or enum's cases: a tag and room for the widest payload. [Ptr]
-   is the address of a place, which is how a `mut` subject is passed (L6). *)
+   is the address of a place, which is how a `mut` subject is passed (L6).
+   [I32] is a reference-type instance's backpointer and a guest's tether,
+   each an anchor's identity (memory.md §4.2). *)
 module Ty = struct
-  type t = Void | I1 | I64 | F64 | View | Ptr | Struct of t list | Sum of t list
+  type t = Void | I1 | I32 | I64 | F64 | View | Ptr | Struct of t list | Sum of t list
+
+  (* Size and alignment in bytes on a 64-bit target, where a struct is laid
+     out as C lays it out, and a sum is its tag and then its payload room at
+     offset 8 (docs/lowering.md §9). *)
+  let rec size_align = function
+    | Void -> (0, 1)
+    | I1 -> (1, 1)
+    | I32 -> (4, 4)
+    | I64 | F64 | Ptr -> (8, 8)
+    | View -> (16, 8)
+    | Struct ts ->
+        let size, align =
+          List.fold_left
+            (fun (size, align) t ->
+              let s, a = size_align t in
+              (((size + a - 1) / a * a) + s, max align a))
+            (0, 1) ts
+        in
+        ((size + align - 1) / align * align, align)
+    | Sum ts -> ( match words ts with 0 -> (4, 4) | n -> (8 + (8 * n), 8))
+
+  (* A sum's payload room, in 8-byte words: enough for its widest case, and
+     aligned for every one, since no layout here needs more than 8. *)
+  and words ts = List.fold_left (fun n t -> max n ((fst (size_align t) + 7) / 8)) 0 ts
+
+  (* Where each member of a struct of [ts] starts. *)
+  let offsets ts =
+    let _, offsets =
+      List.fold_left
+        (fun (at, acc) t ->
+          let s, a = size_align t in
+          let start = (at + a - 1) / a * a in
+          (start + s, start :: acc))
+        (0, []) ts
+    in
+    List.rev offsets
+
+  (* A sum's payload starts after its tag. *)
+  let payload_offset = 8
 
   let rec to_string = function
     | Void -> "void"
     | I1 -> "i1"
+    | I32 -> "i32"
     | I64 -> "i64"
     | F64 -> "f64"
     | View -> "view"
     | Ptr -> "ptr"
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"
     | Sum ts -> "<" ^ String.concat " | " (List.map to_string ts) ^ ">"
+end
+
+(* Where a type's hosts are (memory.md §4.5): the instance itself when it is
+   a reference type, and every reference-type host inside it, outermost
+   first. A host inside a variant payload is there only while each of
+   [tags] -- a tag's offset and the case it must hold -- is live. *)
+module Layout = struct
+  type position = { offset : int; size : int; tags : (int * int) list }
+  type t = position list
 end
 
 module Expr = struct
@@ -61,6 +112,17 @@ module Expr = struct
        when that case is live. *)
     | Case of { index : int; payload : t }
     | Payload of { value : t; index : int }
+    (* The address of a member inside the place an address names, down
+       [path] through the struct type [within]. *)
+    | Offset of { base : t; within : Ty.t; path : int list }
+    (* A guest's tether minted from a host's address, the address a tether
+       resolves to, and the identity it ends at (L9). *)
+    | Mint of t
+    | Resolve of t
+    | Terminal of t
+    (* A move out of the place an address names: its value, and the place
+       is spent (memory.md §3.7). *)
+    | Take of { address : t; layout : Layout.t }
 
   and binop = Add | Mul | Div | Eq | Less
 
@@ -77,7 +139,7 @@ module Expr = struct
      is in that arena. *)
   and stat =
     | Let of { id : int; value : t }
-    | Host of { id : int; scope : int; value : t }
+    | Host of { id : int; scope : int; value : t; layout : Layout.t }
     | Scope of { id : int; body : stat list }
     | Assign of { place : place; value : t }
     | Eval of t
@@ -86,6 +148,10 @@ module Expr = struct
     | Repeat of { count : t; body : stat list }
     | Switch of { value : t; cases : (int * stat list) list }
     | Leave of int
+    (* A store through an address, and a reference-type host replaced
+       there, its identities kept, merged or floated (memory.md §4.5). *)
+    | Store of { address : t; value : t }
+    | Overwrite of { address : t; value : t; layout : Layout.t }
 
   let binop_to_string = function
     | Add -> "+"
@@ -98,7 +164,7 @@ end
 module Stat = struct
   type t = Expr.stat =
     | Let of { id : int; value : Expr.t }
-    | Host of { id : int; scope : int; value : Expr.t }
+    | Host of { id : int; scope : int; value : Expr.t; layout : Layout.t }
     | Scope of { id : int; body : t list }
     | Assign of { place : Expr.place; value : Expr.t }
     | Eval of Expr.t
@@ -107,6 +173,8 @@ module Stat = struct
     | Repeat of { count : Expr.t; body : t list }
     | Switch of { value : Expr.t; cases : (int * t list) list }
     | Leave of int
+    | Store of { address : Expr.t; value : Expr.t }
+    | Overwrite of { address : Expr.t; value : Expr.t; layout : Layout.t }
 
   (* A store into a whole local. *)
   let assign id (value : Expr.t) =

@@ -812,15 +812,17 @@
     │       ├── result: #3
     │       ├── body[0] > let:
     │       │   ├── local: #4
-    │       │   └── value: local #1 : <i64 | void>
+    │       │   └── value: address of #1 : ptr
     │       └── body[1] > switch:
-    │           ├── value: local #4 : <i64 | void>
+    │           ├── value > deref:
+    │           │   ├── type: <i64 | void>
+    │           │   └── ptr: local #4 : ptr
     │           ├── cases[0] > case 0[0] > let:
     │           │   ├── local: #5
-    │           │   └── value > payload:
-    │           │       ├── type: i64
-    │           │       ├── index: 0
-    │           │       └── value: local #4 : <i64 | void>
+    │           │   └── value > offset:
+    │           │       ├── within: <i64 | void>
+    │           │       ├── path: 0
+    │           │       └── base: local #4 : ptr
     │           ├── cases[0] > case 0[1] > assign:
     │           │   ├── place: #3
     │           │   └── value > expand:
@@ -833,7 +835,9 @@
     │           │       │       ├── type: <i64 | i64 | void>
     │           │       │       ├── fn: zane_divide_1
     │           │       │       ├── args[0]: 12 : i64
-    │           │       │       └── args[1]: local #5 : i64
+    │           │       │       └── args[1] > deref:
+    │           │       │           ├── type: i64
+    │           │       │           └── ptr: local #5 : ptr
     │           │       └── body[1] > switch:
     │           │           ├── value: local #10 : <i64 | i64 | void>
     │           │           ├── cases[0] > case 0[0] > assign:
@@ -860,10 +864,10 @@
     │           ├── cases[0] > case 0[2]: leave @2
     │           ├── cases[1] > case 1[0] > let:
     │           │   ├── local: #14
-    │           │   └── value > payload:
-    │           │       ├── type: void
-    │           │       ├── index: 1
-    │           │       └── value: local #4 : <i64 | void>
+    │           │   └── value > offset:
+    │           │       ├── within: <i64 | void>
+    │           │       ├── path: 1
+    │           │       └── base: local #4 : ptr
     │           ├── cases[1] > case 1[1] > let:
     │           │   ├── local: #17
     │           │   └── value: 5 : i64

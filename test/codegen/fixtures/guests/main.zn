@@ -1,0 +1,147 @@
+/// Guests: `&T` minted from hosts, fields and parameters, read and written
+/// through, passed and returned, and stored in fields. A guest follows its
+/// host through moves, sees a stable overwrite, forwards when two anchored
+/// hosts merge, and keeps a variant payload alive when the case changes
+/// (memory.md §2.8.1, §4.5). Each check prints `yes` when it holds and `no`
+/// when it does not.
+package guests;
+
+import core$;
+
+type Node = #struct {
+	value Int;
+}
+
+Node(value Int) => init{ value; }
+
+Unit bump(this Node) mut {
+	this.value = this.value + Int(1);
+	return Unit();
+}
+
+Int twice(this Node) => this.value * Int(2)
+
+Int peek(node &Node) => node.value
+
+/// Returns one of two guests it was given.
+&Node larger(a &Node, b &Node) {
+	if(b.value < a.value) {
+		return a;
+	}
+	return b;
+}
+
+type Car = #struct {
+	engine &Node;
+	spare Node;
+}
+
+Car(engine &Node, spare Node) => init{ engine; spare; }
+
+type Holder = #variant {
+	some Node;
+	none Unit;
+}
+
+Unit check(ok Bool) {
+	yes @primitives$String("yes\n");
+	no @primitives$String("no\n");
+	ran Bool = if(ok) {
+		@program$console!print(yes);
+	}
+	ran:else() {
+		@program$console!print(no);
+	}
+	return Unit();
+}
+
+@primitives$Unit main() {
+	// A guest reads and writes its host, and the host's writes show.
+	a Node(Int(1));
+	g &Node = a;
+	a!bump();
+	check(g.value == Int(2));
+	g!bump();
+	check(a.value == Int(3));
+	check((peek(g) == Int(3)) * (peek(a) == Int(3)));
+	check(g:twice() == Int(6));
+
+	// A move takes the identity along, and a refill starts a new one.
+	b Node = a;
+	g!bump();
+	check(b.value == Int(4));
+	a = Node(Int(100));
+	check(g.value == Int(4));
+
+	// A stable overwrite keeps the identity.
+	b = Node(Int(7));
+	check(g.value == Int(7));
+
+	// Two anchored hosts merge: the moved one's guests forward to the host
+	// that stays.
+	c Node(Int(20));
+	h &Node = c;
+	b = c;
+	h!bump();
+	check(g.value == Int(21));
+	check(b.value == Int(21));
+
+	// A guest passed and returned, and one repointed.
+	check(larger(a, b).value == Int(100));
+	g = a;
+	check(g.value == Int(100));
+
+	// A guest field, and a guest minted from a hosting field.
+	car Car(b, Node(Int(5)));
+	car.engine!bump();
+	check(b.value == Int(22));
+	s &Node = car.spare;
+	moved Car = car;
+	s!bump();
+	check(moved.spare.value == Int(6));
+	moved.spare = Node(Int(50));
+	check(s.value == Int(50));
+
+	// A variant payload floats when the case changes, and its guests live on.
+	n Node(Int(9));
+	w &Node = n;
+	holder Holder = Holder.some(n);
+	holder = Holder.none(Unit());
+	check(w.value == Int(9));
+	w!bump();
+	check(w.value == Int(10));
+
+	// A binder is its payload's place: a write through it stays.
+	kept Holder = Holder.some(Node(Int(30)));
+	check(match (kept) {
+		k some {
+			k!bump();
+			return k.value == Int(31);
+		}
+		z none => Bool(false);
+	});
+	check(match (kept) {
+		k some => k.value == Int(31);
+		z none => Bool(false);
+	});
+
+	// A fresh scrutinee is hosted where it is matched.
+	check(match (Holder.some(Node(Int(40)))) {
+		k some {
+			k!bump();
+			return k.value == Int(41);
+		}
+		z none => Bool(false);
+	});
+
+	// Many guests minted and dropped: each pass's anchors retire with it.
+	total Int(0);
+	i Int(1);
+	i!to(Int(100000)) {
+		x Node(i);
+		y &Node = x;
+		total = total + peek(y);
+	}
+	check(total == Int(5000050000));
+	return @primitives$Unit();
+}
