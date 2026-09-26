@@ -50,3 +50,72 @@
  (alias runtest)
  (action
   (diff golden/temporary.err temporary.err.actual)))
+
+; `counting` is step 2 of docs/lowering.md §8: `core`'s scalars, verbs that
+; call verbs, and `if`, `elif`, `else` and `to` expanded where they are
+; called. Every check it makes prints `yes` when it holds.
+
+(rule
+ (deps (source_tree fixtures/counting) (source_tree ../core))
+ (action
+  (with-stdout-to
+   counting.cgt.actual
+   (run
+    %{exe:../../bin/compiler/main.exe}
+    --cgt
+    --package fixtures/counting
+    --package ../core))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/counting.cgt counting.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/counting) (source_tree ../core))
+ (targets counting.exe)
+ (action
+  (run
+   %{exe:../../bin/compiler/main.exe}
+   --build
+   counting.exe
+   --package fixtures/counting
+   --package ../core)))
+
+(rule
+ (action
+  (with-stdout-to
+   counting.out.actual
+   (run ./counting.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/counting.out counting.out.actual)))
+
+; `zero` divides by zero: the program stops with status 1 after what it
+; wrote so far, and says why on stderr.
+
+(rule
+ (deps (source_tree fixtures/zero) (source_tree ../core))
+ (targets zero.exe)
+ (action
+  (run
+   %{exe:../../bin/compiler/main.exe}
+   --build
+   zero.exe
+   --package fixtures/zero
+   --package ../core)))
+
+(rule
+ (action
+  (with-outputs-to
+   zero.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./zero.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/zero.out zero.out.actual)))
