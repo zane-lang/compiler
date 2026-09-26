@@ -2,7 +2,10 @@
 /// not reach `@program$`.
 package lib;
 
-import core$;
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
 
 type Thing = struct {
 	value Int;
@@ -14,6 +17,7 @@ Int area(this Thing) => this.value
 Int twin(value Int) => value
 
 Unit shout() {
-	console Console(@program$console);
+	text String("!");
+	@program$console!print(text);
 	return Unit();
 }

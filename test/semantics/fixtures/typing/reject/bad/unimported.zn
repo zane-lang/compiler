@@ -1,5 +1,5 @@
-/// Imports are per file: `core` is imported by this package's other files,
+/// Imports are per file: `lib` is imported by this package's other files,
 /// and not by this one.
 package bad;
 
-Int unimported() => guard(true)
+Int unimported() => helper(Int(1))

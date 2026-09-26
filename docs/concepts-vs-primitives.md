@@ -20,14 +20,14 @@ reaches the CGT.
 ## Primitives: what the machine stores
 
 `@primitives$` names storage: `Int`, `I32`, `I64`, `Float`, `Bool`, `Unit`,
-`String`, `Array<T, n>`, `List<T>`. `core` builds the fundamental types on
-them — its `Int` is a struct around an `@primitives$Int` — and any package may
-use them the same way.
+`String`, `Array<T, n>`, `List<T>`. Packages build types on them — an `Int`
+can be a struct around an `@primitives$Int`, as `types.md` §2.6 describes
+`core`'s — or write them directly, under an alias if they like.
 
 Lowering gives each primitive its machine layout ([`lowering.md`](lowering.md)
 L5): `@primitives$Int` is an `i64`, `Bool` an `i1`, `Float` a `double`, and
 `String` and `List` are handles whose payload lives in the dynamic region.
-A struct around one primitive has that primitive's layout, so `core`'s `Int`
+A struct around one primitive has that primitive's layout, so such an `Int`
 costs what an `i64` costs.
 
 ## Why the line is there

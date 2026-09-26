@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 /// An exit ends the run of the block its call is written in, so a call to an
 /// exiting verb is written in a block that yields nothing.
 Unit early(ready Bool) {
@@ -18,7 +16,7 @@ Unit early(ready Bool) {
 
 /// A block yields nothing: it takes no type argument, and a `resolve` in it
 /// finishes the handler around it, when there is one.
-Bool lazily(condition @concepts$Block<Bool>) => Bool(true)
+Bool lazily(condition @concepts$Block<Bool>) => true
 
 Unit yielding(ready Bool) {
 	done Bool = if(ready) {

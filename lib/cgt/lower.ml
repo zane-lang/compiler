@@ -124,8 +124,7 @@ let member_index st t slot = if reference st t then slot + 1 else slot
 
 (* L5: a storage primitive has a machine layout. A value struct has its
    members' in declaration order, except that one of a single member has that
-   member's (concepts-vs-primitives.md) and an empty one, like `core`'s
-   `Unit`, has none. A value variant is a sum of its payloads, and an enum a
+   member's (concepts-vs-primitives.md) and an empty one has none. A value variant is a sum of its payloads, and an enum a
    sum of cases with none. A reference type's instance is the same shape
    after a `u32` backpointer (memory.md §3.3), and a guest is a `u32`
    tether (§4.2). *)

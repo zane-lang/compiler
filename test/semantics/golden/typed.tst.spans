@@ -1,4 +1,86 @@
 package app
+  decl Alias Int | alias Int = @primitives$Int
+  decl Alias Float | alias Float = @primitives$Float
+  decl Alias Bool | alias Bool = @primitives$Bool
+  decl Alias Unit | alias Unit = @primitives$Unit
+  decl Alias String | alias String = @primitives$String
+  decl Alias Array | alias Array<T Type, n @con …  = @primitives$Array<T, n>
+  decl Verb if | Bool if(condition Bool, bo … body); return condition; }
+    param condition | condition Bool
+    param body | body @concepts$Block
+    block | { @controlflow$branch(cond … body); return condition; }
+      stat Expr | @controlflow$branch(condition, body);
+        expr Call @controlflow$branch | @controlflow$branch(condition, body)
+          expr Var condition | condition
+          expr Var body | body
+      stat Return | return condition;
+        expr Var condition | condition
+  decl Verb elif | Unit elif(this Bool, condi … ondition; return Unit(); }
+    param this | Bool
+    param condition | condition Bool
+    param body | body @concepts$Block
+    block | { @controlflow$branch(~thi … ondition; return Unit(); }
+      stat Expr | @controlflow$branch(~this * condition, body);
+        expr Call @controlflow$branch | @controlflow$branch(~this * condition, body)
+          expr Op * | ~this * condition
+            expr Flip | ~this
+              expr Var this | this
+            expr Var condition | condition
+          expr Var body | body
+      stat Assign | this = this + condition;
+        expr Var this | this
+        expr Op + | this + condition
+          expr Var this | this
+          expr Var condition | condition
+      stat Return | return Unit();
+        expr Construct @primitives$Unit | Unit()
+  decl Verb else | Unit else(this Bool, body  … s, body); return Unit(); }
+    param this | Bool
+    param body | body @concepts$Block
+    block | { @controlflow$branch(~this, body); return Unit(); }
+      stat Expr | @controlflow$branch(~this, body);
+        expr Call @controlflow$branch | @controlflow$branch(~this, body)
+          expr Flip | ~this
+            expr Var this | this
+          expr Var body | body
+      stat Return | return Unit();
+        expr Construct @primitives$Unit | Unit()
+  decl Verb to | Unit to(this Int, end Int, … t(1); }); return Unit(); }
+    param this | Int
+    param end | end Int
+    param body | body @concepts$Block
+    block | { @controlflow$repeat(end  … t(1); }); return Unit(); }
+      stat Expr | @controlflow$repeat(end +  …  this = this + Int(1); });
+        expr Call @controlflow$repeat | @controlflow$repeat(end +  … ; this = this + Int(1); })
+          expr Op + | end + ~this + Int(1)
+            expr Op + | end + ~this
+              expr Var end | end
+              expr Flip | ~this
+                expr Var this | this
+            expr Construct @primitives$Int | Int(1)
+              expr Integer_lit | 1
+          block | { @controlflow$branch(true … ); this = this + Int(1); }
+            stat Expr | @controlflow$branch(true, body);
+              expr Call @controlflow$branch | @controlflow$branch(true, body)
+                expr Bool_lit | true
+                expr Var body | body
+            stat Assign | this = this + Int(1);
+              expr Var this | this
+              expr Op + | this + Int(1)
+                expr Var this | this
+                expr Construct @primitives$Int | Int(1)
+                  expr Integer_lit | 1
+      stat Return | return Unit();
+        expr Construct @primitives$Unit | Unit()
+  decl Verb say | Unit say(text String) { @p … nt(text); return Unit(); }
+    param text | text String
+    block | { @program$console!print(text); return Unit(); }
+      stat Expr | @program$console!print(text);
+        expr Call print | @program$console!print(text)
+          expr Var @program$console | @program$console
+          expr Var text | text
+      stat Return | return Unit();
+        expr Construct @primitives$Unit | Unit()
   decl Verb pick | T pick(first T Type, secon …  first; } return chosen; }
   decl Type Pair | type Pair<T Type> = struct { left T; right T; }
   decl Verb Pair | Pair<T>(left T Type, right T) => init{ left; right; }
@@ -14,9 +96,9 @@ package app
     block | => Pair(Int(x), Int(y))
       stat Return | => Pair(Int(x), Int(y))
         expr Construct Pair | Pair(Int(x), Int(y))
-          expr Construct Int | Int(x)
+          expr Construct @primitives$Int | Int(x)
             expr Var x | x
-          expr Construct Int | Int(y)
+          expr Construct @primitives$Int | Int(y)
             expr Var y | y
   decl Verb pairOf | Pair<Float> pairOf(x @conc … > Pair(Float(x), Float(y))
     param x | x @concepts$Float
@@ -24,9 +106,9 @@ package app
     block | => Pair(Float(x), Float(y))
       stat Return | => Pair(Float(x), Float(y))
         expr Construct Pair | Pair(Float(x), Float(y))
-          expr Construct Float | Float(x)
+          expr Construct @primitives$Float | Float(x)
             expr Var x | x
-          expr Construct Float | Float(y)
+          expr Construct @primitives$Float | Float(y)
             expr Var y | y
   decl Verb safeDivide | Float?String safeDivide(nu … numerator / denominator; }
     param numerator | numerator Float
@@ -36,21 +118,21 @@ package app
         expr Call if | if(denominator == Float(0.0)) { abort String("zero"); }
           expr Op == | denominator == Float(0.0)
             expr Var denominator | denominator
-            expr Construct Float | Float(0.0)
+            expr Construct @primitives$Float | Float(0.0)
               expr Decimal_lit | 0.0
           block | { abort String("zero"); }
             stat Abort | abort String("zero");
-              expr Construct String | String("zero")
+              expr Construct @primitives$String | String("zero")
                 expr Text_lit | "zero"
       stat Expr | if(denominator < Float(0.0 … bort String("negative"); }
         expr Call if | if(denominator < Float(0.0 … bort String("negative"); }
           expr Op < | denominator < Float(0.0)
             expr Var denominator | denominator
-            expr Construct Float | Float(0.0)
+            expr Construct @primitives$Float | Float(0.0)
               expr Decimal_lit | 0.0
           block | { abort String("negative"); }
             stat Abort | abort String("negative");
-              expr Construct String | String("negative")
+              expr Construct @primitives$String | String("negative")
                 expr Text_lit | "negative"
       stat Return | return numerator / denominator;
         expr Op / | numerator / denominator
@@ -66,36 +148,31 @@ package app
             pattern topLeft | [topLeft, topRight]
             block | => String("top")
               stat Return | => String("top")
-                expr Construct String | String("top")
+                expr Construct @primitives$String | String("top")
                   expr Text_lit | "top"
           arm | [topLeft, topRight] => String("top");
             pattern topRight | [topLeft, topRight]
             block | => String("top")
               stat Return | => String("top")
-                expr Construct String | String("top")
+                expr Construct @primitives$String | String("top")
                   expr Text_lit | "top"
           arm | [bottomLeft, bottomRight] => String("bottom");
             pattern bottomLeft | [bottomLeft, bottomRight]
             block | => String("bottom")
               stat Return | => String("bottom")
-                expr Construct String | String("bottom")
+                expr Construct @primitives$String | String("bottom")
                   expr Text_lit | "bottom"
           arm | [bottomLeft, bottomRight] => String("bottom");
             pattern bottomRight | [bottomLeft, bottomRight]
             block | => String("bottom")
               stat Return | => String("bottom")
-                expr Construct String | String("bottom")
+                expr Construct @primitives$String | String("bottom")
                   expr Text_lit | "bottom"
-  decl Verb main | Unit main() { console Cons … arge"); } return Unit(); }
-    block | { console Console(@program … arge"); } return Unit(); }
-      stat Let | console Console(@program$console);
-        local console | console
-        expr Construct Console | Console(@program$console)
-          expr Var @program$console | @program$console
-      stat Expr | console!print("hello");
-        expr Call print | console!print("hello")
-          expr Var console | console
-          expr Coerce String | "hello"
+  decl Verb main | Unit main() { say(String(" … rge")); } return Unit(); }
+    block | { say(String("hello")); or … rge")); } return Unit(); }
+      stat Expr | say(String("hello"));
+        expr Call say | say(String("hello"))
+          expr Construct @primitives$String | String("hello")
             expr Text_lit | "hello"
       stat Let | origin Vec2.zero();
         local origin | origin
@@ -109,13 +186,13 @@ package app
       stat Expr | moved!scale(Float(2.0));
         expr Call scale | moved!scale(Float(2.0))
           expr Var moved | moved
-          expr Construct Float | Float(2.0)
+          expr Construct @primitives$Float | Float(2.0)
             expr Decimal_lit | 2.0
       stat Let | flat Vec2{ x = Float(1.0); }
         local flat | flat
         expr Construct_fields Vec2 | Vec2{ x = Float(1.0); }
           field x | x = Float(1.0)
-            expr Construct Float | Float(1.0)
+            expr Construct @primitives$Float | Float(1.0)
               expr Decimal_lit | 1.0
       stat Let | size Float = moved:length();
         local size | size
@@ -124,7 +201,7 @@ package app
       stat Let | shape Shape = Shape.circle(Float(2.0));
         local shape | shape
         expr Case circle | Shape.circle(Float(2.0))
-          expr Construct Float | Float(2.0)
+          expr Construct @primitives$Float | Float(2.0)
             expr Decimal_lit | 2.0
       stat Let | covered Float = area(shape);
         local covered | covered
@@ -137,48 +214,45 @@ package app
           handler | ?? Float(0.0)
             block | ?? Float(0.0)
               stat Resolve | ?? Float(0.0)
-                expr Construct Float | Float(0.0)
+                expr Construct @primitives$Float | Float(0.0)
                   expr Decimal_lit | 0.0
       stat Let | half Float = safeDivide(co … on); resolve Float(0.0); }
         local half | half
         expr Call safeDivide | safeDivide(covered, Float(2.0))
           expr Var covered | covered
-          expr Construct Float | Float(2.0)
+          expr Construct @primitives$Float | Float(2.0)
             expr Decimal_lit | 2.0
-          handler | ? reason { console!print(reason); resolve Float(0.0); }
+          handler | ? reason { say(reason); resolve Float(0.0); }
             binder reason | reason
-            block | { console!print(reason); resolve Float(0.0); }
-              stat Expr | console!print(reason);
-                expr Call print | console!print(reason)
-                  expr Var console | console
+            block | { say(reason); resolve Float(0.0); }
+              stat Expr | say(reason);
+                expr Call say | say(reason)
                   expr Var reason | reason
               stat Resolve | resolve Float(0.0);
-                expr Construct Float | Float(0.0)
+                expr Construct @primitives$Float | Float(0.0)
                   expr Decimal_lit | 0.0
       stat Let | picked Int = pick(Int(1), Int(2), true);
         local picked | picked
         expr Call pick | pick(Int(1), Int(2), true)
-          expr Construct Int | Int(1)
+          expr Construct @primitives$Int | Int(1)
             expr Integer_lit | 1
-          expr Construct Int | Int(2)
+          expr Construct @primitives$Int | Int(2)
             expr Integer_lit | 2
-          expr Coerce Bool | true
-            expr Bool_lit | true
+          expr Bool_lit | true
       stat Let | chance Float = pick(Float(0.5), Float(1.5), false);
         local chance | chance
         expr Call pick | pick(Float(0.5), Float(1.5), false)
-          expr Construct Float | Float(0.5)
+          expr Construct @primitives$Float | Float(0.5)
             expr Decimal_lit | 0.5
-          expr Construct Float | Float(1.5)
+          expr Construct @primitives$Float | Float(1.5)
             expr Decimal_lit | 1.5
-          expr Coerce Bool | false
-            expr Bool_lit | false
+          expr Bool_lit | false
       stat Let | pair Pair(Int(3), Int(4));
         local pair | pair
         expr Construct Pair | Pair(Int(3), Int(4))
-          expr Construct Int | Int(3)
+          expr Construct @primitives$Int | Int(3)
             expr Integer_lit | 3
-          expr Construct Int | Int(4)
+          expr Construct @primitives$Int | Int(4)
             expr Integer_lit | 4
       stat Let | total Int = sum(pair);
         local total | total
@@ -187,29 +261,29 @@ package app
       stat Let | floats Pair(Float(1.0), Float(2.0));
         local floats | floats
         expr Construct Pair | Pair(Float(1.0), Float(2.0))
-          expr Construct Float | Float(1.0)
+          expr Construct @primitives$Float | Float(1.0)
             expr Decimal_lit | 1.0
-          expr Construct Float | Float(2.0)
+          expr Construct @primitives$Float | Float(2.0)
             expr Decimal_lit | 2.0
       stat Let | both Float = sum(floats);
         local both | both
         expr Call sum | sum(floats)
           expr Var floats | floats
-      stat Let | numbers Array([Int(1), Int(2), Int(3)]);
+      stat Let | numbers Array<Int, 3> = @p … [Int(1), Int(2), Int(3)]);
         local numbers | numbers
-        expr Construct Array | Array([Int(1), Int(2), Int(3)])
+        expr Construct @primitives$Array | @primitives$Array([Int(1), Int(2), Int(3)])
           expr Array_lit | [Int(1), Int(2), Int(3)]
-            expr Construct Int | Int(1)
+            expr Construct @primitives$Int | Int(1)
               expr Integer_lit | 1
-            expr Construct Int | Int(2)
+            expr Construct @primitives$Int | Int(2)
               expr Integer_lit | 2
-            expr Construct Int | Int(3)
+            expr Construct @primitives$Int | Int(3)
               expr Integer_lit | 3
-      stat Let | first Int = numbers[1];
+      stat Let | first Int = numbers[Int(1)];
         local first | first
-        expr Subscript | numbers[1]
+        expr Subscript | numbers[Int(1)]
           expr Var numbers | numbers
-          expr Coerce Int | 1
+          expr Construct @primitives$Int | Int(1)
             expr Integer_lit | 1
       stat Let | length Int = count(numbers);
         local length | length
@@ -248,23 +322,21 @@ package app
         local side | side
         expr Call describe | describe(Corner.bottomRight)
           expr Enum_member bottomRight | Corner.bottomRight
-      stat Expr | console!print(side);
-        expr Call print | console!print(side)
-          expr Var console | console
+      stat Expr | say(side);
+        expr Call say | say(side)
           expr Var side | side
       stat Let | i Int = Int(1);
         local i | i
-        expr Construct Int | Int(1)
+        expr Construct @primitives$Int | Int(1)
           expr Integer_lit | 1
-      stat Expr | i!to(3) { console!print(describe(Corner.topLeft)); }
-        expr Call to | i!to(3) { console!print(describe(Corner.topLeft)); }
+      stat Expr | i!to(Int(3)) { say(describe(Corner.topLeft)); }
+        expr Call to | i!to(Int(3)) { say(describe(Corner.topLeft)); }
           expr Var i | i
-          expr Coerce Int | 3
+          expr Construct @primitives$Int | Int(3)
             expr Integer_lit | 3
-          block | { console!print(describe(Corner.topLeft)); }
-            stat Expr | console!print(describe(Corner.topLeft));
-              expr Call print | console!print(describe(Corner.topLeft))
-                expr Var console | console
+          block | { say(describe(Corner.topLeft)); }
+            stat Expr | say(describe(Corner.topLeft));
+              expr Call say | say(describe(Corner.topLeft))
                 expr Call describe | describe(Corner.topLeft)
                   expr Enum_member topLeft | Corner.topLeft
       stat Let | double Float(value Float) => value * Float(2.0);
@@ -275,52 +347,52 @@ package app
             stat Return | => value * Float(2.0)
               expr Op * | value * Float(2.0)
                 expr Var value | value
-                expr Construct Float | Float(2.0)
+                expr Construct @primitives$Float | Float(2.0)
                   expr Decimal_lit | 2.0
       stat Let | doubled Float = double(half);
         local doubled | doubled
         expr Call_value | double(half)
           expr Var double | double
           expr Var half | half
-      stat Let | chain Bool = if(total < In …  console!print("small"); }
+      stat Let | chain Bool = if(total < In …  { say(String("small")); }
         local chain | chain
-        expr Call if | if(total < Int(5)) { console!print("small"); }
+        expr Call if | if(total < Int(5)) { say(String("small")); }
           expr Op < | total < Int(5)
             expr Var total | total
-            expr Construct Int | Int(5)
+            expr Construct @primitives$Int | Int(5)
               expr Integer_lit | 5
-          block | { console!print("small"); }
-            stat Expr | console!print("small");
-              expr Call print | console!print("small")
-                expr Var console | console
-                expr Coerce String | "small"
+          block | { say(String("small")); }
+            stat Expr | say(String("small"));
+              expr Call say | say(String("small"))
+                expr Construct @primitives$String | String("small")
                   expr Text_lit | "small"
-      stat Expr | chain!elif(total == Int(7)) { console!print("seven"); }
-        expr Call elif | chain!elif(total == Int(7)) { console!print("seven"); }
+      stat Expr | chain!elif(total == Int(7)) { say(String("seven")); }
+        expr Call elif | chain!elif(total == Int(7)) { say(String("seven")); }
           expr Var chain | chain
           expr Op == | total == Int(7)
             expr Var total | total
-            expr Construct Int | Int(7)
+            expr Construct @primitives$Int | Int(7)
               expr Integer_lit | 7
-          block | { console!print("seven"); }
-            stat Expr | console!print("seven");
-              expr Call print | console!print("seven")
-                expr Var console | console
-                expr Coerce String | "seven"
+          block | { say(String("seven")); }
+            stat Expr | say(String("seven"));
+              expr Call say | say(String("seven"))
+                expr Construct @primitives$String | String("seven")
                   expr Text_lit | "seven"
-      stat Expr | chain:else() { console!print("large"); }
-        expr Call else | chain:else() { console!print("large"); }
+      stat Expr | chain:else() { say(String("large")); }
+        expr Call else | chain:else() { say(String("large")); }
           expr Var chain | chain
-          block | { console!print("large"); }
-            stat Expr | console!print("large");
-              expr Call print | console!print("large")
-                expr Var console | console
-                expr Coerce String | "large"
+          block | { say(String("large")); }
+            stat Expr | say(String("large"));
+              expr Call say | say(String("large"))
+                expr Construct @primitives$String | String("large")
                   expr Text_lit | "large"
       stat Return | return Unit();
-        expr Construct Unit | Unit()
+        expr Construct @primitives$Unit | Unit()
   decl Verb twice | T twice(value T Type) => value + value
 package shapes
+  decl Alias Float | alias Float = @primitives$Float
+  decl Alias Unit | alias Unit = @primitives$Unit
+  decl Alias String | alias String = @primitives$String
   decl Type Vec2 | type Vec2 = struct { x Float; y Float; }
   decl Verb Vec2 | Vec2(x Float, y Float) => init{ x; y; }
     param x | x Float
@@ -337,10 +409,10 @@ package shapes
       stat Return | => init{ x = Float(0.0); y = Float(0.0); }
         expr Init | init{ x = Float(0.0); y = Float(0.0); }
           field x | x = Float(0.0)
-            expr Construct Float | Float(0.0)
+            expr Construct @primitives$Float | Float(0.0)
               expr Decimal_lit | 0.0
           field y | y = Float(0.0)
-            expr Construct Float | Float(0.0)
+            expr Construct @primitives$Float | Float(0.0)
               expr Decimal_lit | 0.0
   decl Verb Vec2 | Vec2{ x Float; y Float = Float(0.0); } => init{ x; y; }
     param x | x Float
@@ -413,28 +485,28 @@ package shapes
             expr Var this | this
           expr Var by | by
       stat Return | return Unit();
-        expr Construct Unit | Unit()
+        expr Construct @primitives$Unit | Unit()
   decl Verb Vec2 | implicit Vec2(value @conce … alue); y = Float(value); }
     param value | value @concepts$Float
     block | => init{ x = Float(value); y = Float(value); }
       stat Return | => init{ x = Float(value); y = Float(value); }
         expr Init | init{ x = Float(value); y = Float(value); }
           field x | x = Float(value)
-            expr Construct Float | Float(value)
+            expr Construct @primitives$Float | Float(value)
               expr Var value | value
           field y | y = Float(value)
-            expr Construct Float | Float(value)
+            expr Construct @primitives$Float | Float(value)
               expr Var value | value
   decl Type Shape | type Shape = #variant { ci … quare Float; point Vec2; }
   decl Type Corner | type Corner = enum [ topLe …  bottomLeft, bottomRight ]
-  decl Enum_map label | Corner.label String { topL … mRight = "bottom right"; }
-    expr Coerce String | "top left"
+  decl Enum_map label | Corner.label String { topL …  String("bottom right"); }
+    expr Construct @primitives$String | String("top left")
       expr Text_lit | "top left"
-    expr Coerce String | "top right"
+    expr Construct @primitives$String | String("top right")
       expr Text_lit | "top right"
-    expr Coerce String | "bottom left"
+    expr Construct @primitives$String | String("bottom left")
       expr Text_lit | "bottom left"
-    expr Coerce String | "bottom right"
+    expr Construct @primitives$String | String("bottom right")
       expr Text_lit | "bottom right"
   decl Verb _half | Float _half(value Float) => value / Float(2.0)
     param value | value Float
@@ -442,7 +514,7 @@ package shapes
       stat Return | => value / Float(2.0)
         expr Op / | value / Float(2.0)
           expr Var value | value
-          expr Construct Float | Float(2.0)
+          expr Construct @primitives$Float | Float(2.0)
             expr Decimal_lit | 2.0
   decl Verb area | Float area(shape &Shape) = … s); point => Float(0.0); }
     param shape | shape &Shape
@@ -471,390 +543,10 @@ package shapes
             pattern point | point
             block | => Float(0.0)
               stat Return | => Float(0.0)
-                expr Construct Float | Float(0.0)
+                expr Construct @primitives$Float | Float(0.0)
                   expr Decimal_lit | 0.0
-package core
-  decl Type Bool | type Bool = struct { raw @primitives$Bool; }
-  decl Verb Bool | implicit Bool(raw @primitives$Bool) => init{ raw; }
-    param raw | raw @primitives$Bool
-    block | => init{ raw; }
-      stat Return | => init{ raw; }
-        expr Init | init{ raw; }
-          field raw | raw
-            expr Var raw | raw
-  decl Verb @primitives$Bool | implicit @primitives$Bool(value Bool) => value.raw
-    param value | value Bool
-    block | => value.raw
-      stat Return | => value.raw
-        expr Field raw | value.raw
-          expr Var value | value
-  decl Verb * | Bool *(left Bool, right Bo … Bool(left.raw * right.raw)
-    param left | left Bool
-    param right | right Bool
-    block | => Bool(left.raw * right.raw)
-      stat Return | => Bool(left.raw * right.raw)
-        expr Construct Bool | Bool(left.raw * right.raw)
-          expr Op * | left.raw * right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb + | Bool +(left Bool, right Bo … Bool(left.raw + right.raw)
-    param left | left Bool
-    param right | right Bool
-    block | => Bool(left.raw + right.raw)
-      stat Return | => Bool(left.raw + right.raw)
-        expr Construct Bool | Bool(left.raw + right.raw)
-          expr Op + | left.raw + right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb == | Bool ==(left Bool, right B … ool(left.raw == right.raw)
-    param left | left Bool
-    param right | right Bool
-    block | => Bool(left.raw == right.raw)
-      stat Return | => Bool(left.raw == right.raw)
-        expr Construct Bool | Bool(left.raw == right.raw)
-          expr Op == | left.raw == right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb ~ | Bool ~(value Bool) => Bool(~value.raw)
-    param value | value Bool
-    block | => Bool(~value.raw)
-      stat Return | => Bool(~value.raw)
-        expr Construct Bool | Bool(~value.raw)
-          expr Flip | ~value.raw
-            expr Field raw | value.raw
-              expr Var value | value
-  decl Type Console | type Console = #struct { _console &@runtime$Console; }
-  decl Verb Console | Console(console &@runtime$ … nit{ _console = console; }
-    param console | console &@runtime$Console
-    block | => init{ _console = console; }
-      stat Return | => init{ _console = console; }
-        expr Init | init{ _console = console; }
-          field _console | _console = console
-            expr Var console | console
-  decl Verb print | Unit print(this Console, t … ext.raw); return Unit(); }
-    param this | Console
-    param text | text String
-    block | { this._console!print(text.raw); return Unit(); }
-      stat Expr | this._console!print(text.raw);
-        expr Call print | this._console!print(text.raw)
-          expr Field _console | this._console
-            expr Var this | this
-          expr Field raw | text.raw
-            expr Var text | text
-      stat Return | return Unit();
-        expr Construct Unit | Unit()
-  decl Type Array | type Array<T Type, n @conc … @primitives$Array<T, n>; }
-  decl Verb Array | Array<T, n>(values @concep … rimitives$Array(values); }
-  decl Subscript [] | (this Array<T Type, n @con … Int] => this._items[index]
-  decl Verb size | Int size(this Array<T Type, n @concepts$Int>) => Int(n)
-  decl Type List | type List<T Type> = #struc … ems @primitives$List<T>; }
-  decl Verb List | List<T>(T Type) => init{ _items = @primitives$List(T); }
-  decl Verb push | Unit push(this List<T Type … h(value); return Unit(); }
-  decl Verb size | Int size(this List<T Type>) => Int(this._items:size())
-  decl Subscript [] | (this List<T Type>)[index Int] => this._items[index]
-  decl Verb if | Bool if(condition Bool, bo … body); return condition; }
-    param condition | condition Bool
-    param body | body @concepts$Block
-    block | { @controlflow$branch(cond … body); return condition; }
-      stat Expr | @controlflow$branch(condition, body);
-        expr Call @controlflow$branch | @controlflow$branch(condition, body)
-          expr Coerce @primitives$Bool | condition
-            expr Var condition | condition
-          expr Var body | body
-      stat Return | return condition;
-        expr Var condition | condition
-  decl Verb elif | Unit elif(this Bool, condi … ondition; return Unit(); }
-    param this | Bool
-    param condition | condition Bool
-    param body | body @concepts$Block
-    block | { @controlflow$branch(~thi … ondition; return Unit(); }
-      stat Expr | @controlflow$branch(~this * condition, body);
-        expr Call @controlflow$branch | @controlflow$branch(~this * condition, body)
-          expr Coerce @primitives$Bool | ~this * condition
-            expr Op * | ~this * condition
-              expr Flip | ~this
-                expr Var this | this
-              expr Var condition | condition
-          expr Var body | body
-      stat Assign | this = this + condition;
-        expr Var this | this
-        expr Op + | this + condition
-          expr Var this | this
-          expr Var condition | condition
-      stat Return | return Unit();
-        expr Construct Unit | Unit()
-  decl Verb else | Unit else(this Bool, body  … s, body); return Unit(); }
-    param this | Bool
-    param body | body @concepts$Block
-    block | { @controlflow$branch(~this, body); return Unit(); }
-      stat Expr | @controlflow$branch(~this, body);
-        expr Call @controlflow$branch | @controlflow$branch(~this, body)
-          expr Coerce @primitives$Bool | ~this
-            expr Flip | ~this
-              expr Var this | this
-          expr Var body | body
-      stat Return | return Unit();
-        expr Construct Unit | Unit()
-  decl Verb guard | Unit guard(condition Bool) … ll(); }); return Unit(); }
-    param condition | condition Bool
-    block | { @controlflow$branch(cond … ll(); }); return Unit(); }
-      stat Expr | @controlflow$branch(condit … olflow$exitFromCall(); });
-        expr Call @controlflow$branch | @controlflow$branch(condit … rolflow$exitFromCall(); })
-          expr Coerce @primitives$Bool | condition
-            expr Var condition | condition
-          block | { @controlflow$exitFromCall(); }
-            stat Expr | @controlflow$exitFromCall();
-              expr Call @controlflow$exitFromCall | @controlflow$exitFromCall()
-      stat Return | return Unit();
-        expr Construct Unit | Unit()
-  decl Verb to | Unit to(this Int, end Int, … t(1); }); return Unit(); }
-    param this | Int
-    param end | end Int
-    param body | body @concepts$Block
-    block | { @controlflow$repeat(end  … t(1); }); return Unit(); }
-      stat Expr | @controlflow$repeat(end -  …  this = this + Int(1); });
-        expr Call @controlflow$repeat | @controlflow$repeat(end -  … ; this = this + Int(1); })
-          expr Coerce @primitives$Int | end - this + Int(1)
-            expr Op + | end - this + Int(1)
-              expr Op + | end - this
-                expr Var end | end
-                expr Flip | - this
-                  expr Var this | this
-              expr Construct Int | Int(1)
-                expr Integer_lit | 1
-          block | { @controlflow$branch(true … ); this = this + Int(1); }
-            stat Expr | @controlflow$branch(true, body);
-              expr Call @controlflow$branch | @controlflow$branch(true, body)
-                expr Bool_lit | true
-                expr Var body | body
-            stat Assign | this = this + Int(1);
-              expr Var this | this
-              expr Op + | this + Int(1)
-                expr Var this | this
-                expr Construct Int | Int(1)
-                  expr Integer_lit | 1
-      stat Return | return Unit();
-        expr Construct Unit | Unit()
-  decl Type Int | type Int = struct { raw @primitives$Int; }
-  decl Verb Int | implicit Int(value @concep …  @primitives$Int(value); }
-    param value | value @concepts$Int
-    block | => init{ raw = @primitives$Int(value); }
-      stat Return | => init{ raw = @primitives$Int(value); }
-        expr Init | init{ raw = @primitives$Int(value); }
-          field raw | raw = @primitives$Int(value)
-            expr Construct @primitives$Int | @primitives$Int(value)
-              expr Var value | value
-  decl Verb Int | implicit Int(raw @primitives$Int) => init{ raw; }
-    param raw | raw @primitives$Int
-    block | => init{ raw; }
-      stat Return | => init{ raw; }
-        expr Init | init{ raw; }
-          field raw | raw
-            expr Var raw | raw
-  decl Verb @primitives$Int | implicit @primitives$Int(value Int) => value.raw
-    param value | value Int
-    block | => value.raw
-      stat Return | => value.raw
-        expr Field raw | value.raw
-          expr Var value | value
-  decl Verb + | Int +(left Int, right Int) => Int(left.raw + right.raw)
-    param left | left Int
-    param right | right Int
-    block | => Int(left.raw + right.raw)
-      stat Return | => Int(left.raw + right.raw)
-        expr Construct Int | Int(left.raw + right.raw)
-          expr Op + | left.raw + right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb * | Int *(left Int, right Int) => Int(left.raw * right.raw)
-    param left | left Int
-    param right | right Int
-    block | => Int(left.raw * right.raw)
-      stat Return | => Int(left.raw * right.raw)
-        expr Construct Int | Int(left.raw * right.raw)
-          expr Op * | left.raw * right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb / | Int /(left Int, right Int) => Int(left.raw / right.raw)
-    param left | left Int
-    param right | right Int
-    block | => Int(left.raw / right.raw)
-      stat Return | => Int(left.raw / right.raw)
-        expr Construct Int | Int(left.raw / right.raw)
-          expr Op / | left.raw / right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb ~ | Int ~(value Int) => Int(~value.raw)
-    param value | value Int
-    block | => Int(~value.raw)
-      stat Return | => Int(~value.raw)
-        expr Construct Int | Int(~value.raw)
-          expr Flip | ~value.raw
-            expr Field raw | value.raw
-              expr Var value | value
-  decl Verb == | Bool ==(left Int, right In … ool(left.raw == right.raw)
-    param left | left Int
-    param right | right Int
-    block | => Bool(left.raw == right.raw)
-      stat Return | => Bool(left.raw == right.raw)
-        expr Construct Bool | Bool(left.raw == right.raw)
-          expr Op == | left.raw == right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb < | Bool <(left Int, right Int … Bool(left.raw < right.raw)
-    param left | left Int
-    param right | right Int
-    block | => Bool(left.raw < right.raw)
-      stat Return | => Bool(left.raw < right.raw)
-        expr Construct Bool | Bool(left.raw < right.raw)
-          expr Op < | left.raw < right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Type Float | type Float = struct { raw @primitives$Float; }
-  decl Verb Float | implicit Float(value @conc … primitives$Float(value); }
-    param value | value @concepts$Float
-    block | => init{ raw = @primitives$Float(value); }
-      stat Return | => init{ raw = @primitives$Float(value); }
-        expr Init | init{ raw = @primitives$Float(value); }
-          field raw | raw = @primitives$Float(value)
-            expr Construct @primitives$Float | @primitives$Float(value)
-              expr Var value | value
-  decl Verb Float | implicit Float(raw @primitives$Float) => init{ raw; }
-    param raw | raw @primitives$Float
-    block | => init{ raw; }
-      stat Return | => init{ raw; }
-        expr Init | init{ raw; }
-          field raw | raw
-            expr Var raw | raw
-  decl Verb + | Float +(left Float, right  … loat(left.raw + right.raw)
-    param left | left Float
-    param right | right Float
-    block | => Float(left.raw + right.raw)
-      stat Return | => Float(left.raw + right.raw)
-        expr Construct Float | Float(left.raw + right.raw)
-          expr Op + | left.raw + right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb * | Float *(left Float, right  … loat(left.raw * right.raw)
-    param left | left Float
-    param right | right Float
-    block | => Float(left.raw * right.raw)
-      stat Return | => Float(left.raw * right.raw)
-        expr Construct Float | Float(left.raw * right.raw)
-          expr Op * | left.raw * right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb / | Float /(left Float, right  … loat(left.raw / right.raw)
-    param left | left Float
-    param right | right Float
-    block | => Float(left.raw / right.raw)
-      stat Return | => Float(left.raw / right.raw)
-        expr Construct Float | Float(left.raw / right.raw)
-          expr Op / | left.raw / right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb ~ | Float ~(value Float) => Float(~value.raw)
-    param value | value Float
-    block | => Float(~value.raw)
-      stat Return | => Float(~value.raw)
-        expr Construct Float | Float(~value.raw)
-          expr Flip | ~value.raw
-            expr Field raw | value.raw
-              expr Var value | value
-  decl Verb == | Bool ==(left Float, right  … ool(left.raw == right.raw)
-    param left | left Float
-    param right | right Float
-    block | => Bool(left.raw == right.raw)
-      stat Return | => Bool(left.raw == right.raw)
-        expr Construct Bool | Bool(left.raw == right.raw)
-          expr Op == | left.raw == right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb < | Bool <(left Float, right F … Bool(left.raw < right.raw)
-    param left | left Float
-    param right | right Float
-    block | => Bool(left.raw < right.raw)
-      stat Return | => Bool(left.raw < right.raw)
-        expr Construct Bool | Bool(left.raw < right.raw)
-          expr Op < | left.raw < right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Type String | type String = #struct { raw @primitives$String; }
-  decl Verb String | implicit String(value @con … rimitives$String(value); }
-    param value | value @concepts$String
-    block | => init{ raw = @primitives$String(value); }
-      stat Return | => init{ raw = @primitives$String(value); }
-        expr Init | init{ raw = @primitives$String(value); }
-          field raw | raw = @primitives$String(value)
-            expr Construct @primitives$String | @primitives$String(value)
-              expr Var value | value
-  decl Verb String | String(raw @primitives$String) => init{ raw; }
-    param raw | raw @primitives$String
-    block | => init{ raw; }
-      stat Return | => init{ raw; }
-        expr Init | init{ raw; }
-          field raw | raw
-            expr Var raw | raw
-  decl Verb + | String +(left String, righ … ring(left.raw + right.raw)
-    param left | left String
-    param right | right String
-    block | => String(left.raw + right.raw)
-      stat Return | => String(left.raw + right.raw)
-        expr Construct String | String(left.raw + right.raw)
-          expr Op + | left.raw + right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Verb == | Bool ==(left String, right … ool(left.raw == right.raw)
-    param left | left String
-    param right | right String
-    block | => Bool(left.raw == right.raw)
-      stat Return | => Bool(left.raw == right.raw)
-        expr Construct Bool | Bool(left.raw == right.raw)
-          expr Op == | left.raw == right.raw
-            expr Field raw | left.raw
-              expr Var left | left
-            expr Field raw | right.raw
-              expr Var right | right
-  decl Type Unit | type Unit = struct { }
-  decl Verb Unit | Unit() => init{ }
-    block | => init{ }
-      stat Return | => init{ }
-        expr Init | init{ }
-  decl Verb Unit | implicit Unit(value @primitives$Unit) => init{ }
-    param value | value @primitives$Unit
-    block | => init{ }
-      stat Return | => init{ }
-        expr Init | init{ }
 instances
-  instance pick with T = core$Float | T pick(first T Type, secon …  first; } return chosen; }
+  instance pick with T = @primitives$Float | T pick(first T Type, secon …  first; } return chosen; }
     param first | first T Type
     param second | second T
     param takeFirst | takeFirst Bool
@@ -872,7 +564,7 @@ instances
               expr Var first | first
       stat Return | return chosen;
         expr Var chosen | chosen
-  instance pick with T = core$Int | T pick(first T Type, secon …  first; } return chosen; }
+  instance pick with T = @primitives$Int | T pick(first T Type, secon …  first; } return chosen; }
     param first | first T Type
     param second | second T
     param takeFirst | takeFirst Bool
@@ -890,7 +582,7 @@ instances
               expr Var first | first
       stat Return | return chosen;
         expr Var chosen | chosen
-  instance Pair with T = core$Float | Pair<T>(left T Type, right T) => init{ left; right; }
+  instance Pair with T = @primitives$Float | Pair<T>(left T Type, right T) => init{ left; right; }
     param left | left T Type
     param right | right T
     block | => init{ left; right; }
@@ -900,7 +592,7 @@ instances
             expr Var left | left
           field right | right
             expr Var right | right
-  instance Pair with T = core$Int | Pair<T>(left T Type, right T) => init{ left; right; }
+  instance Pair with T = @primitives$Int | Pair<T>(left T Type, right T) => init{ left; right; }
     param left | left T Type
     param right | right T
     block | => init{ left; right; }
@@ -910,7 +602,7 @@ instances
             expr Var left | left
           field right | right
             expr Var right | right
-  instance sum with T = core$Float | T sum(pair Pair<T Type>) => pair.left + pair.right
+  instance sum with T = @primitives$Float | T sum(pair Pair<T Type>) => pair.left + pair.right
     param pair | pair Pair<T Type>
     block | => pair.left + pair.right
       stat Return | => pair.left + pair.right
@@ -919,7 +611,7 @@ instances
             expr Var pair | pair
           expr Field right | pair.right
             expr Var pair | pair
-  instance sum with T = core$Int | T sum(pair Pair<T Type>) => pair.left + pair.right
+  instance sum with T = @primitives$Int | T sum(pair Pair<T Type>) => pair.left + pair.right
     param pair | pair Pair<T Type>
     block | => pair.left + pair.right
       stat Return | => pair.left + pair.right
@@ -928,17 +620,17 @@ instances
             expr Var pair | pair
           expr Field right | pair.right
             expr Var pair | pair
-  instance count with T = core$Int, n = 3 | Int count(values Array<T T …  @concepts$Int>) => Int(n)
+  instance count with T = @primitives$Int, n = 3 | Int count(values Array<T T …  @concepts$Int>) => Int(n)
     param values | values Array<T Type, n @concepts$Int>
     block | => Int(n)
       stat Return | => Int(n)
-        expr Construct Int | Int(n)
+        expr Construct @primitives$Int | Int(n)
           expr Var n | n
   instance measured with n = 3 | Int measured(values Array< … n @concepts$Int) => Int(n)
     param values | values Array<Int, n>
     block | => Int(n)
       stat Return | => Int(n)
-        expr Construct Int | Int(n)
+        expr Construct @primitives$Int | Int(n)
           expr Var n | n
   instance relayed with n = 3 | Int relayed(values Array<I … nt) => measured(values, n)
     param values | values Array<Int, 3>
@@ -963,27 +655,9 @@ instances
           param held | held Array<Int, n>
           block | => Int(n)
             stat Return | => Int(n)
-              expr Construct Int | Int(n)
+              expr Construct @primitives$Int | Int(n)
                 expr Var n | n
       stat Return | return measure(values);
         expr Call_value | measure(values)
           expr Var measure | measure
           expr Var values | values
-  instance Array with T = core$Int, n = 3 | Array<T, n>(values @concep … rimitives$Array(values); }
-    param values | values @concepts$Array<T Type, n @concepts$Int>
-    block | => init{ _items = @primitives$Array(values); }
-      stat Return | => init{ _items = @primitives$Array(values); }
-        expr Init | init{ _items = @primitives$Array(values); }
-          field _items | _items = @primitives$Array(values)
-            expr Construct @primitives$Array | @primitives$Array(values)
-              expr Var values | values
-  instance [] with T = core$Int, n = 3 | (this Array<T Type, n @con … Int] => this._items[index]
-    param this | Array<T Type, n @concepts$Int>
-    param index | index Int
-    block | this._items[index]
-      stat Return | this._items[index]
-        expr Subscript | this._items[index]
-          expr Field _items | this._items
-            expr Var this | this
-          expr Coerce @primitives$Int | index
-            expr Var index | index

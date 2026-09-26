@@ -79,8 +79,8 @@ one of:
   ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.6), whose payload lives in the dynamic region.
 
 `Unit` has no storage, and a verb that returns it returns nothing. A value
-struct of one member has that member's layout, so `core`'s `Int` is an `i64`,
-and an empty one, like `core`'s `Unit`, has none. A distinct
+struct of one member has that member's layout, so a struct around one
+`@primitives$Int` is an `i64`, and an empty one has none. A distinct
 type is its underlying type. A concept literal (`Integer_lit`, `Text_lit`) is
 already gone, because the TST put an implicit constructor around every one
 ([`semantics.md`](semantics.md) D9); lowering turns `@primitives$Int(3)` into the constant `i64 3`.
@@ -173,7 +173,7 @@ the parameter, and so is every call that body passes the block on to
 still leaves the function it was written in, because after expansion that is
 the function it is in.
 
-The same holds for a verb with any other concept parameter, such as `core`'s
+The same holds for a verb with any other concept parameter, such as an
 `implicit Int(value @concepts$Int)`: a literal has no storage, so the verb is
 expanded and the literal is embedded where the body uses the parameter. In an
 expanded body the subject names the caller's own place, so a `mut` method
@@ -280,7 +280,7 @@ test passing.
    through `@program$console`: the CGT, codegen, the runtime and the test
    that builds and runs it. Then lowering for `Int`,
    `Float` and `Bool` arithmetic, functions, returns, and `branch`/`repeat`
-   expanded from `core`'s `if` and `to`. A test that builds and runs a
+   expanded from `if` and `to` verbs a program declares. A test that builds and runs a
    program. Printing an `Int` goes through a `String`, and waits for a
    conversion from one to the other, which the spec does not name yet.
 3. **Values.** Value structs and sums: layout, copies, fields, `match`, and

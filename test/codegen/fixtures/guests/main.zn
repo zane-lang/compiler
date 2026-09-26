@@ -6,7 +6,26 @@
 /// when it does not.
 package guests;
 
-import core$;
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+/// Runs the block when the condition holds, and reports whether it did.
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
 
 type Node = #struct {
 	value Int;
@@ -44,18 +63,18 @@ type Holder = #variant {
 }
 
 Unit check(ok Bool) {
-	yes @primitives$String("yes\n");
-	no @primitives$String("no\n");
-	ran Bool = if(ok) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
 		@program$console!print(yes);
-	}
-	ran:else() {
+	});
+	@controlflow$branch(~ok, {
 		@program$console!print(no);
-	}
+	});
 	return Unit();
 }
 
-@primitives$Unit main() {
+Unit main() {
 	// A guest reads and writes its host, and the host's writes show.
 	a Node(Int(1));
 	g &Node = a;
@@ -118,11 +137,11 @@ Unit check(ok Bool) {
 			k!bump();
 			return k.value == Int(31);
 		}
-		z none => Bool(false);
+		z none => false;
 	});
 	check(match (kept) {
 		k some => k.value == Int(31);
-		z none => Bool(false);
+		z none => false;
 	});
 
 	// A fresh scrutinee is hosted where it is matched.
@@ -131,7 +150,7 @@ Unit check(ok Bool) {
 			k!bump();
 			return k.value == Int(41);
 		}
-		z none => Bool(false);
+		z none => false;
 	});
 
 	// Many guests minted and dropped: each pass's anchors retire with it.
@@ -143,5 +162,5 @@ Unit check(ok Bool) {
 		total = total + peek(y);
 	}
 	check(total == Int(5000050000));
-	return @primitives$Unit();
+	return Unit();
 }

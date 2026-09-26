@@ -1,6 +1,4 @@
 /// Collides with the `twin` `lib` brings in: same parameter types.
 package bad;
 
-import core$;
-
 Int twin(value Int) => value

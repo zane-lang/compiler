@@ -1,397 +1,339 @@
 └── program:
-    ├── entry: zane_main_14
+    ├── entry: zane_main_19
     ├── funcs[0] > func:
-    │   ├── symbol: zane_main_14
+    │   ├── symbol: zane_main_19
     │   ├── params:
     │   ├── ret: void
     │   ├── body[0] > let:
-    │   │   ├── local: #5
+    │   │   ├── local: #1
     │   │   └── value > call:
     │   │       ├── type: {i64, i64}
-    │   │       ├── fn: zane_Vec_2
+    │   │       ├── fn: zane_Vec_7
     │   │       ├── args[0]: 1 : i64
     │   │       └── args[1]: 2 : i64
     │   ├── body[1] > let:
-    │   │   ├── local: #6
-    │   │   └── value: local #5 : {i64, i64}
+    │   │   ├── local: #2
+    │   │   └── value: local #1 : {i64, i64}
     │   ├── body[2] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_scale_5
-    │   │   ├── args[0]: address of #6 : ptr
+    │   │   ├── fn: zane_scale_10
+    │   │   ├── args[0]: address of #2 : ptr
     │   │   └── args[1]: 3 : i64
     │   ├── body[3] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
+    │   │   ├── fn: zane_check_18
     │   │   └── args[0] > call:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_4
-    │   │       ├── args[0]: local #5 : {i64, i64}
+    │   │       ├── fn: zane_equals_9
+    │   │       ├── args[0]: local #1 : {i64, i64}
     │   │       └── args[1] > call:
     │   │           ├── type: {i64, i64}
-    │   │           ├── fn: zane_Vec_2
+    │   │           ├── fn: zane_Vec_7
     │   │           ├── args[0]: 1 : i64
     │   │           └── args[1]: 2 : i64
     │   ├── body[4] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
+    │   │   ├── fn: zane_check_18
     │   │   └── args[0] > call:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_4
-    │   │       ├── args[0]: local #6 : {i64, i64}
+    │   │       ├── fn: zane_equals_9
+    │   │       ├── args[0]: local #2 : {i64, i64}
     │   │       └── args[1] > call:
     │   │           ├── type: {i64, i64}
-    │   │           ├── fn: zane_Vec_2
+    │   │           ├── fn: zane_Vec_7
     │   │           ├── args[0]: 3 : i64
     │   │           └── args[1]: 6 : i64
     │   ├── body[5] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
+    │   │   ├── fn: zane_check_18
     │   │   └── args[0] > call:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_4
+    │   │       ├── fn: zane_equals_9
     │   │       ├── args[0] > call:
     │   │       │   ├── type: {i64, i64}
-    │   │       │   ├── fn: zane_plus_3
-    │   │       │   ├── args[0]: local #5 : {i64, i64}
-    │   │       │   └── args[1]: local #6 : {i64, i64}
+    │   │       │   ├── fn: zane_plus_8
+    │   │       │   ├── args[0]: local #1 : {i64, i64}
+    │   │       │   └── args[1]: local #2 : {i64, i64}
     │   │       └── args[1] > call:
     │   │           ├── type: {i64, i64}
-    │   │           ├── fn: zane_Vec_2
+    │   │           ├── fn: zane_Vec_7
     │   │           ├── args[0]: 4 : i64
     │   │           └── args[1]: 8 : i64
     │   ├── body[6] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_square_6
-    │   │   └── args[0]: address of #6 : ptr
+    │   │   ├── fn: zane_square_11
+    │   │   └── args[0]: address of #2 : ptr
     │   ├── body[7] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
+    │   │   ├── fn: zane_check_18
     │   │   └── args[0] > call:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_4
-    │   │       ├── args[0]: local #6 : {i64, i64}
+    │   │       ├── fn: zane_equals_9
+    │   │       ├── args[0]: local #2 : {i64, i64}
     │   │       └── args[1] > call:
     │   │           ├── type: {i64, i64}
-    │   │           ├── fn: zane_Vec_2
+    │   │           ├── fn: zane_Vec_7
     │   │           ├── args[0]: 12 : i64
     │   │           └── args[1]: 24 : i64
     │   ├── body[8] > let:
-    │   │   ├── local: #31
+    │   │   ├── local: #3
     │   │   └── value > call:
     │   │       ├── type: {{i64, i64}, void, f64}
-    │   │       ├── fn: zane_Body_8
+    │   │       ├── fn: zane_Body_13
     │   │       ├── args[0] > call:
     │   │       │   ├── type: {i64, i64}
-    │   │       │   ├── fn: zane_Vec_2
+    │   │       │   ├── fn: zane_Vec_7
     │   │       │   ├── args[0]: 5 : i64
     │   │       │   └── args[1]: 7 : i64
     │   │       └── args[1]: 0x1.4p+1 : f64
     │   ├── body[9] > assign:
-    │   │   ├── place: #31.0.1
+    │   │   ├── place: #3.0.1
     │   │   └── value: 9 : i64
     │   ├── body[10] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
+    │   │   ├── fn: zane_check_18
     │   │   └── args[0] > call:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_4
+    │   │       ├── fn: zane_equals_9
     │   │       ├── args[0] > member:
     │   │       │   ├── type: {i64, i64}
     │   │       │   ├── index: 0
-    │   │       │   └── value: local #31 : {{i64, i64}, void, f64}
+    │   │       │   └── value: local #3 : {{i64, i64}, void, f64}
     │   │       └── args[1] > call:
     │   │           ├── type: {i64, i64}
-    │   │           ├── fn: zane_Vec_2
+    │   │           ├── fn: zane_Vec_7
     │   │           ├── args[0]: 5 : i64
     │   │           └── args[1]: 9 : i64
     │   ├── body[11] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
-    │   │   └── args[0] > call:
+    │   │   ├── fn: zane_check_18
+    │   │   └── args[0] > binary:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_56
-    │   │       ├── args[0] > member:
+    │   │       ├── op: ==
+    │   │       ├── left > member:
     │   │       │   ├── type: f64
     │   │       │   ├── index: 2
-    │   │       │   └── value: local #31 : {{i64, i64}, void, f64}
-    │   │       └── args[1]: 0x1.4p+1 : f64
+    │   │       │   └── value: local #3 : {{i64, i64}, void, f64}
+    │   │       └── right: 0x1.4p+1 : f64
     │   ├── body[12] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
-    │   │   └── args[0] > call:
+    │   │   ├── fn: zane_check_18
+    │   │   └── args[0] > binary:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_47
-    │   │       ├── args[0] > call:
+    │   │       ├── op: ==
+    │   │       ├── left > call:
     │   │       │   ├── type: i64
-    │   │       │   ├── fn: zane_area_12
+    │   │       │   ├── fn: zane_area_17
     │   │       │   └── args[0] > case:
     │   │       │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
     │   │       │       ├── index: 0
-    │   │       │       └── payload: local #5 : {i64, i64}
-    │   │       └── args[1]: 0 : i64
+    │   │       │       └── payload: local #1 : {i64, i64}
+    │   │       └── right: 0 : i64
     │   ├── body[13] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
-    │   │   └── args[0] > call:
+    │   │   ├── fn: zane_check_18
+    │   │   └── args[0] > binary:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_47
-    │   │       ├── args[0] > call:
+    │   │       ├── op: ==
+    │   │       ├── left > call:
     │   │       │   ├── type: i64
-    │   │       │   ├── fn: zane_area_12
+    │   │       │   ├── fn: zane_area_17
     │   │       │   └── args[0] > case:
     │   │       │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
     │   │       │       ├── index: 1
     │   │       │       └── payload: 0x1p+1 : f64
-    │   │       └── args[1]: 3 : i64
+    │   │       └── right: 3 : i64
     │   ├── body[14] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
-    │   │   └── args[0] > call:
+    │   │   ├── fn: zane_check_18
+    │   │   └── args[0] > binary:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_47
-    │   │       ├── args[0] > call:
+    │   │       ├── op: ==
+    │   │       ├── left > call:
     │   │       │   ├── type: i64
-    │   │       │   ├── fn: zane_area_12
+    │   │       │   ├── fn: zane_area_17
     │   │       │   └── args[0] > case:
     │   │       │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
     │   │       │       ├── index: 2
-    │   │       │       └── payload: local #31 : {{i64, i64}, void, f64}
-    │   │       └── args[1]: 45 : i64
+    │   │       │       └── payload: local #3 : {{i64, i64}, void, f64}
+    │   │       └── right: 45 : i64
     │   ├── body[15] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
-    │   │   └── args[0] > call:
+    │   │   ├── fn: zane_check_18
+    │   │   └── args[0] > binary:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_47
-    │   │       ├── args[0] > call:
+    │   │       ├── op: ==
+    │   │       ├── left > call:
     │   │       │   ├── type: i64
-    │   │       │   ├── fn: zane_area_12
+    │   │       │   ├── fn: zane_area_17
     │   │       │   └── args[0] > case:
     │   │       │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
     │   │       │       ├── index: 2
     │   │       │       └── payload > call:
     │   │       │           ├── type: {{i64, i64}, void, f64}
-    │   │       │           ├── fn: zane_Body_8
-    │   │       │           ├── args[0]: local #5 : {i64, i64}
+    │   │       │           ├── fn: zane_Body_13
+    │   │       │           ├── args[0]: local #1 : {i64, i64}
     │   │       │           └── args[1]: 0x1p-1 : f64
-    │   │       └── args[1]: 1 : i64
+    │   │       └── right: 1 : i64
     │   ├── body[16] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
-    │   │   └── args[0] > call:
+    │   │   ├── fn: zane_check_18
+    │   │   └── args[0] > binary:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_equals_47
-    │   │       ├── args[0] > call:
+    │   │       ├── op: ==
+    │   │       ├── left > call:
     │   │       │   ├── type: i64
-    │   │       │   ├── fn: zane_area_12
+    │   │       │   ├── fn: zane_area_17
     │   │       │   └── args[0] > case:
     │   │       │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
     │   │       │       ├── index: 3
-    │   │       │       └── payload > call:
-    │   │       │           ├── type: void
-    │   │       │           ├── fn: zane_Unit_64
-    │   │       │           └── args:
-    │   │       └── args[1]: 0 : i64
+    │   │       │       └── payload: unit : void
+    │   │       └── right: 0 : i64
     │   ├── body[17] > let:
-    │   │   ├── local: #54
+    │   │   ├── local: #4
     │   │   └── value > case:
     │   │       ├── type: <void | void | void>
     │   │       ├── index: 1
     │   │       └── payload: unit : void
     │   ├── body[18] > let:
-    │   │   ├── local: #57
+    │   │   ├── local: #5
     │   │   └── value > case:
     │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
     │   │       ├── index: 1
     │   │       └── payload: 0x1p+0 : f64
     │   ├── body[19] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
+    │   │   ├── fn: zane_check_18
     │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── label: @58
-    │   │       ├── result: #59
+    │   │       ├── label: @6
+    │   │       ├── result: #7
     │   │       ├── body[0] > let:
-    │   │       │   ├── local: #60
-    │   │       │   └── value: address of #54 : ptr
+    │   │       │   ├── local: #8
+    │   │       │   └── value: address of #4 : ptr
     │   │       ├── body[1] > let:
-    │   │       │   ├── local: #61
-    │   │       │   └── value: address of #57 : ptr
+    │   │       │   ├── local: #9
+    │   │       │   └── value: address of #5 : ptr
     │   │       └── body[2] > switch:
     │   │           ├── value > deref:
     │   │           │   ├── type: <void | void | void>
-    │   │           │   └── ptr: local #60 : ptr
+    │   │           │   └── ptr: local #8 : ptr
     │   │           ├── cases[0] > case 0[0] > switch:
     │   │           │   ├── value > deref:
     │   │           │   │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
-    │   │           │   │   └── ptr: local #61 : ptr
+    │   │           │   │   └── ptr: local #9 : ptr
     │   │           │   ├── cases[0] > case 0[0] > assign:
-    │   │           │   │   ├── place: #59
-    │   │           │   │   └── value > call:
-    │   │           │   │       ├── type: i1
-    │   │           │   │       ├── fn: zane_Bool_16
-    │   │           │   │       └── args[0]: false : i1
-    │   │           │   ├── cases[0] > case 0[1]: leave @58
+    │   │           │   │   ├── place: #7
+    │   │           │   │   └── value: false : i1
+    │   │           │   ├── cases[0] > case 0[1]: leave @6
     │   │           │   ├── cases[1] > case 1[0] > assign:
-    │   │           │   │   ├── place: #59
-    │   │           │   │   └── value > call:
-    │   │           │   │       ├── type: i1
-    │   │           │   │       ├── fn: zane_Bool_16
-    │   │           │   │       └── args[0]: false : i1
-    │   │           │   ├── cases[1] > case 1[1]: leave @58
+    │   │           │   │   ├── place: #7
+    │   │           │   │   └── value: false : i1
+    │   │           │   ├── cases[1] > case 1[1]: leave @6
     │   │           │   ├── cases[2] > case 2[0] > assign:
-    │   │           │   │   ├── place: #59
-    │   │           │   │   └── value > call:
-    │   │           │   │       ├── type: i1
-    │   │           │   │       ├── fn: zane_Bool_16
-    │   │           │   │       └── args[0]: false : i1
-    │   │           │   ├── cases[2] > case 2[1]: leave @58
+    │   │           │   │   ├── place: #7
+    │   │           │   │   └── value: false : i1
+    │   │           │   ├── cases[2] > case 2[1]: leave @6
     │   │           │   ├── cases[3] > case 3[0] > assign:
-    │   │           │   │   ├── place: #59
-    │   │           │   │   └── value > call:
-    │   │           │   │       ├── type: i1
-    │   │           │   │       ├── fn: zane_Bool_16
-    │   │           │   │       └── args[0]: false : i1
-    │   │           │   └── cases[3] > case 3[1]: leave @58
+    │   │           │   │   ├── place: #7
+    │   │           │   │   └── value: false : i1
+    │   │           │   └── cases[3] > case 3[1]: leave @6
     │   │           ├── cases[1] > case 1[0] > switch:
     │   │           │   ├── value > deref:
     │   │           │   │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
-    │   │           │   │   └── ptr: local #61 : ptr
+    │   │           │   │   └── ptr: local #9 : ptr
     │   │           │   ├── cases[0] > case 0[0] > assign:
-    │   │           │   │   ├── place: #59
-    │   │           │   │   └── value > call:
-    │   │           │   │       ├── type: i1
-    │   │           │   │       ├── fn: zane_Bool_16
-    │   │           │   │       └── args[0]: false : i1
-    │   │           │   ├── cases[0] > case 0[1]: leave @58
+    │   │           │   │   ├── place: #7
+    │   │           │   │   └── value: false : i1
+    │   │           │   ├── cases[0] > case 0[1]: leave @6
     │   │           │   ├── cases[1] > case 1[0] > assign:
-    │   │           │   │   ├── place: #59
-    │   │           │   │   └── value > call:
-    │   │           │   │       ├── type: i1
-    │   │           │   │       ├── fn: zane_Bool_16
-    │   │           │   │       └── args[0]: true : i1
-    │   │           │   ├── cases[1] > case 1[1]: leave @58
+    │   │           │   │   ├── place: #7
+    │   │           │   │   └── value: true : i1
+    │   │           │   ├── cases[1] > case 1[1]: leave @6
     │   │           │   ├── cases[2] > case 2[0] > assign:
-    │   │           │   │   ├── place: #59
-    │   │           │   │   └── value > call:
-    │   │           │   │       ├── type: i1
-    │   │           │   │       ├── fn: zane_Bool_16
-    │   │           │   │       └── args[0]: false : i1
-    │   │           │   ├── cases[2] > case 2[1]: leave @58
+    │   │           │   │   ├── place: #7
+    │   │           │   │   └── value: false : i1
+    │   │           │   ├── cases[2] > case 2[1]: leave @6
     │   │           │   ├── cases[3] > case 3[0] > assign:
-    │   │           │   │   ├── place: #59
-    │   │           │   │   └── value > call:
-    │   │           │   │       ├── type: i1
-    │   │           │   │       ├── fn: zane_Bool_16
-    │   │           │   │       └── args[0]: false : i1
-    │   │           │   └── cases[3] > case 3[1]: leave @58
+    │   │           │   │   ├── place: #7
+    │   │           │   │   └── value: false : i1
+    │   │           │   └── cases[3] > case 3[1]: leave @6
     │   │           └── cases[2] > case 2[0] > switch:
     │   │               ├── value > deref:
     │   │               │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
-    │   │               │   └── ptr: local #61 : ptr
+    │   │               │   └── ptr: local #9 : ptr
     │   │               ├── cases[0] > case 0[0] > assign:
-    │   │               │   ├── place: #59
-    │   │               │   └── value > call:
-    │   │               │       ├── type: i1
-    │   │               │       ├── fn: zane_Bool_16
-    │   │               │       └── args[0]: false : i1
-    │   │               ├── cases[0] > case 0[1]: leave @58
+    │   │               │   ├── place: #7
+    │   │               │   └── value: false : i1
+    │   │               ├── cases[0] > case 0[1]: leave @6
     │   │               ├── cases[1] > case 1[0] > assign:
-    │   │               │   ├── place: #59
-    │   │               │   └── value > call:
-    │   │               │       ├── type: i1
-    │   │               │       ├── fn: zane_Bool_16
-    │   │               │       └── args[0]: false : i1
-    │   │               ├── cases[1] > case 1[1]: leave @58
+    │   │               │   ├── place: #7
+    │   │               │   └── value: false : i1
+    │   │               ├── cases[1] > case 1[1]: leave @6
     │   │               ├── cases[2] > case 2[0] > assign:
-    │   │               │   ├── place: #59
-    │   │               │   └── value > call:
-    │   │               │       ├── type: i1
-    │   │               │       ├── fn: zane_Bool_16
-    │   │               │       └── args[0]: false : i1
-    │   │               ├── cases[2] > case 2[1]: leave @58
+    │   │               │   ├── place: #7
+    │   │               │   └── value: false : i1
+    │   │               ├── cases[2] > case 2[1]: leave @6
     │   │               ├── cases[3] > case 3[0] > assign:
-    │   │               │   ├── place: #59
-    │   │               │   └── value > call:
-    │   │               │       ├── type: i1
-    │   │               │       ├── fn: zane_Bool_16
-    │   │               │       └── args[0]: false : i1
-    │   │               └── cases[3] > case 3[1]: leave @58
+    │   │               │   ├── place: #7
+    │   │               │   └── value: false : i1
+    │   │               └── cases[3] > case 3[1]: leave @6
     │   ├── body[20] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
+    │   │   ├── fn: zane_check_18
     │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── label: @62
-    │   │       ├── result: #63
+    │   │       ├── label: @10
+    │   │       ├── result: #11
     │   │       ├── body[0] > let:
-    │   │       │   ├── local: #64
+    │   │       │   ├── local: #12
     │   │       │   └── value > case:
     │   │       │       ├── type: <void | void | void>
     │   │       │       ├── index: 0
     │   │       │       └── payload: unit : void
     │   │       └── body[1] > switch:
-    │   │           ├── value: local #64 : <void | void | void>
+    │   │           ├── value: local #12 : <void | void | void>
     │   │           ├── cases[0] > case 0[0] > assign:
-    │   │           │   ├── place: #63
-    │   │           │   └── value > call:
-    │   │           │       ├── type: i1
-    │   │           │       ├── fn: zane_Bool_16
-    │   │           │       └── args[0]: true : i1
-    │   │           ├── cases[0] > case 0[1]: leave @62
+    │   │           │   ├── place: #11
+    │   │           │   └── value: true : i1
+    │   │           ├── cases[0] > case 0[1]: leave @10
     │   │           ├── cases[1] > case 1[0] > assign:
-    │   │           │   ├── place: #63
-    │   │           │   └── value > call:
-    │   │           │       ├── type: i1
-    │   │           │       ├── fn: zane_Bool_16
-    │   │           │       └── args[0]: false : i1
-    │   │           ├── cases[1] > case 1[1]: leave @62
+    │   │           │   ├── place: #11
+    │   │           │   └── value: false : i1
+    │   │           ├── cases[1] > case 1[1]: leave @10
     │   │           ├── cases[2] > case 2[0] > assign:
-    │   │           │   ├── place: #63
-    │   │           │   └── value > call:
-    │   │           │       ├── type: i1
-    │   │           │       ├── fn: zane_Bool_16
-    │   │           │       └── args[0]: false : i1
-    │   │           └── cases[2] > case 2[1]: leave @62
+    │   │           │   ├── place: #11
+    │   │           │   └── value: false : i1
+    │   │           └── cases[2] > case 2[1]: leave @10
     │   ├── body[21] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_check_13
-    │   │   └── args[0] > call:
+    │   │   ├── fn: zane_check_18
+    │   │   └── args[0] > flip:
     │   │       ├── type: i1
-    │   │       ├── fn: zane_flip_21
-    │   │       └── args[0] > expand:
+    │   │       └── value > expand:
     │   │           ├── type: i1
-    │   │           ├── label: @65
-    │   │           ├── result: #66
+    │   │           ├── label: @13
+    │   │           ├── result: #14
     │   │           ├── body[0] > let:
-    │   │           │   ├── local: #67
-    │   │           │   └── value: local #54 : <void | void | void>
+    │   │           │   ├── local: #15
+    │   │           │   └── value: local #4 : <void | void | void>
     │   │           └── body[1] > switch:
-    │   │               ├── value: local #67 : <void | void | void>
+    │   │               ├── value: local #15 : <void | void | void>
     │   │               ├── cases[0] > case 0[0] > assign:
-    │   │               │   ├── place: #66
-    │   │               │   └── value > call:
-    │   │               │       ├── type: i1
-    │   │               │       ├── fn: zane_Bool_16
-    │   │               │       └── args[0]: true : i1
-    │   │               ├── cases[0] > case 0[1]: leave @65
+    │   │               │   ├── place: #14
+    │   │               │   └── value: true : i1
+    │   │               ├── cases[0] > case 0[1]: leave @13
     │   │               ├── cases[1] > case 1[0] > assign:
-    │   │               │   ├── place: #66
-    │   │               │   └── value > call:
-    │   │               │       ├── type: i1
-    │   │               │       ├── fn: zane_Bool_16
-    │   │               │       └── args[0]: false : i1
-    │   │               ├── cases[1] > case 1[1]: leave @65
+    │   │               │   ├── place: #14
+    │   │               │   └── value: false : i1
+    │   │               ├── cases[1] > case 1[1]: leave @13
     │   │               ├── cases[2] > case 2[0] > assign:
-    │   │               │   ├── place: #66
-    │   │               │   └── value > call:
-    │   │               │       ├── type: i1
-    │   │               │       ├── fn: zane_Bool_16
-    │   │               │       └── args[0]: false : i1
-    │   │               └── cases[2] > case 2[1]: leave @65
+    │   │               │   ├── place: #14
+    │   │               │   └── value: false : i1
+    │   │               └── cases[2] > case 2[1]: leave @13
     │   └── body[22] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: zane_Vec_2
+    │   ├── symbol: zane_Vec_7
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i64, i64}
@@ -400,70 +342,67 @@
     │       ├── members[0] > member 0: local #1 : i64
     │       └── members[1] > member 1: local #2 : i64
     ├── funcs[2] > func:
-    │   ├── symbol: zane_scale_5
+    │   ├── symbol: zane_scale_10
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
     │   ├── body[0] > assign:
     │   │   ├── place: *#1.0
-    │   │   └── value > call:
+    │   │   └── value > binary:
     │   │       ├── type: i64
-    │   │       ├── fn: zane_times_44
-    │   │       ├── args[0] > member:
+    │   │       ├── op: *
+    │   │       ├── left > member:
     │   │       │   ├── type: i64
     │   │       │   ├── index: 0
     │   │       │   └── value > deref:
     │   │       │       ├── type: {i64, i64}
     │   │       │       └── ptr: local #1 : ptr
-    │   │       └── args[1]: local #2 : i64
+    │   │       └── right: local #2 : i64
     │   ├── body[1] > assign:
     │   │   ├── place: *#1.1
-    │   │   └── value > call:
+    │   │   └── value > binary:
     │   │       ├── type: i64
-    │   │       ├── fn: zane_times_44
-    │   │       ├── args[0] > member:
+    │   │       ├── op: *
+    │   │       ├── left > member:
     │   │       │   ├── type: i64
     │   │       │   ├── index: 1
     │   │       │   └── value > deref:
     │   │       │       ├── type: {i64, i64}
     │   │       │       └── ptr: local #1 : ptr
-    │   │       └── args[1]: local #2 : i64
-    │   └── body[2] > return > call:
-    │       ├── type: void
-    │       ├── fn: zane_Unit_64
-    │       └── args:
+    │   │       └── right: local #2 : i64
+    │   └── body[2] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: zane_equals_4
+    │   ├── symbol: zane_equals_9
     │   ├── params[0]: local #1 : {i64, i64}
     │   ├── params[1]: local #2 : {i64, i64}
     │   ├── ret: i1
-    │   └── body[0] > return > call:
+    │   └── body[0] > return > binary:
     │       ├── type: i1
-    │       ├── fn: zane_times_18
-    │       ├── args[0] > call:
+    │       ├── op: *
+    │       ├── left > binary:
     │       │   ├── type: i1
-    │       │   ├── fn: zane_equals_47
-    │       │   ├── args[0] > member:
+    │       │   ├── op: ==
+    │       │   ├── left > member:
     │       │   │   ├── type: i64
     │       │   │   ├── index: 0
     │       │   │   └── value: local #1 : {i64, i64}
-    │       │   └── args[1] > member:
+    │       │   └── right > member:
     │       │       ├── type: i64
     │       │       ├── index: 0
     │       │       └── value: local #2 : {i64, i64}
-    │       └── args[1] > call:
+    │       └── right > binary:
     │           ├── type: i1
-    │           ├── fn: zane_equals_47
-    │           ├── args[0] > member:
+    │           ├── op: ==
+    │           ├── left > member:
     │           │   ├── type: i64
     │           │   ├── index: 1
     │           │   └── value: local #1 : {i64, i64}
-    │           └── args[1] > member:
+    │           └── right > member:
     │               ├── type: i64
     │               ├── index: 1
     │               └── value: local #2 : {i64, i64}
     ├── funcs[4] > func:
-    │   ├── symbol: zane_check_13
+    │   ├── symbol: zane_check_18
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -480,316 +419,157 @@
     │       │   ├── value: "no\n" : text
     │       │   ├── layout[0]: @0 (32 bytes)
     │       │   └── layout[1]: text @0
-    │       ├── body[2] > let:
-    │       │   ├── local: #9
-    │       │   └── value > expand:
-    │       │       ├── type: i1
-    │       │       ├── label: @6
-    │       │       ├── result: #7
-    │       │       ├── body[0] > let:
-    │       │       │   ├── local: #5
-    │       │       │   └── value: local #1 : i1
-    │       │       ├── body[1] > if:
-    │       │       │   ├── cond > call:
-    │       │       │   │   ├── type: i1
-    │       │       │   │   ├── fn: zane_primitives_Bool_17
-    │       │       │   │   └── args[0]: local #5 : i1
-    │       │       │   └── body[0] > eval > runtime:
-    │       │       │       ├── type: void
-    │       │       │       ├── fn: zane_print
-    │       │       │       └── args[0]: local #2 : text
-    │       │       ├── body[2] > assign:
-    │       │       │   ├── place: #7
-    │       │       │   └── value: local #5 : i1
-    │       │       └── body[3]: leave @6
-    │       ├── body[3] > eval > expand:
-    │       │   ├── type: void
-    │       │   ├── label: @10
-    │       │   ├── body[0] > if:
-    │       │   │   ├── cond > call:
-    │       │   │   │   ├── type: i1
-    │       │   │   │   ├── fn: zane_primitives_Bool_17
-    │       │   │   │   └── args[0] > call:
-    │       │   │   │       ├── type: i1
-    │       │   │   │       ├── fn: zane_flip_21
-    │       │   │   │       └── args[0]: local #9 : i1
-    │       │   │   └── body[0] > eval > runtime:
-    │       │   │       ├── type: void
-    │       │   │       ├── fn: zane_print
-    │       │   │       └── args[0]: local #4 : text
-    │       │   ├── body[1] > eval > call:
-    │       │   │   ├── type: void
-    │       │   │   ├── fn: zane_Unit_64
-    │       │   │   └── args:
-    │       │   └── body[2]: leave @10
-    │       └── body[4] > return > call:
-    │           ├── type: void
-    │           ├── fn: zane_Unit_64
-    │           └── args:
+    │       ├── body[2] > if:
+    │       │   ├── cond: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #2 : text
+    │       ├── body[3] > if:
+    │       │   ├── cond > flip:
+    │       │   │   ├── type: i1
+    │       │   │   └── value: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #4 : text
+    │       └── body[4] > return: unit : void
     ├── funcs[5] > func:
-    │   ├── symbol: zane_plus_3
+    │   ├── symbol: zane_plus_8
     │   ├── params[0]: local #1 : {i64, i64}
     │   ├── params[1]: local #2 : {i64, i64}
     │   ├── ret: {i64, i64}
     │   └── body[0] > return > call:
     │       ├── type: {i64, i64}
-    │       ├── fn: zane_Vec_2
-    │       ├── args[0] > call:
+    │       ├── fn: zane_Vec_7
+    │       ├── args[0] > binary:
     │       │   ├── type: i64
-    │       │   ├── fn: zane_plus_43
-    │       │   ├── args[0] > member:
+    │       │   ├── op: +
+    │       │   ├── left > member:
     │       │   │   ├── type: i64
     │       │   │   ├── index: 0
     │       │   │   └── value: local #1 : {i64, i64}
-    │       │   └── args[1] > member:
+    │       │   └── right > member:
     │       │       ├── type: i64
     │       │       ├── index: 0
     │       │       └── value: local #2 : {i64, i64}
-    │       └── args[1] > call:
+    │       └── args[1] > binary:
     │           ├── type: i64
-    │           ├── fn: zane_plus_43
-    │           ├── args[0] > member:
+    │           ├── op: +
+    │           ├── left > member:
     │           │   ├── type: i64
     │           │   ├── index: 1
     │           │   └── value: local #1 : {i64, i64}
-    │           └── args[1] > member:
+    │           └── right > member:
     │               ├── type: i64
     │               ├── index: 1
     │               └── value: local #2 : {i64, i64}
     ├── funcs[6] > func:
-    │   ├── symbol: zane_square_6
+    │   ├── symbol: zane_square_11
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: void
     │   ├── body[0] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_scale_5
+    │   │   ├── fn: zane_scale_10
     │   │   ├── args[0]: local #1 : ptr
     │   │   └── args[1]: 2 : i64
     │   ├── body[1] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_scale_5
+    │   │   ├── fn: zane_scale_10
     │   │   ├── args[0]: local #1 : ptr
     │   │   └── args[1]: 2 : i64
-    │   └── body[2] > return > call:
-    │       ├── type: void
-    │       ├── fn: zane_Unit_64
-    │       └── args:
+    │   └── body[2] > return: unit : void
     ├── funcs[7] > func:
-    │   ├── symbol: zane_Body_8
+    │   ├── symbol: zane_Body_13
     │   ├── params[0]: local #1 : {i64, i64}
     │   ├── params[1]: local #2 : f64
     │   ├── ret: {{i64, i64}, void, f64}
     │   └── body[0] > return > record:
     │       ├── type: {{i64, i64}, void, f64}
     │       ├── members[0] > member 0: local #1 : {i64, i64}
-    │       ├── members[1] > member 1 > call:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_Unit_64
-    │       │   └── args:
+    │       ├── members[1] > member 1: unit : void
     │       └── members[2] > member 2: local #2 : f64
-    ├── funcs[8] > func:
-    │   ├── symbol: zane_equals_56
-    │   ├── params[0]: local #1 : f64
-    │   ├── params[1]: local #2 : f64
-    │   ├── ret: i1
-    │   └── body[0] > return > call:
-    │       ├── type: i1
-    │       ├── fn: zane_Bool_16
-    │       └── args[0] > binary:
-    │           ├── type: i1
-    │           ├── op: ==
-    │           ├── left: local #1 : f64
-    │           └── right: local #2 : f64
-    ├── funcs[9] > func:
-    │   ├── symbol: zane_area_12
-    │   ├── params[0]: local #1 : <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
-    │   ├── ret: i64
-    │   └── body[0] > return > expand:
-    │       ├── type: i64
-    │       ├── label: @2
-    │       ├── result: #3
-    │       ├── body[0] > let:
-    │       │   ├── local: #4
-    │       │   └── value: address of #1 : ptr
-    │       └── body[1] > switch:
-    │           ├── value > deref:
-    │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
-    │           │   └── ptr: local #4 : ptr
-    │           ├── cases[0] > case 0[0] > let:
-    │           │   ├── local: #5
-    │           │   └── value > offset:
-    │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
-    │           │       ├── path: 0
-    │           │       └── base: local #4 : ptr
-    │           ├── cases[0] > case 0[1] > assign:
-    │           │   ├── place: #3
-    │           │   └── value: 0 : i64
-    │           ├── cases[0] > case 0[2]: leave @2
-    │           ├── cases[1] > case 1[0] > let:
-    │           │   ├── local: #8
-    │           │   └── value > offset:
-    │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
-    │           │       ├── path: 1
-    │           │       └── base: local #4 : ptr
-    │           ├── cases[1] > case 1[1] > assign:
-    │           │   ├── place: #3
-    │           │   └── value: 3 : i64
-    │           ├── cases[1] > case 1[2]: leave @2
-    │           ├── cases[2] > case 2[0] > let:
-    │           │   ├── local: #11
-    │           │   └── value > offset:
-    │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
-    │           │       ├── path: 2
-    │           │       └── base: local #4 : ptr
-    │           ├── cases[2] > case 2[1] > eval > expand:
-    │           │   ├── type: i1
-    │           │   ├── label: @15
-    │           │   ├── result: #16
-    │           │   ├── body[0] > let:
-    │           │   │   ├── local: #14
-    │           │   │   └── value > call:
-    │           │   │       ├── type: i1
-    │           │   │       ├── fn: zane_less_57
-    │           │   │       ├── args[0] > member:
-    │           │   │       │   ├── type: f64
-    │           │   │       │   ├── index: 2
-    │           │   │       │   └── value > deref:
-    │           │   │       │       ├── type: {{i64, i64}, void, f64}
-    │           │   │       │       └── ptr: local #11 : ptr
-    │           │   │       └── args[1]: 0x1p+0 : f64
-    │           │   ├── body[1] > if:
-    │           │   │   ├── cond > call:
-    │           │   │   │   ├── type: i1
-    │           │   │   │   ├── fn: zane_primitives_Bool_17
-    │           │   │   │   └── args[0]: local #14 : i1
-    │           │   │   ├── body[0] > assign:
-    │           │   │   │   ├── place: #3
-    │           │   │   │   └── value: 1 : i64
-    │           │   │   └── body[1]: leave @2
-    │           │   ├── body[2] > assign:
-    │           │   │   ├── place: #16
-    │           │   │   └── value: local #14 : i1
-    │           │   └── body[3]: leave @15
-    │           ├── cases[2] > case 2[2] > assign:
-    │           │   ├── place: #3
-    │           │   └── value > call:
-    │           │       ├── type: i64
-    │           │       ├── fn: zane_times_44
-    │           │       ├── args[0] > member:
-    │           │       │   ├── type: i64
-    │           │       │   ├── index: 0
-    │           │       │   └── value > member:
-    │           │       │       ├── type: {i64, i64}
-    │           │       │       ├── index: 0
-    │           │       │       └── value > deref:
-    │           │       │           ├── type: {{i64, i64}, void, f64}
-    │           │       │           └── ptr: local #11 : ptr
-    │           │       └── args[1] > member:
-    │           │           ├── type: i64
-    │           │           ├── index: 1
-    │           │           └── value > member:
-    │           │               ├── type: {i64, i64}
-    │           │               ├── index: 0
-    │           │               └── value > deref:
-    │           │                   ├── type: {{i64, i64}, void, f64}
-    │           │                   └── ptr: local #11 : ptr
-    │           ├── cases[2] > case 2[3]: leave @2
-    │           ├── cases[3] > case 3[0] > assign:
-    │           │   ├── place: #3
-    │           │   └── value: 0 : i64
-    │           └── cases[3] > case 3[1]: leave @2
-    ├── funcs[10] > func:
-    │   ├── symbol: zane_equals_47
-    │   ├── params[0]: local #1 : i64
-    │   ├── params[1]: local #2 : i64
-    │   ├── ret: i1
-    │   └── body[0] > return > call:
-    │       ├── type: i1
-    │       ├── fn: zane_Bool_16
-    │       └── args[0] > binary:
-    │           ├── type: i1
-    │           ├── op: ==
-    │           ├── left: local #1 : i64
-    │           └── right: local #2 : i64
-    ├── funcs[11] > func:
-    │   ├── symbol: zane_Unit_64
-    │   ├── params:
-    │   ├── ret: void
-    │   └── body[0] > return: unit : void
-    ├── funcs[12] > func:
-    │   ├── symbol: zane_Bool_16
-    │   ├── params[0]: local #1 : i1
-    │   ├── ret: i1
-    │   └── body[0] > return: local #1 : i1
-    ├── funcs[13] > func:
-    │   ├── symbol: zane_flip_21
-    │   ├── params[0]: local #1 : i1
-    │   ├── ret: i1
-    │   └── body[0] > return > call:
-    │       ├── type: i1
-    │       ├── fn: zane_Bool_16
-    │       └── args[0] > flip:
-    │           ├── type: i1
-    │           └── value: local #1 : i1
-    ├── funcs[14] > func:
-    │   ├── symbol: zane_times_44
-    │   ├── params[0]: local #1 : i64
-    │   ├── params[1]: local #2 : i64
-    │   ├── ret: i64
-    │   └── body[0] > return > call:
-    │       ├── type: i64
-    │       ├── fn: zane_Int_41
-    │       └── args[0] > binary:
-    │           ├── type: i64
-    │           ├── op: *
-    │           ├── left: local #1 : i64
-    │           └── right: local #2 : i64
-    ├── funcs[15] > func:
-    │   ├── symbol: zane_times_18
-    │   ├── params[0]: local #1 : i1
-    │   ├── params[1]: local #2 : i1
-    │   ├── ret: i1
-    │   └── body[0] > return > call:
-    │       ├── type: i1
-    │       ├── fn: zane_Bool_16
-    │       └── args[0] > binary:
-    │           ├── type: i1
-    │           ├── op: *
-    │           ├── left: local #1 : i1
-    │           └── right: local #2 : i1
-    ├── funcs[16] > func:
-    │   ├── symbol: zane_primitives_Bool_17
-    │   ├── params[0]: local #1 : i1
-    │   ├── ret: i1
-    │   └── body[0] > return: local #1 : i1
-    ├── funcs[17] > func:
-    │   ├── symbol: zane_plus_43
-    │   ├── params[0]: local #1 : i64
-    │   ├── params[1]: local #2 : i64
-    │   ├── ret: i64
-    │   └── body[0] > return > call:
-    │       ├── type: i64
-    │       ├── fn: zane_Int_41
-    │       └── args[0] > binary:
-    │           ├── type: i64
-    │           ├── op: +
-    │           ├── left: local #1 : i64
-    │           └── right: local #2 : i64
-    ├── funcs[18] > func:
-    │   ├── symbol: zane_less_57
-    │   ├── params[0]: local #1 : f64
-    │   ├── params[1]: local #2 : f64
-    │   ├── ret: i1
-    │   └── body[0] > return > call:
-    │       ├── type: i1
-    │       ├── fn: zane_Bool_16
-    │       └── args[0] > binary:
-    │           ├── type: i1
-    │           ├── op: <
-    │           ├── left: local #1 : f64
-    │           └── right: local #2 : f64
-    └── funcs[19] > func:
-        ├── symbol: zane_Int_41
-        ├── params[0]: local #1 : i64
+    └── funcs[8] > func:
+        ├── symbol: zane_area_17
+        ├── params[0]: local #1 : <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
         ├── ret: i64
-        └── body[0] > return: local #1 : i64
+        └── body[0] > return > expand:
+            ├── type: i64
+            ├── label: @2
+            ├── result: #3
+            ├── body[0] > let:
+            │   ├── local: #4
+            │   └── value: address of #1 : ptr
+            └── body[1] > switch:
+                ├── value > deref:
+                │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+                │   └── ptr: local #4 : ptr
+                ├── cases[0] > case 0[0] > let:
+                │   ├── local: #5
+                │   └── value > offset:
+                │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+                │       ├── path: 0
+                │       └── base: local #4 : ptr
+                ├── cases[0] > case 0[1] > assign:
+                │   ├── place: #3
+                │   └── value: 0 : i64
+                ├── cases[0] > case 0[2]: leave @2
+                ├── cases[1] > case 1[0] > let:
+                │   ├── local: #6
+                │   └── value > offset:
+                │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+                │       ├── path: 1
+                │       └── base: local #4 : ptr
+                ├── cases[1] > case 1[1] > assign:
+                │   ├── place: #3
+                │   └── value: 3 : i64
+                ├── cases[1] > case 1[2]: leave @2
+                ├── cases[2] > case 2[0] > let:
+                │   ├── local: #7
+                │   └── value > offset:
+                │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+                │       ├── path: 2
+                │       └── base: local #4 : ptr
+                ├── cases[2] > case 2[1] > if:
+                │   ├── cond > binary:
+                │   │   ├── type: i1
+                │   │   ├── op: <
+                │   │   ├── left > member:
+                │   │   │   ├── type: f64
+                │   │   │   ├── index: 2
+                │   │   │   └── value > deref:
+                │   │   │       ├── type: {{i64, i64}, void, f64}
+                │   │   │       └── ptr: local #7 : ptr
+                │   │   └── right: 0x1p+0 : f64
+                │   ├── body[0] > assign:
+                │   │   ├── place: #3
+                │   │   └── value: 1 : i64
+                │   └── body[1]: leave @2
+                ├── cases[2] > case 2[2] > assign:
+                │   ├── place: #3
+                │   └── value > binary:
+                │       ├── type: i64
+                │       ├── op: *
+                │       ├── left > member:
+                │       │   ├── type: i64
+                │       │   ├── index: 0
+                │       │   └── value > member:
+                │       │       ├── type: {i64, i64}
+                │       │       ├── index: 0
+                │       │       └── value > deref:
+                │       │           ├── type: {{i64, i64}, void, f64}
+                │       │           └── ptr: local #7 : ptr
+                │       └── right > member:
+                │           ├── type: i64
+                │           ├── index: 1
+                │           └── value > member:
+                │               ├── type: {i64, i64}
+                │               ├── index: 0
+                │               └── value > deref:
+                │                   ├── type: {{i64, i64}, void, f64}
+                │                   └── ptr: local #7 : ptr
+                ├── cases[2] > case 2[3]: leave @2
+                ├── cases[3] > case 3[0] > assign:
+                │   ├── place: #3
+                │   └── value: 0 : i64
+                └── cases[3] > case 3[1]: leave @2

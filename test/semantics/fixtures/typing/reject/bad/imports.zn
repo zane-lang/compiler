@@ -1,6 +1,5 @@
 package bad;
 
-import core$;
 import missing;
 import bad;
 import lib$nothing;

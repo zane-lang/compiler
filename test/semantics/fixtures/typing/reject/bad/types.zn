@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Box<T Type> = struct { item T; }
 
 type Holder = struct {

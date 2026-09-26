@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Cup = #struct { size Int; }
 type Saucer = #struct { cup Cup; }
 type Order = #variant { hot Cup; none Int; }
@@ -62,7 +60,7 @@ Saucer give(this Saucer) => this
 
 /// A generic parameter moves at the type it was called with.
 Unit stock(cup Cup) {
-	cups List<Cup> = List(Cup);
+	cups List<Cup> = @primitives$List(Cup);
 	cups!push(cup);
 	look(cup);
 	return Unit();

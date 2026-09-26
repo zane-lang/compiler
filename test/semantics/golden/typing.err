@@ -1,71 +1,71 @@
-File "fixtures/typing/reject/bad/blocks.zn", line 15, characters 5-14:
-15 |     Jar(body);
+File "fixtures/typing/reject/bad/blocks.zn", line 13, characters 5-14:
+13 |     Jar(body);
   |     ^^^^^^^^^
 Error: this call builds `bad$Jar<@concepts$Block>`, which holds `@concepts$Block`; a concept type is never storage
-File "fixtures/typing/reject/bad/blocks.zn", line 16, characters 5-15:
-16 |     wrap(body);
+File "fixtures/typing/reject/bad/blocks.zn", line 14, characters 5-15:
+14 |     wrap(body);
   |     ^^^^^^^^^^
 Error: this call builds `bad$Jar<@concepts$Block>`, which holds `@concepts$Block`; a concept type is never storage
-File "fixtures/typing/reject/bad/bodies.zn", line 10, characters 23-37:
-10 | Account(owner Int) => init{ owner; }
+File "fixtures/typing/reject/bad/bodies.zn", line 8, characters 23-37:
+8 | Account(owner Int) => init{ owner; }
   |                       ^^^^^^^^^^^^^^
 Error: `init{ }` assigns every field, and this one leaves out `_balance`
-File "fixtures/typing/reject/bad/bodies.zn", line 14, characters 25-26:
-14 | Int noReturn(value Int) {
+File "fixtures/typing/reject/bad/bodies.zn", line 12, characters 25-26:
+12 | Int noReturn(value Int) {
   |                         ^
 Error: not every path through `noReturn` returns; a block-bodied verb returns explicitly on every path, `Unit` included (functions.md §3.5)
-File "fixtures/typing/reject/bad/bodies.zn", line 19, characters 13-15:
-19 |     x Int = 20;
+File "fixtures/typing/reject/bad/bodies.zn", line 17, characters 13-15:
+17 |     x Int = 20;
   |             ^^
-Error: `x` is declared `core$Int`, and its value is `@concepts$Int`; a declaration is not a coercion site, so a conversion is written out
-File "fixtures/typing/reject/bad/bodies.zn", line 20, characters 5-10:
-20 |     value = Int(2);
+Error: `x` is declared `@primitives$Int`, and its value is `@concepts$Int`; a declaration is not a coercion site, so a conversion is written out
+File "fixtures/typing/reject/bad/bodies.zn", line 18, characters 5-10:
+18 |     value = Int(2);
   |     ^^^^^
 Error: `value` is a parameter, and a parameter is read-only
-File "fixtures/typing/reject/bad/bodies.zn", line 21, characters 5-11:
-21 |     frozen = Int(3);
+File "fixtures/typing/reject/bad/bodies.zn", line 19, characters 5-11:
+19 |     frozen = Int(3);
   |     ^^^^^^
 Error: a package constant is immutable: package scope holds no mutable state
-File "fixtures/typing/reject/bad/bodies.zn", line 23, characters 5-6:
-23 |     y Int = Int(2);
+File "fixtures/typing/reject/bad/bodies.zn", line 21, characters 5-6:
+21 |     y Int = Int(2);
   |     ^
-Error: `y` is already declared at fixtures/typing/reject/bad/bodies.zn:22, and a local may not shadow a name in scope
-File "fixtures/typing/reject/bad/bodies.zn", line 24, characters 5-13:
-24 |     noReturn Int = Int(3);
+Error: `y` is already declared at fixtures/typing/reject/bad/bodies.zn:20, and a local may not shadow a name in scope
+File "fixtures/typing/reject/bad/bodies.zn", line 22, characters 5-13:
+22 |     noReturn Int = Int(3);
   |     ^^^^^^^^
-Error: `noReturn` names the declaration at fixtures/typing/reject/bad/bodies.zn:14, and a local may not shadow a name in scope
-File "fixtures/typing/reject/bad/bodies.zn", line 25, characters 21-44:
-25 |     built Account = init{ owner = Int(1); }
+Error: `noReturn` names the declaration at fixtures/typing/reject/bad/bodies.zn:12, and a local may not shadow a name in scope
+File "fixtures/typing/reject/bad/bodies.zn", line 23, characters 21-44:
+23 |     built Account = init{ owner = Int(1); }
   |                     ^^^^^^^^^^^^^^^^^^^^^^^
 Error: `init{ }` is valid only in a constructor body, which is what naming a verb after a type unlocks
-File "fixtures/typing/reject/bad/bodies.zn", line 26, characters 24-32:
-26 |     peek Int = account._balance;
+File "fixtures/typing/reject/bad/bodies.zn", line 24, characters 24-32:
+24 |     peek Int = account._balance;
   |                        ^^^^^^^^
 Error: `_balance` is private: only a method whose subject is `Account` may read it (types.md §2.3)
-File "fixtures/typing/reject/bad/bodies.zn", line 27, characters 12-18:
-27 |     return Int(4);
+File "fixtures/typing/reject/bad/bodies.zn", line 25, characters 12-18:
+25 |     return Int(4);
   |            ^^^^^^
-Error: this returns `core$Int`, and the verb returns `core$Unit`; `return` is not a coercion site, so a conversion is written out
-File "fixtures/typing/reject/bad/bodies.zn", line 31, characters 5-15:
-31 |     this.owner = Int(2);
+Error: this returns `@primitives$Int`, and the verb returns `@primitives$Unit`; `return` is not a coercion site, so a conversion is written out
+File "fixtures/typing/reject/bad/bodies.zn", line 29, characters 5-15:
+29 |     this.owner = Int(2);
   |     ^^^^^^^^^^
 Error: a method that is not `mut` may not write through `this`
-File "fixtures/typing/reject/bad/bodies.zn", line 37, characters 5-19:
-37 |     return Int(1);
+File "fixtures/typing/reject/bad/bodies.zn", line 35, characters 5-19:
+35 |     return Int(1);
   |     ^^^^^^^^^^^^^^
 Error: `return` leaves a verb, and this is not in one
 File "fixtures/typing/reject/bad/calls.zn", line 25, characters 13-33:
 25 |     a Int = pair(Int(1), Int(2));
   |             ^^^^^^^^^^^^^^^^^^^^
-Error: no `pair` accepts (core$Int, core$Int); the candidates are `core$Int pair(core$Int, core$Float)`; `core$Int pair(core$Float, core$Int)`
+Error: no `pair` accepts (@primitives$Int, @primitives$Int); the candidates are `@primitives$Int pair(@primitives$Int, @primitives$Float)`; `@primitives$Int pair(@primitives$Float, @primitives$Int)`
 File "fixtures/typing/reject/bad/calls.zn", line 26, characters 13-23:
 26 |     b Int = pair(1, 2);
   |             ^^^^^^^^^^
-Error: no `pair` accepts (@concepts$Int, @concepts$Int); the candidates are `core$Int pair(core$Int, core$Float)`; `core$Int pair(core$Float, core$Int)`
+Error: no `pair` accepts (@concepts$Int, @concepts$Int); the candidates are `@primitives$Int pair(@primitives$Int, @primitives$Float)`; `@primitives$Int pair(@primitives$Float, @primitives$Int)`
 File "fixtures/typing/reject/bad/calls.zn", line 27, characters 13-24:
 27 |     k Int = tally(1, 2);
   |             ^^^^^^^^^^^
-Error: the call to `tally` is ambiguous: `core$Int tally(core$Int, bad$Count)`; `core$Int tally(bad$Count, core$Int)` both accept (@concepts$Int, @concepts$Int)
+Error: the call to `tally` is ambiguous: `@primitives$Int tally(bad$Score, bad$Count)`; `@primitives$Int tally(bad$Count, bad$Score)` both accept (@concepts$Int, @concepts$Int)
 File "fixtures/typing/reject/bad/calls.zn", line 28, characters 13-20:
 28 |     c Int = echo(4);
   |             ^^^^^^^
@@ -77,7 +77,7 @@ Error: no `echo` accepts (@concepts$Int, @concepts$Int); the candidate is `T ech
 File "fixtures/typing/reject/bad/calls.zn", line 30, characters 13-31:
 30 |     d Int = parse(String("1"));
   |             ^^^^^^^^^^^^^^^^^^
-Error: `parse` can abort with `core$String`, so the call needs a `?` or `??` handler
+Error: `parse` can abort with `@primitives$String`, so the call needs a `?` or `??` handler
 File "fixtures/typing/reject/bad/calls.zn", line 31, characters 25-34:
 31 |     e Int = one(Int(1)) ?? Int(0);
   |                         ^^^^^^^^^
@@ -93,7 +93,7 @@ Error: `peek` is not a `mut` method, so it is called with `:`
 File "fixtures/typing/reject/bad/calls.zn", line 35, characters 13-24:
 35 |     g Int = n:missing();
   |             ^^^^^^^^^^^
-Error: no method named `missing` is declared in `core`, the home of `core$Int`, or in this package
+Error: no method named `missing` is declared in `@primitives`, the home of `@primitives$Int`, or in this package
 File "fixtures/typing/reject/bad/calls.zn", line 36, characters 11-32:
 36 |     spawn repeat({ n!bump(); });
   |           ^^^^^^^^^^^^^^^^^^^^^
@@ -102,459 +102,455 @@ File "fixtures/typing/reject/bad/calls.zn", line 38, characters 13-23:
 38 |     h Int = choice.yes;
   |             ^^^^^^^^^^
 Error: reading the case `yes` of `Pick` fails when another case is live, so it takes a `?` or `??` handler
-File "fixtures/typing/reject/bad/calls.zn", line 39, characters 31-39:
-39 |     i @primitives$Int = n.raw ?? n.raw;
-  |                               ^^^^^^^^
+File "fixtures/typing/reject/bad/calls.zn", line 40, characters 23-35:
+40 |     i Int = count.raw ?? count.raw;
+  |                       ^^^^^^^^^^^^
 Error: reading `raw` cannot fail, so it takes no handler
-File "fixtures/typing/reject/bad/calls.zn", line 40, characters 32-39:
-40 |     j Int = parse(String("2")) ? err {
+File "fixtures/typing/reject/bad/calls.zn", line 41, characters 32-39:
+41 |     j Int = parse(String("2")) ? err {
   |                                ^^^^^^^
 Error: every path through a handler ends in `resolve`, `return` or `abort`; this one can fall through (error-handling.md §3.2)
-File "fixtures/typing/reject/bad/calls.zn", line 43, characters 5-20:
-43 |     resolve Int(1);
+File "fixtures/typing/reject/bad/calls.zn", line 44, characters 5-20:
+44 |     resolve Int(1);
   |     ^^^^^^^^^^^^^^^
 Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it is not one
-File "fixtures/typing/reject/bad/exits.zn", line 8, characters 5-17:
-8 |     guard(ready);
+File "fixtures/typing/reject/bad/exits.zn", line 6, characters 5-17:
+6 |     guard(ready);
   |     ^^^^^^^^^^^^
 Error: `guard` can exit, which ends the block its call is written in, and this call is in no block
-File "fixtures/typing/reject/bad/exits.zn", line 13, characters 9-20:
-13 |         guard(flag);
+File "fixtures/typing/reject/bad/exits.zn", line 11, characters 9-20:
+11 |         guard(flag);
   |         ^^^^^^^^^^^
 Error: `guard` can exit, which ends the block its call is written in, and this call is in no block
-File "fixtures/typing/reject/bad/exits.zn", line 21, characters 23-44:
-21 | Bool lazily(condition @concepts$Block<Bool>) => Bool(true)
+File "fixtures/typing/reject/bad/exits.zn", line 19, characters 23-44:
+19 | Bool lazily(condition @concepts$Block<Bool>) => true
   |                       ^^^^^^^^^^^^^^^^^^^^^
 Error: `@concepts$Block` takes no type argument: a block yields nothing (docs/spec-divergences.md §12)
-File "fixtures/typing/reject/bad/exits.zn", line 25, characters 9-23:
-25 |         resolve ready;
+File "fixtures/typing/reject/bad/exits.zn", line 23, characters 9-23:
+23 |         resolve ready;
   |         ^^^^^^^^^^^^^^
 Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it is not one
-File "fixtures/typing/reject/bad/guests.zn", line 31, characters 5-6:
-31 |     k!fill();
+File "fixtures/typing/reject/bad/guests.zn", line 29, characters 5-6:
+29 |     k!fill();
   |     ^
+Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/guests.zn", line 31, characters 5-9:
+31 |     desk!use();
+  |     ^^^^
 Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
 File "fixtures/typing/reject/bad/guests.zn", line 33, characters 5-9:
-33 |     desk!use();
+33 |     back!fill();
   |     ^^^^
 Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 35, characters 5-9:
-35 |     back!fill();
+File "fixtures/typing/reject/bad/guests.zn", line 38, characters 5-9:
+38 |     mine!use();
   |     ^^^^
 Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 40, characters 5-9:
-40 |     mine!use();
-  |     ^^^^
-Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 48, characters 5-6:
-48 |     k!fill();
+File "fixtures/typing/reject/bad/guests.zn", line 46, characters 5-6:
+46 |     k!fill();
   |     ^
 Error: a `!` call writes its subject, and it reaches a guest taken from `this`, which is read-only in a method that is not `mut`
-File "fixtures/typing/reject/bad/guests.zn", line 57, characters 5-9:
-57 |     this!use();
+File "fixtures/typing/reject/bad/guests.zn", line 55, characters 5-9:
+55 |     this!use();
   |     ^^^^
 Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 66, characters 9-13:
-66 |         desk!use();
+File "fixtures/typing/reject/bad/guests.zn", line 64, characters 9-13:
+64 |         desk!use();
   |         ^^^^
 Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 67, characters 9-13:
-67 |         desk!hold(pen);
+File "fixtures/typing/reject/bad/guests.zn", line 65, characters 9-13:
+65 |         desk!hold(pen);
   |         ^^^^
 Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 100, characters 5-6:
-100 |     a!fill();
+File "fixtures/typing/reject/bad/guests.zn", line 98, characters 5-6:
+98 |     a!fill();
   |     ^
 Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 101, characters 5-6:
-101 |     b!fill();
+File "fixtures/typing/reject/bad/guests.zn", line 99, characters 5-6:
+99 |     b!fill();
   |     ^
 Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/imports.zn", line 4, characters 8-15:
-4 | import missing;
+File "fixtures/typing/reject/bad/imports.zn", line 3, characters 8-15:
+3 | import missing;
   |        ^^^^^^^
 Error: no package named `missing` is part of this build
-File "fixtures/typing/reject/bad/imports.zn", line 5, characters 8-11:
-5 | import bad;
+File "fixtures/typing/reject/bad/imports.zn", line 4, characters 8-11:
+4 | import bad;
   |        ^^^
 Error: `bad` is this file's own package; its members are available without an import
-File "fixtures/typing/reject/bad/imports.zn", line 6, characters 12-19:
-6 | import lib$nothing;
+File "fixtures/typing/reject/bad/imports.zn", line 5, characters 12-19:
+5 | import lib$nothing;
   |            ^^^^^^^
 Error: the package `lib` has no member `nothing`
-File "fixtures/typing/reject/bad/imports.zn", line 7, characters 12-19:
-7 | import lib$_secret;
+File "fixtures/typing/reject/bad/imports.zn", line 6, characters 12-19:
+6 | import lib$_secret;
   |            ^^^^^^^
 Error: `_secret` is private to the package `lib`
-File "fixtures/typing/reject/bad/imports.zn", line 8, characters 12-16:
-8 | import lib$area;
+File "fixtures/typing/reject/bad/imports.zn", line 7, characters 12-16:
+7 | import lib$area;
   |            ^^^^
 Error: `area` is a method, and a method is not importable: it is reached by its subject, as `subject:lib$area()`
-File "fixtures/typing/reject/bad/imports.zn", line 10, characters 1-11:
-10 | import lib;
+File "fixtures/typing/reject/bad/imports.zn", line 9, characters 1-11:
+9 | import lib;
   | ^^^^^^^^^^
-Error: `import lib` gives the members of `lib` a second spelling, after `import lib$Thing` at fixtures/typing/reject/bad/imports.zn:9; a member has one spelling per file
-File "fixtures/typing/reject/bad/imports.zn", line 11, characters 1-16:
-11 | import lib$twin;
+Error: `import lib` gives the members of `lib` a second spelling, after `import lib$Thing` at fixtures/typing/reject/bad/imports.zn:8; a member has one spelling per file
+File "fixtures/typing/reject/bad/imports.zn", line 10, characters 1-16:
+10 | import lib$twin;
   | ^^^^^^^^^^^^^^^
-Error: this import brings `twin` from `lib`, which takes the same parameter types as the `twin` declared at fixtures/typing/reject/bad/twin.zn:6; the two cannot be told apart at a call
-File "fixtures/typing/reject/bad/instances.zn", line 7, characters 25-38:
-7 | T half(value T Type) => value / value
+Error: this import brings `twin` from `lib`, which takes the same parameter types as the `twin` declared at fixtures/typing/reject/bad/twin.zn:4; the two cannot be told apart at a call
+File "fixtures/typing/reject/bad/instances.zn", line 5, characters 25-38:
+5 | T half(value T Type) => value / value
   |                         ^^^^^^^^^^^^^
-Error: no operator `/` accepts (core$String, core$String); the candidates are `core$Int /(core$Int, core$Int)`; `core$Float /(core$Float, core$Float)` (in `half` with T = core$String, required at fixtures/typing/reject/bad/instances.zn:11)
-File "fixtures/typing/reject/bad/lambdas.zn", line 7, characters 20-25:
-7 |     reads Int() => outer;
+Error: no operator `/` accepts (@primitives$String, @primitives$String); the candidates are `@primitives$Int /(@primitives$Int, @primitives$Int)`; `@primitives$I32 /(@primitives$I32, @primitives$I32)`; `@primitives$I64 /(@primitives$I64, @primitives$I64)`; `@primitives$Float /(@primitives$Float, @primitives$Float)` (in `half` with T = @primitives$String, required at fixtures/typing/reject/bad/instances.zn:9)
+File "fixtures/typing/reject/bad/lambdas.zn", line 5, characters 20-25:
+5 |     reads Int() => outer;
   |                    ^^^^^
 Error: no name `outer` is in scope
-File "fixtures/typing/reject/bad/lambdas.zn", line 8, characters 23-29:
-8 |     generic Int(value T Type) => Int(1);
+File "fixtures/typing/reject/bad/lambdas.zn", line 6, characters 23-29:
+6 |     generic Int(value T Type) => Int(1);
   |                       ^^^^^^
 Error: `T` introduces a parameter, and only a named verb may: a generic function value is not specified (generics.md §9)
-File "fixtures/typing/reject/bad/literals.zn", line 7, characters 28-43:
-7 | type Scaled<T Type, factor @concepts$Float> = struct { item T; }
+File "fixtures/typing/reject/bad/literals.zn", line 5, characters 28-43:
+5 | type Scaled<T Type, factor @concepts$Float> = struct { item T; }
   |                            ^^^^^^^^^^^^^^^
 Error: a type's `< >` header holds `Type` and `@concepts$Int` parameters, and `@concepts$Float` is neither (generics.md §3.3)
-File "fixtures/typing/reject/bad/literals.zn", line 8, characters 25-28:
-8 | type Tagged<T Type, tag Int> = struct { item T; }
+File "fixtures/typing/reject/bad/literals.zn", line 6, characters 25-28:
+6 | type Tagged<T Type, tag Int> = struct { item T; }
   |                         ^^^
 Error: a type's `< >` header holds `Type` and `@concepts$Int` parameters, and `Int` is neither (generics.md §3.3)
-File "fixtures/typing/reject/bad/literals.zn", line 12, characters 32-37:
-12 | Int first(values Array<T Type, n Int>) => Int(1)
+File "fixtures/typing/reject/bad/literals.zn", line 10, characters 32-37:
+10 | Int first(values Array<T Type, n Int>) => Int(1)
   |                                ^^^^^
 Error: `n` introduces a parameter, which takes `Type` or `@concepts$Int` (generics.md §3.3)
-File "fixtures/typing/reject/bad/literals.zn", line 16, characters 55-74:
-16 | Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n)
+File "fixtures/typing/reject/bad/literals.zn", line 14, characters 55-74:
+14 | Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n)
   |                                                       ^^^^^^^^^^^^^^^^^^^
-Error: no `measured` accepts (core$Array<core$Int, 3>, @concepts$Int); the candidate is `core$Int measured(core$Array<core$Int, n>, n @concepts$Int)` (in `relayed` with n = 4, required at fixtures/typing/reject/bad/literals.zn:46)
-File "fixtures/typing/reject/bad/literals.zn", line 20, characters 12-27:
-20 |     return measure(values);
+Error: no `measured` accepts (@primitives$Array<@primitives$Int, 3>, @concepts$Int); the candidate is `@primitives$Int measured(@primitives$Array<@primitives$Int, n>, n @concepts$Int)` (in `relayed` with n = 4, required at fixtures/typing/reject/bad/literals.zn:44)
+File "fixtures/typing/reject/bad/literals.zn", line 18, characters 12-27:
+18 |     return measure(values);
   |            ^^^^^^^^^^^^^^^
-Error: no `measure` accepts (core$Array<core$Int, 3>); the candidate is `core$Int measure(core$Array<core$Int, 4>)` (in `sizedLike` with n = 4, required at fixtures/typing/reject/bad/literals.zn:41)
-File "fixtures/typing/reject/bad/literals.zn", line 31, characters 17-25:
-31 |     whole Int = Int(2.5);
+Error: no `measure` accepts (@primitives$Array<@primitives$Int, 3>); the candidate is `@primitives$Int measure(@primitives$Array<@primitives$Int, 4>)` (in `sizedLike` with n = 4, required at fixtures/typing/reject/bad/literals.zn:39)
+File "fixtures/typing/reject/bad/literals.zn", line 29, characters 17-25:
+29 |     whole Int = Int(2.5);
   |                 ^^^^^^^^
-Error: no `Int` accepts (@concepts$Float); the candidates are `implicit Int(bad$Engine)`; `implicit Int(@concepts$Int)`; `implicit Int(@primitives$Int)`
-File "fixtures/typing/reject/bad/literals.zn", line 32, characters 22-30:
-32 |     fraction Float = Float(2);
+Error: no `@primitives$Int` accepts (@concepts$Float); the candidates are `@primitives$Int(@concepts$Int)`; `implicit @primitives$Int(bad$Engine)`
+File "fixtures/typing/reject/bad/literals.zn", line 30, characters 22-30:
+30 |     fraction Float = Float(2);
   |                      ^^^^^^^^
-Error: no `Float` accepts (@concepts$Int); the candidates are `implicit Float(core$Bool)`; `implicit Float(@concepts$Float)`; `implicit Float(@primitives$Float)`
-File "fixtures/typing/reject/bad/literals.zn", line 33, characters 15-27:
-33 |     sum Int = Int(1) + 2.5;
+Error: no `@primitives$Float` accepts (@concepts$Int); the candidates are `@primitives$Float(@concepts$Float)`; `implicit @primitives$Float(@primitives$Bool)`
+File "fixtures/typing/reject/bad/literals.zn", line 31, characters 15-27:
+31 |     sum Int = Int(1) + 2.5;
   |               ^^^^^^^^^^^^
-Error: no operator `+` accepts (core$Int, @concepts$Float); the candidates are `core$Bool +(core$Bool, core$Bool)`; `core$Int +(core$Int, core$Int)`; `core$Float +(core$Float, core$Float)`; `core$String +(core$String, core$String)`
-File "fixtures/typing/reject/bad/literals.zn", line 36, characters 17-37:
-36 |     sized Int = measured(numbers, 4);
+Error: no operator `+` accepts (@primitives$Int, @concepts$Float); the candidates are `@primitives$Int +(@primitives$Int, @primitives$Int)`; `@primitives$I32 +(@primitives$I32, @primitives$I32)`; `@primitives$I64 +(@primitives$I64, @primitives$I64)`; `@primitives$Float +(@primitives$Float, @primitives$Float)`; ...
+File "fixtures/typing/reject/bad/literals.zn", line 34, characters 17-37:
+34 |     sized Int = measured(numbers, 4);
   |                 ^^^^^^^^^^^^^^^^^^^^
-Error: no `measured` accepts (core$Array<core$Int, 3>, @concepts$Int); the candidate is `core$Int measured(core$Array<core$Int, n>, n @concepts$Int)`
-File "fixtures/typing/reject/bad/literals.zn", line 49, characters 18-31:
-49 |     mixed Unit = twice(2, 3.5);
+Error: no `measured` accepts (@primitives$Array<@primitives$Int, 3>, @concepts$Int); the candidate is `@primitives$Int measured(@primitives$Array<@primitives$Int, n>, n @concepts$Int)`
+File "fixtures/typing/reject/bad/literals.zn", line 47, characters 18-31:
+47 |     mixed Unit = twice(2, 3.5);
   |                  ^^^^^^^^^^^^^
-Error: no `twice` accepts (@concepts$Int, @concepts$Float); the candidates are `core$Unit twice(@concepts$Int, @concepts$Int)`; `core$Unit twice(@concepts$Float, @concepts$Float)`
-File "fixtures/typing/reject/bad/matches.zn", line 8, characters 29-44:
-8 | Int answer(value Answer) => match (value) {
+Error: no `twice` accepts (@concepts$Int, @concepts$Float); the candidates are `@primitives$Unit twice(@concepts$Int, @concepts$Int)`; `@primitives$Unit twice(@concepts$Float, @concepts$Float)`
+File "fixtures/typing/reject/bad/matches.zn", line 6, characters 29-44:
+6 | Int answer(value Answer) => match (value) {
   |                             ^^^^^^^^^^^^^^^
 Error: the match does not cover `no`, `maybe`; every case needs an arm, and there is no default
-File "fixtures/typing/reject/bad/matches.zn", line 10, characters 5-19:
-10 |     yes => Int(1);
+File "fixtures/typing/reject/bad/matches.zn", line 8, characters 5-19:
+8 |     yes => Int(1);
   |     ^^^^^^^^^^^^^^
-Error: `yes` is already covered by the arm at fixtures/typing/reject/bad/matches.zn:9; every case is covered exactly once
-File "fixtures/typing/reject/bad/matches.zn", line 11, characters 5-11:
-11 |     unsure => Int(2);
+Error: `yes` is already covered by the arm at fixtures/typing/reject/bad/matches.zn:7; every case is covered exactly once
+File "fixtures/typing/reject/bad/matches.zn", line 9, characters 5-11:
+9 |     unsure => Int(2);
   |     ^^^^^^
 Error: `Answer` has no case `unsure`
-File "fixtures/typing/reject/bad/matches.zn", line 15, characters 5-6:
-15 |     x red => Int(1);
+File "fixtures/typing/reject/bad/matches.zn", line 13, characters 5-6:
+13 |     x red => Int(1);
   |     ^
 Error: `red` is an enum member and carries no payload to bind
-File "fixtures/typing/reject/bad/matches.zn", line 16, characters 14-24:
-16 |     green => Bool(true);
-  |              ^^^^^^^^^^
-Error: every arm of a match yields one type: this yields `core$Bool`, and the first arm yields `core$Int`; an arm is not a coercion site
-File "fixtures/typing/reject/bad/matches.zn", line 19, characters 32-37:
-19 | Int plain(value Int) => match (value) {
+File "fixtures/typing/reject/bad/matches.zn", line 14, characters 14-18:
+14 |     green => true;
+  |              ^^^^
+Error: every arm of a match yields one type: this yields `@primitives$Bool`, and the first arm yields `@primitives$Int`; an arm is not a coercion site
+File "fixtures/typing/reject/bad/matches.zn", line 17, characters 32-37:
+17 | Int plain(value Int) => match (value) {
   |                                ^^^^^
-Error: a match dispatches on a variant or an enum, and `core$Int` is neither
-File "fixtures/typing/reject/bad/moves.zn", line 22, characters 13-23:
-22 |     b Cup = saucer.cup;
+Error: a match dispatches on a variant or an enum, and `@primitives$Int` is neither
+File "fixtures/typing/reject/bad/moves.zn", line 20, characters 13-23:
+20 |     b Cup = saucer.cup;
   |             ^^^^^^^^^^
 Error: a field is not a move-source: a host is moved only from a symbol, a verb's result or a case form
-File "fixtures/typing/reject/bad/moves.zn", line 23, characters 13-25:
-23 |     c Cup = cups[Int(1)];
+File "fixtures/typing/reject/bad/moves.zn", line 21, characters 13-25:
+21 |     c Cup = cups[Int(1)];
   |             ^^^^^^^^^^^^
 Error: an element of a container is not a move-source: a host is moved only from a symbol, a verb's result or a case form
-File "fixtures/typing/reject/bad/moves.zn", line 24, characters 13-18:
-24 |     d Cup = guest;
+File "fixtures/typing/reject/bad/moves.zn", line 22, characters 13-18:
+22 |     d Cup = guest;
   |             ^^^^^
 Error: `guest`, a guest, is not a move-source: a host is moved only from a symbol, a verb's result or a case form
-File "fixtures/typing/reject/bad/moves.zn", line 26, characters 11-35:
-26 |     drink(order.hot ?? Cup(Int(3)));
+File "fixtures/typing/reject/bad/moves.zn", line 24, characters 11-35:
+24 |     drink(order.hot ?? Cup(Int(3)));
   |           ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: a variant case's payload is not a move-source: a host is moved only from a symbol, a verb's result or a case form
-File "fixtures/typing/reject/bad/moves.zn", line 34, characters 15-20:
-34 |         drink(outer);
+File "fixtures/typing/reject/bad/moves.zn", line 32, characters 15-20:
+32 |         drink(outer);
   |               ^^^^^
 Error: `outer` is declared in an enclosing block, and a symbol is moved only in the block that declares it
-File "fixtures/typing/reject/bad/moves.zn", line 49, characters 10-13:
-49 |     look(cup);
+File "fixtures/typing/reject/bad/moves.zn", line 47, characters 10-13:
+47 |     look(cup);
   |          ^^^
-Error: `cup` was moved on line 48, and is spent until a store refills it
-File "fixtures/typing/reject/bad/moves.zn", line 51, characters 9-12:
-51 |         cup = Cup(Int(7));
+Error: `cup` was moved on line 46, and is spent until a store refills it
+File "fixtures/typing/reject/bad/moves.zn", line 49, characters 9-12:
+49 |         cup = Cup(Int(7));
   |         ^^^
 Error: `cup` is spent, and a store that refills it must be in the block that declares it
-File "fixtures/typing/reject/bad/moves.zn", line 56, characters 17-21:
-56 |     serve(both, both);
+File "fixtures/typing/reject/bad/moves.zn", line 54, characters 17-21:
+54 |     serve(both, both);
   |                 ^^^^
-Error: `both` was moved on line 56, and is spent until a store refills it
-File "fixtures/typing/reject/bad/moves.zn", line 61, characters 29-33:
-61 | Saucer give(this Saucer) => this
+Error: `both` was moved on line 54, and is spent until a store refills it
+File "fixtures/typing/reject/bad/moves.zn", line 59, characters 29-33:
+59 | Saucer give(this Saucer) => this
   |                             ^^^^
 Error: `this` is the object the method was called on, and a method never moves it
-File "fixtures/typing/reject/bad/moves.zn", line 67, characters 10-13:
-67 |     look(cup);
+File "fixtures/typing/reject/bad/moves.zn", line 65, characters 10-13:
+65 |     look(cup);
   |          ^^^
-Error: `cup` was moved on line 66, and is spent until a store refills it
-File "fixtures/typing/reject/bad/names.zn", line 6, characters 6-11:
-6 | type Twice = struct { b Int; }
+Error: `cup` was moved on line 64, and is spent until a store refills it
+File "fixtures/typing/reject/bad/names.zn", line 4, characters 6-11:
+4 | type Twice = struct { b Int; }
   |      ^^^^^
-Error: the type `Twice` is already declared at fixtures/typing/reject/bad/names.zn:5
-File "fixtures/typing/reject/bad/names.zn", line 9, characters 1-6:
-9 | limit Int(4)
+Error: the type `Twice` is already declared at fixtures/typing/reject/bad/names.zn:3
+File "fixtures/typing/reject/bad/names.zn", line 7, characters 1-6:
+7 | limit Int(4)
   | ^^^^^
-Error: the name `limit` is already declared at fixtures/typing/reject/bad/names.zn:8
-File "fixtures/typing/reject/bad/names.zn", line 12, characters 1-8:
-12 | limited Int(5)
+Error: the name `limit` is already declared at fixtures/typing/reject/bad/names.zn:6
+File "fixtures/typing/reject/bad/names.zn", line 10, characters 1-8:
+10 | limited Int(5)
   | ^^^^^^^
-Error: the name `limited` is already declared at fixtures/typing/reject/bad/names.zn:11
-File "fixtures/typing/reject/bad/names.zn", line 15, characters 13-20:
-15 |     x Int = unknown;
+Error: the name `limited` is already declared at fixtures/typing/reject/bad/names.zn:9
+File "fixtures/typing/reject/bad/names.zn", line 13, characters 13-20:
+13 |     x Int = unknown;
   |             ^^^^^^^
 Error: no name `unknown` is in scope
-File "fixtures/typing/reject/bad/names.zn", line 16, characters 7-14:
-16 |     y Nowhere = Int(1);
+File "fixtures/typing/reject/bad/names.zn", line 14, characters 7-14:
+14 |     y Nowhere = Int(1);
   |       ^^^^^^^
 Error: no type named `Nowhere` is in scope
-File "fixtures/typing/reject/bad/names.zn", line 17, characters 13-17:
-17 |     f Int = twin;
+File "fixtures/typing/reject/bad/names.zn", line 15, characters 13-17:
+15 |     f Int = twin;
   |             ^^^^
 Error: `twin` is a function, and a function has no value form: call it, or hold a function value in a lambda-variable (functions.md §7.1)
-File "fixtures/typing/reject/bad/names.zn", line 18, characters 13-17:
-18 |     z Int = nope$value;
+File "fixtures/typing/reject/bad/names.zn", line 16, characters 13-17:
+16 |     z Int = nope$value;
   |             ^^^^
 Error: no import in this file spells a package `nope`
-File "fixtures/typing/reject/bad/overloads.zn", line 8, characters 1-29:
-8 | Int same(other Int) => other
+File "fixtures/typing/reject/bad/overloads.zn", line 6, characters 1-29:
+6 | Int same(other Int) => other
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: this function takes the same parameter types as the one at fixtures/typing/reject/bad/overloads.zn:7, so no call could tell them apart; parameter names, `this`, `mut` and the return type do not distinguish overloads
-File "fixtures/typing/reject/bad/overloads.zn", line 11, characters 1-39:
-11 | Unit consume(engine &Engine) => Unit()
+Error: this function takes the same parameter types as the one at fixtures/typing/reject/bad/overloads.zn:5, so no call could tell them apart; parameter names, `this`, `mut` and the return type do not distinguish overloads
+File "fixtures/typing/reject/bad/overloads.zn", line 9, characters 1-39:
+9 | Unit consume(engine &Engine) => Unit()
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: illegal overload set: this function differs from the one at fixtures/typing/reject/bad/overloads.zn:10 only by the passing mode on a parameter; rename one declaration or choose a single signature
-File "fixtures/typing/reject/bad/overloads.zn", line 14, characters 1-36:
-14 | Int +(left Int, right Bool) => left
+Error: illegal overload set: this function differs from the one at fixtures/typing/reject/bad/overloads.zn:8 only by the passing mode on a parameter; rename one declaration or choose a single signature
+File "fixtures/typing/reject/bad/overloads.zn", line 12, characters 1-36:
+12 | Int +(left Int, right Bool) => left
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: the operator `+` on `core$Int` and `core$Bool` may be declared only in the home package of an operand type, and `bad` is not one
-File "fixtures/typing/reject/bad/overloads.zn", line 17, characters 1-38:
-17 | implicit Int(engine Engine) => Int(1)
+Error: the operator `+` on `@primitives$Int` and `@primitives$Bool` may be declared only in the home package of an operand type, and `bad` is not one
+File "fixtures/typing/reject/bad/overloads.zn", line 15, characters 1-38:
+15 | implicit Int(engine Engine) => Int(1)
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: the source of an implicit constructor must be a value type or a concept type, and `bad$Engine` is a reference type
-File "fixtures/typing/reject/bad/overloads.zn", line 20, characters 1-41:
-20 | implicit Float(value Bool) => Float(0.0)
+File "fixtures/typing/reject/bad/overloads.zn", line 18, characters 1-41:
+18 | implicit Float(value Bool) => Float(0.0)
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: an implicit constructor from `core$Bool` to `core$Float` may be declared only in the home package of one of them, and `bad` is neither
-File "fixtures/typing/reject/bad/overloads.zn", line 24, characters 1-19:
-24 | Level.weight Int {
+Error: an implicit constructor from `@primitives$Bool` to `@primitives$Float` may be declared only in the home package of one of them, and `bad` is neither
+File "fixtures/typing/reject/bad/overloads.zn", line 22, characters 1-19:
+22 | Level.weight Int {
   | ^^^^^^^^^^^^^^^^^^
 Error: an enum map covers every member, and this one has no entry for `high`
-File "fixtures/typing/reject/bad/overloads.zn", line 26, characters 5-11:
-26 |     middle = 2;
+File "fixtures/typing/reject/bad/overloads.zn", line 24, characters 5-11:
+24 |     middle = Int(2);
   |     ^^^^^^
 Error: `Level` has no member `middle`
-File "fixtures/typing/reject/bad/overloads.zn", line 27, characters 5-8:
-27 |     low = 3;
+File "fixtures/typing/reject/bad/overloads.zn", line 25, characters 5-8:
+25 |     low = Int(3);
   |     ^^^
 Error: the member `low` already has an entry
-File "fixtures/typing/reject/bad/overloads.zn", line 30, characters 1-7:
-30 | Engine.power Int {
+File "fixtures/typing/reject/bad/overloads.zn", line 28, characters 1-7:
+28 | Engine.power Int {
   | ^^^^^^
 Error: an enum map ranges over an enum, and `bad$Engine` is not one
-File "fixtures/typing/reject/bad/overloads.zn", line 34, characters 1-34:
-34 | Unit main(argument Int) => Unit()
+File "fixtures/typing/reject/bad/overloads.zn", line 32, characters 1-34:
+32 | Unit main(argument Int) => Unit()
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `main` takes no parameters: the root package reaches the console and runtime through `@program$`
-File "fixtures/typing/reject/bad/owners.zn", line 24, characters 13-23:
-24 |         r = inner.leaf;
+File "fixtures/typing/reject/bad/owners.zn", line 22, characters 13-23:
+22 |         r = inner.leaf;
   |             ^^^^^^^^^^
 Error: this stores a guest to `inner`, whose block ends before `r`'s does
-File "fixtures/typing/reject/bad/owners.zn", line 39, characters 18-26:
-39 |         parked = arriving;
+File "fixtures/typing/reject/bad/owners.zn", line 37, characters 18-26:
+37 |         parked = arriving;
   |                  ^^^^^^^^
 Error: this stores a guest to `near`, whose block ends before `parked`'s does
-File "fixtures/typing/reject/bad/owners.zn", line 40, characters 15-36:
-40 |         tag = Tag.pinned(near.leaf);
+File "fixtures/typing/reject/bad/owners.zn", line 38, characters 15-36:
+38 |         tag = Tag.pinned(near.leaf);
   |               ^^^^^^^^^^^^^^^^^^^^^
 Error: this stores a guest to `near`, whose block ends before `tag`'s does
-File "fixtures/typing/reject/bad/owners.zn", line 51, characters 12-17:
-51 |     return value;
+File "fixtures/typing/reject/bad/owners.zn", line 49, characters 12-17:
+49 |     return value;
   |            ^^^^^
 Error: this stores a guest to `value` in the caller's result, which outlives the body `value` is owned by
-File "fixtures/typing/reject/bad/owners.zn", line 57, characters 17-22:
-57 |     this.leaf = local;
+File "fixtures/typing/reject/bad/owners.zn", line 55, characters 17-22:
+55 |     this.leaf = local;
   |                 ^^^^^
 Error: this stores a guest to `local` in the caller's `this`, which outlives the body `local` is owned by
-File "fixtures/typing/reject/bad/owners.zn", line 65, characters 12-23:
-65 |     return pass(value);
+File "fixtures/typing/reject/bad/owners.zn", line 63, characters 12-23:
+63 |     return pass(value);
   |            ^^^^^^^^^^^
 Error: this stores a guest to `value` in the caller's result, which outlives the body `value` is owned by
-File "fixtures/typing/reject/bad/owners.zn", line 75, characters 13-24:
-75 |         r = match (t) {
+File "fixtures/typing/reject/bad/owners.zn", line 73, characters 13-24:
+73 |         r = match (t) {
   |             ^^^^^^^^^^^
 Error: this stores a guest to `near`, whose block ends before `r`'s does
-File "fixtures/typing/reject/bad/rests.zn", line 37, characters 15-20:
-37 |     this!wire(local);
+File "fixtures/typing/reject/bad/rests.zn", line 35, characters 15-20:
+35 |     this!wire(local);
   |               ^^^^^
 Error: this stores a guest to `local` in the caller's `this`, which outlives the body `local` is owned by (`wire` keeps `port` in `this`)
-File "fixtures/typing/reject/bad/rests.zn", line 47, characters 25-29:
-47 |         frame.plug!wire(near);
+File "fixtures/typing/reject/bad/rests.zn", line 45, characters 25-29:
+45 |         frame.plug!wire(near);
   |                         ^^^^
 Error: this stores a guest to `near`, whose block ends before `frame`'s does (`wire` keeps `port` in `this`)
-File "fixtures/typing/reject/bad/rests.zn", line 48, characters 26-30:
-48 |         frame.plug!relay(near);
+File "fixtures/typing/reject/bad/rests.zn", line 46, characters 26-30:
+46 |         frame.plug!relay(near);
   |                          ^^^^
 Error: this stores a guest to `near`, whose block ends before `frame`'s does (`relay` keeps `port` in `this`)
-File "fixtures/typing/reject/bad/rests.zn", line 51, characters 22-27:
-51 |         frame.plug = spare;
+File "fixtures/typing/reject/bad/rests.zn", line 49, characters 22-27:
+49 |         frame.plug = spare;
   |                      ^^^^^
 Error: this stores a guest to `near`, whose block ends before `frame`'s does
-File "fixtures/typing/reject/bad/rests.zn", line 65, characters 20-28:
-65 |         plugs!push(arriving);
+File "fixtures/typing/reject/bad/rests.zn", line 63, characters 20-28:
+63 |         plugs!push(arriving);
   |                    ^^^^^^^^
 Error: this stores a guest to `near`, whose block ends before `plugs`'s does (`push` keeps `value` in `this`)
-File "fixtures/typing/reject/bad/rests.zn", line 67, characters 18-24:
-67 |         bay!dock(docked);
+File "fixtures/typing/reject/bad/rests.zn", line 65, characters 18-24:
+65 |         bay!dock(docked);
   |                  ^^^^^^
 Error: this stores a guest to `near`, whose block ends before `bay`'s does (`dock` keeps `plug` in `this`)
-File "fixtures/typing/reject/bad/sources.zn", line 20, characters 15-28:
-20 |     b &Bell = bells[Int(0)];
+File "fixtures/typing/reject/bad/sources.zn", line 18, characters 15-28:
+18 |     b &Bell = bells[Int(0)];
   |               ^^^^^^^^^^^^^
 Error: a new guest must come from a stable place, and this path crosses `[]`
-File "fixtures/typing/reject/bad/sources.zn", line 22, characters 15-37:
-22 |     d &Bell = slot.full ?? rack.bell;
+File "fixtures/typing/reject/bad/sources.zn", line 20, characters 15-37:
+20 |     d &Bell = slot.full ?? rack.bell;
   |               ^^^^^^^^^^^^^^^^^^^^^^
 Error: a new guest must come from a stable place, and a variant case's payload is not one
-File "fixtures/typing/reject/bad/sources.zn", line 23, characters 15-22:
-23 |     e &Bell = forge();
+File "fixtures/typing/reject/bad/sources.zn", line 21, characters 15-22:
+21 |     e &Bell = forge();
   |               ^^^^^^^
 Error: a new guest names a place, and this is a temporary value
-File "fixtures/typing/reject/bad/sources.zn", line 24, characters 20-33:
-24 |     f &Bell = ring(bells[Int(0)]);
+File "fixtures/typing/reject/bad/sources.zn", line 22, characters 20-33:
+22 |     f &Bell = ring(bells[Int(0)]);
   |                    ^^^^^^^^^^^^^
 Error: a new guest must come from a stable place, and this path crosses `[]`
-File "fixtures/typing/reject/bad/sources.zn", line 27, characters 24-25:
-27 |         x full => ring(x).tone;
+File "fixtures/typing/reject/bad/sources.zn", line 25, characters 24-25:
+25 |         x full => ring(x).tone;
   |                        ^
 Error: a new guest must come from a stable place, and a variant case's payload is not one
-File "fixtures/typing/reject/bad/sources.zn", line 31, characters 18-31:
-31 |     tones[weight(bells[Int(0)])] = Int(1);
+File "fixtures/typing/reject/bad/sources.zn", line 29, characters 18-31:
+29 |     tones[weight(bells[Int(0)])] = Int(1);
   |                  ^^^^^^^^^^^^^
 Error: a new guest must come from a stable place, and this path crosses `[]`
-File "fixtures/typing/reject/bad/sources.zn", line 39, characters 17-21:
-39 |     this.hook = bell;
+File "fixtures/typing/reject/bad/sources.zn", line 37, characters 17-21:
+37 |     this.hook = bell;
   |                 ^^^^
 Error: `bell` swallows its argument, so it may not be bound into `&` storage; a parameter stored as a guest is declared `&`
-File "fixtures/typing/reject/bad/sources.zn", line 42, characters 17-21:
-42 |     this.hook = held;
+File "fixtures/typing/reject/bad/sources.zn", line 40, characters 17-21:
+40 |     this.hook = held;
   |                 ^^^^
 Error: `bell` swallows its argument, so it may not be bound into `&` storage; a parameter stored as a guest is declared `&`
-File "fixtures/typing/reject/bad/sources.zn", line 45, characters 21-26:
-45 |         this.hook = later;
+File "fixtures/typing/reject/bad/sources.zn", line 43, characters 21-26:
+43 |         this.hook = later;
   |                     ^^^^^
 Error: `bell` swallows its argument, so it may not be bound into `&` storage; a parameter stored as a guest is declared `&`
-File "fixtures/typing/reject/bad/sources.zn", line 57, characters 5-14:
-57 |     this.hook.tone = Int(3);
+File "fixtures/typing/reject/bad/sources.zn", line 55, characters 5-14:
+55 |     this.hook.tone = Int(3);
   |     ^^^^^^^^^
 Error: a store may not go through a guest, since what it names belongs to a tree this path's root does not own; change it with a `mut` method called through the guest
-File "fixtures/typing/reject/bad/sources.zn", line 59, characters 5-8:
-59 |     own.bell = Bell(Int(4));
+File "fixtures/typing/reject/bad/sources.zn", line 57, characters 5-8:
+57 |     own.bell = Bell(Int(4));
   |     ^^^
 Error: a store may not go through a guest, since what it names belongs to a tree this path's root does not own; change it with a `mut` method called through the guest
-File "fixtures/typing/reject/bad/types.zn", line 7, characters 1-23:
-7 | type Holder = struct {
+File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
+5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^
 Error: `Holder` is a value type, so its member `guest` cannot be an `&`; only a `#` mould may hold one
-File "fixtures/typing/reject/bad/types.zn", line 7, characters 1-23:
-7 | type Holder = struct {
+File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
+5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^
-Error: `Holder` is a value type, so its member `text` cannot hold `core$String`, a reference type; a value type is a value all the way down
-File "fixtures/typing/reject/bad/types.zn", line 8, characters 10-23:
-8 |     many Box<Int, Int>;
+Error: `Holder` is a value type, so its member `text` cannot hold `@primitives$String`, a reference type; a value type is a value all the way down
+File "fixtures/typing/reject/bad/types.zn", line 6, characters 10-23:
+6 |     many Box<Int, Int>;
   |          ^^^^^^^^^^^^^
 Error: `Box` takes 1 type argument, and 2 were written
-File "fixtures/typing/reject/bad/types.zn", line 9, characters 22-25:
-9 |     sized Array<Int, Int>;
+File "fixtures/typing/reject/bad/types.zn", line 7, characters 22-25:
+7 |     sized Array<Int, Int>;
   |                      ^^^
 Error: `Array` expects a number here, not a type
-File "fixtures/typing/reject/bad/types.zn", line 11, characters 11-15:
-11 |     guest &Int;
+File "fixtures/typing/reject/bad/types.zn", line 9, characters 11-15:
+9 |     guest &Int;
   |           ^^^^
-Error: `core$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
-File "fixtures/typing/reject/bad/types.zn", line 12, characters 13-26:
-12 |     literal @concepts$Int;
+Error: `@primitives$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
+File "fixtures/typing/reject/bad/types.zn", line 10, characters 13-26:
+10 |     literal @concepts$Int;
   |             ^^^^^^^^^^^^^
 Error: `@concepts$Int` is a concept type, which may type a parameter but is never storage, so it cannot be a field
-File "fixtures/typing/reject/bad/types.zn", line 13, characters 16-22:
-13 |     inline Box<T Type>;
+File "fixtures/typing/reject/bad/types.zn", line 11, characters 16-22:
+11 |     inline Box<T Type>;
   |                ^^^^^^
 Error: `T` introduces a parameter, which only a verb signature may do; a type lists its parameters in its `< >` header
-File "fixtures/typing/reject/bad/types.zn", line 16, characters 1-18:
-16 | alias Loop = Loop
+File "fixtures/typing/reject/bad/types.zn", line 14, characters 1-18:
+14 | alias Loop = Loop
   | ^^^^^^^^^^^^^^^^^
 Error: the alias `Loop` is defined in terms of itself
-File "fixtures/typing/reject/bad/types.zn", line 17, characters 1-19:
-17 | type Round = Robin
+File "fixtures/typing/reject/bad/types.zn", line 15, characters 1-19:
+15 | type Round = Robin
   | ^^^^^^^^^^^^^^^^^^
 Error: the type `Round` is defined in terms of itself
-File "fixtures/typing/reject/bad/uncalled.zn", line 9, characters 17-37:
-9 |     total Int = Int(1) + String("a");
+File "fixtures/typing/reject/bad/uncalled.zn", line 7, characters 17-37:
+7 |     total Int = Int(1) + String("a");
   |                 ^^^^^^^^^^^^^^^^^^^^
-Error: no operator `+` accepts (core$Int, core$String); the candidates are `core$Bool +(core$Bool, core$Bool)`; `core$Int +(core$Int, core$Int)`; `core$Float +(core$Float, core$Float)`; `core$String +(core$String, core$String)` (in `neverCalled`, which nothing instantiates)
-File "fixtures/typing/reject/bad/uncalled.zn", line 10, characters 19-26:
-10 |     missing Int = nowhere;
+Error: no operator `+` accepts (@primitives$Int, @primitives$String); the candidates are `@primitives$Int +(@primitives$Int, @primitives$Int)`; `@primitives$I32 +(@primitives$I32, @primitives$I32)`; `@primitives$I64 +(@primitives$I64, @primitives$I64)`; `@primitives$Float +(@primitives$Float, @primitives$Float)`; ... (in `neverCalled`, which nothing instantiates)
+File "fixtures/typing/reject/bad/uncalled.zn", line 8, characters 19-26:
+8 |     missing Int = nowhere;
   |                   ^^^^^^^
 Error: no name `nowhere` is in scope (in `neverCalled`, which nothing instantiates)
-File "fixtures/typing/reject/bad/uncalled.zn", line 14, characters 58-70:
-14 | Int neverSized(values Array<T Type, n @concepts$Int>) => Int(n) + 2.5
+File "fixtures/typing/reject/bad/uncalled.zn", line 12, characters 58-70:
+12 | Int neverSized(values Array<T Type, n @concepts$Int>) => Int(n) + 2.5
   |                                                          ^^^^^^^^^^^^
-Error: no operator `+` accepts (core$Int, @concepts$Float); the candidates are `core$Bool +(core$Bool, core$Bool)`; `core$Int +(core$Int, core$Int)`; `core$Float +(core$Float, core$Float)`; `core$String +(core$String, core$String)` (in `neverSized`, which nothing instantiates)
-File "fixtures/typing/reject/bad/uncalled.zn", line 19, characters 41-48:
-19 | (this Shelf<T Type>)[index Int] => this.shelves[index]
+Error: no operator `+` accepts (@primitives$Int, @concepts$Float); the candidates are `@primitives$Int +(@primitives$Int, @primitives$Int)`; `@primitives$I32 +(@primitives$I32, @primitives$I32)`; `@primitives$I64 +(@primitives$I64, @primitives$I64)`; `@primitives$Float +(@primitives$Float, @primitives$Float)`; ... (in `neverSized`, which nothing instantiates)
+File "fixtures/typing/reject/bad/uncalled.zn", line 17, characters 41-48:
+17 | (this Shelf<T Type>)[index Int] => this.shelves[index]
   |                                         ^^^^^^^
 Error: `Shelf` has no field `shelves` (in `[]`, which nothing instantiates)
-File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 1-4:
-5 | Int unimported() => guard(true)
-  | ^^^
-Error: no type named `Int` is in scope; the package `core` declares one, and like every package it needs an import
-File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 21-26:
-5 | Int unimported() => guard(true)
-  |                     ^^^^^
-Error: no function named `guard` is in scope; the package `core` declares one, and like every package it needs an import
-File "fixtures/typing/reject/bad/writes.zn", line 17, characters 5-12:
-17 |     counter!tick();
+File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 21-27:
+5 | Int unimported() => helper(Int(1))
+  |                     ^^^^^^
+Error: no function named `helper` is in scope; the package `lib` declares one, and like every package it needs an import
+File "fixtures/typing/reject/bad/writes.zn", line 15, characters 5-12:
+15 |     counter!tick();
   |     ^^^^^^^
 Error: a `!` call writes its subject, and `counter` is a parameter, which is read-only
-File "fixtures/typing/reject/bad/writes.zn", line 18, characters 5-17:
-18 |     tray.counter!tick();
+File "fixtures/typing/reject/bad/writes.zn", line 16, characters 5-17:
+16 |     tray.counter!tick();
   |     ^^^^^^^^^^^^
 Error: a `!` call writes its subject, and `tray` is a parameter, which is read-only
-File "fixtures/typing/reject/bad/writes.zn", line 19, characters 6-35:
-19 |     (crate.held ?? Counter(Int(0)))!tick();
+File "fixtures/typing/reject/bad/writes.zn", line 17, characters 6-35:
+17 |     (crate.held ?? Counter(Int(0)))!tick();
   |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: a `!` call writes its subject, and `crate` is a parameter, which is read-only
-File "fixtures/typing/reject/bad/writes.zn", line 26, characters 5-9:
-26 |     this!tick();
+File "fixtures/typing/reject/bad/writes.zn", line 24, characters 5-9:
+24 |     this!tick();
   |     ^^^^
 Error: a `!` call writes its subject, and `this` is read-only in a method that is not `mut`
-File "fixtures/typing/reject/lib/lib.zn", line 17, characters 21-37:
-17 |     console Console(@program$console);
-  |                     ^^^^^^^^^^^^^^^^
+File "fixtures/typing/reject/lib/lib.zn", line 21, characters 5-21:
+21 |     @program$console!print(text);
+  |     ^^^^^^^^^^^^^^^^
 Error: only the root package reaches `@program$`; `lib` receives the console and runtime from it as an argument

@@ -2,8 +2,6 @@
 /// the arguments that exposed it.
 package bad;
 
-import core$;
-
 T half(value T Type) => value / value
 
 Unit instances() {

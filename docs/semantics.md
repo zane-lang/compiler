@@ -93,10 +93,10 @@ for stages 1 and 2, which never look past the file. It is not enough for stage
   declaration in another.
 - Imports are per file (§3.1), so resolution needs to know which file a
   declaration came from, not only its package.
-- `Int` is not built in. It is a declaration in `core`, "an ordinary package"
-  (`types.md` §2.6), and a file that writes `Int` imports `core` like any other
-  dependency. **No program that writes a literal can be type-checked without a
-  `core` package to check it against.**
+- `Int` is not built in. `types.md` §2.6 makes it a declaration in `core`, "an
+  ordinary package", and a file that writes it imports `core` like any other
+  dependency. Without one, a program writes the storage primitives
+  (`@primitives$Int`) directly or declares its own types over them.
 
 **D2. Semantics takes a set of packages: the root plus its dependencies, each
 given as a directory.** Fetching, versioning and the manifest
@@ -109,21 +109,18 @@ in its directory (§2.3), named for the directory (§2.1). Each file must begin
 with a `package` line naming it (§2.2), and no two directories may share a
 name.
 
-**D3. A minimal `core` is checked in as a test fixture** — `test/core/`, holding
-`Int`, `Float`, `Bool`, `Unit`, `String`, `Array` and `List` over
-`@primitives$`, their operators, the implicit constructors from
-`@concepts$Int`, `@concepts$Float` and `@concepts$String` that carry
-literals into them (`types.md` §2.6), the control-flow verbs of `control-flow.md` §3, and a
-`Console` over `@runtime$Console`. It is the first real multi-file,
-multi-package test input. It is also the first code in the repository that has
-to type-check.
+**D3. The compiler never names `core`.** `core` is an ordinary package
+(`types.md` §2.6), so the compiler reads it as source and checks it by the
+same rules as every other package, and names none of its members. Whether
+`Int` is a distinct type over `@primitives$Int` or a struct wrapping one is
+`core`'s own choice, and the compiler does not care which it makes, just as it
+does not care how any other package writes its types.
 
-Nothing in stage 3 depends on what the fixture declares, or how. `core` is an
-ordinary package (`types.md` §2.6), so the compiler reads it as source and
-checks it by the same rules as every other package. It never names `core` or
-any of its members. Whether `Int` is a distinct type over `@primitives$Int` or a
-struct wrapping one is `core`'s own choice, and the compiler does not care which
-it makes, just as it does not care how any other package writes its types.
+The repository has no `core` yet. Each test fixture writes the storage
+primitives directly, usually under aliases of its own
+(`alias Int = @primitives$Int`), and declares what its test is about: a type
+with implicit constructors from the literal concepts, or the control-flow
+verbs of `control-flow.md` §3 over `@controlflow$`.
 
 The intrinsic namespaces (`@primitives$`, `@concepts$`, `@controlflow$`,
 `@runtime$`, `@program$`) are not packages. They are an OCaml table in
@@ -353,8 +350,8 @@ where it is otherwise always false.
 **D9. Every inserted implicit constructor is a node.**
 `Coerce { ctor : Verb_ref.t; value : Expr.t }` wraps the argument it converted
 and takes that argument's span. A literal passed to an `Int` parameter is
-therefore a `Coerce` of core's implicit `Int` constructor around a
-`Integer_lit`. No later stage re-derives a coercion, and a diagnostic about one
+therefore a `Coerce` of that type's implicit constructor from `@concepts$Int`
+around an `Integer_lit`. No later stage re-derives a coercion, and a diagnostic about one
 can point at the argument that caused it.
 
 **D10. Constructor calls resolve to what they are.** The SST's `Constructor`
@@ -394,7 +391,7 @@ what it added, the way the SST landed:
 
 1. `--package DIR` in the driver, and assembly: files grouped by package, a
    package-line mismatch reported.
-2. The `core` fixture (D3) and the intrinsic table.
+2. The intrinsic table.
 3. Passes 1–2: declaration table and import maps.
 4. Pass 3 and `Ty`: type declarations.
 5. Pass 4: signatures and overload-set checks.
@@ -412,7 +409,7 @@ The driver prints three views of a package build:
 
 Either of the last two prints every diagnostic and no tree when there is one.
 The goldens in `test/semantics/golden/` are those views: `typed.decls` and
-`typed.tst` for a build of `app`, `shapes` and `core` that checks, and
+`typed.tst` for a build of `app` and `shapes` that checks, and
 `typing.err` for a build that fails every way the passes can report, one
 fixture file per area.
 
@@ -476,11 +473,11 @@ they stay out of the spec.
 
 **Literals.** `true` and `false` have the type `@primitives$Bool`; the spec
 names concept types only for numeric and text literals (`syntax.md` §2.8).
-`core`'s implicit `Bool` constructor is what makes them a `Bool` at a coercion
-site.
+A package's implicit constructor from `@primitives$Bool` is what makes them
+its own boolean type at a coercion site.
 
 **The intrinsic table.** Beyond what the spec names, `intrinsics.ml` holds
-what `core` needs to be written at all: the machine arithmetic and comparisons
+what a `core` needs to be written at all: the machine arithmetic and comparisons
 on `@primitives$Int`, `I32`, `I64` and `Float`, the Boolean operators on
 `@primitives$Bool`, concatenation and equality on the opaque
 `@primitives$String`, the implicit constructors that carry an
@@ -589,8 +586,8 @@ only reject more, never let a write through.
 - A case read and what its handler resolves are a place too: the store the
   whole expression feeds decides whether it moves.
 - An intrinsic operator or constructor reads its operands.
-- The runtime's `print` takes `text &@primitives$String`, a guest, so `core`
-  hands it `text.raw`, a field it could not move. The spec declares a plain
+- The runtime's `print` takes `text &@primitives$String`, a guest, so a
+  string type wrapping one hands it its field, which it could not move. The spec declares a plain
   `@primitives$String` (`docs/spec-divergences.md` §9).
 
 **Where a guest source is decided.**

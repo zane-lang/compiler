@@ -6,7 +6,32 @@
 /// open. Each check prints `yes` when it holds and `no` when it does not.
 package hosts;
 
-import core$;
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+/// Runs the block when the condition holds, and reports whether it did.
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+/// Ends its caller's invocation when the condition holds.
+Unit guard(condition Bool) {
+	@controlflow$branch(condition, { @controlflow$exitFromCall(); });
+	return Unit();
+}
 
 type Account = #struct {
 	owner Int;
@@ -102,18 +127,18 @@ Int total(skipped Int) {
 }
 
 Unit check(ok Bool) {
-	yes @primitives$String("yes\n");
-	no @primitives$String("no\n");
-	ran Bool = if(ok) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
 		@program$console!print(yes);
-	}
-	ran:else() {
+	});
+	@controlflow$branch(~ok, {
 		@program$console!print(no);
-	}
+	});
 	return Unit();
 }
 
-@primitives$Unit main() {
+Unit main() {
 	// A host, written through a `mut` method and read through another.
 	a Account = opened(Int(1), Int(5));
 	a!deposit(Int(10));
@@ -129,7 +154,7 @@ Unit check(ok Bool) {
 	// A variant hosting a struct.
 	s Slot = Slot.held(Account(Int(3)));
 	check(match (s) {
-		e empty => Bool(false);
+		e empty => false;
 		h held => h.owner == Int(3);
 	});
 
@@ -153,5 +178,5 @@ Unit check(ok Bool) {
 		count = count + d.balance;
 	}
 	check(count == Int(100000));
-	return @primitives$Unit();
+	return Unit();
 }

@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 /// A header holds `Type` and `@concepts$Int` parameters only
 /// (generics.md §3.3).
 type Scaled<T Type, factor @concepts$Float> = struct { item T; }
@@ -24,7 +22,7 @@ Unit twice(x @concepts$Int, y @concepts$Int) => Unit()
 Unit twice(x @concepts$Float, y @concepts$Float) => Unit()
 
 Unit literals() {
-	numbers Array([Int(1), Int(2), Int(3)]);
+	numbers Array<Int, 3> = @primitives$Array([Int(1), Int(2), Int(3)]);
 
 	/// `Int` converts from integer literals and `Float` from decimal ones
 	/// (types.md §2.6), so neither takes the other's.

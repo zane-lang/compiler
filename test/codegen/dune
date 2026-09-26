@@ -51,20 +51,19 @@
  (action
   (diff golden/temporary.err temporary.err.actual)))
 
-; `counting` is step 2 of docs/lowering.md §8: `core`'s scalars, verbs that
-; call verbs, and `if`, `elif`, `else` and `to` expanded where they are
-; called. Every check it makes prints `yes` when it holds.
+; `counting` is step 2 of docs/lowering.md §8: scalar arithmetic, verbs that
+; call verbs, and the fixture's own `if`, `elif`, `else` and `to` expanded
+; where they are called. Every check it makes prints `yes` when it holds.
 
 (rule
- (deps (source_tree fixtures/counting) (source_tree ../core))
+ (deps (source_tree fixtures/counting))
  (action
   (with-stdout-to
    counting.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/counting
-    --package ../core))))
+    --package fixtures/counting))))
 
 (rule
  (alias runtest)
@@ -72,15 +71,14 @@
   (diff golden/counting.cgt counting.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/counting) (source_tree ../core))
+ (deps (source_tree fixtures/counting))
  (targets counting.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    counting.exe
-   --package fixtures/counting
-   --package ../core)))
+   --package fixtures/counting)))
 
 (rule
  (action
@@ -97,15 +95,14 @@
 ; wrote so far, and says why on stderr.
 
 (rule
- (deps (source_tree fixtures/zero) (source_tree ../core))
+ (deps (source_tree fixtures/zero))
  (targets zero.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    zero.exe
-   --package fixtures/zero
-   --package ../core)))
+   --package fixtures/zero)))
 
 (rule
  (action
@@ -125,15 +122,14 @@
 ; Every check it makes prints `yes` when it holds and `no` when it does not.
 
 (rule
- (deps (source_tree fixtures/shapes) (source_tree ../core))
+ (deps (source_tree fixtures/shapes))
  (action
   (with-stdout-to
    shapes.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/shapes
-    --package ../core))))
+    --package fixtures/shapes))))
 
 (rule
  (alias runtest)
@@ -141,15 +137,14 @@
   (diff golden/shapes.cgt shapes.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/shapes) (source_tree ../core))
+ (deps (source_tree fixtures/shapes))
  (targets shapes.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    shapes.exe
-   --package fixtures/shapes
-   --package ../core)))
+   --package fixtures/shapes)))
 
 (rule
  (action
@@ -168,15 +163,14 @@
 ; never reached.
 
 (rule
- (deps (source_tree fixtures/outcomes) (source_tree ../core))
+ (deps (source_tree fixtures/outcomes))
  (action
   (with-stdout-to
    outcomes.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/outcomes
-    --package ../core))))
+    --package fixtures/outcomes))))
 
 (rule
  (alias runtest)
@@ -184,15 +178,14 @@
   (diff golden/outcomes.cgt outcomes.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/outcomes) (source_tree ../core))
+ (deps (source_tree fixtures/outcomes))
  (targets outcomes.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    outcomes.exe
-   --package fixtures/outcomes
-   --package ../core)))
+   --package fixtures/outcomes)))
 
 (rule
  (action
@@ -212,15 +205,14 @@
 ; open, so a missed drain fails the run.
 
 (rule
- (deps (source_tree fixtures/hosts) (source_tree ../core))
+ (deps (source_tree fixtures/hosts))
  (action
   (with-stdout-to
    hosts.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/hosts
-    --package ../core))))
+    --package fixtures/hosts))))
 
 (rule
  (alias runtest)
@@ -228,15 +220,14 @@
   (diff golden/hosts.cgt hosts.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/hosts) (source_tree ../core))
+ (deps (source_tree fixtures/hosts))
  (targets hosts.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    hosts.exe
-   --package fixtures/hosts
-   --package ../core)))
+   --package fixtures/hosts)))
 
 (rule
  (action
@@ -255,15 +246,14 @@
 ; merges and a variant payload's float.
 
 (rule
- (deps (source_tree fixtures/guests) (source_tree ../core))
+ (deps (source_tree fixtures/guests))
  (action
   (with-stdout-to
    guests.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/guests
-    --package ../core))))
+    --package fixtures/guests))))
 
 (rule
  (alias runtest)
@@ -271,15 +261,14 @@
   (diff golden/guests.cgt guests.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/guests) (source_tree ../core))
+ (deps (source_tree fixtures/guests))
  (targets guests.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    guests.exe
-   --package fixtures/guests
-   --package ../core)))
+   --package fixtures/guests)))
 
 (rule
  (action
@@ -298,15 +287,14 @@
 ; that ends with a block still out.
 
 (rule
- (deps (source_tree fixtures/texts) (source_tree ../core))
+ (deps (source_tree fixtures/texts))
  (action
   (with-stdout-to
    texts.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/texts
-    --package ../core))))
+    --package fixtures/texts))))
 
 (rule
  (alias runtest)
@@ -314,15 +302,14 @@
   (diff golden/texts.cgt texts.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/texts) (source_tree ../core))
+ (deps (source_tree fixtures/texts))
  (targets texts.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    texts.exe
-   --package fixtures/texts
-   --package ../core)))
+   --package fixtures/texts)))
 
 (rule
  (action

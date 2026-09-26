@@ -2,7 +2,7 @@
 /// after what it wrote so far (docs/lowering.md §9).
 package zero;
 
-import core$;
+alias Int = @primitives$Int
 
 Int zero() => Int(0)
 

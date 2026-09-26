@@ -70,10 +70,10 @@
   (diff golden/reject.packages.err reject.packages.err.actual)))
 
 ; Stage 3 proper (docs/semantics.md §3). `typed` is a build that checks: the
-; root `app`, a second package `shapes` whose methods, operators and implicit
-; constructors travel with its types, and the `core` fixture of D3. Its
-; `--decls` view is what passes 1 to 4 resolved, and its `--tst` view the whole
-; typed tree, generic instances included.
+; root `app`, and a second package `shapes` whose methods, operators and
+; implicit constructors travel with its types. Its `--decls` view is what
+; passes 1 to 4 resolved, and its `--tst` view the whole typed tree, generic
+; instances included.
 ;
 ; `typing` is one build that fails every way the passes can report: one file
 ; per area in the root package `bad`, and `lib`, a dependency that reaches for
@@ -81,7 +81,7 @@
 ; problem was reported in one run.
 
 (rule
- (deps (source_tree fixtures/typed) (source_tree ../core))
+ (deps (source_tree fixtures/typed))
  (action
   (with-stdout-to
    typed.decls.actual
@@ -89,8 +89,7 @@
     %{exe:../../bin/compiler/main.exe}
     --decls
     --package fixtures/typed/app
-    --package fixtures/typed/shapes
-    --package ../core))))
+    --package fixtures/typed/shapes))))
 
 (rule
  (alias runtest)
@@ -98,7 +97,7 @@
   (diff golden/typed.decls typed.decls.actual)))
 
 (rule
- (deps (source_tree fixtures/typed) (source_tree ../core))
+ (deps (source_tree fixtures/typed))
  (action
   (with-stdout-to
    typed.tst.actual
@@ -106,8 +105,7 @@
     %{exe:../../bin/compiler/main.exe}
     --tst
     --package fixtures/typed/app
-    --package fixtures/typed/shapes
-    --package ../core))))
+    --package fixtures/typed/shapes))))
 
 (rule
  (alias runtest)
@@ -115,7 +113,7 @@
   (diff golden/typed.tst typed.tst.actual)))
 
 (rule
- (deps (source_tree fixtures/typing) (source_tree ../core))
+ (deps (source_tree fixtures/typing))
  (action
   (with-stderr-to
    typing.err.actual
@@ -125,8 +123,7 @@
      %{exe:../../bin/compiler/main.exe}
      --tst
      --package fixtures/typing/reject/bad
-     --package fixtures/typing/reject/lib
-     --package ../core)))))
+     --package fixtures/typing/reject/lib)))))
 
 (rule
  (alias runtest)
@@ -141,7 +138,7 @@
 ; read and promoted the same way as there.
 
 (rule
- (deps (source_tree fixtures/typed) (source_tree ../core))
+ (deps (source_tree fixtures/typed))
  (action
   (with-stdout-to
    typed.tst.spans.actual
@@ -149,8 +146,7 @@
     %{exe:../../tools/parser/span_dump.exe}
     --tst
     --package fixtures/typed/app
-    --package fixtures/typed/shapes
-    --package ../core))))
+    --package fixtures/typed/shapes))))
 
 (rule
  (alias runtest)

@@ -3,7 +3,32 @@
 /// `guard`. Each check prints `yes` when it holds and `no` when it does not.
 package outcomes;
 
-import core$;
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+/// Runs the block when the condition holds, and reports whether it did.
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+/// Ends its caller's invocation when the condition holds.
+Unit guard(condition Bool) {
+	@controlflow$branch(condition, { @controlflow$exitFromCall(); });
+	return Unit();
+}
 
 /// Aborts with the dividend when the divisor is zero.
 Int?Int divide(a Int, b Int) {
@@ -64,18 +89,18 @@ Unit addAllBut(this Int, skipped Int) mut {
 }
 
 Unit check(ok Bool) {
-	yes @primitives$String("yes\n");
-	no @primitives$String("no\n");
-	ran Bool = if(ok) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
 		@program$console!print(yes);
-	}
-	ran:else() {
+	});
+	@controlflow$branch(~ok, {
 		@program$console!print(no);
-	}
+	});
 	return Unit();
 }
 
-@primitives$Unit main() {
+Unit main() {
 	// The primary path, and the handler's `resolve`.
 	check((divide(Int(6), Int(3)) ? e { resolve Int(0); }) == Int(2));
 	check((divide(Int(6), Int(0)) ? e { resolve e + Int(1); }) == Int(7));
@@ -96,14 +121,14 @@ Unit check(ok Bool) {
 	check(rescued(Int(8), Int(0)) == Int(42));
 
 	// A `Unit` primary path.
-	passed Bool(true);
-	require(Bool(true)) ? u {
-		passed = Bool(false);
+	passed Bool = true;
+	require(true) ? u {
+		passed = false;
 		resolve Unit();
 	}
 	check(passed);
-	require(Bool(false)) ? u {
-		passed = Bool(false);
+	require(false) ? u {
+		passed = false;
 		resolve Unit();
 	}
 	check(~passed);
@@ -123,9 +148,9 @@ Unit check(ok Bool) {
 	sum Int(0);
 	sum!addAllBut(Int(3));
 	check(sum == Int(52));
-	if(Bool(true)) {
-		guard(Bool(true));
-		check(Bool(false));
+	if(true) {
+		guard(true);
+		check(false);
 	}
-	return @primitives$Unit();
+	return Unit();
 }

@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Bell = #struct { tone Int; }
 type Rack = #struct { bell Bell; hook &Bell; }
 type Slot = #variant { full Bell; empty Int; }
@@ -27,7 +25,7 @@ Unit mint(rack Rack, bells List<Bell>, hooks List<&Bell>, slot Slot) {
 		x full => ring(x).tone;
 		empty => Int(0);
 	}
-	tones List<Int> = List(Int);
+	tones List<Int> = @primitives$List(Int);
 	tones[weight(bells[Int(0)])] = Int(1);
 	return Unit();
 }
