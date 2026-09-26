@@ -22,6 +22,8 @@ let rec expr (e : Expr.t) =
   | Expr.Runtime { fn; args } -> call "runtime" fn args
 
 let stat = function
+  | Stat.Let { id; value } ->
+      group "let" (fields [ ("local", Leaf (Printf.sprintf "#%d" id)); ("value", expr value) ])
   | Stat.Eval e -> group "eval" (expr e)
   | Stat.Return e -> group "return" (expr e)
 

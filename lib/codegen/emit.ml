@@ -57,7 +57,8 @@ let rec expr env b locals (e : Expr.t) : Llvm.llvalue option =
   | Expr.Bool v -> Some (Llvm.const_int (Llvm.i1_type env.ctx) (if v then 1 else 0))
   | Expr.Text s -> Some (text env s)
   | Expr.Unit -> None
-  | Expr.Local id -> Hashtbl.find_opt locals id
+  | Expr.Local id ->
+      Option.map (fun (slot, t) -> Llvm.build_load t slot "" b) (Hashtbl.find_opt locals id)
   | Expr.Call { fn; args } ->
       let f, fty = Hashtbl.find env.funcs fn in
       let args = Array.of_list (List.filter_map (expr env b locals) args) in
@@ -70,7 +71,9 @@ let rec expr env b locals (e : Expr.t) : Llvm.llvalue option =
           (fun (a : Expr.t) ->
             match (a.Expr.ty, expr env b locals a) with
             | Ty.View, Some v ->
-                [ Llvm.build_extractvalue v 0 "" b; Llvm.build_extractvalue v 1 "" b ]
+                let bytes = Llvm.build_extractvalue v 0 "" b in
+                let length = Llvm.build_extractvalue v 1 "" b in
+                [ bytes; length ]
             | _, Some v -> [ v ]
             | _, None -> [])
           args
@@ -85,13 +88,28 @@ let func env (f : Func.t) =
   let fn, _ = Hashtbl.find env.funcs f.Func.symbol in
   (* `define_function` gives the function its entry block already. *)
   let b = Llvm.builder_at_end env.ctx (Llvm.entry_block fn) in
+  (* Every local is a stack slot in the entry block (L3); LLVM's `mem2reg`
+     promotes the ones that can live in registers. A parameter is stored
+     into one like any other. *)
   let locals = Hashtbl.create 8 in
+  let slot id t =
+    let top = Llvm.builder_at env.ctx (Llvm.instr_begin (Llvm.entry_block fn)) in
+    let s = Llvm.build_alloca t "" top in
+    Hashtbl.replace locals id (s, t);
+    s
+  in
   let kept = List.filter (fun (_, t) -> t <> Ty.Void) f.Func.params in
-  List.iteri (fun i (id, _) -> Hashtbl.replace locals id (Llvm.param fn i)) kept;
+  List.iteri
+    (fun i (id, t) -> ignore (Llvm.build_store (Llvm.param fn i) (slot id (lltype env t)) b))
+    kept;
   List.iter
     (fun (s : Stat.t) ->
       if not (has_terminator b) then
         match s with
+        | Stat.Let { id; value } -> (
+            match expr env b locals value with
+            | Some v -> ignore (Llvm.build_store v (slot id (Llvm.type_of v)) b)
+            | None -> ())
         | Stat.Eval e -> ignore (expr env b locals e)
         | Stat.Return e -> (
             match expr env b locals e with

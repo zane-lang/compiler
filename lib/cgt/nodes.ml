@@ -36,8 +36,10 @@ module Expr = struct
     | Runtime of { fn : string; args : t list }
 end
 
+(* A local is a slot the function owns (L3): [Let] fills it, and
+   [Expr.Local] reads it. *)
 module Stat = struct
-  type t = Eval of Expr.t | Return of Expr.t
+  type t = Let of { id : int; value : Expr.t } | Eval of Expr.t | Return of Expr.t
 end
 
 module Func = struct

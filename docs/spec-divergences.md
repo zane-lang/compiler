@@ -351,6 +351,36 @@ mention one. It needs a digit on each side, and none of the loose operators of
 (`docs/ambiguity/proof-obligations.md`). Reconciling means either the spec
 adopting the separator or the lexer dropping it.
 
+## 9. The console's `print` takes a guest
+
+**Spec** — [`effects.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/effects.md)
+§6.6, as of `7fa876f`, which introduced it:
+
+```zane
+@primitives$Unit print(this @runtime$Console, text @primitives$String) mut
+```
+
+`@primitives$String` is a reference type ([`types.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/types.md)
+§2.7), so a plain parameter of it swallows its argument: the caller moves a
+view in.
+
+**Compiler** — `text &@primitives$String`, a guest. `print` writes the view
+out and keeps nothing, which is what a guest parameter is for. Zane has no
+borrow of a reference type, and a guest differs from one only in taking a
+place rather than any expression, so a view built for the call is stored
+first:
+
+```zane
+text @primitives$String("hello world");
+@program$console!print(text);                               // accepted
+@program$console!print(@primitives$String("hello world"));  // rejected: a temporary
+```
+
+A swallowing `print` would also leave `core`'s `String` no way to reach the
+console, since its view is a field (`text.raw`), and a field is not a
+move-source ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/lifetimes.md)
+§1.2). Reconciling means the spec declaring the parameter `&@primitives$String`.
+
 ---
 
 ## Closed

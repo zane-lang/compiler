@@ -33,3 +33,20 @@
  (alias runtest)
  (action
   (diff golden/hello.out hello.out.actual)))
+
+; `temporary` is hello written without storing the view first. Semantics
+; rejects it before lowering starts.
+
+(rule
+ (deps (source_tree fixtures/temporary))
+ (action
+  (with-stderr-to
+   temporary.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/compiler/main.exe} --build temporary.exe --package fixtures/temporary)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/temporary.err temporary.err.actual)))

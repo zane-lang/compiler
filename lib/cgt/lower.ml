@@ -121,7 +121,8 @@ let rec expr st (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$print"; _ }; args; handler = None }
     -> (
       (* The program has one console (effects.md §6.6), so the subject names
-         nothing the runtime needs. *)
+         nothing the runtime needs. The text is a guest to a place in this
+         frame, and the runtime reads the view stored there (L10). *)
       match args with
       | [ T.Arg.Value _console; T.Arg.Value text ] ->
           {
@@ -146,6 +147,7 @@ let rec expr st (e : T.Expr.t) : Expr.t =
 
 let stat st (s : T.Stat.t) : Stat.t =
   match s.T.Stat.node with
+  | T.Stat.Let { local; value } -> Stat.Let { id = local.T.Local.id; value = expr st value }
   | T.Stat.Expr e -> Stat.Eval (expr st e)
   | T.Stat.Return e -> Stat.Return (expr st e)
   | _ -> refuse s.T.Stat.span "lowering does not handle this statement yet"

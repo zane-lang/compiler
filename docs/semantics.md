@@ -583,10 +583,10 @@ only reject more, never let a write through.
   out; reading `list[i]` into a host is what the move rule then rejects.
 - A case read and what its handler resolves are a place too: the store the
   whole expression feeds decides whether it moves.
-- An intrinsic operator or constructor reads its operands. So does the
-  runtime's `print`: its `text @primitives$String` is a view it writes out and
-  keeps nothing of (`effects.md` §6.6), so `core` can hand it `text.raw`, a
-  field, which could not be moved. `push` is not one: it keeps its value.
+- An intrinsic operator or constructor reads its operands.
+- The runtime's `print` takes `text &@primitives$String`, a guest, so `core`
+  hands it `text.raw`, a field it could not move. The spec declares a plain
+  `@primitives$String` (`docs/spec-divergences.md` §9).
 
 **Where a guest source is decided.**
 - A `match` binder is its case's payload, so no guest is minted from it.
