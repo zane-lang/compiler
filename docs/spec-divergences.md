@@ -1,9 +1,10 @@
 # Where the compiler differs from the spec
 
 The [spec](https://github.com/zane-lang/spec) is authoritative for anything not
-listed here. This file records the places the parser deliberately accepts
-something else, so a contributor reading a spec section and then the grammar
-knows which of the two is currently ahead.
+listed here. This file records the places the compiler deliberately does
+something else, or decides something the spec leaves open, so a contributor
+reading a spec section and then the compiler knows which of the two is
+currently ahead.
 
 The syntax is still experimental, so divergences are expected to appear and
 close. The intent is to reconcile in the spec's direction once the surface
@@ -380,6 +381,26 @@ A swallowing `print` would also leave `core`'s `String` no way to reach the
 console, since its view is a field (`text.raw`), and a field is not a
 move-source ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/lifetimes.md)
 §1.2). Reconciling means the spec declaring the parameter `&@primitives$String`.
+
+## 10. An integer division by zero stops the program
+
+**Spec** — silent. [`operators.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/operators.md)
+§4.3 says division is declared rather than derived, and nothing says what
+`@primitives$Int`'s `/` does when the divisor is zero, or when the quotient
+does not fit.
+
+**Compiler** — the program stops: what it wrote so far is flushed, the
+runtime writes `division by zero` to stderr, and the status is 1. The one
+quotient an `i64` cannot hold, the most negative value over `-1`, wraps, as
+`+` and `*` do. `test/codegen/fixtures/zero` is the case, and
+`docs/lowering.md` §9 the decision.
+
+```zane
+quotient Int = Int(1) / zero();   // stops here, status 1
+```
+
+Reconciling means the spec stating an outcome; once aborts lower (step 4 of
+`docs/lowering.md` §8), making `/` abortable is the other candidate.
 
 ---
 

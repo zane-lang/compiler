@@ -26,8 +26,9 @@ type verb = { decl : int; signature : S.t; params : T.Local.t list; body : T.Blo
 (* What a TST local stands for where lowering reads it. A verb that is
    expanded (L11) binds its parameters to these: a slot of the function it is
    expanded into, a literal its concept parameter was given, or the code of a
-   block argument. *)
-type binding = Slot of int | Literal of T.Expr.t | Code of closure
+   block argument. A `mut` subject is a [Pointer]: a slot holding the address
+   of the caller's place (L6). *)
+type binding = Slot of int | Pointer of int | Literal of T.Expr.t | Code of closure
 
 (* A block argument keeps the context it was written in, so its locals and
    its `return` mean what they meant there. *)
@@ -49,6 +50,8 @@ type state = {
   verbs : (int, verb) Hashtbl.t;
   (* Each declared type's definition and whether it is a reference type. *)
   types : (string * string, T.Decl.definition * bool) Hashtbl.t;
+  (* Each enum map: the enum it ranges over, and its entries. *)
+  maps : (int, Tty.t * (string * T.Expr.t) list) Hashtbl.t;
   (* Symbols already lowered or on their way, and the verbs still to lower. *)
   symbols : (int, string) Hashtbl.t;
   pending : verb Queue.t;
@@ -67,10 +70,22 @@ let fresh st =
 let unhandled span t =
   refuse span (Printf.sprintf "lowering does not handle `%s` yet" (Tty.to_string t))
 
-(* L5: a storage primitive has a machine layout, and a value struct around
-   one member has that member's (concepts-vs-primitives.md). An empty value
-   struct, like `core`'s `Unit`, has no storage. *)
-let rec ty st span (t : Tty.t) : Nodes.Ty.t =
+let definition st (t : Tty.t) =
+  match t with
+  | Tty.Named ({ package; name }, []) -> Hashtbl.find_opt st.types (package, name)
+  | _ -> None
+
+(* A value struct of one member is that member (L5), so reading or storing
+   the member is reading or storing the struct. *)
+let collapsed st t =
+  match definition st t with Some (T.Decl.Struct [ _ ], false) -> true | _ -> false
+
+(* L5: a storage primitive has a machine layout. A value struct has its
+   members' in declaration order, except that one of a single member has that
+   member's (concepts-vs-primitives.md) and an empty one, like `core`'s
+   `Unit`, has none. A value variant is a sum of its payloads, and an enum a
+   sum of cases with none. *)
+let rec ty ?(seen = []) st span (t : Tty.t) : Nodes.Ty.t =
   match t with
   | Tty.Intrinsic { namespace = "primitives"; name; args = [] } -> (
       match name with
@@ -80,12 +95,35 @@ let rec ty st span (t : Tty.t) : Nodes.Ty.t =
       | "Float" -> Nodes.Ty.F64
       | "String" -> Nodes.Ty.View
       | _ -> unhandled span t)
-  | Tty.Named ({ package; name }, []) -> (
-      match Hashtbl.find_opt st.types (package, name) with
+  | Tty.Named (id, []) -> (
+      (* A value type that contains itself has a boxed member (adt.md §4),
+         which lives in the dynamic region (step 7). *)
+      if List.mem id seen then unhandled span t;
+      let member = ty ~seen:(id :: seen) st span in
+      match definition st t with
       | Some (T.Decl.Struct [], false) -> Nodes.Ty.Void
-      | Some (T.Decl.Struct [ (_, member) ], false) -> ty st span member
+      | Some (T.Decl.Struct [ (_, m) ], false) -> member m
+      | Some (T.Decl.Struct ms, false) -> Nodes.Ty.Struct (List.map (fun (_, m) -> member m) ms)
+      | Some (T.Decl.Variant cs, false) -> Nodes.Ty.Sum (List.map (fun (_, c) -> member c) cs)
+      | Some (T.Decl.Enum cs, _) -> Nodes.Ty.Sum (List.map (fun _ -> Nodes.Ty.Void) cs)
+      | Some (T.Decl.Distinct u, false) -> member u
       | _ -> unhandled span t)
   | _ -> unhandled span t
+
+(* The cases of a variant or enum, in declaration order. *)
+let cases st span t =
+  match definition st t with
+  | Some (T.Decl.Variant cs, _) -> List.map fst cs
+  | Some (T.Decl.Enum cs, _) -> cs
+  | _ -> unhandled span t
+
+let case_index st span t case =
+  let rec find i = function
+    | [] -> refuse span (Printf.sprintf "`%s` has no case `%s`" (Tty.to_string t) case)
+    | c :: _ when c = case -> i
+    | _ :: rest -> find (i + 1) rest
+  in
+  find 0 (cases st span t)
 
 (* ---------------------------------------------------------------------- *)
 (* Literals                                                               *)
@@ -184,6 +222,11 @@ let expands (v : verb) =
     (fun (p : T.Local.t) -> match p.T.Local.ty with Tty.Concept _ -> true | _ -> false)
     v.params
 
+(* A `mut` method's subject, which is passed by address (L6). *)
+let is_subject (v : verb) (p : T.Local.t) = v.signature.S.is_mut && p.T.Local.name = "this"
+
+let deref id t = { Expr.node = Expr.Deref { Expr.node = Expr.Local id; ty = Nodes.Ty.Ptr }; ty = t }
+
 let binop : Sst.Nodes.Operator.node -> Expr.binop = function
   | Add -> Expr.Add
   | Mul -> Expr.Mul
@@ -212,6 +255,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Var (T.Name_ref.Local l) -> (
       match lookup ctx span l with
       | Slot id -> { Expr.node = Expr.Local id; ty = ty st span l.T.Local.ty }
+      | Pointer id -> deref id (ty st span l.T.Local.ty)
       | Literal _ | Code _ -> refuse span "lowering does not read this parameter as a value")
   | T.Expr.Bool_lit b -> { Expr.node = Expr.Bool b; ty = Nodes.Ty.I1 }
   | T.Expr.Construct { ctor = { owner = S.Intrinsic spelling; _ }; args; handler = None } ->
@@ -257,13 +301,133 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       { Expr.node = Expr.Flip (expr st ctx value); ty = ty st span e.T.Expr.ty }
   | T.Expr.Flip { impl = { owner = S.Declared id; instance = []; _ }; value; handler = None } ->
       call st ctx span id [ T.Arg.Value value ] e.T.Expr.ty
-  (* A value struct around one member is that member (L5), so reading the
-     member is reading the struct, and building the struct is building the
-     member. *)
-  | T.Expr.Field { target; _ } -> { (expr st ctx target) with ty = ty st span e.T.Expr.ty }
-  | T.Expr.Init [] -> { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
-  | T.Expr.Init [ f ] -> { (expr st ctx f.T.Field_value.value) with ty = ty st span e.T.Expr.ty }
+  | T.Expr.Field { target; slot; _ } ->
+      let t = ty st span e.T.Expr.ty in
+      if collapsed st target.T.Expr.ty then { (expr st ctx target) with ty = t }
+      else { Expr.node = Expr.Member { value = expr st ctx target; index = slot }; ty = t }
+  | T.Expr.Init fields | T.Expr.Construct_fields { fields; handler = None; _ } ->
+      record st ctx span e.T.Expr.ty fields
+  | T.Expr.Case { case; payload } ->
+      let index = case_index st span e.T.Expr.ty case in
+      let payload = expr st ctx payload in
+      { Expr.node = Expr.Case { index; payload }; ty = ty st span e.T.Expr.ty }
+  | T.Expr.Enum_member case ->
+      let index = case_index st span e.T.Expr.ty case in
+      let payload = { Expr.node = Expr.Unit; ty = Nodes.Ty.Void } in
+      { Expr.node = Expr.Case { index; payload }; ty = ty st span e.T.Expr.ty }
+  | T.Expr.Match { scrutinees; arms; handler = None } ->
+      match_ st ctx span scrutinees arms e.T.Expr.ty
+  | T.Expr.Map_read { target; map; _ } -> map_read st ctx span target map e.T.Expr.ty
   | _ -> refuse span "lowering does not handle this expression yet"
+
+(* A struct built member by member, in the order they were written. One of a
+   single member is that member, and an empty one is nothing (L5). *)
+and record st ctx span t (fields : T.Field_value.t list) =
+  let lowered = ty st span t in
+  match (lowered, fields) with
+  | Nodes.Ty.Void, [] -> { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
+  | Nodes.Ty.Struct members, _ when List.length members = List.length fields ->
+      let fields =
+        List.map (fun (f : T.Field_value.t) -> (f.T.Field_value.slot, expr st ctx f.value)) fields
+      in
+      { Expr.node = Expr.Record fields; ty = lowered }
+  | _, [ f ] when collapsed st t -> { (expr st ctx f.T.Field_value.value) with ty = lowered }
+  | _ -> refuse span "lowering does not fill a member's default yet"
+
+(* L13. The scrutinees are stored once, in order, and a switch on each one's
+   tag nests inside the last; the semantic pass wrote one arm per
+   combination of cases, so each arm is lowered once, where its combination
+   is reached. A `return` in an arm is the `match`'s value. *)
+and match_ st ctx span scrutinees (arms : T.Arm.t list) ret =
+  let t = ty st span ret in
+  let label = fresh st in
+  let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
+  let stored =
+    List.map
+      (fun (e : T.Expr.t) ->
+        let value = expr st ctx e in
+        let id = fresh st in
+        (id, value.Expr.ty, e.T.Expr.ty, Stat.Let { id; value }))
+      scrutinees
+  in
+  let inner = { ctx with exit = Leave { label; result } } in
+  let selects chosen (a : T.Arm.t) =
+    List.map (fun (p : T.Pattern.t) -> p.T.Pattern.case) a.patterns = chosen
+  in
+  let arm chosen =
+    match List.find_opt (selects chosen) arms with
+    | None -> refuse span "lowering found no arm for a combination of cases"
+    | Some a ->
+        let binds =
+          List.concat
+            (List.map2
+               (fun (p : T.Pattern.t) (id, sty, tsty, _) ->
+                 match p.T.Pattern.binder with
+                 | None -> []
+                 | Some l ->
+                     let index = case_index st span tsty p.case in
+                     let payload = ty st span l.T.Local.ty in
+                     let source = { Expr.node = Expr.Local id; ty = sty } in
+                     let value =
+                       { Expr.node = Expr.Payload { value = source; index }; ty = payload }
+                     in
+                     let bound = fresh st in
+                     Hashtbl.replace ctx.env l.T.Local.id (Slot bound);
+                     [ Stat.Let { id = bound; value } ])
+               a.patterns stored)
+        in
+        binds @ block st inner a.body
+  in
+  let rec dispatch chosen = function
+    | [] -> arm (List.rev chosen)
+    | (id, sty, tsty, _) :: rest ->
+        let cases =
+          List.mapi (fun i c -> (i, dispatch (c :: chosen) rest)) (cases st span tsty)
+        in
+        [ Stat.Switch { value = { Expr.node = Expr.Local id; ty = sty }; cases } ]
+  in
+  let lets = List.map (fun (_, _, _, l) -> l) stored in
+  { Expr.node = Expr.Expand { label; body = lets @ dispatch [] stored; result }; ty = t }
+
+(* An enum map read is a switch on the member, each case giving its entry. *)
+and map_read st ctx span target map ret =
+  match Hashtbl.find_opt st.maps map with
+  | None -> refuse span "lowering found no enum map here"
+  | Some (enum, entries) ->
+      let t = ty st span ret in
+      let label = fresh st in
+      let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
+      let value = expr st ctx target in
+      let id = fresh st in
+      let entry_ctx = { env = Hashtbl.create 1; exit = Function; expanding = ctx.expanding } in
+      let cases =
+        List.mapi
+          (fun i member ->
+            match List.assoc_opt member entries with
+            | Some e -> (i, leave label result (expr st entry_ctx e))
+            | None -> refuse span (Printf.sprintf "the enum map has no entry for `%s`" member))
+          (cases st span enum)
+      in
+      {
+        Expr.node =
+          Expr.Expand
+            {
+              label;
+              body =
+                [
+                  Stat.Let { id; value };
+                  Stat.Switch { value = { Expr.node = Expr.Local id; ty = value.Expr.ty }; cases };
+                ];
+              result;
+            };
+        ty = t;
+      }
+
+(* What a `return` to an expansion does: store the result, and leave. *)
+and leave label result value =
+  match result with
+  | Some id -> [ Stat.assign id value; Stat.Leave label ]
+  | None -> [ Stat.Eval value; Stat.Leave label ]
 
 (* Two operands stored in the order they are given, then combined. *)
 and in_order st ctx t first second combine =
@@ -281,7 +445,7 @@ and in_order st ctx t first second combine =
       Expr.Expand
         {
           label;
-          body = [ let_a; let_b; Stat.Assign { id = result; value = combine a b } ];
+          body = [ let_a; let_b; Stat.assign result (combine a b) ];
           result = Some result;
         };
     ty = t;
@@ -292,19 +456,31 @@ and call st ctx span id args ret : Expr.t =
   | None -> refuse span "lowering does not handle a call to this verb yet"
   | Some v when expands v -> expand st ctx span v args ret
   | Some v ->
-      if v.signature.S.is_mut then refuse span "lowering does not pass a `mut` subject yet";
       let args =
-        List.map
-          (function
+        List.map2
+          (fun (p : T.Local.t) arg ->
+            match arg with
+            | T.Arg.Value a when is_subject v p -> address st ctx span a
             | T.Arg.Value a -> expr st ctx a
             | T.Arg.Block _ -> refuse span "lowering does not expand block arguments here")
-          args
+          v.params args
       in
       { Expr.node = Expr.Call { fn = symbol st v; args }; ty = ty st span ret }
 
 (* L11. A parameter is bound to what it stands for in the body: a block
    argument to its code, a literal to itself, the subject to the caller's
    place, and any other argument to a new slot holding its value (L6). *)
+(* L6: a `mut` subject is passed as the address of the caller's place. *)
+and address st ctx span (a : T.Expr.t) =
+  let ptr node = { Expr.node; ty = Nodes.Ty.Ptr } in
+  match a.T.Expr.node with
+  | T.Expr.Var (T.Name_ref.Local l) -> (
+      match lookup ctx span l with
+      | Slot id -> ptr (Expr.Address id)
+      | Pointer id -> ptr (Expr.Local id)
+      | _ -> refuse span "lowering expected a place here")
+  | _ -> refuse span "lowering does not pass a `mut` subject other than a local yet"
+
 and expand st ctx span v args ret =
   if List.mem v.decl ctx.expanding then
     refuse span (Printf.sprintf "`%s` expands into itself" v.signature.S.name);
@@ -335,8 +511,8 @@ and expand st ctx span v args ret =
            | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ }, _
              when p.T.Local.name = "this" -> (
                match lookup ctx span l with
-               | Slot id ->
-                   bind p (Slot id);
+               | (Slot _ | Pointer _) as b ->
+                   bind p b;
                    []
                | _ -> refuse span "lowering expected a place here")
            (* A `mut` method writes its subject, so a copy would lose the
@@ -356,7 +532,9 @@ and expand st ctx span v args ret =
   let inner = { env; exit = Leave { label; result }; expanding = v.decl :: ctx.expanding } in
   match binds @ block st inner v.body with
   (* A body that only returns a value is that value. *)
-  | [ Stat.Assign { id; value }; Stat.Leave l ] when Some id = result && l = label -> value
+  | [ Stat.Assign { place = { local; path = []; deref = false; _ }; value }; Stat.Leave l ]
+    when Some local = result && l = label ->
+      value
   | [ Stat.Eval value; Stat.Leave l ] when result = None && l = label -> value
   | body -> { Expr.node = Expr.Expand { label; body; result }; ty = t }
 
@@ -380,10 +558,9 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       let id = fresh st in
       Hashtbl.replace ctx.env local.T.Local.id (Slot id);
       [ Stat.Let { id; value } ]
-  | T.Stat.Assign { target = { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ }; value } -> (
-      match lookup ctx span l with
-      | Slot id -> [ Stat.Assign { id; value = expr st ctx value } ]
-      | _ -> refuse span "lowering expected a place here")
+  | T.Stat.Assign { target; value } ->
+      let place = place st ctx span target in
+      [ Stat.Assign { place; value = expr st ctx value } ]
   | T.Stat.Expr
       {
         T.Expr.node =
@@ -404,9 +581,23 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       let value = expr st ctx e in
       match ctx.exit with
       | Function -> [ Stat.Return value ]
-      | Leave { label; result = Some id } -> [ Stat.Assign { id; value }; Stat.Leave label ]
-      | Leave { label; result = None } -> [ Stat.Eval value; Stat.Leave label ])
+      | Leave { label; result } -> leave label result value)
   | _ -> refuse span "lowering does not handle this statement yet"
+
+(* Where an assignment stores: a local, or the place a `mut` subject points
+   at, and the members below it. A struct of one member adds no step. *)
+and place st ctx span (target : T.Expr.t) : Expr.place =
+  match target.T.Expr.node with
+  | T.Expr.Var (T.Name_ref.Local l) -> (
+      let t = ty st span l.T.Local.ty in
+      match lookup ctx span l with
+      | Slot local -> { local; deref = false; ty = t; path = [] }
+      | Pointer local -> { local; deref = true; ty = t; path = [] }
+      | _ -> refuse span "lowering expected a place here")
+  | T.Expr.Field { target = inner; slot; _ } ->
+      let p = place st ctx span inner in
+      if collapsed st inner.T.Expr.ty then p else { p with path = p.path @ [ slot ] }
+  | _ -> refuse span "lowering does not store into this place yet"
 
 let func st (v : verb) : Func.t =
   let span = v.body.T.Block.span in
@@ -416,8 +607,14 @@ let func st (v : verb) : Func.t =
     List.map
       (fun (p : T.Local.t) ->
         let id = fresh st in
-        Hashtbl.replace env p.T.Local.id (Slot id);
-        (id, ty st p.T.Local.span p.T.Local.ty))
+        if is_subject v p then begin
+          Hashtbl.replace env p.T.Local.id (Pointer id);
+          (id, Nodes.Ty.Ptr)
+        end
+        else begin
+          Hashtbl.replace env p.T.Local.id (Slot id);
+          (id, ty st p.T.Local.span p.T.Local.ty)
+        end)
       v.params
   in
   let ctx = { env; exit = Function; expanding = [] } in
@@ -437,6 +634,7 @@ let program (p : T.Program.t) =
     {
       verbs = Hashtbl.create 64;
       types = Hashtbl.create 64;
+      maps = Hashtbl.create 16;
       symbols = Hashtbl.create 64;
       pending = Queue.create ();
       next = 0;
@@ -449,6 +647,8 @@ let program (p : T.Program.t) =
           match d.T.Decl.node with
           | T.Decl.Type { name; params = []; reference; definition } ->
               Hashtbl.replace st.types (pkg.T.Package.name, name) (definition, reference)
+          | T.Decl.Enum_map { enum; entries; _ } ->
+              Hashtbl.replace st.maps d.T.Decl.id (enum, entries)
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
               Hashtbl.replace st.verbs d.T.Decl.id
                 { decl = d.T.Decl.id; signature; params; body }

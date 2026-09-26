@@ -18,6 +18,43 @@ let rec expr (e : Expr.t) =
   | Expr.Text s -> typed (Printf.sprintf "%S" s)
   | Expr.Unit -> typed "unit"
   | Expr.Local id -> typed (Printf.sprintf "local #%d" id)
+  | Expr.Address id -> typed (Printf.sprintf "address of #%d" id)
+  | Expr.Deref p ->
+      group "deref" (fields [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("ptr", expr p) ])
+  | Expr.Record members ->
+      group "record"
+        (fields
+           [
+             ("type", Leaf (Ty.to_string e.Expr.ty));
+             ( "members",
+               map_seq
+                 (fun (i, m) -> group (Printf.sprintf "member %d" i) (expr m))
+                 members );
+           ])
+  | Expr.Member { value; index } ->
+      group "member"
+        (fields
+           [
+             ("type", Leaf (Ty.to_string e.Expr.ty));
+             ("index", Leaf (string_of_int index));
+             ("value", expr value);
+           ])
+  | Expr.Case { index; payload } ->
+      group "case"
+        (fields
+           [
+             ("type", Leaf (Ty.to_string e.Expr.ty));
+             ("index", Leaf (string_of_int index));
+             ("payload", expr payload);
+           ])
+  | Expr.Payload { value; index } ->
+      group "payload"
+        (fields
+           [
+             ("type", Leaf (Ty.to_string e.Expr.ty));
+             ("index", Leaf (string_of_int index));
+             ("value", expr value);
+           ])
   | Expr.Call { fn; args } -> call "call" fn args
   | Expr.Runtime { fn; args } -> call "runtime" fn args
   | Expr.Binary { op; left; right } ->
@@ -46,14 +83,30 @@ let rec expr (e : Expr.t) =
 and stat = function
   | Stat.Let { id; value } ->
       group "let" (fields [ ("local", Leaf (Printf.sprintf "#%d" id)); ("value", expr value) ])
-  | Stat.Assign { id; value } ->
-      group "assign" (fields [ ("local", Leaf (Printf.sprintf "#%d" id)); ("value", expr value) ])
+  | Stat.Assign { place = { local; deref; path; _ }; value } ->
+      let target =
+        Printf.sprintf "%s#%d%s"
+          (if deref then "*" else "")
+          local
+          (String.concat "" (List.map (Printf.sprintf ".%d") path))
+      in
+      group "assign" (fields [ ("place", Leaf target); ("value", expr value) ])
   | Stat.Eval e -> group "eval" (expr e)
   | Stat.Return e -> group "return" (expr e)
   | Stat.If { cond; body } ->
       group "if" (fields [ ("cond", expr cond); ("body", map_seq stat body) ])
   | Stat.Repeat { count; body } ->
       group "repeat" (fields [ ("count", expr count); ("body", map_seq stat body) ])
+  | Stat.Switch { value; cases } ->
+      group "switch"
+        (fields
+           [
+             ("value", expr value);
+             ( "cases",
+               map_seq
+                 (fun (i, body) -> group (Printf.sprintf "case %d" i) (map_seq stat body))
+                 cases );
+           ])
   | Stat.Leave label -> Leaf (Printf.sprintf "leave @%d" label)
 
 let func (f : Func.t) =

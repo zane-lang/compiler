@@ -42,7 +42,7 @@
     │   │       │       ├── fn: zane_print
     │   │       │       └── args[0]: local #1 : view
     │   │       ├── body[2] > assign:
-    │   │       │   ├── local: #11
+    │   │       │   ├── place: #11
     │   │       │   └── value: local #9 : i1
     │   │       └── body[3]: leave @10
     │   ├── body[5] > eval > expand:
@@ -89,7 +89,7 @@
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #1 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── local: #20
+    │   │   │   ├── place: #20
     │   │   │   └── value: local #18 : i1
     │   │   └── body[3]: leave @19
     │   ├── body[7] > eval > expand:
@@ -125,7 +125,7 @@
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #1 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── local: #33
+    │   │   │   ├── place: #33
     │   │   │   └── value: local #31 : i1
     │   │   └── body[3]: leave @32
     │   ├── body[8] > eval > expand:
@@ -153,7 +153,7 @@
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #1 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── local: #42
+    │   │   │   ├── place: #42
     │   │   │   └── value: local #40 : i1
     │   │   └── body[3]: leave @41
     │   ├── body[9] > eval > expand:
@@ -184,7 +184,7 @@
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #1 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── local: #51
+    │   │   │   ├── place: #51
     │   │   │   └── value: local #49 : i1
     │   │   └── body[3]: leave @50
     │   ├── body[10] > let:
@@ -214,7 +214,7 @@
     │   │       │       ├── fn: zane_print
     │   │       │       └── args[0]: local #2 : view
     │   │       ├── body[2] > assign:
-    │   │       │   ├── local: #60
+    │   │       │   ├── place: #60
     │   │       │   └── value: local #58 : i1
     │   │       └── body[3]: leave @59
     │   ├── body[11] > eval > expand:
@@ -248,7 +248,7 @@
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #1 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── local: #61
+    │   │   │   ├── place: #61
     │   │   │   └── value > call:
     │   │   │       ├── type: i1
     │   │   │       ├── fn: zane_plus_9
@@ -285,7 +285,7 @@
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #2 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── local: #61
+    │   │   │   ├── place: #61
     │   │   │   └── value > call:
     │   │   │       ├── type: i1
     │   │   │       ├── fn: zane_plus_9
@@ -375,7 +375,7 @@
     │   │   │   │   │   │   │       ├── fn: zane_print
     │   │   │   │   │   │   │       └── args[0]: local #3 : view
     │   │   │   │   │   │   └── body[1] > assign:
-    │   │   │   │   │   │       ├── local: #84
+    │   │   │   │   │   │       ├── place: #84
     │   │   │   │   │   │       └── value > call:
     │   │   │   │   │   │           ├── type: i64
     │   │   │   │   │   │           ├── fn: zane_plus_33
@@ -391,7 +391,7 @@
     │   │   │   │       ├── fn: zane_print
     │   │   │   │       └── args[0]: local #4 : view
     │   │   │   └── body[1] > assign:
-    │   │   │       ├── local: #75
+    │   │   │       ├── place: #75
     │   │   │       └── value > call:
     │   │   │           ├── type: i64
     │   │   │           ├── fn: zane_plus_33
@@ -438,14 +438,14 @@
     │   │   │   ├── body[0] > if:
     │   │   │   │   ├── cond: true : i1
     │   │   │   │   └── body[0] > assign:
-    │   │   │   │       ├── local: #4
+    │   │   │   │       ├── place: #4
     │   │   │   │       └── value > call:
     │   │   │   │           ├── type: i64
     │   │   │   │           ├── fn: zane_plus_33
     │   │   │   │           ├── args[0]: local #4 : i64
     │   │   │   │           └── args[1]: local #7 : i64
     │   │   │   └── body[1] > assign:
-    │   │   │       ├── local: #7
+    │   │   │       ├── place: #7
     │   │   │       └── value > call:
     │   │   │           ├── type: i64
     │   │   │           ├── fn: zane_plus_33
@@ -512,7 +512,7 @@
     │   │   │   │   └── args[0]: local #4 : i1
     │   │   │   └── body[0] > return: 1 : i64
     │   │   ├── body[2] > assign:
-    │   │   │   ├── local: #6
+    │   │   │   ├── place: #6
     │   │   │   └── value: local #4 : i1
     │   │   └── body[3]: leave @5
     │   └── body[1] > return > call:
@@ -644,7 +644,7 @@
     │   │   │   │   └── args[0]: local #3 : i1
     │   │   │   └── body[0] > return: local #1 : i64
     │   │   ├── body[2] > assign:
-    │   │   │   ├── local: #5
+    │   │   │   ├── place: #5
     │   │   │   └── value: local #3 : i1
     │   │   └── body[3]: leave @4
     │   └── body[1] > return: local #2 : i64
