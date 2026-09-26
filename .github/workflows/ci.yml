@@ -74,10 +74,10 @@ jobs:
         run: devbox list
 
       # Codegen builds its module through LLVM's OCaml bindings, which wrap
-      # LLVM 18 (dev/bin/bootstrap-toolchain). The runner's apt has it; the
-      # bindings find it as `llvm-config-18` whatever else is on PATH.
-      - name: Install LLVM 18
-        run: sudo apt-get update && sudo apt-get install -y llvm-18-dev libzstd-dev
+      # LLVM 19 (dev/bin/bootstrap-toolchain). The runner's apt has it, and
+      # the bindings find it as `llvm-config-19` before any other.
+      - name: Install LLVM 19
+        run: sudo apt-get update && sudo apt-get install -y llvm-19-dev libzstd-dev
 
       # The init hook bootstraps the opam switch, but doing it as its own step
       # keeps a toolchain failure from being reported as a build failure.

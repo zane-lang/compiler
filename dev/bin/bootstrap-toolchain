@@ -14,10 +14,12 @@ set -euo pipefail
 DUNE_VERSION="3.24.1"
 MENHIR_VERSION="20260209"
 SEDLEX_VERSION="3.7"
-# The LLVM bindings codegen builds its module through (docs/lowering.md L2).
-# They wrap one LLVM release, found through `llvm-config-18` (apt's
-# `llvm-18-dev` provides it), so this moves only with that release.
-LLVM_VERSION="18"
+# The LLVM bindings codegen builds its module through (docs/lowering.md L2):
+# LLVM's own, from llvm/bindings/ocaml, which opam packages as `llvm`. They
+# wrap one LLVM release, and 19 is the newest opam has. They find it as
+# `llvm-config-19` (apt's `llvm-19-dev`) or as the `llvm-config` devbox's
+# `llvm_19` provides, so this moves only with that release.
+LLVM_VERSION="19"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 

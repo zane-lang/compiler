@@ -1,23 +1,30 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.17.2/.schema/devbox.schema.json",
-  "packages": [
-    "just@latest",
-    "meson@latest",
-    "clang@latest",
-    "cmake@latest",
-    "llvm_21@latest",
-    "upx@latest",
-    "ninja@latest",
-    "zig@latest",
-    "clang-tools@latest",
-    "opam@latest",
-    "ocaml@latest",
-    "gnumake@latest",
-    "pkg-config@latest",
-    "m4@latest",
-    "zstd@latest",
-    "python3@latest"
-  ],
+  "packages": {
+    "just": "latest",
+    "meson": "latest",
+    "clang": "latest",
+    "cmake": "latest",
+    "llvm_19": {
+      "version": "latest",
+      "outputs": [
+        "out",
+        "dev",
+        "lib"
+      ]
+    },
+    "upx": "latest",
+    "ninja": "latest",
+    "zig": "latest",
+    "clang-tools": "latest",
+    "opam": "latest",
+    "ocaml": "latest",
+    "gnumake": "latest",
+    "pkg-config": "latest",
+    "m4": "latest",
+    "zstd": "latest",
+    "python3": "latest"
+  },
   "shell": {
     "init_hook": [
       "echo 'Welcome to devbox!'",

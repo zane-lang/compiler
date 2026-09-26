@@ -33,11 +33,14 @@ LLVM's own passes, and write the object file through the target machine, so
 no text is written and read back. Linking that object with the runtime (§6)
 is the one step left to a system linker, which `clang` drives.
 
-The bindings are tied to one LLVM release. The compiler uses LLVM 18, which
-`dev/bin/bootstrap-toolchain` pins and finds as `llvm-config-18`, so the
-system's `llvm-18-dev` is what they link against. The module's text is
-LLVM's to print and changes between releases, so the tests read the CGT and
-what a built program writes instead (§7).
+The bindings are LLVM's own, from `llvm/bindings/ocaml` in llvm-project,
+which opam builds from each LLVM release as its `llvm` package. They are
+tied to that release, and the compiler uses LLVM 19, the newest opam
+packages. `dev/bin/bootstrap-toolchain` pins it; devbox provides LLVM 19
+with its `llvm-config` and headers, and CI installs `llvm-19-dev`.
+
+The module's text is LLVM's to print and changes between releases, so the
+tests read the CGT and what a built program writes instead (§7).
 
 **L3. The CGT is a tree, not a control-flow graph.** It keeps structured
 control flow — a block, a branch, a counted loop — and names every exit
@@ -290,10 +293,9 @@ test passing.
   a caller that must produce a value ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §4.2).
   Semantics does not check it yet; step 4 adds the check there, since lowering
   reports nothing.
-- **Which LLVM.** The bindings use the system's LLVM 18 (L2), which CI
-  installs from apt. `devbox.json` still lists LLVM 21, which provides no
-  `llvm-config` and nothing the bindings use; moving devbox to a release the
-  bindings cover would make the shell self-contained.
+- **Moving to a newer LLVM.** llvm-project's bindings track every release,
+  but opam packages them only up to 19. A newer release means building
+  them from that release's `llvm/bindings/ocaml`, or waiting for opam.
 - **String escapes.** The spec names none, and the lexer keeps a backslash
   with the character after it. Lowering decodes `\n`, `\t`, `\r` and `\0`, and
   any other pair stands for its second character, until the spec says.
