@@ -1,0 +1,121 @@
+/// Values: structs of several members, variants and enums, copies, member
+/// reads and stores, `mut` subjects, `match` and enum maps. Each check
+/// prints `yes` when it holds and `no` when it does not.
+package shapes;
+
+import core$;
+
+type Vec = struct {
+	x Int;
+	y Int;
+}
+
+Vec(x Int, y Int) => init{ x; y; }
+
+Vec +(left Vec, right Vec) => Vec(left.x + right.x, left.y + right.y)
+
+Bool ==(left Vec, right Vec) => (left.x == right.x) * (left.y == right.y)
+
+/// A `mut` method writes its caller's place.
+Unit scale(this Vec, by Int) mut {
+	this.x = this.x * by;
+	this.y = this.y * by;
+	return Unit();
+}
+
+/// And passes its own subject on to another.
+Unit square(this Vec) mut {
+	this!scale(Int(2));
+	this!scale(Int(2));
+	return Unit();
+}
+
+/// A struct inside a struct, a `Unit` member and a `Float`.
+type Body = struct {
+	at Vec;
+	mark Unit;
+	mass Float;
+}
+
+Body(at Vec, mass Float) => init{ at; mark = Unit(); mass; }
+
+/// Payloads of different sizes, and one with none.
+type Shape = variant {
+	dot Vec;
+	circle Float;
+	body Body;
+	none Unit;
+}
+
+type Color = enum [ red, green, blue ]
+
+Color.warm Bool {
+	red = true;
+	green = false;
+	blue = false;
+}
+
+Int area(shape Shape) => match (shape) {
+	v dot => Int(0);
+	r circle => Int(3);
+	b body {
+		if(b.mass < Float(1.0)) {
+			return Int(1);
+		}
+		return b.at.x * b.at.y;
+	}
+	none => Int(0);
+}
+
+Unit check(ok Bool) {
+	yes @primitives$String("yes\n");
+	no @primitives$String("no\n");
+	ran Bool = if(ok) {
+		@program$console!print(yes);
+	}
+	ran:else() {
+		@program$console!print(no);
+	}
+	return Unit();
+}
+
+@primitives$Unit main() {
+	// A copy is its own value.
+	a Vec(Int(1), Int(2));
+	b Vec = a;
+	b!scale(Int(3));
+	check(a == Vec(Int(1), Int(2)));
+	check(b == Vec(Int(3), Int(6)));
+	check(a + b == Vec(Int(4), Int(8)));
+
+	// A subject passed on by a `mut` method.
+	b!square();
+	check(b == Vec(Int(12), Int(24)));
+
+	// A store through members.
+	heavy Body(Vec(Int(5), Int(7)), Float(2.5));
+	heavy.at.y = Int(9);
+	check(heavy.at == Vec(Int(5), Int(9)));
+	check(heavy.mass == Float(2.5));
+
+	// Each case carries its own payload.
+	check(area(Shape.dot(a)) == Int(0));
+	check(area(Shape.circle(Float(2.0))) == Int(3));
+	check(area(Shape.body(heavy)) == Int(45));
+	check(area(Shape.body(Body(a, Float(0.5)))) == Int(1));
+	check(area(Shape.none(Unit())) == Int(0));
+
+	// Two scrutinees, matched jointly.
+	k Color = Color.green;
+	s Shape = Shape.circle(Float(1.0));
+	check(match (k, s) {
+		[red, blue], [dot, circle, body, none] => Bool(false);
+		green, [dot, body, none] => Bool(false);
+		green, circle => Bool(true);
+	});
+
+	// An enum map.
+	check(Color.red.warm);
+	check(~k.warm);
+	return @primitives$Unit();
+}

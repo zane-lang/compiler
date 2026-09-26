@@ -282,7 +282,10 @@ test passing.
    expanded from `core`'s `if` and `to`. A test that builds and runs a
    program. Printing an `Int` waits for step 7, since it goes through a
    `String`.
-3. **Values.** Value structs and sums: layout, copies, fields, `match`.
+3. **Values.** Value structs and sums: layout, copies, fields, `match`, and
+   enum maps. A `mut` subject is passed by address. A value type that
+   contains itself needs a boxed member, which waits for step 7, and a case
+   read, which takes a handler, for step 4.
 4. **Aborts and exits.** The outcome tag, handlers, `resolve`, `guard`.
 5. **Reference types.** Arenas, hosting, moves, destruction, `float`.
 6. **Guests.** The anchor pool, `mint`, `resolve`, and anchor merges.
@@ -310,6 +313,16 @@ test passing.
 - **String escapes.** The spec names none, and the lexer keeps a backslash
   with the character after it. Lowering decodes `\n`, `\t`, `\r` and `\0`, and
   any other pair stands for its second character, until the spec says.
+- **Aggregates by value, for now.** L6 passes a value struct or sum by the
+  address of the caller's slot and L7 has a result written into a
+  destination the caller names. Until reference types need addresses
+  (step 5), lowering passes and returns them as LLVM aggregate values
+  instead, which copies what L6 would lend; a value parameter cannot be
+  written, so nothing observes the difference. Only a `mut` subject is
+  passed by address already.
+- **A 64-bit target.** Codegen sizes a sum's payload room assuming 8-byte
+  pointers and C struct layout, which holds for x86-64 and AArch64. Another
+  target reads the sizes from LLVM's data layout.
 - **Integer division by zero.** The spec leaves it open. Until it says, the
   program stops: what it wrote so far is kept, the runtime writes `division by
   zero` to stderr, and the status is 1. The one other quotient an `i64` cannot

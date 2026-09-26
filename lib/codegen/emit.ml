@@ -14,13 +14,47 @@ type env = {
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
 }
 
-let lltype env (t : Ty.t) =
+(* Size and alignment in bytes on a 64-bit target, where LLVM lays a struct
+   out as C does. *)
+let rec size_align (t : Ty.t) =
+  match t with
+  | Ty.Void -> (0, 1)
+  | Ty.I1 -> (1, 1)
+  | Ty.I64 | Ty.F64 | Ty.Ptr -> (8, 8)
+  | Ty.View -> (16, 8)
+  | Ty.Struct ts ->
+      let size, align =
+        List.fold_left
+          (fun (size, align) t ->
+            let s, a = size_align t in
+            (((size + a - 1) / a * a) + s, max align a))
+          (0, 1) ts
+      in
+      ((size + align - 1) / align * align, align)
+  | Ty.Sum ts -> (
+      match words ts with 0 -> (4, 4) | n -> (8 + (8 * n), 8))
+
+(* A sum's payload room, in 8-byte words: enough for its widest case, and
+   aligned for every one, since no layout here needs more than 8. *)
+and words ts = List.fold_left (fun n t -> max n ((fst (size_align t) + 7) / 8)) 0 ts
+
+let rec lltype env (t : Ty.t) =
   match t with
   | Ty.Void -> Llvm.void_type env.ctx
   | Ty.I1 -> Llvm.i1_type env.ctx
   | Ty.I64 -> env.i64
   | Ty.F64 -> Llvm.double_type env.ctx
   | Ty.View -> Llvm.struct_type env.ctx [| env.ptr; env.i64 |]
+  | Ty.Ptr -> env.ptr
+  | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
+  | Ty.Sum ts -> (
+      let tag = Llvm.i32_type env.ctx in
+      match words ts with
+      | 0 -> Llvm.struct_type env.ctx [| tag |]
+      | n -> Llvm.struct_type env.ctx [| tag; Llvm.array_type env.i64 n |])
+
+(* A `Unit` member takes no room, but keeps its index. *)
+and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype env t
 
 (* `Unit` has no storage, so a `Unit` parameter passes nothing. *)
 let fn_type env params ret =
@@ -121,6 +155,43 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
   | Expr.Unit -> None
   | Expr.Local id ->
       Option.map (fun (slot, t) -> Llvm.build_load t slot "" b) (Hashtbl.find_opt fr.locals id)
+  | Expr.Address id -> (
+      match Hashtbl.find_opt fr.locals id with
+      | Some (slot, _) -> Some slot
+      | None -> Some (Llvm.const_null env.ptr))
+  | Expr.Deref p -> (
+      let p = expr env fr b p in
+      match (e.Expr.ty, p) with
+      | Ty.Void, _ | _, None -> None
+      | t, Some p -> Some (Llvm.build_load (lltype env t) p "" b))
+  | Expr.Record members ->
+      Some
+        (List.fold_left
+           (fun v (i, m) ->
+             match expr env fr b m with Some x -> Llvm.build_insertvalue v x i "" b | None -> v)
+           (Llvm.undef (lltype env e.Expr.ty))
+           members)
+  | Expr.Member { value; index } -> (
+      match (e.Expr.ty, expr env fr b value) with
+      | Ty.Void, _ | _, None -> None
+      | _, Some v -> Some (Llvm.build_extractvalue v index "" b))
+  | Expr.Case { index; payload } ->
+      let t = lltype env e.Expr.ty in
+      let tmp = alloca env fr t in
+      let tag = Llvm.build_struct_gep t tmp 0 "" b in
+      ignore (Llvm.build_store (Llvm.const_int (Llvm.i32_type env.ctx) index) tag b);
+      (match expr env fr b payload with
+      | Some p -> ignore (Llvm.build_store p (Llvm.build_struct_gep t tmp 1 "" b) b)
+      | None -> ());
+      Some (Llvm.build_load t tmp "" b)
+  | Expr.Payload { value; _ } -> (
+      match (e.Expr.ty, expr env fr b value) with
+      | Ty.Void, _ | _, None -> None
+      | t, Some v ->
+          let sum = Llvm.type_of v in
+          let tmp = alloca env fr sum in
+          ignore (Llvm.build_store v tmp b);
+          Some (Llvm.build_load (lltype env t) (Llvm.build_struct_gep sum tmp 1 "" b) "" b))
   | Expr.Call { fn; args } ->
       let f, fty = Hashtbl.find env.funcs fn in
       let args = Array.of_list (List.filter_map (expr env fr b) args) in
@@ -171,10 +242,37 @@ and stat env fr b (s : Stat.t) =
       match expr env fr b value with
       | Some v -> ignore (Llvm.build_store v (slot env fr id (Llvm.type_of v)) b)
       | None -> ())
-  | Stat.Assign { id; value } -> (
-      match (expr env fr b value, Hashtbl.find_opt fr.locals id) with
-      | Some v, Some (s, _) -> ignore (Llvm.build_store v s b)
+  | Stat.Assign { place; value } -> (
+      match (expr env fr b value, Hashtbl.find_opt fr.locals place.Expr.local) with
+      | Some v, Some (slot, _) ->
+          let base = if place.Expr.deref then Llvm.build_load env.ptr slot "" b else slot in
+          let target, _ =
+            List.fold_left
+              (fun (p, t) i ->
+                match t with
+                | Ty.Struct ts -> (Llvm.build_struct_gep (lltype env t) p i "" b, List.nth ts i)
+                | _ -> failwith "codegen: a member path through something not a struct")
+              (base, place.Expr.ty) place.Expr.path
+          in
+          ignore (Llvm.build_store v target b)
       | _ -> ())
+  | Stat.Switch { value; cases } ->
+      let v = Option.get (expr env fr b value) in
+      let tag = Llvm.build_extractvalue v 0 "" b in
+      let after = block env fr and otherwise = block env fr in
+      let sw = Llvm.build_switch tag otherwise (List.length cases) b in
+      List.iter
+        (fun (i, body) ->
+          let case = block env fr in
+          Llvm.add_case sw (Llvm.const_int (Llvm.i32_type env.ctx) i) case;
+          Llvm.position_at_end case b;
+          stats env fr b body;
+          if not (has_terminator b) then ignore (Llvm.build_br after b))
+        cases;
+      (* A tag is always one of the cases. *)
+      Llvm.position_at_end otherwise b;
+      ignore (Llvm.build_unreachable b);
+      Llvm.position_at_end after b
   | Stat.Eval e -> ignore (expr env fr b e)
   | Stat.Return e -> (
       match expr env fr b e with

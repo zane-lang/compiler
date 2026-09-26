@@ -119,3 +119,45 @@
  (alias runtest)
  (action
   (diff golden/zero.out zero.out.actual)))
+
+; `shapes` is step 3: value structs of several members, variants and enums,
+; copies, member reads and stores, `mut` subjects, `match` and enum maps.
+; Every check it makes prints `yes` when it holds and `no` when it does not.
+
+(rule
+ (deps (source_tree fixtures/shapes) (source_tree ../core))
+ (action
+  (with-stdout-to
+   shapes.cgt.actual
+   (run
+    %{exe:../../bin/compiler/main.exe}
+    --cgt
+    --package fixtures/shapes
+    --package ../core))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/shapes.cgt shapes.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/shapes) (source_tree ../core))
+ (targets shapes.exe)
+ (action
+  (run
+   %{exe:../../bin/compiler/main.exe}
+   --build
+   shapes.exe
+   --package fixtures/shapes
+   --package ../core)))
+
+(rule
+ (action
+  (with-stdout-to
+   shapes.out.actual
+   (run ./shapes.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/shapes.out shapes.out.actual)))
