@@ -14,6 +14,10 @@ set -euo pipefail
 DUNE_VERSION="3.24.1"
 MENHIR_VERSION="20260209"
 SEDLEX_VERSION="3.7"
+# The LLVM bindings codegen builds its module through (docs/lowering.md L2).
+# They wrap one LLVM release, found through `llvm-config-18` (apt's
+# `llvm-18-dev` provides it), so this moves only with that release.
+LLVM_VERSION="18"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -56,4 +60,17 @@ done
 
 if ((${#needed[@]} > 0)); then
 	opam install -y "${needed[@]}"
+fi
+
+# `--assume-depexts` because the LLVM the bindings link against is installed
+# outside opam, and opam would otherwise try to install it again itself.
+# Without that LLVM the bindings are skipped rather than failed: the grammar
+# and ambiguity tools build without them, and only codegen needs them.
+if [[ "$(opam show --field=installed-version llvm 2>/dev/null)" != "$LLVM_VERSION-shared" ]]; then
+	if command -v "llvm-config-$LLVM_VERSION" >/dev/null 2>&1; then
+		opam install -y --assume-depexts "llvm.$LLVM_VERSION-shared"
+	else
+		echo "bootstrap-toolchain: llvm-config-$LLVM_VERSION not found, so the LLVM bindings are not installed;" >&2
+		echo "  codegen needs them (apt install llvm-$LLVM_VERSION-dev libzstd-dev)" >&2
+	fi
 fi

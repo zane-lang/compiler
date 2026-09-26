@@ -1,0 +1,19 @@
+; Codegen: the CGT to an LLVM module, built through LLVM's OCaml bindings
+; (docs/lowering.md L2), and the module to a binary. [Runtime_source] is the
+; C runtime (runtime/zane.c), embedded so the compiler can build a program
+; from anywhere.
+(library
+ (name codegen)
+ (libraries cgt llvm llvm.analysis llvm.target llvm.all_backends))
+
+(rule
+ (target runtime_source.ml)
+ (deps
+  (:c ../../runtime/zane.c))
+ (action
+  (with-stdout-to
+   %{target}
+   (progn
+    (echo "let text = {zane|")
+    (cat %{c})
+    (echo "|zane}\n")))))

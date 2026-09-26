@@ -13,6 +13,7 @@ depends: [
   "menhir" {>= "20260122"}
   "menhirGLR"
   "sedlex"
+  "llvm"
   "odoc" {with-doc}
 ]
 build: [

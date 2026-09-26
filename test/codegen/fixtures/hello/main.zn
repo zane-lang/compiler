@@ -1,0 +1,8 @@
+/// The smallest program that runs: one call into the runtime's console, with
+/// its string view built from a literal (types.md §2.7, effects.md §6.6).
+package hello;
+
+@primitives$Unit main() {
+	@program$console!print(@primitives$String("hello world"));
+	return @primitives$Unit();
+}
