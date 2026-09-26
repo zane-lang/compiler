@@ -143,7 +143,9 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
       ignore (Llvm.build_call fty f (Array.of_list args) "" b);
       None
   | Expr.Binary { op; left; right } -> (
-      match (expr env fr b left, expr env fr b right) with
+      (* The left operand's instructions come first. *)
+      let l = expr env fr b left in
+      match (l, expr env fr b right) with
       | Some l, Some r -> Some (binary env fr b op left.Expr.ty l r)
       | _ -> failwith "codegen: an operand has no value")
   | Expr.Flip value -> (

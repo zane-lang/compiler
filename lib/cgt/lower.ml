@@ -339,6 +339,10 @@ and expand st ctx span v args ret =
                    bind p (Slot id);
                    []
                | _ -> refuse span "lowering expected a place here")
+           (* A `mut` method writes its subject, so a copy would lose the
+              write. *)
+           | T.Arg.Value _, _ when p.T.Local.name = "this" && v.signature.S.is_mut ->
+               refuse span "lowering does not pass a `mut` subject other than a local yet"
            | T.Arg.Value a, _ ->
                let value = expr st ctx a in
                let id = fresh st in
