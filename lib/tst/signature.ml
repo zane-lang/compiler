@@ -59,7 +59,7 @@ let is_implicit s =
 
 let has_block_param s =
   List.exists
-    (fun p -> match p.ty with Ty.Concept (Ty.Block _) -> true | _ -> false)
+    (fun p -> match p.ty with Ty.Concept Ty.Block -> true | _ -> false)
     s.params
 
 let to_string s =

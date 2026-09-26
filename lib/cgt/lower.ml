@@ -42,6 +42,17 @@ and ctx = {
   (* The verbs being expanded around this point, so one that would expand
      into itself is refused rather than expanded forever. *)
   expanding : int list;
+  (* Where an `abort` goes (L12): out of the function by its aborted
+     outcome, or into the handler of the call or `match` it belongs to. *)
+  abort : Source.Span.t -> Expr.t -> Stat.t list;
+  (* Where a `resolve` goes: past the operation its handler handles. *)
+  resolve : (Expr.t -> Stat.t list) option;
+  (* What ends this invocation with `Unit`: a return from the function, or
+     leaving the expansion (control-flow.md §4.2). *)
+  finish : Source.Span.t -> Stat.t list;
+  (* What `@controlflow$exitFromCall` does here: end the invocation that
+     called the verb whose body it is in. *)
+  exit_call : Source.Span.t -> Stat.t list;
 }
 
 and exit = Function | Leave of { label : int; result : int option }
@@ -57,6 +68,9 @@ type state = {
   pending : verb Queue.t;
   (* The next local or label of the function being lowered. *)
   mutable next : int;
+  (* What a `return` from the function being lowered returns its value as:
+     itself, or the done case of its outcome (L12). *)
+  mutable returns : Expr.t -> Expr.t;
 }
 
 let fresh st =
@@ -222,6 +236,35 @@ let expands (v : verb) =
     (fun (p : T.Local.t) -> match p.T.Local.ty with Tty.Concept _ -> true | _ -> false)
     v.params
 
+(* How a verb's call can end (L12): its primary result, and the abort value
+   when it declares an abort type, and an exit when it has one. *)
+type outcome = { ok : Nodes.Ty.t; aborts : Nodes.Ty.t option; exit_ : bool }
+
+let outcome st span (v : verb) =
+  {
+    ok = ty st span v.signature.S.ret;
+    aborts = Option.map (ty st span) v.signature.S.abort;
+    exit_ = Tst.Exits.block v.body;
+  }
+
+(* A function that can end more than one way returns a sum of the three:
+   done with its result, aborted with its abort value, or exited
+   (docs/lowering.md §9). One that can only finish returns its result. *)
+let plain o = o.aborts = None && not o.exit_
+
+let returned o =
+  if plain o then o.ok
+  else Nodes.Ty.Sum [ o.ok; Option.value o.aborts ~default:Nodes.Ty.Void; Nodes.Ty.Void ]
+
+let done_ = 0
+let aborted = 1
+let exited = 2
+
+let outcome_case o index (payload : Expr.t) =
+  { Expr.node = Expr.Case { index; payload }; ty = returned o }
+
+let unit_ = { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
+
 (* A `mut` method's subject, which is passed by address (L6). *)
 let is_subject (v : verb) (p : T.Local.t) = v.signature.S.is_mut && p.T.Local.name = "this"
 
@@ -249,6 +292,23 @@ let primitive ctx span spelling args : Expr.t =
   | _, [ T.Arg.Value v ] -> literal ctx span name v
   | _ -> refuse span (Printf.sprintf "lowering does not handle `%s` yet" spelling)
 
+(* An exit ends the run of a block (docs/spec-divergences.md §11). Semantics
+   rejects one anywhere else, so this is not reached. *)
+let no_block span = refuse span "an exit ends the block its call is written in, and this is in none"
+
+(* Where nothing leaves: an enum map's entry, which is a constant. *)
+let constant_ctx () =
+  let nowhere span = refuse span "lowering expected nothing here to leave" in
+  {
+    env = Hashtbl.create 1;
+    exit = Function;
+    expanding = [];
+    abort = (fun span _ -> nowhere span);
+    resolve = None;
+    finish = nowhere;
+    exit_call = nowhere;
+  }
+
 let rec expr st ctx (e : T.Expr.t) : Expr.t =
   let span = e.T.Expr.span in
   match e.T.Expr.node with
@@ -262,11 +322,11 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       primitive ctx span spelling args
   | T.Expr.Coerce { ctor = { owner = S.Intrinsic spelling; _ }; value } ->
       primitive ctx span spelling [ T.Arg.Value value ]
-  | T.Expr.Construct { ctor = { owner = S.Declared id; instance = []; _ }; args; handler = None }
-  | T.Expr.Call { callee = { owner = S.Declared id; instance = []; _ }; args; handler = None } ->
-      call st ctx span id args e.T.Expr.ty
+  | T.Expr.Construct { ctor = { owner = S.Declared id; instance = []; _ }; args; handler }
+  | T.Expr.Call { callee = { owner = S.Declared id; instance = []; _ }; args; handler } ->
+      call st ctx span id args handler e.T.Expr.ty
   | T.Expr.Coerce { ctor = { owner = S.Declared id; instance = []; _ }; value } ->
-      call st ctx span id [ T.Arg.Value value ] e.T.Expr.ty
+      call st ctx span id [ T.Arg.Value value ] None e.T.Expr.ty
   | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$print"; _ }; args; handler = None }
     -> (
       (* The program has one console (effects.md §6.6), so the subject names
@@ -279,7 +339,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
             ty = Nodes.Ty.Void;
           }
       | _ -> refuse span "lowering does not handle this call to `print`")
-  | T.Expr.Op { op; impl = { owner; instance = []; _ }; left; right; swapped; handler = None } ->
+  | T.Expr.Op { op; impl = { owner; instance = []; _ }; left; right; swapped; handler } ->
       let t = ty st span e.T.Expr.ty in
       let apply l r =
         match owner with
@@ -287,8 +347,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
             { Expr.node = Expr.Binary { op = binop op; left = l; right = r }; ty = t }
         | S.Declared id -> (
             match Hashtbl.find_opt st.verbs id with
-            | Some v when not (expands v) ->
-                { Expr.node = Expr.Call { fn = symbol st v; args = [ l; r ] }; ty = t }
+            | Some v when not (expands v) -> invoke st ctx span v [ l; r ] handler
             | _ -> refuse span "lowering does not handle this operator yet")
       in
       (* Operands run in the order they were written, which is the other way
@@ -299,8 +358,8 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
         apply l (expr st ctx right)
   | T.Expr.Flip { impl = { owner = S.Intrinsic _; _ }; value; handler = None } ->
       { Expr.node = Expr.Flip (expr st ctx value); ty = ty st span e.T.Expr.ty }
-  | T.Expr.Flip { impl = { owner = S.Declared id; instance = []; _ }; value; handler = None } ->
-      call st ctx span id [ T.Arg.Value value ] e.T.Expr.ty
+  | T.Expr.Flip { impl = { owner = S.Declared id; instance = []; _ }; value; handler } ->
+      call st ctx span id [ T.Arg.Value value ] handler e.T.Expr.ty
   | T.Expr.Field { target; slot; _ } ->
       let t = ty st span e.T.Expr.ty in
       if collapsed st target.T.Expr.ty then { (expr st ctx target) with ty = t }
@@ -315,8 +374,10 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       let index = case_index st span e.T.Expr.ty case in
       let payload = { Expr.node = Expr.Unit; ty = Nodes.Ty.Void } in
       { Expr.node = Expr.Case { index; payload }; ty = ty st span e.T.Expr.ty }
-  | T.Expr.Match { scrutinees; arms; handler = None } ->
-      match_ st ctx span scrutinees arms e.T.Expr.ty
+  | T.Expr.Match { scrutinees; arms; handler } ->
+      match_ st ctx span scrutinees arms handler e.T.Expr.ty
+  | T.Expr.Case_read { target; case; handler } ->
+      case_read st ctx span target case handler e.T.Expr.ty
   | T.Expr.Map_read { target; map; _ } -> map_read st ctx span target map e.T.Expr.ty
   | _ -> refuse span "lowering does not handle this expression yet"
 
@@ -338,7 +399,7 @@ and record st ctx span t (fields : T.Field_value.t list) =
    tag nests inside the last; the semantic pass wrote one arm per
    combination of cases, so each arm is lowered once, where its combination
    is reached. A `return` in an arm is the `match`'s value. *)
-and match_ st ctx span scrutinees (arms : T.Arm.t list) ret =
+and match_ st ctx span scrutinees (arms : T.Arm.t list) handler ret =
   let t = ty st span ret in
   let label = fresh st in
   let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
@@ -350,7 +411,9 @@ and match_ st ctx span scrutinees (arms : T.Arm.t list) ret =
         (id, value.Expr.ty, e.T.Expr.ty, Stat.Let { id; value }))
       scrutinees
   in
-  let inner = { ctx with exit = Leave { label; result } } in
+  (* An arm's abort is the `match`'s (error-handling.md §3.5). *)
+  let abort = match handler with Some h -> handle st ctx h label result | None -> ctx.abort in
+  let inner = { ctx with exit = Leave { label; result }; abort } in
   let selects chosen (a : T.Arm.t) =
     List.map (fun (p : T.Pattern.t) -> p.T.Pattern.case) a.patterns = chosen
   in
@@ -399,7 +462,7 @@ and map_read st ctx span target map ret =
       let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
       let value = expr st ctx target in
       let id = fresh st in
-      let entry_ctx = { env = Hashtbl.create 1; exit = Function; expanding = ctx.expanding } in
+      let entry_ctx = { (constant_ctx ()) with expanding = ctx.expanding } in
       let cases =
         List.mapi
           (fun i member ->
@@ -422,6 +485,41 @@ and map_read st ctx span target map ret =
             };
         ty = t;
       }
+
+(* A handler, run where its operation aborted: its binder holds the abort
+   value, and a `resolve` gives the operation its value and goes past it. *)
+and handle st ctx (h : T.Handler.t) label result _span (value : Expr.t) =
+  let bind =
+    match h.T.Handler.binder with
+    | Some l ->
+        let id = fresh st in
+        Hashtbl.replace ctx.env l.T.Local.id (Slot id);
+        [ Stat.Let { id; value } ]
+    | None -> [ Stat.Eval value ]
+  in
+  bind @ block st { ctx with resolve = Some (leave label result) } h.T.Handler.body
+
+(* A case read is its payload when the case is live, and runs its handler
+   when another is (adt.md §5.2). The other cases fall through to it. *)
+and case_read st ctx span (target : T.Expr.t) case handler ret =
+  let t = ty st span ret in
+  let label = fresh st in
+  let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
+  let value = expr st ctx target in
+  let id = fresh st in
+  let live = case_index st span target.T.Expr.ty case in
+  let source = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
+  let cases =
+    List.mapi
+      (fun i _ ->
+        if i = live then
+          (i, leave label result { Expr.node = Expr.Payload { value = source; index = i }; ty = t })
+        else (i, []))
+      (cases st span target.T.Expr.ty)
+  in
+  let otherwise = handle st ctx handler label result span unit_ in
+  let body = [ Stat.Let { id; value }; Stat.Switch { value = source; cases } ] @ otherwise in
+  { Expr.node = Expr.Expand { label; body; result }; ty = t }
 
 (* What a `return` to an expansion does: store the result, and leave. *)
 and leave label result value =
@@ -451,10 +549,10 @@ and in_order st ctx t first second combine =
     ty = t;
   }
 
-and call st ctx span id args ret : Expr.t =
+and call st ctx span id args handler ret : Expr.t =
   match Hashtbl.find_opt st.verbs id with
   | None -> refuse span "lowering does not handle a call to this verb yet"
-  | Some v when expands v -> expand st ctx span v args ret
+  | Some v when expands v -> expand st ctx span v args handler ret
   | Some v ->
       let args =
         List.map2
@@ -465,7 +563,35 @@ and call st ctx span id args ret : Expr.t =
             | T.Arg.Block _ -> refuse span "lowering does not expand block arguments here")
           v.params args
       in
-      { Expr.node = Expr.Call { fn = symbol st v; args }; ty = ty st span ret }
+      invoke st ctx span v args handler
+
+(* L12. A call that can end more than one way is switched on how it ended:
+   done gives its result, aborted runs its handler, or the abort of the
+   `match` it flows out of, and an exit ends this invocation too. *)
+and invoke st ctx span v args handler =
+  let o = outcome st span v in
+  let value = { Expr.node = Expr.Call { fn = symbol st v; args }; ty = returned o } in
+  if plain o then value
+  else
+    let label = fresh st in
+    let result = if o.ok = Nodes.Ty.Void then None else Some (fresh st) in
+    let id = fresh st in
+    let source = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
+    let payload index t = { Expr.node = Expr.Payload { value = source; index }; ty = t } in
+    let on_abort =
+      match handler with Some h -> handle st ctx h label result | None -> ctx.abort
+    in
+    let finished =
+      if o.ok = Nodes.Ty.Void then [ (done_, [ Stat.Leave label ]) ]
+      else [ (done_, leave label result (payload done_ o.ok)) ]
+    in
+    let failed =
+      match o.aborts with Some a -> [ (aborted, on_abort span (payload aborted a)) ] | None -> []
+    in
+    let left = if o.exit_ then [ (exited, ctx.finish span) ] else [] in
+    let cases = finished @ failed @ left in
+    let body = [ Stat.Let { id; value }; Stat.Switch { value = source; cases } ] in
+    { Expr.node = Expr.Expand { label; body; result }; ty = o.ok }
 
 (* L11. A parameter is bound to what it stands for in the body: a block
    argument to its code, a literal to itself, the subject to the caller's
@@ -481,7 +607,7 @@ and address st ctx span (a : T.Expr.t) =
       | _ -> refuse span "lowering expected a place here")
   | _ -> refuse span "lowering does not pass a `mut` subject other than a local yet"
 
-and expand st ctx span v args ret =
+and expand st ctx span v args handler ret =
   if List.mem v.decl ctx.expanding then
     refuse span (Printf.sprintf "`%s` expands into itself" v.signature.S.name);
   if List.length args <> List.length v.params then
@@ -496,7 +622,7 @@ and expand st ctx span v args ret =
            | T.Arg.Block block, _ ->
                bind p (Code { block; ctx });
                []
-           | T.Arg.Value a, Tty.Concept (Tty.Block _) -> (
+           | T.Arg.Value a, Tty.Concept Tty.Block -> (
                match a.T.Expr.node with
                | T.Expr.Var (T.Name_ref.Local l) -> (
                    match lookup ctx span l with
@@ -529,7 +655,19 @@ and expand st ctx span v args ret =
   let t = ty st span ret in
   let label = fresh st in
   let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
-  let inner = { env; exit = Leave { label; result }; expanding = v.decl :: ctx.expanding } in
+  (* An exit in the body ends the invocation the call was written in, and
+     one that body calls ends the expansion (control-flow.md §4.2). *)
+  let inner =
+    {
+      env;
+      exit = Leave { label; result };
+      expanding = v.decl :: ctx.expanding;
+      abort = (match handler with Some h -> handle st ctx h label result | None -> ctx.abort);
+      resolve = None;
+      finish = no_block;
+      exit_call = ctx.finish;
+    }
+  in
   match binds @ block st inner v.body with
   (* A body that only returns a value is that value. *)
   | [ Stat.Assign { place = { local; path = []; deref = false; _ }; value }; Stat.Leave l ]
@@ -540,13 +678,26 @@ and expand st ctx span v args ret =
 
 and block st ctx (b : T.Block.t) = List.concat_map (stat st ctx) b.T.Block.stats
 
-(* A block argument's code, where it was written. *)
+(* A block argument's code, where it was written. An exit ends this run of
+   it (docs/spec-divergences.md §11). *)
 and code st ctx span (arg : T.Arg.t) =
+  let run ctx b =
+    let label = fresh st in
+    let left = ref false in
+    let finish _ =
+      left := true;
+      [ Stat.Leave label ]
+    in
+    let body = block st { ctx with finish } b in
+    if !left then
+      [ Stat.Eval { Expr.node = Expr.Expand { label; body; result = None }; ty = Nodes.Ty.Void } ]
+    else body
+  in
   match arg with
-  | T.Arg.Block b -> block st ctx b
+  | T.Arg.Block b -> run ctx b
   | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
       match lookup ctx span l with
-      | Code c -> block st c.ctx c.block
+      | Code c -> run c.ctx c.block
       | _ -> refuse span "lowering expected a block here")
   | T.Arg.Value _ -> refuse span "lowering expected a block here"
 
@@ -575,13 +726,19 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       | "@controlflow$repeat", [ T.Arg.Value count; body ] ->
           let count = expr st ctx count in
           [ Stat.Repeat { count; body = code st ctx span body } ]
+      | "@controlflow$exitFromCall", [] -> ctx.exit_call span
       | _ -> refuse span (Printf.sprintf "lowering does not handle `%s` yet" spelling))
   | T.Stat.Expr e -> [ Stat.Eval (expr st ctx e) ]
   | T.Stat.Return e -> (
       let value = expr st ctx e in
       match ctx.exit with
-      | Function -> [ Stat.Return value ]
+      | Function -> [ Stat.Return (st.returns value) ]
       | Leave { label; result } -> leave label result value)
+  | T.Stat.Abort e -> ctx.abort span (expr st ctx e)
+  | T.Stat.Resolve e -> (
+      match ctx.resolve with
+      | Some resolve -> resolve (expr st ctx e)
+      | None -> refuse span "lowering does not handle a block that yields a value yet")
   | _ -> refuse span "lowering does not handle this statement yet"
 
 (* Where an assignment stores: a local, or the place a `mut` subject points
@@ -617,13 +774,20 @@ let func st (v : verb) : Func.t =
         end)
       v.params
   in
-  let ctx = { env; exit = Function; expanding = [] } in
-  {
-    Func.symbol = symbol st v;
-    params;
-    ret = ty st span v.signature.S.ret;
-    body = block st ctx v.body;
-  }
+  let o = outcome st span v in
+  st.returns <- (if plain o then Fun.id else outcome_case o done_);
+  let ctx =
+    {
+      env;
+      exit = Function;
+      expanding = [];
+      abort = (fun _ value -> [ Stat.Return (outcome_case o aborted value) ]);
+      resolve = None;
+      finish = no_block;
+      exit_call = (fun _ -> [ Stat.Return (outcome_case o exited unit_) ]);
+    }
+  in
+  { Func.symbol = symbol st v; params; ret = returned o; body = block st ctx v.body }
 
 (* ---------------------------------------------------------------------- *)
 (* Programs                                                               *)
@@ -638,6 +802,7 @@ let program (p : T.Program.t) =
       symbols = Hashtbl.create 64;
       pending = Queue.create ();
       next = 0;
+      returns = Fun.id;
     }
   in
   List.iter
@@ -680,6 +845,10 @@ let program (p : T.Program.t) =
                 (Printf.sprintf "the root package `%s` declares no `main` to start from"
                    root.T.Package.name)))
     | Some main ->
+        (* The runtime calls `main` and reads no outcome from it. *)
+        let span = main.body.T.Block.span in
+        if not (plain (outcome st span main)) then
+          refuse span "`main` has no caller to abort to or exit";
         let entry = symbol st main in
         (* In the order calls first reach them, `main` first. *)
         let rec drain acc =

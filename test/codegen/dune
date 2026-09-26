@@ -161,3 +161,46 @@
  (alias runtest)
  (action
   (diff golden/shapes.out shapes.out.actual)))
+
+; `outcomes` is step 4: aborts, `?` and `??` handlers, `resolve`, `match`
+; handlers, case reads and `guard`. Every check prints `yes` when it holds
+; and `no` when it does not; the one after a `guard` in the same block is
+; never reached.
+
+(rule
+ (deps (source_tree fixtures/outcomes) (source_tree ../core))
+ (action
+  (with-stdout-to
+   outcomes.cgt.actual
+   (run
+    %{exe:../../bin/compiler/main.exe}
+    --cgt
+    --package fixtures/outcomes
+    --package ../core))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/outcomes.cgt outcomes.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/outcomes) (source_tree ../core))
+ (targets outcomes.exe)
+ (action
+  (run
+   %{exe:../../bin/compiler/main.exe}
+   --build
+   outcomes.exe
+   --package fixtures/outcomes
+   --package ../core)))
+
+(rule
+ (action
+  (with-stdout-to
+   outcomes.out.actual
+   (run ./outcomes.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/outcomes.out outcomes.out.actual)))

@@ -304,10 +304,11 @@ and concept scope span c generics : Ty.t =
   | "String" -> if expect 0 then Ty.Concept Ty.Text_lit else Ty.Error
   | "Block" -> (
       match args () with
-      | [] -> Ty.Concept (Ty.Block None)
-      | [ Ty.Type t ] -> Ty.Concept (Ty.Block (Some t))
+      | [] -> Ty.Concept Ty.Block
       | _ ->
-          error span "`@concepts$Block` takes at most one type argument";
+          error span
+            "`@concepts$Block` takes no type argument: a block yields nothing \
+             (docs/spec-divergences.md §12)";
           Ty.Error)
   | "Array" -> (
       match args () with

@@ -17,7 +17,7 @@
     │   │   ├── local: #4
     │   │   └── value: "\n" : view
     │   ├── body[4] > let:
-    │   │   ├── local: #12
+    │   │   ├── local: #13
     │   │   └── value > expand:
     │   │       ├── type: i1
     │   │       ├── label: @10
@@ -47,7 +47,7 @@
     │   │       └── body[3]: leave @10
     │   ├── body[5] > eval > expand:
     │   │   ├── type: void
-    │   │   ├── label: @13
+    │   │   ├── label: @14
     │   │   ├── body[0] > if:
     │   │   │   ├── cond > call:
     │   │   │   │   ├── type: i1
@@ -55,7 +55,7 @@
     │   │   │   │   └── args[0] > call:
     │   │   │   │       ├── type: i1
     │   │   │   │       ├── fn: zane_flip_11
-    │   │   │   │       └── args[0]: local #12 : i1
+    │   │   │   │       └── args[0]: local #13 : i1
     │   │   │   └── body[0] > eval > runtime:
     │   │   │       ├── type: void
     │   │   │       ├── fn: zane_print
@@ -64,13 +64,13 @@
     │   │   │   ├── type: void
     │   │   │   ├── fn: zane_Unit_54
     │   │   │   └── args:
-    │   │   └── body[2]: leave @13
+    │   │   └── body[2]: leave @14
     │   ├── body[6] > eval > expand:
     │   │   ├── type: i1
-    │   │   ├── label: @19
-    │   │   ├── result: #20
+    │   │   ├── label: @21
+    │   │   ├── result: #22
     │   │   ├── body[0] > let:
-    │   │   │   ├── local: #18
+    │   │   │   ├── local: #20
     │   │   │   └── value > call:
     │   │   │       ├── type: i1
     │   │   │       ├── fn: zane_equals_37
@@ -83,21 +83,21 @@
     │   │   │   ├── cond > call:
     │   │   │   │   ├── type: i1
     │   │   │   │   ├── fn: zane_primitives_Bool_7
-    │   │   │   │   └── args[0]: local #18 : i1
+    │   │   │   │   └── args[0]: local #20 : i1
     │   │   │   └── body[0] > eval > runtime:
     │   │   │       ├── type: void
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #1 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── place: #20
-    │   │   │   └── value: local #18 : i1
-    │   │   └── body[3]: leave @19
+    │   │   │   ├── place: #22
+    │   │   │   └── value: local #20 : i1
+    │   │   └── body[3]: leave @21
     │   ├── body[7] > eval > expand:
     │   │   ├── type: i1
-    │   │   ├── label: @32
-    │   │   ├── result: #33
+    │   │   ├── label: @35
+    │   │   ├── result: #36
     │   │   ├── body[0] > let:
-    │   │   │   ├── local: #31
+    │   │   │   ├── local: #34
     │   │   │   └── value > call:
     │   │   │       ├── type: i1
     │   │   │       ├── fn: zane_times_8
@@ -119,21 +119,21 @@
     │   │   │   ├── cond > call:
     │   │   │   │   ├── type: i1
     │   │   │   │   ├── fn: zane_primitives_Bool_7
-    │   │   │   │   └── args[0]: local #31 : i1
+    │   │   │   │   └── args[0]: local #34 : i1
     │   │   │   └── body[0] > eval > runtime:
     │   │   │       ├── type: void
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #1 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── place: #33
-    │   │   │   └── value: local #31 : i1
-    │   │   └── body[3]: leave @32
+    │   │   │   ├── place: #36
+    │   │   │   └── value: local #34 : i1
+    │   │   └── body[3]: leave @35
     │   ├── body[8] > eval > expand:
     │   │   ├── type: i1
-    │   │   ├── label: @41
-    │   │   ├── result: #42
+    │   │   ├── label: @45
+    │   │   ├── result: #46
     │   │   ├── body[0] > let:
-    │   │   │   ├── local: #40
+    │   │   │   ├── local: #44
     │   │   │   └── value > call:
     │   │   │       ├── type: i1
     │   │   │       ├── fn: zane_equals_46
@@ -147,21 +147,21 @@
     │   │   │   ├── cond > call:
     │   │   │   │   ├── type: i1
     │   │   │   │   ├── fn: zane_primitives_Bool_7
-    │   │   │   │   └── args[0]: local #40 : i1
+    │   │   │   │   └── args[0]: local #44 : i1
     │   │   │   └── body[0] > eval > runtime:
     │   │   │       ├── type: void
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #1 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── place: #42
-    │   │   │   └── value: local #40 : i1
-    │   │   └── body[3]: leave @41
+    │   │   │   ├── place: #46
+    │   │   │   └── value: local #44 : i1
+    │   │   └── body[3]: leave @45
     │   ├── body[9] > eval > expand:
     │   │   ├── type: i1
-    │   │   ├── label: @50
-    │   │   ├── result: #51
+    │   │   ├── label: @55
+    │   │   ├── result: #56
     │   │   ├── body[0] > let:
-    │   │   │   ├── local: #49
+    │   │   │   ├── local: #54
     │   │   │   └── value > call:
     │   │   │       ├── type: i1
     │   │   │       ├── fn: zane_flip_11
@@ -178,23 +178,23 @@
     │   │   │   ├── cond > call:
     │   │   │   │   ├── type: i1
     │   │   │   │   ├── fn: zane_primitives_Bool_7
-    │   │   │   │   └── args[0]: local #49 : i1
+    │   │   │   │   └── args[0]: local #54 : i1
     │   │   │   └── body[0] > eval > runtime:
     │   │   │       ├── type: void
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #1 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── place: #51
-    │   │   │   └── value: local #49 : i1
-    │   │   └── body[3]: leave @50
+    │   │   │   ├── place: #56
+    │   │   │   └── value: local #54 : i1
+    │   │   └── body[3]: leave @55
     │   ├── body[10] > let:
-    │   │   ├── local: #61
+    │   │   ├── local: #68
     │   │   └── value > expand:
     │   │       ├── type: i1
-    │   │       ├── label: @59
-    │   │       ├── result: #60
+    │   │       ├── label: @65
+    │   │       ├── result: #66
     │   │       ├── body[0] > let:
-    │   │       │   ├── local: #58
+    │   │       │   ├── local: #64
     │   │       │   └── value > call:
     │   │       │       ├── type: i1
     │   │       │       ├── fn: zane_equals_37
@@ -208,20 +208,20 @@
     │   │       │   ├── cond > call:
     │   │       │   │   ├── type: i1
     │   │       │   │   ├── fn: zane_primitives_Bool_7
-    │   │       │   │   └── args[0]: local #58 : i1
+    │   │       │   │   └── args[0]: local #64 : i1
     │   │       │   └── body[0] > eval > runtime:
     │   │       │       ├── type: void
     │   │       │       ├── fn: zane_print
     │   │       │       └── args[0]: local #2 : view
     │   │       ├── body[2] > assign:
-    │   │       │   ├── place: #60
-    │   │       │   └── value: local #58 : i1
-    │   │       └── body[3]: leave @59
+    │   │       │   ├── place: #66
+    │   │       │   └── value: local #64 : i1
+    │   │       └── body[3]: leave @65
     │   ├── body[11] > eval > expand:
     │   │   ├── type: void
-    │   │   ├── label: @69
+    │   │   ├── label: @76
     │   │   ├── body[0] > let:
-    │   │   │   ├── local: #68
+    │   │   │   ├── local: #75
     │   │   │   └── value > call:
     │   │   │       ├── type: i1
     │   │   │       ├── fn: zane_equals_37
@@ -241,29 +241,29 @@
     │   │   │   │       ├── args[0] > call:
     │   │   │   │       │   ├── type: i1
     │   │   │   │       │   ├── fn: zane_flip_11
-    │   │   │   │       │   └── args[0]: local #61 : i1
-    │   │   │   │       └── args[1]: local #68 : i1
+    │   │   │   │       │   └── args[0]: local #68 : i1
+    │   │   │   │       └── args[1]: local #75 : i1
     │   │   │   └── body[0] > eval > runtime:
     │   │   │       ├── type: void
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #1 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── place: #61
+    │   │   │   ├── place: #68
     │   │   │   └── value > call:
     │   │   │       ├── type: i1
     │   │   │       ├── fn: zane_plus_9
-    │   │   │       ├── args[0]: local #61 : i1
-    │   │   │       └── args[1]: local #68 : i1
+    │   │   │       ├── args[0]: local #68 : i1
+    │   │   │       └── args[1]: local #75 : i1
     │   │   ├── body[3] > eval > call:
     │   │   │   ├── type: void
     │   │   │   ├── fn: zane_Unit_54
     │   │   │   └── args:
-    │   │   └── body[4]: leave @69
+    │   │   └── body[4]: leave @76
     │   ├── body[12] > eval > expand:
     │   │   ├── type: void
-    │   │   ├── label: @71
+    │   │   ├── label: @79
     │   │   ├── body[0] > let:
-    │   │   │   ├── local: #70
+    │   │   │   ├── local: #78
     │   │   │   └── value > call:
     │   │   │       ├── type: i1
     │   │   │       ├── fn: zane_Bool_6
@@ -278,27 +278,27 @@
     │   │   │   │       ├── args[0] > call:
     │   │   │   │       │   ├── type: i1
     │   │   │   │       │   ├── fn: zane_flip_11
-    │   │   │   │       │   └── args[0]: local #61 : i1
-    │   │   │   │       └── args[1]: local #70 : i1
+    │   │   │   │       │   └── args[0]: local #68 : i1
+    │   │   │   │       └── args[1]: local #78 : i1
     │   │   │   └── body[0] > eval > runtime:
     │   │   │       ├── type: void
     │   │   │       ├── fn: zane_print
     │   │   │       └── args[0]: local #2 : view
     │   │   ├── body[2] > assign:
-    │   │   │   ├── place: #61
+    │   │   │   ├── place: #68
     │   │   │   └── value > call:
     │   │   │       ├── type: i1
     │   │   │       ├── fn: zane_plus_9
-    │   │   │       ├── args[0]: local #61 : i1
-    │   │   │       └── args[1]: local #70 : i1
+    │   │   │       ├── args[0]: local #68 : i1
+    │   │   │       └── args[1]: local #78 : i1
     │   │   ├── body[3] > eval > call:
     │   │   │   ├── type: void
     │   │   │   ├── fn: zane_Unit_54
     │   │   │   └── args:
-    │   │   └── body[4]: leave @71
+    │   │   └── body[4]: leave @79
     │   ├── body[13] > eval > expand:
     │   │   ├── type: void
-    │   │   ├── label: @72
+    │   │   ├── label: @81
     │   │   ├── body[0] > if:
     │   │   │   ├── cond > call:
     │   │   │   │   ├── type: i1
@@ -306,7 +306,7 @@
     │   │   │   │   └── args[0] > call:
     │   │   │   │       ├── type: i1
     │   │   │   │       ├── fn: zane_flip_11
-    │   │   │   │       └── args[0]: local #61 : i1
+    │   │   │   │       └── args[0]: local #68 : i1
     │   │   │   └── body[0] > eval > runtime:
     │   │   │       ├── type: void
     │   │   │       ├── fn: zane_print
@@ -315,15 +315,15 @@
     │   │   │   ├── type: void
     │   │   │   ├── fn: zane_Unit_54
     │   │   │   └── args:
-    │   │   └── body[2]: leave @72
+    │   │   └── body[2]: leave @81
     │   ├── body[14] > let:
-    │   │   ├── local: #75
+    │   │   ├── local: #85
     │   │   └── value: 1 : i64
     │   ├── body[15] > eval > expand:
     │   │   ├── type: void
-    │   │   ├── label: @79
+    │   │   ├── label: @89
     │   │   ├── body[0] > let:
-    │   │   │   ├── local: #78
+    │   │   │   ├── local: #88
     │   │   │   └── value: 3 : i64
     │   │   ├── body[1] > repeat:
     │   │   │   ├── count > call:
@@ -335,22 +335,22 @@
     │   │   │   │       ├── args[0] > call:
     │   │   │   │       │   ├── type: i64
     │   │   │   │       │   ├── fn: zane_plus_33
-    │   │   │   │       │   ├── args[0]: local #78 : i64
+    │   │   │   │       │   ├── args[0]: local #88 : i64
     │   │   │   │       │   └── args[1] > call:
     │   │   │   │       │       ├── type: i64
     │   │   │   │       │       ├── fn: zane_flip_36
-    │   │   │   │       │       └── args[0]: local #75 : i64
+    │   │   │   │       │       └── args[0]: local #85 : i64
     │   │   │   │       └── args[1]: 1 : i64
     │   │   │   ├── body[0] > if:
     │   │   │   │   ├── cond: true : i1
     │   │   │   │   ├── body[0] > let:
-    │   │   │   │   │   ├── local: #84
+    │   │   │   │   │   ├── local: #96
     │   │   │   │   │   └── value: 1 : i64
     │   │   │   │   ├── body[1] > eval > expand:
     │   │   │   │   │   ├── type: void
-    │   │   │   │   │   ├── label: @88
+    │   │   │   │   │   ├── label: @100
     │   │   │   │   │   ├── body[0] > let:
-    │   │   │   │   │   │   ├── local: #87
+    │   │   │   │   │   │   ├── local: #99
     │   │   │   │   │   │   └── value: 4 : i64
     │   │   │   │   │   ├── body[1] > repeat:
     │   │   │   │   │   │   ├── count > call:
@@ -362,11 +362,11 @@
     │   │   │   │   │   │   │       ├── args[0] > call:
     │   │   │   │   │   │   │       │   ├── type: i64
     │   │   │   │   │   │   │       │   ├── fn: zane_plus_33
-    │   │   │   │   │   │   │       │   ├── args[0]: local #87 : i64
+    │   │   │   │   │   │   │       │   ├── args[0]: local #99 : i64
     │   │   │   │   │   │   │       │   └── args[1] > call:
     │   │   │   │   │   │   │       │       ├── type: i64
     │   │   │   │   │   │   │       │       ├── fn: zane_flip_36
-    │   │   │   │   │   │   │       │       └── args[0]: local #84 : i64
+    │   │   │   │   │   │   │       │       └── args[0]: local #96 : i64
     │   │   │   │   │   │   │       └── args[1]: 1 : i64
     │   │   │   │   │   │   ├── body[0] > if:
     │   │   │   │   │   │   │   ├── cond: true : i1
@@ -375,33 +375,33 @@
     │   │   │   │   │   │   │       ├── fn: zane_print
     │   │   │   │   │   │   │       └── args[0]: local #3 : view
     │   │   │   │   │   │   └── body[1] > assign:
-    │   │   │   │   │   │       ├── place: #84
+    │   │   │   │   │   │       ├── place: #96
     │   │   │   │   │   │       └── value > call:
     │   │   │   │   │   │           ├── type: i64
     │   │   │   │   │   │           ├── fn: zane_plus_33
-    │   │   │   │   │   │           ├── args[0]: local #84 : i64
+    │   │   │   │   │   │           ├── args[0]: local #96 : i64
     │   │   │   │   │   │           └── args[1]: 1 : i64
     │   │   │   │   │   ├── body[2] > eval > call:
     │   │   │   │   │   │   ├── type: void
     │   │   │   │   │   │   ├── fn: zane_Unit_54
     │   │   │   │   │   │   └── args:
-    │   │   │   │   │   └── body[3]: leave @88
+    │   │   │   │   │   └── body[3]: leave @100
     │   │   │   │   └── body[2] > eval > runtime:
     │   │   │   │       ├── type: void
     │   │   │   │       ├── fn: zane_print
     │   │   │   │       └── args[0]: local #4 : view
     │   │   │   └── body[1] > assign:
-    │   │   │       ├── place: #75
+    │   │   │       ├── place: #85
     │   │   │       └── value > call:
     │   │   │           ├── type: i64
     │   │   │           ├── fn: zane_plus_33
-    │   │   │           ├── args[0]: local #75 : i64
+    │   │   │           ├── args[0]: local #85 : i64
     │   │   │           └── args[1]: 1 : i64
     │   │   ├── body[2] > eval > call:
     │   │   │   ├── type: void
     │   │   │   ├── fn: zane_Unit_54
     │   │   │   └── args:
-    │   │   └── body[3]: leave @79
+    │   │   └── body[3]: leave @89
     │   └── body[16] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: zane_triangle_1

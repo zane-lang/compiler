@@ -208,8 +208,8 @@ let functions =
         ~spelling:("@controlflow$" ^ name) params (prim "Unit") )
   in
   [
-    f "branch" [ param "condition" (prim "Bool"); param "body" (Ty.Concept (Ty.Block None)) ];
-    f "repeat" [ param "count" (prim "Int"); param "body" (Ty.Concept (Ty.Block None)) ];
+    f "branch" [ param "condition" (prim "Bool"); param "body" (Ty.Concept Ty.Block) ];
+    f "repeat" [ param "count" (prim "Int"); param "body" (Ty.Concept Ty.Block) ];
     f "exitFromCall" [];
   ]
 

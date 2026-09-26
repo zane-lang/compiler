@@ -220,6 +220,11 @@ indices, and each call makes that store with its own arguments and compares
 there. A call in a body can store one parameter into another in turn, so the
 summaries are computed to a fixed point over every body before any reports.
 
+**Exits** (`lib/tst/exits.ml`, [`docs/spec-divergences.md`](spec-divergences.md)
+§11). A verb exits when `@controlflow$exitFromCall` is in its own frame: its
+body, or a block written there. A call to one ends the run of the block it is
+written in, so it is an error in no block.
+
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
 mistake. Each pass collects diagnostics and keeps going. An expression that
@@ -249,7 +254,7 @@ and concept =
   | Integer_lit | Decimal_lit | Text_lit           (* @concepts$Int, Decimal, Text *)
   | Array_lit of t * number                        (* @concepts$Array<T, n> *)
   | Map_lit of t * t                               (* @concepts$Map<K, V> *)
-  | Block of t option                              (* @concepts$Block, Block<T> *)
+  | Block                                          (* @concepts$Block *)
   | Type_concept                                  (* Type *)
 ```
 
@@ -305,7 +310,7 @@ Where the typing rules need care:
 | Operator | Candidates from the operand types' home packages only; imports add none (`operators.md` §2.2). A swapped `Op` is resolved as the primitive with operands in passed order (see D8). |
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
-| Block argument | Typed `@concepts$Block<T>` from its `resolve` statements, or `@concepts$Block` if it has none (`control-flow.md` §2.4). |
+| Block argument | Typed `@concepts$Block`: a block yields nothing ([`spec-divergences.md`](spec-divergences.md) §12). |
 | Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). |
 
 ---

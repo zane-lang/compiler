@@ -1,0 +1,131 @@
+/// Aborts and exits: calls that abort, `?` and `??` handlers, `resolve`,
+/// `abort` and `return` out of a handler, `match` handlers, case reads, and
+/// `guard`. Each check prints `yes` when it holds and `no` when it does not.
+package outcomes;
+
+import core$;
+
+/// Aborts with the dividend when the divisor is zero.
+Int?Int divide(a Int, b Int) {
+	if(b == Int(0)) {
+		abort a;
+	}
+	return a / b;
+}
+
+/// Passes an abort on, changed.
+Int?Int doubled(a Int, b Int) {
+	q Int = divide(a, b) ? e {
+		abort e * Int(10);
+	}
+	return q * Int(2);
+}
+
+/// Leaves by the primary path from inside a handler.
+Int rescued(a Int, b Int) {
+	q Int = divide(a, b) ? e {
+		return Int(42);
+	}
+	return q;
+}
+
+/// An abortable verb that returns `Unit`.
+Unit?Unit require(ok Bool) {
+	if(~ok) {
+		abort Unit();
+	}
+	return Unit();
+}
+
+type Input = variant {
+	num Int;
+	nothing Unit;
+}
+
+/// An arm's abort is the `match`'s: from a call in the arm's value, and from
+/// an `abort` in its body.
+Int ratio(input Input) => match (input) {
+	n num => divide(Int(12), n);
+	z nothing {
+		abort Int(5);
+	}
+} ? e {
+	resolve e + Int(100);
+}
+
+/// Adds 1 through 10 but `skipped`: `guard` ends that one pass of the block.
+Unit addAllBut(this Int, skipped Int) mut {
+	i Int(1);
+	i!to(Int(10)) {
+		guard(i == skipped);
+		this = this + i;
+	}
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes @primitives$String("yes\n");
+	no @primitives$String("no\n");
+	ran Bool = if(ok) {
+		@program$console!print(yes);
+	}
+	ran:else() {
+		@program$console!print(no);
+	}
+	return Unit();
+}
+
+@primitives$Unit main() {
+	// The primary path, and the handler's `resolve`.
+	check((divide(Int(6), Int(3)) ? e { resolve Int(0); }) == Int(2));
+	check((divide(Int(6), Int(0)) ? e { resolve e + Int(1); }) == Int(7));
+	check((divide(Int(6), Int(0)) ?? Int(5)) == Int(5));
+
+	// A `resolve` in a block finishes the handler the block is written in.
+	check((divide(Int(6), Int(0)) ? e {
+		if(e == Int(6)) {
+			resolve Int(1);
+		}
+		resolve Int(2);
+	}) == Int(1));
+
+	// A handler that aborts, and one that returns.
+	check((doubled(Int(8), Int(2)) ?? Int(0)) == Int(8));
+	check((doubled(Int(8), Int(0)) ? e { resolve e; }) == Int(80));
+	check(rescued(Int(8), Int(4)) == Int(2));
+	check(rescued(Int(8), Int(0)) == Int(42));
+
+	// A `Unit` primary path.
+	passed Bool(true);
+	require(Bool(true)) ? u {
+		passed = Bool(false);
+		resolve Unit();
+	}
+	check(passed);
+	require(Bool(false)) ? u {
+		passed = Bool(false);
+		resolve Unit();
+	}
+	check(~passed);
+
+	// A `match` handler.
+	check(ratio(Input.num(Int(4))) == Int(3));
+	check(ratio(Input.num(Int(0))) == Int(112));
+	check(ratio(Input.nothing(Unit())) == Int(105));
+
+	// Case reads.
+	some Input = Input.num(Int(7));
+	none Input = Input.nothing(Unit());
+	check((some.num ?? Int(0)) == Int(7));
+	check((none.num ? u { resolve Int(9); }) == Int(9));
+
+	// `guard` ends the run of the block its call is written in.
+	sum Int(0);
+	sum!addAllBut(Int(3));
+	check(sum == Int(52));
+	if(Bool(true)) {
+		guard(Bool(true));
+		check(Bool(false));
+	}
+	return @primitives$Unit();
+}

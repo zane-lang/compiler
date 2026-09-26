@@ -41,10 +41,8 @@ type ret_target =
   | To_arm of arm_results
   | No_return
 
-(* Where a `resolve` goes: the handler or block argument it finishes. *)
-type yields = { mutable yields : (Ty.t * Span.t) list }
-
-type resolve_target = To_handler of Ty.t | To_block of yields | No_resolve
+(* Where a `resolve` goes: the handler it finishes. *)
+type resolve_target = To_handler of Ty.t | No_resolve
 
 type ctx = {
   file : Env.file;
@@ -922,28 +920,9 @@ and actual_of ctx (a : N.Call_arg.t) =
       { arg = T.Arg.Block typed; aty = ty; aspan = a.N.Call_arg.span; subject = false }
 
 (* A block argument captures the scope it is written in (control-flow.md
-   §2.2), and its type says what it yields (§2.4). *)
-and block_argument ctx (b : N.Block.t) =
-  let y = { yields = [] } in
-  let inner = { ctx with resolve_target = To_block y } in
-  let typed = block_in (push inner) b in
-  let ty =
-    match y.yields with
-    | [] -> Ty.Block None
-    | (first, _) :: rest ->
-        List.iter
-          (fun (t, at) ->
-            if not (Ty.equal t first) then
-              error at
-                (Printf.sprintf "a block yields one type: this `resolve` gives %s, and the first gives %s"
-                   (quote (Ty.to_string t)) (quote (Ty.to_string first))))
-          rest;
-        if not (ends ~resolve:true typed.T.Block.stats) then
-          error b.N.Block.span
-            "a block that yields a value ends every path in `resolve`, `return` or `abort`";
-        Ty.Block (Some first)
-  in
-  (typed, Ty.Concept ty)
+   §2.2) and yields nothing: a `return`, `resolve` or `abort` in it acts on
+   what encloses the call (docs/spec-divergences.md §12). *)
+and block_argument ctx (b : N.Block.t) = (block_in (push ctx) b, Ty.Concept Ty.Block)
 
 and verb_call ~flow ctx (vc : N.Verb_call.t) : T.Expr.t * S.t option =
   let span = vc.N.Verb_call.span in
@@ -1745,11 +1724,10 @@ and stat ctx (s : N.Stat.t) : T.Stat.t =
                     not a coercion site"
                    (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string ok)));
             T.Stat.Resolve v
-        | To_block y ->
-            y.yields <- y.yields @ [ (v.T.Expr.ty, v.T.Expr.span) ];
-            T.Stat.Resolve v
         | No_resolve ->
-            error span "`resolve` finishes a handler or a block argument, and this is in neither";
+            error span
+              "`resolve` finishes a handler, and this is in none: a block yields nothing, so \
+               it is not one";
             T.Stat.Resolve v)
   in
   { T.Stat.node; span }
@@ -1757,7 +1735,8 @@ and stat ctx (s : N.Stat.t) : T.Stat.t =
 (* A block never escapes the call it is written at (control-flow.md §2.2). *)
 and escapes (v : T.Expr.t) =
   match v.T.Expr.ty with
-  | Ty.Concept (Ty.Block _) -> error v.T.Expr.span "a block cannot be returned: it never escapes the call it is written at"
+  | Ty.Concept Ty.Block ->
+      error v.T.Expr.span "a block cannot be returned: it never escapes the call it is written at"
   | _ -> ()
 
 (* A declaration is not a coercion site (types.md §4.2): the value has the

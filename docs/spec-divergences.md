@@ -399,8 +399,68 @@ quotient an `i64` cannot hold, the most negative value over `-1`, wraps, as
 quotient Int = Int(1) / zero();   // stops here, status 1
 ```
 
-Reconciling means the spec stating an outcome; once aborts lower (step 4 of
-`docs/lowering.md` §8), making `/` abortable is the other candidate.
+Reconciling means the spec stating an outcome, or making `/` abortable, now
+that aborts lower (step 4 of `docs/lowering.md` §8).
+
+## 11. An exit ends the run of a block
+
+**Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
+§2.3 and §4.2: `@controlflow$exitFromCall` ends the invocation that called
+the verb containing it, and blocks are transparent to it, so a `guard` inside
+`i!to(n) { … }` ends the whole enclosing verb. That invocation must return
+`Unit`, and §3.6 calls `guard` straight from a verb's body.
+
+**Compiler** — the exit ends the run of the block the exiting verb's call is
+written in, and a call to an exiting verb is legal only inside a block. A
+verb's body must end in an explicit `return`, `Unit()` included
+([`error-handling.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/error-handling.md)
+§8), while a block yields nothing (§12 below), so it has nothing to give and
+is the one thing an exit can end.
+
+```zane
+Unit sum(this Int) mut {
+	i Int(1);
+	i!to(Int(10)) {
+		guard(i == Int(3));   // skips this pass; the next one runs
+		this = this + i;
+	}
+	guard(this == Int(0));    // rejected: in no block
+	return Unit();
+}
+```
+
+A verb exits when the intrinsic is in its own frame: its body, or a block
+written there. `lib/tst/exits.ml` checks the calls, and
+`test/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
+Reconciling means the spec adopting this reading.
+
+## 12. A block yields nothing
+
+**Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
+§2.1 and §2.4: a block's type is `@concepts$Block`, or `@concepts$Block<T>`
+when it yields a `T`, and each yielding path ends in `resolve`. §3.3 uses one
+for a condition that is computed only when reached:
+`ran!elif({ resolve expensiveCheck() }) { … }`.
+
+**Compiler** — a block is a body of statements that yields nothing and is
+never stored. `@concepts$Block` takes no type argument. A `return`, `resolve`
+or `abort` in a block acts on what encloses the call, as §2.3 has it for
+`return` and `abort`: a `resolve` finishes the handler the block is written
+in, and is an error where there is none. A verb reads a block
+parameter only to pass it on; reading it does not run it. What runs it is a
+`@controlflow$` intrinsic, which does what that intrinsic says: `branch` runs
+it once when its condition holds, `repeat` a counted number of times.
+
+```zane
+Bool lazily(condition @concepts$Block<Bool>) => …   // rejected: no type argument
+done Bool = if(ready) {
+	resolve ready;                                  // rejected: no handler around it
+}
+```
+
+`test/semantics/fixtures/typing/reject/bad/exits.zn` has both. The deferred
+condition of §3.3 has no form here. Reconciling means the spec dropping
+`Block<T>`, or the compiler taking it back.
 
 ---
 

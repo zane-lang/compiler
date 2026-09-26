@@ -46,7 +46,9 @@ and concept =
   | Text_lit
   | Array_lit of t * number
   | Map_lit of t * t
-  | Block of t option
+  (* A block argument: statements that yield nothing (docs/spec-divergences.md
+     §12). *)
+  | Block
   (* The type of a type written where a value goes: what a `T Type` value
      parameter accepts (generics.md §5.3). *)
   | Type_value
@@ -87,7 +89,6 @@ and arg_contains_error = function
 and concept_contains_error = function
   | Array_lit (t, _) -> contains_error t
   | Map_lit (k, v) -> contains_error k || contains_error v
-  | Block (Some t) -> contains_error t
   | _ -> false
 
 (* ---------------------------------------------------------------------- *)
@@ -123,8 +124,7 @@ and concept_to_string = function
   | Array_lit (t, n) ->
       "@concepts$Array<" ^ to_string t ^ ", " ^ number_to_string n ^ ">"
   | Map_lit (k, v) -> "@concepts$Map<" ^ to_string k ^ ", " ^ to_string v ^ ">"
-  | Block None -> "@concepts$Block"
-  | Block (Some t) -> "@concepts$Block<" ^ to_string t ^ ">"
+  | Block -> "@concepts$Block"
   | Type_value -> "Type"
 
 and ret_to_string ret abort =
@@ -184,7 +184,6 @@ and subst_number s = function
 and subst_concept s = function
   | Array_lit (t, n) -> Array_lit (subst s t, subst_number s n)
   | Map_lit (k, v) -> Map_lit (subst s k, subst s v)
-  | Block t -> Block (Option.map (subst s) t)
   | c -> c
 
 (* The parameters a type still mentions, first occurrence first. *)
@@ -207,7 +206,6 @@ let free_params t =
   and go_concept = function
     | Array_lit (t, n) -> go t; go_number n
     | Map_lit (k, v) -> go k; go v
-    | Block t -> Option.iter go t
     | _ -> ()
   in
   go t;
@@ -260,7 +258,6 @@ and concept_equal a b =
   match (a, b) with
   | Array_lit (t, n), Array_lit (u, m) -> equal t u && number_equal n m
   | Map_lit (k, v), Map_lit (k', v') -> equal k k' && equal v v'
-  | Block x, Block y -> Option.equal equal x y
   | x, y -> x = y
 
 (* Whether a value of [src] may be stored where [dst] is declared, at a
@@ -346,7 +343,6 @@ and unify_concept ~open_ s x y =
       Option.bind (unify ~open_ s t u) (fun s -> unify_number ~open_ s n m)
   | Map_lit (k, v), Map_lit (k', v') ->
       Option.bind (unify ~open_ s k k') (fun s -> unify ~open_ s v v')
-  | Block (Some t), Block (Some u) -> unify ~open_ s t u
   | x, y -> if x = y then Some s else None
 
 (* A signature's parameter list, spelled so that two lists that differ only
@@ -372,7 +368,6 @@ let canonical ts =
         match c with
         | Array_lit (t, n) -> "@concepts$Array<" ^ go t ^ "," ^ go_number n ^ ">"
         | Map_lit (k, v) -> "@concepts$Map<" ^ go k ^ "," ^ go v ^ ">"
-        | Block (Some t) -> "@concepts$Block<" ^ go t ^ ">"
         | c -> concept_to_string c)
     | Verb v ->
         (match v.this_ with Some t -> "this " ^ go t ^ ";" | None -> "")

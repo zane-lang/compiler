@@ -9,7 +9,7 @@ Two intrinsic namespaces carry types no package declares
 
 - the literals — `@concepts$Int`, `@concepts$Float`, `@concepts$String`,
   `@concepts$Array<T, n>`, `@concepts$Map<K, V>`;
-- a block argument — `@concepts$Block`, `@concepts$Block<T>`.
+- a block argument — `@concepts$Block`.
 
 A concept is a type for checking only. A literal reaches a storage type
 through an implicit constructor, which the TST writes down as a node of its
