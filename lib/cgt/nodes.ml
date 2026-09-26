@@ -34,12 +34,49 @@ module Expr = struct
     | Call of { fn : string; args : t list }
     (* A call into the C runtime (L17), by the runtime's symbol. *)
     | Runtime of { fn : string; args : t list }
+    (* A scalar primitive's operator, on two operands of one type: [I64] and
+       [F64] add, multiply, divide, compare; [I1] adds as `or`, multiplies as
+       `and` and compares (operators.md §2.4). *)
+    | Binary of { op : binop; left : t; right : t }
+    (* `~`: an [I64] or [F64] negated, an [I1] inverted. *)
+    | Flip of t
+    (* A verb expanded where it is called (L11): its body runs here, and a
+       `return` in it stores [result] and leaves [label]. The expression's
+       value is [result] once the body is left. *)
+    | Expand of { label : int; body : stat list; result : int option }
+
+  and binop = Add | Mul | Div | Eq | Less
+
+  (* A local is a slot the function owns (L3): [Let] fills a new one,
+     [Assign] an existing one, and [Expr.Local] reads it. [If] and [Repeat]
+     are `@controlflow$branch` and `@controlflow$repeat`, and [Leave] ends the
+     [Expand] its label names. *)
+  and stat =
+    | Let of { id : int; value : t }
+    | Assign of { id : int; value : t }
+    | Eval of t
+    | Return of t
+    | If of { cond : t; body : stat list }
+    | Repeat of { count : t; body : stat list }
+    | Leave of int
+
+  let binop_to_string = function
+    | Add -> "+"
+    | Mul -> "*"
+    | Div -> "/"
+    | Eq -> "=="
+    | Less -> "<"
 end
 
-(* A local is a slot the function owns (L3): [Let] fills it, and
-   [Expr.Local] reads it. *)
 module Stat = struct
-  type t = Let of { id : int; value : Expr.t } | Eval of Expr.t | Return of Expr.t
+  type t = Expr.stat =
+    | Let of { id : int; value : Expr.t }
+    | Assign of { id : int; value : Expr.t }
+    | Eval of Expr.t
+    | Return of Expr.t
+    | If of { cond : Expr.t; body : t list }
+    | Repeat of { count : Expr.t; body : t list }
+    | Leave of int
 end
 
 module Func = struct

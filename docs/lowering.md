@@ -78,7 +78,9 @@ one of:
 - a handle: the fixed-size part of a `List`, a `String` or a boxed member
   ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.6), whose payload lives in the dynamic region.
 
-`Unit` has no storage, and a verb that returns it returns nothing. A distinct
+`Unit` has no storage, and a verb that returns it returns nothing. A value
+struct of one member has that member's layout, so `core`'s `Int` is an `i64`,
+and an empty one, like `core`'s `Unit`, has none. A distinct
 type is its underlying type. A concept literal (`Integer_lit`, `Text_lit`) is
 already gone, because the TST put an implicit constructor around every one
 ([`semantics.md`](semantics.md) D9); lowering turns `@primitives$Int(3)` into the constant `i64 3`.
@@ -170,6 +172,14 @@ the parameter, and so is every call that body passes the block on to
 `@controlflow$repeat` a counted loop. A `return` or `abort` in a spliced block
 still leaves the function it was written in, because after expansion that is
 the function it is in.
+
+The same holds for a verb with any other concept parameter, such as `core`'s
+`implicit Int(value @concepts$Int)`: a literal has no storage, so the verb is
+expanded and the literal is embedded where the body uses the parameter. In an
+expanded body the subject names the caller's own place, so a `mut` method
+such as `to` advances the caller's counter; every other argument is stored in
+a new slot first, in the order it was written. A `return` in the body itself
+stores the call's result and leaves the expansion.
 
 **L12. A verb has up to three outcomes, and a call checks for them.** A
 function returns a small outcome tag when it can end in more than one way:
@@ -269,8 +279,9 @@ test passing.
    through `@program$console`: the CGT, codegen, the runtime and the test
    that builds and runs it. Then lowering for `Int`,
    `Float` and `Bool` arithmetic, functions, returns, and `branch`/`repeat`
-   expanded from `core`'s `if` and `to`. Codegen and a runtime that can print
-   an `Int`. A test that builds and runs a program.
+   expanded from `core`'s `if` and `to`. A test that builds and runs a
+   program. Printing an `Int` waits for step 7, since it goes through a
+   `String`.
 3. **Values.** Value structs and sums: layout, copies, fields, `match`.
 4. **Aborts and exits.** The outcome tag, handlers, `resolve`, `guard`.
 5. **Reference types.** Arenas, hosting, moves, destruction, `float`.
@@ -299,5 +310,9 @@ test passing.
 - **String escapes.** The spec names none, and the lexer keeps a backslash
   with the character after it. Lowering decodes `\n`, `\t`, `\r` and `\0`, and
   any other pair stands for its second character, until the spec says.
+- **Integer division by zero.** The spec leaves it open. Until it says, the
+  program stops: what it wrote so far is kept, the runtime writes `division by
+  zero` to stderr, and the status is 1. The one other quotient an `i64` cannot
+  hold, the most negative value over `-1`, wraps, as `+` and `*` do.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
   §5.2). Until it says, the check L5 emits traps.

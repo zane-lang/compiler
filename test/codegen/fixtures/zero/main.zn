@@ -1,0 +1,16 @@
+/// An integer division by zero stops the program with a failing status,
+/// after what it wrote so far (docs/lowering.md §9).
+package zero;
+
+import core$;
+
+Int zero() => Int(0)
+
+@primitives$Unit main() {
+	before @primitives$String("before\n");
+	after @primitives$String("after\n");
+	@program$console!print(before);
+	quotient Int = Int(1) / zero();
+	@program$console!print(after);
+	return @primitives$Unit();
+}

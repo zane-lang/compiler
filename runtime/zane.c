@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 void zane_main(void);
 
@@ -12,6 +13,14 @@ void zane_main(void);
    in bytes, with no terminator and nothing added. */
 void zane_print(const char *bytes, int64_t length) {
 	fwrite(bytes, 1, (size_t)length, stdout);
+}
+
+/* An integer division by zero (docs/lowering.md §9): what the program wrote
+   so far is kept, and it stops with a failing status. */
+void zane_divide_by_zero(void) {
+	fflush(stdout);
+	fputs("division by zero\n", stderr);
+	exit(1);
 }
 
 /* A program whose output did not all reach stdout did not succeed: a write

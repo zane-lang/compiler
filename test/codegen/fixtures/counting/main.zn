@@ -1,0 +1,82 @@
+/// Scalars and calls: `core`'s `Int`, `Float` and `Bool`, verbs calling
+/// verbs, and `if`, `elif`, `else` and `to` expanded where they are called.
+package counting;
+
+import core$;
+
+/// The sum of 1 through `n`, counted with `to`.
+Int triangle(n Int) {
+	total Int(0);
+	i Int(1);
+	i!to(n) {
+		total = total + i;
+	}
+	return total;
+}
+
+/// Leaves the verb from inside a block argument.
+Int smallest(a Int, b Int) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+Int factorial(n Int) {
+	if(n < Int(2)) {
+		return Int(1);
+	}
+	return n * factorial(n + ~Int(1));
+}
+
+@primitives$Unit main() {
+	yes @primitives$String("yes\n");
+	no @primitives$String("no\n");
+	dot @primitives$String(".");
+	line @primitives$String("\n");
+
+	// Arithmetic on each scalar.
+	ran Bool = if(triangle(Int(10)) == Int(55)) {
+		@program$console!print(yes);
+	}
+	ran:else() {
+		@program$console!print(no);
+	}
+	if(factorial(Int(10)) == Int(3628800)) {
+		@program$console!print(yes);
+	}
+	if((Int(7) / Int(2) == Int(3)) * (Int(2) < Int(3))) {
+		@program$console!print(yes);
+	}
+	if(Float(1.5) + Float(2.25) == Float(3.75)) {
+		@program$console!print(yes);
+	}
+	if(~(Float(1.0) / Float(4.0) < Float(0.25))) {
+		@program$console!print(yes);
+	}
+
+	// A chain: only the first branch that holds runs.
+	chain Bool = if(smallest(Int(4), Int(9)) == Int(9)) {
+		@program$console!print(no);
+	}
+	chain!elif(smallest(Int(4), Int(9)) == Int(4)) {
+		@program$console!print(yes);
+	}
+	chain!elif(Bool(true)) {
+		@program$console!print(no);
+	}
+	chain:else() {
+		@program$console!print(no);
+	}
+
+	// Nested counting: three rows of four dots.
+	row Int(1);
+	row!to(Int(3)) {
+		column Int(1);
+		column!to(Int(4)) {
+			@program$console!print(dot);
+		}
+		@program$console!print(line);
+	}
+	return @primitives$Unit();
+}
