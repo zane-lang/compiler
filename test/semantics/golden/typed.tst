@@ -66,17 +66,21 @@
     │   │   ├── params[0]: numerator #5 : core$Float
     │   │   ├── params[1]: denominator #6 : core$Float
     │   │   ├── body[0] > do > call:
-    │   │   │   ├── type: core$Unit
-    │   │   │   ├── callee: guard #52
-    │   │   │   └── args[0] > op:
-    │   │   │       ├── type: core$Bool
-    │   │   │       ├── op: ==
-    │   │   │       ├── impl: == #71
-    │   │   │       ├── left: denominator #6 : core$Float
-    │   │   │       └── right > construct:
-    │   │   │           ├── type: core$Float
-    │   │   │           ├── ctor: Float #65
-    │   │   │           └── args[0]: 0.0 : @concepts$Float
+    │   │   │   ├── type: core$Bool
+    │   │   │   ├── callee: if #49
+    │   │   │   ├── args[0] > op:
+    │   │   │   │   ├── type: core$Bool
+    │   │   │   │   ├── op: ==
+    │   │   │   │   ├── impl: == #71
+    │   │   │   │   ├── left: denominator #6 : core$Float
+    │   │   │   │   └── right > construct:
+    │   │   │   │       ├── type: core$Float
+    │   │   │   │       ├── ctor: Float #65
+    │   │   │   │       └── args[0]: 0.0 : @concepts$Float
+    │   │   │   └── args[1] > block[0] > abort > construct:
+    │   │   │       ├── type: core$String
+    │   │   │       ├── ctor: String #74
+    │   │   │       └── args[0]: "zero" : @concepts$String
     │   │   ├── body[1] > do > call:
     │   │   │   ├── type: core$Bool
     │   │   │   ├── callee: if #49

@@ -379,7 +379,11 @@ let try_candidate ~phase (s : S.t) (slots : actual option list) : outcome option
                           let dst = Ty.subst subst p.ty in
                           if Ty.free_params dst <> [] then None
                           else
-                            match implicit_constructors ~src:a.aty ~dst with
+                            (* A `Block<T>` is converted from the `T` it gives. *)
+                            let src =
+                              match a.aty with Ty.Concept (Ty.Block (Some t)) -> t | t -> t
+                            in
+                            match implicit_constructors ~src ~dst with
                             | [ found ] -> Some (Some (T.Arg.Value (coerce_value e found)))
                             | [] -> None
                             | several ->
@@ -1754,10 +1758,12 @@ and stat ctx (s : N.Stat.t) : T.Stat.t =
   in
   { T.Stat.node; span }
 
-(* A block never escapes the call it is written at (control-flow.md §2.2). *)
+(* A block never escapes the call it is written at (control-flow.md §2.2). One
+   that yields a value is read, which runs it, and its value is returned. *)
 and escapes (v : T.Expr.t) =
   match v.T.Expr.ty with
-  | Ty.Concept (Ty.Block _) -> error v.T.Expr.span "a block cannot be returned: it never escapes the call it is written at"
+  | Ty.Concept (Ty.Block None) ->
+      error v.T.Expr.span "a block cannot be returned: it never escapes the call it is written at"
   | _ -> ()
 
 (* A declaration is not a coercion site (types.md §4.2): the value has the

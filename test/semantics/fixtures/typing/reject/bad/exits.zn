@@ -1,0 +1,23 @@
+package bad;
+
+import core$;
+
+/// An exit ends the run of the block its call is written in, so a call to an
+/// exiting verb is written in a block that yields nothing.
+Unit early(ready Bool) {
+	guard(ready);
+	if(ready) {
+		guard(ready);
+	}
+	return Unit();
+}
+
+Bool lazily(condition @concepts$Block<Bool>) => condition
+
+Unit yielding(ready Bool) {
+	lazily({
+		guard(ready);
+		resolve ready;
+	});
+	return Unit();
+}

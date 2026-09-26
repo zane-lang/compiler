@@ -399,8 +399,62 @@ quotient an `i64` cannot hold, the most negative value over `-1`, wraps, as
 quotient Int = Int(1) / zero();   // stops here, status 1
 ```
 
-Reconciling means the spec stating an outcome; once aborts lower (step 4 of
-`docs/lowering.md` §8), making `/` abortable is the other candidate.
+Reconciling means the spec stating an outcome, or making `/` abortable, now
+that aborts lower (step 4 of `docs/lowering.md` §8).
+
+## 11. An exit ends the run of a block
+
+**Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
+§2.3 and §4.2: `@controlflow$exitFromCall` ends the invocation that called
+the verb containing it, and blocks are transparent to it, so a `guard` inside
+`i!to(n) { … }` ends the whole enclosing verb. That invocation must return
+`Unit`, and §3.6 calls `guard` straight from a verb's body.
+
+**Compiler** — the exit ends the run of the block the exiting verb's call is
+written in, and a call to an exiting verb is legal only inside a block that
+yields nothing. A verb's body must end in an explicit `return`, `Unit()`
+included ([`error-handling.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/error-handling.md)
+§8), and a block that yields a value in a `resolve`; a block that yields
+nothing has nothing to give, so it is the one thing an exit can end.
+
+```zane
+Unit sum(this Int) mut {
+	i Int(1);
+	i!to(Int(10)) {
+		guard(i == Int(3));   // skips this pass; the next one runs
+		this = this + i;
+	}
+	guard(this == Int(0));    // rejected: in no block
+	return Unit();
+}
+```
+
+A verb exits when the intrinsic is in its own frame: its body, or a block
+written there. `lib/tst/exits.ml` checks the calls, and
+`test/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
+Reconciling means the spec adopting this reading.
+
+## 12. A `Block<T>` is run by reading it
+
+**Spec** — silent. [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
+§2.4 has a `Block<T>` yield a `T` through `resolve`, and no intrinsic takes
+one, so it never says how the verb receiving the block gets the value.
+
+**Compiler** — a block is a concept, with no primitive counterpart, and
+reading one runs it. So a `Block<T>` parameter read where a `T` is expected
+gives its `T`, and is run once per read: a verb that needs the value twice
+stores it first.
+
+```zane
+Bool orElse(this Bool, other @concepts$Block<Bool>) {
+	if(this) {
+		return this;
+	}
+	return other;   // runs the block only here
+}
+```
+
+Reconciling means the spec stating how a block is read.
 
 ---
 

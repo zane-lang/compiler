@@ -1,6 +1,7 @@
 /// Aborts and exits: calls that abort, `?` and `??` handlers, `resolve`,
-/// `abort` and `return` out of a handler, `match` handlers, case reads, and
-/// `guard`. Each check prints `yes` when it holds and `no` when it does not.
+/// `abort` and `return` out of a handler, `match` handlers, case reads,
+/// `guard`, and blocks that yield a value. Each check prints `yes` when it
+/// holds and `no` when it does not.
 package outcomes;
 
 import core$;
@@ -53,14 +54,22 @@ Int ratio(input Input) => match (input) {
 	resolve e + Int(100);
 }
 
-/// Counts up, and `guard` ends the count early.
-Unit countTo(this Int, limit Int) mut {
+/// Adds 1 through 10 but `skipped`: `guard` ends that one pass of the block.
+Unit addAllBut(this Int, skipped Int) mut {
 	i Int(1);
 	i!to(Int(10)) {
-		guard(limit < i);
-		this = this + Int(1);
+		guard(i == skipped);
+		this = this + i;
 	}
 	return Unit();
+}
+
+/// Reads its block, which runs it, only when the subject is false.
+Bool orElse(this Bool, other @concepts$Block<Bool>) {
+	if(this) {
+		return this;
+	}
+	return other;
 }
 
 Unit check(ok Bool) {
@@ -111,13 +120,26 @@ Unit check(ok Bool) {
 	check((some.num ?? Int(0)) == Int(7));
 	check((none.num ? u { resolve Int(9); }) == Int(9));
 
-	// `guard` ends the verb that calls it, and that verb's caller runs on.
-	count Int(0);
-	count!countTo(Int(4));
-	check(count == Int(4));
+	// `guard` ends the run of the block its call is written in.
+	sum Int(0);
+	sum!addAllBut(Int(3));
+	check(sum == Int(52));
+	if(Bool(true)) {
+		guard(Bool(true));
+		check(Bool(false));
+	}
 
-	// And here it ends `main`.
-	guard(Bool(true));
-	check(Bool(false));
+	// A block that yields a value runs when it is read, and not before.
+	runs Int(0);
+	check(Bool(true):orElse({
+		runs = runs + Int(1);
+		resolve Bool(false);
+	}));
+	check(runs == Int(0));
+	check(Bool(false):orElse({
+		runs = runs + Int(1);
+		resolve Bool(true);
+	}));
+	check(runs == Int(1));
 	return @primitives$Unit();
 }

@@ -179,7 +179,9 @@ expanded and the literal is embedded where the body uses the parameter. In an
 expanded body the subject names the caller's own place, so a `mut` method
 such as `to` advances the caller's counter; every other argument is stored in
 a new slot first, in the order it was written. A `return` in the body itself
-stores the call's result and leaves the expansion.
+stores the call's result and leaves the expansion. A block that yields a
+value runs where its parameter is read, and its `resolve` gives the value
+([`spec-divergences.md`](spec-divergences.md) §12).
 
 **L12. A verb has up to three outcomes, and a call checks for them.** A
 function returns a small outcome tag when it can end in more than one way:
@@ -286,9 +288,8 @@ test passing.
    enum maps. A `mut` subject is passed by address. A value type that
    contains itself needs a boxed member, which waits for step 7, and a case
    read, which takes a handler, for step 4.
-4. **Aborts and exits.** The outcome tag, handlers, `resolve`, `guard`, and
-   case reads. A block argument that yields a value (`Block<T>`) waits until
-   a verb that calls one lowers.
+4. **Aborts and exits.** The outcome tag, handlers, `resolve`, `guard`, case
+   reads, and blocks that yield a value.
 5. **Reference types.** Arenas, hosting, moves, destruction, `float`.
 6. **Guests.** The anchor pool, `mint`, `resolve`, and anchor merges.
 7. **Handles.** `String`, `List`, and boxed members.
@@ -305,11 +306,6 @@ test passing.
   call. That is safe while nothing in the call relocates what it names, which
   the single-writer rule ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §4.3) should
   guarantee; step 5 confirms it or resolves again after each call that could.
-- **Where the exit check lives.** The spec rejects an exiting verb called from
-  a caller that must produce a value ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §4.2).
-  Which invocation an exit ends is only known once block-taking verbs are
-  expanded, so lowering reports it for now. Semantics takes the check over
-  once it models expansion.
 - **Moving to a newer LLVM.** llvm-project's bindings track every release,
   but opam packages them only up to 19. A newer release means building
   them from that release's `llvm/bindings/ocaml`, or waiting for opam.
@@ -328,8 +324,9 @@ test passing.
   into destinations (step 5), a function that can abort or exit returns a
   sum of three cases instead: done with its result, aborted with its abort
   value, and exited. A function that can only finish returns its result as
-  before. A verb exits when `@controlflow$exitFromCall` is in its own frame:
-  its body, or a block written there.
+  before. An exit ends the run of the block the call is written in
+  ([`spec-divergences.md`](spec-divergences.md) §11), so each run of a block
+  argument has a label to leave.
 - **A 64-bit target.** Codegen sizes a sum's payload room assuming 8-byte
   pointers and C struct layout, which holds for x86-64 and AArch64. Another
   target reads the sizes from LLVM's data layout.

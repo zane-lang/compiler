@@ -236,51 +236,6 @@ let expands (v : verb) =
     (fun (p : T.Local.t) -> match p.T.Local.ty with Tty.Concept _ -> true | _ -> false)
     v.params
 
-(* L12: a verb exits when `@controlflow$exitFromCall` runs in its own frame,
-   which is its body and the blocks written there. A verb it expands has
-   its own call site to exit to, and a lambda a frame of its own. *)
-let rec exits_block (b : T.Block.t) = List.exists exits_stat b.T.Block.stats
-
-and exits_stat (s : T.Stat.t) =
-  match s.T.Stat.node with
-  | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e | T.Stat.Return e | T.Stat.Resolve e ->
-      exits e
-  | T.Stat.Let { value; _ } -> exits value
-  | T.Stat.Assign { target; value } -> exits target || exits value
-
-and exits (e : T.Expr.t) =
-  let handled = function Some (h : T.Handler.t) -> exits_block h.T.Handler.body | None -> false in
-  let arg = function T.Arg.Value v -> exits v | T.Arg.Block b -> exits_block b in
-  let fields = List.exists (fun (f : T.Field_value.t) -> exits f.T.Field_value.value) in
-  match e.T.Expr.node with
-  | T.Expr.Call { callee = { owner = S.Intrinsic "@controlflow$exitFromCall"; _ }; _ } -> true
-  | T.Expr.Call { args; handler; _ } | T.Expr.Construct { args; handler; _ } ->
-      List.exists arg args || handled handler
-  | T.Expr.Call_value { callee; args; handler } ->
-      exits callee || List.exists arg args || handled handler
-  | T.Expr.Construct_fields { fields = fs; handler; _ } -> fields fs || handled handler
-  | T.Expr.Init fs -> fields fs
-  | T.Expr.Array_lit es -> List.exists exits es
-  | T.Expr.Map_lit kvs -> List.exists (fun (k, v) -> exits k || exits v) kvs
-  | T.Expr.Case { payload = v; _ }
-  | T.Expr.Field { target = v; _ }
-  | T.Expr.Map_read { target = v; _ }
-  | T.Expr.Ref v
-  | T.Expr.Spawn v
-  | T.Expr.Coerce { value = v; _ } ->
-      exits v
-  | T.Expr.Case_read { target; handler; _ } -> exits target || handled (Some handler)
-  | T.Expr.Subscript { target; args; _ } -> exits target || List.exists exits args
-  | T.Expr.Op { left; right; handler; _ } -> exits left || exits right || handled handler
-  | T.Expr.Flip { value; handler; _ } -> exits value || handled handler
-  | T.Expr.Match { scrutinees; arms; handler } ->
-      List.exists exits scrutinees
-      || List.exists (fun (a : T.Arm.t) -> exits_block a.T.Arm.body) arms
-      || handled handler
-  | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Text_lit _ | T.Expr.Bool_lit _
-  | T.Expr.Var _ | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Lambda _ | T.Expr.Invalid ->
-      false
-
 (* How a verb's call can end (L12): its primary result, and the abort value
    when it declares an abort type, and an exit when it has one. *)
 type outcome = { ok : Nodes.Ty.t; aborts : Nodes.Ty.t option; exit_ : bool }
@@ -289,7 +244,7 @@ let outcome st span (v : verb) =
   {
     ok = ty st span v.signature.S.ret;
     aborts = Option.map (ty st span) v.signature.S.abort;
-    exit_ = exits_block v.body;
+    exit_ = Tst.Exits.block v.body;
   }
 
 (* A function that can end more than one way returns a sum of the three:
@@ -337,14 +292,9 @@ let primitive ctx span spelling args : Expr.t =
   | _, [ T.Arg.Value v ] -> literal ctx span name v
   | _ -> refuse span (Printf.sprintf "lowering does not handle `%s` yet" spelling)
 
-(* An exit carries no value, so the invocation it ends returns `Unit`
-   (control-flow.md §4.2). *)
-let ends_valued span name =
-  refuse span
-    (Printf.sprintf
-       "an exit here ends `%s`, which returns a value; only an invocation that returns `Unit` \
-        can be ended by an exit"
-       name)
+(* An exit ends the run of a block that yields nothing (docs/spec-divergences.md
+   §11). Semantics rejects one anywhere else, so this is not reached. *)
+let no_block span = refuse span "an exit ends the block its call is written in, and this is in none"
 
 (* Where nothing leaves: an enum map's entry, which is a constant. *)
 let constant_ctx () =
@@ -366,7 +316,8 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       match lookup ctx span l with
       | Slot id -> { Expr.node = Expr.Local id; ty = ty st span l.T.Local.ty }
       | Pointer id -> deref id (ty st span l.T.Local.ty)
-      | Literal _ | Code _ -> refuse span "lowering does not read this parameter as a value")
+      | Code c -> yielded st c span l.T.Local.ty
+      | Literal _ -> refuse span "lowering does not read this parameter as a value")
   | T.Expr.Bool_lit b -> { Expr.node = Expr.Bool b; ty = Nodes.Ty.I1 }
   | T.Expr.Construct { ctor = { owner = S.Intrinsic spelling; _ }; args; handler = None } ->
       primitive ctx span spelling args
@@ -714,11 +665,7 @@ and expand st ctx span v args handler ret =
       expanding = v.decl :: ctx.expanding;
       abort = (match handler with Some h -> handle st ctx h label result | None -> ctx.abort);
       resolve = None;
-      finish =
-        (fun span ->
-          match result with
-          | None -> [ Stat.Leave label ]
-          | Some _ -> ends_valued span v.signature.S.name);
+      finish = no_block;
       exit_call = ctx.finish;
     }
   in
@@ -732,15 +679,41 @@ and expand st ctx span v args handler ret =
 
 and block st ctx (b : T.Block.t) = List.concat_map (stat st ctx) b.T.Block.stats
 
-(* A block argument's code, where it was written. *)
+(* A block argument's code, where it was written. An exit ends this run of
+   it (docs/spec-divergences.md §11). *)
 and code st ctx span (arg : T.Arg.t) =
+  let run ctx b =
+    let label = fresh st in
+    let left = ref false in
+    let finish _ =
+      left := true;
+      [ Stat.Leave label ]
+    in
+    let body = block st { ctx with finish } b in
+    if !left then
+      [ Stat.Eval { Expr.node = Expr.Expand { label; body; result = None }; ty = Nodes.Ty.Void } ]
+    else body
+  in
   match arg with
-  | T.Arg.Block b -> block st ctx b
+  | T.Arg.Block b -> run ctx b
   | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
       match lookup ctx span l with
-      | Code c -> block st c.ctx c.block
+      | Code c -> run c.ctx c.block
       | _ -> refuse span "lowering expected a block here")
   | T.Arg.Value _ -> refuse span "lowering expected a block here"
+
+(* A block that yields a value, read: it runs where it is read, and its
+   `resolve` gives the value (control-flow.md §2.4). *)
+and yielded st c span t =
+  let t =
+    match t with
+    | Tty.Concept (Tty.Block (Some t)) -> ty st span t
+    | _ -> refuse span "lowering expected a block that yields a value here"
+  in
+  let label = fresh st in
+  let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
+  let ctx = { c.ctx with resolve = Some (leave label result); finish = no_block } in
+  { Expr.node = Expr.Expand { label; body = block st ctx c.block; result }; ty = t }
 
 and stat st ctx (s : T.Stat.t) : Stat.t list =
   let span = s.T.Stat.span in
@@ -824,10 +797,7 @@ let func st (v : verb) : Func.t =
       expanding = [];
       abort = (fun _ value -> [ Stat.Return (outcome_case o aborted value) ]);
       resolve = None;
-      finish =
-        (fun span ->
-          if o.ok = Nodes.Ty.Void then [ Stat.Return (st.returns unit_) ]
-          else ends_valued span v.signature.S.name);
+      finish = no_block;
       exit_call = (fun _ -> [ Stat.Return (outcome_case o exited unit_) ]);
     }
   in

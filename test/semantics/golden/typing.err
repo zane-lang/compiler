@@ -114,6 +114,14 @@ File "fixtures/typing/reject/bad/calls.zn", line 43, characters 5-20:
 43 |     resolve Int(1);
   |     ^^^^^^^^^^^^^^^
 Error: `resolve` finishes a handler or a block argument, and this is in neither
+File "fixtures/typing/reject/bad/exits.zn", line 8, characters 5-17:
+8 |     guard(ready);
+  |     ^^^^^^^^^^^^
+Error: `guard` can exit, which ends the block its call is written in; this call is in no block
+File "fixtures/typing/reject/bad/exits.zn", line 19, characters 9-21:
+19 |         guard(ready);
+  |         ^^^^^^^^^^^^
+Error: `guard` can exit, which ends the block its call is written in; this block yields a value, so it cannot end without one
 File "fixtures/typing/reject/bad/guests.zn", line 31, characters 5-6:
 31 |     k!fill();
   |     ^

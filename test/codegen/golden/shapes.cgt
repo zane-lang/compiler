@@ -465,7 +465,7 @@
     │   │   ├── local: #3
     │   │   └── value: "no\n" : view
     │   ├── body[2] > let:
-    │   │   ├── local: #7
+    │   │   ├── local: #8
     │   │   └── value > expand:
     │   │       ├── type: i1
     │   │       ├── label: @5
@@ -488,7 +488,7 @@
     │   │       └── body[3]: leave @5
     │   ├── body[3] > eval > expand:
     │   │   ├── type: void
-    │   │   ├── label: @8
+    │   │   ├── label: @9
     │   │   ├── body[0] > if:
     │   │   │   ├── cond > call:
     │   │   │   │   ├── type: i1
@@ -496,7 +496,7 @@
     │   │   │   │   └── args[0] > call:
     │   │   │   │       ├── type: i1
     │   │   │   │       ├── fn: zane_flip_21
-    │   │   │   │       └── args[0]: local #7 : i1
+    │   │   │   │       └── args[0]: local #8 : i1
     │   │   │   └── body[0] > eval > runtime:
     │   │   │       ├── type: void
     │   │   │       ├── fn: zane_print
@@ -505,7 +505,7 @@
     │   │   │   ├── type: void
     │   │   │   ├── fn: zane_Unit_64
     │   │   │   └── args:
-    │   │   └── body[2]: leave @8
+    │   │   └── body[2]: leave @9
     │   └── body[4] > return > call:
     │       ├── type: void
     │       ├── fn: zane_Unit_64

@@ -268,9 +268,13 @@ and concept_equal a b =
    `return`. Exact, up to the passing mode, with the one relaxation the spec
    gives function values: a lambda that does not declare `mut` may be held by
    a `mut` function type (functions.md §7.2). *)
-let assignable ~dst ~src =
+(* A block is read by running it, so a `Block<T>` gives its `T` wherever one
+   is expected (control-flow.md §2.4). *)
+let rec assignable ~dst ~src =
   match (strip_guest dst, strip_guest src) with
   | Verb d, Verb s when d.is_mut && not s.is_mut -> equal (Verb d) (Verb { s with is_mut = true })
+  | Concept (Block _), _ -> equal (strip_guest dst) (strip_guest src)
+  | d, Concept (Block (Some t)) -> assignable ~dst:d ~src:t
   | d, s -> equal d s
 
 (* ---------------------------------------------------------------------- *)
@@ -289,6 +293,11 @@ let rec unify ~open_ (s : subst) pattern actual : subst option =
   let is_open p = List.exists (fun q -> q.id = p.id) open_ in
   match (pattern, actual) with
   | Error, _ -> Some s
+  (* A `Block<T>` read where no block is expected runs, and gives its `T`
+     (control-flow.md §2.4). *)
+  | pattern, Concept (Block (Some t))
+    when (match pattern with Concept (Block _) -> false | _ -> true) ->
+      unify ~open_ s pattern t
   (* An open parameter binds even to [Error], so a type that failed to
      resolve -- or a generic body checked with its parameters unknown -- still
      fixes it, and what depends on it is accepted rather than unbound. *)

@@ -31,13 +31,17 @@ package app
   decl Verb safeDivide | Float?String safeDivide(nu … numerator / denominator; }
     param numerator | numerator Float
     param denominator | denominator Float
-    block | { guard(denominator == Flo … numerator / denominator; }
-      stat Expr | guard(denominator == Float(0.0));
-        expr Call guard | guard(denominator == Float(0.0))
+    block | { if(denominator == Float( … numerator / denominator; }
+      stat Expr | if(denominator == Float(0.0)) { abort String("zero"); }
+        expr Call if | if(denominator == Float(0.0)) { abort String("zero"); }
           expr Op == | denominator == Float(0.0)
             expr Var denominator | denominator
             expr Construct Float | Float(0.0)
               expr Decimal_lit | 0.0
+          block | { abort String("zero"); }
+            stat Abort | abort String("zero");
+              expr Construct String | String("zero")
+                expr Text_lit | "zero"
       stat Expr | if(denominator < Float(0.0 … bort String("negative"); }
         expr Call if | if(denominator < Float(0.0 … bort String("negative"); }
           expr Op < | denominator < Float(0.0)

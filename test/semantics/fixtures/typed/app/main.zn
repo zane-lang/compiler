@@ -48,7 +48,9 @@ Pair<Int> pairOf(x @concepts$Int, y @concepts$Int) => Pair(Int(x), Int(y))
 Pair<Float> pairOf(x @concepts$Float, y @concepts$Float) => Pair(Float(x), Float(y))
 
 Float?String safeDivide(numerator Float, denominator Float) {
-	guard(denominator == Float(0.0));
+	if(denominator == Float(0.0)) {
+		abort String("zero");
+	}
 	if(denominator < Float(0.0)) {
 		abort String("negative");
 	}
