@@ -9,6 +9,10 @@ Unit early(ready Bool) {
 	if(ready) {
 		guard(ready);
 	}
+	check Unit(flag Bool) {
+		guard(flag);
+		return Unit();
+	}
 	return Unit();
 }
 

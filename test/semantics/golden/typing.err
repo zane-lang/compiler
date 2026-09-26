@@ -118,12 +118,16 @@ File "fixtures/typing/reject/bad/exits.zn", line 8, characters 5-17:
 8 |     guard(ready);
   |     ^^^^^^^^^^^^
 Error: `guard` can exit, which ends the block its call is written in, and this call is in no block
-File "fixtures/typing/reject/bad/exits.zn", line 17, characters 23-44:
-17 | Bool lazily(condition @concepts$Block<Bool>) => Bool(true)
+File "fixtures/typing/reject/bad/exits.zn", line 13, characters 9-20:
+13 |         guard(flag);
+  |         ^^^^^^^^^^^
+Error: `guard` can exit, which ends the block its call is written in, and this call is in no block
+File "fixtures/typing/reject/bad/exits.zn", line 21, characters 23-44:
+21 | Bool lazily(condition @concepts$Block<Bool>) => Bool(true)
   |                       ^^^^^^^^^^^^^^^^^^^^^
 Error: `@concepts$Block` takes no type argument: a block yields nothing (docs/spec-divergences.md §12)
-File "fixtures/typing/reject/bad/exits.zn", line 21, characters 9-23:
-21 |         resolve ready;
+File "fixtures/typing/reject/bad/exits.zn", line 25, characters 9-23:
+25 |         resolve ready;
   |         ^^^^^^^^^^^^^^
 Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it is not one
 File "fixtures/typing/reject/bad/guests.zn", line 31, characters 5-6:

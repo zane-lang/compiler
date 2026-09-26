@@ -11,7 +11,12 @@ module S = Signature
 
 (* The parts of an expression, by the context each is in: the same as the
    expression's, a handler's body, a block argument, or a lambda's body. *)
-type part = Same of T.Expr.t | Arm of T.Block.t | Handler of T.Block.t | Block of T.Block.t | Lambda
+type part =
+  | Same of T.Expr.t
+  | Arm of T.Block.t
+  | Handler of T.Block.t
+  | Block of T.Block.t
+  | Lambda of T.Block.t
 
 let parts (e : T.Expr.t) =
   let same es = List.map (fun x -> Same x) es in
@@ -41,7 +46,7 @@ let parts (e : T.Expr.t) =
   | T.Expr.Flip { value; handler = h; _ } -> Same value :: handler h
   | T.Expr.Match { scrutinees; arms; handler = h } ->
       same scrutinees @ List.map (fun (a : T.Arm.t) -> Arm a.T.Arm.body) arms @ handler h
-  | T.Expr.Lambda _ -> [ Lambda ]
+  | T.Expr.Lambda { body; _ } -> [ Lambda body ]
   | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Text_lit _ | T.Expr.Bool_lit _
   | T.Expr.Var _ | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid ->
       []
@@ -61,7 +66,7 @@ and expr (e : T.Expr.t) =
   | T.Expr.Call { callee = { owner = S.Intrinsic "@controlflow$exitFromCall"; _ }; _ } -> true
   | _ ->
       List.exists
-        (function Same x -> expr x | Arm b | Handler b | Block b -> block b | Lambda -> false)
+        (function Same x -> expr x | Arm b | Handler b | Block b -> block b | Lambda _ -> false)
         (parts e)
 
 (* The verb a call names, when it names a declared one. *)
@@ -112,7 +117,8 @@ let run (p : T.Program.t) =
         | Same x -> walk in_block x
         | Arm b | Handler b -> walk_block in_block b
         | Block b -> walk_block true b
-        | Lambda -> ())
+        (* A lambda has a frame of its own, so its body is in no block. *)
+        | Lambda b -> walk_block false b)
       (parts e)
   in
   List.iter (fun (_, b) -> walk_block false b) bodies
