@@ -70,6 +70,9 @@ let runtime env name =
         match name with
         | "zane_print" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.i64 |]
         | "zane_divide_by_zero" -> Llvm.function_type (Llvm.void_type env.ctx) [||]
+        | "zane_scope_enter" -> Llvm.function_type env.i64 [||]
+        | "zane_slot" -> Llvm.function_type env.ptr [| env.i64; env.i64; env.i64 |]
+        | "zane_scope_drain" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.i64 |]
         | _ -> failwith ("codegen: unknown runtime function " ^ name)
       in
       let f = Llvm.declare_function name fty env.m in
@@ -85,14 +88,30 @@ let text env s =
   Llvm.set_unnamed_addr true g;
   Llvm.const_struct env.ctx [| g; Llvm.const_int env.i64 (String.length s) |]
 
-(* What a function being built keeps: its slots, and the exit block of each
-   expansion it is inside. *)
+(* What a function being built keeps: its slots, the exit block of each
+   expansion it is inside with how many arenas were open when it began, and
+   the arenas open where it is building, innermost first (L8). *)
 type frame = {
   fn : Llvm.llvalue;
   locals : (int, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
-  labels : (int, Llvm.llbasicblock) Hashtbl.t;
+  labels : (int, Llvm.llbasicblock * int) Hashtbl.t;
+  arenas : (int, Llvm.llvalue) Hashtbl.t;
+  mutable open_ : Llvm.llvalue list;
   ret : Ty.t;
 }
+
+let call_runtime env b name args =
+  let f, fty = runtime env name in
+  Llvm.build_call fty f args "" b
+
+(* Drain the arenas opened since [depth] were open, innermost first: what a
+   way out of them does before it jumps. *)
+let drain env fr b depth =
+  List.iteri
+    (fun i arena ->
+      if i < List.length fr.open_ - depth then
+        ignore (call_runtime env b "zane_scope_drain" [| arena |]))
+    fr.open_
 
 (* Every local is a stack slot in the entry block (L3); LLVM's `mem2reg`
    promotes the ones that can live in registers. *)
@@ -228,7 +247,7 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
   | Expr.Expand { label; body; result } ->
       Option.iter (fun id -> ignore (slot env fr id (lltype env e.Expr.ty))) result;
       let exit = block env fr in
-      Hashtbl.replace fr.labels label exit;
+      Hashtbl.replace fr.labels label (exit, List.length fr.open_);
       stats env fr b body;
       if not (has_terminator b) then ignore (Llvm.build_br exit b);
       Llvm.position_at_end exit b;
@@ -275,9 +294,29 @@ and stat env fr b (s : Stat.t) =
       Llvm.position_at_end after b
   | Stat.Eval e -> ignore (expr env fr b e)
   | Stat.Return e -> (
-      match expr env fr b e with
+      (* The value is read before its arenas are drained. *)
+      let v = expr env fr b e in
+      drain env fr b 0;
+      match v with
       | Some v when fr.ret <> Ty.Void -> ignore (Llvm.build_ret v b)
       | _ -> ignore (Llvm.build_ret_void b))
+  | Stat.Scope { id; body } ->
+      let arena = call_runtime env b "zane_scope_enter" [||] in
+      Hashtbl.replace fr.arenas id arena;
+      fr.open_ <- arena :: fr.open_;
+      stats env fr b body;
+      if not (has_terminator b) then ignore (call_runtime env b "zane_scope_drain" [| arena |]);
+      fr.open_ <- List.tl fr.open_
+  | Stat.Host { id; scope; value } -> (
+      match expr env fr b value with
+      | None -> ()
+      | Some v ->
+          let size, align = size_align value.Expr.ty in
+          let n x = Llvm.const_int env.i64 x in
+          let arena = Hashtbl.find fr.arenas scope in
+          let slot = call_runtime env b "zane_slot" [| arena; n size; n align |] in
+          ignore (Llvm.build_store v slot b);
+          Hashtbl.replace fr.locals id (slot, Llvm.type_of v))
   | Stat.If { cond; body } ->
       let c = Option.get (expr env fr b cond) in
       let taken = block env fr and after = block env fr in
@@ -304,13 +343,25 @@ and stat env fr b (s : Stat.t) =
         ignore (Llvm.build_br head b)
       end;
       Llvm.position_at_end after b
-  | Stat.Leave label -> ignore (Llvm.build_br (Hashtbl.find fr.labels label) b)
+  | Stat.Leave label ->
+      let exit, depth = Hashtbl.find fr.labels label in
+      drain env fr b depth;
+      ignore (Llvm.build_br exit b)
 
 let func env (f : Func.t) =
   let fn, _ = Hashtbl.find env.funcs f.Func.symbol in
   (* `define_function` gives the function its entry block already. *)
   let b = Llvm.builder_at_end env.ctx (Llvm.entry_block fn) in
-  let fr = { fn; locals = Hashtbl.create 8; labels = Hashtbl.create 8; ret = f.Func.ret } in
+  let fr =
+    {
+      fn;
+      locals = Hashtbl.create 8;
+      labels = Hashtbl.create 8;
+      arenas = Hashtbl.create 4;
+      open_ = [];
+      ret = f.Func.ret;
+    }
+  in
   (* A parameter is stored into a slot like any other local. *)
   let kept = List.filter (fun (_, t) -> t <> Ty.Void) f.Func.params in
   List.iteri

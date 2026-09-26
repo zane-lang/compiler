@@ -1,0 +1,157 @@
+/// Reference types: `#struct` and `#variant` instances hosted in their
+/// scope's arena, moved by `let`, `return` and a swallowing parameter, and
+/// written through `mut` methods. Every way out of a block drains its arena:
+/// falling off the end, `return`, `abort`, a `resolve`, and an exit. The
+/// runtime stops the program if a scope is drained out of order or left
+/// open. Each check prints `yes` when it holds and `no` when it does not.
+package hosts;
+
+import core$;
+
+type Account = #struct {
+	owner Int;
+	balance Int;
+}
+
+Account(owner Int) => init{ owner; balance = Int(0); }
+
+Unit deposit(this Account, amount Int) mut {
+	this.balance = this.balance + amount;
+	return Unit();
+}
+
+Int funds(this Account) => this.balance
+
+/// Moves the local it built out through its return.
+Account opened(owner Int, amount Int) {
+	a Account(owner);
+	a!deposit(amount);
+	return a;
+}
+
+/// Swallows its argument.
+Int closed(account Account) => account.balance
+
+type Slot = #variant {
+	empty Unit;
+	held Account;
+}
+
+/// Returns from inside a block that hosts a local.
+Int richest(limit Int) {
+	i Int(1);
+	i!to(limit) {
+		a Account = opened(i, i * Int(10));
+		if(Int(30) < a.balance) {
+			return a.owner;
+		}
+	}
+	return Int(0);
+}
+
+/// Aborts from inside a block that hosts a local.
+Int?Int overdrawn(amount Int) {
+	a Account = opened(Int(9), Int(5));
+	if(a.balance < amount) {
+		b Account = opened(Int(8), amount);
+		abort b.balance;
+	}
+	return a.balance;
+}
+
+/// Aborts with a reference type, which the handler's binder hosts.
+Int?Account refused(owner Int) {
+	if(owner == Int(0)) {
+		abort opened(Int(7), Int(70));
+	}
+	return owner;
+}
+
+type Choice = variant {
+	pick Int;
+	skip Unit;
+}
+
+/// A `match` arm aborts from inside its own hosting block, and the
+/// `match`'s handler hosts the abort value there.
+Int chosen(c Choice) => match (c) {
+	n pick {
+		a Account = opened(n, n);
+		if(a.balance == Int(0)) {
+			abort a;
+		}
+		return a.balance;
+	}
+	s skip {
+		abort Account(Int(6));
+	}
+} ? e {
+	resolve e.owner * Int(100);
+}
+
+/// Sums balances, skipping one pass with `guard` after hosting a local.
+Int total(skipped Int) {
+	sum Int(0);
+	i Int(1);
+	i!to(Int(5)) {
+		a Account = opened(i, i);
+		guard(i == skipped);
+		sum = sum + a.balance;
+	}
+	return sum;
+}
+
+Unit check(ok Bool) {
+	yes @primitives$String("yes\n");
+	no @primitives$String("no\n");
+	ran Bool = if(ok) {
+		@program$console!print(yes);
+	}
+	ran:else() {
+		@program$console!print(no);
+	}
+	return Unit();
+}
+
+@primitives$Unit main() {
+	// A host, written through a `mut` method and read through another.
+	a Account = opened(Int(1), Int(5));
+	a!deposit(Int(10));
+	check(a:funds() == Int(15));
+
+	// A move, a refilled host, and a swallowed argument.
+	b Account = a;
+	check(b.balance == Int(15));
+	a = Account(Int(2));
+	check(a.owner == Int(2));
+	check(closed(b) == Int(15));
+
+	// A variant hosting a struct.
+	s Slot = Slot.held(Account(Int(3)));
+	check(match (s) {
+		e empty => Bool(false);
+		h held => h.owner == Int(3);
+	});
+
+	// Each way out of a hosting block.
+	check(richest(Int(9)) == Int(4));
+	check((overdrawn(Int(1)) ?? Int(0)) == Int(5));
+	check((overdrawn(Int(7)) ? e { resolve e + Int(1); }) == Int(8));
+	check(total(Int(3)) == Int(12));
+	check((refused(Int(0)) ? e { resolve e.balance; }) == Int(70));
+	check((refused(Int(4)) ? e { resolve e.balance; }) == Int(4));
+	check(chosen(Choice.pick(Int(5))) == Int(5));
+	check(chosen(Choice.pick(Int(0))) == Int(0));
+	check(chosen(Choice.skip(Unit())) == Int(600));
+
+	// A hundred thousand passes, each hosting two locals and draining them.
+	count Int(0);
+	i Int(1);
+	i!to(Int(100000)) {
+		c Account = opened(i, Int(1));
+		d Account = c;
+		count = count + d.balance;
+	}
+	check(count == Int(100000));
+	return @primitives$Unit();
+}

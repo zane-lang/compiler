@@ -262,7 +262,8 @@ The binary takes the same `--package` flags as the semantic views:
 | `--build OUT` | builds the program into the executable `OUT` |
 
 `test/codegen/` lowers and builds each fixture, runs it, and compares the
-tree and what the program wrote against golden files.
+tree and what the program wrote against golden files. `test/runtime/` compiles
+the runtime with a C program of its own that calls it directly.
 
 The first version runs no optimization passes (stage 5), so an unoptimized
 build is the whole pipeline from the start.
@@ -288,9 +289,15 @@ test passing.
    read, which takes a handler, for step 4.
 4. **Aborts and exits.** The outcome tag, handlers, `resolve`, `guard`, and
    case reads.
-5. **Reference types.** Arenas, hosting, moves, destruction, `float`.
-6. **Guests.** The anchor pool, `mint`, `resolve`, and anchor merges.
-7. **Handles.** `String`, `List`, and boxed members.
+5. **Reference types.** Arenas, hosting and moves. A reference-type local is
+   hosted in its block's arena, and a move copies the instance into its new
+   host. The runtime checks that scopes drain in order and that none is left
+   open, and is tested in C on its own.
+6. **Guests.** The anchor pool, `mint`, `resolve`, anchor merges, the
+   backpointer (L5), `float`, and `destroy` retiring an anchor. Until
+   anchors exist, a floated or destroyed instance has nothing to release.
+7. **Handles.** `String`, `List`, boxed members, and `destroy` returning
+   dynamic blocks.
 8. **`spawn`.** The thread pool, futures, and the water tower.
 
 ---
@@ -298,12 +305,23 @@ test passing.
 ## 9. Open questions
 
 - **How many scopes get an arena.** L8 gives every block that declares a local
-  its own. Folding them is allowed and saves the most in loops; which ones to
-  fold is left to measurement once step 5 runs.
+  its own. For now only a block that hosts a reference-type local opens one,
+  and a value-type local stays an LLVM stack slot, since nothing tells the
+  two placements apart until a value owns dynamic storage (step 7). Folding
+  arenas is allowed and saves the most in loops; which ones to fold is left
+  to measurement.
+- **Arenas share one chain of chunks.** Scopes nest last-in-first-out, so the
+  runtime keeps one chain of 1 MiB chunks: a scope bumps from where the scope
+  around it stopped, and draining it restores that point. A chunk stays
+  mapped once made and is reused by the next scope that reaches it, where
+  [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1 unmaps a scope's chunks at its drain. The spec leaves
+  arena granularity to the implementation and fixes only that a scope's
+  memory is released together, which this does.
 - **A `this` address across a call that moves.** L10 resolves `this` once per
   call. That is safe while nothing in the call relocates what it names, which
   the single-writer rule ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §4.3) should
-  guarantee; step 5 confirms it or resolves again after each call that could.
+  guarantee; step 6, where an address is first taken of a host, confirms it
+  or resolves again after each call that could.
 - **Moving to a newer LLVM.** llvm-project's bindings track every release,
   but opam packages them only up to 19. A newer release means building
   them from that release's `llvm/bindings/ocaml`, or waiting for opam.
@@ -312,14 +330,15 @@ test passing.
   any other pair stands for its second character, until the spec says.
 - **Aggregates by value, for now.** L6 passes a value struct or sum by the
   address of the caller's slot and L7 has a result written into a
-  destination the caller names. Until reference types need addresses
-  (step 5), lowering passes and returns them as LLVM aggregate values
+  destination the caller names. Until guests need an instance's address
+  (step 6), lowering passes and returns them as LLVM aggregate values
   instead, which copies what L6 would lend; a value parameter cannot be
-  written, so nothing observes the difference. Only a `mut` subject is
-  passed by address already.
+  written, so nothing observes the difference. A reference type is passed the
+  same way: a swallowed argument is copied into the callee, and the caller's
+  host is spent. Only a `mut` subject is passed by address already.
 - **An outcome as a sum, for now.** L12 returns a tag and has the caller
   pass slots for the result and the abort value. Until results are written
-  into destinations (step 5), a function that can abort or exit returns a
+  into destinations (step 6), a function that can abort or exit returns a
   sum of three cases instead: done with its result, aborted with its abort
   value, and exited. A function that can only finish returns its result as
   before. An exit ends the run of the block the call is written in

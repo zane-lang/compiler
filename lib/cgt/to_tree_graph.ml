@@ -83,6 +83,17 @@ let rec expr (e : Expr.t) =
 and stat = function
   | Stat.Let { id; value } ->
       group "let" (fields [ ("local", Leaf (Printf.sprintf "#%d" id)); ("value", expr value) ])
+  | Stat.Host { id; scope; value } ->
+      group "host"
+        (fields
+           [
+             ("local", Leaf (Printf.sprintf "#%d" id));
+             ("scope", Leaf (Printf.sprintf "%%%d" scope));
+             ("value", expr value);
+           ])
+  | Stat.Scope { id; body } ->
+      let arena = Leaf (Printf.sprintf "%%%d" id) in
+      group "scope" (fields [ ("id", arena); ("body", map_seq stat body) ])
   | Stat.Assign { place = { local; deref; path; _ }; value } ->
       let target =
         Printf.sprintf "%s#%d%s"

@@ -53,7 +53,12 @@ and ctx = {
   (* What `@controlflow$exitFromCall` does here: end the invocation that
      called the verb whose body it is in. *)
   exit_call : Source.Span.t -> Stat.t list;
+  (* The block being lowered, which hosts its reference-type locals (L8). *)
+  scope : scope;
 }
+
+(* A block's arena, made the first time the block hosts something. *)
+and scope = { mutable arena : int option }
 
 and exit = Function | Leave of { label : int; result : int option }
 
@@ -114,15 +119,21 @@ let rec ty ?(seen = []) st span (t : Tty.t) : Nodes.Ty.t =
          which lives in the dynamic region (step 7). *)
       if List.mem id seen then unhandled span t;
       let member = ty ~seen:(id :: seen) st span in
+      (* A reference type is laid out like a value type of the same shape,
+         except that it is never collapsed into its one member. *)
       match definition st t with
       | Some (T.Decl.Struct [], false) -> Nodes.Ty.Void
       | Some (T.Decl.Struct [ (_, m) ], false) -> member m
-      | Some (T.Decl.Struct ms, false) -> Nodes.Ty.Struct (List.map (fun (_, m) -> member m) ms)
-      | Some (T.Decl.Variant cs, false) -> Nodes.Ty.Sum (List.map (fun (_, c) -> member c) cs)
+      | Some (T.Decl.Struct ms, _) -> Nodes.Ty.Struct (List.map (fun (_, m) -> member m) ms)
+      | Some (T.Decl.Variant cs, _) -> Nodes.Ty.Sum (List.map (fun (_, c) -> member c) cs)
       | Some (T.Decl.Enum cs, _) -> Nodes.Ty.Sum (List.map (fun _ -> Nodes.Ty.Void) cs)
-      | Some (T.Decl.Distinct u, false) -> member u
+      | Some (T.Decl.Distinct u, _) -> member u
       | _ -> unhandled span t)
   | _ -> unhandled span t
+
+(* Whether a local of this type is a host: a reference type's instance lives
+   in its scope's arena (memory.md §3.3). *)
+let hosted st t = match definition st t with Some (_, true) -> true | _ -> false
 
 (* The cases of a variant or enum, in declaration order. *)
 let cases st span t =
@@ -307,7 +318,24 @@ let constant_ctx () =
     resolve = None;
     finish = nowhere;
     exit_call = nowhere;
+    scope = { arena = None };
   }
+
+(* A new local: hosted in the block's arena when it is a reference type,
+   which makes the arena the first time. *)
+let bind_local st scope (l : T.Local.t) id value =
+  if hosted st l.T.Local.ty then begin
+    let arena =
+      match scope.arena with
+      | Some a -> a
+      | None ->
+          let a = fresh st in
+          scope.arena <- Some a;
+          a
+    in
+    Stat.Host { id; scope = arena; value }
+  end
+  else Stat.Let { id; value }
 
 let rec expr st ctx (e : T.Expr.t) : Expr.t =
   let span = e.T.Expr.span in
@@ -488,16 +516,22 @@ and map_read st ctx span target map ret =
 
 (* A handler, run where its operation aborted: its binder holds the abort
    value, and a `resolve` gives the operation its value and goes past it. *)
+(* A handler is a block of its own, so an abort value of a reference type
+   is hosted in the handler's arena, which is innermost wherever the handler
+   runs. *)
 and handle st ctx (h : T.Handler.t) label result _span (value : Expr.t) =
+  let scope = { arena = None } in
   let bind =
     match h.T.Handler.binder with
     | Some l ->
         let id = fresh st in
         Hashtbl.replace ctx.env l.T.Local.id (Slot id);
-        [ Stat.Let { id; value } ]
+        [ bind_local st scope l id value ]
     | None -> [ Stat.Eval value ]
   in
-  bind @ block st { ctx with resolve = Some (leave label result) } h.T.Handler.body
+  let inner = { ctx with resolve = Some (leave label result); scope } in
+  let body = bind @ block st inner h.T.Handler.body in
+  match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ]
 
 (* A case read is its payload when the case is live, and runs its handler
    when another is (adt.md §5.2). The other cases fall through to it. *)
@@ -666,6 +700,7 @@ and expand st ctx span v args handler ret =
       resolve = None;
       finish = no_block;
       exit_call = ctx.finish;
+      scope = ctx.scope;
     }
   in
   match binds @ block st inner v.body with
@@ -676,7 +711,11 @@ and expand st ctx span v args handler ret =
   | [ Stat.Eval value; Stat.Leave l ] when result = None && l = label -> value
   | body -> { Expr.node = Expr.Expand { label; body; result }; ty = t }
 
-and block st ctx (b : T.Block.t) = List.concat_map (stat st ctx) b.T.Block.stats
+(* L8: a block that hosts a reference-type local has an arena of its own. *)
+and block st ctx (b : T.Block.t) =
+  let scope = { arena = None } in
+  let body = List.concat_map (stat st { ctx with scope }) b.T.Block.stats in
+  match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ]
 
 (* A block argument's code, where it was written. An exit ends this run of
    it (docs/spec-divergences.md §11). *)
@@ -708,7 +747,7 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       let value = expr st ctx value in
       let id = fresh st in
       Hashtbl.replace ctx.env local.T.Local.id (Slot id);
-      [ Stat.Let { id; value } ]
+      [ bind_local st ctx.scope local id value ]
   | T.Stat.Assign { target; value } ->
       let place = place st ctx span target in
       [ Stat.Assign { place; value = expr st ctx value } ]
@@ -785,6 +824,7 @@ let func st (v : verb) : Func.t =
       resolve = None;
       finish = no_block;
       exit_call = (fun _ -> [ Stat.Return (outcome_case o exited unit_) ]);
+      scope = { arena = None };
     }
   in
   { Func.symbol = symbol st v; params; ret = returned o; body = block st ctx v.body }

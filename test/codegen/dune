@@ -204,3 +204,47 @@
  (alias runtest)
  (action
   (diff golden/outcomes.out outcomes.out.actual)))
+
+
+; `hosts` is step 5: reference types hosted in their scope's arena, moved and
+; written in place, with every way out of a hosting block draining its arena.
+; The runtime stops the program if a scope drains out of order or is left
+; open, so a missed drain fails the run.
+
+(rule
+ (deps (source_tree fixtures/hosts) (source_tree ../core))
+ (action
+  (with-stdout-to
+   hosts.cgt.actual
+   (run
+    %{exe:../../bin/compiler/main.exe}
+    --cgt
+    --package fixtures/hosts
+    --package ../core))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hosts.cgt hosts.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/hosts) (source_tree ../core))
+ (targets hosts.exe)
+ (action
+  (run
+   %{exe:../../bin/compiler/main.exe}
+   --build
+   hosts.exe
+   --package fixtures/hosts
+   --package ../core)))
+
+(rule
+ (action
+  (with-stdout-to
+   hosts.out.actual
+   (run ./hosts.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hosts.out hosts.out.actual)))
