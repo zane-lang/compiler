@@ -39,7 +39,7 @@ and arg = Type of t | Number of number
 and number = Known of int | Number_param of param
 
 and concept =
-  (* `@concepts$Integer`: an integer literal, and what a number parameter is
+  (* `@concepts$Int`: an integer literal, and what a number parameter is
      declared with and reads as in a body (generics.md §3.3). *)
   | Integer_lit
   | Decimal_lit
@@ -117,9 +117,9 @@ and number_to_string = function
   | Number_param p -> p.name
 
 and concept_to_string = function
-  | Integer_lit -> "@concepts$Integer"
-  | Decimal_lit -> "@concepts$Decimal"
-  | Text_lit -> "@concepts$Text"
+  | Integer_lit -> "@concepts$Int"
+  | Decimal_lit -> "@concepts$Float"
+  | Text_lit -> "@concepts$String"
   | Array_lit (t, n) ->
       "@concepts$Array<" ^ to_string t ^ ", " ^ number_to_string n ^ ">"
   | Map_lit (k, v) -> "@concepts$Map<" ^ to_string k ^ ", " ^ to_string v ^ ">"

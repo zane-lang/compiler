@@ -11,7 +11,7 @@ T neverCalled(value T Type) {
 	return value + value;
 }
 
-Int neverSized(values Array<T Type, n @concepts$Integer>) => Int(n) + 2.5
+Int neverSized(values Array<T Type, n @concepts$Int>) => Int(n) + 2.5
 
 type Shelf<T Type> = #struct { items List<T>; }
 

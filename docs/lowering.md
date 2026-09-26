@@ -33,10 +33,14 @@ LLVM's own passes, and write the object file through the target machine, so
 no text is written and read back. Linking that object with the runtime (§6)
 is the one step left to a system linker, which `clang` drives.
 
-The bindings are tied to one LLVM release, so the opam `llvm` version and the
-LLVM that `devbox.json` provides move together. The tests read the module as
-LLVM prints it (`Llvm.string_of_llmodule`) as a golden file, which is how the
-TST is tested today.
+The bindings are LLVM's own, from `llvm/bindings/ocaml` in llvm-project,
+which opam builds from each LLVM release as its `llvm` package. They are
+tied to that release, and the compiler uses LLVM 19, the newest opam
+packages. `dev/bin/bootstrap-toolchain` pins it; devbox provides LLVM 19
+with its `llvm-config` and headers, and CI installs `llvm-19-dev`.
+
+The module's text is LLVM's to print and changes between releases, so the
+tests read the CGT and what a built program writes instead (§7).
 
 **L3. The CGT is a tree, not a control-flow graph.** It keeps structured
 control flow — a block, a branch, a counted loop — and names every exit
@@ -224,14 +228,31 @@ code C states without ceremony.
 
 ---
 
-## 7. How it will be built, and how to look at it
+## 7. How it is built, and how to look at it
 
 Lowering lives in `lib/cgt/`, beside `lib/tst/`: `nodes.ml` for the tree,
 `lower.ml` for the TST → CGT walk, `to_tree_graph.ml` to render it. Codegen
-lives in `lib/llvm/`, with `emit.ml` building the module through the
-bindings. The binary gains
-`--cgt` (print the tree) and `--ll` (print the IR), and a build flag that
-writes the binary.
+lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,
+and `build.ml` writes the object file and links it with the runtime. The
+runtime's source, `runtime/zane.c`, is compiled into the compiler as a
+string, so a build needs nothing beside the compiler and a C compiler
+(`clang`, or `ZANE_CC`).
+
+Lowering starts at the root package's `main` and lowers each verb the first
+time a call reaches it, so a program's unused declarations never need to
+lower. Whatever it cannot handle yet it refuses with a diagnostic at that
+node, never by lowering it wrongly.
+
+The binary takes the same `--package` flags as the semantic views:
+
+| Flag | Does |
+|---|---|
+| `--cgt` | prints the code-generation tree |
+| `--ll` | prints the LLVM module |
+| `--build OUT` | builds the program into the executable `OUT` |
+
+`test/codegen/` lowers and builds each fixture, runs it, and compares the
+tree and what the program wrote against golden files.
 
 The first version runs no optimization passes (stage 5), so an unoptimized
 build is the whole pipeline from the start.
@@ -244,7 +265,9 @@ Each step is one PR, ends with programs that run, and keeps every earlier
 test passing.
 
 1. **This design**, and `concepts-vs-primitives.md` brought in line with it.
-2. **Scalars and calls.** CGT nodes, the printer, and lowering for `Int`,
+2. **Scalars and calls.** First a program that prints a string literal
+   through `@program$console`: the CGT, codegen, the runtime and the test
+   that builds and runs it. Then lowering for `Int`,
    `Float` and `Bool` arithmetic, functions, returns, and `branch`/`repeat`
    expanded from `core`'s `if` and `to`. Codegen and a runtime that can print
    an `Int`. A test that builds and runs a program.
@@ -270,8 +293,11 @@ test passing.
   a caller that must produce a value ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §4.2).
   Semantics does not check it yet; step 4 adds the check there, since lowering
   reports nothing.
-- **Which LLVM.** opam's `llvm` bindings stop at LLVM 19, and `devbox.json`
-  provides LLVM 21. Step 2 moves devbox to the newest release the bindings
-  cover, and CI installs the same one.
+- **Moving to a newer LLVM.** llvm-project's bindings track every release,
+  but opam packages them only up to 19. A newer release means building
+  them from that release's `llvm/bindings/ocaml`, or waiting for opam.
+- **String escapes.** The spec names none, and the lexer keeps a backslash
+  with the character after it. Lowering decodes `\n`, `\t`, `\r` and `\0`, and
+  any other pair stands for its second character, until the spec says.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
   §5.2). Until it says, the check L5 emits traps.

@@ -4,7 +4,7 @@
 
    A verb has no `< >` header. It introduces each type or number parameter at
    the parameter's first *marked* occurrence -- `x T Type`, `Array<T Type, n
-   @concepts$Integer>`, or an explicit `T Type` or `n @concepts$Integer` value
+   @concepts$Int>`, or an explicit `T Type` or `n @concepts$Int` value
    parameter -- and every other occurrence of the name, before or after,
    refers to it (generics.md §3.2).
    So the introductions are found first, over the whole signature, and only
@@ -97,7 +97,7 @@ let rec scan_type intro (te : N.Type_expr.t) =
                   error g.N.Generic_arg.span
                     (Printf.sprintf
                        "%s introduces a parameter, which takes `Type` or \
-                        `@concepts$Integer` (generics.md §3.3)"
+                        `@concepts$Int` (generics.md §3.3)"
                        (quote name)))
           | _ -> ())
         generics
@@ -117,10 +117,10 @@ and scan_param_type intro (pt : N.Param_type.t) =
       ignore (introduce intro pt.N.Param_type.span name.N.Name.text Ty.Type_kind)
 
 (* A `T Type` value parameter always introduces a type parameter. An
-   `@concepts$Integer` one is a compile-time integer either way, since that is
+   `@concepts$Int` one is a compile-time integer either way, since that is
    a leaf concept type (syntax.md §2.8); it introduces a number parameter
    when a type in the verb writes its name where a number goes, as
-   `Array<T, n>(T Type, n @concepts$Integer)` does, and is otherwise an
+   `Array<T, n>(T Type, n @concepts$Int)` does, and is otherwise an
    ordinary parameter that accepts an integer literal
    (docs/semantics.md §9). *)
 let scan_param intro (p : N.Param.t) =
@@ -230,10 +230,10 @@ let verb_number_refs (v : N.Verb_decl.t) =
 (* Number parameters passed on                                            *)
 (* ---------------------------------------------------------------------- *)
 
-(* A verb's `@concepts$Integer` parameter is a number parameter when the verb
+(* A verb's `@concepts$Int` parameter is a number parameter when the verb
    writes it where a number goes. A type is one such place, and
    [verb_number_refs] finds those. The other is an argument to another verb's
-   number parameter -- `outer(n @concepts$Integer) => measured(values, n)`
+   number parameter -- `outer(n @concepts$Int) => measured(values, n)`
    with `measured`'s `n` a number parameter -- and whether that callee's
    parameter is one depends in turn on the callee's own body. So the answer
    is a fixed point over every verb of the build: start from what the types
@@ -262,7 +262,7 @@ let numbers_of (d : decl) v =
   own @ Option.value ~default:[] (Hashtbl.find_opt promoted d.id)
 
 (* A verb's parameters in the order a call passes them -- a method's and a
-   subscript's subject first -- each as the name of an `@concepts$Integer`
+   subscript's subject first -- each as the name of an `@concepts$Int`
    parameter, or [None]. *)
 let positions (v : N.Verb_decl.t) =
   let of_param (p : N.Param.t) =

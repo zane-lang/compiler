@@ -349,66 +349,6 @@
         }
       }
     },
-    "llvm_21@latest": {
-      "last_modified": "2026-05-20T06:38:13Z",
-      "resolved": "github:NixOS/nixpkgs/d99b013d5d1931ad77fe3912ed218170dec5d9a4#llvm_21",
-      "source": "devbox-search",
-      "version": "21.1.8",
-      "systems": {
-        "aarch64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/fib2wxwpvlc1q2qrxbhz2i961l2srcjw-llvm-21.1.8",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/x0msv7ql9xm50fvz3x5p2gb01grnyqln-llvm-21.1.8-dev"
-            },
-            {
-              "name": "lib",
-              "path": "/nix/store/4fk7xkk9faias8kqzh1kagdhb87l5kcw-llvm-21.1.8-lib"
-            },
-            {
-              "name": "python",
-              "path": "/nix/store/6avba57frkpxqlw7d5mljr5a6ymvlygy-llvm-21.1.8-python"
-            }
-          ],
-          "store_path": "/nix/store/fib2wxwpvlc1q2qrxbhz2i961l2srcjw-llvm-21.1.8"
-        },
-        "x86_64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/dr58nil7xb6v4di6mmlvki3s1d8iwdym-llvm-21.1.8",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/0hf3wfrd60fhgh7y1x7857pf7a1hypnm-llvm-21.1.8-dev"
-            },
-            {
-              "name": "lib",
-              "path": "/nix/store/lr9kz2ky0ys12cx0xz91rnkmbadaqvj0-llvm-21.1.8-lib"
-            },
-            {
-              "name": "python",
-              "path": "/nix/store/45y119pkm1p76bqn7lhp2i0nx0yk2x44-llvm-21.1.8-python"
-            }
-          ],
-          "store_path": "/nix/store/dr58nil7xb6v4di6mmlvki3s1d8iwdym-llvm-21.1.8"
-        },
-        "x86_64-linux": {
-          "outputs": [
-            {
-              "path": "/nix/store/jp45dqzv8mjpqsvhj99c93pc4vlmhy16-llvm-21.1.8",
-              "default": true
-            }
-          ]
-        }
-      }
-    },
     "m4@latest": {
       "last_modified": "2023-02-24T09:01:09Z",
       "resolved": "github:NixOS/nixpkgs/7d0ed7f2e5aea07ab22ccb338d27fbe347ed2f11#m4",

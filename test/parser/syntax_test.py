@@ -590,11 +590,11 @@ class ParserSyntaxTests(unittest.TestCase):
     def test_generic_parameter_introduction_and_collection_literals(self) -> None:
         self.assert_parses(
             '''
-            type Buffer<T Type, n @concepts$Integer> = struct {
+            type Buffer<T Type, n @concepts$Int> = struct {
                 data Array<T, n>;
             }
 
-            T first(values Array<T Type, n @concepts$Integer>) => values[0]
+            T first(values Array<T Type, n @concepts$Int>) => values[0]
 
             Unit literals() {
                 values Array<Int, 3> = Array([Int(1), Int(2), Int(3)]);
@@ -618,7 +618,7 @@ class ParserSyntaxTests(unittest.TestCase):
 
             Vector<T>(T Type) => init{ x = T(0); y = T(0); }
 
-            Array<T, n>(T Type, n @concepts$Integer) => init{ }
+            Array<T, n>(T Type, n @concepts$Int) => init{ }
 
             Unit use() {
                 vec Vector(Int);
@@ -695,16 +695,16 @@ class ParserSyntaxTests(unittest.TestCase):
 
     def test_a_number_parameter_is_declared_with_the_integer_concept(self) -> None:
         # generics.md §3.3: a number parameter is declared `n
-        # @concepts$Integer`, the concept type an integer literal carries, in
+        # @concepts$Int`, the concept type an integer literal carries, in
         # a type's header, inline in a verb, and as an explicit parameter.
         self.assert_parses(
-            "type Buffer<T Type, n @concepts$Integer> = struct { data Array<T, n>; }"
+            "type Buffer<T Type, n @concepts$Int> = struct { data Array<T, n>; }"
         )
         self.assert_parses(
-            "Int size(this Buffer<T Type, n @concepts$Integer>) => Int(n)"
+            "Int size(this Buffer<T Type, n @concepts$Int>) => Int(n)"
         )
-        self.assert_parses("Array<T, n>(T Type, n @concepts$Integer) => init{ }")
-        self.assert_parses("implicit Float(value @concepts$Decimal) => init{ }")
+        self.assert_parses("Array<T, n>(T Type, n @concepts$Int) => init{ }")
+        self.assert_parses("implicit Float(value @concepts$Float) => init{ }")
         # There is no `Number` keyword, so the word is an ordinary type name.
         self.assert_parses("type Number = struct { raw Int; }")
         self.assert_parses("Unit f(value core$Number) => Unit()")

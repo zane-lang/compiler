@@ -327,10 +327,10 @@ Pair<T> ~(value Pair<T Type>) => Pair(~value.left, ~value.right)
 
 /// A verb introduces a number parameter the same way, inside a parameter's
 /// own type.
-T first(values Array<T Type, n @concepts$Integer>) => values[1]
+T first(values Array<T Type, n @concepts$Int>) => values[1]
 
 /// A concept-typed parameter accepts a source literal and lowers it.
-String quote(text @concepts$Text) => "\"" + String(text) + "\""
+String quote(text @concepts$String) => "\"" + String(text) + "\""
 
 /// A map literal carries `@concepts$Map<K, V>` the way an array literal
 /// carries `@concepts$Array<T, n>`, and is lowered by whatever consumes it.
@@ -344,11 +344,11 @@ Unit record(entries @concepts$Map<String, Float>) {
 /// parameter, of concept type `Type`, so the call writes a type where a value
 /// goes. Types are compile-time values, which is what makes that an ordinary
 /// argument rather than a second kind of bracket at the call.
-type Slots<T Type, n @concepts$Integer> = struct {
+type Slots<T Type, n @concepts$Int> = struct {
 	items Array<T, n>;
 }
 
-Slots<T, n>(T Type, n @concepts$Integer) => init{ items = Array(T, n); }
+Slots<T, n>(T Type, n @concepts$Int) => init{ items = Array(T, n); }
 
 // ---------------------------------------------------------------------------
 // Retrying: constructors that take the last argument after the `)`

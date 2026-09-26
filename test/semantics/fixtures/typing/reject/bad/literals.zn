@@ -2,26 +2,26 @@ package bad;
 
 import core$;
 
-/// A header holds `Type` and `@concepts$Integer` parameters only
+/// A header holds `Type` and `@concepts$Int` parameters only
 /// (generics.md §3.3).
-type Scaled<T Type, factor @concepts$Decimal> = struct { item T; }
+type Scaled<T Type, factor @concepts$Float> = struct { item T; }
 type Tagged<T Type, tag Int> = struct { item T; }
 
 /// A `< >` entry in a signature introduces with `Type` or
-/// `@concepts$Integer` and nothing else.
+/// `@concepts$Int` and nothing else.
 Int first(values Array<T Type, n Int>) => Int(1)
 
-Int measured(values Array<Int, n>, n @concepts$Integer) => Int(n)
+Int measured(values Array<Int, n>, n @concepts$Int) => Int(n)
 
-Int relayed(values Array<Int, 3>, n @concepts$Integer) => measured(values, n)
+Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n)
 
-Int sizedLike(values Array<Int, 3>, n @concepts$Integer) {
+Int sizedLike(values Array<Int, 3>, n @concepts$Int) {
 	measure Int(held Array<Int, n>) => Int(n);
 	return measure(values);
 }
 
-Unit twice(x @concepts$Integer, y @concepts$Integer) => Unit()
-Unit twice(x @concepts$Decimal, y @concepts$Decimal) => Unit()
+Unit twice(x @concepts$Int, y @concepts$Int) => Unit()
+Unit twice(x @concepts$Float, y @concepts$Float) => Unit()
 
 Unit literals() {
 	numbers Array([Int(1), Int(2), Int(3)]);

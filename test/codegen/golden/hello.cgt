@@ -1,0 +1,14 @@
+└── program:
+    ├── entry: zane_main_1
+    └── funcs[0] > func:
+        ├── symbol: zane_main_1
+        ├── params:
+        ├── ret: void
+        ├── body[0] > let:
+        │   ├── local: #1
+        │   └── value: "hello world" : view
+        ├── body[1] > eval > runtime:
+        │   ├── type: void
+        │   ├── fn: zane_print
+        │   └── args[0]: local #1 : view
+        └── body[2] > return: unit : void

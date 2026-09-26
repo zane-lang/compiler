@@ -20,47 +20,47 @@
     │   │   ├── signature: core$Int count(core$Array<T, n>) #5
     │   │   └── body: checked per instance
     │   ├── decls[5] > verb:
-    │   │   ├── signature: core$Int measured(core$Array<core$Int, n>, n @concepts$Integer) #6
+    │   │   ├── signature: core$Int measured(core$Array<core$Int, n>, n @concepts$Int) #6
     │   │   └── body: checked per instance
     │   ├── decls[6] > verb:
-    │   │   ├── signature: core$Int relayed(core$Array<core$Int, 3>, n @concepts$Integer) #7
+    │   │   ├── signature: core$Int relayed(core$Array<core$Int, 3>, n @concepts$Int) #7
     │   │   └── body: checked per instance
     │   ├── decls[7] > verb:
-    │   │   ├── signature: core$Int forwarded(core$Array<core$Int, 3>, count @concepts$Integer) #8
+    │   │   ├── signature: core$Int forwarded(core$Array<core$Int, 3>, count @concepts$Int) #8
     │   │   └── body: checked per instance
     │   ├── decls[8] > verb:
-    │   │   ├── signature: core$Int sizedLike(core$Array<core$Int, 3>, n @concepts$Integer) #9
+    │   │   ├── signature: core$Int sizedLike(core$Array<core$Int, 3>, n @concepts$Int) #9
     │   │   └── body: checked per instance
     │   ├── decls[9] > verb:
-    │   │   ├── signature: app$Pair<core$Int> pairOf(@concepts$Integer, @concepts$Integer) #10
-    │   │   ├── params[0]: x #1 : @concepts$Integer
-    │   │   ├── params[1]: y #2 : @concepts$Integer
+    │   │   ├── signature: app$Pair<core$Int> pairOf(@concepts$Int, @concepts$Int) #10
+    │   │   ├── params[0]: x #1 : @concepts$Int
+    │   │   ├── params[1]: y #2 : @concepts$Int
     │   │   └── body[0] > return > construct:
     │   │       ├── type: app$Pair<core$Int>
     │   │       ├── ctor: Pair #3 with T = core$Int
     │   │       ├── args[0] > construct:
     │   │       │   ├── type: core$Int
     │   │       │   ├── ctor: Int #55
-    │   │       │   └── args[0]: x #1 : @concepts$Integer
+    │   │       │   └── args[0]: x #1 : @concepts$Int
     │   │       └── args[1] > construct:
     │   │           ├── type: core$Int
     │   │           ├── ctor: Int #55
-    │   │           └── args[0]: y #2 : @concepts$Integer
+    │   │           └── args[0]: y #2 : @concepts$Int
     │   ├── decls[10] > verb:
-    │   │   ├── signature: app$Pair<core$Float> pairOf(@concepts$Decimal, @concepts$Decimal) #11
-    │   │   ├── params[0]: x #3 : @concepts$Decimal
-    │   │   ├── params[1]: y #4 : @concepts$Decimal
+    │   │   ├── signature: app$Pair<core$Float> pairOf(@concepts$Float, @concepts$Float) #11
+    │   │   ├── params[0]: x #3 : @concepts$Float
+    │   │   ├── params[1]: y #4 : @concepts$Float
     │   │   └── body[0] > return > construct:
     │   │       ├── type: app$Pair<core$Float>
     │   │       ├── ctor: Pair #3 with T = core$Float
     │   │       ├── args[0] > construct:
     │   │       │   ├── type: core$Float
     │   │       │   ├── ctor: Float #65
-    │   │       │   └── args[0]: x #3 : @concepts$Decimal
+    │   │       │   └── args[0]: x #3 : @concepts$Float
     │   │       └── args[1] > construct:
     │   │           ├── type: core$Float
     │   │           ├── ctor: Float #65
-    │   │           └── args[0]: y #4 : @concepts$Decimal
+    │   │           └── args[0]: y #4 : @concepts$Float
     │   ├── decls[11] > verb:
     │   │   ├── signature: core$Float?core$String safeDivide(core$Float, core$Float) #12
     │   │   ├── params[0]: numerator #5 : core$Float
@@ -76,7 +76,7 @@
     │   │   │       └── right > construct:
     │   │   │           ├── type: core$Float
     │   │   │           ├── ctor: Float #65
-    │   │   │           └── args[0]: 0.0 : @concepts$Decimal
+    │   │   │           └── args[0]: 0.0 : @concepts$Float
     │   │   ├── body[1] > do > call:
     │   │   │   ├── type: core$Bool
     │   │   │   ├── callee: if #49
@@ -88,11 +88,11 @@
     │   │   │   │   └── right > construct:
     │   │   │   │       ├── type: core$Float
     │   │   │   │       ├── ctor: Float #65
-    │   │   │   │       └── args[0]: 0.0 : @concepts$Decimal
+    │   │   │   │       └── args[0]: 0.0 : @concepts$Float
     │   │   │   └── args[1] > block[0] > abort > construct:
     │   │   │       ├── type: core$String
     │   │   │       ├── ctor: String #74
-    │   │   │       └── args[0]: "negative" : @concepts$Text
+    │   │   │       └── args[0]: "negative" : @concepts$String
     │   │   └── body[2] > return > op:
     │   │       ├── type: core$Float
     │   │       ├── op: /
@@ -110,25 +110,25 @@
     │   │       │   └── body[0] > return > construct:
     │   │       │       ├── type: core$String
     │   │       │       ├── ctor: String #74
-    │   │       │       └── args[0]: "top" : @concepts$Text
+    │   │       │       └── args[0]: "top" : @concepts$String
     │   │       ├── arms[1] > arm:
     │   │       │   ├── patterns[0]: topRight
     │   │       │   └── body[0] > return > construct:
     │   │       │       ├── type: core$String
     │   │       │       ├── ctor: String #74
-    │   │       │       └── args[0]: "top" : @concepts$Text
+    │   │       │       └── args[0]: "top" : @concepts$String
     │   │       ├── arms[2] > arm:
     │   │       │   ├── patterns[0]: bottomLeft
     │   │       │   └── body[0] > return > construct:
     │   │       │       ├── type: core$String
     │   │       │       ├── ctor: String #74
-    │   │       │       └── args[0]: "bottom" : @concepts$Text
+    │   │       │       └── args[0]: "bottom" : @concepts$String
     │   │       └── arms[3] > arm:
     │   │           ├── patterns[0]: bottomRight
     │   │           └── body[0] > return > construct:
     │   │               ├── type: core$String
     │   │               ├── ctor: String #74
-    │   │               └── args[0]: "bottom" : @concepts$Text
+    │   │               └── args[0]: "bottom" : @concepts$String
     │   ├── decls[13] > verb:
     │   │   ├── signature: core$Unit main() #14
     │   │   ├── params:
@@ -145,7 +145,7 @@
     │   │   │   └── args[1] > coerce:
     │   │   │       ├── type: core$String
     │   │   │       ├── ctor: String #74
-    │   │   │       └── value: "hello" : @concepts$Text
+    │   │   │       └── value: "hello" : @concepts$String
     │   │   ├── body[2] > let:
     │   │   │   ├── local: origin #9 : shapes$Vec2
     │   │   │   └── value > construct:
@@ -162,7 +162,7 @@
     │   │   │       └── right > coerce:
     │   │   │           ├── type: shapes$Vec2
     │   │   │           ├── ctor: Vec2 #24
-    │   │   │           └── value: 3.0 : @concepts$Decimal
+    │   │   │           └── value: 3.0 : @concepts$Float
     │   │   ├── body[4] > do > call:
     │   │   │   ├── type: core$Unit
     │   │   │   ├── callee: scale #23
@@ -170,7 +170,7 @@
     │   │   │   └── args[1] > construct:
     │   │   │       ├── type: core$Float
     │   │   │       ├── ctor: Float #65
-    │   │   │       └── args[0]: 2.0 : @concepts$Decimal
+    │   │   │       └── args[0]: 2.0 : @concepts$Float
     │   │   ├── body[5] > let:
     │   │   │   ├── local: flat #11 : shapes$Vec2
     │   │   │   └── value > construct_fields:
@@ -181,7 +181,7 @@
     │   │   │           └── value > construct:
     │   │   │               ├── type: core$Float
     │   │   │               ├── ctor: Float #65
-    │   │   │               └── args[0]: 1.0 : @concepts$Decimal
+    │   │   │               └── args[0]: 1.0 : @concepts$Float
     │   │   ├── body[6] > let:
     │   │   │   ├── local: size #12 : core$Float
     │   │   │   └── value > call:
@@ -196,7 +196,7 @@
     │   │   │       └── payload > construct:
     │   │   │           ├── type: core$Float
     │   │   │           ├── ctor: Float #65
-    │   │   │           └── args[0]: 2.0 : @concepts$Decimal
+    │   │   │           └── args[0]: 2.0 : @concepts$Float
     │   │   ├── body[8] > let:
     │   │   │   ├── local: covered #14 : core$Float
     │   │   │   └── value > call:
@@ -214,7 +214,7 @@
     │   │   │           └── body[0] > resolve > construct:
     │   │   │               ├── type: core$Float
     │   │   │               ├── ctor: Float #65
-    │   │   │               └── args[0]: 0.0 : @concepts$Decimal
+    │   │   │               └── args[0]: 0.0 : @concepts$Float
     │   │   ├── body[10] > let:
     │   │   │   ├── local: half #17 : core$Float
     │   │   │   └── value > call:
@@ -224,7 +224,7 @@
     │   │   │       ├── args[1] > construct:
     │   │   │       │   ├── type: core$Float
     │   │   │       │   ├── ctor: Float #65
-    │   │   │       │   └── args[0]: 2.0 : @concepts$Decimal
+    │   │   │       │   └── args[0]: 2.0 : @concepts$Float
     │   │   │       └── handler:
     │   │   │           ├── binder: reason #16 : core$String
     │   │   │           ├── body[0] > do > call:
@@ -235,7 +235,7 @@
     │   │   │           └── body[1] > resolve > construct:
     │   │   │               ├── type: core$Float
     │   │   │               ├── ctor: Float #65
-    │   │   │               └── args[0]: 0.0 : @concepts$Decimal
+    │   │   │               └── args[0]: 0.0 : @concepts$Float
     │   │   ├── body[11] > let:
     │   │   │   ├── local: picked #18 : core$Int
     │   │   │   └── value > call:
@@ -244,11 +244,11 @@
     │   │   │       ├── args[0] > construct:
     │   │   │       │   ├── type: core$Int
     │   │   │       │   ├── ctor: Int #55
-    │   │   │       │   └── args[0]: 1 : @concepts$Integer
+    │   │   │       │   └── args[0]: 1 : @concepts$Int
     │   │   │       ├── args[1] > construct:
     │   │   │       │   ├── type: core$Int
     │   │   │       │   ├── ctor: Int #55
-    │   │   │       │   └── args[0]: 2 : @concepts$Integer
+    │   │   │       │   └── args[0]: 2 : @concepts$Int
     │   │   │       └── args[2] > coerce:
     │   │   │           ├── type: core$Bool
     │   │   │           ├── ctor: Bool #31
@@ -261,11 +261,11 @@
     │   │   │       ├── args[0] > construct:
     │   │   │       │   ├── type: core$Float
     │   │   │       │   ├── ctor: Float #65
-    │   │   │       │   └── args[0]: 0.5 : @concepts$Decimal
+    │   │   │       │   └── args[0]: 0.5 : @concepts$Float
     │   │   │       ├── args[1] > construct:
     │   │   │       │   ├── type: core$Float
     │   │   │       │   ├── ctor: Float #65
-    │   │   │       │   └── args[0]: 1.5 : @concepts$Decimal
+    │   │   │       │   └── args[0]: 1.5 : @concepts$Float
     │   │   │       └── args[2] > coerce:
     │   │   │           ├── type: core$Bool
     │   │   │           ├── ctor: Bool #31
@@ -278,11 +278,11 @@
     │   │   │       ├── args[0] > construct:
     │   │   │       │   ├── type: core$Int
     │   │   │       │   ├── ctor: Int #55
-    │   │   │       │   └── args[0]: 3 : @concepts$Integer
+    │   │   │       │   └── args[0]: 3 : @concepts$Int
     │   │   │       └── args[1] > construct:
     │   │   │           ├── type: core$Int
     │   │   │           ├── ctor: Int #55
-    │   │   │           └── args[0]: 4 : @concepts$Integer
+    │   │   │           └── args[0]: 4 : @concepts$Int
     │   │   ├── body[14] > let:
     │   │   │   ├── local: total #21 : core$Int
     │   │   │   └── value > call:
@@ -297,11 +297,11 @@
     │   │   │       ├── args[0] > construct:
     │   │   │       │   ├── type: core$Float
     │   │   │       │   ├── ctor: Float #65
-    │   │   │       │   └── args[0]: 1.0 : @concepts$Decimal
+    │   │   │       │   └── args[0]: 1.0 : @concepts$Float
     │   │   │       └── args[1] > construct:
     │   │   │           ├── type: core$Float
     │   │   │           ├── ctor: Float #65
-    │   │   │           └── args[0]: 2.0 : @concepts$Decimal
+    │   │   │           └── args[0]: 2.0 : @concepts$Float
     │   │   ├── body[16] > let:
     │   │   │   ├── local: both #23 : core$Float
     │   │   │   └── value > call:
@@ -318,15 +318,15 @@
     │   │   │           ├── items[0] > construct:
     │   │   │           │   ├── type: core$Int
     │   │   │           │   ├── ctor: Int #55
-    │   │   │           │   └── args[0]: 1 : @concepts$Integer
+    │   │   │           │   └── args[0]: 1 : @concepts$Int
     │   │   │           ├── items[1] > construct:
     │   │   │           │   ├── type: core$Int
     │   │   │           │   ├── ctor: Int #55
-    │   │   │           │   └── args[0]: 2 : @concepts$Integer
+    │   │   │           │   └── args[0]: 2 : @concepts$Int
     │   │   │           └── items[2] > construct:
     │   │   │               ├── type: core$Int
     │   │   │               ├── ctor: Int #55
-    │   │   │               └── args[0]: 3 : @concepts$Integer
+    │   │   │               └── args[0]: 3 : @concepts$Int
     │   │   ├── body[18] > let:
     │   │   │   ├── local: first #27 : core$Int
     │   │   │   └── value > subscript:
@@ -336,7 +336,7 @@
     │   │   │       └── args[0] > coerce:
     │   │   │           ├── type: core$Int
     │   │   │           ├── ctor: Int #55
-    │   │   │           └── value: 1 : @concepts$Integer
+    │   │   │           └── value: 1 : @concepts$Int
     │   │   ├── body[19] > let:
     │   │   │   ├── local: length #28 : core$Int
     │   │   │   └── value > call:
@@ -349,35 +349,35 @@
     │   │   │       ├── type: core$Int
     │   │   │       ├── callee: measured #6 with n = 3
     │   │   │       ├── args[0]: numbers #24 : core$Array<core$Int, 3>
-    │   │   │       └── args[1]: 3 : @concepts$Integer
+    │   │   │       └── args[1]: 3 : @concepts$Int
     │   │   ├── body[21] > let:
     │   │   │   ├── local: like #30 : core$Int
     │   │   │   └── value > call:
     │   │   │       ├── type: core$Int
     │   │   │       ├── callee: sizedLike #9 with n = 3
     │   │   │       ├── args[0]: numbers #24 : core$Array<core$Int, 3>
-    │   │   │       └── args[1]: 3 : @concepts$Integer
+    │   │   │       └── args[1]: 3 : @concepts$Int
     │   │   ├── body[22] > let:
     │   │   │   ├── local: passed #31 : core$Int
     │   │   │   └── value > call:
     │   │   │       ├── type: core$Int
     │   │   │       ├── callee: forwarded #8 with count = 3
     │   │   │       ├── args[0]: numbers #24 : core$Array<core$Int, 3>
-    │   │   │       └── args[1]: 3 : @concepts$Integer
+    │   │   │       └── args[1]: 3 : @concepts$Int
     │   │   ├── body[23] > let:
     │   │   │   ├── local: ints #32 : app$Pair<core$Int>
     │   │   │   └── value > call:
     │   │   │       ├── type: app$Pair<core$Int>
     │   │   │       ├── callee: pairOf #10
-    │   │   │       ├── args[0]: 2 : @concepts$Integer
-    │   │   │       └── args[1]: 3 : @concepts$Integer
+    │   │   │       ├── args[0]: 2 : @concepts$Int
+    │   │   │       └── args[1]: 3 : @concepts$Int
     │   │   ├── body[24] > let:
     │   │   │   ├── local: decimals #33 : app$Pair<core$Float>
     │   │   │   └── value > call:
     │   │   │       ├── type: app$Pair<core$Float>
     │   │   │       ├── callee: pairOf #11
-    │   │   │       ├── args[0]: 2.5 : @concepts$Decimal
-    │   │   │       └── args[1]: 3.5 : @concepts$Decimal
+    │   │   │       ├── args[0]: 2.5 : @concepts$Float
+    │   │   │       └── args[1]: 3.5 : @concepts$Float
     │   │   ├── body[25] > let:
     │   │   │   ├── local: label #34 : core$String
     │   │   │   └── value > map_read:
@@ -400,7 +400,7 @@
     │   │   │   └── value > construct:
     │   │   │       ├── type: core$Int
     │   │   │       ├── ctor: Int #55
-    │   │   │       └── args[0]: 1 : @concepts$Integer
+    │   │   │       └── args[0]: 1 : @concepts$Int
     │   │   ├── body[29] > do > call:
     │   │   │   ├── type: core$Unit
     │   │   │   ├── callee: to #53
@@ -408,7 +408,7 @@
     │   │   │   ├── args[1] > coerce:
     │   │   │   │   ├── type: core$Int
     │   │   │   │   ├── ctor: Int #55
-    │   │   │   │   └── value: 3 : @concepts$Integer
+    │   │   │   │   └── value: 3 : @concepts$Int
     │   │   │   └── args[2] > block[0] > do > call:
     │   │   │       ├── type: core$Unit
     │   │   │       ├── callee: print #39
@@ -430,7 +430,7 @@
     │   │   │           └── right > construct:
     │   │   │               ├── type: core$Float
     │   │   │               ├── ctor: Float #65
-    │   │   │               └── args[0]: 2.0 : @concepts$Decimal
+    │   │   │               └── args[0]: 2.0 : @concepts$Float
     │   │   ├── body[31] > let:
     │   │   │   ├── local: doubled #39 : core$Float
     │   │   │   └── value > call_value:
@@ -450,7 +450,7 @@
     │   │   │       │   └── right > construct:
     │   │   │       │       ├── type: core$Int
     │   │   │       │       ├── ctor: Int #55
-    │   │   │       │       └── args[0]: 5 : @concepts$Integer
+    │   │   │       │       └── args[0]: 5 : @concepts$Int
     │   │   │       └── args[1] > block[0] > do > call:
     │   │   │           ├── type: core$Unit
     │   │   │           ├── callee: print #39
@@ -458,7 +458,7 @@
     │   │   │           └── args[1] > coerce:
     │   │   │               ├── type: core$String
     │   │   │               ├── ctor: String #74
-    │   │   │               └── value: "small" : @concepts$Text
+    │   │   │               └── value: "small" : @concepts$String
     │   │   ├── body[33] > do > call:
     │   │   │   ├── type: core$Unit
     │   │   │   ├── callee: elif #50
@@ -471,7 +471,7 @@
     │   │   │   │   └── right > construct:
     │   │   │   │       ├── type: core$Int
     │   │   │   │       ├── ctor: Int #55
-    │   │   │   │       └── args[0]: 7 : @concepts$Integer
+    │   │   │   │       └── args[0]: 7 : @concepts$Int
     │   │   │   └── args[2] > block[0] > do > call:
     │   │   │       ├── type: core$Unit
     │   │   │       ├── callee: print #39
@@ -479,7 +479,7 @@
     │   │   │       └── args[1] > coerce:
     │   │   │           ├── type: core$String
     │   │   │           ├── ctor: String #74
-    │   │   │           └── value: "seven" : @concepts$Text
+    │   │   │           └── value: "seven" : @concepts$String
     │   │   ├── body[34] > do > call:
     │   │   │   ├── type: core$Unit
     │   │   │   ├── callee: else #51
@@ -491,7 +491,7 @@
     │   │   │       └── args[1] > coerce:
     │   │   │           ├── type: core$String
     │   │   │           ├── ctor: String #74
-    │   │   │           └── value: "large" : @concepts$Text
+    │   │   │           └── value: "large" : @concepts$String
     │   │   └── body[35] > return > construct:
     │   │       ├── type: core$Unit
     │   │       ├── ctor: Unit #79
@@ -528,13 +528,13 @@
     │   │       │   └── value > construct:
     │   │       │       ├── type: core$Float
     │   │       │       ├── ctor: Float #65
-    │   │       │       └── args[0]: 0.0 : @concepts$Decimal
+    │   │       │       └── args[0]: 0.0 : @concepts$Float
     │   │       └── fields[1] > field:
     │   │           ├── name: y (slot 1)
     │   │           └── value > construct:
     │   │               ├── type: core$Float
     │   │               ├── ctor: Float #65
-    │   │               └── args[0]: 0.0 : @concepts$Decimal
+    │   │               └── args[0]: 0.0 : @concepts$Float
     │   ├── decls[3] > verb:
     │   │   ├── signature: Vec2{x core$Float; y core$Float = ...} #19
     │   │   ├── params[0]: x #45 : core$Float
@@ -666,8 +666,8 @@
     │   │       ├── ctor: Unit #79
     │   │       └── args:
     │   ├── decls[8] > verb:
-    │   │   ├── signature: implicit Vec2(@concepts$Decimal) #24
-    │   │   ├── params[0]: value #53 : @concepts$Decimal
+    │   │   ├── signature: implicit Vec2(@concepts$Float) #24
+    │   │   ├── params[0]: value #53 : @concepts$Float
     │   │   └── body[0] > return > init:
     │   │       ├── type: shapes$Vec2
     │   │       ├── fields[0] > field:
@@ -675,13 +675,13 @@
     │   │       │   └── value > construct:
     │   │       │       ├── type: core$Float
     │   │       │       ├── ctor: Float #65
-    │   │       │       └── args[0]: value #53 : @concepts$Decimal
+    │   │       │       └── args[0]: value #53 : @concepts$Float
     │   │       └── fields[1] > field:
     │   │           ├── name: y (slot 1)
     │   │           └── value > construct:
     │   │               ├── type: core$Float
     │   │               ├── ctor: Float #65
-    │   │               └── args[0]: value #53 : @concepts$Decimal
+    │   │               └── args[0]: value #53 : @concepts$Float
     │   ├── decls[9] > type:
     │   │   ├── name: Shape #25
     │   │   ├── kind: reference
@@ -703,25 +703,25 @@
     │   │   │   └── value > coerce:
     │   │   │       ├── type: core$String
     │   │   │       ├── ctor: String #74
-    │   │   │       └── value: "top left" : @concepts$Text
+    │   │   │       └── value: "top left" : @concepts$String
     │   │   ├── entries[1]:
     │   │   │   ├── member: topRight
     │   │   │   └── value > coerce:
     │   │   │       ├── type: core$String
     │   │   │       ├── ctor: String #74
-    │   │   │       └── value: "top right" : @concepts$Text
+    │   │   │       └── value: "top right" : @concepts$String
     │   │   ├── entries[2]:
     │   │   │   ├── member: bottomLeft
     │   │   │   └── value > coerce:
     │   │   │       ├── type: core$String
     │   │   │       ├── ctor: String #74
-    │   │   │       └── value: "bottom left" : @concepts$Text
+    │   │   │       └── value: "bottom left" : @concepts$String
     │   │   └── entries[3]:
     │   │       ├── member: bottomRight
     │   │       └── value > coerce:
     │   │           ├── type: core$String
     │   │           ├── ctor: String #74
-    │   │           └── value: "bottom right" : @concepts$Text
+    │   │           └── value: "bottom right" : @concepts$String
     │   ├── decls[12] > verb:
     │   │   ├── signature: core$Float _half(core$Float) #28
     │   │   ├── params[0]: value #54 : core$Float
@@ -733,7 +733,7 @@
     │   │       └── right > construct:
     │   │           ├── type: core$Float
     │   │           ├── ctor: Float #65
-    │   │           └── args[0]: 2.0 : @concepts$Decimal
+    │   │           └── args[0]: 2.0 : @concepts$Float
     │   └── decls[13] > verb:
     │       ├── signature: core$Float area(&shapes$Shape) #29
     │       ├── params[0]: shape #55 : &shapes$Shape
@@ -764,7 +764,7 @@
     │               └── body[0] > return > construct:
     │                   ├── type: core$Float
     │                   ├── ctor: Float #65
-    │                   └── args[0]: 0.0 : @concepts$Decimal
+    │                   └── args[0]: 0.0 : @concepts$Float
     ├── packages[2] > package:
     │   ├── name: core
     │   ├── decls[0] > type:
@@ -889,7 +889,7 @@
     │   │       └── args:
     │   ├── decls[10] > type:
     │   │   ├── name: Array #40
-    │   │   ├── params: T Type, n @concepts$Integer
+    │   │   ├── params: T Type, n @concepts$Int
     │   │   ├── kind: value
     │   │   └── struct[0]: _items : @primitives$Array<T, n>
     │   ├── decls[11] > verb:
@@ -1028,7 +1028,7 @@
     │   │   │   │       └── right > construct:
     │   │   │   │           ├── type: core$Int
     │   │   │   │           ├── ctor: Int #55
-    │   │   │   │           └── args[0]: 1 : @concepts$Integer
+    │   │   │   │           └── args[0]: 1 : @concepts$Int
     │   │   │   ├── args[1] > block[0] > do > call:
     │   │   │   │   ├── type: @primitives$Unit
     │   │   │   │   ├── callee: @controlflow$branch
@@ -1044,7 +1044,7 @@
     │   │   │           └── right > construct:
     │   │   │               ├── type: core$Int
     │   │   │               ├── ctor: Int #55
-    │   │   │               └── args[0]: 1 : @concepts$Integer
+    │   │   │               └── args[0]: 1 : @concepts$Int
     │   │   └── body[1] > return > construct:
     │   │       ├── type: core$Unit
     │   │       ├── ctor: Unit #79
@@ -1054,8 +1054,8 @@
     │   │   ├── kind: value
     │   │   └── struct[0]: raw : @primitives$Int
     │   ├── decls[25] > verb:
-    │   │   ├── signature: implicit Int(@concepts$Integer) #55
-    │   │   ├── params[0]: value #81 : @concepts$Integer
+    │   │   ├── signature: implicit Int(@concepts$Int) #55
+    │   │   ├── params[0]: value #81 : @concepts$Int
     │   │   └── body[0] > return > init:
     │   │       ├── type: core$Int
     │   │       └── fields[0] > field:
@@ -1063,7 +1063,7 @@
     │   │           └── value > construct:
     │   │               ├── type: @primitives$Int
     │   │               ├── ctor: @primitives$Int
-    │   │               └── args[0]: value #81 : @concepts$Integer
+    │   │               └── args[0]: value #81 : @concepts$Int
     │   ├── decls[26] > verb:
     │   │   ├── signature: implicit Int(@primitives$Int) #56
     │   │   ├── params[0]: raw #82 : @primitives$Int
@@ -1192,8 +1192,8 @@
     │   │   ├── kind: value
     │   │   └── struct[0]: raw : @primitives$Float
     │   ├── decls[35] > verb:
-    │   │   ├── signature: implicit Float(@concepts$Decimal) #65
-    │   │   ├── params[0]: value #95 : @concepts$Decimal
+    │   │   ├── signature: implicit Float(@concepts$Float) #65
+    │   │   ├── params[0]: value #95 : @concepts$Float
     │   │   └── body[0] > return > init:
     │   │       ├── type: core$Float
     │   │       └── fields[0] > field:
@@ -1201,7 +1201,7 @@
     │   │           └── value > construct:
     │   │               ├── type: @primitives$Float
     │   │               ├── ctor: @primitives$Float
-    │   │               └── args[0]: value #95 : @concepts$Decimal
+    │   │               └── args[0]: value #95 : @concepts$Float
     │   ├── decls[36] > verb:
     │   │   ├── signature: implicit Float(@primitives$Float) #66
     │   │   ├── params[0]: raw #96 : @primitives$Float
@@ -1323,8 +1323,8 @@
     │   │   ├── kind: reference
     │   │   └── struct[0]: raw : @primitives$String
     │   ├── decls[44] > verb:
-    │   │   ├── signature: implicit String(@concepts$Text) #74
-    │   │   ├── params[0]: value #108 : @concepts$Text
+    │   │   ├── signature: implicit String(@concepts$String) #74
+    │   │   ├── params[0]: value #108 : @concepts$String
     │   │   └── body[0] > return > init:
     │   │       ├── type: core$String
     │   │       └── fields[0] > field:
@@ -1332,7 +1332,7 @@
     │   │           └── value > construct:
     │   │               ├── type: @primitives$String
     │   │               ├── ctor: @primitives$String
-    │   │               └── args[0]: value #108 : @concepts$Text
+    │   │               └── args[0]: value #108 : @concepts$String
     │   ├── decls[45] > verb:
     │   │   ├── signature: String(@primitives$String) #75
     │   │   ├── params[0]: raw #109 : @primitives$String
@@ -1491,14 +1491,14 @@
     │   └── body[0] > return > construct:
     │       ├── type: core$Int
     │       ├── ctor: Int #55
-    │       └── args[0]: n = 3 : @concepts$Integer
+    │       └── args[0]: n = 3 : @concepts$Int
     ├── instances[7] > instance:
     │   ├── of: measured #6 with n = 3
     │   ├── params[0]: values #133 : core$Array<core$Int, 3>
     │   └── body[0] > return > construct:
     │       ├── type: core$Int
     │       ├── ctor: Int #55
-    │       └── args[0]: n = 3 : @concepts$Integer
+    │       └── args[0]: n = 3 : @concepts$Int
     ├── instances[8] > instance:
     │   ├── of: relayed #7 with n = 3
     │   ├── params[0]: values #138 : core$Array<core$Int, 3>
@@ -1506,7 +1506,7 @@
     │       ├── type: core$Int
     │       ├── callee: measured #6 with n = 3
     │       ├── args[0]: values #138 : core$Array<core$Int, 3>
-    │       └── args[1]: n = 3 : @concepts$Integer
+    │       └── args[1]: n = 3 : @concepts$Int
     ├── instances[9] > instance:
     │   ├── of: forwarded #8 with count = 3
     │   ├── params[0]: values #137 : core$Array<core$Int, 3>
@@ -1514,7 +1514,7 @@
     │       ├── type: core$Int
     │       ├── callee: relayed #7 with n = 3
     │       ├── args[0]: values #137 : core$Array<core$Int, 3>
-    │       └── args[1]: count = 3 : @concepts$Integer
+    │       └── args[1]: count = 3 : @concepts$Int
     ├── instances[10] > instance:
     │   ├── of: sizedLike #9 with n = 3
     │   ├── params[0]: values #134 : core$Array<core$Int, 3>
@@ -1526,7 +1526,7 @@
     │   │       └── body[0] > return > construct:
     │   │           ├── type: core$Int
     │   │           ├── ctor: Int #55
-    │   │           └── args[0]: n = 3 : @concepts$Integer
+    │   │           └── args[0]: n = 3 : @concepts$Int
     │   └── body[1] > return > call_value:
     │       ├── type: core$Int
     │       ├── callee: measure #136 : core$Int[core$Array<core$Int, 3>]

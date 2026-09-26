@@ -30,7 +30,7 @@ Unit scale(this Vec2, by Float) mut {
 }
 
 /// A bare number is a vector along the diagonal wherever a `Vec2` is wanted.
-implicit Vec2(value @concepts$Decimal) => init{ x = Float(value); y = Float(value); }
+implicit Vec2(value @concepts$Float) => init{ x = Float(value); y = Float(value); }
 
 type Shape = #variant {
 	circle Float;

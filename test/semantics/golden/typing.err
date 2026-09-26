@@ -17,7 +17,7 @@ Error: not every path through `noReturn` returns; a block-bodied verb returns ex
 File "fixtures/typing/reject/bad/bodies.zn", line 19, characters 13-15:
 19 |     x Int = 20;
   |             ^^
-Error: `x` is declared `core$Int`, and its value is `@concepts$Integer`; a declaration is not a coercion site, so a conversion is written out
+Error: `x` is declared `core$Int`, and its value is `@concepts$Int`; a declaration is not a coercion site, so a conversion is written out
 File "fixtures/typing/reject/bad/bodies.zn", line 20, characters 5-10:
 20 |     value = Int(2);
   |     ^^^^^
@@ -61,19 +61,19 @@ Error: no `pair` accepts (core$Int, core$Int); the candidates are `core$Int pair
 File "fixtures/typing/reject/bad/calls.zn", line 26, characters 13-23:
 26 |     b Int = pair(1, 2);
   |             ^^^^^^^^^^
-Error: no `pair` accepts (@concepts$Integer, @concepts$Integer); the candidates are `core$Int pair(core$Int, core$Float)`; `core$Int pair(core$Float, core$Int)`
+Error: no `pair` accepts (@concepts$Int, @concepts$Int); the candidates are `core$Int pair(core$Int, core$Float)`; `core$Int pair(core$Float, core$Int)`
 File "fixtures/typing/reject/bad/calls.zn", line 27, characters 13-24:
 27 |     k Int = tally(1, 2);
   |             ^^^^^^^^^^^
-Error: the call to `tally` is ambiguous: `core$Int tally(core$Int, bad$Count)`; `core$Int tally(bad$Count, core$Int)` both accept (@concepts$Integer, @concepts$Integer)
+Error: the call to `tally` is ambiguous: `core$Int tally(core$Int, bad$Count)`; `core$Int tally(bad$Count, core$Int)` both accept (@concepts$Int, @concepts$Int)
 File "fixtures/typing/reject/bad/calls.zn", line 28, characters 13-20:
 28 |     c Int = echo(4);
   |             ^^^^^^^
-Error: no `echo` accepts (@concepts$Integer); the candidate is `T echo(T)`; a bare literal fixes no type, so it cannot drive inference: wrap it in the type it is meant to be, as `Int(4)`
+Error: no `echo` accepts (@concepts$Int); the candidate is `T echo(T)`; a bare literal fixes no type, so it cannot drive inference: wrap it in the type it is meant to be, as `Int(4)`
 File "fixtures/typing/reject/bad/calls.zn", line 29, characters 13-23:
 29 |     l Int = echo(4, 5);
   |             ^^^^^^^^^^
-Error: no `echo` accepts (@concepts$Integer, @concepts$Integer); the candidate is `T echo(T)`
+Error: no `echo` accepts (@concepts$Int, @concepts$Int); the candidate is `T echo(T)`
 File "fixtures/typing/reject/bad/calls.zn", line 30, characters 13-31:
 30 |     d Int = parse(String("1"));
   |             ^^^^^^^^^^^^^^^^^^
@@ -194,22 +194,22 @@ File "fixtures/typing/reject/bad/lambdas.zn", line 8, characters 23-29:
 8 |     generic Int(value T Type) => Int(1);
   |                       ^^^^^^
 Error: `T` introduces a parameter, and only a named verb may: a generic function value is not specified (generics.md §9)
-File "fixtures/typing/reject/bad/literals.zn", line 7, characters 28-45:
-7 | type Scaled<T Type, factor @concepts$Decimal> = struct { item T; }
-  |                            ^^^^^^^^^^^^^^^^^
-Error: a type's `< >` header holds `Type` and `@concepts$Integer` parameters, and `@concepts$Decimal` is neither (generics.md §3.3)
+File "fixtures/typing/reject/bad/literals.zn", line 7, characters 28-43:
+7 | type Scaled<T Type, factor @concepts$Float> = struct { item T; }
+  |                            ^^^^^^^^^^^^^^^
+Error: a type's `< >` header holds `Type` and `@concepts$Int` parameters, and `@concepts$Float` is neither (generics.md §3.3)
 File "fixtures/typing/reject/bad/literals.zn", line 8, characters 25-28:
 8 | type Tagged<T Type, tag Int> = struct { item T; }
   |                         ^^^
-Error: a type's `< >` header holds `Type` and `@concepts$Integer` parameters, and `Int` is neither (generics.md §3.3)
+Error: a type's `< >` header holds `Type` and `@concepts$Int` parameters, and `Int` is neither (generics.md §3.3)
 File "fixtures/typing/reject/bad/literals.zn", line 12, characters 32-37:
 12 | Int first(values Array<T Type, n Int>) => Int(1)
   |                                ^^^^^
-Error: `n` introduces a parameter, which takes `Type` or `@concepts$Integer` (generics.md §3.3)
-File "fixtures/typing/reject/bad/literals.zn", line 16, characters 59-78:
-16 | Int relayed(values Array<Int, 3>, n @concepts$Integer) => measured(values, n)
-  |                                                           ^^^^^^^^^^^^^^^^^^^
-Error: no `measured` accepts (core$Array<core$Int, 3>, @concepts$Integer); the candidate is `core$Int measured(core$Array<core$Int, n>, n @concepts$Integer)` (in `relayed` with n = 4, required at fixtures/typing/reject/bad/literals.zn:46)
+Error: `n` introduces a parameter, which takes `Type` or `@concepts$Int` (generics.md §3.3)
+File "fixtures/typing/reject/bad/literals.zn", line 16, characters 55-74:
+16 | Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n)
+  |                                                       ^^^^^^^^^^^^^^^^^^^
+Error: no `measured` accepts (core$Array<core$Int, 3>, @concepts$Int); the candidate is `core$Int measured(core$Array<core$Int, n>, n @concepts$Int)` (in `relayed` with n = 4, required at fixtures/typing/reject/bad/literals.zn:46)
 File "fixtures/typing/reject/bad/literals.zn", line 20, characters 12-27:
 20 |     return measure(values);
   |            ^^^^^^^^^^^^^^^
@@ -217,23 +217,23 @@ Error: no `measure` accepts (core$Array<core$Int, 3>); the candidate is `core$In
 File "fixtures/typing/reject/bad/literals.zn", line 31, characters 17-25:
 31 |     whole Int = Int(2.5);
   |                 ^^^^^^^^
-Error: no `Int` accepts (@concepts$Decimal); the candidates are `implicit Int(bad$Engine)`; `implicit Int(@concepts$Integer)`; `implicit Int(@primitives$Int)`
+Error: no `Int` accepts (@concepts$Float); the candidates are `implicit Int(bad$Engine)`; `implicit Int(@concepts$Int)`; `implicit Int(@primitives$Int)`
 File "fixtures/typing/reject/bad/literals.zn", line 32, characters 22-30:
 32 |     fraction Float = Float(2);
   |                      ^^^^^^^^
-Error: no `Float` accepts (@concepts$Integer); the candidates are `implicit Float(core$Bool)`; `implicit Float(@concepts$Decimal)`; `implicit Float(@primitives$Float)`
+Error: no `Float` accepts (@concepts$Int); the candidates are `implicit Float(core$Bool)`; `implicit Float(@concepts$Float)`; `implicit Float(@primitives$Float)`
 File "fixtures/typing/reject/bad/literals.zn", line 33, characters 15-27:
 33 |     sum Int = Int(1) + 2.5;
   |               ^^^^^^^^^^^^
-Error: no operator `+` accepts (core$Int, @concepts$Decimal); the candidates are `core$Bool +(core$Bool, core$Bool)`; `core$Int +(core$Int, core$Int)`; `core$Float +(core$Float, core$Float)`; `core$String +(core$String, core$String)`
+Error: no operator `+` accepts (core$Int, @concepts$Float); the candidates are `core$Bool +(core$Bool, core$Bool)`; `core$Int +(core$Int, core$Int)`; `core$Float +(core$Float, core$Float)`; `core$String +(core$String, core$String)`
 File "fixtures/typing/reject/bad/literals.zn", line 36, characters 17-37:
 36 |     sized Int = measured(numbers, 4);
   |                 ^^^^^^^^^^^^^^^^^^^^
-Error: no `measured` accepts (core$Array<core$Int, 3>, @concepts$Integer); the candidate is `core$Int measured(core$Array<core$Int, n>, n @concepts$Integer)`
+Error: no `measured` accepts (core$Array<core$Int, 3>, @concepts$Int); the candidate is `core$Int measured(core$Array<core$Int, n>, n @concepts$Int)`
 File "fixtures/typing/reject/bad/literals.zn", line 49, characters 18-31:
 49 |     mixed Unit = twice(2, 3.5);
   |                  ^^^^^^^^^^^^^
-Error: no `twice` accepts (@concepts$Integer, @concepts$Decimal); the candidates are `core$Unit twice(@concepts$Integer, @concepts$Integer)`; `core$Unit twice(@concepts$Decimal, @concepts$Decimal)`
+Error: no `twice` accepts (@concepts$Int, @concepts$Float); the candidates are `core$Unit twice(@concepts$Int, @concepts$Int)`; `core$Unit twice(@concepts$Float, @concepts$Float)`
 File "fixtures/typing/reject/bad/matches.zn", line 8, characters 29-44:
 8 | Int answer(value Answer) => match (value) {
   |                             ^^^^^^^^^^^^^^^
@@ -482,10 +482,10 @@ File "fixtures/typing/reject/bad/types.zn", line 11, characters 11-15:
 11 |     guest &Int;
   |           ^^^^
 Error: `core$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
-File "fixtures/typing/reject/bad/types.zn", line 12, characters 13-30:
-12 |     literal @concepts$Integer;
-  |             ^^^^^^^^^^^^^^^^^
-Error: `@concepts$Integer` is a concept type, which may type a parameter but is never storage, so it cannot be a field
+File "fixtures/typing/reject/bad/types.zn", line 12, characters 13-26:
+12 |     literal @concepts$Int;
+  |             ^^^^^^^^^^^^^
+Error: `@concepts$Int` is a concept type, which may type a parameter but is never storage, so it cannot be a field
 File "fixtures/typing/reject/bad/types.zn", line 13, characters 16-22:
 13 |     inline Box<T Type>;
   |                ^^^^^^
@@ -506,10 +506,10 @@ File "fixtures/typing/reject/bad/uncalled.zn", line 10, characters 19-26:
 10 |     missing Int = nowhere;
   |                   ^^^^^^^
 Error: no name `nowhere` is in scope (in `neverCalled`, which nothing instantiates)
-File "fixtures/typing/reject/bad/uncalled.zn", line 14, characters 62-74:
-14 | Int neverSized(values Array<T Type, n @concepts$Integer>) => Int(n) + 2.5
-  |                                                              ^^^^^^^^^^^^
-Error: no operator `+` accepts (core$Int, @concepts$Decimal); the candidates are `core$Bool +(core$Bool, core$Bool)`; `core$Int +(core$Int, core$Int)`; `core$Float +(core$Float, core$Float)`; `core$String +(core$String, core$String)` (in `neverSized`, which nothing instantiates)
+File "fixtures/typing/reject/bad/uncalled.zn", line 14, characters 58-70:
+14 | Int neverSized(values Array<T Type, n @concepts$Int>) => Int(n) + 2.5
+  |                                                          ^^^^^^^^^^^^
+Error: no operator `+` accepts (core$Int, @concepts$Float); the candidates are `core$Bool +(core$Bool, core$Bool)`; `core$Int +(core$Int, core$Int)`; `core$Float +(core$Float, core$Float)`; `core$String +(core$String, core$String)` (in `neverSized`, which nothing instantiates)
 File "fixtures/typing/reject/bad/uncalled.zn", line 19, characters 41-48:
 19 | (this Shelf<T Type>)[index Int] => this.shelves[index]
   |                                         ^^^^^^^

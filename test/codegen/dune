@@ -1,0 +1,52 @@
+; Stages 4 and 6: lowering and codegen (docs/lowering.md).
+;
+; `hello` is lowered and printed as its code-generation tree, then built into
+; an executable and run: the golden files hold the tree and what the program
+; wrote. The module's own text is not a golden file, since it is LLVM's to
+; print and changes with the LLVM release.
+
+(rule
+ (deps (source_tree fixtures/hello))
+ (action
+  (with-stdout-to
+   hello.cgt.actual
+   (run %{exe:../../bin/compiler/main.exe} --cgt --package fixtures/hello))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hello.cgt hello.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/hello))
+ (targets hello.exe)
+ (action
+  (run %{exe:../../bin/compiler/main.exe} --build hello.exe --package fixtures/hello)))
+
+(rule
+ (action
+  (with-stdout-to
+   hello.out.actual
+   (run ./hello.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hello.out hello.out.actual)))
+
+; `temporary` is hello written without storing the view first. Semantics
+; rejects it before lowering starts.
+
+(rule
+ (deps (source_tree fixtures/temporary))
+ (action
+  (with-stderr-to
+   temporary.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/compiler/main.exe} --build temporary.exe --package fixtures/temporary)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/temporary.err temporary.err.actual)))

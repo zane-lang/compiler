@@ -294,7 +294,7 @@ type_expr:
       } : Nodes.Generic_param.t)
     }
   (* A number parameter is declared with a named concept,
-     `n @concepts$Integer` (generics.md §3.3). Any name parses here; that it
+     `n @concepts$Int` (generics.md §3.3). Any name parses here; that it
      names that concept is checked where names are resolved. *)
   | name=lname type_=name_type {
       ({

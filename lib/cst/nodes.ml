@@ -138,7 +138,7 @@ end
 
 (* What a parameter is declared with when it is not a value's type: `Type`,
    the concept of a type parameter, or -- in a type's `<>` header only -- the
-   named concept a number parameter is declared with, `n @concepts$Integer`
+   named concept a number parameter is declared with, `n @concepts$Int`
    (generics.md §3.3). The header takes a name rather than a keyword because
    the spec spells the number concept as an ordinary intrinsic type; which
    names a header may hold is semantics' question, not the grammar's. *)

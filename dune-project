@@ -21,7 +21,9 @@
   ; introduced along with the menhirGLR runtime that lib/cst links against.
   (menhir (>= 20260122))
   menhirGLR
-  sedlex)
+  sedlex
+  ; Codegen builds its LLVM module through the bindings (docs/lowering.md L2).
+  llvm)
  (tags
   ("compiler" "zane" "parser" "menhir" "ocaml")))
 

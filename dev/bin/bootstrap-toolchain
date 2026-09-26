@@ -14,6 +14,12 @@ set -euo pipefail
 DUNE_VERSION="3.24.1"
 MENHIR_VERSION="20260209"
 SEDLEX_VERSION="3.7"
+# The LLVM bindings codegen builds its module through (docs/lowering.md L2):
+# LLVM's own, from llvm/bindings/ocaml, which opam packages as `llvm`. They
+# wrap one LLVM release, and 19 is the newest opam has. They find it as
+# `llvm-config-19` (apt's `llvm-19-dev`) or as the `llvm-config` devbox's
+# `llvm_19` provides, so this moves only with that release.
+LLVM_VERSION="19"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -56,4 +62,17 @@ done
 
 if ((${#needed[@]} > 0)); then
 	opam install -y "${needed[@]}"
+fi
+
+# `--assume-depexts` because the LLVM the bindings link against is installed
+# outside opam, and opam would otherwise try to install it again itself.
+# Without that LLVM the bindings are skipped rather than failed: the grammar
+# and ambiguity tools build without them, and only codegen needs them.
+if [[ "$(opam show --field=installed-version llvm 2>/dev/null)" != "$LLVM_VERSION-shared" ]]; then
+	if command -v "llvm-config-$LLVM_VERSION" >/dev/null 2>&1; then
+		opam install -y --assume-depexts "llvm.$LLVM_VERSION-shared"
+	else
+		echo "bootstrap-toolchain: llvm-config-$LLVM_VERSION not found, so the LLVM bindings are not installed;" >&2
+		echo "  codegen needs them (apt install llvm-$LLVM_VERSION-dev libzstd-dev)" >&2
+	fi
 fi

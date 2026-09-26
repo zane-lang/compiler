@@ -16,7 +16,7 @@ let params (ps : Ty.param list) =
   String.concat ", "
     (List.map
        (fun (p : Ty.param) ->
-         p.name ^ match p.kind with Ty.Type_kind -> " Type" | Ty.Number_kind -> " @concepts$Integer")
+         p.name ^ match p.kind with Ty.Type_kind -> " Type" | Ty.Number_kind -> " @concepts$Int")
        ps)
 
 let verb_ref (r : Verb_ref.t) =

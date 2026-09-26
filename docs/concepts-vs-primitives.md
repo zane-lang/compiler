@@ -7,7 +7,7 @@ Two intrinsic namespaces carry types no package declares
 
 `@concepts$` names the types of things that have no storage of their own:
 
-- the literals — `@concepts$Integer`, `@concepts$Decimal`, `@concepts$Text`,
+- the literals — `@concepts$Int`, `@concepts$Float`, `@concepts$String`,
   `@concepts$Array<T, n>`, `@concepts$Map<K, V>`;
 - a block argument — `@concepts$Block`, `@concepts$Block<T>`.
 

@@ -15,8 +15,11 @@ type stage = Cst | Sst
 
    A package build prints one of three views: the packages it assembled (the
    default), the declarations with everything passes 1 to 4 resolved about
-   them (`--decls`), or the whole typed tree (`--tst`). *)
-type view = Assembled | Declarations | Typed
+   them (`--decls`), or the whole typed tree (`--tst`). Past semantics it
+   prints the code-generation tree (`--cgt`) or the LLVM module (`--ll`), or
+   builds the program into an executable (`--build OUT`,
+   docs/lowering.md §7). *)
+type view = Assembled | Declarations | Typed | Cgt | Ir | Build of string
 
 type request =
   | File of stage * (string * string)
@@ -30,7 +33,8 @@ let read_file path =
 
 let usage () =
   prerr_endline "usage: compiler [--cst|--sst] [SOURCE|-]";
-  prerr_endline "       compiler [--decls|--tst] --package DIR [--package DIR ...]";
+  prerr_endline "       compiler [--decls|--tst|--cgt|--ll] --package DIR [--package DIR ...]";
+  prerr_endline "       compiler --build OUT --package DIR [--package DIR ...]";
   exit 2
 
 (* The name reported in parse errors travels with the text, so reading from
@@ -67,6 +71,9 @@ let arguments () =
   | "--package" :: _ as rest -> packages Assembled [] rest
   | "--decls" :: rest -> packages Declarations [] rest
   | "--tst" :: rest -> packages Typed [] rest
+  | "--cgt" :: rest -> packages Cgt [] rest
+  | "--ll" :: rest -> packages Ir [] rest
+  | "--build" :: output :: rest -> packages (Build output) [] rest
   | rest -> go Cst rest
 
 let run_file stage (filename, input) =
@@ -82,6 +89,32 @@ let run_file stage (filename, input) =
       in
       print_string (Tree_graph.render output)
 
+(* Lowering and codegen, once semantics has accepted the program. Lowering
+   refuses what it cannot handle yet with a diagnostic rather than lowering it
+   wrongly (docs/lowering.md). *)
+let generate packages view program =
+  match Cgt.lower program with
+  | Error (Cgt.Lower.Diagnostic d) ->
+      prerr_string (Tst.render_diagnostic packages d);
+      exit 1
+  | Error (Cgt.Lower.Message m) ->
+      prerr_endline ("Error: " ^ m);
+      exit 1
+  | Ok cgt -> (
+      match view with
+      | Cgt -> print_string (Tree_graph.render (Cgt.to_node cgt))
+      | Ir ->
+          let m = Codegen.emit cgt in
+          Codegen.prepare m;
+          print_string (Codegen.ir m)
+      | Build output -> (
+          match Codegen.executable (Codegen.emit cgt) output with
+          | Ok () -> ()
+          | Error message ->
+              prerr_endline ("Error: " ^ message);
+              exit 1)
+      | Assembled | Declarations | Typed -> ())
+
 (* Semantics reports every problem it finds (docs/semantics.md D4) and prints
    no tree when there is one, since a tree with holes in it is not what either
    view promises. *)
@@ -96,13 +129,15 @@ let run_packages view dirs =
       match view with
       | Assembled ->
           print_string (Tree_graph.render (Tst.Assembly.to_node packages))
-      | Declarations | Typed -> (
+      | Declarations | Typed | Cgt | Ir | Build _ -> (
           let result = Tst.check packages in
           match result.Tst.Semantics.diagnostics with
-          | [] ->
-              print_string
-                (Tree_graph.render
-                   (Tst.to_node ~bodies:(view = Typed) result.Tst.Semantics.program))
+          | [] -> (
+              let program = result.Tst.Semantics.program in
+              match view with
+              | Declarations | Typed ->
+                  print_string (Tree_graph.render (Tst.to_node ~bodies:(view = Typed) program))
+              | _ -> generate packages view program)
           | diagnostics ->
               List.iter
                 (fun d -> prerr_string (Tst.render_diagnostic packages d))

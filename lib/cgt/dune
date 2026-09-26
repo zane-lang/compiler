@@ -1,0 +1,6 @@
+; Stage 4: lowering, which builds the code-generation tree from the TST. See
+; docs/lowering.md: [Nodes] is the tree, [Lower] the walk that builds it, and
+; [To_tree_graph] renders it for `--cgt`.
+(library
+ (name cgt)
+ (libraries diagnostic source tree_graph tst))

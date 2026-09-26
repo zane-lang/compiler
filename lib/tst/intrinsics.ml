@@ -126,9 +126,10 @@ let flips =
         (prim s))
     (scalars @ [ "Bool" ])
 
-(* Constructors, keyed by the type they build. The literal conversions are
-   implicit, which is what lets `@controlflow$repeat(3, body)` pass a literal
-   as a count: the argument is a coercion site (types.md §4.2). *)
+(* Constructors, keyed by the type they build. A storage primitive has one
+   constructor from its literal's concept, and it is not implicit (types.md
+   §2.7): a literal becomes a primitive only where it is written, or inside a
+   type's own implicit conversion. *)
 let constructors =
   let ctor ?(implicit = false) ?(generics = []) name params ret =
     ( ("primitives", name),
@@ -140,10 +141,10 @@ let constructors =
   let length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
   let list_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   List.map
-    (fun s -> ctor ~implicit:true s [ param "value" (Ty.Concept (literal s)) ] (prim s))
+    (fun s -> ctor s [ param "value" (Ty.Concept (literal s)) ] (prim s))
     scalars
   @ [
-      ctor ~implicit:true "String" [ param "value" (Ty.Concept Ty.Text_lit) ] (prim "String");
+      ctor "String" [ param "value" (Ty.Concept Ty.Text_lit) ] (prim "String");
       ctor "Unit" [] (prim "Unit");
       ctor ~generics:[ element; length ] "Array"
         [

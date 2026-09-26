@@ -1,0 +1,4 @@
+File "fixtures/temporary/main.zn", line 6, characters 28-61:
+6 |     @program$console!print(@primitives$String("hello world"));
+  |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a new guest names a place, and this is a temporary value

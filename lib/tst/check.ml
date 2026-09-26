@@ -297,9 +297,9 @@ let implicit_constructors ~src ~dst =
 let coerce_value (e : T.Expr.t) (s, subst) =
   mk (T.Expr.Coerce { ctor = verb_ref s subst; value = e }) (Ty.subst subst s.S.ret) e.T.Expr.span
 
-(* Bind an explicit `T Type` or `n @concepts$Integer` parameter from its
+(* Bind an explicit `T Type` or `n @concepts$Int` parameter from its
    argument. Another argument may already have fixed it -- `n` in
-   `measured(values Array<Int, n>, n @concepts$Integer)` -- and then the two
+   `measured(values Array<Int, n>, n @concepts$Int)` -- and then the two
    must agree. *)
 let bind_explicit (p : Ty.param) (a : actual) subst =
   let bind arg =
@@ -439,7 +439,7 @@ let has_literal actuals =
 
 (* Whether a bare literal sits where some generic candidate would have to
    infer a parameter from it -- the one mistake generics.md §5.4's hint is
-   for. A literal that fills an explicit `n @concepts$Integer` is not one, and
+   for. A literal that fills an explicit `n @concepts$Int` is not one, and
    a call with the wrong number of arguments has a nearer problem to name. *)
 let literal_drives_inference (cands : S.t list) actuals =
   List.exists
@@ -1939,7 +1939,7 @@ and param_spans (d : decl) =
   | _ -> []
 
 (* The context a verb's body is checked in, at one set of generic arguments:
-   its parameters as locals, and the explicit `T Type` / `n @concepts$Integer` ones as the
+   its parameters as locals, and the explicit `T Type` / `n @concepts$Int` ones as the
    types and numbers they were given. *)
 and verb_context (d : decl) (s : S.t) subst =
   let pkg = package d.package in
