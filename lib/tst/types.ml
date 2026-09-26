@@ -29,10 +29,10 @@ let name_type_text (n : N.Name_type.t) =
   | N.Name_type.Qualified { package; ident } -> package.N.Name.text ^ "$" ^ ident.N.Name.text
   | N.Name_type.Intrinsic { package; ident } -> "@" ^ package.N.Name.text ^ "$" ^ ident.N.Name.text
 
-(* `@concepts$Integer`, the concept a number parameter is declared with
+(* `@concepts$Int`, the concept a number parameter is declared with
    (generics.md §3.3). An intrinsic namespace is spelled the same in every
    file, so this needs no scope. *)
-let is_integer_concept (n : N.Name_type.t) = name_type_text n = "@concepts$Integer"
+let is_integer_concept (n : N.Name_type.t) = name_type_text n = "@concepts$Int"
 
 let is_integer_concept_type (te : N.Type_expr.t) =
   match te.N.Type_expr.node with
@@ -126,7 +126,7 @@ type head =
   | Bound of Ty.arg
   | Unknown
 
-let concept_names = [ "Integer"; "Decimal"; "Text"; "Array"; "Map"; "Block" ]
+let concept_names = [ "Int"; "Float"; "String"; "Array"; "Map"; "Block" ]
 
 let resolve_head scope (name : N.Name_type.t) : head =
   let span = name.N.Name_type.span in
@@ -299,9 +299,9 @@ and concept scope span c generics : Ty.t =
     else true
   in
   match c with
-  | "Integer" -> if expect 0 then Ty.Concept Ty.Integer_lit else Ty.Error
-  | "Decimal" -> if expect 0 then Ty.Concept Ty.Decimal_lit else Ty.Error
-  | "Text" -> if expect 0 then Ty.Concept Ty.Text_lit else Ty.Error
+  | "Int" -> if expect 0 then Ty.Concept Ty.Integer_lit else Ty.Error
+  | "Float" -> if expect 0 then Ty.Concept Ty.Decimal_lit else Ty.Error
+  | "String" -> if expect 0 then Ty.Concept Ty.Text_lit else Ty.Error
   | "Block" -> (
       match args () with
       | [] -> Ty.Concept (Ty.Block None)
@@ -421,7 +421,7 @@ let header_params (params : N.Generic_param.t list) =
               if not (is_integer_concept n) then
                 error g.N.Generic_param.type_.N.Concept.span
                   (Printf.sprintf
-                     "a type's `< >` header holds `Type` and `@concepts$Integer` \
+                     "a type's `< >` header holds `Type` and `@concepts$Int` \
                       parameters, and %s is neither (generics.md §3.3)"
                      (quote (name_type_text n)));
               Ty.Number_kind

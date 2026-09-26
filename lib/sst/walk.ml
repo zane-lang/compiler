@@ -2,7 +2,7 @@
    asks a question of all of them without caring where each one sits.
 
    Semantics is the first to need this: whether a verb's `n
-   @concepts$Integer` parameter is generic turns on whether the verb writes
+   @concepts$Int` parameter is generic turns on whether the verb writes
    `n` where a number goes -- in a type, or as the argument to another verb's
    number parameter (docs/semantics.md §9). A body writes types in a local
    declaration and in a lambda's signature, and calls anywhere an expression

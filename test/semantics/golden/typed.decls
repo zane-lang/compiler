@@ -16,17 +16,17 @@
     │   ├── decls[4] > verb:
     │   │   └── signature: core$Int count(core$Array<T, n>) #5
     │   ├── decls[5] > verb:
-    │   │   └── signature: core$Int measured(core$Array<core$Int, n>, n @concepts$Integer) #6
+    │   │   └── signature: core$Int measured(core$Array<core$Int, n>, n @concepts$Int) #6
     │   ├── decls[6] > verb:
-    │   │   └── signature: core$Int relayed(core$Array<core$Int, 3>, n @concepts$Integer) #7
+    │   │   └── signature: core$Int relayed(core$Array<core$Int, 3>, n @concepts$Int) #7
     │   ├── decls[7] > verb:
-    │   │   └── signature: core$Int forwarded(core$Array<core$Int, 3>, count @concepts$Integer) #8
+    │   │   └── signature: core$Int forwarded(core$Array<core$Int, 3>, count @concepts$Int) #8
     │   ├── decls[8] > verb:
-    │   │   └── signature: core$Int sizedLike(core$Array<core$Int, 3>, n @concepts$Integer) #9
+    │   │   └── signature: core$Int sizedLike(core$Array<core$Int, 3>, n @concepts$Int) #9
     │   ├── decls[9] > verb:
-    │   │   └── signature: app$Pair<core$Int> pairOf(@concepts$Integer, @concepts$Integer) #10
+    │   │   └── signature: app$Pair<core$Int> pairOf(@concepts$Int, @concepts$Int) #10
     │   ├── decls[10] > verb:
-    │   │   └── signature: app$Pair<core$Float> pairOf(@concepts$Decimal, @concepts$Decimal) #11
+    │   │   └── signature: app$Pair<core$Float> pairOf(@concepts$Float, @concepts$Float) #11
     │   ├── decls[11] > verb:
     │   │   └── signature: core$Float?core$String safeDivide(core$Float, core$Float) #12
     │   ├── decls[12] > verb:
@@ -57,7 +57,7 @@
     │   ├── decls[7] > verb:
     │   │   └── signature: core$Unit scale(this shapes$Vec2, core$Float) mut #23
     │   ├── decls[8] > verb:
-    │   │   └── signature: implicit Vec2(@concepts$Decimal) #24
+    │   │   └── signature: implicit Vec2(@concepts$Float) #24
     │   ├── decls[9] > type:
     │   │   ├── name: Shape #25
     │   │   ├── kind: reference
@@ -106,7 +106,7 @@
         │   └── signature: core$Unit print(this core$Console, core$String) mut #39
         ├── decls[10] > type:
         │   ├── name: Array #40
-        │   ├── params: T Type, n @concepts$Integer
+        │   ├── params: T Type, n @concepts$Int
         │   ├── kind: value
         │   └── struct[0]: _items : @primitives$Array<T, n>
         ├── decls[11] > verb:
@@ -143,7 +143,7 @@
         │   ├── kind: value
         │   └── struct[0]: raw : @primitives$Int
         ├── decls[25] > verb:
-        │   └── signature: implicit Int(@concepts$Integer) #55
+        │   └── signature: implicit Int(@concepts$Int) #55
         ├── decls[26] > verb:
         │   └── signature: implicit Int(@primitives$Int) #56
         ├── decls[27] > verb:
@@ -165,7 +165,7 @@
         │   ├── kind: value
         │   └── struct[0]: raw : @primitives$Float
         ├── decls[35] > verb:
-        │   └── signature: implicit Float(@concepts$Decimal) #65
+        │   └── signature: implicit Float(@concepts$Float) #65
         ├── decls[36] > verb:
         │   └── signature: implicit Float(@primitives$Float) #66
         ├── decls[37] > verb:
@@ -185,7 +185,7 @@
         │   ├── kind: reference
         │   └── struct[0]: raw : @primitives$String
         ├── decls[44] > verb:
-        │   └── signature: implicit String(@concepts$Text) #74
+        │   └── signature: implicit String(@concepts$String) #74
         ├── decls[45] > verb:
         │   └── signature: String(@primitives$String) #75
         ├── decls[46] > verb:

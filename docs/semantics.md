@@ -112,7 +112,7 @@ name.
 **D3. A minimal `core` is checked in as a test fixture** — `test/core/`, holding
 `Int`, `Float`, `Bool`, `Unit`, `String`, `Array` and `List` over
 `@primitives$`, their operators, the implicit constructors from
-`@concepts$Integer`, `@concepts$Decimal` and `@concepts$Text` that carry
+`@concepts$Int`, `@concepts$Float` and `@concepts$String` that carry
 literals into them (`types.md` §2.6), the control-flow verbs of `control-flow.md` §3, and a
 `Console` over `@runtime$Console`. It is the first real multi-file,
 multi-package test input. It is also the first code in the repository that has
@@ -246,7 +246,7 @@ and arg = Type of t | Number of number
 and number = Known of int | Param_num of Param_id.t
 
 and concept =
-  | Integer_lit | Decimal_lit | Text_lit           (* @concepts$Integer, Decimal, Text *)
+  | Integer_lit | Decimal_lit | Text_lit           (* @concepts$Int, Decimal, Text *)
   | Array_lit of t * number                        (* @concepts$Array<T, n> *)
   | Map_lit of t * t                               (* @concepts$Map<K, V> *)
   | Block of t option                              (* @concepts$Block, Block<T> *)
@@ -278,8 +278,8 @@ keeps, for each `Type_id`:
 **D6. Every expression's type is computed from its parts alone; no expected type
 flows down.** The spec supports this directly:
 
-- A literal's type is a concept type. `20` is `@concepts$Integer` and `2.5`
-  is `@concepts$Decimal`, not `Int` or `Float` (`syntax.md` §2.8,
+- A literal's type is a concept type. `20` is `@concepts$Int` and `2.5`
+  is `@concepts$Float`, not `Int` or `Float` (`syntax.md` §2.8,
   `lexical.md` §7).
 - A concept type becomes a storage type only through an implicit constructor at
   a coercion site (`types.md` §2.6, §4.2).
@@ -424,7 +424,7 @@ there what it points at.
 The first draft left four questions open. These are the answers.
 
 **D12. A generic verb's body is checked once per instantiation, as a C++
-template is.** A parameter's only bound is `Type` or `@concepts$Integer`
+template is.** A parameter's only bound is `Type` or `@concepts$Int`
 (`generics.md` §3.3). So a body that writes `a + b` on a `T` has nothing to
 resolve `+` against until `T` is known. The signature is checked once. The body
 is checked once per distinct set of arguments, memoized by `(Decl_id, args)`,
@@ -479,9 +479,9 @@ what `core` needs to be written at all: the machine arithmetic and comparisons
 on `@primitives$Int`, `I32`, `I64` and `Float`, the Boolean operators on
 `@primitives$Bool`, concatenation and equality on the opaque
 `@primitives$String`, the implicit constructors that carry an
-`@concepts$Integer` into `@primitives$Int`, `I32` and `I64`, an
-`@concepts$Decimal` into `@primitives$Float` -- the split `types.md` §2.6
-makes for `core`'s `Int` and `Float` -- and a `@concepts$Text` into
+`@concepts$Int` into `@primitives$Int`, `I32` and `I64`, an
+`@concepts$Float` into `@primitives$Float` -- the split `types.md` §2.6
+makes for `core`'s `Int` and `Float` -- and a `@concepts$String` into
 `@primitives$String`, element access on `@primitives$Array` and
 `@primitives$List`, and `push` and `size` on `@primitives$List`.
 
@@ -500,19 +500,19 @@ may bind one.
 a declaration with parameters, and `types.md` §3.9 indexes a `List` with a
 literal, `weapons[1]`, which only a coercion site allows.
 
-**An `@concepts$Integer` value parameter is a number parameter only when the
+**An `@concepts$Int` value parameter is a number parameter only when the
 verb uses it as one.** The spec spells an explicit number parameter,
-`Array<T, n>(T Type, n @concepts$Integer)`, the same way as a parameter that
-takes an integer literal, `implicit Int(value @concepts$Integer)`
+`Array<T, n>(T Type, n @concepts$Int)`, the same way as a parameter that
+takes an integer literal, `implicit Int(value @concepts$Int)`
 (`generics.md` §5.3, §5.4). This compiler decides from the uses rather than
 the concept: a parameter is generic when the verb puts its name where a number
 goes. That is either a type the verb writes -- in its signature, or in its
 body's local declarations and lambdas -- or an argument to another verb's
 number parameter. `Array<T, n>` writes `n` in the type it returns, so `n` is
-generic; `relayed(values Array<Int, 3>, n @concepts$Integer) =>
+generic; `relayed(values Array<Int, 3>, n @concepts$Int) =>
 measured(values, n)` hands `n` to `measured`'s number parameter, so it is
 generic too; nothing in `Int`'s constructor depends on `value`, so `value` is
-an ordinary parameter. A generic and an ordinary `@concepts$Integer` parameter
+an ordinary parameter. A generic and an ordinary `@concepts$Int` parameter
 are compile-time integers either way (`syntax.md` §2.8). The distinction is
 what keeps D12 affordable: were every such parameter generic, each distinct
 literal a program writes would be a new instance of `Int`'s constructor, and a
@@ -530,7 +530,7 @@ overload the promotion did not anticipate leaves a parameter generic that did
 not need to be; that costs instances, never correctness.
 
 An explicit number and one inferred from another argument must agree, so
-`measured(values Array<Int, n>, n @concepts$Integer)` called with a
+`measured(values Array<Int, n>, n @concepts$Int)` called with a
 three-element array and `4` matches nothing.
 
 **Where constructors and enum maps are found.** A type's constructors are the
@@ -583,9 +583,10 @@ only reject more, never let a write through.
   out; reading `list[i]` into a host is what the move rule then rejects.
 - A case read and what its handler resolves are a place too: the store the
   whole expression feeds decides whether it moves.
-- An intrinsic operator or constructor reads its operands. The runtime's
-  `print` takes `&@primitives$String`, so `core` can hand it `text.raw`, a
-  field, which could not be moved.
+- An intrinsic operator or constructor reads its operands. So does the
+  runtime's `print`: its `text @primitives$String` is a view it writes out and
+  keeps nothing of (`effects.md` §6.6), so `core` can hand it `text.raw`, a
+  field, which could not be moved. `push` is not one: it keeps its value.
 
 **Where a guest source is decided.**
 - A `match` binder is its case's payload, so no guest is minted from it.

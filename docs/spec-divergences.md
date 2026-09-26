@@ -245,9 +245,9 @@ The bare form adds four shift/reduce states and no reduce/reduce state at all.
 
 The narrowing costs nothing the spec demonstrates: every §5.3 and §6.2 example
 passes a bare name, and a parameterized type reaches a verb through inference
-instead — `values Array<T Type, n @concepts$Integer>` introduces both
+instead — `values Array<T Type, n @concepts$Int>` introduces both
 parameters from the argument. (Since spec commit `c4295ca` the number concept
-this entry quotes as `Number` is spelled `@concepts$Integer`; the divergence is
+this entry quotes as `Number` is spelled `@concepts$Int`; the divergence is
 unchanged.) What is out of reach is passing an *already applied* type as a value,
 which the spec neither shows nor rules out.
 

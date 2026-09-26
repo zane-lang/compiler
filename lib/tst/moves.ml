@@ -160,7 +160,7 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
             rest
         | _ -> args
       in
-      pass w (Guests.param_types callee) args;
+      pass w (if writes_out callee then [] else Guests.param_types callee) args;
       opt_handler w into handler
   | T.Expr.Call_value { callee; args; handler } ->
       expr w callee;
@@ -189,6 +189,11 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
       opt_handler w into handler
   | T.Expr.Coerce { ctor; value } -> pass w (read_by ctor) [ T.Arg.Value value ]
   | T.Expr.Lambda l -> lambda w e l
+
+(* The runtime's `print` writes its view out and keeps nothing of it
+   (effects.md §6.6), so it reads its text rather than taking it
+   (docs/semantics.md §9). *)
+and writes_out (r : T.Verb_ref.t) = r.T.Verb_ref.owner = S.Intrinsic "@runtime$print"
 
 (* An intrinsic operator or constructor reads what it is given. *)
 and read_by (r : T.Verb_ref.t) =

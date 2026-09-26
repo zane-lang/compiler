@@ -1738,13 +1738,13 @@ package | package main; /// Every im … ettled"); return Unit(); }
                           name_expr | value
                             ident value | value
                         field right | right
-  decl Verb | T first(values Array<T Typ … pts$Integer>) => values[1]
-    verb_decl Func | T first(values Array<T Typ … pts$Integer>) => values[1]
+  decl Verb | T first(values Array<T Typ … oncepts$Int>) => values[1]
+    verb_decl Func | T first(values Array<T Typ … oncepts$Int>) => values[1]
       name first | first
-      param | values Array<T Type, n @concepts$Integer>
+      param | values Array<T Type, n @concepts$Int>
         name values | values
-        param_type Concrete | Array<T Type, n @concepts$Integer>
-          type_expr Path | Array<T Type, n @concepts$Integer>
+        param_type Concrete | Array<T Type, n @concepts$Int>
+          type_expr Path | Array<T Type, n @concepts$Int>
             name_type | Array
               ident Array | Array
             generic_arg Inferred | T Type
@@ -1752,14 +1752,14 @@ package | package main; /// Every im … ettled"); return Unit(); }
                 name T | T
                 param_type Concept | Type
                   concept Type | Type
-            generic_arg Inferred | n @concepts$Integer
-              param | n @concepts$Integer
+            generic_arg Inferred | n @concepts$Int
+              param | n @concepts$Int
                 name n | n
-                param_type Concrete | @concepts$Integer
-                  type_expr Path | @concepts$Integer
-                    name_type | @concepts$Integer
+                param_type Concrete | @concepts$Int
+                  type_expr Path | @concepts$Int
+                    name_type | @concepts$Int
                       package concepts | concepts
-                      ident Integer | Integer
+                      ident Int | Int
       ret_type Safe | T
         type_expr Path | T
           name_type | T
@@ -1774,13 +1774,13 @@ package | package main; /// Every im … ettled"); return Unit(); }
   decl Verb | String quote(text @concept … "\"" + String(text) + "\""
     verb_decl Func | String quote(text @concept … "\"" + String(text) + "\""
       name quote | quote
-      param | text @concepts$Text
+      param | text @concepts$String
         name text | text
-        param_type Concrete | @concepts$Text
-          type_expr Path | @concepts$Text
-            name_type | @concepts$Text
+        param_type Concrete | @concepts$String
+          type_expr Path | @concepts$String
+            name_type | @concepts$String
               package concepts | concepts
-              ident Text | Text
+              ident String | String
       ret_type Safe | String
         type_expr Path | String
           name_type | String
@@ -1840,12 +1840,12 @@ package | package main; /// Every im … ettled"); return Unit(); }
     generic_param | T Type
       name T | T
       concept Type | Type
-    generic_param | n @concepts$Integer
+    generic_param | n @concepts$Int
       name n | n
-      concept Named | @concepts$Integer
-        name_type | @concepts$Integer
+      concept Named | @concepts$Int
+        name_type | @concepts$Int
           package concepts | concepts
-          ident Integer | Integer
+          ident Int | Int
     type_or_moulded Moulded | struct { items Array<T, n>; }
       moulded | struct { items Array<T, n>; }
         mould Struct | struct { items Array<T, n>; }
@@ -1872,18 +1872,18 @@ package | package main; /// Every im … ettled"); return Unit(); }
               ident T | T
         generic_arg NumberRef | n
           name n | n
-      constructor_params Positional | (T Type, n @concepts$Integer)
+      constructor_params Positional | (T Type, n @concepts$Int)
         param | T Type
           name T | T
           param_type Concept | Type
             concept Type | Type
-        param | n @concepts$Integer
+        param | n @concepts$Int
           name n | n
-          param_type Concrete | @concepts$Integer
-            type_expr Path | @concepts$Integer
-              name_type | @concepts$Integer
+          param_type Concrete | @concepts$Int
+            type_expr Path | @concepts$Int
+              name_type | @concepts$Int
                 package concepts | concepts
-                ident Integer | Integer
+                ident Int | Int
       block | => init{ items = Array(T, n); }
         stat Ret | => init{ items = Array(T, n); }
           expr Init | init{ items = Array(T, n); }

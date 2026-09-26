@@ -1641,13 +1641,13 @@ package | package main; /// Every im … ettled"); return Unit(); }
                         name_expr | value
                           ident value | value
                       field right | right
-  decl | T first(values Array<T Typ … pts$Integer>) => values[1]
-    verb_decl | T first(values Array<T Typ … pts$Integer>) => values[1]
+  decl | T first(values Array<T Typ … oncepts$Int>) => values[1]
+    verb_decl | T first(values Array<T Typ … oncepts$Int>) => values[1]
       name first | first
-      param | values Array<T Type, n @concepts$Integer>
+      param | values Array<T Type, n @concepts$Int>
         name values | values
-        param_type | Array<T Type, n @concepts$Integer>
-          type_expr | Array<T Type, n @concepts$Integer>
+        param_type | Array<T Type, n @concepts$Int>
+          type_expr | Array<T Type, n @concepts$Int>
             name_type | Array
               ident Array | Array
             generic_arg | T Type
@@ -1655,14 +1655,14 @@ package | package main; /// Every im … ettled"); return Unit(); }
                 name T | T
                 param_type | Type
                   concept Type | Type
-            generic_arg | n @concepts$Integer
-              param | n @concepts$Integer
+            generic_arg | n @concepts$Int
+              param | n @concepts$Int
                 name n | n
-                param_type | @concepts$Integer
-                  type_expr | @concepts$Integer
-                    name_type | @concepts$Integer
+                param_type | @concepts$Int
+                  type_expr | @concepts$Int
+                    name_type | @concepts$Int
                       package concepts | concepts
-                      ident Integer | Integer
+                      ident Int | Int
       ret_type | T
         type_expr | T
           name_type | T
@@ -1676,13 +1676,13 @@ package | package main; /// Every im … ettled"); return Unit(); }
   decl | String quote(text @concept … "\"" + String(text) + "\""
     verb_decl | String quote(text @concept … "\"" + String(text) + "\""
       name quote | quote
-      param | text @concepts$Text
+      param | text @concepts$String
         name text | text
-        param_type | @concepts$Text
-          type_expr | @concepts$Text
-            name_type | @concepts$Text
+        param_type | @concepts$String
+          type_expr | @concepts$String
+            name_type | @concepts$String
               package concepts | concepts
-              ident Text | Text
+              ident String | String
       ret_type | String
         type_expr | String
           name_type | String
@@ -1742,12 +1742,12 @@ package | package main; /// Every im … ettled"); return Unit(); }
     generic_param | T Type
       name T | T
       concept Type | Type
-    generic_param | n @concepts$Integer
+    generic_param | n @concepts$Int
       name n | n
-      concept Named | @concepts$Integer
-        name_type | @concepts$Integer
+      concept Named | @concepts$Int
+        name_type | @concepts$Int
           package concepts | concepts
-          ident Integer | Integer
+          ident Int | Int
     type_or_moulded | struct { items Array<T, n>; }
       moulded | struct { items Array<T, n>; }
         mould | struct { items Array<T, n>; }
@@ -1774,18 +1774,18 @@ package | package main; /// Every im … ettled"); return Unit(); }
               ident T | T
         generic_arg | n
           number_ref n | n
-      constructor_params | (T Type, n @concepts$Integer)
+      constructor_params | (T Type, n @concepts$Int)
         param | T Type
           name T | T
           param_type | Type
             concept Type | Type
-        param | n @concepts$Integer
+        param | n @concepts$Int
           name n | n
-          param_type | @concepts$Integer
-            type_expr | @concepts$Integer
-              name_type | @concepts$Integer
+          param_type | @concepts$Int
+            type_expr | @concepts$Int
+              name_type | @concepts$Int
                 package concepts | concepts
-                ident Integer | Integer
+                ident Int | Int
       body | => init{ items = Array(T, n); }
         expr | init{ items = Array(T, n); }
           field_arg | items = Array(T, n)

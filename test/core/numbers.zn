@@ -1,5 +1,5 @@
 /// `Int` and `Float`, over the machine scalars. An integer literal is
-/// `@concepts$Integer` and a decimal literal `@concepts$Decimal`, and the
+/// `@concepts$Int` and a decimal literal `@concepts$Float`, and the
 /// implicit constructors below are what carry the first into an `Int` and the
 /// second into a `Float` at a coercion site (types.md §2.6).
 package core;
@@ -8,7 +8,7 @@ type Int = struct {
 	raw @primitives$Int;
 }
 
-implicit Int(value @concepts$Integer) => init{ raw = @primitives$Int(value); }
+implicit Int(value @concepts$Int) => init{ raw = @primitives$Int(value); }
 implicit Int(raw @primitives$Int) => init{ raw; }
 
 /// What carries a count into `@controlflow$repeat`, and an index into a
@@ -26,7 +26,7 @@ type Float = struct {
 	raw @primitives$Float;
 }
 
-implicit Float(value @concepts$Decimal) => init{ raw = @primitives$Float(value); }
+implicit Float(value @concepts$Float) => init{ raw = @primitives$Float(value); }
 implicit Float(raw @primitives$Float) => init{ raw; }
 
 Float +(left Float, right Float) => Float(left.raw + right.raw)

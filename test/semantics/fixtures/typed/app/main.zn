@@ -23,29 +23,29 @@ Pair<T>(left T Type, right T) => init{ left; right; }
 T sum(pair Pair<T Type>) => pair.left + pair.right
 
 /// A number parameter, read in a body position.
-Int count(values Array<T Type, n @concepts$Integer>) => Int(n)
+Int count(values Array<T Type, n @concepts$Int>) => Int(n)
 
-/// An `@concepts$Integer` value parameter the signature writes where a number
+/// An `@concepts$Int` value parameter the signature writes where a number
 /// goes, so it is an explicit number parameter.
-Int measured(values Array<Int, n>, n @concepts$Integer) => Int(n)
+Int measured(values Array<Int, n>, n @concepts$Int) => Int(n)
 
 /// `n` reaches no type here, but it is handed to `measured`'s number
 /// parameter, and through `forwarded` to `relayed`'s: a number parameter
 /// passed on is a number parameter too.
-Int relayed(values Array<Int, 3>, n @concepts$Integer) => measured(values, n)
-Int forwarded(values Array<Int, 3>, count @concepts$Integer) => relayed(values, count)
+Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n)
+Int forwarded(values Array<Int, 3>, count @concepts$Int) => relayed(values, count)
 
 /// Only the body writes `n` where a number goes, and that is enough: the
 /// body's types depend on it, so it is a number parameter too.
-Int sizedLike(values Array<Int, 3>, n @concepts$Integer) {
+Int sizedLike(values Array<Int, 3>, n @concepts$Int) {
 	measure Int(held Array<Int, n>) => Int(n);
 	return measure(values);
 }
 
 /// Overloads on the two literal concepts: a bare literal picks one by its
 /// spelling (generics.md §5.4).
-Pair<Int> pairOf(x @concepts$Integer, y @concepts$Integer) => Pair(Int(x), Int(y))
-Pair<Float> pairOf(x @concepts$Decimal, y @concepts$Decimal) => Pair(Float(x), Float(y))
+Pair<Int> pairOf(x @concepts$Int, y @concepts$Int) => Pair(Int(x), Int(y))
+Pair<Float> pairOf(x @concepts$Float, y @concepts$Float) => Pair(Float(x), Float(y))
 
 Float?String safeDivide(numerator Float, denominator Float) {
 	guard(denominator == Float(0.0));

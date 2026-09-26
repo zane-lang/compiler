@@ -3,14 +3,14 @@ package app
   decl Type Pair | type Pair<T Type> = struct { left T; right T; }
   decl Verb Pair | Pair<T>(left T Type, right T) => init{ left; right; }
   decl Verb sum | T sum(pair Pair<T Type>) => pair.left + pair.right
-  decl Verb count | Int count(values Array<T T … ncepts$Integer>) => Int(n)
-  decl Verb measured | Int measured(values Array< … oncepts$Integer) => Int(n)
-  decl Verb relayed | Int relayed(values Array<I … er) => measured(values, n)
+  decl Verb count | Int count(values Array<T T …  @concepts$Int>) => Int(n)
+  decl Verb measured | Int measured(values Array< … n @concepts$Int) => Int(n)
+  decl Verb relayed | Int relayed(values Array<I … nt) => measured(values, n)
   decl Verb forwarded | Int forwarded(values Array …  => relayed(values, count)
   decl Verb sizedLike | Int sizedLike(values Array …  return measure(values); }
-  decl Verb pairOf | Pair<Int> pairOf(x @concep … r) => Pair(Int(x), Int(y))
-    param x | x @concepts$Integer
-    param y | y @concepts$Integer
+  decl Verb pairOf | Pair<Int> pairOf(x @concep … t) => Pair(Int(x), Int(y))
+    param x | x @concepts$Int
+    param y | y @concepts$Int
     block | => Pair(Int(x), Int(y))
       stat Return | => Pair(Int(x), Int(y))
         expr Construct Pair | Pair(Int(x), Int(y))
@@ -19,8 +19,8 @@ package app
           expr Construct Int | Int(y)
             expr Var y | y
   decl Verb pairOf | Pair<Float> pairOf(x @conc … > Pair(Float(x), Float(y))
-    param x | x @concepts$Decimal
-    param y | y @concepts$Decimal
+    param x | x @concepts$Float
+    param y | y @concepts$Float
     block | => Pair(Float(x), Float(y))
       stat Return | => Pair(Float(x), Float(y))
         expr Construct Pair | Pair(Float(x), Float(y))
@@ -411,7 +411,7 @@ package shapes
       stat Return | return Unit();
         expr Construct Unit | Unit()
   decl Verb Vec2 | implicit Vec2(value @conce … alue); y = Float(value); }
-    param value | value @concepts$Decimal
+    param value | value @concepts$Float
     block | => init{ x = Float(value); y = Float(value); }
       stat Return | => init{ x = Float(value); y = Float(value); }
         expr Init | init{ x = Float(value); y = Float(value); }
@@ -548,7 +548,7 @@ package core
   decl Type Array | type Array<T Type, n @conc … @primitives$Array<T, n>; }
   decl Verb Array | Array<T, n>(values @concep … rimitives$Array(values); }
   decl Subscript [] | (this Array<T Type, n @con … Int] => this._items[index]
-  decl Verb size | Int size(this Array<T Type … ncepts$Integer>) => Int(n)
+  decl Verb size | Int size(this Array<T Type, n @concepts$Int>) => Int(n)
   decl Type List | type List<T Type> = #struc … ems @primitives$List<T>; }
   decl Verb List | List<T>(T Type) => init{ _items = @primitives$List(T); }
   decl Verb push | Unit push(this List<T Type … h(value); return Unit(); }
@@ -639,7 +639,7 @@ package core
         expr Construct Unit | Unit()
   decl Type Int | type Int = struct { raw @primitives$Int; }
   decl Verb Int | implicit Int(value @concep …  @primitives$Int(value); }
-    param value | value @concepts$Integer
+    param value | value @concepts$Int
     block | => init{ raw = @primitives$Int(value); }
       stat Return | => init{ raw = @primitives$Int(value); }
         expr Init | init{ raw = @primitives$Int(value); }
@@ -724,7 +724,7 @@ package core
               expr Var right | right
   decl Type Float | type Float = struct { raw @primitives$Float; }
   decl Verb Float | implicit Float(value @conc … primitives$Float(value); }
-    param value | value @concepts$Decimal
+    param value | value @concepts$Float
     block | => init{ raw = @primitives$Float(value); }
       stat Return | => init{ raw = @primitives$Float(value); }
         expr Init | init{ raw = @primitives$Float(value); }
@@ -803,7 +803,7 @@ package core
               expr Var right | right
   decl Type String | type String = #struct { raw @primitives$String; }
   decl Verb String | implicit String(value @con … rimitives$String(value); }
-    param value | value @concepts$Text
+    param value | value @concepts$String
     block | => init{ raw = @primitives$String(value); }
       stat Return | => init{ raw = @primitives$String(value); }
         expr Init | init{ raw = @primitives$String(value); }
@@ -924,19 +924,19 @@ instances
             expr Var pair | pair
           expr Field right | pair.right
             expr Var pair | pair
-  instance count with T = core$Int, n = 3 | Int count(values Array<T T … ncepts$Integer>) => Int(n)
-    param values | values Array<T Type, n @concepts$Integer>
+  instance count with T = core$Int, n = 3 | Int count(values Array<T T …  @concepts$Int>) => Int(n)
+    param values | values Array<T Type, n @concepts$Int>
     block | => Int(n)
       stat Return | => Int(n)
         expr Construct Int | Int(n)
           expr Var n | n
-  instance measured with n = 3 | Int measured(values Array< … oncepts$Integer) => Int(n)
+  instance measured with n = 3 | Int measured(values Array< … n @concepts$Int) => Int(n)
     param values | values Array<Int, n>
     block | => Int(n)
       stat Return | => Int(n)
         expr Construct Int | Int(n)
           expr Var n | n
-  instance relayed with n = 3 | Int relayed(values Array<I … er) => measured(values, n)
+  instance relayed with n = 3 | Int relayed(values Array<I … nt) => measured(values, n)
     param values | values Array<Int, 3>
     block | => measured(values, n)
       stat Return | => measured(values, n)
@@ -966,7 +966,7 @@ instances
           expr Var measure | measure
           expr Var values | values
   instance Array with T = core$Int, n = 3 | Array<T, n>(values @concep … rimitives$Array(values); }
-    param values | values @concepts$Array<T Type, n @concepts$Integer>
+    param values | values @concepts$Array<T Type, n @concepts$Int>
     block | => init{ _items = @primitives$Array(values); }
       stat Return | => init{ _items = @primitives$Array(values); }
         expr Init | init{ _items = @primitives$Array(values); }
@@ -974,7 +974,7 @@ instances
             expr Construct @primitives$Array | @primitives$Array(values)
               expr Var values | values
   instance [] with T = core$Int, n = 3 | (this Array<T Type, n @con … Int] => this._items[index]
-    param this | Array<T Type, n @concepts$Integer>
+    param this | Array<T Type, n @concepts$Int>
     param index | index Int
     block | this._items[index]
       stat Return | this._items[index]

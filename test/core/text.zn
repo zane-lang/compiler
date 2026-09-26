@@ -5,7 +5,7 @@ type String = #struct {
 	raw @primitives$String;
 }
 
-implicit String(value @concepts$Text) => init{ raw = @primitives$String(value); }
+implicit String(value @concepts$String) => init{ raw = @primitives$String(value); }
 String(raw @primitives$String) => init{ raw; }
 
 String +(left String, right String) => String(left.raw + right.raw)

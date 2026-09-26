@@ -9,7 +9,7 @@ type Holder = struct {
 	sized Array<Int, Int>;
 	text String;
 	guest &Int;
-	literal @concepts$Integer;
+	literal @concepts$Int;
 	inline Box<T Type>;
 }
 
