@@ -1,7 +1,6 @@
 /// Aborts and exits: calls that abort, `?` and `??` handlers, `resolve`,
-/// `abort` and `return` out of a handler, `match` handlers, case reads,
-/// `guard`, and blocks that yield a value. Each check prints `yes` when it
-/// holds and `no` when it does not.
+/// `abort` and `return` out of a handler, `match` handlers, case reads, and
+/// `guard`. Each check prints `yes` when it holds and `no` when it does not.
 package outcomes;
 
 import core$;
@@ -64,14 +63,6 @@ Unit addAllBut(this Int, skipped Int) mut {
 	return Unit();
 }
 
-/// Reads its block, which runs it, only when the subject is false.
-Bool orElse(this Bool, other @concepts$Block<Bool>) {
-	if(this) {
-		return this;
-	}
-	return other;
-}
-
 Unit check(ok Bool) {
 	yes @primitives$String("yes\n");
 	no @primitives$String("no\n");
@@ -128,18 +119,5 @@ Unit check(ok Bool) {
 		guard(Bool(true));
 		check(Bool(false));
 	}
-
-	// A block that yields a value runs when it is read, and not before.
-	runs Int(0);
-	check(Bool(true):orElse({
-		runs = runs + Int(1);
-		resolve Bool(false);
-	}));
-	check(runs == Int(0));
-	check(Bool(false):orElse({
-		runs = runs + Int(1);
-		resolve Bool(true);
-	}));
-	check(runs == Int(1));
 	return @primitives$Unit();
 }

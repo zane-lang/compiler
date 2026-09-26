@@ -113,15 +113,19 @@ Error: every path through a handler ends in `resolve`, `return` or `abort`; this
 File "fixtures/typing/reject/bad/calls.zn", line 43, characters 5-20:
 43 |     resolve Int(1);
   |     ^^^^^^^^^^^^^^^
-Error: `resolve` finishes a handler or a block argument, and this is in neither
+Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it cannot finish one
 File "fixtures/typing/reject/bad/exits.zn", line 8, characters 5-17:
 8 |     guard(ready);
   |     ^^^^^^^^^^^^
-Error: `guard` can exit, which ends the block its call is written in; this call is in no block
-File "fixtures/typing/reject/bad/exits.zn", line 19, characters 9-21:
-19 |         guard(ready);
-  |         ^^^^^^^^^^^^
-Error: `guard` can exit, which ends the block its call is written in; this block yields a value, so it cannot end without one
+Error: `guard` can exit, which ends the block its call is written in, and this call is in no block
+File "fixtures/typing/reject/bad/exits.zn", line 17, characters 23-44:
+17 | Bool lazily(condition @concepts$Block<Bool>) => Bool(true)
+  |                       ^^^^^^^^^^^^^^^^^^^^^
+Error: `@concepts$Block` takes no type argument: a block yields nothing (docs/spec-divergences.md §12)
+File "fixtures/typing/reject/bad/exits.zn", line 21, characters 9-23:
+21 |         resolve ready;
+  |         ^^^^^^^^^^^^^^
+Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it cannot finish one
 File "fixtures/typing/reject/bad/guests.zn", line 31, characters 5-6:
 31 |     k!fill();
   |     ^

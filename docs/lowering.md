@@ -179,9 +179,7 @@ expanded and the literal is embedded where the body uses the parameter. In an
 expanded body the subject names the caller's own place, so a `mut` method
 such as `to` advances the caller's counter; every other argument is stored in
 a new slot first, in the order it was written. A `return` in the body itself
-stores the call's result and leaves the expansion. A block that yields a
-value runs where its parameter is read, and its `resolve` gives the value
-([`spec-divergences.md`](spec-divergences.md) §12).
+stores the call's result and leaves the expansion.
 
 **L12. A verb has up to three outcomes, and a call checks for them.** A
 function returns a small outcome tag when it can end in more than one way:
@@ -288,8 +286,8 @@ test passing.
    enum maps. A `mut` subject is passed by address. A value type that
    contains itself needs a boxed member, which waits for step 7, and a case
    read, which takes a handler, for step 4.
-4. **Aborts and exits.** The outcome tag, handlers, `resolve`, `guard`, case
-   reads, and blocks that yield a value.
+4. **Aborts and exits.** The outcome tag, handlers, `resolve`, `guard`, and
+   case reads.
 5. **Reference types.** Arenas, hosting, moves, destruction, `float`.
 6. **Guests.** The anchor pool, `mint`, `resolve`, and anchor merges.
 7. **Handles.** `String`, `List`, and boxed members.

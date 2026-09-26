@@ -3,9 +3,8 @@
 
    A verb exits when `@controlflow$exitFromCall` is in its own frame: its
    body, or a block written there. A call to it ends the run of the block the
-   call is written in. So such a call must be written in a block, and in one
-   that yields nothing: a function body, or a block that yields a value,
-   cannot end without the value it returns or yields. *)
+   call is written in. So such a call must be written in a block: a body
+   cannot end without the `return` it ends in. *)
 
 module T = Nodes
 module S = Signature
@@ -65,19 +64,6 @@ and expr (e : T.Expr.t) =
         (function Same x -> expr x | Arm b | Handler b | Block b -> block b | Lambda -> false)
         (parts e)
 
-(* Whether a block argument yields a value: whether it has a `resolve` of its
-   own, one not in a handler or another block argument. *)
-let rec yields (b : T.Block.t) =
-  List.exists
-    (fun (s : T.Stat.t) ->
-      match s.T.Stat.node with
-      | T.Stat.Resolve _ -> true
-      | _ -> List.exists yields_in (stat_exprs s))
-    b.T.Block.stats
-
-and yields_in e =
-  List.exists (function Same x -> yields_in x | Arm b -> yields b | _ -> false) (parts e)
-
 (* The verb a call names, when it names a declared one. *)
 let callee (e : T.Expr.t) =
   match e.T.Expr.node with
@@ -91,9 +77,6 @@ let callee (e : T.Expr.t) =
       match r.T.Verb_ref.owner with S.Declared id -> Some (id, r.T.Verb_ref.name) | _ -> None)
   | _ -> None
 
-(* Where a call is written: in no block, in one that yields nothing, or in
-   one that yields a value. *)
-type where = Body | Plain | Yielding
 
 let run (p : T.Program.t) =
   let exiting = Hashtbl.create 8 in
@@ -112,23 +95,24 @@ let run (p : T.Program.t) =
         p.T.Program.instances
   in
   List.iter (fun (id, b) -> if block b then Hashtbl.replace exiting id ()) bodies;
-  let rec walk_block where (b : T.Block.t) =
-    List.iter (fun s -> List.iter (walk where) (stat_exprs s)) b.T.Block.stats
-  and walk where (e : T.Expr.t) =
-    (match (callee e, where) with
-    | Some (id, name), (Body | Yielding) when Hashtbl.mem exiting id ->
+  (* [in_block]: whether the call is written in a block argument. *)
+  let rec walk_block in_block (b : T.Block.t) =
+    List.iter (fun s -> List.iter (walk in_block) (stat_exprs s)) b.T.Block.stats
+  and walk in_block (e : T.Expr.t) =
+    (match callee e with
+    | Some (id, name) when Hashtbl.mem exiting id && not in_block ->
         Env.error e.T.Expr.span
           (Printf.sprintf
-             "`%s` can exit, which ends the block its call is written in; %s" name
-             (if where = Body then "this call is in no block"
-              else "this block yields a value, so it cannot end without one"))
+             "`%s` can exit, which ends the block its call is written in, and this call is in \
+              no block"
+             name)
     | _ -> ());
     List.iter
       (function
-        | Same x -> walk where x
-        | Arm b | Handler b -> walk_block where b
-        | Block b -> walk_block (if yields b then Yielding else Plain) b
+        | Same x -> walk in_block x
+        | Arm b | Handler b -> walk_block in_block b
+        | Block b -> walk_block true b
         | Lambda -> ())
       (parts e)
   in
-  List.iter (fun (_, b) -> walk_block Body b) bodies
+  List.iter (fun (_, b) -> walk_block false b) bodies

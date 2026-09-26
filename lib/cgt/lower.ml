@@ -292,8 +292,8 @@ let primitive ctx span spelling args : Expr.t =
   | _, [ T.Arg.Value v ] -> literal ctx span name v
   | _ -> refuse span (Printf.sprintf "lowering does not handle `%s` yet" spelling)
 
-(* An exit ends the run of a block that yields nothing (docs/spec-divergences.md
-   §11). Semantics rejects one anywhere else, so this is not reached. *)
+(* An exit ends the run of a block (docs/spec-divergences.md §11). Semantics
+   rejects one anywhere else, so this is not reached. *)
 let no_block span = refuse span "an exit ends the block its call is written in, and this is in none"
 
 (* Where nothing leaves: an enum map's entry, which is a constant. *)
@@ -316,8 +316,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       match lookup ctx span l with
       | Slot id -> { Expr.node = Expr.Local id; ty = ty st span l.T.Local.ty }
       | Pointer id -> deref id (ty st span l.T.Local.ty)
-      | Code c -> yielded st c span l.T.Local.ty
-      | Literal _ -> refuse span "lowering does not read this parameter as a value")
+      | Literal _ | Code _ -> refuse span "lowering does not read this parameter as a value")
   | T.Expr.Bool_lit b -> { Expr.node = Expr.Bool b; ty = Nodes.Ty.I1 }
   | T.Expr.Construct { ctor = { owner = S.Intrinsic spelling; _ }; args; handler = None } ->
       primitive ctx span spelling args
@@ -623,7 +622,7 @@ and expand st ctx span v args handler ret =
            | T.Arg.Block block, _ ->
                bind p (Code { block; ctx = { ctx with resolve = None } });
                []
-           | T.Arg.Value a, Tty.Concept (Tty.Block _) -> (
+           | T.Arg.Value a, Tty.Concept Tty.Block -> (
                match a.T.Expr.node with
                | T.Expr.Var (T.Name_ref.Local l) -> (
                    match lookup ctx span l with
@@ -701,19 +700,6 @@ and code st ctx span (arg : T.Arg.t) =
       | Code c -> run c.ctx c.block
       | _ -> refuse span "lowering expected a block here")
   | T.Arg.Value _ -> refuse span "lowering expected a block here"
-
-(* A block that yields a value, read: it runs where it is read, and its
-   `resolve` gives the value (control-flow.md §2.4). *)
-and yielded st c span t =
-  let t =
-    match t with
-    | Tty.Concept (Tty.Block (Some t)) -> ty st span t
-    | _ -> refuse span "lowering expected a block that yields a value here"
-  in
-  let label = fresh st in
-  let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
-  let ctx = { c.ctx with resolve = Some (leave label result); finish = no_block } in
-  { Expr.node = Expr.Expand { label; body = block st ctx c.block; result }; ty = t }
 
 and stat st ctx (s : T.Stat.t) : Stat.t list =
   let span = s.T.Stat.span in

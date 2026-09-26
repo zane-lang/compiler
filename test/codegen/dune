@@ -163,9 +163,9 @@
   (diff golden/shapes.out shapes.out.actual)))
 
 ; `outcomes` is step 4: aborts, `?` and `??` handlers, `resolve`, `match`
-; handlers, case reads, `guard`, and blocks that yield a value. Every check
-; prints `yes` when it holds and `no` when it does not; the one after a `guard`
-; in the same block is never reached.
+; handlers, case reads and `guard`. Every check prints `yes` when it holds
+; and `no` when it does not; the one after a `guard` in the same block is
+; never reached.
 
 (rule
  (deps (source_tree fixtures/outcomes) (source_tree ../core))

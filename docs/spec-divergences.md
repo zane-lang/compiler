@@ -411,11 +411,11 @@ the verb containing it, and blocks are transparent to it, so a `guard` inside
 `Unit`, and §3.6 calls `guard` straight from a verb's body.
 
 **Compiler** — the exit ends the run of the block the exiting verb's call is
-written in, and a call to an exiting verb is legal only inside a block that
-yields nothing. A verb's body must end in an explicit `return`, `Unit()`
-included ([`error-handling.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/error-handling.md)
-§8), and a block that yields a value in a `resolve`; a block that yields
-nothing has nothing to give, so it is the one thing an exit can end.
+written in, and a call to an exiting verb is legal only inside a block. A
+verb's body must end in an explicit `return`, `Unit()` included
+([`error-handling.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/error-handling.md)
+§8), while a block yields nothing (§12 below), so it has nothing to give and
+is the one thing an exit can end.
 
 ```zane
 Unit sum(this Int) mut {
@@ -434,27 +434,31 @@ written there. `lib/tst/exits.ml` checks the calls, and
 `test/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
 Reconciling means the spec adopting this reading.
 
-## 12. A `Block<T>` is run by reading it
+## 12. A block yields nothing
 
-**Spec** — silent. [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
-§2.4 has a `Block<T>` yield a `T` through `resolve`, and no intrinsic takes
-one, so it never says how the verb receiving the block gets the value.
+**Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
+§2.1 and §2.4: a block's type is `@concepts$Block`, or `@concepts$Block<T>`
+when it yields a `T`, and each yielding path ends in `resolve`. §3.3 uses one
+for a condition that is computed only when reached:
+`ran!elif({ resolve expensiveCheck() }) { … }`.
 
-**Compiler** — a block is a concept, with no primitive counterpart, and
-reading one runs it. So a `Block<T>` parameter read where a `T` is expected
-gives its `T`, and is run once per read: a verb that needs the value twice
-stores it first.
+**Compiler** — a block is a body of statements that yields nothing and is
+never stored. `@concepts$Block` takes no type argument, and `resolve` in a
+block is an error, since it finishes only a handler. A verb reads a block
+parameter only to pass it on; reading it does not run it. What runs it is a
+`@controlflow$` intrinsic, which does what that intrinsic says: `branch` runs
+it once when its condition holds, `repeat` a counted number of times.
 
 ```zane
-Bool orElse(this Bool, other @concepts$Block<Bool>) {
-	if(this) {
-		return this;
-	}
-	return other;   // runs the block only here
+Bool lazily(condition @concepts$Block<Bool>) => …   // rejected: no type argument
+done Bool = if(ready) {
+	resolve ready;                                  // rejected: no handler to finish
 }
 ```
 
-Reconciling means the spec stating how a block is read.
+`test/semantics/fixtures/typing/reject/bad/exits.zn` has both. The deferred
+condition of §3.3 has no form here. Reconciling means the spec dropping
+`Block<T>`, or the compiler taking it back.
 
 ---
 

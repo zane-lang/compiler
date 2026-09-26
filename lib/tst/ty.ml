@@ -46,7 +46,9 @@ and concept =
   | Text_lit
   | Array_lit of t * number
   | Map_lit of t * t
-  | Block of t option
+  (* A block argument: statements that yield nothing (docs/spec-divergences.md
+     §12). *)
+  | Block
   (* The type of a type written where a value goes: what a `T Type` value
      parameter accepts (generics.md §5.3). *)
   | Type_value
@@ -87,7 +89,6 @@ and arg_contains_error = function
 and concept_contains_error = function
   | Array_lit (t, _) -> contains_error t
   | Map_lit (k, v) -> contains_error k || contains_error v
-  | Block (Some t) -> contains_error t
   | _ -> false
 
 (* ---------------------------------------------------------------------- *)
@@ -123,8 +124,7 @@ and concept_to_string = function
   | Array_lit (t, n) ->
       "@concepts$Array<" ^ to_string t ^ ", " ^ number_to_string n ^ ">"
   | Map_lit (k, v) -> "@concepts$Map<" ^ to_string k ^ ", " ^ to_string v ^ ">"
-  | Block None -> "@concepts$Block"
-  | Block (Some t) -> "@concepts$Block<" ^ to_string t ^ ">"
+  | Block -> "@concepts$Block"
   | Type_value -> "Type"
 
 and ret_to_string ret abort =
@@ -184,7 +184,6 @@ and subst_number s = function
 and subst_concept s = function
   | Array_lit (t, n) -> Array_lit (subst s t, subst_number s n)
   | Map_lit (k, v) -> Map_lit (subst s k, subst s v)
-  | Block t -> Block (Option.map (subst s) t)
   | c -> c
 
 (* The parameters a type still mentions, first occurrence first. *)
@@ -207,7 +206,6 @@ let free_params t =
   and go_concept = function
     | Array_lit (t, n) -> go t; go_number n
     | Map_lit (k, v) -> go k; go v
-    | Block t -> Option.iter go t
     | _ -> ()
   in
   go t;
@@ -260,7 +258,6 @@ and concept_equal a b =
   match (a, b) with
   | Array_lit (t, n), Array_lit (u, m) -> equal t u && number_equal n m
   | Map_lit (k, v), Map_lit (k', v') -> equal k k' && equal v v'
-  | Block x, Block y -> Option.equal equal x y
   | x, y -> x = y
 
 (* Whether a value of [src] may be stored where [dst] is declared, at a
@@ -268,13 +265,9 @@ and concept_equal a b =
    `return`. Exact, up to the passing mode, with the one relaxation the spec
    gives function values: a lambda that does not declare `mut` may be held by
    a `mut` function type (functions.md §7.2). *)
-(* A block is read by running it, so a `Block<T>` gives its `T` wherever one
-   is expected (control-flow.md §2.4). *)
-let rec assignable ~dst ~src =
+let assignable ~dst ~src =
   match (strip_guest dst, strip_guest src) with
   | Verb d, Verb s when d.is_mut && not s.is_mut -> equal (Verb d) (Verb { s with is_mut = true })
-  | Concept (Block _), _ -> equal (strip_guest dst) (strip_guest src)
-  | d, Concept (Block (Some t)) -> assignable ~dst:d ~src:t
   | d, s -> equal d s
 
 (* ---------------------------------------------------------------------- *)
@@ -293,11 +286,6 @@ let rec unify ~open_ (s : subst) pattern actual : subst option =
   let is_open p = List.exists (fun q -> q.id = p.id) open_ in
   match (pattern, actual) with
   | Error, _ -> Some s
-  (* A `Block<T>` read where no block is expected runs, and gives its `T`
-     (control-flow.md §2.4). *)
-  | pattern, Concept (Block (Some t))
-    when (match pattern with Concept (Block _) -> false | _ -> true) ->
-      unify ~open_ s pattern t
   (* An open parameter binds even to [Error], so a type that failed to
      resolve -- or a generic body checked with its parameters unknown -- still
      fixes it, and what depends on it is accepted rather than unbound. *)
@@ -355,7 +343,6 @@ and unify_concept ~open_ s x y =
       Option.bind (unify ~open_ s t u) (fun s -> unify_number ~open_ s n m)
   | Map_lit (k, v), Map_lit (k', v') ->
       Option.bind (unify ~open_ s k k') (fun s -> unify ~open_ s v v')
-  | Block (Some t), Block (Some u) -> unify ~open_ s t u
   | x, y -> if x = y then Some s else None
 
 (* A signature's parameter list, spelled so that two lists that differ only
@@ -381,7 +368,6 @@ let canonical ts =
         match c with
         | Array_lit (t, n) -> "@concepts$Array<" ^ go t ^ "," ^ go_number n ^ ">"
         | Map_lit (k, v) -> "@concepts$Map<" ^ go k ^ "," ^ go v ^ ">"
-        | Block (Some t) -> "@concepts$Block<" ^ go t ^ ">"
         | c -> concept_to_string c)
     | Verb v ->
         (match v.this_ with Some t -> "this " ^ go t ^ ";" | None -> "")
