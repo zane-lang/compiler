@@ -286,7 +286,9 @@ test passing.
    enum maps. A `mut` subject is passed by address. A value type that
    contains itself needs a boxed member, which waits for step 7, and a case
    read, which takes a handler, for step 4.
-4. **Aborts and exits.** The outcome tag, handlers, `resolve`, `guard`.
+4. **Aborts and exits.** The outcome tag, handlers, `resolve`, `guard`, and
+   case reads. A block argument that yields a value (`Block<T>`) waits until
+   a verb that calls one lowers.
 5. **Reference types.** Arenas, hosting, moves, destruction, `float`.
 6. **Guests.** The anchor pool, `mint`, `resolve`, and anchor merges.
 7. **Handles.** `String`, `List`, and boxed members.
@@ -305,8 +307,9 @@ test passing.
   guarantee; step 5 confirms it or resolves again after each call that could.
 - **Where the exit check lives.** The spec rejects an exiting verb called from
   a caller that must produce a value ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §4.2).
-  Semantics does not check it yet; step 4 adds the check there, since lowering
-  reports nothing.
+  Which invocation an exit ends is only known once block-taking verbs are
+  expanded, so lowering reports it for now. Semantics takes the check over
+  once it models expansion.
 - **Moving to a newer LLVM.** llvm-project's bindings track every release,
   but opam packages them only up to 19. A newer release means building
   them from that release's `llvm/bindings/ocaml`, or waiting for opam.
@@ -320,6 +323,13 @@ test passing.
   instead, which copies what L6 would lend; a value parameter cannot be
   written, so nothing observes the difference. Only a `mut` subject is
   passed by address already.
+- **An outcome as a sum, for now.** L12 returns a tag and has the caller
+  pass slots for the result and the abort value. Until results are written
+  into destinations (step 5), a function that can abort or exit returns a
+  sum of three cases instead: done with its result, aborted with its abort
+  value, and exited. A function that can only finish returns its result as
+  before. A verb exits when `@controlflow$exitFromCall` is in its own frame:
+  its body, or a block written there.
 - **A 64-bit target.** Codegen sizes a sum's payload room assuming 8-byte
   pointers and C struct layout, which holds for x86-64 and AArch64. Another
   target reads the sizes from LLVM's data layout.
