@@ -1,0 +1,20 @@
+; The runtime on its own (docs/lowering.md L17): `arenas.c` includes it and
+; exercises the scope arenas directly, and the golden file holds what it
+; printed.
+
+(rule
+ (deps arenas.c ../../runtime/zane.c)
+ (targets arenas.exe)
+ (action
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -o arenas.exe arenas.c)))
+
+(rule
+ (action
+  (with-stdout-to
+   arenas.out.actual
+   (run ./arenas.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff arenas.out arenas.out.actual)))

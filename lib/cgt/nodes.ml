@@ -72,9 +72,13 @@ module Expr = struct
      [Assign] a place in an existing one, and [Expr.Local] reads it. [If] and
      [Repeat] are `@controlflow$branch` and `@controlflow$repeat`, [Switch]
      jumps on a sum's tag (L13), and [Leave] ends the [Expand] its label
-     names. *)
+     names. [Scope] is a block's arena (L8), entered before its body and
+     drained on every way out of it, and [Host] fills a new local whose slot
+     is in that arena. *)
   and stat =
     | Let of { id : int; value : t }
+    | Host of { id : int; scope : int; value : t }
+    | Scope of { id : int; body : stat list }
     | Assign of { place : place; value : t }
     | Eval of t
     | Return of t
@@ -94,6 +98,8 @@ end
 module Stat = struct
   type t = Expr.stat =
     | Let of { id : int; value : Expr.t }
+    | Host of { id : int; scope : int; value : Expr.t }
+    | Scope of { id : int; body : t list }
     | Assign of { place : Expr.place; value : Expr.t }
     | Eval of Expr.t
     | Return of Expr.t
