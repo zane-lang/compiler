@@ -314,7 +314,7 @@ test passing.
   runtime keeps one chain of 1 MiB chunks: a scope bumps from where the scope
   around it stopped, and draining it restores that point. A chunk stays
   mapped once made and is reused by the next scope that reaches it, where
-  `memory.md` §3.1 unmaps a scope's chunks at its drain. The spec leaves
+  [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1 unmaps a scope's chunks at its drain. The spec leaves
   arena granularity to the implementation and fixes only that a scope's
   memory is released together, which this does.
 - **A `this` address across a call that moves.** L10 resolves `this` once per

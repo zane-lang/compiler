@@ -58,8 +58,9 @@ static int64_t zane_depth, zane_room;
 int64_t zane_scope_enter(void) {
 	if (zane_depth == zane_room) {
 		zane_room = zane_room ? zane_room * 2 : 64;
-		zane_marks = realloc(zane_marks, (size_t)zane_room * sizeof *zane_marks);
-		if (!zane_marks) zane_broken("out of memory for scopes");
+		zane_mark *marks = realloc(zane_marks, (size_t)zane_room * sizeof *zane_marks);
+		if (!marks) zane_broken("out of memory for scopes");
+		zane_marks = marks;
 	}
 	zane_marks[zane_depth] = (zane_mark){ zane_chunks, zane_frontier };
 	return zane_depth++;
