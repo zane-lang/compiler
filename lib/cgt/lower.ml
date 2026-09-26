@@ -620,7 +620,7 @@ and expand st ctx span v args handler ret =
          (fun (p : T.Local.t) arg ->
            match (arg, p.T.Local.ty) with
            | T.Arg.Block block, _ ->
-               bind p (Code { block; ctx = { ctx with resolve = None } });
+               bind p (Code { block; ctx });
                []
            | T.Arg.Value a, Tty.Concept Tty.Block -> (
                match a.T.Expr.node with

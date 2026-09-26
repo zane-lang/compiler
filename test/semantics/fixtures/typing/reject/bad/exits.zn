@@ -13,7 +13,7 @@ Unit early(ready Bool) {
 }
 
 /// A block yields nothing: it takes no type argument, and a `resolve` in it
-/// finishes no handler, even one around it.
+/// finishes the handler around it, when there is one.
 Bool lazily(condition @concepts$Block<Bool>) => Bool(true)
 
 Unit yielding(ready Bool) {

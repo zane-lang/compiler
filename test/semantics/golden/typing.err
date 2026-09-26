@@ -113,7 +113,7 @@ Error: every path through a handler ends in `resolve`, `return` or `abort`; this
 File "fixtures/typing/reject/bad/calls.zn", line 43, characters 5-20:
 43 |     resolve Int(1);
   |     ^^^^^^^^^^^^^^^
-Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it cannot finish one
+Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it is not one
 File "fixtures/typing/reject/bad/exits.zn", line 8, characters 5-17:
 8 |     guard(ready);
   |     ^^^^^^^^^^^^
@@ -125,7 +125,7 @@ Error: `@concepts$Block` takes no type argument: a block yields nothing (docs/sp
 File "fixtures/typing/reject/bad/exits.zn", line 21, characters 9-23:
 21 |         resolve ready;
   |         ^^^^^^^^^^^^^^
-Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it cannot finish one
+Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it is not one
 File "fixtures/typing/reject/bad/guests.zn", line 31, characters 5-6:
 31 |     k!fill();
   |     ^

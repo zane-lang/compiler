@@ -443,8 +443,10 @@ for a condition that is computed only when reached:
 `ran!elif({ resolve expensiveCheck() }) { … }`.
 
 **Compiler** — a block is a body of statements that yields nothing and is
-never stored. `@concepts$Block` takes no type argument, and `resolve` in a
-block is an error, since it finishes only a handler. A verb reads a block
+never stored. `@concepts$Block` takes no type argument. A `return`, `resolve`
+or `abort` in a block acts on what encloses the call, as §2.3 has it for
+`return` and `abort`: a `resolve` finishes the handler the block is written
+in, and is an error where there is none. A verb reads a block
 parameter only to pass it on; reading it does not run it. What runs it is a
 `@controlflow$` intrinsic, which does what that intrinsic says: `branch` runs
 it once when its condition holds, `repeat` a counted number of times.
@@ -452,7 +454,7 @@ it once when its condition holds, `repeat` a counted number of times.
 ```zane
 Bool lazily(condition @concepts$Block<Bool>) => …   // rejected: no type argument
 done Bool = if(ready) {
-	resolve ready;                                  // rejected: no handler to finish
+	resolve ready;                                  // rejected: no handler around it
 }
 ```
 

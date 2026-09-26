@@ -920,11 +920,9 @@ and actual_of ctx (a : N.Call_arg.t) =
       { arg = T.Arg.Block typed; aty = ty; aspan = a.N.Call_arg.span; subject = false }
 
 (* A block argument captures the scope it is written in (control-flow.md
-   §2.2), and yields nothing, so a `resolve` in it finishes no handler
-   around it (docs/spec-divergences.md §12). *)
-and block_argument ctx (b : N.Block.t) =
-  let inner = { ctx with resolve_target = No_resolve } in
-  (block_in (push inner) b, Ty.Concept Ty.Block)
+   §2.2) and yields nothing: a `return`, `resolve` or `abort` in it acts on
+   what encloses the call (docs/spec-divergences.md §12). *)
+and block_argument ctx (b : N.Block.t) = (block_in (push ctx) b, Ty.Concept Ty.Block)
 
 and verb_call ~flow ctx (vc : N.Verb_call.t) : T.Expr.t * S.t option =
   let span = vc.N.Verb_call.span in
@@ -1729,7 +1727,7 @@ and stat ctx (s : N.Stat.t) : T.Stat.t =
         | No_resolve ->
             error span
               "`resolve` finishes a handler, and this is in none: a block yields nothing, so \
-               it cannot finish one";
+               it is not one";
             T.Stat.Resolve v)
   in
   { T.Stat.node; span }
