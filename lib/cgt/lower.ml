@@ -321,6 +321,22 @@ let constant_ctx () =
     scope = { arena = None };
   }
 
+(* A new local: hosted in the block's arena when it is a reference type,
+   which makes the arena the first time. *)
+let bind_local st scope (l : T.Local.t) id value =
+  if hosted st l.T.Local.ty then begin
+    let arena =
+      match scope.arena with
+      | Some a -> a
+      | None ->
+          let a = fresh st in
+          scope.arena <- Some a;
+          a
+    in
+    Stat.Host { id; scope = arena; value }
+  end
+  else Stat.Let { id; value }
+
 let rec expr st ctx (e : T.Expr.t) : Expr.t =
   let span = e.T.Expr.span in
   match e.T.Expr.node with
@@ -500,16 +516,22 @@ and map_read st ctx span target map ret =
 
 (* A handler, run where its operation aborted: its binder holds the abort
    value, and a `resolve` gives the operation its value and goes past it. *)
+(* A handler is a block of its own, so an abort value of a reference type
+   is hosted in the handler's arena, which is innermost wherever the handler
+   runs. *)
 and handle st ctx (h : T.Handler.t) label result _span (value : Expr.t) =
+  let scope = { arena = None } in
   let bind =
     match h.T.Handler.binder with
     | Some l ->
         let id = fresh st in
         Hashtbl.replace ctx.env l.T.Local.id (Slot id);
-        [ Stat.Let { id; value } ]
+        [ bind_local st scope l id value ]
     | None -> [ Stat.Eval value ]
   in
-  bind @ block st { ctx with resolve = Some (leave label result) } h.T.Handler.body
+  let inner = { ctx with resolve = Some (leave label result); scope } in
+  let body = bind @ block st inner h.T.Handler.body in
+  match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ]
 
 (* A case read is its payload when the case is live, and runs its handler
    when another is (adt.md §5.2). The other cases fall through to it. *)
@@ -725,17 +747,7 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       let value = expr st ctx value in
       let id = fresh st in
       Hashtbl.replace ctx.env local.T.Local.id (Slot id);
-      if hosted st local.T.Local.ty then
-        let scope =
-          match ctx.scope.arena with
-          | Some a -> a
-          | None ->
-              let a = fresh st in
-              ctx.scope.arena <- Some a;
-              a
-        in
-        [ Stat.Host { id; scope; value } ]
-      else [ Stat.Let { id; value } ]
+      [ bind_local st ctx.scope local id value ]
   | T.Stat.Assign { target; value } ->
       let place = place st ctx span target in
       [ Stat.Assign { place; value = expr st ctx value } ]

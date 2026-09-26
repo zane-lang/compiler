@@ -59,6 +59,36 @@ Int?Int overdrawn(amount Int) {
 	return a.balance;
 }
 
+/// Aborts with a reference type, which the handler's binder hosts.
+Int?Account refused(owner Int) {
+	if(owner == Int(0)) {
+		abort opened(Int(7), Int(70));
+	}
+	return owner;
+}
+
+type Choice = variant {
+	pick Int;
+	skip Unit;
+}
+
+/// A `match` arm aborts from inside its own hosting block, and the
+/// `match`'s handler hosts the abort value there.
+Int chosen(c Choice) => match (c) {
+	n pick {
+		a Account = opened(n, n);
+		if(a.balance == Int(0)) {
+			abort a;
+		}
+		return a.balance;
+	}
+	s skip {
+		abort Account(Int(6));
+	}
+} ? e {
+	resolve e.owner * Int(100);
+}
+
 /// Sums balances, skipping one pass with `guard` after hosting a local.
 Int total(skipped Int) {
 	sum Int(0);
@@ -108,6 +138,11 @@ Unit check(ok Bool) {
 	check((overdrawn(Int(1)) ?? Int(0)) == Int(5));
 	check((overdrawn(Int(7)) ? e { resolve e + Int(1); }) == Int(8));
 	check(total(Int(3)) == Int(12));
+	check((refused(Int(0)) ? e { resolve e.balance; }) == Int(70));
+	check((refused(Int(4)) ? e { resolve e.balance; }) == Int(4));
+	check(chosen(Choice.pick(Int(5))) == Int(5));
+	check(chosen(Choice.pick(Int(0))) == Int(0));
+	check(chosen(Choice.skip(Unit())) == Int(600));
 
 	// A hundred thousand passes, each hosting two locals and draining them.
 	count Int(0);
