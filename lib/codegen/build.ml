@@ -23,7 +23,7 @@ let executable m output =
   let obj = Filename.temp_file "zane" ".o" in
   let rt = Filename.temp_file "zane" ".c" in
   let command =
-    String.concat " " (List.map Filename.quote [ cc (); "-O2"; "-o"; output; obj; rt ])
+    String.concat " " (List.map Filename.quote [ cc (); "-O2"; "-pthread"; "-o"; output; obj; rt ])
   in
   (* The temporary files go however the build ends, a raise included. *)
   let status =

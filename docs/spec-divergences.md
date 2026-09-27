@@ -462,6 +462,40 @@ done Bool = if(ready) {
 condition of §3.3 has no form here. Reconciling means the spec dropping
 `Block<T>`, or the compiler taking it back.
 
+## 13. The pool shares one queue
+
+**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
+§2.4: the runtime uses a work-stealing thread pool, sized to hardware
+concurrency at the start, which the program's runtime resizes with
+`setThreads` and `setThreadsAuto`.
+
+**Compiler** — the pool's threads take spawned calls from one shared queue,
+first spawned first, and a thread that waits for a call no thread has taken
+yet runs it itself. The pool starts with the first spawn, one thread per
+processor, or as many as the `ZANE_THREADS` environment variable says.
+`setThreads` and `setThreadsAuto` do not lower yet. Only timing tells a pool
+that steals from one that shares a queue, and
+`docs/lowering.md` §9 has the rest of how spawned calls run. Reconciling
+means a queue per thread that the others steal from, and lowering the two
+verbs.
+
+## 14. A concurrent read is not a snapshot
+
+**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
+§4.4: a spawned call may read a value that another live spawn is mutating,
+and the read takes a coherent snapshot: a flat value's bytes validated and
+retried against the writer's updates, and a value with boxed members walked
+under the bounds §4.4 lists. §4.2 and §4.3 keep every other read and write
+from racing: a spawned call writes only through a value-typed subject, and
+one location has at most one such writer.
+
+**Compiler** — a read is an ordinary read. Where §4.4 has it take a snapshot,
+it can see a value half-written, or follow a boxed member into a block the
+writer has returned. The checker does not enforce §4.2 or §4.3 yet either
+([`semantics.md`](semantics.md) D1), so nothing stops a program whose
+spawned calls race. Reconciling means the snapshot read of §4.4, and the two
+checks.
+
 ---
 
 ## Closed

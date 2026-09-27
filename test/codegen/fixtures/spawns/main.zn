@@ -1,0 +1,192 @@
+/// Spawns: calls started with `spawn` run on the pool's threads while the
+/// caller goes on (concurrency.md §3). A local bound to one waits for it
+/// where it is read, and a block waits for every call spawned in it before
+/// it drains (§4.1). Results come home with their blocks and their anchors:
+/// numbers, strings, lists and hosts, read, left unread, or dropped. The
+/// runtime stops the program if a drain finds a block still out. Each check
+/// prints `yes` when it holds and `no` when it does not.
+package spawns;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+type Tally = struct {
+	total Int;
+}
+
+Tally(total Int) => init{ total; }
+
+Unit add(this Tally, n Int) mut {
+	this.total = this.total + n;
+	return Unit();
+}
+
+/// A value that boxes itself, so it owns a block for each level.
+type Countdown = variant {
+	done Unit;
+	more Countdown;
+}
+
+Int depth(c Countdown) => match (c) {
+	d done => Int(0);
+	m more => Int(1) + depth(m);
+}
+
+/// Adds `n` levels, one whole copy at a time.
+Unit deepen(this Countdown, n Int) mut {
+	i Int(1);
+	i!to(n) {
+		this = Countdown.more(this);
+	}
+	return Unit();
+}
+
+type Person = #struct {
+	name String;
+	age Int;
+}
+
+Person(name String, age Int) => init{ name; age; }
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(~ok, {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Int fib(n Int) {
+	@controlflow$branch(n < Int(2), {
+		return n;
+	});
+	return fib(n + ~Int(1)) + fib(n + ~Int(2));
+}
+
+/// Spawns two calls of its own and waits for both.
+Int pair(n Int) {
+	a Int = spawn fib(n);
+	b Int = spawn fib(n + ~Int(1));
+	return a + b;
+}
+
+String greet(name String) {
+	return String("hi ") + name;
+}
+
+String nameOf(p &Person) {
+	return p.name + String("!");
+}
+
+Person born(name String, age Int) {
+	return Person(name + String(" lovelace"), age);
+}
+
+List<String> words(n Int) {
+	all List<String> = @primitives$List(String);
+	i Int(1);
+	i!to(n) {
+		all!push(String("w") + String("!"));
+	}
+	return all;
+}
+
+Unit nothing() {
+	return Unit();
+}
+
+Unit main() {
+	// A number, read after the caller goes on.
+	a Int = spawn fib(Int(20));
+	check(a == Int(6765));
+
+	// A string made on another thread comes home with its bytes, and the
+	// host lent to the call lives until it returns.
+	who String("ada");
+	s String = spawn greet(who);
+	check(s == String("hi ada"));
+
+	// A guest passed to a spawned call.
+	p Person(String("grace"), Int(85));
+	g &Person = p;
+	n String = spawn nameOf(g);
+	check(n == String("grace!"));
+
+	// A host returned: its anchor follows it home.
+	q Person = spawn born(String("ada"), Int(36));
+	h &Person = q;
+	check(h.name == String("ada lovelace"));
+	check(h.age == Int(36));
+
+	// A list built on another thread.
+	w List<String> = spawn words(Int(50));
+	check(w:size() == Int(50));
+
+	// A mutating call on a value, waited for when its block drains.
+	t Tally(Int(0));
+	@controlflow$branch(true, {
+		spawn t!add(Int(5));
+	});
+	check(t.total == Int(5));
+
+	// Mutating calls on values that own blocks, all at once: each returns
+	// and takes blocks in the caller's region while the others do.
+	c1 Countdown = Countdown.done(Unit());
+	c2 Countdown = Countdown.done(Unit());
+	c3 Countdown = Countdown.done(Unit());
+	@controlflow$branch(true, {
+		spawn c1!deepen(Int(200));
+		spawn c2!deepen(Int(300));
+		spawn c3!deepen(Int(400));
+	});
+	check(depth(c1) + depth(c2) + depth(c3) == Int(900));
+
+	// Calls that spawn calls of their own, all at once.
+	x Int = spawn pair(Int(18));
+	y Int = spawn pair(Int(17));
+	z Int = spawn fib(Int(20));
+	check(x + y == z);
+
+	// One spawn per pass of a loop, each waited for as its pass drains.
+	sum Int(0);
+	i Int(1);
+	i!to(Int(10)) {
+		f Int = spawn fib(i);
+		sum = sum + f;
+	}
+	check(sum == Int(143));
+
+	// A result never read, and one dropped: both come home at the drain,
+	// which returns their blocks.
+	@controlflow$branch(true, {
+		unread String = spawn greet(String("nobody"));
+		spawn greet(String("no one"));
+		spawn words(Int(5));
+		spawn nothing();
+	});
+
+	// A spawned call read where it is written, and a local written after
+	// its call is spawned.
+	check(spawn fib(Int(10)) == Int(55));
+	r Int = spawn fib(Int(12));
+	r = r + Int(1);
+	check(r == Int(145));
+	return Unit();
+}

@@ -72,6 +72,11 @@ let runtime env name =
         | "zane_list_push" -> Llvm.function_type env.ptr [| env.ptr; env.i64; env.ptr |]
         | "zane_list_at" -> Llvm.function_type env.ptr [| env.ptr; env.i64; env.i64 |]
         | "zane_scope_drain" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.i64 |]
+        | "zane_frame" -> Llvm.function_type env.ptr [| env.i64; env.i64; env.i64 |]
+        | "zane_spawn" ->
+            Llvm.function_type (Llvm.void_type env.ctx)
+              [| env.ptr; env.ptr; env.ptr; env.ptr; env.i64 |]
+        | "zane_join" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr |]
         | _ -> failwith ("codegen: unknown runtime function " ^ name)
       in
       let f = Llvm.declare_function name fty env.m in
@@ -269,6 +274,7 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
       Option.iter (fun v -> place env b block v l) (expr env fr b value);
       Some block
   | Expr.Layout l -> Some (layout env l)
+  | Expr.Function fn -> Some (fst (Hashtbl.find env.funcs fn))
   | Expr.Escape { value; layout = l; exit } -> (
       (* The arenas the exit drains are the innermost ones: all of the
          function's, or those opened since the expansion began. *)
@@ -486,6 +492,37 @@ and stat env fr b (s : Stat.t) =
       let exit, depth = Hashtbl.find fr.labels label in
       drain env fr b depth;
       ignore (Llvm.build_br exit b)
+  | Stat.Spawn { task; scope; thunk; frame; args; dest; layout = l } ->
+      (* The arguments run first, in order; then the frame is made, filled,
+         and handed to the pool with where its result goes. *)
+      let values = List.map (expr env fr b) args in
+      let n x = Llvm.const_int env.i64 x in
+      let arena = Hashtbl.find fr.arenas scope in
+      let size, align = size_align frame in
+      let at = call_runtime env b "zane_frame" [| arena; n size; n align |] in
+      let t = lltype env frame in
+      List.iteri
+        (fun i v ->
+          Option.iter
+            (fun v -> ignore (Llvm.build_store v (Llvm.build_struct_gep t at (i + 1) "" b) b))
+            v)
+        values;
+      ignore (Llvm.build_store at (slot env fr task env.ptr) b);
+      let result = match frame with Ty.Struct (r :: _) -> r | _ -> Ty.Void in
+      let home, bytes =
+        match dest with
+        | Some id ->
+            let size, align = size_align result in
+            let s = call_runtime env b "zane_slot" [| arena; n size; n align; layout env l |] in
+            Hashtbl.replace fr.locals id (s, lltype env result);
+            (s, size)
+        | None -> (at, 0)
+      in
+      let f, _ = Hashtbl.find env.funcs thunk in
+      ignore (call_runtime env b "zane_spawn" [| at; f; home; layout env l; n bytes |])
+  | Stat.Join task ->
+      let at = Llvm.build_load env.ptr (fst (Hashtbl.find fr.locals task)) "" b in
+      ignore (call_runtime env b "zane_join" [| at |])
 
 let func env (f : Func.t) =
   let fn, _ = Hashtbl.find env.funcs f.Func.symbol in

@@ -1,0 +1,1399 @@
+└── program:
+    ├── entry: zane_main_23
+    ├── layouts[0] > layout:
+    │   ├── type: @primitives$Int
+    │   └── positions:
+    ├── layouts[1] > layout:
+    │   ├── type: @primitives$String
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: text @0
+    ├── layouts[2] > layout:
+    │   ├── type: spawns$Person
+    │   ├── positions[0]: @0 (48 bytes)
+    │   ├── positions[1]: @8 (32 bytes)
+    │   └── positions[2]: text @8
+    ├── layouts[3] > layout:
+    │   ├── type: @primitives$List<@primitives$String>
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: list @0 of @primitives$String (32 bytes apart)
+    ├── layouts[4] > layout:
+    │   ├── type: @primitives$Unit
+    │   └── positions:
+    ├── layouts[5] > layout:
+    │   ├── type: spawns$Countdown
+    │   └── positions[0]: box @8 of spawns$Countdown (16 bytes) when [0]=1
+    ├── funcs[0] > func:
+    │   ├── symbol: zane_main_23
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %4
+    │       ├── body[0] > spawn:
+    │       │   ├── task: #2
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.1
+    │       │   ├── frame: {i64, i64}
+    │       │   ├── args[0]: 20 : i64
+    │       │   ├── dest: #3
+    │       │   └── layout: @primitives$Int
+    │       ├── body[1] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @5
+    │       │       │   ├── result: #6
+    │       │       │   ├── body[0]: join #2
+    │       │       │   └── body[1] > assign:
+    │       │       │       ├── place: #6
+    │       │       │       └── value: local #3 : i64
+    │       │       └── right: 6765 : i64
+    │       ├── body[2] > host:
+    │       │   ├── local: #7
+    │       │   ├── scope: %4
+    │       │   ├── value: "ada" : handle
+    │       │   └── layout: @primitives$String
+    │       ├── body[3] > spawn:
+    │       │   ├── task: #9
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.2
+    │       │   ├── frame: {handle, ptr}
+    │       │   ├── args[0]: address of #7 : ptr
+    │       │   ├── dest: #10
+    │       │   └── layout: @primitives$String
+    │       ├── body[4] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > expand:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── label: @11
+    │       │       │   │   ├── result: #12
+    │       │       │   │   ├── body[0]: join #9
+    │       │       │   │   └── body[1] > assign:
+    │       │       │   │       ├── place: #12
+    │       │       │   │       └── value: local #10 : handle
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @14
+    │       │       │       ├── result: #15
+    │       │       │       ├── body[0] > host:
+    │       │       │       │   ├── local: #13
+    │       │       │       │   ├── scope: %4
+    │       │       │       │   ├── value: "hi ada" : handle
+    │       │       │       │   └── layout: @primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #15
+    │       │       │           └── value: local #13 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[5] > host:
+    │       │   ├── local: #19
+    │       │   ├── scope: %4
+    │       │   ├── value > call:
+    │       │   │   ├── type: {i32, handle, i64}
+    │       │   │   ├── fn: zane_Person_14
+    │       │   │   ├── args[0] > expand:
+    │       │   │   │   ├── type: ptr
+    │       │   │   │   ├── label: @17
+    │       │   │   │   ├── result: #18
+    │       │   │   │   ├── body[0] > host:
+    │       │   │   │   │   ├── local: #16
+    │       │   │   │   │   ├── scope: %4
+    │       │   │   │   │   ├── value: "grace" : handle
+    │       │   │   │   │   └── layout: @primitives$String
+    │       │   │   │   └── body[1] > assign:
+    │       │   │   │       ├── place: #18
+    │       │   │   │       └── value: address of #16 : ptr
+    │       │   │   └── args[1]: 85 : i64
+    │       │   └── layout: spawns$Person
+    │       ├── body[6] > let:
+    │       │   ├── local: #20
+    │       │   └── value > mint: address of #19 : ptr
+    │       ├── body[7] > spawn:
+    │       │   ├── task: #22
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.3
+    │       │   ├── frame: {handle, i32}
+    │       │   ├── args[0] > terminal: local #20 : i32
+    │       │   ├── dest: #23
+    │       │   └── layout: @primitives$String
+    │       ├── body[8] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > expand:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── label: @24
+    │       │       │   │   ├── result: #25
+    │       │       │   │   ├── body[0]: join #22
+    │       │       │   │   └── body[1] > assign:
+    │       │       │   │       ├── place: #25
+    │       │       │   │       └── value: local #23 : handle
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @27
+    │       │       │       ├── result: #28
+    │       │       │       ├── body[0] > host:
+    │       │       │       │   ├── local: #26
+    │       │       │       │   ├── scope: %4
+    │       │       │       │   ├── value: "grace!" : handle
+    │       │       │       │   └── layout: @primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #28
+    │       │       │           └── value: local #26 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[9] > spawn:
+    │       │   ├── task: #33
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.4
+    │       │   ├── frame: {{i32, handle, i64}, ptr, i64}
+    │       │   ├── args[0] > expand:
+    │       │   │   ├── type: ptr
+    │       │   │   ├── label: @30
+    │       │   │   ├── result: #31
+    │       │   │   ├── body[0] > host:
+    │       │   │   │   ├── local: #29
+    │       │   │   │   ├── scope: %4
+    │       │   │   │   ├── value: "ada" : handle
+    │       │   │   │   └── layout: @primitives$String
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #31
+    │       │   │       └── value: address of #29 : ptr
+    │       │   ├── args[1]: 36 : i64
+    │       │   ├── dest: #34
+    │       │   └── layout: spawns$Person
+    │       ├── body[10] > let:
+    │       │   ├── local: #37
+    │       │   └── value > mint > expand:
+    │       │       ├── type: ptr
+    │       │       ├── label: @35
+    │       │       ├── result: #36
+    │       │       ├── body[0]: join #33
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #36
+    │       │           └── value: address of #34 : ptr
+    │       ├── body[11] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > deref:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   └── ptr > offset:
+    │       │       │   │       ├── within: {i32, handle, i64}
+    │       │       │   │       ├── path: 1
+    │       │       │   │       └── base > resolve: local #37 : i32
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @39
+    │       │       │       ├── result: #40
+    │       │       │       ├── body[0] > host:
+    │       │       │       │   ├── local: #38
+    │       │       │       │   ├── scope: %4
+    │       │       │       │   ├── value: "ada lovelace" : handle
+    │       │       │       │   └── layout: @primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #40
+    │       │       │           └── value: local #38 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[12] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > deref:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i32, handle, i64}
+    │       │       │       ├── path: 2
+    │       │       │       └── base > resolve: local #37 : i32
+    │       │       └── right: 36 : i64
+    │       ├── body[13] > spawn:
+    │       │   ├── task: #42
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.5
+    │       │   ├── frame: {handle, i64}
+    │       │   ├── args[0]: 50 : i64
+    │       │   ├── dest: #43
+    │       │   └── layout: @primitives$List<@primitives$String>
+    │       ├── body[14] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > member:
+    │       │       │   ├── type: i64
+    │       │       │   ├── index: 2
+    │       │       │   └── value > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @44
+    │       │       │       ├── result: #45
+    │       │       │       ├── body[0]: join #42
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #45
+    │       │       │           └── value: local #43 : handle
+    │       │       └── right: 50 : i64
+    │       ├── body[15] > let:
+    │       │   ├── local: #46
+    │       │   └── value > call:
+    │       │       ├── type: i64
+    │       │       ├── fn: zane_Tally_8
+    │       │       └── args[0]: 0 : i64
+    │       ├── body[16] > if:
+    │       │   ├── cond: true : i1
+    │       │   └── body[0] > scope:
+    │       │       ├── id: %50
+    │       │       └── body[0] > spawn:
+    │       │           ├── task: #49
+    │       │           ├── scope: %50
+    │       │           ├── thunk: zane.spawn.6
+    │       │           ├── frame: {void, ptr, i64}
+    │       │           ├── args[0]: address of #46 : ptr
+    │       │           └── args[1]: 5 : i64
+    │       ├── body[17] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #46 : i64
+    │       │       └── right: 5 : i64
+    │       ├── body[18] > host:
+    │       │   ├── local: #51
+    │       │   ├── scope: %4
+    │       │   ├── value > case:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── index: 0
+    │       │   │   └── payload: unit : void
+    │       │   └── layout: spawns$Countdown
+    │       ├── body[19] > host:
+    │       │   ├── local: #52
+    │       │   ├── scope: %4
+    │       │   ├── value > case:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── index: 0
+    │       │   │   └── payload: unit : void
+    │       │   └── layout: spawns$Countdown
+    │       ├── body[20] > host:
+    │       │   ├── local: #53
+    │       │   ├── scope: %4
+    │       │   ├── value > case:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── index: 0
+    │       │   │   └── payload: unit : void
+    │       │   └── layout: spawns$Countdown
+    │       ├── body[21] > if:
+    │       │   ├── cond: true : i1
+    │       │   └── body[0] > scope:
+    │       │       ├── id: %57
+    │       │       ├── body[0] > spawn:
+    │       │       │   ├── task: #56
+    │       │       │   ├── scope: %57
+    │       │       │   ├── thunk: zane.spawn.7
+    │       │       │   ├── frame: {void, ptr, i64}
+    │       │       │   ├── args[0]: address of #51 : ptr
+    │       │       │   └── args[1]: 200 : i64
+    │       │       ├── body[1] > spawn:
+    │       │       │   ├── task: #59
+    │       │       │   ├── scope: %57
+    │       │       │   ├── thunk: zane.spawn.8
+    │       │       │   ├── frame: {void, ptr, i64}
+    │       │       │   ├── args[0]: address of #52 : ptr
+    │       │       │   └── args[1]: 300 : i64
+    │       │       └── body[2] > spawn:
+    │       │           ├── task: #61
+    │       │           ├── scope: %57
+    │       │           ├── thunk: zane.spawn.9
+    │       │           ├── frame: {void, ptr, i64}
+    │       │           ├── args[0]: address of #53 : ptr
+    │       │           └── args[1]: 400 : i64
+    │       ├── body[22] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: +
+    │       │       │   ├── left > binary:
+    │       │       │   │   ├── type: i64
+    │       │       │   │   ├── op: +
+    │       │       │   │   ├── left > call:
+    │       │       │   │   │   ├── type: i64
+    │       │       │   │   │   ├── fn: zane_depth_11
+    │       │       │   │   │   └── args[0]: local #51 : <void | ptr>
+    │       │       │   │   └── right > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: zane_depth_11
+    │       │       │   │       └── args[0]: local #52 : <void | ptr>
+    │       │       │   └── right > call:
+    │       │       │       ├── type: i64
+    │       │       │       ├── fn: zane_depth_11
+    │       │       │       └── args[0]: local #53 : <void | ptr>
+    │       │       └── right: 900 : i64
+    │       ├── body[23] > spawn:
+    │       │   ├── task: #63
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.10
+    │       │   ├── frame: {i64, i64}
+    │       │   ├── args[0]: 18 : i64
+    │       │   ├── dest: #64
+    │       │   └── layout: @primitives$Int
+    │       ├── body[24] > spawn:
+    │       │   ├── task: #66
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.11
+    │       │   ├── frame: {i64, i64}
+    │       │   ├── args[0]: 17 : i64
+    │       │   ├── dest: #67
+    │       │   └── layout: @primitives$Int
+    │       ├── body[25] > spawn:
+    │       │   ├── task: #69
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.12
+    │       │   ├── frame: {i64, i64}
+    │       │   ├── args[0]: 20 : i64
+    │       │   ├── dest: #70
+    │       │   └── layout: @primitives$Int
+    │       ├── body[26] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: +
+    │       │       │   ├── left > expand:
+    │       │       │   │   ├── type: i64
+    │       │       │   │   ├── label: @71
+    │       │       │   │   ├── result: #72
+    │       │       │   │   ├── body[0]: join #63
+    │       │       │   │   └── body[1] > assign:
+    │       │       │   │       ├── place: #72
+    │       │       │   │       └── value: local #64 : i64
+    │       │       │   └── right > expand:
+    │       │       │       ├── type: i64
+    │       │       │       ├── label: @73
+    │       │       │       ├── result: #74
+    │       │       │       ├── body[0]: join #66
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #74
+    │       │       │           └── value: local #67 : i64
+    │       │       └── right > expand:
+    │       │           ├── type: i64
+    │       │           ├── label: @75
+    │       │           ├── result: #76
+    │       │           ├── body[0]: join #69
+    │       │           └── body[1] > assign:
+    │       │               ├── place: #76
+    │       │               └── value: local #70 : i64
+    │       ├── body[27] > let:
+    │       │   ├── local: #77
+    │       │   └── value: 0 : i64
+    │       ├── body[28] > let:
+    │       │   ├── local: #78
+    │       │   └── value: 1 : i64
+    │       ├── body[29] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @80
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #79
+    │       │   │   └── value: 10 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #79 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #78 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > scope:
+    │       │   │   │       ├── id: %86
+    │       │   │   │       ├── body[0] > spawn:
+    │       │   │   │       │   ├── task: #84
+    │       │   │   │       │   ├── scope: %86
+    │       │   │   │       │   ├── thunk: zane.spawn.13
+    │       │   │   │       │   ├── frame: {i64, i64}
+    │       │   │   │       │   ├── args[0]: local #78 : i64
+    │       │   │   │       │   ├── dest: #85
+    │       │   │   │       │   └── layout: @primitives$Int
+    │       │   │   │       └── body[1] > assign:
+    │       │   │   │           ├── place: #77
+    │       │   │   │           └── value > binary:
+    │       │   │   │               ├── type: i64
+    │       │   │   │               ├── op: +
+    │       │   │   │               ├── left: local #77 : i64
+    │       │   │   │               └── right > expand:
+    │       │   │   │                   ├── type: i64
+    │       │   │   │                   ├── label: @87
+    │       │   │   │                   ├── result: #88
+    │       │   │   │                   ├── body[0]: join #84
+    │       │   │   │                   └── body[1] > assign:
+    │       │   │   │                       ├── place: #88
+    │       │   │   │                       └── value: local #85 : i64
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #78
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #78 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @80
+    │       ├── body[30] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #77 : i64
+    │       │       └── right: 143 : i64
+    │       ├── body[31] > if:
+    │       │   ├── cond: true : i1
+    │       │   └── body[0] > scope:
+    │       │       ├── id: %93
+    │       │       ├── body[0] > spawn:
+    │       │       │   ├── task: #95
+    │       │       │   ├── scope: %93
+    │       │       │   ├── thunk: zane.spawn.14
+    │       │       │   ├── frame: {handle, ptr}
+    │       │       │   ├── args[0] > expand:
+    │       │       │   │   ├── type: ptr
+    │       │       │   │   ├── label: @91
+    │       │       │   │   ├── result: #92
+    │       │       │   │   ├── body[0] > host:
+    │       │       │   │   │   ├── local: #90
+    │       │       │   │   │   ├── scope: %93
+    │       │       │   │   │   ├── value: "nobody" : handle
+    │       │       │   │   │   └── layout: @primitives$String
+    │       │       │   │   └── body[1] > assign:
+    │       │       │   │       ├── place: #92
+    │       │       │   │       └── value: address of #90 : ptr
+    │       │       │   ├── dest: #96
+    │       │       │   └── layout: @primitives$String
+    │       │       ├── body[1] > spawn:
+    │       │       │   ├── task: #101
+    │       │       │   ├── scope: %93
+    │       │       │   ├── thunk: zane.spawn.15
+    │       │       │   ├── frame: {handle, ptr}
+    │       │       │   ├── args[0] > expand:
+    │       │       │   │   ├── type: ptr
+    │       │       │   │   ├── label: @98
+    │       │       │   │   ├── result: #99
+    │       │       │   │   ├── body[0] > host:
+    │       │       │   │   │   ├── local: #97
+    │       │       │   │   │   ├── scope: %93
+    │       │       │   │   │   ├── value: "no one" : handle
+    │       │       │   │   │   └── layout: @primitives$String
+    │       │       │   │   └── body[1] > assign:
+    │       │       │   │       ├── place: #99
+    │       │       │   │       └── value: address of #97 : ptr
+    │       │       │   ├── dest: #102
+    │       │       │   └── layout: @primitives$String
+    │       │       ├── body[2] > spawn:
+    │       │       │   ├── task: #104
+    │       │       │   ├── scope: %93
+    │       │       │   ├── thunk: zane.spawn.16
+    │       │       │   ├── frame: {handle, i64}
+    │       │       │   ├── args[0]: 5 : i64
+    │       │       │   ├── dest: #105
+    │       │       │   └── layout: @primitives$List<@primitives$String>
+    │       │       └── body[3] > spawn:
+    │       │           ├── task: #107
+    │       │           ├── scope: %93
+    │       │           ├── thunk: zane.spawn.17
+    │       │           ├── frame: {void}
+    │       │           └── args:
+    │       ├── body[32] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_fib_16
+    │       │       │   └── args[0]: 10 : i64
+    │       │       └── right: 55 : i64
+    │       ├── body[33] > spawn:
+    │       │   ├── task: #109
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.18
+    │       │   ├── frame: {i64, i64}
+    │       │   ├── args[0]: 12 : i64
+    │       │   ├── dest: #110
+    │       │   └── layout: @primitives$Int
+    │       ├── body[34] > store:
+    │       │   ├── address > expand:
+    │       │   │   ├── type: ptr
+    │       │   │   ├── label: @111
+    │       │   │   ├── result: #112
+    │       │   │   ├── body[0]: join #109
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #112
+    │       │   │       └── value: address of #110 : ptr
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @113
+    │       │       │   ├── result: #114
+    │       │       │   ├── body[0]: join #109
+    │       │       │   └── body[1] > assign:
+    │       │       │       ├── place: #114
+    │       │       │       └── value: local #110 : i64
+    │       │       └── right: 1 : i64
+    │       ├── body[35] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_check_15
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @115
+    │       │       │   ├── result: #116
+    │       │       │   ├── body[0]: join #109
+    │       │       │   └── body[1] > assign:
+    │       │       │       ├── place: #116
+    │       │       │       └── value: local #110 : i64
+    │       │       └── right: 145 : i64
+    │       └── body[36] > return: unit : void
+    ├── funcs[1] > func:
+    │   ├── symbol: zane_fib_16
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   ├── body[0] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: <
+    │   │   │   ├── left: local #1 : i64
+    │   │   │   └── right: 2 : i64
+    │   │   └── body[0] > return: local #1 : i64
+    │   └── body[1] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left > call:
+    │       │   ├── type: i64
+    │       │   ├── fn: zane_fib_16
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #1 : i64
+    │       │       └── right > flip:
+    │       │           ├── type: i64
+    │       │           └── value: 1 : i64
+    │       └── right > call:
+    │           ├── type: i64
+    │           ├── fn: zane_fib_16
+    │           └── args[0] > binary:
+    │               ├── type: i64
+    │               ├── op: +
+    │               ├── left: local #1 : i64
+    │               └── right > flip:
+    │                   ├── type: i64
+    │                   └── value: 2 : i64
+    ├── funcs[2] > func:
+    │   ├── symbol: zane_check_15
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > host:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: @primitives$String
+    │       ├── body[1] > host:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: @primitives$String
+    │       ├── body[2] > if:
+    │       │   ├── cond: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #2 : handle
+    │       ├── body[3] > if:
+    │       │   ├── cond > flip:
+    │       │   │   ├── type: i1
+    │       │   │   └── value: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #4 : handle
+    │       └── body[4] > return: unit : void
+    ├── funcs[3] > func:
+    │   ├── symbol: zane_greet_18
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: handle
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       └── body[0] > return > escape:
+    │           ├── exit: function
+    │           ├── value > runtime:
+    │           │   ├── type: handle
+    │           │   ├── fn: zane_text_join
+    │           │   ├── args[0] > expand:
+    │           │   │   ├── type: handle
+    │           │   │   ├── label: @3
+    │           │   │   ├── result: #4
+    │           │   │   ├── body[0] > host:
+    │           │   │   │   ├── local: #2
+    │           │   │   │   ├── scope: %5
+    │           │   │   │   ├── value: "hi " : handle
+    │           │   │   │   └── layout: @primitives$String
+    │           │   │   └── body[1] > assign:
+    │           │   │       ├── place: #4
+    │           │   │       └── value: local #2 : handle
+    │           │   └── args[1] > deref:
+    │           │       ├── type: handle
+    │           │       └── ptr: local #1 : ptr
+    │           └── layout: @primitives$String
+    ├── funcs[4] > func:
+    │   ├── symbol: zane_Person_14
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {i32, handle, i64}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {i32, handle, i64}
+    │       │   ├── members[0] > member 0: 0 : i32
+    │       │   ├── members[1] > member 1 > take:
+    │       │   │   ├── type: handle
+    │       │   │   ├── address: local #1 : ptr
+    │       │   │   └── layout: @primitives$String
+    │       │   └── members[2] > member 2: local #2 : i64
+    │       └── layout: spawns$Person
+    ├── funcs[5] > func:
+    │   ├── symbol: zane_nameOf_19
+    │   ├── params[0]: local #1 : i32
+    │   ├── ret: handle
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       └── body[0] > return > escape:
+    │           ├── exit: function
+    │           ├── value > runtime:
+    │           │   ├── type: handle
+    │           │   ├── fn: zane_text_join
+    │           │   ├── args[0] > deref:
+    │           │   │   ├── type: handle
+    │           │   │   └── ptr > offset:
+    │           │   │       ├── within: {i32, handle, i64}
+    │           │   │       ├── path: 1
+    │           │   │       └── base > resolve: local #1 : i32
+    │           │   └── args[1] > expand:
+    │           │       ├── type: handle
+    │           │       ├── label: @3
+    │           │       ├── result: #4
+    │           │       ├── body[0] > host:
+    │           │       │   ├── local: #2
+    │           │       │   ├── scope: %5
+    │           │       │   ├── value: "!" : handle
+    │           │       │   └── layout: @primitives$String
+    │           │       └── body[1] > assign:
+    │           │           ├── place: #4
+    │           │           └── value: local #2 : handle
+    │           └── layout: @primitives$String
+    ├── funcs[6] > func:
+    │   ├── symbol: zane_born_20
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {i32, handle, i64}
+    │   └── body[0] > scope:
+    │       ├── id: %6
+    │       └── body[0] > return > escape:
+    │           ├── exit: function
+    │           ├── value > call:
+    │           │   ├── type: {i32, handle, i64}
+    │           │   ├── fn: zane_Person_14
+    │           │   ├── args[0] > expand:
+    │           │   │   ├── type: ptr
+    │           │   │   ├── label: @8
+    │           │   │   ├── result: #9
+    │           │   │   ├── body[0] > host:
+    │           │   │   │   ├── local: #7
+    │           │   │   │   ├── scope: %6
+    │           │   │   │   ├── value > runtime:
+    │           │   │   │   │   ├── type: handle
+    │           │   │   │   │   ├── fn: zane_text_join
+    │           │   │   │   │   ├── args[0] > deref:
+    │           │   │   │   │   │   ├── type: handle
+    │           │   │   │   │   │   └── ptr: local #1 : ptr
+    │           │   │   │   │   └── args[1] > expand:
+    │           │   │   │   │       ├── type: handle
+    │           │   │   │   │       ├── label: @4
+    │           │   │   │   │       ├── result: #5
+    │           │   │   │   │       ├── body[0] > host:
+    │           │   │   │   │       │   ├── local: #3
+    │           │   │   │   │       │   ├── scope: %6
+    │           │   │   │   │       │   ├── value: " lovelace" : handle
+    │           │   │   │   │       │   └── layout: @primitives$String
+    │           │   │   │   │       └── body[1] > assign:
+    │           │   │   │   │           ├── place: #5
+    │           │   │   │   │           └── value: local #3 : handle
+    │           │   │   │   └── layout: @primitives$String
+    │           │   │   └── body[1] > assign:
+    │           │   │       ├── place: #9
+    │           │   │       └── value: address of #7 : ptr
+    │           │   └── args[1]: local #2 : i64
+    │           └── layout: spawns$Person
+    ├── funcs[7] > func:
+    │   ├── symbol: zane_words_21
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: handle
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > host:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: zane_list_new
+    │       │   │   └── args:
+    │       │   └── layout: @primitives$List<@primitives$String>
+    │       ├── body[1] > let:
+    │       │   ├── local: #4
+    │       │   └── value: 1 : i64
+    │       ├── body[2] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @6
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #5
+    │       │   │   └── value: local #1 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #5 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #4 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > scope:
+    │       │   │   │       ├── id: %12
+    │       │   │   │       └── body[0] > eval > expand:
+    │       │   │   │           ├── type: void
+    │       │   │   │           ├── label: @18
+    │       │   │   │           ├── body[0] > let:
+    │       │   │   │           │   ├── local: #16
+    │       │   │   │           │   └── value > runtime:
+    │       │   │   │           │       ├── type: handle
+    │       │   │   │           │       ├── fn: zane_text_join
+    │       │   │   │           │       ├── args[0] > expand:
+    │       │   │   │           │       │   ├── type: handle
+    │       │   │   │           │       │   ├── label: @10
+    │       │   │   │           │       │   ├── result: #11
+    │       │   │   │           │       │   ├── body[0] > host:
+    │       │   │   │           │       │   │   ├── local: #9
+    │       │   │   │           │       │   │   ├── scope: %12
+    │       │   │   │           │       │   │   ├── value: "w" : handle
+    │       │   │   │           │       │   │   └── layout: @primitives$String
+    │       │   │   │           │       │   └── body[1] > assign:
+    │       │   │   │           │       │       ├── place: #11
+    │       │   │   │           │       │       └── value: local #9 : handle
+    │       │   │   │           │       └── args[1] > expand:
+    │       │   │   │           │           ├── type: handle
+    │       │   │   │           │           ├── label: @14
+    │       │   │   │           │           ├── result: #15
+    │       │   │   │           │           ├── body[0] > host:
+    │       │   │   │           │           │   ├── local: #13
+    │       │   │   │           │           │   ├── scope: %12
+    │       │   │   │           │           │   ├── value: "!" : handle
+    │       │   │   │           │           │   └── layout: @primitives$String
+    │       │   │   │           │           └── body[1] > assign:
+    │       │   │   │           │               ├── place: #15
+    │       │   │   │           │               └── value: local #13 : handle
+    │       │   │   │           ├── body[1] > let:
+    │       │   │   │           │   ├── local: #17
+    │       │   │   │           │   └── value > runtime:
+    │       │   │   │           │       ├── type: ptr
+    │       │   │   │           │       ├── fn: zane_list_push
+    │       │   │   │           │       ├── args[0]: address of #2 : ptr
+    │       │   │   │           │       ├── args[1]: 32 : i64
+    │       │   │   │           │       └── args[2]: layout @primitives$String
+    │       │   │   │           └── body[2] > place:
+    │       │   │   │               ├── address: local #17 : ptr
+    │       │   │   │               ├── value: local #16 : handle
+    │       │   │   │               └── layout: @primitives$String
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #4
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #4 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @6
+    │       └── body[3] > return > escape:
+    │           ├── exit: function
+    │           ├── value > take:
+    │           │   ├── type: handle
+    │           │   ├── address: address of #2 : ptr
+    │           │   └── layout: @primitives$List<@primitives$String>
+    │           └── layout: @primitives$List<@primitives$String>
+    ├── funcs[8] > func:
+    │   ├── symbol: zane_Tally_8
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return: local #1 : i64
+    ├── funcs[9] > func:
+    │   ├── symbol: zane_add_9
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: void
+    │   ├── body[0] > assign:
+    │   │   ├── place: *#1
+    │   │   └── value > binary:
+    │   │       ├── type: i64
+    │   │       ├── op: +
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: local #1 : ptr
+    │   │       └── right: local #2 : i64
+    │   └── body[1] > return: unit : void
+    ├── funcs[10] > func:
+    │   ├── symbol: zane_deepen_12
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value: 1 : i64
+    │   ├── body[1] > eval > expand:
+    │   │   ├── type: void
+    │   │   ├── label: @5
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #4
+    │   │   │   └── value: local #2 : i64
+    │   │   ├── body[1] > repeat:
+    │   │   │   ├── count > binary:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── op: +
+    │   │   │   │   ├── left > binary:
+    │   │   │   │   │   ├── type: i64
+    │   │   │   │   │   ├── op: +
+    │   │   │   │   │   ├── left: local #4 : i64
+    │   │   │   │   │   └── right > flip:
+    │   │   │   │   │       ├── type: i64
+    │   │   │   │   │       └── value: local #3 : i64
+    │   │   │   │   └── right: 1 : i64
+    │   │   │   ├── body[0] > if:
+    │   │   │   │   ├── cond: true : i1
+    │   │   │   │   └── body[0] > overwrite:
+    │   │   │   │       ├── address: local #1 : ptr
+    │   │   │   │       ├── value > case:
+    │   │   │   │       │   ├── type: <void | ptr>
+    │   │   │   │       │   ├── index: 1
+    │   │   │   │       │   └── payload > box:
+    │   │   │   │       │       ├── value > copy:
+    │   │   │   │       │       │   ├── type: <void | ptr>
+    │   │   │   │       │       │   ├── value > deref:
+    │   │   │   │       │       │   │   ├── type: <void | ptr>
+    │   │   │   │       │       │   │   └── ptr: local #1 : ptr
+    │   │   │   │       │       │   └── layout: spawns$Countdown
+    │   │   │   │       │       └── layout: spawns$Countdown
+    │   │   │   │       └── layout: spawns$Countdown
+    │   │   │   └── body[1] > assign:
+    │   │   │       ├── place: #3
+    │   │   │       └── value > binary:
+    │   │   │           ├── type: i64
+    │   │   │           ├── op: +
+    │   │   │           ├── left: local #3 : i64
+    │   │   │           └── right: 1 : i64
+    │   │   ├── body[2] > eval: unit : void
+    │   │   └── body[3]: leave @5
+    │   └── body[2] > return: unit : void
+    ├── funcs[11] > func:
+    │   ├── symbol: zane_depth_11
+    │   ├── params[0]: local #1 : <void | ptr>
+    │   ├── ret: i64
+    │   └── body[0] > return > expand:
+    │       ├── type: i64
+    │       ├── label: @2
+    │       ├── result: #3
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value: address of #1 : ptr
+    │       └── body[1] > switch:
+    │           ├── value > deref:
+    │           │   ├── type: <void | ptr>
+    │           │   └── ptr: local #4 : ptr
+    │           ├── cases[0] > case 0[0] > let:
+    │           │   ├── local: #5
+    │           │   └── value > offset:
+    │           │       ├── within: <void | ptr>
+    │           │       ├── path: 0
+    │           │       └── base: local #4 : ptr
+    │           ├── cases[0] > case 0[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value: 0 : i64
+    │           ├── cases[0] > case 0[2]: leave @2
+    │           ├── cases[1] > case 1[0] > let:
+    │           │   ├── local: #6
+    │           │   └── value > deref:
+    │           │       ├── type: ptr
+    │           │       └── ptr > offset:
+    │           │           ├── within: <void | ptr>
+    │           │           ├── path: 1
+    │           │           └── base: local #4 : ptr
+    │           ├── cases[1] > case 1[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value > binary:
+    │           │       ├── type: i64
+    │           │       ├── op: +
+    │           │       ├── left: 1 : i64
+    │           │       └── right > call:
+    │           │           ├── type: i64
+    │           │           ├── fn: zane_depth_11
+    │           │           └── args[0] > deref:
+    │           │               ├── type: <void | ptr>
+    │           │               └── ptr: local #6 : ptr
+    │           └── cases[1] > case 1[2]: leave @2
+    ├── funcs[12] > func:
+    │   ├── symbol: zane_pair_17
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > spawn:
+    │       │   ├── task: #3
+    │       │   ├── scope: %5
+    │       │   ├── thunk: zane.spawn.19
+    │       │   ├── frame: {i64, i64}
+    │       │   ├── args[0]: local #1 : i64
+    │       │   ├── dest: #4
+    │       │   └── layout: @primitives$Int
+    │       ├── body[1] > spawn:
+    │       │   ├── task: #7
+    │       │   ├── scope: %5
+    │       │   ├── thunk: zane.spawn.20
+    │       │   ├── frame: {i64, i64}
+    │       │   ├── args[0] > binary:
+    │       │   │   ├── type: i64
+    │       │   │   ├── op: +
+    │       │   │   ├── left: local #1 : i64
+    │       │   │   └── right > flip:
+    │       │   │       ├── type: i64
+    │       │   │       └── value: 1 : i64
+    │       │   ├── dest: #8
+    │       │   └── layout: @primitives$Int
+    │       └── body[2] > return > binary:
+    │           ├── type: i64
+    │           ├── op: +
+    │           ├── left > expand:
+    │           │   ├── type: i64
+    │           │   ├── label: @9
+    │           │   ├── result: #10
+    │           │   ├── body[0]: join #3
+    │           │   └── body[1] > assign:
+    │           │       ├── place: #10
+    │           │       └── value: local #4 : i64
+    │           └── right > expand:
+    │               ├── type: i64
+    │               ├── label: @11
+    │               ├── result: #12
+    │               ├── body[0]: join #7
+    │               └── body[1] > assign:
+    │                   ├── place: #12
+    │                   └── value: local #8 : i64
+    ├── funcs[13] > func:
+    │   ├── symbol: zane_nothing_22
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > return: unit : void
+    ├── funcs[14] > func:
+    │   ├── symbol: zane.spawn.1
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {i64, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #1 : ptr
+    │       └── value > call:
+    │           ├── type: i64
+    │           ├── fn: zane_fib_16
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {i64, i64}
+    │                   ├── path: 1
+    │                   └── base: local #1 : ptr
+    ├── funcs[15] > func:
+    │   ├── symbol: zane.spawn.2
+    │   ├── params[0]: local #8 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {handle, ptr}
+    │       │   ├── path: 0
+    │       │   └── base: local #8 : ptr
+    │       └── value > call:
+    │           ├── type: handle
+    │           ├── fn: zane_greet_18
+    │           └── args[0] > deref:
+    │               ├── type: ptr
+    │               └── ptr > offset:
+    │                   ├── within: {handle, ptr}
+    │                   ├── path: 1
+    │                   └── base: local #8 : ptr
+    ├── funcs[16] > func:
+    │   ├── symbol: zane.spawn.3
+    │   ├── params[0]: local #21 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {handle, i32}
+    │       │   ├── path: 0
+    │       │   └── base: local #21 : ptr
+    │       └── value > call:
+    │           ├── type: handle
+    │           ├── fn: zane_nameOf_19
+    │           └── args[0] > deref:
+    │               ├── type: i32
+    │               └── ptr > offset:
+    │                   ├── within: {handle, i32}
+    │                   ├── path: 1
+    │                   └── base: local #21 : ptr
+    ├── funcs[17] > func:
+    │   ├── symbol: zane.spawn.4
+    │   ├── params[0]: local #32 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {{i32, handle, i64}, ptr, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #32 : ptr
+    │       └── value > call:
+    │           ├── type: {i32, handle, i64}
+    │           ├── fn: zane_born_20
+    │           ├── args[0] > deref:
+    │           │   ├── type: ptr
+    │           │   └── ptr > offset:
+    │           │       ├── within: {{i32, handle, i64}, ptr, i64}
+    │           │       ├── path: 1
+    │           │       └── base: local #32 : ptr
+    │           └── args[1] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {{i32, handle, i64}, ptr, i64}
+    │                   ├── path: 2
+    │                   └── base: local #32 : ptr
+    ├── funcs[18] > func:
+    │   ├── symbol: zane.spawn.5
+    │   ├── params[0]: local #41 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {handle, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #41 : ptr
+    │       └── value > call:
+    │           ├── type: handle
+    │           ├── fn: zane_words_21
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {handle, i64}
+    │                   ├── path: 1
+    │                   └── base: local #41 : ptr
+    ├── funcs[19] > func:
+    │   ├── symbol: zane.spawn.6
+    │   ├── params[0]: local #48 : ptr
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: zane_add_9
+    │       ├── args[0] > deref:
+    │       │   ├── type: ptr
+    │       │   └── ptr > offset:
+    │       │       ├── within: {void, ptr, i64}
+    │       │       ├── path: 1
+    │       │       └── base: local #48 : ptr
+    │       └── args[1] > deref:
+    │           ├── type: i64
+    │           └── ptr > offset:
+    │               ├── within: {void, ptr, i64}
+    │               ├── path: 2
+    │               └── base: local #48 : ptr
+    ├── funcs[20] > func:
+    │   ├── symbol: zane.spawn.7
+    │   ├── params[0]: local #55 : ptr
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: zane_deepen_12
+    │       ├── args[0] > deref:
+    │       │   ├── type: ptr
+    │       │   └── ptr > offset:
+    │       │       ├── within: {void, ptr, i64}
+    │       │       ├── path: 1
+    │       │       └── base: local #55 : ptr
+    │       └── args[1] > deref:
+    │           ├── type: i64
+    │           └── ptr > offset:
+    │               ├── within: {void, ptr, i64}
+    │               ├── path: 2
+    │               └── base: local #55 : ptr
+    ├── funcs[21] > func:
+    │   ├── symbol: zane.spawn.8
+    │   ├── params[0]: local #58 : ptr
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: zane_deepen_12
+    │       ├── args[0] > deref:
+    │       │   ├── type: ptr
+    │       │   └── ptr > offset:
+    │       │       ├── within: {void, ptr, i64}
+    │       │       ├── path: 1
+    │       │       └── base: local #58 : ptr
+    │       └── args[1] > deref:
+    │           ├── type: i64
+    │           └── ptr > offset:
+    │               ├── within: {void, ptr, i64}
+    │               ├── path: 2
+    │               └── base: local #58 : ptr
+    ├── funcs[22] > func:
+    │   ├── symbol: zane.spawn.9
+    │   ├── params[0]: local #60 : ptr
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: zane_deepen_12
+    │       ├── args[0] > deref:
+    │       │   ├── type: ptr
+    │       │   └── ptr > offset:
+    │       │       ├── within: {void, ptr, i64}
+    │       │       ├── path: 1
+    │       │       └── base: local #60 : ptr
+    │       └── args[1] > deref:
+    │           ├── type: i64
+    │           └── ptr > offset:
+    │               ├── within: {void, ptr, i64}
+    │               ├── path: 2
+    │               └── base: local #60 : ptr
+    ├── funcs[23] > func:
+    │   ├── symbol: zane.spawn.10
+    │   ├── params[0]: local #62 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {i64, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #62 : ptr
+    │       └── value > call:
+    │           ├── type: i64
+    │           ├── fn: zane_pair_17
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {i64, i64}
+    │                   ├── path: 1
+    │                   └── base: local #62 : ptr
+    ├── funcs[24] > func:
+    │   ├── symbol: zane.spawn.11
+    │   ├── params[0]: local #65 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {i64, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #65 : ptr
+    │       └── value > call:
+    │           ├── type: i64
+    │           ├── fn: zane_pair_17
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {i64, i64}
+    │                   ├── path: 1
+    │                   └── base: local #65 : ptr
+    ├── funcs[25] > func:
+    │   ├── symbol: zane.spawn.12
+    │   ├── params[0]: local #68 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {i64, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #68 : ptr
+    │       └── value > call:
+    │           ├── type: i64
+    │           ├── fn: zane_fib_16
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {i64, i64}
+    │                   ├── path: 1
+    │                   └── base: local #68 : ptr
+    ├── funcs[26] > func:
+    │   ├── symbol: zane.spawn.13
+    │   ├── params[0]: local #83 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {i64, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #83 : ptr
+    │       └── value > call:
+    │           ├── type: i64
+    │           ├── fn: zane_fib_16
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {i64, i64}
+    │                   ├── path: 1
+    │                   └── base: local #83 : ptr
+    ├── funcs[27] > func:
+    │   ├── symbol: zane.spawn.14
+    │   ├── params[0]: local #94 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {handle, ptr}
+    │       │   ├── path: 0
+    │       │   └── base: local #94 : ptr
+    │       └── value > call:
+    │           ├── type: handle
+    │           ├── fn: zane_greet_18
+    │           └── args[0] > deref:
+    │               ├── type: ptr
+    │               └── ptr > offset:
+    │                   ├── within: {handle, ptr}
+    │                   ├── path: 1
+    │                   └── base: local #94 : ptr
+    ├── funcs[28] > func:
+    │   ├── symbol: zane.spawn.15
+    │   ├── params[0]: local #100 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {handle, ptr}
+    │       │   ├── path: 0
+    │       │   └── base: local #100 : ptr
+    │       └── value > call:
+    │           ├── type: handle
+    │           ├── fn: zane_greet_18
+    │           └── args[0] > deref:
+    │               ├── type: ptr
+    │               └── ptr > offset:
+    │                   ├── within: {handle, ptr}
+    │                   ├── path: 1
+    │                   └── base: local #100 : ptr
+    ├── funcs[29] > func:
+    │   ├── symbol: zane.spawn.16
+    │   ├── params[0]: local #103 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {handle, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #103 : ptr
+    │       └── value > call:
+    │           ├── type: handle
+    │           ├── fn: zane_words_21
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {handle, i64}
+    │                   ├── path: 1
+    │                   └── base: local #103 : ptr
+    ├── funcs[30] > func:
+    │   ├── symbol: zane.spawn.17
+    │   ├── params[0]: local #106 : ptr
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: zane_nothing_22
+    │       └── args:
+    ├── funcs[31] > func:
+    │   ├── symbol: zane.spawn.18
+    │   ├── params[0]: local #108 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {i64, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #108 : ptr
+    │       └── value > call:
+    │           ├── type: i64
+    │           ├── fn: zane_fib_16
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {i64, i64}
+    │                   ├── path: 1
+    │                   └── base: local #108 : ptr
+    ├── funcs[32] > func:
+    │   ├── symbol: zane.spawn.19
+    │   ├── params[0]: local #2 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {i64, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #2 : ptr
+    │       └── value > call:
+    │           ├── type: i64
+    │           ├── fn: zane_fib_16
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {i64, i64}
+    │                   ├── path: 1
+    │                   └── base: local #2 : ptr
+    └── funcs[33] > func:
+        ├── symbol: zane.spawn.20
+        ├── params[0]: local #6 : ptr
+        ├── ret: void
+        └── body[0] > store:
+            ├── address > offset:
+            │   ├── within: {i64, i64}
+            │   ├── path: 0
+            │   └── base: local #6 : ptr
+            └── value > call:
+                ├── type: i64
+                ├── fn: zane_fib_16
+                └── args[0] > deref:
+                    ├── type: i64
+                    └── ptr > offset:
+                        ├── within: {i64, i64}
+                        ├── path: 1
+                        └── base: local #6 : ptr

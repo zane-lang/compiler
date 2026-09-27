@@ -148,6 +148,8 @@ module Expr = struct
     | Box of { value : t; layout : Layout.t }
     (* A layout's table, for the runtime to read. *)
     | Layout of Layout.t
+    (* The address of a function of the program, by its symbol. *)
+    | Function of string
     (* A value on its way out of the arenas an exit drains: the function's,
        when [exit] is [None], or those opened inside the expansion [exit]
        names. Every block it owns in them moves into the arena the exit
@@ -192,6 +194,25 @@ module Expr = struct
     (* A slot of type [ty] in a scope's arena, zeroed so that it holds
        nothing until a [Place] fills it, which the drain then ends. *)
     | Reserve of { id : int; scope : int; ty : Ty.t; layout : Layout.t }
+    (* A spawned call (concurrency.md §3). [args] run here, in the order they
+       were written, and are stored in a frame of type [frame] in a scope's
+       arena, whose first member is room for the result; then the function
+       [thunk] runs on a thread of the pool, reads them, and calls. The
+       result comes home to the slot [dest], of that first member's type and
+       laid out as [layout] says, when the call is joined: at a read, or
+       when the scope drains, which waits for it first (§4.1). [task] holds
+       the frame's address. *)
+    | Spawn of {
+        task : int;
+        scope : int;
+        thunk : string;
+        frame : Ty.t;
+        args : t list;
+        dest : int option;
+        layout : Layout.t;
+      }
+    (* Waiting for the call [task] names, whose result then comes home. *)
+    | Join of int
 
   let binop_to_string = function
     | Add -> "+"
@@ -217,6 +238,16 @@ module Stat = struct
     | Overwrite of { address : Expr.t; value : Expr.t; layout : Layout.t; contingent : bool }
     | Place of { address : Expr.t; value : Expr.t; layout : Layout.t }
     | Reserve of { id : int; scope : int; ty : Ty.t; layout : Layout.t }
+    | Spawn of {
+        task : int;
+        scope : int;
+        thunk : string;
+        frame : Ty.t;
+        args : Expr.t list;
+        dest : int option;
+        layout : Layout.t;
+      }
+    | Join of int
 
   (* A store into a whole local. *)
   let assign id (value : Expr.t) =

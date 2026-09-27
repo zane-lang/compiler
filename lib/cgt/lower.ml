@@ -35,8 +35,15 @@ type verb = {
    expanded (L11) binds its parameters to these: a slot of the function it is
    expanded into, a literal its concept parameter was given, or the code of a
    block argument. A `mut` subject is a [Pointer]: a slot holding the address
-   of the caller's place (L6). *)
-type binding = Slot of int | Pointer of int | Literal of T.Expr.t | Code of closure
+   of the caller's place (L6). A local bound to a spawned call's result is a
+   [Future]: the slot its result comes home to, which has none when it is
+   `Unit`, and the local that holds the call's frame. *)
+type binding =
+  | Slot of int
+  | Pointer of int
+  | Literal of T.Expr.t
+  | Code of closure
+  | Future of { slot : int option; task : int }
 
 (* A block argument keeps the context it was written in, so its locals and
    its `return` mean what they meant there. *)
@@ -95,6 +102,8 @@ type state = {
      type. *)
   mutable returns : Expr.t -> Expr.t;
   mutable ret : Tty.t;
+  (* The function each spawned call runs through, latest first. *)
+  mutable spawned : Func.t list;
 }
 
 let fresh st =
@@ -591,6 +600,12 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       match lookup ctx span l with
       | Slot id -> { Expr.node = Expr.Local id; ty = ty st span l.T.Local.ty }
       | Pointer id -> deref id (ty st span l.T.Local.ty)
+      | Future { slot; task } ->
+          let t = ty st span l.T.Local.ty in
+          let value =
+            match slot with Some id -> { Expr.node = Expr.Local id; ty = t } | None -> unit_
+          in
+          joined st task value
       | Literal _ | Code _ -> refuse span "lowering does not read this parameter as a value")
   | T.Expr.Bool_lit b -> { Expr.node = Expr.Bool b; ty = Nodes.Ty.I1 }
   | T.Expr.Construct { ctor = { owner = S.Intrinsic spelling; _ }; args; handler = None } ->
@@ -718,7 +733,21 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Case_read { target; case; handler } ->
       case_read st ctx span target case handler e.T.Expr.ty
   | T.Expr.Map_read { target; map; _ } -> map_read st ctx span target map e.T.Expr.ty
+  (* A spawned call read where it is written is waited for at once, which
+     is the call itself (docs/lowering.md §9). *)
+  | T.Expr.Spawn call -> expr st ctx call
   | _ -> refuse span "lowering does not handle this expression yet"
+
+(* A spawned call's result, read once the call has returned (concurrency.md
+   §3.2). *)
+and joined st task (value : Expr.t) =
+  let label = fresh st in
+  if value.Expr.ty = Nodes.Ty.Void then
+    { Expr.node = Expr.Expand { label; body = [ Stat.Join task ]; result = None }; ty = value.ty }
+  else
+    let result = fresh st in
+    let body = [ Stat.Join task; Stat.assign result value ] in
+    { Expr.node = Expr.Expand { label; body; result = Some result }; ty = value.Expr.ty }
 
 (* A member's value on its way into the type [holder] being built: moved
    there, and placed in a block of its own when the member is boxed. *)
@@ -768,6 +797,7 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
       match lookup ctx span l with
       | Slot id -> Some (ptr (Expr.Address id))
       | Pointer id -> Some (ptr (Expr.Local id))
+      | Future { slot = Some id; task } -> Some (joined st task (ptr (Expr.Address id)))
       | _ -> None)
   | T.Expr.Field { target; slot; _ } ->
       let owner = strip target.T.Expr.ty in
@@ -1145,26 +1175,67 @@ and in_order st t first second combine =
   }
 
 and call st ctx span verb args handler ret : Expr.t =
-  (* A type written where a value goes picks the instance, and an instance
-     takes no parameter for it (generics.md §5.3). *)
-  let args =
-    List.filter
-      (function T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false | _ -> true)
-      args
-  in
+  let args = passed args in
   match verb with
   | None -> refuse span "lowering does not handle a call to this verb yet"
   | Some v when expands v -> expand st ctx span v args handler ret
-  | Some v ->
-      let args =
-        List.map2
-          (fun (p : T.Local.t) arg ->
-            match arg with
-            | T.Arg.Value a -> argument st ctx span v p a
-            | T.Arg.Block _ -> refuse span "lowering does not expand block arguments here")
-          v.params args
-      in
-      invoke st ctx span v args handler
+  | Some v -> invoke st ctx span v (arguments st ctx span v args) handler
+
+(* A type written where a value goes picks the instance, and an instance
+   takes no parameter for it (generics.md §5.3). *)
+and passed args =
+  List.filter
+    (function T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false | _ -> true)
+    args
+
+and arguments st ctx span v args =
+  List.map2
+    (fun (p : T.Local.t) arg ->
+      match arg with
+      | T.Arg.Value a -> argument st ctx span v p a
+      | T.Arg.Block _ -> refuse span "lowering does not expand block arguments here")
+    v.params args
+
+(* concurrency.md §3. A spawned call's arguments run here, as any call's do
+   (L6), and are stored in a frame in this block's arena. A function of its
+   own reads them from there on a thread of the pool, calls the verb, and
+   stores the result at the frame's start. The block waits for the call
+   before it drains (§4.1), and the result comes home to a slot reserved in
+   the same arena: at a read of the local it is bound to, or at the drain. *)
+and spawn st ctx span (e : T.Expr.t) =
+  match e.T.Expr.node with
+  | T.Expr.Spawn inner -> spawn st ctx span inner
+  | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; args; handler } -> (
+      match verb_of st id instance with
+      | None -> refuse span "lowering does not handle a call to this verb yet"
+      | Some v when expands v ->
+          refuse span "lowering does not spawn a verb that is expanded where it is called yet"
+      | Some v ->
+          let o = outcome st span v in
+          if Option.is_some handler || not (plain o) then
+            refuse span "lowering does not spawn a call that can abort or exit yet";
+          let args = arguments st ctx span v (passed args) in
+          let frame = Nodes.Ty.Struct (o.ok :: List.map (fun (a : Expr.t) -> a.Expr.ty) args) in
+          let at = fresh st in
+          let member i = ptr (Expr.Offset { base = local_ptr at; within = frame; path = [ i ] }) in
+          let read i (a : Expr.t) = { Expr.node = Expr.Deref (member (i + 1)); ty = a.Expr.ty } in
+          let call =
+            { Expr.node = Expr.Call { fn = symbol st v; args = List.mapi read args }; ty = o.ok }
+          in
+          let body =
+            if o.ok = Nodes.Ty.Void then [ Stat.Eval call ]
+            else [ Stat.Store { address = member 0; value = call } ]
+          in
+          let thunk = Printf.sprintf "zane.spawn.%d" (List.length st.spawned + 1) in
+          st.spawned <-
+            { Func.symbol = thunk; params = [ (at, Nodes.Ty.Ptr) ]; ret = Nodes.Ty.Void; body }
+            :: st.spawned;
+          let task = fresh st in
+          let dest = if o.ok = Nodes.Ty.Void then None else Some (fresh st) in
+          let layout = layout st span e.T.Expr.ty in
+          let scope = arena st ctx.scope in
+          (Stat.Spawn { task; scope; thunk; frame; args; dest; layout }, task, dest))
+  | _ -> refuse span "lowering spawns only a call to a declared verb yet"
 
 (* An argument as the callee takes it (L6): a place it may write or take
    the host from is lent by its address, a guest is minted or copied, and
@@ -1240,6 +1311,9 @@ and expand st ctx span v args handler ret =
                | (Slot _ | Pointer _) as b ->
                    bind p b;
                    []
+               | Future { slot = Some id; task } ->
+                   bind p (Slot id);
+                   [ Stat.Join task ]
                | _ -> refuse span "lowering expected a place here")
            (* Any other place the body may write, or take the host from, is
               lent by its address. *)
@@ -1314,6 +1388,16 @@ and code st ctx span (arg : T.Arg.t) =
 and stat st ctx (s : T.Stat.t) : Stat.t list =
   let span = s.T.Stat.span in
   match s.T.Stat.node with
+  (* A local bound to a spawned call waits for it where it is read. *)
+  | T.Stat.Let { local; value = { T.Expr.node = T.Expr.Spawn call; _ } } ->
+      if not (Tty.equal local.T.Local.ty call.T.Expr.ty) then
+        refuse span "lowering binds a spawned call only to a local of the type it returns yet";
+      let s, task, slot = spawn st ctx span call in
+      Hashtbl.replace ctx.env local.T.Local.id (Future { slot; task });
+      [ s ]
+  | T.Stat.Spawn e ->
+      let s, _, _ = spawn st ctx span e in
+      [ s ]
   | T.Stat.Let { local; value } ->
       let value = moved st ctx span local.T.Local.ty value in
       let id = fresh st in
@@ -1373,7 +1457,6 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       match ctx.resolve with
       | Some resolve -> resolve e.T.Expr.ty (moved st ctx span e.T.Expr.ty e)
       | None -> refuse span "lowering does not handle a block that yields a value yet")
-  | _ -> refuse span "lowering does not handle this statement yet"
 
 (* Where an assignment stores: a local, or the place a `mut` subject points
    at, and the members below it. A struct of one member adds no step. A
@@ -1386,6 +1469,9 @@ and place st ctx span (target : T.Expr.t) : Expr.place option =
       match lookup ctx span l with
       | Slot local -> Some { Expr.local; deref = false; ty = t; path = [] }
       | Pointer local -> Some { local; deref = true; ty = t; path = [] }
+      (* A spawned call's result is stored through its address, once the
+         call has returned. *)
+      | Future _ -> None
       | _ -> refuse span "lowering expected a place here")
   | T.Expr.Field { target = inner; _ } when is_guest inner.T.Expr.ty -> None
   | T.Expr.Field { target = inner; slot; _ } ->
@@ -1455,6 +1541,7 @@ let program (p : T.Program.t) =
       next = 0;
       returns = Fun.id;
       ret = Tty.Error;
+      spawned = [];
     }
   in
   let add decl instance signature params body =
@@ -1528,6 +1615,7 @@ let program (p : T.Program.t) =
           | Some v -> drain (func st v :: acc)
         in
         let funcs = drain [] in
+        let funcs = funcs @ List.rev st.spawned in
         let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
         Ok { Program.funcs; entry; layouts }
   with Refused problem -> Error problem
