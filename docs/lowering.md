@@ -314,8 +314,9 @@ test passing.
    block's arena, and it runs on a thread of the pool in a context of its
    own. A local bound to it waits for it where it is read, and the block
    waits for every call spawned in it before it drains; a result comes home
-   with its blocks and its anchors, read or not. The runtime is tested in C
-   on its own.
+   with its blocks and its anchors, read or not. A call that can abort or
+   exit settles on the spawning thread, and the program's runtime resizes
+   the pool. The runtime is tested in C on its own.
 
 ---
 
@@ -405,12 +406,20 @@ test passing.
   read where it is written -- an operand, an argument, a value assigned to a
   local that already exists -- is waited for at once, so lowering calls it
   there. Only timing tells the two apart.
-- **A spawned call that can abort or exit.** Lowering refuses one for now.
-  Its handler is written at the spawn ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §3.3), but what it
-  handles is known only once the call returns, so the handler would run where
-  the result is first read, or at the block's drain when nothing reads it,
-  and a `return` or an exit in it would leave from there. Which read runs it,
-  and whether a drain may, is for the spec to say.
+- **A spawned call that can abort or exit.** Its frame holds the call's
+  whole outcome (L12), which comes home into a slot laid out for it: the
+  result's hosts and blocks under the done tag, the abort value's under the
+  aborted one. The call settles once, on the spawning thread, where it is
+  first read or where its block ends
+  ([`spec-divergences.md`](spec-divergences.md) §15). A flag the spawn sets
+  says whether it has. An abort takes the abort value out of the slot and
+  runs the handler written at the spawn, lowered where it settles but in
+  the context of the spawn, so its `abort`, `return` and exit go where they
+  would from there; its `resolve` puts the result in the slot. An exit ends
+  the run of the block the spawn is in.
+- **An abort value no binder names is held.** A handler without a binder,
+  such as `??`'s, still holds the abort value in its own scope when it is a
+  host or owns a block, so the handler's drain ends it.
 - **A value parameter is borrowed.** A value that owns a block is copied
   whole where it is stored from a place ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.3), and passed
   as it is where it is only read: a value parameter is read-only (§2.9), so

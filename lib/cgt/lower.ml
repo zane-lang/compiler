@@ -36,14 +36,14 @@ type verb = {
    expanded into, a literal its concept parameter was given, or the code of a
    block argument. A `mut` subject is a [Pointer]: a slot holding the address
    of the caller's place (L6). A local bound to a spawned call's result is a
-   [Future]: the slot its result comes home to, which has none when it is
-   `Unit`, and the local that holds the call's frame. *)
+   [Future]: what waits for the call and settles how it ended, and the
+   address of its result, which has none when it is `Unit`. *)
 type binding =
   | Slot of int
   | Pointer of int
   | Literal of T.Expr.t
   | Code of closure
-  | Future of { slot : int option; task : int }
+  | Future of { settle : unit -> Stat.t list; at : Expr.t option }
 
 (* A block argument keeps the context it was written in, so its locals and
    its `return` mean what they meant there. *)
@@ -72,8 +72,10 @@ and ctx = {
   scope : scope;
 }
 
-(* A block's arena, made the first time the block hosts something. *)
-and scope = { mutable arena : int option }
+(* A block's arena, made the first time the block hosts something, and what
+   settles each call spawned in it that can abort or exit, in case nothing
+   reads it first. *)
+and scope = { mutable arena : int option; mutable settles : (unit -> Stat.t list) list }
 
 (* A `return` from an expansion stores into [result], which has the TST type
    [ret]: a value moves there, or a guest is minted, as into any storage. *)
@@ -497,6 +499,23 @@ let outcome_case o index (payload : Expr.t) =
 
 let unit_ = { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
 
+(* Where the hosts and blocks of a call's outcome are, when it can end more
+   than one way: the result's under the done tag, and the abort value's
+   under the aborted one. *)
+let outcome_layout st span (v : verb) =
+  let s = v.signature in
+  let name =
+    Printf.sprintf "outcome of %s%s" (Tty.to_string s.S.ret)
+      (match s.S.abort with Some a -> " ? " ^ Tty.to_string a | None -> "")
+  in
+  if not (Hashtbl.mem st.layouts name) then begin
+    let under tag t = positions st span t Nodes.Ty.payload_offset [ (0, tag) ] in
+    let failed = match s.S.abort with Some a -> under aborted a | None -> [] in
+    Hashtbl.replace st.layouts name (under done_ s.S.ret @ failed);
+    st.named <- name :: st.named
+  end;
+  name
+
 (* L6: a `mut` method's subject, a reference-type subject, and a swallowed
    reference-type argument are passed as the address of the caller's place;
    the caller's host keeps the value (lifetimes.md §1.5). *)
@@ -545,7 +564,7 @@ let constant_ctx () =
     resolve = None;
     finish = nowhere;
     exit_call = nowhere;
-    scope = { arena = None };
+    scope = { arena = None; settles = [] };
   }
 
 (* A block's arena, made the first time it is needed. *)
@@ -600,12 +619,12 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       match lookup ctx span l with
       | Slot id -> { Expr.node = Expr.Local id; ty = ty st span l.T.Local.ty }
       | Pointer id -> deref id (ty st span l.T.Local.ty)
-      | Future { slot; task } ->
+      | Future { settle; at } ->
           let t = ty st span l.T.Local.ty in
           let value =
-            match slot with Some id -> { Expr.node = Expr.Local id; ty = t } | None -> unit_
+            match at with Some p -> { Expr.node = Expr.Deref p; ty = t } | None -> unit_
           in
-          joined st task value
+          joined st (settle ()) value
       | Literal _ | Code _ -> refuse span "lowering does not read this parameter as a value")
   | T.Expr.Bool_lit b -> { Expr.node = Expr.Bool b; ty = Nodes.Ty.I1 }
   | T.Expr.Construct { ctor = { owner = S.Intrinsic spelling; _ }; args; handler = None } ->
@@ -629,6 +648,37 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
             ty = Nodes.Ty.Void;
           }
       | _ -> refuse span "lowering does not handle this call to `print`")
+  | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$setThreads"; _ }; args; handler }
+    -> (
+      (* The pool is resized (concurrency.md §2.4), or, for a count below
+         one, left as it was, and the call aborts with `Unit`. The program
+         has one runtime, so the subject names nothing the runtime needs. *)
+      match args with
+      | [ T.Arg.Value _runtime; T.Arg.Value count ] ->
+          let count = borrow st ctx span count in
+          let label = fresh st in
+          let id = fresh st in
+          let set = Expr.Runtime { fn = "zane_set_threads"; args = [ count ] } in
+          let set = { Expr.node = set; ty = Nodes.Ty.I64 } in
+          let zero = { Expr.node = Expr.Int 0L; ty = Nodes.Ty.I64 } in
+          let local = { Expr.node = Expr.Local id; ty = Nodes.Ty.I64 } in
+          let failed = Expr.Binary { op = Expr.Eq; left = local; right = zero } in
+          let failed = { Expr.node = failed; ty = Nodes.Ty.I1 } in
+          let on_abort =
+            match handler with Some h -> handle st ctx h label None | None -> ctx.abort
+          in
+          let body =
+            [ Stat.Let { id; value = set }; Stat.If { cond = failed; body = on_abort span unit_ } ]
+          in
+          { Expr.node = Expr.Expand { label; body; result = None }; ty = Nodes.Ty.Void }
+      | _ -> refuse span "lowering does not handle this call to `setThreads`")
+  | T.Expr.Call
+      {
+        callee = { owner = S.Intrinsic "@runtime$setThreadsAuto"; _ };
+        args = [ _ ];
+        handler = None;
+      } ->
+      { Expr.node = Expr.Runtime { fn = "zane_set_threads_auto"; args = [] }; ty = Nodes.Ty.Void }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$push"; _ }; args; handler = None }
     -> (
       (* The value is taken first, then the list makes room for it, which may
@@ -740,13 +790,13 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
 
 (* A spawned call's result, read once the call has returned (concurrency.md
    §3.2). *)
-and joined st task (value : Expr.t) =
+and joined st settle (value : Expr.t) =
   let label = fresh st in
   if value.Expr.ty = Nodes.Ty.Void then
-    { Expr.node = Expr.Expand { label; body = [ Stat.Join task ]; result = None }; ty = value.ty }
+    { Expr.node = Expr.Expand { label; body = settle; result = None }; ty = value.ty }
   else
     let result = fresh st in
-    let body = [ Stat.Join task; Stat.assign result value ] in
+    let body = settle @ [ Stat.assign result value ] in
     { Expr.node = Expr.Expand { label; body; result = Some result }; ty = value.Expr.ty }
 
 (* A member's value on its way into the type [holder] being built: moved
@@ -797,7 +847,7 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
       match lookup ctx span l with
       | Slot id -> Some (ptr (Expr.Address id))
       | Pointer id -> Some (ptr (Expr.Local id))
-      | Future { slot = Some id; task } -> Some (joined st task (ptr (Expr.Address id)))
+      | Future { settle; at = Some p } -> Some (joined st (settle ()) p)
       | _ -> None)
   | T.Expr.Field { target; slot; _ } ->
       let owner = strip target.T.Expr.ty in
@@ -1011,15 +1061,18 @@ and map_read st ctx span target map ret =
 (* A handler is a block of its own, so an abort value of a reference type
    is hosted in the handler's arena, which is innermost wherever the handler
    runs. *)
-and handle ?resolve st ctx (h : T.Handler.t) label result span (value : Expr.t) =
-  let scope = { arena = None } in
+and handle ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value : Expr.t) =
+  let scope = { arena = None; settles = [] } in
   let bind =
-    match h.T.Handler.binder with
-    | Some l ->
+    match (h.T.Handler.binder, dropped) with
+    | Some l, _ ->
         let id = fresh st in
         Hashtbl.replace ctx.env l.T.Local.id (Slot id);
         [ bind_local st scope l id value ]
-    | None -> [ Stat.Eval value ]
+    (* An abort value no binder names, of type [dropped], is still held
+       here when it is a host or owns a block, so the drain ends it. *)
+    | None, Some t when held st span t -> [ bind st scope span t (fresh st) value ]
+    | None, _ -> [ Stat.Eval value ]
   in
   let resolve =
     match resolve with
@@ -1199,9 +1252,15 @@ and arguments st ctx span v args =
 (* concurrency.md §3. A spawned call's arguments run here, as any call's do
    (L6), and are stored in a frame in this block's arena. A function of its
    own reads them from there on a thread of the pool, calls the verb, and
-   stores the result at the frame's start. The block waits for the call
+   stores how it ended at the frame's start. The block waits for the call
    before it drains (§4.1), and the result comes home to a slot reserved in
-   the same arena: at a read of the local it is bound to, or at the drain. *)
+   the same arena: at a read of the local it is bound to, or at the drain.
+
+   A call that can abort or exit settles on this thread, once, where it is
+   first read, or where the block ends when nothing reads it first
+   (docs/spec-divergences.md §15). An abort runs the handler written at the
+   spawn (§3.3), or goes where an abort from here goes, and its `resolve`
+   gives the result; an exit ends the run of the block the spawn is in. *)
 and spawn st ctx span (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Spawn inner -> spawn st ctx span inner
@@ -1212,18 +1271,17 @@ and spawn st ctx span (e : T.Expr.t) =
           refuse span "lowering does not spawn a verb that is expanded where it is called yet"
       | Some v ->
           let o = outcome st span v in
-          if Option.is_some handler || not (plain o) then
-            refuse span "lowering does not spawn a call that can abort or exit yet";
+          let whole = returned o in
           let args = arguments st ctx span v (passed args) in
-          let frame = Nodes.Ty.Struct (o.ok :: List.map (fun (a : Expr.t) -> a.Expr.ty) args) in
+          let frame = Nodes.Ty.Struct (whole :: List.map (fun (a : Expr.t) -> a.Expr.ty) args) in
           let at = fresh st in
           let member i = ptr (Expr.Offset { base = local_ptr at; within = frame; path = [ i ] }) in
           let read i (a : Expr.t) = { Expr.node = Expr.Deref (member (i + 1)); ty = a.Expr.ty } in
           let call =
-            { Expr.node = Expr.Call { fn = symbol st v; args = List.mapi read args }; ty = o.ok }
+            { Expr.node = Expr.Call { fn = symbol st v; args = List.mapi read args }; ty = whole }
           in
           let body =
-            if o.ok = Nodes.Ty.Void then [ Stat.Eval call ]
+            if whole = Nodes.Ty.Void then [ Stat.Eval call ]
             else [ Stat.Store { address = member 0; value = call } ]
           in
           let thunk = Printf.sprintf "zane.spawn.%d" (List.length st.spawned + 1) in
@@ -1231,10 +1289,58 @@ and spawn st ctx span (e : T.Expr.t) =
             { Func.symbol = thunk; params = [ (at, Nodes.Ty.Ptr) ]; ret = Nodes.Ty.Void; body }
             :: st.spawned;
           let task = fresh st in
-          let dest = if o.ok = Nodes.Ty.Void then None else Some (fresh st) in
-          let layout = layout st span e.T.Expr.ty in
+          let dest = if whole = Nodes.Ty.Void then None else Some (fresh st) in
+          let home =
+            if plain o then layout st span v.signature.S.ret else outcome_layout st span v
+          in
           let scope = arena st ctx.scope in
-          (Stat.Spawn { task; scope; thunk; frame; args; dest; layout }, task, dest))
+          let spawned = Stat.Spawn { task; scope; thunk; frame; args; dest; layout = home } in
+          let slot = Option.map (fun id -> ptr (Expr.Address id)) dest in
+          if plain o then
+            ([ spawned ], Future { settle = (fun () -> [ Stat.Join task ]); at = slot })
+          else
+            let slot = Option.get slot in
+            let pending = fresh st in
+            let payload i = ptr (Expr.Offset { base = slot; within = whole; path = [ i ] }) in
+            let settle () =
+              let label = fresh st in
+              let resolve _ value =
+                let value = outcome_case o done_ value in
+                [ Stat.Place { address = slot; value; layout = home }; Stat.Leave label ]
+              in
+              let on_abort =
+                match handler with
+                | Some h -> handle ~resolve ?dropped:v.signature.S.abort st ctx h label None
+                | None -> ctx.abort
+              in
+              let failed =
+                match (o.aborts, v.signature.S.abort) with
+                | Some a, Some t ->
+                    let l = layout st span t in
+                    let value = Expr.Take { address = payload aborted; layout = l } in
+                    let value = { Expr.node = value; ty = a } in
+                    [ (aborted, on_abort span value) ]
+                | _ -> []
+              in
+              let left = if o.exit_ then [ (exited, ctx.finish span) ] else [] in
+              let cases = ((done_, []) :: failed) @ left in
+              let flag = { Expr.node = Expr.Local pending; ty = Nodes.Ty.I1 } in
+              let whole = { Expr.node = Expr.Deref slot; ty = whole } in
+              let once =
+                [
+                  Stat.assign pending { Expr.node = Expr.Bool false; ty = Nodes.Ty.I1 };
+                  Stat.Switch { value = whole; cases };
+                ]
+              in
+              let body = [ Stat.Join task; Stat.If { cond = flag; body = once } ] in
+              let settled = Expr.Expand { label; body; result = None } in
+              [ Stat.Eval { Expr.node = settled; ty = Nodes.Ty.Void } ]
+            in
+            ctx.scope.settles <- settle :: ctx.scope.settles;
+            let unsettled = { Expr.node = Expr.Bool true; ty = Nodes.Ty.I1 } in
+            let first = Stat.Let { id = pending; value = unsettled } in
+            let at = if o.ok = Nodes.Ty.Void then None else Some (payload done_) in
+            ([ first; spawned ], Future { settle; at }))
   | _ -> refuse span "lowering spawns only a call to a declared verb yet"
 
 (* An argument as the callee takes it (L6): a place it may write or take
@@ -1259,7 +1365,9 @@ and invoke st ctx span v args handler =
     let source = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
     let payload index t = { Expr.node = Expr.Payload { value = source; index }; ty = t } in
     let on_abort =
-      match handler with Some h -> handle st ctx h label result | None -> ctx.abort
+      match handler with
+      | Some h -> handle ?dropped:v.signature.S.abort st ctx h label result
+      | None -> ctx.abort
     in
     let finished =
       if o.ok = Nodes.Ty.Void then [ (done_, [ Stat.Leave label ]) ]
@@ -1311,9 +1419,10 @@ and expand st ctx span v args handler ret =
                | (Slot _ | Pointer _) as b ->
                    bind p b;
                    []
-               | Future { slot = Some id; task } ->
-                   bind p (Slot id);
-                   [ Stat.Join task ]
+               | Future { settle; at = Some at } ->
+                   let id = fresh st in
+                   bind p (Pointer id);
+                   settle () @ [ Stat.Let { id; value = at } ]
                | _ -> refuse span "lowering expected a place here")
            (* Any other place the body may write, or take the host from, is
               lent by its address. *)
@@ -1341,7 +1450,10 @@ and expand st ctx span v args handler ret =
       env;
       exit = Leave { label; result; ret };
       expanding = v.decl :: ctx.expanding;
-      abort = (match handler with Some h -> handle st ctx h label result | None -> ctx.abort);
+      abort =
+        (match handler with
+        | Some h -> handle ?dropped:v.signature.S.abort st ctx h label result
+        | None -> ctx.abort);
       resolve = None;
       finish = no_block;
       exit_call = ctx.finish;
@@ -1358,8 +1470,11 @@ and expand st ctx span v args handler ret =
 
 (* L8: a block that hosts a reference-type local has an arena of its own. *)
 and block st ctx (b : T.Block.t) =
-  let scope = { arena = None } in
+  let scope = { arena = None; settles = [] } in
   let body = List.concat_map (stat st { ctx with scope }) b.T.Block.stats in
+  (* A spawned call that can abort or exit, and that nothing has read,
+     settles where the block ends. *)
+  let body = body @ List.concat_map (fun settle -> settle ()) (List.rev scope.settles) in
   match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ]
 
 (* A block argument's code, where it was written. An exit ends this run of
@@ -1392,12 +1507,11 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
   | T.Stat.Let { local; value = { T.Expr.node = T.Expr.Spawn call; _ } } ->
       if not (Tty.equal local.T.Local.ty call.T.Expr.ty) then
         refuse span "lowering binds a spawned call only to a local of the type it returns yet";
-      let s, task, slot = spawn st ctx span call in
-      Hashtbl.replace ctx.env local.T.Local.id (Future { slot; task });
-      [ s ]
+      let stats, future = spawn st ctx span call in
+      Hashtbl.replace ctx.env local.T.Local.id future;
+      stats
   | T.Stat.Spawn e ->
-      let s, _, _ = spawn st ctx span e in
-      [ s ]
+      fst (spawn st ctx span e)
   | T.Stat.Let { local; value } ->
       let value = moved st ctx span local.T.Local.ty value in
       let id = fresh st in
@@ -1519,7 +1633,7 @@ let func st (v : verb) : Func.t =
       resolve = None;
       finish = no_block;
       exit_call = (fun _ -> [ Stat.Return (outcome_case o exited unit_) ]);
-      scope = { arena = None };
+      scope = { arena = None; settles = [] };
     }
   in
   { Func.symbol = symbol st v; params; ret = returned o; body = block st ctx v.body }

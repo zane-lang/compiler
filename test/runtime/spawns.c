@@ -128,4 +128,23 @@ void zane_main(void) {
 		zane_scope_drain(scope);
 	}
 	check(right && zane_context_count == made);
+
+	/* The pool resized while it runs: a count below one is refused, and
+	   calls still finish on one thread and on many. */
+	check(zane_set_threads(0) == 0 && zane_wanted == zane_processors());
+	for (int64_t threads = 1; threads <= 8; threads *= 8) {
+		check(zane_set_threads(threads) == 1);
+		scope = zane_scope_enter();
+		for (int i = 0; i < CALLS; i++) {
+			calls[i] = zane_frame(scope, sizeof *calls[i], 8);
+			sums[i] = zane_slot(scope, 8, 8, NULL);
+			calls[i]->n = i;
+			zane_spawn((char *)calls[i], halves, (char *)sums[i], NULL, 8);
+		}
+		zane_scope_drain(scope);
+		for (int64_t i = 0; i < CALLS; i++) right &= *sums[i] == i * (i + 1) / 2 + i * (2 * i + 1);
+		check(right && zane_wanted == threads);
+	}
+	zane_set_threads_auto();
+	check(zane_wanted == zane_processors());
 }

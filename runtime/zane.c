@@ -949,12 +949,15 @@ struct zane_task {
 enum { ZANE_QUEUED, ZANE_RUNNING, ZANE_DONE, ZANE_JOINED };
 
 /* The pool: calls waiting for a thread, first spawned first, and the
-   threads that run them, started with the first spawn. */
+   threads that run them, started with the first spawn. It keeps `wanted`
+   threads, one per processor until the program sets a number (§2.4), and
+   a thread over that number leaves when it next looks for work. */
 static pthread_mutex_t zane_pool = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t zane_waiting = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t zane_finished = PTHREAD_COND_INITIALIZER;
 static zane_task *zane_first, *zane_last;
 static int zane_started;
+static int64_t zane_threads, zane_wanted;
 
 /* A queued call taken off the queue to run; the pool's lock is held. */
 static void zane_take(zane_task *t) {
@@ -984,7 +987,13 @@ static void *zane_worker(void *unused) {
 	(void)unused;
 	pthread_mutex_lock(&zane_pool);
 	for (;;) {
-		while (!zane_first) pthread_cond_wait(&zane_waiting, &zane_pool);
+		while (!zane_first && zane_threads <= zane_wanted)
+			pthread_cond_wait(&zane_waiting, &zane_pool);
+		if (zane_threads > zane_wanted) {
+			zane_threads--;
+			pthread_mutex_unlock(&zane_pool);
+			return NULL;
+		}
 		zane_task *t = zane_first;
 		zane_take(t);
 		pthread_mutex_unlock(&zane_pool);
@@ -994,20 +1003,43 @@ static void *zane_worker(void *unused) {
 	return NULL;
 }
 
-/* One thread for each processor (§2.4), or `ZANE_THREADS` of them. */
-static void zane_start(void) {
+/* One thread for each processor. */
+static int64_t zane_processors(void) {
 	long n = sysconf(_SC_NPROCESSORS_ONLN);
-	const char *threads = getenv("ZANE_THREADS");
-	if (threads) n = atol(threads);
-	if (n < 1) n = 1;
-	for (long i = 0; i < n; i++) {
+	return n < 1 ? 1 : n;
+}
+
+/* Threads started until the pool has as many as it wants, and those over
+   it woken to leave; the pool's lock is held. */
+static void zane_fill(void) {
+	for (; zane_threads < zane_wanted; zane_threads++) {
 		pthread_t thread;
 		if (pthread_create(&thread, NULL, zane_worker, NULL) != 0)
 			zane_broken("no thread for the pool");
 		pthread_detach(thread);
 	}
-	zane_started = 1;
+	pthread_cond_broadcast(&zane_waiting);
 }
+
+static void zane_start(void) {
+	if (!zane_wanted) zane_wanted = zane_processors();
+	zane_started = 1;
+	zane_fill();
+}
+
+/* `@runtime$Runtime`'s `setThreads` and `setThreadsAuto` (§2.4): the pool
+   resized, now or when it starts. A count below one resizes nothing, and
+   the call aborts: 0 says so. */
+int64_t zane_set_threads(int64_t count) {
+	if (count < 1) return 0;
+	pthread_mutex_lock(&zane_pool);
+	zane_wanted = count;
+	if (zane_started) zane_fill();
+	pthread_mutex_unlock(&zane_pool);
+	return 1;
+}
+
+void zane_set_threads_auto(void) { zane_set_threads(zane_processors()); }
 
 /* A new call's frame, `size` bytes, in the innermost scope's fixed region. */
 void *zane_frame(int64_t scope, int64_t size, int64_t align) {

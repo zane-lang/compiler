@@ -77,6 +77,8 @@ let runtime env name =
             Llvm.function_type (Llvm.void_type env.ctx)
               [| env.ptr; env.ptr; env.ptr; env.ptr; env.i64 |]
         | "zane_join" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr |]
+        | "zane_set_threads" -> Llvm.function_type env.i64 [| env.i64 |]
+        | "zane_set_threads_auto" -> Llvm.function_type (Llvm.void_type env.ctx) [||]
         | _ -> failwith ("codegen: unknown runtime function " ^ name)
       in
       let f = Llvm.declare_function name fty env.m in

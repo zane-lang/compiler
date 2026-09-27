@@ -181,18 +181,19 @@ let subscripts =
 let methods =
   let list_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let list = prim "List" ~args:[ Ty.Type (Ty.Param list_element) ] in
-  let meth ?(generics = []) ?(is_mut = false) namespace name params ret =
+  let meth ?(generics = []) ?abort ?(is_mut = false) namespace name params ret =
     ( name,
-      verb ~generics ~is_mut ~namespace ~kind:S.Method ~name
+      verb ~generics ?abort ~is_mut ~namespace ~kind:S.Method ~name
         ~spelling:("@" ^ namespace ^ "$" ^ name) params ret )
   in
   [
     meth ~is_mut:true "runtime" "print"
       [ param "this" (runtime "Console"); param "text" (Ty.Guest (prim "String")) ]
       (prim "Unit");
-    meth ~is_mut:true "runtime" "setThreads"
+    meth ~abort:(Some (prim "Unit")) ~is_mut:true "runtime" "setThreads"
       [ param "this" (runtime "Runtime"); param "count" (prim "Int") ]
       (prim "Unit");
+    meth ~is_mut:true "runtime" "setThreadsAuto" [ param "this" (runtime "Runtime") ] (prim "Unit");
     meth ~generics:[ list_element ] ~is_mut:true "primitives" "push"
       [ param "this" list; param "value" (Ty.Param list_element) ]
       (prim "Unit");

@@ -471,13 +471,12 @@ concurrency at the start, which the program's runtime resizes with
 
 **Compiler** — the pool's threads take spawned calls from one shared queue,
 first spawned first, and a thread that waits for a call no thread has taken
-yet runs it itself. The pool starts with the first spawn, one thread per
-processor, or as many as the `ZANE_THREADS` environment variable says.
-`setThreads` and `setThreadsAuto` do not lower yet. Only timing tells a pool
-that steals from one that shares a queue, and
-`docs/lowering.md` §9 has the rest of how spawned calls run. Reconciling
-means a queue per thread that the others steal from, and lowering the two
-verbs.
+yet runs it itself. The pool starts with the first spawn, with one thread
+per processor or the count `setThreads` last gave, and `setThreads` and
+`setThreadsAuto` resize it as §2.4 says. Only timing tells a pool that
+steals from one that shares a queue, and `docs/lowering.md` §9 has the rest
+of how spawned calls run. Reconciling means a queue per thread that the
+others steal from.
 
 ## 14. A concurrent read is not a snapshot
 
@@ -495,6 +494,34 @@ writer has returned. The checker does not enforce §4.2 or §4.3 yet either
 ([`semantics.md`](semantics.md) D1), so nothing stops a program whose
 spawned calls race. Reconciling means the snapshot read of §4.4, and the two
 checks.
+
+## 15. A spawned call's handler runs where the call settles
+
+**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
+§3.3: an abortable spawned call attaches `?` or `??` directly to the
+`spawn`, the bound symbol has the handled type, and reading it blocks until
+the call finishes. Nothing says when the handler runs, which thread runs it,
+or what happens when nothing reads the symbol.
+
+**Compiler** — the call settles once, on the thread that spawned it: where
+its local is first read, or where the block it is spawned in ends, when
+nothing has read it by then. Settling waits for the call. An abort runs the
+handler there, and an exit ends the run of the block the spawn is written in
+(§11), from there. A block left before it ends -- by a `return`, an exit or
+an `abort` -- still waits for the call as it drains, but runs no handler, and
+the outcome dies with the block.
+
+```zane
+q Int = spawn divide(Int(9), Int(0)) ? e {
+	runs = runs + Int(1);   // runs here, at the first read below
+	resolve Int(7);
+}
+check(q == Int(7));
+check(q == Int(7));         // settled already: the handler does not run again
+```
+
+`test/codegen/fixtures/spawns` has these cases. Reconciling means the spec
+saying where the handler runs.
 
 ---
 
