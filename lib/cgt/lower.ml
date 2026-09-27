@@ -297,6 +297,17 @@ and layout st span (t : Tty.t) : Layout.t =
    in its scope's arena (memory.md §3.3). A guest is a tether, not a host. *)
 let hosted st t = (not (is_guest t)) && reference st t
 
+(* Whether a place is reached through a host: a member or a case of a
+   reference-type instance, or of one a guest names, or an element of a
+   list. A spawned call may write back a value there while another thread
+   reads it (concurrency.md §4.4). *)
+let rec through_host st (e : T.Expr.t) =
+  match e.T.Expr.node with
+  | T.Expr.Field { target; _ } | T.Expr.Case_read { target; _ } ->
+      is_guest target.T.Expr.ty || reference st (strip target.T.Expr.ty) || through_host st target
+  | T.Expr.Subscript _ -> true
+  | _ -> false
+
 (* Whether a value of this type owns a dynamic block (memory.md §3.6), which
    it returns when it dies and copies when it is copied. *)
 let owns st span t =
@@ -832,6 +843,16 @@ and value_of st ctx (e : T.Expr.t) =
   if is_guest e.T.Expr.ty then
     let t = ty st e.T.Expr.span (strip e.T.Expr.ty) in
     { Expr.node = Expr.Deref (resolve (expr st ctx e)); ty = t }
+  else read st ctx e
+
+(* A value read out of its place. One reached through a host is read as a
+   snapshot (concurrency.md §4.4). *)
+and read st ctx (e : T.Expr.t) =
+  let span = e.T.Expr.span in
+  if through_host st e && not (reference st e.T.Expr.ty) then
+    match addr st ctx span e with
+    | Some p -> { Expr.node = Expr.Snapshot p; ty = ty st span e.T.Expr.ty }
+    | None -> expr st ctx e
   else expr st ctx e
 
 (* The address of the value a place holds (L10): through a guest, the host
@@ -897,7 +918,7 @@ and moved st ctx span dst (e : T.Expr.t) =
   else if owns st span dst && is_place e then
     let value = value_of st ctx e in
     { Expr.node = Expr.Copy { value; layout = layout st span dst }; ty = value.Expr.ty }
-  else expr st ctx e
+  else read st ctx e
 
 (* Whether an expression reads a value something else owns, rather than
    making a fresh one: a place, a member of any value, which a fresh value
@@ -1258,7 +1279,7 @@ and arguments st ctx span v args =
 
    A call that can abort or exit settles on this thread, once, where it is
    first read, or where the block ends when nothing reads it first
-   (docs/spec-divergences.md §15). An abort runs the handler written at the
+   (docs/spec-divergences.md §13). An abort runs the handler written at the
    spawn (§3.3), or goes where an abort from here goes, and its `resolve`
    gives the result; an exit ends the run of the block the spawn is in. *)
 and spawn st ctx span (e : T.Expr.t) =
@@ -1272,17 +1293,69 @@ and spawn st ctx span (e : T.Expr.t) =
       | Some v ->
           let o = outcome st span v in
           let whole = returned o in
-          let args = arguments st ctx span v (passed args) in
+          let passed = passed args in
+          let args = arguments st ctx span v passed in
+          (* A `mut` subject reached through a host is copied into the frame,
+             and the call works on the copy, which it writes back when it
+             returns (§4.4). *)
+          let subject =
+            match (v.params, passed) with
+            | this :: _, T.Arg.Value subject :: _
+              when v.signature.S.is_mut && this.T.Local.name = "this"
+                   && (not (reference st this.T.Local.ty))
+                   && through_host st subject ->
+                Some this.T.Local.ty
+            | _ -> None
+          in
+          let pre, args =
+            match (subject, args) with
+            | Some t, first :: rest ->
+                let loc = fresh st in
+                let place = { Expr.node = Expr.Local loc; ty = Nodes.Ty.Ptr } in
+                let value = { Expr.node = Expr.Deref place; ty = ty st span t } in
+                let copy =
+                  if owns st span t then
+                    { value with Expr.node = Expr.Copy { value; layout = layout st span t } }
+                  else value
+                in
+                ([ Stat.Let { id = loc; value = first } ], (place :: rest) @ [ copy ])
+            | _ -> ([], args)
+          in
           let frame = Nodes.Ty.Struct (whole :: List.map (fun (a : Expr.t) -> a.Expr.ty) args) in
           let at = fresh st in
           let member i = ptr (Expr.Offset { base = local_ptr at; within = frame; path = [ i ] }) in
-          let read i (a : Expr.t) = { Expr.node = Expr.Deref (member (i + 1)); ty = a.Expr.ty } in
+          let copied = List.length args in
+          let passes =
+            if Option.is_some subject then List.filteri (fun i _ -> i < copied - 1) args
+            else args
+          in
+          let read i (a : Expr.t) =
+            if i = 0 && Option.is_some subject then member copied
+            else { Expr.node = Expr.Deref (member (i + 1)); ty = a.Expr.ty }
+          in
           let call =
-            { Expr.node = Expr.Call { fn = symbol st v; args = List.mapi read args }; ty = whole }
+            { Expr.node = Expr.Call { fn = symbol st v; args = List.mapi read passes }; ty = whole }
+          in
+          let writeback =
+            match subject with
+            | Some t ->
+                let size = fst (Nodes.Ty.size_align (ty st span t)) in
+                let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
+                let target = { Expr.node = Expr.Deref (member 1); ty = Nodes.Ty.Ptr } in
+                let back =
+                  Expr.Runtime
+                    {
+                      fn = "zane_writeback";
+                      args = [ target; member copied; int size; layout_table (layout st span t) ];
+                    }
+                in
+                [ Stat.Eval { Expr.node = back; ty = Nodes.Ty.Void } ]
+            | None -> []
           in
           let body =
-            if whole = Nodes.Ty.Void then [ Stat.Eval call ]
-            else [ Stat.Store { address = member 0; value = call } ]
+            (if whole = Nodes.Ty.Void then [ Stat.Eval call ]
+             else [ Stat.Store { address = member 0; value = call } ])
+            @ writeback
           in
           let thunk = Printf.sprintf "zane.spawn.%d" (List.length st.spawned + 1) in
           st.spawned <-
@@ -1297,7 +1370,7 @@ and spawn st ctx span (e : T.Expr.t) =
           let spawned = Stat.Spawn { task; scope; thunk; frame; args; dest; layout = home } in
           let slot = Option.map (fun id -> ptr (Expr.Address id)) dest in
           if plain o then
-            ([ spawned ], Future { settle = (fun () -> [ Stat.Join task ]); at = slot })
+            (pre @ [ spawned ], Future { settle = (fun () -> [ Stat.Join task ]); at = slot })
           else
             let slot = Option.get slot in
             let pending = fresh st in
@@ -1340,7 +1413,7 @@ and spawn st ctx span (e : T.Expr.t) =
             let unsettled = { Expr.node = Expr.Bool true; ty = Nodes.Ty.I1 } in
             let first = Stat.Let { id = pending; value = unsettled } in
             let at = if o.ok = Nodes.Ty.Void then None else Some (payload done_) in
-            ([ first; spawned ], Future { settle; at }))
+            (pre @ [ first; spawned ], Future { settle; at }))
   | _ -> refuse span "lowering spawns only a call to a declared verb yet"
 
 (* An argument as the callee takes it (L6): a place it may write or take

@@ -6,6 +6,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <pthread.h>
+#include <sched.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -109,6 +110,15 @@ typedef struct zane_mapping {
 typedef struct zane_task zane_task;
 typedef struct zane_context zane_context;
 
+/* What a value owned before a spawned call wrote it back (§4.4): kept, as
+   it was, until its region drains, since a reader may still be following
+   it. */
+typedef struct zane_retired {
+	struct zane_retired *next;
+	const int64_t *layout;
+	int64_t size;
+} zane_retired;
+
 /* Each open scope of a context, innermost last: where its slots began,
    what it hosts, the calls it spawned, and its dynamic region with the
    number of blocks out in it. The first of the program's is the program's
@@ -124,6 +134,7 @@ typedef struct {
 	char *chunk;
 	size_t bumped;
 	zane_stack *stacks;
+	zane_retired *retired;
 	int64_t live;
 } zane_mark;
 
@@ -192,7 +203,7 @@ int64_t zane_scope_enter(void) {
 	if (!*segment && !(*segment = malloc(ZANE_SEGMENT * sizeof **segment)))
 		zane_broken("out of memory for scopes");
 	*zane_mark_at(c, c->depth) =
-		(zane_mark){ c, c->depth, c->chunks, c->frontier, NULL, NULL, NULL, NULL, 0, NULL, 0 };
+		(zane_mark){ c, c->depth, c->chunks, c->frontier, NULL, NULL, NULL, NULL, 0, NULL, NULL, 0 };
 	int64_t depth = c->depth++;
 	zane_unlock(c);
 	return depth;
@@ -937,36 +948,85 @@ void *zane_slot(int64_t scope, int64_t size, int64_t align, const int64_t *layou
    its blocks move into the destination's region. */
 struct zane_task {
 	zane_task *next;           /* the next the same scope spawned */
-	zane_task *before, *after; /* in the queue, while queued */
+	zane_task *before, *after; /* in its deque, while queued */
 	void (*run)(char *frame);
 	char *frame, *dest;
 	const int64_t *layout;
-	int64_t size;
+	int64_t size, deque;
 	zane_context *owner, *context;
 	int state;
 };
 
 enum { ZANE_QUEUED, ZANE_RUNNING, ZANE_DONE, ZANE_JOINED };
 
-/* The pool: calls waiting for a thread, first spawned first, and the
-   threads that run them, started with the first spawn. It keeps `wanted`
-   threads, one per processor until the program sets a number (§2.4), and
-   a thread over that number leaves when it next looks for work. */
+static int zane_state(zane_task *t) { return __atomic_load_n(&t->state, __ATOMIC_ACQUIRE); }
+static void zane_set_state(zane_task *t, int s) {
+	__atomic_store_n(&t->state, s, __ATOMIC_RELEASE);
+}
+
+/* The pool steals work (§2.4). Each of its threads keeps a deque of the
+   calls it spawned, and takes its own newest first; a thread with none
+   left steals the oldest of another's. Calls spawned where no pool thread
+   runs -- the program's own thread -- go to a deque of their own, the
+   first, which every pool thread steals from. A deque outlives a thread
+   that leaves it, and the next thread to start takes it over, calls and
+   all. */
+typedef struct {
+	pthread_mutex_t lock;
+	zane_task *first, *last;
+	int kept;
+} zane_deque;
+
+enum { ZANE_DEQUES = 1 << 12 };
+static zane_deque zane_deques[ZANE_DEQUES];
+static int64_t zane_slots = 1;              /* deques made, the first included */
+static _Thread_local int64_t zane_mine;     /* this thread's deque, or the first */
+
+/* The pool's threads, started with the first spawn. It keeps `wanted` of
+   them, one per processor until the program sets a number, and a thread
+   over that number leaves when it next finds no work. `queued` counts the
+   calls in every deque, and a thread sleeps only while there are none. */
 static pthread_mutex_t zane_pool = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t zane_waiting = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t zane_finished = PTHREAD_COND_INITIALIZER;
-static zane_task *zane_first, *zane_last;
 static int zane_started;
-static int64_t zane_threads, zane_wanted;
+static int64_t zane_threads, zane_wanted, zane_queued;
 
-/* A queued call taken off the queue to run; the pool's lock is held. */
-static void zane_take(zane_task *t) {
+/* A queued call taken out of its deque to run; the deque's lock is held. */
+static void zane_unlink(zane_deque *d, zane_task *t) {
 	if (t->before) t->before->after = t->after;
-	else zane_first = t->after;
+	else d->first = t->after;
 	if (t->after) t->after->before = t->before;
-	else zane_last = t->before;
+	else d->last = t->before;
 	t->before = t->after = NULL;
-	t->state = ZANE_RUNNING;
+	zane_set_state(t, ZANE_RUNNING);
+}
+
+static void zane_taken(void) {
+	pthread_mutex_lock(&zane_pool);
+	zane_queued--;
+	pthread_mutex_unlock(&zane_pool);
+}
+
+/* The newest call in a deque, or its oldest. */
+static zane_task *zane_pop(zane_deque *d, int newest) {
+	pthread_mutex_lock(&d->lock);
+	zane_task *t = newest ? d->last : d->first;
+	if (t) zane_unlink(d, t);
+	pthread_mutex_unlock(&d->lock);
+	if (t) zane_taken();
+	return t;
+}
+
+/* Work for this thread: its own newest call, or another deque's oldest. */
+static zane_task *zane_find(void) {
+	zane_task *t = zane_mine ? zane_pop(&zane_deques[zane_mine], 1) : NULL;
+	int64_t slots = __atomic_load_n(&zane_slots, __ATOMIC_ACQUIRE);
+	for (int64_t k = 1; !t && k <= slots; k++) {
+		int64_t i = (zane_mine + k) % slots;
+		if (i != zane_mine || !zane_mine) t = zane_pop(&zane_deques[i], 0);
+	}
+	return t;
 }
 
 /* A call run on this thread, in a context of its own whose first scope
@@ -978,29 +1038,45 @@ static void zane_run(zane_task *t) {
 	t->run(t->frame);
 	zane_self = outer;
 	pthread_mutex_lock(&zane_pool);
-	t->state = ZANE_DONE;
+	zane_set_state(t, ZANE_DONE);
 	pthread_cond_broadcast(&zane_finished);
 	pthread_mutex_unlock(&zane_pool);
 }
 
-static void *zane_worker(void *unused) {
-	(void)unused;
-	pthread_mutex_lock(&zane_pool);
+/* A pool thread takes over a deque no thread keeps, or a new one; the
+   pool's lock is held. */
+static int64_t zane_keep(void) {
+	for (int64_t i = 1; i < zane_slots; i++)
+		if (!zane_deques[i].kept) {
+			zane_deques[i].kept = 1;
+			return i;
+		}
+	if (zane_slots == ZANE_DEQUES) zane_broken("more threads than the pool keeps");
+	pthread_mutex_init(&zane_deques[zane_slots].lock, NULL);
+	zane_deques[zane_slots].kept = 1;
+	__atomic_store_n(&zane_slots, zane_slots + 1, __ATOMIC_RELEASE);
+	return zane_slots - 1;
+}
+
+static void *zane_worker(void *deque) {
+	zane_mine = (int64_t)(intptr_t)deque;
 	for (;;) {
-		while (!zane_first && zane_threads <= zane_wanted)
+		zane_task *t = zane_find();
+		if (t) {
+			zane_run(t);
+			continue;
+		}
+		pthread_mutex_lock(&zane_pool);
+		while (zane_queued <= 0 && zane_threads <= zane_wanted)
 			pthread_cond_wait(&zane_waiting, &zane_pool);
 		if (zane_threads > zane_wanted) {
 			zane_threads--;
+			zane_deques[zane_mine].kept = 0;
 			pthread_mutex_unlock(&zane_pool);
 			return NULL;
 		}
-		zane_task *t = zane_first;
-		zane_take(t);
 		pthread_mutex_unlock(&zane_pool);
-		zane_run(t);
-		pthread_mutex_lock(&zane_pool);
 	}
-	return NULL;
 }
 
 /* One thread for each processor. */
@@ -1014,7 +1090,8 @@ static int64_t zane_processors(void) {
 static void zane_fill(void) {
 	for (; zane_threads < zane_wanted; zane_threads++) {
 		pthread_t thread;
-		if (pthread_create(&thread, NULL, zane_worker, NULL) != 0)
+		void *deque = (void *)(intptr_t)zane_keep();
+		if (pthread_create(&thread, NULL, zane_worker, deque) != 0)
 			zane_broken("no thread for the pool");
 		pthread_detach(thread);
 	}
@@ -1022,6 +1099,7 @@ static void zane_fill(void) {
 }
 
 static void zane_start(void) {
+	pthread_mutex_init(&zane_deques[0].lock, NULL);
 	if (!zane_wanted) zane_wanted = zane_processors();
 	zane_started = 1;
 	zane_fill();
@@ -1029,11 +1107,12 @@ static void zane_start(void) {
 
 /* `@runtime$Runtime`'s `setThreads` and `setThreadsAuto` (§2.4): the pool
    resized, now or when it starts. A count below one resizes nothing, and
-   the call aborts: 0 says so. */
+   the call aborts: 0 says so. The pool keeps at most one thread fewer than
+   it has deques. */
 int64_t zane_set_threads(int64_t count) {
 	if (count < 1) return 0;
 	pthread_mutex_lock(&zane_pool);
-	zane_wanted = count;
+	zane_wanted = count < ZANE_DEQUES - 1 ? count : ZANE_DEQUES - 1;
 	if (zane_started) zane_fill();
 	pthread_mutex_unlock(&zane_pool);
 	return 1;
@@ -1071,13 +1150,96 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const int64_t *lay
 	c->shared++;
 	pthread_mutex_lock(&zane_pool);
 	if (!zane_started) zane_start();
-	t->state = ZANE_QUEUED;
-	t->before = zane_last;
-	if (zane_last) zane_last->after = t;
-	else zane_first = t;
-	zane_last = t;
+	zane_queued++;
+	pthread_mutex_unlock(&zane_pool);
+	zane_deque *d = &zane_deques[zane_mine];
+	pthread_mutex_lock(&d->lock);
+	t->deque = zane_mine;
+	zane_set_state(t, ZANE_QUEUED);
+	t->before = d->last;
+	if (d->last) d->last->after = t;
+	else d->first = t;
+	d->last = t;
+	pthread_mutex_unlock(&d->lock);
+	pthread_mutex_lock(&zane_pool);
 	pthread_cond_signal(&zane_waiting);
 	pthread_mutex_unlock(&zane_pool);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Snapshots (concurrency.md §4.4, docs/lowering.md §9)                   */
+/* ---------------------------------------------------------------------- */
+
+/* A spawned `mut` call whose subject is reached through a host works on a
+   copy of its own, and writes it back when it returns. A write-back counts
+   itself begun, replaces the bytes, and counts itself done; a reader of a
+   value reached through a host takes its bytes when every write-back begun
+   is done, and keeps them when none began while it read. The bytes move a
+   word at a time, as atomics, so a read is torn only where it is retried. */
+static uint64_t zane_begun, zane_done;
+
+static void zane_racy_copy(char *to, const char *from, int64_t size, int store) {
+	int64_t i = 0;
+	if (((uintptr_t)to | (uintptr_t)from) % 8 == 0)
+		for (; i + 8 <= size; i += 8) {
+			uint64_t *word = (uint64_t *)(to + i);
+			const uint64_t *source = (const uint64_t *)(from + i);
+			if (store) __atomic_store_n(word, *source, __ATOMIC_RELAXED);
+			else *word = __atomic_load_n(source, __ATOMIC_RELAXED);
+		}
+	for (; i < size; i++) {
+		if (store) __atomic_store_n(to + i, from[i], __ATOMIC_RELAXED);
+		else to[i] = __atomic_load_n(from + i, __ATOMIC_RELAXED);
+	}
+}
+
+/* A coherent copy of the `size` bytes at `from` into `out`. The blocks
+   they name stay as they are while it is read: a write-back retires the
+   ones it replaces rather than returning them. */
+void zane_snapshot(char *out, const char *from, int64_t size) {
+	for (;;) {
+		uint64_t done = __atomic_load_n(&zane_done, __ATOMIC_ACQUIRE);
+		uint64_t begun = __atomic_load_n(&zane_begun, __ATOMIC_ACQUIRE);
+		if (begun != done) {
+			sched_yield();
+			continue;
+		}
+		zane_racy_copy(out, from, size, 0);
+		__atomic_thread_fence(__ATOMIC_ACQUIRE);
+		if (__atomic_load_n(&zane_begun, __ATOMIC_RELAXED) == begun) return;
+	}
+}
+
+/* The copy a spawned call worked on replaces its subject at `at`. What the
+   copy owns moves into the subject's region first, and what the subject
+   owned is retired there, whole, until the region drains. */
+void zane_writeback(char *at, char *copy, int64_t size, const int64_t *layout) {
+	zane_mark *region = zane_region_at(at);
+	if (layout && layout[0] > 0) {
+		zane_move(copy, layout, region, 0);
+		zane_retired *r = (zane_retired *)zane_alloc(region, (int64_t)sizeof *r + size, 8);
+		memcpy(r + 1, at, (size_t)size);
+		r->layout = layout;
+		r->size = size;
+		zane_lock(region->context);
+		r->next = region->retired;
+		region->retired = r;
+		zane_unlock(region->context);
+	}
+	__atomic_fetch_add(&zane_begun, 1, __ATOMIC_RELAXED);
+	__atomic_thread_fence(__ATOMIC_RELEASE);
+	zane_racy_copy(at, copy, size, 1);
+	__atomic_fetch_add(&zane_done, 1, __ATOMIC_RELEASE);
+}
+
+/* A draining region's retired values end, and their records go back. */
+static void zane_forget(zane_mark *m) {
+	while (m->retired) {
+		zane_retired *r = m->retired;
+		m->retired = r->next;
+		zane_end((char *)(r + 1), r->layout, 1, NULL, NULL, 0);
+		zane_free((char *)r, (int64_t)sizeof *r + r->size, 8);
+	}
 }
 
 /* A context whose call is over, back in the pool: by now its first scope
@@ -1085,6 +1247,7 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const int64_t *lay
 static void zane_release(zane_context *c) {
 	zane_mark *m = zane_mark_at(c, 0);
 	for (zane_hosted *h = m->hosts; h; h = h->next) zane_end(h->slot, h->layout, 1, NULL, NULL, 0);
+	zane_forget(m);
 	zane_lock(c);
 	if (m->live != 0) zane_broken("a dynamic block outlived its owner");
 	zane_unmap(m);
@@ -1102,19 +1265,19 @@ static void zane_release(zane_context *c) {
    running elsewhere is waited for. Its result then comes home, once. */
 static void zane_join_task(zane_task *t) {
 	if (t->owner != zane_self) zane_broken("a spawned call joined outside its context");
-	pthread_mutex_lock(&zane_pool);
-	if (t->state == ZANE_JOINED) {
-		pthread_mutex_unlock(&zane_pool);
-		return;
-	}
-	if (t->state == ZANE_QUEUED) {
-		zane_take(t);
-		pthread_mutex_unlock(&zane_pool);
+	if (zane_state(t) == ZANE_JOINED) return;
+	zane_deque *d = &zane_deques[t->deque];
+	pthread_mutex_lock(&d->lock);
+	int mine = zane_state(t) == ZANE_QUEUED;
+	if (mine) zane_unlink(d, t);
+	pthread_mutex_unlock(&d->lock);
+	if (mine) {
+		zane_taken();
 		zane_run(t);
-		pthread_mutex_lock(&zane_pool);
 	}
-	while (t->state != ZANE_DONE) pthread_cond_wait(&zane_finished, &zane_pool);
-	t->state = ZANE_JOINED;
+	pthread_mutex_lock(&zane_pool);
+	while (zane_state(t) != ZANE_DONE) pthread_cond_wait(&zane_finished, &zane_pool);
+	zane_set_state(t, ZANE_JOINED);
 	pthread_mutex_unlock(&zane_pool);
 	if (t->size) {
 		memcpy(t->dest, t->frame, (size_t)t->size);
@@ -1139,6 +1302,7 @@ void zane_scope_drain(int64_t scope) {
 	zane_mark *m = zane_mark_at(c, scope);
 	for (zane_task *t = m->tasks; t; t = t->next) zane_join_task(t);
 	for (zane_hosted *h = m->hosts; h; h = h->next) zane_end(h->slot, h->layout, 1, NULL, NULL, 0);
+	zane_forget(m);
 	zane_lock(c);
 	if (m->live != 0) zane_broken("a dynamic block outlived its owner");
 	zane_unmap(m);

@@ -106,6 +106,8 @@ let rec expr (e : Expr.t) =
       group "box" (fields [ ("value", expr value); ("layout", layout l) ])
   | Expr.Layout l -> Leaf ("layout " ^ l)
   | Expr.Function fn -> Leaf ("function " ^ fn)
+  | Expr.Snapshot p ->
+      group "snapshot" (fields [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("ptr", expr p) ])
   | Expr.Escape { value; layout = l; exit } ->
       let exit = match exit with Some label -> Printf.sprintf "@%d" label | None -> "function" in
       group "escape" (fields [ ("exit", Leaf exit); ("value", expr value); ("layout", layout l) ])

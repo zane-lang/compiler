@@ -54,6 +54,32 @@ Unit deepen(this Countdown, n Int) mut {
 	return Unit();
 }
 
+/// A host holding values that spawned calls write while others read them.
+type Holder = #struct {
+	count Countdown;
+	tally Tally;
+}
+
+Holder(count Countdown) => init{ count; tally = Tally(Int(0)); }
+
+/// Reads the countdown through the host `n` times. Each read is a whole
+/// snapshot, so it sees every level a write-back put there or none.
+Int watch(h &Holder, n Int, whole Int) {
+	seen Int(0);
+	i Int(1);
+	i!to(n) {
+		c Countdown = h.count;
+		d Int = depth(c);
+		@controlflow$branch(d == Int(0), {
+			seen = seen + Int(1);
+		});
+		@controlflow$branch(d == whole, {
+			seen = seen + Int(1);
+		});
+	}
+	return seen;
+}
+
 type Person = #struct {
 	name String;
 	age Int;
@@ -192,6 +218,20 @@ Unit main() {
 		spawn c3!deepen(Int(400));
 	});
 	check(depth(c1) + depth(c2) + depth(c3) == Int(900));
+
+	// A value in a host written by a spawned call while another reads it:
+	// the writer works on a copy it writes back, and each read is a
+	// coherent snapshot.
+	holder Holder(Countdown.done(Unit()));
+	seer &Holder = holder;
+	@controlflow$branch(true, {
+		watched Int = spawn watch(seer, Int(300), Int(250));
+		spawn holder.count!deepen(Int(250));
+		spawn holder.tally!add(Int(3));
+		check(watched == Int(300));
+	});
+	check(depth(holder.count) == Int(250));
+	check(holder.tally.total == Int(3));
 
 	// Calls that spawn calls of their own, all at once.
 	x Int = spawn pair(Int(18));

@@ -401,6 +401,46 @@ test passing.
   thread always takes that lock for a context it reaches. Anchor cells are
   kept in segments that stay where they are, and are made and retired under
   a lock. The spec leaves all of this to the implementation.
+- **The pool steals work.** Each pool thread keeps a deque of the calls it
+  spawned and runs its own newest first; a thread with none left steals
+  another's oldest ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §2.4). Calls spawned from the program's
+  own thread go to a deque every pool thread steals from. A thread that
+  waits for a call no thread has taken yet runs it itself, so a pool of one
+  thread never deadlocks on a call that spawns and waits. Each deque has a
+  lock of its own rather than being lock-free, which is left to measurement.
+  `setThreads` resizes the pool while it runs: more threads start at once,
+  and a thread over the count leaves when it next finds no work, its deque
+  kept for the next thread to start. The pool keeps at most 4095 threads.
+- **A write through a host from spawned work.** A spawned `mut` call whose
+  subject is reached through a host -- a member of a reference-type
+  instance, of what a guest names, or an element of a list -- is the one
+  way spawned work writes where another thread may read at the same time
+  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §4.2–§4.4). Such a call works on a copy of its subject in
+  its frame, deep for a value that owns blocks, and writes it back when it
+  returns: what the copy owns moves into the subject's region, what the
+  subject owned is retired there, whole, until that region drains, and the
+  bytes are replaced a word at a time while one global count of write-backs
+  begun is ahead of the count done. A subject reached any other way is
+  written where it is, since no other thread can reach it (§4.3). Other
+  threads see the call's writes all at once, when it returns, which is one
+  of the orders §3.7 already allows.
+- **Snapshots.** A value read through a host into a fresh binding -- a
+  local, an argument, an operand -- is read as a snapshot (§4.4): its bytes
+  are taken when every write-back begun is done, and taken again if one
+  began meanwhile. Nothing a snapshot names is ever returned while a reader
+  could follow it, since a write-back retires what it replaces, so a value
+  that owns blocks is then copied whole from the snapshot with no further
+  checks: none of §4.4's bounds on a walk are needed, and no attempt
+  allocates anything it has to give back. A `match` or a case read on such a
+  place reads it where it is. Each snapshot is a call into the runtime,
+  where an inline check of the two counts would do; that, and how long
+  retired values are kept, is left to measurement.
+- **A host lent to a running spawn.** §4.2 makes spawned work read the
+  graph of reference-type objects without writing it, and §4.3 keeps the
+  spawning block off any location a spawn writes, but nothing keeps the
+  spawning block from writing a host it lent a spawn that is still reading
+  it, and the checker does not either. Until the spec says, such a write
+  races the reader.
 - **Where a spawned call is waited for.** Only a spawned call bound by a
   `let` is waited for where its local is read ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §3.2). One
   read where it is written -- an operand, an argument, a value assigned to a
@@ -411,7 +451,7 @@ test passing.
   result's hosts and blocks under the done tag, the abort value's under the
   aborted one. The call settles once, on the spawning thread, where it is
   first read or where its block ends
-  ([`spec-divergences.md`](spec-divergences.md) §15). A flag the spawn sets
+  ([`spec-divergences.md`](spec-divergences.md) §13). A flag the spawn sets
   says whether it has. An abort takes the abort value out of the slot and
   runs the handler written at the spawn, lowered where it settles but in
   the context of the spawn, so its `abort`, `return` and exit go where they

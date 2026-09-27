@@ -61,6 +61,38 @@ static void halves(char *frame) {
 	zane_scope_drain(scope);
 }
 
+/* Two words written back together, over and over, and a reader that
+   counts the snapshots in which they differ. */
+typedef struct {
+	int64_t a, b;
+} pair;
+
+typedef struct {
+	int64_t result;
+	pair *at;
+} watching;
+
+enum { ROUNDS = 200000 };
+
+static void write_pairs(char *frame) {
+	watching *f = (watching *)frame;
+	for (int64_t i = 1; i <= ROUNDS; i++) {
+		pair copy = { i, i };
+		zane_writeback((char *)f->at, (char *)&copy, sizeof copy, NULL);
+	}
+}
+
+static void read_pairs(char *frame) {
+	watching *f = (watching *)frame;
+	int64_t torn = 0;
+	for (int64_t i = 0; i < ROUNDS; i++) {
+		pair seen;
+		zane_snapshot((char *)&seen, (const char *)f->at, sizeof seen);
+		torn += seen.a != seen.b;
+	}
+	f->result = torn;
+}
+
 static int holds(const zane_text *t, const char *s) {
 	return t->length == (int64_t)strlen(s) && memcmp(t->bytes, s, strlen(s)) == 0;
 }
@@ -147,4 +179,17 @@ void zane_main(void) {
 	}
 	zane_set_threads_auto();
 	check(zane_wanted == zane_processors());
+
+	/* A reader never sees a write-back half done. */
+	zane_set_threads(2);
+	scope = zane_scope_enter();
+	pair *shared = zane_slot(scope, sizeof *shared, 8, NULL);
+	watching *writer = zane_frame(scope, sizeof *writer, 8);
+	watching *reader = zane_frame(scope, sizeof *reader, 8);
+	int64_t *torn = zane_slot(scope, 8, 8, NULL);
+	writer->at = reader->at = shared;
+	zane_spawn((char *)writer, write_pairs, (char *)writer, NULL, 0);
+	zane_spawn((char *)reader, read_pairs, (char *)torn, NULL, 8);
+	zane_scope_drain(scope);
+	check(*torn == 0 && shared->a == ROUNDS && shared->b == ROUNDS);
 }

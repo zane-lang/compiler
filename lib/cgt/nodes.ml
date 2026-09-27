@@ -150,6 +150,10 @@ module Expr = struct
     | Layout of Layout.t
     (* The address of a function of the program, by its symbol. *)
     | Function of string
+    (* The value at an address reached through a host, read as a coherent
+       snapshot: retried while a spawned call writes back there
+       (concurrency.md §4.4). *)
+    | Snapshot of t
     (* A value on its way out of the arenas an exit drains: the function's,
        when [exit] is [None], or those opened inside the expansion [exit]
        names. Every block it owns in them moves into the arena the exit

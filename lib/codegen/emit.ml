@@ -79,6 +79,10 @@ let runtime env name =
         | "zane_join" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr |]
         | "zane_set_threads" -> Llvm.function_type env.i64 [| env.i64 |]
         | "zane_set_threads_auto" -> Llvm.function_type (Llvm.void_type env.ctx) [||]
+        | "zane_snapshot" ->
+            Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.i64 |]
+        | "zane_writeback" ->
+            Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.i64; env.ptr |]
         | _ -> failwith ("codegen: unknown runtime function " ^ name)
       in
       let f = Llvm.declare_function name fty env.m in
@@ -277,6 +281,16 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
       Some block
   | Expr.Layout l -> Some (layout env l)
   | Expr.Function fn -> Some (fst (Hashtbl.find env.funcs fn))
+  | Expr.Snapshot p -> (
+      let p = Option.get (expr env fr b p) in
+      match e.Expr.ty with
+      | Ty.Void -> None
+      | t ->
+          let lt = lltype env t in
+          let out = alloca env fr lt in
+          let size = Llvm.const_int env.i64 (fst (size_align t)) in
+          ignore (call_runtime env b "zane_snapshot" [| out; p; size |]);
+          Some (Llvm.build_load lt out "" b))
   | Expr.Escape { value; layout = l; exit } -> (
       (* The arenas the exit drains are the innermost ones: all of the
          function's, or those opened since the expansion began. *)
