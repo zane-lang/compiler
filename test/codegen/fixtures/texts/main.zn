@@ -1,0 +1,120 @@
+/// Strings: `@primitives$String`, the string view, a reference type whose
+/// handle owns its bytes (memory.md §3.6). Joined, compared and printed;
+/// hosted, moved, guested, overwritten, floated, returned, discarded and
+/// aborted with. The runtime stops the program if a block outlives its
+/// owner, and a block returned twice fails under the C library, so a run that
+/// ends cleanly returned each block once. Each check prints `yes` when it
+/// holds and `no` when it does not.
+package texts;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+type Person = #struct {
+	name String;
+}
+
+Person(name String) => init{ name; }
+
+String greeting(this Person) => String("hello, ") + this.name
+
+Unit rename(this Person, name String) mut {
+	this.name = name;
+	return Unit();
+}
+
+type Tagged = #variant {
+	named String;
+	anonymous Unit;
+}
+
+type Holder = #variant {
+	some Person;
+	none Unit;
+}
+
+String twice(text &String) => text + text
+
+String?String refuse(text String) {
+	abort text + String("!");
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(~ok, {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	// Joined, compared and printed.
+	a String("ab");
+	b String = a + String("cd\n");
+	@program$console!print(b);
+	check(a + String("cd\n") == b);
+	check(~(a == b));
+	check(twice(a) == String("abab"));
+
+	// A move takes the bytes along, and a refill brings new ones.
+	c String = b;
+	check(c == String("abcd\n"));
+	b = String("again");
+	check(b == String("again"));
+
+	// A host holding a string: moved, guested, and its string replaced.
+	p Person(String("ada"));
+	g &Person = p;
+	q Person = p;
+	check(g:greeting() == String("hello, ada"));
+	q.name = a + String("!");
+	check(g:greeting() == String("hello, ab!"));
+	n &String = q.name;
+	check(n == String("ab!"));
+
+	// A payload read through a binder, and one that floats.
+	t Tagged = Tagged.named(String("abcd?"));
+	check(match (t) {
+		k named => k == String("abcd?");
+		z anonymous => false;
+	});
+	t = Tagged.anonymous(Unit());
+	kept Person(String("floating"));
+	w &Person = kept;
+	holder Holder = Holder.some(kept);
+	holder = Holder.none(Unit());
+	check(w:greeting() == String("hello, floating"));
+	w!rename(a + String("!"));
+	check(w:greeting() == String("hello, ab!"));
+
+	// A result nobody keeps, and a string aborted with.
+	twice(a);
+	check((refuse(String("no")) ? e { resolve e; }) == String("no!"));
+
+	// Many strings made and replaced: each pass returns what it replaced,
+	// and what it made itself.
+	s String("");
+	i Int(1);
+	i!to(Int(10000)) {
+		made String = a + String("y");
+		s = made + String("z");
+	}
+	check(s == String("abyz"));
+	return Unit();
+}

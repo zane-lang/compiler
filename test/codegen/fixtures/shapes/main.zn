@@ -3,7 +3,11 @@
 /// prints `yes` when it holds and `no` when it does not.
 package shapes;
 
-import core$;
+alias Int = @primitives$Int
+alias Float = @primitives$Float
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
 
 type Vec = struct {
 	x Int;
@@ -59,27 +63,27 @@ Int area(shape Shape) => match (shape) {
 	v dot => Int(0);
 	r circle => Int(3);
 	b body {
-		if(b.mass < Float(1.0)) {
+		@controlflow$branch(b.mass < Float(1.0), {
 			return Int(1);
-		}
+		});
 		return b.at.x * b.at.y;
 	}
 	none => Int(0);
 }
 
 Unit check(ok Bool) {
-	yes @primitives$String("yes\n");
-	no @primitives$String("no\n");
-	ran Bool = if(ok) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
 		@program$console!print(yes);
-	}
-	ran:else() {
+	});
+	@controlflow$branch(~ok, {
 		@program$console!print(no);
-	}
+	});
 	return Unit();
 }
 
-@primitives$Unit main() {
+Unit main() {
 	// A copy is its own value.
 	a Vec(Int(1), Int(2));
 	b Vec = a;
@@ -109,13 +113,13 @@ Unit check(ok Bool) {
 	k Color = Color.green;
 	s Shape = Shape.circle(Float(1.0));
 	check(match (k, s) {
-		[red, blue], [dot, circle, body, none] => Bool(false);
-		green, [dot, body, none] => Bool(false);
-		green, circle => Bool(true);
+		[red, blue], [dot, circle, body, none] => false;
+		green, [dot, body, none] => false;
+		green, circle => true;
 	});
 
 	// An enum map.
 	check(Color.red.warm);
 	check(~k.warm);
-	return @primitives$Unit();
+	return Unit();
 }

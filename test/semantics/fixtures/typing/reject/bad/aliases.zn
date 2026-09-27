@@ -1,0 +1,10 @@
+/// The primitive types, under the names the other files use.
+package bad;
+
+alias Int = @primitives$Int
+alias Float = @primitives$Float
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+alias List<T Type> = @primitives$List<T>

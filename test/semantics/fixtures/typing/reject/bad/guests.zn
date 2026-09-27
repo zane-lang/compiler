@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Pen = #struct { ink Int; }
 type Desk = #struct { pen &Pen; }
 

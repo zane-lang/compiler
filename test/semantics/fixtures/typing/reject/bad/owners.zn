@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Leaf = #struct { size Int; }
 type Branch = #struct { leaf Leaf; }
 type Pin = #struct { leaf &Leaf; }

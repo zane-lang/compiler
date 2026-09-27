@@ -7,13 +7,12 @@ open Cgt.Nodes
 type env = {
   ctx : Llvm.llcontext;
   m : Llvm.llmodule;
-  (* A string view is passed to the runtime as its two halves, which is how C
-     receives a pointer and a length. *)
   ptr : Llvm.lltype;
   i64 : Llvm.lltype;
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
-  (* Each layout the program uses, as one constant table. *)
-  layouts : (Layout.t, Llvm.llvalue) Hashtbl.t;
+  (* Each layout the program names, as one constant table, and whether it
+     lists any position. *)
+  layouts : (Layout.t, Llvm.llvalue * bool) Hashtbl.t;
 }
 
 let size_align = Ty.size_align
@@ -26,7 +25,7 @@ let rec lltype env (t : Ty.t) =
   | Ty.I32 -> Llvm.i32_type env.ctx
   | Ty.I64 -> env.i64
   | Ty.F64 -> Llvm.double_type env.ctx
-  | Ty.View -> Llvm.struct_type env.ctx [| env.ptr; env.i64 |]
+  | Ty.Handle -> Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx; env.ptr; env.i64; env.i64 |]
   | Ty.Ptr -> env.ptr
   | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
   | Ty.Sum ts -> (
@@ -50,7 +49,10 @@ let runtime env name =
   | None ->
       let fty =
         match name with
-        | "zane_print" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.i64 |]
+        | "zane_print" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr |]
+        | "zane_text_join" ->
+            Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.ptr |]
+        | "zane_text_equal" -> Llvm.function_type env.i64 [| env.ptr; env.ptr |]
         | "zane_divide_by_zero" -> Llvm.function_type (Llvm.void_type env.ctx) [||]
         | "zane_scope_enter" -> Llvm.function_type env.i64 [||]
         | "zane_slot" -> Llvm.function_type env.ptr [| env.i64; env.i64; env.i64; env.ptr |]
@@ -58,10 +60,17 @@ let runtime env name =
         | "zane_resolve" -> Llvm.function_type env.ptr [| Llvm.i32_type env.ctx |]
         | "zane_terminal" ->
             Llvm.function_type (Llvm.i32_type env.ctx) [| Llvm.i32_type env.ctx |]
-        | "zane_arrive" | "zane_vacate" ->
+        | "zane_promote" ->
+            Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.i64 |]
+        | "zane_arrive" | "zane_vacate" | "zane_copy" ->
             Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr |]
         | "zane_overwrite" ->
-            Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.i64; env.ptr |]
+            Llvm.function_type (Llvm.void_type env.ctx)
+              [| env.ptr; env.ptr; env.i64; env.ptr; env.i64 |]
+        | "zane_box" -> Llvm.function_type env.ptr [| env.i64; env.i64 |]
+        | "zane_list_new" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr |]
+        | "zane_list_push" -> Llvm.function_type env.ptr [| env.ptr; env.i64; env.ptr |]
+        | "zane_list_at" -> Llvm.function_type env.ptr [| env.ptr; env.i64; env.i64 |]
         | "zane_scope_drain" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.i64 |]
         | _ -> failwith ("codegen: unknown runtime function " ^ name)
       in
@@ -69,37 +78,63 @@ let runtime env name =
       Hashtbl.replace env.funcs name (f, fty);
       (f, fty)
 
-(* A layout as the runtime reads it: a count, then per host its offset, its
-   size, and its tag conditions as a count and (offset, tag) pairs. *)
-let layout env (l : Layout.t) =
-  match Hashtbl.find_opt env.layouts l with
-  | Some g -> g
-  | None ->
-      let words =
-        List.length l
-        :: List.concat_map
-             (fun (p : Layout.position) ->
-               [ p.offset; p.size; List.length p.tags ]
-               @ List.concat_map (fun (o, t) -> [ o; t ]) p.tags)
-             l
-      in
-      let table =
-        Llvm.const_array env.i64 (Array.of_list (List.map (Llvm.const_int env.i64) words))
-      in
-      let g = Llvm.define_global "zane.layout" table env.m in
+(* The program's layouts as the runtime reads them: a count, then per
+   position its kind, its offset, its size, a list's stride or a box's
+   payload size, the table of its elements' or payload's layout, and its tag
+   conditions as a count and (offset, tag) pairs. Every table is made before
+   any is filled, since a layout may name another, or itself. *)
+let layouts env (named : (Layout.t * Layout.position list) list) =
+  let words (p : Layout.position) = 6 + (2 * List.length p.tags) in
+  List.iter
+    (fun (name, ps) ->
+      let n = 1 + List.fold_left (fun n p -> n + words p) 0 ps in
+      let zeros = Llvm.const_null (Llvm.array_type env.i64 n) in
+      let g = Llvm.define_global "zane.layout" zeros env.m in
       Llvm.set_linkage Llvm.Linkage.Private g;
       Llvm.set_global_constant true g;
-      Hashtbl.replace env.layouts l g;
-      g
+      Hashtbl.replace env.layouts name (g, ps <> []))
+    named;
+  let int = Llvm.const_int env.i64 in
+  let table name = Llvm.const_ptrtoint (fst (Hashtbl.find env.layouts name)) env.i64 in
+  List.iter
+    (fun (name, ps) ->
+      let position (p : Layout.position) =
+        let kind, extra, inner =
+          match p.kind with
+          | Layout.Host -> (0, 0, int 0)
+          | Layout.Text -> (1, 0, int 0)
+          | Layout.List { stride; elements } -> (2, stride, table elements)
+          | Layout.Box { size; payload } -> (3, size, table payload)
+        in
+        [ int kind; int p.offset; int p.size; int extra; inner; int (List.length p.tags) ]
+        @ List.concat_map (fun (o, t) -> [ int o; int t ]) p.tags
+      in
+      let words = int (List.length ps) :: List.concat_map position ps in
+      Llvm.set_initializer
+        (Llvm.const_array env.i64 (Array.of_list words))
+        (fst (Hashtbl.find env.layouts name)))
+    named
 
-(* A string literal is constant bytes the module owns, with no terminator. *)
+(* A layout's table, or no table when it lists nothing. *)
+let layout env (l : Layout.t) =
+  match Hashtbl.find_opt env.layouts l with
+  | Some (g, true) -> g
+  | _ -> Llvm.const_null env.ptr
+
+let listed env (l : Layout.t) =
+  match Hashtbl.find_opt env.layouts l with Some (_, listed) -> listed | None -> false
+
+(* A string literal is constant bytes the module owns, with no terminator.
+   Its instance starts untethered, and owns no block. *)
 let text env s =
   let bytes = Llvm.const_string env.ctx s in
   let g = Llvm.define_global "zane.text" bytes env.m in
   Llvm.set_linkage Llvm.Linkage.Private g;
   Llvm.set_global_constant true g;
   Llvm.set_unnamed_addr true g;
-  Llvm.const_struct env.ctx [| g; Llvm.const_int env.i64 (String.length s) |]
+  let n = Llvm.const_int env.i64 in
+  Llvm.const_struct env.ctx
+    [| Llvm.const_int (Llvm.i32_type env.ctx) 0; g; n (String.length s); n 0 |]
 
 (* What a function being built keeps: its slots, the exit block of each
    expansion it is inside with how many arenas were open when it began, and
@@ -136,6 +171,19 @@ let slot env fr id t =
   let s = alloca env fr t in
   Hashtbl.replace fr.locals id (s, t);
   s
+
+(* A value moved into a fresh place: stored, the anchors it carries follow
+   it there (memory.md §4.5), and its blocks move into the place's region
+   (§3.5). *)
+let place env b p v l =
+  ignore (Llvm.build_store v p b);
+  if listed env l then ignore (call_runtime env b "zane_arrive" [| p; layout env l |])
+
+(* A value stored where its address can be passed. *)
+let spill env fr b v =
+  let p = alloca env fr (Llvm.type_of v) in
+  ignore (Llvm.build_store v p b);
+  p
 
 let has_terminator b =
   match Llvm.block_terminator (Llvm.insertion_block b) with Some _ -> true | None -> false
@@ -207,6 +255,31 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
           let v = Llvm.build_load (lltype env t) p "" b in
           ignore (call_runtime env b "zane_vacate" [| p; layout env l |]);
           Some v)
+  | Expr.Copy { value; layout = l } ->
+      Option.map
+        (fun v ->
+          let p = spill env fr b v in
+          if listed env l then ignore (call_runtime env b "zane_copy" [| p; layout env l |]);
+          Llvm.build_load (Llvm.type_of v) p "" b)
+        (expr env fr b value)
+  | Expr.Box { value; layout = l } ->
+      let size, align = size_align value.Expr.ty in
+      let n x = Llvm.const_int env.i64 x in
+      let block = call_runtime env b "zane_box" [| n size; n align |] in
+      Option.iter (fun v -> place env b block v l) (expr env fr b value);
+      Some block
+  | Expr.Layout l -> Some (layout env l)
+  | Expr.Escape { value; layout = l; exit } -> (
+      (* The arenas the exit drains are the innermost ones: all of the
+         function's, or those opened since the expansion began. *)
+      let kept = match exit with None -> 0 | Some label -> snd (Hashtbl.find fr.labels label) in
+      let drained = List.filteri (fun i _ -> i < List.length fr.open_ - kept) fr.open_ in
+      match (expr env fr b value, List.rev drained) with
+      | Some v, outermost :: _ when listed env l ->
+          let p = spill env fr b v in
+          ignore (call_runtime env b "zane_promote" [| p; layout env l; outermost |]);
+          Some (Llvm.build_load (Llvm.type_of v) p "" b)
+      | v, _ -> v)
   | Expr.Float f -> Some (Llvm.const_float (Llvm.double_type env.ctx) f)
   | Expr.Bool v -> Some (Llvm.const_int (Llvm.i1_type env.ctx) (if v then 1 else 0))
   | Expr.Text s -> Some (text env s)
@@ -255,22 +328,26 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
       let args = Array.of_list (List.filter_map (expr env fr b) args) in
       let v = Llvm.build_call fty f args "" b in
       if e.Expr.ty = Ty.Void then None else Some v
-  | Expr.Runtime { fn; args } ->
+  | Expr.Runtime { fn; args } -> (
       let f, fty = runtime env fn in
       let args =
-        List.concat_map
+        List.filter_map
           (fun (a : Expr.t) ->
             match (a.Expr.ty, expr env fr b a) with
-            | Ty.View, Some v ->
-                let bytes = Llvm.build_extractvalue v 0 "" b in
-                let length = Llvm.build_extractvalue v 1 "" b in
-                [ bytes; length ]
-            | _, Some v -> [ v ]
-            | _, None -> [])
+            | Ty.Handle, Some v -> Some (spill env fr b v)
+            | _, v -> v)
           args
       in
-      ignore (Llvm.build_call fty f (Array.of_list args) "" b);
-      None
+      match e.Expr.ty with
+      | Ty.Void ->
+          ignore (Llvm.build_call fty f (Array.of_list args) "" b);
+          None
+      | Ty.Handle ->
+          let t = lltype env Ty.Handle in
+          let out = alloca env fr t in
+          ignore (Llvm.build_call fty f (Array.of_list (out :: args)) "" b);
+          Some (Llvm.build_load t out "" b)
+      | _ -> Some (Llvm.build_call fty f (Array.of_list args) "" b))
   | Expr.Binary { op; left; right } -> (
       (* The left operand's instructions come first. *)
       let l = expr env fr b left in
@@ -353,24 +430,32 @@ and stat env fr b (s : Stat.t) =
           let size, align = size_align value.Expr.ty in
           let n x = Llvm.const_int env.i64 x in
           let arena = Hashtbl.find fr.arenas scope in
-          let table = if l = [] then Llvm.const_null env.ptr else layout env l in
-          let slot = call_runtime env b "zane_slot" [| arena; n size; n align; table |] in
-          ignore (Llvm.build_store v slot b);
-          (* The anchors the host brings follow it here (memory.md §4.5). *)
-          if l <> [] then ignore (call_runtime env b "zane_arrive" [| slot; table |]);
+          let slot = call_runtime env b "zane_slot" [| arena; n size; n align; layout env l |] in
+          place env b slot v l;
           Hashtbl.replace fr.locals id (slot, Llvm.type_of v))
+  | Stat.Reserve { id; scope; ty = t; layout = l } ->
+      let size, align = size_align t in
+      let n x = Llvm.const_int env.i64 x in
+      let arena = Hashtbl.find fr.arenas scope in
+      let slot = call_runtime env b "zane_slot" [| arena; n size; n align; layout env l |] in
+      Hashtbl.replace fr.locals id (slot, lltype env t)
+  | Stat.Place { address; value; layout = l } -> (
+      let p = Option.get (expr env fr b address) in
+      match expr env fr b value with Some v -> place env b p v l | None -> ())
   | Stat.Store { address; value } -> (
       let p = Option.get (expr env fr b address) in
       match expr env fr b value with Some v -> ignore (Llvm.build_store v p b) | None -> ())
-  | Stat.Overwrite { address; value; layout = l } -> (
+  | Stat.Overwrite { address; value; layout = l; contingent } -> (
       let p = Option.get (expr env fr b address) in
       match expr env fr b value with
       | None -> ()
       | Some v ->
-          let incoming = alloca env fr (Llvm.type_of v) in
-          ignore (Llvm.build_store v incoming b);
-          let size = Llvm.const_int env.i64 (fst (size_align value.Expr.ty)) in
-          ignore (call_runtime env b "zane_overwrite" [| p; incoming; size; layout env l |]))
+          let incoming = spill env fr b v in
+          let n x = Llvm.const_int env.i64 x in
+          let size = n (fst (size_align value.Expr.ty)) in
+          let contingent = n (if contingent then 1 else 0) in
+          ignore
+            (call_runtime env b "zane_overwrite" [| p; incoming; size; layout env l; contingent |]))
   | Stat.If { cond; body } ->
       let c = Option.get (expr env fr b cond) in
       let taken = block env fr and after = block env fr in
@@ -440,6 +525,7 @@ let program (p : Program.t) =
       layouts = Hashtbl.create 8;
     }
   in
+  layouts env p.Program.layouts;
   List.iter
     (fun (f : Func.t) ->
       let fty = fn_type env (List.map snd f.Func.params) f.Func.ret in

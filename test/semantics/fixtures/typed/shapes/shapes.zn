@@ -2,7 +2,9 @@
 /// constructors with them, and an importer reaches them without naming them.
 package shapes;
 
-import core$;
+alias Float = @primitives$Float
+alias Unit = @primitives$Unit
+alias String = @primitives$String
 
 type Vec2 = struct {
 	x Float;
@@ -41,10 +43,10 @@ type Shape = #variant {
 type Corner = enum [ topLeft, topRight, bottomLeft, bottomRight ]
 
 Corner.label String {
-	topLeft = "top left";
-	topRight = "top right";
-	bottomLeft = "bottom left";
-	bottomRight = "bottom right";
+	topLeft = String("top left");
+	topRight = String("top right");
+	bottomLeft = String("bottom left");
+	bottomRight = String("bottom right");
 }
 
 /// A private helper is invisible to every other package.

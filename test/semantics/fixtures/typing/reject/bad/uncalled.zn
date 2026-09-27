@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 /// Nothing calls these, so each is checked once where it is declared, with
 /// its type parameter unknown. What depends on `T` waits for an instance;
 /// what does not is wrong in every instance, and is reported here.

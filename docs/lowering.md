@@ -79,8 +79,8 @@ one of:
   ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.6), whose payload lives in the dynamic region.
 
 `Unit` has no storage, and a verb that returns it returns nothing. A value
-struct of one member has that member's layout, so `core`'s `Int` is an `i64`,
-and an empty one, like `core`'s `Unit`, has none. A distinct
+struct of one member has that member's layout, so a struct around one
+`@primitives$Int` is an `i64`, and an empty one has none. A distinct
 type is its underlying type. A concept literal (`Integer_lit`, `Text_lit`) is
 already gone, because the TST put an implicit constructor around every one
 ([`semantics.md`](semantics.md) D9); lowering turns `@primitives$Int(3)` into the constant `i64 3`.
@@ -173,7 +173,7 @@ the parameter, and so is every call that body passes the block on to
 still leaves the function it was written in, because after expansion that is
 the function it is in.
 
-The same holds for a verb with any other concept parameter, such as `core`'s
+The same holds for a verb with any other concept parameter, such as an
 `implicit Int(value @concepts$Int)`: a literal has no storage, so the verb is
 expanded and the literal is embedded where the body uses the parameter. In an
 expanded body the subject names the caller's own place, so a `mut` method
@@ -280,9 +280,9 @@ test passing.
    through `@program$console`: the CGT, codegen, the runtime and the test
    that builds and runs it. Then lowering for `Int`,
    `Float` and `Bool` arithmetic, functions, returns, and `branch`/`repeat`
-   expanded from `core`'s `if` and `to`. A test that builds and runs a
-   program. Printing an `Int` waits for step 7, since it goes through a
-   `String`.
+   expanded from `if` and `to` verbs a program declares. A test that builds and runs a
+   program. Printing an `Int` goes through a `String`, and waits for a
+   conversion from one to the other, which the spec does not name yet.
 3. **Values.** Value structs and sums: layout, copies, fields, `match`, and
    enum maps. A `mut` subject is passed by address. A value type that
    contains itself needs a boxed member, which waits for step 7, and a case
@@ -300,7 +300,15 @@ test passing.
    floats identities from a per-type layout of where each host's
    backpointer is, and a drain retires the anchors its scope still hosts.
 7. **Handles.** `String`, `List`, boxed members, and `destroy` returning
-   dynamic blocks.
+   dynamic blocks. A string's or a list's handle, and a boxed member, own a
+   block in the dynamic region of the scope that holds the owner, which is
+   returned when the owner dies, at an overwrite or at its scope's drain; a
+   value that leaves a scope takes its blocks out first, and a value copied
+   whole gets copies of its own. A
+   subscript is a place, generic types and verbs lower per instance, and the
+   anchors of hosts in a list follow them when its block grows. The runtime
+   is tested in C on its own, and stops a program that ends with a block
+   still out.
 8. **`spawn`.** The thread pool, futures, and the water tower.
 
 ---
@@ -310,14 +318,15 @@ test passing.
 - **How many scopes get an arena.** L8 gives every block that declares a local
   its own. For now only a block that hosts a reference-type local opens one,
   and a value-type local stays an LLVM stack slot, since nothing tells the
-  two placements apart until a value owns dynamic storage (step 7). Folding
-  arenas is allowed and saves the most in loops; which ones to fold is left
-  to measurement.
-- **Arenas share one chain of chunks.** Scopes nest last-in-first-out, so the
-  runtime keeps one chain of 1 MiB chunks: a scope bumps from where the scope
-  around it stopped, and draining it restores that point. A chunk stays
-  mapped once made and is reused by the next scope that reaches it, where
-  [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1 unmaps a scope's chunks at its drain. The spec leaves
+  two placements apart until a value owns dynamic storage, which it does
+  only through a boxed member; such a value is held in the arena too.
+  Folding arenas is allowed and saves the most in loops; which ones to fold
+  is left to measurement.
+- **Slots share one chain of chunks.** Scopes nest last-in-first-out, so the
+  runtime keeps one chain of 1 MiB chunks for every scope's fixed-size
+  region: a scope bumps from where the scope around it stopped, and draining
+  it restores that point. A chunk stays mapped once made and is reused by the
+  next scope that reaches it, where [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1 unmaps a scope's chunks at its drain. The spec leaves
   arena granularity to the implementation and fixes only that a scope's
   memory is released together, which this does.
 - **Anchors as the runtime keeps them.** An anchor cell holds its host's
@@ -328,9 +337,61 @@ test passing.
   later but still after every guest that could name it. Nothing a program
   does can tell these apart.
 - **A floated host outlives its owner.** A variant payload's anchored
-  occupant floats ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8.1) into memory of its own that lives
-  until the program ends, rather than until its owner scope drains. A host
-  has no destructor, so the longer life is not observable.
+  occupant floats ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8.1) into a block of the program's own
+  region, open until the program ends, rather than until its owner scope
+  drains, and the blocks it owns move there too, as does anything later
+  stored into it. That region goes with the program, unchecked. A
+  host has no destructor, so the longer life is not observable.
+- **Each scope's dynamic region.** A scope's blocks are in a region of its
+  own, as [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1–3.2 has it: chunks of its own, a bump frontier, and
+  a stack of returned blocks per size and alignment, all given back at its
+  drain. A list's block doubles from 128 bytes (§3.6): into a returned block
+  of that size, in place when it is last at the frontier, or else into new
+  bytes. Where the runtime departs from the spec:
+  - A block is placed where its value is made, which is the innermost
+    scope, and moves into the region of the scope that holds the place the
+    value arrives in: a slot, an overwritten place, a list's element. The
+    spec builds a fresh value in its destination directly (§3.7); here a
+    value built for an older scope's place is moved there once. A list's
+    growth goes to the region that holds the list.
+  - A value leaving scopes that drain -- a `return`, a `resolve`, an
+    `abort`, a `return` from a block argument or an arm -- moves every block
+    it owns in them into the scope the exit returns to, before the drain
+    (§3.1). Results are returned by value (below), so that scope is the
+    caller's innermost, and the value moves again if the caller places it
+    further out.
+  - The runtime finds a block's region from a map of every chunk it made,
+    and a slot's from where each open scope's slots began, rather than from
+    a segmented offset (§3.1). A dynamic chunk begins with a cache line of
+    its own bookkeeping, and an oversized block's chunks are one mapping.
+  - Every block is at least a word, and aligned to one; a list's is aligned
+    to a cache line. A chunk a region gives back is kept for the next
+    region rather than unmapped.
+  - A value that owns a block is held in its scope's arena like a host,
+    and so is a fresh host or value that nothing keeps, such as a result
+    that is dropped or an operand, so the drain returns its blocks. Having
+    returned them, a drain finds no block out in its region, and the
+    runtime stops a program where it does, since that block's owner is
+    somewhere the scope cannot reach.
+
+  Nothing a program does can tell these apart.
+- **A value parameter is borrowed.** A value that owns a block is copied
+  whole where it is stored from a place ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.3), and passed
+  as it is where it is only read: a value parameter is read-only (§2.9), so
+  the caller keeps it, and a fresh one is held in the caller's scope first.
+  A callee that stores its parameter copies it.
+- **A case read of a host.** What a case read gives is its payload, which
+  the variant keeps, or what its handler resolves, which is fresh. So a read
+  whose type is a host, or a value that owns a block, gives an address: the
+  payload's, or that of a slot reserved in the reading scope before the read,
+  which the handler's `resolve` fills. Either way what it gives has one
+  owner, and the drain ends the slot.
+- **A literal's bytes stay where the program keeps them.** A string view's
+  handle points into the dynamic region ([`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.7). A literal's
+  points at the bytes the program embeds instead, and the handle also holds
+  the room of the block it owns, which is 0 for a literal's, so a literal
+  takes no block and returns none. Like any reference type's instance, the
+  view starts with its backpointer.
 - **A `this` address across a call that moves.** L10 resolves `this` once per
   call. That is safe while nothing in the call relocates what it names, which
   the single-writer rule ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §4.3) should
@@ -349,7 +410,8 @@ test passing.
   LLVM aggregate values instead, which copies what L6 would lend; a value
   parameter cannot be written, so nothing observes the difference. A
   reference-type result is returned the same way, and arrives where the
-  caller hosts it: its anchors follow it there. A `mut` subject, a
+  caller hosts it: its anchors follow it there, and its blocks move into
+  that scope's region. A `mut` subject, a
   reference-type subject and a swallowed argument are passed by address.
 - **An outcome as a sum, for now.** L12 returns a tag and has the caller
   pass slots for the result and the abort value. Until results are written
@@ -367,4 +429,10 @@ test passing.
   zero` to stderr, and the status is 1. The one other quotient an `i64` cannot
   hold, the most negative value over `-1`, wraps, as `+` and `*` do.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
-  §5.2). Until it says, the check L5 emits traps.
+  §5.2). Until it says, the program stops as it does at a division by zero:
+  what it wrote so far is kept, the runtime writes `index out of range` to
+  stderr, and the status is 1.
+- **A type argument passes nothing.** A generic verb is lowered once per
+  instance the TST checked ([`semantics.md`](semantics.md) D12), with a
+  symbol of its own, and a type written where a value goes has already
+  picked the instance, so the call passes nothing for it.

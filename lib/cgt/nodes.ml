@@ -5,16 +5,21 @@
    be understood. It grows with each step of docs/lowering.md §8; what is here
    is what lowering handles so far. *)
 
-(* A CGT type is a machine layout (L5). [View] is `@primitives$String`, a
-   string view: a pointer to the first byte and a length in bytes, with no
-   terminator (types.md §2.7). [Void] is `Unit`, which has no storage.
+(* A CGT type is a machine layout (L5). [Handle] is `@primitives$String`,
+   the string view (types.md §2.7), and `@primitives$List<T>`: reference
+   types whose instance is a backpointer and a handle (memory.md §3.6), a
+   pointer to the first byte or element, the length in bytes or elements,
+   with no terminator, and the room in bytes of the block they are in, which
+   is 0 when the handle owns none: a literal's bytes are the module's own.
+   [Void] is `Unit`, which has no storage.
    [Struct] is a value struct's members in declaration order, [Sum] a value
    variant's or enum's cases: a tag and room for the widest payload. [Ptr]
    is the address of a place, which is how a `mut` subject is passed (L6).
    [I32] is a reference-type instance's backpointer and a guest's tether,
-   each an anchor's identity (memory.md §4.2). *)
+   each an anchor's identity (memory.md §4.2). A boxed member is a [Ptr] to
+   its payload's block (adt.md §4). *)
 module Ty = struct
-  type t = Void | I1 | I32 | I64 | F64 | View | Ptr | Struct of t list | Sum of t list
+  type t = Void | I1 | I32 | I64 | F64 | Handle | Ptr | Struct of t list | Sum of t list
 
   (* Size and alignment in bytes on a 64-bit target, where a struct is laid
      out as C lays it out, and a sum is its tag and then its payload room at
@@ -24,7 +29,7 @@ module Ty = struct
     | I1 -> (1, 1)
     | I32 -> (4, 4)
     | I64 | F64 | Ptr -> (8, 8)
-    | View -> (16, 8)
+    | Handle -> (32, 8)
     | Struct ts ->
         let size, align =
           List.fold_left
@@ -61,19 +66,30 @@ module Ty = struct
     | I32 -> "i32"
     | I64 -> "i64"
     | F64 -> "f64"
-    | View -> "view"
+    | Handle -> "handle"
     | Ptr -> "ptr"
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"
     | Sum ts -> "<" ^ String.concat " | " (List.map to_string ts) ^ ">"
 end
 
-(* Where a type's hosts are (memory.md §4.5): the instance itself when it is
-   a reference type, and every reference-type host inside it, outermost
-   first. A host inside a variant payload is there only while each of
-   [tags] -- a tag's offset and the case it must hold -- is live. *)
+(* Where a type's hosts and owned blocks are (memory.md §3.6, §4.5): the
+   instance itself when it is a reference type, every reference-type host
+   inside it, outermost first, and every handle and boxed member, each of
+   which may own a dynamic block. A list's block holds elements laid out as
+   [elements] says, [stride] bytes apart, and a box's holds one payload of
+   [size] bytes laid out as [payload] says. A position inside a variant
+   payload is there only while each of [tags] -- a tag's offset and the case
+   it must hold -- is live. A layout is named by the type it describes, and
+   the program lists each one once, so a layout may name itself. *)
 module Layout = struct
-  type position = { offset : int; size : int; tags : (int * int) list }
-  type t = position list
+  type kind =
+    | Host
+    | Text
+    | List of { stride : int; elements : string }
+    | Box of { size : int; payload : string }
+
+  type position = { kind : kind; offset : int; size : int; tags : (int * int) list }
+  type t = string
 end
 
 module Expr = struct
@@ -92,7 +108,8 @@ module Expr = struct
     | Deref of t
     (* A call to a function of the program, by its symbol (L6). *)
     | Call of { fn : string; args : t list }
-    (* A call into the C runtime (L17), by the runtime's symbol. *)
+    (* A call into the C runtime (L17), by the runtime's symbol. A string
+       goes to it, and comes back from it, through the address of a copy. *)
     | Runtime of { fn : string; args : t list }
     (* A scalar primitive's operator, on two operands of one type: [I64] and
        [F64] add, multiply, divide, compare; [I1] adds as `or`, multiplies as
@@ -123,6 +140,19 @@ module Expr = struct
     (* A move out of the place an address names: its value, and the place
        is spent (memory.md §3.7). *)
     | Take of { address : t; layout : Layout.t }
+    (* A value copied whole: every block it owns is copied too, so the copy
+       owns blocks of its own (memory.md §2.3). *)
+    | Copy of { value : t; layout : Layout.t }
+    (* A boxed member's payload placed in a block of its own, and the address
+       of the block (memory.md §3.6). *)
+    | Box of { value : t; layout : Layout.t }
+    (* A layout's table, for the runtime to read. *)
+    | Layout of Layout.t
+    (* A value on its way out of the arenas an exit drains: the function's,
+       when [exit] is [None], or those opened inside the expansion [exit]
+       names. Every block it owns in them moves into the arena the exit
+       returns to first (memory.md §3.1, §3.5). *)
+    | Escape of { value : t; layout : Layout.t; exit : int option }
 
   and binop = Add | Mul | Div | Eq | Less
 
@@ -148,10 +178,20 @@ module Expr = struct
     | Repeat of { count : t; body : stat list }
     | Switch of { value : t; cases : (int * stat list) list }
     | Leave of int
-    (* A store through an address, and a reference-type host replaced
-       there, its identities kept, merged or floated (memory.md §4.5). *)
+    (* A store through an address, and a value replaced there: a host's
+       identities kept, merged or floated (memory.md §4.5), the blocks the
+       old value owned returned, and the new one's moved into the place's
+       region. A contingent place -- a list's element
+       -- keeps none of its identities, and an anchored occupant floats. *)
     | Store of { address : t; value : t }
-    | Overwrite of { address : t; value : t; layout : Layout.t }
+    | Overwrite of { address : t; value : t; layout : Layout.t; contingent : bool }
+    (* A value moved into a fresh place at an address: stored, the anchors
+       it carries follow it there, and the blocks it owns move into the
+       region of the scope that holds the place. *)
+    | Place of { address : t; value : t; layout : Layout.t }
+    (* A slot of type [ty] in a scope's arena, zeroed so that it holds
+       nothing until a [Place] fills it, which the drain then ends. *)
+    | Reserve of { id : int; scope : int; ty : Ty.t; layout : Layout.t }
 
   let binop_to_string = function
     | Add -> "+"
@@ -174,7 +214,9 @@ module Stat = struct
     | Switch of { value : Expr.t; cases : (int * t list) list }
     | Leave of int
     | Store of { address : Expr.t; value : Expr.t }
-    | Overwrite of { address : Expr.t; value : Expr.t; layout : Layout.t }
+    | Overwrite of { address : Expr.t; value : Expr.t; layout : Layout.t; contingent : bool }
+    | Place of { address : Expr.t; value : Expr.t; layout : Layout.t }
+    | Reserve of { id : int; scope : int; ty : Ty.t; layout : Layout.t }
 
   (* A store into a whole local. *)
   let assign id (value : Expr.t) =
@@ -186,7 +228,12 @@ module Func = struct
 end
 
 (* One program is one module (L15). [entry] is the symbol of the root
-   package's `main`, which the runtime's C `main` calls (L16). *)
+   package's `main`, which the runtime's C `main` calls (L16), and
+   [layouts] each layout the program names. *)
 module Program = struct
-  type t = { funcs : Func.t list; entry : string }
+  type t = {
+    funcs : Func.t list;
+    entry : string;
+    layouts : (Layout.t * Layout.position list) list;
+  }
 end

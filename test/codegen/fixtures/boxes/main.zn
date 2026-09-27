@@ -1,0 +1,123 @@
+/// Boxed members: types that contain themselves (adt.md §4). A value one is
+/// copied whole, each copy owning blocks of its own; a reference one hosts
+/// its children, which stay where they are when it moves, so guests into
+/// them hold. A case read gives a boxed payload, or what its handler
+/// resolves. Each check prints `yes` when it holds and `no` when it does
+/// not.
+package boxes;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+type Countdown = variant {
+	done Unit;
+	more Countdown;
+}
+
+Int depth(c Countdown) => match (c) {
+	d done => Int(0);
+	m more => Int(1) + depth(m);
+}
+
+/// A cycle through two types: every member on it is boxed.
+type Tree = variant {
+	leaf Int;
+	node Pair;
+}
+
+type Pair = struct {
+	left Tree;
+	right Tree;
+}
+
+Pair(left Tree, right Tree) => init{ left; right; }
+
+Int total(tree Tree) => match (tree) {
+	n leaf => n;
+	p node => total(p.left) + total(p.right);
+}
+
+/// A reference type that hosts its children.
+type Chain = #variant {
+	end Unit;
+	link Link;
+}
+
+type Link = #struct {
+	name String;
+	rest Chain;
+}
+
+Link(name String, rest Chain) => init{ name; rest; }
+
+Int length(this Chain) => match (this) {
+	e end => Int(0);
+	l link => Int(1) + l.rest:length();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(~ok, {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	// A value that contains itself, copied whole.
+	a Countdown = Countdown.more(Countdown.more(Countdown.done(Unit())));
+	check(depth(a) == Int(2));
+	b Countdown = a;
+	a = Countdown.done(Unit());
+	check(depth(b) == Int(2));
+	check(depth(a) == Int(0));
+
+	// A case read copies the payload out, or takes what the handler
+	// resolves.
+	c Countdown = b.more ?? Countdown.done(Unit());
+	check(depth(c) == Int(1));
+	check(depth(a.more ?? Countdown.more(Countdown.done(Unit()))) == Int(1));
+
+	// A cycle through two types.
+	tree Tree = Tree.node(Pair(Tree.leaf(Int(1)), Tree.node(Pair(Tree.leaf(Int(2)), Tree.leaf(Int(3))))));
+	copy Tree = tree;
+	tree = Tree.leaf(Int(0));
+	check(total(copy) == Int(6));
+	check(total(tree) == Int(0));
+
+	// A reference chain: a guest to a host inside a boxed payload holds
+	// while the chain moves.
+	chain Chain = Chain.link(Link(String("a"), Chain.link(Link(String("b"), Chain.end(Unit())))));
+	check(chain:length() == Int(2));
+	first &Chain = chain;
+	moved Chain = chain;
+	check(first:length() == Int(2));
+	check((moved.link ? { resolve Link(String("none"), Chain.end(Unit())); }).name == String("a"));
+	check((Chain.end(Unit()).link ? { resolve Link(String("none"), Chain.end(Unit())); }).name
+		== String("none"));
+
+	// Many built and dropped: each pass returns every block it made.
+	i Int(1);
+	i!to(Int(1000)) {
+		built Countdown = Countdown.more(Countdown.more(Countdown.done(Unit())));
+		kept Countdown = built;
+		built = kept;
+	}
+	return Unit();
+}

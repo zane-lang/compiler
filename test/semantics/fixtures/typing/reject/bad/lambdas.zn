@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 Unit lambdas() {
 	outer Int = Int(1);
 	reads Int() => outer;

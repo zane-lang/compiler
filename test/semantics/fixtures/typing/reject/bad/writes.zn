@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Counter = struct { count Int; }
 type Tray = struct { counter Counter; }
 type Crate = variant { held Counter; none Int; }

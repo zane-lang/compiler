@@ -51,20 +51,19 @@
  (action
   (diff golden/temporary.err temporary.err.actual)))
 
-; `counting` is step 2 of docs/lowering.md §8: `core`'s scalars, verbs that
-; call verbs, and `if`, `elif`, `else` and `to` expanded where they are
-; called. Every check it makes prints `yes` when it holds.
+; `counting` is step 2 of docs/lowering.md §8: scalar arithmetic, verbs that
+; call verbs, and the fixture's own `if`, `elif`, `else` and `to` expanded
+; where they are called. Every check it makes prints `yes` when it holds.
 
 (rule
- (deps (source_tree fixtures/counting) (source_tree ../core))
+ (deps (source_tree fixtures/counting))
  (action
   (with-stdout-to
    counting.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/counting
-    --package ../core))))
+    --package fixtures/counting))))
 
 (rule
  (alias runtest)
@@ -72,15 +71,14 @@
   (diff golden/counting.cgt counting.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/counting) (source_tree ../core))
+ (deps (source_tree fixtures/counting))
  (targets counting.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    counting.exe
-   --package fixtures/counting
-   --package ../core)))
+   --package fixtures/counting)))
 
 (rule
  (action
@@ -97,15 +95,14 @@
 ; wrote so far, and says why on stderr.
 
 (rule
- (deps (source_tree fixtures/zero) (source_tree ../core))
+ (deps (source_tree fixtures/zero))
  (targets zero.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    zero.exe
-   --package fixtures/zero
-   --package ../core)))
+   --package fixtures/zero)))
 
 (rule
  (action
@@ -125,15 +122,14 @@
 ; Every check it makes prints `yes` when it holds and `no` when it does not.
 
 (rule
- (deps (source_tree fixtures/shapes) (source_tree ../core))
+ (deps (source_tree fixtures/shapes))
  (action
   (with-stdout-to
    shapes.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/shapes
-    --package ../core))))
+    --package fixtures/shapes))))
 
 (rule
  (alias runtest)
@@ -141,15 +137,14 @@
   (diff golden/shapes.cgt shapes.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/shapes) (source_tree ../core))
+ (deps (source_tree fixtures/shapes))
  (targets shapes.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    shapes.exe
-   --package fixtures/shapes
-   --package ../core)))
+   --package fixtures/shapes)))
 
 (rule
  (action
@@ -168,15 +163,14 @@
 ; never reached.
 
 (rule
- (deps (source_tree fixtures/outcomes) (source_tree ../core))
+ (deps (source_tree fixtures/outcomes))
  (action
   (with-stdout-to
    outcomes.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/outcomes
-    --package ../core))))
+    --package fixtures/outcomes))))
 
 (rule
  (alias runtest)
@@ -184,15 +178,14 @@
   (diff golden/outcomes.cgt outcomes.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/outcomes) (source_tree ../core))
+ (deps (source_tree fixtures/outcomes))
  (targets outcomes.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    outcomes.exe
-   --package fixtures/outcomes
-   --package ../core)))
+   --package fixtures/outcomes)))
 
 (rule
  (action
@@ -212,15 +205,14 @@
 ; open, so a missed drain fails the run.
 
 (rule
- (deps (source_tree fixtures/hosts) (source_tree ../core))
+ (deps (source_tree fixtures/hosts))
  (action
   (with-stdout-to
    hosts.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/hosts
-    --package ../core))))
+    --package fixtures/hosts))))
 
 (rule
  (alias runtest)
@@ -228,15 +220,14 @@
   (diff golden/hosts.cgt hosts.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/hosts) (source_tree ../core))
+ (deps (source_tree fixtures/hosts))
  (targets hosts.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    hosts.exe
-   --package fixtures/hosts
-   --package ../core)))
+   --package fixtures/hosts)))
 
 (rule
  (action
@@ -255,15 +246,14 @@
 ; merges and a variant payload's float.
 
 (rule
- (deps (source_tree fixtures/guests) (source_tree ../core))
+ (deps (source_tree fixtures/guests))
  (action
   (with-stdout-to
    guests.cgt.actual
    (run
     %{exe:../../bin/compiler/main.exe}
     --cgt
-    --package fixtures/guests
-    --package ../core))))
+    --package fixtures/guests))))
 
 (rule
  (alias runtest)
@@ -271,15 +261,14 @@
   (diff golden/guests.cgt guests.cgt.actual)))
 
 (rule
- (deps (source_tree fixtures/guests) (source_tree ../core))
+ (deps (source_tree fixtures/guests))
  (targets guests.exe)
  (action
   (run
    %{exe:../../bin/compiler/main.exe}
    --build
    guests.exe
-   --package fixtures/guests
-   --package ../core)))
+   --package fixtures/guests)))
 
 (rule
  (action
@@ -291,3 +280,158 @@
  (alias runtest)
  (action
   (diff golden/guests.out guests.out.actual)))
+
+; `texts` is step 7's strings: `@primitives$String` handles that own their
+; bytes, joined, compared, printed, hosted, moved, guested, overwritten,
+; floated, returned, discarded and aborted with. The runtime stops a program
+; that ends with a block still out.
+
+(rule
+ (deps (source_tree fixtures/texts))
+ (action
+  (with-stdout-to
+   texts.cgt.actual
+   (run
+    %{exe:../../bin/compiler/main.exe}
+    --cgt
+    --package fixtures/texts))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/texts.cgt texts.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/texts))
+ (targets texts.exe)
+ (action
+  (run
+   %{exe:../../bin/compiler/main.exe}
+   --build
+   texts.exe
+   --package fixtures/texts)))
+
+(rule
+ (action
+  (with-stdout-to
+   texts.out.actual
+   (run ./texts.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/texts.out texts.out.actual)))
+
+; `lists` is step 7's lists: pushed to, measured, indexed and written at an
+; index, of scalars, strings, hosts and lists, under a generic type with a
+; declared subscript. Guests follow hosts into a list and through its growth.
+
+(rule
+ (deps (source_tree fixtures/lists))
+ (action
+  (with-stdout-to
+   lists.cgt.actual
+   (run %{exe:../../bin/compiler/main.exe} --cgt --package fixtures/lists))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lists.cgt lists.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/lists))
+ (targets lists.exe)
+ (action
+  (run %{exe:../../bin/compiler/main.exe} --build lists.exe --package fixtures/lists)))
+
+(rule
+ (action
+  (with-stdout-to
+   lists.out.actual
+   (run ./lists.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lists.out lists.out.actual)))
+
+; `boxes` is step 7's boxed members: value types that contain themselves,
+; copied whole, a reference chain whose guests hold while it moves, and case
+; reads of boxed payloads.
+
+(rule
+ (deps (source_tree fixtures/boxes))
+ (action
+  (with-stdout-to
+   boxes.cgt.actual
+   (run %{exe:../../bin/compiler/main.exe} --cgt --package fixtures/boxes))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boxes.cgt boxes.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/boxes))
+ (targets boxes.exe)
+ (action
+  (run %{exe:../../bin/compiler/main.exe} --build boxes.exe --package fixtures/boxes)))
+
+(rule
+ (action
+  (with-stdout-to
+   boxes.out.actual
+   (run ./boxes.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boxes.out boxes.out.actual)))
+
+; `range` indexes past a list's end: the program stops with status 1 after
+; what it wrote so far, and says why on stderr.
+
+(rule
+ (deps (source_tree fixtures/range))
+ (targets range.exe)
+ (action
+  (run %{exe:../../bin/compiler/main.exe} --build range.exe --package fixtures/range)))
+
+(rule
+ (action
+  (with-outputs-to
+   range.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./range.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/range.out range.out.actual)))
+
+; `regions` is each scope's dynamic region: a value that leaves a scope --
+; returned, left from an arm, aborted with, stored or pushed from an inner
+; block -- takes its blocks out before the scope drains, and a drain that
+; finds one still out stops the program.
+
+(rule
+ (deps (source_tree fixtures/regions))
+ (targets regions.exe)
+ (action
+  (run
+   %{exe:../../bin/compiler/main.exe}
+   --build
+   regions.exe
+   --package fixtures/regions)))
+
+(rule
+ (action
+  (with-stdout-to
+   regions.out.actual
+   (run ./regions.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/regions.out regions.out.actual)))

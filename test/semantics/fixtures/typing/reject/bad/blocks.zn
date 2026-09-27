@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Jar<T Type> = struct { item T; }
 
 Jar<T>(item T Type) => init{ item; }

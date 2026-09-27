@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Twice = struct { a Int; }
 type Twice = struct { b Int; }
 

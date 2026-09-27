@@ -1,0 +1,131 @@
+/// Lists: `@primitives$List<T>`, a handle to a block that grows (memory.md
+/// §3.6). Pushed to, measured, indexed and written at an index; lists of
+/// scalars, strings, hosts and lists; a generic type over one with a
+/// declared subscript, and a generic verb. A host that moves into a list
+/// keeps its guests while the list grows and moves it again, and one
+/// replaced at an index floats. Each check prints `yes` when it holds and
+/// `no` when it does not.
+package lists;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+alias Row = @primitives$List<Int>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+type Person = #struct {
+	name String;
+	age Int;
+}
+
+Person(name String, age Int) => init{ name; age; }
+
+/// A generic type over a list, with a declared subscript.
+type Stack<T Type> = #struct {
+	items List<T>;
+}
+
+Stack<T>(T Type) => init{ items = @primitives$List(T); }
+
+Unit add(this Stack<T Type>, value T) mut {
+	this.items!push(value);
+	return Unit();
+}
+
+(this Stack<T Type>)[index Int] => this.items[index]
+
+/// A generic verb.
+Int count(values &List<T Type>) => values:size()
+
+Int sum(values &List<Int>) {
+	total Int(0);
+	i Int(1);
+	i!to(values:size()) {
+		total = total + values[i];
+	}
+	return total;
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(~ok, {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	// Scalars: pushed, counted, read and written.
+	numbers List<Int> = @primitives$List(Int);
+	check(numbers:size() == Int(0));
+	i Int(1);
+	i!to(Int(100)) {
+		numbers!push(i);
+	}
+	check(count(numbers) == Int(100));
+	check(numbers[Int(1)] + numbers[Int(100)] == Int(101));
+	numbers[Int(50)] = Int(0);
+	check(sum(numbers) == Int(5000));
+
+	// Strings, moved in and read where they are.
+	words List<String> = @primitives$List(String);
+	words!push(String("to"));
+	late String("be");
+	words!push(late);
+	check(words[Int(1)] + words[Int(2)] == String("tobe"));
+	words[Int(1)] = String("or");
+	check(words[Int(1)] == String("or"));
+
+	// Hosts: a guest follows its host into the list, and through every
+	// block the list grows into.
+	people List<Person> = @primitives$List(Person);
+	ada Person(String("ada"), Int(36));
+	g &Person = ada;
+	people!push(ada);
+	j Int(1);
+	j!to(Int(1000)) {
+		people!push(Person(String("x"), j));
+	}
+	check(g.name == String("ada"));
+	check(people[Int(1001)].age == Int(1000));
+
+	// An anchored element replaced at its index floats, and its guest lives
+	// on.
+	people[Int(1)] = Person(String("grace"), Int(45));
+	check(g.age == Int(36));
+	check(people[Int(1)].name == String("grace"));
+
+	// A list of lists.
+	rows List<Row> = @primitives$List(Row);
+	k Int(1);
+	k!to(Int(3)) {
+		row List<Int> = @primitives$List(Int);
+		row!push(k);
+		row!push(k * Int(10));
+		rows!push(row);
+	}
+	check(rows[Int(3)][Int(2)] == Int(30));
+
+	// A generic type, and its declared subscript.
+	stack Stack<String> = Stack(String);
+	stack!add(String("first"));
+	stack!add(String("second"));
+	check(stack[Int(2)] == String("second"));
+	check(count(stack.items) == Int(2));
+	return Unit();
+}

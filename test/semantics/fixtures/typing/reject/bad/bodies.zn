@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Account = struct {
 	_balance Int;
 	owner Int;

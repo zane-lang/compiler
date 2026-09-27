@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Engine = #struct { power Int; }
 
 Int same(value Int) => value
@@ -22,13 +20,13 @@ implicit Float(value Bool) => Float(0.0)
 type Level = enum [ low, high ]
 
 Level.weight Int {
-	low = 1;
-	middle = 2;
-	low = 3;
+	low = Int(1);
+	middle = Int(2);
+	low = Int(3);
 }
 
 Engine.power Int {
-	low = 1;
+	low = Int(1);
 }
 
 Unit main(argument Int) => Unit()

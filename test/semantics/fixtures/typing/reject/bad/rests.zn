@@ -1,7 +1,5 @@
 package bad;
 
-import core$;
-
 type Port = #struct { n Int; }
 type Plug = #struct { port &Port; }
 type Frame = #struct { plug Plug; port Port; }
@@ -10,7 +8,7 @@ type Bay = #struct { plugs List<Plug>; }
 Port(n Int) => init{ n; }
 Plug(port &Port) => init{ port; }
 Frame(plug Plug, port Port) => init{ plug; port; }
-Bay() => init{ plugs = List(Plug); }
+Bay() => init{ plugs = @primitives$List(Plug); }
 
 Unit nest(body @concepts$Block) => Unit()
 
@@ -56,7 +54,7 @@ Unit rest() {
 /// `push` keeps its value in the list.
 Unit queue() {
 	far Port(Int(5));
-	plugs List(Plug);
+	plugs List<Plug> = @primitives$List(Plug);
 	plugs!push(Plug(far));
 	bay Bay();
 	nest({

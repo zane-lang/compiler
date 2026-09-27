@@ -1,0 +1,14 @@
+/// The block-taking verbs the other files call.
+package bad;
+
+/// Runs the block when the condition holds, and reports whether it did.
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// Ends its caller's invocation when the condition holds.
+Unit guard(condition Bool) {
+	@controlflow$branch(condition, { @controlflow$exitFromCall(); });
+	return Unit();
+}

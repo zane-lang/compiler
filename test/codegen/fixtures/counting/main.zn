@@ -1,8 +1,41 @@
-/// Scalars and calls: `core`'s `Int`, `Float` and `Bool`, verbs calling
-/// verbs, and `if`, `elif`, `else` and `to` expanded where they are called.
+/// Scalars and calls: `Int`, `Float` and `Bool` arithmetic, verbs calling
+/// verbs, and block-taking verbs -- `if`, `elif`, `else` and `to`, declared
+/// here -- expanded where they are called.
 package counting;
 
-import core$;
+alias Int = @primitives$Int
+alias Float = @primitives$Float
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+/// Runs the block when the condition holds, and reports whether it did.
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// Runs when no earlier branch of the chain has, and records whether it did.
+Unit elif(this Bool, condition Bool, body @concepts$Block) mut {
+	@controlflow$branch(~this * condition, body);
+	this = this + condition;
+	return Unit();
+}
+
+Unit else(this Bool, body @concepts$Block) {
+	@controlflow$branch(~this, body);
+	return Unit();
+}
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
 
 /// The sum of 1 through `n`, counted with `to`.
 Int triangle(n Int) {
@@ -29,11 +62,11 @@ Int factorial(n Int) {
 	return n * factorial(n + ~Int(1));
 }
 
-@primitives$Unit main() {
-	yes @primitives$String("yes\n");
-	no @primitives$String("no\n");
-	dot @primitives$String(".");
-	line @primitives$String("\n");
+Unit main() {
+	yes String("yes\n");
+	no String("no\n");
+	dot String(".");
+	line String("\n");
 
 	// Arithmetic on each scalar.
 	ran Bool = if(triangle(Int(10)) == Int(55)) {
@@ -62,7 +95,7 @@ Int factorial(n Int) {
 	chain!elif(smallest(Int(4), Int(9)) == Int(4)) {
 		@program$console!print(yes);
 	}
-	chain!elif(Bool(true)) {
+	chain!elif(true) {
 		@program$console!print(no);
 	}
 	chain:else() {
@@ -78,5 +111,5 @@ Int factorial(n Int) {
 		}
 		@program$console!print(line);
 	}
-	return @primitives$Unit();
+	return Unit();
 }

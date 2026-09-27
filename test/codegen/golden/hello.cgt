@@ -1,14 +1,22 @@
 └── program:
     ├── entry: zane_main_1
+    ├── layouts[0] > layout:
+    │   ├── type: @primitives$String
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: text @0
     └── funcs[0] > func:
         ├── symbol: zane_main_1
         ├── params:
         ├── ret: void
-        ├── body[0] > let:
-        │   ├── local: #1
-        │   └── value: "hello world" : view
-        ├── body[1] > eval > runtime:
-        │   ├── type: void
-        │   ├── fn: zane_print
-        │   └── args[0]: local #1 : view
-        └── body[2] > return: unit : void
+        └── body[0] > scope:
+            ├── id: %2
+            ├── body[0] > host:
+            │   ├── local: #1
+            │   ├── scope: %2
+            │   ├── value: "hello world" : handle
+            │   └── layout: @primitives$String
+            ├── body[1] > eval > runtime:
+            │   ├── type: void
+            │   ├── fn: zane_print
+            │   └── args[0]: local #1 : handle
+            └── body[2] > return: unit : void

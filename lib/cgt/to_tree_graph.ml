@@ -4,8 +4,10 @@
 open Tree_graph
 open Nodes
 
-(* A layout, one host per line: `@8 (16 bytes) when [0]=1`. *)
-let layout (l : Layout.t) =
+(* A layout, one position per line: a host as `@8 (16 bytes) when [0]=1`,
+   a string's handle as `text @8`, a list's as `list @8 of T (16 bytes
+   apart)`, and a boxed member as `box @8 of T (24 bytes)`. *)
+let positions (ps : Layout.position list) =
   map_seq
     (fun (p : Layout.position) ->
       let tags =
@@ -15,8 +17,16 @@ let layout (l : Layout.t) =
             let tag (o, t) = Printf.sprintf "[%d]=%d" o t in
             " when " ^ String.concat ", " (List.map tag ts)
       in
-      Leaf (Printf.sprintf "@%d (%d bytes)%s" p.offset p.size tags))
-    l
+      match p.kind with
+      | Layout.Host -> Leaf (Printf.sprintf "@%d (%d bytes)%s" p.offset p.size tags)
+      | Layout.Text -> Leaf (Printf.sprintf "text @%d%s" p.offset tags)
+      | Layout.List { stride; elements } ->
+          Leaf (Printf.sprintf "list @%d of %s (%d bytes apart)%s" p.offset elements stride tags)
+      | Layout.Box { size; payload } ->
+          Leaf (Printf.sprintf "box @%d of %s (%d bytes)%s" p.offset payload size tags))
+    ps
+
+let layout (l : Layout.t) = Leaf l
 
 let rec expr (e : Expr.t) =
   let typed s = Leaf (s ^ " : " ^ Ty.to_string e.Expr.ty) in
@@ -88,6 +98,16 @@ let rec expr (e : Expr.t) =
              ("address", expr address);
              ("layout", layout l);
            ])
+  | Expr.Copy { value; layout = l } ->
+      group "copy"
+        (fields
+           [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("value", expr value); ("layout", layout l) ])
+  | Expr.Box { value; layout = l } ->
+      group "box" (fields [ ("value", expr value); ("layout", layout l) ])
+  | Expr.Layout l -> Leaf ("layout " ^ l)
+  | Expr.Escape { value; layout = l; exit } ->
+      let exit = match exit with Some label -> Printf.sprintf "@%d" label | None -> "function" in
+      group "escape" (fields [ ("exit", Leaf exit); ("value", expr value); ("layout", layout l) ])
   | Expr.Call { fn; args } -> call "call" fn args
   | Expr.Runtime { fn; args } -> call "runtime" fn args
   | Expr.Binary { op; left; right } ->
@@ -124,12 +144,24 @@ and stat = function
               ("scope", Leaf (Printf.sprintf "%%%d" scope));
               ("value", expr value);
             ]
-           @ if l = [] then [] else [ ("layout", layout l) ]))
+           @ [ ("layout", layout l) ]))
   | Stat.Store { address; value } ->
       group "store" (fields [ ("address", expr address); ("value", expr value) ])
-  | Stat.Overwrite { address; value; layout = l } ->
-      group "overwrite"
+  | Stat.Overwrite { address; value; layout = l; contingent } ->
+      group (if contingent then "overwrite contingent" else "overwrite")
         (fields [ ("address", expr address); ("value", expr value); ("layout", layout l) ])
+  | Stat.Place { address; value; layout = l } ->
+      group "place"
+        (fields [ ("address", expr address); ("value", expr value); ("layout", layout l) ])
+  | Stat.Reserve { id; scope; ty; layout = l } ->
+      group "reserve"
+        (fields
+           [
+             ("local", Leaf (Printf.sprintf "#%d" id));
+             ("scope", Leaf (Printf.sprintf "%%%d" scope));
+             ("type", Leaf (Ty.to_string ty));
+             ("layout", layout l);
+           ])
   | Stat.Scope { id; body } ->
       let arena = Leaf (Printf.sprintf "%%%d" id) in
       group "scope" (fields [ ("id", arena); ("body", map_seq stat body) ])
@@ -173,5 +205,13 @@ let func (f : Func.t) =
        ])
 
 let program (p : Program.t) =
+  let named (name, ps) =
+    group "layout" (fields [ ("type", Leaf name); ("positions", positions ps) ])
+  in
   group "program"
-    (fields [ ("entry", Leaf p.Program.entry); ("funcs", map_seq func p.Program.funcs) ])
+    (fields
+       [
+         ("entry", Leaf p.Program.entry);
+         ("layouts", map_seq named p.Program.layouts);
+         ("funcs", map_seq func p.Program.funcs);
+       ])
