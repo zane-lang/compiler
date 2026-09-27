@@ -93,7 +93,7 @@ for stages 1 and 2, which never look past the file. It is not enough for stage
   declaration in another.
 - Imports are per file (§3.1), so resolution needs to know which file a
   declaration came from, not only its package.
-- `Int` is not built in. `types.md` §2.6 makes it a declaration in `core`, "an
+- `Int` is not built in. [`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6 makes it a declaration in `core`, "an
   ordinary package", and a file that writes it imports `core` like any other
   dependency. Without one, a program writes the storage primitives
   (`@primitives$Int`) directly or declares its own types over them.
@@ -110,7 +110,7 @@ with a `package` line naming it (§2.2), and no two directories may share a
 name.
 
 **D3. The compiler never names `core`.** `core` is an ordinary package
-(`types.md` §2.6), so the compiler reads it as source and checks it by the
+([`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6), so the compiler reads it as source and checks it by the
 same rules as every other package, and names none of its members. Whether
 `Int` is a distinct type over `@primitives$Int` or a struct wrapping one is
 `core`'s own choice, and the compiler does not care which it makes, just as it
@@ -120,7 +120,7 @@ The repository has no `core` yet. Each test fixture writes the storage
 primitives directly, usually under aliases of its own
 (`alias Int = @primitives$Int`), and declares what its test is about: a type
 with implicit constructors from the literal concepts, or the control-flow
-verbs of `control-flow.md` §3 over `@controlflow$`.
+verbs of [`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §3 over `@controlflow$`.
 
 The intrinsic namespaces (`@primitives$`, `@concepts$`, `@controlflow$`,
 `@runtime$`, `@program$`) are not packages. They are an OCaml table in
@@ -588,7 +588,7 @@ only reject more, never let a write through.
 - An intrinsic operator or constructor reads its operands.
 - The runtime's `print` takes `text &@primitives$String`, a guest, so a
   string type wrapping one hands it its field, which it could not move. The spec declares a plain
-  `@primitives$String` (`docs/spec-divergences.md` §9).
+  `@primitives$String` ([`spec-divergences.md`](spec-divergences.md) §9).
 
 **Where a guest source is decided.**
 - A `match` binder is its case's payload, so no guest is minted from it.

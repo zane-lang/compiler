@@ -279,8 +279,9 @@ static int zane_next_position(const int64_t *layout, int64_t *cursor, int64_t *l
 	return 1;
 }
 
+/* A layout with no positions may be no table at all. */
 #define ZANE_EACH(layout, p)                                                        \
-	for (int64_t zane_cursor = 1, zane_left = (layout)[0];                          \
+	for (int64_t zane_cursor = 1, zane_left = (layout) ? (layout)[0] : 0;           \
 	     zane_next_position((layout), &zane_cursor, &zane_left, &(p));)
 
 static int zane_present(const char *base, const zane_position *p) {
@@ -662,7 +663,8 @@ static int64_t zane_floated;
 void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *layout,
                     int64_t contingent) {
 	zane_position p, q;
-	int64_t n = 0, from[layout[0] + 1], length[layout[0] + 1];
+	int64_t positions = layout ? layout[0] : 0;
+	int64_t n = 0, from[positions + 1], length[positions + 1];
 	ZANE_EACH(layout, p) {
 		uint32_t id;
 		if ((p.conditions == 0 && !contingent) || !zane_hosts(slot, &p)) continue;

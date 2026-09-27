@@ -150,4 +150,13 @@ void zane_main(void) {
 	}
 	zane_scope_drain(outer);
 	check(zane_blocks == 0);
+
+	/* A layout that lists nothing may be no table at all. */
+	int64_t plain = 1, replacing_plain = 2;
+	zane_arrive((char *)&plain, NULL);
+	zane_promote((char *)&plain, NULL, 1);
+	zane_copy((char *)&plain, NULL);
+	zane_overwrite((char *)&plain, (char *)&replacing_plain, 8, NULL, 0);
+	zane_vacate((char *)&plain, NULL);
+	check(plain == 2);
 }

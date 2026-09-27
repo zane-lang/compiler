@@ -21,7 +21,7 @@ reaches the CGT.
 
 `@primitives$` names storage: `Int`, `I32`, `I64`, `Float`, `Bool`, `Unit`,
 `String`, `Array<T, n>`, `List<T>`. Packages build types on them — an `Int`
-can be a struct around an `@primitives$Int`, as `types.md` §2.6 describes
+can be a struct around an `@primitives$Int`, as [`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6 describes
 `core`'s — or write them directly, under an alias if they like.
 
 Lowering gives each primitive its machine layout ([`lowering.md`](lowering.md)
