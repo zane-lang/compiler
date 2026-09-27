@@ -1,0 +1,85 @@
+package bad;
+
+/// Spawn safety (concurrency.md §4.2–4.3): a spawned `mut` call writes only a
+/// value-typed subject, holds its location until its block drains, and in a
+/// block that runs more than once takes it from storage declared there.
+type Gauge = struct {
+	level Int;
+	spare Int;
+}
+
+Gauge(level Int) => init{ level; spare = Int(0); }
+
+type Dial = #struct {
+	reading Gauge;
+}
+
+Unit nudge(this Gauge) mut {
+	this.level = this.level + Int(1);
+	return Unit();
+}
+
+Unit tune(this Dial) mut {
+	return Unit();
+}
+
+/// Runs its block on every pass of a count.
+Unit often(count Int, body @concepts$Block) {
+	@controlflow$repeat(count, body);
+	return Unit();
+}
+
+/// Runs its block through `often`, so more than once too.
+Unit oftener(body @concepts$Block) {
+	often(Int(3), body);
+	return Unit();
+}
+
+/// A reference-type subject.
+Unit tuned(dial &Dial) {
+	spawn dial!tune();
+	return Unit();
+}
+
+/// Two borrows of one location, and a read while one holds it.
+Unit twiceNudged() {
+	g Gauge(Int(1));
+	spawn g!nudge();
+	spawn g!nudge();
+	n Int = g.level;
+	return Unit();
+}
+
+/// Disjoint members are separate locations, and a whole overlaps its parts.
+Unit members() {
+	h Gauge(Int(1));
+	spawn h.level!bump();
+	spawn h.spare!bump();
+	n Int = h.spare;
+	spawn h!nudge();
+	return Unit();
+}
+
+/// The borrow ends where its block drains.
+Unit drained() {
+	g Gauge(Int(1));
+	@controlflow$branch(true, {
+		spawn g!nudge();
+	});
+	n Int = g.level;
+	return Unit();
+}
+
+/// A block that runs more than once, directly or through another verb.
+Unit looping() {
+	g Gauge(Int(1));
+	often(Int(2), {
+		spawn g!nudge();
+	});
+	oftener({
+		mine Gauge(Int(2));
+		spawn mine!nudge();
+		spawn g.level!bump();
+	});
+	return Unit();
+}

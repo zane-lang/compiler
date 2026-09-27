@@ -222,6 +222,22 @@ summaries are computed to a fixed point over every body before any reports.
 body, or a block written there. A call to one ends the run of the block it is
 written in, so it is an error in no block.
 
+**Spawns** (`lib/tst/spawns.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md) §4.2–§4.3). A
+spawned `mut` call writes its subject, so a subject of a reference type, or a
+guest to one, is an error. A spawn written as a statement or bound by a `let`
+borrows its subject's place until the block it is written in drains, since
+the drain waits for it; one read where it is written is waited for at once and
+borrows nothing past itself. While a borrow lasts, a second spawn borrowing
+an overlapping place is an error, and so is any read or write of one in that
+block or a block inside it. Two places overlap when one's path of fields and
+cases is a prefix of the other's, and any two elements of one list overlap.
+In a block that runs more than once, a spawn takes its subject from a local
+declared in that block or in a block inside it. A block runs more than once
+when it is `@controlflow$repeat`'s body, or a block argument at a position its
+verb runs more than once: one it passes on to such a position, or passes
+anywhere from inside a block that runs more than once, computed to a fixed
+point over every body.
+
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
 mistake. Each pass collects diagnostics and keeps going. An expression that
@@ -606,6 +622,5 @@ When the root declares one, it takes no parameters (`packages.md` §6.2).
 
 ## 10. Not done yet
 
-- `spawn` safety beyond the block-parameter rule (D1's right-hand column).
 - Resting places for a function value, whose type would have to carry them,
   and the swallowed-parameter rule applied through a call's resting places.
