@@ -105,6 +105,9 @@ let rec expr (e : Expr.t) =
   | Expr.Box { value; layout = l } ->
       group "box" (fields [ ("value", expr value); ("layout", layout l) ])
   | Expr.Layout l -> Leaf ("layout " ^ l)
+  | Expr.Escape { value; layout = l; exit } ->
+      let exit = match exit with Some label -> Printf.sprintf "@%d" label | None -> "function" in
+      group "escape" (fields [ ("exit", Leaf exit); ("value", expr value); ("layout", layout l) ])
   | Expr.Call { fn; args } -> call "call" fn args
   | Expr.Runtime { fn; args } -> call "runtime" fn args
   | Expr.Binary { op; left; right } ->

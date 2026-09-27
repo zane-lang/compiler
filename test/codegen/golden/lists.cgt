@@ -878,25 +878,31 @@
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i32, handle, i64}
-    │   └── body[0] > return > record:
-    │       ├── type: {i32, handle, i64}
-    │       ├── members[0] > member 0: 0 : i32
-    │       ├── members[1] > member 1 > take:
-    │       │   ├── type: handle
-    │       │   ├── address: local #1 : ptr
-    │       │   └── layout: @primitives$String
-    │       └── members[2] > member 2: local #2 : i64
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {i32, handle, i64}
+    │       │   ├── members[0] > member 0: 0 : i32
+    │       │   ├── members[1] > member 1 > take:
+    │       │   │   ├── type: handle
+    │       │   │   ├── address: local #1 : ptr
+    │       │   │   └── layout: @primitives$String
+    │       │   └── members[2] > member 2: local #2 : i64
+    │       └── layout: lists$Person
     ├── funcs[5] > func:
     │   ├── symbol: zane_Stack_11_5
     │   ├── params:
     │   ├── ret: {i32, handle}
-    │   └── body[0] > return > record:
-    │       ├── type: {i32, handle}
-    │       ├── members[0] > member 0: 0 : i32
-    │       └── members[1] > member 1 > runtime:
-    │           ├── type: handle
-    │           ├── fn: zane_list_new
-    │           └── args:
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {i32, handle}
+    │       │   ├── members[0] > member 0: 0 : i32
+    │       │   └── members[1] > member 1 > runtime:
+    │       │       ├── type: handle
+    │       │       ├── fn: zane_list_new
+    │       │       └── args:
+    │       └── layout: lists$Stack<@primitives$String>
     ├── funcs[6] > func:
     │   ├── symbol: zane_add_12_6
     │   ├── params[0]: local #1 : ptr

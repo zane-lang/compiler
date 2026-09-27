@@ -148,6 +148,11 @@ module Expr = struct
     | Box of { value : t; layout : Layout.t }
     (* A layout's table, for the runtime to read. *)
     | Layout of Layout.t
+    (* A value on its way out of the arenas an exit drains: the function's,
+       when [exit] is [None], or those opened inside the expansion [exit]
+       names. Every block it owns in them moves into the arena the exit
+       returns to first (memory.md §3.1, §3.5). *)
+    | Escape of { value : t; layout : Layout.t; exit : int option }
 
   and binop = Add | Mul | Div | Eq | Less
 
@@ -174,13 +179,15 @@ module Expr = struct
     | Switch of { value : t; cases : (int * stat list) list }
     | Leave of int
     (* A store through an address, and a value replaced there: a host's
-       identities kept, merged or floated (memory.md §4.5), and the blocks
-       the old value owned returned. A contingent place -- a list's element
+       identities kept, merged or floated (memory.md §4.5), the blocks the
+       old value owned returned, and the new one's moved into the place's
+       region. A contingent place -- a list's element
        -- keeps none of its identities, and an anchored occupant floats. *)
     | Store of { address : t; value : t }
     | Overwrite of { address : t; value : t; layout : Layout.t; contingent : bool }
-    (* A value moved into a fresh place at an address: stored, and the
-       anchors it carries follow it there. *)
+    (* A value moved into a fresh place at an address: stored, the anchors
+       it carries follow it there, and the blocks it owns move into the
+       region of the scope that holds the place. *)
     | Place of { address : t; value : t; layout : Layout.t }
     (* A slot of type [ty] in a scope's arena, zeroed so that it holds
        nothing until a [Place] fills it, which the drain then ends. *)

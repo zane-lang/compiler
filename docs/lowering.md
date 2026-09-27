@@ -301,8 +301,10 @@ test passing.
    backpointer is, and a drain retires the anchors its scope still hosts.
 7. **Handles.** `String`, `List`, boxed members, and `destroy` returning
    dynamic blocks. A string's or a list's handle, and a boxed member, own a
-   block, which is returned when the owner dies, at an overwrite or at its
-   scope's drain, and a value copied whole gets copies of its own. A
+   block in the dynamic region of the scope that holds the owner, which is
+   returned when the owner dies, at an overwrite or at its scope's drain; a
+   value that leaves a scope takes its blocks out first, and a value copied
+   whole gets copies of its own. A
    subscript is a place, generic types and verbs lower per instance, and the
    anchors of hosts in a list follow them when its block grows. The runtime
    is tested in C on its own, and stops a program that ends with a block
@@ -320,11 +322,11 @@ test passing.
   only through a boxed member; such a value is held in the arena too.
   Folding arenas is allowed and saves the most in loops; which ones to fold
   is left to measurement.
-- **Arenas share one chain of chunks.** Scopes nest last-in-first-out, so the
-  runtime keeps one chain of 1 MiB chunks: a scope bumps from where the scope
-  around it stopped, and draining it restores that point. A chunk stays
-  mapped once made and is reused by the next scope that reaches it, where
-  [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1 unmaps a scope's chunks at its drain. The spec leaves
+- **Slots share one chain of chunks.** Scopes nest last-in-first-out, so the
+  runtime keeps one chain of 1 MiB chunks for every scope's fixed-size
+  region: a scope bumps from where the scope around it stopped, and draining
+  it restores that point. A chunk stays mapped once made and is reused by the
+  next scope that reaches it, where [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1 unmaps a scope's chunks at its drain. The spec leaves
   arena granularity to the implementation and fixes only that a scope's
   memory is released together, which this does.
 - **Anchors as the runtime keeps them.** An anchor cell holds its host's
@@ -336,25 +338,42 @@ test passing.
   does can tell these apart.
 - **A floated host outlives its owner.** A variant payload's anchored
   occupant floats ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8.1) into memory of its own that lives
-  until the program ends, rather than until its owner scope drains, and so
-  do the blocks it owns. A host has no destructor, so the longer life is not
-  observable.
-- **A block belongs to its owner, not to a scope.** [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md)
-  §3.1–3.2 gives each scope a dynamic region of 1 MiB chunks with exact-size
-  stacks, reclaimed at its drain, and relocates a block into the
-  destination's region when its owner moves to an older scope. Here a block
-  comes from the C heap and belongs to the handle or boxed member that names
-  it. A move takes it along without relocating it, so a host in a box stays
-  where it is; and it is returned when its owner dies: at an overwrite, or at
-  the drain of the scope that holds the owner, which walks the scope's hosts
-  as it already does for their anchors, down through each block. A value
-  that owns a block is held in its scope's arena like a host, so that drain
-  reaches it. A fresh host or value that nothing keeps, such as a result that
-  is dropped or an operand, is held where it is made. The runtime counts the
-  blocks out and stops a program that ends with one still out. A list's
-  block grows by doubling from 128 bytes, as §3.6 says, but always into a
-  new block. Nothing a program does can tell these apart; the region's bulk
-  release and exact-size reuse are left to measurement.
+  until the program ends, rather than until its owner scope drains, and the
+  blocks it owns move into the program's own region, open until then. A
+  host has no destructor, so the longer life is not observable.
+- **Each scope's dynamic region.** A scope's blocks are in a region of its
+  own, as [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1–3.2 has it: chunks of its own, a bump frontier, and
+  a stack of returned blocks per size and alignment, all given back at its
+  drain. A list's block doubles from 128 bytes (§3.6): into a returned block
+  of that size, in place when it is last at the frontier, or else into new
+  bytes. Where the runtime departs from the spec:
+  - A block is placed where its value is made, which is the innermost
+    scope, and moves into the region of the scope that holds the place the
+    value arrives in: a slot, an overwritten place, a list's element. The
+    spec builds a fresh value in its destination directly (§3.7); here a
+    value built for an older scope's place is moved there once. A list's
+    growth goes to the region that holds the list.
+  - A value leaving scopes that drain -- a `return`, a `resolve`, an
+    `abort`, a `return` from a block argument or an arm -- moves every block
+    it owns in them into the scope the exit returns to, before the drain
+    (§3.1). Results are returned by value (below), so that scope is the
+    caller's innermost, and the value moves again if the caller places it
+    further out.
+  - The runtime finds a block's region from a map of every chunk it made,
+    and a slot's from where each open scope's slots began, rather than from
+    a segmented offset (§3.1). A dynamic chunk begins with a cache line of
+    its own bookkeeping, and an oversized block's chunks are one mapping.
+  - Every block is at least a word, and aligned to one; a list's is aligned
+    to a cache line. A chunk a region gives back is kept for the next
+    region rather than unmapped.
+  - A value that owns a block is held in its scope's arena like a host,
+    and so is a fresh host or value that nothing keeps, such as a result
+    that is dropped or an operand, so the drain returns its blocks. Having
+    returned them, a drain finds no block out in its region, and the
+    runtime stops a program where it does, since that block's owner is
+    somewhere the scope cannot reach.
+
+  Nothing a program does can tell these apart.
 - **A value parameter is borrowed.** A value that owns a block is copied
   whole where it is stored from a place ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.3), and passed
   as it is where it is only read: a value parameter is read-only (§2.9), so
@@ -390,7 +409,8 @@ test passing.
   LLVM aggregate values instead, which copies what L6 would lend; a value
   parameter cannot be written, so nothing observes the difference. A
   reference-type result is returned the same way, and arrives where the
-  caller hosts it: its anchors follow it there. A `mut` subject, a
+  caller hosts it: its anchors follow it there, and its blocks move into
+  that scope's region. A `mut` subject, a
   reference-type subject and a swallowed argument are passed by address.
 - **An outcome as a sum, for now.** L12 returns a tag and has the caller
   pass slots for the result and the abort value. Until results are written

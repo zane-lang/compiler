@@ -467,9 +467,12 @@
     │       │   ├── fn: zane_deposit_10
     │       │   ├── args[0]: address of #3 : ptr
     │       │   └── args[1]: local #2 : i64
-    │       └── body[2] > return > take:
-    │           ├── type: {i32, i64, i64}
-    │           ├── address: address of #3 : ptr
+    │       └── body[2] > return > escape:
+    │           ├── exit: function
+    │           ├── value > take:
+    │           │   ├── type: {i32, i64, i64}
+    │           │   ├── address: address of #3 : ptr
+    │           │   └── layout: hosts$Account
     │           └── layout: hosts$Account
     ├── funcs[2] > func:
     │   ├── symbol: zane_deposit_10
@@ -534,11 +537,14 @@
     │   ├── symbol: zane_Account_9
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i32, i64, i64}
-    │   └── body[0] > return > record:
-    │       ├── type: {i32, i64, i64}
-    │       ├── members[0] > member 0: 0 : i32
-    │       ├── members[1] > member 1: local #1 : i64
-    │       └── members[2] > member 2: 0 : i64
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {i32, i64, i64}
+    │       │   ├── members[0] > member 0: 0 : i32
+    │       │   ├── members[1] > member 1: local #1 : i64
+    │       │   └── members[2] > member 2: 0 : i64
+    │       └── layout: hosts$Account
     ├── funcs[6] > func:
     │   ├── symbol: zane_closed_13
     │   ├── params[0]: local #1 : ptr
@@ -786,11 +792,14 @@
     │   │   │   └── body[0] > return > case:
     │   │   │       ├── type: <i64 | {i32, i64, i64} | void>
     │   │   │       ├── index: 1
-    │   │   │       └── payload > call:
-    │   │   │           ├── type: {i32, i64, i64}
-    │   │   │           ├── fn: zane_opened_12
-    │   │   │           ├── args[0]: 7 : i64
-    │   │   │           └── args[1]: 70 : i64
+    │   │   │       └── payload > escape:
+    │   │   │           ├── exit: function
+    │   │   │           ├── value > call:
+    │   │   │           │   ├── type: {i32, i64, i64}
+    │   │   │           │   ├── fn: zane_opened_12
+    │   │   │           │   ├── args[0]: 7 : i64
+    │   │   │           │   └── args[1]: 70 : i64
+    │   │   │           └── layout: hosts$Account
     │   │   ├── body[2] > assign:
     │   │   │   ├── place: #4
     │   │   │   └── value: local #2 : i1

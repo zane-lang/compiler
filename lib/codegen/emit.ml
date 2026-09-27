@@ -60,6 +60,8 @@ let runtime env name =
         | "zane_resolve" -> Llvm.function_type env.ptr [| Llvm.i32_type env.ctx |]
         | "zane_terminal" ->
             Llvm.function_type (Llvm.i32_type env.ctx) [| Llvm.i32_type env.ctx |]
+        | "zane_promote" ->
+            Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.i64 |]
         | "zane_arrive" | "zane_vacate" | "zane_copy" ->
             Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr |]
         | "zane_overwrite" ->
@@ -170,8 +172,9 @@ let slot env fr id t =
   Hashtbl.replace fr.locals id (s, t);
   s
 
-(* A value moved into a fresh place: stored, and the anchors it carries
-   follow it there (memory.md §4.5). *)
+(* A value moved into a fresh place: stored, the anchors it carries follow
+   it there (memory.md §4.5), and its blocks move into the place's region
+   (§3.5). *)
 let place env b p v l =
   ignore (Llvm.build_store v p b);
   if listed env l then ignore (call_runtime env b "zane_arrive" [| p; layout env l |])
@@ -266,6 +269,17 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
       Option.iter (fun v -> place env b block v l) (expr env fr b value);
       Some block
   | Expr.Layout l -> Some (layout env l)
+  | Expr.Escape { value; layout = l; exit } -> (
+      (* The arenas the exit drains are the innermost ones: all of the
+         function's, or those opened since the expansion began. *)
+      let kept = match exit with None -> 0 | Some label -> snd (Hashtbl.find fr.labels label) in
+      let drained = List.filteri (fun i _ -> i < List.length fr.open_ - kept) fr.open_ in
+      match (expr env fr b value, List.rev drained) with
+      | Some v, outermost :: _ when listed env l ->
+          let p = spill env fr b v in
+          ignore (call_runtime env b "zane_promote" [| p; layout env l; outermost |]);
+          Some (Llvm.build_load (Llvm.type_of v) p "" b)
+      | v, _ -> v)
   | Expr.Float f -> Some (Llvm.const_float (Llvm.double_type env.ctx) f)
   | Expr.Bool v -> Some (Llvm.const_int (Llvm.i1_type env.ctx) (if v then 1 else 0))
   | Expr.Text s -> Some (text env s)

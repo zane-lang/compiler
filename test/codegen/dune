@@ -409,3 +409,29 @@
  (alias runtest)
  (action
   (diff golden/range.out range.out.actual)))
+
+; `regions` is each scope's dynamic region: a value that leaves a scope --
+; returned, left from an arm, aborted with, stored or pushed from an inner
+; block -- takes its blocks out before the scope drains, and a drain that
+; finds one still out stops the program.
+
+(rule
+ (deps (source_tree fixtures/regions))
+ (targets regions.exe)
+ (action
+  (run
+   %{exe:../../bin/compiler/main.exe}
+   --build
+   regions.exe
+   --package fixtures/regions)))
+
+(rule
+ (action
+  (with-stdout-to
+   regions.out.actual
+   (run ./regions.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/regions.out regions.out.actual)))

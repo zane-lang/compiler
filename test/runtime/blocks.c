@@ -1,6 +1,6 @@
-/* The runtime's lists and boxes, tested in C on their own (docs/lowering.md
-   L17), over hand-written layouts. Each check prints `yes` when it holds and
-   `no` when it does not. */
+/* The runtime's lists, boxes and dynamic regions, tested in C on their own
+   (docs/lowering.md L17), over hand-written layouts. Each check prints `yes`
+   when it holds and `no` when it does not. */
 
 #include "../../runtime/zane.c"
 
@@ -59,8 +59,11 @@ void zane_main(void) {
 	node *first = zane_list_push(list, sizeof(node), node_layout);
 	*first = (node){ 0, 7 };
 	uint32_t g = zane_mint(first);
+	/* A block after the list's keeps it from growing where it is. */
+	void *after = zane_box(8, 8);
 	for (int64_t i = 0; i < 100; i++)
 		*(node *)zane_list_push(list, sizeof(node), node_layout) = (node){ 0, i };
+	zane_free(after, 8, 8);
 	node *now = zane_resolve(g);
 	check(now == zane_list_at(list, 1, sizeof(node)) && now->value == 7 && now != first);
 	check(list->count == 101 && list->room == 2048 && zane_blocks == 1);
@@ -97,5 +100,54 @@ void zane_main(void) {
 	zane_overwrite((char *)a, (char *)&done, sizeof(countdown), countdown_layout, 0);
 	check(depth(a) == 0 && depth(b) == 2 && zane_blocks == 2);
 	zane_scope_drain(scope);
+	check(zane_blocks == 0);
+
+	/* A list's block grows where it is while it is the last thing at its
+	   region's frontier, and a block it gives back serves the next of its
+	   size. */
+	int64_t outer = zane_scope_enter();
+	zane_list *ints = zane_slot(outer, sizeof(zane_list), 8, NULL);
+	zane_list_new(ints);
+	for (int64_t i = 0; i < 16; i++) *(int64_t *)zane_list_push(ints, 8, NULL) = i;
+	char *before = ints->items;
+	*(int64_t *)zane_list_push(ints, 8, NULL) = 16;
+	check(ints->items == before && ints->room == 256 && zane_blocks == 1);
+	zane_list *other = zane_slot(outer, sizeof(zane_list), 8, NULL);
+	zane_list_new(other);
+	zane_list_push(other, 8, NULL);
+	char *first_block = other->items;
+	after = zane_box(8, 8);
+	for (int64_t i = 0; i < 16; i++) zane_list_push(other, 8, NULL);
+	zane_free(after, 8, 8);
+	zane_list *third = zane_slot(outer, sizeof(zane_list), 8, NULL);
+	zane_list_new(third);
+	zane_list_push(third, 8, NULL);
+	check(other->items != first_block && third->items == first_block);
+
+	/* A list pushed to from an inner scope keeps its block in the scope
+	   that holds it, and a string leaving an inner scope moves its bytes
+	   out before the drain. */
+	int64_t inner_scope = zane_scope_enter();
+	for (int64_t i = 0; i < 100; i++) zane_list_push(third, 8, NULL);
+	zane_text left;
+	zane_text_join(&left, &(zane_text){ 0, "ab", 2, 0 }, &(zane_text){ 0, "cd", 2, 0 });
+	check(zane_region_of(left.bytes) == inner_scope);
+	zane_promote((char *)&left, text_layout, inner_scope);
+	zane_scope_drain(inner_scope);
+	check(zane_region_of(third->items) == outer && zane_region_of(left.bytes) == outer &&
+	      memcmp(left.bytes, "abcd", 4) == 0);
+	zane_text *kept = zane_slot(outer, sizeof(zane_text), 8, text_layout);
+	*kept = left;
+	zane_arrive((char *)kept, text_layout);
+	zane_list *lists[] = { ints, other, third };
+	for (int i = 0; i < 3; i++) {
+		zane_list emptied = { 0, NULL, 0, 0 };
+		zane_list *l = lists[i];
+		/* These lists were placed with no layout, so return their blocks
+		   by hand. */
+		zane_free(l->items, l->room, ZANE_LINE);
+		*l = emptied;
+	}
+	zane_scope_drain(outer);
 	check(zane_blocks == 0);
 }

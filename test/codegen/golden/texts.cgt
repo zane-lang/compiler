@@ -589,9 +589,12 @@
     │       │       │   │   │   │           │   └── layout: @primitives$String
     │       │       │   │   │   │           ├── body[1] > assign:
     │       │       │   │   │   │           │   ├── place: #78
-    │       │       │   │   │   │           │   └── value > take:
-    │       │       │   │   │   │           │       ├── type: handle
-    │       │       │   │   │   │           │       ├── address: address of #80 : ptr
+    │       │       │   │   │   │           │   └── value > escape:
+    │       │       │   │   │   │           │       ├── exit: @77
+    │       │       │   │   │   │           │       ├── value > take:
+    │       │       │   │   │   │           │       │   ├── type: handle
+    │       │       │   │   │   │           │       │   ├── address: address of #80 : ptr
+    │       │       │   │   │   │           │       │   └── layout: @primitives$String
     │       │       │   │   │   │           │       └── layout: @primitives$String
     │       │       │   │   │   │           └── body[2]: leave @77
     │       │       │   │   │   └── layout: @primitives$String
@@ -748,53 +751,62 @@
     │   ├── symbol: zane_twice_11
     │   ├── params[0]: local #1 : i32
     │   ├── ret: handle
-    │   └── body[0] > return > runtime:
-    │       ├── type: handle
-    │       ├── fn: zane_text_join
-    │       ├── args[0] > deref:
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > runtime:
     │       │   ├── type: handle
-    │       │   └── ptr > resolve: local #1 : i32
-    │       └── args[1] > deref:
-    │           ├── type: handle
-    │           └── ptr > resolve: local #1 : i32
+    │       │   ├── fn: zane_text_join
+    │       │   ├── args[0] > deref:
+    │       │   │   ├── type: handle
+    │       │   │   └── ptr > resolve: local #1 : i32
+    │       │   └── args[1] > deref:
+    │       │       ├── type: handle
+    │       │       └── ptr > resolve: local #1 : i32
+    │       └── layout: @primitives$String
     ├── funcs[3] > func:
     │   ├── symbol: zane_Person_7
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: {i32, handle}
-    │   └── body[0] > return > record:
-    │       ├── type: {i32, handle}
-    │       ├── members[0] > member 0: 0 : i32
-    │       └── members[1] > member 1 > take:
-    │           ├── type: handle
-    │           ├── address: local #1 : ptr
-    │           └── layout: @primitives$String
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {i32, handle}
+    │       │   ├── members[0] > member 0: 0 : i32
+    │       │   └── members[1] > member 1 > take:
+    │       │       ├── type: handle
+    │       │       ├── address: local #1 : ptr
+    │       │       └── layout: @primitives$String
+    │       └── layout: texts$Person
     ├── funcs[4] > func:
     │   ├── symbol: zane_greeting_8
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: handle
     │   └── body[0] > scope:
     │       ├── id: %5
-    │       └── body[0] > return > runtime:
-    │           ├── type: handle
-    │           ├── fn: zane_text_join
-    │           ├── args[0] > expand:
+    │       └── body[0] > return > escape:
+    │           ├── exit: function
+    │           ├── value > runtime:
     │           │   ├── type: handle
-    │           │   ├── label: @3
-    │           │   ├── result: #4
-    │           │   ├── body[0] > host:
-    │           │   │   ├── local: #2
-    │           │   │   ├── scope: %5
-    │           │   │   ├── value: "hello, " : handle
-    │           │   │   └── layout: @primitives$String
-    │           │   └── body[1] > assign:
-    │           │       ├── place: #4
-    │           │       └── value: local #2 : handle
-    │           └── args[1] > member:
-    │               ├── type: handle
-    │               ├── index: 1
-    │               └── value > deref:
-    │                   ├── type: {i32, handle}
-    │                   └── ptr: local #1 : ptr
+    │           │   ├── fn: zane_text_join
+    │           │   ├── args[0] > expand:
+    │           │   │   ├── type: handle
+    │           │   │   ├── label: @3
+    │           │   │   ├── result: #4
+    │           │   │   ├── body[0] > host:
+    │           │   │   │   ├── local: #2
+    │           │   │   │   ├── scope: %5
+    │           │   │   │   ├── value: "hello, " : handle
+    │           │   │   │   └── layout: @primitives$String
+    │           │   │   └── body[1] > assign:
+    │           │   │       ├── place: #4
+    │           │   │       └── value: local #2 : handle
+    │           │   └── args[1] > member:
+    │           │       ├── type: handle
+    │           │       ├── index: 1
+    │           │       └── value > deref:
+    │           │           ├── type: {i32, handle}
+    │           │           └── ptr: local #1 : ptr
+    │           └── layout: @primitives$String
     └── funcs[5] > func:
         ├── symbol: zane_refuse_12
         ├── params[0]: local #1 : ptr
@@ -804,21 +816,24 @@
             └── body[0] > return > case:
                 ├── type: <handle | handle | void>
                 ├── index: 1
-                └── payload > runtime:
-                    ├── type: handle
-                    ├── fn: zane_text_join
-                    ├── args[0] > deref:
+                └── payload > escape:
+                    ├── exit: function
+                    ├── value > runtime:
                     │   ├── type: handle
-                    │   └── ptr: local #1 : ptr
-                    └── args[1] > expand:
-                        ├── type: handle
-                        ├── label: @3
-                        ├── result: #4
-                        ├── body[0] > host:
-                        │   ├── local: #2
-                        │   ├── scope: %5
-                        │   ├── value: "!" : handle
-                        │   └── layout: @primitives$String
-                        └── body[1] > assign:
-                            ├── place: #4
-                            └── value: local #2 : handle
+                    │   ├── fn: zane_text_join
+                    │   ├── args[0] > deref:
+                    │   │   ├── type: handle
+                    │   │   └── ptr: local #1 : ptr
+                    │   └── args[1] > expand:
+                    │       ├── type: handle
+                    │       ├── label: @3
+                    │       ├── result: #4
+                    │       ├── body[0] > host:
+                    │       │   ├── local: #2
+                    │       │   ├── scope: %5
+                    │       │   ├── value: "!" : handle
+                    │       │   └── layout: @primitives$String
+                    │       └── body[1] > assign:
+                    │           ├── place: #4
+                    │           └── value: local #2 : handle
+                    └── layout: @primitives$String

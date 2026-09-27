@@ -54,7 +54,7 @@ and ctx = {
      outcome, or into the handler of the call or `match` it belongs to. *)
   abort : Source.Span.t -> Expr.t -> Stat.t list;
   (* Where a `resolve` goes: past the operation its handler handles. *)
-  resolve : (Expr.t -> Stat.t list) option;
+  resolve : (Tty.t -> Expr.t -> Stat.t list) option;
   (* What ends this invocation with `Unit`: a return from the function, or
      leaving the expansion (control-flow.md §4.2). *)
   finish : Source.Span.t -> Stat.t list;
@@ -558,6 +558,13 @@ let bind_local st scope (l : T.Local.t) id value =
   bind st scope l.T.Local.span l.T.Local.ty id value
 
 let ptr node = { Expr.node; ty = Nodes.Ty.Ptr }
+
+(* A value of type [t] leaving the arenas an exit drains: a host, or a
+   value that owns a block, takes its blocks out of them first. *)
+let escape st span t exit (value : Expr.t) =
+  if held st span t then
+    { value with Expr.node = Expr.Escape { value; layout = layout st span t; exit } }
+  else value
 let layout_table l = ptr (Expr.Layout l)
 let resolve (tether : Expr.t) = ptr (Expr.Resolve tether)
 let local_ptr id = ptr (Expr.Local id)
@@ -974,7 +981,7 @@ and map_read st ctx span target map ret =
 (* A handler is a block of its own, so an abort value of a reference type
    is hosted in the handler's arena, which is innermost wherever the handler
    runs. *)
-and handle ?resolve st ctx (h : T.Handler.t) label result _span (value : Expr.t) =
+and handle ?resolve st ctx (h : T.Handler.t) label result span (value : Expr.t) =
   let scope = { arena = None } in
   let bind =
     match h.T.Handler.binder with
@@ -984,7 +991,11 @@ and handle ?resolve st ctx (h : T.Handler.t) label result _span (value : Expr.t)
         [ bind_local st scope l id value ]
     | None -> [ Stat.Eval value ]
   in
-  let resolve = match resolve with Some r -> r | None -> leave label result in
+  let resolve =
+    match resolve with
+    | Some r -> r
+    | None -> fun t value -> leave label result (escape st span t (Some label) value)
+  in
   let inner = { ctx with resolve = Some resolve; scope } in
   let body = bind @ block st inner h.T.Handler.body in
   match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ]
@@ -1039,7 +1050,7 @@ and case_place st ctx span (target : T.Expr.t) case handler ret =
       (fun i _ -> if i = live then (i, leave label (Some result) payload) else (i, []))
       (cases st span tsty)
   in
-  let resolve value =
+  let resolve _ value =
     [
       Stat.Place { address = ptr (Expr.Address spare); value; layout = l };
       Stat.assign result (ptr (Expr.Address spare));
@@ -1353,12 +1364,14 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
   | T.Stat.Expr e -> [ Stat.Eval (expr st ctx e) ]
   | T.Stat.Return e -> (
       match ctx.exit with
-      | Function -> [ Stat.Return (st.returns (moved st ctx span st.ret e)) ]
-      | Leave { label; result; ret } -> leave label result (moved st ctx span ret e))
+      | Function ->
+          [ Stat.Return (st.returns (escape st span st.ret None (moved st ctx span st.ret e))) ]
+      | Leave { label; result; ret } ->
+          leave label result (escape st span ret (Some label) (moved st ctx span ret e)))
   | T.Stat.Abort e -> ctx.abort span (moved st ctx span e.T.Expr.ty e)
   | T.Stat.Resolve e -> (
       match ctx.resolve with
-      | Some resolve -> resolve (moved st ctx span e.T.Expr.ty e)
+      | Some resolve -> resolve e.T.Expr.ty (moved st ctx span e.T.Expr.ty e)
       | None -> refuse span "lowering does not handle a block that yields a value yet")
   | _ -> refuse span "lowering does not handle this statement yet"
 
@@ -1409,7 +1422,14 @@ let func st (v : verb) : Func.t =
       env;
       exit = Function;
       expanding = [];
-      abort = (fun _ value -> [ Stat.Return (outcome_case o aborted value) ]);
+      abort =
+        (fun _ value ->
+          let value =
+            match v.signature.S.abort with
+            | Some t -> escape st span t None value
+            | None -> value
+          in
+          [ Stat.Return (outcome_case o aborted value) ]);
       resolve = None;
       finish = no_block;
       exit_call = (fun _ -> [ Stat.Return (outcome_case o exited unit_) ]);
@@ -1460,10 +1480,16 @@ let program (p : T.Program.t) =
           | _ -> ())
         pkg.T.Package.decls)
     p.T.Program.packages;
+  (* An instance's signature still names its parameters; its body already
+     has its arguments. *)
   List.iter
     (fun (i : T.Instance.t) ->
-      add i.T.Instance.decl i.T.Instance.args i.T.Instance.signature i.T.Instance.params
-        i.T.Instance.body)
+      let sub = Tty.subst (List.map (fun ((p : Tty.param), a) -> (p.id, a)) i.T.Instance.args) in
+      let signature = i.T.Instance.signature in
+      let signature =
+        { signature with S.ret = sub signature.S.ret; abort = Option.map sub signature.S.abort }
+      in
+      add i.T.Instance.decl i.T.Instance.args signature i.T.Instance.params i.T.Instance.body)
     p.T.Program.instances;
   try
     (* The root package is the first (docs/semantics.md §2), and its `main`

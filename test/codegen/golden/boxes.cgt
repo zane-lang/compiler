@@ -799,20 +799,23 @@
     │   ├── params[0]: local #1 : <i64 | ptr>
     │   ├── params[1]: local #2 : <i64 | ptr>
     │   ├── ret: {ptr, ptr}
-    │   └── body[0] > return > record:
-    │       ├── type: {ptr, ptr}
-    │       ├── members[0] > member 0 > box:
-    │       │   ├── value > copy:
-    │       │   │   ├── type: <i64 | ptr>
-    │       │   │   ├── value: local #1 : <i64 | ptr>
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {ptr, ptr}
+    │       │   ├── members[0] > member 0 > box:
+    │       │   │   ├── value > copy:
+    │       │   │   │   ├── type: <i64 | ptr>
+    │       │   │   │   ├── value: local #1 : <i64 | ptr>
+    │       │   │   │   └── layout: boxes$Tree
     │       │   │   └── layout: boxes$Tree
-    │       │   └── layout: boxes$Tree
-    │       └── members[1] > member 1 > box:
-    │           ├── value > copy:
-    │           │   ├── type: <i64 | ptr>
-    │           │   ├── value: local #2 : <i64 | ptr>
-    │           │   └── layout: boxes$Tree
-    │           └── layout: boxes$Tree
+    │       │   └── members[1] > member 1 > box:
+    │       │       ├── value > copy:
+    │       │       │   ├── type: <i64 | ptr>
+    │       │       │   ├── value: local #2 : <i64 | ptr>
+    │       │       │   └── layout: boxes$Tree
+    │       │       └── layout: boxes$Tree
+    │       └── layout: boxes$Pair
     ├── funcs[4] > func:
     │   ├── symbol: zane_total_11
     │   ├── params[0]: local #1 : <i64 | ptr>
@@ -881,19 +884,22 @@
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : ptr
     │   ├── ret: {i32, handle, ptr}
-    │   └── body[0] > return > record:
-    │       ├── type: {i32, handle, ptr}
-    │       ├── members[0] > member 0: 0 : i32
-    │       ├── members[1] > member 1 > take:
-    │       │   ├── type: handle
-    │       │   ├── address: local #1 : ptr
-    │       │   └── layout: @primitives$String
-    │       └── members[2] > member 2 > box:
-    │           ├── value > take:
-    │           │   ├── type: {i32, <void | ptr>}
-    │           │   ├── address: local #2 : ptr
-    │           │   └── layout: boxes$Chain
-    │           └── layout: boxes$Chain
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {i32, handle, ptr}
+    │       │   ├── members[0] > member 0: 0 : i32
+    │       │   ├── members[1] > member 1 > take:
+    │       │   │   ├── type: handle
+    │       │   │   ├── address: local #1 : ptr
+    │       │   │   └── layout: @primitives$String
+    │       │   └── members[2] > member 2 > box:
+    │       │       ├── value > take:
+    │       │       │   ├── type: {i32, <void | ptr>}
+    │       │       │   ├── address: local #2 : ptr
+    │       │       │   └── layout: boxes$Chain
+    │       │       └── layout: boxes$Chain
+    │       └── layout: boxes$Link
     └── funcs[6] > func:
         ├── symbol: zane_length_15
         ├── params[0]: local #1 : ptr

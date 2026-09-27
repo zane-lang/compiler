@@ -73,8 +73,9 @@ void zane_main(void) {
 	zane_scope_drain(scope);
 	check(zane_blocks == 0);
 
-	/* A payload that floats takes its block along, and it stays readable
-	   through the guest; one nobody names dies with its block. */
+	/* A payload that floats takes its block along into the program's own
+	   region, and it stays readable through the guest; one nobody names dies
+	   with its block. */
 	scope = zane_scope_enter();
 	holder *h = zane_slot(scope, sizeof(holder), 8, holder_layout);
 	h->bp = 0;
@@ -83,10 +84,10 @@ void zane_main(void) {
 	uint32_t g = zane_mint(&h->held);
 	holder emptied = { 0, 1, { 0 } };
 	zane_overwrite((char *)h, (char *)&emptied, sizeof(holder), holder_layout, 0);
-	check(holds(zane_resolve(g), "abcd") && zane_blocks == 0);
+	check(holds(zane_resolve(g), "abcd") && zane_blocks == 1 && zane_floated == 1);
 	h->tag = 0;
 	zane_text_join(&h->held, &cd, &ab);
 	zane_overwrite((char *)h, (char *)&emptied, sizeof(holder), holder_layout, 0);
-	check(zane_blocks == 0);
+	check(zane_blocks == 1);
 	zane_scope_drain(scope);
 }
