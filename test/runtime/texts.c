@@ -84,10 +84,10 @@ void zane_main(void) {
 	uint32_t g = zane_mint(&h->held);
 	holder emptied = { 0, 1, { 0 } };
 	zane_overwrite((char *)h, (char *)&emptied, sizeof(holder), holder_layout, 0);
-	check(holds(zane_resolve(g), "abcd") && zane_blocks == 1 && zane_floated == 1);
+	check(holds(zane_resolve(g), "abcd") && zane_blocks == 2 && zane_floated == 2);
 	h->tag = 0;
 	zane_text_join(&h->held, &cd, &ab);
 	zane_overwrite((char *)h, (char *)&emptied, sizeof(holder), holder_layout, 0);
-	check(zane_blocks == 1);
+	check(zane_blocks == 2);
 	zane_scope_drain(scope);
 }

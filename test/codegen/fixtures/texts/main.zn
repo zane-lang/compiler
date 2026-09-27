@@ -30,6 +30,11 @@ Person(name String) => init{ name; }
 
 String greeting(this Person) => String("hello, ") + this.name
 
+Unit rename(this Person, name String) mut {
+	this.name = name;
+	return Unit();
+}
+
 type Tagged = #variant {
 	named String;
 	anonymous Unit;
@@ -95,6 +100,8 @@ Unit main() {
 	holder Holder = Holder.some(kept);
 	holder = Holder.none(Unit());
 	check(w:greeting() == String("hello, floating"));
+	w!rename(a + String("!"));
+	check(w:greeting() == String("hello, ab!"));
 
 	// A result nobody keeps, and a string aborted with.
 	twice(a);

@@ -647,15 +647,15 @@ void zane_vacate(char *slot, const int64_t *layout) {
 	}
 }
 
-/* The blocks floated hosts took along, which stay out until the program
-   ends. */
+/* Floated hosts, and the blocks they took along when they floated, which
+   stay out until the program ends. */
 static int64_t zane_floated;
 
 /* `incoming` replaces what `slot` holds (memory.md §3.7, §4.5). A contingent
    place's anchored occupant -- a variant payload's, or anything in a list's
-   element when `contingent` is set -- first floats into an anonymous host,
-   taking along the anchors of every host inside it, and its blocks, which
-   move into the program's own region. What stays dies, and its blocks are
+   element when `contingent` is set -- first floats into an anonymous host in
+   the program's own region, taking along the anchors of every host inside
+   it, and its blocks, which move there too. What stays dies, and its blocks are
    returned. Then each stable host keeps its identity: the incoming one
    takes it, and an identity the incoming one brought forwards to it. A
    contingent one keeps the incoming host's own. What arrives moves its
@@ -670,12 +670,13 @@ void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *lay
 		if ((p.conditions == 0 && !contingent) || !zane_hosts(slot, &p)) continue;
 		if (zane_inside(p.offset, from, length, n)) continue;
 		if (!(id = *zane_backpointer(slot, &p))) continue;
-		char *anonymous = malloc((size_t)p.size);
-		if (!anonymous) zane_broken("out of memory for a floating host");
-		memcpy(anonymous, slot + p.offset, (size_t)p.size);
-		/* A floated host lives until the program ends, and so do its blocks
+		/* A floated host is a block of the program's own region, so what
+		   later arrives in it, or grows from it, is placed there too. It
+		   lives until the program ends, and so do its blocks
 		   (docs/lowering.md §9). */
-		zane_floated += zane_owned(slot, layout, p.offset, p.offset + p.size);
+		char *anonymous = zane_alloc(0, p.size, 8);
+		memcpy(anonymous, slot + p.offset, (size_t)p.size);
+		zane_floated += 1 + zane_owned(slot, layout, p.offset, p.offset + p.size);
 		ZANE_EACH(layout, q) {
 			uint32_t inner;
 			if (q.offset < p.offset || q.offset >= p.offset + p.size) continue;
@@ -810,12 +811,12 @@ void zane_scope_drain(int64_t scope) {
 /* A program whose output did not all reach stdout did not succeed: a write
    that failed earlier leaves the stream's error indicator set, even when the
    final flush has nothing left to fail on. The program's own scope is open
-   around `main`, and when it returns every other scope has drained, and
-   every block is back but those floated hosts took along. */
+   around `main`, and when it returns every other scope has drained. What
+   its own region still holds -- floated hosts, and what they own, which
+   may have changed since they floated -- goes with the program. */
 int main(void) {
 	zane_scope_enter();
 	zane_main();
 	if (zane_depth != 1) zane_broken("a scope was left without draining");
-	if (zane_marks[0].live != zane_floated) zane_broken("a dynamic block outlived its owner");
 	return fflush(stdout) == 0 && !ferror(stdout) ? 0 : 1;
 }

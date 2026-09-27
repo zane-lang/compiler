@@ -80,9 +80,9 @@ void zane_main(void) {
 	zane_text ab = { 0, "ab", 2, 0 };
 	for (int i = 0; i < 3; i++)
 		zane_text_join(zane_list_push(words, sizeof(zane_text), NULL), &ab, &ab);
-	check(zane_blocks == 5);
+	check(zane_blocks - zane_floated == 5);
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks - zane_floated == 0);
 
 	/* A copy of a boxed value owns blocks of its own, and each is returned
 	   once. */
@@ -95,12 +95,12 @@ void zane_main(void) {
 	countdown *b = zane_slot(scope, sizeof(countdown), 8, countdown_layout);
 	*b = *a;
 	zane_copy((char *)b, countdown_layout);
-	check(depth(a) == 2 && depth(b) == 2 && b->more != a->more && zane_blocks == 4);
+	check(depth(a) == 2 && depth(b) == 2 && b->more != a->more && zane_blocks - zane_floated == 4);
 	countdown done = { 0, NULL };
 	zane_overwrite((char *)a, (char *)&done, sizeof(countdown), countdown_layout, 0);
-	check(depth(a) == 0 && depth(b) == 2 && zane_blocks == 2);
+	check(depth(a) == 0 && depth(b) == 2 && zane_blocks - zane_floated == 2);
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks - zane_floated == 0);
 
 	/* A list's block grows where it is while it is the last thing at its
 	   region's frontier, and a block it gives back serves the next of its
@@ -111,7 +111,7 @@ void zane_main(void) {
 	for (int64_t i = 0; i < 16; i++) *(int64_t *)zane_list_push(ints, 8, NULL) = i;
 	char *before = ints->items;
 	*(int64_t *)zane_list_push(ints, 8, NULL) = 16;
-	check(ints->items == before && ints->room == 256 && zane_blocks == 1);
+	check(ints->items == before && ints->room == 256 && zane_blocks - zane_floated == 1);
 	zane_list *other = zane_slot(outer, sizeof(zane_list), 8, NULL);
 	zane_list_new(other);
 	zane_list_push(other, 8, NULL);
@@ -149,7 +149,7 @@ void zane_main(void) {
 		*l = emptied;
 	}
 	zane_scope_drain(outer);
-	check(zane_blocks == 0);
+	check(zane_blocks - zane_floated == 0);
 
 	/* A layout that lists nothing may be no table at all. */
 	int64_t plain = 1, replacing_plain = 2;

@@ -337,9 +337,10 @@ test passing.
   later but still after every guest that could name it. Nothing a program
   does can tell these apart.
 - **A floated host outlives its owner.** A variant payload's anchored
-  occupant floats ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8.1) into memory of its own that lives
-  until the program ends, rather than until its owner scope drains, and the
-  blocks it owns move into the program's own region, open until then. A
+  occupant floats ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8.1) into a block of the program's own
+  region, open until the program ends, rather than until its owner scope
+  drains, and the blocks it owns move there too, as does anything later
+  stored into it. That region goes with the program, unchecked. A
   host has no destructor, so the longer life is not observable.
 - **Each scope's dynamic region.** A scope's blocks are in a region of its
   own, as [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1–3.2 has it: chunks of its own, a bump frontier, and
