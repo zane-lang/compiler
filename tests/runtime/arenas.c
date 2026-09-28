@@ -1,4 +1,4 @@
-/* The runtime's scope arenas, tested in C on their own (docs/lowering.md
+/* The runtime's scope arenas, tested in C on their own (docs/design/lowering.md
    L17). The runtime is linked whole, and this file is the program it
    calls. Each check prints `yes` when it holds and `no` when it does not;
    the runtime's own `main` then checks every scope drained. */

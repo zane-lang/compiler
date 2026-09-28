@@ -1,5 +1,5 @@
 /* The runtime's lists, boxes and dynamic regions, tested in C on their own
-   (docs/lowering.md L17), over hand-written layouts. Each check prints `yes`
+   (docs/design/lowering.md L17), over hand-written layouts. Each check prints `yes`
    when it holds and `no` when it does not. */
 
 #include "zane_internal.h"

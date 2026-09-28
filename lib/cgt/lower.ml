@@ -93,7 +93,7 @@ let outcome st span (v : verb) =
 
 (* A function that can end more than one way returns a sum of the three:
    done with its result, aborted with its abort value, or exited
-   (docs/lowering.md §9). One that can only finish returns its result. *)
+   (docs/design/lowering.md §9). One that can only finish returns its result. *)
 let plain o = o.aborts = None && not o.exit_
 
 let returned o =
@@ -394,7 +394,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       case_read st ctx span target case handler e.T.Expr.ty
   | T.Expr.Map_read { target; map; _ } -> map_read st ctx span target map e.T.Expr.ty
   (* A spawned call read where it is written is waited for at once, which
-     is the call itself (docs/lowering.md §9). *)
+     is the call itself (docs/design/lowering.md §9). *)
   | T.Expr.Spawn call -> expr st ctx call
   | _ -> refuse span "lowering does not handle this expression yet"
 
@@ -1365,7 +1365,7 @@ let program (p : T.Program.t) =
       add i.T.Instance.decl i.T.Instance.args signature i.T.Instance.params i.T.Instance.body)
     p.T.Program.instances;
   try
-    (* The root package is the first (docs/semantics.md §2), and its `main`
+    (* The root package is the first (docs/design/semantics.md §2), and its `main`
        is where the program starts (packages.md §6.2). *)
     let root =
       match p.T.Program.packages with

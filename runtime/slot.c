@@ -1,7 +1,7 @@
 #include "zane_internal.h"
 
 /* ---------------------------------------------------------------------- */
-/* Slots and drains (memory.md §3.2, docs/lowering.md L8)                 */
+/* Slots and drains (memory.md §3.2, docs/design/lowering.md L8)                 */
 /* ---------------------------------------------------------------------- */
 
 /* A zeroed slot in the innermost scope's arena, which is the only one a

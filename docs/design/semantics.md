@@ -1,4 +1,4 @@
-# Designing the TST
+# Semantics: designing the TST
 
 > **Status: built.** Stage 3 — the passes that turn the SST into the typed
 > syntax tree — follows this design. Each decision is numbered (**D1**…). The
@@ -219,7 +219,7 @@ indices, and each call makes that store with its own arguments and compares
 there. A call in a body can store one parameter into another in turn, so the
 summaries are computed to a fixed point over every body before any reports.
 
-**Exits** (`lib/tst/analyses/exits.ml`, [`docs/spec-divergences.md`](spec-divergences.md)
+**Exits** (`lib/tst/analyses/exits.ml`, [`docs/spec-divergences.md`](../spec-divergences.md)
 §11). A verb exits when `@controlflow$exitFromCall` is in its own frame: its
 body, or a block written there. A call to one ends the run of the block it is
 written in, so it is an error in no block.
@@ -246,9 +246,9 @@ point over every body.
 
 The same spawn is lent every host passed to it, directly or through a guest,
 until the same drain, and the block may not write one meanwhile
-([`spec-divergences.md`](spec-divergences.md) §14): not by assignment, not as
+([`spec-divergences.md`](../spec-divergences.md) §14): not by assignment, not as
 a `!` call's subject, not by moving it out. A spawned `mut` call on part of it
-is allowed, since it writes back (docs/lowering.md §9). Where a write goes
+is allowed, since it writes back (docs/design/lowering.md §9). Where a write goes
 through a guest, the checker follows the guest to the place it was minted
 from, through other guests, as long as the guest has not been bound again in
 a block inside its own. A guest whose place it cannot follow may name any host
@@ -341,7 +341,7 @@ Where the typing rules need care:
 | Operator | Candidates from the operand types' home packages only; imports add none (`operators.md` §2.2). A swapped `Op` is resolved as the primitive with operands in passed order (see D8). |
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
-| Block argument | Typed `@concepts$Block`: a block yields nothing ([`spec-divergences.md`](spec-divergences.md) §12). |
+| Block argument | Typed `@concepts$Block`: a block yields nothing ([`spec-divergences.md`](../spec-divergences.md) §12). |
 | Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). |
 
 ---
@@ -622,7 +622,7 @@ only reject more, never let a write through.
 - An intrinsic operator or constructor reads its operands.
 - The runtime's `print` takes `text &@primitives$String`, a guest, so a
   string type wrapping one hands it its field, which it could not move. The spec declares a plain
-  `@primitives$String` ([`spec-divergences.md`](spec-divergences.md) §9).
+  `@primitives$String` ([`spec-divergences.md`](../spec-divergences.md) §9).
 
 **Where a guest source is decided.**
 - A `match` binder is its case's payload, so no guest is minted from it.

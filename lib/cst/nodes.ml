@@ -59,8 +59,8 @@ end
    source, and a tree that cannot tell them apart cannot be rendered back,
    cannot report `a ''* b` against what was written, and makes the parser the
    stage that dropped the distinction. Collapsing the two is a desugaring, and
-   desugaring belongs to the SST (see docs/desugaring.md §2.2 and
-   docs/stages.md).
+   desugaring belongs to the SST (see docs/design/desugaring.md §2.2 and
+   docs/design/stages.md).
 
    The flag is always [false] on a declaration: §3.1 is explicit that the loose
    forms add no token to the operator vocabulary of §5.1, so there is nothing

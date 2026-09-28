@@ -1268,7 +1268,7 @@ and local_declaration ctx (d : N.Decl.t) =
 
 (* `p Pair(Int(1), Int(2))` declares `p` as the bare `Pair`, since the
    shorthand writes the constructor's name and a call carries no `< >`
-   (docs/desugaring.md §2.7). A generic type named with no arguments takes
+   (docs/design/desugaring.md §2.7). A generic type named with no arguments takes
    them from the value it is declared with. *)
 and declared_type ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
   match te.N.Type_expr.node with

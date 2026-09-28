@@ -4,7 +4,7 @@
 /* Lists (memory.md §3.6)                                                 */
 /* ---------------------------------------------------------------------- */
 
-/* An index outside a list (docs/lowering.md §9): what the program wrote so
+/* An index outside a list (docs/design/lowering.md §9): what the program wrote so
    far is kept, and it stops with a failing status. */
 static void zane_out_of_range(void) {
 	fflush(stdout);

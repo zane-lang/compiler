@@ -7,7 +7,7 @@ open Type_layout
 
 (* The spec names no escapes (lexical.md); the lexer keeps a backslash and the
    character after it together, and these are the ones lowering decodes
-   (docs/lowering.md §9). Any other pair stands for itself. *)
+   (docs/design/lowering.md §9). Any other pair stands for itself. *)
 let unescape s =
   let b = Buffer.create (String.length s) in
   let n = String.length s in

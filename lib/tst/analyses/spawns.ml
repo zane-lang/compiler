@@ -1,5 +1,5 @@
 (* Spawn safety (concurrency.md §4.2–4.3): an analysis over the finished TST
-   (docs/semantics.md D1).
+   (docs/design/semantics.md D1).
 
    A spawned `mut` call writes its subject, so the subject must be a value
    (§4.2). Its borrow of the subject's location lasts until the block the

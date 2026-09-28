@@ -1,7 +1,7 @@
 #include "zane_internal.h"
 
 /* ---------------------------------------------------------------------- */
-/* Dynamic blocks (memory.md §3.6, docs/lowering.md §9)                   */
+/* Dynamic blocks (memory.md §3.6, docs/design/lowering.md §9)                   */
 /* ---------------------------------------------------------------------- */
 
 /* A block is returned when the handle or boxed member that owns it dies,

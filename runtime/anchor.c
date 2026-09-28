@@ -1,7 +1,7 @@
 #include "zane_internal.h"
 
 /* ---------------------------------------------------------------------- */
-/* Anchors and tethers (memory.md §4, docs/lowering.md §9)                */
+/* Anchors and tethers (memory.md §4, docs/design/lowering.md §9)                */
 /* ---------------------------------------------------------------------- */
 
 int zane_next_position(const int64_t *layout, int64_t *cursor, int64_t *left,

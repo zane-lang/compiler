@@ -1,6 +1,6 @@
 (* Owners: a store may not raise a value above what it names (lifetimes.md
    §1.1, §1.4, §1.7, §1.10, §1.11). An analysis over the finished TST
-   (docs/semantics.md D1).
+   (docs/design/semantics.md D1).
 
    Every place has an owner. A local is owned by the block that declares it,
    and a field or element by its root symbol's owner. A parameter, `this`

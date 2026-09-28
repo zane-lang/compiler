@@ -22,7 +22,7 @@
    last-in-first-out, and each has two regions (memory.md §3.1). Its
    fixed-size region is where its slots are: every scope bumps one shared
    chain of chunks from where the scope around it stopped, and draining it
-   returns everything after that point at once (docs/lowering.md §9). A
+   returns everything after that point at once (docs/design/lowering.md §9). A
    fixed chunk stays mapped once made, and the next scope that reaches it
    reuses it. Its dynamic region is where the blocks its values own are: a
    chain of chunks of its own, with a bump frontier and a stack of returned
@@ -30,7 +30,7 @@
 
    The program's `main` runs in one context, and each spawned call in one of
    its own (concurrency.md §3): its own nest of scopes, and its own chain of
-   fixed chunks, so a thread bumps only its own (docs/lowering.md §9). */
+   fixed chunks, so a thread bumps only its own (docs/design/lowering.md §9). */
 enum { ZANE_CHUNK = 1 << 20, ZANE_CHUNKS = 1 << 15, ZANE_LINE = 64 };
 enum { ZANE_DEPTH = 1 << 15, ZANE_SEGMENT = 64, ZANE_CONTEXTS = (1 << 16) - 1 };
 
@@ -95,7 +95,7 @@ typedef struct {
    out. Until it spawns, a context is its own thread's alone; while a call it
    spawned is out, that call may reach its storage, so its scopes and
    regions change under its lock, which another thread always takes for a
-   context it reaches (docs/lowering.md §9). */
+   context it reaches (docs/design/lowering.md §9). */
 struct zane_context {
 	int32_t id;
 	pthread_mutex_t lock;

@@ -2,7 +2,7 @@
    verb was declared in a package or supplied by an intrinsic namespace, so
    overload resolution is one procedure for both (functions.md §5).
 
-   Pass 4 builds one of these per verb declaration (docs/semantics.md §3);
+   Pass 4 builds one of these per verb declaration (docs/design/semantics.md §3);
    [Intrinsics] builds the rest. *)
 
 (* Which declaration a call resolved to. An intrinsic has no declaration, so

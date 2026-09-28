@@ -1,4 +1,4 @@
-/* The runtime's spawned calls, tested in C on their own (docs/lowering.md
+/* The runtime's spawned calls, tested in C on their own (docs/design/lowering.md
    L17): frames, the pool, joins and the water tower, over hand-written
    frames of the shape lowering makes. Each check prints `yes` when it holds
    and `no` when it does not. */

@@ -14,7 +14,7 @@ source says, `--sst` for what it means.
 
 Entries were checked against spec commit
 [`034f11a`](https://github.com/zane-lang/spec/tree/034f11a), the same commit
-[`spec-divergences.md`](spec-divergences.md) is pinned to, and against
+[`spec-divergences.md`](../spec-divergences.md) is pinned to, and against
 `lib/cst/nodes.ml` as it stands. Links point at that commit so a later spec
 edit cannot silently make a quotation here disagree with what it links to.
 

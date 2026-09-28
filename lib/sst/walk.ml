@@ -4,7 +4,7 @@
    Semantics is the first to need this: whether a verb's `n
    @concepts$Int` parameter is generic turns on whether the verb writes
    `n` where a number goes -- in a type, or as the argument to another verb's
-   number parameter (docs/semantics.md §9). A body writes types in a local
+   number parameter (docs/design/semantics.md §9). A body writes types in a local
    declaration and in a lambda's signature, and calls anywhere an expression
    or a block can sit.
 

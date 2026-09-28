@@ -1,4 +1,4 @@
-(* Codegen's entry module (docs/lowering.md §1). *)
+(* Codegen's entry module (docs/design/lowering.md §1). *)
 
 let emit = Emit.program
 let ir m = Llvm.string_of_llmodule m

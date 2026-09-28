@@ -365,7 +365,7 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         )
 
     def test_a_terminator_separates_two_adjacent_import_readings(self) -> None:
-        # The one obligation in docs/ambiguity.md that turned out to be a bug
+        # The one obligation in docs/ambiguity/README.md that turned out to be a bug
         # rather than a fork: `import core$ main Unit() { }` had two complete
         # derivations, since both readings are a run of declarations. Each is
         # reachable on its own once the `;` says where the import stops, and

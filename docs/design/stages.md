@@ -66,3 +66,7 @@ resolution or type checking, and belongs to semantics. That line is why control
 flow is not desugared anywhere — `if` and `guard` are ordinary calls, not syntax
 — and why a method call keeps its `:`/`!` marker through stage 2 even though
 its subject has already become an argument.
+
+Each stage's library under `lib/` is named after the tree it produces:
+`lib/cst/`, `lib/sst/`, `lib/tst/` and `lib/cgt/`. Codegen produces no tree,
+so its library is named after the stage, `lib/codegen/`.

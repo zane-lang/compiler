@@ -1,4 +1,4 @@
-(* Resolving type expressions, and pass 3 (docs/semantics.md §3): every `type`
+(* Resolving type expressions, and pass 3 (docs/design/semantics.md §3): every `type`
    and `alias` right-hand side resolved to a [Ty.t].
 
    The resolver is shared by the later passes too. Its scope says which names

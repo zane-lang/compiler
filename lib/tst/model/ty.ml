@@ -1,4 +1,4 @@
-(* What an expression's type can be. See docs/semantics.md §4.
+(* What an expression's type can be. See docs/design/semantics.md §4.
 
    A [Named] type is a `type` declaration applied to its arguments; an `alias`
    never appears here, because it is expanded where it is written (D5), so two
@@ -217,7 +217,7 @@ let free_params t =
 
 (* The passing mode is not part of what a value is: a `&T` argument and a `T`
    one carry the same type, and which mode a position may take is a question
-   for the lifetime analysis (docs/semantics.md D1), not for typing. So the
+   for the lifetime analysis (docs/design/semantics.md D1), not for typing. So the
    comparisons below look through a guest marker at the top of either side. *)
 let strip_guest = function Guest t -> t | t -> t
 

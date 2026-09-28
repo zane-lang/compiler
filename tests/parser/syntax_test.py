@@ -811,7 +811,7 @@ class OperatorTests(ParserSyntaxTestCase):
 
         # A derived operator is rejected at its declaration. Accepting one
         # would be worse than it looks: every use of `>` is rewritten into a
-        # `<` before any call is resolved (docs/desugaring.md 2.3), so the
+        # `<` before any call is resolved (docs/design/desugaring.md 2.3), so the
         # declaration would parse, check, and never be called.
         for source in (
             "Int -(a Int, b Int) => a",

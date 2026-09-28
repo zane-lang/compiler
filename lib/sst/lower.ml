@@ -1,6 +1,6 @@
 (* CST to SST: every shorthand written out, and nothing else changed.
 
-   The rewrites are inventoried in docs/desugaring.md; this file applies them.
+   The rewrites are inventoried in docs/design/desugaring.md; this file applies them.
    Everything not listed there is a walk that rebuilds the node as it found it,
    which is most of what follows -- the interesting lines are the ones with a
    comment naming the section they implement.
@@ -13,7 +13,7 @@
    check-a-span-against-its-source test run over this tree as over the CST.
 
    **No lookups.** Nothing here reads a declaration, a type, or a resolved
-   name. A rewrite that would need one is not in docs/desugaring.md §2, and the
+   name. A rewrite that would need one is not in docs/design/desugaring.md §2, and the
    reason it is not is recorded in §4. *)
 
 module C = Cst.Nodes
@@ -309,7 +309,7 @@ and verb_call_of (x : C.Verb_call.t) : S.Verb_call.t =
    other way round, because `b < a` is what the spec defines `a > b` as. The
    operands still evaluate in written order (operators.md §2.3), so they stay
    where they were written and the call is marked [swapped] instead of being
-   reordered; see docs/desugaring.md §2.3. *)
+   reordered; see docs/design/desugaring.md §2.3. *)
 and derived_op span (op : C.Operator.t) left right ~written_right abort_handle
     : S.Verb_call.t =
   let at = op.C.Operator.span in
@@ -550,7 +550,7 @@ and verb_decl (x : C.Verb_decl.t) : S.Verb_decl.t =
           }
     (* The grammar admits only the primitive operators here, so the derived
        rewrite above has no declaration to contradict. See
-       docs/desugaring.md §3. *)
+       docs/design/desugaring.md §3. *)
     | C.Verb_decl.Op { op; params; ret_type = r; body = b } ->
         S.Verb_decl.Op
           {
@@ -587,7 +587,7 @@ and verb_decl (x : C.Verb_decl.t) : S.Verb_decl.t =
   { S.Verb_decl.node; span }
 
 (* An operator in declaration position. The grammar accepts only the five
-   binary primitives there (docs/desugaring.md §3), so the derived cases cannot
+   binary primitives there (docs/design/desugaring.md §3), so the derived cases cannot
    arise -- and are refused rather than mapped to something, because silently
    turning a declared `>` into a declared `<` would put back exactly the
    unreachable declaration that guard exists to prevent. *)

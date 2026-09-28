@@ -7,7 +7,7 @@
    name in one file resolves to a declaration in another, and `Int` is a
    declaration in `core`, which is a package like any other. So this is the
    first place files are grouped: by directory, into packages, with the
-   directory's basename as the package's name (§2.1). See docs/semantics.md
+   directory's basename as the package's name (§2.1). See docs/design/semantics.md
    §2.
 
    Where the directories come from is the driver's business. Fetching,
@@ -211,7 +211,7 @@ let load_package ~is_root dir =
           ]
     | paths ->
         (* Every file is loaded, whichever fail: one mistake per file is one
-           report per file, not one report per run (docs/semantics.md D4). *)
+           report per file, not one report per run (docs/design/semantics.md D4). *)
         List.map (load_file ~name) paths
         |> all_or_problems
         |> Result.map (fun files -> { name; dir; is_root; files })

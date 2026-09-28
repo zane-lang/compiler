@@ -1,5 +1,5 @@
 (* Read-only guests (effects.md §4.4): the first analysis over the finished
-   TST (docs/semantics.md D1).
+   TST (docs/design/semantics.md D1).
 
    A guest derived from a read-only binding is read-only wherever it goes:
    bound to a local, stored in a field, passed as an argument, or returned.
@@ -454,7 +454,7 @@ and handler_value w (h : T.Handler.t) =
   resolving w h.T.Handler.body
 
 (* A `return` in a match arm gives the arm's value, not the verb's
-   (docs/semantics.md §9). *)
+   (docs/design/semantics.md §9). *)
 and arm_value w b =
   let verb = w.returned in
   w.returned <- Taint.empty;

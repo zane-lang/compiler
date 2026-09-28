@@ -1,7 +1,7 @@
 #include "zane_internal.h"
 
 /* ---------------------------------------------------------------------- */
-/* Snapshots (concurrency.md §4.4, docs/lowering.md §9)                   */
+/* Snapshots (concurrency.md §4.4, docs/design/lowering.md §9)                   */
 /* ---------------------------------------------------------------------- */
 
 /* A spawned `mut` call whose subject is reached through a host works on a

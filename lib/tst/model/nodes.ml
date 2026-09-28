@@ -1,5 +1,5 @@
 (* The typed syntax tree: the SST with every name resolved and every
-   expression typed (docs/stages.md, docs/semantics.md §6).
+   expression typed (docs/design/stages.md, docs/design/semantics.md §6).
 
    Read against lib/sst/nodes.ml. What this tree adds is a [ty] on every
    expression and a resolved reference wherever the SST held a name. What it

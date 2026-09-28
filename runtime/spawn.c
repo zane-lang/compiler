@@ -1,7 +1,7 @@
 #include "zane_internal.h"
 
 /* ---------------------------------------------------------------------- */
-/* Spawned calls (concurrency.md §3–4, docs/lowering.md §9)               */
+/* Spawned calls (concurrency.md §3–4, docs/design/lowering.md §9)               */
 /* ---------------------------------------------------------------------- */
 
 int zane_state(zane_task *t) { return __atomic_load_n(&t->state, __ATOMIC_ACQUIRE); }

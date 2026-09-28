@@ -1,6 +1,22 @@
 # File structure proposal
 
-Status: **proposal**. Nothing here has been moved yet.
+Status: **carried out**, except for these, which are still open:
+
+- L1 and L2 (§5.1): no library has an `.mli` yet, and the entry modules still
+  expose their APIs in different ways. This is step 10 of §13.
+- The optional step 11: D3, T4, P2, R13, H1 and H3. Q1 is partial: new run
+  output under `reports/` is ignored, but the committed logs stay, because
+  `docs/ambiguity/` cites them as evidence.
+- Two parts of splits that did land. G1: the Verbs section of `lower.ml` has
+  no sub-banners yet. A1: the engine's phases open only the modules they use,
+  but names are not yet qualified, and options are still parsed into
+  `Config`'s references rather than a record.
+
+Two names differ from the ones proposed below: the CGT layout module is
+`type_layout.ml`, since `Nodes` already has a `Layout`, and the engine's `main`
+is split by phase (`run.ml`, `classes.ml`, `proof.ml`, `concretize.ml`)
+rather than into `arguments.ml` and `run.ml`, since `config.ml` already did
+the argument parsing.
 
 This is a strict review of the repository's file layout, written as if the
 code came from someone new to the project. It looks at where files sit, not

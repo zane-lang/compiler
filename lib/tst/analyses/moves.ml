@@ -1,6 +1,6 @@
 (* Moves: which values a hosting store may take, and what a move leaves
    behind (lifetimes.md §1.2, §1.3, §1.6, §1.8). An analysis over the finished
-   TST (docs/semantics.md D1).
+   TST (docs/design/semantics.md D1).
 
    A reference-type value is never copied, so storing one where a host goes --
    a hosting local or field, a swallowing `T` parameter, a return, an element,
@@ -144,7 +144,7 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
             List.filter_map (fun (p : T.Pattern.t) -> p.T.Pattern.binder) a.T.Arm.patterns
           in
           List.iter (fun (b : T.Local.t) -> Hashtbl.replace w.binders b.T.Local.id ()) binders;
-          (* A `return` in an arm gives the arm's value (docs/semantics.md
+          (* A `return` in an arm gives the arm's value (docs/design/semantics.md
              §9). *)
           let verb = w.ret in
           w.ret <- into;
@@ -178,7 +178,7 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
       let args = if swapped then [ right; left ] else [ left; right ] in
       let tys =
         match Guests.signature_of impl with
-        (* An intrinsic operator reads its operands (docs/semantics.md §9). *)
+        (* An intrinsic operator reads its operands (docs/design/semantics.md §9). *)
         | Some { S.owner = S.Intrinsic _; _ } | None -> []
         | Some _ -> Guests.param_types ~subject:true impl
       in

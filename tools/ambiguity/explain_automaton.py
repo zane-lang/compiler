@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Dump Menhir's LR automaton and conflict explanations for a grammar.
 
-`docs/ambiguity.md` calls `menhir --explain` the obligation ledger, but reading
+`docs/ambiguity/README.md` calls `menhir --explain` the obligation ledger, but reading
 it has to be done the same way the prover does or the two disagree. The prover
 expands parameterized rules first, with `--only-preprocess-uu`, which is why a
 proof report cites productions under their expanded names -- `loption_generics_`

@@ -138,7 +138,7 @@ top_decl:
    reading the token directly, so no production can build a node with a name
    the reader cannot be pointed at. Both are `%inline`, so they expand back
    into their caller and the automaton is the same one the bare tokens built --
-   the conflict census in docs/ambiguity.md is unchanged by their introduction.
+   the conflict census in docs/ambiguity/README.md is unchanged by their introduction.
 
    [import_member] is the one name position that does not use them: it is
    already a record whose own span is exactly the name. *)
@@ -354,7 +354,7 @@ map_lit:
    the `)`; written like this it shifts the `)` and decides on the token that
    actually decides, the `{` or its absence. The state count is the same
    twelve; what changes is which fork they are, and this one is the fork
-   docs/ambiguity.md already carries for a call's trailing argument against an
+   docs/ambiguity/README.md already carries for a call's trailing argument against an
    enclosing brace. *)
 %inline positional_constructor_args:
   | "(" ")" {
@@ -513,7 +513,7 @@ import_decl:
    That was an ambiguity the search found, not a fork that resolves.
 
    So the `;` is required here and the grammar carries the rule, which is
-   where docs/ambiguity.md says a rule belongs when the grammar can hold it. A
+   where docs/ambiguity/README.md says a rule belongs when the grammar can hold it. A
    terminator after the `$` leaves the name nowhere to go but the next
    declaration, and the same `;` is what ends `package pkg` and the three
    import forms that do end in a name. *)
@@ -973,7 +973,7 @@ block_call:
    are derived (§2.3): each is a fixed desugaring into this set and "**not**
    independently implementable". They are rejected here rather than accepted
    and ignored, because the SST rewrites every use of one into its primitive
-   form (docs/desugaring.md §2.3), so a declaration of `>` would parse, check,
+   form (docs/design/desugaring.md §2.3), so a declaration of `>` would parse, check,
    and then never be reached by any call.
 
    `~` is primitive too and has its own production, since it is the one unary
@@ -1006,7 +1006,7 @@ block_call:
    form and differs only in where it groups" (operators.md §3.1) and the
    grouping is the tree. What they do not share is [is_loose], because the two
    spellings are two different pieces of source and the CST records what was
-   parsed; collapsing them is the SST's job (docs/desugaring.md §2.2).
+   parsed; collapsing them is the SST's job (docs/design/desugaring.md §2.2).
 
    §3.1 is explicit that the loose forms add no token to the operator
    vocabulary of §5.1 -- so they declare nothing either, and the declaration
@@ -1068,7 +1068,7 @@ block_call:
    may itself end in a brace -- a constructor's field body, a map literal, a
    call's trailing argument -- so `match A { } <= B { }` reads both as
    `(match A { }) <= (B { })` and as `match (A { } <= B) { }`. Both are complete
-   derivations, which is the one thing docs/ambiguity.md does not allow; the `)`
+   derivations, which is the one thing docs/ambiguity/README.md does not allow; the `)`
    ends the scrutinee before the brace is read and neither reading survives it.
 
    The parentheses delimit the list; they do not build a value out of it. The

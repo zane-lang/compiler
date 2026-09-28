@@ -1,7 +1,7 @@
 (* Everything the passes share about one build: the declarations of every
    package, each file's import map, and the tables each later pass fills in.
 
-   The passes run in order (docs/semantics.md §3) and each reads only what the
+   The passes run in order (docs/design/semantics.md §3) and each reads only what the
    ones before it wrote. The tables are mutable because a pass writes them
    once and every later pass reads them; nothing is written twice. *)
 

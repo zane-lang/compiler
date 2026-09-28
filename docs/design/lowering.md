@@ -1,4 +1,4 @@
-# Designing the CGT
+# Lowering: designing the CGT
 
 > **Status: built through §8 step 8.** Stage 4 — lowering the TST to the
 > code-generation tree — and the codegen that reads it follow this design, and
@@ -438,7 +438,7 @@ test passing.
   retired values are kept, is left to measurement.
 - **A host lent to a running spawn.** The spawning block may not write a
   host it lent a spawn that may still be reading it; the checker rejects
-  that write ([`spec-divergences.md`](spec-divergences.md) §14), so the
+  that write ([`spec-divergences.md`](../spec-divergences.md) §14), so the
   only writes that race a reader are spawned write-backs, which the
   snapshots above cover.
 - **Where a spawned call is waited for.** Only a spawned call bound by a
@@ -451,7 +451,7 @@ test passing.
   result's hosts and blocks under the done tag, the abort value's under the
   aborted one. The call settles once, on the spawning thread, where it is
   first read or where its block ends
-  ([`spec-divergences.md`](spec-divergences.md) §13). A flag the spawn sets
+  ([`spec-divergences.md`](../spec-divergences.md) §13). A flag the spawn sets
   says whether it has. An abort takes the abort value out of the slot and
   runs the handler written at the spawn, lowered where it settles but in
   the context of the spawn, so its `abort`, `return` and exit go where they
@@ -504,7 +504,7 @@ test passing.
   sum of three cases instead: done with its result, aborted with its abort
   value, and exited. A function that can only finish returns its result as
   before. An exit ends the run of the block the call is written in
-  ([`spec-divergences.md`](spec-divergences.md) §11), so each run of a block
+  ([`spec-divergences.md`](../spec-divergences.md) §11), so each run of a block
   argument has a label to leave.
 - **A 64-bit target.** Codegen sizes a sum's payload room assuming 8-byte
   pointers and C struct layout, which holds for x86-64 and AArch64. Another

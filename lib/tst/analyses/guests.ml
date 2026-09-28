@@ -1,5 +1,5 @@
 (* Where a guest may come from, and where it may be stored: the local half of
-   the store rules, an analysis over the finished TST (docs/semantics.md D1).
+   the store rules, an analysis over the finished TST (docs/design/semantics.md D1).
 
    Three rules, each decided by the store it looks at alone:
 
@@ -205,7 +205,7 @@ let rec expr w (e : T.Expr.t) =
                 (fun (b : T.Local.t) -> Hashtbl.replace w.binders b.T.Local.id ())
                 p.T.Pattern.binder)
             a.T.Arm.patterns;
-          (* A `return` in an arm gives the arm's value (docs/semantics.md
+          (* A `return` in an arm gives the arm's value (docs/design/semantics.md
              §9). *)
           let verb = w.ret in
           w.ret <- e.T.Expr.ty;

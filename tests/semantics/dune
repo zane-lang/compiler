@@ -1,4 +1,4 @@
-; Stage 3's input: packages assembled from directories (docs/semantics.md §2,
+; Stage 3's input: packages assembled from directories (docs/design/semantics.md §2,
 ; step 1 of §7).
 ;
 ; `assembly/accept` is a build that assembles. Its root package `app` has two files,
@@ -69,7 +69,7 @@
  (action
   (diff golden/assembly.reject.err assembly.reject.err.actual)))
 
-; Stage 3 proper (docs/semantics.md §3). `typing/accept` is a build that checks: the
+; Stage 3 proper (docs/design/semantics.md §3). `typing/accept` is a build that checks: the
 ; root `app`, and a second package `shapes` whose methods, operators and
 ; implicit constructors travel with its types. Its `--decls` view is what
 ; passes 1 to 4 resolved, and its `--tst` view the whole typed tree, generic

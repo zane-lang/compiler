@@ -1,8 +1,8 @@
-(* The code-generation tree (docs/lowering.md): the one input codegen reads.
+(* The code-generation tree (docs/design/lowering.md): the one input codegen reads.
 
    What it holds is what the machine does. A call names one function, every
    type has a layout, and nothing in it needs a declaration or an overload to
-   be understood. It grows with each step of docs/lowering.md §8; what is here
+   be understood. It grows with each step of docs/design/lowering.md §8; what is here
    is what lowering handles so far. *)
 
 (* A CGT type is a machine layout (L5). [Handle] is `@primitives$String`,
@@ -23,7 +23,7 @@ module Ty = struct
 
   (* Size and alignment in bytes on a 64-bit target, where a struct is laid
      out as C lays it out, and a sum is its tag and then its payload room at
-     offset 8 (docs/lowering.md §9). *)
+     offset 8 (docs/design/lowering.md §9). *)
   let rec size_align = function
     | Void -> (0, 1)
     | I1 -> (1, 1)

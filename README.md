@@ -34,16 +34,29 @@ Then enter the project development shell:
 devbox shell
 ```
 
-The shell provides the project toolchain and adds `dev/bin` to `PATH`. Product
-executable sources remain under `bin/`, while development-only command wrappers
-live under `dev/bin/`.
+The shell provides the project toolchain and adds `dev/bin` to `PATH`.
 
-## Building
+## Where things are
+
+| Path | What it holds |
+|---|---|
+| `bin/zanec/` | The compiler binary, `zanec` |
+| `lib/` | One library per stage, `cst` → `sst` → `tst` → `cgt` → `codegen`, over `source`, `diagnostic` and `tree_graph` |
+| `runtime/` | The C runtime every program links with |
+| `tests/` | One directory per thing tested: `parser`, `grammar`, `semantics`, `codegen`, `runtime`, `ambiguity` |
+| `tools/` | Developer tools: the ambiguity engine and its front end, and `inspect` |
+| `dev/` | Commands for the development shell (`dev/bin/`) and their shared scripts |
+| `docs/` | Design and process documents; [`docs/README.md`](docs/README.md) is the index |
+
+## Building and testing
 
 ```sh
-devbox shell
 dune build
+just test
 ```
+
+`just -l` lists the recipes: `test` runs the compiler, grammar and
+ambiguity-tool suites, each of which also has its own recipe.
 
 ## Usage
 
@@ -61,5 +74,6 @@ grammar-stat
 grammar-sentence
 ```
 
-The `justfile` is reserved for parameterless project actions such as rebuilding,
-watching, and running tool tests.
+The `justfile` holds project actions: rebuilding, watching, the test suites,
+promoting golden files, and the grammar sweeps and explanations, which take
+arguments.

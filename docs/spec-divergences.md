@@ -393,14 +393,14 @@ does not fit.
 runtime writes `division by zero` to stderr, and the status is 1. The one
 quotient an `i64` cannot hold, the most negative value over `-1`, wraps, as
 `+` and `*` do. `tests/codegen/fixtures/zero` is the case, and
-`docs/lowering.md` §9 the decision.
+`docs/design/lowering.md` §9 the decision.
 
 ```zane
 quotient Int = Int(1) / zero();   // stops here, status 1
 ```
 
 Reconciling means the spec stating an outcome, or making `/` abortable, now
-that aborts lower (step 4 of `docs/lowering.md` §8).
+that aborts lower (step 4 of `docs/design/lowering.md` §8).
 
 ## 11. An exit ends the run of a block
 

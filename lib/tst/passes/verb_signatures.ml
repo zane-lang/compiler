@@ -1,4 +1,4 @@
-(* Pass 4 (docs/semantics.md §3): every verb's parameter and return types,
+(* Pass 4 (docs/design/semantics.md §3): every verb's parameter and return types,
    and the checks that need only signatures -- overload identity, the operator
    and implicit-constructor home-package rules, enum-map exhaustiveness.
 
@@ -122,7 +122,7 @@ and scan_param_type intro (pt : N.Param_type.t) =
    when a type in the verb writes its name where a number goes, as
    `Array<T, n>(T Type, n @concepts$Int)` does, and is otherwise an
    ordinary parameter that accepts an integer literal
-   (docs/semantics.md §9). *)
+   (docs/design/semantics.md §9). *)
 let scan_param intro (p : N.Param.t) =
   let name = p.N.Param.name.N.Name.text in
   let explicit kind =

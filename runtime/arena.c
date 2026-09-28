@@ -1,7 +1,7 @@
 #include "zane_internal.h"
 
 /* ---------------------------------------------------------------------- */
-/* Scope arenas (memory.md §3.1–3.2, docs/lowering.md L8)                 */
+/* Scope arenas (memory.md §3.1–3.2, docs/design/lowering.md L8)                 */
 /* ---------------------------------------------------------------------- */
 
 /* What threads share and change -- the chunk map's levels, the spare

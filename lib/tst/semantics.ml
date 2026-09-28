@@ -1,4 +1,4 @@
-(* Stage 3 from end to end: the five passes of docs/semantics.md §3, run over
+(* Stage 3 from end to end: the five passes of docs/design/semantics.md §3, run over
    packages [Assembly] has already put together. *)
 
 type result = {

@@ -1,4 +1,4 @@
-(* Passes 1 and 2 (docs/semantics.md §3): file every declaration of every
+(* Passes 1 and 2 (docs/design/semantics.md §3): file every declaration of every
    package under its name, then build each file's import map.
 
    Nothing here reads a type. Whether two functions of one name form a legal

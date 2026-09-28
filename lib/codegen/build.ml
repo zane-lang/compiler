@@ -1,5 +1,5 @@
 (* A module to a binary: the target machine writes an object file, and the
-   system's C compiler links it with the runtime (docs/lowering.md L2, L17). *)
+   system's C compiler links it with the runtime (docs/design/lowering.md L2, L17). *)
 
 let target_machine () =
   Llvm_all_backends.initialize ();

@@ -68,7 +68,7 @@ sweep GRAMMAR="lib/cst/parser.mly" *ARGS:
 	python3 -m tools.ambiguity.precision_sweep {{GRAMMAR}} {{ARGS}}
 
 # Dump Menhir's LR automaton or its conflict explanations -- the obligation
-# ledger docs/ambiguity.md refers to. Expanded exactly as the ambiguity tools
+# ledger docs/ambiguity/README.md refers to. Expanded exactly as the ambiguity tools
 # expand it, so a state number cited by a proof report selects the state that
 # produced it; running menhir on the unexpanded grammar renumbers everything.
 #

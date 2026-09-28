@@ -127,7 +127,7 @@ void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *lay
 		/* A floated host is a block of the program's own region, so what
 		   later arrives in it, or grows from it, is placed there too. It
 		   lives until the program ends, and so do its blocks
-		   (docs/lowering.md §9). */
+		   (docs/design/lowering.md §9). */
 		char *anonymous = zane_alloc(zane_program, p.size, 8);
 		memcpy(anonymous, slot + p.offset, (size_t)p.size);
 		zane_floated += 1 + zane_owned(slot, layout, p.offset, p.offset + p.size);
