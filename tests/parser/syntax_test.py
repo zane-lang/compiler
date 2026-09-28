@@ -9,8 +9,9 @@ ROOT = Path(__file__).resolve().parents[2]
 # parse, so the exit status says whether it was accepted.
 COMPILER = ROOT / "_build" / "default" / "bin" / "zanec" / "zanec.exe"
 
+class ParserSyntaxTestCase(unittest.TestCase):
+    """Parses a source through the compiler and asserts on the exit status."""
 
-class ParserSyntaxTests(unittest.TestCase):
     def setUp(self) -> None:
         if not COMPILER.exists():
             self.skipTest("requires a built zanec executable")
@@ -31,6 +32,10 @@ class ParserSyntaxTests(unittest.TestCase):
     def assert_rejects(self, source: str) -> None:
         parsed = self.run_parser(source)
         self.assertNotEqual(parsed.returncode, 0, parsed.stdout + parsed.stderr)
+
+
+class DeclarationTests(ParserSyntaxTestCase):
+    """Declarations, constructors, generic parameters and types as values."""
 
     def test_named_field_and_implicit_constructors(self) -> None:
         self.assert_parses(
@@ -81,6 +86,89 @@ class ParserSyntaxTests(unittest.TestCase):
             }
             '''
         )
+
+    def test_generic_parameter_introduction_and_collection_literals(self) -> None:
+        self.assert_parses(
+            '''
+            type Buffer<T Type, n @concepts$Int> = struct {
+                data Array<T, n>;
+            }
+
+            T first(values Array<T Type, n @concepts$Int>) => values[0]
+
+            Unit literals() {
+                values Array<Int, 3> = Array([Int(1), Int(2), Int(3)]);
+                return Unit();
+            }
+            '''
+        )
+
+    def test_a_type_is_passed_as_an_ordinary_argument(self) -> None:
+        # generics.md §5.3: a type or number reaches a verb either inferred
+        # from the value arguments, or passed directly as a value parameter of
+        # concept type `Type`. The second half needs a type to be writable
+        # where a value is expected, which is what the `Int` arguments below
+        # are.
+        self.assert_parses(
+            '''
+            type Vector<T Type> = struct {
+                x T;
+                y T;
+            }
+
+            Vector<T>(T Type) => init{ x = T(0); y = T(0); }
+
+            Array<T, n>(T Type, n @concepts$Int) => init{ }
+
+            Unit use() {
+                vec Vector(Int);
+                arr Array(Int, 10000);
+                register(Float);
+                registry!add(math$Vector);
+                machine Slot = @primitives$I64;
+                return Unit();
+            }
+            '''
+        )
+        # A named constructor takes one on the same terms.
+        self.assert_parses("Unit use() { v Vector2.zeros(Int); }")
+        # The inferred half is unchanged and still the one a literal drives.
+        self.assert_parses(
+            "Unit use() { vec Vector(Int(2), Int(3)); }"
+        )
+
+    def test_only_a_bare_name_is_a_type_value(self) -> None:
+        # A type name written as a value closes on the name. Every other type
+        # spelling continues into a bracket that means something else in an
+        # expression -- `<` a comparison, `[` a subscript, `&` a reference --
+        # so only the bare name may be written here.
+        # See docs/spec-divergences.md.
+        self.assert_rejects("Unit use() { register(Array<Int, 4>); }")
+        self.assert_rejects("Unit use() { register(&Int); }")
+        self.assert_rejects("Unit use() { register(Int[3]); }")
+        # `Type` is a concept: legal in a parameter position, never as storage.
+        self.assert_rejects("Unit use() { held Type = Int; }")
+        self.assert_rejects("Type pick() { return Int; }")
+
+    def test_a_number_parameter_is_declared_with_the_integer_concept(self) -> None:
+        # generics.md §3.3: a number parameter is declared `n
+        # @concepts$Int`, the concept type an integer literal carries, in
+        # a type's header, inline in a verb, and as an explicit parameter.
+        self.assert_parses(
+            "type Buffer<T Type, n @concepts$Int> = struct { data Array<T, n>; }"
+        )
+        self.assert_parses(
+            "Int size(this Buffer<T Type, n @concepts$Int>) => Int(n)"
+        )
+        self.assert_parses("Array<T, n>(T Type, n @concepts$Int) => init{ }")
+        self.assert_parses("implicit Float(value @concepts$Float) => init{ }")
+        # There is no `Number` keyword, so the word is an ordinary type name.
+        self.assert_parses("type Number = struct { raw Int; }")
+        self.assert_parses("Unit f(value core$Number) => Unit()")
+
+
+class BlockArgumentTests(ParserSyntaxTestCase):
+    """Control flow written as calls that carry block arguments."""
 
     def test_control_flow_is_calls_carrying_block_arguments(self) -> None:
         self.assert_parses(
@@ -161,6 +249,10 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_rejects(
             "Unit use() { Foo{ a Int = wrap() { g(); } + Int(1); } { h(); } }"
         )
+
+
+class TerminatorTests(ParserSyntaxTestCase):
+    """Where a statement ends: its terminator, or the brace that closes it."""
 
     def test_a_statement_ends_where_its_terminator_says(self) -> None:
         # A statement is closed by a `;` or by a `}`, and the grammar decides
@@ -403,6 +495,10 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_parses("Unit use() { package demo; return Unit(); }")
         self.assert_rejects("Unit use() { package demo return Unit(); }")
 
+
+class ImportTests(ParserSyntaxTestCase):
+    """Imports and their aliases."""
+
     def test_every_import_form(self) -> None:
         self.assert_parses(
             '''
@@ -451,6 +547,10 @@ class ParserSyntaxTests(unittest.TestCase):
         # Operators resolve by operand home package and are not importable.
         self.assert_rejects("import math$+;")
 
+
+class LiteralTests(ParserSyntaxTestCase):
+    """Map and numeric literals."""
+
     def test_map_literals(self) -> None:
         self.assert_parses(
             '''
@@ -471,6 +571,29 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_parses("Unit use() { register({}); }")
         # An entry is exactly a key and a value.
         self.assert_rejects("Unit use() { m Map = { String(\"a\"); }; }")
+
+    def test_the_spelling_picks_the_numeric_literal(self) -> None:
+        # lexical.md §7: digits are an integer literal, and digits, a `.` and
+        # digits a decimal one, with a digit on each side of the `.`.
+        self.assert_parses("Unit f() { a Int = 3; b Float = 3.0; return Unit(); }")
+        self.assert_rejects("Unit f() { b Float = 3.; return Unit(); }")
+        self.assert_rejects("Unit f() { b Float = .5; return Unit(); }")
+        # The compiler's `'` separator groups digits before the `.` only
+        # (docs/spec-divergences.md §8).
+        self.assert_parses("Unit f() { b Float = 1'000.25; return Unit(); }")
+        self.assert_rejects("Unit f() { b Float = 1.000'001; return Unit(); }")
+
+    def test_a_quote_between_digits_is_still_a_separator(self) -> None:
+        # The separator wants digits on both sides, so it never collides with
+        # a loose operator, whichever side of the literal one sits on.
+        self.assert_parses("Unit use() { n Int = 1'000'000 '* Int(2); }")
+        self.assert_parses("Unit use() { n Int = Int(2) '* 1'000'000; }")
+        # With no space, the literal ends where the digits do.
+        self.assert_parses("Unit use() { n Int = 2'*3; }")
+
+
+class MatchAndEnumMapTests(ParserSyntaxTestCase):
+    """`match`, enum maps and their arms."""
 
     def test_match_enum_map_type_members_and_inequality(self) -> None:
         self.assert_parses(
@@ -527,6 +650,10 @@ class ParserSyntaxTests(unittest.TestCase):
             '''
         )
 
+
+class MouldTests(ParserSyntaxTestCase):
+    """Moulds, and when one closes a declaration."""
+
     def test_a_mould_closes_its_declaration_and_a_raw_type_does_not(self) -> None:
         self.assert_parses(
             '''
@@ -563,6 +690,20 @@ class ParserSyntaxTests(unittest.TestCase):
         self.assert_rejects("Unit use() { alias Aliased = enum [ up, down ] }")
         self.assert_rejects("Unit use() { type Braced = struct { x Int; }; }")
 
+    def test_alias_moulds_and_line_comments(self) -> None:
+        self.assert_parses(
+            '''
+            // aliases may use the same mould RHS as type declarations
+            alias Pair = struct { left Int; right Int; }
+            /// documentation comments are accepted lexically
+            type Wrapped = struct { pair Pair; }
+            '''
+        )
+
+
+class OperatorTests(ParserSyntaxTestCase):
+    """Operators, their loose forms, and member reads."""
+
     def test_comparison_chains_and_the_operators_that_join_them(self) -> None:
         # `Bool` draws from the same operator set as every other type
         # (operators.md §2.4): `*` is conjunction, `+` is disjunction. Joining
@@ -579,79 +720,6 @@ class ParserSyntaxTests(unittest.TestCase):
             }
             '''
         )
-
-    def test_alias_moulds_and_line_comments(self) -> None:
-        self.assert_parses(
-            '''
-            // aliases may use the same mould RHS as type declarations
-            alias Pair = struct { left Int; right Int; }
-            /// documentation comments are accepted lexically
-            type Wrapped = struct { pair Pair; }
-            '''
-        )
-
-    def test_generic_parameter_introduction_and_collection_literals(self) -> None:
-        self.assert_parses(
-            '''
-            type Buffer<T Type, n @concepts$Int> = struct {
-                data Array<T, n>;
-            }
-
-            T first(values Array<T Type, n @concepts$Int>) => values[0]
-
-            Unit literals() {
-                values Array<Int, 3> = Array([Int(1), Int(2), Int(3)]);
-                return Unit();
-            }
-            '''
-        )
-
-    def test_a_type_is_passed_as_an_ordinary_argument(self) -> None:
-        # generics.md §5.3: a type or number reaches a verb either inferred
-        # from the value arguments, or passed directly as a value parameter of
-        # concept type `Type`. The second half needs a type to be writable
-        # where a value is expected, which is what the `Int` arguments below
-        # are.
-        self.assert_parses(
-            '''
-            type Vector<T Type> = struct {
-                x T;
-                y T;
-            }
-
-            Vector<T>(T Type) => init{ x = T(0); y = T(0); }
-
-            Array<T, n>(T Type, n @concepts$Int) => init{ }
-
-            Unit use() {
-                vec Vector(Int);
-                arr Array(Int, 10000);
-                register(Float);
-                registry!add(math$Vector);
-                machine Slot = @primitives$I64;
-                return Unit();
-            }
-            '''
-        )
-        # A named constructor takes one on the same terms.
-        self.assert_parses("Unit use() { v Vector2.zeros(Int); }")
-        # The inferred half is unchanged and still the one a literal drives.
-        self.assert_parses(
-            "Unit use() { vec Vector(Int(2), Int(3)); }"
-        )
-
-    def test_only_a_bare_name_is_a_type_value(self) -> None:
-        # A type name written as a value closes on the name. Every other type
-        # spelling continues into a bracket that means something else in an
-        # expression -- `<` a comparison, `[` a subscript, `&` a reference --
-        # so only the bare name may be written here.
-        # See docs/spec-divergences.md.
-        self.assert_rejects("Unit use() { register(Array<Int, 4>); }")
-        self.assert_rejects("Unit use() { register(&Int); }")
-        self.assert_rejects("Unit use() { register(Int[3]); }")
-        # `Type` is a concept: legal in a parameter position, never as storage.
-        self.assert_rejects("Unit use() { held Type = Int; }")
-        self.assert_rejects("Type pick() { return Int; }")
 
     def test_a_quote_selects_the_loose_form_of_a_binary_operator(self) -> None:
         # operators.md §3.1. The two examples the spec itself writes.
@@ -696,33 +764,6 @@ class ParserSyntaxTests(unittest.TestCase):
             "Unit f() { x Int = e.a ? err { resolve Int(0); }; }"
         )
 
-    def test_a_number_parameter_is_declared_with_the_integer_concept(self) -> None:
-        # generics.md §3.3: a number parameter is declared `n
-        # @concepts$Int`, the concept type an integer literal carries, in
-        # a type's header, inline in a verb, and as an explicit parameter.
-        self.assert_parses(
-            "type Buffer<T Type, n @concepts$Int> = struct { data Array<T, n>; }"
-        )
-        self.assert_parses(
-            "Int size(this Buffer<T Type, n @concepts$Int>) => Int(n)"
-        )
-        self.assert_parses("Array<T, n>(T Type, n @concepts$Int) => init{ }")
-        self.assert_parses("implicit Float(value @concepts$Float) => init{ }")
-        # There is no `Number` keyword, so the word is an ordinary type name.
-        self.assert_parses("type Number = struct { raw Int; }")
-        self.assert_parses("Unit f(value core$Number) => Unit()")
-
-    def test_the_spelling_picks_the_numeric_literal(self) -> None:
-        # lexical.md §7: digits are an integer literal, and digits, a `.` and
-        # digits a decimal one, with a digit on each side of the `.`.
-        self.assert_parses("Unit f() { a Int = 3; b Float = 3.0; return Unit(); }")
-        self.assert_rejects("Unit f() { b Float = 3.; return Unit(); }")
-        self.assert_rejects("Unit f() { b Float = .5; return Unit(); }")
-        # The compiler's `'` separator groups digits before the `.` only
-        # (docs/spec-divergences.md §8).
-        self.assert_parses("Unit f() { b Float = 1'000.25; return Unit(); }")
-        self.assert_rejects("Unit f() { b Float = 1.000'001; return Unit(); }")
-
     def test_a_loose_operator_declares_nothing(self) -> None:
         # §3.1: the loose forms "add no token to the operator vocabulary" of
         # §5.1, so an operator declaration names the unprefixed form only.
@@ -733,15 +774,6 @@ class ParserSyntaxTests(unittest.TestCase):
             "Pair<T> '*(a Pair<T Type>, b Pair<T>) => Pair(a.left, a.right)"
         )
         self.assert_rejects("Bool '==(a Pair<T Type>, b Pair<T>) => true")
-
-    def test_a_quote_between_digits_is_still_a_separator(self) -> None:
-        # The separator wants digits on both sides, so it never collides with
-        # a loose operator, whichever side of the literal one sits on.
-        self.assert_parses("Unit use() { n Int = 1'000'000 '* Int(2); }")
-        self.assert_parses("Unit use() { n Int = Int(2) '* 1'000'000; }")
-        # With no space, the literal ends where the digits do.
-        self.assert_parses("Unit use() { n Int = 2'*3; }")
-
 
     def test_and_and_or_are_ordinary_names(self) -> None:
         # operators.md §2.4 gives `Bool` the same operator set as every other
