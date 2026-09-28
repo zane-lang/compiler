@@ -1,9 +1,10 @@
 # Designing the CGT
 
-> **Status: design.** Stage 4 — lowering the TST to the code-generation tree —
-> and the codegen that reads it follow this design once they are built. Each
-> decision is numbered (**L1**…). §8 lists the order they are built in, and §9
-> the questions still open.
+> **Status: built through §8 step 8.** Stage 4 — lowering the TST to the
+> code-generation tree — and the codegen that reads it follow this design, and
+> every step §8 lists is built and tested. Each decision is numbered
+> (**L1**…). §8 lists the order they were built in, and §9 the questions still
+> open.
 
 The **CGT** is the one input codegen reads ([`stages.md`](stages.md)). The TST
 says what a program means, in the language's own terms: calls to overloads,

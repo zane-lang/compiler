@@ -1,14 +1,14 @@
-build/
 _build/
-/parser/
-.cache/
-vcpkg_installed/
 __pycache__/
 .devbox/
 _opam/
 .claude/settings.local.json
-*.term
-machine-config.txt
+dev/machine-config.txt
+
+# Ambiguity search and prove runs write their logs here, locally and in the
+# workflows (which upload them as artifacts). Run output is not committed; a
+# result worth keeping goes into docs/ambiguity/experiments.md.
+/reports/
 
 # menhir --explain and --dump write these beside the grammar when it is run
 # by hand, which is how conflicts and automaton states are read outside dune.
