@@ -170,7 +170,8 @@ shown as `…`.
 │   │   ├── *.c
 │   │   └── golden/*.out
 │   └── ambiguity/
-│       ├── cli/  profiles/  engine/  prover/   # cli_test.py split (§9.4)
+│       ├── cli_test.py  profiles_test.py  engine_test.py   # cli_test.py split (§9.4)
+│       ├── prover/
 │       ├── history_filter_test.ml              # was in tools/
 │       └── grammars/verb_suffix_vs_enum_map.mly
 │
@@ -181,7 +182,7 @@ shown as `…`.
 │   │                             # generics, concepts-vs-primitives
 │   └── ambiguity/
 │       ├── README.md             # was docs/ambiguity.md
-│       └── policy  proof-obligations  tooling  soundness  experiments
+│       └── policy.md  proof-obligations.md  tooling.md  soundness.md  experiments.md
 │
 └── .github/                      # agents file moved to the org; setup steps fixed (§12)
 ```
