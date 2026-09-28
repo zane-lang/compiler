@@ -526,6 +526,18 @@ File "fixtures/typing/reject/bad/spawns.zn", line 107, characters 9-22:
 107 |         other.reading!nudge();
   |         ^^^^^^^^^^^^^
 Error: this writes `other.reading`, which may be part of a host lent through `view` to a spawned call that may read it until its block drains
+File "fixtures/typing/reject/bad/spawns.zn", line 122, characters 15-28:
+122 |         spawn other.reading!nudge();
+  |               ^^^^^^^^^^^^^
+Error: `other.reading` overlaps `dial.reading`, which a spawned `mut` call in this block or around it already borrows
+File "fixtures/typing/reject/bad/spawns.zn", line 129, characters 22-29:
+129 |         spawn gauges[g.level]!nudge();
+  |                      ^^^^^^^
+Error: `g.level` is borrowed by a spawned `mut` call on `g`, which holds it until its block drains
+File "fixtures/typing/reject/bad/spawns.zn", line 133, characters 9-13:
+133 |         view!push(Gauge(Int(2)));
+  |         ^^^^
+Error: `view` is borrowed by a spawned `mut` call on `gauges[]`, which holds it until its block drains
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
 5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^

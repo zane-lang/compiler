@@ -231,6 +231,10 @@ borrows nothing past itself. While a borrow lasts, a second spawn borrowing
 an overlapping place is an error, and so is any read or write of one in that
 block or a block inside it. Two places overlap when one's path of fields and
 cases is a prefix of the other's, and any two elements of one list overlap.
+A place reached through a guest is the place the guest names, followed as
+below for a lent host; where the checker cannot follow it, two places may
+overlap when either's type may hold the other's. A spawned subject's index,
+or its case read's handler, is read at the spawn like any other read.
 In a block that runs more than once, a spawn takes its subject from a local
 declared in that block or in a block inside it. A block runs more than once
 when it is `@controlflow$repeat`'s body, or a block argument at a position its

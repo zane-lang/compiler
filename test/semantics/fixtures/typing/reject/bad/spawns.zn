@@ -111,3 +111,26 @@ Unit lent() {
 	dial.reading = Gauge(Int(7));
 	return Unit();
 }
+
+/// A borrow through a guest borrows the place the guest names, and a spawned
+/// subject's index is read where the spawn is.
+Unit aliased() {
+	dial Dial(Gauge(Int(1)));
+	other &Dial = dial;
+	@controlflow$branch(true, {
+		spawn dial.reading!nudge();
+		spawn other.reading!nudge();
+	});
+	g Gauge(Int(1));
+	gauges List<Gauge> = @primitives$List(Gauge);
+	view &List<Gauge> = gauges;
+	@controlflow$branch(true, {
+		spawn g!nudge();
+		spawn gauges[g.level]!nudge();
+	});
+	@controlflow$branch(true, {
+		spawn gauges[Int(1)]!nudge();
+		view!push(Gauge(Int(2)));
+	});
+	return Unit();
+}

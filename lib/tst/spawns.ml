@@ -175,19 +175,28 @@ let rec chain (e : T.Expr.t) =
    the host, and the argument it was lent through. *)
 type lend = { at : place option; host : Ty.t; through : T.Expr.t }
 
+(* A place as written, where it is when the checker can follow it through
+   guests, and the type of what it holds. *)
+type claim = { written : place; at : place option; ty : Ty.t }
+
 (* A block being walked: the locals declared in it, whether it runs more than
    once, and the borrows spawns in it hold until it drains. *)
 type frame = {
   declared : (int, unit) Hashtbl.t;
   often : bool;
-  mutable borrows : (place * Source.Span.t) list;
+  mutable borrows : claim list;
   mutable lends : lend list;
 }
 
-let borrowed frames p =
-  List.find_map
-    (fun f -> List.find_opt (fun (b, _) -> overlap b p) f.borrows)
-    frames
+(* Two claims on storage overlap when their places do. Where a place is
+   reached through a guest whose host the checker cannot follow, they may
+   overlap when either's type may hold the other's. *)
+let clashes a b =
+  match (a.at, b.at) with
+  | Some x, Some y -> overlap x y
+  | _ -> contains a.ty b.ty || contains b.ty a.ty
+
+let borrowed frames c = List.find_map (fun f -> List.find_opt (clashes c) f.borrows) frames
 
 (* The parts of a place other than the place it is reached through: a
    subscript's index, and a case read's handler. *)
@@ -232,7 +241,7 @@ let walk_body (body : T.Block.t) =
     | Some p -> (
         let written = resolve p in
         let types = chain e in
-        let clash l =
+        let clash (l : lend) =
           match (written, l.at) with
           | Some w, Some a -> overlap w a
           | _ ->
@@ -259,6 +268,7 @@ let walk_body (body : T.Block.t) =
     | t when Types.is_reference t -> write frames e
     | _ -> ()
   in
+  let claim (e : T.Expr.t) p = { written = p; at = resolve p; ty = strip e.T.Expr.ty } in
   let rec block frames often (b : T.Block.t) =
     let f = { declared = Hashtbl.create 8; often; borrows = []; lends = [] } in
     let frames = f :: frames in
@@ -298,8 +308,8 @@ let walk_body (body : T.Block.t) =
     match frames with f :: _ -> Hashtbl.replace f.declared l.T.Local.id () | [] -> ()
   (* A place touched while a spawn holds an overlapping borrow. *)
   and touch frames (e : T.Expr.t) p =
-    match borrowed frames p with
-    | Some (b, _) ->
+    match borrowed frames (claim e p) with
+    | Some { written = b; _ } ->
         Env.error e.T.Expr.span
           (Printf.sprintf
              "%s is borrowed by a spawned `mut` call on %s, which holds it until its block \
@@ -375,8 +385,10 @@ let walk_body (body : T.Block.t) =
         let p = place_of subject in
         (match p with
         | Some p -> (
-            match borrowed frames p with
-            | Some (b, _) ->
+            (* An index or a case read's handler in the subject is read here. *)
+            List.iter (fun x -> part frames (Plain x)) (beside subject);
+            match borrowed frames (claim subject p) with
+            | Some { written = b; _ } ->
                 Env.error subject.T.Expr.span
                   (Printf.sprintf
                      "%s overlaps %s, which a spawned `mut` call in this block or around it \
@@ -406,7 +418,7 @@ let walk_body (body : T.Block.t) =
                      (describe p))
           | _ -> ());
           match (p, frames) with
-          | Some p, f :: _ -> f.borrows <- (p, subject.T.Expr.span) :: f.borrows
+          | Some p, f :: _ -> f.borrows <- claim subject p :: f.borrows
           | _ -> ()
         end;
         if keeps then lend frames (List.filter_map value rest)

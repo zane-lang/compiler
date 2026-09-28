@@ -481,7 +481,7 @@
     │       │       │   ├── args[1]: 250 : i64
     │       │       │   └── args[2] > copy:
     │       │       │       ├── type: <void | ptr>
-    │       │       │       ├── value > deref:
+    │       │       │       ├── value > snapshot:
     │       │       │       │   ├── type: <void | ptr>
     │       │       │       │   └── ptr: local #79 : ptr
     │       │       │       └── layout: spawns$Countdown
@@ -498,7 +498,7 @@
     │       │       │   ├── frame: {void, ptr, i64, i64}
     │       │       │   ├── args[0]: local #82 : ptr
     │       │       │   ├── args[1]: 3 : i64
-    │       │       │   └── args[2] > deref:
+    │       │       │   └── args[2] > snapshot:
     │       │       │       ├── type: i64
     │       │       │       └── ptr: local #82 : ptr
     │       │       └── body[5] > eval > call:

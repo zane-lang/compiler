@@ -1312,7 +1312,7 @@ and spawn st ctx span (e : T.Expr.t) =
             | Some t, first :: rest ->
                 let loc = fresh st in
                 let place = { Expr.node = Expr.Local loc; ty = Nodes.Ty.Ptr } in
-                let value = { Expr.node = Expr.Deref place; ty = ty st span t } in
+                let value = { Expr.node = Expr.Snapshot place; ty = ty st span t } in
                 let copy =
                   if owns st span t then
                     { value with Expr.node = Expr.Copy { value; layout = layout st span t } }
