@@ -138,7 +138,7 @@ let strip = function Ty.Guest t -> t | t -> t
 let members (t : Ty.t) =
   match t with
   | Ty.Named (tid, args) -> (
-      match Types.type_info_of_id tid with
+      match Type_decls.type_info_of_id tid with
       | Some info when List.length info.Env.params = List.length args -> (
           let sub =
             Ty.subst (List.combine (List.map (fun (p : Ty.param) -> p.id) info.Env.params) args)
@@ -265,7 +265,7 @@ let walk_body (body : T.Block.t) =
   let moved frames (e : T.Expr.t) =
     match e.T.Expr.ty with
     | Ty.Guest _ -> ()
-    | t when Types.is_reference t -> write frames e
+    | t when Type_decls.is_reference t -> write frames e
     | _ -> ()
   in
   let claim (e : T.Expr.t) p = { written = p; at = resolve p; ty = strip e.T.Expr.ty } in
@@ -332,7 +332,7 @@ let walk_body (body : T.Block.t) =
                   (fun (p : S.param) a ->
                     match (a, p.S.ty) with
                     | T.Arg.Value ({ T.Expr.node = T.Expr.Var (T.Name_ref.Local _); _ } as v), t
-                      when (match t with Ty.Guest _ -> false | _ -> true) && Types.is_reference t ->
+                      when (match t with Ty.Guest _ -> false | _ -> true) && Type_decls.is_reference t ->
                         moved frames v
                     | _ -> ())
                   sg.S.params args
@@ -375,7 +375,7 @@ let walk_body (body : T.Block.t) =
     | T.Expr.Call { callee; args = T.Arg.Value subject :: rest; handler }
       when (match signature_of callee with Some sg -> sg.S.is_mut | None -> false) ->
         let owner = match subject.T.Expr.ty with Ty.Guest t -> t | t -> t in
-        let reference = Types.is_reference owner in
+        let reference = Type_decls.is_reference owner in
         if reference then
           Env.error subject.T.Expr.span
             (Printf.sprintf
@@ -435,7 +435,7 @@ let walk_body (body : T.Block.t) =
         let lent =
           match a.T.Expr.ty with
           | Ty.Guest _ -> Some { at = origin a; host; through = a }
-          | t when Types.is_reference t && Option.is_some (place_of a) ->
+          | t when Type_decls.is_reference t && Option.is_some (place_of a) ->
               Some { at = origin a; host; through = a }
           | _ -> None
         in

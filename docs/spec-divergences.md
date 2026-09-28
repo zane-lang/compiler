@@ -430,7 +430,7 @@ Unit sum(this Int) mut {
 ```
 
 A verb exits when the intrinsic is in its own frame: its body, or a block
-written there. `lib/tst/exits.ml` checks the calls, and
+written there. `lib/tst/analyses/exits.ml` checks the calls, and
 `tests/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
 Reconciling means the spec adopting this reading.
 
@@ -513,7 +513,7 @@ dial.reading = Gauge(Int(3));    // rejected: `glance` may be reading it
 spawn dial.reading!nudge();      // accepted: written back (§4.4)
 ```
 
-`lib/tst/spawns.ml` checks it, and
+`lib/tst/analyses/spawns.ml` checks it, and
 `tests/semantics/fixtures/typing/reject/bad/spawns.zn` has the cases.
 Reconciling means the spec stating a rule for this write, this one or
 another.

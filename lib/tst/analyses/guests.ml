@@ -328,7 +328,7 @@ and params w has_this (ps : T.Local.t list) =
       let kind =
         if i = 0 && has_this then This
         else if is_guest p.T.Local.ty then Guest
-        else if Types.is_reference p.T.Local.ty then Swallow
+        else if Type_decls.is_reference p.T.Local.ty then Swallow
         else Borrow
       in
       Hashtbl.replace w.params p.T.Local.id (p.T.Local.name, kind))

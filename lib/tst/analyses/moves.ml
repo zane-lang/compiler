@@ -41,7 +41,7 @@ let quote s = "`" ^ s ^ "`"
 
 (* Whether storage of type [t] hosts what is stored in it. *)
 let hosting (t : Ty.t) =
-  match t with Ty.Guest _ | Ty.Param _ | Ty.Error -> false | t -> Types.is_reference t
+  match t with Ty.Guest _ | Ty.Param _ | Ty.Error -> false | t -> Type_decls.is_reference t
 
 let line (span : Source.Span.t) = span.Source.Span.start_.Lexing.pos_lnum
 

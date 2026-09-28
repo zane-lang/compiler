@@ -91,7 +91,7 @@ let rec scan_type intro (te : N.Type_expr.t) =
               match p.N.Param.type_.N.Param_type.node with
               | N.Param_type.Concept { N.Concept.node = N.Concept.Type; _ } ->
                   ignore (introduce intro g.N.Generic_arg.span name Ty.Type_kind)
-              | N.Param_type.Concrete t when Types.is_integer_concept_type t ->
+              | N.Param_type.Concrete t when Type_decls.is_integer_concept_type t ->
                   ignore (introduce intro g.N.Generic_arg.span name Ty.Number_kind)
               | _ ->
                   error g.N.Generic_arg.span
@@ -131,7 +131,7 @@ let scan_param intro (p : N.Param.t) =
   in
   match p.N.Param.type_.N.Param_type.node with
   | N.Param_type.Concept { N.Concept.node = N.Concept.Type; _ } -> explicit Ty.Type_kind
-  | N.Param_type.Concrete t when Types.is_integer_concept_type t && List.mem name intro.numbers ->
+  | N.Param_type.Concrete t when Type_decls.is_integer_concept_type t && List.mem name intro.numbers ->
       explicit Ty.Number_kind
   | _ -> scan_param_type intro p.N.Param.type_
 
@@ -140,8 +140,8 @@ let scan_param intro (p : N.Param.t) =
 (* ---------------------------------------------------------------------- *)
 
 let signature_scope (d : decl) intro =
-  Types.scope ~signature:true
-    ~params:(List.map (fun (n, p) -> (n, Types.param_arg p)) intro.found)
+  Type_decls.scope ~signature:true
+    ~params:(List.map (fun (n, p) -> (n, Type_decls.param_arg p)) intro.found)
     d.file
 
 let param sc intro (p : N.Param.t) : S.param =
@@ -154,9 +154,9 @@ let param sc intro (p : N.Param.t) : S.param =
         | Ty.Number_kind -> Ty.Concept Ty.Integer_lit
       in
       { S.name; ty; binds = Some binds; has_default = false }
-  | None -> { S.name; ty = Types.param_type sc p.N.Param.type_; binds = None; has_default = false }
+  | None -> { S.name; ty = Type_decls.param_type sc p.N.Param.type_; binds = None; has_default = false }
 
-let ret sc (r : N.Ret_type.t) = Types.ret_type_of sc r
+let ret sc (r : N.Ret_type.t) = Type_decls.ret_type_of sc r
 
 let check_params_unique (params : N.Param.t list) =
   let seen = Hashtbl.create 4 in
@@ -267,7 +267,7 @@ let numbers_of (d : decl) v =
 let positions (v : N.Verb_decl.t) =
   let of_param (p : N.Param.t) =
     match p.N.Param.type_.N.Param_type.node with
-    | N.Param_type.Concrete t when Types.is_integer_concept_type t -> Some p.N.Param.name.N.Name.text
+    | N.Param_type.Concrete t when Type_decls.is_integer_concept_type t -> Some p.N.Param.name.N.Name.text
     | _ -> None
   in
   match v.N.Verb_decl.node with
@@ -319,8 +319,8 @@ let call_targets verbs (d : decl) (c : N.Verb_call.t) =
   | N.Verb_call.Constructor
       { name; args = { N.Constructor_args.node = N.Constructor_args.Positional args; _ }; _ } -> (
       let member (m : N.Name.t option) = Option.map (fun (m : N.Name.t) -> m.N.Name.text) m in
-      match Types.resolve_head (Types.scope d.file) name.N.Constructor_name.type_ with
-      | Types.Declared built ->
+      match Type_decls.resolve_head (Type_decls.scope d.file) name.N.Constructor_name.type_ with
+      | Type_decls.Declared built ->
           ( List.filter
               (fun ((x : decl), (v : N.Verb_decl.t)) ->
                 match v.N.Verb_decl.node with
@@ -328,8 +328,8 @@ let call_targets verbs (d : decl) (c : N.Verb_call.t) =
                     { type_ = { N.Type_expr.node = N.Type_expr.Path { name = n; _ }; _ }; member = m; _ } -> (
                     member m = member name.N.Constructor_name.member
                     &&
-                    match Types.resolve_head (Types.scope x.file) n with
-                    | Types.Declared t -> t.id = built.id
+                    match Type_decls.resolve_head (Type_decls.scope x.file) n with
+                    | Type_decls.Declared t -> t.id = built.id
                     | _ -> false)
                 | _ -> false)
               verbs,
@@ -418,7 +418,7 @@ let build (d : decl) (v : N.Verb_decl.t) : S.t option =
       scan_ret intro ret_type;
       check_params_unique params;
       let sc = signature_scope d intro in
-      let this_ = { S.name = "this"; ty = Types.resolve sc this_type; binds = None; has_default = false } in
+      let this_ = { S.name = "this"; ty = Type_decls.resolve sc this_type; binds = None; has_default = false } in
       let r, abort = ret sc ret_type in
       make ~is_mut ~abort ~kind:S.Method ~name:name.N.Name.text
         (this_ :: List.map (param sc intro) params)
@@ -460,7 +460,7 @@ let build (d : decl) (v : N.Verb_decl.t) : S.t option =
       | N.Constructor_params.Fields fs ->
           List.iter (fun (f : N.Constructor_field.t) -> scan_param_type intro f.N.Constructor_field.type_) fs);
       let sc = signature_scope d intro in
-      let built = Types.resolve sc type_ in
+      let built = Type_decls.resolve sc type_ in
       let member = Option.map (fun (m : N.Name.t) -> m.N.Name.text) member in
       let ps =
         match params.N.Constructor_params.node with
@@ -470,7 +470,7 @@ let build (d : decl) (v : N.Verb_decl.t) : S.t option =
               (fun (f : N.Constructor_field.t) ->
                 {
                   S.name = f.N.Constructor_field.name.N.Name.text;
-                  ty = Types.param_type sc f.N.Constructor_field.type_;
+                  ty = Type_decls.param_type sc f.N.Constructor_field.type_;
                   binds = None;
                   has_default = Option.is_some f.N.Constructor_field.default;
                 })
@@ -493,7 +493,7 @@ let build (d : decl) (v : N.Verb_decl.t) : S.t option =
       List.iter (scan_param intro) params;
       check_params_unique params;
       let sc = signature_scope d intro in
-      let this_ = { S.name = "this"; ty = Types.resolve sc this_type; binds = None; has_default = false } in
+      let this_ = { S.name = "this"; ty = Type_decls.resolve sc this_type; binds = None; has_default = false } in
       (* A subscript's result is "inferred from the projected place"
          (functions.md §2.9), which is pass 5's to type; [Check] fills it. *)
       make ~kind:S.Subscript ~name:"[]" (this_ :: List.map (param sc intro) params) Ty.Error
@@ -580,7 +580,7 @@ let check_implicit (d : decl) (s : S.t) =
                    value type or a concept type"
             | Ty.Concept _ | Ty.Param _ | Ty.Error -> ()
             | t ->
-                if Types.is_reference t then
+                if Type_decls.is_reference t then
                   error d.span
                     (Printf.sprintf
                        "the source of an implicit constructor must be a value type or a \
@@ -606,7 +606,7 @@ let check_implicit (d : decl) (s : S.t) =
 let check_constructor_target (d : decl) (s : S.t) =
   match (s.kind, s.ret) with
   | S.Constructor { member = Some m; _ }, Ty.Named (tid, _) -> (
-      match Types.type_info_of_id tid with
+      match Type_decls.type_info_of_id tid with
       | Some { definition = Some (Variant cases); _ } when List.mem_assoc m cases ->
           error d.span
             (Printf.sprintf
@@ -619,15 +619,15 @@ let check_constructor_target (d : decl) (s : S.t) =
 let enum_map (d : decl) =
   match d.kind with
   | Enum_map { enum; property; type_; entries } -> (
-      let sc = Types.scope d.file in
-      let enum_ty = Types.resolve sc enum in
-      let ty = Types.resolve sc type_ in
-      Types.check_storage type_.N.Type_expr.span "the type of an enum map" ty;
+      let sc = Type_decls.scope d.file in
+      let enum_ty = Type_decls.resolve sc enum in
+      let ty = Type_decls.resolve sc type_ in
+      Type_decls.check_storage type_.N.Type_expr.span "the type of an enum map" ty;
       Hashtbl.replace constant_types d.id ty;
       match enum_ty with
       | Ty.Error -> ()
       | Ty.Named (tid, _) -> (
-          match Types.type_info_of_id tid with
+          match Type_decls.type_info_of_id tid with
           | Some { definition = Some (Enum members); _ } ->
               let seen = Hashtbl.create 8 in
               List.iter
@@ -668,8 +668,8 @@ let enum_map (d : decl) =
 let constant (d : decl) =
   match d.kind with
   | Constant { type_; _ } ->
-      let ty = Types.resolve (Types.scope d.file) type_ in
-      Types.check_storage type_.N.Type_expr.span "a constant" ty;
+      let ty = Type_decls.resolve (Type_decls.scope d.file) type_ in
+      Type_decls.check_storage type_.N.Type_expr.span "a constant" ty;
       Hashtbl.replace constant_types d.id ty
   | _ -> ()
 

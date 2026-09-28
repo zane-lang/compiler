@@ -13,22 +13,24 @@ overload each call picked, which implicit constructor each coercion site
 inserted, and what type every expression has. No later stage should ever need
 to repeat a lookup.
 
-`lib/tst/` mirrors `lib/sst/` where it can: `nodes.ml` is the tree,
-`to_tree_graph.ml` renders it, `to_span_text.ml` reads its spans back out of
-the source, and `tst.ml` is the entry module. Unlike
+`lib/tst/` mirrors `lib/sst/` where it can: `model/nodes.ml` is the tree,
+`render/to_tree_graph.ml` renders it, `render/to_span_text.ml` reads its spans
+back out of the source, and `tst.ml` is the entry module. Unlike
 `lib/sst/lower.ml`, the code that builds it is several passes (§3), because
-each one needs the tables the previous one built:
+each one needs the tables the previous one built. The subdirectories group the
+modules by kind; module names stay flat, so `passes/collect.ml` is `Collect`:
 
 | Module | Holds |
 |---|---|
-| `assembly.ml` | The packages, read from their directories (§2) |
-| `env.ml` | The declaration tables, each file's import map, and the diagnostics |
-| `collect.ml` | Passes 1 and 2 |
-| `types.ml` | Type-expression resolution, and pass 3 |
-| `signatures.ml` | Pass 4 |
-| `check.ml` | Pass 5, with overload resolution and instantiation |
-| `ty.ml`, `signature.ml` | Types (§4), and what a call site needs to know about a verb |
-| `intrinsics.ml` | The intrinsic namespaces (D3) |
+| `passes/assembly.ml` | The packages, read from their directories (§2) |
+| `model/env.ml` | The declaration tables, each file's import map, and the diagnostics |
+| `passes/collect.ml` | Passes 1 and 2 |
+| `passes/type_decls.ml` | Type-expression resolution, and pass 3 |
+| `passes/verb_signatures.ml` | Pass 4 |
+| `check/` | Pass 5, with overload resolution and instantiation |
+| `model/ty.ml`, `model/signature.ml` | Types (§4), and what a call site needs to know about a verb |
+| `model/intrinsics.ml` | The intrinsic namespaces (D3) |
+| `analyses/` | The analyses over the finished tree (D1) |
 | `semantics.ml` | The passes, run in order |
 
 Rules are cited against spec commit
@@ -104,7 +106,7 @@ given as a directory.** Fetching, versioning and the manifest
 stay out of scope. The driver takes a `--package DIR` flag, repeatable, and the
 first directory given is the root (`packages.md` §6.1). Each file parses and
 lowers exactly as today; stage 3 is the first stage that groups them.
-`lib/tst/assembly.ml` does the grouping: a package is the `.zn` files directly
+`lib/tst/passes/assembly.ml` does the grouping: a package is the `.zn` files directly
 in its directory (§2.3), named for the directory (§2.1). Each file must begin
 with a `package` line naming it (§2.2), and no two directories may share a
 name.
@@ -124,7 +126,7 @@ verbs of [`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec
 
 The intrinsic namespaces (`@primitives$`, `@concepts$`, `@controlflow$`,
 `@runtime$`, `@program$`) are not packages. They are an OCaml table in
-`lib/tst/intrinsics.ml`. Each intrinsic operation has exactly one signature
+`lib/tst/model/intrinsics.ml`. Each intrinsic operation has exactly one signature
 ([`syntax.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/syntax.md)
 §2.7), so the table is a plain map, with no overload sets. Operators and
 methods are the exception §2.7 itself makes: they are found by their operands'
@@ -172,7 +174,7 @@ else.
 
 Then the analyses of D1's right-hand column run over the finished tree.
 
-**Read-only guests** (`lib/tst/read_only.ml`,
+**Read-only guests** (`lib/tst/analyses/read_only.ml`,
 [`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §4.4): a `!` call whose subject reaches a guest taken from
 a read-only binding is an error. It follows each
 guest through locals, fields, arguments and returns, and summarises every verb
@@ -181,7 +183,7 @@ resting places of `lifetimes.md` §1.11 without their owners. A call substitutes
 its arguments into the callee's summary; summaries are computed to a fixed
 point first, because verbs may call each other in a cycle.
 
-**Guest sources and stores** (`lib/tst/guests.ml`) are the store rules that
+**Guest sources and stores** (`lib/tst/analyses/guests.ml`) are the store rules that
 need nothing but the store in hand:
 - a new guest is minted only from a stable place: a symbol, or fields reached
   from one, with no `[]` and no variant case on the way ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8);
@@ -189,7 +191,7 @@ need nothing but the store in hand:
 - a store never goes through a guest, unless that guest is a parameter the
   path starts at ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.1).
 
-**Moves** (`lib/tst/moves.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.2–§1.3, §1.6, §1.8). A
+**Moves** (`lib/tst/analyses/moves.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.2–§1.3, §1.6, §1.8). A
 reference-type value stored where a host goes — a hosting local or field, a
 `T` parameter, a return, an element, a case payload — is moved:
 - only a symbol, a verb's result or a case form is moved; a field, an
@@ -202,7 +204,7 @@ reference-type value stored where a host goes — a hosting local or field, a
 A symbol is spent or refilled only in its own block, and a nested block can do
 neither, so one walk in source order sees every use against the right state.
 
-**Owners** (`lib/tst/owners.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.1, §1.4, §1.7, §1.10, §1.11). A
+**Owners** (`lib/tst/analyses/owners.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.1, §1.4, §1.7, §1.10, §1.11). A
 local is owned by its declaring block, a field or element by its root's
 owner, and a parameter or `init{ }` by the call site, which outlives the body.
 A value names the owners of the hosts it reaches through a guest, its own and
@@ -217,12 +219,12 @@ indices, and each call makes that store with its own arguments and compares
 there. A call in a body can store one parameter into another in turn, so the
 summaries are computed to a fixed point over every body before any reports.
 
-**Exits** (`lib/tst/exits.ml`, [`docs/spec-divergences.md`](spec-divergences.md)
+**Exits** (`lib/tst/analyses/exits.ml`, [`docs/spec-divergences.md`](spec-divergences.md)
 §11). A verb exits when `@controlflow$exitFromCall` is in its own frame: its
 body, or a block written there. A call to one ends the run of the block it is
 written in, so it is an error in no block.
 
-**Spawns** (`lib/tst/spawns.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md) §4.2–§4.3). A
+**Spawns** (`lib/tst/analyses/spawns.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md) §4.2–§4.3). A
 spawned `mut` call writes its subject, so a subject of a reference type, or a
 guest to one, is an error. A spawn written as a statement or bound by a `let`
 borrows its subject's place until the block it is written in drains, since
@@ -266,7 +268,7 @@ exits non-zero if there is any.
 ## 4. Types
 
 ```ocaml
-(* lib/tst/ty.ml *)
+(* lib/tst/model/ty.ml *)
 type t =
   | Named of { id : Type_id.t; args : arg list }  (* a declared type, applied *)
   | Guest of t                                    (* &T *)
@@ -346,7 +348,7 @@ Where the typing rules need care:
 
 ## 6. The tree
 
-`lib/tst/nodes.ml` follows the SST rule: it is the SST's tree with the
+`lib/tst/model/nodes.ml` follows the SST rule: it is the SST's tree with the
 differences commented where they occur. Every `Expr.t` gains `ty : Ty.t`. The
 differences that matter:
 

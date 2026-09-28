@@ -14,8 +14,8 @@ let position (d : Diagnostic.t) =
 let check (packages : Assembly.package list) =
   Env.reset ();
   Collect.run packages;
-  Types.run ();
-  Signatures.run ();
+  Type_decls.run ();
+  Verb_signatures.run ();
   let program = Check.run () in
   (* The analyses over the finished tree (D1). *)
   Read_only.run program;

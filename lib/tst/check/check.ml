@@ -64,7 +64,7 @@ type ctx = {
 
 let next_local = ref 0
 
-let type_scope ctx = Types.scope ~params:ctx.params ctx.file
+let type_scope ctx = Type_decls.scope ~params:ctx.params ctx.file
 
 let find_local ctx name = List.find_map (fun tbl -> Hashtbl.find_opt tbl name) ctx.scopes
 
@@ -121,7 +121,7 @@ let invalid span = mk T.Expr.Invalid Ty.Error span
 let rec definition ?(depth = 0) (t : Ty.t) : (Ty.type_id * definition) option =
   match Ty.strip_guest t with
   | Ty.Named (tid, args) -> (
-      match Types.type_info_of_id tid with
+      match Type_decls.type_info_of_id tid with
       | Some ({ definition = Some def; _ } as info) -> (
           let s =
             try List.combine (List.map (fun (p : Ty.param) -> p.id) info.params) args
@@ -165,7 +165,7 @@ let binding_args (s : S.t) (subst : Ty.subst) =
       ( p,
         match List.assoc_opt p.id subst with
         | Some a -> a
-        | None -> Types.param_arg p ))
+        | None -> Type_decls.param_arg p ))
     s.generics
 
 let describe_instance (s : S.t) subst at =
@@ -189,7 +189,7 @@ let defining = ref false
    `echo(body)` is, stores nothing; where that value goes is checked there. *)
 let check_result (s : S.t) subst at =
   let ret = Ty.subst subst s.ret in
-  match (ret, Types.concept_in ret) with
+  match (ret, Type_decls.concept_in ret) with
   | Ty.Concept _, _ | _, None -> true
   | _, Some c ->
       error at
@@ -268,10 +268,10 @@ let arg_expr = function T.Arg.Value e -> Some e | T.Arg.Block _ -> None
    §4.5), so no import is involved. *)
 let implicit_constructors ~src ~dst =
   let dst = Ty.strip_guest dst in
-  match Signatures.type_key dst with
+  match Verb_signatures.type_key dst with
   | None -> []
   | Some key ->
-      let homes = List.filter_map Signatures.home [ src; dst ] in
+      let homes = List.filter_map Verb_signatures.home [ src; dst ] in
       Hashtbl.find_all constructors key
       |> List.filter (fun (s : S.t) -> S.is_implicit s && List.mem s.home homes)
       |> List.filter_map (fun (s : S.t) ->
@@ -308,7 +308,7 @@ let bind_explicit (p : Ty.param) (a : actual) subst =
   match (p.kind, a.arg) with
   | Ty.Type_kind, T.Arg.Value { T.Expr.node = T.Expr.Type_arg t; _ } -> bind (Ty.Type t)
   | Ty.Number_kind, T.Arg.Value { T.Expr.node = T.Expr.Integer_lit text; _ } -> (
-      match Types.integer_value text with
+      match Type_decls.integer_value text with
       | Some n -> bind (Ty.Number (Ty.Known n))
       | None -> None)
   | Ty.Number_kind, T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Number_param { value; _ }); _ } ->
@@ -535,10 +535,10 @@ let rec expr ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   | N.Expr.NameExpr n -> name_value ctx n
   | N.Expr.TypeMember { type_; member } -> type_member ctx span type_ member
   | N.Expr.TypeValue name -> (
-      match Types.resolve_head (type_scope ctx) name with
-      | Types.Unknown -> invalid span
+      match Type_decls.resolve_head (type_scope ctx) name with
+      | Type_decls.Unknown -> invalid span
       | head ->
-          let t = Types.apply (type_scope ctx) span head name [] in
+          let t = Type_decls.apply (type_scope ctx) span head name [] in
           mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span)
   | N.Expr.DotAccess { target; field; abort_handle } -> member ~flow ctx span target field abort_handle
   | N.Expr.Subscript { target; args } -> subscript ctx span target args
@@ -548,7 +548,7 @@ let rec expr ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
       | Ty.Error | Ty.Param _ -> ()
       | Ty.Guest _ -> ()
       | t ->
-          if not (Types.is_reference t) then
+          if not (Type_decls.is_reference t) then
             error span
               (Printf.sprintf
                  "`&` takes a guest of a reference type, and %s is a value type"
@@ -681,7 +681,7 @@ and name_value ctx (n : N.Name_expr.t) =
    payload, and a named constructor is called. *)
 and type_member ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
   let m = member.N.Name.text in
-  let t = Types.apply (type_scope ctx) span (Types.resolve_head (type_scope ctx) type_) type_ [] in
+  let t = Type_decls.apply (type_scope ctx) span (Type_decls.resolve_head (type_scope ctx) type_) type_ [] in
   match (t, definition t) with
   | Ty.Error, _ -> invalid span
   | _, Some (_, Enum members) when List.mem m members -> mk (T.Expr.Enum_member m) t span
@@ -787,7 +787,7 @@ and map_read ctx span target tid property ~missing =
 and subscript ctx span target args =
   let target = expr ctx target in
   let args = List.map (expr ctx) args in
-  let homes = List.filter_map Signatures.home [ target.T.Expr.ty ] @ [ S.Package ctx.package ] in
+  let homes = List.filter_map Verb_signatures.home [ target.T.Expr.ty ] @ [ S.Package ctx.package ] in
   let cands =
     List.filter (fun (s : S.t) -> List.mem s.home homes && accessible_sig ctx s) !subscripts
   in
@@ -1116,7 +1116,7 @@ and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
       in
       if all = [] then begin
         let home =
-          match Signatures.home subject.aty with
+          match Verb_signatures.home subject.aty with
           | Some h -> Printf.sprintf " in %s, the home of %s," (quote (S.home_to_string h)) (quote (Ty.to_string subject.aty))
           | None -> ""
         in
@@ -1159,10 +1159,10 @@ and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
           call_value ~flow ctx span fn actuals handle
       | _ ->
           let home_stage =
-            match Signatures.home subject.aty with Some h -> named_in h text | None -> []
+            match Verb_signatures.home subject.aty with Some h -> named_in h text | None -> []
           in
           let current =
-            if Signatures.home subject.aty = Some (S.Package ctx.package) then []
+            if Verb_signatures.home subject.aty = Some (S.Package ctx.package) then []
             else named_in (S.Package ctx.package) text
           in
           resolve_in [ home_stage; current ] text)
@@ -1183,7 +1183,7 @@ and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
 and constructor_call ctx span (name : N.Constructor_name.t) (args : N.Constructor_args.t) handle =
   let sc = type_scope ctx in
   let member = Option.map (fun (m : N.Name.t) -> m.N.Name.text) name.N.Constructor_name.member in
-  let head = Types.resolve_head sc name.N.Constructor_name.type_ in
+  let head = Type_decls.resolve_head sc name.N.Constructor_name.type_ in
   let no_handler () =
     match handle with
     | Some (h : N.Abort_handle.t) ->
@@ -1200,25 +1200,25 @@ and constructor_call ctx span (name : N.Constructor_name.t) (args : N.Constructo
      bare, and its arguments are inferred (generics.md §5.1). *)
   let target : [ `Type of Ty.t * Ty.param list | `None ] =
     match head with
-    | Types.Unknown -> `None
-    | Types.Declared d -> (
+    | Type_decls.Unknown -> `None
+    | Type_decls.Declared d -> (
         match Hashtbl.find_opt type_infos d.id with
-        | Some info -> `Type (Ty.Named (info.tid, List.map Types.param_arg info.params), info.params)
+        | Some info -> `Type (Ty.Named (info.tid, List.map Type_decls.param_arg info.params), info.params)
         | None -> (
             match Hashtbl.find_opt alias_infos d.id with
-            | Some a when a.alias_params = [] -> `Type (Types.alias_target a, [])
+            | Some a when a.alias_params = [] -> `Type (Type_decls.alias_target a, [])
             | Some _ ->
                 error span "a generic alias cannot name a constructor; name the type it stands for";
                 `None
             | None -> `None))
-    | Types.Intrinsic_type info ->
+    | Type_decls.Intrinsic_type info ->
         let params = List.map (fun k -> Ty.fresh_param ~name:"_" ~kind:k) info.params in
-        `Type (Ty.Intrinsic { namespace = info.namespace; name = info.name; args = List.map Types.param_arg params }, params)
-    | Types.Bound (Ty.Type t) -> `Type (t, [])
-    | Types.Bound (Ty.Number _) ->
+        `Type (Ty.Intrinsic { namespace = info.namespace; name = info.name; args = List.map Type_decls.param_arg params }, params)
+    | Type_decls.Bound (Ty.Type t) -> `Type (t, [])
+    | Type_decls.Bound (Ty.Number _) ->
         error span "a number parameter has no constructor";
         `None
-    | Types.Concept_type c ->
+    | Type_decls.Concept_type c ->
         error span (Printf.sprintf "%s is a concept type, which has no constructor" (quote ("@concepts$" ^ c)));
         `None
   in
@@ -1252,10 +1252,10 @@ and constructor_call ctx span (name : N.Constructor_name.t) (args : N.Constructo
               ^ Option.fold ~none:"" ~some:(fun m -> "." ^ m) member)
           in
           let homes =
-            List.filter_map Signatures.home [ built ] @ [ S.Package ctx.package ]
+            List.filter_map Verb_signatures.home [ built ] @ [ S.Package ctx.package ]
           in
           let cands =
-            match Signatures.type_key built with
+            match Verb_signatures.type_key built with
             | None -> []
             | Some key ->
                 Hashtbl.find_all constructors key
@@ -1408,7 +1408,7 @@ and operator ~flow ctx span (op : N.Operator.t) left right ~swapped handle =
   in
   if any_error actuals then (skip_handler ctx handle; (invalid span, None))
   else
-    let homes = List.filter_map (fun (e : T.Expr.t) -> Signatures.home e.T.Expr.ty) passed in
+    let homes = List.filter_map (fun (e : T.Expr.t) -> Verb_signatures.home e.T.Expr.ty) passed in
     let cands =
       Hashtbl.find_all operators op.N.Operator.node |> List.rev
       |> List.filter (fun (s : S.t) -> List.mem s.home homes)
@@ -1441,7 +1441,7 @@ and flip ~flow ctx span value handle =
   let actual = { arg = T.Arg.Value value; aty = value.T.Expr.ty; aspan = value.T.Expr.span; subject = false } in
   if Ty.contains_error value.T.Expr.ty then (skip_handler ctx handle; (invalid span, None))
   else
-    let homes = Option.to_list (Signatures.home value.T.Expr.ty) in
+    let homes = Option.to_list (Verb_signatures.home value.T.Expr.ty) in
     let cands = List.filter (fun (s : S.t) -> List.mem s.home homes) !flips in
     if cands = [] then begin
       error span
@@ -1624,7 +1624,7 @@ and lambda ctx span ~this_type ~params ~ret_type ~is_mut ~body =
   let this_ =
     Option.map
       (fun te ->
-        let t = Types.resolve sc te in
+        let t = Type_decls.resolve sc te in
         let local = fresh_local "this" t te.N.Type_expr.span in
         Hashtbl.replace inner_scope "this" { local; role = This };
         (t, local))
@@ -1633,13 +1633,13 @@ and lambda ctx span ~this_type ~params ~ret_type ~is_mut ~body =
   let ps =
     List.map
       (fun (p : N.Param.t) ->
-        let t = Types.param_type sc p.N.Param.type_ in
+        let t = Type_decls.param_type sc p.N.Param.type_ in
         let local = fresh_local p.N.Param.name.N.Name.text t p.N.Param.span in
         Hashtbl.replace inner_scope local.T.Local.name { local; role = Parameter };
         (t, local))
       params
   in
-  let ret, abort = Types.ret_type_of sc ret_type in
+  let ret, abort = Type_decls.ret_type_of sc ret_type in
   let inner =
     {
       ctx with
@@ -1746,7 +1746,7 @@ and local_declaration ctx (d : N.Decl.t) =
   | N.Decl.Var { name; type_; value } ->
       let v = expr ctx value in
       let declared = declared_type ctx type_ v.T.Expr.ty in
-      Types.check_storage type_.N.Type_expr.span "a local" declared;
+      Type_decls.check_storage type_.N.Type_expr.span "a local" declared;
       if not (Ty.assignable ~dst:declared ~src:v.T.Expr.ty) then
         error v.T.Expr.span
           (Printf.sprintf
@@ -1767,21 +1767,21 @@ and local_declaration ctx (d : N.Decl.t) =
 and declared_type ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
   match te.N.Type_expr.node with
   | N.Type_expr.Path { name; generics = [] } -> (
-      match Types.resolve_head (type_scope ctx) name with
-      | Types.Declared d as head -> (
+      match Type_decls.resolve_head (type_scope ctx) name with
+      | Type_decls.Declared d as head -> (
           match (Hashtbl.find_opt type_infos d.id, Ty.strip_guest value_ty) with
           | Some info, Ty.Named (tid, _) when info.params <> [] && tid = info.tid -> Ty.strip_guest value_ty
           | Some info, Ty.Error when info.params <> [] -> Ty.Error
-          | _ -> Types.apply (type_scope ctx) te.N.Type_expr.span head name [])
-      | Types.Intrinsic_type info as head when info.params <> [] -> (
+          | _ -> Type_decls.apply (type_scope ctx) te.N.Type_expr.span head name [])
+      | Type_decls.Intrinsic_type info as head when info.params <> [] -> (
           match Ty.strip_guest value_ty with
           | Ty.Intrinsic { namespace; name = n; _ } when namespace = info.namespace && n = info.name ->
               Ty.strip_guest value_ty
           | Ty.Error -> Ty.Error
-          | _ -> Types.apply (type_scope ctx) te.N.Type_expr.span head name [])
-      | Types.Unknown -> Ty.Error
-      | head -> Types.apply (type_scope ctx) te.N.Type_expr.span head name [])
-  | _ -> Types.resolve (type_scope ctx) te
+          | _ -> Type_decls.apply (type_scope ctx) te.N.Type_expr.span head name [])
+      | Type_decls.Unknown -> Ty.Error
+      | head -> Type_decls.apply (type_scope ctx) te.N.Type_expr.span head name [])
+  | _ -> Type_decls.resolve (type_scope ctx) te
 
 (* The binding a place is reached through. A field, an element or a case
    payload of a read-only binding is read-only too (effects.md §4.1). A case
@@ -2059,13 +2059,13 @@ let declaration (d : decl) : T.Decl.t option =
                  {
                    name = name.N.Name.text;
                    params = info.params;
-                   reference = Types.is_reference (Ty.Named (info.tid, List.map Types.param_arg info.params));
+                   reference = Type_decls.is_reference (Ty.Named (info.tid, List.map Type_decls.param_arg info.params));
                    definition = type_definition info;
                  })
         | None -> (
             match Hashtbl.find_opt alias_infos d.id with
             | Some a ->
-                Some (T.Decl.Alias { name = name.N.Name.text; params = a.alias_params; target = Types.alias_target a })
+                Some (T.Decl.Alias { name = name.N.Name.text; params = a.alias_params; target = Type_decls.alias_target a })
             | None -> None))
     | Constant { name; value; _ } ->
         let ty = Option.value ~default:Ty.Error (Hashtbl.find_opt constant_types d.id) in
@@ -2085,7 +2085,7 @@ let declaration (d : decl) : T.Decl.t option =
         in
         Some
           (T.Decl.Enum_map
-             { enum = Types.resolve (Types.scope d.file) enum; property = property.N.Name.text; ty; entries })
+             { enum = Type_decls.resolve (Type_decls.scope d.file) enum; property = property.N.Name.text; ty; entries })
     | Verb _ -> (
         match Hashtbl.find_opt signatures d.id with
         | None -> None
