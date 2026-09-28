@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: zane_main_17
+    ├── entry: boxes$main()
     ├── layouts[0] > layout:
     │   ├── type: boxes$Countdown
     │   └── positions[0]: box @8 of boxes$Countdown (16 bytes) when [0]=1
@@ -25,7 +25,7 @@
     │   ├── positions[0]: @0 (24 bytes)
     │   └── positions[1]: box @16 of boxes$Link (48 bytes) when [8]=1
     ├── funcs[0] > func:
-    │   ├── symbol: zane_main_17
+    │   ├── symbol: boxes$main()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -50,13 +50,13 @@
     │       │   └── layout: boxes$Countdown
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_depth_7
+    │       │       │   ├── fn: boxes$depth(boxes$Countdown)
     │       │       │   └── args[0]: local #1 : <void | ptr>
     │       │       └── right: 2 : i64
     │       ├── body[2] > host:
@@ -76,24 +76,24 @@
     │       │   └── layout: boxes$Countdown
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_depth_7
+    │       │       │   ├── fn: boxes$depth(boxes$Countdown)
     │       │       │   └── args[0]: local #3 : <void | ptr>
     │       │       └── right: 2 : i64
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_depth_7
+    │       │       │   ├── fn: boxes$depth(boxes$Countdown)
     │       │       │   └── args[0]: local #1 : <void | ptr>
     │       │       └── right: 0 : i64
     │       ├── body[6] > host:
@@ -145,24 +145,24 @@
     │       │   └── layout: boxes$Countdown
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_depth_7
+    │       │       │   ├── fn: boxes$depth(boxes$Countdown)
     │       │       │   └── args[0]: local #8 : <void | ptr>
     │       │       └── right: 1 : i64
     │       ├── body[8] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_depth_7
+    │       │       │   ├── fn: boxes$depth(boxes$Countdown)
     │       │       │   └── args[0] > deref:
     │       │       │       ├── type: <void | ptr>
     │       │       │       └── ptr > expand:
@@ -218,7 +218,7 @@
     │       │   │   └── payload > box:
     │       │   │       ├── value > call:
     │       │   │       │   ├── type: {ptr, ptr}
-    │       │   │       │   ├── fn: zane_Pair_10
+    │       │   │       │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
     │       │   │       │   ├── args[0] > expand:
     │       │   │       │   │   ├── type: <i64 | ptr>
     │       │   │       │   │   ├── label: @14
@@ -247,7 +247,7 @@
     │       │   │       │       │   │   └── payload > box:
     │       │   │       │       │   │       ├── value > call:
     │       │   │       │       │   │       │   ├── type: {ptr, ptr}
-    │       │   │       │       │   │       │   ├── fn: zane_Pair_10
+    │       │   │       │       │   │       │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
     │       │   │       │       │   │       │   ├── args[0] > expand:
     │       │   │       │       │   │       │   │   ├── type: <i64 | ptr>
     │       │   │       │       │   │       │   │   ├── label: @17
@@ -302,24 +302,24 @@
     │       │   └── layout: boxes$Tree
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_total_11
+    │       │       │   ├── fn: boxes$total(boxes$Tree)
     │       │       │   └── args[0]: local #26 : <i64 | ptr>
     │       │       └── right: 6 : i64
     │       ├── body[13] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_total_11
+    │       │       │   ├── fn: boxes$total(boxes$Tree)
     │       │       │   └── args[0]: local #25 : <i64 | ptr>
     │       │       └── right: 0 : i64
     │       ├── body[14] > host:
@@ -334,7 +334,7 @@
     │       │   │       └── payload > box:
     │       │   │           ├── value > call:
     │       │   │           │   ├── type: {i32, handle, ptr}
-    │       │   │           │   ├── fn: zane_Link_14
+    │       │   │           │   ├── fn: boxes$Link(@primitives$String, boxes$Chain)
     │       │   │           │   ├── args[0] > expand:
     │       │   │           │   │   ├── type: ptr
     │       │   │           │   │   ├── label: @28
@@ -363,7 +363,7 @@
     │       │   │           │       │   │       └── payload > box:
     │       │   │           │       │   │           ├── value > call:
     │       │   │           │       │   │           │   ├── type: {i32, handle, ptr}
-    │       │   │           │       │   │           │   ├── fn: zane_Link_14
+    │       │   │           │       │   │           │   ├── fn: boxes$Link(@primitives$String, boxes$Chain)
     │       │   │           │       │   │           │   ├── args[0] > expand:
     │       │   │           │       │   │           │   │   ├── type: ptr
     │       │   │           │       │   │           │   │   ├── label: @31
@@ -403,13 +403,13 @@
     │       │   └── layout: boxes$Chain
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_length_15
+    │       │       │   ├── fn: boxes$length(this boxes$Chain)
     │       │       │   └── args[0]: address of #39 : ptr
     │       │       └── right: 2 : i64
     │       ├── body[16] > let:
@@ -425,18 +425,18 @@
     │       │   └── layout: boxes$Chain
     │       ├── body[18] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_length_15
+    │       │       │   ├── fn: boxes$length(this boxes$Chain)
     │       │       │   └── args[0] > resolve: local #40 : i32
     │       │       └── right: 2 : i64
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -484,7 +484,7 @@
     │       │       │   │               │   ├── address: address of #45 : ptr
     │       │       │   │               │   ├── value > call:
     │       │       │   │               │   │   ├── type: {i32, handle, ptr}
-    │       │       │   │               │   │   ├── fn: zane_Link_14
+    │       │       │   │               │   │   ├── fn: boxes$Link(@primitives$String, boxes$Chain)
     │       │       │   │               │   │   ├── args[0] > expand:
     │       │       │   │               │   │   │   ├── type: ptr
     │       │       │   │               │   │   │   ├── label: @47
@@ -535,7 +535,7 @@
     │       │       └── right: 1 : i64
     │       ├── body[20] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: boxes$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -600,7 +600,7 @@
     │       │       │   │               │   ├── address: address of #59 : ptr
     │       │       │   │               │   ├── value > call:
     │       │       │   │               │   │   ├── type: {i32, handle, ptr}
-    │       │       │   │               │   │   ├── fn: zane_Link_14
+    │       │       │   │               │   │   ├── fn: boxes$Link(@primitives$String, boxes$Chain)
     │       │       │   │               │   │   ├── args[0] > expand:
     │       │       │   │               │   │   │   ├── type: ptr
     │       │       │   │               │   │   │   ├── label: @61
@@ -718,7 +718,7 @@
     │       │   └── body[3]: leave @75
     │       └── body[23] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: zane_depth_7
+    │   ├── symbol: boxes$depth(boxes$Countdown)
     │   ├── params[0]: local #1 : <void | ptr>
     │   ├── ret: i64
     │   └── body[0] > return > expand:
@@ -758,13 +758,13 @@
     │           │       ├── left: 1 : i64
     │           │       └── right > call:
     │           │           ├── type: i64
-    │           │           ├── fn: zane_depth_7
+    │           │           ├── fn: boxes$depth(boxes$Countdown)
     │           │           └── args[0] > deref:
     │           │               ├── type: <void | ptr>
     │           │               └── ptr: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
     ├── funcs[2] > func:
-    │   ├── symbol: zane_check_16
+    │   ├── symbol: boxes$check(@primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -795,7 +795,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: zane_Pair_10
+    │   ├── symbol: boxes$Pair(boxes$Tree, boxes$Tree)
     │   ├── params[0]: local #1 : <i64 | ptr>
     │   ├── params[1]: local #2 : <i64 | ptr>
     │   ├── ret: {ptr, ptr}
@@ -817,7 +817,7 @@
     │       │       └── layout: boxes$Tree
     │       └── layout: boxes$Pair
     ├── funcs[4] > func:
-    │   ├── symbol: zane_total_11
+    │   ├── symbol: boxes$total(boxes$Tree)
     │   ├── params[0]: local #1 : <i64 | ptr>
     │   ├── ret: i64
     │   └── body[0] > return > expand:
@@ -858,7 +858,7 @@
     │           │       ├── op: +
     │           │       ├── left > call:
     │           │       │   ├── type: i64
-    │           │       │   ├── fn: zane_total_11
+    │           │       │   ├── fn: boxes$total(boxes$Tree)
     │           │       │   └── args[0] > deref:
     │           │       │       ├── type: <i64 | ptr>
     │           │       │       └── ptr > deref:
@@ -869,7 +869,7 @@
     │           │       │               └── base: local #6 : ptr
     │           │       └── right > call:
     │           │           ├── type: i64
-    │           │           ├── fn: zane_total_11
+    │           │           ├── fn: boxes$total(boxes$Tree)
     │           │           └── args[0] > deref:
     │           │               ├── type: <i64 | ptr>
     │           │               └── ptr > deref:
@@ -880,7 +880,7 @@
     │           │                       └── base: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
     ├── funcs[5] > func:
-    │   ├── symbol: zane_Link_14
+    │   ├── symbol: boxes$Link(@primitives$String, boxes$Chain)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : ptr
     │   ├── ret: {i32, handle, ptr}
@@ -901,7 +901,7 @@
     │       │       └── layout: boxes$Chain
     │       └── layout: boxes$Link
     └── funcs[6] > func:
-        ├── symbol: zane_length_15
+        ├── symbol: boxes$length(this boxes$Chain)
         ├── params[0]: local #1 : ptr
         ├── ret: i64
         └── body[0] > return > expand:
@@ -944,7 +944,7 @@
                 │       ├── left: 1 : i64
                 │       └── right > call:
                 │           ├── type: i64
-                │           ├── fn: zane_length_15
+                │           ├── fn: boxes$length(this boxes$Chain)
                 │           └── args[0] > deref:
                 │               ├── type: ptr
                 │               └── ptr > offset:

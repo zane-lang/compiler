@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: zane_main_22
+    ├── entry: hosts$main()
     ├── layouts[0] > layout:
     │   ├── type: hosts$Account
     │   └── positions[0]: @0 (24 bytes)
@@ -12,7 +12,7 @@
     │   ├── positions[0]: @0 (32 bytes)
     │   └── positions[1]: text @0
     ├── funcs[0] > func:
-    │   ├── symbol: zane_main_22
+    │   ├── symbol: hosts$main()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -22,24 +22,24 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   ├── fn: zane_opened_12
+    │       │   │   ├── fn: hosts$opened(@primitives$Int, @primitives$Int)
     │       │   │   ├── args[0]: 1 : i64
     │       │   │   └── args[1]: 5 : i64
     │       │   └── layout: hosts$Account
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_deposit_10
+    │       │   ├── fn: hosts$deposit(this hosts$Account, @primitives$Int)
     │       │   ├── args[0]: address of #1 : ptr
     │       │   └── args[1]: 10 : i64
     │       ├── body[2] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_funds_11
+    │       │       │   ├── fn: hosts$funds(this hosts$Account)
     │       │       │   └── args[0]: address of #1 : ptr
     │       │       └── right: 15 : i64
     │       ├── body[3] > host:
@@ -52,7 +52,7 @@
     │       │   └── layout: hosts$Account
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -67,12 +67,12 @@
     │       │   ├── address: address of #1 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   ├── fn: zane_Account_9
+    │       │   │   ├── fn: hosts$Account(@primitives$Int)
     │       │   │   └── args[0]: 2 : i64
     │       │   └── layout: hosts$Account
     │       ├── body[6] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -85,13 +85,13 @@
     │       │       └── right: 2 : i64
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_closed_13
+    │       │       │   ├── fn: hosts$closed(hosts$Account)
     │       │       │   └── args[0]: address of #3 : ptr
     │       │       └── right: 15 : i64
     │       ├── body[8] > host:
@@ -105,12 +105,12 @@
     │       │   │       ├── index: 1
     │       │   │       └── payload > call:
     │       │   │           ├── type: {i32, i64, i64}
-    │       │   │           ├── fn: zane_Account_9
+    │       │   │           ├── fn: hosts$Account(@primitives$Int)
     │       │   │           └── args[0]: 3 : i64
     │       │   └── layout: hosts$Slot
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
     │       │       ├── label: @5
@@ -156,18 +156,18 @@
     │       │           └── cases[1] > case 1[2]: leave @5
     │       ├── body[10] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_richest_15
+    │       │       │   ├── fn: hosts$richest(@primitives$Int)
     │       │       │   └── args[0]: 9 : i64
     │       │       └── right: 4 : i64
     │       ├── body[11] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -179,7 +179,7 @@
     │       │       │   │   ├── local: #12
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | i64 | void>
-    │       │       │   │       ├── fn: zane_overdrawn_16
+    │       │       │   │       ├── fn: hosts$overdrawn(@primitives$Int)
     │       │       │   │       └── args[0]: 1 : i64
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value: local #12 : <i64 | i64 | void>
@@ -201,7 +201,7 @@
     │       │       └── right: 5 : i64
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -213,7 +213,7 @@
     │       │       │   │   ├── local: #15
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | i64 | void>
-    │       │       │   │       ├── fn: zane_overdrawn_16
+    │       │       │   │       ├── fn: hosts$overdrawn(@primitives$Int)
     │       │       │   │       └── args[0]: 7 : i64
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value: local #15 : <i64 | i64 | void>
@@ -241,18 +241,18 @@
     │       │       └── right: 8 : i64
     │       ├── body[13] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_total_20
+    │       │       │   ├── fn: hosts$total(@primitives$Int)
     │       │       │   └── args[0]: 3 : i64
     │       │       └── right: 12 : i64
     │       ├── body[14] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -264,7 +264,7 @@
     │       │       │   │   ├── local: #19
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | {i32, i64, i64} | void>
-    │       │       │   │       ├── fn: zane_refused_17
+    │       │       │   │       ├── fn: hosts$refused(@primitives$Int)
     │       │       │   │       └── args[0]: 0 : i64
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value: local #19 : <i64 | {i32, i64, i64} | void>
@@ -297,7 +297,7 @@
     │       │       └── right: 70 : i64
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -309,7 +309,7 @@
     │       │       │   │   ├── local: #24
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | {i32, i64, i64} | void>
-    │       │       │   │       ├── fn: zane_refused_17
+    │       │       │   │       ├── fn: hosts$refused(@primitives$Int)
     │       │       │   │       └── args[0]: 4 : i64
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value: local #24 : <i64 | {i32, i64, i64} | void>
@@ -342,13 +342,13 @@
     │       │       └── right: 4 : i64
     │       ├── body[16] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_chosen_19
+    │       │       │   ├── fn: hosts$chosen(hosts$Choice)
     │       │       │   └── args[0] > case:
     │       │       │       ├── type: <i64 | void>
     │       │       │       ├── index: 0
@@ -356,13 +356,13 @@
     │       │       └── right: 5 : i64
     │       ├── body[17] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_chosen_19
+    │       │       │   ├── fn: hosts$chosen(hosts$Choice)
     │       │       │   └── args[0] > case:
     │       │       │       ├── type: <i64 | void>
     │       │       │       ├── index: 0
@@ -370,13 +370,13 @@
     │       │       └── right: 0 : i64
     │       ├── body[18] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_chosen_19
+    │       │       │   ├── fn: hosts$chosen(hosts$Choice)
     │       │       │   └── args[0] > case:
     │       │       │       ├── type: <i64 | void>
     │       │       │       ├── index: 1
@@ -415,7 +415,7 @@
     │       │   │   │       │   ├── scope: %34
     │       │   │   │       │   ├── value > call:
     │       │   │   │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   │       │   │   ├── fn: zane_opened_12
+    │       │   │   │       │   │   ├── fn: hosts$opened(@primitives$Int, @primitives$Int)
     │       │   │   │       │   │   ├── args[0]: local #28 : i64
     │       │   │   │       │   │   └── args[1]: 1 : i64
     │       │   │   │       │   └── layout: hosts$Account
@@ -450,7 +450,7 @@
     │       │   └── body[3]: leave @30
     │       ├── body[22] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_21
+    │       │   ├── fn: hosts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -458,7 +458,7 @@
     │       │       └── right: 100000 : i64
     │       └── body[23] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: zane_opened_12
+    │   ├── symbol: hosts$opened(@primitives$Int, @primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i32, i64, i64}
@@ -469,12 +469,12 @@
     │       │   ├── scope: %4
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   ├── fn: zane_Account_9
+    │       │   │   ├── fn: hosts$Account(@primitives$Int)
     │       │   │   └── args[0]: local #1 : i64
     │       │   └── layout: hosts$Account
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_deposit_10
+    │       │   ├── fn: hosts$deposit(this hosts$Account, @primitives$Int)
     │       │   ├── args[0]: address of #3 : ptr
     │       │   └── args[1]: local #2 : i64
     │       └── body[2] > return > escape:
@@ -485,7 +485,7 @@
     │           │   └── layout: hosts$Account
     │           └── layout: hosts$Account
     ├── funcs[2] > func:
-    │   ├── symbol: zane_deposit_10
+    │   ├── symbol: hosts$deposit(this hosts$Account, @primitives$Int)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
@@ -503,7 +503,7 @@
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: zane_funds_11
+    │   ├── symbol: hosts$funds(this hosts$Account)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   └── body[0] > return > snapshot:
@@ -513,7 +513,7 @@
     │           ├── path: 2
     │           └── base: local #1 : ptr
     ├── funcs[4] > func:
-    │   ├── symbol: zane_check_21
+    │   ├── symbol: hosts$check(@primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -544,7 +544,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[5] > func:
-    │   ├── symbol: zane_Account_9
+    │   ├── symbol: hosts$Account(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i32, i64, i64}
     │   └── body[0] > return > escape:
@@ -556,7 +556,7 @@
     │       │   └── members[2] > member 2: 0 : i64
     │       └── layout: hosts$Account
     ├── funcs[6] > func:
-    │   ├── symbol: zane_closed_13
+    │   ├── symbol: hosts$closed(hosts$Account)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   └── body[0] > return > snapshot:
@@ -566,7 +566,7 @@
     │           ├── path: 2
     │           └── base: local #1 : ptr
     ├── funcs[7] > func:
-    │   ├── symbol: zane_richest_15
+    │   ├── symbol: hosts$richest(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -599,7 +599,7 @@
     │   │   │   │       │   ├── scope: %8
     │   │   │   │       │   ├── value > call:
     │   │   │   │       │   │   ├── type: {i32, i64, i64}
-    │   │   │   │       │   │   ├── fn: zane_opened_12
+    │   │   │   │       │   │   ├── fn: hosts$opened(@primitives$Int, @primitives$Int)
     │   │   │   │       │   │   ├── args[0]: local #2 : i64
     │   │   │   │       │   │   └── args[1] > binary:
     │   │   │   │       │   │       ├── type: i64
@@ -646,7 +646,7 @@
     │   │   └── body[3]: leave @4
     │   └── body[2] > return: 0 : i64
     ├── funcs[8] > func:
-    │   ├── symbol: zane_overdrawn_16
+    │   ├── symbol: hosts$overdrawn(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | i64 | void>
     │   └── body[0] > scope:
@@ -656,7 +656,7 @@
     │       │   ├── scope: %3
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   ├── fn: zane_opened_12
+    │       │   │   ├── fn: hosts$opened(@primitives$Int, @primitives$Int)
     │       │   │   ├── args[0]: 9 : i64
     │       │   │   └── args[1]: 5 : i64
     │       │   └── layout: hosts$Account
@@ -685,7 +685,7 @@
     │       │   │       │   ├── scope: %9
     │       │   │       │   ├── value > call:
     │       │   │       │   │   ├── type: {i32, i64, i64}
-    │       │   │       │   │   ├── fn: zane_opened_12
+    │       │   │       │   │   ├── fn: hosts$opened(@primitives$Int, @primitives$Int)
     │       │   │       │   │   ├── args[0]: 8 : i64
     │       │   │       │   │   └── args[1]: local #1 : i64
     │       │   │       │   └── layout: hosts$Account
@@ -712,7 +712,7 @@
     │                   ├── path: 2
     │                   └── base: address of #2 : ptr
     ├── funcs[9] > func:
-    │   ├── symbol: zane_total_20
+    │   ├── symbol: hosts$total(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -751,7 +751,7 @@
     │   │   │   │           │   ├── scope: %9
     │   │   │   │           │   ├── value > call:
     │   │   │   │           │   │   ├── type: {i32, i64, i64}
-    │   │   │   │           │   │   ├── fn: zane_opened_12
+    │   │   │   │           │   │   ├── fn: hosts$opened(@primitives$Int, @primitives$Int)
     │   │   │   │           │   │   ├── args[0]: local #3 : i64
     │   │   │   │           │   │   └── args[1]: local #3 : i64
     │   │   │   │           │   └── layout: hosts$Account
@@ -762,7 +762,7 @@
     │   │   │   │           │   │   ├── local: #11
     │   │   │   │           │   │   └── value > call:
     │   │   │   │           │   │       ├── type: <void | void | void>
-    │   │   │   │           │   │       ├── fn: zane_guard_7
+    │   │   │   │           │   │       ├── fn: hosts$guard(@primitives$Bool)
     │   │   │   │           │   │       └── args[0] > binary:
     │   │   │   │           │   │           ├── type: i1
     │   │   │   │           │   │           ├── op: ==
@@ -795,7 +795,7 @@
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
     ├── funcs[10] > func:
-    │   ├── symbol: zane_refused_17
+    │   ├── symbol: hosts$refused(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | {i32, i64, i64} | void>
     │   ├── body[0] > eval > expand:
@@ -818,7 +818,7 @@
     │   │   │           ├── exit: function
     │   │   │           ├── value > call:
     │   │   │           │   ├── type: {i32, i64, i64}
-    │   │   │           │   ├── fn: zane_opened_12
+    │   │   │           │   ├── fn: hosts$opened(@primitives$Int, @primitives$Int)
     │   │   │           │   ├── args[0]: 7 : i64
     │   │   │           │   └── args[1]: 70 : i64
     │   │   │           └── layout: hosts$Account
@@ -831,7 +831,7 @@
     │       ├── index: 0
     │       └── payload: local #1 : i64
     ├── funcs[11] > func:
-    │   ├── symbol: zane_chosen_19
+    │   ├── symbol: hosts$chosen(hosts$Choice)
     │   ├── params[0]: local #1 : <i64 | void>
     │   ├── ret: i64
     │   └── body[0] > return > expand:
@@ -858,7 +858,7 @@
     │           │   │   ├── scope: %7
     │           │   │   ├── value > call:
     │           │   │   │   ├── type: {i32, i64, i64}
-    │           │   │   │   ├── fn: zane_opened_12
+    │           │   │   │   ├── fn: hosts$opened(@primitives$Int, @primitives$Int)
     │           │   │   │   ├── args[0] > deref:
     │           │   │   │   │   ├── type: i64
     │           │   │   │   │   └── ptr: local #5 : ptr
@@ -933,7 +933,7 @@
     │               │   ├── scope: %16
     │               │   ├── value > call:
     │               │   │   ├── type: {i32, i64, i64}
-    │               │   │   ├── fn: zane_Account_9
+    │               │   │   ├── fn: hosts$Account(@primitives$Int)
     │               │   │   └── args[0]: 6 : i64
     │               │   └── layout: hosts$Account
     │               ├── body[1] > assign:
@@ -950,7 +950,7 @@
     │               │       └── right: 100 : i64
     │               └── body[2]: leave @2
     └── funcs[12] > func:
-        ├── symbol: zane_guard_7
+        ├── symbol: hosts$guard(@primitives$Bool)
         ├── params[0]: local #1 : i1
         ├── ret: <void | void | void>
         ├── body[0] > if:

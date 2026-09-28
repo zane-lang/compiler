@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: zane_main_15
+    ├── entry: texts$main()
     ├── layouts[0] > layout:
     │   ├── type: @primitives$String
     │   ├── positions[0]: @0 (32 bytes)
@@ -21,7 +21,7 @@
     │   ├── positions[2]: @24 (32 bytes) when [8]=0
     │   └── positions[3]: text @24 when [8]=0
     ├── funcs[0] > func:
-    │   ├── symbol: zane_main_15
+    │   ├── symbol: texts$main()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -57,7 +57,7 @@
     │       │   └── args[0]: local #6 : handle
     │       ├── body[3] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -95,7 +95,7 @@
     │       │       └── right: 1 : i64
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > flip:
     │       │       ├── type: i1
     │       │       └── value > binary:
@@ -109,7 +109,7 @@
     │       │           └── right: 1 : i64
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -125,7 +125,7 @@
     │       │       │   │   │   ├── scope: %2
     │       │       │   │   │   ├── value > call:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── fn: zane_twice_12
+    │       │       │   │   │   │   ├── fn: texts$twice(&@primitives$String)
     │       │       │   │   │   │   └── args[0] > mint: address of #1 : ptr
     │       │       │   │   │   └── layout: @primitives$String
     │       │       │   │   └── body[1] > assign:
@@ -154,7 +154,7 @@
     │       │   └── layout: @primitives$String
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -181,7 +181,7 @@
     │       │   └── layout: @primitives$String
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -207,7 +207,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, handle}
-    │       │   │   ├── fn: zane_Person_7
+    │       │   │   ├── fn: texts$Person(@primitives$String)
     │       │   │   └── args[0] > expand:
     │       │   │       ├── type: ptr
     │       │   │       ├── label: @27
@@ -234,7 +234,7 @@
     │       │   └── layout: texts$Person
     │       ├── body[13] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -250,7 +250,7 @@
     │       │       │   │   │   ├── scope: %2
     │       │       │   │   │   ├── value > call:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── fn: zane_greeting_8
+    │       │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
     │       │       │   │   │   │   └── args[0] > resolve: local #30 : i32
     │       │       │   │   │   └── layout: @primitives$String
     │       │       │   │   └── body[1] > assign:
@@ -293,7 +293,7 @@
     │       │   └── layout: @primitives$String
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -309,7 +309,7 @@
     │       │       │   │   │   ├── scope: %2
     │       │       │   │   │   ├── value > call:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── fn: zane_greeting_8
+    │       │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
     │       │       │   │   │   │   └── args[0] > resolve: local #30 : i32
     │       │       │   │   │   └── layout: @primitives$String
     │       │       │   │   └── body[1] > assign:
@@ -336,7 +336,7 @@
     │       │       └── base: address of #31 : ptr
     │       ├── body[17] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -372,7 +372,7 @@
     │       │   └── layout: texts$Tagged
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
     │       │       ├── label: @52
@@ -445,7 +445,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, handle}
-    │       │   │   ├── fn: zane_Person_7
+    │       │   │   ├── fn: texts$Person(@primitives$String)
     │       │   │   └── args[0] > expand:
     │       │   │       ├── type: ptr
     │       │   │       ├── label: @62
@@ -488,7 +488,7 @@
     │       │   └── layout: texts$Holder
     │       ├── body[25] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -504,7 +504,7 @@
     │       │       │   │   │   ├── scope: %2
     │       │       │   │   │   ├── value > call:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── fn: zane_greeting_8
+    │       │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
     │       │       │   │   │   │   └── args[0] > resolve: local #65 : i32
     │       │       │   │   │   └── layout: @primitives$String
     │       │       │   │   └── body[1] > assign:
@@ -525,7 +525,7 @@
     │       │       └── right: 1 : i64
     │       ├── body[26] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_rename_9
+    │       │   ├── fn: texts$rename(this texts$Person, @primitives$String)
     │       │   ├── args[0] > resolve: local #65 : i32
     │       │   └── args[1] > expand:
     │       │       ├── type: ptr
@@ -556,7 +556,7 @@
     │       │           └── value: address of #76 : ptr
     │       ├── body[27] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -572,7 +572,7 @@
     │       │       │   │   │   ├── scope: %2
     │       │       │   │   │   ├── value > call:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── fn: zane_greeting_8
+    │       │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
     │       │       │   │   │   │   └── args[0] > resolve: local #65 : i32
     │       │       │   │   │   └── layout: @primitives$String
     │       │       │   │   └── body[1] > assign:
@@ -596,12 +596,12 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: handle
-    │       │   │   ├── fn: zane_twice_12
+    │       │   │   ├── fn: texts$twice(&@primitives$String)
     │       │   │   └── args[0] > mint: address of #1 : ptr
     │       │   └── layout: @primitives$String
     │       ├── body[29] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -623,7 +623,7 @@
     │       │       │   │   │   │   │   ├── local: #91
     │       │       │   │   │   │   │   └── value > call:
     │       │       │   │   │   │   │       ├── type: <handle | handle | void>
-    │       │       │   │   │   │   │       ├── fn: zane_refuse_13
+    │       │       │   │   │   │   │       ├── fn: texts$refuse(@primitives$String)
     │       │       │   │   │   │   │       └── args[0] > expand:
     │       │       │   │   │   │   │           ├── type: ptr
     │       │       │   │   │   │   │           ├── label: @87
@@ -762,7 +762,7 @@
     │       │   └── body[3]: leave @103
     │       ├── body[33] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_14
+    │       │   ├── fn: texts$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -785,7 +785,7 @@
     │       │       └── right: 1 : i64
     │       └── body[34] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: zane_check_14
+    │   ├── symbol: texts$check(@primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -816,7 +816,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: zane_twice_12
+    │   ├── symbol: texts$twice(&@primitives$String)
     │   ├── params[0]: local #1 : i32
     │   ├── ret: handle
     │   └── body[0] > return > escape:
@@ -832,7 +832,7 @@
     │       │       └── ptr > resolve: local #1 : i32
     │       └── layout: @primitives$String
     ├── funcs[3] > func:
-    │   ├── symbol: zane_Person_7
+    │   ├── symbol: texts$Person(@primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: {i32, handle}
     │   └── body[0] > return > escape:
@@ -846,7 +846,7 @@
     │       │       └── layout: @primitives$String
     │       └── layout: texts$Person
     ├── funcs[4] > func:
-    │   ├── symbol: zane_greeting_8
+    │   ├── symbol: texts$greeting(this texts$Person)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: handle
     │   └── body[0] > scope:
@@ -876,7 +876,7 @@
     │           │           └── ptr: local #1 : ptr
     │           └── layout: @primitives$String
     ├── funcs[5] > func:
-    │   ├── symbol: zane_rename_9
+    │   ├── symbol: texts$rename(this texts$Person, @primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : ptr
     │   ├── ret: void
@@ -892,7 +892,7 @@
     │   │   └── layout: @primitives$String
     │   └── body[1] > return: unit : void
     └── funcs[6] > func:
-        ├── symbol: zane_refuse_13
+        ├── symbol: texts$refuse(@primitives$String)
         ├── params[0]: local #1 : ptr
         ├── ret: <handle | handle | void>
         └── body[0] > scope:

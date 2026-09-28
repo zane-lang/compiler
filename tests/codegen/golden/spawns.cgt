@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: zane_main_29
+    ├── entry: spawns$main()
     ├── layouts[0] > layout:
     │   ├── type: @primitives$Int
     │   └── positions:
@@ -37,7 +37,7 @@
     │   ├── type: outcome of @primitives$Int
     │   └── positions:
     ├── funcs[0] > func:
-    │   ├── symbol: zane_main_29
+    │   ├── symbol: spawns$main()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -90,7 +90,7 @@
     │       │       └── body[3]: leave @5
     │       ├── body[3] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -106,7 +106,7 @@
     │       │   └── layout: @primitives$Int
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -136,7 +136,7 @@
     │       │   └── layout: @primitives$String
     │       ├── body[8] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -171,7 +171,7 @@
     │       │   ├── scope: %11
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, handle, i64}
-    │       │   │   ├── fn: zane_Person_17
+    │       │   │   ├── fn: spawns$Person(@primitives$String, @primitives$Int)
     │       │   │   ├── args[0] > expand:
     │       │   │   │   ├── type: ptr
     │       │   │   │   ├── label: @24
@@ -199,7 +199,7 @@
     │       │   └── layout: @primitives$String
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -261,7 +261,7 @@
     │       │           └── value: address of #41 : ptr
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -289,7 +289,7 @@
     │       │       └── right: 1 : i64
     │       ├── body[16] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -310,7 +310,7 @@
     │       │   └── layout: @primitives$List<@primitives$String>
     │       ├── body[18] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -332,7 +332,7 @@
     │       │   ├── local: #53
     │       │   └── value > call:
     │       │       ├── type: i64
-    │       │       ├── fn: zane_Tally_8
+    │       │       ├── fn: spawns$Tally(@primitives$Int)
     │       │       └── args[0]: 0 : i64
     │       ├── body[20] > if:
     │       │   ├── cond: true : i1
@@ -347,7 +347,7 @@
     │       │           └── args[1]: 5 : i64
     │       ├── body[21] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -404,7 +404,7 @@
     │       │           └── args[1]: 400 : i64
     │       ├── body[26] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -416,15 +416,15 @@
     │       │       │   │   ├── op: +
     │       │       │   │   ├── left > call:
     │       │       │   │   │   ├── type: i64
-    │       │       │   │   │   ├── fn: zane_depth_11
+    │       │       │   │   │   ├── fn: spawns$depth(spawns$Countdown)
     │       │       │   │   │   └── args[0]: local #58 : <void | ptr>
     │       │       │   │   └── right > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: zane_depth_11
+    │       │       │   │       ├── fn: spawns$depth(spawns$Countdown)
     │       │       │   │       └── args[0]: local #59 : <void | ptr>
     │       │       │   └── right > call:
     │       │       │       ├── type: i64
-    │       │       │       ├── fn: zane_depth_11
+    │       │       │       ├── fn: spawns$depth(spawns$Countdown)
     │       │       │       └── args[0]: local #60 : <void | ptr>
     │       │       └── right: 900 : i64
     │       ├── body[27] > host:
@@ -432,7 +432,7 @@
     │       │   ├── scope: %11
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, <void | ptr>, i64}
-    │       │   │   ├── fn: zane_Holder_14
+    │       │   │   ├── fn: spawns$Holder(spawns$Countdown)
     │       │   │   └── args[0] > expand:
     │       │   │       ├── type: <void | ptr>
     │       │   │       ├── label: @70
@@ -503,7 +503,7 @@
     │       │       │       └── ptr: local #82 : ptr
     │       │       └── body[5] > eval > call:
     │       │           ├── type: void
-    │       │           ├── fn: zane_check_18
+    │       │           ├── fn: spawns$check(@primitives$Bool)
     │       │           └── args[0] > binary:
     │       │               ├── type: i1
     │       │               ├── op: ==
@@ -520,13 +520,13 @@
     │       │               └── right: 300 : i64
     │       ├── body[30] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_depth_11
+    │       │       │   ├── fn: spawns$depth(spawns$Countdown)
     │       │       │   └── args[0] > snapshot:
     │       │       │       ├── type: <void | ptr>
     │       │       │       └── ptr > offset:
@@ -536,7 +536,7 @@
     │       │       └── right: 250 : i64
     │       ├── body[31] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -573,7 +573,7 @@
     │       │   └── layout: @primitives$Int
     │       ├── body[35] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -673,7 +673,7 @@
     │       │   └── body[3]: leave @105
     │       ├── body[39] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -828,7 +828,7 @@
     │       │   └── layout: outcome of @primitives$Int ? @primitives$String
     │       ├── body[49] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -889,7 +889,7 @@
     │       │       └── right: 3 : i64
     │       ├── body[50] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -931,7 +931,7 @@
     │       │       │   │   │                   ├── id: %167
     │       │       │   │   │                   ├── body[0] > eval > call:
     │       │       │   │   │                   │   ├── type: void
-    │       │       │   │   │                   │   ├── fn: zane_check_18
+    │       │       │   │   │                   │   ├── fn: spawns$check(@primitives$Bool)
     │       │       │   │   │                   │   └── args[0] > binary:
     │       │       │   │   │                   │       ├── type: i1
     │       │       │   │   │                   │       ├── op: ==
@@ -1010,7 +1010,7 @@
     │       │       │       │                   ├── id: %176
     │       │       │       │                   ├── body[0] > eval > call:
     │       │       │       │                   │   ├── type: void
-    │       │       │       │                   │   ├── fn: zane_check_18
+    │       │       │       │                   │   ├── fn: spawns$check(@primitives$Bool)
     │       │       │       │                   │   └── args[0] > binary:
     │       │       │       │                   │       ├── type: i1
     │       │       │       │                   │       ├── op: ==
@@ -1057,7 +1057,7 @@
     │       │       └── right: 14 : i64
     │       ├── body[51] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -1077,7 +1077,7 @@
     │       │   └── layout: outcome of @primitives$Int ? @primitives$String
     │       ├── body[54] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -1131,7 +1131,7 @@
     │       │       └── right: 4 : i64
     │       ├── body[55] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -1143,7 +1143,7 @@
     │       │       │   │   ├── local: #190
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | handle | void>
-    │       │       │   │       ├── fn: zane_relay_27
+    │       │       │   │       ├── fn: spawns$relay(@primitives$Int, @primitives$Int)
     │       │       │   │       ├── args[0]: 8 : i64
     │       │       │   │       └── args[1]: 2 : i64
     │       │       │   └── body[1] > switch:
@@ -1172,7 +1172,7 @@
     │       │       └── right: 5 : i64
     │       ├── body[56] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -1184,7 +1184,7 @@
     │       │       │   │   ├── local: #195
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | handle | void>
-    │       │       │   │       ├── fn: zane_relay_27
+    │       │       │   │       ├── fn: spawns$relay(@primitives$Int, @primitives$Int)
     │       │       │   │       ├── args[0]: 8 : i64
     │       │       │   │       └── args[1]: 0 : i64
     │       │       │   └── body[1] > switch:
@@ -1224,7 +1224,7 @@
     │       │   │   ├── local: #201
     │       │   │   └── value > call:
     │       │   │       ├── type: <i64 | handle | void>
-    │       │   │       ├── fn: zane_relay_27
+    │       │   │       ├── fn: spawns$relay(@primitives$Int, @primitives$Int)
     │       │   │       ├── args[0]: 8 : i64
     │       │   │       └── args[1]: 0 : i64
     │       │   └── body[1] > switch:
@@ -1259,7 +1259,7 @@
     │       │           └── body[3]: leave @199
     │       ├── body[59] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -1451,7 +1451,7 @@
     │       │                       └── body[3]: leave @228
     │       ├── body[62] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -1558,7 +1558,7 @@
     │       │   └── body[3]: leave @234
     │       ├── body[66] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -1566,13 +1566,13 @@
     │       │       └── right: 8 : i64
     │       ├── body[67] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_fib_19
+    │       │       │   ├── fn: spawns$fib(@primitives$Int)
     │       │       │   └── args[0]: 10 : i64
     │       │       └── right: 55 : i64
     │       ├── body[68] > spawn:
@@ -1608,7 +1608,7 @@
     │       │       └── right: 1 : i64
     │       ├── body[70] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_18
+    │       │   ├── fn: spawns$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -1697,7 +1697,7 @@
     │       │                   ├── id: %264
     │       │                   ├── body[0] > eval > call:
     │       │                   │   ├── type: void
-    │       │                   │   ├── fn: zane_check_18
+    │       │                   │   ├── fn: spawns$check(@primitives$Bool)
     │       │                   │   └── args[0] > binary:
     │       │                   │       ├── type: i1
     │       │                   │       ├── op: ==
@@ -1769,7 +1769,7 @@
     │                       │   └── layout: outcome of @primitives$Int ? @primitives$String
     │                       └── body[2]: leave @265
     ├── funcs[1] > func:
-    │   ├── symbol: zane_check_18
+    │   ├── symbol: spawns$check(@primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -1800,7 +1800,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: zane_fib_19
+    │   ├── symbol: spawns$fib(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > if:
@@ -1815,7 +1815,7 @@
     │       ├── op: +
     │       ├── left > call:
     │       │   ├── type: i64
-    │       │   ├── fn: zane_fib_19
+    │       │   ├── fn: spawns$fib(@primitives$Int)
     │       │   └── args[0] > binary:
     │       │       ├── type: i64
     │       │       ├── op: +
@@ -1825,7 +1825,7 @@
     │       │           └── value: 1 : i64
     │       └── right > call:
     │           ├── type: i64
-    │           ├── fn: zane_fib_19
+    │           ├── fn: spawns$fib(@primitives$Int)
     │           └── args[0] > binary:
     │               ├── type: i64
     │               ├── op: +
@@ -1834,7 +1834,7 @@
     │                   ├── type: i64
     │                   └── value: 2 : i64
     ├── funcs[3] > func:
-    │   ├── symbol: zane_greet_21
+    │   ├── symbol: spawns$greet(@primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: handle
     │   └── body[0] > scope:
@@ -1861,7 +1861,7 @@
     │           │       └── ptr: local #1 : ptr
     │           └── layout: @primitives$String
     ├── funcs[4] > func:
-    │   ├── symbol: zane_Person_17
+    │   ├── symbol: spawns$Person(@primitives$String, @primitives$Int)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i32, handle, i64}
@@ -1877,7 +1877,7 @@
     │       │   └── members[2] > member 2: local #2 : i64
     │       └── layout: spawns$Person
     ├── funcs[5] > func:
-    │   ├── symbol: zane_nameOf_22
+    │   ├── symbol: spawns$nameOf(&spawns$Person)
     │   ├── params[0]: local #1 : i32
     │   ├── ret: handle
     │   └── body[0] > scope:
@@ -1907,7 +1907,7 @@
     │           │           └── value: local #2 : handle
     │           └── layout: @primitives$String
     ├── funcs[6] > func:
-    │   ├── symbol: zane_born_23
+    │   ├── symbol: spawns$born(@primitives$String, @primitives$Int)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i32, handle, i64}
@@ -1917,7 +1917,7 @@
     │           ├── exit: function
     │           ├── value > call:
     │           │   ├── type: {i32, handle, i64}
-    │           │   ├── fn: zane_Person_17
+    │           │   ├── fn: spawns$Person(@primitives$String, @primitives$Int)
     │           │   ├── args[0] > expand:
     │           │   │   ├── type: ptr
     │           │   │   ├── label: @8
@@ -1950,7 +1950,7 @@
     │           │   └── args[1]: local #2 : i64
     │           └── layout: spawns$Person
     ├── funcs[7] > func:
-    │   ├── symbol: zane_words_24
+    │   ├── symbol: spawns$words(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: handle
     │   └── body[0] > scope:
@@ -2049,12 +2049,12 @@
     │           │   └── layout: @primitives$List<@primitives$String>
     │           └── layout: @primitives$List<@primitives$String>
     ├── funcs[8] > func:
-    │   ├── symbol: zane_Tally_8
+    │   ├── symbol: spawns$Tally(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > return: local #1 : i64
     ├── funcs[9] > func:
-    │   ├── symbol: zane_add_9
+    │   ├── symbol: spawns$add(this spawns$Tally, @primitives$Int)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
@@ -2069,7 +2069,7 @@
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
     ├── funcs[10] > func:
-    │   ├── symbol: zane_deepen_12
+    │   ├── symbol: spawns$deepen(this spawns$Countdown, @primitives$Int)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
@@ -2121,7 +2121,7 @@
     │   │   └── body[3]: leave @5
     │   └── body[2] > return: unit : void
     ├── funcs[11] > func:
-    │   ├── symbol: zane_depth_11
+    │   ├── symbol: spawns$depth(spawns$Countdown)
     │   ├── params[0]: local #1 : <void | ptr>
     │   ├── ret: i64
     │   └── body[0] > return > expand:
@@ -2161,13 +2161,13 @@
     │           │       ├── left: 1 : i64
     │           │       └── right > call:
     │           │           ├── type: i64
-    │           │           ├── fn: zane_depth_11
+    │           │           ├── fn: spawns$depth(spawns$Countdown)
     │           │           └── args[0] > deref:
     │           │               ├── type: <void | ptr>
     │           │               └── ptr: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
     ├── funcs[12] > func:
-    │   ├── symbol: zane_Holder_14
+    │   ├── symbol: spawns$Holder(spawns$Countdown)
     │   ├── params[0]: local #1 : <void | ptr>
     │   ├── ret: {i32, <void | ptr>, i64}
     │   └── body[0] > return > escape:
@@ -2181,11 +2181,11 @@
     │       │   │   └── layout: spawns$Countdown
     │       │   └── members[2] > member 2 > call:
     │       │       ├── type: i64
-    │       │       ├── fn: zane_Tally_8
+    │       │       ├── fn: spawns$Tally(@primitives$Int)
     │       │       └── args[0]: 0 : i64
     │       └── layout: spawns$Holder
     ├── funcs[13] > func:
-    │   ├── symbol: zane_watch_15
+    │   ├── symbol: spawns$watch(&spawns$Holder, @primitives$Int, @primitives$Int)
     │   ├── params[0]: local #1 : i32
     │   ├── params[1]: local #2 : i64
     │   ├── params[2]: local #3 : i64
@@ -2235,7 +2235,7 @@
     │   │   │   │       │   ├── local: #12
     │   │   │   │       │   └── value > call:
     │   │   │   │       │       ├── type: i64
-    │   │   │   │       │       ├── fn: zane_depth_11
+    │   │   │   │       │       ├── fn: spawns$depth(spawns$Countdown)
     │   │   │   │       │       └── args[0]: local #10 : <void | ptr>
     │   │   │   │       ├── body[2] > if:
     │   │   │   │       │   ├── cond > binary:
@@ -2274,7 +2274,7 @@
     │   │   └── body[3]: leave @7
     │   └── body[3] > return: local #4 : i64
     ├── funcs[14] > func:
-    │   ├── symbol: zane_pair_20
+    │   ├── symbol: spawns$pair(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > scope:
@@ -2325,12 +2325,12 @@
     │                       ├── type: i64
     │                       └── ptr: address of #8 : ptr
     ├── funcs[15] > func:
-    │   ├── symbol: zane_nothing_25
+    │   ├── symbol: spawns$nothing()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > return: unit : void
     ├── funcs[16] > func:
-    │   ├── symbol: zane_divide_26
+    │   ├── symbol: spawns$divide(@primitives$Int, @primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: <i64 | handle | void>
@@ -2384,7 +2384,7 @@
     │           ├── left: local #1 : i64
     │           └── right: local #2 : i64
     ├── funcs[17] > func:
-    │   ├── symbol: zane_relay_27
+    │   ├── symbol: spawns$relay(@primitives$Int, @primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: <i64 | handle | void>
@@ -2524,7 +2524,7 @@
     │                                   │           └── value: local #20 : handle
     │                                   └── layout: @primitives$String
     ├── funcs[18] > func:
-    │   ├── symbol: zane_pick_28
+    │   ├── symbol: spawns$pick(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | void | void>
     │   ├── body[0] > if:
@@ -2552,7 +2552,7 @@
     │       │   └── base: local #8 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: zane_fib_19
+    │           ├── fn: spawns$fib(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2570,7 +2570,7 @@
     │       │   └── base: local #15 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: zane_greet_21
+    │           ├── fn: spawns$greet(@primitives$String)
     │           └── args[0] > deref:
     │               ├── type: ptr
     │               └── ptr > offset:
@@ -2588,7 +2588,7 @@
     │       │   └── base: local #28 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: zane_nameOf_22
+    │           ├── fn: spawns$nameOf(&spawns$Person)
     │           └── args[0] > deref:
     │               ├── type: i32
     │               └── ptr > offset:
@@ -2606,7 +2606,7 @@
     │       │   └── base: local #39 : ptr
     │       └── value > call:
     │           ├── type: {i32, handle, i64}
-    │           ├── fn: zane_born_23
+    │           ├── fn: spawns$born(@primitives$String, @primitives$Int)
     │           ├── args[0] > deref:
     │           │   ├── type: ptr
     │           │   └── ptr > offset:
@@ -2630,7 +2630,7 @@
     │       │   └── base: local #48 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: zane_words_24
+    │           ├── fn: spawns$words(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2643,7 +2643,7 @@
     │   ├── ret: void
     │   └── body[0] > eval > call:
     │       ├── type: void
-    │       ├── fn: zane_add_9
+    │       ├── fn: spawns$add(this spawns$Tally, @primitives$Int)
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
@@ -2662,7 +2662,7 @@
     │   ├── ret: void
     │   └── body[0] > eval > call:
     │       ├── type: void
-    │       ├── fn: zane_deepen_12
+    │       ├── fn: spawns$deepen(this spawns$Countdown, @primitives$Int)
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
@@ -2681,7 +2681,7 @@
     │   ├── ret: void
     │   └── body[0] > eval > call:
     │       ├── type: void
-    │       ├── fn: zane_deepen_12
+    │       ├── fn: spawns$deepen(this spawns$Countdown, @primitives$Int)
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
@@ -2700,7 +2700,7 @@
     │   ├── ret: void
     │   └── body[0] > eval > call:
     │       ├── type: void
-    │       ├── fn: zane_deepen_12
+    │       ├── fn: spawns$deepen(this spawns$Countdown, @primitives$Int)
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
@@ -2724,7 +2724,7 @@
     │       │   └── base: local #75 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: zane_watch_15
+    │           ├── fn: spawns$watch(&spawns$Holder, @primitives$Int, @primitives$Int)
     │           ├── args[0] > deref:
     │           │   ├── type: i32
     │           │   └── ptr > offset:
@@ -2749,7 +2749,7 @@
     │   ├── ret: void
     │   ├── body[0] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_deepen_12
+    │   │   ├── fn: spawns$deepen(this spawns$Countdown, @primitives$Int)
     │   │   ├── args[0] > offset:
     │   │   │   ├── within: {void, ptr, i64, <void | ptr>}
     │   │   │   ├── path: 3
@@ -2781,7 +2781,7 @@
     │   ├── ret: void
     │   ├── body[0] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: zane_add_9
+    │   │   ├── fn: spawns$add(this spawns$Tally, @primitives$Int)
     │   │   ├── args[0] > offset:
     │   │   │   ├── within: {void, ptr, i64, i64}
     │   │   │   ├── path: 3
@@ -2818,7 +2818,7 @@
     │       │   └── base: local #87 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: zane_pair_20
+    │           ├── fn: spawns$pair(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2836,7 +2836,7 @@
     │       │   └── base: local #90 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: zane_pair_20
+    │           ├── fn: spawns$pair(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2854,7 +2854,7 @@
     │       │   └── base: local #93 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: zane_fib_19
+    │           ├── fn: spawns$fib(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2872,7 +2872,7 @@
     │       │   └── base: local #108 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: zane_fib_19
+    │           ├── fn: spawns$fib(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2890,7 +2890,7 @@
     │       │   └── base: local #119 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: zane_greet_21
+    │           ├── fn: spawns$greet(@primitives$String)
     │           └── args[0] > deref:
     │               ├── type: ptr
     │               └── ptr > offset:
@@ -2908,7 +2908,7 @@
     │       │   └── base: local #125 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: zane_greet_21
+    │           ├── fn: spawns$greet(@primitives$String)
     │           └── args[0] > deref:
     │               ├── type: ptr
     │               └── ptr > offset:
@@ -2926,7 +2926,7 @@
     │       │   └── base: local #128 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: zane_words_24
+    │           ├── fn: spawns$words(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2939,7 +2939,7 @@
     │   ├── ret: void
     │   └── body[0] > eval > call:
     │       ├── type: void
-    │       ├── fn: zane_nothing_25
+    │       ├── fn: spawns$nothing()
     │       └── args:
     ├── funcs[39] > func:
     │   ├── symbol: zane.spawn.21
@@ -2952,7 +2952,7 @@
     │       │   └── base: local #137 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: zane_words_24
+    │           ├── fn: spawns$words(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2970,7 +2970,7 @@
     │       │   └── base: local #144 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: zane_words_24
+    │           ├── fn: spawns$words(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2988,7 +2988,7 @@
     │       │   └── base: local #148 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: zane_divide_26
+    │           ├── fn: spawns$divide(@primitives$Int, @primitives$Int)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3012,7 +3012,7 @@
     │       │   └── base: local #152 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: zane_divide_26
+    │           ├── fn: spawns$divide(@primitives$Int, @primitives$Int)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3036,7 +3036,7 @@
     │       │   └── base: local #179 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: zane_divide_26
+    │           ├── fn: spawns$divide(@primitives$Int, @primitives$Int)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3060,7 +3060,7 @@
     │       │   └── base: local #209 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: zane_divide_26
+    │           ├── fn: spawns$divide(@primitives$Int, @primitives$Int)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3084,7 +3084,7 @@
     │       │   └── base: local #214 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: zane_divide_26
+    │           ├── fn: spawns$divide(@primitives$Int, @primitives$Int)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3108,7 +3108,7 @@
     │       │   └── base: local #218 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: zane_divide_26
+    │           ├── fn: spawns$divide(@primitives$Int, @primitives$Int)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3132,7 +3132,7 @@
     │       │   └── base: local #237 : ptr
     │       └── value > call:
     │           ├── type: <i64 | void | void>
-    │           ├── fn: zane_pick_28
+    │           ├── fn: spawns$pick(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3150,7 +3150,7 @@
     │       │   └── base: local #246 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: zane_fib_19
+    │           ├── fn: spawns$fib(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3168,7 +3168,7 @@
     │       │   └── base: local #2 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: zane_fib_19
+    │           ├── fn: spawns$fib(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3186,7 +3186,7 @@
     │       │   └── base: local #6 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: zane_fib_19
+    │           ├── fn: spawns$fib(@primitives$Int)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3204,7 +3204,7 @@
             │   └── base: local #3 : ptr
             └── value > call:
                 ├── type: <i64 | handle | void>
-                ├── fn: zane_divide_26
+                ├── fn: spawns$divide(@primitives$Int, @primitives$Int)
                 ├── args[0] > deref:
                 │   ├── type: i64
                 │   └── ptr > offset:

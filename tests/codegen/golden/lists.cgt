@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: zane_main_17
+    ├── entry: lists$main()
     ├── layouts[0] > layout:
     │   ├── type: @primitives$Int
     │   └── positions:
@@ -34,7 +34,7 @@
     │   ├── positions[1]: @8 (32 bytes)
     │   └── positions[2]: list @8 of @primitives$String (32 bytes apart)
     ├── funcs[0] > func:
-    │   ├── symbol: zane_main_17
+    │   ├── symbol: lists$main()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -49,7 +49,7 @@
     │       │   └── layout: @primitives$List<@primitives$Int>
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -110,18 +110,18 @@
     │       │   └── body[3]: leave @5
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_count_14_2
+    │       │       │   ├── fn: lists$count<@primitives$Int>(&@primitives$List<@primitives$Int>)
     │       │       │   └── args[0] > mint: address of #1 : ptr
     │       │       └── right: 100 : i64
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -155,13 +155,13 @@
     │       │   └── value: 0 : i64
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_sum_15
+    │       │       │   ├── fn: lists$sum(&@primitives$List<@primitives$Int>)
     │       │       │   └── args[0] > mint: address of #1 : ptr
     │       │       └── right: 5000 : i64
     │       ├── body[8] > host:
@@ -218,7 +218,7 @@
     │       │       └── layout: @primitives$String
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -279,7 +279,7 @@
     │       │   └── layout: @primitives$String
     │       ├── body[14] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -320,7 +320,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, handle, i64}
-    │       │   │   ├── fn: zane_Person_9
+    │       │   │   ├── fn: lists$Person(@primitives$String, @primitives$Int)
     │       │   │   ├── args[0] > expand:
     │       │   │   │   ├── type: ptr
     │       │   │   │   ├── label: @30
@@ -391,7 +391,7 @@
     │       │   │   │           │   ├── local: #46
     │       │   │   │           │   └── value > call:
     │       │   │   │           │       ├── type: {i32, handle, i64}
-    │       │   │   │           │       ├── fn: zane_Person_9
+    │       │   │   │           │       ├── fn: lists$Person(@primitives$String, @primitives$Int)
     │       │   │   │           │       ├── args[0] > expand:
     │       │   │   │           │       │   ├── type: ptr
     │       │   │   │           │       │   ├── label: @43
@@ -428,7 +428,7 @@
     │       │   └── body[3]: leave @39
     │       ├── body[21] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -456,7 +456,7 @@
     │       │       └── right: 1 : i64
     │       ├── body[22] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -481,7 +481,7 @@
     │       │   │   └── args[2]: 48 : i64
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, handle, i64}
-    │       │   │   ├── fn: zane_Person_9
+    │       │   │   ├── fn: lists$Person(@primitives$String, @primitives$Int)
     │       │   │   ├── args[0] > expand:
     │       │   │   │   ├── type: ptr
     │       │   │   │   ├── label: @53
@@ -498,7 +498,7 @@
     │       │   └── layout: lists$Person
     │       ├── body[24] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -511,7 +511,7 @@
     │       │       └── right: 36 : i64
     │       ├── body[25] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -655,7 +655,7 @@
     │       │   └── body[3]: leave @61
     │       ├── body[29] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -678,12 +678,12 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, handle}
-    │       │   │   ├── fn: zane_Stack_11_5
+    │       │   │   ├── fn: lists$Stack<@primitives$String>(Type)
     │       │   │   └── args:
     │       │   └── layout: lists$Stack<@primitives$String>
     │       ├── body[31] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_add_12_6
+    │       │   ├── fn: lists$add<@primitives$String>(this lists$Stack<@primitives$String>, @primitives$String)
     │       │   ├── args[0]: address of #75 : ptr
     │       │   └── args[1] > expand:
     │       │       ├── type: ptr
@@ -699,7 +699,7 @@
     │       │           └── value: address of #76 : ptr
     │       ├── body[32] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_add_12_6
+    │       │   ├── fn: lists$add<@primitives$String>(this lists$Stack<@primitives$String>, @primitives$String)
     │       │   ├── args[0]: address of #75 : ptr
     │       │   └── args[1] > expand:
     │       │       ├── type: ptr
@@ -715,7 +715,7 @@
     │       │           └── value: address of #79 : ptr
     │       ├── body[33] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -760,13 +760,13 @@
     │       │       └── right: 1 : i64
     │       ├── body[34] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: lists$check(@primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_count_14_7
+    │       │       │   ├── fn: lists$count<@primitives$String>(&@primitives$List<@primitives$String>)
     │       │       │   └── args[0] > mint > offset:
     │       │       │       ├── within: {i32, handle}
     │       │       │       ├── path: 1
@@ -774,7 +774,7 @@
     │       │       └── right: 2 : i64
     │       └── body[35] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: zane_check_16
+    │   ├── symbol: lists$check(@primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -805,7 +805,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: zane_count_14_2
+    │   ├── symbol: lists$count<@primitives$Int>(&@primitives$List<@primitives$Int>)
     │   ├── params[0]: local #1 : i32
     │   ├── ret: i64
     │   └── body[0] > return > member:
@@ -815,7 +815,7 @@
     │           ├── type: handle
     │           └── ptr > resolve: local #1 : i32
     ├── funcs[3] > func:
-    │   ├── symbol: zane_sum_15
+    │   ├── symbol: lists$sum(&@primitives$List<@primitives$Int>)
     │   ├── params[0]: local #1 : i32
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -874,7 +874,7 @@
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
     ├── funcs[4] > func:
-    │   ├── symbol: zane_Person_9
+    │   ├── symbol: lists$Person(@primitives$String, @primitives$Int)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i32, handle, i64}
@@ -890,7 +890,7 @@
     │       │   └── members[2] > member 2: local #2 : i64
     │       └── layout: lists$Person
     ├── funcs[5] > func:
-    │   ├── symbol: zane_Stack_11_5
+    │   ├── symbol: lists$Stack<@primitives$String>(Type)
     │   ├── params:
     │   ├── ret: {i32, handle}
     │   └── body[0] > return > escape:
@@ -904,7 +904,7 @@
     │       │       └── args:
     │       └── layout: lists$Stack<@primitives$String>
     ├── funcs[6] > func:
-    │   ├── symbol: zane_add_12_6
+    │   ├── symbol: lists$add<@primitives$String>(this lists$Stack<@primitives$String>, @primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : ptr
     │   ├── ret: void
@@ -934,7 +934,7 @@
     │   │       └── layout: @primitives$String
     │   └── body[1] > return: unit : void
     └── funcs[7] > func:
-        ├── symbol: zane_count_14_7
+        ├── symbol: lists$count<@primitives$String>(&@primitives$List<@primitives$String>)
         ├── params[0]: local #1 : i32
         ├── ret: i64
         └── body[0] > return > member:

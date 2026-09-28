@@ -1,11 +1,11 @@
 └── program:
-    ├── entry: zane_main_13
+    ├── entry: counting$main()
     ├── layouts[0] > layout:
     │   ├── type: @primitives$String
     │   ├── positions[0]: @0 (32 bytes)
     │   └── positions[1]: text @0
     ├── funcs[0] > func:
-    │   ├── symbol: zane_main_13
+    │   ├── symbol: counting$main()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -43,7 +43,7 @@
     │       │       │       ├── op: ==
     │       │       │       ├── left > call:
     │       │       │       │   ├── type: i64
-    │       │       │       │   ├── fn: zane_triangle_10
+    │       │       │       │   ├── fn: counting$triangle(@primitives$Int)
     │       │       │       │   └── args[0]: 10 : i64
     │       │       │       └── right: 55 : i64
     │       │       ├── body[1] > if:
@@ -80,7 +80,7 @@
     │       │   │       ├── op: ==
     │       │   │       ├── left > call:
     │       │   │       │   ├── type: i64
-    │       │   │       │   ├── fn: zane_factorial_12
+    │       │   │       │   ├── fn: counting$factorial(@primitives$Int)
     │       │   │       │   └── args[0]: 10 : i64
     │       │   │       └── right: 3628800 : i64
     │       │   ├── body[1] > if:
@@ -191,7 +191,7 @@
     │       │       │       ├── op: ==
     │       │       │       ├── left > call:
     │       │       │       │   ├── type: i64
-    │       │       │       │   ├── fn: zane_smallest_11
+    │       │       │       │   ├── fn: counting$smallest(@primitives$Int, @primitives$Int)
     │       │       │       │   ├── args[0]: 4 : i64
     │       │       │       │   └── args[1]: 9 : i64
     │       │       │       └── right: 9 : i64
@@ -215,7 +215,7 @@
     │       │   │       ├── op: ==
     │       │   │       ├── left > call:
     │       │   │       │   ├── type: i64
-    │       │   │       │   ├── fn: zane_smallest_11
+    │       │   │       │   ├── fn: counting$smallest(@primitives$Int, @primitives$Int)
     │       │   │       │   ├── args[0]: 4 : i64
     │       │   │       │   └── args[1]: 9 : i64
     │       │   │       └── right: 4 : i64
@@ -354,7 +354,7 @@
     │       │   └── body[3]: leave @44
     │       └── body[16] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: zane_triangle_10
+    │   ├── symbol: counting$triangle(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -401,7 +401,7 @@
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
     ├── funcs[2] > func:
-    │   ├── symbol: zane_factorial_12
+    │   ├── symbol: counting$factorial(@primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > eval > expand:
@@ -428,7 +428,7 @@
     │       ├── left: local #1 : i64
     │       └── right > call:
     │           ├── type: i64
-    │           ├── fn: zane_factorial_12
+    │           ├── fn: counting$factorial(@primitives$Int)
     │           └── args[0] > binary:
     │               ├── type: i64
     │               ├── op: +
@@ -437,7 +437,7 @@
     │                   ├── type: i64
     │                   └── value: 1 : i64
     └── funcs[3] > func:
-        ├── symbol: zane_smallest_11
+        ├── symbol: counting$smallest(@primitives$Int, @primitives$Int)
         ├── params[0]: local #1 : i64
         ├── params[1]: local #2 : i64
         ├── ret: i64
