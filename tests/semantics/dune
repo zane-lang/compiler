@@ -131,7 +131,7 @@
   (diff golden/typing.err typing.err.actual)))
 
 ; Every node of the typed tree, with the source text its span covers: the
-; TST's counterpart of test/parser's `.cst.spans` and `.sst.spans`, over the
+; TST's counterpart of tests/parser's `.cst.spans` and `.sst.spans`, over the
 ; same `typed` build. A node the checker built -- an inserted `Coerce`, a
 ; parameter's local, a generic instance's body -- that pointed at the wrong
 ; text, or into the wrong file, shows here and nowhere else. A moved line is

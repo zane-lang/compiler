@@ -11,7 +11,7 @@ import re
 import subprocess
 import unittest
 
-from test.ambiguity.prover import fixtures, harness
+from tests.ambiguity.prover import fixtures, harness
 
 class ProverSoundnessTests(harness.ProverTestCase):
     def test_an_ambiguous_grammar_is_never_proven(self) -> None:

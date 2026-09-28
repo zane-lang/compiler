@@ -10,7 +10,7 @@ stops, and that a run which retired anything never reports a proof.
 import re
 import unittest
 
-from test.ambiguity.prover import fixtures, harness
+from tests.ambiguity.prover import fixtures, harness
 
 class RefinementTests(harness.ProverTestCase):
     """`--prove-refine` treats a candidate as a question, not as an answer.

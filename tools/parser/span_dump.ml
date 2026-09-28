@@ -14,7 +14,7 @@
    file, so `--tst` takes `--package DIR` flags the way the compiler's own
    `--tst` does.
 
-   The output is checked in under `test/parser/golden/` and compared on every
+   The output is checked in under `tests/parser/golden/` and compared on every
    run, so a grammar change that moves a span shows the move as a diff rather
    than as nothing at all. *)
 

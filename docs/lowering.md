@@ -262,8 +262,8 @@ The binary takes the same `--package` flags as the semantic views:
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
 
-`test/codegen/` lowers and builds each fixture, runs it, and compares the
-tree and what the program wrote against golden files. `test/runtime/` compiles
+`tests/codegen/` lowers and builds each fixture, runs it, and compares the
+tree and what the program wrote against golden files. `tests/runtime/` compiles
 the runtime with a C program of its own that calls it directly.
 
 The first version runs no optimization passes (stage 5), so an unoptimized

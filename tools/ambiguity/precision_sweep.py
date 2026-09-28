@@ -296,7 +296,7 @@ def run_level(
 def corpus_grammars() -> dict[str, str]:
     """The prover's own fixtures, whose verdicts are known by construction."""
     sys.path.insert(0, str(ROOT))
-    from test.ambiguity.prover import fixtures
+    from tests.ambiguity.prover import fixtures
 
     return {
         "ambiguous-expression": fixtures.AMBIGUOUS_EXPRESSION,

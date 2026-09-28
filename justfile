@@ -12,11 +12,11 @@ watch:
 # cannot affect the grammar or the ambiguity tools does not wait on them.
 test: test-compiler test-grammar test-ambiguity-tools
 
-# The compiler itself: the golden expectations under test/ and parser
+# The compiler itself: the golden expectations under tests/ and parser
 # acceptance.
 #
-# `dune runtest` carries the expectations in test/parser/golden/ and
-# test/semantics/golden/, which the Python suites cannot cover: those ask
+# `dune runtest` carries the expectations in tests/parser/golden/ and
+# tests/semantics/golden/, which the Python suites cannot cover: those ask
 # whether a file parses and what shape it parsed to, and neither question reads
 # a position or looks at the desugared or typed tree. A moved span is a diff
 # there and nothing anywhere else, and so is a rewrite that stopped happening.
@@ -24,14 +24,14 @@ test: test-compiler test-grammar test-ambiguity-tools
 test-compiler: _require-menhir
 	dune build tools/parser/parser_accept.exe
 	dune runtest
-	python3 -m unittest test.parser.syntax_test -v
+	python3 -m unittest tests.parser.syntax_test -v
 
 # The grammar's ambiguity regressions: token sequences with a fixed number of
 # derivations, and the tree each unambiguous one groups to. A few seconds per
 # case, since every check expands the grammar afresh, so this is the slow suite.
 test-grammar: _require-menhir
 	dune build tools/ambiguity/ambiguity_search.exe tools/parser/parser_shape.exe
-	python3 -m unittest test.parser.ambiguity_test -v
+	python3 -m unittest tests.parser.ambiguity_test -v
 
 # The ambiguity tools' own tests: the prover's soundness corpus, the search
 # CLI, and the sweep's process runner. They say whether the tools are right,
@@ -39,14 +39,14 @@ test-grammar: _require-menhir
 test-ambiguity-tools: _require-menhir
 	dune build tools/ambiguity/ambiguity_search.exe
 	python3 -m unittest \
-		test.ambiguity.cli_test \
-		test.ambiguity.precision_sweep_test \
-		test.ambiguity.prover.soundness_test \
-		test.ambiguity.prover.history_cegar_test \
-		test.ambiguity.prover.refinement_test \
-		test.ambiguity.prover.diagnostics_test \
-		test.ambiguity.prover.verdict_test \
-		test.ambiguity.prover.survey_test \
+		tests.ambiguity.cli_test \
+		tests.ambiguity.precision_sweep_test \
+		tests.ambiguity.prover.soundness_test \
+		tests.ambiguity.prover.history_cegar_test \
+		tests.ambiguity.prover.refinement_test \
+		tests.ambiguity.prover.diagnostics_test \
+		tests.ambiguity.prover.verdict_test \
+		tests.ambiguity.prover.survey_test \
 		-v
 
 # The engine-backed tests skip themselves unless the executables and Menhir are

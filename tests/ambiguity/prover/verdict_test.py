@@ -11,7 +11,7 @@ runs out before the abstract space does.
 import subprocess
 import unittest
 
-from test.ambiguity.prover import fixtures, harness
+from tests.ambiguity.prover import fixtures, harness
 
 class ProofStatusTests(harness.ProverTestCase):
     """The status is the machine-readable verdict, so it must track the text."""

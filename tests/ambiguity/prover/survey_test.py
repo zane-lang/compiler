@@ -12,7 +12,7 @@ import re
 import subprocess
 import unittest
 
-from test.ambiguity.prover import fixtures, harness
+from tests.ambiguity.prover import fixtures, harness
 
 class SurveyTests(harness.ProverTestCase):
     """Counting the blind spots, not stopping at the first."""

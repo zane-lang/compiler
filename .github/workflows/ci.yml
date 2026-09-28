@@ -89,7 +89,7 @@ jobs:
       - name: Build
         run: devbox run -- just rebuild
 
-      # The golden expectations under test/ and parser acceptance. Every
+      # The golden expectations under tests/ and parser acceptance. Every
       # change runs these. The recipes fail loudly when Menhir is missing
       # rather than reporting a green run that skipped them.
       - name: Compiler tests

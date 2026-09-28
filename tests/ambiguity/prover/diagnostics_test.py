@@ -10,7 +10,7 @@ acceptance naming every guess on the way.
 import re
 import unittest
 
-from test.ambiguity.prover import fixtures, harness
+from tests.ambiguity.prover import fixtures, harness
 
 class StackHeightTests(harness.ProverTestCase):
     def test_a_state_no_short_stack_can_carry_is_refused(self) -> None:

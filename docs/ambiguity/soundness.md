@@ -264,7 +264,7 @@ over-approximates, because truncation is the only thing that ever shortens a
 suffix and nothing ever invents one, so a sharper abstraction can remove
 spurious pairs but never a real parse. That is what lets the choice of where
 to deepen be a heuristic without putting the verdict at risk, and it is
-pinned in `test/ambiguity/prover/` against grammars known ambiguous by
+pinned in `tests/ambiguity/prover/` against grammars known ambiguous by
 construction.
 
 The round lines are worth as much as the verdict. Each names the candidate

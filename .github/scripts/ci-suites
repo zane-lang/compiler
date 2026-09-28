@@ -40,14 +40,14 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 			# and the shape printer.
 			lib/cst/* | lib/diagnostic/* | lib/source/* | lib/tree_graph/* | \
 				tools/ambiguity/* | tools/parser/* | \
-				test/parser/ambiguity_test.py)
+				tests/parser/ambiguity_test.py)
 				grammar=true
 				;;
 		esac
 		case "$file" in
 			# The tools and their tests. The CLI's tests also run the engine
 			# over the real grammar, so a grammar change selects them too.
-			tools/ambiguity/* | test/ambiguity/* | lib/cst/parser.mly | \
+			tools/ambiguity/* | tests/ambiguity/* | lib/cst/parser.mly | \
 				dev/bin/ambiguity | dev/lib/* | ambiguity-searches.toml)
 				tools=true
 				;;
