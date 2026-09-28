@@ -1,3 +1,5 @@
+module History_filter = Ambiguity_engine.History_filter
+
 let check condition message = if not condition then failwith message
 
 let () =

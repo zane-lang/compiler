@@ -3,4 +3,4 @@
 
 (test
  (name history_filter_test)
- (libraries ambiguity_history))
+ (libraries ambiguity_engine))
