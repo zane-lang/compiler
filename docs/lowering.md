@@ -435,12 +435,11 @@ test passing.
   place reads it where it is. Each snapshot is a call into the runtime,
   where an inline check of the two counts would do; that, and how long
   retired values are kept, is left to measurement.
-- **A host lent to a running spawn.** §4.2 makes spawned work read the
-  graph of reference-type objects without writing it, and §4.3 keeps the
-  spawning block off any location a spawn writes, but nothing keeps the
-  spawning block from writing a host it lent a spawn that is still reading
-  it, and the checker does not either. Until the spec says, such a write
-  races the reader.
+- **A host lent to a running spawn.** The spawning block may not write a
+  host it lent a spawn that may still be reading it; the checker rejects
+  that write ([`spec-divergences.md`](spec-divergences.md) §14), so the
+  only writes that race a reader are spawned write-backs, which the
+  snapshots above cover.
 - **Where a spawned call is waited for.** Only a spawned call bound by a
   `let` is waited for where its local is read ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §3.2). One
   read where it is written -- an operand, an argument, a value assigned to a

@@ -238,6 +238,18 @@ verb runs more than once: one it passes on to such a position, or passes
 anywhere from inside a block that runs more than once, computed to a fixed
 point over every body.
 
+The same spawn is lent every host passed to it, directly or through a guest,
+until the same drain, and the block may not write one meanwhile
+([`spec-divergences.md`](spec-divergences.md) §14): not by assignment, not as
+a `!` call's subject, not by moving it out. A spawned `mut` call on part of it
+is allowed, since it writes back (docs/lowering.md §9). Where a write goes
+through a guest, the checker follows the guest to the place it was minted
+from, through other guests, as long as the guest has not been bound again in
+a block inside its own. A guest whose place it cannot follow may name any host
+of its type, so a write through it clashes with a lent host that could be,
+or contain, or be inside, what it writes; so does a write to a known place
+when the lent host came through such a guest.
+
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
 mistake. Each pass collects diagnostics and keeps going. An expression that

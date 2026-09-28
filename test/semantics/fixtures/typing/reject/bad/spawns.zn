@@ -14,6 +14,10 @@ type Dial = #struct {
 	reading Gauge;
 }
 
+Dial(reading Gauge) => init{ reading; }
+
+Int glance(d &Dial) => d.reading.level
+
 Unit nudge(this Gauge) mut {
 	this.level = this.level + Int(1);
 	return Unit();
@@ -81,5 +85,29 @@ Unit looping() {
 		spawn mine!nudge();
 		spawn g.level!bump();
 	});
+	return Unit();
+}
+
+/// A host lent to a spawn is not written until its block drains: not by
+/// name, not by a `!` call, not through a guest, known or not. A spawned
+/// `mut` call on part of it is written back, and a drained block has let go.
+Unit lent() {
+	dial Dial(Gauge(Int(1)));
+	spare Dial(Gauge(Int(2)));
+	view &Dial = dial;
+	@controlflow$branch(true, {
+		seen Int = spawn glance(view);
+		dial.reading = Gauge(Int(3));
+		dial.reading.level!bump();
+		view.reading!nudge();
+		other &Dial = spare;
+		@controlflow$branch(true, {
+			other = view;
+		});
+		other.reading!nudge();
+		spare.reading.level = Int(6);
+		spawn dial.reading!nudge();
+	});
+	dial.reading = Gauge(Int(7));
 	return Unit();
 }

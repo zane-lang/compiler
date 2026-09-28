@@ -11,7 +11,13 @@
 
    A spawn read where it is written is waited for at once, so its borrow ends
    where it began; only a spawn written as a statement, or bound by a `let`,
-   keeps one. *)
+   keeps one.
+
+   Such a spawn is also lent every host it is passed, directly or through a
+   guest, and may read it until the same drain. The spec leaves the lending
+   block free to write what it lent; here it may not, directly, through a `!`
+   call, by moving it, or through a guest that may name it
+   (docs/spec-divergences.md §14). *)
 
 module T = Nodes
 module S = Signature
@@ -123,20 +129,65 @@ let find_multi bodies =
     bodies;
   !changed
 
+let signature_of = Read_only.signature_of
+
+let strip = function Ty.Guest t -> t | t -> t
+
+(* The types a type holds by owning edges: its members, what it is distinct
+   from, a list's elements. A guest member holds none. *)
+let members (t : Ty.t) =
+  match t with
+  | Ty.Named (tid, args) -> (
+      match Types.type_info_of_id tid with
+      | Some info when List.length info.Env.params = List.length args -> (
+          let sub =
+            Ty.subst (List.combine (List.map (fun (p : Ty.param) -> p.id) info.Env.params) args)
+          in
+          match info.Env.definition with
+          | Some (Env.Struct fs | Env.Variant fs) -> List.map (fun (_, m) -> sub m) fs
+          | Some (Env.Distinct u) -> [ sub u ]
+          | _ -> [])
+      | _ -> [])
+  | Ty.Intrinsic { name = "List"; args = [ Ty.Type e ]; _ } -> [ e ]
+  | _ -> []
+
+(* Whether a value of type [outer] may hold one of type [inner]. *)
+let rec contains ?(seen = []) outer inner =
+  Ty.equal outer inner
+  || (not (List.exists (Ty.equal outer) seen))
+     && List.exists
+          (fun m ->
+            (match m with Ty.Guest _ -> false | _ -> true)
+            && contains ~seen:(outer :: seen) m inner)
+          (members outer)
+
+(* The types a place passes through, from the place itself to its root. *)
+let rec chain (e : T.Expr.t) =
+  strip e.T.Expr.ty
+  ::
+  (match e.T.Expr.node with
+  | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
+    ->
+      chain target
+  | _ -> [])
+
+(* A host lent to a spawn: its place when the checker knows it, the type of
+   the host, and the argument it was lent through. *)
+type lend = { at : place option; host : Ty.t; through : T.Expr.t }
+
 (* A block being walked: the locals declared in it, whether it runs more than
    once, and the borrows spawns in it hold until it drains. *)
 type frame = {
   declared : (int, unit) Hashtbl.t;
   often : bool;
   mutable borrows : (place * Source.Span.t) list;
+  mutable lends : lend list;
 }
 
 let borrowed frames p =
   List.find_map
     (fun f -> List.find_opt (fun (b, _) -> overlap b p) f.borrows)
     frames
-
-let signature_of = Read_only.signature_of
 
 (* The parts of a place other than the place it is reached through: a
    subscript's index, and a case read's handler. *)
@@ -153,8 +204,63 @@ let rec beside (e : T.Expr.t) =
 type piece = Plain of Exits.part | Run of T.Block.t * bool
 
 let walk_body (body : T.Block.t) =
+  (* Where each guest local points, when the checker knows: the place it was
+     minted from, followed through other guests. *)
+  let origins : (int, place option) Hashtbl.t = Hashtbl.create 8 in
+  let resolve p =
+    match p.local.T.Local.ty with
+    | Ty.Guest _ -> (
+        match Hashtbl.find_opt origins p.local.T.Local.id with
+        | Some (Some o) -> Some { o with path = o.path @ p.path }
+        | _ -> None)
+    | _ -> Some p
+  in
+  (* The host a guest-typed expression names, when known. *)
+  let origin (e : T.Expr.t) =
+    match (e.T.Expr.ty, e.T.Expr.node) with
+    | Ty.Guest _, T.Expr.Var (T.Name_ref.Local l) -> (
+        match Hashtbl.find_opt origins l.T.Local.id with Some o -> o | None -> None)
+    | Ty.Guest _, _ -> None
+    | _ -> Option.bind (place_of e) resolve
+  in
+  (* A write to the place [e], or a move out of it, while a spawn may still
+     read a host it was lent. Where either place is unknown, what might
+     overlap is decided by type. *)
+  let write frames (e : T.Expr.t) =
+    match place_of e with
+    | None -> ()
+    | Some p -> (
+        let written = resolve p in
+        let types = chain e in
+        let clash l =
+          match (written, l.at) with
+          | Some w, Some a -> overlap w a
+          | _ ->
+              contains (strip e.T.Expr.ty) l.host || List.exists (fun c -> contains l.host c) types
+        in
+        match List.find_map (fun f -> List.find_opt clash f.lends) frames with
+        | Some l ->
+            let lent =
+              match place_of l.through with
+              | Some p -> describe p
+              | None -> "`" ^ Ty.to_string l.through.T.Expr.ty ^ "`"
+            in
+            Env.error e.T.Expr.span
+              (Printf.sprintf
+                 "this writes %s, which may be part of a host lent through %s to a spawned call \
+                  that may read it until its block drains"
+                 (describe p) lent)
+        | None -> ())
+  in
+  (* A host read from a place into hosting storage moves out of the place. *)
+  let moved frames (e : T.Expr.t) =
+    match e.T.Expr.ty with
+    | Ty.Guest _ -> ()
+    | t when Types.is_reference t -> write frames e
+    | _ -> ()
+  in
   let rec block frames often (b : T.Block.t) =
-    let f = { declared = Hashtbl.create 8; often; borrows = [] } in
+    let f = { declared = Hashtbl.create 8; often; borrows = []; lends = [] } in
     let frames = f :: frames in
     List.iter (stat frames) b.T.Block.stats
   and stat frames (s : T.Stat.t) =
@@ -165,7 +271,28 @@ let walk_body (body : T.Block.t) =
         declare frames local
     | T.Stat.Let { local; value } ->
         expr frames value;
+        (match local.T.Local.ty with
+        | Ty.Guest _ -> Hashtbl.replace origins local.T.Local.id (origin value)
+        | _ -> moved frames value);
         declare frames local
+    | T.Stat.Assign { target; value } ->
+        expr frames value;
+        (match (target.T.Expr.ty, target.T.Expr.node) with
+        | Ty.Guest _, T.Expr.Var (T.Name_ref.Local l) ->
+            (* A guest bound again points where the value does, unless the
+               binding is in a block inside its own, which may not run. *)
+            let own =
+              match frames with f :: _ -> Hashtbl.mem f.declared l.T.Local.id | [] -> false
+            in
+            Hashtbl.replace origins l.T.Local.id (if own then origin value else None)
+        | Ty.Guest _, _ -> ()
+        | _ ->
+            write frames target;
+            moved frames value);
+        expr frames target
+    | T.Stat.Return e ->
+        expr frames e;
+        moved frames e
     | _ -> List.iter (expr frames) (Exits.stat_exprs s)
   and declare frames (l : T.Local.t) =
     match frames with f :: _ -> Hashtbl.replace f.declared l.T.Local.id () | [] -> ()
@@ -180,6 +307,28 @@ let walk_body (body : T.Block.t) =
              (describe p) (describe b))
     | None -> ()
   and expr frames (e : T.Expr.t) =
+    (* A `!` call writes its subject, and a host passed to a hosting
+       parameter moves. *)
+    (match e.T.Expr.node with
+    | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } -> (
+        match signature_of callee with
+        | Some sg ->
+            (match args with
+            | T.Arg.Value subject :: _ when sg.S.is_mut -> write frames subject
+            | _ -> ());
+            (match callee.T.Verb_ref.owner with
+            | S.Declared _ when List.length sg.S.params = List.length args ->
+                List.iter2
+                  (fun (p : S.param) a ->
+                    match (a, p.S.ty) with
+                    | T.Arg.Value ({ T.Expr.node = T.Expr.Var (T.Name_ref.Local _); _ } as v), t
+                      when (match t with Ty.Guest _ -> false | _ -> true) && Types.is_reference t ->
+                        moved frames v
+                    | _ -> ())
+                  sg.S.params args
+            | _ -> ())
+        | None -> ())
+    | _ -> ());
     match e.T.Expr.node with
     | T.Expr.Spawn _ -> spawn frames ~keeps:false e
     | _ -> (
@@ -259,8 +408,27 @@ let walk_body (body : T.Block.t) =
           match (p, frames) with
           | Some p, f :: _ -> f.borrows <- (p, subject.T.Expr.span) :: f.borrows
           | _ -> ()
-        end
+        end;
+        if keeps then lend frames (List.filter_map value rest)
+    | T.Expr.Call { args; _ } ->
+        expr frames inner;
+        if keeps then lend frames (List.filter_map value args)
     | _ -> expr frames inner
+  and value = function T.Arg.Value v -> Some v | T.Arg.Block _ -> None
+  (* The hosts a lasting spawn is passed, directly or through a guest. *)
+  and lend frames args =
+    List.iter
+      (fun (a : T.Expr.t) ->
+        let host = strip a.T.Expr.ty in
+        let lent =
+          match a.T.Expr.ty with
+          | Ty.Guest _ -> Some { at = origin a; host; through = a }
+          | t when Types.is_reference t && Option.is_some (place_of a) ->
+              Some { at = origin a; host; through = a }
+          | _ -> None
+        in
+        match (lent, frames) with Some l, f :: _ -> f.lends <- l :: f.lends | _ -> ())
+      args
   in
   block [] false body
 

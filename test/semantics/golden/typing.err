@@ -478,38 +478,54 @@ File "fixtures/typing/reject/bad/sources.zn", line 57, characters 5-8:
 57 |     own.bell = Bell(Int(4));
   |     ^^^
 Error: a store may not go through a guest, since what it names belongs to a tree this path's root does not own; change it with a `mut` method called through the guest
-File "fixtures/typing/reject/bad/spawns.zn", line 40, characters 11-15:
-40 |     spawn dial!tune();
+File "fixtures/typing/reject/bad/spawns.zn", line 44, characters 11-15:
+44 |     spawn dial!tune();
   |           ^^^^
 Error: a `!` call writes its subject, and `dial` is a parameter, which is read-only
-File "fixtures/typing/reject/bad/spawns.zn", line 40, characters 11-15:
-40 |     spawn dial!tune();
+File "fixtures/typing/reject/bad/spawns.zn", line 44, characters 11-15:
+44 |     spawn dial!tune();
   |           ^^^^
 Error: a spawned `mut` call writes its subject, and `&bad$Dial` is a reference type: only a value-typed subject may be written from spawned work
-File "fixtures/typing/reject/bad/spawns.zn", line 48, characters 11-12:
-48 |     spawn g!nudge();
+File "fixtures/typing/reject/bad/spawns.zn", line 52, characters 11-12:
+52 |     spawn g!nudge();
   |           ^
 Error: `g` overlaps `g`, which a spawned `mut` call in this block or around it already borrows
-File "fixtures/typing/reject/bad/spawns.zn", line 49, characters 13-20:
-49 |     n Int = g.level;
+File "fixtures/typing/reject/bad/spawns.zn", line 53, characters 13-20:
+53 |     n Int = g.level;
   |             ^^^^^^^
 Error: `g.level` is borrowed by a spawned `mut` call on `g`, which holds it until its block drains
-File "fixtures/typing/reject/bad/spawns.zn", line 58, characters 13-20:
-58 |     n Int = h.spare;
+File "fixtures/typing/reject/bad/spawns.zn", line 62, characters 13-20:
+62 |     n Int = h.spare;
   |             ^^^^^^^
 Error: `h.spare` is borrowed by a spawned `mut` call on `h.spare`, which holds it until its block drains
-File "fixtures/typing/reject/bad/spawns.zn", line 59, characters 11-12:
-59 |     spawn h!nudge();
+File "fixtures/typing/reject/bad/spawns.zn", line 63, characters 11-12:
+63 |     spawn h!nudge();
   |           ^
 Error: `h` overlaps `h.spare`, which a spawned `mut` call in this block or around it already borrows
-File "fixtures/typing/reject/bad/spawns.zn", line 77, characters 15-16:
-77 |         spawn g!nudge();
+File "fixtures/typing/reject/bad/spawns.zn", line 81, characters 15-16:
+81 |         spawn g!nudge();
   |               ^
 Error: this block runs more than once, so a spawned `mut` call in it takes its subject from storage declared in it, and `g` is declared outside
-File "fixtures/typing/reject/bad/spawns.zn", line 82, characters 15-22:
-82 |         spawn g.level!bump();
+File "fixtures/typing/reject/bad/spawns.zn", line 86, characters 15-22:
+86 |         spawn g.level!bump();
   |               ^^^^^^^
 Error: this block runs more than once, so a spawned `mut` call in it takes its subject from storage declared in it, and `g.level` is declared outside
+File "fixtures/typing/reject/bad/spawns.zn", line 100, characters 9-21:
+100 |         dial.reading = Gauge(Int(3));
+  |         ^^^^^^^^^^^^
+Error: this writes `dial.reading`, which may be part of a host lent through `view` to a spawned call that may read it until its block drains
+File "fixtures/typing/reject/bad/spawns.zn", line 101, characters 9-27:
+101 |         dial.reading.level!bump();
+  |         ^^^^^^^^^^^^^^^^^^
+Error: this writes `dial.reading.level`, which may be part of a host lent through `view` to a spawned call that may read it until its block drains
+File "fixtures/typing/reject/bad/spawns.zn", line 102, characters 9-21:
+102 |         view.reading!nudge();
+  |         ^^^^^^^^^^^^
+Error: this writes `view.reading`, which may be part of a host lent through `view` to a spawned call that may read it until its block drains
+File "fixtures/typing/reject/bad/spawns.zn", line 107, characters 9-22:
+107 |         other.reading!nudge();
+  |         ^^^^^^^^^^^^^
+Error: this writes `other.reading`, which may be part of a host lent through `view` to a spawned call that may read it until its block drains
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
 5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^

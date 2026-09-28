@@ -490,6 +490,34 @@ check(q == Int(7));         // settled already: the handler does not run again
 `test/codegen/fixtures/spawns` has these cases. Reconciling means the spec
 saying where the handler runs.
 
+## 14. A block does not write a host it lent a running spawn
+
+**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
+§4.2 lets spawned work read the reference-type object graph without writing
+it, which makes "every concurrent **read** of the reference-typed object
+graph safe by construction". §4.3 keeps the spawning block off a location
+while a spawn holds its mutable borrow. Neither says anything about the
+spawning block writing a host it passed to a spawn that only reads it, and
+that block keeps running while the spawn does.
+
+**Compiler** — a spawn written as a statement or bound by a `let` is lent
+every host passed to it, directly or through a guest, until its block drains,
+and the block may not write one meanwhile: by assignment, as a `!` call's
+subject, or by moving it out. Where a guest's host cannot be followed, the
+write is judged by type, so some programs that would not race are rejected.
+
+```zane
+view &Dial = dial;
+seen Int = spawn glance(view);   // lent `dial`, through `view`
+dial.reading = Gauge(Int(3));    // rejected: `glance` may be reading it
+spawn dial.reading!nudge();      // accepted: written back (§4.4)
+```
+
+`lib/tst/spawns.ml` checks it, and
+`test/semantics/fixtures/typing/reject/bad/spawns.zn` has the cases.
+Reconciling means the spec stating a rule for this write, this one or
+another.
+
 ---
 
 ## Closed
