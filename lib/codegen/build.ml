@@ -18,20 +18,37 @@ let prepare m =
 (* The C compiler that links: `ZANE_CC` if set, else `clang`. *)
 let cc () = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC")
 
+(* The runtime is written out as it is laid out in runtime/: its two headers
+   beside the one translation unit that includes them. *)
+let write_runtime dir =
+  List.iter
+    (fun (name, text) ->
+      Out_channel.with_open_bin (Filename.concat dir name) (fun oc -> output_string oc text))
+    [
+      ("zane.h", Runtime_source.header);
+      ("zane_internal.h", Runtime_source.internal);
+      ("zane.c", Runtime_source.text);
+    ]
+
 let executable m output =
   let tm = prepare m in
-  let obj = Filename.temp_file "zane" ".o" in
-  let rt = Filename.temp_file "zane" ".c" in
+  let dir = Filename.temp_dir "zane" "" in
+  let obj = Filename.concat dir "program.o" in
+  let rt = Filename.concat dir "zane.c" in
   let command =
     String.concat " " (List.map Filename.quote [ cc (); "-O2"; "-pthread"; "-o"; output; obj; rt ])
   in
   (* The temporary files go however the build ends, a raise included. *)
   let status =
     Fun.protect
-      ~finally:(fun () -> List.iter (fun f -> try Sys.remove f with Sys_error _ -> ()) [ obj; rt ])
+      ~finally:(fun () ->
+        List.iter
+          (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
+          [ "program.o"; "zane.h"; "zane_internal.h"; "zane.c" ];
+        try Sys.rmdir dir with Sys_error _ -> ())
       (fun () ->
         Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm;
-        Out_channel.with_open_bin rt (fun oc -> output_string oc Runtime_source.text);
+        write_runtime dir;
         Sys.command command)
   in
   match status with

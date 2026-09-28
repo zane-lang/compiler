@@ -1,0 +1,43 @@
+; The C runtime every program links with (docs/design/lowering.md L17).
+; `zane.h` is the ABI emitted code calls, `zane_internal.h` what the parts
+; share, and each `.c` is one part of the runtime.
+;
+; [Runtime_source] embeds it, so the compiler can build a program from
+; anywhere: the two headers as they are, and the parts joined in a fixed
+; order into one `zane.c`, which the C compiler builds as one translation
+; unit. The C tests in tests/runtime/ build the parts separately instead.
+
+(library
+ (name runtime_source))
+
+(rule
+ (target zane.c)
+ (deps main.c arena.c anchor.c block.c value.c list.c slot.c spawn.c snapshot.c)
+ (action
+  (with-stdout-to
+   %{target}
+   (progn
+    (cat main.c)
+    (cat arena.c)
+    (cat anchor.c)
+    (cat block.c)
+    (cat value.c)
+    (cat list.c)
+    (cat slot.c)
+    (cat spawn.c)
+    (cat snapshot.c)))))
+
+(rule
+ (target runtime_source.ml)
+ (deps zane.h zane_internal.h zane.c)
+ (action
+  (with-stdout-to
+   %{target}
+   (progn
+    (echo "let header = {zane|")
+    (cat zane.h)
+    (echo "|zane}\n\nlet internal = {zane|")
+    (cat zane_internal.h)
+    (echo "|zane}\n\nlet text = {zane|")
+    (cat zane.c)
+    (echo "|zane}\n")))))

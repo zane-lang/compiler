@@ -3,7 +3,7 @@
    frames of the shape lowering makes. Each check prints `yes` when it holds
    and `no` when it does not. */
 
-#include "../../runtime/zane.c"
+#include "zane_internal.h"
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 

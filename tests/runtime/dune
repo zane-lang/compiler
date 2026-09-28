@@ -1,13 +1,14 @@
-; The runtime on its own (docs/lowering.md L17): `arenas.c`, `anchors.c`,
-; `texts.c`, `blocks.c` and `spawns.c` include it and exercise the scope
+; The runtime on its own (docs/design/lowering.md L17): `arenas.c`,
+; `anchors.c`, `texts.c`, `blocks.c` and `spawns.c` link its parts, built
+; separately, and exercise the scope
 ; arenas, the anchors, the strings, the lists, boxes and dynamic regions,
 ; and spawned calls directly, and the golden files hold what each printed.
 
 (rule
- (deps arenas.c ../../runtime/zane.c)
+ (deps arenas.c ../../runtime/zane.h ../../runtime/zane_internal.h (glob_files ../../runtime/*.c))
  (targets arenas.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -o arenas.exe arenas.c)))
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o arenas.exe arenas.c ../../runtime/main.c ../../runtime/arena.c ../../runtime/anchor.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)))
 
 (rule
  (action
@@ -21,10 +22,10 @@
   (diff golden/arenas.out arenas.out.actual)))
 
 (rule
- (deps anchors.c ../../runtime/zane.c)
+ (deps anchors.c ../../runtime/zane.h ../../runtime/zane_internal.h (glob_files ../../runtime/*.c))
  (targets anchors.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -o anchors.exe anchors.c)))
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o anchors.exe anchors.c ../../runtime/main.c ../../runtime/arena.c ../../runtime/anchor.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)))
 
 (rule
  (action
@@ -38,10 +39,10 @@
   (diff golden/anchors.out anchors.out.actual)))
 
 (rule
- (deps texts.c ../../runtime/zane.c)
+ (deps texts.c ../../runtime/zane.h ../../runtime/zane_internal.h (glob_files ../../runtime/*.c))
  (targets texts.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -o texts.exe texts.c)))
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o texts.exe texts.c ../../runtime/main.c ../../runtime/arena.c ../../runtime/anchor.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)))
 
 (rule
  (action
@@ -55,10 +56,10 @@
   (diff golden/texts.out texts.out.actual)))
 
 (rule
- (deps blocks.c ../../runtime/zane.c)
+ (deps blocks.c ../../runtime/zane.h ../../runtime/zane_internal.h (glob_files ../../runtime/*.c))
  (targets blocks.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -o blocks.exe blocks.c)))
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o blocks.exe blocks.c ../../runtime/main.c ../../runtime/arena.c ../../runtime/anchor.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)))
 
 (rule
  (action
@@ -72,10 +73,10 @@
   (diff golden/blocks.out blocks.out.actual)))
 
 (rule
- (deps spawns.c ../../runtime/zane.c)
+ (deps spawns.c ../../runtime/zane.h ../../runtime/zane_internal.h (glob_files ../../runtime/*.c))
  (targets spawns.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -o spawns.exe spawns.c)))
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o spawns.exe spawns.c ../../runtime/main.c ../../runtime/arena.c ../../runtime/anchor.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)))
 
 (rule
  (action

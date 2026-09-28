@@ -2,7 +2,7 @@
    (docs/lowering.md L17), over hand-written layouts. Each check prints `yes`
    when it holds and `no` when it does not. */
 
-#include "../../runtime/zane.c"
+#include "zane_internal.h"
 
 #include <stddef.h>
 
