@@ -50,16 +50,28 @@ geometry$Point(@primitives$Int, @primitives$Int)
   differ by them ([functions.md §4.1](https://github.com/zane-lang/spec/blob/b0675d6/spec/functions.md)),
   so the parameter types are enough to tell every overload of a name apart.
 
-## Variables
+## Variables and lambdas
 
-A variable is called by its package and its name, with no signature:
+A package variable is called by its package and its name, with no signature:
 
 ```text
 pkg$requestHandler
 ```
 
-A lambda stored in a variable is called by that variable's name
+A lambda stored in a package variable is called by that variable's name
 ([`lowering.md`](lowering.md) L14 lifts it to a function of its own).
+
+Every other lambda, whether held by a local or written where a value goes, is
+called by the verb it is written in and its place among that verb's lambdas,
+counted from 1 in source order, nested ones included:
+
+```text
+pkg$serve(pkg$Request)$lambda1
+pkg$serve(pkg$Request)$lambda2
+```
+
+A generic verb's lambdas are counted within each instance, under the
+instance's name.
 
 ## Layout tables
 
