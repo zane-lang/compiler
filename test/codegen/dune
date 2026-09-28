@@ -10,7 +10,7 @@
  (action
   (with-stdout-to
    hello.cgt.actual
-   (run %{exe:../../bin/compiler/main.exe} --cgt --package fixtures/hello))))
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/hello))))
 
 (rule
  (alias runtest)
@@ -21,7 +21,7 @@
  (deps (source_tree fixtures/hello))
  (targets hello.exe)
  (action
-  (run %{exe:../../bin/compiler/main.exe} --build hello.exe --package fixtures/hello)))
+  (run %{exe:../../bin/zanec/zanec.exe} --build hello.exe --package fixtures/hello)))
 
 (rule
  (action
@@ -44,7 +44,7 @@
    temporary.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/compiler/main.exe} --build temporary.exe --package fixtures/temporary)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --build temporary.exe --package fixtures/temporary)))))
 
 (rule
  (alias runtest)
@@ -61,7 +61,7 @@
   (with-stdout-to
    counting.cgt.actual
    (run
-    %{exe:../../bin/compiler/main.exe}
+    %{exe:../../bin/zanec/zanec.exe}
     --cgt
     --package fixtures/counting))))
 
@@ -75,7 +75,7 @@
  (targets counting.exe)
  (action
   (run
-   %{exe:../../bin/compiler/main.exe}
+   %{exe:../../bin/zanec/zanec.exe}
    --build
    counting.exe
    --package fixtures/counting)))
@@ -99,7 +99,7 @@
  (targets zero.exe)
  (action
   (run
-   %{exe:../../bin/compiler/main.exe}
+   %{exe:../../bin/zanec/zanec.exe}
    --build
    zero.exe
    --package fixtures/zero)))
@@ -127,7 +127,7 @@
   (with-stdout-to
    shapes.cgt.actual
    (run
-    %{exe:../../bin/compiler/main.exe}
+    %{exe:../../bin/zanec/zanec.exe}
     --cgt
     --package fixtures/shapes))))
 
@@ -141,7 +141,7 @@
  (targets shapes.exe)
  (action
   (run
-   %{exe:../../bin/compiler/main.exe}
+   %{exe:../../bin/zanec/zanec.exe}
    --build
    shapes.exe
    --package fixtures/shapes)))
@@ -168,7 +168,7 @@
   (with-stdout-to
    outcomes.cgt.actual
    (run
-    %{exe:../../bin/compiler/main.exe}
+    %{exe:../../bin/zanec/zanec.exe}
     --cgt
     --package fixtures/outcomes))))
 
@@ -182,7 +182,7 @@
  (targets outcomes.exe)
  (action
   (run
-   %{exe:../../bin/compiler/main.exe}
+   %{exe:../../bin/zanec/zanec.exe}
    --build
    outcomes.exe
    --package fixtures/outcomes)))
@@ -210,7 +210,7 @@
   (with-stdout-to
    hosts.cgt.actual
    (run
-    %{exe:../../bin/compiler/main.exe}
+    %{exe:../../bin/zanec/zanec.exe}
     --cgt
     --package fixtures/hosts))))
 
@@ -224,7 +224,7 @@
  (targets hosts.exe)
  (action
   (run
-   %{exe:../../bin/compiler/main.exe}
+   %{exe:../../bin/zanec/zanec.exe}
    --build
    hosts.exe
    --package fixtures/hosts)))
@@ -251,7 +251,7 @@
   (with-stdout-to
    guests.cgt.actual
    (run
-    %{exe:../../bin/compiler/main.exe}
+    %{exe:../../bin/zanec/zanec.exe}
     --cgt
     --package fixtures/guests))))
 
@@ -265,7 +265,7 @@
  (targets guests.exe)
  (action
   (run
-   %{exe:../../bin/compiler/main.exe}
+   %{exe:../../bin/zanec/zanec.exe}
    --build
    guests.exe
    --package fixtures/guests)))
@@ -292,7 +292,7 @@
   (with-stdout-to
    texts.cgt.actual
    (run
-    %{exe:../../bin/compiler/main.exe}
+    %{exe:../../bin/zanec/zanec.exe}
     --cgt
     --package fixtures/texts))))
 
@@ -306,7 +306,7 @@
  (targets texts.exe)
  (action
   (run
-   %{exe:../../bin/compiler/main.exe}
+   %{exe:../../bin/zanec/zanec.exe}
    --build
    texts.exe
    --package fixtures/texts)))
@@ -331,7 +331,7 @@
  (action
   (with-stdout-to
    lists.cgt.actual
-   (run %{exe:../../bin/compiler/main.exe} --cgt --package fixtures/lists))))
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/lists))))
 
 (rule
  (alias runtest)
@@ -342,7 +342,7 @@
  (deps (source_tree fixtures/lists))
  (targets lists.exe)
  (action
-  (run %{exe:../../bin/compiler/main.exe} --build lists.exe --package fixtures/lists)))
+  (run %{exe:../../bin/zanec/zanec.exe} --build lists.exe --package fixtures/lists)))
 
 (rule
  (action
@@ -364,7 +364,7 @@
  (action
   (with-stdout-to
    boxes.cgt.actual
-   (run %{exe:../../bin/compiler/main.exe} --cgt --package fixtures/boxes))))
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/boxes))))
 
 (rule
  (alias runtest)
@@ -375,7 +375,7 @@
  (deps (source_tree fixtures/boxes))
  (targets boxes.exe)
  (action
-  (run %{exe:../../bin/compiler/main.exe} --build boxes.exe --package fixtures/boxes)))
+  (run %{exe:../../bin/zanec/zanec.exe} --build boxes.exe --package fixtures/boxes)))
 
 (rule
  (action
@@ -395,7 +395,7 @@
  (deps (source_tree fixtures/range))
  (targets range.exe)
  (action
-  (run %{exe:../../bin/compiler/main.exe} --build range.exe --package fixtures/range)))
+  (run %{exe:../../bin/zanec/zanec.exe} --build range.exe --package fixtures/range)))
 
 (rule
  (action
@@ -420,7 +420,7 @@
  (targets regions.exe)
  (action
   (run
-   %{exe:../../bin/compiler/main.exe}
+   %{exe:../../bin/zanec/zanec.exe}
    --build
    regions.exe
    --package fixtures/regions)))
@@ -446,7 +446,7 @@
  (action
   (with-stdout-to
    spawns.cgt.actual
-   (run %{exe:../../bin/compiler/main.exe} --cgt --package fixtures/spawns))))
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/spawns))))
 
 (rule
  (alias runtest)
@@ -457,7 +457,7 @@
  (deps (source_tree fixtures/spawns))
  (targets spawns.exe)
  (action
-  (run %{exe:../../bin/compiler/main.exe} --build spawns.exe --package fixtures/spawns)))
+  (run %{exe:../../bin/zanec/zanec.exe} --build spawns.exe --package fixtures/spawns)))
 
 (rule
  (action

@@ -21,7 +21,7 @@
   (with-stdout-to
    accept.packages.actual
    (run
-    %{exe:../../bin/compiler/main.exe}
+    %{exe:../../bin/zanec/zanec.exe}
     --package fixtures/accept/app
     --package fixtures/accept/geometry))))
 
@@ -37,7 +37,7 @@
    relative.packages.actual
    (chdir
     fixtures/accept/app
-    (run %{exe:../../bin/compiler/main.exe} --package . --package ../geometry)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --package . --package ../geometry)))))
 
 (rule
  (alias runtest)
@@ -52,7 +52,7 @@
    (with-accepted-exit-codes
     1
     (run
-    %{exe:../../bin/compiler/main.exe}
+    %{exe:../../bin/zanec/zanec.exe}
     --package fixtures/reject/mismatch
     --package fixtures/reject/missing
     --package fixtures/reject/late
@@ -86,7 +86,7 @@
   (with-stdout-to
    typed.decls.actual
    (run
-    %{exe:../../bin/compiler/main.exe}
+    %{exe:../../bin/zanec/zanec.exe}
     --decls
     --package fixtures/typed/app
     --package fixtures/typed/shapes))))
@@ -102,7 +102,7 @@
   (with-stdout-to
    typed.tst.actual
    (run
-    %{exe:../../bin/compiler/main.exe}
+    %{exe:../../bin/zanec/zanec.exe}
     --tst
     --package fixtures/typed/app
     --package fixtures/typed/shapes))))
@@ -120,7 +120,7 @@
    (with-accepted-exit-codes
     1
     (run
-     %{exe:../../bin/compiler/main.exe}
+     %{exe:../../bin/zanec/zanec.exe}
      --tst
      --package fixtures/typing/reject/bad
      --package fixtures/typing/reject/lib)))))

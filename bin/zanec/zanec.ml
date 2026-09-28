@@ -1,7 +1,3 @@
-(* Parsing the checked-in sample is the common case while the front end is the
-   only stage, so it stays the default when no source is named. *)
-let default_path = "test/parser/fixtures/main.zn"
-
 (* Which tree to print. The CST stays the default because it is what the source
    says, and a reader checking the parser wants that one; `--sst` is for
    checking the desugaring, where the interesting thing is what is no longer
@@ -10,15 +6,15 @@ type stage = Cst | Sst
 
 (* What the binary was asked to do. One file is enough for the first two
    stages, which never look past it. Semantics takes packages instead
-   (docs/semantics.md §2): each `--package DIR` names one, and the first is the
-   root.
+   (docs/design/semantics.md §2): each `--package DIR` names one, and the first
+   is the root.
 
    A package build prints one of three views: the packages it assembled (the
    default), the declarations with everything passes 1 to 4 resolved about
    them (`--decls`), or the whole typed tree (`--tst`). Past semantics it
    prints the code-generation tree (`--cgt`) or the LLVM module (`--ll`), or
    builds the program into an executable (`--build OUT`,
-   docs/lowering.md §7). *)
+   docs/design/lowering.md §7). *)
 type view = Assembled | Declarations | Typed | Cgt | Ir | Build of string
 
 type request =
@@ -32,9 +28,9 @@ let read_file path =
     exit 2
 
 let usage () =
-  prerr_endline "usage: compiler [--cst|--sst] [SOURCE|-]";
-  prerr_endline "       compiler [--decls|--tst|--cgt|--ll] --package DIR [--package DIR ...]";
-  prerr_endline "       compiler --build OUT --package DIR [--package DIR ...]";
+  prerr_endline "usage: zanec [--cst|--sst] (SOURCE|-)";
+  prerr_endline "       zanec [--decls|--tst|--cgt|--ll] --package DIR [--package DIR ...]";
+  prerr_endline "       zanec --build OUT --package DIR [--package DIR ...]";
   exit 2
 
 (* The name reported in parse errors travels with the text, so reading from
@@ -46,7 +42,6 @@ let read = function
 let arguments () =
   let rec go stage rest =
     match rest with
-    | [] -> File (stage, read default_path)
     | "--cst" :: rest -> go Cst rest
     | "--sst" :: rest -> go Sst rest
     (* `-` is the stdin source, not an option, so it is taken before the guard
@@ -91,7 +86,7 @@ let run_file stage (filename, input) =
 
 (* Lowering and codegen, once semantics has accepted the program. Lowering
    refuses what it cannot handle yet with a diagnostic rather than lowering it
-   wrongly (docs/lowering.md). *)
+   wrongly (docs/design/lowering.md). *)
 let generate packages view program =
   match Cgt.lower program with
   | Error (Cgt.Lower.Diagnostic d) ->
@@ -115,9 +110,9 @@ let generate packages view program =
               exit 1)
       | Assembled | Declarations | Typed -> ())
 
-(* Semantics reports every problem it finds (docs/semantics.md D4) and prints
-   no tree when there is one, since a tree with holes in it is not what either
-   view promises. *)
+(* Semantics reports every problem it finds (docs/design/semantics.md D4) and
+   prints no tree when there is one, since a tree with holes in it is not what
+   either view promises. *)
 let run_packages view dirs =
   match Tst.Assembly.assemble dirs with
   | Error problems ->

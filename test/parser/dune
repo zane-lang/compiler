@@ -104,7 +104,7 @@
 (rule
  (with-stdout-to
   desugar.cst.tree.actual
-  (run %{exe:../../bin/compiler/main.exe} --cst %{dep:fixtures/desugar.zn})))
+  (run %{exe:../../bin/zanec/zanec.exe} --cst %{dep:fixtures/desugar.zn})))
 
 (rule
  (alias runtest)
@@ -114,7 +114,7 @@
 (rule
  (with-stdout-to
   desugar.sst.tree.actual
-  (run %{exe:../../bin/compiler/main.exe} --sst %{dep:fixtures/desugar.zn})))
+  (run %{exe:../../bin/zanec/zanec.exe} --sst %{dep:fixtures/desugar.zn})))
 
 (rule
  (alias runtest)
@@ -185,7 +185,7 @@
   reject.syntax.err.actual
   (with-accepted-exit-codes
    1
-   (run %{exe:../../bin/compiler/main.exe} %{dep:fixtures/reject/syntax.zn}))))
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/syntax.zn}))))
 
 (rule
  (alias runtest)
@@ -197,7 +197,7 @@
   reject.lexing.err.actual
   (with-accepted-exit-codes
    1
-   (run %{exe:../../bin/compiler/main.exe} %{dep:fixtures/reject/lexing.zn}))))
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/lexing.zn}))))
 
 (rule
  (alias runtest)
@@ -209,7 +209,7 @@
   reject.malformed-utf8.err.actual
   (with-accepted-exit-codes
    1
-   (run %{exe:../../bin/compiler/main.exe} %{dep:fixtures/reject/malformed-utf8.zn}))))
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/malformed-utf8.zn}))))
 
 (rule
  (alias runtest)
@@ -221,7 +221,7 @@
   reject.rejected.err.actual
   (with-accepted-exit-codes
    1
-   (run %{exe:../../bin/compiler/main.exe} %{dep:fixtures/reject/rejected.zn}))))
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/rejected.zn}))))
 
 (rule
  (alias runtest)
@@ -233,7 +233,7 @@
   reject.statement.err.actual
   (with-accepted-exit-codes
    1
-   (run %{exe:../../bin/compiler/main.exe} %{dep:fixtures/reject/statement.zn}))))
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/statement.zn}))))
 
 (rule
  (alias runtest)

@@ -21,4 +21,4 @@ for argument in "$@"; do
 done
 
 cd "$ROOT"
-exec dune exec bin/compiler/main.exe -- ${arguments[@]+"${arguments[@]}"}
+exec dune exec bin/zanec/zanec.exe -- ${arguments[@]+"${arguments[@]}"}

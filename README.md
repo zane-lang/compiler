@@ -50,8 +50,8 @@ dune build
 Common tools are available directly inside the development shell:
 
 ```sh
-compiler                     # print the CST for the checked-in sample
-compiler path/to/source.zn   # ... or for a named file, `-` for standard input
+zanec path/to/source.zn      # print the CST for a file, `-` for standard input
+zanec --tst --package DIR    # type-check a package and print its typed tree
 ambiguity profiles
 ambiguity search
 ambiguity search deep-function-body --timeout 1h --output deep-search.txt
