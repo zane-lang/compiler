@@ -35,15 +35,15 @@ void zane_main(void) {
 		slots[i][0] = i;
 		slots[i][1] = -i;
 	}
-	int intact = zane_chunks >= 3;
+	int intact = zane_self->chunks >= 3;
 	for (int i = 0; i < N; i++) intact = intact && slots[i][0] == i && slots[i][1] == -i;
 	check(intact);
 
 	/* Draining gives the chunks back to the next scope, and leaves what the
 	   outer scope placed untouched. */
-	uint32_t used = zane_chunks;
+	uint32_t used = zane_self->chunks;
 	zane_scope_drain(inner);
-	check(zane_chunks < used);
+	check(zane_self->chunks < used);
 	*b = 42;
 	inner = zane_scope_enter();
 	memset(zane_slot(inner, 1024, 8, NULL), 0xff, 1024);

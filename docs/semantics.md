@@ -222,6 +222,38 @@ summaries are computed to a fixed point over every body before any reports.
 body, or a block written there. A call to one ends the run of the block it is
 written in, so it is an error in no block.
 
+**Spawns** (`lib/tst/spawns.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md) §4.2–§4.3). A
+spawned `mut` call writes its subject, so a subject of a reference type, or a
+guest to one, is an error. A spawn written as a statement or bound by a `let`
+borrows its subject's place until the block it is written in drains, since
+the drain waits for it; one read where it is written is waited for at once and
+borrows nothing past itself. While a borrow lasts, a second spawn borrowing
+an overlapping place is an error, and so is any read or write of one in that
+block or a block inside it. Two places overlap when one's path of fields and
+cases is a prefix of the other's, and any two elements of one list overlap.
+A place reached through a guest is the place the guest names, followed as
+below for a lent host; where the checker cannot follow it, two places may
+overlap when either's type may hold the other's. A spawned subject's index,
+or its case read's handler, is read at the spawn like any other read.
+In a block that runs more than once, a spawn takes its subject from a local
+declared in that block or in a block inside it. A block runs more than once
+when it is `@controlflow$repeat`'s body, or a block argument at a position its
+verb runs more than once: one it passes on to such a position, or passes
+anywhere from inside a block that runs more than once, computed to a fixed
+point over every body.
+
+The same spawn is lent every host passed to it, directly or through a guest,
+until the same drain, and the block may not write one meanwhile
+([`spec-divergences.md`](spec-divergences.md) §14): not by assignment, not as
+a `!` call's subject, not by moving it out. A spawned `mut` call on part of it
+is allowed, since it writes back (docs/lowering.md §9). Where a write goes
+through a guest, the checker follows the guest to the place it was minted
+from, through other guests, as long as the guest has not been bound again in
+a block inside its own. A guest whose place it cannot follow may name any host
+of its type, so a write through it clashes with a lent host that could be,
+or contain, or be inside, what it writes; so does a write to a known place
+when the lent host came through such a guest.
+
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
 mistake. Each pass collects diagnostics and keeps going. An expression that
@@ -606,6 +638,5 @@ When the root declares one, it takes no parameters (`packages.md` §6.2).
 
 ## 10. Not done yet
 
-- `spawn` safety beyond the block-parameter rule (D1's right-hand column).
 - Resting places for a function value, whose type would have to carry them,
   and the swallowed-parameter rule applied through a call's resting places.

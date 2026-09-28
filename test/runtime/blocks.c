@@ -8,6 +8,9 @@
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
+/* The scope whose region holds `at`. */
+static int64_t zane_region_of(const void *at) { return zane_region_at(at)->depth; }
+
 /* A host of one `Int`, a list of them, a list of strings, and a value that
    boxes itself: `variant { done Unit; more Countdown; }`. */
 typedef struct {

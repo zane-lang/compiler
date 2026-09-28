@@ -309,7 +309,14 @@ test passing.
    anchors of hosts in a list follow them when its block grows. The runtime
    is tested in C on its own, and stops a program that ends with a block
    still out.
-8. **`spawn`.** The thread pool, futures, and the water tower.
+8. **`spawn`.** The thread pool, futures, and the water tower. A spawned
+   call's arguments are read where it is written, into a frame in its
+   block's arena, and it runs on a thread of the pool in a context of its
+   own. A local bound to it waits for it where it is read, and the block
+   waits for every call spawned in it before it drains; a result comes home
+   with its blocks and its anchors, read or not. A call that can abort or
+   exit settles on the spawning thread, and the program's runtime resizes
+   the pool. The runtime is tested in C on its own.
 
 ---
 
@@ -331,7 +338,7 @@ test passing.
   memory is released together, which this does.
 - **Anchors as the runtime keeps them.** An anchor cell holds its host's
   address rather than a segmented offset, and a tether or backpointer holds
-  a cell's index in one growable pool, where [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §4.1 has pages of
+  a cell's index in one pool that grows by segments, where [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §4.1 has pages of
   cells named by segmented offsets. A forwarder retires with the identity
   it forwards to rather than at its former source scope's drain, which is
   later but still after every guest that could name it. Nothing a program
@@ -340,8 +347,9 @@ test passing.
   occupant floats ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8.1) into a block of the program's own
   region, open until the program ends, rather than until its owner scope
   drains, and the blocks it owns move there too, as does anything later
-  stored into it. That region goes with the program, unchecked. A
-  host has no destructor, so the longer life is not observable.
+  stored into it. A host floated in a spawned call goes there as well. That
+  region goes with the program, unchecked. A host has no destructor, so the
+  longer life is not observable.
 - **Each scope's dynamic region.** A scope's blocks are in a region of its
   own, as [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1–3.2 has it: chunks of its own, a bump frontier, and
   a stack of returned blocks per size and alignment, all given back at its
@@ -375,6 +383,82 @@ test passing.
     somewhere the scope cannot reach.
 
   Nothing a program does can tell these apart.
+- **Each spawned call has a context of its own.** A spawned call runs with
+  its own nest of scopes and its own chain of fixed chunks, so a thread bumps
+  only its own; a thread that runs one while waiting for it switches to that
+  context for the call. The call's result is kept in its frame, with its
+  blocks in the first scope of the call's context, until it comes home: at a
+  read of the local it is bound to, or at its block's drain. There it is
+  copied into a slot the block reserved, its anchors follow it, and its
+  blocks move into the block's region, as any value's do where it arrives.
+  The context then goes back to a pool for the next call. The chunk map names
+  each chunk's context along with its index or scope.
+
+  A context is its own thread's alone until it spawns. While a call it
+  spawned is out, that call can reach its storage: a `mut` subject that owns
+  blocks is written where it lives, in the spawner's region. So while any is
+  out, the context's scopes and regions change under its lock, and another
+  thread always takes that lock for a context it reaches. Anchor cells are
+  kept in segments that stay where they are, and are made and retired under
+  a lock. The spec leaves all of this to the implementation.
+- **The pool steals work.** Each pool thread keeps a deque of the calls it
+  spawned and runs its own newest first; a thread with none left steals
+  another's oldest ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §2.4). Calls spawned from the program's
+  own thread go to a deque every pool thread steals from. A thread that
+  waits for a call no thread has taken yet runs it itself, so a pool of one
+  thread never deadlocks on a call that spawns and waits. Each deque has a
+  lock of its own rather than being lock-free, which is left to measurement.
+  `setThreads` resizes the pool while it runs: more threads start at once,
+  and a thread over the count leaves when it next finds no work, its deque
+  kept for the next thread to start. The pool keeps at most 4095 threads.
+- **A write through a host from spawned work.** A spawned `mut` call whose
+  subject is reached through a host -- a member of a reference-type
+  instance, of what a guest names, or an element of a list -- is the one
+  way spawned work writes where another thread may read at the same time
+  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §4.2–§4.4). Such a call works on a copy of its subject in
+  its frame, deep for a value that owns blocks, and writes it back when it
+  returns: what the copy owns moves into the subject's region, what the
+  subject owned is retired there, whole, until that region drains, and the
+  bytes are replaced a word at a time while one global count of write-backs
+  begun is ahead of the count done. A subject reached any other way is
+  written where it is, since no other thread can reach it (§4.3). Other
+  threads see the call's writes all at once, when it returns, which is one
+  of the orders §3.7 already allows.
+- **Snapshots.** A value read through a host into a fresh binding -- a
+  local, an argument, an operand -- is read as a snapshot (§4.4): its bytes
+  are taken when every write-back begun is done, and taken again if one
+  began meanwhile. Nothing a snapshot names is ever returned while a reader
+  could follow it, since a write-back retires what it replaces, so a value
+  that owns blocks is then copied whole from the snapshot with no further
+  checks: none of §4.4's bounds on a walk are needed, and no attempt
+  allocates anything it has to give back. A `match` or a case read on such a
+  place reads it where it is. Each snapshot is a call into the runtime,
+  where an inline check of the two counts would do; that, and how long
+  retired values are kept, is left to measurement.
+- **A host lent to a running spawn.** The spawning block may not write a
+  host it lent a spawn that may still be reading it; the checker rejects
+  that write ([`spec-divergences.md`](spec-divergences.md) §14), so the
+  only writes that race a reader are spawned write-backs, which the
+  snapshots above cover.
+- **Where a spawned call is waited for.** Only a spawned call bound by a
+  `let` is waited for where its local is read ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §3.2). One
+  read where it is written -- an operand, an argument, a value assigned to a
+  local that already exists -- is waited for at once, so lowering calls it
+  there. Only timing tells the two apart.
+- **A spawned call that can abort or exit.** Its frame holds the call's
+  whole outcome (L12), which comes home into a slot laid out for it: the
+  result's hosts and blocks under the done tag, the abort value's under the
+  aborted one. The call settles once, on the spawning thread, where it is
+  first read or where its block ends
+  ([`spec-divergences.md`](spec-divergences.md) §13). A flag the spawn sets
+  says whether it has. An abort takes the abort value out of the slot and
+  runs the handler written at the spawn, lowered where it settles but in
+  the context of the spawn, so its `abort`, `return` and exit go where they
+  would from there; its `resolve` puts the result in the slot. An exit ends
+  the run of the block the spawn is in.
+- **An abort value no binder names is held.** A handler without a binder,
+  such as `??`'s, still holds the abort value in its own scope when it is a
+  host or owns a block, so the handler's drain ends it.
 - **A value parameter is borrowed.** A value that owns a block is copied
   whole where it is stored from a place ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.3), and passed
   as it is where it is only read: a value parameter is read-only (§2.9), so

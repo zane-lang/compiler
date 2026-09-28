@@ -435,3 +435,37 @@
  (alias runtest)
  (action
   (diff golden/regions.out regions.out.actual)))
+
+; `spawns` is step 8: calls started with `spawn` run on the pool's threads.
+; Their results come home when read or when their block drains, which waits
+; for every call spawned in it, and the runtime stops a program that ends
+; with a block still out.
+
+(rule
+ (deps (source_tree fixtures/spawns))
+ (action
+  (with-stdout-to
+   spawns.cgt.actual
+   (run %{exe:../../bin/compiler/main.exe} --cgt --package fixtures/spawns))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawns.cgt spawns.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/spawns))
+ (targets spawns.exe)
+ (action
+  (run %{exe:../../bin/compiler/main.exe} --build spawns.exe --package fixtures/spawns)))
+
+(rule
+ (action
+  (with-stdout-to
+   spawns.out.actual
+   (run ./spawns.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawns.out spawns.out.actual)))

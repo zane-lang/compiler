@@ -105,6 +105,9 @@ let rec expr (e : Expr.t) =
   | Expr.Box { value; layout = l } ->
       group "box" (fields [ ("value", expr value); ("layout", layout l) ])
   | Expr.Layout l -> Leaf ("layout " ^ l)
+  | Expr.Function fn -> Leaf ("function " ^ fn)
+  | Expr.Snapshot p ->
+      group "snapshot" (fields [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("ptr", expr p) ])
   | Expr.Escape { value; layout = l; exit } ->
       let exit = match exit with Some label -> Printf.sprintf "@%d" label | None -> "function" in
       group "escape" (fields [ ("exit", Leaf exit); ("value", expr value); ("layout", layout l) ])
@@ -190,6 +193,20 @@ and stat = function
                  cases );
            ])
   | Stat.Leave label -> Leaf (Printf.sprintf "leave @%d" label)
+  | Stat.Spawn { task; scope; thunk; frame; args; dest; layout = l } ->
+      group "spawn"
+        (fields
+           ([
+              ("task", Leaf (Printf.sprintf "#%d" task));
+              ("scope", Leaf (Printf.sprintf "%%%d" scope));
+              ("thunk", Leaf thunk);
+              ("frame", Leaf (Ty.to_string frame));
+              ("args", map_seq expr args);
+            ]
+           @ (match dest with
+             | Some id -> [ ("dest", Leaf (Printf.sprintf "#%d" id)); ("layout", layout l) ]
+             | None -> [])))
+  | Stat.Join task -> Leaf (Printf.sprintf "join #%d" task)
 
 let func (f : Func.t) =
   group "func"

@@ -56,10 +56,12 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > snapshot:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 2
-    │       │       │   └── value: local #3 : {i32, i64, i64}
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i32, i64, i64}
+    │       │       │       ├── path: 2
+    │       │       │       └── base: address of #3 : ptr
     │       │       └── right: 15 : i64
     │       ├── body[5] > overwrite:
     │       │   ├── address: address of #1 : ptr
@@ -74,10 +76,12 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > snapshot:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #1 : {i32, i64, i64}
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i32, i64, i64}
+    │       │       │       ├── path: 1
+    │       │       │       └── base: address of #1 : ptr
     │       │       └── right: 2 : i64
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
@@ -142,12 +146,12 @@
     │       │           │   └── value > binary:
     │       │           │       ├── type: i1
     │       │           │       ├── op: ==
-    │       │           │       ├── left > member:
+    │       │           │       ├── left > snapshot:
     │       │           │       │   ├── type: i64
-    │       │           │       │   ├── index: 1
-    │       │           │       │   └── value > deref:
-    │       │           │       │       ├── type: {i32, i64, i64}
-    │       │           │       │       └── ptr: local #9 : ptr
+    │       │           │       │   └── ptr > offset:
+    │       │           │       │       ├── within: {i32, i64, i64}
+    │       │           │       │       ├── path: 1
+    │       │           │       │       └── base: local #9 : ptr
     │       │           │       └── right: 3 : i64
     │       │           └── cases[1] > case 1[2]: leave @5
     │       ├── body[10] > eval > call:
@@ -283,10 +287,12 @@
     │       │       │           │   └── layout: hosts$Account
     │       │       │           ├── body[1] > assign:
     │       │       │           │   ├── place: #18
-    │       │       │           │   └── value > member:
+    │       │       │           │   └── value > snapshot:
     │       │       │           │       ├── type: i64
-    │       │       │           │       ├── index: 2
-    │       │       │           │       └── value: local #20 : {i32, i64, i64}
+    │       │       │           │       └── ptr > offset:
+    │       │       │           │           ├── within: {i32, i64, i64}
+    │       │       │           │           ├── path: 2
+    │       │       │           │           └── base: address of #20 : ptr
     │       │       │           └── body[2]: leave @17
     │       │       └── right: 70 : i64
     │       ├── body[15] > eval > call:
@@ -326,10 +332,12 @@
     │       │       │           │   └── layout: hosts$Account
     │       │       │           ├── body[1] > assign:
     │       │       │           │   ├── place: #23
-    │       │       │           │   └── value > member:
+    │       │       │           │   └── value > snapshot:
     │       │       │           │       ├── type: i64
-    │       │       │           │       ├── index: 2
-    │       │       │           │       └── value: local #25 : {i32, i64, i64}
+    │       │       │           │       └── ptr > offset:
+    │       │       │           │           ├── within: {i32, i64, i64}
+    │       │       │           │           ├── path: 2
+    │       │       │           │           └── base: address of #25 : ptr
     │       │       │           └── body[2]: leave @22
     │       │       └── right: 4 : i64
     │       ├── body[16] > eval > call:
@@ -425,10 +433,12 @@
     │       │   │   │               ├── type: i64
     │       │   │   │               ├── op: +
     │       │   │   │               ├── left: local #27 : i64
-    │       │   │   │               └── right > member:
+    │       │   │   │               └── right > snapshot:
     │       │   │   │                   ├── type: i64
-    │       │   │   │                   ├── index: 2
-    │       │   │   │                   └── value: local #35 : {i32, i64, i64}
+    │       │   │   │                   └── ptr > offset:
+    │       │   │   │                       ├── within: {i32, i64, i64}
+    │       │   │   │                       ├── path: 2
+    │       │   │   │                       └── base: address of #35 : ptr
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #28
     │       │   │       └── value > binary:
@@ -484,24 +494,24 @@
     │   │   └── value > binary:
     │   │       ├── type: i64
     │   │       ├── op: +
-    │   │       ├── left > member:
+    │   │       ├── left > snapshot:
     │   │       │   ├── type: i64
-    │   │       │   ├── index: 2
-    │   │       │   └── value > deref:
-    │   │       │       ├── type: {i32, i64, i64}
-    │   │       │       └── ptr: local #1 : ptr
+    │   │       │   └── ptr > offset:
+    │   │       │       ├── within: {i32, i64, i64}
+    │   │       │       ├── path: 2
+    │   │       │       └── base: local #1 : ptr
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
     ├── funcs[3] > func:
     │   ├── symbol: zane_funds_11
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > member:
+    │   └── body[0] > return > snapshot:
     │       ├── type: i64
-    │       ├── index: 2
-    │       └── value > deref:
-    │           ├── type: {i32, i64, i64}
-    │           └── ptr: local #1 : ptr
+    │       └── ptr > offset:
+    │           ├── within: {i32, i64, i64}
+    │           ├── path: 2
+    │           └── base: local #1 : ptr
     ├── funcs[4] > func:
     │   ├── symbol: zane_check_21
     │   ├── params[0]: local #1 : i1
@@ -549,12 +559,12 @@
     │   ├── symbol: zane_closed_13
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > member:
+    │   └── body[0] > return > snapshot:
     │       ├── type: i64
-    │       ├── index: 2
-    │       └── value > deref:
-    │           ├── type: {i32, i64, i64}
-    │           └── ptr: local #1 : ptr
+    │       └── ptr > offset:
+    │           ├── within: {i32, i64, i64}
+    │           ├── path: 2
+    │           └── base: local #1 : ptr
     ├── funcs[7] > func:
     │   ├── symbol: zane_richest_15
     │   ├── params[0]: local #1 : i64
@@ -607,16 +617,20 @@
     │   │   │   │           │       ├── type: i1
     │   │   │   │           │       ├── op: <
     │   │   │   │           │       ├── left: 30 : i64
-    │   │   │   │           │       └── right > member:
+    │   │   │   │           │       └── right > snapshot:
     │   │   │   │           │           ├── type: i64
-    │   │   │   │           │           ├── index: 2
-    │   │   │   │           │           └── value: local #7 : {i32, i64, i64}
+    │   │   │   │           │           └── ptr > offset:
+    │   │   │   │           │               ├── within: {i32, i64, i64}
+    │   │   │   │           │               ├── path: 2
+    │   │   │   │           │               └── base: address of #7 : ptr
     │   │   │   │           ├── body[1] > if:
     │   │   │   │           │   ├── cond: local #9 : i1
-    │   │   │   │           │   └── body[0] > return > member:
+    │   │   │   │           │   └── body[0] > return > snapshot:
     │   │   │   │           │       ├── type: i64
-    │   │   │   │           │       ├── index: 1
-    │   │   │   │           │       └── value: local #7 : {i32, i64, i64}
+    │   │   │   │           │       └── ptr > offset:
+    │   │   │   │           │           ├── within: {i32, i64, i64}
+    │   │   │   │           │           ├── path: 1
+    │   │   │   │           │           └── base: address of #7 : ptr
     │   │   │   │           ├── body[2] > assign:
     │   │   │   │           │   ├── place: #11
     │   │   │   │           │   └── value: local #9 : i1
@@ -655,10 +669,12 @@
     │       │   │   └── value > binary:
     │       │   │       ├── type: i1
     │       │   │       ├── op: <
-    │       │   │       ├── left > member:
+    │       │   │       ├── left > snapshot:
     │       │   │       │   ├── type: i64
-    │       │   │       │   ├── index: 2
-    │       │   │       │   └── value: local #2 : {i32, i64, i64}
+    │       │   │       │   └── ptr > offset:
+    │       │   │       │       ├── within: {i32, i64, i64}
+    │       │   │       │       ├── path: 2
+    │       │   │       │       └── base: address of #2 : ptr
     │       │   │       └── right: local #1 : i64
     │       │   ├── body[1] > if:
     │       │   │   ├── cond: local #4 : i1
@@ -676,10 +692,12 @@
     │       │   │       └── body[1] > return > case:
     │       │   │           ├── type: <i64 | i64 | void>
     │       │   │           ├── index: 1
-    │       │   │           └── payload > member:
+    │       │   │           └── payload > snapshot:
     │       │   │               ├── type: i64
-    │       │   │               ├── index: 2
-    │       │   │               └── value: local #8 : {i32, i64, i64}
+    │       │   │               └── ptr > offset:
+    │       │   │                   ├── within: {i32, i64, i64}
+    │       │   │                   ├── path: 2
+    │       │   │                   └── base: address of #8 : ptr
     │       │   ├── body[2] > assign:
     │       │   │   ├── place: #6
     │       │   │   └── value: local #4 : i1
@@ -687,10 +705,12 @@
     │       └── body[2] > return > case:
     │           ├── type: <i64 | i64 | void>
     │           ├── index: 0
-    │           └── payload > member:
+    │           └── payload > snapshot:
     │               ├── type: i64
-    │               ├── index: 2
-    │               └── value: local #2 : {i32, i64, i64}
+    │               └── ptr > offset:
+    │                   ├── within: {i32, i64, i64}
+    │                   ├── path: 2
+    │                   └── base: address of #2 : ptr
     ├── funcs[9] > func:
     │   ├── symbol: zane_total_20
     │   ├── params[0]: local #1 : i64
@@ -758,10 +778,12 @@
     │   │   │   │                   ├── type: i64
     │   │   │   │                   ├── op: +
     │   │   │   │                   ├── left: local #2 : i64
-    │   │   │   │                   └── right > member:
+    │   │   │   │                   └── right > snapshot:
     │   │   │   │                       ├── type: i64
-    │   │   │   │                       ├── index: 2
-    │   │   │   │                       └── value: local #8 : {i32, i64, i64}
+    │   │   │   │                       └── ptr > offset:
+    │   │   │   │                           ├── within: {i32, i64, i64}
+    │   │   │   │                           ├── path: 2
+    │   │   │   │                           └── base: address of #8 : ptr
     │   │   │   └── body[1] > assign:
     │   │   │       ├── place: #3
     │   │   │       └── value > binary:
@@ -853,10 +875,12 @@
     │           │   │   │   └── value > binary:
     │           │   │   │       ├── type: i1
     │           │   │   │       ├── op: ==
-    │           │   │   │       ├── left > member:
+    │           │   │   │       ├── left > snapshot:
     │           │   │   │       │   ├── type: i64
-    │           │   │   │       │   ├── index: 2
-    │           │   │   │       │   └── value: local #6 : {i32, i64, i64}
+    │           │   │   │       │   └── ptr > offset:
+    │           │   │   │       │       ├── within: {i32, i64, i64}
+    │           │   │   │       │       ├── path: 2
+    │           │   │   │       │       └── base: address of #6 : ptr
     │           │   │   │       └── right: 0 : i64
     │           │   │   ├── body[1] > if:
     │           │   │   │   ├── cond: local #8 : i1
@@ -875,10 +899,12 @@
     │           │   │   │       │   └── value > binary:
     │           │   │   │       │       ├── type: i64
     │           │   │   │       │       ├── op: *
-    │           │   │   │       │       ├── left > member:
+    │           │   │   │       │       ├── left > snapshot:
     │           │   │   │       │       │   ├── type: i64
-    │           │   │   │       │       │   ├── index: 1
-    │           │   │   │       │       │   └── value: local #12 : {i32, i64, i64}
+    │           │   │   │       │       │   └── ptr > offset:
+    │           │   │   │       │       │       ├── within: {i32, i64, i64}
+    │           │   │   │       │       │       ├── path: 1
+    │           │   │   │       │       │       └── base: address of #12 : ptr
     │           │   │   │       │       └── right: 100 : i64
     │           │   │   │       └── body[2]: leave @2
     │           │   │   ├── body[2] > assign:
@@ -887,10 +913,12 @@
     │           │   │   └── body[3]: leave @9
     │           │   ├── body[2] > assign:
     │           │   │   ├── place: #3
-    │           │   │   └── value > member:
+    │           │   │   └── value > snapshot:
     │           │   │       ├── type: i64
-    │           │   │       ├── index: 2
-    │           │   │       └── value: local #6 : {i32, i64, i64}
+    │           │   │       └── ptr > offset:
+    │           │   │           ├── within: {i32, i64, i64}
+    │           │   │           ├── path: 2
+    │           │   │           └── base: address of #6 : ptr
     │           │   └── body[3]: leave @2
     │           ├── cases[1] > case 1[0] > let:
     │           │   ├── local: #14
@@ -913,10 +941,12 @@
     │               │   └── value > binary:
     │               │       ├── type: i64
     │               │       ├── op: *
-    │               │       ├── left > member:
+    │               │       ├── left > snapshot:
     │               │       │   ├── type: i64
-    │               │       │   ├── index: 1
-    │               │       │   └── value: local #15 : {i32, i64, i64}
+    │               │       │   └── ptr > offset:
+    │               │       │       ├── within: {i32, i64, i64}
+    │               │       │       ├── path: 1
+    │               │       │       └── base: address of #15 : ptr
     │               │       └── right: 100 : i64
     │               └── body[2]: leave @2
     └── funcs[12] > func:
