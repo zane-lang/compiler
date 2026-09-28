@@ -1,0 +1,18 @@
+; The ambiguity engine: the OCaml half of tools/ambiguity/, which the Python
+; front end beside it runs as a subprocess.
+;
+; [Automaton] prepares what is being proved, [Stack_pool] and [Recognizer] own
+; the exact GLR side, [Abstraction] and [Prover] the abstract one, [Search] the
+; bounded concrete witness hunt, [History_filter] the refinement's history
+; check, and [Output]/[Config] the caller-facing edges. [Run] is one
+; invocation, dispatching to [Classes], [Proof] and [Concretize]; the
+; executable is only its entry point, so tests link the library.
+(library
+ (name ambiguity_engine)
+ (modules :standard \ ambiguity_search)
+ (libraries unix str))
+
+(executable
+ (name ambiguity_search)
+ (modules ambiguity_search)
+ (libraries ambiguity_engine))

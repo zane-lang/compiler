@@ -1,0 +1,72 @@
+; Every node's span, read back out of the source it points at.
+;
+; `span_dump --cst` prints one line per node: the node's kind and the text
+; between its span's two positions. `span_dump --sst` does the same over the
+; desugared tree and prints each node's variant as well, so its expectations
+; show the rewrites of docs/design/desugaring.md having happened and not merely that
+; spans survived them.
+;
+; What these are for: a span is only ever wrong by pointing somewhere, and the
+; rest of the suite cannot see where. The acceptance tests ask whether a file
+; parses, and the grouping tests ask which shape it parsed to -- neither reads
+; a position. So a grammar change that widens a span to swallow a binder, or
+; narrows one past its own bracket, passes everything and is noticed only in
+; review, if at all.
+;
+; A failing diff is not by itself a bug: a change to the grammar, the fixture
+; or the lowering is expected to move these. Read the diff, satisfy yourself
+; that each moved span still covers what its node stands for and that each
+; rewrite still produces the shape it should, and promote it with
+; `dune promote`.
+;
+; Three fixtures. `main.zn` is the one the parser suite already reaches for,
+; and it covers the breadth of the grammar. `fixtures/utf8.zn` covers the one input
+; class it does not: spans are byte offsets, and while a file is ASCII a
+; code-point offset is indistinguishable from a byte one. They diverge at the
+; first multibyte character and every span after it shifts -- which is exactly
+; the bug found on #86, after the suite had been green through it.
+;
+; `fixtures/desugar.zn` is the third, and unlike the other two it was written for these
+; tests: every rewrite in docs/design/desugaring.md 2 appears in it at least once.
+; The other two do not manage that -- `main.zn` reaches only two of the five
+; derived operators, so three of them had no expectation anywhere.
+
+; The two structure renderings, which name every field rather than printing a
+; span. `lib/cst/to_tree_graph.ml` had no test of any kind before this -- five
+; hundred lines reached only by the compiler binary -- and its SST counterpart
+; would have inherited that. Rendering one fixture through each covers both.
+;
+; Reading them side by side is also the clearest statement of what the
+; desugaring does: the SST rendering is the CST one with `parenthized`,
+; `ret_shorthand`, `var_decl_shorthand`, `trailing` and one of the two call
+; groups gone.
+
+; How a rejected file is reported: the source line, the caret under the
+; offending text, and the message. Everything else in the suite asks only
+; whether a file was rejected, so a change to the renderer in lib/diagnostic/
+; -- a caret one column off after a tab or a multibyte character, a message
+; lost on the way out -- would pass it unseen.
+;
+; One fixture per way the parse can fail, each reaching a different producer:
+; `syntax.zn` the parser itself, after a tab and multibyte text on the same
+; line; `lexing.zn` a character no token starts with; `malformed-utf8.zn` a
+; byte that is not UTF-8; `rejected.zn` a grammar action; and `statement.zn`
+; the statement check that walks the finished tree, whose span is empty.
+
+; The rules themselves are written from the golden files by
+; tests/gen/gen_rules.ml, into dune.inc. A fixture added without its rules
+; fails the diff below; `dune promote` then writes them.
+
+(include dune.inc)
+
+(rule
+ (deps (glob_files golden/*))
+ (action
+  (with-stdout-to
+   dune.inc.gen
+   (run %{exe:../gen/gen_rules.exe} parser))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff dune.inc dune.inc.gen)))

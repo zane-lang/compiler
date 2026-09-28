@@ -1,4 +1,4 @@
-(* Stage 3 from end to end: the five passes of docs/semantics.md §3, run over
+(* Stage 3 from end to end: the five passes of docs/design/semantics.md §3, run over
    packages [Assembly] has already put together. *)
 
 type result = {
@@ -14,8 +14,8 @@ let position (d : Diagnostic.t) =
 let check (packages : Assembly.package list) =
   Env.reset ();
   Collect.run packages;
-  Types.run ();
-  Signatures.run ();
+  Type_decls.run ();
+  Verb_signatures.run ();
   let program = Check.run () in
   (* The analyses over the finished tree (D1). *)
   Read_only.run program;

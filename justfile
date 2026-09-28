@@ -12,42 +12,36 @@ watch:
 # cannot affect the grammar or the ambiguity tools does not wait on them.
 test: test-compiler test-grammar test-ambiguity-tools
 
-# The compiler itself: the golden expectations under test/ and parser
+# The compiler itself: the golden expectations under tests/ and parser
 # acceptance.
 #
-# `dune runtest` carries the expectations in test/parser/golden/ and
-# test/semantics/golden/, which the Python suites cannot cover: those ask
+# `dune runtest` carries the expectations in tests/parser/golden/ and
+# tests/semantics/golden/, which the Python suites cannot cover: those ask
 # whether a file parses and what shape it parsed to, and neither question reads
 # a position or looks at the desugared or typed tree. A moved span is a diff
 # there and nothing anywhere else, and so is a rewrite that stopped happening.
 # Promote an intended move with `just promote`.
 test-compiler: _require-menhir
-	dune build tools/parser/parser_accept.exe
-	dune runtest
-	python3 -m unittest test.parser.syntax_test -v
+	dune build bin/zanec/zanec.exe
+	dune runtest tests/parser tests/semantics tests/codegen tests/runtime
+	python3 -m unittest tests.parser.syntax_test -v
 
 # The grammar's ambiguity regressions: token sequences with a fixed number of
 # derivations, and the tree each unambiguous one groups to. A few seconds per
 # case, since every check expands the grammar afresh, so this is the slow suite.
+# Also the conflict census, the ledger docs/ambiguity/proof-obligations.md keeps.
 test-grammar: _require-menhir
-	dune build tools/ambiguity/ambiguity_search.exe tools/parser/parser_shape.exe
-	python3 -m unittest test.parser.ambiguity_test -v
+	dune build tools/ambiguity/engine/ambiguity_search.exe tools/inspect/parser_shape.exe
+	dune runtest tests/grammar
+	python3 -m unittest tests.grammar.ambiguity_test -v
 
 # The ambiguity tools' own tests: the prover's soundness corpus, the search
 # CLI, and the sweep's process runner. They say whether the tools are right,
 # not whether the grammar is.
 test-ambiguity-tools: _require-menhir
-	dune build tools/ambiguity/ambiguity_search.exe
-	python3 -m unittest \
-		test.ambiguity.cli_test \
-		test.ambiguity.precision_sweep_test \
-		test.ambiguity.prover.soundness_test \
-		test.ambiguity.prover.history_cegar_test \
-		test.ambiguity.prover.refinement_test \
-		test.ambiguity.prover.diagnostics_test \
-		test.ambiguity.prover.verdict_test \
-		test.ambiguity.prover.survey_test \
-		-v
+	dune build tools/ambiguity/engine/ambiguity_search.exe
+	dune runtest tests/ambiguity
+	python3 -m unittest discover -s tests/ambiguity -p '*_test.py' -t . -v
 
 # The engine-backed tests skip themselves unless the executables and Menhir are
 # present, so fail loudly on a missing Menhir rather than reporting a green run
@@ -70,11 +64,11 @@ promote:
 # Levels cost roughly an order of magnitude each, so start narrow and widen.
 sweep GRAMMAR="lib/cst/parser.mly" *ARGS:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
-	dune build tools/ambiguity/ambiguity_search.exe
-	python3 tools/ambiguity/precision_sweep.py {{GRAMMAR}} {{ARGS}}
+	dune build tools/ambiguity/engine/ambiguity_search.exe
+	python3 -m tools.ambiguity.precision_sweep {{GRAMMAR}} {{ARGS}}
 
 # Dump Menhir's LR automaton or its conflict explanations -- the obligation
-# ledger docs/ambiguity.md refers to. Expanded exactly as the ambiguity tools
+# ledger docs/ambiguity/README.md refers to. Expanded exactly as the ambiguity tools
 # expand it, so a state number cited by a proof report selects the state that
 # produced it; running menhir on the unexpanded grammar renumbers everything.
 #
@@ -83,4 +77,4 @@ sweep GRAMMAR="lib/cst/parser.mly" *ARGS:
 #   just explain --search list_verb_type_suffix_
 explain *ARGS:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
-	python3 tools/ambiguity/explain_automaton.py {{ARGS}}
+	python3 -m tools.ambiguity.explain_automaton {{ARGS}}

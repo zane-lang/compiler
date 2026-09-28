@@ -11,7 +11,7 @@
    parser does.
 
    Positions are byte offsets, not code points, because that is what indexing
-   the source text needs; see [Cst.byte_positions]. *)
+   the source text needs; see `byte_positions` in lib/cst/parse.ml. *)
 type t = {
   start_ : Lexing.position;
   end_ : Lexing.position;

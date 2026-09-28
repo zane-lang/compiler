@@ -1,0 +1,154 @@
+; Stage 3's input: packages assembled from directories (docs/design/semantics.md §2,
+; step 1 of §7).
+;
+; `assembly/accept` is a build that assembles. Its root package `app` has two files,
+; which shows a package is its directory's files together, and a
+; subdirectory and a non-source file, which show what is left out. `geometry`
+; is a second package, listed after the root.
+;
+; `relative` is the same build run from inside `app`, naming both directories
+; relatively. A package is named for the directory a path leads to, not for
+; the path's last component, so `.` is still `app` and `../geometry` still
+; `geometry`.
+;
+; `assembly/reject` is one build that fails every way assembly can. Every problem is
+; reported in one run rather than the first alone (D4), and the golden file
+; is what shows it: a run that stopped early would be a shorter diff.
+
+(rule
+ (deps (source_tree fixtures/assembly/accept))
+ (action
+  (with-stdout-to
+   assembly.accept.packages.actual
+   (run
+    %{exe:../../bin/zanec/zanec.exe}
+    --package fixtures/assembly/accept/app
+    --package fixtures/assembly/accept/geometry))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/assembly.accept.packages assembly.accept.packages.actual)))
+
+(rule
+ (deps (source_tree fixtures/assembly/accept))
+ (action
+  (with-stdout-to
+   assembly.relative.packages.actual
+   (chdir
+    fixtures/assembly/accept/app
+    (run %{exe:../../bin/zanec/zanec.exe} --package . --package ../geometry)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/assembly.relative.packages assembly.relative.packages.actual)))
+
+(rule
+ (deps (source_tree fixtures/assembly))
+ (action
+  (with-stderr-to
+   assembly.reject.err.actual
+   (with-accepted-exit-codes
+    1
+    (run
+    %{exe:../../bin/zanec/zanec.exe}
+    --package fixtures/assembly/reject/mismatch
+    --package fixtures/assembly/reject/missing
+    --package fixtures/assembly/reject/late
+    --package fixtures/assembly/reject/twice
+    --package fixtures/assembly/reject/no-sources
+    --package fixtures/assembly/accept/geometry
+    --package fixtures/assembly/reject/other/geometry
+    --package fixtures/assembly/reject/third/geometry
+    --package fixtures/assembly/reject/broken
+    --package fixtures/assembly/reject/absent)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/assembly.reject.err assembly.reject.err.actual)))
+
+; Stage 3 proper (docs/design/semantics.md §3). `typing/accept` is a build that checks: the
+; root `app`, and a second package `shapes` whose methods, operators and
+; implicit constructors travel with its types. Its `--decls` view is what
+; passes 1 to 4 resolved, and its `--tst` view the whole typed tree, generic
+; instances included.
+;
+; `typing/reject` is one build that fails every way the passes can report: one
+; file per area in the root package `bad`, and `lib`, a dependency that reaches
+; for `@program$`. As with `assembly/reject` above, the golden file is what shows every
+; problem was reported in one run.
+
+(rule
+ (deps (source_tree fixtures/typing/accept))
+ (action
+  (with-stdout-to
+   typing.accept.decls.actual
+   (run
+    %{exe:../../bin/zanec/zanec.exe}
+    --decls
+    --package fixtures/typing/accept/app
+    --package fixtures/typing/accept/shapes))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typing.accept.decls typing.accept.decls.actual)))
+
+(rule
+ (deps (source_tree fixtures/typing/accept))
+ (action
+  (with-stdout-to
+   typing.accept.tst.actual
+   (run
+    %{exe:../../bin/zanec/zanec.exe}
+    --tst
+    --package fixtures/typing/accept/app
+    --package fixtures/typing/accept/shapes))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typing.accept.tst typing.accept.tst.actual)))
+
+(rule
+ (deps (source_tree fixtures/typing))
+ (action
+  (with-stderr-to
+   typing.reject.err.actual
+   (with-accepted-exit-codes
+    1
+    (run
+     %{exe:../../bin/zanec/zanec.exe}
+     --tst
+     --package fixtures/typing/reject/bad
+     --package fixtures/typing/reject/lib)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typing.reject.err typing.reject.err.actual)))
+
+; Every node of the typed tree, with the source text its span covers: the
+; TST's counterpart of tests/parser's `.cst.spans` and `.sst.spans`, over the
+; same `typing/accept` build. A node the checker built -- an inserted `Coerce`, a
+; parameter's local, a generic instance's body -- that pointed at the wrong
+; text, or into the wrong file, shows here and nowhere else. A moved line is
+; read and promoted the same way as there.
+
+(rule
+ (deps (source_tree fixtures/typing/accept))
+ (action
+  (with-stdout-to
+   typing.accept.tst.spans.actual
+   (run
+    %{exe:../../tools/inspect/span_dump.exe}
+    --tst
+    --package fixtures/typing/accept/app
+    --package fixtures/typing/accept/shapes))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typing.accept.tst.spans typing.accept.tst.spans.actual)))

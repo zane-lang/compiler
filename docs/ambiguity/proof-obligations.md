@@ -68,7 +68,7 @@ warnings, which is why those do not add up to the state count. The state count
 and its families are checked for both automata; the per-kind columns are
 Menhir's own warnings, which `dune build` prints and nothing compares. `dune
 runtest` summarises each explanations file by family into
-[`test/parser/golden/`](../../test/parser/golden) — `parser.conflicts.census`
+[`tests/grammar/golden/`](../../tests/grammar/golden) — `parser.conflicts.census`
 for the build's own, `stock.conflicts.census` for the stock one — and a grammar
 change that moves either is a diff to read, reconcile with this section, and
 promote.
@@ -303,7 +303,7 @@ front of it both reach the trailing form, and a named constructor's `.member`
 opens it as well as a field access; that last is three of the six
 `app -> ... DOT LIDENT` states in the table. Under GLR both readings are
 explored and one survives, measured on every case in
-[`test/parser/ambiguity_test.py`](../../test/parser/ambiguity_test.py) and
+[`tests/grammar/ambiguity_test.py`](../../tests/grammar/ambiguity_test.py) and
 searched for in
 [`reports/ambiguity/search/general/`](../../reports/ambiguity/search/general),
 where the run that added the rule exhausted every sentence of at most nine
@@ -353,7 +353,7 @@ fourth doubles the `primary -> LIDENT` state. No reduce/reduce state is added.
 
 That they are forks rather than ambiguities is measured, not proved. Both
 readings are explored and exactly one survives on every case in
-[`test/parser/ambiguity_test.py`](../../test/parser/ambiguity_test.py), and the
+[`tests/grammar/ambiguity_test.py`](../../tests/grammar/ambiguity_test.py), and the
 search in
 [`reports/ambiguity/search/general/`](../../reports/ambiguity/search/general)
 exhausted every sentence of at most nine tokens without finding one. Neither

@@ -1,425 +1,24 @@
-(* Lowering: the TST to the CGT (docs/lowering.md).
+(* Lowering: the TST to the CGT (docs/design/lowering.md).
 
    What is lowered is what `main` reaches. A verb is lowered once, the first
    time a call reaches it, so a program pays only for the verbs it uses and a
    package's other declarations need not lower yet. Anything lowering cannot
    handle yet is refused with a diagnostic at the node, rather than lowered
-   wrongly. *)
+   wrongly.
+
+   This file is the recursive walk over verbs and programs. What it reads is
+   beside it: [State], [Type_layout] and [Literals]. *)
 
 module T = Tst.Nodes
 module S = Tst.Signature
 module Tty = Tst.Ty
 open Nodes
 
-type problem = Diagnostic of Diagnostic.t | Message of string
+type problem = State.problem = Diagnostic of Diagnostic.t | Message of string
 
-exception Refused of problem
-
-let refuse span message = raise (Refused (Diagnostic (Diagnostic.error span message)))
-
-(* ---------------------------------------------------------------------- *)
-(* State                                                                  *)
-(* ---------------------------------------------------------------------- *)
-
-(* A verb to lower: a declaration, or a generic one's instance, which [key]
-   tells apart from its other instances. *)
-type verb = {
-  decl : int;
-  key : string;
-  signature : S.t;
-  params : T.Local.t list;
-  body : T.Block.t;
-}
-
-(* What a TST local stands for where lowering reads it. A verb that is
-   expanded (L11) binds its parameters to these: a slot of the function it is
-   expanded into, a literal its concept parameter was given, or the code of a
-   block argument. A `mut` subject is a [Pointer]: a slot holding the address
-   of the caller's place (L6). A local bound to a spawned call's result is a
-   [Future]: what waits for the call and settles how it ended, and the
-   address of its result, which has none when it is `Unit`. *)
-type binding =
-  | Slot of int
-  | Pointer of int
-  | Literal of T.Expr.t
-  | Code of closure
-  | Future of { settle : unit -> Stat.t list; at : Expr.t option }
-
-(* A block argument keeps the context it was written in, so its locals and
-   its `return` mean what they meant there. *)
-and closure = { block : T.Block.t; ctx : ctx }
-
-and ctx = {
-  env : (int, binding) Hashtbl.t;
-  (* Where a `return` goes: out of the function, or out of the expansion
-     that is being lowered, storing its result. *)
-  exit : exit;
-  (* The verbs being expanded around this point, so one that would expand
-     into itself is refused rather than expanded forever. *)
-  expanding : int list;
-  (* Where an `abort` goes (L12): out of the function by its aborted
-     outcome, or into the handler of the call or `match` it belongs to. *)
-  abort : Source.Span.t -> Expr.t -> Stat.t list;
-  (* Where a `resolve` goes: past the operation its handler handles. *)
-  resolve : (Tty.t -> Expr.t -> Stat.t list) option;
-  (* What ends this invocation with `Unit`: a return from the function, or
-     leaving the expansion (control-flow.md §4.2). *)
-  finish : Source.Span.t -> Stat.t list;
-  (* What `@controlflow$exitFromCall` does here: end the invocation that
-     called the verb whose body it is in. *)
-  exit_call : Source.Span.t -> Stat.t list;
-  (* The block being lowered, which hosts its reference-type locals (L8). *)
-  scope : scope;
-}
-
-(* A block's arena, made the first time the block hosts something, and what
-   settles each call spawned in it that can abort or exit, in case nothing
-   reads it first. *)
-and scope = { mutable arena : int option; mutable settles : (unit -> Stat.t list) list }
-
-(* A `return` from an expansion stores into [result], which has the TST type
-   [ret]: a value moves there, or a guest is minted, as into any storage. *)
-and exit = Function | Leave of { label : int; result : int option; ret : Tty.t }
-
-type state = {
-  (* Each verb by its [key]: a declaration's id, and an instance's with its
-     arguments. *)
-  verbs : (string, verb) Hashtbl.t;
-  (* Each declared type's parameters, definition, and whether it is a
-     reference type. *)
-  types : (string * string, Tty.param list * T.Decl.definition * bool) Hashtbl.t;
-  (* Each layout the program names, by the type it describes (L9). *)
-  layouts : (string, Layout.position list) Hashtbl.t;
-  mutable named : string list;
-  (* Each enum map: the enum it ranges over, and its entries. *)
-  maps : (int, Tty.t * (string * T.Expr.t) list) Hashtbl.t;
-  (* Symbols already lowered or on their way, by verb key, and the verbs
-     still to lower. *)
-  symbols : (string, string) Hashtbl.t;
-  pending : verb Queue.t;
-  (* The next local or label of the function being lowered. *)
-  mutable next : int;
-  (* What a `return` from the function being lowered returns its value as:
-     itself, or the done case of its outcome (L12), and the verb's return
-     type. *)
-  mutable returns : Expr.t -> Expr.t;
-  mutable ret : Tty.t;
-  (* The function each spawned call runs through, latest first. *)
-  mutable spawned : Func.t list;
-}
-
-let fresh st =
-  st.next <- st.next + 1;
-  st.next
-
-(* ---------------------------------------------------------------------- *)
-(* Types                                                                  *)
-(* ---------------------------------------------------------------------- *)
-
-let unhandled span t =
-  refuse span (Printf.sprintf "lowering does not handle `%s` yet" (Tty.to_string t))
-
-(* A declared type's definition, with its parameters replaced by the
-   arguments it was given, and whether it is a reference type. *)
-let definition st (t : Tty.t) =
-  match t with
-  | Tty.Named ({ package; name }, args) -> (
-      match Hashtbl.find_opt st.types (package, name) with
-      | Some (params, definition, reference) when List.length params = List.length args -> (
-          let sub = Tty.subst (List.map2 (fun (p : Tty.param) a -> (p.id, a)) params args) in
-          let members = List.map (fun (n, m) -> (n, sub m)) in
-          match definition with
-          | T.Decl.Struct ms -> Some (T.Decl.Struct (members ms), reference)
-          | T.Decl.Variant cs -> Some (T.Decl.Variant (members cs), reference)
-          | T.Decl.Enum cs -> Some (T.Decl.Enum cs, reference)
-          | T.Decl.Distinct u -> Some (T.Decl.Distinct (sub u), reference))
-      | _ -> None)
-  | _ -> None
-
-let is_guest = function Tty.Guest _ -> true | _ -> false
-
-(* What a guest names, or the type itself. *)
-let strip = function Tty.Guest t -> t | t -> t
-
-(* `@primitives$String`, the string view, and `@primitives$List<T>`: the
-   storage primitives that are reference types, each a handle. *)
-let is_text = function
-  | Tty.Intrinsic { namespace = "primitives"; name = "String"; args = [] } -> true
-  | _ -> false
-
-let element = function
-  | Tty.Intrinsic { namespace = "primitives"; name = "List"; args = [ Tty.Type e ] } -> Some e
-  | _ -> None
-
-let is_list t = Option.is_some (element t)
-
-(* A reference type: a `#` type, whose instances are hosted (memory.md §2.1),
-   or a string or a list, whose instance is a handle (§3.6). *)
-let reference st t =
-  is_text t || is_list t || match definition st t with Some (_, true) -> true | _ -> false
-
-(* The types a type holds inline: its members and payloads, and what it is
-   distinct from. A guest holds a tether, and a list's elements are in its
-   block. *)
-let inline st t =
-  match definition st t with
-  | Some ((T.Decl.Struct ms | T.Decl.Variant ms), _) ->
-      List.filter (fun m -> not (is_guest m)) (List.map snd ms)
-  | Some (T.Decl.Distinct u, _) -> [ u ]
-  | _ -> []
-
-(* adt.md §4: a member is boxed when its type leads back to the type that
-   holds it along owning edges, since no finite inline layout exists for it.
-   A boxed member is a pointer to its payload's block. *)
-let boxed st holder member =
-  let rec reaches seen t =
-    (not (is_guest t))
-    && (Tty.equal t holder
-       || (not (List.exists (Tty.equal t) seen)) && List.exists (reaches (t :: seen)) (inline st t))
-  in
-  reaches [] member
-
-(* A value struct of one member is that member (L5), so reading or storing
-   the member is reading or storing the struct. *)
-let collapsed st t =
-  match definition st t with
-  | Some (T.Decl.Struct [ (_, m) ], false) -> not (boxed st t m)
-  | _ -> false
-
-(* A reference type's instance begins with its backpointer (L5), so its
-   members start one index later. *)
-let member_index st t slot = if reference st t then slot + 1 else slot
-
-(* L5: a storage primitive has a machine layout, and a string or a list is
-   a handle. A value struct has its members' in declaration order, except
-   that one of a single member has that member's (concepts-vs-primitives.md)
-   and an empty one has none. A value variant is a sum of its payloads, and
-   an enum a sum of cases with none. A reference type's instance is the same
-   shape after a `u32` backpointer (memory.md §3.3), a guest is a `u32`
-   tether (§4.2), and a boxed member a pointer (adt.md §4). *)
-let rec ty st span (t : Tty.t) : Nodes.Ty.t =
-  match t with
-  | _ when is_text t || is_list t -> Nodes.Ty.Handle
-  | Tty.Intrinsic { namespace = "primitives"; name; args = [] } -> (
-      match name with
-      | "Unit" -> Nodes.Ty.Void
-      | "Bool" -> Nodes.Ty.I1
-      | "Int" | "I64" -> Nodes.Ty.I64
-      | "Float" -> Nodes.Ty.F64
-      | _ -> unhandled span t)
-  | Tty.Guest _ -> Nodes.Ty.I32
-  | Tty.Named _ -> (
-      let member m = if boxed st t m then Nodes.Ty.Ptr else ty st span m in
-      let sum ts = Nodes.Ty.Sum ts in
-      match definition st t with
-      | Some (T.Decl.Struct [], false) -> Nodes.Ty.Void
-      | Some (T.Decl.Struct [ (_, m) ], false) when collapsed st t -> member m
-      | Some (T.Decl.Struct ms, false) -> Nodes.Ty.Struct (List.map (fun (_, m) -> member m) ms)
-      | Some (T.Decl.Variant cs, false) -> sum (List.map (fun (_, c) -> member c) cs)
-      | Some (T.Decl.Enum cs, false) -> sum (List.map (fun _ -> Nodes.Ty.Void) cs)
-      | Some (T.Decl.Struct ms, true) ->
-          Nodes.Ty.Struct (Nodes.Ty.I32 :: List.map (fun (_, m) -> member m) ms)
-      | Some (T.Decl.Variant cs, true) ->
-          Nodes.Ty.Struct [ Nodes.Ty.I32; sum (List.map (fun (_, c) -> member c) cs) ]
-      | Some (T.Decl.Enum cs, true) ->
-          Nodes.Ty.Struct [ Nodes.Ty.I32; sum (List.map (fun _ -> Nodes.Ty.Void) cs) ]
-      | Some (T.Decl.Distinct u, _) -> member u
-      | _ -> unhandled span t)
-  | _ -> unhandled span t
-
-(* A list's elements lie this many bytes apart. *)
-let stride st span t =
-  let size, align = Nodes.Ty.size_align (ty st span t) in
-  max 1 ((size + align - 1) / align * align)
-
-(* Where a type's hosts and owned blocks are (memory.md §3.6, §4.5): the
-   instance, when it is a reference type, each reference-type member, each
-   handle, and each boxed member, down through variant payloads under the
-   tag that makes each live. A guest is a tether, and owns nothing. *)
-let rec positions st span (t : Tty.t) base tags : Layout.position list =
-  let at kind size = { Layout.kind; offset = base; size; tags } in
-  let handle = fst (Nodes.Ty.size_align Nodes.Ty.Handle) in
-  match (t, element t) with
-  | Tty.Guest _, _ -> []
-  | _, Some e ->
-      let elements = layout st span e in
-      [ at Layout.Host handle; at (Layout.List { stride = stride st span e; elements }) handle ]
-  | _ when is_text t -> [ at Layout.Host handle; at Layout.Text handle ]
-  | _ -> (
-      match definition st t with
-      | Some (T.Decl.Distinct u, _) -> positions st span u base tags
-      | Some (T.Decl.Struct [ (_, m) ], false) when collapsed st t -> positions st span m base tags
-      | Some (definition, reference) -> (
-          let lowered = ty st span t in
-          let own =
-            if reference then [ at Layout.Host (fst (Nodes.Ty.size_align lowered)) ] else []
-          in
-          let member m base tags =
-            if boxed st t m then
-              let size = fst (Nodes.Ty.size_align (ty st span m)) in
-              let payload = layout st span m in
-              [ { Layout.kind = Layout.Box { size; payload }; offset = base; size = 8; tags } ]
-            else positions st span m base tags
-          in
-          (* Where the members or the sum start: after the backpointer, in a
-             reference type's instance. *)
-          let starts ts =
-            if reference then List.tl (Nodes.Ty.offsets ts) else Nodes.Ty.offsets ts
-          in
-          let variant cs sum =
-            List.concat
-              (List.mapi
-                 (fun i (_, c) -> member c (sum + Nodes.Ty.payload_offset) (tags @ [ (sum, i) ]))
-                 cs)
-          in
-          match (definition, lowered) with
-          | T.Decl.Struct ms, Nodes.Ty.Struct ts ->
-              own
-              @ List.concat (List.map2 (fun (_, m) at -> member m (base + at) tags) ms (starts ts))
-          | T.Decl.Variant cs, Nodes.Ty.Struct ts when reference ->
-              own @ variant cs (base + List.hd (starts ts))
-          | T.Decl.Variant cs, Nodes.Ty.Sum _ -> variant cs base
-          | _ -> own)
-      | None -> [])
-
-(* A type's layout, by the name the program lists it under. A layout that
-   names itself, through a box, finds its name taken before it is done. *)
-and layout st span (t : Tty.t) : Layout.t =
-  let name = Tty.to_string t in
-  if not (Hashtbl.mem st.layouts name) then begin
-    Hashtbl.replace st.layouts name [];
-    Hashtbl.replace st.layouts name (positions st span t 0 []);
-    st.named <- name :: st.named
-  end;
-  name
-
-(* Whether a local of this type is a host: a reference type's instance lives
-   in its scope's arena (memory.md §3.3). A guest is a tether, not a host. *)
-let hosted st t = (not (is_guest t)) && reference st t
-
-(* Whether a place is reached through a host: a member or a case of a
-   reference-type instance, or of one a guest names, or an element of a
-   list. A spawned call may write back a value there while another thread
-   reads it (concurrency.md §4.4). *)
-let rec through_host st (e : T.Expr.t) =
-  match e.T.Expr.node with
-  | T.Expr.Field { target; _ } | T.Expr.Case_read { target; _ } ->
-      is_guest target.T.Expr.ty || reference st (strip target.T.Expr.ty) || through_host st target
-  | T.Expr.Subscript _ -> true
-  | _ -> false
-
-(* Whether a value of this type owns a dynamic block (memory.md §3.6), which
-   it returns when it dies and copies when it is copied. *)
-let owns st span t =
-  (not (is_guest t))
-  && List.exists (fun (p : Layout.position) -> p.kind <> Layout.Host) (positions st span t 0 [])
-
-(* Whether a local of this type is held in its scope's arena: a host, or a
-   value that owns a block, which the scope's drain returns (L8). *)
-let held st span t = hosted st t || owns st span t
-
-(* The sum inside a variant or enum: a reference one's comes after its
-   backpointer. *)
-let sum_of st span t (value : Expr.t) =
-  if reference st t then
-    match ty st span t with
-    | Nodes.Ty.Struct [ _; s ] -> { Expr.node = Expr.Member { value; index = 1 }; ty = s }
-    | _ -> value
-  else value
-
-(* A case of a variant or enum, built: a reference one is its backpointer,
-   untethered, and then the case. *)
-let case_of st span t index (payload : Expr.t) =
-  let lowered = ty st span t in
-  match lowered with
-  | Nodes.Ty.Struct [ bp; s ] when reference st t ->
-      let untethered = { Expr.node = Expr.Int 0L; ty = bp } in
-      let case = { Expr.node = Expr.Case { index; payload }; ty = s } in
-      { Expr.node = Expr.Record [ (0, untethered); (1, case) ]; ty = lowered }
-  | _ -> { Expr.node = Expr.Case { index; payload }; ty = lowered }
-
-(* The cases of a variant or enum, in declaration order. *)
-let cases st span t =
-  let t = strip t in
-  match definition st t with
-  | Some (T.Decl.Variant cs, _) -> List.map fst cs
-  | Some (T.Decl.Enum cs, _) -> cs
-  | _ -> unhandled span t
-
-let case_index st span t case =
-  let rec find i = function
-    | [] -> refuse span (Printf.sprintf "`%s` has no case `%s`" (Tty.to_string t) case)
-    | c :: _ when c = case -> i
-    | _ :: rest -> find (i + 1) rest
-  in
-  find 0 (cases st span t)
-
-(* The type a variant case carries, and a struct field. *)
-let payload_type st span t case =
-  match definition st (strip t) with
-  | Some (T.Decl.Variant cs, _) -> (
-      match List.assoc_opt case cs with Some c -> c | None -> unhandled span t)
-  | _ -> unhandled span t
-
-let field_type st span t slot =
-  match definition st (strip t) with
-  | Some (T.Decl.Struct ms, _) when slot < List.length ms -> snd (List.nth ms slot)
-  | _ -> unhandled span t
-
-(* ---------------------------------------------------------------------- *)
-(* Literals                                                               *)
-(* ---------------------------------------------------------------------- *)
-
-(* The spec names no escapes (lexical.md); the lexer keeps a backslash and the
-   character after it together, and these are the ones lowering decodes
-   (docs/lowering.md §9). Any other pair stands for itself. *)
-let unescape s =
-  let b = Buffer.create (String.length s) in
-  let n = String.length s in
-  let rec go i =
-    if i < n then
-      if s.[i] = '\\' && i + 1 < n then begin
-        (match s.[i + 1] with
-        | 'n' -> Buffer.add_char b '\n'
-        | 't' -> Buffer.add_char b '\t'
-        | 'r' -> Buffer.add_char b '\r'
-        | '0' -> Buffer.add_char b '\000'
-        | c -> Buffer.add_char b c);
-        go (i + 2)
-      end
-      else begin
-        Buffer.add_char b s.[i];
-        go (i + 1)
-      end
-  in
-  go 0;
-  Buffer.contents b
-
-let lookup ctx span (l : T.Local.t) =
-  match Hashtbl.find_opt ctx.env l.T.Local.id with
-  | Some b -> b
-  | None -> refuse span (Printf.sprintf "lowering found no slot for `%s`" l.T.Local.name)
-
-(* A literal, read through the concept parameters it was passed on by. *)
-let rec literal_of ctx (e : T.Expr.t) =
-  match e.T.Expr.node with
-  | T.Expr.Var (T.Name_ref.Local l) -> (
-      match lookup ctx e.T.Expr.span l with
-      | Literal lit -> literal_of ctx lit
-      | _ -> e)
-  | _ -> e
-
-(* A storage primitive's constructor embeds its literal (types.md §2.7). *)
-let literal ctx span name (arg : T.Expr.t) : Expr.t =
-  match (name, (literal_of ctx arg).T.Expr.node) with
-  | "Int", T.Expr.Integer_lit s | "I64", T.Expr.Integer_lit s -> (
-      match Int64.of_string_opt s with
-      | Some i -> { Expr.node = Expr.Int i; ty = Nodes.Ty.I64 }
-      | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$Int`" s))
-  | "Float", T.Expr.Decimal_lit s ->
-      { Expr.node = Expr.Float (float_of_string s); ty = Nodes.Ty.F64 }
-  | "String", T.Expr.Text_lit s -> { Expr.node = Expr.Text (unescape s); ty = Nodes.Ty.Handle }
-  | _ -> refuse span (Printf.sprintf "lowering does not handle this `@primitives$%s` yet" name)
+open State
+open Type_layout
+open Literals
 
 (* ---------------------------------------------------------------------- *)
 (* Verbs                                                                  *)
@@ -494,7 +93,7 @@ let outcome st span (v : verb) =
 
 (* A function that can end more than one way returns a sum of the three:
    done with its result, aborted with its abort value, or exited
-   (docs/lowering.md §9). One that can only finish returns its result. *)
+   (docs/design/lowering.md §9). One that can only finish returns its result. *)
 let plain o = o.aborts = None && not o.exit_
 
 let returned o =
@@ -795,7 +394,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       case_read st ctx span target case handler e.T.Expr.ty
   | T.Expr.Map_read { target; map; _ } -> map_read st ctx span target map e.T.Expr.ty
   (* A spawned call read where it is written is waited for at once, which
-     is the call itself (docs/lowering.md §9). *)
+     is the call itself (docs/design/lowering.md §9). *)
   | T.Expr.Spawn call -> expr st ctx call
   | _ -> refuse span "lowering does not handle this expression yet"
 
@@ -1766,7 +1365,7 @@ let program (p : T.Program.t) =
       add i.T.Instance.decl i.T.Instance.args signature i.T.Instance.params i.T.Instance.body)
     p.T.Program.instances;
   try
-    (* The root package is the first (docs/semantics.md §2), and its `main`
+    (* The root package is the first (docs/design/semantics.md §2), and its `main`
        is where the program starts (packages.md §6.2). *)
     let root =
       match p.T.Program.packages with

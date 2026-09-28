@@ -1,0 +1,6 @@
+(executable
+ (name zanec)
+ (public_name zanec)
+ (package zane-compiler)
+ (libraries cgt codegen cst diagnostic sst tree_graph tst)
+ (modules zanec))

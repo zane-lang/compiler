@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CALLER="$PWD"
+
+# Dune runs from the project root, so a relative source path would otherwise be
+# resolved against the root rather than the directory the caller is in. Expand
+# every path argument against the caller's directory before changing to the
+# root, whether or not it names an existing file: a path that does not exist
+# has to reach the compiler as the caller wrote it, so the error names the file
+# they meant rather than one that happens to sit at the root.
+arguments=()
+for argument in "$@"; do
+	case "$argument" in
+		# `-` is standard input, and a leading `-` otherwise marks an option.
+		-*) arguments+=("$argument") ;;
+		/*) arguments+=("$argument") ;;
+		*)  arguments+=("$CALLER/$argument") ;;
+	esac
+done
+
+cd "$ROOT"
+exec dune exec bin/zanec/zanec.exe -- ${arguments[@]+"${arguments[@]}"}

@@ -1,10 +1,10 @@
 # shellcheck shell=bash
 # Sourced by dev/bin/ambiguity; ROOT is set by the caller.
 
-if [[ -f "$ROOT/machine-config.txt" ]]; then
+if [[ -f "$ROOT/dev/machine-config.txt" ]]; then
 	# machine-config.txt uses shell-compatible KEY=VALUE assignments.
 	# shellcheck source=/dev/null
-	. "$ROOT/machine-config.txt"
+	. "$ROOT/dev/machine-config.txt"
 fi
 
 for name in \
@@ -13,7 +13,7 @@ for name in \
 	AMBIGUITY_JOBS \
 	AMBIGUITY_MENHIR; do
 	if [[ -z "${!name:-}" ]]; then
-		echo "ambiguity: $name must be set in machine-config.txt or the environment" >&2
+		echo "ambiguity: $name must be set in dev/machine-config.txt or the environment" >&2
 		exit 2
 	fi
 done

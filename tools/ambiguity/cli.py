@@ -6,19 +6,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import shlex
-import sys
 from typing import Any, Sequence
 
-# Run as a script -- `dev/bin/ambiguity` execs this file by path -- sys.path
-# starts at this directory rather than the repository root, so the modules
-# beside it are not reachable by package path until the root is on it.
-# Imported as `tools.ambiguity.cli` the root is already there and this is a
-# no-op. `precision_sweep.py` bootstraps itself the same way.
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from tools.ambiguity.profiles import (  # noqa: E402
+from tools.ambiguity.profiles import (
     DEFAULT_PROFILES,
     SETTINGS,
     ConfigurationError,
@@ -28,7 +18,7 @@ from tools.ambiguity.profiles import (  # noqa: E402
     load_profiles,
     profile_summary,
 )
-from tools.ambiguity.runner import engine_arguments, run_engine  # noqa: E402
+from tools.ambiguity.runner import engine_arguments, run_engine
 
 def add_overrides(command: argparse.ArgumentParser) -> None:
     # Every flag - value settings, toggles, and modes alike - is registered from
@@ -68,7 +58,7 @@ def parser() -> argparse.ArgumentParser:
         "profile",
         nargs="?",
         default="general",
-        help="profile from ambiguity-searches.toml (default: general)",
+        help="profile from tools/ambiguity/profiles.toml (default: general)",
     )
     add_overrides(search)
 

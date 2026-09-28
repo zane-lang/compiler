@@ -1,4 +1,4 @@
-(* The CGT as an LLVM module (docs/lowering.md L1, L2). Every CGT function is
+(* The CGT as an LLVM module (docs/design/lowering.md L1, L2). Every CGT function is
    one LLVM function and every CGT type one LLVM type; nothing is decided
    here that the tree has not already said. *)
 
@@ -14,6 +14,10 @@ type env = {
      lists any position. *)
   layouts : (Layout.t, Llvm.llvalue * bool) Hashtbl.t;
 }
+
+(* ---------------------------------------------------------------------- *)
+(* Types                                                                  *)
+(* ---------------------------------------------------------------------- *)
 
 let size_align = Ty.size_align
 let words = Ty.words
@@ -41,6 +45,10 @@ and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype
 let fn_type env params ret =
   let kept = List.filter (fun t -> t <> Ty.Void) params in
   Llvm.function_type (lltype env ret) (Array.of_list (List.map (lltype env) kept))
+
+(* ---------------------------------------------------------------------- *)
+(* The runtime and its layouts                                            *)
+(* ---------------------------------------------------------------------- *)
 
 (* The runtime's functions, declared the first time a call needs one. *)
 let runtime env name =
@@ -147,6 +155,10 @@ let text env s =
   Llvm.const_struct env.ctx
     [| Llvm.const_int (Llvm.i32_type env.ctx) 0; g; n (String.length s); n 0 |]
 
+(* ---------------------------------------------------------------------- *)
+(* Frames and slots                                                       *)
+(* ---------------------------------------------------------------------- *)
+
 (* What a function being built keeps: its slots, the exit block of each
    expansion it is inside with how many arenas were open when it began, and
    the arenas open where it is building, innermost first (L8). *)
@@ -201,9 +213,13 @@ let has_terminator b =
 
 let block env fr = Llvm.append_block env.ctx "" fr.fn
 
+(* ---------------------------------------------------------------------- *)
+(* Arithmetic                                                             *)
+(* ---------------------------------------------------------------------- *)
+
 (* Integer division by zero has no result, and neither has the one quotient
    an `i64` cannot hold; LLVM leaves both undefined. The first stops the
-   program (docs/lowering.md §9), and the second wraps, as `+` and `*` do. *)
+   program (docs/design/lowering.md §9), and the second wraps, as `+` and `*` do. *)
 let divide env fr b l r =
   let zero = Llvm.const_int env.i64 0 in
   let minus_one = Llvm.const_int env.i64 (-1) in
@@ -236,6 +252,10 @@ let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
   | _ ->
       failwith
         (Printf.sprintf "codegen: no `%s` on %s" (Expr.binop_to_string op) (Ty.to_string t))
+
+(* ---------------------------------------------------------------------- *)
+(* Expressions and statements                                             *)
+(* ---------------------------------------------------------------------- *)
 
 let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
   match e.Expr.node with
@@ -539,6 +559,10 @@ and stat env fr b (s : Stat.t) =
   | Stat.Join task ->
       let at = Llvm.build_load env.ptr (fst (Hashtbl.find fr.locals task)) "" b in
       ignore (call_runtime env b "zane_join" [| at |])
+
+(* ---------------------------------------------------------------------- *)
+(* Functions and programs                                                 *)
+(* ---------------------------------------------------------------------- *)
 
 let func env (f : Func.t) =
   let fn, _ = Hashtbl.find env.funcs f.Func.symbol in

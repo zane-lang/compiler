@@ -3,9 +3,9 @@
 
    Where the CST answers "what was written", this tree answers "what was
    written, said one way". The rewrites that get from one to the other are
-   inventoried in docs/desugaring.md; each one is a surface form collapsing
+   inventoried in docs/design/desugaring.md; each one is a surface form collapsing
    into the longhand the spec already defines it as. Nothing here needs a type
-   or a resolved name, which is the line docs/desugaring.md draws: a rewrite
+   or a resolved name, which is the line docs/design/desugaring.md draws: a rewrite
    that would need either is refused and left for a later stage.
 
    Read against lib/cst/nodes.ml, this file is mostly the same tree with

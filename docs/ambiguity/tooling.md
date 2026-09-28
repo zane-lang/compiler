@@ -20,7 +20,7 @@
   covers the coordinator, native allocations, and transient compaction/
   copy-on-write overhead. This keeps memory near the configured plateau while
   prioritizing queue reach even when real frontiers are larger than the
-  estimate. Named profiles in `ambiguity-searches.toml` collect search intent
+  estimate. Named profiles in `tools/ambiguity/profiles.toml` collect search intent
   in one reviewable place. `ambiguity profiles` lists them, and command-line
   options can temporarily override a profile. The default `general` profile
   is breadth-first; `deep-function-body` fixes the function-body prefix and
@@ -122,7 +122,7 @@
   never be eliminated entirely; the prover is validated against known-ambiguous
   grammars, LR(1) grammars, precedence-resolved expression grammars, and
   unambiguous non-LR grammars such as palindromes. That corpus lives in
-  `test/ambiguity/prover/`, which pins both directions of soundness — an
+  `tests/ambiguity/prover/`, which pins both directions of soundness — an
   ambiguous grammar is never proven, and an unambiguous one never yields a
   witness — so a change that sharpens the abstraction cannot quietly start
   proving false theorems. A conflict-free automaton offers one action per state
@@ -180,7 +180,8 @@ what the sweep prints itself.
 ## Local machine configuration
 
 The ambiguity-tool executables load machine-specific values from the ignored
-`machine-config.txt` file. Copy `machine-config.example` before running them.
+`dev/machine-config.txt` file. Copy `dev/machine-config.example` before running
+them.
 There are no fallback values: a missing setting is an error. This keeps memory,
 worker-count, and executable-path tuning out of normal command invocations and
 out of version control. The file supplies `AMBIGUITY_MEMORY_MB`,

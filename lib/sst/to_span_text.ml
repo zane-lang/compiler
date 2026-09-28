@@ -2,7 +2,7 @@
 
    [Cst.To_span_text] over the SST, and it answers one more question than that
    one does. Each line carries the node's *variant*, not just its kind, so the
-   expectation shows the rewrites of docs/desugaring.md having happened:
+   expectation shows the rewrites of docs/design/desugaring.md having happened:
 
      verb_call Flip       | a >= b
        verb_call Op Less  | a >= b

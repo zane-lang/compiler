@@ -1,8 +1,21 @@
 ; Stage 3: semantics, which builds the typed syntax tree. See
-; docs/semantics.md: [Assembly] groups files into packages, [Collect],
-; [Types], [Signatures] and [Check] are the five passes, [Read_only],
-; [Guests], [Moves], [Owners] and [Exits] are analyses over the tree they
-; build, and [Semantics] runs them in order.
+; docs/design/semantics.md. The subdirectories say what kind of module each
+; is, and `unqualified` keeps every module name flat, so none of them is
+; named after its directory:
+;
+; - model/     the tree and what it is built from: [Nodes], [Ty],
+;              [Signature], [Env] and [Intrinsics];
+; - passes/    [Assembly] groups files into packages, then [Collect] (passes
+;              1 and 2), [Type_decls] (3) and [Verb_signatures] (4);
+; - check/     pass 5, [Check], and the parts of it that are not the
+;              recursive walk;
+; - analyses/  [Read_only], [Guests], [Moves], [Owners], [Exits] and
+;              [Spawns], over the tree pass 5 builds;
+; - render/    [To_tree_graph] and [To_span_text].
+;
+; [Semantics] runs them in order, and [Tst] is the entry module.
+(include_subdirs unqualified)
+
 (library
  (name tst)
  (libraries cst diagnostic sst source tree_graph))

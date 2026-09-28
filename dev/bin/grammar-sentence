@@ -4,10 +4,10 @@ set -euo pipefail
 # Print a random concrete sentence the grammar accepts, as a starting point for
 # a hand-written parser case.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# shellcheck source=../lib/ambiguity-config.sh
-. "$ROOT/dev/lib/ambiguity-config.sh"
+# shellcheck source=../lib/menhir.sh
+. "$ROOT/dev/lib/menhir.sh"
 
-exec "$AMBIGUITY_MENHIR" "$ROOT/lib/cst/parser.mly" \
+exec "$MENHIR" "$ROOT/lib/cst/parser.mly" \
 	--random-sentence-concrete package \
 	--random-seed 1 \
 	--random-sentence-length 16 \

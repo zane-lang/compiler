@@ -1,0 +1,17 @@
+; Inspection tools: small executables for looking at what a stage made of a
+; file -- not part of the compiler library, and not ambiguity-engine internals.
+(executable
+ (name parser_shape)
+ (modules parser_shape)
+ (libraries cst diagnostic))
+
+; Reads a source file and prints every node with the source text its span
+; covers. The walk over each stage's nodes lives with that stage --
+; `Cst.To_span_text`, `Sst.To_span_text` and `Tst.To_span_text` -- so this is
+; a frontend that picks one with `--cst`, `--sst` or `--tst`. tests/parser/dune
+; diffs its output against checked-in expectations for the first two, and
+; tests/semantics/dune for the third.
+(executable
+ (name span_dump)
+ (modules span_dump)
+ (libraries cst diagnostic sst tst))

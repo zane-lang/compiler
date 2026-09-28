@@ -1,0 +1,23 @@
+; The runtime on its own (docs/design/lowering.md L17): `arenas.c`,
+; `anchors.c`, `texts.c`, `blocks.c` and `spawns.c` link its parts, built
+; separately, and exercise the scope
+; arenas, the anchors, the strings, the lists, boxes and dynamic regions,
+; and spawned calls directly, and the golden files hold what each printed.
+
+; The rules themselves are written from the golden files by
+; tests/gen/gen_rules.ml, into dune.inc. A fixture added without its rules
+; fails the diff below; `dune promote` then writes them.
+
+(include dune.inc)
+
+(rule
+ (deps (glob_files *.c))
+ (action
+  (with-stdout-to
+   dune.inc.gen
+   (run %{exe:../gen/gen_rules.exe} runtime))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff dune.inc dune.inc.gen)))

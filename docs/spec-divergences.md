@@ -392,15 +392,15 @@ does not fit.
 **Compiler** — the program stops: what it wrote so far is flushed, the
 runtime writes `division by zero` to stderr, and the status is 1. The one
 quotient an `i64` cannot hold, the most negative value over `-1`, wraps, as
-`+` and `*` do. `test/codegen/fixtures/zero` is the case, and
-`docs/lowering.md` §9 the decision.
+`+` and `*` do. `tests/codegen/fixtures/zero` is the case, and
+`docs/design/lowering.md` §9 the decision.
 
 ```zane
 quotient Int = Int(1) / zero();   // stops here, status 1
 ```
 
 Reconciling means the spec stating an outcome, or making `/` abortable, now
-that aborts lower (step 4 of `docs/lowering.md` §8).
+that aborts lower (step 4 of `docs/design/lowering.md` §8).
 
 ## 11. An exit ends the run of a block
 
@@ -430,8 +430,8 @@ Unit sum(this Int) mut {
 ```
 
 A verb exits when the intrinsic is in its own frame: its body, or a block
-written there. `lib/tst/exits.ml` checks the calls, and
-`test/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
+written there. `lib/tst/analyses/exits.ml` checks the calls, and
+`tests/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
 Reconciling means the spec adopting this reading.
 
 ## 12. A block yields nothing
@@ -458,7 +458,7 @@ done Bool = if(ready) {
 }
 ```
 
-`test/semantics/fixtures/typing/reject/bad/exits.zn` has both. The deferred
+`tests/semantics/fixtures/typing/reject/bad/exits.zn` has both. The deferred
 condition of §3.3 has no form here. Reconciling means the spec dropping
 `Block<T>`, or the compiler taking it back.
 
@@ -487,7 +487,7 @@ check(q == Int(7));
 check(q == Int(7));         // settled already: the handler does not run again
 ```
 
-`test/codegen/fixtures/spawns` has these cases. Reconciling means the spec
+`tests/codegen/fixtures/spawns` has these cases. Reconciling means the spec
 saying where the handler runs.
 
 ## 14. A block does not write a host it lent a running spawn
@@ -513,8 +513,8 @@ dial.reading = Gauge(Int(3));    // rejected: `glance` may be reading it
 spawn dial.reading!nudge();      // accepted: written back (§4.4)
 ```
 
-`lib/tst/spawns.ml` checks it, and
-`test/semantics/fixtures/typing/reject/bad/spawns.zn` has the cases.
+`lib/tst/analyses/spawns.ml` checks it, and
+`tests/semantics/fixtures/typing/reject/bad/spawns.zn` has the cases.
 Reconciling means the spec stating a rule for this write, this one or
 another.
 

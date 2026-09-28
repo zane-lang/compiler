@@ -1,4 +1,4 @@
-(* Stage 4's entry module (docs/lowering.md). *)
+(* Stage 4's entry module (docs/design/lowering.md). *)
 
 module Nodes = Nodes
 module Lower = Lower

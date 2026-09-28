@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Dump Menhir's LR automaton and conflict explanations for a grammar.
 
-`docs/ambiguity.md` calls `menhir --explain` the obligation ledger, but reading
+`docs/ambiguity/README.md` calls `menhir --explain` the obligation ledger, but reading
 it has to be done the same way the prover does or the two disagree. The prover
 expands parameterized rules first, with `--only-preprocess-uu`, which is why a
 proof report cites productions under their expanded names -- `loption_generics_`
@@ -13,9 +13,9 @@ This runs the same two steps in the same order, so a state number printed by
 `ambiguity prove` selects the state that produced it.
 
 Usage:
-    python3 tools/ambiguity/explain_automaton.py --state 27
-    python3 tools/ambiguity/explain_automaton.py --conflicts
-    python3 tools/ambiguity/explain_automaton.py --search list_verb_type_suffix_
+    python3 -m tools.ambiguity.explain_automaton --state 27
+    python3 -m tools.ambiguity.explain_automaton --conflicts
+    python3 -m tools.ambiguity.explain_automaton --search list_verb_type_suffix_
 """
 
 from __future__ import annotations
