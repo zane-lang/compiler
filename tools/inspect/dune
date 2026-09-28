@@ -1,14 +1,8 @@
-; Parser developer tools. Small executables for looking at what the grammar
-; did with a file -- not part of the compiler library, and not ambiguity-engine
-; internals.
+; Inspection tools: small executables for looking at what a stage made of a
+; file -- not part of the compiler library, and not ambiguity-engine internals.
 (executable
  (name parser_shape)
  (modules parser_shape)
- (libraries cst diagnostic))
-
-(executable
- (name parser_accept)
- (modules parser_accept)
  (libraries cst diagnostic))
 
 ; Reads a source file and prints every node with the source text its span

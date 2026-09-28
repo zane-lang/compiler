@@ -39,7 +39,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 			# libraries `cst` links, the recognizer that counts derivations,
 			# and the shape printer.
 			lib/cst/* | lib/diagnostic/* | lib/source/* | lib/tree_graph/* | \
-				tools/ambiguity/* | tools/parser/* | \
+				tools/ambiguity/* | tools/inspect/* | \
 				tests/grammar/*)
 				grammar=true
 				;;
@@ -48,7 +48,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 			# The tools and their tests. The CLI's tests also run the engine
 			# over the real grammar, so a grammar change selects them too.
 			tools/ambiguity/* | tests/ambiguity/* | lib/cst/parser.mly | \
-				dev/bin/ambiguity | dev/lib/* | ambiguity-searches.toml)
+				dev/bin/ambiguity | dev/lib/*)
 				tools=true
 				;;
 		esac

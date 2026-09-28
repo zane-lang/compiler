@@ -13,7 +13,7 @@ import unittest
 from tools.ambiguity import cli, profiles, runner
 
 ROOT = Path(__file__).resolve().parents[2]
-ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "ambiguity_search.exe"
+ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "engine" / "ambiguity_search.exe"
 
 # A minimal grammar whose two atoms A and B are interchangeable (both reduce to
 # [e] in the same contexts) so they collapse into one terminal class, while the
@@ -589,7 +589,7 @@ class TerminalClassEngineTests(unittest.TestCase):
         self.environment = engine_environment()
         if self.environment is None:
             self.skipTest(
-                "requires a built _build/default/tools/ambiguity/ambiguity_search.exe and menhir"
+                "requires a built _build/default/tools/ambiguity/engine/ambiguity_search.exe and menhir"
             )
         directory = TemporaryDirectory()
         self.addCleanup(directory.cleanup)
@@ -660,7 +660,7 @@ class MinTokenEngineTests(unittest.TestCase):
         self.environment = engine_environment()
         if self.environment is None:
             self.skipTest(
-                "requires a built _build/default/tools/ambiguity/ambiguity_search.exe and menhir"
+                "requires a built _build/default/tools/ambiguity/engine/ambiguity_search.exe and menhir"
             )
         directory = TemporaryDirectory()
         self.addCleanup(directory.cleanup)
@@ -696,7 +696,7 @@ class PartitionBudgetEngineTests(unittest.TestCase):
         self.environment = engine_environment()
         if self.environment is None:
             self.skipTest(
-                "requires a built _build/default/tools/ambiguity/ambiguity_search.exe and menhir"
+                "requires a built _build/default/tools/ambiguity/engine/ambiguity_search.exe and menhir"
             )
         directory = TemporaryDirectory()
         self.addCleanup(directory.cleanup)
@@ -773,7 +773,7 @@ class StreamingOutputTests(unittest.TestCase):
         self.environment = engine_environment()
         if self.environment is None:
             self.skipTest(
-                "requires a built _build/default/tools/ambiguity/ambiguity_search.exe and menhir"
+                "requires a built _build/default/tools/ambiguity/engine/ambiguity_search.exe and menhir"
             )
         directory = TemporaryDirectory()
         self.addCleanup(directory.cleanup)

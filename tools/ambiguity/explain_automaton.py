@@ -13,9 +13,9 @@ This runs the same two steps in the same order, so a state number printed by
 `ambiguity prove` selects the state that produced it.
 
 Usage:
-    python3 tools/ambiguity/explain_automaton.py --state 27
-    python3 tools/ambiguity/explain_automaton.py --conflicts
-    python3 tools/ambiguity/explain_automaton.py --search list_verb_type_suffix_
+    python3 -m tools.ambiguity.explain_automaton --state 27
+    python3 -m tools.ambiguity.explain_automaton --conflicts
+    python3 -m tools.ambiguity.explain_automaton --search list_verb_type_suffix_
 """
 
 from __future__ import annotations

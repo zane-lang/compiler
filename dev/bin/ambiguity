@@ -10,10 +10,12 @@ if [[ "${1:-}" == "__engine" ]]; then
 	shift
 	# shellcheck source=../lib/ambiguity-config.sh
 	. "$ROOT/dev/lib/ambiguity-config.sh"
-	dune build --root "$ROOT" tools/ambiguity/ambiguity_search.exe
-	exec "$ROOT/_build/default/tools/ambiguity/ambiguity_search.exe" \
+	dune build --root "$ROOT" tools/ambiguity/engine/ambiguity_search.exe
+	exec "$ROOT/_build/default/tools/ambiguity/engine/ambiguity_search.exe" \
 		"$ROOT/lib/cst/parser.mly" \
 		"$@"
 fi
 
-exec python3 "$ROOT/tools/ambiguity/cli.py" "$@"
+# Run as a module, so its package imports resolve from the root; the caller's
+# directory stays the working directory, which relative paths are read against.
+PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m tools.ambiguity.cli "$@"

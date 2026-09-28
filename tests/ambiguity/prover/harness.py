@@ -22,7 +22,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
-ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "ambiguity_search.exe"
+ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "engine" / "ambiguity_search.exe"
 
 # Proof-mode exit statuses. A proof is a verdict rather than a success or a
 # failure, so the status says which verdict was reached; 2 stays reserved for a
@@ -241,7 +241,7 @@ class ProverTestCase(unittest.TestCase):
         self.environment = engine_environment()
         if self.environment is None:
             self.skipTest(
-                "requires a built _build/default/tools/ambiguity/ambiguity_search.exe and menhir"
+                "requires a built _build/default/tools/ambiguity/engine/ambiguity_search.exe and menhir"
             )
         directory = TemporaryDirectory()
         self.addCleanup(directory.cleanup)

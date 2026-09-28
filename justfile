@@ -22,7 +22,7 @@ test: test-compiler test-grammar test-ambiguity-tools
 # there and nothing anywhere else, and so is a rewrite that stopped happening.
 # Promote an intended move with `just promote`.
 test-compiler: _require-menhir
-	dune build tools/parser/parser_accept.exe
+	dune build bin/zanec/zanec.exe
 	dune runtest tests/parser tests/semantics tests/codegen tests/runtime
 	python3 -m unittest tests.parser.syntax_test -v
 
@@ -31,7 +31,7 @@ test-compiler: _require-menhir
 # case, since every check expands the grammar afresh, so this is the slow suite.
 # Also the conflict census, the ledger docs/ambiguity/proof-obligations.md keeps.
 test-grammar: _require-menhir
-	dune build tools/ambiguity/ambiguity_search.exe tools/parser/parser_shape.exe
+	dune build tools/ambiguity/engine/ambiguity_search.exe tools/inspect/parser_shape.exe
 	dune runtest tests/grammar
 	python3 -m unittest tests.grammar.ambiguity_test -v
 
@@ -39,7 +39,7 @@ test-grammar: _require-menhir
 # CLI, and the sweep's process runner. They say whether the tools are right,
 # not whether the grammar is.
 test-ambiguity-tools: _require-menhir
-	dune build tools/ambiguity/ambiguity_search.exe
+	dune build tools/ambiguity/engine/ambiguity_search.exe
 	dune runtest tests/ambiguity
 	python3 -m unittest discover -s tests/ambiguity -p '*_test.py' -t . -v
 
@@ -64,8 +64,8 @@ promote:
 # Levels cost roughly an order of magnitude each, so start narrow and widen.
 sweep GRAMMAR="lib/cst/parser.mly" *ARGS:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
-	dune build tools/ambiguity/ambiguity_search.exe
-	python3 tools/ambiguity/precision_sweep.py {{GRAMMAR}} {{ARGS}}
+	dune build tools/ambiguity/engine/ambiguity_search.exe
+	python3 -m tools.ambiguity.precision_sweep {{GRAMMAR}} {{ARGS}}
 
 # Dump Menhir's LR automaton or its conflict explanations -- the obligation
 # ledger docs/ambiguity.md refers to. Expanded exactly as the ambiguity tools
@@ -77,4 +77,4 @@ sweep GRAMMAR="lib/cst/parser.mly" *ARGS:
 #   just explain --search list_verb_type_suffix_
 explain *ARGS:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
-	python3 tools/ambiguity/explain_automaton.py {{ARGS}}
+	python3 -m tools.ambiguity.explain_automaton {{ARGS}}

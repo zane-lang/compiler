@@ -20,7 +20,7 @@
   covers the coordinator, native allocations, and transient compaction/
   copy-on-write overhead. This keeps memory near the configured plateau while
   prioritizing queue reach even when real frontiers are larger than the
-  estimate. Named profiles in `ambiguity-searches.toml` collect search intent
+  estimate. Named profiles in `tools/ambiguity/profiles.toml` collect search intent
   in one reviewable place. `ambiguity profiles` lists them, and command-line
   options can temporarily override a profile. The default `general` profile
   is breadth-first; `deep-function-body` fixes the function-body prefix and

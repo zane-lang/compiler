@@ -15,7 +15,7 @@ the kind Menhir gives it, the lookahead tokens, and the productions it reduces
 -- with the state number left out, since any grammar edit renumbers states.
 
 Usage:
-    python3 tools/ambiguity/conflict_census.py _build/default/lib/cst/parser.conflicts
+    python3 -m tools.ambiguity.conflict_census _build/default/lib/cst/parser.conflicts
 """
 
 from __future__ import annotations

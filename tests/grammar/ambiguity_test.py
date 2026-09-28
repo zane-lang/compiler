@@ -7,8 +7,8 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "ambiguity_search.exe"
-PARSER_SHAPE = ROOT / "_build" / "default" / "tools" / "parser" / "parser_shape.exe"
+ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "engine" / "ambiguity_search.exe"
+PARSER_SHAPE = ROOT / "_build" / "default" / "tools" / "inspect" / "parser_shape.exe"
 GRAMMAR = ROOT / "lib" / "cst" / "parser.mly"
 
 

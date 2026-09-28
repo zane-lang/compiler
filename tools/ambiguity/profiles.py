@@ -2,8 +2,8 @@
 """What a saved ambiguity search is: its schema, how it is read, and how it
 reads back.
 
-A profile is a named set of search parameters kept in `ambiguity-searches.toml`
-at the repository root, so a run that took an hour can be repeated by name
+A profile is a named set of search parameters kept in `profiles.toml`, beside
+this module, so a run that took an hour can be repeated by name
 rather than by remembering eleven flags. This module owns the whole of that:
 the record itself, the registry every parameter is declared in once, the TOML
 loading with profile inheritance, the coercion and validation of each value,
@@ -27,8 +27,7 @@ import tomllib
 from typing import Any, Callable
 
 
-ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_PROFILES = ROOT / "ambiguity-searches.toml"
+DEFAULT_PROFILES = Path(__file__).resolve().parent / "profiles.toml"
 
 DURATION_PART = re.compile(r"(\d+(?:\.\d+)?)(ms|s|m|h)")
 DURATION_PART = re.compile(r"(\d+(?:\.\d+)?)(ms|s|m|h)")

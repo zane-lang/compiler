@@ -143,7 +143,7 @@
   (with-stdout-to
    typing.accept.tst.spans.actual
    (run
-    %{exe:../../tools/parser/span_dump.exe}
+    %{exe:../../tools/inspect/span_dump.exe}
     --tst
     --package fixtures/typing/accept/app
     --package fixtures/typing/accept/shapes))))

@@ -22,8 +22,8 @@ prefix, so a sweep is readable while it runs rather than a row at a time;
 `--quiet` leaves only the table.
 
 Usage:
-    python3 tools/ambiguity/precision_sweep.py GRAMMAR.mly [--levels 1-6] [--timeout 60]
-    python3 tools/ambiguity/precision_sweep.py --corpus even-palindrome
+    python3 -m tools.ambiguity.precision_sweep GRAMMAR.mly [--levels 1-6] [--timeout 60]
+    python3 -m tools.ambiguity.precision_sweep --corpus even-palindrome
 
 The corpus grammars come from the prover tests, where their status is known by
 construction, so they calibrate a reading of this table before it is trusted on
@@ -48,7 +48,7 @@ from typing import TextIO
 
 
 ROOT = Path(__file__).resolve().parents[2]
-ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "ambiguity_search.exe"
+ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "engine" / "ambiguity_search.exe"
 
 # Proof-mode exit statuses, matching the engine: a proof is a verdict rather
 # than a success or a failure, and 2 stays reserved for a run that went wrong.
@@ -112,7 +112,7 @@ def engine_environment() -> dict[str, str]:
         )
     if not ENGINE.exists():
         sys.exit(
-            f"{ENGINE} not built; run: dune build tools/ambiguity/ambiguity_search.exe"
+            f"{ENGINE} not built; run: dune build tools/ambiguity/engine/ambiguity_search.exe"
         )
     return {
         **os.environ,
@@ -295,7 +295,6 @@ def run_level(
 
 def corpus_grammars() -> dict[str, str]:
     """The prover's own fixtures, whose verdicts are known by construction."""
-    sys.path.insert(0, str(ROOT))
     from tests.ambiguity.prover import fixtures
 
     return {

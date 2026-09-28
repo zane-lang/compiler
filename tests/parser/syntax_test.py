@@ -5,17 +5,20 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PARSER_ACCEPT = ROOT / "_build" / "default" / "tools" / "parser" / "parser_accept.exe"
+# The compiler itself, reading the source on stdin: `--cst` stops after the
+# parse, so the exit status says whether it was accepted.
+COMPILER = ROOT / "_build" / "default" / "bin" / "zanec" / "zanec.exe"
 
 
 class ParserSyntaxTests(unittest.TestCase):
     def setUp(self) -> None:
-        if not PARSER_ACCEPT.exists():
-            self.skipTest("requires built parser_accept executable")
+        if not COMPILER.exists():
+            self.skipTest("requires a built zanec executable")
 
     def run_parser(self, source: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            [str(PARSER_ACCEPT), source],
+            [str(COMPILER), "--cst", "-"],
+            input=source,
             text=True,
             capture_output=True,
             timeout=30,
