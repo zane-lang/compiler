@@ -44,7 +44,8 @@ refer to and easy to find when debugging.
   (`layout` in `lib/cgt/lower.ml`). Each instance of a generic type gets one
   layout under its raw name.
 - A verb instance is keyed by its declaration and its arguments,
-  `<decl id><args>` (`key` in `lib/cgt/lower.ml`). Its LLVM symbol, however,
+  such as `123<@primitives$Int>` for declaration 123 at `@primitives$Int`
+  (`key` in `lib/cgt/lower.ml`). Its LLVM symbol, however,
   is still sanitized to `zane_<name>_<decl>_<n>` (`symbol`), and layout tables
   are emitted as private `zane.layout` globals. Bringing the raw name through
   to the emitted symbols is still to be done.
