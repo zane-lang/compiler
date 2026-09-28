@@ -100,7 +100,8 @@ let runtime env name =
 (* The program's layouts as the runtime reads them: a count, then per
    position its kind, its offset, its size, a list's stride or a box's
    payload size, the table of its elements' or payload's layout, and its tag
-   conditions as a count and (offset, tag) pairs. Every table is made before
+   conditions as a count and (offset, tag) pairs. Each table is named for the
+   type it describes (docs/design/generics.md). Every table is made before
    any is filled, since a layout may name another, or itself. *)
 let layouts env (named : (Layout.t * Layout.position list) list) =
   let words (p : Layout.position) = 6 + (2 * List.length p.tags) in
@@ -108,7 +109,7 @@ let layouts env (named : (Layout.t * Layout.position list) list) =
     (fun (name, ps) ->
       let n = 1 + List.fold_left (fun n p -> n + words p) 0 ps in
       let zeros = Llvm.const_null (Llvm.array_type env.i64 n) in
-      let g = Llvm.define_global "zane.layout" zeros env.m in
+      let g = Llvm.define_global name zeros env.m in
       Llvm.set_linkage Llvm.Linkage.Private g;
       Llvm.set_global_constant true g;
       Hashtbl.replace env.layouts name (g, ps <> []))

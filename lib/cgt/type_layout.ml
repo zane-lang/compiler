@@ -173,10 +173,11 @@ let rec positions st span (t : Tty.t) base tags : Layout.position list =
           | _ -> own)
       | None -> [])
 
-(* A type's layout, by the name the program lists it under. A layout that
-   names itself, through a box, finds its name taken before it is done. *)
+(* A type's layout, by the type's symbol (Symbol.ty), which is also the name
+   of its table in the IR. A layout that names itself, through a box, finds
+   its name taken before it is done. *)
 and layout st span (t : Tty.t) : Layout.t =
-  let name = Tty.to_string t in
+  let name = Symbol.ty t in
   if not (Hashtbl.mem st.layouts name) then begin
     Hashtbl.replace st.layouts name [];
     Hashtbl.replace st.layouts name (positions st span t 0 []);

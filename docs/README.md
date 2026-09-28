@@ -27,6 +27,8 @@ One document per stage, in the order the compiler runs them.
 - [`design/generics.md`](design/generics.md): which package a generic instance
   belongs to and what it is called. A follow-on to `semantics.md` D12 and
   `lowering.md` L4.
+- [`design/symbols.md`](design/symbols.md): what every type, verb and variable
+  is called in the IR and the binary.
 
 ## Ambiguity
 

@@ -33,19 +33,17 @@ Every argument is qualified with its own package, so this name is already
 unique across the whole program, and it identifies the instance on its own.
 Nothing needs to be encoded or renamed. Both LLVM and object files accept it as
 an identifier: LLVM quotes a name that holds characters such as `$`, `<` or
-spaces (`%"geometry$List<@primitives$Int>"`), and an ELF symbol name can be any
+spaces (`@"geometry$List<@primitives$Int>"`), and an ELF symbol name can be any
 byte string. The name a reader sees in the source is the same name the compiler
 uses internally, in the IR and in the binary. That makes an instance easy to
 refer to and easy to find when debugging.
 
-## What the compiler does today
+A generic verb's instance is named the same way, with its parameter types
+after the arguments, as every verb is:
 
-- A type's layout is keyed by its full name, `Tty.to_string` of the type
-  (`layout` in `lib/cgt/lower.ml`). Each instance of a generic type gets one
-  layout under its raw name.
-- A verb instance is keyed by its declaration and its arguments,
-  such as `123<@primitives$Int>` for declaration 123 at `@primitives$Int`
-  (`key` in `lib/cgt/lower.ml`). Its LLVM symbol, however,
-  is still sanitized to `zane_<name>_<decl>_<n>` (`symbol`), and layout tables
-  are emitted as private `zane.layout` globals. Bringing the raw name through
-  to the emitted symbols is still to be done.
+```text
+geometry$first<@primitives$Int>(this geometry$List<@primitives$Int>)
+```
+
+[`symbols.md`](symbols.md) gives the naming rules for every type, verb and
+variable, generic or not.
