@@ -34,23 +34,6 @@
  (action
   (diff golden/hello.out hello.out.actual)))
 
-; `temporary` is hello written without storing the view first. Semantics
-; rejects it before lowering starts.
-
-(rule
- (deps (source_tree fixtures/temporary))
- (action
-  (with-stderr-to
-   temporary.err.actual
-   (with-accepted-exit-codes
-    1
-    (run %{exe:../../bin/zanec/zanec.exe} --build temporary.exe --package fixtures/temporary)))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/temporary.err temporary.err.actual)))
-
 ; `counting` is step 2 of docs/lowering.md §8: scalar arithmetic, verbs that
 ; call verbs, and the fixture's own `if`, `elif`, `else` and `to` expanded
 ; where they are called. Every check it makes prints `yes` when it holds.

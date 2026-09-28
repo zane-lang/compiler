@@ -18,7 +18,7 @@
 (rule
  (alias runtest)
  (action
-  (diff arenas.out arenas.out.actual)))
+  (diff golden/arenas.out arenas.out.actual)))
 
 (rule
  (deps anchors.c ../../runtime/zane.c)
@@ -35,7 +35,7 @@
 (rule
  (alias runtest)
  (action
-  (diff anchors.out anchors.out.actual)))
+  (diff golden/anchors.out anchors.out.actual)))
 
 (rule
  (deps texts.c ../../runtime/zane.c)
@@ -52,7 +52,7 @@
 (rule
  (alias runtest)
  (action
-  (diff texts.out texts.out.actual)))
+  (diff golden/texts.out texts.out.actual)))
 
 (rule
  (deps blocks.c ../../runtime/zane.c)
@@ -69,7 +69,7 @@
 (rule
  (alias runtest)
  (action
-  (diff blocks.out blocks.out.actual)))
+  (diff golden/blocks.out blocks.out.actual)))
 
 (rule
  (deps spawns.c ../../runtime/zane.c)
@@ -86,4 +86,4 @@
 (rule
  (alias runtest)
  (action
-  (diff spawns.out spawns.out.actual)))
+  (diff golden/spawns.out spawns.out.actual)))

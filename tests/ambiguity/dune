@@ -1,0 +1,6 @@
+; The engine's history filter, tested on its own. Run by
+; `just test-ambiguity-tools` with the rest of the ambiguity tools' tests.
+
+(test
+ (name history_filter_test)
+ (libraries ambiguity_history))

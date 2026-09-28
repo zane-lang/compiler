@@ -538,6 +538,10 @@ File "fixtures/typing/reject/bad/spawns.zn", line 133, characters 9-13:
 133 |         view!push(Gauge(Int(2)));
   |         ^^^^
 Error: `view` is borrowed by a spawned `mut` call on `gauges[]`, which holds it until its block drains
+File "fixtures/typing/reject/bad/temporary.zn", line 6, characters 28-61:
+6 |     @program$console!print(@primitives$String("hello world"));
+  |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a new guest names a place, and this is a temporary value
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
 5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^

@@ -23,31 +23,25 @@ test: test-compiler test-grammar test-ambiguity-tools
 # Promote an intended move with `just promote`.
 test-compiler: _require-menhir
 	dune build tools/parser/parser_accept.exe
-	dune runtest
+	dune runtest tests/parser tests/semantics tests/codegen tests/runtime
 	python3 -m unittest tests.parser.syntax_test -v
 
 # The grammar's ambiguity regressions: token sequences with a fixed number of
 # derivations, and the tree each unambiguous one groups to. A few seconds per
 # case, since every check expands the grammar afresh, so this is the slow suite.
+# Also the conflict census, the ledger docs/ambiguity/proof-obligations.md keeps.
 test-grammar: _require-menhir
 	dune build tools/ambiguity/ambiguity_search.exe tools/parser/parser_shape.exe
-	python3 -m unittest tests.parser.ambiguity_test -v
+	dune runtest tests/grammar
+	python3 -m unittest tests.grammar.ambiguity_test -v
 
 # The ambiguity tools' own tests: the prover's soundness corpus, the search
 # CLI, and the sweep's process runner. They say whether the tools are right,
 # not whether the grammar is.
 test-ambiguity-tools: _require-menhir
 	dune build tools/ambiguity/ambiguity_search.exe
-	python3 -m unittest \
-		tests.ambiguity.cli_test \
-		tests.ambiguity.precision_sweep_test \
-		tests.ambiguity.prover.soundness_test \
-		tests.ambiguity.prover.history_cegar_test \
-		tests.ambiguity.prover.refinement_test \
-		tests.ambiguity.prover.diagnostics_test \
-		tests.ambiguity.prover.verdict_test \
-		tests.ambiguity.prover.survey_test \
-		-v
+	dune runtest tests/ambiguity
+	python3 -m unittest discover -s tests/ambiguity -p '*_test.py' -t . -v
 
 # The engine-backed tests skip themselves unless the executables and Menhir are
 # present, so fail loudly on a missing Menhir rather than reporting a green run

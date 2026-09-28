@@ -440,12 +440,12 @@ The driver prints three views of a package build:
 | `--tst` | The whole typed tree: every body, with a type on every expression, and every generic instance |
 
 Either of the last two prints every diagnostic and no tree when there is one.
-The goldens in `tests/semantics/golden/` are those views: `typed.decls` and
-`typed.tst` for a build of `app` and `shapes` that checks, and
-`typing.err` for a build that fails every way the passes can report, one
+The goldens in `tests/semantics/golden/` are those views: `typing.accept.decls` and
+`typing.accept.tst` for a build of `app` and `shapes` that checks, and
+`typing.reject.err` for a build that fails every way the passes can report, one
 fixture file per area.
 
-`typed.tst.spans` checks the spans of the same build, the way
+`typing.accept.tst.spans` checks the spans of the same build, the way
 `tests/parser/golden/` checks the CST's and SST's: `span_dump --tst` takes the
 same `--package` flags and prints every node of the typed tree, generic
 instances included, with the source text its span covers. The TST is built

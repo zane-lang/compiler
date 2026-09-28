@@ -12,8 +12,3 @@
  (modules ambiguity_search output automaton config stack_pool recognizer
    abstraction prover search)
  (libraries unix str ambiguity_history))
-
-(test
- (name history_filter_test)
- (modules history_filter_test)
- (libraries ambiguity_history))

@@ -40,7 +40,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 			# and the shape printer.
 			lib/cst/* | lib/diagnostic/* | lib/source/* | lib/tree_graph/* | \
 				tools/ambiguity/* | tools/parser/* | \
-				tests/parser/ambiguity_test.py)
+				tests/grammar/*)
 				grammar=true
 				;;
 		esac
