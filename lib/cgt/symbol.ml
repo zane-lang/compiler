@@ -14,7 +14,8 @@ let rec ty = function
   | Tty.Named ({ Tty.package; name }, args) -> package ^ "$" ^ name ^ args_ args
   | Tty.Intrinsic { namespace; name; args } -> "@" ^ namespace ^ "$" ^ name ^ args_ args
   | Tty.Guest t -> "&" ^ ty t
-  | (Tty.Concept _ | Tty.Verb _) as t -> Tty.to_string t
+  | Tty.Concept c -> concept c
+  | Tty.Verb v -> verb_type v
   | Tty.Param p -> invalid_arg ("Symbol.ty: the type parameter " ^ p.Tty.name ^ " is not concrete")
   | Tty.Error -> invalid_arg "Symbol.ty: an ill-typed type has no symbol"
 
@@ -22,9 +23,30 @@ and args_ = function [] -> "" | args -> "<" ^ String.concat ", " (List.map arg a
 
 and arg = function
   | Tty.Type t -> ty t
-  | Tty.Number (Tty.Known n) -> string_of_int n
-  | Tty.Number (Tty.Number_param p) ->
-      invalid_arg ("Symbol.arg: the number parameter " ^ p.Tty.name ^ " is not concrete")
+  | Tty.Number n -> number n
+
+and number = function
+  | Tty.Known n -> string_of_int n
+  | Tty.Number_param p ->
+      invalid_arg ("Symbol.number: the number parameter " ^ p.Tty.name ^ " is not concrete")
+
+and concept = function
+  | Tty.Integer_lit -> "@concepts$Int"
+  | Tty.Decimal_lit -> "@concepts$Float"
+  | Tty.Text_lit -> "@concepts$String"
+  | Tty.Array_lit (t, n) -> "@concepts$Array<" ^ ty t ^ ", " ^ number n ^ ">"
+  | Tty.Map_lit (k, v) -> "@concepts$Map<" ^ ty k ^ ", " ^ ty v ^ ">"
+  | Tty.Block -> "@concepts$Block"
+  | Tty.Type_value -> "Type"
+
+(* A verb type: its result, `?` and its abort type when it has one, and its
+   parameters in brackets, `@primitives$Int[this pkg$Player, pkg$Weapon] mut`. *)
+and verb_type (v : Tty.verb) =
+  let this_ = match v.Tty.this_ with None -> [] | Some t -> [ "this " ^ ty t ] in
+  ty v.Tty.ret
+  ^ (match v.Tty.abort with Some a -> "?" ^ ty a | None -> "")
+  ^ "[" ^ String.concat ", " (this_ @ List.map ty v.Tty.params) ^ "]"
+  ^ if v.Tty.is_mut then " mut" else ""
 
 (* A verb's name: its package, its name, a generic instance's arguments, and
    its parameter types, with `this` before a method's subject:
