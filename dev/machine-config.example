@@ -1,4 +1,4 @@
-# Copy this file to machine-config.txt and tune it for the current machine.
+# Copy this file to dev/machine-config.txt and tune it for the current machine.
 # The memory budget is shared by all ambiguity-search workers.
 AMBIGUITY_MEMORY_MB=512
 AMBIGUITY_MAX_FRONTIER_RATIO=1.0

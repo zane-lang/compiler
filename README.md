@@ -31,7 +31,7 @@ install -m 0755 devbox /usr/local/bin/devbox
 Then enter the project development shell:
 
 ```sh
-./enter
+devbox shell
 ```
 
 The shell provides the project toolchain and adds `dev/bin` to `PATH`. Product
@@ -41,7 +41,7 @@ live under `dev/bin/`.
 ## Building
 
 ```sh
-./enter
+devbox shell
 dune build
 ```
 
