@@ -3,7 +3,7 @@
 ; `span_dump --cst` prints one line per node: the node's kind and the text
 ; between its span's two positions. `span_dump --sst` does the same over the
 ; desugared tree and prints each node's variant as well, so its expectations
-; show the rewrites of docs/desugaring.md having happened and not merely that
+; show the rewrites of docs/design/desugaring.md having happened and not merely that
 ; spans survived them.
 ;
 ; What these are for: a span is only ever wrong by pointing somewhere, and the
@@ -27,69 +27,9 @@
 ; the bug found on #86, after the suite had been green through it.
 ;
 ; `fixtures/desugar.zn` is the third, and unlike the other two it was written for these
-; tests: every rewrite in docs/desugaring.md 2 appears in it at least once.
+; tests: every rewrite in docs/design/desugaring.md 2 appears in it at least once.
 ; The other two do not manage that -- `main.zn` reaches only two of the five
 ; derived operators, so three of them had no expectation anywhere.
-
-(rule
- (with-stdout-to
-  main.cst.spans.actual
-  (run %{exe:../../tools/inspect/span_dump.exe} --cst %{dep:fixtures/main.zn})))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/main.cst.spans main.cst.spans.actual)))
-
-(rule
- (with-stdout-to
-  utf8.cst.spans.actual
-  (run %{exe:../../tools/inspect/span_dump.exe} --cst %{dep:fixtures/utf8.zn})))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/utf8.cst.spans utf8.cst.spans.actual)))
-
-(rule
- (with-stdout-to
-  desugar.cst.spans.actual
-  (run %{exe:../../tools/inspect/span_dump.exe} --cst %{dep:fixtures/desugar.zn})))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/desugar.cst.spans desugar.cst.spans.actual)))
-
-(rule
- (with-stdout-to
-  main.sst.spans.actual
-  (run %{exe:../../tools/inspect/span_dump.exe} --sst %{dep:fixtures/main.zn})))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/main.sst.spans main.sst.spans.actual)))
-
-(rule
- (with-stdout-to
-  utf8.sst.spans.actual
-  (run %{exe:../../tools/inspect/span_dump.exe} --sst %{dep:fixtures/utf8.zn})))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/utf8.sst.spans utf8.sst.spans.actual)))
-
-(rule
- (with-stdout-to
-  desugar.sst.spans.actual
-  (run %{exe:../../tools/inspect/span_dump.exe} --sst %{dep:fixtures/desugar.zn})))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/desugar.sst.spans desugar.sst.spans.actual)))
 
 ; The two structure renderings, which name every field rather than printing a
 ; span. `lib/cst/to_tree_graph.ml` had no test of any kind before this -- five
@@ -100,26 +40,6 @@
 ; desugaring does: the SST rendering is the CST one with `parenthized`,
 ; `ret_shorthand`, `var_decl_shorthand`, `trailing` and one of the two call
 ; groups gone.
-
-(rule
- (with-stdout-to
-  desugar.cst.tree.actual
-  (run %{exe:../../bin/zanec/zanec.exe} --cst %{dep:fixtures/desugar.zn})))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/desugar.cst.tree desugar.cst.tree.actual)))
-
-(rule
- (with-stdout-to
-  desugar.sst.tree.actual
-  (run %{exe:../../bin/zanec/zanec.exe} --sst %{dep:fixtures/desugar.zn})))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/desugar.sst.tree desugar.sst.tree.actual)))
 
 ; How a rejected file is reported: the source line, the caret under the
 ; offending text, and the message. Everything else in the suite asks only
@@ -133,62 +53,20 @@
 ; byte that is not UTF-8; `rejected.zn` a grammar action; and `statement.zn`
 ; the statement check that walks the finished tree, whose span is empty.
 
+; The rules themselves are written from the golden files by
+; tests/gen/gen_rules.ml, into dune.inc. A fixture added without its rules
+; fails the diff below; `dune promote` then writes them.
+
+(include dune.inc)
+
 (rule
- (with-stderr-to
-  reject.syntax.err.actual
-  (with-accepted-exit-codes
-   1
-   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/syntax.zn}))))
+ (deps (glob_files golden/*))
+ (action
+  (with-stdout-to
+   dune.inc.gen
+   (run %{exe:../gen/gen_rules.exe} parser))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/reject.syntax.err reject.syntax.err.actual)))
-
-(rule
- (with-stderr-to
-  reject.lexing.err.actual
-  (with-accepted-exit-codes
-   1
-   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/lexing.zn}))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/reject.lexing.err reject.lexing.err.actual)))
-
-(rule
- (with-stderr-to
-  reject.malformed-utf8.err.actual
-  (with-accepted-exit-codes
-   1
-   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/malformed-utf8.zn}))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/reject.malformed-utf8.err reject.malformed-utf8.err.actual)))
-
-(rule
- (with-stderr-to
-  reject.rejected.err.actual
-  (with-accepted-exit-codes
-   1
-   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/rejected.zn}))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/reject.rejected.err reject.rejected.err.actual)))
-
-(rule
- (with-stderr-to
-  reject.statement.err.actual
-  (with-accepted-exit-codes
-   1
-   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/statement.zn}))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/reject.statement.err reject.statement.err.actual)))
+  (diff dune.inc dune.inc.gen)))
