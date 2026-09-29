@@ -756,7 +756,8 @@ let run () =
       check_implicit d s;
       check_constructor_target d s)
     built;
-  (* `main` takes no parameters (packages.md §6.2). *)
+  (* `main` takes no parameters and declares no abort type; it may return any
+     type (packages.md §6.2). *)
   List.iter
     (fun pkg_name ->
       let pkg = package pkg_name in
@@ -766,6 +767,8 @@ let run () =
             match Hashtbl.find_opt signatures d.id with
             | Some ({ kind = S.Function; name = "main"; params = _ :: _; _ }) ->
                 error d.span "`main` takes no parameters: the root package reaches the console and runtime through `@program$`"
+            | Some ({ kind = S.Function; name = "main"; abort = Some _; _ }) ->
+                error d.span "`main` declares no abort type: no caller exists to handle an abort"
             | _ -> ())
           (package_values pkg_name "main"))
     !package_order;

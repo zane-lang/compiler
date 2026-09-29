@@ -277,7 +277,7 @@ and Abort_handle : sig
 
   and node =
     | Shorthand of Expr.t
-    | Longhand of { binder: Name.t option; body: Body.t }
+    | Longhand of { binder: Name.t; body: Body.t }
 end = Abort_handle
 
 and Field_arg : sig

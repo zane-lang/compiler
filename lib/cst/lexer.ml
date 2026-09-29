@@ -18,8 +18,9 @@ let decimal_lit = [%sedlex.regexp? int_lit, '.', digits]
 let str_char   = [%sedlex.regexp? Compl ('"' | '\\') | '\\', any]
 let line_char  = [%sedlex.regexp? Compl ('\n' | '\r')]
 
-(* Any character valid inside an identifier (after the first) *)
-let ident_char = [%sedlex.regexp? alphabetic | '0'..'9' | '_']
+(* Any character valid inside an identifier after the first: a letter or a
+   digit (lexical.md §4.1). A `_` only leads one, as its privacy mark (§4.2). *)
+let ident_char = [%sedlex.regexp? alphabetic | '0'..'9']
 
 (* Starts with a Unicode lowercase letter, or '_' then one *)
 let lower_ident = [%sedlex.regexp? (lowercase | '_', lowercase), Star ident_char]

@@ -16,6 +16,13 @@ settles, in one pass rather than section by section. Until then:
 - Each entry cites the spec section it departs from and states both rules, so
   the claim can be rechecked rather than taken on trust.
 
+A choice the spec leaves open is recorded here when a running program can
+observe it, as §10 and §13 are. The rest sit beside the design they belong
+to: what the type checker decides is in
+[`design/semantics.md`](design/semantics.md) §9, with D12 and D14, and how
+lowering and the runtime place and represent things is in
+[`design/lowering.md`](design/lowering.md) §9.
+
 Entries below were checked against spec commit `034f11a`, and the links
 point at that commit so a later spec edit cannot silently make a quotation
 here disagree with what it links to. Re-pin them when the entries are
@@ -517,6 +524,42 @@ spawn dial.reading!nudge();      // accepted: written back (§4.4)
 `tests/semantics/fixtures/typing/reject/bad/spawns.zn` has the cases.
 Reconciling means the spec stating a rule for this write, this one or
 another.
+
+## 15. A case is not a type
+
+**Spec** — [`adt.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/adt.md)
+§3: "A member projected as a type is written `Expr.intLit`", and §5.2: "if the
+scrutinee's static type is already a single case (`Expr.strLit`), that arm is
+chosen statically with no jump."
+
+**Compiler** — `Type.case` names a case only where a value is built or read:
+`Expr.intLit("5")` builds one, `e.intLit ? x { … }` reads one, and a `match`
+arm selects one. It is not a type, so no parameter, field or local can be
+declared at one, and every `match` dispatches on the live tag.
+
+```zane
+e Expr = Expr.intLit(text);          // accepted
+String f(x Expr.intLit) => …        // rejected: a syntax error
+```
+
+Nothing is lost that the compiler could otherwise rely on: a value of a
+projected case type would still be the whole variant (§3.2), and the
+narrowing it enables is an optimization the tag jump already gives. Reconciling
+means adding the type form and its narrowing, or the spec dropping it.
+
+## 16. An index out of range stops the program
+
+**Spec** — silent. [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
+§5.2 fixes the ordinal base and leaves "the language-level behavior for
+out-of-range element access" as a separate question.
+
+**Compiler** — the program stops as it does at a division by zero (§10): what
+it wrote so far is flushed, the runtime writes `index out of range` to stderr,
+and the status is 1. `tests/codegen/fixtures/range` is the case, and
+[`design/lowering.md`](design/lowering.md) §9 the decision.
+
+Reconciling means the spec stating an outcome, or making element access
+abortable.
 
 ---
 

@@ -30,3 +30,8 @@ Engine.power Int {
 }
 
 Unit main(argument Int) => Unit()
+
+/// `main` may return any type, but no caller exists to handle an abort.
+Int?Unit main() {
+	abort Unit();
+}

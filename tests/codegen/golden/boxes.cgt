@@ -477,9 +477,11 @@
     │       │       │   │           │   │           ├── path: 1.1
     │       │       │   │           │   │           └── base: local #44 : ptr
     │       │       │   │           │   └── cases[1] > case 1[1]: leave @42
-    │       │       │   │           ├── body[3] > eval: unit : void
+    │       │       │   │           ├── body[3] > let:
+    │       │       │   │           │   ├── local: #46
+    │       │       │   │           │   └── value: unit : void
     │       │       │   │           └── body[4] > scope:
-    │       │       │   │               ├── id: %49
+    │       │       │   │               ├── id: %50
     │       │       │   │               ├── body[0] > place:
     │       │       │   │               │   ├── address: address of #45 : ptr
     │       │       │   │               │   ├── value > call:
@@ -487,23 +489,23 @@
     │       │       │   │               │   │   ├── fn: boxes$Link(%primitives$String, boxes$Chain)
     │       │       │   │               │   │   ├── args[0] > expand:
     │       │       │   │               │   │   │   ├── type: ptr
-    │       │       │   │               │   │   │   ├── label: @47
-    │       │       │   │               │   │   │   ├── result: #48
+    │       │       │   │               │   │   │   ├── label: @48
+    │       │       │   │               │   │   │   ├── result: #49
     │       │       │   │               │   │   │   ├── body[0] > host:
-    │       │       │   │               │   │   │   │   ├── local: #46
-    │       │       │   │               │   │   │   │   ├── scope: %49
+    │       │       │   │               │   │   │   │   ├── local: #47
+    │       │       │   │               │   │   │   │   ├── scope: %50
     │       │       │   │               │   │   │   │   ├── value: "none" : handle
     │       │       │   │               │   │   │   │   └── layout: %primitives$String
     │       │       │   │               │   │   │   └── body[1] > assign:
-    │       │       │   │               │   │   │       ├── place: #48
-    │       │       │   │               │   │   │       └── value: address of #46 : ptr
+    │       │       │   │               │   │   │       ├── place: #49
+    │       │       │   │               │   │   │       └── value: address of #47 : ptr
     │       │       │   │               │   │   └── args[1] > expand:
     │       │       │   │               │   │       ├── type: ptr
-    │       │       │   │               │   │       ├── label: @51
-    │       │       │   │               │   │       ├── result: #52
+    │       │       │   │               │   │       ├── label: @52
+    │       │       │   │               │   │       ├── result: #53
     │       │       │   │               │   │       ├── body[0] > host:
-    │       │       │   │               │   │       │   ├── local: #50
-    │       │       │   │               │   │       │   ├── scope: %49
+    │       │       │   │               │   │       │   ├── local: #51
+    │       │       │   │               │   │       │   ├── scope: %50
     │       │       │   │               │   │       │   ├── value > record:
     │       │       │   │               │   │       │   │   ├── type: {i32, <void | ptr>}
     │       │       │   │               │   │       │   │   ├── members[0] > member 0: 0 : i32
@@ -513,8 +515,8 @@
     │       │       │   │               │   │       │   │       └── payload: unit : void
     │       │       │   │               │   │       │   └── layout: boxes$Chain
     │       │       │   │               │   │       └── body[1] > assign:
-    │       │       │   │               │   │           ├── place: #52
-    │       │       │   │               │   │           └── value: address of #50 : ptr
+    │       │       │   │               │   │           ├── place: #53
+    │       │       │   │               │   │           └── value: address of #51 : ptr
     │       │       │   │               │   └── layout: boxes$Link
     │       │       │   │               ├── body[1] > assign:
     │       │       │   │               │   ├── place: #43
@@ -522,16 +524,16 @@
     │       │       │   │               └── body[2]: leave @42
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @54
-    │       │       │       ├── result: #55
+    │       │       │       ├── label: @55
+    │       │       │       ├── result: #56
     │       │       │       ├── body[0] > host:
-    │       │       │       │   ├── local: #53
+    │       │       │       │   ├── local: #54
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "a" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #55
-    │       │       │           └── value: local #53 : handle
+    │       │       │           ├── place: #56
+    │       │       │           └── value: local #54 : handle
     │       │       └── right: 1 : i64
     │       ├── body[20] > eval > call:
     │       │   ├── type: void
@@ -549,21 +551,21 @@
     │       │       │   │       ├── type: {i32, handle, ptr}
     │       │       │   │       └── ptr > expand:
     │       │       │   │           ├── type: ptr
-    │       │       │   │           ├── label: @56
-    │       │       │   │           ├── result: #57
+    │       │       │   │           ├── label: @57
+    │       │       │   │           ├── result: #58
     │       │       │   │           ├── body[0] > reserve:
-    │       │       │   │           │   ├── local: #59
+    │       │       │   │           │   ├── local: #60
     │       │       │   │           │   ├── scope: %2
     │       │       │   │           │   ├── type: {i32, handle, ptr}
     │       │       │   │           │   └── layout: boxes$Link
     │       │       │   │           ├── body[1] > let:
-    │       │       │   │           │   ├── local: #58
+    │       │       │   │           │   ├── local: #59
     │       │       │   │           │   └── value > expand:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       ├── label: @68
-    │       │       │   │           │       ├── result: #69
+    │       │       │   │           │       ├── label: @70
+    │       │       │   │           │       ├── result: #71
     │       │       │   │           │       ├── body[0] > host:
-    │       │       │   │           │       │   ├── local: #67
+    │       │       │   │           │       │   ├── local: #69
     │       │       │   │           │       │   ├── scope: %2
     │       │       │   │           │       │   ├── value > record:
     │       │       │   │           │       │   │   ├── type: {i32, <void | ptr>}
@@ -574,52 +576,54 @@
     │       │       │   │           │       │   │       └── payload: unit : void
     │       │       │   │           │       │   └── layout: boxes$Chain
     │       │       │   │           │       └── body[1] > assign:
-    │       │       │   │           │           ├── place: #69
-    │       │       │   │           │           └── value: address of #67 : ptr
+    │       │       │   │           │           ├── place: #71
+    │       │       │   │           │           └── value: address of #69 : ptr
     │       │       │   │           ├── body[2] > switch:
     │       │       │   │           │   ├── value > member:
     │       │       │   │           │   │   ├── type: <void | ptr>
     │       │       │   │           │   │   ├── index: 1
     │       │       │   │           │   │   └── value > deref:
     │       │       │   │           │   │       ├── type: {i32, <void | ptr>}
-    │       │       │   │           │   │       └── ptr: local #58 : ptr
+    │       │       │   │           │   │       └── ptr: local #59 : ptr
     │       │       │   │           │   ├── cases[0] > case 0:
     │       │       │   │           │   ├── cases[1] > case 1[0] > assign:
-    │       │       │   │           │   │   ├── place: #57
+    │       │       │   │           │   │   ├── place: #58
     │       │       │   │           │   │   └── value > deref:
     │       │       │   │           │   │       ├── type: ptr
     │       │       │   │           │   │       └── ptr > offset:
     │       │       │   │           │   │           ├── within: {i32, <void | ptr>}
     │       │       │   │           │   │           ├── path: 1.1
-    │       │       │   │           │   │           └── base: local #58 : ptr
-    │       │       │   │           │   └── cases[1] > case 1[1]: leave @56
-    │       │       │   │           ├── body[3] > eval: unit : void
+    │       │       │   │           │   │           └── base: local #59 : ptr
+    │       │       │   │           │   └── cases[1] > case 1[1]: leave @57
+    │       │       │   │           ├── body[3] > let:
+    │       │       │   │           │   ├── local: #61
+    │       │       │   │           │   └── value: unit : void
     │       │       │   │           └── body[4] > scope:
-    │       │       │   │               ├── id: %63
+    │       │       │   │               ├── id: %65
     │       │       │   │               ├── body[0] > place:
-    │       │       │   │               │   ├── address: address of #59 : ptr
+    │       │       │   │               │   ├── address: address of #60 : ptr
     │       │       │   │               │   ├── value > call:
     │       │       │   │               │   │   ├── type: {i32, handle, ptr}
     │       │       │   │               │   │   ├── fn: boxes$Link(%primitives$String, boxes$Chain)
     │       │       │   │               │   │   ├── args[0] > expand:
     │       │       │   │               │   │   │   ├── type: ptr
-    │       │       │   │               │   │   │   ├── label: @61
-    │       │       │   │               │   │   │   ├── result: #62
+    │       │       │   │               │   │   │   ├── label: @63
+    │       │       │   │               │   │   │   ├── result: #64
     │       │       │   │               │   │   │   ├── body[0] > host:
-    │       │       │   │               │   │   │   │   ├── local: #60
-    │       │       │   │               │   │   │   │   ├── scope: %63
+    │       │       │   │               │   │   │   │   ├── local: #62
+    │       │       │   │               │   │   │   │   ├── scope: %65
     │       │       │   │               │   │   │   │   ├── value: "none" : handle
     │       │       │   │               │   │   │   │   └── layout: %primitives$String
     │       │       │   │               │   │   │   └── body[1] > assign:
-    │       │       │   │               │   │   │       ├── place: #62
-    │       │       │   │               │   │   │       └── value: address of #60 : ptr
+    │       │       │   │               │   │   │       ├── place: #64
+    │       │       │   │               │   │   │       └── value: address of #62 : ptr
     │       │       │   │               │   │   └── args[1] > expand:
     │       │       │   │               │   │       ├── type: ptr
-    │       │       │   │               │   │       ├── label: @65
-    │       │       │   │               │   │       ├── result: #66
+    │       │       │   │               │   │       ├── label: @67
+    │       │       │   │               │   │       ├── result: #68
     │       │       │   │               │   │       ├── body[0] > host:
-    │       │       │   │               │   │       │   ├── local: #64
-    │       │       │   │               │   │       │   ├── scope: %63
+    │       │       │   │               │   │       │   ├── local: #66
+    │       │       │   │               │   │       │   ├── scope: %65
     │       │       │   │               │   │       │   ├── value > record:
     │       │       │   │               │   │       │   │   ├── type: {i32, <void | ptr>}
     │       │       │   │               │   │       │   │   ├── members[0] > member 0: 0 : i32
@@ -629,34 +633,34 @@
     │       │       │   │               │   │       │   │       └── payload: unit : void
     │       │       │   │               │   │       │   └── layout: boxes$Chain
     │       │       │   │               │   │       └── body[1] > assign:
-    │       │       │   │               │   │           ├── place: #66
-    │       │       │   │               │   │           └── value: address of #64 : ptr
+    │       │       │   │               │   │           ├── place: #68
+    │       │       │   │               │   │           └── value: address of #66 : ptr
     │       │       │   │               │   └── layout: boxes$Link
     │       │       │   │               ├── body[1] > assign:
-    │       │       │   │               │   ├── place: #57
-    │       │       │   │               │   └── value: address of #59 : ptr
-    │       │       │   │               └── body[2]: leave @56
+    │       │       │   │               │   ├── place: #58
+    │       │       │   │               │   └── value: address of #60 : ptr
+    │       │       │   │               └── body[2]: leave @57
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @71
-    │       │       │       ├── result: #72
+    │       │       │       ├── label: @73
+    │       │       │       ├── result: #74
     │       │       │       ├── body[0] > host:
-    │       │       │       │   ├── local: #70
+    │       │       │       │   ├── local: #72
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "none" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #72
-    │       │       │           └── value: local #70 : handle
+    │       │       │           ├── place: #74
+    │       │       │           └── value: local #72 : handle
     │       │       └── right: 1 : i64
     │       ├── body[21] > let:
-    │       │   ├── local: #73
+    │       │   ├── local: #75
     │       │   └── value: 1 : i64
     │       ├── body[22] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @75
+    │       │   ├── label: @77
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #74
+    │       │   │   ├── local: #76
     │       │   │   └── value: 1000 : i64
     │       │   ├── body[1] > repeat:
     │       │   │   ├── count > binary:
@@ -665,18 +669,18 @@
     │       │   │   │   ├── left > binary:
     │       │   │   │   │   ├── type: i64
     │       │   │   │   │   ├── op: +
-    │       │   │   │   │   ├── left: local #74 : i64
+    │       │   │   │   │   ├── left: local #76 : i64
     │       │   │   │   │   └── right > flip:
     │       │   │   │   │       ├── type: i64
-    │       │   │   │   │       └── value: local #73 : i64
+    │       │   │   │   │       └── value: local #75 : i64
     │       │   │   │   └── right: 1 : i64
     │       │   │   ├── body[0] > if:
     │       │   │   │   ├── cond: true : i1
     │       │   │   │   └── body[0] > scope:
-    │       │   │   │       ├── id: %79
+    │       │   │   │       ├── id: %81
     │       │   │   │       ├── body[0] > host:
-    │       │   │   │       │   ├── local: #78
-    │       │   │   │       │   ├── scope: %79
+    │       │   │   │       │   ├── local: #80
+    │       │   │   │       │   ├── scope: %81
     │       │   │   │       │   ├── value > case:
     │       │   │   │       │   │   ├── type: <void | ptr>
     │       │   │   │       │   │   ├── index: 1
@@ -693,29 +697,29 @@
     │       │   │   │       │   │       └── layout: boxes$Countdown
     │       │   │   │       │   └── layout: boxes$Countdown
     │       │   │   │       ├── body[1] > host:
-    │       │   │   │       │   ├── local: #80
-    │       │   │   │       │   ├── scope: %79
+    │       │   │   │       │   ├── local: #82
+    │       │   │   │       │   ├── scope: %81
     │       │   │   │       │   ├── value > copy:
     │       │   │   │       │   │   ├── type: <void | ptr>
-    │       │   │   │       │   │   ├── value: local #78 : <void | ptr>
+    │       │   │   │       │   │   ├── value: local #80 : <void | ptr>
     │       │   │   │       │   │   └── layout: boxes$Countdown
     │       │   │   │       │   └── layout: boxes$Countdown
     │       │   │   │       └── body[2] > overwrite:
-    │       │   │   │           ├── address: address of #78 : ptr
+    │       │   │   │           ├── address: address of #80 : ptr
     │       │   │   │           ├── value > copy:
     │       │   │   │           │   ├── type: <void | ptr>
-    │       │   │   │           │   ├── value: local #80 : <void | ptr>
+    │       │   │   │           │   ├── value: local #82 : <void | ptr>
     │       │   │   │           │   └── layout: boxes$Countdown
     │       │   │   │           └── layout: boxes$Countdown
     │       │   │   └── body[1] > assign:
-    │       │   │       ├── place: #73
+    │       │   │       ├── place: #75
     │       │   │       └── value > binary:
     │       │   │           ├── type: i64
     │       │   │           ├── op: +
-    │       │   │           ├── left: local #73 : i64
+    │       │   │           ├── left: local #75 : i64
     │       │   │           └── right: 1 : i64
     │       │   ├── body[2] > eval: unit : void
-    │       │   └── body[3]: leave @75
+    │       │   └── body[3]: leave @77
     │       └── body[23] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: boxes$depth(boxes$Countdown)

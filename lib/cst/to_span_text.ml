@@ -175,7 +175,7 @@ and abort_handle d (x : Abort_handle.t) =
   match x.Abort_handle.node with
   | Abort_handle.Shorthand e -> expr d e
   | Abort_handle.Longhand { binder; body = b } ->
-      opt d (fun d n -> name d "binder" n) binder;
+      name d "binder" binder;
       body d b
 
 and verb_call d (x : Verb_call.t) =

@@ -1229,7 +1229,7 @@ ref_target:
     }
 
 abort_handle:
-  | "?" binder=ioption(lname) body=body %prec THICK_ARROW {
+  | "?" binder=lname body=body %prec THICK_ARROW {
       abort_handle_node $loc (Nodes.Abort_handle.Longhand { binder; body })
     }
   | "??" value=expr %prec THICK_ARROW {
@@ -1333,7 +1333,7 @@ ref_target_braced:
     }
 
 abort_handle_braced:
-  | "?" binder=ioption(lname) body=body_braced {
+  | "?" binder=lname body=body_braced {
       abort_handle_node $loc (Nodes.Abort_handle.Longhand { binder; body })
     }
   | "??" value=expr_braced {

@@ -220,7 +220,7 @@ and handler (x : C.Abort_handle.t) : S.Abort_handle.t =
   let span = x.C.Abort_handle.span in
   match x.C.Abort_handle.node with
   | C.Abort_handle.Longhand { binder; body } ->
-      { S.Abort_handle.binder = option name binder; body = block body; span }
+      { S.Abort_handle.binder = Some (name binder); body = block body; span }
   | C.Abort_handle.Shorthand fallback ->
       let resolved = stat span (S.Stat.Resolve (expression fallback)) in
       {

@@ -206,8 +206,8 @@ on the grounds that §3.1 requires a written binder even when the abort type is
 that writes neither the binder nor the block; inventing an identifier no source
 could collide with, to bind a value the expanded body does not mention, would
 have been a name that exists only to satisfy a reading of the rule that does
-not apply to it. The field stays `Name.t option`, which is what the CST already
-carries, and `??` leaves it `None`.
+not apply to it. The field is `Name.t option` in the SST, always `Some` from a
+`?` handler, whose binder the grammar requires, and `None` from `??`.
 
 ### 2.5 Match case groups
 

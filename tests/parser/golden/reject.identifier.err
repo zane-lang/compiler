@@ -1,0 +1,4 @@
+File "fixtures/reject/identifier.zn", line 6, characters 14-17:
+6 |     my_value Int(4);
+  |              ^^^
+Error: Parse error

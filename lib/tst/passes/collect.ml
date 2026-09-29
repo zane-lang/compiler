@@ -295,6 +295,57 @@ let check_import_overloads (file : file) =
 (* Both passes                                                            *)
 (* ---------------------------------------------------------------------- *)
 
+(* The package dependency graph is acyclic (dependencies.md §10). Each import
+   that closes a cycle is reported there, with the packages around the cycle
+   in order. *)
+let check_import_cycles (loaded : (package * (file * Assembly.file) list) list) =
+  let edges : (string, string * Span.t) Hashtbl.t = Hashtbl.create 16 in
+  List.iter
+    (fun ((pkg : package), files) ->
+      List.iter
+        (fun (_, (f : Assembly.file)) ->
+          List.iter
+            (fun (d : N.Decl.t) ->
+              match d.N.Decl.node with
+              | N.Decl.Import { N.Import.node; span } ->
+                  let target =
+                    match node with
+                    | N.Import.Package { package = p; _ }
+                    | N.Import.Member { package = p; _ }
+                    | N.Import.Members { package = p; _ }
+                    | N.Import.All { package = p } ->
+                        name_of p
+                  in
+                  if (not (String.equal target pkg.name)) && Hashtbl.mem packages target then
+                    Hashtbl.add edges pkg.name (target, span)
+              | _ -> ())
+            f.sst.N.Package.decls)
+        files)
+    loaded;
+  let finished = Hashtbl.create 16 in
+  let rec visit path name =
+    if not (Hashtbl.mem finished name) then begin
+      List.iter
+        (fun (target, span) ->
+          if List.mem target path then begin
+            let rec from = function
+              | p :: rest -> if String.equal p target then p :: rest else from rest
+              | [] -> []
+            in
+            let cycle = from (List.rev (name :: path)) @ [ target ] in
+            error span
+              (Printf.sprintf
+                 "this import closes a cycle of packages, %s; the packages of a \
+                  build import one another without a cycle (dependencies.md §10)"
+                 (String.concat " -> " (List.map quote cycle)))
+          end
+          else visit (name :: path) target)
+        (List.rev (Hashtbl.find_all edges name));
+      Hashtbl.replace finished name ()
+    end
+  in
+  List.iter (visit []) !package_order
+
 let run (assembled : Assembly.package list) =
   (* Every package is registered before any import is read, so an import may
      name a package given later on the command line. *)
@@ -338,4 +389,5 @@ let run (assembled : Assembly.package list) =
           import_file file f.sst.N.Package.decls;
           check_import_collisions file)
         files)
-    loaded
+    loaded;
+  check_import_cycles loaded

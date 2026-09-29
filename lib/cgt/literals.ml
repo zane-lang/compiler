@@ -56,6 +56,8 @@ let literal ctx span name (arg : T.Expr.t) : Expr.t =
       | Some i -> { Expr.node = Expr.Int i; ty = Nodes.Ty.I64 }
       | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$Int`" s))
   | "Float", T.Expr.Decimal_lit s ->
-      { Expr.node = Expr.Float (float_of_string (digits s)); ty = Nodes.Ty.F64 }
+      let value = float_of_string (digits s) in
+      if Float.is_finite value then { Expr.node = Expr.Float value; ty = Nodes.Ty.F64 }
+      else refuse span (Printf.sprintf "`%s` is out of range for `@primitives$Float`" s)
   | "String", T.Expr.Text_lit s -> { Expr.node = Expr.Text (unescape s); ty = Nodes.Ty.Handle }
   | _ -> refuse span (Printf.sprintf "lowering does not handle this `@primitives$%s` yet" name)

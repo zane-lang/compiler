@@ -509,15 +509,29 @@ test passing.
 - **A 64-bit target.** Codegen sizes a sum's payload room assuming 8-byte
   pointers and C struct layout, which holds for x86-64 and AArch64. Another
   target reads the sizes from LLVM's data layout.
-- **Integer division by zero.** The spec leaves it open. Until it says, the
+- **Integer division by zero.** The spec leaves it open
+  ([`spec-divergences.md`](../spec-divergences.md) §10). Until it says, the
   program stops: what it wrote so far is kept, the runtime writes `division by
   zero` to stderr, and the status is 1. The one other quotient an `i64` cannot
   hold, the most negative value over `-1`, wraps, as `+` and `*` do.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
-  §5.2). Until it says, the program stops as it does at a division by zero:
+  §5.2, [`spec-divergences.md`](../spec-divergences.md) §16). Until it says, the program stops as it does at a division by zero:
   what it wrote so far is kept, the runtime writes `index out of range` to
   stderr, and the status is 1.
 - **A type argument passes nothing.** A generic verb is lowered once per
   instance the TST checked ([`semantics.md`](semantics.md) D12), with a
   symbol of its own, and a type written where a value goes has already
   picked the instance, so the call passes nothing for it.
+- **What does not lower yet.** Some programs the TST accepts, lowering
+  refuses, with an error that says "does not … yet" at the construct:
+  - function values: a lambda literal, and a call through a lambda-variable;
+  - `@primitives$Array`: its type, an array literal, and its elements;
+  - an `@primitives$I32` literal, since only `Int` and `I64` embed one;
+  - a field-constructor call that leaves out a field with a default
+    ([`types.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/types.md)
+    §3.3);
+  - a `spawn` of anything but a call to a declared verb that is not expanded
+    where it is called, and one bound to a local of another type than the
+    call returns;
+  - reading a boxed member of, or moving a host out of, a value no place
+    holds, such as a call's result.

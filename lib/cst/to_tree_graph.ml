@@ -240,12 +240,7 @@ and op_token (x: Nodes.Operator.t) = match x.Nodes.Operator.node with
 
 and abort_handle_to_node (x: Nodes.Abort_handle.t) = match x.Nodes.Abort_handle.node with
   | Longhand { binder; body } ->
-      let fs = [("body", body_to_node body)] in
-      let fs = match binder with
-        | Some b -> ("binder", Leaf (text b)) :: fs
-        | None   -> fs
-      in
-      group "longhand" (fields fs)
+      group "longhand" (fields [("binder", Leaf (text binder)); ("body", body_to_node body)])
   | Shorthand x -> group "shorthand" (expr_to_node x)
 
 and param_to_node (x: Nodes.Param.t) =
