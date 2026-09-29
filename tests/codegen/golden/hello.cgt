@@ -1,7 +1,7 @@
 └── program:
     ├── entry: hello$main()
     ├── layouts[0] > layout:
-    │   ├── type: @primitives$String
+    │   ├── type: %primitives$String
     │   ├── positions[0]: @0 (32 bytes)
     │   └── positions[1]: text @0
     └── funcs[0] > func:
@@ -14,7 +14,7 @@
             │   ├── local: #1
             │   ├── scope: %2
             │   ├── value: "hello world" : handle
-            │   └── layout: @primitives$String
+            │   └── layout: %primitives$String
             ├── body[1] > eval > runtime:
             │   ├── type: void
             │   ├── fn: zane_print

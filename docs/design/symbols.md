@@ -4,7 +4,8 @@ What a program's types, verbs and variables are called in the LLVM IR and in
 the binary. The rule is the same for all of them: a thing is called by its
 declaration as written, fully qualified. That name is already unique across
 the program, so nothing is encoded, and the name a reader sees in the source is
-the name in the IR, in a stack trace and in `nm`. Generic instances follow the
+the name in the IR, in a stack trace and in `nm`, with `%` for the `@` of an
+intrinsic namespace (see [Types](#types)). Generic instances follow the
 same rule; [`generics.md`](generics.md) covers them.
 
 `lib/cgt/symbol.ml` defines the spelling. A symbol is an ABI, so it has one
@@ -18,11 +19,17 @@ arguments, each qualified the same way:
 
 ```text
 geometry$Point
-geometry$List<@primitives$Int>
-@primitives$Int
+geometry$List<%primitives$Int>
+%primitives$Int
 ```
 
 Arguments are separated by `, `. A guest is written `&` before its type.
+
+An intrinsic namespace is written with `%` where the source writes `@`:
+`%primitives$Int` is `@primitives$Int`. A linker reads `@` in an exported
+symbol as the start of a symbol version (`name@VERSION`), so a name holding
+one could not be exported from a shared library. `%` has no meaning to a
+linker, and no package name starts with it.
 
 ## Verbs
 
@@ -33,7 +40,7 @@ method's subject comes first, after `this`:
 pkg$swapWeapon(this pkg$Player, pkg$Weapon)
 pkg$distance(geometry$Point, geometry$Point)
 pkg$+(pkg$Vec, pkg$Vec)
-geometry$Point(@primitives$Int, @primitives$Int)
+geometry$Point(%primitives$Int, %primitives$Int)
 ```
 
 - The package is the one that declares the verb, which is not necessarily
@@ -43,8 +50,8 @@ geometry$Point(@primitives$Int, @primitives$Int)
   named constructor.
 - A generic verb's instance writes its arguments after its name, as a type
   does, and its parameter types with those arguments in place:
-  `pkg$first<@primitives$Int>(this pkg$List<@primitives$Int>)`. An explicit
-  `T Type` or number parameter writes its kind (`Type`, `@concepts$Int`),
+  `pkg$first<%primitives$Int>(this pkg$List<%primitives$Int>)`. An explicit
+  `T Type` or number parameter writes its kind (`Type`, `%concepts$Int`),
   since the argument it takes is already among the instance's.
 - The return type, parameter names and `mut` are left out. Overloads cannot
   differ by them ([functions.md §4.1](https://github.com/zane-lang/spec/blob/b0675d6/spec/functions.md)),

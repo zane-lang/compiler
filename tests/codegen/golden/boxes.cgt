@@ -11,7 +11,7 @@
     │   ├── positions[0]: box @0 of boxes$Tree (16 bytes)
     │   └── positions[1]: box @8 of boxes$Tree (16 bytes)
     ├── layouts[3] > layout:
-    │   ├── type: @primitives$String
+    │   ├── type: %primitives$String
     │   ├── positions[0]: @0 (32 bytes)
     │   └── positions[1]: text @0
     ├── layouts[4] > layout:
@@ -50,7 +50,7 @@
     │       │   └── layout: boxes$Countdown
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -76,7 +76,7 @@
     │       │   └── layout: boxes$Countdown
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -87,7 +87,7 @@
     │       │       └── right: 2 : i64
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -145,7 +145,7 @@
     │       │   └── layout: boxes$Countdown
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -156,7 +156,7 @@
     │       │       └── right: 1 : i64
     │       ├── body[8] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -302,7 +302,7 @@
     │       │   └── layout: boxes$Tree
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -313,7 +313,7 @@
     │       │       └── right: 6 : i64
     │       ├── body[13] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -334,7 +334,7 @@
     │       │   │       └── payload > box:
     │       │   │           ├── value > call:
     │       │   │           │   ├── type: {i32, handle, ptr}
-    │       │   │           │   ├── fn: boxes$Link(@primitives$String, boxes$Chain)
+    │       │   │           │   ├── fn: boxes$Link(%primitives$String, boxes$Chain)
     │       │   │           │   ├── args[0] > expand:
     │       │   │           │   │   ├── type: ptr
     │       │   │           │   │   ├── label: @28
@@ -343,7 +343,7 @@
     │       │   │           │   │   │   ├── local: #27
     │       │   │           │   │   │   ├── scope: %2
     │       │   │           │   │   │   ├── value: "a" : handle
-    │       │   │           │   │   │   └── layout: @primitives$String
+    │       │   │           │   │   │   └── layout: %primitives$String
     │       │   │           │   │   └── body[1] > assign:
     │       │   │           │   │       ├── place: #29
     │       │   │           │   │       └── value: address of #27 : ptr
@@ -363,7 +363,7 @@
     │       │   │           │       │   │       └── payload > box:
     │       │   │           │       │   │           ├── value > call:
     │       │   │           │       │   │           │   ├── type: {i32, handle, ptr}
-    │       │   │           │       │   │           │   ├── fn: boxes$Link(@primitives$String, boxes$Chain)
+    │       │   │           │       │   │           │   ├── fn: boxes$Link(%primitives$String, boxes$Chain)
     │       │   │           │       │   │           │   ├── args[0] > expand:
     │       │   │           │       │   │           │   │   ├── type: ptr
     │       │   │           │       │   │           │   │   ├── label: @31
@@ -372,7 +372,7 @@
     │       │   │           │       │   │           │   │   │   ├── local: #30
     │       │   │           │       │   │           │   │   │   ├── scope: %2
     │       │   │           │       │   │           │   │   │   ├── value: "b" : handle
-    │       │   │           │       │   │           │   │   │   └── layout: @primitives$String
+    │       │   │           │       │   │           │   │   │   └── layout: %primitives$String
     │       │   │           │       │   │           │   │   └── body[1] > assign:
     │       │   │           │       │   │           │   │       ├── place: #32
     │       │   │           │       │   │           │   │       └── value: address of #30 : ptr
@@ -403,7 +403,7 @@
     │       │   └── layout: boxes$Chain
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -425,7 +425,7 @@
     │       │   └── layout: boxes$Chain
     │       ├── body[18] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -436,7 +436,7 @@
     │       │       └── right: 2 : i64
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -484,7 +484,7 @@
     │       │       │   │               │   ├── address: address of #45 : ptr
     │       │       │   │               │   ├── value > call:
     │       │       │   │               │   │   ├── type: {i32, handle, ptr}
-    │       │       │   │               │   │   ├── fn: boxes$Link(@primitives$String, boxes$Chain)
+    │       │       │   │               │   │   ├── fn: boxes$Link(%primitives$String, boxes$Chain)
     │       │       │   │               │   │   ├── args[0] > expand:
     │       │       │   │               │   │   │   ├── type: ptr
     │       │       │   │               │   │   │   ├── label: @47
@@ -493,7 +493,7 @@
     │       │       │   │               │   │   │   │   ├── local: #46
     │       │       │   │               │   │   │   │   ├── scope: %49
     │       │       │   │               │   │   │   │   ├── value: "none" : handle
-    │       │       │   │               │   │   │   │   └── layout: @primitives$String
+    │       │       │   │               │   │   │   │   └── layout: %primitives$String
     │       │       │   │               │   │   │   └── body[1] > assign:
     │       │       │   │               │   │   │       ├── place: #48
     │       │       │   │               │   │   │       └── value: address of #46 : ptr
@@ -528,14 +528,14 @@
     │       │       │       │   ├── local: #53
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "a" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #55
     │       │       │           └── value: local #53 : handle
     │       │       └── right: 1 : i64
     │       ├── body[20] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: boxes$check(@primitives$Bool)
+    │       │   ├── fn: boxes$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -600,7 +600,7 @@
     │       │       │   │               │   ├── address: address of #59 : ptr
     │       │       │   │               │   ├── value > call:
     │       │       │   │               │   │   ├── type: {i32, handle, ptr}
-    │       │       │   │               │   │   ├── fn: boxes$Link(@primitives$String, boxes$Chain)
+    │       │       │   │               │   │   ├── fn: boxes$Link(%primitives$String, boxes$Chain)
     │       │       │   │               │   │   ├── args[0] > expand:
     │       │       │   │               │   │   │   ├── type: ptr
     │       │       │   │               │   │   │   ├── label: @61
@@ -609,7 +609,7 @@
     │       │       │   │               │   │   │   │   ├── local: #60
     │       │       │   │               │   │   │   │   ├── scope: %63
     │       │       │   │               │   │   │   │   ├── value: "none" : handle
-    │       │       │   │               │   │   │   │   └── layout: @primitives$String
+    │       │       │   │               │   │   │   │   └── layout: %primitives$String
     │       │       │   │               │   │   │   └── body[1] > assign:
     │       │       │   │               │   │   │       ├── place: #62
     │       │       │   │               │   │   │       └── value: address of #60 : ptr
@@ -644,7 +644,7 @@
     │       │       │       │   ├── local: #70
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "none" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #72
     │       │       │           └── value: local #70 : handle
@@ -764,7 +764,7 @@
     │           │               └── ptr: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
     ├── funcs[2] > func:
-    │   ├── symbol: boxes$check(@primitives$Bool)
+    │   ├── symbol: boxes$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -773,12 +773,12 @@
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "yes\n" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[1] > host:
     │       │   ├── local: #4
     │       │   ├── scope: %3
     │       │   ├── value: "no\n" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[2] > if:
     │       │   ├── cond: local #1 : i1
     │       │   └── body[0] > eval > runtime:
@@ -880,7 +880,7 @@
     │           │                       └── base: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
     ├── funcs[5] > func:
-    │   ├── symbol: boxes$Link(@primitives$String, boxes$Chain)
+    │   ├── symbol: boxes$Link(%primitives$String, boxes$Chain)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : ptr
     │   ├── ret: {i32, handle, ptr}
@@ -892,7 +892,7 @@
     │       │   ├── members[1] > member 1 > take:
     │       │   │   ├── type: handle
     │       │   │   ├── address: local #1 : ptr
-    │       │   │   └── layout: @primitives$String
+    │       │   │   └── layout: %primitives$String
     │       │   └── members[2] > member 2 > box:
     │       │       ├── value > take:
     │       │       │   ├── type: {i32, <void | ptr>}

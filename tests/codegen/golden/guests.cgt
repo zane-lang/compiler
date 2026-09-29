@@ -12,7 +12,7 @@
     │   ├── positions[0]: @0 (32 bytes)
     │   └── positions[1]: @16 (16 bytes) when [8]=0
     ├── layouts[3] > layout:
-    │   ├── type: @primitives$String
+    │   ├── type: %primitives$String
     │   ├── positions[0]: @0 (32 bytes)
     │   └── positions[1]: text @0
     ├── funcs[0] > func:
@@ -26,7 +26,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: guests$Node(@primitives$Int)
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 1 : i64
     │       │   └── layout: guests$Node
     │       ├── body[1] > let:
@@ -38,7 +38,7 @@
     │       │   └── args[0]: address of #1 : ptr
     │       ├── body[3] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -55,7 +55,7 @@
     │       │   └── args[0] > resolve: local #3 : i32
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -68,7 +68,7 @@
     │       │       └── right: 3 : i64
     │       ├── body[6] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: *
@@ -90,7 +90,7 @@
     │       │           └── right: 3 : i64
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -113,7 +113,7 @@
     │       │   └── args[0] > resolve: local #3 : i32
     │       ├── body[10] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -128,12 +128,12 @@
     │       │   ├── address: address of #1 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: guests$Node(@primitives$Int)
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 100 : i64
     │       │   └── layout: guests$Node
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -148,12 +148,12 @@
     │       │   ├── address: address of #4 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: guests$Node(@primitives$Int)
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 7 : i64
     │       │   └── layout: guests$Node
     │       ├── body[14] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -169,7 +169,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: guests$Node(@primitives$Int)
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 20 : i64
     │       │   └── layout: guests$Node
     │       ├── body[16] > let:
@@ -188,7 +188,7 @@
     │       │   └── args[0] > resolve: local #6 : i32
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -201,7 +201,7 @@
     │       │       └── right: 21 : i64
     │       ├── body[20] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -214,7 +214,7 @@
     │       │       └── right: 21 : i64
     │       ├── body[21] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -234,7 +234,7 @@
     │       │   └── value > mint: address of #1 : ptr
     │       ├── body[23] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -261,7 +261,7 @@
     │       │   │       │   ├── scope: %2
     │       │   │       │   ├── value > call:
     │       │   │       │   │   ├── type: {i32, i64}
-    │       │   │       │   │   ├── fn: guests$Node(@primitives$Int)
+    │       │   │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │       │   │   └── args[0]: 5 : i64
     │       │   │       │   └── layout: guests$Node
     │       │   │       └── body[1] > assign:
@@ -277,7 +277,7 @@
     │       │       └── value: local #10 : {i32, i32, {i32, i64}}
     │       ├── body[26] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -308,7 +308,7 @@
     │       │   └── args[0] > resolve: local #11 : i32
     │       ├── body[30] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -329,12 +329,12 @@
     │       │   │   └── base: address of #12 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: guests$Node(@primitives$Int)
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 50 : i64
     │       │   └── layout: guests$Node
     │       ├── body[32] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -350,7 +350,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: guests$Node(@primitives$Int)
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 9 : i64
     │       │   └── layout: guests$Node
     │       ├── body[34] > let:
@@ -382,7 +382,7 @@
     │       │   └── layout: guests$Holder
     │       ├── body[37] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -399,7 +399,7 @@
     │       │   └── args[0] > resolve: local #14 : i32
     │       ├── body[39] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -421,12 +421,12 @@
     │       │   │       ├── index: 0
     │       │   │       └── payload > call:
     │       │   │           ├── type: {i32, i64}
-    │       │   │           ├── fn: guests$Node(@primitives$Int)
+    │       │   │           ├── fn: guests$Node(%primitives$Int)
     │       │   │           └── args[0]: 30 : i64
     │       │   └── layout: guests$Holder
     │       ├── body[41] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
     │       │       ├── label: @17
@@ -476,7 +476,7 @@
     │       │           └── cases[1] > case 1[2]: leave @17
     │       ├── body[42] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
     │       │       ├── label: @22
@@ -522,7 +522,7 @@
     │       │           └── cases[1] > case 1[2]: leave @22
     │       ├── body[43] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
     │       │       ├── label: @27
@@ -538,7 +538,7 @@
     │       │       │   │       ├── index: 0
     │       │       │   │       └── payload > call:
     │       │       │   │           ├── type: {i32, i64}
-    │       │       │   │           ├── fn: guests$Node(@primitives$Int)
+    │       │       │   │           ├── fn: guests$Node(%primitives$Int)
     │       │       │   │           └── args[0]: 40 : i64
     │       │       │   └── layout: guests$Holder
     │       │       ├── body[1] > let:
@@ -617,7 +617,7 @@
     │       │   │   │       │   ├── scope: %40
     │       │   │   │       │   ├── value > call:
     │       │   │   │       │   │   ├── type: {i32, i64}
-    │       │   │   │       │   │   ├── fn: guests$Node(@primitives$Int)
+    │       │   │   │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   │       │   │   └── args[0]: local #34 : i64
     │       │   │   │       │   └── layout: guests$Node
     │       │   │   │       ├── body[1] > let:
@@ -644,7 +644,7 @@
     │       │   └── body[3]: leave @36
     │       ├── body[47] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: guests$check(@primitives$Bool)
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -652,7 +652,7 @@
     │       │       └── right: 5000050000 : i64
     │       └── body[48] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: guests$Node(@primitives$Int)
+    │   ├── symbol: guests$Node(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i32, i64}
     │   └── body[0] > return > escape:
@@ -680,7 +680,7 @@
     │   │       └── right: 1 : i64
     │   └── body[1] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: guests$check(@primitives$Bool)
+    │   ├── symbol: guests$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -689,12 +689,12 @@
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "yes\n" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[1] > host:
     │       │   ├── local: #4
     │       │   ├── scope: %3
     │       │   ├── value: "no\n" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[2] > if:
     │       │   ├── cond: local #1 : i1
     │       │   └── body[0] > eval > runtime:

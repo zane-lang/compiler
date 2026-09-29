@@ -1,7 +1,7 @@
 └── program:
     ├── entry: texts$main()
     ├── layouts[0] > layout:
-    │   ├── type: @primitives$String
+    │   ├── type: %primitives$String
     │   ├── positions[0]: @0 (32 bytes)
     │   └── positions[1]: text @0
     ├── layouts[1] > layout:
@@ -30,7 +30,7 @@
     │       │   ├── local: #1
     │       │   ├── scope: %2
     │       │   ├── value: "ab" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[1] > host:
     │       │   ├── local: #6
     │       │   ├── scope: %2
@@ -46,18 +46,18 @@
     │       │   │       │   ├── local: #3
     │       │   │       │   ├── scope: %2
     │       │   │       │   ├── value: "cd\n" : handle
-    │       │   │       │   └── layout: @primitives$String
+    │       │   │       │   └── layout: %primitives$String
     │       │   │       └── body[1] > assign:
     │       │   │           ├── place: #5
     │       │   │           └── value: local #3 : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[2] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: local #6 : handle
     │       ├── body[3] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -83,11 +83,11 @@
     │       │       │   │   │   │       │   ├── local: #7
     │       │       │   │   │   │       │   ├── scope: %2
     │       │       │   │   │   │       │   ├── value: "cd\n" : handle
-    │       │       │   │   │   │       │   └── layout: @primitives$String
+    │       │       │   │   │   │       │   └── layout: %primitives$String
     │       │       │   │   │   │       └── body[1] > assign:
     │       │       │   │   │   │           ├── place: #9
     │       │       │   │   │   │           └── value: local #7 : handle
-    │       │       │   │   │   └── layout: @primitives$String
+    │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
     │       │       │   │       ├── place: #12
     │       │       │   │       └── value: local #10 : handle
@@ -95,7 +95,7 @@
     │       │       └── right: 1 : i64
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > flip:
     │       │       ├── type: i1
     │       │       └── value > binary:
@@ -109,7 +109,7 @@
     │       │           └── right: 1 : i64
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -125,9 +125,9 @@
     │       │       │   │   │   ├── scope: %2
     │       │       │   │   │   ├── value > call:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── fn: texts$twice(&@primitives$String)
+    │       │       │   │   │   │   ├── fn: texts$twice(&%primitives$String)
     │       │       │   │   │   │   └── args[0] > mint: address of #1 : ptr
-    │       │       │   │   │   └── layout: @primitives$String
+    │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
     │       │       │   │       ├── place: #15
     │       │       │   │       └── value: local #13 : handle
@@ -139,7 +139,7 @@
     │       │       │       │   ├── local: #16
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "abab" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #18
     │       │       │           └── value: local #16 : handle
@@ -150,11 +150,11 @@
     │       │   ├── value > take:
     │       │   │   ├── type: handle
     │       │   │   ├── address: address of #6 : ptr
-    │       │   │   └── layout: @primitives$String
-    │       │   └── layout: @primitives$String
+    │       │   │   └── layout: %primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -170,7 +170,7 @@
     │       │       │       │   ├── local: #20
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "abcd\n" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #22
     │       │       │           └── value: local #20 : handle
@@ -178,10 +178,10 @@
     │       ├── body[8] > overwrite:
     │       │   ├── address: address of #6 : ptr
     │       │   ├── value: "again" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -197,7 +197,7 @@
     │       │       │       │   ├── local: #23
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "again" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #25
     │       │       │           └── value: local #23 : handle
@@ -207,7 +207,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, handle}
-    │       │   │   ├── fn: texts$Person(@primitives$String)
+    │       │   │   ├── fn: texts$Person(%primitives$String)
     │       │   │   └── args[0] > expand:
     │       │   │       ├── type: ptr
     │       │   │       ├── label: @27
@@ -216,7 +216,7 @@
     │       │   │       │   ├── local: #26
     │       │   │       │   ├── scope: %2
     │       │   │       │   ├── value: "ada" : handle
-    │       │   │       │   └── layout: @primitives$String
+    │       │   │       │   └── layout: %primitives$String
     │       │   │       └── body[1] > assign:
     │       │   │           ├── place: #28
     │       │   │           └── value: address of #26 : ptr
@@ -234,7 +234,7 @@
     │       │   └── layout: texts$Person
     │       ├── body[13] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -252,7 +252,7 @@
     │       │       │   │   │   │   ├── type: handle
     │       │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
     │       │       │   │   │   │   └── args[0] > resolve: local #30 : i32
-    │       │       │   │   │   └── layout: @primitives$String
+    │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
     │       │       │   │       ├── place: #34
     │       │       │   │       └── value: local #32 : handle
@@ -264,7 +264,7 @@
     │       │       │       │   ├── local: #35
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "hello, ada" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #37
     │       │       │           └── value: local #35 : handle
@@ -286,14 +286,14 @@
     │       │   │       │   ├── local: #38
     │       │   │       │   ├── scope: %2
     │       │   │       │   ├── value: "!" : handle
-    │       │   │       │   └── layout: @primitives$String
+    │       │   │       │   └── layout: %primitives$String
     │       │   │       └── body[1] > assign:
     │       │   │           ├── place: #40
     │       │   │           └── value: local #38 : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -311,7 +311,7 @@
     │       │       │   │   │   │   ├── type: handle
     │       │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
     │       │       │   │   │   │   └── args[0] > resolve: local #30 : i32
-    │       │       │   │   │   └── layout: @primitives$String
+    │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
     │       │       │   │       ├── place: #43
     │       │       │   │       └── value: local #41 : handle
@@ -323,7 +323,7 @@
     │       │       │       │   ├── local: #44
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "hello, ab!" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #46
     │       │       │           └── value: local #44 : handle
@@ -336,7 +336,7 @@
     │       │       └── base: address of #31 : ptr
     │       ├── body[17] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -354,7 +354,7 @@
     │       │       │       │   ├── local: #48
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "ab!" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #50
     │       │       │           └── value: local #48 : handle
@@ -372,7 +372,7 @@
     │       │   └── layout: texts$Tagged
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
     │       │       ├── label: @52
@@ -414,7 +414,7 @@
     │       │           │   │       │       │   ├── local: #56
     │       │           │   │       │       │   ├── scope: %59
     │       │           │   │       │       │   ├── value: "abcd?" : handle
-    │       │           │   │       │       │   └── layout: @primitives$String
+    │       │           │   │       │       │   └── layout: %primitives$String
     │       │           │   │       │       └── body[1] > assign:
     │       │           │   │       │           ├── place: #58
     │       │           │   │       │           └── value: local #56 : handle
@@ -445,7 +445,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, handle}
-    │       │   │   ├── fn: texts$Person(@primitives$String)
+    │       │   │   ├── fn: texts$Person(%primitives$String)
     │       │   │   └── args[0] > expand:
     │       │   │       ├── type: ptr
     │       │   │       ├── label: @62
@@ -454,7 +454,7 @@
     │       │   │       │   ├── local: #61
     │       │   │       │   ├── scope: %2
     │       │   │       │   ├── value: "floating" : handle
-    │       │   │       │   └── layout: @primitives$String
+    │       │   │       │   └── layout: %primitives$String
     │       │   │       └── body[1] > assign:
     │       │   │           ├── place: #63
     │       │   │           └── value: address of #61 : ptr
@@ -488,7 +488,7 @@
     │       │   └── layout: texts$Holder
     │       ├── body[25] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -506,7 +506,7 @@
     │       │       │   │   │   │   ├── type: handle
     │       │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
     │       │       │   │   │   │   └── args[0] > resolve: local #65 : i32
-    │       │       │   │   │   └── layout: @primitives$String
+    │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
     │       │       │   │       ├── place: #69
     │       │       │   │       └── value: local #67 : handle
@@ -518,14 +518,14 @@
     │       │       │       │   ├── local: #70
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "hello, floating" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #72
     │       │       │           └── value: local #70 : handle
     │       │       └── right: 1 : i64
     │       ├── body[26] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$rename(this texts$Person, @primitives$String)
+    │       │   ├── fn: texts$rename(this texts$Person, %primitives$String)
     │       │   ├── args[0] > resolve: local #65 : i32
     │       │   └── args[1] > expand:
     │       │       ├── type: ptr
@@ -546,17 +546,17 @@
     │       │       │   │       │   ├── local: #73
     │       │       │   │       │   ├── scope: %2
     │       │       │   │       │   ├── value: "!" : handle
-    │       │       │   │       │   └── layout: @primitives$String
+    │       │       │   │       │   └── layout: %primitives$String
     │       │       │   │       └── body[1] > assign:
     │       │       │   │           ├── place: #75
     │       │       │   │           └── value: local #73 : handle
-    │       │       │   └── layout: @primitives$String
+    │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #78
     │       │           └── value: address of #76 : ptr
     │       ├── body[27] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -574,7 +574,7 @@
     │       │       │   │   │   │   ├── type: handle
     │       │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
     │       │       │   │   │   │   └── args[0] > resolve: local #65 : i32
-    │       │       │   │   │   └── layout: @primitives$String
+    │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
     │       │       │   │       ├── place: #81
     │       │       │   │       └── value: local #79 : handle
@@ -586,7 +586,7 @@
     │       │       │       │   ├── local: #82
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "hello, ab!" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #84
     │       │       │           └── value: local #82 : handle
@@ -596,12 +596,12 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: handle
-    │       │   │   ├── fn: texts$twice(&@primitives$String)
+    │       │   │   ├── fn: texts$twice(&%primitives$String)
     │       │   │   └── args[0] > mint: address of #1 : ptr
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[29] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -623,7 +623,7 @@
     │       │       │   │   │   │   │   ├── local: #91
     │       │       │   │   │   │   │   └── value > call:
     │       │       │   │   │   │   │       ├── type: <handle | handle | void>
-    │       │       │   │   │   │   │       ├── fn: texts$refuse(@primitives$String)
+    │       │       │   │   │   │   │       ├── fn: texts$refuse(%primitives$String)
     │       │       │   │   │   │   │       └── args[0] > expand:
     │       │       │   │   │   │   │           ├── type: ptr
     │       │       │   │   │   │   │           ├── label: @87
@@ -632,7 +632,7 @@
     │       │       │   │   │   │   │           │   ├── local: #86
     │       │       │   │   │   │   │           │   ├── scope: %2
     │       │       │   │   │   │   │           │   ├── value: "no" : handle
-    │       │       │   │   │   │   │           │   └── layout: @primitives$String
+    │       │       │   │   │   │   │           │   └── layout: %primitives$String
     │       │       │   │   │   │   │           └── body[1] > assign:
     │       │       │   │   │   │   │               ├── place: #88
     │       │       │   │   │   │   │               └── value: address of #86 : ptr
@@ -654,7 +654,7 @@
     │       │       │   │   │   │           │   │   ├── type: handle
     │       │       │   │   │   │           │   │   ├── index: 1
     │       │       │   │   │   │           │   │   └── value: local #91 : <handle | handle | void>
-    │       │       │   │   │   │           │   └── layout: @primitives$String
+    │       │       │   │   │   │           │   └── layout: %primitives$String
     │       │       │   │   │   │           ├── body[1] > assign:
     │       │       │   │   │   │           │   ├── place: #90
     │       │       │   │   │   │           │   └── value > escape:
@@ -662,10 +662,10 @@
     │       │       │   │   │   │           │       ├── value > take:
     │       │       │   │   │   │           │       │   ├── type: handle
     │       │       │   │   │   │           │       │   ├── address: address of #92 : ptr
-    │       │       │   │   │   │           │       │   └── layout: @primitives$String
-    │       │       │   │   │   │           │       └── layout: @primitives$String
+    │       │       │   │   │   │           │       │   └── layout: %primitives$String
+    │       │       │   │   │   │           │       └── layout: %primitives$String
     │       │       │   │   │   │           └── body[2]: leave @89
-    │       │       │   │   │   └── layout: @primitives$String
+    │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
     │       │       │   │       ├── place: #96
     │       │       │   │       └── value: local #94 : handle
@@ -677,7 +677,7 @@
     │       │       │       │   ├── local: #97
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "no!" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #99
     │       │       │           └── value: local #97 : handle
@@ -686,7 +686,7 @@
     │       │   ├── local: #100
     │       │   ├── scope: %2
     │       │   ├── value: "" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[31] > let:
     │       │   ├── local: #101
     │       │   └── value: 1 : i64
@@ -727,11 +727,11 @@
     │       │   │   │       │   │       │   ├── local: #106
     │       │   │   │       │   │       │   ├── scope: %109
     │       │   │   │       │   │       │   ├── value: "y" : handle
-    │       │   │   │       │   │       │   └── layout: @primitives$String
+    │       │   │   │       │   │       │   └── layout: %primitives$String
     │       │   │   │       │   │       └── body[1] > assign:
     │       │   │   │       │   │           ├── place: #108
     │       │   │   │       │   │           └── value: local #106 : handle
-    │       │   │   │       │   └── layout: @primitives$String
+    │       │   │   │       │   └── layout: %primitives$String
     │       │   │   │       └── body[1] > overwrite:
     │       │   │   │           ├── address: address of #100 : ptr
     │       │   │   │           ├── value > runtime:
@@ -746,11 +746,11 @@
     │       │   │   │           │       │   ├── local: #111
     │       │   │   │           │       │   ├── scope: %109
     │       │   │   │           │       │   ├── value: "z" : handle
-    │       │   │   │           │       │   └── layout: @primitives$String
+    │       │   │   │           │       │   └── layout: %primitives$String
     │       │   │   │           │       └── body[1] > assign:
     │       │   │   │           │           ├── place: #113
     │       │   │   │           │           └── value: local #111 : handle
-    │       │   │   │           └── layout: @primitives$String
+    │       │   │   │           └── layout: %primitives$String
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #101
     │       │   │       └── value > binary:
@@ -762,7 +762,7 @@
     │       │   └── body[3]: leave @103
     │       ├── body[33] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: texts$check(@primitives$Bool)
+    │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -778,14 +778,14 @@
     │       │       │       │   ├── local: #114
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "abyz" : handle
-    │       │       │       │   └── layout: @primitives$String
+    │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #116
     │       │       │           └── value: local #114 : handle
     │       │       └── right: 1 : i64
     │       └── body[34] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: texts$check(@primitives$Bool)
+    │   ├── symbol: texts$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -794,12 +794,12 @@
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "yes\n" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[1] > host:
     │       │   ├── local: #4
     │       │   ├── scope: %3
     │       │   ├── value: "no\n" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[2] > if:
     │       │   ├── cond: local #1 : i1
     │       │   └── body[0] > eval > runtime:
@@ -816,7 +816,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: texts$twice(&@primitives$String)
+    │   ├── symbol: texts$twice(&%primitives$String)
     │   ├── params[0]: local #1 : i32
     │   ├── ret: handle
     │   └── body[0] > return > escape:
@@ -830,9 +830,9 @@
     │       │   └── args[1] > deref:
     │       │       ├── type: handle
     │       │       └── ptr > resolve: local #1 : i32
-    │       └── layout: @primitives$String
+    │       └── layout: %primitives$String
     ├── funcs[3] > func:
-    │   ├── symbol: texts$Person(@primitives$String)
+    │   ├── symbol: texts$Person(%primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: {i32, handle}
     │   └── body[0] > return > escape:
@@ -843,7 +843,7 @@
     │       │   └── members[1] > member 1 > take:
     │       │       ├── type: handle
     │       │       ├── address: local #1 : ptr
-    │       │       └── layout: @primitives$String
+    │       │       └── layout: %primitives$String
     │       └── layout: texts$Person
     ├── funcs[4] > func:
     │   ├── symbol: texts$greeting(this texts$Person)
@@ -864,7 +864,7 @@
     │           │   │   │   ├── local: #2
     │           │   │   │   ├── scope: %5
     │           │   │   │   ├── value: "hello, " : handle
-    │           │   │   │   └── layout: @primitives$String
+    │           │   │   │   └── layout: %primitives$String
     │           │   │   └── body[1] > assign:
     │           │   │       ├── place: #4
     │           │   │       └── value: local #2 : handle
@@ -874,9 +874,9 @@
     │           │       └── value > deref:
     │           │           ├── type: {i32, handle}
     │           │           └── ptr: local #1 : ptr
-    │           └── layout: @primitives$String
+    │           └── layout: %primitives$String
     ├── funcs[5] > func:
-    │   ├── symbol: texts$rename(this texts$Person, @primitives$String)
+    │   ├── symbol: texts$rename(this texts$Person, %primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : ptr
     │   ├── ret: void
@@ -888,11 +888,11 @@
     │   │   ├── value > take:
     │   │   │   ├── type: handle
     │   │   │   ├── address: local #2 : ptr
-    │   │   │   └── layout: @primitives$String
-    │   │   └── layout: @primitives$String
+    │   │   │   └── layout: %primitives$String
+    │   │   └── layout: %primitives$String
     │   └── body[1] > return: unit : void
     └── funcs[6] > func:
-        ├── symbol: texts$refuse(@primitives$String)
+        ├── symbol: texts$refuse(%primitives$String)
         ├── params[0]: local #1 : ptr
         ├── ret: <handle | handle | void>
         └── body[0] > scope:
@@ -916,8 +916,8 @@
                     │       │   ├── local: #2
                     │       │   ├── scope: %5
                     │       │   ├── value: "!" : handle
-                    │       │   └── layout: @primitives$String
+                    │       │   └── layout: %primitives$String
                     │       └── body[1] > assign:
                     │           ├── place: #4
                     │           └── value: local #2 : handle
-                    └── layout: @primitives$String
+                    └── layout: %primitives$String
