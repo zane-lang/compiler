@@ -58,10 +58,6 @@ let flip span value =
 let rec type_expr (x : C.Type_expr.t) : S.Type_expr.t =
   let span = x.C.Type_expr.span in
   match x.C.Type_expr.node with
-  (* §2.8: parentheses only group, and the grouping is already the tree. The
-     inner node is returned with its own span, which covers what is inside the
-     parentheses rather than them too. *)
-  | C.Type_expr.Parenthesized inner -> type_expr inner
   | C.Type_expr.Path { name = n; generics } ->
       {
         S.Type_expr.span;
@@ -106,8 +102,6 @@ and verb_type (x : C.Verb_type.t) : S.Verb_type.t =
 and ret_type (x : C.Ret_type.t) : S.Ret_type.t =
   let span = x.C.Ret_type.span in
   match x.C.Ret_type.node with
-  (* §2.8, as for [Type_expr]. *)
-  | C.Ret_type.Parenthesized inner -> ret_type inner
   | C.Ret_type.Safe t -> { S.Ret_type.span; node = S.Ret_type.Safe (type_expr t) }
   | C.Ret_type.Abort { ok; abort } ->
       {

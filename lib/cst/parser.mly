@@ -201,9 +201,6 @@ top_decl:
   | type_=named_type_expr {
       type_
     }
-  | "(" type_=type_expr ")" {
-      type_expr $loc (Nodes.Type_expr.Parenthesized type_)
-    }
 
 %inline type_atom:
   | type_=type_base {
@@ -247,9 +244,11 @@ top_decl:
         } : Nodes.Type_expr.t)
     }
 
-(* Verb-type brackets bind more tightly than an unparenthesized abort return:
-   `Int ? Error[]` is `Int ? (Error[])`. To make the abort return feed the
-   verb type instead, group it explicitly: `(Int ? Error)[]`. *)
+(* An abort type stays attached to the return type written before it, so
+   `Int?Error[Int]` is a verb type whose return is `Int?Error` (syntax.md
+   §2.13). The abort type is a bare atom for that reason: were it a whole
+   [type_expr], `Error[Int]` could be it, and `Int?Error[Int]` would have a
+   second reading as a return of `Int` aborting with a verb type. *)
 (* The [Ret_type.Safe] cast introduces no syntax of its own -- it is the type
    to its left, read as a return type -- so it takes that type's span. *)
 type_expr:
@@ -263,17 +262,8 @@ type_expr:
             })
         atom suffixes
     }
-  | open_=LPAREN ret_type=abort_ret_type close=RPAREN
-    first=verb_type_suffix rest=list(verb_type_suffix) {
-      ignore open_;
-      ignore close;
-      let parenthesized =
-        ({
-          Nodes.Ret_type.node = Nodes.Ret_type.Parenthesized ret_type;
-          span = Span.join (Span.of_loc $loc(open_)) (Span.of_loc $loc(close));
-        } : Nodes.Ret_type.t)
-      in
-      let type_ = first parenthesized in
+  | ret_type=abort_ret_type first=verb_type_suffix rest=list(verb_type_suffix) {
+      let type_ = first ret_type in
       List.fold_left
         (fun (type_ : Nodes.Type_expr.t) suffix ->
           suffix
@@ -818,7 +808,7 @@ ret_type:
     }
 
 abort_ret_type:
-  | ok=type_expr "?" abort=type_expr {
+  | ok=type_expr "?" abort=type_atom {
       ret_type $loc (Nodes.Ret_type.Abort { ok; abort })
     }
 

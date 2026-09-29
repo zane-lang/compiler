@@ -83,7 +83,7 @@ let rec type_expr d (x : Type_expr.t) =
   | Type_expr.Path { name = n; generics } ->
       name_type d n;
       each d generic_arg generics
-  | Type_expr.Guest t | Type_expr.Parenthesized t -> type_expr d t
+  | Type_expr.Guest t -> type_expr d t
   | Type_expr.Verb v -> verb_type d v
 
 and verb_type d (x : Verb_type.t) =
@@ -106,7 +106,6 @@ and ret_type_ d (x : Ret_type.t) =
   | Ret_type.Abort { ok; abort } ->
       type_expr d ok;
       type_expr d abort
-  | Ret_type.Parenthesized r -> ret_type_ d r
 
 and generic_arg d (x : Generic_arg.t) =
   line d "generic_arg" x.Generic_arg.span;

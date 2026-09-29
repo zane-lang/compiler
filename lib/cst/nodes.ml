@@ -405,7 +405,6 @@ and Type_expr : sig
     | Path of { name : Name_type.t; generics : Generic_arg.t list }
     | Guest of t
     | Verb of Verb_type.t
-    | Parenthesized of t
 end = Type_expr
 
 and Param_type : sig
@@ -531,7 +530,6 @@ and Ret_type : sig
   and node =
     | Safe of Type_expr.t
     | Abort of { ok : Type_expr.t; abort : Type_expr.t }
-    | Parenthesized of t
 end = Ret_type
 
 and Func_lambda : sig

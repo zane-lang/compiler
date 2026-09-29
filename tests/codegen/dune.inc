@@ -175,6 +175,23 @@
   (diff golden/lists.out lists.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/operators))
+ (targets operators.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build operators.exe --package fixtures/operators)))
+
+(rule
+ (action
+  (with-stdout-to
+   operators.out.actual
+   (run ./operators.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/operators.out operators.out.actual)))
+
+(rule
  (deps (source_tree fixtures/outcomes))
  (action
   (with-stdout-to

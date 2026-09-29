@@ -279,10 +279,11 @@ have to. Both yield the base type, which is all this rewrite claims.
 
 ### 2.8 Parentheses
 
-`Expr.Parenthized`, `Type_expr.Parenthesized` and `Ret_type.Parenthesized` all
-go. Grouping is in the tree's shape once the tree exists;
+`Expr.Parenthized` goes. Grouping is in the tree's shape once the tree exists;
 [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
 §4.7 says parentheses "group an inner expression explicitly" and nothing else.
+A type is never parenthesised, so the CST has no such node for one
+([`proof-obligations.md`](../ambiguity/proof-obligations.md)).
 
 The one thing lost is the span *including* the parens — the inner node keeps
 its own span, which covers only what is inside them. Nothing on the roadmap

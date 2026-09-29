@@ -59,7 +59,7 @@ numbers in a proof report refer to.
 
 | Automaton | Conflict states | with shift/reduce | with reduce/reduce |
 | --------- | --------------: | ----------------: | -----------------: |
-| `--GLR`, the parser that ships | 54 | 53 | 8 |
+| `--GLR`, the parser that ships | 53 | 52 | 8 |
 | stock | 46 | 45 | 7 |
 
 Menhir explains each conflict state once, so the explanations file holds one
@@ -95,24 +95,24 @@ are not independent problems:
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
 | `(`             | 6 | `loption_generics_ ->` | before a call or a lambda |
-| `)` `?` `(` `<` | 3 | `loption_generics_ ->` | the same, where a type may also be the whole argument |
+| `?` `(` `<`     | 3 | `loption_generics_ ->` | the same, where a type may also be the whole argument |
 | operators, `(` `<` `{` `.` | 3 | `loption_generics_ ->` | the same, where a type may also be an operand |
-| `<`             | 9 | `loption_generics_ ->` | against `<` as a declared operator |
+| `<`             | 12 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<`         | 3 | `loption_generics_ ->` | a named type opening a call or a generic list |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
 | `(`             | 6 | `app -> ... DOT LIDENT` | a type member ending a package-scope declaration, against a named constructor call |
 | `(`             | 2 | `app -> func_callee` | a package-scope declaration's value, against a call |
-| `(`             | 3 | `primary -> LIDENT`, `primary -> THIS` | a bare name against a call or a lambda |
 | `?` `??`        | 4 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `func_callee -> unbraced_verb_call`, `app_braced -> braced_verb_call` | a spawned call against what follows it |
 | `(`             | 1 | `expr -> SPAWN unbraced_verb_call`, `func_callee -> unbraced_verb_call` | *(reduce/reduce)* the same, before a call |
 
-The `<` row is about the declaration form, not the comparison. Its nine states
+The `<` row is about the declaration form, not the comparison. Its twelve states
 all reduce toward `ret_type "<" "(" params ")" body`, the declaration of the
 `<` operator, against shifting `<` as the opening bracket of a generic argument
 list: after a name type, `Foo<Int> …` and `Foo <(a Int) { }` open with the same
-two tokens. Dropping `<` and `>` from the operators a declaration may name
-removes all nine and nothing else, which is what identifies the family; it is a
+two tokens. Three of the twelve are the same fork after an abort type,
+`Int?Foo<Int>` against `Int?Foo <(a Int) { }`. Dropping `<` and `>` from the
+operators a declaration may name removes all twelve and nothing else, which is what identifies the family; it is a
 language change rather than a restructuring, so it is a measurement here and
 not a proposal.
 
@@ -349,7 +349,8 @@ after an uppercase name the parser cannot yet tell a type used as a value from
 the head of an applied type or a constructor call, and the next token says
 which. Three of them are the `loption_generics_` reduction under two new
 lookahead sets — the argument position and the operand position — and the
-fourth doubles the `primary -> LIDENT` state. No reduce/reduce state is added.
+fourth doubles the `primary -> LIDENT` state, which has since gone with the
+parenthesised type (below). No reduce/reduce state is added.
 
 That they are forks rather than ambiguities is measured, not proved. Both
 readings are explored and exactly one survives on every case in
@@ -370,14 +371,49 @@ complete before the parser knows. The spec's own examples pass bare names, so
 the cheaper half is the whole of what §5.3 asks for;
 [`spec-divergences.md`](../spec-divergences.md) records the rest.
 
-Twenty-seven states reduce `loption_generics_ ->`, 21 of which predate the
-terminator change and are unchanged by it. The empty generics reduction is load-bearing rather
+Thirty states reduce `loption_generics_ ->`: 21 predate the terminator change,
+and three came with the abort type's own position (below). The empty generics reduction is load-bearing rather
 than an artifact: expanding the option into two explicit alternatives raises
 the count, and dropping generics from named types raises it too, both by
 trading shift/reduce states for reduce/reduce ones. What it stands in for is a
 genuine overlap in the surface syntax — `x Foo(…)` is either a constructor
 shorthand or a lambda declaration whose return type is `Foo`, and nothing
 before the closing bracket says which.
+
+## A type is never parenthesised
+
+[`syntax.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/syntax.md)
+§2.4 has no parenthesised type, and the grammar had one: `( type )` anywhere a
+type goes. It was ambiguous. `p (Int) = Int(1);` in a body was both a
+declaration of `p` at the type `(Int)` and an assignment to the call `p(Int)`,
+which passes a type as a value. Measured with `--check-tokens` it had two
+parses, and the parser stopped on it with no merge function to call.
+
+The form also carried the one spelling of an abortable verb type,
+`(Int ? Error)[Int]`, because `Int ? Error[Int]` read as a return of `Int`
+aborting with the verb type `Error[Int]`. Both go together. §2.13 spells the
+verb type `Int?Error[Int]`: the abort type stays attached to the return type
+written before it. So an abort type is now a bare type atom, a name or `&` a
+name, and never takes a verb suffix of its own. `type_expr -> abort_ret_type
+verb_type_suffix+` is the verb type, and a verb's own `Int?Error` return is
+`abort_ret_type` with nothing after it. The two part at the `[`.
+
+The census moves by one state in the shipped automaton and by none in the stock
+one, where the families shift:
+
+- `primary -> LIDENT` and `primary -> THIS` at `(` are gone, all three states.
+  That was the fork of a bare name before a `(` that could open a parenthesised
+  type, and it is the one the witness above sat in.
+- Three `loption_generics_ ->` states at `<` are added. They are the declared
+  `<` operator's fork again, after an abort type rather than a return type,
+  and belong to that family.
+- The three `loption_generics_ ->` states whose lookahead held `)` keep their
+  count and lose the `)`, since a type no longer closes on one.
+
+The ambiguous sentence now has one parse, an abortable verb type written in
+§2.13's spelling has one in a declaration and in a return position, and the
+parenthesised spelling has none. Each is a case in
+[`tests/grammar/ambiguity_test.py`](../../tests/grammar/ambiguity_test.py).
 
 ## The loose operator tier costs nothing
 

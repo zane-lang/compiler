@@ -44,14 +44,18 @@ let rec literal_of ctx (e : T.Expr.t) =
       | _ -> e)
   | _ -> e
 
+(* A numeric literal's digits, without the `'` that only separates groups of
+   them (docs/spec-divergences.md §8). *)
+let digits s = String.concat "" (String.split_on_char '\'' s)
+
 (* A storage primitive's constructor embeds its literal (types.md §2.7). *)
 let literal ctx span name (arg : T.Expr.t) : Expr.t =
   match (name, (literal_of ctx arg).T.Expr.node) with
   | "Int", T.Expr.Integer_lit s | "I64", T.Expr.Integer_lit s -> (
-      match Int64.of_string_opt s with
+      match Int64.of_string_opt (digits s) with
       | Some i -> { Expr.node = Expr.Int i; ty = Nodes.Ty.I64 }
       | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$Int`" s))
   | "Float", T.Expr.Decimal_lit s ->
-      { Expr.node = Expr.Float (float_of_string s); ty = Nodes.Ty.F64 }
+      { Expr.node = Expr.Float (float_of_string (digits s)); ty = Nodes.Ty.F64 }
   | "String", T.Expr.Text_lit s -> { Expr.node = Expr.Text (unescape s); ty = Nodes.Ty.Handle }
   | _ -> refuse span (Printf.sprintf "lowering does not handle this `@primitives$%s` yet" name)
