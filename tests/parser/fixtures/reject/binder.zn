@@ -1,0 +1,10 @@
+package main;
+
+/// A `?` handler names its binder even when nothing reads it
+/// (error-handling.md §3.1): this one has none.
+Int answer() {
+	value Int = parse() ? {
+		resolve Int(0);
+	}
+	return value;
+}

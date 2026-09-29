@@ -2,6 +2,10 @@
 /// not reach `@program$`.
 package lib;
 
+/// `bad` imports this package, so this import closes a cycle (dependencies.md
+/// §10).
+import bad;
+
 alias Int = @primitives$Int
 alias Unit = @primitives$Unit
 alias String = @primitives$String

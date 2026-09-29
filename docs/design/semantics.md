@@ -282,7 +282,7 @@ and arg = Type of t | Number of number
 and number = Known of int | Param_num of Param_id.t
 
 and concept =
-  | Integer_lit | Decimal_lit | Text_lit           (* @concepts$Int, Decimal, Text *)
+  | Integer_lit | Decimal_lit | Text_lit           (* @concepts$Int, Float, String *)
   | Array_lit of t * number                        (* @concepts$Array<T, n> *)
   | Map_lit of t * t                               (* @concepts$Map<K, V> *)
   | Block                                          (* @concepts$Block *)
@@ -514,11 +514,11 @@ its own boolean type at a coercion site.
 what a `core` needs to be written at all: the machine arithmetic and comparisons
 on `@primitives$Int`, `I32`, `I64` and `Float`, the Boolean operators on
 `@primitives$Bool`, concatenation and equality on the opaque
-`@primitives$String`, the implicit constructors that carry an
-`@concepts$Int` into `@primitives$Int`, `I32` and `I64`, an
-`@concepts$Float` into `@primitives$Float` -- the split `types.md` §2.6
-makes for `core`'s `Int` and `Float` -- and a `@concepts$String` into
-`@primitives$String`, element access on `@primitives$Array` and
+`@primitives$String`, the constructors, none of them implicit
+(`types.md` §2.7), that build an `@primitives$Int`, `I32` or `I64` from an
+`@concepts$Int`, an `@primitives$Float` from an `@concepts$Float` -- the
+split `types.md` §2.6 makes for `core`'s `Int` and `Float` -- and an
+`@primitives$String` from an `@concepts$String`, element access on `@primitives$Array` and
 `@primitives$List`, and `push` and `size` on `@primitives$List`.
 
 **A `match` arm is where its `return` goes.** `=> expr` is `{ return expr }`
@@ -634,7 +634,9 @@ only reject more, never let a write through.
   (`lifetimes.md` §1.11) is not checked yet.
 
 **`main`** is not required, since a library built on its own is also a root.
-When the root declares one, it takes no parameters (`packages.md` §6.2).
+When the root declares one, it takes no parameters (`packages.md` §6.2), and
+its return type is not checked
+([`spec-divergences.md`](../spec-divergences.md) §16).
 
 ---
 

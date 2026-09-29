@@ -1,0 +1,8 @@
+package main;
+
+/// An identifier is letters and digits after its first character
+/// (lexical.md §4.1), so `_` does not continue one.
+Int answer() {
+	my_value Int(4);
+	return my_value;
+}

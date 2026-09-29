@@ -614,7 +614,11 @@ File "fixtures/typing/reject/bad/writes.zn", line 24, characters 5-9:
 24 |     this!tick();
   |     ^^^^
 Error: a `!` call writes its subject, and `this` is read-only in a method that is not `mut`
-File "fixtures/typing/reject/lib/lib.zn", line 21, characters 5-21:
-21 |     @program$console!print(text);
+File "fixtures/typing/reject/lib/lib.zn", line 7, characters 1-11:
+7 | import bad;
+  | ^^^^^^^^^^
+Error: this import closes a cycle of packages, `bad` -> `lib` -> `bad`; the packages of a build import one another without a cycle (dependencies.md §10)
+File "fixtures/typing/reject/lib/lib.zn", line 25, characters 5-21:
+25 |     @program$console!print(text);
   |     ^^^^^^^^^^^^^^^^
 Error: only the root package reaches `@program$`; `lib` receives the console and runtime from it as an argument

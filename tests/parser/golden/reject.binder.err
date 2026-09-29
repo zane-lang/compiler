@@ -1,0 +1,4 @@
+File "fixtures/reject/binder.zn", line 6, characters 27-28:
+6 |     value Int = parse() ? {
+  |                           ^
+Error: Parse error

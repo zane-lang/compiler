@@ -62,6 +62,30 @@
 
 (rule
  (with-stderr-to
+  reject.binder.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/binder.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.binder.err reject.binder.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.identifier.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/identifier.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.identifier.err reject.identifier.err.actual)))
+
+(rule
+ (with-stderr-to
   reject.lexing.err.actual
   (with-accepted-exit-codes
    1
