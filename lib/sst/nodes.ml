@@ -296,7 +296,6 @@ and Verb_type : sig
       }
 end = Verb_type
 
-(* No [Parenthesized], for the reason [Expr] gives. *)
 and Type_expr : sig
   type t = {
     node : node;
@@ -422,7 +421,6 @@ and Block : sig
   }
 end = Block
 
-(* No [Parenthesized], for the reason [Expr] gives. *)
 and Ret_type : sig
   type t = {
     node : node;

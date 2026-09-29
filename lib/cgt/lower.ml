@@ -310,10 +310,11 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | None -> refuse span "lowering does not handle this subscript yet")
   | T.Expr.Op { op; impl = { owner; instance; _ }; left; right; swapped; handler } -> (
       let t = ty st span e.T.Expr.ty in
-      (* Operands run in the order they were written, which is the other way
-         round when the desugaring swapped them (operators.md §2.3). *)
+      (* [left] and [right] are in written order, and run in it
+         (operators.md §2.3). When the desugaring swapped them, they are passed
+         the other way round: `a > b` calls `<` with `b` first. *)
       let operands l r apply =
-        if swapped then in_order st t r l (fun r l -> apply l r)
+        if swapped then in_order st t l r (fun l r -> apply r l)
         else
           let l = l () in
           apply l (r ())
@@ -327,9 +328,10 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | S.Declared id -> (
           match verb_of st id instance with
           | Some ({ params = [ pl; pr ]; _ } as v) when not (expands v) ->
+              let for_left, for_right = if swapped then (pr, pl) else (pl, pr) in
               operands
-                (fun () -> argument st ctx span v pl left)
-                (fun () -> argument st ctx span v pr right)
+                (fun () -> argument st ctx span v for_left left)
+                (fun () -> argument st ctx span v for_right right)
                 (fun l r -> invoke st ctx span v [ l; r ] handler)
           | _ -> refuse span "lowering does not handle this operator yet"))
   | T.Expr.Flip { impl = { owner = S.Intrinsic _; _ }; value; handler = None } ->

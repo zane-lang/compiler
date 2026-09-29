@@ -632,6 +632,43 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "mul(mul(name, name), name)",
         )
 
+    def test_a_type_is_never_parenthesised(self) -> None:
+        # syntax.md §2.4 has no parenthesised type. With one, `p (Int) = ...`
+        # was both a declaration of `p` and an assignment to the call
+        # `p(Int)`, and the parser stopped on the ambiguity.
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT RPAREN "
+            "EQUAL UIDENT LPAREN INT RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { p (Int) = Int(1); }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT QSTNMARK "
+            "UIDENT RPAREN LBRACKET UIDENT RBRACKET EQUAL LIDENT SEMICOLON "
+            "RCURLY EOF",
+            "Unit f() { p (Int?Unit)[Int] = q; }",
+            0,
+        )
+
+    def test_an_abort_type_stays_with_the_return_type_it_follows(
+        self,
+    ) -> None:
+        # syntax.md §2.13: `Int?Unit[Int]` is a verb type returning `Int?Unit`,
+        # in a declaration and in a verb's return position alike, where it is
+        # not a verb returning `Int` that aborts with `Unit[Int]`.
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT QSTNMARK UIDENT "
+            "LBRACKET UIDENT RBRACKET EQUAL LIDENT SEMICOLON RCURLY EOF",
+            "Unit f() { p Int?Unit[Int] = q; }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT QSTNMARK UIDENT LBRACKET UIDENT RBRACKET LIDENT LPAREN "
+            "RPAREN THICK_ARROW LIDENT EOF",
+            "Int?Unit[Int] make() => q",
+            1,
+        )
+
 
 
 if __name__ == "__main__":
