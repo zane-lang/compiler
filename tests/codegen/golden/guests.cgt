@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: zane_main_17
+    ├── entry: guests$main()
     ├── layouts[0] > layout:
     │   ├── type: guests$Node
     │   └── positions[0]: @0 (16 bytes)
@@ -12,11 +12,11 @@
     │   ├── positions[0]: @0 (32 bytes)
     │   └── positions[1]: @16 (16 bytes) when [8]=0
     ├── layouts[3] > layout:
-    │   ├── type: @primitives$String
+    │   ├── type: %primitives$String
     │   ├── positions[0]: @0 (32 bytes)
     │   └── positions[1]: text @0
     ├── funcs[0] > func:
-    │   ├── symbol: zane_main_17
+    │   ├── symbol: guests$main()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -26,7 +26,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: zane_Node_8
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 1 : i64
     │       │   └── layout: guests$Node
     │       ├── body[1] > let:
@@ -34,11 +34,11 @@
     │       │   └── value > mint: address of #1 : ptr
     │       ├── body[2] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_bump_9
+    │       │   ├── fn: guests$bump(this guests$Node)
     │       │   └── args[0]: address of #1 : ptr
     │       ├── body[3] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -51,11 +51,11 @@
     │       │       └── right: 2 : i64
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_bump_9
+    │       │   ├── fn: guests$bump(this guests$Node)
     │       │   └── args[0] > resolve: local #3 : i32
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -68,7 +68,7 @@
     │       │       └── right: 3 : i64
     │       ├── body[6] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: *
@@ -77,7 +77,7 @@
     │       │       │   ├── op: ==
     │       │       │   ├── left > call:
     │       │       │   │   ├── type: i64
-    │       │       │   │   ├── fn: zane_peek_11
+    │       │       │   │   ├── fn: guests$peek(&guests$Node)
     │       │       │   │   └── args[0] > terminal: local #3 : i32
     │       │       │   └── right: 3 : i64
     │       │       └── right > binary:
@@ -85,18 +85,18 @@
     │       │           ├── op: ==
     │       │           ├── left > call:
     │       │           │   ├── type: i64
-    │       │           │   ├── fn: zane_peek_11
+    │       │           │   ├── fn: guests$peek(&guests$Node)
     │       │           │   └── args[0] > mint: address of #1 : ptr
     │       │           └── right: 3 : i64
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: zane_twice_10
+    │       │       │   ├── fn: guests$twice(this guests$Node)
     │       │       │   └── args[0] > resolve: local #3 : i32
     │       │       └── right: 6 : i64
     │       ├── body[8] > host:
@@ -109,11 +109,11 @@
     │       │   └── layout: guests$Node
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_bump_9
+    │       │   ├── fn: guests$bump(this guests$Node)
     │       │   └── args[0] > resolve: local #3 : i32
     │       ├── body[10] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -128,12 +128,12 @@
     │       │   ├── address: address of #1 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: zane_Node_8
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 100 : i64
     │       │   └── layout: guests$Node
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -148,12 +148,12 @@
     │       │   ├── address: address of #4 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: zane_Node_8
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 7 : i64
     │       │   └── layout: guests$Node
     │       ├── body[14] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -169,7 +169,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: zane_Node_8
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 20 : i64
     │       │   └── layout: guests$Node
     │       ├── body[16] > let:
@@ -184,11 +184,11 @@
     │       │   └── layout: guests$Node
     │       ├── body[18] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_bump_9
+    │       │   ├── fn: guests$bump(this guests$Node)
     │       │   └── args[0] > resolve: local #6 : i32
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -201,7 +201,7 @@
     │       │       └── right: 21 : i64
     │       ├── body[20] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -214,7 +214,7 @@
     │       │       └── right: 21 : i64
     │       ├── body[21] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -225,7 +225,7 @@
     │       │       │       ├── path: 1
     │       │       │       └── base > resolve > call:
     │       │       │           ├── type: i32
-    │       │       │           ├── fn: zane_larger_12
+    │       │       │           ├── fn: guests$larger(&guests$Node, &guests$Node)
     │       │       │           ├── args[0] > mint: address of #1 : ptr
     │       │       │           └── args[1] > mint: address of #4 : ptr
     │       │       └── right: 100 : i64
@@ -234,7 +234,7 @@
     │       │   └── value > mint: address of #1 : ptr
     │       ├── body[23] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -250,7 +250,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i32, {i32, i64}}
-    │       │   │   ├── fn: zane_Car_14
+    │       │   │   ├── fn: guests$Car(&guests$Node, guests$Node)
     │       │   │   ├── args[0] > mint: address of #4 : ptr
     │       │   │   └── args[1] > expand:
     │       │   │       ├── type: ptr
@@ -261,7 +261,7 @@
     │       │   │       │   ├── scope: %2
     │       │   │       │   ├── value > call:
     │       │   │       │   │   ├── type: {i32, i64}
-    │       │   │       │   │   ├── fn: zane_Node_8
+    │       │   │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │       │   │   └── args[0]: 5 : i64
     │       │   │       │   └── layout: guests$Node
     │       │   │       └── body[1] > assign:
@@ -270,14 +270,14 @@
     │       │   └── layout: guests$Car
     │       ├── body[25] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_bump_9
+    │       │   ├── fn: guests$bump(this guests$Node)
     │       │   └── args[0] > resolve > member:
     │       │       ├── type: i32
     │       │       ├── index: 1
     │       │       └── value: local #10 : {i32, i32, {i32, i64}}
     │       ├── body[26] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -304,11 +304,11 @@
     │       │   └── layout: guests$Car
     │       ├── body[29] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_bump_9
+    │       │   ├── fn: guests$bump(this guests$Node)
     │       │   └── args[0] > resolve: local #11 : i32
     │       ├── body[30] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -329,12 +329,12 @@
     │       │   │   └── base: address of #12 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: zane_Node_8
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 50 : i64
     │       │   └── layout: guests$Node
     │       ├── body[32] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -350,7 +350,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── fn: zane_Node_8
+    │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   └── args[0]: 9 : i64
     │       │   └── layout: guests$Node
     │       ├── body[34] > let:
@@ -382,7 +382,7 @@
     │       │   └── layout: guests$Holder
     │       ├── body[37] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -395,11 +395,11 @@
     │       │       └── right: 9 : i64
     │       ├── body[38] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_bump_9
+    │       │   ├── fn: guests$bump(this guests$Node)
     │       │   └── args[0] > resolve: local #14 : i32
     │       ├── body[39] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -421,12 +421,12 @@
     │       │   │       ├── index: 0
     │       │   │       └── payload > call:
     │       │   │           ├── type: {i32, i64}
-    │       │   │           ├── fn: zane_Node_8
+    │       │   │           ├── fn: guests$Node(%primitives$Int)
     │       │   │           └── args[0]: 30 : i64
     │       │   └── layout: guests$Holder
     │       ├── body[41] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
     │       │       ├── label: @17
@@ -449,7 +449,7 @@
     │       │           │       └── base: local #19 : ptr
     │       │           ├── cases[0] > case 0[1] > eval > call:
     │       │           │   ├── type: void
-    │       │           │   ├── fn: zane_bump_9
+    │       │           │   ├── fn: guests$bump(this guests$Node)
     │       │           │   └── args[0]: local #20 : ptr
     │       │           ├── cases[0] > case 0[2] > assign:
     │       │           │   ├── place: #18
@@ -476,7 +476,7 @@
     │       │           └── cases[1] > case 1[2]: leave @17
     │       ├── body[42] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
     │       │       ├── label: @22
@@ -522,7 +522,7 @@
     │       │           └── cases[1] > case 1[2]: leave @22
     │       ├── body[43] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
     │       │       ├── label: @27
@@ -538,7 +538,7 @@
     │       │       │   │       ├── index: 0
     │       │       │   │       └── payload > call:
     │       │       │   │           ├── type: {i32, i64}
-    │       │       │   │           ├── fn: zane_Node_8
+    │       │       │   │           ├── fn: guests$Node(%primitives$Int)
     │       │       │   │           └── args[0]: 40 : i64
     │       │       │   └── layout: guests$Holder
     │       │       ├── body[1] > let:
@@ -559,7 +559,7 @@
     │       │           │       └── base: local #30 : ptr
     │       │           ├── cases[0] > case 0[1] > eval > call:
     │       │           │   ├── type: void
-    │       │           │   ├── fn: zane_bump_9
+    │       │           │   ├── fn: guests$bump(this guests$Node)
     │       │           │   └── args[0]: local #31 : ptr
     │       │           ├── cases[0] > case 0[2] > assign:
     │       │           │   ├── place: #28
@@ -617,7 +617,7 @@
     │       │   │   │       │   ├── scope: %40
     │       │   │   │       │   ├── value > call:
     │       │   │   │       │   │   ├── type: {i32, i64}
-    │       │   │   │       │   │   ├── fn: zane_Node_8
+    │       │   │   │       │   │   ├── fn: guests$Node(%primitives$Int)
     │       │   │   │       │   │   └── args[0]: local #34 : i64
     │       │   │   │       │   └── layout: guests$Node
     │       │   │   │       ├── body[1] > let:
@@ -631,7 +631,7 @@
     │       │   │   │               ├── left: local #33 : i64
     │       │   │   │               └── right > call:
     │       │   │   │                   ├── type: i64
-    │       │   │   │                   ├── fn: zane_peek_11
+    │       │   │   │                   ├── fn: guests$peek(&guests$Node)
     │       │   │   │                   └── args[0] > terminal: local #41 : i32
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #34
@@ -644,7 +644,7 @@
     │       │   └── body[3]: leave @36
     │       ├── body[47] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: zane_check_16
+    │       │   ├── fn: guests$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
@@ -652,7 +652,7 @@
     │       │       └── right: 5000050000 : i64
     │       └── body[48] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: zane_Node_8
+    │   ├── symbol: guests$Node(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i32, i64}
     │   └── body[0] > return > escape:
@@ -663,7 +663,7 @@
     │       │   └── members[1] > member 1: local #1 : i64
     │       └── layout: guests$Node
     ├── funcs[2] > func:
-    │   ├── symbol: zane_bump_9
+    │   ├── symbol: guests$bump(this guests$Node)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: void
     │   ├── body[0] > assign:
@@ -680,7 +680,7 @@
     │   │       └── right: 1 : i64
     │   └── body[1] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: zane_check_16
+    │   ├── symbol: guests$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
@@ -689,12 +689,12 @@
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "yes\n" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[1] > host:
     │       │   ├── local: #4
     │       │   ├── scope: %3
     │       │   ├── value: "no\n" : handle
-    │       │   └── layout: @primitives$String
+    │       │   └── layout: %primitives$String
     │       ├── body[2] > if:
     │       │   ├── cond: local #1 : i1
     │       │   └── body[0] > eval > runtime:
@@ -711,7 +711,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[4] > func:
-    │   ├── symbol: zane_peek_11
+    │   ├── symbol: guests$peek(&guests$Node)
     │   ├── params[0]: local #1 : i32
     │   ├── ret: i64
     │   └── body[0] > return > snapshot:
@@ -721,7 +721,7 @@
     │           ├── path: 1
     │           └── base > resolve: local #1 : i32
     ├── funcs[5] > func:
-    │   ├── symbol: zane_twice_10
+    │   ├── symbol: guests$twice(this guests$Node)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   └── body[0] > return > binary:
@@ -735,7 +735,7 @@
     │       │       └── base: local #1 : ptr
     │       └── right: 2 : i64
     ├── funcs[6] > func:
-    │   ├── symbol: zane_larger_12
+    │   ├── symbol: guests$larger(&guests$Node, &guests$Node)
     │   ├── params[0]: local #1 : i32
     │   ├── params[1]: local #2 : i32
     │   ├── ret: i32
@@ -769,7 +769,7 @@
     │   │   └── body[3]: leave @4
     │   └── body[1] > return > terminal: local #2 : i32
     └── funcs[7] > func:
-        ├── symbol: zane_Car_14
+        ├── symbol: guests$Car(&guests$Node, guests$Node)
         ├── params[0]: local #1 : i32
         ├── params[1]: local #2 : ptr
         ├── ret: {i32, i32, {i32, i64}}

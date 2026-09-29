@@ -15,10 +15,11 @@ exception Refused of problem
 let refuse span message = raise (Refused (Diagnostic (Diagnostic.error span message)))
 
 (* A verb to lower: a declaration, or a generic one's instance, which [key]
-   tells apart from its other instances. *)
+   tells apart from its other instances by the arguments it was given. *)
 type verb = {
   decl : int;
   key : string;
+  instance : (Tty.param * Tty.arg) list;
   signature : S.t;
   params : T.Local.t list;
   body : T.Block.t;

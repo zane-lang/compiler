@@ -24,39 +24,13 @@ open Literals
 (* Verbs                                                                  *)
 (* ---------------------------------------------------------------------- *)
 
-(* An operator's symbol spells its token as a word, and an intrinsic type's
-   loses its `@`. *)
-let sanitize name =
-  match name with
-  | "+" -> "plus"
-  | "*" -> "times"
-  | "/" -> "over"
-  | "==" -> "equals"
-  | "<" -> "less"
-  | "~" -> "flip"
-  | "[]" -> "index"
-  | _ ->
-      String.concat ""
-        (List.map
-           (fun c ->
-             match c with
-             | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' -> String.make 1 c
-             | '@' -> ""
-             | _ -> "_")
-           (List.init (String.length name) (String.get name)))
-
-(* A verb's symbol names its declaration, so two overloads never share one,
-   and an instance's also counts the symbols made before it, so two
-   instances never do either. *)
+(* A verb's symbol is its declaration as written (Symbol.verb). Asking for
+   one queues the verb to be lowered, once. *)
 let symbol st (v : verb) =
   match Hashtbl.find_opt st.symbols v.key with
   | Some s -> s
   | None ->
-      let name = sanitize v.signature.S.name in
-      let s =
-        if v.key = string_of_int v.decl then Printf.sprintf "zane_%s_%d" name v.decl
-        else Printf.sprintf "zane_%s_%d_%d" name v.decl (Hashtbl.length st.symbols)
-      in
+      let s = Symbol.verb v.signature v.instance in
       Hashtbl.replace st.symbols v.key s;
       Queue.add v st.pending;
       s
@@ -115,8 +89,8 @@ let unit_ = { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
 let outcome_layout st span (v : verb) =
   let s = v.signature in
   let name =
-    Printf.sprintf "outcome of %s%s" (Tty.to_string s.S.ret)
-      (match s.S.abort with Some a -> " ? " ^ Tty.to_string a | None -> "")
+    Printf.sprintf "outcome of %s%s" (Symbol.ty s.S.ret)
+      (match s.S.abort with Some a -> " ? " ^ Symbol.ty a | None -> "")
   in
   if not (Hashtbl.mem st.layouts name) then begin
     let under tag t = positions st span t Nodes.Ty.payload_offset [ (0, tag) ] in
@@ -1332,7 +1306,7 @@ let program (p : T.Program.t) =
   in
   let add decl instance signature params body =
     let key = key decl instance in
-    Hashtbl.replace st.verbs key { decl; key; signature; params; body }
+    Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body }
   in
   List.iter
     (fun (pkg : T.Package.t) ->
