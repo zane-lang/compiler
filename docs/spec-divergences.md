@@ -547,27 +547,7 @@ projected case type would still be the whole variant (§3.2), and the
 narrowing it enables is an optimization the tag jump already gives. Reconciling
 means adding the type form and its narrowing, or the spec dropping it.
 
-## 16. `main`'s return type is not checked
-
-**Spec** — [`packages.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/packages.md)
-§6.2: "A program starts at `Unit main()`".
-
-**Compiler** — `main` must take no parameters, and may return anything. What
-it returns is discarded, and the program's status is 0.
-
-```zane
-Unit main() { return Unit(); }   // accepted
-Int main() { return Int(3); }    // accepted, and the 3 goes nowhere
-```
-
-The `Unit` of §6.2 is `core`'s, and the compiler never names `core`
-([`design/semantics.md`](design/semantics.md) D3): a program may declare its
-own `Unit` over `@primitives$Unit`, as every test fixture does. So there is no
-one type the check could compare against. Reconciling means the spec saying
-what makes a type the unit type `main` returns, or naming
-`@primitives$Unit` there.
-
-## 17. An index out of range stops the program
+## 16. An index out of range stops the program
 
 **Spec** — silent. [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §5.2 fixes the ordinal base and leaves "the language-level behavior for

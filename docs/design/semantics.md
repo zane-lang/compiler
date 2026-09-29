@@ -634,9 +634,8 @@ only reject more, never let a write through.
   (`lifetimes.md` §1.11) is not checked yet.
 
 **`main`** is not required, since a library built on its own is also a root.
-When the root declares one, it takes no parameters (`packages.md` §6.2), and
-its return type is not checked
-([`spec-divergences.md`](../spec-divergences.md) §16).
+When the root declares one, it takes no parameters, and it may return any
+type, whose value is discarded (`packages.md` §6.2).
 
 ---
 

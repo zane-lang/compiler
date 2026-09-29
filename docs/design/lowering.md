@@ -515,7 +515,7 @@ test passing.
   zero` to stderr, and the status is 1. The one other quotient an `i64` cannot
   hold, the most negative value over `-1`, wraps, as `+` and `*` do.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
-  §5.2, [`spec-divergences.md`](../spec-divergences.md) §17). Until it says, the program stops as it does at a division by zero:
+  §5.2, [`spec-divergences.md`](../spec-divergences.md) §16). Until it says, the program stops as it does at a division by zero:
   what it wrote so far is kept, the runtime writes `index out of range` to
   stderr, and the status is 1.
 - **A type argument passes nothing.** A generic verb is lowered once per

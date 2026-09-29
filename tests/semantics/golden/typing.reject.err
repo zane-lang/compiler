@@ -382,6 +382,10 @@ File "fixtures/typing/reject/bad/overloads.zn", line 32, characters 1-34:
 32 | Unit main(argument Int) => Unit()
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `main` takes no parameters: the root package reaches the console and runtime through `@program$`
+File "fixtures/typing/reject/bad/overloads.zn", line 35, characters 1-18:
+35 | Int?Unit main() {
+  | ^^^^^^^^^^^^^^^^^
+Error: `main` declares no abort type: no caller exists to handle an abort
 File "fixtures/typing/reject/bad/owners.zn", line 22, characters 13-23:
 22 |         r = inner.leaf;
   |             ^^^^^^^^^^
