@@ -24,3 +24,32 @@ Unit yielding(ready Bool) {
 	}
 	return Unit();
 }
+
+/// A lambda's body holds no exit of its own, not even in a block written
+/// there (control-flow.md §4.2). A lambda that calls an exiting verb ends
+/// itself, which is fine.
+Unit lambdaExits() {
+	leaves Unit() {
+		@controlflow$exitFromCall();
+		return Unit();
+	}
+	blocked Unit(flag Bool) {
+		if(flag) {
+			@controlflow$exitFromCall();
+		}
+		return Unit();
+	}
+	stops Unit(flag Bool) {
+		if(flag) {
+			guard(flag);
+		}
+		return Unit();
+	}
+	return Unit();
+}
+
+/// A lambda-variable at package scope, too.
+bails Unit() {
+	@controlflow$exitFromCall();
+	return Unit();
+}

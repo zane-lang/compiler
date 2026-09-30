@@ -1,7 +1,7 @@
 /// Function values (functions.md §7): lambdas lifted to functions of their
 /// own, held by lambda-variables at package scope and in a body, passed,
-/// returned and stored, and called through, with an abort, a subject, a
-/// string and a guest. Each check prints `yes` when it holds and `no` when it
+/// returned and stored, and called through and spawned, with an abort, a
+/// subject, a string, a host and a guest. Each check prints `yes` when it holds and `no` when it
 /// does not.
 package lambdas;
 
@@ -66,6 +66,13 @@ type Tally = #struct {
 }
 
 Tally(total Int) => init{ total; }
+
+/// A host whose member spawned calls through function values write and read.
+type Shelf = #struct {
+	counter Counter;
+}
+
+Shelf(counter Counter) => init{ counter; }
 
 Unit check(ok Bool) {
 	yes String("yes\n");
@@ -136,6 +143,35 @@ Unit main() {
 	grow(tally, Int(3));
 	peek Int(t &Tally) { return t.total; }
 	check(peek(tally) == Int(6));
+
+	// Spawned calls through function values: the value runs where the spawn
+	// is written, its result comes home when read, and an abort settles here.
+	early Int = spawn double(Int(21));
+	later Int = spawn pick(true)(Int(4));
+	check(early == Int(42));
+	check(later == Int(16));
+	check((spawn safe(Int(0)) ? e { resolve e; }) == Int(7));
+	loud String = spawn shout(String("go"));
+	check(loud == String("go!"));
+
+	// A spawned call through a function value with a subject: a `mut` one
+	// writes it, and one that is not reads it as it was at the spawn.
+	get Int(this Counter) { return this.count; }
+	if(true) {
+		spawn add(c, Int(2));
+	}
+	check(c.count == Int(7));
+	seen Int = spawn get(c);
+	check(seen == Int(7));
+
+	// The same, with the subject reached through a host.
+	shelf Shelf(Counter(Int(10)));
+	if(true) {
+		spawn add(shelf.counter, Int(5));
+	}
+	check(shelf.counter.count == Int(15));
+	held Int = spawn get(shelf.counter);
+	check(held == Int(15));
 
 	// A `Unit` function value.
 	say Unit(text String) {

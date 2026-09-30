@@ -213,7 +213,10 @@ a `mut` function type
 §7.2), so a function value's subject is always passed by address, as a `mut`
 subject is (L6), and one function serves both types. A package
 lambda-variable is its lambda, and each lambda is lifted once, however many
-times it is read.
+times it is read. A lambda's body does not exit
+([`control-flow.md`](https://github.com/zane-lang/spec/blob/1da001a/spec/control-flow.md)
+§4.2), so a call through a function value finishes or aborts, and a spawned
+one carries the function's address in its frame, ahead of its arguments.
 
 ---
 
@@ -328,8 +331,8 @@ test passing.
    the pool. The runtime is tested in C on its own.
 9. **Function values.** Lambdas lifted to functions of their own (L14),
    lambda-variables in a body and at package scope, and calls through a
-   function value, which may abort. Function values are passed, returned and
-   stored in members.
+   function value, which may abort or be spawned. Function values are passed,
+   returned and stored in members.
 
 ---
 
@@ -536,16 +539,14 @@ test passing.
   picked the instance, so the call passes nothing for it.
 - **What does not lower yet.** Some programs the TST accepts, lowering
   refuses, with an error that says "does not … yet" at the construct:
-  - a lambda whose body exits, since a function type does not say that a
-    call through it can;
   - a package constant, except a lambda-variable;
   - `@primitives$Array`: its type, an array literal, and its elements;
   - an `@primitives$I32` literal, since only `Int` and `I64` embed one;
   - a field-constructor call that leaves out a field with a default
     ([`types.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/types.md)
     §3.3);
-  - a `spawn` of anything but a call to a declared verb that is not expanded
-    where it is called, and one bound to a local of another type than the
-    call returns;
+  - a `spawn` of a call to an intrinsic, or to a verb that is expanded where
+    it is called, and one bound to a local of another type than the call
+    returns;
   - reading a boxed member of, or moving a host out of, a value no place
     holds, such as a call's result.

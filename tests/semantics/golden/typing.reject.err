@@ -130,6 +130,18 @@ File "fixtures/typing/reject/bad/exits.zn", line 23, characters 9-23:
 23 |         resolve ready;
   |         ^^^^^^^^^^^^^^
 Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it is not one
+File "fixtures/typing/reject/bad/exits.zn", line 33, characters 9-36:
+33 |         @controlflow$exitFromCall();
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `@controlflow$exitFromCall` cannot be written in a lambda's body: a call through a function value cannot say that it exits (control-flow.md §4.2)
+File "fixtures/typing/reject/bad/exits.zn", line 38, characters 13-40:
+38 |             @controlflow$exitFromCall();
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `@controlflow$exitFromCall` cannot be written in a lambda's body: a call through a function value cannot say that it exits (control-flow.md §4.2)
+File "fixtures/typing/reject/bad/exits.zn", line 53, characters 5-32:
+53 |     @controlflow$exitFromCall();
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `@controlflow$exitFromCall` cannot be written in a lambda's body: a call through a function value cannot say that it exits (control-flow.md §4.2)
 File "fixtures/typing/reject/bad/guests.zn", line 29, characters 5-6:
 29 |     k!fill();
   |     ^

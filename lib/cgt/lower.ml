@@ -416,16 +416,14 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
 
 (* L14. A lambda captures nothing (functions.md §7.4), so it is lifted out
    as a function of its own, once, and its value is that function's address.
-   A call through it ends only the ways its type says, so a lambda whose body
-   exits has no function yet. *)
+   A call through it ends only the ways its type says, which is why a
+   lambda's body may not exit (control-flow.md §4.2). *)
 and lambda st span t (l : T.Lambda.t) =
   match (List.assq_opt l.T.Lambda.body st.lambdas, t) with
   | None, _ -> refuse span "lowering does not lift a lambda written here yet"
   | Some s, Tty.Verb fv ->
       let key = "lambda " ^ s in
       if not (Hashtbl.mem st.symbols key) then begin
-        if Tst.Exits.block l.T.Lambda.body then
-          refuse span "lowering does not lift a lambda that exits yet";
         Hashtbl.replace st.symbols key s;
         Queue.add (value_verb key fv l.T.Lambda.params l.T.Lambda.body) st.pending
       end;
@@ -923,131 +921,153 @@ and spawn st ctx span (e : T.Expr.t) =
       | None -> refuse span "lowering does not handle a call to this verb yet"
       | Some v when expands v ->
           refuse span "lowering does not spawn a verb that is expanded where it is called yet"
-      | Some v ->
-          let o = outcome st span v in
-          let whole = returned o in
-          let passed = passed args in
-          let args = arguments st ctx span v passed in
-          (* A `mut` subject reached through a host is copied into the frame,
-             and the call works on the copy, which it writes back when it
-             returns (§4.4). *)
-          let subject =
-            match (v.params, passed) with
-            | this :: _, T.Arg.Value subject :: _
-              when v.signature.S.is_mut && this.T.Local.name = "this"
-                   && (not (reference st this.T.Local.ty))
-                   && through_host st subject ->
-                Some this.T.Local.ty
-            | _ -> None
-          in
-          let pre, args =
-            match (subject, args) with
-            | Some t, first :: rest ->
-                let loc = fresh st in
-                let place = { Expr.node = Expr.Local loc; ty = Nodes.Ty.Ptr } in
-                let value = { Expr.node = Expr.Snapshot place; ty = ty st span t } in
-                let copy =
-                  if owns st span t then
-                    { value with Expr.node = Expr.Copy { value; layout = layout st span t } }
-                  else value
-                in
-                ([ Stat.Let { id = loc; value = first } ], (place :: rest) @ [ copy ])
-            | _ -> ([], args)
-          in
-          let frame = Nodes.Ty.Struct (whole :: List.map (fun (a : Expr.t) -> a.Expr.ty) args) in
-          let at = fresh st in
-          let member i = ptr (Expr.Offset { base = local_ptr at; within = frame; path = [ i ] }) in
-          let copied = List.length args in
-          let passes =
-            if Option.is_some subject then List.filteri (fun i _ -> i < copied - 1) args
-            else args
-          in
-          let read i (a : Expr.t) =
-            if i = 0 && Option.is_some subject then member copied
-            else { Expr.node = Expr.Deref (member (i + 1)); ty = a.Expr.ty }
-          in
-          let call =
-            { Expr.node = Expr.Call { fn = symbol st v; args = List.mapi read passes }; ty = whole }
-          in
-          let writeback =
-            match subject with
-            | Some t ->
-                let size = fst (Nodes.Ty.size_align (ty st span t)) in
-                let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
-                let target = { Expr.node = Expr.Deref (member 1); ty = Nodes.Ty.Ptr } in
-                let back =
-                  Expr.Runtime
-                    {
-                      fn = "zane_writeback";
-                      args = [ target; member copied; int size; layout_table (layout st span t) ];
-                    }
-                in
-                [ Stat.Eval { Expr.node = back; ty = Nodes.Ty.Void } ]
-            | None -> []
-          in
-          let body =
-            (if whole = Nodes.Ty.Void then [ Stat.Eval call ]
-             else [ Stat.Store { address = member 0; value = call } ])
-            @ writeback
-          in
-          let thunk = Printf.sprintf "zane.spawn.%d" (List.length st.spawned + 1) in
-          st.spawned <-
-            { Func.symbol = thunk; params = [ (at, Nodes.Ty.Ptr) ]; ret = Nodes.Ty.Void; body }
-            :: st.spawned;
-          let task = fresh st in
-          let dest = if whole = Nodes.Ty.Void then None else Some (fresh st) in
-          let home =
-            if plain o then layout st span v.signature.S.ret else outcome_layout st span v
-          in
-          let scope = arena st ctx.scope in
-          let spawned = Stat.Spawn { task; scope; thunk; frame; args; dest; layout = home } in
-          let slot = Option.map (fun id -> ptr (Expr.Address id)) dest in
-          if plain o then
-            (pre @ [ spawned ], Future { settle = (fun () -> [ Stat.Join task ]); at = slot })
-          else
-            let slot = Option.get slot in
-            let pending = fresh st in
-            let payload i = ptr (Expr.Offset { base = slot; within = whole; path = [ i ] }) in
-            let settle () =
-              let label = fresh st in
-              let resolve _ value =
-                let value = outcome_case o done_ value in
-                [ Stat.Place { address = slot; value; layout = home }; Stat.Leave label ]
-              in
-              let on_abort =
-                match handler with
-                | Some h -> handle ~resolve ?dropped:v.signature.S.abort st ctx h label None
-                | None -> ctx.abort
-              in
-              let failed =
-                match (o.aborts, v.signature.S.abort) with
-                | Some a, Some t ->
-                    let l = layout st span t in
-                    let value = Expr.Take { address = payload aborted; layout = l } in
-                    let value = { Expr.node = value; ty = a } in
-                    [ (aborted, on_abort span value) ]
-                | _ -> []
-              in
-              let left = if o.exit_ then [ (exited, ctx.finish span) ] else [] in
-              let cases = ((done_, []) :: failed) @ left in
-              let flag = { Expr.node = Expr.Local pending; ty = Nodes.Ty.I1 } in
-              let whole = { Expr.node = Expr.Deref slot; ty = whole } in
-              let once =
-                [
-                  Stat.assign pending { Expr.node = Expr.Bool false; ty = Nodes.Ty.I1 };
-                  Stat.Switch { value = whole; cases };
-                ]
-              in
-              let body = [ Stat.Join task; Stat.If { cond = flag; body = once } ] in
-              let settled = Expr.Expand { label; body; result = None } in
-              [ Stat.Eval { Expr.node = settled; ty = Nodes.Ty.Void } ]
-            in
-            ctx.scope.settles <- settle :: ctx.scope.settles;
-            let unsettled = { Expr.node = Expr.Bool true; ty = Nodes.Ty.I1 } in
-            let first = Stat.Let { id = pending; value = unsettled } in
-            let at = if o.ok = Nodes.Ty.Void then None else Some (payload done_) in
-            (pre @ [ first; spawned ], Future { settle; at }))
-  | _ -> refuse span "lowering spawns only a call to a declared verb yet"
+      | Some v -> spawn_call st ctx span v None ~writes:v.signature.S.is_mut (passed args) handler)
+  | T.Expr.Call_value { callee; args; handler } -> (
+      match strip callee.T.Expr.ty with
+      | Tty.Verb fv ->
+          let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
+          let fn = value_of st ctx callee in
+          spawn_call st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler
+      | _ -> refuse span "lowering expected a function value here")
+  | _ -> refuse span "lowering does not spawn this call yet"
+
+(* A spawned call to [v]'s function, or through [fn], a function value's
+   address, which runs before the arguments and rides in the frame ahead of
+   them. [writes] is whether the call may write its subject. *)
+and spawn_call st ctx span v fn ~writes passed handler =
+  let o = outcome st span v in
+  let whole = returned o in
+  let args = arguments st ctx span v passed in
+  (* A `mut` subject reached through a host is copied into the frame,
+     and the call works on the copy, which it writes back when it
+     returns (§4.4). A function value's subject is lent by its address
+     (L14), so one it may not write is read into the frame here, where
+     the spawn is written, as a subject passed by value is. *)
+  let subject =
+    match (v.params, passed) with
+    | this :: _, T.Arg.Value subject :: _
+      when by_address st v this && this.T.Local.name = "this"
+           && (not (reference st this.T.Local.ty))
+           && (through_host st subject || not writes) ->
+        Some (this.T.Local.ty, through_host st subject)
+    | _ -> None
+  in
+  let pre, args =
+    match (subject, args) with
+    | Some (t, shared), first :: rest ->
+        let loc = fresh st in
+        let place = { Expr.node = Expr.Local loc; ty = Nodes.Ty.Ptr } in
+        let read = if shared then Expr.Snapshot place else Expr.Deref place in
+        let value = { Expr.node = read; ty = ty st span t } in
+        let copy =
+          if writes && owns st span t then
+            { value with Expr.node = Expr.Copy { value; layout = layout st span t } }
+          else value
+        in
+        ([ Stat.Let { id = loc; value = first } ], (place :: rest) @ [ copy ])
+    | _ -> ([], args)
+  in
+  let fns = Option.to_list fn in
+  let shift = List.length fns in
+  let stored = fns @ args in
+  let frame = Nodes.Ty.Struct (whole :: List.map (fun (a : Expr.t) -> a.Expr.ty) stored) in
+  let at = fresh st in
+  let member i = ptr (Expr.Offset { base = local_ptr at; within = frame; path = [ i ] }) in
+  let copied = List.length stored in
+  let passes =
+    if Option.is_some subject then List.filteri (fun i _ -> i < List.length args - 1) args
+    else args
+  in
+  let read i (a : Expr.t) =
+    if i = 0 && Option.is_some subject then member copied
+    else { Expr.node = Expr.Deref (member (i + 1 + shift)); ty = a.Expr.ty }
+  in
+  let given = List.mapi read passes in
+  let call =
+    match fn with
+    | Some _ ->
+        let fn = { Expr.node = Expr.Deref (member 1); ty = Nodes.Ty.Ptr } in
+        { Expr.node = Expr.Call_value { fn; args = given }; ty = whole }
+    | None -> { Expr.node = Expr.Call { fn = symbol st v; args = given }; ty = whole }
+  in
+  let writeback =
+    match subject with
+    | Some (t, _) when writes ->
+        let size = fst (Nodes.Ty.size_align (ty st span t)) in
+        let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
+        let target = { Expr.node = Expr.Deref (member (1 + shift)); ty = Nodes.Ty.Ptr } in
+        let back =
+          Expr.Runtime
+            {
+              fn = "zane_writeback";
+              args = [ target; member copied; int size; layout_table (layout st span t) ];
+            }
+        in
+        [ Stat.Eval { Expr.node = back; ty = Nodes.Ty.Void } ]
+    | _ -> []
+  in
+  let body =
+    (if whole = Nodes.Ty.Void then [ Stat.Eval call ]
+     else [ Stat.Store { address = member 0; value = call } ])
+    @ writeback
+  in
+  let thunk = Printf.sprintf "zane.spawn.%d" (List.length st.spawned + 1) in
+  st.spawned <-
+    { Func.symbol = thunk; params = [ (at, Nodes.Ty.Ptr) ]; ret = Nodes.Ty.Void; body }
+    :: st.spawned;
+  let task = fresh st in
+  let dest = if whole = Nodes.Ty.Void then None else Some (fresh st) in
+  let home =
+    if plain o then layout st span v.signature.S.ret else outcome_layout st span v
+  in
+  let scope = arena st ctx.scope in
+  let spawned = Stat.Spawn { task; scope; thunk; frame; args = stored; dest; layout = home } in
+  let slot = Option.map (fun id -> ptr (Expr.Address id)) dest in
+  if plain o then
+    (pre @ [ spawned ], Future { settle = (fun () -> [ Stat.Join task ]); at = slot })
+  else
+    let slot = Option.get slot in
+    let pending = fresh st in
+    let payload i = ptr (Expr.Offset { base = slot; within = whole; path = [ i ] }) in
+    let settle () =
+      let label = fresh st in
+      let resolve _ value =
+        let value = outcome_case o done_ value in
+        [ Stat.Place { address = slot; value; layout = home }; Stat.Leave label ]
+      in
+      let on_abort =
+        match handler with
+        | Some h -> handle ~resolve ?dropped:v.signature.S.abort st ctx h label None
+        | None -> ctx.abort
+      in
+      let failed =
+        match (o.aborts, v.signature.S.abort) with
+        | Some a, Some t ->
+            let l = layout st span t in
+            let value = Expr.Take { address = payload aborted; layout = l } in
+            let value = { Expr.node = value; ty = a } in
+            [ (aborted, on_abort span value) ]
+        | _ -> []
+      in
+      let left = if o.exit_ then [ (exited, ctx.finish span) ] else [] in
+      let cases = ((done_, []) :: failed) @ left in
+      let flag = { Expr.node = Expr.Local pending; ty = Nodes.Ty.I1 } in
+      let whole = { Expr.node = Expr.Deref slot; ty = whole } in
+      let once =
+        [
+          Stat.assign pending { Expr.node = Expr.Bool false; ty = Nodes.Ty.I1 };
+          Stat.Switch { value = whole; cases };
+        ]
+      in
+      let body = [ Stat.Join task; Stat.If { cond = flag; body = once } ] in
+      let settled = Expr.Expand { label; body; result = None } in
+      [ Stat.Eval { Expr.node = settled; ty = Nodes.Ty.Void } ]
+    in
+    ctx.scope.settles <- settle :: ctx.scope.settles;
+    let unsettled = { Expr.node = Expr.Bool true; ty = Nodes.Ty.I1 } in
+    let first = Stat.Let { id = pending; value = unsettled } in
+    let at = if o.ok = Nodes.Ty.Void then None else Some (payload done_) in
+    (pre @ [ first; spawned ], Future { settle; at })
 
 (* An argument as the callee takes it (L6): a place it may write or take
    the host from is lent by its address, a guest is minted or copied, and

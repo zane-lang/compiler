@@ -60,6 +60,7 @@ again, read the golden diff and promote that.
   every call spawned in it, and the runtime stops a program that ends with a
   block still out.
 - `lambdas` is step 9: lambdas lifted to functions, held by lambda-variables
-  in a body and at package scope, passed, returned, stored in a member and
-  called through, with an abort, a subject, a string, a host and a guest.
+  in a body and at package scope, passed, returned, stored in a member,
+  called through and spawned, with an abort, a subject, a string, a host and a
+  guest.
   Every check prints `yes` when it holds and `no` when it does not.
