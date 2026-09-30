@@ -362,40 +362,44 @@ File "fixtures/typing/reject/bad/overloads.zn", line 9, characters 1-39:
 9 | Unit consume(engine &Engine) => Unit()
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: illegal overload set: this function differs from the one at fixtures/typing/reject/bad/overloads.zn:8 only by the passing mode on a parameter; rename one declaration or choose a single signature
-File "fixtures/typing/reject/bad/overloads.zn", line 12, characters 1-36:
-12 | Int +(left Int, right Bool) => left
+File "fixtures/typing/reject/bad/overloads.zn", line 13, characters 1-45:
+13 | Unit tune(f Unit[this Engine] mut) => Unit()
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: illegal overload set: this function differs from the one at fixtures/typing/reject/bad/overloads.zn:12 only by `mut` on a function-type parameter, and a function value that does not declare `mut` would match both; rename one declaration or choose a single signature
+File "fixtures/typing/reject/bad/overloads.zn", line 16, characters 1-36:
+16 | Int +(left Int, right Bool) => left
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: the operator `+` on `@primitives$Int` and `@primitives$Bool` may be declared only in the home package of an operand type, and `bad` is not one
-File "fixtures/typing/reject/bad/overloads.zn", line 15, characters 1-38:
-15 | implicit Int(engine Engine) => Int(1)
+File "fixtures/typing/reject/bad/overloads.zn", line 19, characters 1-38:
+19 | implicit Int(engine Engine) => Int(1)
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: the source of an implicit constructor must be a value type or a concept type, and `bad$Engine` is a reference type
-File "fixtures/typing/reject/bad/overloads.zn", line 18, characters 1-41:
-18 | implicit Float(value Bool) => Float(0.0)
+File "fixtures/typing/reject/bad/overloads.zn", line 22, characters 1-41:
+22 | implicit Float(value Bool) => Float(0.0)
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: an implicit constructor from `@primitives$Bool` to `@primitives$Float` may be declared only in the home package of one of them, and `bad` is neither
-File "fixtures/typing/reject/bad/overloads.zn", line 22, characters 1-19:
-22 | Level.weight Int {
+File "fixtures/typing/reject/bad/overloads.zn", line 26, characters 1-19:
+26 | Level.weight Int {
   | ^^^^^^^^^^^^^^^^^^
 Error: an enum map covers every member, and this one has no entry for `high`
-File "fixtures/typing/reject/bad/overloads.zn", line 24, characters 5-11:
-24 |     middle = Int(2);
+File "fixtures/typing/reject/bad/overloads.zn", line 28, characters 5-11:
+28 |     middle = Int(2);
   |     ^^^^^^
 Error: `Level` has no member `middle`
-File "fixtures/typing/reject/bad/overloads.zn", line 25, characters 5-8:
-25 |     low = Int(3);
+File "fixtures/typing/reject/bad/overloads.zn", line 29, characters 5-8:
+29 |     low = Int(3);
   |     ^^^
 Error: the member `low` already has an entry
-File "fixtures/typing/reject/bad/overloads.zn", line 28, characters 1-7:
-28 | Engine.power Int {
+File "fixtures/typing/reject/bad/overloads.zn", line 32, characters 1-7:
+32 | Engine.power Int {
   | ^^^^^^
 Error: an enum map ranges over an enum, and `bad$Engine` is not one
-File "fixtures/typing/reject/bad/overloads.zn", line 32, characters 1-34:
-32 | Unit main(argument Int) => Unit()
+File "fixtures/typing/reject/bad/overloads.zn", line 36, characters 1-34:
+36 | Unit main(argument Int) => Unit()
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `main` takes no parameters: the root package reaches the console and runtime through `@program$`
-File "fixtures/typing/reject/bad/overloads.zn", line 35, characters 1-18:
-35 | Int?Unit main() {
+File "fixtures/typing/reject/bad/overloads.zn", line 39, characters 1-18:
+39 | Int?Unit main() {
   | ^^^^^^^^^^^^^^^^^
 Error: `main` declares no abort type: no caller exists to handle an abort
 File "fixtures/typing/reject/bad/owners.zn", line 22, characters 13-23:

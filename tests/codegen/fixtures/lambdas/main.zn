@@ -125,7 +125,8 @@ Unit main() {
 	}
 	c!bump(Int(4), add);
 	check(c.count == Int(5));
-	still Unit[this Counter, Int] mut = Unit(this Counter, n Int) { return Unit(); }
+	c!bump(Int(4), Unit(this Counter, n Int) { return Unit(); });
+	still Unit(this Counter, n Int) { return Unit(); }
 	c!bump(Int(4), still);
 	check(c.count == Int(5));
 

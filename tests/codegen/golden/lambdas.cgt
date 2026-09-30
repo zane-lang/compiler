@@ -240,16 +240,22 @@
     │       │       ├── op: ==
     │       │       ├── left: local #12 : i64
     │       │       └── right: 5 : i64
-    │       ├── body[19] > let:
+    │       ├── body[19] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$bump(this lambdas$Counter, %primitives$Int, %primitives$Unit[this lambdas$Counter, %primitives$Int] mut)
+    │       │   ├── args[0]: address of #12 : ptr
+    │       │   ├── args[1]: 4 : i64
+    │       │   └── args[2]: function lambdas$main()$lambda5
+    │       ├── body[20] > let:
     │       │   ├── local: #14
-    │       │   └── value: function lambdas$main()$lambda5
-    │       ├── body[20] > eval > call:
+    │       │   └── value: function lambdas$main()$lambda6
+    │       ├── body[21] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$bump(this lambdas$Counter, %primitives$Int, %primitives$Unit[this lambdas$Counter, %primitives$Int] mut)
     │       │   ├── args[0]: address of #12 : ptr
     │       │   ├── args[1]: 4 : i64
     │       │   └── args[2]: local #14 : ptr
-    │       ├── body[21] > eval > call:
+    │       ├── body[22] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -257,10 +263,10 @@
     │       │       ├── op: ==
     │       │       ├── left: local #12 : i64
     │       │       └── right: 5 : i64
-    │       ├── body[22] > let:
+    │       ├── body[23] > let:
     │       │   ├── local: #15
-    │       │   └── value: function lambdas$main()$lambda6
-    │       ├── body[23] > eval > call:
+    │       │   └── value: function lambdas$main()$lambda7
+    │       ├── body[24] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -308,15 +314,15 @@
     │       │       │           ├── place: #25
     │       │       │           └── value: local #23 : handle
     │       │       └── right: 1 : i64
-    │       ├── body[24] > let:
+    │       ├── body[25] > let:
     │       │   ├── local: #26
-    │       │   └── value: function lambdas$main()$lambda7
-    │       ├── body[25] > host:
+    │       │   └── value: function lambdas$main()$lambda8
+    │       ├── body[26] > host:
     │       │   ├── local: #27
     │       │   ├── scope: %19
     │       │   ├── value: "ab" : handle
     │       │   └── layout: %primitives$String
-    │       ├── body[26] > eval > call:
+    │       ├── body[27] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -353,7 +359,7 @@
     │       │       │           ├── place: #33
     │       │       │           └── value: local #31 : handle
     │       │       └── right: 1 : i64
-    │       ├── body[27] > host:
+    │       ├── body[28] > host:
     │       │   ├── local: #34
     │       │   ├── scope: %19
     │       │   ├── value > call:
@@ -361,18 +367,18 @@
     │       │   │   ├── fn: lambdas$Tally(%primitives$Int)
     │       │   │   └── args[0]: 2 : i64
     │       │   └── layout: lambdas$Tally
-    │       ├── body[28] > let:
+    │       ├── body[29] > let:
     │       │   ├── local: #35
-    │       │   └── value: function lambdas$main()$lambda8
-    │       ├── body[29] > eval > call value:
+    │       │   └── value: function lambdas$main()$lambda9
+    │       ├── body[30] > eval > call value:
     │       │   ├── type: void
     │       │   ├── fn: local #35 : ptr
     │       │   ├── args[0]: address of #34 : ptr
     │       │   └── args[1]: 3 : i64
-    │       ├── body[30] > let:
+    │       ├── body[31] > let:
     │       │   ├── local: #36
-    │       │   └── value: function lambdas$main()$lambda9
-    │       ├── body[31] > eval > call:
+    │       │   └── value: function lambdas$main()$lambda10
+    │       ├── body[32] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -383,7 +389,7 @@
     │       │       │   ├── fn: local #36 : ptr
     │       │       │   └── args[0] > mint: address of #34 : ptr
     │       │       └── right: 6 : i64
-    │       ├── body[32] > spawn:
+    │       ├── body[33] > spawn:
     │       │   ├── task: #38
     │       │   ├── scope: %19
     │       │   ├── thunk: zane.spawn.1
@@ -392,7 +398,7 @@
     │       │   ├── args[1]: 21 : i64
     │       │   ├── dest: #39
     │       │   └── layout: %primitives$Int
-    │       ├── body[33] > spawn:
+    │       ├── body[34] > spawn:
     │       │   ├── task: #41
     │       │   ├── scope: %19
     │       │   ├── thunk: zane.spawn.2
@@ -404,7 +410,7 @@
     │       │   ├── args[1]: 4 : i64
     │       │   ├── dest: #42
     │       │   └── layout: %primitives$Int
-    │       ├── body[34] > eval > call:
+    │       ├── body[35] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -421,7 +427,7 @@
     │       │       │           ├── type: i64
     │       │       │           └── ptr: address of #39 : ptr
     │       │       └── right: 42 : i64
-    │       ├── body[35] > eval > call:
+    │       ├── body[36] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -438,7 +444,7 @@
     │       │       │           ├── type: i64
     │       │       │           └── ptr: address of #42 : ptr
     │       │       └── right: 16 : i64
-    │       ├── body[36] > eval > call:
+    │       ├── body[37] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -474,7 +480,7 @@
     │       │       │       │   └── value: local #50 : i64
     │       │       │       └── cases[1] > case 1[2]: leave @47
     │       │       └── right: 7 : i64
-    │       ├── body[37] > spawn:
+    │       ├── body[38] > spawn:
     │       │   ├── task: #55
     │       │   ├── scope: %19
     │       │   ├── thunk: zane.spawn.3
@@ -494,7 +500,7 @@
     │       │   │       └── value: address of #51 : ptr
     │       │   ├── dest: #56
     │       │   └── layout: %primitives$String
-    │       ├── body[38] > eval > call:
+    │       ├── body[39] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -526,10 +532,10 @@
     │       │       │           ├── place: #61
     │       │       │           └── value: local #59 : handle
     │       │       └── right: 1 : i64
-    │       ├── body[39] > let:
+    │       ├── body[40] > let:
     │       │   ├── local: #62
-    │       │   └── value: function lambdas$main()$lambda10
-    │       ├── body[40] > eval > expand:
+    │       │   └── value: function lambdas$main()$lambda11
+    │       ├── body[41] > eval > expand:
     │       │   ├── type: i1
     │       │   ├── label: @64
     │       │   ├── result: #65
@@ -552,7 +558,7 @@
     │       │   │   ├── place: #65
     │       │   │   └── value: local #63 : i1
     │       │   └── body[3]: leave @64
-    │       ├── body[41] > eval > call:
+    │       ├── body[42] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -560,10 +566,10 @@
     │       │       ├── op: ==
     │       │       ├── left: local #12 : i64
     │       │       └── right: 7 : i64
-    │       ├── body[42] > let:
+    │       ├── body[43] > let:
     │       │   ├── local: #70
     │       │   └── value: address of #12 : ptr
-    │       ├── body[43] > spawn:
+    │       ├── body[44] > spawn:
     │       │   ├── task: #72
     │       │   ├── scope: %19
     │       │   ├── thunk: zane.spawn.5
@@ -575,7 +581,7 @@
     │       │   │   └── ptr: local #70 : ptr
     │       │   ├── dest: #73
     │       │   └── layout: %primitives$Int
-    │       ├── body[44] > eval > call:
+    │       ├── body[45] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -592,7 +598,7 @@
     │       │       │           ├── type: i64
     │       │       │           └── ptr: address of #73 : ptr
     │       │       └── right: 7 : i64
-    │       ├── body[45] > host:
+    │       ├── body[46] > host:
     │       │   ├── local: #76
     │       │   ├── scope: %19
     │       │   ├── value > call:
@@ -603,7 +609,7 @@
     │       │   │       ├── fn: lambdas$Counter(%primitives$Int)
     │       │   │       └── args[0]: 10 : i64
     │       │   └── layout: lambdas$Shelf
-    │       ├── body[46] > eval > expand:
+    │       ├── body[47] > eval > expand:
     │       │   ├── type: i1
     │       │   ├── label: @78
     │       │   ├── result: #79
@@ -635,7 +641,7 @@
     │       │   │   ├── place: #79
     │       │   │   └── value: local #77 : i1
     │       │   └── body[3]: leave @78
-    │       ├── body[47] > eval > call:
+    │       ├── body[48] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -648,13 +654,13 @@
     │       │       │       ├── path: 1
     │       │       │       └── base: address of #76 : ptr
     │       │       └── right: 15 : i64
-    │       ├── body[48] > let:
+    │       ├── body[49] > let:
     │       │   ├── local: #85
     │       │   └── value > offset:
     │       │       ├── within: {i32, i64}
     │       │       ├── path: 1
     │       │       └── base: address of #76 : ptr
-    │       ├── body[49] > spawn:
+    │       ├── body[50] > spawn:
     │       │   ├── task: #87
     │       │   ├── scope: %19
     │       │   ├── thunk: zane.spawn.7
@@ -666,7 +672,7 @@
     │       │   │   └── ptr: local #85 : ptr
     │       │   ├── dest: #88
     │       │   └── layout: %primitives$Int
-    │       ├── body[50] > eval > call:
+    │       ├── body[51] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -683,10 +689,10 @@
     │       │       │           ├── type: i64
     │       │       │           └── ptr: address of #88 : ptr
     │       │       └── right: 15 : i64
-    │       ├── body[51] > let:
+    │       ├── body[52] > let:
     │       │   ├── local: #91
-    │       │   └── value: function lambdas$main()$lambda11
-    │       ├── body[52] > eval > call value:
+    │       │   └── value: function lambdas$main()$lambda12
+    │       ├── body[53] > eval > call value:
     │       │   ├── type: void
     │       │   ├── fn: local #91 : ptr
     │       │   └── args[0] > expand:
@@ -701,7 +707,7 @@
     │       │       └── body[1] > assign:
     │       │           ├── place: #94
     │       │           └── value: address of #92 : ptr
-    │       └── body[53] > return: unit : void
+    │       └── body[54] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: lambdas$main()$lambda1
     │   ├── params[0]: local #1 : i64
@@ -897,6 +903,12 @@
     ├── funcs[14] > func:
     │   ├── symbol: lambdas$main()$lambda6
     │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: void
+    │   └── body[0] > return: unit : void
+    ├── funcs[15] > func:
+    │   ├── symbol: lambdas$main()$lambda7
+    │   ├── params[0]: local #1 : ptr
     │   ├── ret: handle
     │   └── body[0] > scope:
     │       ├── id: %5
@@ -921,8 +933,8 @@
     │           │           ├── place: #4
     │           │           └── value: local #2 : handle
     │           └── layout: %primitives$String
-    ├── funcs[15] > func:
-    │   ├── symbol: lambdas$main()$lambda7
+    ├── funcs[16] > func:
+    │   ├── symbol: lambdas$main()$lambda8
     │   ├── params[0]: local #1 : i32
     │   ├── ret: handle
     │   └── body[0] > return > escape:
@@ -937,7 +949,7 @@
     │       │       ├── type: handle
     │       │       └── ptr > resolve: local #1 : i32
     │       └── layout: %primitives$String
-    ├── funcs[16] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: lambdas$Tally(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i32, i64}
@@ -948,8 +960,8 @@
     │       │   ├── members[0] > member 0: 0 : i32
     │       │   └── members[1] > member 1: local #1 : i64
     │       └── layout: lambdas$Tally
-    ├── funcs[17] > func:
-    │   ├── symbol: lambdas$main()$lambda8
+    ├── funcs[18] > func:
+    │   ├── symbol: lambdas$main()$lambda9
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
@@ -966,8 +978,8 @@
     │   │       │       └── base: local #1 : ptr
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
-    ├── funcs[18] > func:
-    │   ├── symbol: lambdas$main()$lambda9
+    ├── funcs[19] > func:
+    │   ├── symbol: lambdas$main()$lambda10
     │   ├── params[0]: local #1 : i32
     │   ├── ret: i64
     │   └── body[0] > return > snapshot:
@@ -976,14 +988,14 @@
     │           ├── within: {i32, i64}
     │           ├── path: 1
     │           └── base > resolve: local #1 : i32
-    ├── funcs[19] > func:
-    │   ├── symbol: lambdas$main()$lambda10
+    ├── funcs[20] > func:
+    │   ├── symbol: lambdas$main()$lambda11
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   └── body[0] > return > deref:
     │       ├── type: i64
     │       └── ptr: local #1 : ptr
-    ├── funcs[20] > func:
+    ├── funcs[21] > func:
     │   ├── symbol: lambdas$Shelf(lambdas$Counter)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i32, i64}
@@ -994,8 +1006,8 @@
     │       │   ├── members[0] > member 0: 0 : i32
     │       │   └── members[1] > member 1: local #1 : i64
     │       └── layout: lambdas$Shelf
-    ├── funcs[21] > func:
-    │   ├── symbol: lambdas$main()$lambda11
+    ├── funcs[22] > func:
+    │   ├── symbol: lambdas$main()$lambda12
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: void
     │   ├── body[0] > eval > runtime:
@@ -1005,7 +1017,7 @@
     │   │       ├── type: handle
     │   │       └── ptr: local #1 : ptr
     │   └── body[1] > return: unit : void
-    ├── funcs[22] > func:
+    ├── funcs[23] > func:
     │   ├── symbol: lambdas$pick(%primitives$Bool)$lambda1
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1014,7 +1026,7 @@
     │       ├── op: +
     │       ├── left: local #1 : i64
     │       └── right: 1 : i64
-    ├── funcs[23] > func:
+    ├── funcs[24] > func:
     │   ├── symbol: zane.spawn.1
     │   ├── params[0]: local #37 : ptr
     │   ├── ret: void
@@ -1037,7 +1049,7 @@
     │                   ├── within: {i64, ptr, i64}
     │                   ├── path: 2
     │                   └── base: local #37 : ptr
-    ├── funcs[24] > func:
+    ├── funcs[25] > func:
     │   ├── symbol: zane.spawn.2
     │   ├── params[0]: local #40 : ptr
     │   ├── ret: void
@@ -1060,7 +1072,7 @@
     │                   ├── within: {i64, ptr, i64}
     │                   ├── path: 2
     │                   └── base: local #40 : ptr
-    ├── funcs[25] > func:
+    ├── funcs[26] > func:
     │   ├── symbol: zane.spawn.3
     │   ├── params[0]: local #54 : ptr
     │   ├── ret: void
@@ -1083,7 +1095,7 @@
     │                   ├── within: {handle, ptr, ptr}
     │                   ├── path: 2
     │                   └── base: local #54 : ptr
-    ├── funcs[26] > func:
+    ├── funcs[27] > func:
     │   ├── symbol: zane.spawn.4
     │   ├── params[0]: local #67 : ptr
     │   ├── ret: void
@@ -1107,7 +1119,7 @@
     │               ├── within: {void, ptr, ptr, i64}
     │               ├── path: 3
     │               └── base: local #67 : ptr
-    ├── funcs[27] > func:
+    ├── funcs[28] > func:
     │   ├── symbol: zane.spawn.5
     │   ├── params[0]: local #71 : ptr
     │   ├── ret: void
@@ -1128,7 +1140,7 @@
     │               ├── within: {i64, ptr, ptr, i64}
     │               ├── path: 3
     │               └── base: local #71 : ptr
-    ├── funcs[28] > func:
+    ├── funcs[29] > func:
     │   ├── symbol: zane.spawn.6
     │   ├── params[0]: local #82 : ptr
     │   ├── ret: void
@@ -1165,7 +1177,7 @@
     │       │   └── base: local #82 : ptr
     │       ├── args[2]: 8 : i64
     │       └── args[3]: layout lambdas$Counter
-    └── funcs[29] > func:
+    └── funcs[30] > func:
         ├── symbol: zane.spawn.7
         ├── params[0]: local #86 : ptr
         ├── ret: void
