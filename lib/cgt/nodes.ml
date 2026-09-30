@@ -108,6 +108,9 @@ module Expr = struct
     | Deref of t
     (* A call to a function of the program, by its symbol (L6). *)
     | Call of { fn : string; args : t list }
+    (* A call through a function value: [fn] is the function's address, run
+       before [args] (L14). *)
+    | Call_value of { fn : t; args : t list }
     (* A call into the C runtime (L17), by the runtime's symbol. A string
        goes to it, and comes back from it, through the address of a copy. *)
     | Runtime of { fn : string; args : t list }

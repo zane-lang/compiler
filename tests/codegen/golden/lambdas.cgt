@@ -1,0 +1,686 @@
+└── program:
+    ├── entry: lambdas$main()
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$String
+    │   ├── positions[0]: @0 (32 bytes)
+    │   └── positions[1]: text @0
+    ├── layouts[1] > layout:
+    │   ├── type: lambdas$Tally
+    │   └── positions[0]: @0 (16 bytes)
+    ├── funcs[0] > func:
+    │   ├── symbol: lambdas$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %19
+    │       ├── body[0] > let:
+    │       │   ├── local: #1
+    │       │   └── value: function lambdas$main()$lambda1
+    │       ├── body[1] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call value:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: local #1 : ptr
+    │       │       │   └── args[0]: 3 : i64
+    │       │       └── right: 6 : i64
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: lambdas$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       │   ├── args[0]: local #1 : ptr
+    │       │       │   └── args[1]: 3 : i64
+    │       │       └── right: 12 : i64
+    │       ├── body[3] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: lambdas$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       │   ├── args[0]: function lambdas$square
+    │       │       │   └── args[1]: 3 : i64
+    │       │       └── right: 81 : i64
+    │       ├── body[4] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: lambdas$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       │   ├── args[0]: function lambdas$main()$lambda2
+    │       │       │   └── args[1]: 1 : i64
+    │       │       └── right: 21 : i64
+    │       ├── body[5] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call value:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn > call:
+    │       │       │   │   ├── type: ptr
+    │       │       │   │   ├── fn: lambdas$pick(%primitives$Bool)
+    │       │       │   │   └── args[0]: true : i1
+    │       │       │   └── args[0]: 5 : i64
+    │       │       └── right: 25 : i64
+    │       ├── body[6] > let:
+    │       │   ├── local: #2
+    │       │   └── value > call:
+    │       │       ├── type: ptr
+    │       │       ├── fn: lambdas$pick(%primitives$Bool)
+    │       │       └── args[0]: false : i1
+    │       ├── body[7] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call value:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: local #2 : ptr
+    │       │       │   └── args[0]: 5 : i64
+    │       │       └── right: 6 : i64
+    │       ├── body[8] > let:
+    │       │   ├── local: #3
+    │       │   └── value > call:
+    │       │       ├── type: {ptr, i64}
+    │       │       ├── fn: lambdas$Step(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       ├── args[0]: local #1 : ptr
+    │       │       └── args[1]: 3 : i64
+    │       ├── body[9] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: lambdas$run(lambdas$Step, %primitives$Int)
+    │       │       │   ├── args[0]: local #3 : {ptr, i64}
+    │       │       │   └── args[1]: 1 : i64
+    │       │       └── right: 8 : i64
+    │       ├── body[10] > assign:
+    │       │   ├── place: #3.0
+    │       │   └── value: function lambdas$square
+    │       ├── body[11] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: lambdas$run(lambdas$Step, %primitives$Int)
+    │       │       │   ├── args[0]: local #3 : {ptr, i64}
+    │       │       │   └── args[1]: 2 : i64
+    │       │       └── right: 256 : i64
+    │       ├── body[12] > let:
+    │       │   ├── local: #4
+    │       │   └── value: function lambdas$main()$lambda3
+    │       ├── body[13] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @5
+    │       │       │   ├── result: #6
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #7
+    │       │       │   │   └── value > call value:
+    │       │       │   │       ├── type: <i64 | i64 | void>
+    │       │       │   │       ├── fn: local #4 : ptr
+    │       │       │   │       └── args[0]: 4 : i64
+    │       │       │   └── body[1] > switch:
+    │       │       │       ├── value: local #7 : <i64 | i64 | void>
+    │       │       │       ├── cases[0] > case 0[0] > assign:
+    │       │       │       │   ├── place: #6
+    │       │       │       │   └── value > payload:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── index: 0
+    │       │       │       │       └── value: local #7 : <i64 | i64 | void>
+    │       │       │       ├── cases[0] > case 0[1]: leave @5
+    │       │       │       ├── cases[1] > case 1[0] > eval > payload:
+    │       │       │       │   ├── type: i64
+    │       │       │       │   ├── index: 1
+    │       │       │       │   └── value: local #7 : <i64 | i64 | void>
+    │       │       │       ├── cases[1] > case 1[1] > assign:
+    │       │       │       │   ├── place: #6
+    │       │       │       │   └── value: 0 : i64
+    │       │       │       └── cases[1] > case 1[2]: leave @5
+    │       │       └── right: 25 : i64
+    │       ├── body[14] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @8
+    │       │       │   ├── result: #9
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #10
+    │       │       │   │   └── value > call value:
+    │       │       │   │       ├── type: <i64 | i64 | void>
+    │       │       │   │       ├── fn: local #4 : ptr
+    │       │       │   │       └── args[0]: 0 : i64
+    │       │       │   └── body[1] > switch:
+    │       │       │       ├── value: local #10 : <i64 | i64 | void>
+    │       │       │       ├── cases[0] > case 0[0] > assign:
+    │       │       │       │   ├── place: #9
+    │       │       │       │   └── value > payload:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── index: 0
+    │       │       │       │       └── value: local #10 : <i64 | i64 | void>
+    │       │       │       ├── cases[0] > case 0[1]: leave @8
+    │       │       │       ├── cases[1] > case 1[0] > let:
+    │       │       │       │   ├── local: #11
+    │       │       │       │   └── value > payload:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── index: 1
+    │       │       │       │       └── value: local #10 : <i64 | i64 | void>
+    │       │       │       ├── cases[1] > case 1[1] > assign:
+    │       │       │       │   ├── place: #9
+    │       │       │       │   └── value > binary:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── op: +
+    │       │       │       │       ├── left: local #11 : i64
+    │       │       │       │       └── right: 1 : i64
+    │       │       │       └── cases[1] > case 1[2]: leave @8
+    │       │       └── right: 8 : i64
+    │       ├── body[15] > let:
+    │       │   ├── local: #12
+    │       │   └── value > call:
+    │       │       ├── type: i64
+    │       │       ├── fn: lambdas$Counter(%primitives$Int)
+    │       │       └── args[0]: 1 : i64
+    │       ├── body[16] > let:
+    │       │   ├── local: #13
+    │       │   └── value: function lambdas$main()$lambda4
+    │       ├── body[17] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$bump(this lambdas$Counter, %primitives$Int, %primitives$Unit[this lambdas$Counter, %primitives$Int] mut)
+    │       │   ├── args[0]: address of #12 : ptr
+    │       │   ├── args[1]: 4 : i64
+    │       │   └── args[2]: local #13 : ptr
+    │       ├── body[18] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #12 : i64
+    │       │       └── right: 5 : i64
+    │       ├── body[19] > let:
+    │       │   ├── local: #14
+    │       │   └── value: function lambdas$main()$lambda5
+    │       ├── body[20] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$bump(this lambdas$Counter, %primitives$Int, %primitives$Unit[this lambdas$Counter, %primitives$Int] mut)
+    │       │   ├── args[0]: address of #12 : ptr
+    │       │   ├── args[1]: 4 : i64
+    │       │   └── args[2]: local #14 : ptr
+    │       ├── body[21] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #12 : i64
+    │       │       └── right: 5 : i64
+    │       ├── body[22] > let:
+    │       │   ├── local: #15
+    │       │   └── value: function lambdas$main()$lambda6
+    │       ├── body[23] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > expand:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── label: @21
+    │       │       │   │   ├── result: #22
+    │       │       │   │   ├── body[0] > host:
+    │       │       │   │   │   ├── local: #20
+    │       │       │   │   │   ├── scope: %19
+    │       │       │   │   │   ├── value > call value:
+    │       │       │   │   │   │   ├── type: handle
+    │       │       │   │   │   │   ├── fn: local #15 : ptr
+    │       │       │   │   │   │   └── args[0] > expand:
+    │       │       │   │   │   │       ├── type: ptr
+    │       │       │   │   │   │       ├── label: @17
+    │       │       │   │   │   │       ├── result: #18
+    │       │       │   │   │   │       ├── body[0] > host:
+    │       │       │   │   │   │       │   ├── local: #16
+    │       │       │   │   │   │       │   ├── scope: %19
+    │       │       │   │   │   │       │   ├── value: "hey" : handle
+    │       │       │   │   │   │       │   └── layout: %primitives$String
+    │       │       │   │   │   │       └── body[1] > assign:
+    │       │       │   │   │   │           ├── place: #18
+    │       │       │   │   │   │           └── value: address of #16 : ptr
+    │       │       │   │   │   └── layout: %primitives$String
+    │       │       │   │   └── body[1] > assign:
+    │       │       │   │       ├── place: #22
+    │       │       │   │       └── value: local #20 : handle
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @24
+    │       │       │       ├── result: #25
+    │       │       │       ├── body[0] > host:
+    │       │       │       │   ├── local: #23
+    │       │       │       │   ├── scope: %19
+    │       │       │       │   ├── value: "hey!" : handle
+    │       │       │       │   └── layout: %primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #25
+    │       │       │           └── value: local #23 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[24] > let:
+    │       │   ├── local: #26
+    │       │   └── value: function lambdas$main()$lambda7
+    │       ├── body[25] > host:
+    │       │   ├── local: #27
+    │       │   ├── scope: %19
+    │       │   ├── value: "ab" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[26] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > expand:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── label: @29
+    │       │       │   │   ├── result: #30
+    │       │       │   │   ├── body[0] > host:
+    │       │       │   │   │   ├── local: #28
+    │       │       │   │   │   ├── scope: %19
+    │       │       │   │   │   ├── value > call value:
+    │       │       │   │   │   │   ├── type: handle
+    │       │       │   │   │   │   ├── fn: local #26 : ptr
+    │       │       │   │   │   │   └── args[0] > mint: address of #27 : ptr
+    │       │       │   │   │   └── layout: %primitives$String
+    │       │       │   │   └── body[1] > assign:
+    │       │       │   │       ├── place: #30
+    │       │       │   │       └── value: local #28 : handle
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @32
+    │       │       │       ├── result: #33
+    │       │       │       ├── body[0] > host:
+    │       │       │       │   ├── local: #31
+    │       │       │       │   ├── scope: %19
+    │       │       │       │   ├── value: "abab" : handle
+    │       │       │       │   └── layout: %primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #33
+    │       │       │           └── value: local #31 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[27] > host:
+    │       │   ├── local: #34
+    │       │   ├── scope: %19
+    │       │   ├── value > call:
+    │       │   │   ├── type: {i32, i64}
+    │       │   │   ├── fn: lambdas$Tally(%primitives$Int)
+    │       │   │   └── args[0]: 2 : i64
+    │       │   └── layout: lambdas$Tally
+    │       ├── body[28] > let:
+    │       │   ├── local: #35
+    │       │   └── value: function lambdas$main()$lambda8
+    │       ├── body[29] > eval > call value:
+    │       │   ├── type: void
+    │       │   ├── fn: local #35 : ptr
+    │       │   ├── args[0]: address of #34 : ptr
+    │       │   └── args[1]: 3 : i64
+    │       ├── body[30] > let:
+    │       │   ├── local: #36
+    │       │   └── value: function lambdas$main()$lambda9
+    │       ├── body[31] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lambdas$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call value:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: local #36 : ptr
+    │       │       │   └── args[0] > mint: address of #34 : ptr
+    │       │       └── right: 6 : i64
+    │       ├── body[32] > let:
+    │       │   ├── local: #37
+    │       │   └── value: function lambdas$main()$lambda10
+    │       ├── body[33] > eval > call value:
+    │       │   ├── type: void
+    │       │   ├── fn: local #37 : ptr
+    │       │   └── args[0] > expand:
+    │       │       ├── type: ptr
+    │       │       ├── label: @39
+    │       │       ├── result: #40
+    │       │       ├── body[0] > host:
+    │       │       │   ├── local: #38
+    │       │       │   ├── scope: %19
+    │       │       │   ├── value: "said\n" : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #40
+    │       │           └── value: address of #38 : ptr
+    │       └── body[34] > return: unit : void
+    ├── funcs[1] > func:
+    │   ├── symbol: lambdas$main()$lambda1
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left: local #1 : i64
+    │       └── right: local #1 : i64
+    ├── funcs[2] > func:
+    │   ├── symbol: lambdas$check(%primitives$Bool)
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > host:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > host:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[2] > if:
+    │       │   ├── cond: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #2 : handle
+    │       ├── body[3] > if:
+    │       │   ├── cond > flip:
+    │       │   │   ├── type: i1
+    │       │   │   └── value: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #4 : handle
+    │       └── body[4] > return: unit : void
+    ├── funcs[3] > func:
+    │   ├── symbol: lambdas$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > call value:
+    │       ├── type: i64
+    │       ├── fn: local #1 : ptr
+    │       └── args[0] > call value:
+    │           ├── type: i64
+    │           ├── fn: local #1 : ptr
+    │           └── args[0]: local #2 : i64
+    ├── funcs[4] > func:
+    │   ├── symbol: lambdas$square
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: *
+    │       ├── left: local #1 : i64
+    │       └── right: local #1 : i64
+    ├── funcs[5] > func:
+    │   ├── symbol: lambdas$main()$lambda2
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left: local #1 : i64
+    │       └── right: 10 : i64
+    ├── funcs[6] > func:
+    │   ├── symbol: lambdas$pick(%primitives$Bool)
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: ptr
+    │   ├── body[0] > eval > expand:
+    │   │   ├── type: i1
+    │   │   ├── label: @3
+    │   │   ├── result: #4
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #2
+    │   │   │   └── value: local #1 : i1
+    │   │   ├── body[1] > if:
+    │   │   │   ├── cond: local #2 : i1
+    │   │   │   └── body[0] > return: function lambdas$square
+    │   │   ├── body[2] > assign:
+    │   │   │   ├── place: #4
+    │   │   │   └── value: local #2 : i1
+    │   │   └── body[3]: leave @3
+    │   └── body[1] > return: function lambdas$pick(%primitives$Bool)$lambda1
+    ├── funcs[7] > func:
+    │   ├── symbol: lambdas$Step(%primitives$Int[%primitives$Int], %primitives$Int)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {ptr, i64}
+    │   └── body[0] > return > record:
+    │       ├── type: {ptr, i64}
+    │       ├── members[0] > member 0: local #1 : ptr
+    │       └── members[1] > member 1: local #2 : i64
+    ├── funcs[8] > func:
+    │   ├── symbol: lambdas$run(lambdas$Step, %primitives$Int)
+    │   ├── params[0]: local #1 : {ptr, i64}
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: i64
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value: local #2 : i64
+    │   ├── body[1] > repeat:
+    │   │   ├── count > member:
+    │   │   │   ├── type: i64
+    │   │   │   ├── index: 1
+    │   │   │   └── value: local #1 : {ptr, i64}
+    │   │   └── body[0] > assign:
+    │   │       ├── place: #3
+    │   │       └── value > call value:
+    │   │           ├── type: i64
+    │   │           ├── fn > member:
+    │   │           │   ├── type: ptr
+    │   │           │   ├── index: 0
+    │   │           │   └── value: local #1 : {ptr, i64}
+    │   │           └── args[0]: local #3 : i64
+    │   └── body[2] > return: local #3 : i64
+    ├── funcs[9] > func:
+    │   ├── symbol: lambdas$main()$lambda3
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: <i64 | i64 | void>
+    │   ├── body[0] > eval > expand:
+    │   │   ├── type: i1
+    │   │   ├── label: @3
+    │   │   ├── result: #4
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #2
+    │   │   │   └── value > binary:
+    │   │   │       ├── type: i1
+    │   │   │       ├── op: ==
+    │   │   │       ├── left: local #1 : i64
+    │   │   │       └── right: 0 : i64
+    │   │   ├── body[1] > if:
+    │   │   │   ├── cond: local #2 : i1
+    │   │   │   └── body[0] > return > case:
+    │   │   │       ├── type: <i64 | i64 | void>
+    │   │   │       ├── index: 1
+    │   │   │       └── payload: 7 : i64
+    │   │   ├── body[2] > assign:
+    │   │   │   ├── place: #4
+    │   │   │   └── value: local #2 : i1
+    │   │   └── body[3]: leave @3
+    │   └── body[1] > return > case:
+    │       ├── type: <i64 | i64 | void>
+    │       ├── index: 0
+    │       └── payload > binary:
+    │           ├── type: i64
+    │           ├── op: /
+    │           ├── left: 100 : i64
+    │           └── right: local #1 : i64
+    ├── funcs[10] > func:
+    │   ├── symbol: lambdas$Counter(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return: local #1 : i64
+    ├── funcs[11] > func:
+    │   ├── symbol: lambdas$main()$lambda4
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: void
+    │   ├── body[0] > assign:
+    │   │   ├── place: *#1
+    │   │   └── value > binary:
+    │   │       ├── type: i64
+    │   │       ├── op: +
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: local #1 : ptr
+    │   │       └── right: local #2 : i64
+    │   └── body[1] > return: unit : void
+    ├── funcs[12] > func:
+    │   ├── symbol: lambdas$bump(this lambdas$Counter, %primitives$Int, %primitives$Unit[this lambdas$Counter, %primitives$Int] mut)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── params[2]: local #3 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > eval > call value:
+    │   │   ├── type: void
+    │   │   ├── fn: local #3 : ptr
+    │   │   ├── args[0]: local #1 : ptr
+    │   │   └── args[1]: local #2 : i64
+    │   └── body[1] > return: unit : void
+    ├── funcs[13] > func:
+    │   ├── symbol: lambdas$main()$lambda5
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: void
+    │   └── body[0] > return: unit : void
+    ├── funcs[14] > func:
+    │   ├── symbol: lambdas$main()$lambda6
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: handle
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       └── body[0] > return > escape:
+    │           ├── exit: function
+    │           ├── value > runtime:
+    │           │   ├── type: handle
+    │           │   ├── fn: zane_text_join
+    │           │   ├── args[0] > deref:
+    │           │   │   ├── type: handle
+    │           │   │   └── ptr: local #1 : ptr
+    │           │   └── args[1] > expand:
+    │           │       ├── type: handle
+    │           │       ├── label: @3
+    │           │       ├── result: #4
+    │           │       ├── body[0] > host:
+    │           │       │   ├── local: #2
+    │           │       │   ├── scope: %5
+    │           │       │   ├── value: "!" : handle
+    │           │       │   └── layout: %primitives$String
+    │           │       └── body[1] > assign:
+    │           │           ├── place: #4
+    │           │           └── value: local #2 : handle
+    │           └── layout: %primitives$String
+    ├── funcs[15] > func:
+    │   ├── symbol: lambdas$main()$lambda7
+    │   ├── params[0]: local #1 : i32
+    │   ├── ret: handle
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > runtime:
+    │       │   ├── type: handle
+    │       │   ├── fn: zane_text_join
+    │       │   ├── args[0] > deref:
+    │       │   │   ├── type: handle
+    │       │   │   └── ptr > resolve: local #1 : i32
+    │       │   └── args[1] > deref:
+    │       │       ├── type: handle
+    │       │       └── ptr > resolve: local #1 : i32
+    │       └── layout: %primitives$String
+    ├── funcs[16] > func:
+    │   ├── symbol: lambdas$Tally(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: {i32, i64}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {i32, i64}
+    │       │   ├── members[0] > member 0: 0 : i32
+    │       │   └── members[1] > member 1: local #1 : i64
+    │       └── layout: lambdas$Tally
+    ├── funcs[17] > func:
+    │   ├── symbol: lambdas$main()$lambda8
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: void
+    │   ├── body[0] > assign:
+    │   │   ├── place: *#1.1
+    │   │   └── value > binary:
+    │   │       ├── type: i64
+    │   │       ├── op: *
+    │   │       ├── left > snapshot:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr > offset:
+    │   │       │       ├── within: {i32, i64}
+    │   │       │       ├── path: 1
+    │   │       │       └── base: local #1 : ptr
+    │   │       └── right: local #2 : i64
+    │   └── body[1] > return: unit : void
+    ├── funcs[18] > func:
+    │   ├── symbol: lambdas$main()$lambda9
+    │   ├── params[0]: local #1 : i32
+    │   ├── ret: i64
+    │   └── body[0] > return > snapshot:
+    │       ├── type: i64
+    │       └── ptr > offset:
+    │           ├── within: {i32, i64}
+    │           ├── path: 1
+    │           └── base > resolve: local #1 : i32
+    ├── funcs[19] > func:
+    │   ├── symbol: lambdas$main()$lambda10
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0] > deref:
+    │   │       ├── type: handle
+    │   │       └── ptr: local #1 : ptr
+    │   └── body[1] > return: unit : void
+    └── funcs[20] > func:
+        ├── symbol: lambdas$pick(%primitives$Bool)$lambda1
+        ├── params[0]: local #1 : i64
+        ├── ret: i64
+        └── body[0] > return > binary:
+            ├── type: i64
+            ├── op: +
+            ├── left: local #1 : i64
+            └── right: 1 : i64

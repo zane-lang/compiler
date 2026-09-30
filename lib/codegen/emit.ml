@@ -371,6 +371,14 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
       let args = Array.of_list (List.filter_map (expr env fr b) args) in
       let v = Llvm.build_call fty f args "" b in
       if e.Expr.ty = Ty.Void then None else Some v
+  | Expr.Call_value { fn; args } ->
+      (* The function's type is its arguments' and its result's, which the
+         tree gives, as for a direct call. *)
+      let f = Option.get (expr env fr b fn) in
+      let fty = fn_type env (List.map (fun (a : Expr.t) -> a.Expr.ty) args) e.Expr.ty in
+      let args = Array.of_list (List.filter_map (expr env fr b) args) in
+      let v = Llvm.build_call fty f args "" b in
+      if e.Expr.ty = Ty.Void then None else Some v
   | Expr.Runtime { fn; args } -> (
       let f, fty = runtime env fn in
       let args =

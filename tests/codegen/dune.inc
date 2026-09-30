@@ -146,6 +146,35 @@
   (diff golden/hosts.out hosts.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/lambdas))
+ (action
+  (with-stdout-to
+   lambdas.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/lambdas))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lambdas.cgt lambdas.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/lambdas))
+ (targets lambdas.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build lambdas.exe --package fixtures/lambdas)))
+
+(rule
+ (action
+  (with-stdout-to
+   lambdas.out.actual
+   (run ./lambdas.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lambdas.out lambdas.out.actual)))
+
+(rule
  (deps (source_tree fixtures/lists))
  (action
   (with-stdout-to

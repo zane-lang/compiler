@@ -87,7 +87,8 @@ let member_index st t slot = if reference st t then slot + 1 else slot
    and an empty one has none. A value variant is a sum of its payloads, and
    an enum a sum of cases with none. A reference type's instance is the same
    shape after a `u32` backpointer (memory.md §3.3), a guest is a `u32`
-   tether (§4.2), and a boxed member a pointer (adt.md §4). *)
+   tether (§4.2), and a boxed member a pointer (adt.md §4). A function value
+   is the address of the function a lambda was lifted to (L14). *)
 let rec ty st span (t : Tty.t) : Nodes.Ty.t =
   match t with
   | _ when is_text t || is_list t -> Nodes.Ty.Handle
@@ -99,6 +100,7 @@ let rec ty st span (t : Tty.t) : Nodes.Ty.t =
       | "Float" -> Nodes.Ty.F64
       | _ -> unhandled span t)
   | Tty.Guest _ -> Nodes.Ty.I32
+  | Tty.Verb _ -> Nodes.Ty.Ptr
   | Tty.Named _ -> (
       let member m = if boxed st t m then Nodes.Ty.Ptr else ty st span m in
       let sum ts = Nodes.Ty.Sum ts in

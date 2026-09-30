@@ -106,6 +106,32 @@ let outcome_layout st span (v : verb) =
 let by_address st (v : verb) (p : T.Local.t) =
   (v.signature.S.is_mut && p.T.Local.name = "this") || hosted st p.T.Local.ty
 
+(* L14: a function value is called as a verb of its type would be, so its
+   type gives the verb it is called as: the subject first, named `this`, as a
+   lambda's own is. A function value's subject is always lent by its
+   address, since a lambda that does not declare `mut` may be held by a
+   `mut` function type (functions.md §7.2), and one convention serves both. *)
+let value_verb key (fv : Tty.verb) params body =
+  let signature =
+    {
+      S.owner = S.Intrinsic "<lambda>";
+      name = "lambda";
+      home = S.Namespace "lambda";
+      kind = S.Function;
+      generics = [];
+      params = [];
+      ret = fv.Tty.ret;
+      abort = fv.Tty.abort;
+      is_mut = true;
+    }
+  in
+  { decl = -1; key; instance = []; signature; params; body }
+
+let value_params span (fv : Tty.verb) =
+  let local name ty = { T.Local.id = -1; name; ty; span } in
+  Option.to_list (Option.map (local "this") fv.Tty.this_)
+  @ List.mapi (fun i t -> local (string_of_int i) t) fv.Tty.params
+
 let deref id t = { Expr.node = Expr.Deref { Expr.node = Expr.Local id; ty = Nodes.Ty.Ptr }; ty = t }
 
 let binop : Sst.Nodes.Operator.node -> Expr.binop = function
@@ -372,7 +398,39 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   (* A spawned call read where it is written is waited for at once, which
      is the call itself (docs/design/lowering.md §9). *)
   | T.Expr.Spawn call -> expr st ctx call
+  | T.Expr.Lambda l ->
+      { Expr.node = Expr.Function (lambda st span e.T.Expr.ty l); ty = Nodes.Ty.Ptr }
+  (* A lambda-variable declared at package scope is its lambda. *)
+  | T.Expr.Var (T.Name_ref.Global { decl; _ }) -> (
+      match Hashtbl.find_opt st.constants decl with
+      | Some ({ T.Expr.node = T.Expr.Lambda _; _ } as value) -> expr st ctx value
+      | _ -> refuse span "lowering does not read a package constant yet")
+  | T.Expr.Call_value { callee; args; handler } -> (
+      match strip callee.T.Expr.ty with
+      | Tty.Verb fv ->
+          let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
+          let fn = value_of st ctx callee in
+          invoke ~fn st ctx span v (arguments st ctx span v args) handler
+      | _ -> refuse span "lowering expected a function value here")
   | _ -> refuse span "lowering does not handle this expression yet"
+
+(* L14. A lambda captures nothing (functions.md §7.4), so it is lifted out
+   as a function of its own, once, and its value is that function's address.
+   A call through it ends only the ways its type says, so a lambda whose body
+   exits has no function yet. *)
+and lambda st span t (l : T.Lambda.t) =
+  match (List.assq_opt l.T.Lambda.body st.lambdas, t) with
+  | None, _ -> refuse span "lowering does not lift a lambda written here yet"
+  | Some s, Tty.Verb fv ->
+      let key = "lambda " ^ s in
+      if not (Hashtbl.mem st.symbols key) then begin
+        if Tst.Exits.block l.T.Lambda.body then
+          refuse span "lowering does not lift a lambda that exits yet";
+        Hashtbl.replace st.symbols key s;
+        Queue.add (value_verb key fv l.T.Lambda.params l.T.Lambda.body) st.pending
+      end;
+      s
+  | Some _, _ -> refuse span "lowering expected a function type here"
 
 (* A spawned call's result, read once the call has returned (concurrency.md
    §3.2). *)
@@ -1001,10 +1059,16 @@ and argument st ctx span v (p : T.Local.t) a =
 
 (* L12. A call that can end more than one way is switched on how it ended:
    done gives its result, aborted runs its handler, or the abort of the
-   `match` it flows out of, and an exit ends this invocation too. *)
-and invoke st ctx span v args handler =
+   `match` it flows out of, and an exit ends this invocation too. The call
+   is to [v]'s function, or through [fn], a function value's address. *)
+and invoke ?fn st ctx span v args handler =
   let o = outcome st span v in
-  let value = { Expr.node = Expr.Call { fn = symbol st v; args }; ty = returned o } in
+  let call =
+    match fn with
+    | Some fn -> Expr.Call_value { fn; args }
+    | None -> Expr.Call { fn = symbol st v; args }
+  in
+  let value = { Expr.node = call; ty = returned o } in
   if plain o then value
   else
     let label = fresh st in
@@ -1290,12 +1354,33 @@ let func st (v : verb) : Func.t =
 (* Programs                                                               *)
 (* ---------------------------------------------------------------------- *)
 
+(* docs/design/symbols.md: a lambda is called by the verb it is written in
+   and its place among that verb's lambdas, counted from 1 in source order,
+   nested ones included, and a package lambda-variable's by the variable.
+   [owner] is the verb's symbol, or the variable's. *)
+let name_lambdas st owner (b : T.Block.t) =
+  let n = ref 0 in
+  let rec block (b : T.Block.t) =
+    List.iter (fun s -> List.iter expr (Tst.Exits.stat_exprs s)) b.T.Block.stats
+  and expr e = List.iter part (Tst.Exits.parts e)
+  and part = function
+    | Tst.Exits.Same x -> expr x
+    | Tst.Exits.Arm b | Tst.Exits.Handler b | Tst.Exits.Block b -> block b
+    | Tst.Exits.Lambda b ->
+        incr n;
+        st.lambdas <- (b, Printf.sprintf "%s$lambda%d" owner !n) :: st.lambdas;
+        block b
+  in
+  block b
+
 let program (p : T.Program.t) =
   let st =
     {
       verbs = Hashtbl.create 64;
       types = Hashtbl.create 64;
       maps = Hashtbl.create 16;
+      constants = Hashtbl.create 16;
+      lambdas = [];
       layouts = Hashtbl.create 16;
       named = [];
       symbols = Hashtbl.create 64;
@@ -1308,7 +1393,8 @@ let program (p : T.Program.t) =
   in
   let add decl instance signature params body =
     let key = key decl instance in
-    Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body }
+    Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body };
+    name_lambdas st (Symbol.verb signature instance) body
   in
   List.iter
     (fun (pkg : T.Package.t) ->
@@ -1319,6 +1405,16 @@ let program (p : T.Program.t) =
               Hashtbl.replace st.types (pkg.T.Package.name, name) (params, definition, reference)
           | T.Decl.Enum_map { enum; entries; _ } ->
               Hashtbl.replace st.maps d.T.Decl.id (enum, entries)
+          | T.Decl.Constant { name; value; _ } -> (
+              Hashtbl.replace st.constants d.T.Decl.id value;
+              let owner = pkg.T.Package.name ^ "$" ^ name in
+              match value.T.Expr.node with
+              | T.Expr.Lambda { body; _ } ->
+                  st.lambdas <- (body, owner) :: st.lambdas;
+                  name_lambdas st owner body
+              | _ ->
+                  let stat = { T.Stat.node = T.Stat.Expr value; span = value.T.Expr.span } in
+                  name_lambdas st owner { T.Block.stats = [ stat ]; span = value.T.Expr.span })
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
               add d.T.Decl.id [] signature params body
           (* A subscript's body is the place it names (functions.md §2.9). *)

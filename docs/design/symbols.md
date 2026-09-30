@@ -104,8 +104,10 @@ and each string literal's bytes (`zane.text`).
 
 - Verbs, types and layout tables are named as above, by `Symbol.verb` and
   `Symbol.ty`.
-- Package constants and lambdas are not lowered yet, so no variable has a
-  symbol yet.
+- Lambdas are named as above. A lambda that expands into more than one
+  place keeps its one name, and is lifted once.
+- Package constants other than lambda-variables are not lowered yet, so no
+  other variable has a symbol yet.
 - The program builds into one module ([`lowering.md`](lowering.md) L15), so
   every verb but `zane_main` is local to it: its symbol is in the binary, for
   a debugger or a profiler, but no other object links against it. A layout
