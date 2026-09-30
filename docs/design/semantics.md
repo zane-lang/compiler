@@ -163,7 +163,7 @@ else.
    inline generic parameters at their first marked occurrence (`generics.md`
    §3.2, §4.4). Check here:
    - overload identity, including no overloads that differ only by passing mode
-     (`functions.md` §4.1);
+     or by the `mut` of a function-type parameter (`functions.md` §4.1);
    - the operator home-package rule ([`operators.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/operators.md) §2.2);
    - implicit-constructor source and destination kinds, and the orphan rule
      (`types.md` §4.4–§4.5);
