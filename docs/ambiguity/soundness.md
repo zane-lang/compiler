@@ -94,10 +94,31 @@ as long as the height is the whole stack, so the descent stops there rather
 than inventing entries below the initial state, and the reductions that would
 have popped past it are gone.
 
+**Which grammar symbols a reduction pops** is another necessary invariant.
+A concrete LR reduction of `A -> X1 ... Xn` pops a viable-stack path labelled
+`X1 ... Xn`, in that order. A reverse predecessor walk that checks only the
+number of edges admits paths spelling unrelated symbols. The prover now
+walks the RHS labels backwards and intersects every retained stack position
+with its known state. Unknown positions retain every compatible predecessor.
+The resulting base set is exact for those local facts, although the unknown
+prefix and whether that path arose on this input remain over-approximations.
+
+Every concrete reduction source survives this check: its popped path spells
+the RHS and its retained states agree with the suffix. Epsilon reductions pop
+no edges and leave the current top as the base. This guard applies both to
+reductions wholly inside the retained suffix and to reductions entering its
+unknown prefix. It adds no input-length or nesting bound.
+
+`tests/ambiguity/reduction_bases_test.ml` compares the reverse matcher with an
+independent forward-path enumeration over 20,000 generated queries. The
+existing ambiguity corpus checks that complete ambiguous derivations survive.
+These are implementation checks in addition to the invariant argument, not
+machine-checked formal verification.
+
 **Which terminals remain on the viable stack** is another finite fact the
 suffix used to discard. Each terminal labels an automaton edge. The prover
-assigns those labels a nonzero 10-bit fingerprint and carries their XOR in
-every abstract stack. A shift XORs in its terminal; a reduction XORs out the
+assigns those labels a fingerprint (nonzero at the default 10-bit width) and
+carries their XOR in every abstract stack. A shift XORs in its terminal; a reduction XORs out the
 terminals written directly in that production's right-hand side. These are
 exact updates for every concrete LR stack, including arbitrarily deep ones.
 
@@ -115,7 +136,10 @@ abstract node, so two paths with different fingerprints are not collapsed by
 pair deduplication. Acceptance requires residue zero because the accepting
 stack contains the initial state and the start-symbol goto, with no terminal
 edge left on it. A run reports how many moves this test refused and the
-number of residue classes used.
+number of residue classes used. `AMBIGUITY_RESIDUE_BITS` selects 0–10 bits;
+zero gives the constant-zero fingerprint and disables this constraint. All
+widths preserve the concrete updates above, so a weaker fingerprint admits
+extra paths rather than removing concrete ones.
 
 While height is exact, the reachability check now asks for a single path
 with both that height and that residue. Separate tests would allow one path
@@ -494,3 +518,25 @@ keeping such a finite argument in existence at all times: determinism
 certificates where the grammar is locally LR, human induction arguments
 where it is not, and exhaustive bounded search as the continuous attempt at
 falsification.
+
+### Modular delimiter histories
+
+`AMBIGUITY_DELIMITER_MODULUS=M`, for 1–8 (default 1, disabled), adds a finite
+DFA product tracking the three net delimiter counts modulo `M`. It requires
+the same balanced production-skeleton check as recursive summaries. Every
+complete grammar derivation has zero net counts, by substitution induction,
+so restricting acceptance to zero counters cannot remove a concrete sentence.
+The counters never reject a prefix; at arbitrary depth they simply wrap.
+Delimiter tokens remain distinct during terminal-class enumeration.
+
+This is a necessary condition, not an exact Dyck check. Misnested histories
+and unmatched counts divisible by `M` can survive. The history state contains
+both the exclusion-trie state and all counters, so deduplication cannot replace
+one counter value with another. Exact-history CEGAR still checks every concrete
+terminal-class substitution before excluding a sentence. Modular rejection
+instead rests on the production invariant, and applies to all sentence lengths.
+
+Native tests cover depths of 100, all eight moduli, deliberate false positives,
+and composition with exact-history exclusions. Engine regressions preserve
+nested true ambiguities and fail closed on unbalanced grammars or invalid
+settings. A completed walk remains the only way to obtain a proof verdict.

@@ -103,12 +103,9 @@ class DeclarationTests(ParserSyntaxTestCase):
             '''
         )
 
-    def test_a_type_is_passed_as_an_ordinary_argument(self) -> None:
-        # generics.md §5.3: a type or number reaches a verb either inferred
-        # from the value arguments, or passed directly as a value parameter of
-        # concept type `Type`. The second half needs a type to be writable
-        # where a value is expected, which is what the `Int` arguments below
-        # are.
+    def test_a_type_is_passed_as_a_constructor_argument(self) -> None:
+        # Explicit type values are standalone constructor arguments. Ordinary
+        # function and method arguments use the type-free expression grammar.
         self.assert_parses(
             '''
             type Vector<T Type> = struct {
@@ -123,13 +120,14 @@ class DeclarationTests(ParserSyntaxTestCase):
             Unit use() {
                 vec Vector(Int);
                 arr Array(Int, 10000);
-                register(Float);
-                registry!add(math$Vector);
-                machine Slot = @primitives$I64;
+                machine Slot(@primitives$I64);
                 return Unit();
             }
             '''
         )
+        self.assert_rejects("Unit use() { register(Float); }")
+        self.assert_rejects("Unit use() { registry!add(math$Vector); }")
+        self.assert_rejects("Unit use() { machine Slot = @primitives$I64; }")
         # A named constructor takes one on the same terms.
         self.assert_parses("Unit use() { v Vector2.zeros(Int); }")
         # The inferred half is unchanged and still the one a literal drives.

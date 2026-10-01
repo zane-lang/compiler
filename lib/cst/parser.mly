@@ -346,11 +346,28 @@ map_lit:
    twelve; what changes is which fork they are, and this one is the fork
    docs/ambiguity/README.md already carries for a call's trailing argument against an
    enclosing brace. *)
+(* Type arguments are standalone constructor arguments, not expressions.
+   In particular, admitting a bare type as an operator operand makes
+   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). *)
+%inline constructor_value:
+  | value=expr { value }
+  | name=name_type { expr $loc (Nodes.Expr.TypeValue name) }
+
+%inline constructor_call_arg:
+  | value=constructor_value { call_arg $loc (Nodes.Call_arg.Value value) }
+  | block=block_arg { block }
+
+%inline constructor_field_arg:
+  | name=lname value=ioption(preceded("=", constructor_value)) {
+      ({ Nodes.Field_arg.name; value; span = Span.of_loc $loc }
+        : Nodes.Field_arg.t)
+    }
+
 %inline positional_constructor_args:
   | "(" ")" {
       constructor_args $loc (Nodes.Constructor_args.Positional [])
     }
-  | "(" args=separated_nonempty_list(",", call_arg) ")" {
+  | "(" args=separated_nonempty_list(",", constructor_call_arg) ")" {
       constructor_args $loc (Nodes.Constructor_args.Positional args)
     }
 
@@ -358,7 +375,7 @@ map_lit:
    by it; see [stat]. It is named apart from the positional form for that
    reason alone. *)
 %inline field_constructor_args:
-  | "{" args=list(terminated(field_arg, ";")) "}" {
+  | "{" args=list(terminated(constructor_field_arg, ";")) "}" {
       constructor_args $loc (Nodes.Constructor_args.Fields args)
     }
 
@@ -688,7 +705,7 @@ fields_var_shorthand:
    lambda-variable shorthand in [simple_decl]. *)
 trailing_var_shorthand:
   | name=lname constructor=constructor_name
-    open_=LPAREN args=separated_nonempty_list(",", call_arg) RPAREN
+    open_=LPAREN args=separated_nonempty_list(",", constructor_call_arg) RPAREN
     tail=trailing_arg {
       ignore open_;
       decl $loc
@@ -934,7 +951,7 @@ block_call:
      is not. A constructor call whose only argument is a block writes it
      inside the list. See docs/spec-divergences.md. *)
   | name=constructor_name
-    open_=LPAREN args=separated_nonempty_list(",", call_arg) RPAREN
+    open_=LPAREN args=separated_nonempty_list(",", constructor_call_arg) RPAREN
     tail=trailing_arg {
       ignore open_;
       let span = Span.of_loc $loc in
@@ -1140,19 +1157,6 @@ app:
 
 expr:
   | app=app { app }
-  (* A type passed as a value -- the explicit type argument of generics.md
-     §5.3, as in `Array(Int, 10000)`.
-
-     It sits here rather than in [primary] because a type is never a postfix
-     base: there is no dot access on a type, no calling one (a name in front of
-     an argument list is already a constructor call), and no subscripting one
-     (a `[ ]` after a type name is a verb-type suffix). Written as a [primary]
-     it would reach all three through [app], and `Colors.red`, `Int(3)` and
-     `Span.point(0)` would each gain a second reading; written here it reaches
-     none of them and every one of those stays at a single derivation.
-
-     Only a bare name, for the reason [Nodes.Expr.TypeValue] records. *)
-  | name=name_type { expr $loc (Nodes.Expr.TypeValue name) }
   | value=app_braced { value }
   | call=block_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
   | value=spawn_expr { value }

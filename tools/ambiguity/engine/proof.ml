@@ -32,6 +32,16 @@ let run ~automaton ~engine ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~tim
     printf "Balanced proof: all reachable production skeletons are well-nested; \
             ()/[]/{} histories are checked at arbitrary depth.\n"
   end;
+  if Delimiter_history.modulus > 1 then begin
+    Balanced_walk.validate automaton;
+    printf "Delimiter history: net counts modulo %d; balanced production \
+            skeletons checked; no depth or input-length bound.\n"
+      Delimiter_history.modulus
+  end;
+  let delimiter_description =
+    if Delimiter_history.modulus = 1 then ""
+    else Printf.sprintf " intersected with delimiter counts modulo %d"
+        Delimiter_history.modulus in
   (* Refinement's loop. A candidate is a question rather than an
      answer -- it may be a real ambiguity or a gap the abstraction left
      -- and the two are told apart by sharpening the abstraction exactly
@@ -515,7 +525,8 @@ let run ~automaton ~engine ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~tim
          exists in the top-%d stack abstraction%s (%d abstract pairs \
          explored%s).\n"
         !prove_level
-        (if !balanced_proof then " intersected with well-nested histories" else "") pairs
+        ((if !balanced_proof then " intersected with well-nested histories" else "")
+         ^ delimiter_description) pairs
         (if !cegar_used = 0 then ""
          else
            Printf.sprintf
@@ -550,9 +561,9 @@ let run ~automaton ~engine ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~tim
       if survey.accepting = 0 && survey.covered then begin
         printf
           "PROVEN UNAMBIGUOUS: no diverging pair of accepting parses \
-           exists in the top-%d stack abstraction (%d abstract pairs \
+           exists in the top-%d stack abstraction%s (%d abstract pairs \
            explored).\n"
-          !prove_level survey.survey_pairs;
+          !prove_level delimiter_description survey.survey_pairs;
         exit 0
       end;
       printf

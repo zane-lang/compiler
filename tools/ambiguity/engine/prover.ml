@@ -434,10 +434,12 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
   let automaton = engine.automaton in
   (* Filter states are included in every abstract pair key. Any added sentence
      therefore requires a fresh walk and fresh caches. *)
-  let history_filter = History_filter.create blocked_sentences in
+  if Delimiter_history.modulus > 1 then Balanced_walk.validate automaton;
+  let history_filter = Delimiter_history.create blocked_sentences in
   let gotos = goto_edges automaton in
   let preds = predecessors automaton in
   let below = below_steps preds in
+  let bases = reduction_bases automaton in
   let reachable = reachable_stack_residues automaton in
   let prod_residues = production_residues automaton in
   (* Past the widest reduction in the grammar the exact height stops deciding
@@ -554,7 +556,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
         fits
   in
   let moves =
-    let raw = side_moves automaton gotos below preds reachable reachable_height
+    let raw = side_moves automaton gotos below bases preds reachable reachable_height
         prod_residues precision height_ceiling reduction_cache moves_cache in
     fun stack token ->
       if viable stack then raw stack token else []
@@ -878,7 +880,14 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
      the same abstract reduction chains, so exploring one covers the class and
      shrinks the abstract pair space by the same factor as the search. *)
   let terminals =
-    StringSet.elements (class_representatives automaton automaton.terminals)
+    if Delimiter_history.modulus = 1 then
+      StringSet.elements (class_representatives automaton automaton.terminals)
+    else
+      let delimiters, ordinary = StringSet.partition
+        (fun token -> Balanced_walk.closing token <> None || Balanced_walk.is_closing token)
+        automaton.terminals in
+      StringSet.elements (StringSet.union delimiters
+        (class_representatives automaton ordinary))
   in
   let render_stack stack =
     String.concat " " (List.map string_of_int stack.suffix)
@@ -959,15 +968,15 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
   if !Config.balanced_proof then begin
     Balanced_walk.validate automaton;
     let start = { suffix = [ 0 ]; height = 1; residue = 0 } in
-    let initial = (start, start, false, History_filter.root history_filter) in
+    let initial = (start, start, false, Delimiter_history.root history_filter) in
     let advance (left, right, diverged, history) token =
-      let history = History_filter.advance history_filter history token in
+      let history = Delimiter_history.advance history_filter history token in
       List.map (fun (left, right, changed) ->
         canonical (left, right, diverged || changed, history))
         (joint (left, right) token diverged)
     in
     let accepts (left, right, diverged, history) =
-      not (History_filter.is_blocked history_filter history)
+      not (Delimiter_history.is_blocked history_filter history)
       && List.exists (fun (_, _, changed) -> diverged || changed)
            (joint (left, right) "#" diverged)
     in
@@ -1021,7 +1030,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
   if not state.seeded then begin
     let start = { suffix = [ 0 ]; height = 1; residue = 0 } in
     state.seeded <- true;
-    push None (start, start, false, History_filter.root history_filter)
+    push None (start, start, false, Delimiter_history.root history_filter)
   end;
   (* The pairs a deepening put back into play. They are already in [parents]
      from the round that explored them, so [push] would drop them as seen:
@@ -1087,7 +1096,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
     let eof_outcomes = joint (left, right) "#" diverged in
     (* Only complete blocked histories are discarded, at an accepting EOF
        outcome. Prefixes keep all continuations, including longer sentences. *)
-    let excluded_at_eof = History_filter.is_blocked history_filter history in
+    let excluded_at_eof = Delimiter_history.is_blocked history_filter history in
     let accepts_diverged =
       (not excluded_at_eof)
       && List.exists
@@ -1129,7 +1138,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
               if surveying && (not diverged) && chain_diverged then
                 Hashtbl.replace sites (left, right, token) ();
               let next_history =
-                History_filter.advance history_filter history token
+                Delimiter_history.advance history_filter history token
               in
               push
                 (Some (token, node))

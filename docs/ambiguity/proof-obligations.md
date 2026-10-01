@@ -329,47 +329,35 @@ something inside the `( )` gives every spelling one. What makes `do() { ... }`
 safe by comparison is the casing rule: a lower-case callee cannot be a return
 type, so no lambda reading exists to collide with.
 
-**A type may be written where a value is expected**, which is how the explicit
-half of
-[`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
-§5.3 reaches a verb — `Array(Int, 10000)` passes a type the way it passes a
-number. Where the production sits is the whole of what makes that safe. A type
-is never a postfix base: there is no dot access on a type, a name in front of
-an argument list is already a constructor call, and a `[ ]` after a type name
-is a verb-type suffix. So the production belongs at expression level, not among
-the `primary` forms, which are exactly the ones `app` threads `.`, `(` and `[`
-onto. Written as a `primary` it measures `Colors.red`, `Int(3)` and
-`Span.point(0)` at **two** derivations each — an access, a call and a chain on
-a type value, beside the readings they already have. Written at expression
-level each stays at one, and so does every case in the suites.
+**Standalone type values are constructor arguments only.** Previously a bare
+name also belonged to `expr`. That left `Foo<1>[]() {}` with two complete
+parses: a lambda returning `Foo<1>[]`, and `(Foo < 1) > ([]() {})`. Restricting
+collection calls alone did not close the family: `Foo<1>[][Int]() {}` could
+subscript the collection before calling it.
 
-The four states it adds — four more than the same grammar without the
-production — are over the same empty generic list the family below is about:
-after an uppercase name the parser cannot yet tell a type used as a value from
-the head of an applied type or a constructor call, and the next token says
-which. Three of them are the `loption_generics_` reduction under two new
-lookahead sets — the argument position and the operand position — and the
-fourth doubles the `primary -> LIDENT` state, which has since gone with the
-parenthesised type (below). No reduce/reduce state is added.
+The grammar now excludes bare type values from `expr` and admits them through
+`constructor_value`, beside ordinary expressions. Both positional and named
+constructor arguments use that rule; ordinary calls, collection elements,
+operator operands and nested expressions do not. The constructor exception
+applies to a whole argument, so `Ctor(Int)` is accepted and `Ctor(Int + 1)` is
+rejected. Type annotations, generic arguments, type members and constructed
+values retain their explicit grammar positions.
 
-That they are forks rather than ambiguities is measured, not proved. Both
-readings are explored and exactly one survives on every case in
-[`tests/grammar/ambiguity_test.py`](../../tests/grammar/ambiguity_test.py), and the
-search in
-[`reports/ambiguity/search/general/`](../../reports/ambiguity/search/general)
-exhausted every sentence of at most nine tokens without finding one. Neither
-reaches inputs of every length, so these four stand where the rest of the
-ledger does: **open obligations**, until `ambiguity prove` closes them or a
-longer search finds a witness.
+Both witnesses now have one complete derivation, including when nested in a
+constructor argument. `tests/grammar/type_arguments_test.py` checks that the
+exception does not leak into ordinary expressions. This closes the identified
+type-value/comparison family, not every remaining proof obligation.
 
-**Only a bare name may be written that way**, and the measurement is what drew
-the line. Admitting an applied `Array<Int, 4>` as well costs three
-**reduce/reduce** states, all of them `expr -> <name> loption_generics_`
-against `list_verb_type_suffix_ -> ` — after the name, a `[` is either a verb
-type's parameter list or a subscript, and the type-value reading has to be
-complete before the parser knows. The spec's own examples pass bare names, so
-the cheaper half is the whole of what §5.3 asks for;
-[`spec-divergences.md`](../spec-divergences.md) records the rest.
+**Only bare names are supported as standalone constructor type arguments.**
+That restriction predates the constructor-only rule. The previous `expr`
+production was measured to add three reduce/reduce states when extended to
+applied types, against `list_verb_type_suffix_ ->`. Those historical
+measurements do not establish a limitation of the new constructor argument
+rule. This change preserves the existing bare-name restriction;
+[`spec-divergences.md`](../spec-divergences.md) records the remaining gap.
+
+The state counts below describe the earlier census and must be regenerated
+before being used as measurements of the constructor-only grammar.
 
 Thirty states reduce `loption_generics_ ->`: 21 predate the terminator change,
 and three came with the abort type's own position (below). The empty generics reduction is load-bearing rather

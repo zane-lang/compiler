@@ -1,4 +1,4 @@
-# Measured and rejected
+# Ambiguity experiments
 
 ## Recursive delimiter summaries (October 1, 2026)
 
@@ -71,9 +71,66 @@ Both readings obey the delimiter invariant. Semantic type errors in a reading
 cannot discharge this grammar obligation: the parser already has two complete
 derivations before type checking. A sound prover cannot certify this grammar
 commit unambiguous. The generic-lambda/comparison overlap must be resolved
-before further unambiguity proof work can succeed. No syntax change was made
-as part of this experiment. The reduced family is a prover soundness fixture
+before further unambiguity proof work can succeed. The initial experiment did
+not change syntax; the follow-up below records the adopted restriction. The reduced family is a prover soundness fixture
 in `tests/ambiguity/prover/balanced_test.py`.
+
+### Constructor-only type arguments
+
+The follow-up retains the language-design decision to admit standalone bare
+type values only as complete positional or named constructor arguments. They
+are no longer ordinary `expr` operands. Both witnesses, including
+`Foo<1>[][Int]() {}`, now have one complete parse. The independently generated,
+action-erased Menhir GLR parser accepts both without its ambiguity failure.
+Collections remain callable in the grammar.
+
+The updated `lib/cst/parser.mly` SHA-256 is
+`a9e5a9c47d95e4ce0bef3b4c19b1d3d69e79d0e0f2a0b7db4a1947188d0485af`.
+Its automaton has 1,393 states and 481 distinct reachable production shapes.
+All their direct-terminal skeletons pass the nesting check.
+
+Generated-sentence checking completed 100,000 package samples (seed
+`20261002`, 80-token budget, depths 7–18) and 50,000 expression samples wrapped
+as complete declarations (seed `20261003`, 100-token expression budget, same
+depths). Every sample was accepted with one parse. These are samples, not
+necessarily distinct sentences, and this is bounded evidence rather than a
+proof.
+
+The prover now constrains a reduction's possible base states by matching its
+actual RHS symbols backwards, including the retained states. The previous
+predecessor walk constrained only the number of edges. Smaller fingerprints
+are also available without changing the conservative proof direction.
+
+| Updated-grammar probe | Bits | Budget | Outcome |
+| --- | ---: | ---: | --- |
+| Before RHS matching: balanced level 1, refine 8 | 10 | 4096 MiB | Cap 4,601,750; 155.99 s |
+| RHS matching: balanced level 2, refine 12 | 10 | 4096 MiB | Cap 4,601,750; 182.56 s |
+| RHS matching: ordinary level 2, refine 12 | 0 | 512 MiB | Cap 575,218; 88.83 s; three refinement rounds |
+| RHS matching: ordinary level 2, refine 24 | 0 | 1024 MiB | Timeout 300 s; 649,030 pairs; four rounds; 104 states deepened, maximum retained depth 13; peak RSS 1,332,688 KiB |
+| RHS matching: ordinary level 2, refine 16 | 2 | 512 MiB | Cap 575,218; 37.17 s; no refinement |
+| RHS matching: balanced level 3, refine 24 | 0 | 2048 MiB | Cap 2,300,875; 31.07 s; no refinement |
+| RHS matching: ordinary level 2, refine 24, delimiter counts modulo 2 | 0 | 1024 MiB | Cap 1,150,437; 50.18 s; no refinement |
+
+All use one worker, frontier ratio 1, `--max-tokens 0 --max-witnesses 1`;
+none reached a proof or a new concrete ambiguity. Budgets are graph-entry
+limits derived from the configured memory figure, not hard RSS limits. Runs
+have different configurations, so elapsed times are not controlled speed
+comparisons. Zero fingerprint bits enable useful refinement sooner, but the
+remaining abstract context still produces spurious candidates and large
+queues. Exact recursive nesting and modular count products did not solve
+that at the tested budgets.
+
+A separate scratch experiment replaced the general fingerprint with three
+bits representing delimiter-pair parity. It still capped at 1,150,437 pairs
+without refinement (114.03 s, 1024 MiB configured). That alternative was not
+retained.
+
+The updated restriction is covered by 16 complete-program cases. The existing
+38 grammar regression methods also pass exact recognition checks; their AST
+shape assertions were not run in this standalone environment. The prover
+suite passes 149 tests. Native checks compare RHS matching with 20,000 forward
+path queries and check recursive summaries, modular counts, and history
+exclusions. The compiler with its full pinned OCaml toolchain was not built.
 
 Changes to the grammar and to the prover's abstraction that looked obviously
 right, were tried, and were not kept. They are recorded because the reasoning

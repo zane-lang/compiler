@@ -265,3 +265,38 @@ Exact witnesses can be checked without quoting their token names:
 ```sh
 ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN EOF
 ```
+
+## Fingerprint precision
+
+`AMBIGUITY_RESIDUE_BITS` chooses the viable-stack terminal fingerprint width,
+from 0 to 10 bits (default 10). Zero disables that constraint; it does not
+bound the input or permit a partial proof. Smaller fingerprints can make the
+finite graph much smaller, at the cost of more spurious candidates. Every
+setting preserves the same conservative proof direction, and invalid values
+fail closed. This is independent of the retained stack depth.
+
+For example, a lower-memory refinement experiment is:
+
+```sh
+AMBIGUITY_RESIDUE_BITS=0 ambiguity prove 2 --refine 24 --refine-rounds 24
+```
+
+A successful run must still exhaust its abstract graph. A candidate, timeout,
+or state cap remains `NOT PROVEN`. See `experiments.md` for measured results.
+
+## Modular delimiter histories
+
+`AMBIGUITY_DELIMITER_MODULUS` adds a finite product of net counts for `()`,
+`[]`, and `{}`, modulo a value from 1 to 8. The default 1 disables it. This
+requires balanced production skeletons and fails closed when that invariant
+does not hold. It is cheaper than recursive summaries but admits some
+misnested and incomplete histories; it neither bounds nesting nor proves
+unambiguity by itself. It can compose with CEGAR, refinement, or `--balanced`.
+
+```sh
+AMBIGUITY_RESIDUE_BITS=0 AMBIGUITY_DELIMITER_MODULUS=2 ambiguity prove 2 --refine 24 --refine-rounds 24
+```
+
+The October 1 full-grammar probe still reached its state cap with this setting.
+The plain zero-bit run reached four refinement rounds before timing out; the
+extra product did not improve that result at the tested budget.

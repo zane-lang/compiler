@@ -223,41 +223,39 @@ declaring a value parameter of concept type `Type` or `Number`. The argument is
 then written positionally in `()`, like any other value." A type is whatever a
 type expression describes, so nothing in that sentence narrows it to a name.
 
-**Compiler** — a type name may be written where a value is expected; no other
-type spelling may.
+**Compiler** — only a bare type name may be passed, and only as a complete
+positional or named constructor argument. Types are excluded from ordinary
+expressions, including ordinary function and method arguments. This restriction
+was adopted after the October 1 generic-lambda/comparison ambiguity; see
+[the experiment](ambiguity/experiments.md#constructor-only-type-arguments).
+The earlier restriction to bare names remains in place.
 
 ```zane
-arr Array(Int, 10000);        // accepted, and §6.2's own example
-room Slots(math$Vector, 4);   // accepted: a qualified name is still a name
-held Slot = @primitives$I64;  // accepted: so is an intrinsic one
+arr Array(Int, 10000);         // accepted
+room Slots(math$Vector, 4);    // accepted
+held Slot(@primitives$I64);   // accepted
+item Slot{type = Int;}        // accepted
 
-register(Array<Int, 4>);      // rejected
+register(Int);                // rejected: ordinary function argument
+held Slot = Int;              // rejected: general expression
+arr Array(Int + 1);           // rejected: operator operand
+register(Array<Int, 4>);       // rejected
 register(&Int);               // rejected
 register(Int[3]);             // rejected
 ```
 
-What separates the two lists is whether the spelling **ends at the name**. A
-bare name does, so the parser reads it and is finished. Every other type
-spelling continues into a bracket that already means something else after an
-expression: `<` opens a comparison, `[` a subscript, and a leading `&` belongs
-to a lambda's return type
-([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§3.8). The parser would have to complete the type-value reading before seeing
-which, and it cannot.
+There are two independent restrictions: where a type argument may appear,
+and which type spellings are accepted. The constructor-only position rule
+removes the generic-lambda/comparison family without restricting calls on
+collection literals or their elements.
 
-Measured, that is not a fork GLR resolves but a cost paid in the automaton:
-admitting the applied form adds three **reduce/reduce** states, every one of
-them `expr -> <name> loption_generics_` against `list_verb_type_suffix_ ->`.
-The bare form adds four shift/reduce states and no reduce/reduce state at all.
-`docs/ambiguity/proof-obligations.md` carries the full measurement.
-
-The narrowing costs nothing the spec demonstrates: every §5.3 and §6.2 example
-passes a bare name, and a parameterized type reaches a verb through inference
-instead — `values Array<T Type, n @concepts$Int>` introduces both
-parameters from the argument. (Since spec commit `c4295ca` the number concept
-this entry quotes as `Number` is spelled `@concepts$Int`; the divergence is
-unchanged.) What is out of reach is passing an *already applied* type as a value,
-which the spec neither shows nor rules out.
+The bare-name restriction predates that rule. The earlier grammar admitted
+bare types in `expr`; extending that production to applied types added three
+reduce/reduce states against the verb-type suffix list. Those measurements
+apply to the previous expression-level rule, not to the new constructor-only
+rule. Compound standalone type arguments have not been revisited in this
+change. The compiler still rejects them, while the cited spec permits general
+ordinary type arguments. This entry records that divergence explicitly.
 
 ## 6. A `match` parenthesizes its scrutinee list
 

@@ -10,3 +10,13 @@
  (name balanced_walk_test)
  (modules balanced_walk_test)
  (libraries ambiguity_engine))
+
+(test
+ (name reduction_bases_test)
+ (modules reduction_bases_test)
+ (libraries ambiguity_engine))
+
+(test
+ (name delimiter_history_test)
+ (modules delimiter_history_test)
+ (libraries ambiguity_engine))
