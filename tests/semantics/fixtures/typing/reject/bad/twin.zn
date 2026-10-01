@@ -2,3 +2,7 @@
 package bad;
 
 Int twin(value Int) => value
+
+/// Collides with the `hook` `lib` brings in: only `mut` on the function type
+/// differs.
+Unit hook(f Unit[this Int]) => Unit()

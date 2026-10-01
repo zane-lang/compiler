@@ -19,6 +19,7 @@ Int helper(value Int) => value
 Int _secret() => Int(1)
 Int area(this Thing) => this.value
 Int twin(value Int) => value
+Unit hook(f Unit[this Int] mut) => Unit()
 
 Unit shout() {
 	text String("!");

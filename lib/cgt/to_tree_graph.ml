@@ -112,6 +112,10 @@ let rec expr (e : Expr.t) =
       let exit = match exit with Some label -> Printf.sprintf "@%d" label | None -> "function" in
       group "escape" (fields [ ("exit", Leaf exit); ("value", expr value); ("layout", layout l) ])
   | Expr.Call { fn; args } -> call "call" fn args
+  | Expr.Call_value { fn; args } ->
+      group "call value"
+        (fields
+           [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("fn", expr fn); ("args", map_seq expr args) ])
   | Expr.Runtime { fn; args } -> call "runtime" fn args
   | Expr.Binary { op; left; right } ->
       group "binary"

@@ -87,6 +87,12 @@ type state = {
   mutable named : string list;
   (* Each enum map: the enum it ranges over, and its entries. *)
   maps : (int, Tty.t * (string * T.Expr.t) list) Hashtbl.t;
+  (* Each package constant's value, by declaration. *)
+  constants : (int, T.Expr.t) Hashtbl.t;
+  (* Each lambda's symbol (docs/design/symbols.md), by its body, which is the
+     one thing that tells two lambdas apart: an instance's body has lambdas
+     of its own. *)
+  mutable lambdas : (T.Block.t * string) list;
   (* Symbols already lowered or on their way, by verb key, and the verbs
      still to lower. *)
   symbols : (string, string) Hashtbl.t;

@@ -163,7 +163,7 @@ else.
    inline generic parameters at their first marked occurrence (`generics.md`
    §3.2, §4.4). Check here:
    - overload identity, including no overloads that differ only by passing mode
-     (`functions.md` §4.1);
+     or by the `mut` of a function-type parameter (`functions.md` §4.1);
    - the operator home-package rule ([`operators.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/operators.md) §2.2);
    - implicit-constructor source and destination kinds, and the orphan rule
      (`types.md` §4.4–§4.5);
@@ -222,7 +222,11 @@ summaries are computed to a fixed point over every body before any reports.
 **Exits** (`lib/tst/analyses/exits.ml`, [`docs/spec-divergences.md`](../spec-divergences.md)
 §11). A verb exits when `@controlflow$exitFromCall` is in its own frame: its
 body, or a block written there. A call to one ends the run of the block it is
-written in, so it is an error in no block.
+written in, so it is an error in no block. A lambda's own frame holds no
+`@controlflow$exitFromCall` at all
+([`control-flow.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/control-flow.md)
+§4.2): it is called through a function value, whose type does not say that it
+exits.
 
 **Spawns** (`lib/tst/analyses/spawns.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md) §4.2–§4.3). A
 spawned `mut` call writes its subject, so a subject of a reference type, or a

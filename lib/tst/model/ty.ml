@@ -260,15 +260,24 @@ and concept_equal a b =
   | Map_lit (k, v), Map_lit (k', v') -> equal k k' && equal v v'
   | x, y -> x = y
 
+(* [src] as storage of type [dst] holds it: the one relaxation the spec gives
+   function values, that a lambda that does not declare `mut` may be held by
+   a `mut` function type (functions.md §7.2), and is then held as one that
+   does. An argument is held the same way (§4.1 keeps it from matching two
+   overloads). *)
+let held_as ~dst ~src =
+  match (strip_guest dst, strip_guest src) with
+  | Verb d, Verb s when d.is_mut && not s.is_mut -> Verb { s with is_mut = true }
+  | _, s -> s
+
 (* Whether a value of [src] may be stored where [dst] is declared, at a
    position that is not a coercion site: a declaration, an assignment, a
-   `return`. Exact, up to the passing mode, with the one relaxation the spec
-   gives function values: a lambda that does not declare `mut` may be held by
-   a `mut` function type (functions.md §7.2). *)
-let assignable ~dst ~src =
-  match (strip_guest dst, strip_guest src) with
-  | Verb d, Verb s when d.is_mut && not s.is_mut -> equal (Verb d) (Verb { s with is_mut = true })
-  | d, s -> equal d s
+   `return`. Exact, up to the passing mode and [held_as]. *)
+let assignable ~dst ~src = equal (strip_guest dst) (held_as ~dst ~src)
+
+(* A function type without its `mut`, which overload identity does not read
+   (functions.md §4.1). *)
+let without_mut = function Verb v -> Verb { v with is_mut = false } | t -> t
 
 (* ---------------------------------------------------------------------- *)
 (* Inference                                                              *)

@@ -8,6 +8,10 @@ Int same(other Int) => other
 Unit consume(engine Engine) => Unit()
 Unit consume(engine &Engine) => Unit()
 
+/// A function value that does not declare `mut` would match both.
+Unit tune(f Unit[this Engine]) => Unit()
+Unit tune(f Unit[this Engine] mut) => Unit()
+
 /// Neither operand is declared here.
 Int +(left Int, right Bool) => left
 

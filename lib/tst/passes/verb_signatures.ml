@@ -502,21 +502,27 @@ let build (d : decl) (v : N.Verb_decl.t) : S.t option =
 (* Checks                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
-let params_key ~strip (s : S.t) =
-  Ty.canonical
-    (List.map (fun (p : S.param) -> if strip then Ty.strip_guest p.ty else p.ty) s.params)
+let params_key erase (s : S.t) = Ty.canonical (List.map (fun (p : S.param) -> erase p.ty) s.params)
 
 (* functions.md §4.1: one overload set, no two members with the same ordered
-   parameter types, and none that differ only in a passing mode. *)
+   parameter types, and none that differ only in a passing mode or in the
+   `mut` of a function-type parameter. *)
 let check_overload_set what (sigs : (decl * S.t) list) =
+  let modes t = Ty.without_mut (Ty.strip_guest t) in
   let rec go seen = function
     | [] -> ()
     | ((d : decl), s) :: rest ->
-        (match
-           List.find_opt (fun (_, t) -> params_key ~strip:true t = params_key ~strip:true s) seen
-         with
+        (match List.find_opt (fun (_, t) -> params_key modes t = params_key modes s) seen with
         | Some ((first : decl), t) ->
-            if params_key ~strip:false t <> params_key ~strip:false s then
+            if params_key Ty.strip_guest t <> params_key Ty.strip_guest s then
+              error d.span
+                (Printf.sprintf
+                   "illegal overload set: this %s differs from the one at %s only by \
+                    `mut` on a function-type parameter, and a function value that does not \
+                    declare `mut` would match both; rename one declaration or choose a \
+                    single signature"
+                   what (where first.span))
+            else if params_key Fun.id t <> params_key Fun.id s then
               error d.span
                 (Printf.sprintf
                    "illegal overload set: this %s differs from the one at %s only by \

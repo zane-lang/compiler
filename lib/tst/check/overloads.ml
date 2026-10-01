@@ -117,7 +117,7 @@ let try_candidate ~phase (s : S.t) (slots : actual option list) : outcome option
               | None -> (None, None))
           | None -> (
               match
-                Ty.unify ~open_ subst (Ty.strip_guest p.ty) (Ty.strip_guest a.aty)
+                Ty.unify ~open_ subst (Ty.strip_guest p.ty) (Ty.held_as ~dst:p.ty ~src:a.aty)
               with
               | Some subst -> (Some subst, Some `Exact)
               | None -> (Some subst, Some `Convert)))

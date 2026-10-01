@@ -4,7 +4,9 @@
    A verb exits when `@controlflow$exitFromCall` is in its own frame: its
    body, or a block written there. A call to it ends the run of the block the
    call is written in. So such a call must be written in a block: a body
-   cannot end without the `return` it ends in. *)
+   cannot end without the `return` it ends in. A lambda is called through a
+   function value, whose type does not say that it exits, so a lambda's own
+   frame holds no `@controlflow$exitFromCall` at all. *)
 
 module T = Nodes
 module S = Signature
@@ -57,17 +59,20 @@ let stat_exprs (s : T.Stat.t) =
   | T.Stat.Let { value; _ } -> [ value ]
   | T.Stat.Assign { target; value } -> [ target; value ]
 
-(* Whether `@controlflow$exitFromCall` is in a block's own frame. *)
-let rec block (b : T.Block.t) =
-  List.exists (fun s -> List.exists expr (stat_exprs s)) b.T.Block.stats
+(* Each call to `@controlflow$exitFromCall` in a block's own frame. *)
+let rec exits (b : T.Block.t) =
+  List.concat_map (fun s -> List.concat_map expr_exits (stat_exprs s)) b.T.Block.stats
 
-and expr (e : T.Expr.t) =
+and expr_exits (e : T.Expr.t) =
   match e.T.Expr.node with
-  | T.Expr.Call { callee = { owner = S.Intrinsic "@controlflow$exitFromCall"; _ }; _ } -> true
+  | T.Expr.Call { callee = { owner = S.Intrinsic "@controlflow$exitFromCall"; _ }; _ } -> [ e ]
   | _ ->
-      List.exists
-        (function Same x -> expr x | Arm b | Handler b | Block b -> block b | Lambda _ -> false)
+      List.concat_map
+        (function Same x -> expr_exits x | Arm b | Handler b | Block b -> exits b | Lambda _ -> [])
         (parts e)
+
+(* Whether `@controlflow$exitFromCall` is in a block's own frame. *)
+let block b = exits b <> []
 
 (* The verb a call names, when it names a declared one. *)
 let callee (e : T.Expr.t) =
@@ -92,6 +97,14 @@ let run (p : T.Program.t) =
           (fun (d : T.Decl.t) ->
             match d.T.Decl.node with
             | T.Decl.Verb { body = T.Decl.Checked { body; _ }; _ } -> Some (d.T.Decl.id, body)
+            (* A constant's value, and an enum map's entries, are walked for
+               the lambdas in them. *)
+            | T.Decl.Constant { value; _ } ->
+                let stat = { T.Stat.node = T.Stat.Expr value; span = value.T.Expr.span } in
+                Some (d.T.Decl.id, { T.Block.stats = [ stat ]; span = value.T.Expr.span })
+            | T.Decl.Enum_map { entries; _ } ->
+                let stat (_, (e : T.Expr.t)) = { T.Stat.node = T.Stat.Expr e; span = e.T.Expr.span } in
+                Some (d.T.Decl.id, { T.Block.stats = List.map stat entries; span = d.T.Decl.span })
             | _ -> None)
           pkg.T.Package.decls)
       p.T.Program.packages
@@ -117,8 +130,17 @@ let run (p : T.Program.t) =
         | Same x -> walk in_block x
         | Arm b | Handler b -> walk_block in_block b
         | Block b -> walk_block true b
-        (* A lambda has a frame of its own, so its body is in no block. *)
-        | Lambda b -> walk_block false b)
+        (* A lambda has a frame of its own, so its body is in no block. A call
+           through a function value cannot say that it exits, so the body
+           may not (control-flow.md §4.2). *)
+        | Lambda b ->
+            List.iter
+              (fun (x : T.Expr.t) ->
+                Env.error x.T.Expr.span
+                  "`@controlflow$exitFromCall` cannot be written in a lambda's body: a call \
+                   through a function value cannot say that it exits (control-flow.md §4.2)")
+              (exits b);
+            walk_block false b)
       (parts e)
   in
   List.iter (fun (_, b) -> walk_block false b) bodies

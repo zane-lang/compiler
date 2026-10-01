@@ -204,8 +204,19 @@ its handler is a one-arm `match` whose other cases run the handler.
 
 **L14. A lambda is a top-level function.** A lambda captures nothing
 ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §5.2), so it is lifted out as-is, and its value
-is the function's address. A call through a lambda-variable is an indirect
-call with the same outcome convention.
+is the function's address. A call through a function value is an indirect
+call with the same outcome convention, read from the value's type: the
+caller knows no body, so the type alone says how the call can end and how
+each argument is passed. A lambda that does not declare `mut` may be held by
+a `mut` function type
+([`functions.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/functions.md)
+§7.2), so a function value's subject is always passed by address, as a `mut`
+subject is (L6), and one function serves both types. A package
+lambda-variable is its lambda, and each lambda is lifted once, however many
+times it is read. A lambda's body does not exit
+([`control-flow.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/control-flow.md)
+§4.2), so a call through a function value finishes or aborts, and a spawned
+one carries the function's address in its frame, ahead of its arguments.
 
 ---
 
@@ -318,6 +329,10 @@ test passing.
    with its blocks and its anchors, read or not. A call that can abort or
    exit settles on the spawning thread, and the program's runtime resizes
    the pool. The runtime is tested in C on its own.
+9. **Function values.** Lambdas lifted to functions of their own (L14),
+   lambda-variables in a body and at package scope, and calls through a
+   function value, which may abort or be spawned. Function values are passed,
+   returned and stored in members.
 
 ---
 
@@ -524,14 +539,14 @@ test passing.
   picked the instance, so the call passes nothing for it.
 - **What does not lower yet.** Some programs the TST accepts, lowering
   refuses, with an error that says "does not … yet" at the construct:
-  - function values: a lambda literal, and a call through a lambda-variable;
+  - a package constant, except a lambda-variable;
   - `@primitives$Array`: its type, an array literal, and its elements;
   - an `@primitives$I32` literal, since only `Int` and `I64` embed one;
   - a field-constructor call that leaves out a field with a default
     ([`types.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/types.md)
     §3.3);
-  - a `spawn` of anything but a call to a declared verb that is not expanded
-    where it is called, and one bound to a local of another type than the
-    call returns;
+  - a `spawn` of a call to an intrinsic, or to a verb that is expanded where
+    it is called, and one bound to a local of another type than the call
+    returns;
   - reading a boxed member of, or moving a host out of, a value no place
     holds, such as a call's result.
