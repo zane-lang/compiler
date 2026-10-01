@@ -137,6 +137,102 @@
         }
       }
     },
+    "llvm_19@latest": {
+      "last_modified": "2025-08-12T09:17:37Z",
+      "resolved": "github:NixOS/nixpkgs/372d9eeeafa5b15913201e2b92e8e539ac7c64d1#llvm_19",
+      "source": "devbox-search",
+      "version": "19.1.7",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/8xj3bdy93p2m7yr12myhlbrfxrw7fyrb-llvm-19.1.7",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/74n7qxq48ck70l2x2sycdawr1rz3grna-llvm-19.1.7-dev"
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/wgnfx7c0jsmwfgwycy77b40g9dw84my1-llvm-19.1.7-lib"
+            },
+            {
+              "name": "python",
+              "path": "/nix/store/ha5i6wbpp89ybymiiccpn10zgxpm3akd-llvm-19.1.7-python"
+            }
+          ],
+          "store_path": "/nix/store/8xj3bdy93p2m7yr12myhlbrfxrw7fyrb-llvm-19.1.7"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/yzwz50ql3gsf5lbz6l5ljfwiyfdmkm10-llvm-19.1.7",
+              "default": true
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/v4hi5l98ig3k9zlhc9syq3cl98998x06-llvm-19.1.7-lib"
+            },
+            {
+              "name": "python",
+              "path": "/nix/store/skdlwhzff2glx2kacxn95qqwhd8x266z-llvm-19.1.7-python"
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/z7zzbsfr4a4jk4zhndw43i7my4rsz42w-llvm-19.1.7-dev"
+            }
+          ],
+          "store_path": "/nix/store/yzwz50ql3gsf5lbz6l5ljfwiyfdmkm10-llvm-19.1.7"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/bswq4kdk1d4lii77hllj8rzpqmrw0qmb-llvm-19.1.7",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/cbhy9280cvwiwbfr8v65ciwl1yfpja06-llvm-19.1.7-dev"
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/sgn2b4iahiy0gihbnpmk2wlm1fgdck3b-llvm-19.1.7-lib"
+            },
+            {
+              "name": "python",
+              "path": "/nix/store/yqdkdmajjnfjv3k0g71p2hkbj5pvjzbl-llvm-19.1.7-python"
+            }
+          ],
+          "store_path": "/nix/store/bswq4kdk1d4lii77hllj8rzpqmrw0qmb-llvm-19.1.7"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/zzm2ka57nhpijl98j5livhprqw9d7pdp-llvm-19.1.7",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/9r43znl0msv0nrp2sl8h0wjilncrxr4m-llvm-19.1.7-dev"
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/7mhwyrv7rpvd5172hanh47lzihmg2yfc-llvm-19.1.7-lib"
+            },
+            {
+              "name": "python",
+              "path": "/nix/store/ldxmwwvnz69asr8cy2fq8adzacszg985-llvm-19.1.7-python"
+            }
+          ],
+          "store_path": "/nix/store/zzm2ka57nhpijl98j5livhprqw9d7pdp-llvm-19.1.7"
+        }
+      }
+    },
     "m4@latest": {
       "last_modified": "2023-02-24T09:01:09Z",
       "resolved": "github:NixOS/nixpkgs/7d0ed7f2e5aea07ab22ccb338d27fbe347ed2f11#m4",
