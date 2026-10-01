@@ -5,6 +5,7 @@ import argparse
 from collections import defaultdict
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 BRACKETS = {"LPAREN": "RPAREN", "LBRACKET": "RBRACKET", "LCURLY": "RCURLY", "GLESS": "GMORE"}
@@ -15,7 +16,7 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def verify(certificate: Path, grammar: Path | None = None) -> dict:
+def verify(certificate: Path, grammar: Path | None = None, *, seconds: int = 300) -> dict:
     data = json.loads(certificate.read_text())
     require(data.get("schema") == 1, "unknown certificate schema")
     if grammar is not None:
@@ -41,6 +42,12 @@ def verify(certificate: Path, grammar: Path | None = None) -> dict:
                 require(BRACKETS.get(e[1]) == e[4], "invalid call delimiter pair")
             else:
                 raise ValueError("unknown model edge")
+
+    if grammar is not None:
+        from .binding import verify_model_binding
+        verify_model_binding(data["model"], grammar, seconds)
+        require(hashlib.sha256(grammar.read_bytes()).hexdigest() == data["grammar_sha256"],
+                "grammar changed during model rebuild")
 
     # Independently compute epsilon path counts by bounded-path fixed points.
     # Iteration i counts paths of length <= i, rather than propagating deltas.
@@ -127,17 +134,19 @@ def verify(certificate: Path, grammar: Path | None = None) -> dict:
                     if any(result.values()):
                         require(normalize(result) in nodes, "missing return successor")
         require(actual_exits == claimed_exits, "incorrect frame exit summaries")
-    return {"configurations": sum(len(nodes) for nodes, exits in frames.values()), "frames": len(frames), "model_states": size}
+    return {"configurations": sum(len(nodes) for nodes, exits in frames.values()), "frames": len(frames), "model_states": size, "model_binding": "rebuilt" if grammar is not None else "unchecked"}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("certificate", type=Path)
-    parser.add_argument("--grammar", type=Path)
+    parser.add_argument("--grammar", type=Path, help="hash-check and rebuild this grammar to verify model binding")
+    parser.add_argument("--seconds", type=int, default=300, help="maximum seconds for the model rebuild")
     args = parser.parse_args()
     try:
-        result = verify(args.certificate, args.grammar)
-    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        require(args.seconds > 0, "rebuild time limit must be positive")
+        result = verify(args.certificate, args.grammar, seconds=args.seconds)
+    except (ValueError, KeyError, IndexError, TypeError, subprocess.TimeoutExpired) as exc:
         parser.exit(2, f"INVALID CERTIFICATE: {exc}\n")
     print("VERIFIED:", json.dumps(result, sort_keys=True))
 

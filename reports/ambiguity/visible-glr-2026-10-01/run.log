@@ -24,7 +24,7 @@ File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1236, c
 Warning: this %prec declaration is never useful.
 Warning: 55 states have shift/reduce conflicts.
 Warning: one state has reduce/reduce conflicts.
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/lr.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/parser.automaton", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/context.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/expanded.mly", "--minimize"]
+COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/lr.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/parser.automaton", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/context.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/expanded.mly", "--minimize"]
 states 1766 productions 714 occurrences 36350
 bisimulation classes 131
 bisimulation classes 154
@@ -34,9 +34,9 @@ bisimulation classes 191
 bisimulation classes 193
 bisimulation classes 193
 context export 193 nts 2414 rules
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/angles.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/context.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/angles.y"]
+COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/angles.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/context.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/angles.y"]
 Unique annotation certified: 27 opening occurrences; 14 generic-interior nonterminals
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/lookahead.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/angles.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/exact.y", "--bracket-groups"]
+COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/lookahead.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/angles.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/exact.y", "--bracket-groups"]
 bracket groups 31
 FIRST 0 10734
 FIRST 1 15255
@@ -65,7 +65,7 @@ partition 2338
 partition 2341
 partition 2341
 final 2241 nonterminals 4536 rules
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/factor.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/exact.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/factored.y"]
+COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/factor.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/exact.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/factored.y"]
 0 1941 3689
 1 1941 3689
 2 1941 3689
@@ -74,7 +74,7 @@ COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/pyth
 5 1941 3689
 6 1941 3689
 7 1941 3689
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/prove.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/factored.y", "100000", "60", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/certificate.json"]
+COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/prove.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/factored.y", "100000", "120", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/certificate.json"]
 components 1375 non-regular obligations 0
 largest component 82
 compiled 1300 6 DFA states 9 NFA states 79 languages

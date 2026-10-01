@@ -4,6 +4,7 @@ import copy
 import itertools
 import json
 import os
+import random
 from pathlib import Path
 import subprocess
 import sys
@@ -175,6 +176,88 @@ class VisibleProofTests(unittest.TestCase):
             cert.write_text(json.dumps(data)); grammar.write_text(grammar.read_text() + '\n')
             with self.assertRaisesRegex(ValueError, 'hash'):
                 verify(cert, grammar)
+
+    def test_generated_recursive_grammars_preserve_parse_counts(self):
+        # Independent bounded checks supplement (and do not replace) the proof.
+        for seed in range(12):
+            rng = random.Random(seed)
+            left = bool(seed % 2)
+            rules = {'n0': [('n1', 'EOF')], 'n1': [()], 'n2': [('FALSE',)]}
+            for name, other in (('n1', 'n2'), ('n2', 'n1')):
+                for _ in range(3):
+                    target = rng.choice((name, other))
+                    prefix = (rng.choice(('INT', 'FALSE')),)
+                    rules[name].append((target, *prefix) if left else (*prefix, target))
+                rules[name].append(('LPAREN', other, 'RPAREN'))
+                if rng.randrange(2):
+                    rules[name].append(())
+            with self.subTest(seed=seed), TemporaryDirectory() as directory:
+                root = Path(directory); grammar = root / 'grammar.y'; factored = root / 'factored.y'
+                write_grammar(grammar, rules)
+                self.assertEqual(self.worker('factor.py', grammar, factored).returncode, 0)
+                result = self.worker('dump.py', factored, root / 'model.json')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                model = json.loads((root / 'model.json').read_text())
+                alphabet = ('INT', 'FALSE', 'LPAREN', 'RPAREN')
+                words = [body for length in range(4) for body in itertools.product(alphabet, repeat=length)]
+                words += [('LPAREN', 'LPAREN', token, 'RPAREN', 'RPAREN') for token in ('INT', 'FALSE')]
+                words += [tuple(rng.choice(alphabet) for _ in range(6)) for _ in range(20)]
+                for body in words:
+                    word = (*body, 'EOF')
+                    self.assertEqual(model_count(model, word), grammar_count(rules, word), (seed, word))
+
+    def test_model_binding_rejects_changed_tokens_with_valid_invariant(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory); grammar = root / 'grammar.y'; cert = root / 'cert.json'
+            write_grammar(grammar, CASES['nested_unique'][0])
+            self.assertEqual(self.worker('prove.py', grammar, 10000, 10, cert).returncode, 0)
+            data = json.loads(cert.read_text())
+            for edges in data['model']['edges']:
+                for edge in edges:
+                    if edge[0] == 'I' and edge[1] == 'INT':
+                        edge[1] = 'FALSE'
+            cert.write_text(json.dumps(data))
+            self.assertEqual(verify(cert)['model_binding'], 'unchecked')
+            with self.assertRaisesRegex(ValueError, 'rebuilt grammar model'):
+                verify(cert, grammar)
+
+    def test_model_binding_preserves_numbering_counts_and_acceptance(self):
+        from tools.ambiguity.visible.binding import equivalent_models
+        with TemporaryDirectory() as directory:
+            root = Path(directory); grammar = root / 'grammar.y'; model_path = root / 'model.json'
+            write_grammar(grammar, CASES['nested_unique'][0])
+            self.assertEqual(self.worker('dump.py', grammar, model_path).returncode, 0)
+            model = json.loads(model_path.read_text())
+            states = list(reversed(range(len(model['edges']))))
+            fragments = [0, *reversed(range(1, len(model['fragments'])))]
+            renamed = {'edges': [[] for _ in states], 'fragments': [None for _ in fragments]}
+            for f, (entry, end) in enumerate(model['fragments']):
+                renamed['fragments'][fragments[f]] = [states[entry], states[end]]
+            for q, edges in enumerate(model['edges']):
+                for edge in edges:
+                    e = edge.copy()
+                    if e[0] == 'E': e[1] = states[e[1]]
+                    elif e[0] == 'I': e[2] = states[e[2]]
+                    else: e[2], e[3] = fragments[e[2]], states[e[3]]
+                    renamed['edges'][states[q]].append(e)
+            self.assertTrue(equivalent_models(model, renamed))
+        # Identical dead-state transitions do not imply identical acceptance.
+        empty = {'fragments': [[0, 0]], 'edges': [[], []]}
+        rejecting = {'fragments': [[0, 1]], 'edges': [[], []]}
+        self.assertFalse(equivalent_models(empty, rejecting))
+        one = {'fragments': [[0, 1]], 'edges': [[['E', 1, 1]], []]}
+        two = copy.deepcopy(one); two['edges'][0][0][2] = 2
+        self.assertFalse(equivalent_models(one, two))
+        repeated = copy.deepcopy(one); repeated['edges'][0] *= 2
+        self.assertFalse(equivalent_models(one, repeated))
+        # The child/continuation pairing matters even with identical marginals.
+        paired = {'fragments': [[0, 1], [2, 3], [4, 5]],
+                  'edges': [[['C', 'LPAREN', 1, 6, 'RPAREN'], ['C', 'LPAREN', 2, 7, 'RPAREN']],
+                            [], [['I', 'INT', 3]], [], [['I', 'FALSE', 5]], [],
+                            [['I', 'INT', 1]], [['I', 'FALSE', 1]]]}
+        swapped = copy.deepcopy(paired)
+        swapped['edges'][0][0][3], swapped['edges'][0][1][3] = 7, 6
+        self.assertFalse(equivalent_models(paired, swapped))
 
 
 class VisiblePipelineTests(unittest.TestCase):

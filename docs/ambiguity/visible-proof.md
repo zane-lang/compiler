@@ -192,6 +192,16 @@ depths by induction over balanced words.
 
 ## Trust and validation
 
+When `--grammar` is supplied, the checker also rebuilds the counted model
+from the hashed final grammar in a fresh process. It checks weighted strong
+bisimulation between the rebuilt and supplied models, independently of state
+and fragment numbering. Each comparison state includes its active fragment
+and whether it is accepting; call signatures retain the child/continuation
+pair, and repeated edges retain their multiplicities. Thus a modified model
+cannot pass merely by retaining the grammar hash. Without `--grammar`, the
+checker verifies only the supplied model's finite invariant and reports
+`model_binding: unchecked`.
+
 The certificate checker is independent of the reachability search. The
 Menhir dump, production exporter, grammar transformations, and counted
 horizontal compilation remain trusted parts of the pipeline. This is an
@@ -204,7 +214,8 @@ nullable ambiguities, epsilon cycles, ambiguous concatenation boundaries,
 overlapping and disjoint bracket languages, and 100 nested brackets. They
 also check factoring, rejected incomplete runs, corrupted certificates,
 Menhir precedence, both backend modes, and duplicate source production
-rejection.
+rejection. Model-binding tests cover token tampering, state renumbering,
+acceptance, repeated edges, weights, and child/continuation pairing.
 
 The final command dumps the original grammar with the selected backend.
 `--dump` is after benign precedence resolution and before severe conflict

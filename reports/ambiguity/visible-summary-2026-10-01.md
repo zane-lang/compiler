@@ -9,10 +9,13 @@ No grammar changes were made during this proof implementation.
 | Stock retained-action grammar | 1393 | 481 | 2697 | 31 | 1479 |
 | Actual GLR backend | 1766 | 714 | 2704 | 31 | 1486 |
 
-Both certificates passed the independent closed-invariant checker. The proof
-covers arbitrary input length and bracket nesting. All 155 ambiguity tests
-passed, including independent parse-count comparisons and certificate tampering
-checks. Full compiler/AST correctness is outside this certificate's scope.
+Both certificates passed the independent closed-invariant checker and a fresh
+model rebuild from their hashed final grammars. Weighted bisimulation binds
+each supplied model to that rebuild, preserving fragment acceptance, call
+pairings, and edge multiplicities independently of numbering. The proof
+covers arbitrary input length and bracket nesting. All 158 ambiguity tests
+passed, including independent parse-count comparisons, generated recursive
+grammars, and certificate/model tampering checks. Full compiler/AST correctness is outside this certificate's scope.
 
 Source SHA-256:
 `a9e5a9c47d95e4ce0bef3b4c19b1d3d69e79d0e0f2a0b7db4a1947188d0485af`.

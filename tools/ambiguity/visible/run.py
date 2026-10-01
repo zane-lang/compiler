@@ -76,7 +76,11 @@ def run(grammar: Path, output: Path, menhir: str | None, stock: bool = False,
                     return 1
                 print(f"NOT PROVEN: {worker} did not complete (exit {status}); see {log}")
                 return 3
-    checked = verify(certificate, output / "factored.y")
+    try:
+        checked = verify(certificate, output / "factored.y", seconds=seconds)
+    except subprocess.TimeoutExpired:
+        print("NOT PROVEN: certificate model rebuild exceeded the stage time limit")
+        return 3
     if digest(grammar) != source_hash:
         raise ValueError("grammar changed during proof generation")
     # Source identity is checked again after the run, so an edited grammar
