@@ -1,7 +1,9 @@
 # Exact unambiguity proof
 
 The current grammar has a complete unambiguity certificate under Menhir's
-precedence and associativity rules. This includes the original grammar's
+precedence and associativity rules, conditional on the correctness of the
+trusted components listed below. The [verification roadmap](verification-roadmap.md)
+describes how to discharge those implementation assumptions. This includes the original grammar's
 retained conflicts and the automaton produced by the shipped `--GLR` backend.
 The constructor-only restriction on standalone type values is unchanged.
 
