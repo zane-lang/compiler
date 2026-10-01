@@ -1,5 +1,80 @@
 # Measured and rejected
 
+## Recursive delimiter summaries (October 1, 2026)
+
+The experimental `ambiguity prove --balanced` mode was tested against grammar
+commit `c9877e4196c5ae243b2f5c1e23206f38d8bc5d39`, using checksum-verified Menhir
+20260209 and a standalone OCaml 4.14.1 build of the engine. This uses the
+repository's pinned Menhir, but not its full OCaml 5 compiler toolchain.
+All 468 distinct reachable production shapes have well-nested direct-terminal
+skeletons, so the delimiter invariant applies. It does not settle the grammar.
+
+| Probe | Memory budget | Timeout | Outcome |
+| --- | ---: | ---: | --- |
+| Ordinary level 1, refine 8, 12 rounds, trace | 4096 MiB | 300 s | Pair cap at 4,601,750; no refinement round reached |
+| Balanced level 1, full terminal alphabet | 4096 MiB | 300 s | Summary cap at 4,601,750 |
+| Balanced level 2, full terminal alphabet | 6144 MiB | 600 s | Summary cap at 6,902,626 after 293.97 s; peak RSS 6,011,920 KiB |
+| Balanced level 1, ordinary terminal classes, refine 8, 12 rounds | 8192 MiB | 900 s | Summary cap at 9,203,501 after 255.52 s; peak RSS 4,576,768 KiB; no refinement round reached |
+
+Every probe used `--max-tokens 0 --max-witnesses 1`, one worker, frontier
+ratio 1, and a 30-second progress cadence. The token bound applies only to
+concretization. Each probe ended `NOT PROVEN`, exit 3. The last run uses the
+current implementation's alphabet: delimiter tokens stay distinct, while
+ordinary interchangeable terminals use their existing class representatives.
+The larger cap and changed alphabet mean this is not a controlled speed
+comparison against the preceding run.
+
+These are expensive null results. They establish neither that a larger budget
+would finish nor that every finite stack precision must fail. Exact recursive
+delimiter summaries close the *unbalanced-history family*, but they still
+over-approximate parser context, and the relation space grows substantially.
+
+### A real ambiguity changes the conclusion
+
+A separate generated-sentence check found a genuine complete ambiguity.
+The generator sampled the expanded grammar with seed `20261001`, an 80-token
+budget and derivation depths 7–18, planning up to 100,000 samples and stopping
+on the first two-parse sentence. Deleting and replacing subexpressions reduced
+the finding to this 14-token complete program:
+
+```zane
+x Result = Foo<1>[]() {}
+```
+
+```sh
+ambiguity check LIDENT UIDENT EQUAL UIDENT LESS INT MORE LBRACKET RBRACKET LPAREN RPAREN LCURLY RCURLY EOF
+```
+
+The exact recognizer reports `Accepting derivations: 2`. A separate tree-carrying
+LR walk produces two complete `package` trees:
+
+1. `Foo<1>[]` is the lambda's return type. The following `()` is its empty
+   parameter list and `{}` its body.
+2. `(Foo < 1) > ([]() {})`: `Foo` is a bare type value, `<` and `>` are
+   comparisons, and the right operand calls the empty collection with a
+   trailing block argument.
+
+The independently generated `--GLR` parser, built from the action-erased
+`--only-preprocess-uu` grammar under Menhir 20260209, also aborts with:
+
+```text
+Error: the symbol expr is ambiguous,
+yet no merge function for this symbol has been defined.
+```
+
+The witness also has two complete derivations inside constructor arguments and
+inside a function's `return` statement. Removing the verb-type suffix, giving
+`Foo<1>() {}`, removes this particular collision. That is a diagnostic, not a
+proposed language change.
+
+Both readings obey the delimiter invariant. Semantic type errors in a reading
+cannot discharge this grammar obligation: the parser already has two complete
+derivations before type checking. A sound prover cannot certify this grammar
+commit unambiguous. The generic-lambda/comparison overlap must be resolved
+before further unambiguity proof work can succeed. No syntax change was made
+as part of this experiment. The reduced family is a prover soundness fixture
+in `tests/ambiguity/prover/balanced_test.py`.
+
 Changes to the grammar and to the prover's abstraction that looked obviously
 right, were tried, and were not kept. They are recorded because the reasoning
 that recommends them survives being told they do not work, so each of them

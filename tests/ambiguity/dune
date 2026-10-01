@@ -1,6 +1,12 @@
-; The engine's history filter, tested on its own. Run by
+; The engine's history filter and balanced reachability, tested on their own. Run by
 ; `just test-ambiguity-tools` with the rest of the ambiguity tools' tests.
 
 (test
  (name history_filter_test)
+ (modules history_filter_test)
+ (libraries ambiguity_engine))
+
+(test
+ (name balanced_walk_test)
+ (modules balanced_walk_test)
  (libraries ambiguity_engine))

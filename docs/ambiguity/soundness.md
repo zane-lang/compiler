@@ -450,6 +450,43 @@ cut short by either deadline reports "not proven", never a proof.
 
 ## Why this is sound
 
+### Recursive delimiter summaries
+
+The optional `--balanced` walk first verifies that each reachable production's
+direct terminals form a correctly nested word over `()`, `[]`, and `{}`, with
+nonterminals treated as empty. Substituting balanced derivations into a
+balanced production preserves this property. Induction over a finite parse
+tree therefore establishes that every concrete accepted sentence lies in
+this Dyck language. The filter does not assume that a reported candidate is
+the only sentence reaching its abstract node.
+
+The walk intersects the existing conservative abstract transition graph with
+that language using pushdown tabulation. A frame is identified by its entry
+pair and matching closing delimiter. It summarizes all balanced paths inside
+the frame and propagates each exit to every registered caller. A caller
+registered after an exit was discovered receives that exit too. Recursive
+frames reuse their entry/exit relation, so no finite nesting bound is needed.
+Only the outermost frame can accept; acceptance within an unclosed frame does
+not count. The first stored path is used only to render a witness, never to
+decide whether other paths are explored.
+
+There are finitely many abstract pairs and delimiter kinds. Each reached
+entry, frame, caller, and exit is inserted once, so the tabulation reaches a
+fixed point given sufficient resources. Every concrete ambiguity has two
+accepting abstract runs on a balanced word, and these are included in the
+tabulation. Exhausting the work queue without an accepting divergent outer
+pair is consequently an unambiguity certificate. Stopping on the clock or
+summary budget proves nothing.
+
+This improves precision but does not establish that any finite stack
+precision suffices for Zane. It still forgets parser context below retained
+suffixes, and storing summary relations can cost more than the ordinary pair
+walk. Known ambiguous fixtures, invalid-skeleton fixtures, deep nesting,
+crossed delimiters, and bounded explicit paths in randomized finite graphs
+are regression checks, not a formal verification of the implementation.
+
+### Scope of the original argument
+
 Unambiguity of an arbitrary grammar admits no complete decision procedure,
 but a *specific* grammar is proven unambiguous by a finite argument when
 its structure supports one. Keeping the obligations discharged is exactly

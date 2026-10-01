@@ -140,6 +140,30 @@
 - `ambiguity classes` — lists the terminal equivalence classes the search
   collapses, so a grammar change that unexpectedly splits or merges a class is
   visible. The same classes bound the prover's terminal alphabet.
+
+### Experimental recursive delimiter summaries
+
+`ambiguity prove 1 --balanced` intersects the abstract parser pair graph with
+the language of correctly nested `()`, `[]`, and `{}` token histories. It
+checks every reachable production's direct-terminal skeleton before enabling
+the filter. A grammar with a mismatched or unclosed skeleton is refused with
+exit 2, rather than silently losing an accepted input.
+
+Unlike a bounded delimiter counter, this uses recursive entry/exit summaries
+and has no nesting-depth limit. The summaries, caller links, and reached
+entries all count against the proof budget. It can still reach that budget or
+the timeout, and then returns `NOT PROVEN`. This mode is experimental: the
+complete Zane grammar has not been proved with it. A `PROVEN` verdict refers
+to the abstract graph intersected with balanced histories, rather than to the
+unfiltered graph.
+
+It supports stack refinement and exact-history CEGAR. Each attempt builds new
+summaries at the current precision. Survey, retirement, and forward tracing
+are currently refused in this mode.
+
+The soundness argument and measured limitations are in
+[`soundness.md`](soundness.md#recursive-delimiter-summaries) and
+[`experiments.md`](experiments.md#recursive-delimiter-summaries-october-1-2026).
 - `menhir --explain` — enumerates the conflict states that constitute the
   obligation ledger. `just explain --conflicts` prints them for the stock
   automaton, and `tools/ambiguity/conflict_census.py` summarises an

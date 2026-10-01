@@ -956,6 +956,68 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
     in
     (header :: stacks) @ conflict
   in
+  if !Config.balanced_proof then begin
+    Balanced_walk.validate automaton;
+    let start = { suffix = [ 0 ]; height = 1; residue = 0 } in
+    let initial = (start, start, false, History_filter.root history_filter) in
+    let advance (left, right, diverged, history) token =
+      let history = History_filter.advance history_filter history token in
+      List.map (fun (left, right, changed) ->
+        canonical (left, right, diverged || changed, history))
+        (joint (left, right) token diverged)
+    in
+    let accepts (left, right, diverged, history) =
+      not (History_filter.is_blocked history_filter history)
+      && List.exists (fun (_, _, changed) -> diverged || changed)
+           (joint (left, right) "#" diverged)
+    in
+    (* Keep delimiter tokens distinct, including when ordinary terminal
+       equivalence happens to put an opening and closing in one class. *)
+    let delimiter_tokens, ordinary_tokens = StringSet.partition
+      (fun token -> Balanced_walk.closing token <> None || Balanced_walk.is_closing token)
+      automaton.terminals in
+    let alphabet = StringSet.elements
+      (StringSet.union delimiter_tokens
+         (class_representatives automaton ordinary_tokens)) in
+    match Balanced_walk.run ~initial ~terminals:alphabet ~advance ~accepts
+            ~limit:pair_limit ~deadline with
+    | Balanced_walk.Closed entries -> Proven entries
+    | Balanced_walk.Overflow entries -> Pair_overflow entries
+    | Balanced_walk.Timed_out entries -> Prove_timeout entries
+    | Balanced_walk.Candidate (entries, last, trace) ->
+        let steps = Balanced_walk.steps trace in
+        let tokens = List.map (fun (_, token, _) -> token) steps in
+        let rec first_site = function
+          | ((left, right, false, _), token, (_, _, true, _)) :: _ ->
+              (left, right, token)
+          | _ :: rest -> first_site rest
+          | [] -> let left, right, _, _ = last in (left, right, "#")
+        in
+        let site = first_site steps in
+        let frontiers = replay engine tokens in
+        let parses = accepted_count engine frontiers.(Array.length frontiers - 1) in
+        let wanted = Hashtbl.create 16 in
+        let record (top, depth) =
+          let previous = Option.value (Hashtbl.find_opt wanted top) ~default:0 in
+          Hashtbl.replace wanted top (max previous depth)
+        in
+        let request ((left, right, _, _), token, _) =
+          List.iter (fun stack ->
+            List.iter record (chain_imprecision automaton moves stack token);
+            List.iter record (chain_truncations descend moves stack token))
+            (if left = right then [left] else [left; right])
+        in
+        List.iter request steps;
+        request (last, "#", last);
+        let requests = Hashtbl.fold (fun top depth all -> (top, depth) :: all) wanted [] in
+        Abstract_candidate {
+          candidate_tokens = tokens; candidate_pairs = entries;
+          candidate_example = { example_tokens = tokens; example_site = describe_site site };
+          candidate_forward = []; candidate_requests = requests;
+          candidate_site = site_identity site; candidate_derivations = parses;
+          candidate_decisive = None; candidate_path_requests = requests;
+        }
+  end else begin
   if not state.seeded then begin
     let start = { suffix = [ 0 ]; height = 1; residue = 0 } in
     state.seeded <- true;
@@ -1202,3 +1264,4 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
         if !overflow then Pair_overflow explored
         else if ran_out_of_time then Prove_timeout explored
         else Proven explored
+  end

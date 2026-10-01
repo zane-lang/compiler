@@ -93,6 +93,11 @@ def parser() -> argparse.ArgumentParser:
         ),
     )
     prove.add_argument(
+        "--balanced",
+        action="store_true",
+        help="use exact recursive delimiter summaries; requires balanced production skeletons",
+    )
+    prove.add_argument(
         "--cegar",
         type=int,
         default=0,
@@ -233,9 +238,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         # single path for a trace to follow.
         if trace and survey > 0:
             raise ConfigurationError("--trace cannot be combined with --survey")
+        balanced = getattr(arguments, "balanced", False)
+        if balanced and (survey > 0 or retire > 0 or trace):
+            raise ConfigurationError("--balanced cannot be combined with survey, retire or trace")
         engine_args = engine_arguments(
             profile, proof_level, survey, refine, refine_rounds, retire, trace,
             cegar,
+            balanced=balanced,
         )
         if arguments.dry_run:
             print(summary)
