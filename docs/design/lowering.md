@@ -214,7 +214,7 @@ a `mut` function type
 subject is (L6), and one function serves both types. A package
 lambda-variable is its lambda, and each lambda is lifted once, however many
 times it is read. A lambda's body does not exit
-([`control-flow.md`](https://github.com/zane-lang/spec/blob/1da001a/spec/control-flow.md)
+([`control-flow.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/control-flow.md)
 §4.2), so a call through a function value finishes or aborts, and a spawned
 one carries the function's address in its frame, ahead of its arguments.
 

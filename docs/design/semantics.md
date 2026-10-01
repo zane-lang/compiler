@@ -224,7 +224,7 @@ summaries are computed to a fixed point over every body before any reports.
 body, or a block written there. A call to one ends the run of the block it is
 written in, so it is an error in no block. A lambda's own frame holds no
 `@controlflow$exitFromCall` at all
-([`control-flow.md`](https://github.com/zane-lang/spec/blob/1da001a/spec/control-flow.md)
+([`control-flow.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/control-flow.md)
 §4.2): it is called through a function value, whose type does not say that it
 exits.
 
