@@ -59,8 +59,8 @@ numbers in a proof report refer to.
 
 | Automaton | Conflict states | with shift/reduce | with reduce/reduce |
 | --------- | --------------: | ----------------: | -----------------: |
-| `--GLR`, the parser that ships | 53 | 52 | 8 |
-| stock | 46 | 45 | 7 |
+| `--GLR`, the parser that ships | 56 | 55 | 1 |
+| stock | 49 | 48 | 1 |
 
 Menhir explains each conflict state once, so the explanations file holds one
 block per state; a state with both kinds of conflict counts in both of Menhir's
@@ -94,9 +94,7 @@ are not independent problems:
 
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
-| `(`             | 6 | `loption_generics_ ->` | before a call or a lambda |
-| `?` `(` `<`     | 3 | `loption_generics_ ->` | the same, where a type may also be the whole argument |
-| operators, `(` `<` `{` `.` | 3 | `loption_generics_ ->` | the same, where a type may also be an operand |
+| `(`             | 15 | `loption_generics_ ->` | before a call or a lambda, including standalone constructor type arguments |
 | `<`             | 12 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<`         | 3 | `loption_generics_ ->` | a named type opening a call or a generic list |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
@@ -105,6 +103,20 @@ are not independent problems:
 | `(`             | 2 | `app -> func_callee` | a package-scope declaration's value, against a call |
 | `?` `??`        | 4 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `func_callee -> unbraced_verb_call`, `app_braced -> braced_verb_call` | a spawned call against what follows it |
 | `(`             | 1 | `expr -> SPAWN unbraced_verb_call`, `func_callee -> unbraced_verb_call` | *(reduce/reduce)* the same, before a call |
+
+Restricting standalone type values to whole constructor arguments removed the
+three stock `expr -> ... UIDENT` forks and the three mixed operator/type
+conflicts. The constructor-specific argument rules introduce nine additional
+states in the `(` / empty-generics family. Thus the total state count grows by
+three while the reduce/reduce count falls to one. LR conflict counts measure
+local parser forks, not complete competing parses.
+
+The [visible-stack certificate](visible-proof.md) covers every retained fork
+in both current automata, conditional on its documented trusted components.
+The remaining `(` forks distinguish a constructor argument ending in a bare
+type from a constructor call or lambda continuing after that name. The
+constructor-type regression checks the permitted and rejected spellings;
+operator operands and ordinary function arguments no longer admit bare types.
 
 The `<` row is about the declaration form, not the comparison. Its twelve states
 all reduce toward `ret_type "<" "(" params ")" body`, the declaration of the
