@@ -300,3 +300,12 @@ AMBIGUITY_RESIDUE_BITS=0 AMBIGUITY_DELIMITER_MODULUS=2 ambiguity prove 2 --refin
 The October 1 full-grammar probe still reached its state cap with this setting.
 The plain zero-bit run reached four refinement rounds before timing out; the
 extra product did not improve that result at the tested budget.
+
+## Exact visible-stack proof
+
+`dev/bin/ambiguity prove-visible` checks the entire accepted parse relation of
+the shipped GLR backend and independently verifies a finite certificate. It
+needs Python and the pinned Menhir (`--menhir` or `AMBIGUITY_MENHIR`), and does
+not build the OCaml prover. `--stock` checks the grammar before the GLR nullable
+rewrite. See [visible-proof.md](visible-proof.md) for the theorem, scope,
+reproduction command, artifacts, limits, and exit statuses.

@@ -6,6 +6,12 @@ The command itself — how it is run, what each verdict's exit status is, and th
 profiles and machine settings it takes — is in [`tooling.md`](tooling.md). This
 document is the argument behind it.
 
+The current grammar's complete proof uses the separate exact method in
+[visible-proof.md](visible-proof.md). Its checked finite invariant has no
+stack-suffix abstraction or input-length bound. The remainder of this document
+explains the older `ambiguity prove LEVEL` method, which is still useful for
+investigation and does not supply the current certificate.
+
 ## What bounds the abstraction
 
 Three things bound the abstraction's reach, and they are independent. **Its

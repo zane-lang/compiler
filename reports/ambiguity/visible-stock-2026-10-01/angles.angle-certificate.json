@@ -1,0 +1,1174 @@
+{
+  "checks": [
+    {
+      "lhs": "n9",
+      "rhs": [
+        "n34",
+        "LESS",
+        "LPAREN",
+        "n15",
+        "RPAREN",
+        "n30"
+      ],
+      "index": 1,
+      "previous": [
+        "GMORE",
+        "MUT",
+        "RBRACKET",
+        "UIDENT"
+      ],
+      "following": [
+        "LPAREN"
+      ]
+    },
+    {
+      "lhs": "n17",
+      "rhs": [
+        "n17",
+        "LESS",
+        "n54"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n24",
+      "rhs": [
+        "n34",
+        "LESS",
+        "LPAREN",
+        "n15",
+        "RPAREN",
+        "n46"
+      ],
+      "index": 1,
+      "previous": [
+        "GMORE",
+        "MUT",
+        "RBRACKET",
+        "UIDENT"
+      ],
+      "following": [
+        "LPAREN"
+      ]
+    },
+    {
+      "lhs": "n25",
+      "rhs": [
+        "n25",
+        "LESS",
+        "n54"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n27",
+      "rhs": [
+        "GLESS",
+        "n75",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n29",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n32",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n36",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n38",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n39",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n55",
+      "rhs": [
+        "n55",
+        "LESS",
+        "n54"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n56",
+      "rhs": [
+        "n56",
+        "LESS",
+        "n54"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n57",
+      "rhs": [
+        "n57",
+        "LESS",
+        "n54"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n62",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n77",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n79",
+      "rhs": [
+        "n79",
+        "LESS",
+        "n54"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n83",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n94",
+      "rhs": [
+        "n94",
+        "LESS",
+        "n54"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n101",
+      "rhs": [
+        "n102",
+        "LESS",
+        "n142"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n102",
+      "rhs": [
+        "n102",
+        "LESS",
+        "n151"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n113",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n116",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n127",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n131",
+      "rhs": [
+        "n131",
+        "LESS",
+        "n54"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n137",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n143",
+      "rhs": [
+        "n152",
+        "LESS",
+        "n142"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n144",
+      "rhs": [
+        "n153",
+        "LESS",
+        "n142"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n145",
+      "rhs": [
+        "n154",
+        "LESS",
+        "n142"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n152",
+      "rhs": [
+        "n152",
+        "LESS",
+        "n151"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n153",
+      "rhs": [
+        "n153",
+        "LESS",
+        "n151"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n154",
+      "rhs": [
+        "n154",
+        "LESS",
+        "n151"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n158",
+      "rhs": [
+        "n173",
+        "LESS",
+        "LPAREN",
+        "n15",
+        "RPAREN",
+        "n179"
+      ],
+      "index": 1,
+      "previous": [
+        "GMORE",
+        "MUT",
+        "RBRACKET",
+        "UIDENT"
+      ],
+      "following": [
+        "LPAREN"
+      ]
+    },
+    {
+      "lhs": "n159",
+      "rhs": [
+        "n173",
+        "LESS",
+        "LPAREN",
+        "n15",
+        "RPAREN",
+        "n180"
+      ],
+      "index": 1,
+      "previous": [
+        "GMORE",
+        "MUT",
+        "RBRACKET",
+        "UIDENT"
+      ],
+      "following": [
+        "LPAREN"
+      ]
+    },
+    {
+      "lhs": "n160",
+      "rhs": [
+        "n173",
+        "LESS",
+        "LPAREN",
+        "n15",
+        "RPAREN",
+        "n46"
+      ],
+      "index": 1,
+      "previous": [
+        "GMORE",
+        "MUT",
+        "RBRACKET",
+        "UIDENT"
+      ],
+      "following": [
+        "LPAREN"
+      ]
+    },
+    {
+      "lhs": "n166",
+      "rhs": [
+        "GLESS",
+        "n76",
+        "GMORE"
+      ],
+      "index": 0,
+      "previous": [
+        "UIDENT"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "INT",
+        "LIDENT",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n182",
+      "rhs": [
+        "n193",
+        "LESS",
+        "LPAREN",
+        "n15",
+        "RPAREN",
+        "n179"
+      ],
+      "index": 1,
+      "previous": [
+        "GMORE",
+        "MUT",
+        "RBRACKET",
+        "UIDENT"
+      ],
+      "following": [
+        "LPAREN"
+      ]
+    },
+    {
+      "lhs": "n183",
+      "rhs": [
+        "n193",
+        "LESS",
+        "LPAREN",
+        "n15",
+        "RPAREN",
+        "n180"
+      ],
+      "index": 1,
+      "previous": [
+        "GMORE",
+        "MUT",
+        "RBRACKET",
+        "UIDENT"
+      ],
+      "following": [
+        "LPAREN"
+      ]
+    },
+    {
+      "lhs": "n184",
+      "rhs": [
+        "n193",
+        "LESS",
+        "LPAREN",
+        "n15",
+        "RPAREN",
+        "n46"
+      ],
+      "index": 1,
+      "previous": [
+        "GMORE",
+        "MUT",
+        "RBRACKET",
+        "UIDENT"
+      ],
+      "following": [
+        "LPAREN"
+      ]
+    },
+    {
+      "lhs": "n185",
+      "rhs": [
+        "n185",
+        "LESS",
+        "n54"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    },
+    {
+      "lhs": "n192",
+      "rhs": [
+        "n192",
+        "LESS",
+        "n54"
+      ],
+      "index": 1,
+      "previous": [
+        "DECIMAL",
+        "FALSE",
+        "INT",
+        "LIDENT",
+        "RBRACKET",
+        "RCURLY",
+        "RPAREN",
+        "STRING",
+        "THIS",
+        "TRUE"
+      ],
+      "following": [
+        "AMPERSAND",
+        "AT",
+        "DECIMAL",
+        "FALSE",
+        "INIT",
+        "INT",
+        "LBRACKET",
+        "LCURLY",
+        "LIDENT",
+        "LPAREN",
+        "MATCH",
+        "SPAWN",
+        "STRING",
+        "THIS",
+        "TILDE",
+        "TRUE",
+        "UIDENT"
+      ]
+    }
+  ],
+  "generic_interior_nonterminals": [
+    "n11",
+    "n112",
+    "n166",
+    "n167",
+    "n36",
+    "n37",
+    "n38",
+    "n39",
+    "n40",
+    "n41",
+    "n42",
+    "n43",
+    "n44",
+    "n75",
+    "n76",
+    "n83",
+    "n84"
+  ]
+}

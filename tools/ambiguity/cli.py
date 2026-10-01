@@ -146,6 +146,16 @@ def parser() -> argparse.ArgumentParser:
     )
     add_overrides(prove)
 
+    visible = commands.add_parser(
+        "prove-visible", help="prove all accepted parses using exact visible-stack summaries"
+    )
+    visible.add_argument("--grammar", type=Path, default=Path(__file__).resolve().parents[2] / "lib/cst/parser.mly")
+    visible.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[2] / "reports/ambiguity/visible")
+    visible.add_argument("--menhir", help="Menhir executable (default: AMBIGUITY_MENHIR or PATH)")
+    visible.add_argument("--stock", action="store_true", help="check the stock automaton instead of the shipped GLR preprocessing")
+    visible.add_argument("--seconds", type=int, default=300, help="maximum seconds per stage")
+    visible.add_argument("--max-nodes", type=int, default=100000, help="fixed-point configuration limit; exhausting it never proves anything")
+
     commands.add_parser("profiles", help="list available search profiles")
     commands.add_parser(
         "classes",
@@ -158,6 +168,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     cli = parser()
     arguments = cli.parse_args(argv)
     try:
+        if arguments.command == "prove-visible":
+            from tools.ambiguity.visible.run import run
+            if arguments.seconds < 1 or arguments.max_nodes < 1:
+                raise ConfigurationError("visible proof limits must be positive")
+            return run(arguments.grammar, arguments.output, arguments.menhir,
+                       arguments.stock, arguments.seconds, arguments.max_nodes)
+
         if arguments.command == "check":
             return run_engine(
                 ["--check-tokens", " ".join(arguments.tokens)],
@@ -252,7 +269,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("  " + shlex.join(engine_args))
             return 0
         return run_engine(engine_args, summary, output_path)
-    except ConfigurationError as error:
+    except (ConfigurationError, ValueError) as error:
         cli.error(str(error))
     return 2
 
