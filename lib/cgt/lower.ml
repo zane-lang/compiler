@@ -1377,7 +1377,7 @@ let func st (v : verb) : Func.t =
 (* docs/design/symbols.md: a lambda is called by the verb it is written in
    and its place among that verb's lambdas, counted from 1 in source order,
    nested ones included, and a package lambda-variable's by the variable.
-   [owner] is the verb's symbol, or the variable's. *)
+   [owner] is the verb's symbol, the variable's, or an enum map's. *)
 let name_lambdas st owner (b : T.Block.t) =
   let n = ref 0 in
   let rec block (b : T.Block.t) =
@@ -1423,8 +1423,12 @@ let program (p : T.Program.t) =
           match d.T.Decl.node with
           | T.Decl.Type { name; params; reference; definition } ->
               Hashtbl.replace st.types (pkg.T.Package.name, name) (params, definition, reference)
-          | T.Decl.Enum_map { enum; entries; _ } ->
-              Hashtbl.replace st.maps d.T.Decl.id (enum, entries)
+          | T.Decl.Enum_map { enum; property; entries; _ } ->
+              Hashtbl.replace st.maps d.T.Decl.id (enum, entries);
+              let stat (_, (e : T.Expr.t)) = { T.Stat.node = T.Stat.Expr e; span = e.T.Expr.span } in
+              name_lambdas st
+                (Symbol.ty enum ^ "." ^ property)
+                { T.Block.stats = List.map stat entries; span = d.T.Decl.span }
           | T.Decl.Constant { name; value; _ } -> (
               Hashtbl.replace st.constants d.T.Decl.id value;
               let owner = pkg.T.Package.name ^ "$" ^ name in

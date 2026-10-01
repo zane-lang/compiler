@@ -268,7 +268,9 @@ let check_import_overloads (file : file) =
                    Option.map
                      (fun (s : Signature.t) ->
                        Ty.canonical
-                         (List.map (fun (p : Signature.param) -> Ty.strip_guest p.ty) s.params))
+                         (List.map
+                            (fun (p : Signature.param) -> Ty.without_mut (Ty.strip_guest p.ty))
+                            s.params))
                      (Hashtbl.find_opt signatures d.id)
                  in
                  (match

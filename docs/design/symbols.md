@@ -80,6 +80,13 @@ pkg$serve(pkg$Request)$lambda2
 A generic verb's lambdas are counted within each instance, under the
 instance's name.
 
+A lambda in an enum map's entries is counted the same way under the map,
+which is called by its enum and its property:
+
+```text
+pkg$Op.apply$lambda1
+```
+
 ## Layout tables
 
 The table the runtime reads to find a type's hosts and blocks

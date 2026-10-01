@@ -8,3 +8,4 @@ import lib$area;
 import lib$Thing;
 import lib;
 import lib$twin;
+import lib$hook;

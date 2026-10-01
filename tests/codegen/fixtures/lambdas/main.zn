@@ -67,6 +67,14 @@ type Tally = #struct {
 
 Tally(total Int) => init{ total; }
 
+/// An enum map whose entries are function values.
+type Op = enum [ twice, thrice ]
+
+Op.apply Int[Int] {
+	twice = Int(x Int) { return x + x; };
+	thrice = Int(x Int) { return x * Int(3); };
+}
+
 /// A host whose member spawned calls through function values write and read.
 type Shelf = #struct {
 	counter Counter;
@@ -173,6 +181,12 @@ Unit main() {
 	check(shelf.counter.count == Int(15));
 	held Int = spawn get(shelf.counter);
 	check(held == Int(15));
+
+	// Function values read from an enum map.
+	op Op = Op.thrice;
+	scale Int[Int] = op.apply;
+	check(scale(Int(5)) == Int(15));
+	check(twice(Op.twice.apply, Int(3)) == Int(12));
 
 	// A `Unit` function value.
 	say Unit(text String) {

@@ -138,8 +138,12 @@ File "fixtures/typing/reject/bad/exits.zn", line 38, characters 13-40:
 38 |             @controlflow$exitFromCall();
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `@controlflow$exitFromCall` cannot be written in a lambda's body: a call through a function value cannot say that it exits (control-flow.md §4.2)
-File "fixtures/typing/reject/bad/exits.zn", line 53, characters 5-32:
-53 |     @controlflow$exitFromCall();
+File "fixtures/typing/reject/bad/exits.zn", line 56, characters 9-36:
+56 |         @controlflow$exitFromCall();
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `@controlflow$exitFromCall` cannot be written in a lambda's body: a call through a function value cannot say that it exits (control-flow.md §4.2)
+File "fixtures/typing/reject/bad/exits.zn", line 63, characters 5-32:
+63 |     @controlflow$exitFromCall();
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `@controlflow$exitFromCall` cannot be written in a lambda's body: a call through a function value cannot say that it exits (control-flow.md §4.2)
 File "fixtures/typing/reject/bad/guests.zn", line 29, characters 5-6:
@@ -210,6 +214,10 @@ File "fixtures/typing/reject/bad/imports.zn", line 10, characters 1-16:
 10 | import lib$twin;
   | ^^^^^^^^^^^^^^^
 Error: this import brings `twin` from `lib`, which takes the same parameter types as the `twin` declared at fixtures/typing/reject/bad/twin.zn:4; the two cannot be told apart at a call
+File "fixtures/typing/reject/bad/imports.zn", line 11, characters 1-16:
+11 | import lib$hook;
+  | ^^^^^^^^^^^^^^^
+Error: this import brings `hook` from `lib`, which takes the same parameter types as the `hook` declared at fixtures/typing/reject/bad/twin.zn:8; the two cannot be told apart at a call
 File "fixtures/typing/reject/bad/instances.zn", line 5, characters 25-38:
 5 | T half(value T Type) => value / value
   |                         ^^^^^^^^^^^^^
@@ -638,7 +646,7 @@ File "fixtures/typing/reject/lib/lib.zn", line 7, characters 1-11:
 7 | import bad;
   | ^^^^^^^^^^
 Error: this import closes a cycle of packages, `bad` -> `lib` -> `bad`; the packages of a build import one another without a cycle (dependencies.md §10)
-File "fixtures/typing/reject/lib/lib.zn", line 25, characters 5-21:
-25 |     @program$console!print(text);
+File "fixtures/typing/reject/lib/lib.zn", line 26, characters 5-21:
+26 |     @program$console!print(text);
   |     ^^^^^^^^^^^^^^^^
 Error: only the root package reaches `@program$`; `lib` receives the console and runtime from it as an argument

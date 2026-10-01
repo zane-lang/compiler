@@ -97,10 +97,14 @@ let run (p : T.Program.t) =
           (fun (d : T.Decl.t) ->
             match d.T.Decl.node with
             | T.Decl.Verb { body = T.Decl.Checked { body; _ }; _ } -> Some (d.T.Decl.id, body)
-            (* A constant's value is walked for the lambdas in it. *)
+            (* A constant's value, and an enum map's entries, are walked for
+               the lambdas in them. *)
             | T.Decl.Constant { value; _ } ->
                 let stat = { T.Stat.node = T.Stat.Expr value; span = value.T.Expr.span } in
                 Some (d.T.Decl.id, { T.Block.stats = [ stat ]; span = value.T.Expr.span })
+            | T.Decl.Enum_map { entries; _ } ->
+                let stat (_, (e : T.Expr.t)) = { T.Stat.node = T.Stat.Expr e; span = e.T.Expr.span } in
+                Some (d.T.Decl.id, { T.Block.stats = List.map stat entries; span = d.T.Decl.span })
             | _ -> None)
           pkg.T.Package.decls)
       p.T.Program.packages

@@ -48,6 +48,16 @@ Unit lambdaExits() {
 	return Unit();
 }
 
+/// An enum map's entries, too.
+type Step = enum [ only ]
+
+Step.run Unit[] {
+	only = Unit() {
+		@controlflow$exitFromCall();
+		return Unit();
+	};
+}
+
 /// A lambda-variable at package scope, too.
 bails Unit() {
 	@controlflow$exitFromCall();
