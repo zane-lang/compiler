@@ -274,10 +274,15 @@ The binary takes the same `--package` flags as the semantic views:
 | `--cgt` | prints the code-generation tree |
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
-| `--target TRIPLE` | compiles `--ll` and `--build` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link for it |
+| `--object OUT` | writes the root package's object file `OUT`, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3) |
+| `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it |
 | `--optimize` | runs LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
 
 `--kind library` refuses `--build`, since a library is not an executable.
+With it, lowering starts from every verb the root package declares that is
+not generic and has a function of its own, and from its lambda-variables,
+rather than from `main`, and names them with the `!` placeholder
+([`separate-compilation.md`](separate-compilation.md) C5).
 
 Without `--optimize` no optimization runs anywhere, which makes the build
 about three times faster; `zane run` builds that way and `zane build` does not.

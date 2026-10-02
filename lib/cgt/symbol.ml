@@ -12,22 +12,35 @@ module Tty = Tst.Ty
    (`name@VERSION`), and `%` means nothing to them. *)
 let namespace n = "%" ^ n
 
+(* What goes before a package's name in a symbol: `!` for the library an
+   object is built for, whose symbols fetching rewrites, a dependency's
+   version and identity hash, or nothing
+   (docs/design/separate-compilation.md C5, C6). A type a package declares
+   carries it as the package's verbs do, so that two versions of one
+   library give an instance of the same generic two names. *)
+type stamp = string -> string
+
+let unstamped : stamp = fun _ -> ""
+
 (* A type's name: its package or namespace, its name, and its arguments,
    `geometry$List<%primitives$Int>`. A symbol only ever names a concrete type,
    so a parameter or an ill-typed spot reaching here is a bug in lowering. *)
-let rec ty = function
-  | Tty.Named ({ Tty.package; name }, args) -> package ^ "$" ^ name ^ args_ args
-  | Tty.Intrinsic { namespace = ns; name; args } -> namespace ns ^ "$" ^ name ^ args_ args
-  | Tty.Guest t -> "&" ^ ty t
-  | Tty.Concept c -> concept c
-  | Tty.Verb v -> verb_type v
+let rec ty_ stamp = function
+  | Tty.Named ({ Tty.package; name }, args) ->
+      stamp package ^ package ^ "$" ^ name ^ args_ stamp args
+  | Tty.Intrinsic { namespace = ns; name; args } -> namespace ns ^ "$" ^ name ^ args_ stamp args
+  | Tty.Guest t -> "&" ^ ty_ stamp t
+  | Tty.Concept c -> concept stamp c
+  | Tty.Verb v -> verb_type stamp v
   | Tty.Param p -> invalid_arg ("Symbol.ty: the type parameter " ^ p.Tty.name ^ " is not concrete")
   | Tty.Error -> invalid_arg "Symbol.ty: an ill-typed type has no symbol"
 
-and args_ = function [] -> "" | args -> "<" ^ String.concat ", " (List.map arg args) ^ ">"
+and args_ stamp = function
+  | [] -> ""
+  | args -> "<" ^ String.concat ", " (List.map (arg stamp) args) ^ ">"
 
-and arg = function
-  | Tty.Type t -> ty t
+and arg stamp = function
+  | Tty.Type t -> ty_ stamp t
   | Tty.Number n -> number n
 
 and number = function
@@ -35,23 +48,28 @@ and number = function
   | Tty.Number_param p ->
       invalid_arg ("Symbol.number: the number parameter " ^ p.Tty.name ^ " is not concrete")
 
-and concept = function
+and concept stamp = function
   | Tty.Integer_lit -> namespace "concepts" ^ "$Int"
   | Tty.Decimal_lit -> namespace "concepts" ^ "$Float"
   | Tty.Text_lit -> namespace "concepts" ^ "$String"
-  | Tty.Array_lit (t, n) -> namespace "concepts" ^ "$Array<" ^ ty t ^ ", " ^ number n ^ ">"
-  | Tty.Map_lit (k, v) -> namespace "concepts" ^ "$Map<" ^ ty k ^ ", " ^ ty v ^ ">"
+  | Tty.Array_lit (t, n) ->
+      namespace "concepts" ^ "$Array<" ^ ty_ stamp t ^ ", " ^ number n ^ ">"
+  | Tty.Map_lit (k, v) ->
+      namespace "concepts" ^ "$Map<" ^ ty_ stamp k ^ ", " ^ ty_ stamp v ^ ">"
   | Tty.Block -> namespace "concepts" ^ "$Block"
   | Tty.Type_value -> "Type"
 
 (* A verb type: its result, `?` and its abort type when it has one, and its
    parameters in brackets, `%primitives$Int[this pkg$Player, pkg$Weapon] mut`. *)
-and verb_type (v : Tty.verb) =
+and verb_type stamp (v : Tty.verb) =
+  let ty = ty_ stamp in
   let this_ = match v.Tty.this_ with None -> [] | Some t -> [ "this " ^ ty t ] in
   ty v.Tty.ret
   ^ (match v.Tty.abort with Some a -> "?" ^ ty a | None -> "")
   ^ "[" ^ String.concat ", " (this_ @ List.map ty v.Tty.params) ^ "]"
   ^ if v.Tty.is_mut then " mut" else ""
+
+let ty ?(stamp = unstamped) t = ty_ stamp t
 
 (* A verb's name: its package, its name, a generic instance's arguments, and
    its parameter types, with `this` before a method's subject:
@@ -63,15 +81,16 @@ and verb_type (v : Tty.verb) =
    two instances of one generic never take the same arguments, so no two verbs
    share a name. An explicit `T Type` or number parameter writes its kind; the
    argument it was given is among the instance's. *)
-let verb (s : S.t) (instance : (Tty.param * Tty.arg) list) =
+let verb ?(stamp = unstamped) (s : S.t) (instance : (Tty.param * Tty.arg) list) =
   let sub = Tty.subst (List.map (fun ((p : Tty.param), a) -> (p.Tty.id, a)) instance) in
   let param (p : S.param) =
     match p.S.binds with
     | Some { Tty.kind = Tty.Type_kind; _ } -> "Type"
     | Some { Tty.kind = Tty.Number_kind; _ } -> namespace "concepts" ^ "$Int"
-    | None -> (if S.is_method s && p.S.name = "this" then "this " else "") ^ ty (sub p.S.ty)
+    | None ->
+        (if S.is_method s && p.S.name = "this" then "this " else "") ^ ty_ stamp (sub p.S.ty)
   in
-  (match s.S.home with S.Package p -> p | S.Namespace n -> namespace n)
+  (match s.S.home with S.Package p -> stamp p ^ p | S.Namespace n -> namespace n)
   ^ "$" ^ s.S.name
-  ^ args_ (List.map snd instance)
+  ^ args_ stamp (List.map snd instance)
   ^ "(" ^ String.concat ", " (List.map param s.S.params) ^ ")"

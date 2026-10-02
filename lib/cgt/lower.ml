@@ -30,7 +30,7 @@ let symbol st (v : verb) =
   match Hashtbl.find_opt st.symbols v.key with
   | Some s -> s
   | None ->
-      let s = Symbol.verb v.signature v.instance in
+      let s = Symbol.verb ~stamp:st.stamp v.signature v.instance in
       Hashtbl.replace st.symbols v.key s;
       Queue.add v st.pending;
       s
@@ -1013,7 +1013,13 @@ and spawn_call st ctx span v fn ~writes passed handler =
   in
   let thunk = Printf.sprintf "zane.spawn.%d" (List.length st.spawned + 1) in
   st.spawned <-
-    { Func.symbol = thunk; params = [ (at, Nodes.Ty.Ptr) ]; ret = Nodes.Ty.Void; body }
+    {
+      Func.symbol = thunk;
+      linkage = Linkage.Local;
+      params = [ (at, Nodes.Ty.Ptr) ];
+      ret = Nodes.Ty.Void;
+      body;
+    }
     :: st.spawned;
   let task = fresh st in
   let dest = if whole = Nodes.Ty.Void then None else Some (fresh st) in
@@ -1368,7 +1374,13 @@ let func st (v : verb) : Func.t =
       scope = { arena = None; settles = [] };
     }
   in
-  { Func.symbol = symbol st v; params; ret = returned o; body = block st ctx v.body }
+  let linkage =
+    match (st.library, v.signature.S.home) with
+    | Some root, S.Package p when p = root ->
+        if v.instance = [] then Linkage.Exported else Linkage.Shared
+    | _ -> if Hashtbl.mem st.exported v.key then Linkage.Exported else Linkage.Local
+  in
+  { Func.symbol = symbol st v; linkage; params; ret = returned o; body = block st ctx v.body }
 
 (* ---------------------------------------------------------------------- *)
 (* Programs                                                               *)
@@ -1393,7 +1405,35 @@ let name_lambdas st owner (b : T.Block.t) =
   in
   block b
 
-let program (p : T.Program.t) =
+(* The functions a library's object holds, besides what they call: every
+   verb of the root package that is not generic and has a function of its
+   own (L11), and every lambda-variable, which other objects call by name
+   (docs/design/separate-compilation.md C5). *)
+let library_roots st (root : T.Package.t) =
+  List.iter
+    (fun (d : T.Decl.t) ->
+      let declared (signature : S.t) =
+        if signature.S.generics = [] then
+          match verb_of st d.T.Decl.id [] with
+          | Some v when not (expands v) -> ignore (symbol st v)
+          | _ -> ()
+      in
+      match d.T.Decl.node with
+      | T.Decl.Verb { signature; body = T.Decl.Checked _ } -> declared signature
+      | T.Decl.Subscript { signature; value = Some _; _ } -> declared signature
+      | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; _ } ->
+          Hashtbl.replace st.exported ("lambda " ^ lambda st span ty l) ()
+      | _ -> ())
+    root.T.Package.decls
+
+(* A program lowers from its root package's `main`; a [library] from every
+   function its root package declares, into an object with no entry. *)
+let program ?(library = false) (p : T.Program.t) =
+  let library =
+    match p.T.Program.packages with
+    | root :: _ when library -> Some root.T.Package.name
+    | _ -> None
+  in
   let st =
     {
       verbs = Hashtbl.create 64;
@@ -1409,12 +1449,15 @@ let program (p : T.Program.t) =
       returns = Fun.id;
       ret = Tty.Error;
       spawned = [];
+      library;
+      stamp = (fun p -> if Some p = library then "!" else "");
+      exported = Hashtbl.create 8;
     }
   in
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body };
-    name_lambdas st (Symbol.verb signature instance) body
+    name_lambdas st (Symbol.verb ~stamp:st.stamp signature instance) body
   in
   List.iter
     (fun (pkg : T.Package.t) ->
@@ -1427,11 +1470,11 @@ let program (p : T.Program.t) =
               Hashtbl.replace st.maps d.T.Decl.id (enum, entries);
               let stat (_, (e : T.Expr.t)) = { T.Stat.node = T.Stat.Expr e; span = e.T.Expr.span } in
               name_lambdas st
-                (Symbol.ty enum ^ "." ^ property)
+                (Symbol.ty ~stamp:st.stamp enum ^ "." ^ property)
                 { T.Block.stats = List.map stat entries; span = d.T.Decl.span }
           | T.Decl.Constant { name; value; _ } -> (
               Hashtbl.replace st.constants d.T.Decl.id value;
-              let owner = pkg.T.Package.name ^ "$" ^ name in
+              let owner = st.stamp pkg.T.Package.name ^ pkg.T.Package.name ^ "$" ^ name in
               match value.T.Expr.node with
               | T.Expr.Lambda { body; _ } ->
                   st.lambdas <- (body, owner) :: st.lambdas;
@@ -1468,36 +1511,43 @@ let program (p : T.Program.t) =
       | r :: _ -> r
       | [] -> raise (Refused (Message "no packages"))
     in
-    let main =
-      List.find_map
-        (fun (d : T.Decl.t) ->
-          match d.T.Decl.node with
-          | T.Decl.Verb { signature; _ } when signature.S.name = "main" ->
-              verb_of st d.T.Decl.id []
-          | _ -> None)
-        root.T.Package.decls
+    (* In the order calls first reach them, the roots first. *)
+    let rec drain acc =
+      match Queue.take_opt st.pending with
+      | None -> List.rev acc
+      | Some v -> drain (func st v :: acc)
     in
-    match main with
-    | None ->
-        raise
-          (Refused
-             (Message
-                (Printf.sprintf "the root package `%s` declares no `main` to start from"
-                   root.T.Package.name)))
-    | Some main ->
-        (* The runtime calls `main` and reads no outcome from it. *)
-        let span = main.body.T.Block.span in
-        if not (plain (outcome st span main)) then
-          refuse span "`main` has no caller to abort to or exit";
-        let entry = symbol st main in
-        (* In the order calls first reach them, `main` first. *)
-        let rec drain acc =
-          match Queue.take_opt st.pending with
-          | None -> List.rev acc
-          | Some v -> drain (func st v :: acc)
-        in
-        let funcs = drain [] in
-        let funcs = funcs @ List.rev st.spawned in
-        let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
-        Ok { Program.funcs; entry; layouts }
+    let finish entry =
+      let funcs = drain [] in
+      let funcs = funcs @ List.rev st.spawned in
+      let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
+      Ok { Program.funcs; entry; layouts }
+    in
+    if library <> None then begin
+      library_roots st root;
+      finish None
+    end
+    else
+      let main =
+        List.find_map
+          (fun (d : T.Decl.t) ->
+            match d.T.Decl.node with
+            | T.Decl.Verb { signature; _ } when signature.S.name = "main" ->
+                verb_of st d.T.Decl.id []
+            | _ -> None)
+          root.T.Package.decls
+      in
+      match main with
+      | None ->
+          raise
+            (Refused
+               (Message
+                  (Printf.sprintf "the root package `%s` declares no `main` to start from"
+                     root.T.Package.name)))
+      | Some main ->
+          (* The runtime calls `main` and reads no outcome from it. *)
+          let span = main.body.T.Block.span in
+          if not (plain (outcome st span main)) then
+            refuse span "`main` has no caller to abort to or exit";
+          finish (Some (symbol st main))
   with Refused problem -> Error problem

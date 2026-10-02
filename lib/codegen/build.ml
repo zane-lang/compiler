@@ -48,6 +48,15 @@ let write_runtime dir =
       ("zane.c", Runtime_source.text);
     ]
 
+(* The module's object file alone, for a package other objects link with
+   (docs/design/separate-compilation.md C3): no runtime, and no link. *)
+let object_file ?target ?(optimize = false) m output =
+  Result.bind (prepare ?target ~optimize m) (fun (_, tm) ->
+      match Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile output tm with
+      | () -> Ok ()
+      | exception Llvm_target.Error message ->
+          Error (Printf.sprintf "cannot write the object file: %s" message))
+
 let executable ?target ?(optimize = false) m output =
   match prepare ?target ~optimize m with
   | Error _ as error -> error

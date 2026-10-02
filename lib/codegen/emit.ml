@@ -597,7 +597,9 @@ let func env (f : Func.t) =
     ignore (if f.Func.ret = Ty.Void then Llvm.build_ret_void b else Llvm.build_unreachable b)
 
 (* The program's module. Its entry is named `zane_main` whatever its symbol,
-   since that is the name the runtime calls (L16). *)
+   since that is the name the runtime calls (L16). A function other objects
+   link against keeps its symbol in theirs too
+   (docs/design/separate-compilation.md); the rest are local to this one. *)
 let program (p : Program.t) =
   let ctx = Llvm.create_context () in
   let m = Llvm.create_module ctx "zane" in
@@ -615,9 +617,14 @@ let program (p : Program.t) =
   List.iter
     (fun (f : Func.t) ->
       let fty = fn_type env (List.map snd f.Func.params) f.Func.ret in
-      let name = if f.Func.symbol = p.Program.entry then "zane_main" else f.Func.symbol in
+      let entry = Some f.Func.symbol = p.Program.entry in
+      let name = if entry then "zane_main" else f.Func.symbol in
       let fn = Llvm.define_function name fty m in
-      if name <> "zane_main" then Llvm.set_linkage Llvm.Linkage.Internal fn;
+      (match f.Func.linkage with
+      | _ when entry -> ()
+      | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal fn
+      | Cgt.Nodes.Linkage.Exported -> ()
+      | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr fn);
       Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
     p.Program.funcs;
   List.iter (func env) p.Program.funcs;

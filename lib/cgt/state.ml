@@ -106,6 +106,14 @@ type state = {
   mutable ret : Tty.t;
   (* The function each spawned call runs through, latest first. *)
   mutable spawned : Func.t list;
+  (* The root package when it is a library built into an object, whose
+     symbols carry its placeholder and other objects link against
+     (docs/design/separate-compilation.md C5), and what goes before each
+     package's name in a symbol. *)
+  library : string option;
+  stamp : string -> string;
+  (* The lambda-variables other objects link against, by verb key. *)
+  exported : (string, unit) Hashtbl.t;
 }
 
 let fresh st =

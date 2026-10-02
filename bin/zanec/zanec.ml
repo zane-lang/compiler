@@ -14,13 +14,16 @@ type stage = Cst | Sst
    them (`--decls`), or the whole typed tree (`--tst`). Past semantics it
    prints the code-generation tree (`--cgt`) or the LLVM module (`--ll`), or
    builds the program into an executable (`--build OUT`,
-   docs/design/lowering.md §7). `--check` runs semantics and prints nothing,
+   docs/design/lowering.md §7) or the root package into an object file
+   (`--object OUT`, docs/design/separate-compilation.md C3). `--check` runs semantics and prints nothing,
    so its exit status and diagnostics are the whole answer. *)
-type view = Assembled | Check | Declarations | Typed | Cgt | Ir | Build of string
+type view = Assembled | Check | Declarations | Typed | Cgt | Ir | Build of string | Object of string
 
 (* What the root package is (packages.md §6.2): an application has a `main`
    to start from, and a library does not become an executable. Without
-   `--kind`, `main` is required only to build. *)
+   `--kind`, `main` is required only to build. A library lowers from every
+   function it declares, with its symbols carrying the `!` placeholder
+   (docs/design/separate-compilation.md C5). *)
 type kind = Application | Library
 
 type build = {
@@ -28,7 +31,7 @@ type build = {
   kind : kind option;
   (* The LLVM target triple to compile for; the host's when absent. *)
   target : string option;
-  (* Whether `--ll` and `--build` optimize. A program means the same either
+  (* Whether `--ll`, `--build` and `--object` optimize. A program means the same either
      way; an unoptimized build is the faster one to make. *)
   optimize : bool;
   packages : Tst.Assembly.request list;
@@ -47,7 +50,8 @@ let read_file path =
 let usage () =
   prerr_endline "usage: zanec [--cst|--sst] (SOURCE|-)";
   prerr_endline
-    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT] [--kind application|library]";
+    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT|--object OUT]";
+  prerr_endline "             [--kind application|library]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] --package [NAME=]DIR [--package [NAME=]DIR ...]";
   exit 2
@@ -122,6 +126,8 @@ let arguments () =
         packages view { build with optimize = true } rest
     | "--build" :: output :: rest when view = None && is_value output ->
         packages (Some (Build output)) build rest
+    | "--object" :: output :: rest when view = None && is_value output ->
+        packages (Some (Object output)) build rest
     | flag :: rest when view = None -> (
         match flag with
         | "--check" -> packages (Some Check) build rest
@@ -134,8 +140,8 @@ let arguments () =
   in
   let empty = { view = Assembled; kind = None; target = None; optimize = false; packages = [] } in
   match List.tl (Array.to_list Sys.argv) with
-  | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--check" | "--decls"
-    | "--tst" | "--cgt" | "--ll" )
+  | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--check"
+    | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
       packages None empty rest
   | rest -> go Cst rest
@@ -157,7 +163,7 @@ let run_file stage (filename, input) =
    refuses what it cannot handle yet with a diagnostic rather than lowering it
    wrongly (docs/design/lowering.md). *)
 let generate packages build program =
-  match Cgt.lower program with
+  match Cgt.lower ~library:(build.kind = Some Library) program with
   | Error (Cgt.Lower.Diagnostic d) ->
       prerr_string (Tst.render_diagnostic packages d);
       exit 1
@@ -179,6 +185,13 @@ let generate packages build program =
       | Build output -> (
           match
             Codegen.executable ?target:build.target ~optimize:build.optimize (Codegen.emit cgt)
+              output
+          with
+          | Ok () -> ()
+          | Error message -> fail message)
+      | Object output -> (
+          match
+            Codegen.object_file ?target:build.target ~optimize:build.optimize (Codegen.emit cgt)
               output
           with
           | Ok () -> ()
@@ -227,7 +240,7 @@ let run_packages build =
       match build.view with
       | Assembled ->
           print_string (Tree_graph.render (Tst.Assembly.to_node packages))
-      | Check | Declarations | Typed | Cgt | Ir | Build _ -> (
+      | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ -> (
           let result = Tst.check packages in
           match result.Tst.Semantics.diagnostics with
           | [] -> (

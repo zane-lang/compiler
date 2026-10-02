@@ -1,0 +1,17 @@
+/// A library that uses another, built with it into one object: what atlas
+/// declares carries the placeholder and is exported, and what it reaches in
+/// geometry is local to the object, an instance of geometry's generic at
+/// atlas's own type included.
+package atlas;
+
+import geometry;
+
+alias Int = @primitives$Int
+
+type Tile = struct {
+	size Int;
+}
+
+Tile(size Int) => init{ size; }
+
+Int cover(tile Tile) => geometry$area(geometry$same(tile).size, tile.size)

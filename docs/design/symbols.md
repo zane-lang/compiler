@@ -115,9 +115,15 @@ and each string literal's bytes (`zane.text`).
   place keeps its one name, and is lifted once.
 - Package constants other than lambda-variables are not lowered yet, so no
   other variable has a symbol yet.
-- The program builds into one module ([`lowering.md`](lowering.md) L15), so
+- A program builds into one module ([`lowering.md`](lowering.md) L15), so
   every verb but `zane_main` is local to it: its symbol is in the binary, for
   a debugger or a profiler, but no other object links against it. A layout
   table is private and has no symbol in the binary at all.
+- A library built into an object of its own carries the `!` placeholder
+  before its package's name, in its verbs' names and in its types' names
+  wherever a symbol names one: `!geometry$sum(this !geometry$Point)`. Its
+  verbs are exported, the instances of its generics are shared, and what it
+  reaches in other packages is local
+  ([`separate-compilation.md`](separate-compilation.md) C4, C5).
 - LLVM's struct types are unnamed: a CGT type is structural, and carries no
   name for a struct to take.
