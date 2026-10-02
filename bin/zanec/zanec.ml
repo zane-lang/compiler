@@ -91,6 +91,10 @@ let arguments () =
   (* A package build takes its options in any order, each at most once, and at
      least one `--package`. A tree flag or a single source alongside them would
      ask for two different runs at once. *)
+  (* A value never starts with `-`, so a value left out cannot swallow the
+     next flag: `--build --package d` is a usage error, not an executable
+     named `--package`. *)
+  let is_value v = not (String.starts_with ~prefix:"-" v) in
   let rec packages view build = function
     | [] ->
         if build.packages = [] then usage ()
@@ -101,16 +105,17 @@ let arguments () =
               view = Option.value view ~default:Assembled;
               packages = List.rev build.packages;
             }
-    | "--package" :: dir :: rest ->
+    | "--package" :: dir :: rest when is_value dir ->
         packages view { build with packages = package_request dir :: build.packages } rest
-    | "--kind" :: kind :: rest when build.kind = None ->
+    | "--kind" :: kind :: rest when build.kind = None && is_value kind ->
         let kind =
           match kind with "application" -> Application | "library" -> Library | _ -> usage ()
         in
         packages view { build with kind = Some kind } rest
-    | "--target" :: target :: rest when build.target = None ->
+    | "--target" :: target :: rest when build.target = None && is_value target ->
         packages view { build with target = Some target } rest
-    | "--build" :: output :: rest when view = None -> packages (Some (Build output)) build rest
+    | "--build" :: output :: rest when view = None && is_value output ->
+        packages (Some (Build output)) build rest
     | flag :: rest when view = None -> (
         match flag with
         | "--check" -> packages (Some Check) build rest
