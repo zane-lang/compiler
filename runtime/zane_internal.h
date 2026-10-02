@@ -18,6 +18,20 @@
 
 #include "zane.h"
 
+/* What Windows does differently (docs/design/platforms.md). It has no
+   `aligned_alloc`, and memory from `_aligned_malloc` goes back through
+   `_aligned_free`. Its POSIX threads are MinGW's winpthreads, which also
+   counts the processors. */
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#define zane_chunk_alloc(size) _aligned_malloc((size), ZANE_CHUNK)
+#define zane_chunk_free(chunk) _aligned_free(chunk)
+#else
+#define zane_chunk_alloc(size) aligned_alloc(ZANE_CHUNK, (size))
+#define zane_chunk_free(chunk) free(chunk)
+#endif
+
 /* Memory comes in 1 MiB chunks, each made at a 1 MiB boundary. Scopes nest
    last-in-first-out, and each has two regions (memory.md §3.1). Its
    fixed-size region is where its slots are: every scope bumps one shared

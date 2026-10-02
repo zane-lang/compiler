@@ -21,8 +21,14 @@ void zane_broken(const char *what) {
    around `main`, and when it returns every other scope has drained, and
    every call it spawned has returned. What its own region still holds --
    floated hosts, and what they own, which may have changed since they
-   floated -- goes with the program. */
+   floated -- goes with the program. On Windows stdout and stderr start in
+   text mode, which would write each `\n` as `\r\n`; a program writes the
+   bytes it says, as it does everywhere else. */
 int main(void) {
+#ifdef _WIN32
+	_setmode(_fileno(stdout), _O_BINARY);
+	_setmode(_fileno(stderr), _O_BINARY);
+#endif
 	zane_self = zane_context_new();
 	zane_scope_enter();
 	zane_program = zane_mark_at(zane_self, 0);
