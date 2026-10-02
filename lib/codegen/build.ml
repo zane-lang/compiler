@@ -57,7 +57,9 @@ let object_file ?target ?(optimize = false) m output =
       | exception Llvm_target.Error message ->
           Error (Printf.sprintf "cannot write the object file: %s" message))
 
-let executable ?target ?(optimize = false) m output =
+(* [link] is the objects of the program's stamped dependencies, which the C
+   compiler links with it (docs/design/separate-compilation.md C7). *)
+let executable ?target ?(optimize = false) ?(link = []) m output =
   match prepare ?target ~optimize m with
   | Error _ as error -> error
   | Ok (triple, tm) -> (
@@ -70,7 +72,8 @@ let executable ?target ?(optimize = false) m output =
         String.concat " "
           (List.map Filename.quote
              ([ cc () ] @ target_flag
-             @ [ (if optimize then "-O2" else "-O0"); "-pthread"; "-o"; output; obj; rt ]))
+             @ [ (if optimize then "-O2" else "-O0"); "-pthread"; "-o"; output; obj ]
+             @ link @ [ rt ]))
       in
       (* The temporary files go however the build ends, a raise included. A
          failure to write them is an error like any other, not an exception. *)

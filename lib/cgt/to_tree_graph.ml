@@ -219,6 +219,7 @@ let linkage (f : Func.t) =
   | Linkage.Local -> []
   | Linkage.Exported -> [ ("linkage", Leaf "exported") ]
   | Linkage.Shared -> [ ("linkage", Leaf "shared") ]
+  | Linkage.Imported -> [ ("linkage", Leaf "imported") ]
 
 let func (f : Func.t) =
   group "func"

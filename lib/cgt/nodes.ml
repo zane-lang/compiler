@@ -263,9 +263,11 @@ end
 
 (* Who links against a function (docs/design/separate-compilation.md): only
    its own object, every object, or every object that also makes it, with
-   the linker keeping one copy, as a generic instance is (C4). *)
+   the linker keeping one copy, as a generic instance is (C4). An imported
+   function is a stamped dependency's, defined in that dependency's objects,
+   so this object declares it and has no body for it (C1). *)
 module Linkage = struct
-  type t = Local | Exported | Shared
+  type t = Local | Exported | Shared | Imported
 end
 
 module Func = struct

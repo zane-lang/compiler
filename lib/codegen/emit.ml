@@ -598,7 +598,8 @@ let func env (f : Func.t) =
 
 (* The program's module. Its entry is named `zane_main` whatever its symbol,
    since that is the name the runtime calls (L16). A function other objects
-   link against keeps its symbol in theirs too
+   link against keeps its symbol in theirs too, and one a stamped
+   dependency's objects define is only declared
    (docs/design/separate-compilation.md); the rest are local to this one. *)
 let program (p : Program.t) =
   let ctx = Llvm.create_context () in
@@ -619,15 +620,21 @@ let program (p : Program.t) =
       let fty = fn_type env (List.map snd f.Func.params) f.Func.ret in
       let entry = Some f.Func.symbol = p.Program.entry in
       let name = if entry then "zane_main" else f.Func.symbol in
-      let fn = Llvm.define_function name fty m in
+      let fn =
+        match f.Func.linkage with
+        | Cgt.Nodes.Linkage.Imported -> Llvm.declare_function name fty m
+        | _ -> Llvm.define_function name fty m
+      in
       (match f.Func.linkage with
       | _ when entry -> ()
       | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal fn
-      | Cgt.Nodes.Linkage.Exported -> ()
+      | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ()
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr fn);
       Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
     p.Program.funcs;
-  List.iter (func env) p.Program.funcs;
+  List.iter
+    (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
+    p.Program.funcs;
   (match Llvm_analysis.verify_module m with
   | Some problem -> failwith ("codegen built an invalid module: " ^ problem)
   | None -> ());

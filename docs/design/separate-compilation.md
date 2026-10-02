@@ -1,11 +1,11 @@
 # Separate compilation: one object per package
 
-> **Status: built through §5 step 2.** This page says how the compiler builds
+> **Status: built through §5 step 3.** This page says how the compiler builds
 > one package into an object file of its own, so a library can ship prebuilt
 > objects ([`dependencies.md`](https://github.com/zane-lang/spec/blob/main/spec/dependencies.md)
 > §3.1) and a program can link against them. Each decision is numbered
 > (**C1**…). §5 lists the order they are built in, and §6 the questions still
-> open. A program links only what one compilation builds until step 3.
+> open. Fetching rewrites no placeholder until step 4.
 
 A dependency reaches a build in two forms. Its **source** is the verified
 checkout in the package cache (`dependencies.md` §7), and its **objects** are
@@ -92,14 +92,19 @@ the driver:
 
 `zane` computes the stamp: the pinned tag, `%`, the identity hash of the
 package's URL, and `%` (`dependencies.md` §6.1). A dependency given no
-`--stamp` is compiled into the same module as the root, as every package is
-today (C1). Instances of a dependency's generics (C4) carry that dependency's
-stamp too.
+`--stamp` is compiled into the same module as the root (C1). Instances of a
+dependency's generics (C4) carry that dependency's stamp too.
 
 The root's own stamp is `!` when it is a library. Fetching rewrites the root
 library's `!` placeholders and leaves the stamped names alone, which is what
 `dependencies.md` §6.3 asks: a library's references to its own dependencies
 are already versioned when it is built.
+
+A root library given a `--stamp` of its own is named with that stamp instead
+of the placeholder. That is a dependency compiled from source
+(`dependencies.md` §12.1): it is built for one version already known, so its
+object comes out the way a rewritten release's would, and no rewriting is
+needed.
 
 ---
 

@@ -1,0 +1,14 @@
+T zane_main
+U v1.0.1%3f9a1c02b7e4d6a8%geometry$Point(%primitives$Int, %primitives$Int)
+U v1.0.1%3f9a1c02b7e4d6a8%geometry$area(%primitives$Int, %primitives$Int)
+U v1.0.1%3f9a1c02b7e4d6a8%geometry$double
+U v1.0.1%3f9a1c02b7e4d6a8%geometry$sum(this v1.0.1%3f9a1c02b7e4d6a8%geometry$Point)
+U v1.0.1%3f9a1c02b7e4d6a8%geometry$twice(%primitives$Int)
+U zane_arrive
+U zane_print
+U zane_scope_drain
+U zane_scope_enter
+U zane_slot
+W v1.0.1%3f9a1c02b7e4d6a8%geometry$same<survey$Plot>(survey$Plot)
+t survey$Plot(%primitives$Int)
+t survey$check(%primitives$Bool)
