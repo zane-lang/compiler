@@ -25,6 +25,7 @@
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#include <malloc.h>
 #define zane_chunk_alloc(size) _aligned_malloc((size), ZANE_CHUNK)
 #define zane_chunk_free(chunk) _aligned_free(chunk)
 #else
