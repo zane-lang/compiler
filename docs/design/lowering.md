@@ -225,6 +225,8 @@ one carries the function's address in its frame, ahead of its arguments.
 **L15. One LLVM module per program.** Lowering reads every package the TST
 holds and writes one module: every instance, every non-generic verb, every
 lifted lambda. A package does not reach codegen as a unit of its own.
+[`separate-compilation.md`](separate-compilation.md) designs one object per
+package, which a library's prebuilt release needs.
 
 **L16. Constants live in the program's scope.** A package constant is
 evaluated once, in dependency order, into the arena of the outermost scope,
