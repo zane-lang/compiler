@@ -269,6 +269,17 @@ let run_packages build =
         problems;
       exit 1
   | Ok packages -> (
+      (* A stamp for a package the build does not have would be dropped
+         silently, and the package it was meant for compiled into the root's
+         object rather than linked from its own. *)
+      List.iter
+        (fun (name, _) ->
+          if not (List.exists (fun (p : Tst.Assembly.package) -> p.name = name) packages) then begin
+            prerr_endline
+              (Printf.sprintf "Error: `--stamp %s=...` names no package given with `--package`" name);
+            exit 1
+          end)
+        build.stamps;
       match build.view with
       | Assembled ->
           print_string (Tree_graph.render (Tst.Assembly.to_node packages))
