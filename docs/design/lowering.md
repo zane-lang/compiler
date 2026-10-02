@@ -275,7 +275,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
 | `--object OUT` | writes the root package's object file `OUT`, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3) |
-| `--target TRIPLE` | compiles `--ll` and `--build` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link for it |
+| `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it |
 | `--optimize` | runs LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
 
 `--kind library` refuses `--build`, since a library is not an executable.

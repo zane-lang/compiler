@@ -31,7 +31,7 @@ type build = {
   kind : kind option;
   (* The LLVM target triple to compile for; the host's when absent. *)
   target : string option;
-  (* Whether `--ll` and `--build` optimize. A program means the same either
+  (* Whether `--ll`, `--build` and `--object` optimize. A program means the same either
      way; an unoptimized build is the faster one to make. *)
   optimize : bool;
   packages : Tst.Assembly.request list;
