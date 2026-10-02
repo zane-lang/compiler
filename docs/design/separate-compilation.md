@@ -19,11 +19,14 @@ against its dependencies' source, and generates code for that package alone.
 
 ## 1. What one compilation reads and writes
 
-**C1. A compilation generates code for its root package only.** The first
-`--package` is the root, as it is today, and the others are its dependencies,
-direct and transitive. Every package is loaded and checked, since the root's
-types and calls name theirs, but lowering and codegen emit only what the root
-package declares, plus the generic instances the root needs (C4).
+**C1. A compilation generates code for its root package and its unstamped
+dependencies.** The first `--package` is the root, as it is today, and the
+others are its dependencies, direct and transitive. Every package is loaded
+and checked, since the root's types and calls name theirs. A dependency given
+a stamp (C6) arrives as prebuilt objects, so lowering and codegen emit nothing
+it declares: only what the root and the unstamped dependencies declare, plus
+the generic instances they need (C4). With no stamps at all, that is the
+whole program in one module, as every build is today.
 
 **C2. A dependency is read from source.** The compiler type-checks against a
 dependency's source, the same `.zn` files its objects were built from at the
@@ -80,7 +83,7 @@ the driver:
 `zane` computes the stamp: the pinned tag, `%`, the identity hash of the
 package's URL, and `%` (`dependencies.md` §6.1). A dependency given no
 `--stamp` is compiled into the same module as the root, as every package is
-today. Instances of a dependency's generics (C4) carry that dependency's
+today (C1). Instances of a dependency's generics (C4) carry that dependency's
 stamp too.
 
 The root's own stamp is `!` when it is a library. Fetching rewrites the root
