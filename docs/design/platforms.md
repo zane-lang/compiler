@@ -7,16 +7,23 @@ builds for every target.
 
 ## Support
 
-- **Linux** is where the compiler is developed and where every test runs,
-  building, linking and running programs.
-- **Windows** objects are built and rewritten
-  ([`separate-compilation.md`](separate-compilation.md) C9), and the tests
-  hold them to what the stamped build defines. Linking and running a program
-  there is not tested yet; the runtime's threads need a POSIX threads
-  library, which MinGW provides.
-- **macOS** is a lower tier. Its objects are built and rewritten as Windows
-  ones are, and are tested the same way, but they get less attention: a
-  problem there may wait.
+Two tiers. A first-tier platform is one every change must keep working; a
+lower-tier one is built and tested the same way, but gets less attention,
+and a problem there may wait.
+
+- **Linux** and **Windows** are the first tier. Both are fully supported by
+  `zig cc`, which can link for either from any machine, so building for them
+  needs no SDK of their own. Running a Windows program's tests needs Windows
+  or Wine, which a CI runner provides.
+  - On Linux every test runs, building, linking and running programs.
+  - On Windows, objects are built and rewritten
+    ([`separate-compilation.md`](separate-compilation.md) C9), and the tests
+    hold them to what the stamped build defines. Linking and running a
+    Windows program is not tested yet. That is what the first tier owes
+    next: the runtime's threads need a POSIX threads library, which MinGW
+    provides.
+- **macOS** is the lower tier. Its objects are built, rewritten and tested
+  as Windows ones are.
 
 ## Building for macOS needs no Apple SDK
 
