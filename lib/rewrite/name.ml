@@ -10,7 +10,9 @@ let rewrite ~stamp name =
 
 (* A stamp as fetching computes it (dependencies.md §6.1): the version tag,
    `%`, the identity hash's 16 lowercase hexadecimal digits, and `%`. The tag
-   holds no `%`, which is what keeps the boundary after it unambiguous. *)
+   is path-safe (§7), so it holds no `%`, which keeps the boundary after it
+   unambiguous, and no `@`, which a linker reads as a symbol version. The
+   characters allowed here are the ones every tag scheme in use needs. *)
 let is_stamp stamp =
   let n = String.length stamp in
   n > 18
@@ -19,4 +21,6 @@ let is_stamp stamp =
   && String.for_all
        (function '0' .. '9' | 'a' .. 'f' -> true | _ -> false)
        (String.sub stamp (n - 17) 16)
-  && not (String.exists (fun c -> c = '%' || c = '!' || c = '\000') (String.sub stamp 0 (n - 18)))
+  && String.for_all
+       (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '.' | '_' | '+' | '-' -> true | _ -> false)
+       (String.sub stamp 0 (n - 18))

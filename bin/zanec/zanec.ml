@@ -310,7 +310,9 @@ let run_packages build =
               exit 1))
 
 (* The output is written only once the whole object has been rewritten, so a
-   malformed input leaves nothing behind. *)
+   malformed input leaves nothing behind. It is written beside OUTPUT and
+   renamed into place, so a failed write leaves an existing OUTPUT, or the
+   INPUT it may be, as it was. *)
 let run_rewrite ~stamp ~input ~output =
   let fail message =
     prerr_endline ("Error: " ^ message);
@@ -319,7 +321,7 @@ let run_rewrite ~stamp ~input ~output =
   if not (Rewrite.is_stamp stamp) then
     fail
       (Printf.sprintf
-         "`%s` is not a stamp: a version tag, `%%`, 16 lowercase hexadecimal digits and `%%`"
+         "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
          stamp);
   let contents =
     try In_channel.with_open_bin input In_channel.input_all
@@ -328,8 +330,20 @@ let run_rewrite ~stamp ~input ~output =
   match Rewrite.rewrite ~stamp contents with
   | Error message -> fail (input ^ ": " ^ message)
   | Ok (rewritten, _) -> (
-      try Out_channel.with_open_bin output (fun oc -> output_string oc rewritten)
-      with Sys_error message -> fail message)
+      Random.self_init ();
+      let temporary =
+        Filename.concat (Filename.dirname output)
+          (Printf.sprintf ".%s.%08x" (Filename.basename output) (Random.bits ()))
+      in
+      try
+        Out_channel.with_open_gen
+          [ Open_wronly; Open_creat; Open_excl; Open_binary ]
+          0o666 temporary
+          (fun oc -> output_string oc rewritten);
+        Sys.rename temporary output
+      with Sys_error message ->
+        (try Sys.remove temporary with Sys_error _ -> ());
+        fail (Printf.sprintf "cannot write `%s`: %s" output message))
 
 let () =
   match arguments () with

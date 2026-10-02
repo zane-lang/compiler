@@ -46,10 +46,11 @@ let set_word l b o v = if l.wide then set_u64 l b o v else set_u32 l b o v
 
 let is s = String.length s >= 4 && String.sub s 0 4 = "\x7fELF"
 
-type section = { header : int; kind : int; offset : int; size : int; link : int }
+type section = { header : int; kind : int; offset : int; size : int; link : int; entsize : int }
 
 let sht_symtab = 2
 let sht_strtab = 3
+let sht_dynsym = 11
 let et_rel = 1
 
 let sections l b =
@@ -67,6 +68,7 @@ let sections l b =
         offset = word l b (h + if l.wide then 24 else 16);
         size = word l b (h + if l.wide then 32 else 20);
         link = u32 l b (h + if l.wide then 40 else 24);
+        entsize = word l b (h + if l.wide then 56 else 36);
       }
     in
     (* With 0xff00 sections or more, the count is the first header's size. *)
@@ -112,8 +114,14 @@ let rewrite ~stamp input =
   let renamed = ref [] in
   Array.iter
     (fun symtab ->
+      (* A relocatable object a library is built into has no dynamic symbols.
+         One that does is not rewritten, rather than rewritten in part. *)
+      if symtab.kind = sht_dynsym then malformed "it has a dynamic symbol table";
       if symtab.kind = sht_symtab then begin
         within symtab;
+        let entsize = if wide then 24 else 16 in
+        if symtab.entsize <> entsize || symtab.size mod entsize <> 0 then
+          malformed "a symbol table's entries are not ELF symbols";
         if symtab.link <= 0 || symtab.link >= Array.length sections then
           malformed "a symbol table names no string table";
         let strtab = sections.(symtab.link) in
@@ -125,7 +133,6 @@ let rewrite ~stamp input =
           | None -> (Buffer.create 256, ref strtab.size, Hashtbl.create 64)
         in
         Hashtbl.replace tables symtab.link (added, size, seen);
-        let entsize = if wide then 24 else 16 in
         for i = 0 to (symtab.size / entsize) - 1 do
           let entry = symtab.offset + (i * entsize) in
           let old = u32 l b entry in
