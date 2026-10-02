@@ -9,7 +9,7 @@ let is_stamp = Name.is_stamp
 let rewrite ~stamp input =
   if not (Name.is_stamp stamp) then
     Error (Printf.sprintf "`%s` is not a stamp: a version tag, `%%`, 16 hexadecimal digits and `%%`" stamp)
-  else if Elf.is (Bytes.unsafe_of_string input) then
+  else if Elf.is input then
     match Elf.rewrite ~stamp input with
     | result -> Ok result
     | exception Elf.Malformed what -> Error ("the object file is malformed: " ^ what)

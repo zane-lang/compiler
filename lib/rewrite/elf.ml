@@ -44,11 +44,12 @@ let set_u64 l b o v =
 let word l b o = if l.wide then u64 l b o else u32 l b o
 let set_word l b o v = if l.wide then set_u64 l b o v else set_u32 l b o v
 
-let is b = Bytes.length b >= 4 && Bytes.sub_string b 0 4 = "\x7fELF"
+let is s = String.length s >= 4 && String.sub s 0 4 = "\x7fELF"
 
 type section = { header : int; kind : int; offset : int; size : int; link : int }
 
 let sht_symtab = 2
+let sht_strtab = 3
 let et_rel = 1
 
 let sections l b =
@@ -70,6 +71,8 @@ let sections l b =
     in
     (* With 0xff00 sections or more, the count is the first header's size. *)
     let shnum = if shnum = 0 then (at 0).size else shnum in
+    if shoff > Bytes.length b || shnum > (Bytes.length b - shoff) / shentsize then
+      malformed "the section headers run past the end of the file";
     Array.init shnum at
   end
 
@@ -100,7 +103,8 @@ let rewrite ~stamp input =
   if u16 l b 16 <> et_rel then malformed "the file is not a relocatable object";
   let sections = sections l b in
   let within t =
-    if t.offset + t.size > Bytes.length b then malformed "a section runs past the end of the file"
+    if t.offset > Bytes.length b || t.size > Bytes.length b - t.offset then
+      malformed "a section runs past the end of the file"
   in
   (* Each string table some symbol table names: the strings to append to it,
      and the end of the table they are appended after. *)
@@ -113,6 +117,7 @@ let rewrite ~stamp input =
         if symtab.link <= 0 || symtab.link >= Array.length sections then
           malformed "a symbol table names no string table";
         let strtab = sections.(symtab.link) in
+        if strtab.kind <> sht_strtab then malformed "a symbol table names no string table";
         within strtab;
         let added, size, seen =
           match Hashtbl.find_opt tables symtab.link with
