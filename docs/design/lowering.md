@@ -272,6 +272,9 @@ The binary takes the same `--package` flags as the semantic views:
 | `--cgt` | prints the code-generation tree |
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
+| `--target TRIPLE` | compiles `--ll` and `--build` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link for it |
+
+`--kind library` refuses `--build`, since a library is not an executable.
 
 `tests/codegen/` lowers and builds each fixture, runs it, and compares the
 tree and what the program wrote against golden files. `tests/runtime/` compiles

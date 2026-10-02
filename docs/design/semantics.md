@@ -103,13 +103,16 @@ for stages 1 and 2, which never look past the file. It is not enough for stage
 **D2. Semantics takes a set of packages: the root plus its dependencies, each
 given as a directory.** Fetching, versioning and the manifest
 ([`dependencies.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/dependencies.md))
-stay out of scope. The driver takes a `--package DIR` flag, repeatable, and the
-first directory given is the root (`packages.md` §6.1). Each file parses and
-lowers exactly as today; stage 3 is the first stage that groups them.
-`lib/tst/passes/assembly.ml` does the grouping: a package is the `.zn` files directly
-in its directory (§2.3), named for the directory (§2.1). Each file must begin
-with a `package` line naming it (§2.2), and no two directories may share a
-name.
+stay out of scope: they are `zane`'s, which reads the manifest and hands the
+compiler each package as `--package NAME=DIR`, repeatable, the first being the
+root (`packages.md` §6.1). Each file parses and lowers exactly as today; stage
+3 is the first stage that groups them. `lib/tst/passes/assembly.ml` does the
+grouping: a package is the `.zn` files directly in its directory (§2.3), named
+by the `NAME` its manifest gives it (§2.1), or for the directory when a bare
+`--package DIR` gives none, which is how the test fixtures name theirs. Each
+file must begin with a `package` line naming it (§2.2), and no two packages
+may share a name. `--check` runs semantics and prints nothing, and
+`--kind application` makes a root without `main` an error (§6.2).
 
 **D3. The compiler never names `core`.** `core` is an ordinary package
 ([`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6), so the compiler reads it as source and checks it by the

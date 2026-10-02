@@ -1,0 +1,9 @@
+/// A project's sources sit in its `src/` directory, so the package is named
+/// by its manifest and not after the directory (packages.md §2.1).
+package demo;
+
+@primitives$Unit main() {
+	text @primitives$String("hello world");
+	@program$console!print(text);
+	return @primitives$Unit();
+}

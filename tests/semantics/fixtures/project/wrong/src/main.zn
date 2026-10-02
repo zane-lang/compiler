@@ -1,0 +1,6 @@
+/// Declares a package other than the one its manifest names.
+package other;
+
+@primitives$Unit main() {
+	return @primitives$Unit();
+}
