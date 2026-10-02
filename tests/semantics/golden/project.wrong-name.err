@@ -1,0 +1,4 @@
+File "fixtures/project/wrong/src/main.zn", line 2, characters 9-14:
+2 | package other;
+  |         ^^^^^
+Error: this file is in the package `demo`, so it must declare `package demo;`
