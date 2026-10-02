@@ -141,13 +141,12 @@ let arguments () =
         packages (Some (Object output)) build rest
     | "--stamp" :: stamp :: rest when is_value stamp -> (
         match String.index_opt stamp '=' with
-        | Some i
-          when is_package_name (String.sub stamp 0 i)
-               && i + 1 < String.length stamp
-               && not (List.mem_assoc (String.sub stamp 0 i) build.stamps) ->
-            let name = String.sub stamp 0 i
-            and value = String.sub stamp (i + 1) (String.length stamp - i - 1) in
-            packages view { build with stamps = (name, value) :: build.stamps } rest
+        | Some i when i + 1 < String.length stamp ->
+            let name = String.sub stamp 0 i in
+            if is_package_name name && not (List.mem_assoc name build.stamps) then
+              let value = String.sub stamp (i + 1) (String.length stamp - i - 1) in
+              packages view { build with stamps = (name, value) :: build.stamps } rest
+            else usage ()
         | _ -> usage ())
     | "--link" :: file :: rest when is_value file ->
         packages view { build with link = file :: build.link } rest
