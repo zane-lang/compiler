@@ -1,11 +1,20 @@
 (* A module to a binary: the target machine writes an object file, and the
    system's C compiler links it with the runtime (docs/design/lowering.md L2, L17). *)
 
+external normalize_triple : string -> string = "zane_normalize_triple"
+
 (* The machine for *target*, an LLVM triple, or for the host when it is
-   absent. An unknown triple is an error, not an exception. *)
+   absent. The triple is taken in LLVM's normal form, which reads a short
+   spelling such as `x86_64-windows-gnu` as the Windows triple it is, where
+   LLVM would otherwise take `windows` for the vendor and build for no
+   operating system. An unknown triple is an error, not an exception. *)
 let target_machine ?target ~optimize () =
   Llvm_all_backends.initialize ();
-  let triple = Option.value target ~default:(Llvm_target.Target.default_triple ()) in
+  let triple =
+    match target with
+    | Some target -> normalize_triple target
+    | None -> Llvm_target.Target.default_triple ()
+  in
   let level = Llvm_target.CodeGenOptLevel.(if optimize then Default else None) in
   match Llvm_target.Target.by_triple triple with
   | target ->
@@ -85,12 +94,13 @@ let object_file ?target ?(optimize = false) m output =
 let executable ?target ?(optimize = false) ?(link = []) m output =
   match prepare ?target ~optimize m with
   | Error _ as error -> error
-  | Ok (triple, tm) -> (
+  | Ok (_, tm) -> (
       let dir = Filename.temp_dir "zane" "" in
       let obj = Filename.concat dir "program.o" in
       let rt = Filename.concat dir "zane.c" in
-      (* The C compiler links for the triple the object was written for. *)
-      let target_flag = match target with Some _ -> [ "--target=" ^ triple ] | None -> [] in
+      (* The C compiler links for the target as it was written: `zig cc`
+         reads its own short triples, and not every normal form. *)
+      let target_flag = match target with Some target -> [ "--target=" ^ target ] | None -> [] in
       let command =
         String.concat " "
           (List.map Filename.quote
