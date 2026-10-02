@@ -23,3 +23,8 @@ program linked from several objects wrote.
   verbs and makes the instance of geometry's generic at survey's own type,
   the program links with geometry's object, and every check it makes prints
   `yes` when it holds.
+
+  geometry's own placeholder object is also rewritten with that stamp, as
+  fetching rewrites a release's objects. It must define exactly what the
+  object built from source with the stamp does, and survey links with it the
+  same way.

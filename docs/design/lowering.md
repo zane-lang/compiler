@@ -280,6 +280,10 @@ The binary takes the same `--package` flags as the semantic views:
 | `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it |
 | `--optimize` | runs LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
 
+`zanec --rewrite STAMP INPUT OUTPUT` takes no packages: it writes the
+library object `INPUT` to `OUTPUT` with its `!` placeholder turned into
+`STAMP`, as fetching does ([`separate-compilation.md`](separate-compilation.md) C9).
+
 `--kind library` refuses `--build`, since a library is not an executable.
 With it, lowering starts from every verb the root package declares that is
 not generic and has a function of its own, and from its lambda-variables,

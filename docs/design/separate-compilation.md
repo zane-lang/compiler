@@ -1,11 +1,11 @@
 # Separate compilation: one object per package
 
-> **Status: built through §5 step 3.** This page says how the compiler builds
+> **Status: built through §5 step 4.** This page says how the compiler builds
 > one package into an object file of its own, so a library can ship prebuilt
 > objects ([`dependencies.md`](https://github.com/zane-lang/spec/blob/main/spec/dependencies.md)
 > §3.1) and a program can link against them. Each decision is numbered
 > (**C1**…). §5 lists the order they are built in, and §6 the questions still
-> open. Fetching rewrites no placeholder until step 4.
+> open. The rewriter reads ELF objects so far; Mach-O and COFF are step 5.
 
 A dependency reaches a build in two forms. Its **source** is the verified
 checkout in the package cache (`dependencies.md` §7), and its **objects** are
@@ -72,10 +72,12 @@ name of its own, or the linker would keep one copy for both (C4):
 !math$length(this !math$Vec)   →   v1.0.1%3f9a1c02b7e4d6a8%math$length(this v1.0.1%3f9a1c02b7e4d6a8%math$Vec)
 ```
 
-Every placeholder in a symbol is rewritten, wherever it stands. An operator
-named `!` or `!=` stands right after the `$` that ends its package's name,
-where no placeholder ever does, so the rewriter tells the two apart by the
-character before the `!`.
+Every placeholder in a symbol is rewritten, wherever it stands. No other `!`
+can stand in a symbol: no operator is spelled with one
+([`operators.md`](https://github.com/zane-lang/spec/blob/main/spec/operators.md)
+§5.2), and a mutating call's `!` is call syntax, not part of the verb's name
+([`functions.md`](https://github.com/zane-lang/spec/blob/main/spec/functions.md)
+§2.5). So the rewriter replaces every `!` it finds (C9).
 
 An application's root package defines no placeholder symbols: nothing links
 against it.
@@ -108,7 +110,7 @@ needed.
 
 ---
 
-## 3. Linking
+## 3. Rewriting and linking
 
 **C7. A program links its root object, its dependencies' objects, and the
 runtime.** `--build OUT` takes each dependency's rewritten objects with
@@ -122,6 +124,21 @@ only by the runtime, through the pointer its object passes
 ([`symbols.md`](symbols.md)). Each object that needs a type's table makes its
 own, and nothing compares two tables' addresses, so private copies cost a few
 bytes and need no shared name.
+
+**C9. `zanec --rewrite STAMP INPUT OUTPUT` turns a library's placeholder into
+its stamp.** Fetching runs it on each object a release archive carries
+(`dependencies.md` §6.1). It is the compiler's step rather than `zane`'s
+because the symbol spelling is the compiler's: the `zanec` that the project
+pins rewrites objects that same version built, so `zane` never has to know
+how any version spells a symbol (§4).
+
+The rewriter edits the object's symbol table and nothing else. A stamped name
+is longer than the placeholder, so the new names cannot go where the old ones
+are: the string table is copied to the end of the file with the new names
+after it, and each renamed symbol points at its new name. The old table stays
+behind, unread. Nothing else moves, since relocations and section groups
+name a symbol by its index, not its name. The rewritten object defines
+exactly what one built from source with `--stamp` does.
 
 ---
 
@@ -150,8 +167,12 @@ test passing.
 3. **Stamps and linking.** `--stamp` and `--link` (C6, C7). A test builds a
    library's object, renames its `!` symbols as fetching will, and links a
    program against it.
-4. **The rewriter.** The step that turns `!` into a stamp in a library's
-   object files, as `dependencies.md` §6.1 assigns to the compiler.
+4. **The rewriter for ELF.** `--rewrite` (C9) for ELF objects. A test
+   rewrites a library's object, compares its symbols with the same library
+   built from source with its stamp, and links a program against it.
+5. **The rewriter for Mach-O and COFF.** The same, for macOS and Windows
+   objects. The tests list a rewritten object's symbols, since a Linux
+   runner cannot link for those targets.
 
 ---
 

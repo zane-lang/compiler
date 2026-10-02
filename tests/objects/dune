@@ -131,3 +131,63 @@
  (alias runtest)
  (action
   (diff golden/survey.out survey.out.actual)))
+
+; geometry's placeholder object rewritten as fetching rewrites a release's
+; (docs/design/separate-compilation.md C9). It defines exactly what the
+; object built from source with the same stamp does, and survey links with
+; it as with that one.
+
+(rule
+ (targets geometry.rewritten.o)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --rewrite
+   v1.0.1%3f9a1c02b7e4d6a8%
+   %{dep:geometry.o}
+   geometry.rewritten.o)))
+
+(rule
+ (action
+  (with-stdout-to
+   geometry.rewritten.symbols
+   (system "nm --defined-only %{dep:geometry.rewritten.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (action
+  (with-stdout-to
+   geometry.stamped.symbols
+   (system "nm --defined-only %{dep:geometry.stamped.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff geometry.stamped.symbols geometry.rewritten.symbols)))
+
+(rule
+ (deps (source_tree fixtures/survey) (source_tree fixtures/geometry))
+ (targets survey.rewritten.exe)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --stamp
+   geometry=v1.0.1%3f9a1c02b7e4d6a8%
+   --link
+   %{dep:geometry.rewritten.o}
+   --build
+   survey.rewritten.exe
+   --package
+   fixtures/survey
+   --package
+   fixtures/geometry)))
+
+(rule
+ (action
+  (with-stdout-to
+   survey.rewritten.out
+   (run ./survey.rewritten.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/survey.out survey.rewritten.out)))
