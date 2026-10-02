@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Build the test programs for Windows into DIR, with what each must do beside
+# it, for `check-programs` to run on Windows (docs/design/platforms.md).
+#
+# Every codegen fixture with an expected output is built twice, as
+# tests/codegen/ builds it, plain and optimized. `survey` is built against
+# geometry's objects, both the one built from source with geometry's stamp
+# and geometry's placeholder object rewritten with it
+# (docs/design/separate-compilation.md C7, C9). Each program NAME.exe has
+# NAME.out, the output it must write, and NAME.status, the status it must
+# exit with; a program expected to fail is held to what it writes on both
+# streams, as tests/codegen/ holds it.
+#
+# The programs link with `zig cc`, which carries Windows' C library and
+# threads. The compiler is built first.
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+OUT="$(mkdir -p "${1:?usage: windows-programs DIR}" && cd "$1" && pwd)"
+# What an earlier build left here is not this build's, and would be checked
+# as if it were.
+rm -f "$OUT"/*.exe "$OUT"/*.out "$OUT"/*.status
+TARGET=x86_64-windows-gnu
+STAMP='v1.0.1%3f9a1c02b7e4d6a8%'
+
+cd "$ROOT"
+dune build bin/zanec/zanec.exe
+ZANEC="$ROOT/_build/default/bin/zanec/zanec.exe"
+export ZANE_CC="$ROOT/dev/bin/zig-cc"
+
+expect() { # NAME GOLDEN STATUS
+	cp "$2" "$OUT/$1.out"
+	echo "$3" >"$OUT/$1.status"
+}
+
+for golden in tests/codegen/golden/*.out; do
+	name="$(basename "$golden" .out)"
+	fixture="tests/codegen/fixtures/$name"
+	status=0
+	[[ -f "$fixture/expected-status" ]] && status="$(tr -d '[:space:]' <"$fixture/expected-status")"
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" --package "$fixture"
+	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" --package "$fixture"
+	expect "$name" "$golden" "$status"
+	expect "$name.optimized" "$golden" "$status"
+done
+
+objects="$(mktemp -d)"
+trap 'rm -rf "$objects"' EXIT
+geometry=tests/objects/fixtures/geometry
+survey=(--package tests/objects/fixtures/survey --package "$geometry")
+"$ZANEC" --kind library --target "$TARGET" --stamp "geometry=$STAMP" \
+	--object "$objects/geometry.stamped.o" --package "$geometry"
+"$ZANEC" --kind library --target "$TARGET" --object "$objects/geometry.o" --package "$geometry"
+"$ZANEC" --rewrite "$STAMP" "$objects/geometry.o" "$objects/geometry.rewritten.o"
+for object in stamped rewritten; do
+	"$ZANEC" --target "$TARGET" --stamp "geometry=$STAMP" --link "$objects/geometry.$object.o" \
+		--build "$OUT/survey.$object.exe" "${survey[@]}"
+	expect "survey.$object" tests/objects/golden/survey.out 0
+done
+
+echo "windows-programs: $(ls "$OUT"/*.exe | wc -l) programs in $OUT"

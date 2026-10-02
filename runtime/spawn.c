@@ -112,7 +112,11 @@ static void *zane_worker(void *deque) {
 
 /* One thread for each processor. */
 int64_t zane_processors(void) {
+#ifdef _WIN32
+	long n = pthread_num_processors_np();
+#else
 	long n = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
 	return n < 1 ? 1 : n;
 }
 

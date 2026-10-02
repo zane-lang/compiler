@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# Run every NAME.exe in DIR and hold it to NAME.out and NAME.status, as
+# `windows-programs` wrote them. A program expected to exit 0 is held to its
+# stdout; one expected to fail is held to everything it wrote, as
+# tests/codegen/ holds it. RUNNER, when set, runs each program, so the same
+# check runs Windows programs under Wine elsewhere: `RUNNER=wine64`.
+#
+# Every program runs, and each mismatch is reported, before the check fails.
+
+DIR="${1:?usage: check-programs DIR}"
+read -r -a runner <<<"${RUNNER:-}"
+failed=0
+count=0
+
+for program in "$DIR"/*.exe; do
+	# With no programs the pattern stays as written, and names no file.
+	[[ -f "$program" ]] || continue
+	name="$(basename "$program" .exe)"
+	expected="$(tr -d '[:space:]' <"$DIR/$name.status")"
+	actual_out="$(mktemp)"
+	if [[ "$expected" == 0 ]]; then
+		"${runner[@]}" "$program" >"$actual_out"
+	else
+		"${runner[@]}" "$program" >"$actual_out" 2>&1
+	fi
+	status=$?
+	count=$((count + 1))
+	if [[ "$status" != "$expected" ]]; then
+		echo "FAIL $name: exited $status, expected $expected"
+		failed=1
+	elif ! diff "$DIR/$name.out" "$actual_out" >/dev/null; then
+		echo "FAIL $name: output differs from $name.out"
+		diff "$DIR/$name.out" "$actual_out" | head -20
+		failed=1
+	else
+		echo "ok   $name"
+	fi
+	rm -f "$actual_out"
+done
+
+if [[ "$count" == 0 ]]; then
+	echo "check-programs: no programs in $DIR"
+	exit 1
+fi
+exit "$failed"

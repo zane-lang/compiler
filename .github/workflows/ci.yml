@@ -95,6 +95,22 @@ jobs:
       - name: Compiler tests
         run: devbox run -- just test-compiler
 
+      # The test programs built for Windows, which the `windows` job below
+      # runs there (docs/design/platforms.md). Zig links them; it comes from
+      # its release, checked against the release's digest.
+      - name: Install Zig
+        run: .github/scripts/install-zig
+
+      - name: Build the Windows programs
+        run: devbox run -- dev/bin/windows-programs windows-programs
+
+      - name: Keep the Windows programs
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-programs
+          path: windows-programs
+          if-no-files-found: error
+
       - name: Grammar ambiguity tests
         if: steps.suites.outputs.grammar == 'true'
         run: devbox run -- just test-grammar
@@ -103,3 +119,32 @@ jobs:
         if: steps.suites.outputs.ambiguity-tools == 'true'
         run: devbox run -- just test-ambiguity-tools
 
+  # Linux and Windows are the first tier (docs/design/platforms.md): the
+  # programs the job above built for Windows run on Windows itself, each held
+  # to the output and status its fixture expects.
+  windows:
+    needs: build-and-test
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      # Git on a Windows runner checks text out with `\r\n` line endings,
+      # which Bash cannot run a script with.
+      - name: Keep line endings as committed
+        run: git config --global core.autocrlf false
+
+      # The job runs no git command, so the token is not left behind.
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Fetch the Windows programs
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-programs
+          path: windows-programs
+
+      - name: Run the Windows programs
+        shell: bash
+        run: dev/bin/check-programs windows-programs
