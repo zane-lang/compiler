@@ -27,7 +27,7 @@ external set_own_comdat : Llvm.llmodule -> Llvm.llvalue -> string -> unit
 let shared_in_comdats triple m =
   let contains part =
     let n = String.length part in
-    let rec at i = i + n <= String.length triple && (String.sub triple i n = part || at (i + 1)) in
+    let rec at i = i <= String.length triple - n && (String.sub triple i n = part || at (i + 1)) in
     at 0
   in
   let macho = List.exists contains [ "-apple-"; "darwin"; "macos"; "-ios" ] in

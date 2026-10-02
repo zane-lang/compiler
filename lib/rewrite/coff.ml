@@ -56,7 +56,7 @@ let rewrite ~stamp input =
           if u32 ~little b entry = 0 then
             let offset = u32 ~little b (entry + 4) in
             if offset < 4 then malformed "a symbol's name lies outside its string table";
-            cstring b ~start:(strings + offset) ~limit:(strings + size) "a symbol's name"
+            cstring b ~table:strings ~size ~at:offset "a symbol's name"
           else
             let field = Bytes.sub_string b entry 8 in
             match String.index_opt field '\000' with

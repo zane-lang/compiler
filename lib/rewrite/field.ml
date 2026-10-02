@@ -43,11 +43,14 @@ let within b ~offset ~size what =
   if offset < 0 || size < 0 || offset > Bytes.length b || size > Bytes.length b - offset then
     malformed (what ^ " runs past the end of the file")
 
-(* The NUL-terminated string at [start], which must end before [limit]. *)
-let cstring b ~start ~limit what =
-  if start < 0 || start >= limit then malformed (what ^ " lies outside its string table");
+(* The NUL-terminated string at index [at] of the string table of [size]
+   bytes at [table], which must end within the table. The index is checked
+   against the size before it is added to the table's offset. *)
+let cstring b ~table ~size ~at what =
+  if at < 0 || at >= size then malformed (what ^ " lies outside its string table");
+  let start = table + at in
   match Bytes.index_from_opt b start '\000' with
-  | Some stop when stop < limit -> Bytes.sub_string b start (stop - start)
+  | Some stop when stop - table < size -> Bytes.sub_string b start (stop - start)
   | _ -> malformed (what ^ " is not terminated within its string table")
 
 (* The names a rewrite appends to a string table that is [size] bytes long,

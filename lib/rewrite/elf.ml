@@ -59,7 +59,7 @@ let sections l b =
   end
 
 (* The NUL-terminated name at [o] in the string table [t]. *)
-let name b t o = cstring b ~start:(t.offset + o) ~limit:(t.offset + t.size) "a symbol's name"
+let name b t o = cstring b ~table:t.offset ~size:t.size ~at:o "a symbol's name"
 
 let rewrite ~stamp input =
   let b = Bytes.of_string input in

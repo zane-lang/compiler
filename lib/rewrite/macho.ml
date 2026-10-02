@@ -67,7 +67,7 @@ let rewrite ~stamp input =
         let strx = u32 entry in
         if strx <> 0 then
           let old =
-            cstring b ~start:(stroff + strx) ~limit:(stroff + strsize) "a symbol's name"
+            cstring b ~table:stroff ~size:strsize ~at:strx "a symbol's name"
           in
           match Name.rewrite ~stamp old with
           | None -> ()
