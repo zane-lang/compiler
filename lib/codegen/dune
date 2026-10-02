@@ -3,4 +3,7 @@
 ; runtime that [Runtime_source] embeds (runtime/dune).
 (library
  (name codegen)
+ (foreign_stubs
+  (language c)
+  (names comdat_stubs))
  (libraries cgt runtime_source llvm llvm.analysis llvm.target llvm.passbuilder llvm.all_backends))

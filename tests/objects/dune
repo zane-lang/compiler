@@ -191,3 +191,127 @@
  (alias runtest)
  (action
   (diff golden/survey.out survey.rewritten.out)))
+
+; geometry rewritten for macOS (Mach-O) and Windows (COFF) objects, each
+; held to the object built from source with the same stamp for that target.
+; `llvm-nm` reads both formats, where GNU `nm` reads neither everywhere, and
+; `-m` spells out a Mach-O symbol's kind. The x86-64 listings are also
+; golden: a shared instance is a `weak external` on Mach-O, and on COFF a
+; function in a COMDAT, which `llvm-nm` lists as `T` with no `.weak.` alias
+; beside it.
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.macos-x86_64.o geometry.macos-x86_64.stamped.o)
+ (action
+  (progn
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-apple-macosx11.0.0 --object geometry.macos-x86_64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-apple-macosx11.0.0 --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.macos-x86_64.stamped.o --package fixtures/geometry))))
+
+(rule
+ (targets geometry.macos-x86_64.rewritten.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --rewrite v1.0.1%3f9a1c02b7e4d6a8% %{dep:geometry.macos-x86_64.o} geometry.macos-x86_64.rewritten.o)))
+
+(rule
+ (action
+  (with-stdout-to geometry.macos-x86_64.rewritten.symbols
+   (system "llvm-nm -m %{dep:geometry.macos-x86_64.rewritten.o} | LC_ALL=C sort"))))
+
+(rule
+ (action
+  (with-stdout-to geometry.macos-x86_64.stamped.symbols
+   (system "llvm-nm -m %{dep:geometry.macos-x86_64.stamped.o} | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action (diff geometry.macos-x86_64.stamped.symbols geometry.macos-x86_64.rewritten.symbols)))
+
+(rule
+ (alias runtest)
+ (action (diff golden/geometry.macos-x86_64.symbols geometry.macos-x86_64.rewritten.symbols)))
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.macos-arm64.o geometry.macos-arm64.stamped.o)
+ (action
+  (progn
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target arm64-apple-macosx11.0.0 --object geometry.macos-arm64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target arm64-apple-macosx11.0.0 --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.macos-arm64.stamped.o --package fixtures/geometry))))
+
+(rule
+ (targets geometry.macos-arm64.rewritten.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --rewrite v1.0.1%3f9a1c02b7e4d6a8% %{dep:geometry.macos-arm64.o} geometry.macos-arm64.rewritten.o)))
+
+(rule
+ (action
+  (with-stdout-to geometry.macos-arm64.rewritten.symbols
+   (system "llvm-nm -m %{dep:geometry.macos-arm64.rewritten.o} | LC_ALL=C sort"))))
+
+(rule
+ (action
+  (with-stdout-to geometry.macos-arm64.stamped.symbols
+   (system "llvm-nm -m %{dep:geometry.macos-arm64.stamped.o} | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action (diff geometry.macos-arm64.stamped.symbols geometry.macos-arm64.rewritten.symbols)))
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.windows-x86_64.o geometry.windows-x86_64.stamped.o)
+ (action
+  (progn
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-pc-windows-msvc --object geometry.windows-x86_64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-pc-windows-msvc --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.windows-x86_64.stamped.o --package fixtures/geometry))))
+
+(rule
+ (targets geometry.windows-x86_64.rewritten.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --rewrite v1.0.1%3f9a1c02b7e4d6a8% %{dep:geometry.windows-x86_64.o} geometry.windows-x86_64.rewritten.o)))
+
+(rule
+ (action
+  (with-stdout-to geometry.windows-x86_64.rewritten.symbols
+   (system "llvm-nm %{dep:geometry.windows-x86_64.rewritten.o} | LC_ALL=C sort"))))
+
+(rule
+ (action
+  (with-stdout-to geometry.windows-x86_64.stamped.symbols
+   (system "llvm-nm %{dep:geometry.windows-x86_64.stamped.o} | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action (diff geometry.windows-x86_64.stamped.symbols geometry.windows-x86_64.rewritten.symbols)))
+
+(rule
+ (alias runtest)
+ (action (diff golden/geometry.windows-x86_64.symbols geometry.windows-x86_64.rewritten.symbols)))
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.windows-arm64.o geometry.windows-arm64.stamped.o)
+ (action
+  (progn
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target aarch64-pc-windows-msvc --object geometry.windows-arm64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target aarch64-pc-windows-msvc --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.windows-arm64.stamped.o --package fixtures/geometry))))
+
+(rule
+ (targets geometry.windows-arm64.rewritten.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --rewrite v1.0.1%3f9a1c02b7e4d6a8% %{dep:geometry.windows-arm64.o} geometry.windows-arm64.rewritten.o)))
+
+(rule
+ (action
+  (with-stdout-to geometry.windows-arm64.rewritten.symbols
+   (system "llvm-nm %{dep:geometry.windows-arm64.rewritten.o} | LC_ALL=C sort"))))
+
+(rule
+ (action
+  (with-stdout-to geometry.windows-arm64.stamped.symbols
+   (system "llvm-nm %{dep:geometry.windows-arm64.stamped.o} | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action (diff geometry.windows-arm64.stamped.symbols geometry.windows-arm64.rewritten.symbols)))
