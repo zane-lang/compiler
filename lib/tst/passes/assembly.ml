@@ -239,7 +239,8 @@ let load_package ~is_root request =
    is not modelled here. The first directory keeps the name; each later one is
    reported and not loaded. *)
 let claimed_by earlier request =
-  List.find_opt (fun other -> String.equal (name_of other) (name_of request)) earlier
+  let name = name_of request in
+  List.find_opt (fun other -> String.equal (name_of other) name) earlier
 
 (* Problems come out in the order the directories were given, and within a
    directory in file order, so a run reads top to bottom like the command

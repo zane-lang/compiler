@@ -51,19 +51,24 @@ let executable ?target m output =
           (List.map Filename.quote
              ([ cc () ] @ target_flag @ [ "-O2"; "-pthread"; "-o"; output; obj; rt ]))
       in
-      (* The temporary files go however the build ends, a raise included. *)
-      let status =
-        Fun.protect
-          ~finally:(fun () ->
-            List.iter
-              (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
-              [ "program.o"; "zane.h"; "zane_internal.h"; "zane.c" ];
-            try Sys.rmdir dir with Sys_error _ -> ())
-          (fun () ->
+      (* The temporary files go however the build ends, a raise included. A
+         failure to write them is an error like any other, not an exception. *)
+      Fun.protect
+        ~finally:(fun () ->
+          List.iter
+            (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
+            [ "program.o"; "zane.h"; "zane_internal.h"; "zane.c" ];
+          try Sys.rmdir dir with Sys_error _ -> ())
+        (fun () ->
+          match
             Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm;
-            write_runtime dir;
-            Sys.command command)
-      in
-      match status with
-      | 0 -> Ok ()
-      | n -> Error (Printf.sprintf "`%s` exited with %d" command n))
+            write_runtime dir
+          with
+          | exception Llvm_target.Error message ->
+              Error (Printf.sprintf "cannot write the object file: %s" message)
+          | exception Sys_error message ->
+              Error (Printf.sprintf "cannot write the runtime's sources: %s" message)
+          | () -> (
+              match Sys.command command with
+              | 0 -> Ok ()
+              | n -> Error (Printf.sprintf "`%s` exited with %d" command n))))
