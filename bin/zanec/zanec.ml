@@ -43,9 +43,14 @@ type build = {
   link : string list;
 }
 
+(* `--rewrite STAMP INPUT OUTPUT` is fetching's step, not a build's: a
+   library's object, built under the `!` placeholder, written out with the
+   placeholder turned into the stamp (docs/design/separate-compilation.md
+   C9). *)
 type request =
   | File of stage * (string * string)
   | Packages of build
+  | Rewrite of { stamp : string; input : string; output : string }
 
 let read_file path =
   try In_channel.with_open_text path In_channel.input_all
@@ -61,6 +66,7 @@ let usage () =
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp NAME=STAMP ...] [--link FILE ...]";
   prerr_endline "             --package [NAME=]DIR [--package [NAME=]DIR ...]";
+  prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
   exit 2
 
 (* The name reported in parse errors travels with the text, so reading from
@@ -172,6 +178,8 @@ let arguments () =
     }
   in
   match List.tl (Array.to_list Sys.argv) with
+  | [ "--rewrite"; stamp; input; output ] when List.for_all is_value [ stamp; input; output ] ->
+      Rewrite { stamp; input; output }
   | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
     | "--link" | "--check" | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
@@ -301,7 +309,30 @@ let run_packages build =
                 diagnostics;
               exit 1))
 
+(* The output is written only once the whole object has been rewritten, so a
+   malformed input leaves nothing behind. *)
+let run_rewrite ~stamp ~input ~output =
+  let fail message =
+    prerr_endline ("Error: " ^ message);
+    exit 1
+  in
+  if not (Rewrite.is_stamp stamp) then
+    fail
+      (Printf.sprintf
+         "`%s` is not a stamp: a version tag, `%%`, 16 lowercase hexadecimal digits and `%%`"
+         stamp);
+  let contents =
+    try In_channel.with_open_bin input In_channel.input_all
+    with Sys_error message -> fail message
+  in
+  match Rewrite.rewrite ~stamp contents with
+  | Error message -> fail (input ^ ": " ^ message)
+  | Ok (rewritten, _) -> (
+      try Out_channel.with_open_bin output (fun oc -> output_string oc rewritten)
+      with Sys_error message -> fail message)
+
 let () =
   match arguments () with
   | File (stage, input) -> run_file stage input
   | Packages build -> run_packages build
+  | Rewrite { stamp; input; output } -> run_rewrite ~stamp ~input ~output

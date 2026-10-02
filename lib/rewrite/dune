@@ -1,0 +1,4 @@
+; The rewriter: a library's object file, its `!` placeholder turned into a
+; version stamp (docs/design/separate-compilation.md C9).
+(library
+ (name rewrite))
