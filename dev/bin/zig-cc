@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# `zig cc` as one command, which is what `ZANE_CC` names: the C compiler that
+# links a program with the runtime. Zig carries what linking for another
+# operating system needs, so it links for any target from any machine
+# (docs/design/platforms.md). `ZIG` names the `zig` to use, when it is not
+# the one on the path.
+exec "${ZIG:-zig}" cc "$@"
