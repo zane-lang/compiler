@@ -18,6 +18,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT="$(mkdir -p "${1:?usage: windows-programs DIR}" && cd "$1" && pwd)"
+# What an earlier build left here is not this build's, and would be checked
+# as if it were.
+rm -f "$OUT"/*.exe "$OUT"/*.out "$OUT"/*.status
 TARGET=x86_64-windows-gnu
 STAMP='v1.0.1%3f9a1c02b7e4d6a8%'
 
