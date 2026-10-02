@@ -284,7 +284,8 @@ The binary takes the same `--package` flags as the semantic views:
 With it, lowering starts from every verb the root package declares that is
 not generic and has a function of its own, and from its lambda-variables,
 rather than from `main`, and names them with the `!` placeholder
-([`separate-compilation.md`](separate-compilation.md) C5).
+([`separate-compilation.md`](separate-compilation.md) C5), or with its own
+stamp when `--stamp` gives it one (C6).
 
 Without `--optimize` no optimization runs anywhere, which makes the build
 about three times faster; `zane run` builds that way and `zane build` does not.
