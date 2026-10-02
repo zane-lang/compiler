@@ -1,11 +1,12 @@
 # Separate compilation: one object per package
 
-> **Status: built through §5 step 4.** This page says how the compiler builds
+> **Status: built through §5 step 5.** This page says how the compiler builds
 > one package into an object file of its own, so a library can ship prebuilt
 > objects ([`dependencies.md`](https://github.com/zane-lang/spec/blob/main/spec/dependencies.md)
 > §3.1) and a program can link against them. Each decision is numbered
 > (**C1**…). §5 lists the order they are built in, and §6 the questions still
-> open. The rewriter reads ELF objects so far; Mach-O and COFF are step 5.
+> open. The targets these objects are built for, and how well each is
+> supported, are [`platforms.md`](platforms.md)'s.
 
 A dependency reaches a build in two forms. Its **source** is the verified
 checkout in the package cache (`dependencies.md` §7), and its **objects** are
@@ -52,6 +53,12 @@ under the home package's name, with LLVM's `linkonce_odr` linkage: every
 copy is the same code, and the linker keeps one. An instance the library
 itself uses is in the library's objects, and a consumer that needs the same
 one emits a copy that merges with it.
+
+On ELF and COFF each copy sits in a COMDAT of its own name. A COFF linker
+keeps one copy of a COMDAT and refuses a second plain definition as a
+duplicate, so without one two objects that make the same instance would not
+link. Mach-O has no COMDATs; its linker merges the copies as weak
+definitions.
 
 **C5. Every symbol a library defines carries the `!` placeholder.** That
 covers its public verbs, its `_`-private ones, its lambdas, and the generic
@@ -132,13 +139,17 @@ because the symbol spelling is the compiler's: the `zanec` that the project
 pins rewrites objects that same version built, so `zane` never has to know
 how any version spells a symbol (§4).
 
-The rewriter edits the object's symbol table and nothing else. A stamped name
-is longer than the placeholder, so the new names cannot go where the old ones
-are: the string table is copied to the end of the file with the new names
-after it, and each renamed symbol points at its new name. The old table stays
-behind, unread. Nothing else moves, since relocations and section groups
-name a symbol by its index, not its name. The rewritten object defines
-exactly what one built from source with `--stamp` does.
+The rewriter reads ELF, Mach-O and COFF objects, and edits a symbol table and
+nothing else. A stamped name is longer than the placeholder, so the new names
+cannot go where the old ones are: they are added after the end of the string
+table, and each renamed symbol points at its new name. Mach-O and COFF put
+the string table last in the file, so it grows where it is; ELF does not, so
+its table is copied to the end of the file first, and the old one stays
+behind, unread. A COFF symbol holds a name of up to 8 bytes in its own
+record, and a stamped name never fits there, so it moves to the string
+table. Nothing else in the object moves, since relocations, section groups
+and COMDATs name a symbol by its index. The rewritten object defines exactly
+what one built from source with `--stamp` does.
 
 ---
 
@@ -171,8 +182,9 @@ test passing.
    rewrites a library's object, compares its symbols with the same library
    built from source with its stamp, and links a program against it.
 5. **The rewriter for Mach-O and COFF.** The same, for macOS and Windows
-   objects. The tests list a rewritten object's symbols, since a Linux
-   runner cannot link for those targets.
+   objects, and generic instances in COMDATs on COFF and ELF (C4). The tests
+   compare a rewritten object's symbols with the stamped build's, since a
+   Linux runner cannot link for those targets.
 
 ---
 

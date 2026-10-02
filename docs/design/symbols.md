@@ -129,6 +129,6 @@ and each string literal's bytes (`zane.text`).
   own: its verbs are declared, not defined, and an instance of its generics
   is made under its stamp and shared (C1, C6).
 - `zanec --rewrite` turns a library object's placeholders into its stamp,
-  as fetching does, for ELF objects so far (C9).
+  as fetching does, for ELF, Mach-O and COFF objects (C9).
 - LLVM's struct types are unnamed: a CGT type is structural, and carries no
   name for a struct to take.

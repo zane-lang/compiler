@@ -7,38 +7,18 @@
    nothing else in the file moves: relocations and section groups name a
    symbol by its index, not its name. *)
 
-exception Malformed of string
-
-let malformed what = raise (Malformed what)
+open Field
 
 type layout = {
   wide : bool;  (** ELFCLASS64 *)
   little : bool;
 }
 
-let u16 l b o =
-  if o < 0 || o + 2 > Bytes.length b then malformed "a header runs past the end of the file";
-  if l.little then Bytes.get_uint16_le b o else Bytes.get_uint16_be b o
-
-let u32 l b o =
-  if o < 0 || o + 4 > Bytes.length b then malformed "a header runs past the end of the file";
-  Int32.to_int (if l.little then Bytes.get_int32_le b o else Bytes.get_int32_be b o)
-  land 0xFFFF_FFFF
-
-let u64 l b o =
-  if o < 0 || o + 8 > Bytes.length b then malformed "a header runs past the end of the file";
-  let v = if l.little then Bytes.get_int64_le b o else Bytes.get_int64_be b o in
-  if Int64.compare v 0L < 0 || Int64.compare v (Int64.of_int max_int) > 0 then
-    malformed "an offset is too large";
-  Int64.to_int v
-
-let set_u32 l b o v =
-  let v = Int32.of_int v in
-  if l.little then Bytes.set_int32_le b o v else Bytes.set_int32_be b o v
-
-let set_u64 l b o v =
-  let v = Int64.of_int v in
-  if l.little then Bytes.set_int64_le b o v else Bytes.set_int64_be b o v
+let u16 l = Field.u16 ~little:l.little
+let u32 l = Field.u32 ~little:l.little
+let u64 l = Field.u64 ~little:l.little
+let set_u32 l = Field.set_u32 ~little:l.little
+let set_u64 l = Field.set_u64 ~little:l.little
 
 (* A field that is 4 bytes wide in a 32-bit file and 8 in a 64-bit one. *)
 let word l b o = if l.wide then u64 l b o else u32 l b o
@@ -79,12 +59,7 @@ let sections l b =
   end
 
 (* The NUL-terminated name at [o] in the string table [t]. *)
-let name b t o =
-  if o >= t.size then malformed "a symbol's name lies outside its string table";
-  let start = t.offset + o in
-  match Bytes.index_from_opt b start '\000' with
-  | Some stop when stop < t.offset + t.size -> Bytes.sub_string b start (stop - start)
-  | _ -> malformed "a symbol's name is not terminated within its string table"
+let name b t o = cstring b ~start:(t.offset + o) ~limit:(t.offset + t.size) "a symbol's name"
 
 let rewrite ~stamp input =
   let b = Bytes.of_string input in
@@ -104,10 +79,7 @@ let rewrite ~stamp input =
   let l = { wide; little } in
   if u16 l b 16 <> et_rel then malformed "the file is not a relocatable object";
   let sections = sections l b in
-  let within t =
-    if t.offset > Bytes.length b || t.size > Bytes.length b - t.offset then
-      malformed "a section runs past the end of the file"
-  in
+  let within t = Field.within b ~offset:t.offset ~size:t.size "a section" in
   (* Each string table some symbol table names: the strings to append to it,
      and the end of the table they are appended after. *)
   let tables = Hashtbl.create 1 in
@@ -127,31 +99,21 @@ let rewrite ~stamp input =
         let strtab = sections.(symtab.link) in
         if strtab.kind <> sht_strtab then malformed "a symbol table names no string table";
         within strtab;
-        let added, size, seen =
+        let added =
           match Hashtbl.find_opt tables symtab.link with
-          | Some t -> t
-          | None -> (Buffer.create 256, ref strtab.size, Hashtbl.create 64)
+          | Some added -> added
+          | None ->
+              let added = Appended.create strtab.size in
+              Hashtbl.replace tables symtab.link added;
+              added
         in
-        Hashtbl.replace tables symtab.link (added, size, seen);
         for i = 0 to (symtab.size / entsize) - 1 do
           let entry = symtab.offset + (i * entsize) in
           let old = u32 l b entry in
           if old <> 0 then
             match Name.rewrite ~stamp (name b strtab old) with
             | None -> ()
-            | Some fresh ->
-                let at =
-                  match Hashtbl.find_opt seen fresh with
-                  | Some at -> at
-                  | None ->
-                      let at = !size in
-                      Buffer.add_string added fresh;
-                      Buffer.add_char added '\000';
-                      size := at + String.length fresh + 1;
-                      Hashtbl.add seen fresh at;
-                      at
-                in
-                renamed := (entry, at) :: !renamed
+            | Some fresh -> renamed := (entry, Appended.add added fresh) :: !renamed
         done
       end)
     sections;
@@ -161,14 +123,14 @@ let rewrite ~stamp input =
   Buffer.add_bytes out b;
   let moves =
     Hashtbl.fold
-      (fun index (added, size, _) moves ->
-        if Buffer.length added = 0 then moves
+      (fun index (added : Appended.t) moves ->
+        if Appended.is_empty added then moves
         else begin
           let t = sections.(index) in
           let offset = Buffer.length out in
           Buffer.add_subbytes out b t.offset t.size;
-          Buffer.add_buffer out added;
-          (t, offset, !size) :: moves
+          Buffer.add_buffer out added.text;
+          (t, offset, added.size) :: moves
         end)
       tables []
   in

@@ -29,6 +29,12 @@ One document per stage, in the order the compiler runs them.
   `lowering.md` L4.
 - [`design/symbols.md`](design/symbols.md): what every type, verb and variable
   is called in the IR and the binary.
+- [`design/separate-compilation.md`](design/separate-compilation.md): one
+  object per package, the `!` placeholder and its stamp, and linking a
+  program against a dependency's prebuilt objects (C1…).
+- [`design/platforms.md`](design/platforms.md): the targets the compiler
+  builds for, how well each is supported, and what building for them may
+  need.
 
 ## Ambiguity
 

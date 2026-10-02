@@ -27,4 +27,9 @@ program linked from several objects wrote.
   geometry's own placeholder object is also rewritten with that stamp, as
   fetching rewrites a release's objects. It must define exactly what the
   object built from source with the stamp does, and survey links with it the
-  same way.
+  same way. geometry is rewritten the same way for macOS and Windows on
+  x86-64 and ARM64, and held to the stamped build for each.
+  `golden/geometry.macos-x86_64.symbols` and
+  `golden/geometry.windows-x86_64.symbols` list two of those rewritten
+  objects' symbols, showing the instance a weak definition on macOS and in a
+  COMDAT on Windows.
