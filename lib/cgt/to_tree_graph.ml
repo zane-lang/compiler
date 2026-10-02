@@ -212,18 +212,27 @@ and stat = function
              | None -> [])))
   | Stat.Join task -> Leaf (Printf.sprintf "join #%d" task)
 
+(* A function local to its object, as every function of a program is, says
+   nothing about its linkage. *)
+let linkage (f : Func.t) =
+  match f.Func.linkage with
+  | Linkage.Local -> []
+  | Linkage.Exported -> [ ("linkage", Leaf "exported") ]
+  | Linkage.Shared -> [ ("linkage", Leaf "shared") ]
+
 let func (f : Func.t) =
   group "func"
     (fields
-       [
-         ("symbol", Leaf f.Func.symbol);
+       ([ ("symbol", Leaf f.Func.symbol) ]
+       @ linkage f
+       @ [
          ( "params",
            map_seq
              (fun (id, t) -> Leaf (Printf.sprintf "local #%d : %s" id (Ty.to_string t)))
              f.Func.params );
          ("ret", Leaf (Ty.to_string f.Func.ret));
          ("body", map_seq stat f.Func.body);
-       ])
+       ]))
 
 let program (p : Program.t) =
   let named (name, ps) =
@@ -231,8 +240,8 @@ let program (p : Program.t) =
   in
   group "program"
     (fields
-       [
-         ("entry", Leaf p.Program.entry);
+       ((match p.Program.entry with Some e -> [ ("entry", Leaf e) ] | None -> [])
+       @ [
          ("layouts", map_seq named p.Program.layouts);
          ("funcs", map_seq func p.Program.funcs);
-       ])
+       ]))

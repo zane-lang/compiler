@@ -1,12 +1,11 @@
 # Separate compilation: one object per package
 
-> **Status: design, not built.** This page says how the compiler builds one
-> package into an object file of its own, so a library can ship prebuilt
+> **Status: built through §5 step 2.** This page says how the compiler builds
+> one package into an object file of its own, so a library can ship prebuilt
 > objects ([`dependencies.md`](https://github.com/zane-lang/spec/blob/main/spec/dependencies.md)
 > §3.1) and a program can link against them. Each decision is numbered
 > (**C1**…). §5 lists the order they are built in, and §6 the questions still
-> open. Until it is built, the program builds into one module
-> ([`lowering.md`](lowering.md) L15).
+> open. A program links only what one compilation builds until step 3.
 
 A dependency reaches a build in two forms. Its **source** is the verified
 checkout in the package cache (`dependencies.md` §7), and its **objects** are
@@ -61,11 +60,22 @@ verbs need it as much as public ones: a public generic verb's instance,
 emitted in a consumer's object (C4), calls the library's private verbs, and
 two versions of one library define the same private names. So the
 placeholder marks what the library *defines*, and fetching rewrites all of
-it to the version and identity hash (`dependencies.md` §6.1):
+it to the version and identity hash (`dependencies.md` §6.1).
+
+A type the library declares carries the placeholder too, wherever a symbol
+names it: in a verb's parameters, and in a generic instance's arguments.
+Two versions of one library lay out their types each in their own way, so an
+instance of another package's generic at each version's type must have a
+name of its own, or the linker would keep one copy for both (C4):
 
 ```text
-!math$length(this math$Vec)   →   v1.0.1%3f9a1c02b7e4d6a8%math$length(this math$Vec)
+!math$length(this !math$Vec)   →   v1.0.1%3f9a1c02b7e4d6a8%math$length(this v1.0.1%3f9a1c02b7e4d6a8%math$Vec)
 ```
+
+Every placeholder in a symbol is rewritten, wherever it stands. An operator
+named `!` or `!=` stands right after the `$` that ends its package's name,
+where no placeholder ever does, so the rewriter tells the two apart by the
+character before the `!`.
 
 An application's root package defines no placeholder symbols: nothing links
 against it.
@@ -87,7 +97,7 @@ today (C1). Instances of a dependency's generics (C4) carry that dependency's
 stamp too.
 
 The root's own stamp is `!` when it is a library. Fetching rewrites the root
-library's `!` names and leaves the stamped ones alone, which is what
+library's `!` placeholders and leaves the stamped names alone, which is what
 `dependencies.md` §6.3 asks: a library's references to its own dependencies
 are already versioned when it is built.
 

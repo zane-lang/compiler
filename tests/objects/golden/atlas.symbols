@@ -1,0 +1,5 @@
+T !atlas$Tile(%primitives$Int)
+T !atlas$cover(!atlas$Tile)
+t geometry$_product(%primitives$Int, %primitives$Int)
+t geometry$area(%primitives$Int, %primitives$Int)
+t geometry$same<!atlas$Tile>(!atlas$Tile)

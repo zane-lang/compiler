@@ -1,0 +1,59 @@
+; Libraries built into objects of their own
+; (docs/design/separate-compilation.md). README.md says what each fixture is
+; for. A library's code-generation tree shows each function's linkage, and
+; its object's defined symbols are listed by `nm`, without their addresses.
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (action
+  (with-stdout-to
+   geometry.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --cgt --package fixtures/geometry))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/geometry.cgt geometry.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object geometry.o --package fixtures/geometry)))
+
+(rule
+ (deps (source_tree fixtures/atlas) (source_tree fixtures/geometry))
+ (targets atlas.o)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --kind
+   library
+   --object
+   atlas.o
+   --package
+   fixtures/atlas
+   --package
+   fixtures/geometry)))
+
+(rule
+ (action
+  (with-stdout-to
+   geometry.symbols.actual
+   (system "nm --defined-only %{dep:geometry.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/geometry.symbols geometry.symbols.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   atlas.symbols.actual
+   (system "nm --defined-only %{dep:atlas.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/atlas.symbols atlas.symbols.actual)))

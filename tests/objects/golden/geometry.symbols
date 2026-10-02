@@ -1,0 +1,7 @@
+T !geometry$Point(%primitives$Int, %primitives$Int)
+T !geometry$_product(%primitives$Int, %primitives$Int)
+T !geometry$area(%primitives$Int, %primitives$Int)
+T !geometry$double
+T !geometry$sum(this !geometry$Point)
+T !geometry$twice(%primitives$Int)
+W !geometry$same<%primitives$Int>(%primitives$Int)

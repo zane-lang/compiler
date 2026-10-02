@@ -261,17 +261,30 @@ module Stat = struct
     Assign { place = { local = id; deref = false; ty = value.Expr.ty; path = [] }; value }
 end
 
+(* Who links against a function (docs/design/separate-compilation.md): only
+   its own object, every object, or every object that also makes it, with
+   the linker keeping one copy, as a generic instance is (C4). *)
+module Linkage = struct
+  type t = Local | Exported | Shared
+end
+
 module Func = struct
-  type t = { symbol : string; params : (int * Ty.t) list; ret : Ty.t; body : Stat.t list }
+  type t = {
+    symbol : string;
+    linkage : Linkage.t;
+    params : (int * Ty.t) list;
+    ret : Ty.t;
+    body : Stat.t list;
+  }
 end
 
 (* One program is one module (L15). [entry] is the symbol of the root
-   package's `main`, which the runtime's C `main` calls (L16), and
-   [layouts] each layout the program names. *)
+   package's `main`, which the runtime's C `main` calls (L16), and a
+   library has none. [layouts] is each layout the program names. *)
 module Program = struct
   type t = {
     funcs : Func.t list;
-    entry : string;
+    entry : string option;
     layouts : (Layout.t * Layout.position list) list;
   }
 end
