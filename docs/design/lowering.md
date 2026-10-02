@@ -273,15 +273,22 @@ The binary takes the same `--package` flags as the semantic views:
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
 | `--target TRIPLE` | compiles `--ll` and `--build` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link for it |
+| `--optimize` | runs LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
 
 `--kind library` refuses `--build`, since a library is not an executable.
+
+Without `--optimize` no optimization runs anywhere, which makes the build
+about three times faster; `zane run` builds that way and `zane build` does not.
+A program means the same either way, since the semantics leave nothing for an
+optimizer to decide, so `tests/codegen/` builds each fixture both ways and
+holds both to one golden file.
 
 `tests/codegen/` lowers and builds each fixture, runs it, and compares the
 tree and what the program wrote against golden files. `tests/runtime/` compiles
 the runtime with a C program of its own that calls it directly.
 
-The first version runs no optimization passes (stage 5), so an unoptimized
-build is the whole pipeline from the start.
+The compiler has no optimization stage of its own yet (stage 5): `--optimize`
+is LLVM's, over the module codegen emits.
 
 ---
 
