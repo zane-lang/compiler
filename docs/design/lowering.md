@@ -275,6 +275,8 @@ The binary takes the same `--package` flags as the semantic views:
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
 | `--object OUT` | writes the root package's object file `OUT`, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3) |
+| `--stamp NAME=STAMP` | names package `NAME`'s symbols with `STAMP`; a dependency given one arrives as objects of its own, so its verbs are declared rather than lowered (C1, C6) |
+| `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
 | `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it |
 | `--optimize` | runs LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
 
@@ -282,7 +284,8 @@ The binary takes the same `--package` flags as the semantic views:
 With it, lowering starts from every verb the root package declares that is
 not generic and has a function of its own, and from its lambda-variables,
 rather than from `main`, and names them with the `!` placeholder
-([`separate-compilation.md`](separate-compilation.md) C5).
+([`separate-compilation.md`](separate-compilation.md) C5), or with its own
+stamp when `--stamp` gives it one (C6).
 
 Without `--optimize` no optimization runs anywhere, which makes the build
 about three times faster; `zane run` builds that way and `zane build` does not.

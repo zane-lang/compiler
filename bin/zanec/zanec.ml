@@ -15,7 +15,9 @@ type stage = Cst | Sst
    prints the code-generation tree (`--cgt`) or the LLVM module (`--ll`), or
    builds the program into an executable (`--build OUT`,
    docs/design/lowering.md §7) or the root package into an object file
-   (`--object OUT`, docs/design/separate-compilation.md C3). `--check` runs semantics and prints nothing,
+   (`--object OUT`, docs/design/separate-compilation.md C3). `--stamp` names
+   a package's symbols with its version and identity (C6), and `--link` adds
+   a stamped dependency's object to the link (C7). `--check` runs semantics and prints nothing,
    so its exit status and diagnostics are the whole answer. *)
 type view = Assembled | Check | Declarations | Typed | Cgt | Ir | Build of string | Object of string
 
@@ -35,6 +37,10 @@ type build = {
      way; an unoptimized build is the faster one to make. *)
   optimize : bool;
   packages : Tst.Assembly.request list;
+  (* Each stamped dependency's stamp, and the objects `--build` links with
+     the program (docs/design/separate-compilation.md C6, C7). *)
+  stamps : (string * string) list;
+  link : string list;
 }
 
 type request =
@@ -53,7 +59,8 @@ let usage () =
     "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT|--object OUT]";
   prerr_endline "             [--kind application|library]";
   prerr_endline
-    "             [--target TRIPLE] [--optimize] --package [NAME=]DIR [--package [NAME=]DIR ...]";
+    "             [--target TRIPLE] [--optimize] [--stamp NAME=STAMP ...] [--link FILE ...]";
+  prerr_endline "             --package [NAME=]DIR [--package [NAME=]DIR ...]";
   exit 2
 
 (* The name reported in parse errors travels with the text, so reading from
@@ -105,13 +112,17 @@ let arguments () =
   let is_value v = not (String.starts_with ~prefix:"-" v) in
   let rec packages view build = function
     | [] ->
+        let view = Option.value view ~default:Assembled in
         if build.packages = [] then usage ()
+        else if build.link <> [] && (match view with Build _ -> false | _ -> true) then usage ()
         else
           Packages
             {
               build with
-              view = Option.value view ~default:Assembled;
+              view;
               packages = List.rev build.packages;
+              stamps = List.rev build.stamps;
+              link = List.rev build.link;
             }
     | "--package" :: dir :: rest when is_value dir ->
         packages view { build with packages = package_request dir :: build.packages } rest
@@ -128,6 +139,17 @@ let arguments () =
         packages (Some (Build output)) build rest
     | "--object" :: output :: rest when view = None && is_value output ->
         packages (Some (Object output)) build rest
+    | "--stamp" :: stamp :: rest when is_value stamp -> (
+        match String.index_opt stamp '=' with
+        | Some i when i + 1 < String.length stamp ->
+            let name = String.sub stamp 0 i in
+            if is_package_name name && not (List.mem_assoc name build.stamps) then
+              let value = String.sub stamp (i + 1) (String.length stamp - i - 1) in
+              packages view { build with stamps = (name, value) :: build.stamps } rest
+            else usage ()
+        | _ -> usage ())
+    | "--link" :: file :: rest when is_value file ->
+        packages view { build with link = file :: build.link } rest
     | flag :: rest when view = None -> (
         match flag with
         | "--check" -> packages (Some Check) build rest
@@ -138,10 +160,20 @@ let arguments () =
         | _ -> usage ())
     | _ -> usage ()
   in
-  let empty = { view = Assembled; kind = None; target = None; optimize = false; packages = [] } in
+  let empty =
+    {
+      view = Assembled;
+      kind = None;
+      target = None;
+      optimize = false;
+      packages = [];
+      stamps = [];
+      link = [];
+    }
+  in
   match List.tl (Array.to_list Sys.argv) with
-  | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--check"
-    | "--decls" | "--tst" | "--cgt" | "--ll" )
+  | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
+    | "--link" | "--check" | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
       packages None empty rest
   | rest -> go Cst rest
@@ -163,7 +195,7 @@ let run_file stage (filename, input) =
    refuses what it cannot handle yet with a diagnostic rather than lowering it
    wrongly (docs/design/lowering.md). *)
 let generate packages build program =
-  match Cgt.lower ~library:(build.kind = Some Library) program with
+  match Cgt.lower ~library:(build.kind = Some Library) ~stamps:build.stamps program with
   | Error (Cgt.Lower.Diagnostic d) ->
       prerr_string (Tst.render_diagnostic packages d);
       exit 1
@@ -184,8 +216,8 @@ let generate packages build program =
           | Error message -> fail message)
       | Build output -> (
           match
-            Codegen.executable ?target:build.target ~optimize:build.optimize (Codegen.emit cgt)
-              output
+            Codegen.executable ?target:build.target ~optimize:build.optimize ~link:build.link
+              (Codegen.emit cgt) output
           with
           | Ok () -> ()
           | Error message -> fail message)
@@ -237,6 +269,17 @@ let run_packages build =
         problems;
       exit 1
   | Ok packages -> (
+      (* A stamp for a package the build does not have would be dropped
+         silently, and the package it was meant for compiled into the root's
+         object rather than linked from its own. *)
+      List.iter
+        (fun (name, _) ->
+          if not (List.exists (fun (p : Tst.Assembly.package) -> p.name = name) packages) then begin
+            prerr_endline
+              (Printf.sprintf "Error: `--stamp %s=...` names no package given with `--package`" name);
+            exit 1
+          end)
+        build.stamps;
       match build.view with
       | Assembled ->
           print_string (Tree_graph.render (Tst.Assembly.to_node packages))

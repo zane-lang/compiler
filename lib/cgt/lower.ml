@@ -1353,34 +1353,43 @@ let func st (v : verb) : Func.t =
       v.params
   in
   let o = outcome st span v in
-  st.returns <- (if plain o then Fun.id else outcome_case o done_);
-  st.ret <- v.signature.S.ret;
-  let ctx =
-    {
-      env;
-      exit = Function;
-      expanding = [];
-      abort =
-        (fun _ value ->
-          let value =
-            match v.signature.S.abort with
-            | Some t -> escape st span t None value
-            | None -> value
-          in
-          [ Stat.Return (outcome_case o aborted value) ]);
-      resolve = None;
-      finish = no_block;
-      exit_call = (fun _ -> [ Stat.Return (outcome_case o exited unit_) ]);
-      scope = { arena = None; settles = [] };
-    }
-  in
   let linkage =
     match (st.library, v.signature.S.home) with
     | Some root, S.Package p when p = root ->
         if v.instance = [] then Linkage.Exported else Linkage.Shared
-    | _ -> if Hashtbl.mem st.exported v.key then Linkage.Exported else Linkage.Local
+    | _, S.Package p when st.stamped p ->
+        if v.instance = [] then Linkage.Imported else Linkage.Shared
+    | _ ->
+        if Hashtbl.mem st.exported v.key then Linkage.Exported
+        else if Hashtbl.mem st.imported v.key then Linkage.Imported
+        else Linkage.Local
   in
-  { Func.symbol = symbol st v; linkage; params; ret = returned o; body = block st ctx v.body }
+  if linkage = Linkage.Imported then
+    { Func.symbol = symbol st v; linkage; params; ret = returned o; body = [] }
+  else begin
+    st.returns <- (if plain o then Fun.id else outcome_case o done_);
+    st.ret <- v.signature.S.ret;
+    let ctx =
+      {
+        env;
+        exit = Function;
+        expanding = [];
+        abort =
+          (fun _ value ->
+            let value =
+              match v.signature.S.abort with
+              | Some t -> escape st span t None value
+              | None -> value
+            in
+            [ Stat.Return (outcome_case o aborted value) ]);
+        resolve = None;
+        finish = no_block;
+        exit_call = (fun _ -> [ Stat.Return (outcome_case o exited unit_) ]);
+        scope = { arena = None; settles = [] };
+      }
+    in
+    { Func.symbol = symbol st v; linkage; params; ret = returned o; body = block st ctx v.body }
+  end
 
 (* ---------------------------------------------------------------------- *)
 (* Programs                                                               *)
@@ -1427,13 +1436,20 @@ let library_roots st (root : T.Package.t) =
     root.T.Package.decls
 
 (* A program lowers from its root package's `main`; a [library] from every
-   function its root package declares, into an object with no entry. *)
-let program ?(library = false) (p : T.Program.t) =
-  let library =
-    match p.T.Program.packages with
-    | root :: _ when library -> Some root.T.Package.name
-    | _ -> None
+   function its root package declares, into an object with no entry.
+   [stamps] gives a package's stamp (docs/design/separate-compilation.md C6):
+   a dependency given one arrives as objects of its own, and the root
+   library given one is named with it instead of the `!` placeholder, as a
+   dependency compiled from source is. *)
+let program ?(library = false) ?(stamps = []) (p : T.Program.t) =
+  let root = match p.T.Program.packages with r :: _ -> Some r.T.Package.name | [] -> None in
+  let library = if library then root else None in
+  let stamp p =
+    match List.assoc_opt p stamps with
+    | Some s -> s
+    | None -> if Some p = library then "!" else ""
   in
+  let stamped p = Some p <> root && List.mem_assoc p stamps in
   let st =
     {
       verbs = Hashtbl.create 64;
@@ -1450,8 +1466,10 @@ let program ?(library = false) (p : T.Program.t) =
       ret = Tty.Error;
       spawned = [];
       library;
-      stamp = (fun p -> if Some p = library then "!" else "");
+      stamp;
+      stamped;
       exported = Hashtbl.create 8;
+      imported = Hashtbl.create 8;
     }
   in
   let add decl instance signature params body =
@@ -1477,6 +1495,8 @@ let program ?(library = false) (p : T.Program.t) =
               let owner = st.stamp pkg.T.Package.name ^ pkg.T.Package.name ^ "$" ^ name in
               match value.T.Expr.node with
               | T.Expr.Lambda { body; _ } ->
+                  if st.stamped pkg.T.Package.name then
+                    Hashtbl.replace st.imported ("lambda " ^ owner) ();
                   st.lambdas <- (body, owner) :: st.lambdas;
                   name_lambdas st owner body
               | _ ->

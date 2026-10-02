@@ -57,3 +57,77 @@
  (alias runtest)
  (action
   (diff golden/atlas.symbols atlas.symbols.actual)))
+
+; geometry built on its own with its stamp, as a dependency compiled from
+; source is, and survey built against it: survey's object declares
+; geometry's verbs and makes the instance it needs, and the program links
+; with geometry's object.
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.stamped.o)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --kind
+   library
+   --stamp
+   geometry=v1.0.1%3f9a1c02b7e4d6a8%
+   --object
+   geometry.stamped.o
+   --package
+   fixtures/geometry)))
+
+(rule
+ (deps (source_tree fixtures/survey) (source_tree fixtures/geometry))
+ (targets survey.o)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --stamp
+   geometry=v1.0.1%3f9a1c02b7e4d6a8%
+   --object
+   survey.o
+   --package
+   fixtures/survey
+   --package
+   fixtures/geometry)))
+
+(rule
+ (action
+  (with-stdout-to
+   survey.symbols.actual
+   (system "nm %{dep:survey.o} | sed 's/^ *[0-9a-f]* //' | grep -v ' [.]L' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/survey.symbols survey.symbols.actual)))
+
+(rule
+ (deps (source_tree fixtures/survey) (source_tree fixtures/geometry))
+ (targets survey.exe)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --stamp
+   geometry=v1.0.1%3f9a1c02b7e4d6a8%
+   --link
+   %{dep:geometry.stamped.o}
+   --build
+   survey.exe
+   --package
+   fixtures/survey
+   --package
+   fixtures/geometry)))
+
+(rule
+ (action
+  (with-stdout-to
+   survey.out.actual
+   (run ./survey.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/survey.out survey.out.actual)))
