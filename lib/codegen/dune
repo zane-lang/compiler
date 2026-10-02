@@ -3,4 +3,4 @@
 ; runtime that [Runtime_source] embeds (runtime/dune).
 (library
  (name codegen)
- (libraries cgt runtime_source llvm llvm.analysis llvm.target llvm.all_backends))
+ (libraries cgt runtime_source llvm llvm.analysis llvm.target llvm.passbuilder llvm.all_backends))

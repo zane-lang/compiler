@@ -19,6 +19,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build boxes.exe --package fixtures/boxes)))
 
 (rule
+ (deps (source_tree fixtures/boxes))
+ (targets boxes.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build boxes.optimized.exe --optimize --package fixtures/boxes)))
+
+(rule
  (action
   (with-stdout-to
    boxes.out.actual
@@ -28,6 +34,17 @@
  (alias runtest)
  (action
   (diff golden/boxes.out boxes.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   boxes.optimized.out.actual
+   (run ./boxes.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boxes.out boxes.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/counting))
@@ -48,6 +65,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build counting.exe --package fixtures/counting)))
 
 (rule
+ (deps (source_tree fixtures/counting))
+ (targets counting.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build counting.optimized.exe --optimize --package fixtures/counting)))
+
+(rule
  (action
   (with-stdout-to
    counting.out.actual
@@ -57,6 +80,17 @@
  (alias runtest)
  (action
   (diff golden/counting.out counting.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   counting.optimized.out.actual
+   (run ./counting.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/counting.out counting.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/guests))
@@ -77,6 +111,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build guests.exe --package fixtures/guests)))
 
 (rule
+ (deps (source_tree fixtures/guests))
+ (targets guests.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build guests.optimized.exe --optimize --package fixtures/guests)))
+
+(rule
  (action
   (with-stdout-to
    guests.out.actual
@@ -86,6 +126,17 @@
  (alias runtest)
  (action
   (diff golden/guests.out guests.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   guests.optimized.out.actual
+   (run ./guests.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/guests.out guests.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/hello))
@@ -106,6 +157,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build hello.exe --package fixtures/hello)))
 
 (rule
+ (deps (source_tree fixtures/hello))
+ (targets hello.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build hello.optimized.exe --optimize --package fixtures/hello)))
+
+(rule
  (action
   (with-stdout-to
    hello.out.actual
@@ -115,6 +172,17 @@
  (alias runtest)
  (action
   (diff golden/hello.out hello.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   hello.optimized.out.actual
+   (run ./hello.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hello.out hello.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/hosts))
@@ -135,6 +203,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build hosts.exe --package fixtures/hosts)))
 
 (rule
+ (deps (source_tree fixtures/hosts))
+ (targets hosts.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build hosts.optimized.exe --optimize --package fixtures/hosts)))
+
+(rule
  (action
   (with-stdout-to
    hosts.out.actual
@@ -144,6 +218,17 @@
  (alias runtest)
  (action
   (diff golden/hosts.out hosts.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   hosts.optimized.out.actual
+   (run ./hosts.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hosts.out hosts.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/lambdas))
@@ -164,6 +249,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build lambdas.exe --package fixtures/lambdas)))
 
 (rule
+ (deps (source_tree fixtures/lambdas))
+ (targets lambdas.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build lambdas.optimized.exe --optimize --package fixtures/lambdas)))
+
+(rule
  (action
   (with-stdout-to
    lambdas.out.actual
@@ -173,6 +264,17 @@
  (alias runtest)
  (action
   (diff golden/lambdas.out lambdas.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   lambdas.optimized.out.actual
+   (run ./lambdas.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lambdas.out lambdas.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/lists))
@@ -193,6 +295,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build lists.exe --package fixtures/lists)))
 
 (rule
+ (deps (source_tree fixtures/lists))
+ (targets lists.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build lists.optimized.exe --optimize --package fixtures/lists)))
+
+(rule
  (action
   (with-stdout-to
    lists.out.actual
@@ -204,10 +312,27 @@
   (diff golden/lists.out lists.out.actual)))
 
 (rule
+ (action
+  (with-stdout-to
+   lists.optimized.out.actual
+   (run ./lists.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lists.out lists.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/operators))
  (targets operators.exe)
  (action
   (run %{exe:../../bin/zanec/zanec.exe} --build operators.exe --package fixtures/operators)))
+
+(rule
+ (deps (source_tree fixtures/operators))
+ (targets operators.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build operators.optimized.exe --optimize --package fixtures/operators)))
 
 (rule
  (action
@@ -219,6 +344,17 @@
  (alias runtest)
  (action
   (diff golden/operators.out operators.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   operators.optimized.out.actual
+   (run ./operators.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/operators.out operators.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/outcomes))
@@ -239,6 +375,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build outcomes.exe --package fixtures/outcomes)))
 
 (rule
+ (deps (source_tree fixtures/outcomes))
+ (targets outcomes.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build outcomes.optimized.exe --optimize --package fixtures/outcomes)))
+
+(rule
  (action
   (with-stdout-to
    outcomes.out.actual
@@ -250,10 +392,27 @@
   (diff golden/outcomes.out outcomes.out.actual)))
 
 (rule
+ (action
+  (with-stdout-to
+   outcomes.optimized.out.actual
+   (run ./outcomes.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/outcomes.out outcomes.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/range))
  (targets range.exe)
  (action
   (run %{exe:../../bin/zanec/zanec.exe} --build range.exe --package fixtures/range)))
+
+(rule
+ (deps (source_tree fixtures/range))
+ (targets range.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build range.optimized.exe --optimize --package fixtures/range)))
 
 (rule
  (action
@@ -269,10 +428,29 @@
   (diff golden/range.out range.out.actual)))
 
 (rule
+ (action
+  (with-outputs-to
+   range.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./range.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/range.out range.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/regions))
  (targets regions.exe)
  (action
   (run %{exe:../../bin/zanec/zanec.exe} --build regions.exe --package fixtures/regions)))
+
+(rule
+ (deps (source_tree fixtures/regions))
+ (targets regions.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build regions.optimized.exe --optimize --package fixtures/regions)))
 
 (rule
  (action
@@ -284,6 +462,17 @@
  (alias runtest)
  (action
   (diff golden/regions.out regions.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   regions.optimized.out.actual
+   (run ./regions.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/regions.out regions.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/shapes))
@@ -304,6 +493,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build shapes.exe --package fixtures/shapes)))
 
 (rule
+ (deps (source_tree fixtures/shapes))
+ (targets shapes.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build shapes.optimized.exe --optimize --package fixtures/shapes)))
+
+(rule
  (action
   (with-stdout-to
    shapes.out.actual
@@ -313,6 +508,17 @@
  (alias runtest)
  (action
   (diff golden/shapes.out shapes.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   shapes.optimized.out.actual
+   (run ./shapes.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/shapes.out shapes.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/spawns))
@@ -333,6 +539,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build spawns.exe --package fixtures/spawns)))
 
 (rule
+ (deps (source_tree fixtures/spawns))
+ (targets spawns.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build spawns.optimized.exe --optimize --package fixtures/spawns)))
+
+(rule
  (action
   (with-stdout-to
    spawns.out.actual
@@ -342,6 +554,17 @@
  (alias runtest)
  (action
   (diff golden/spawns.out spawns.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   spawns.optimized.out.actual
+   (run ./spawns.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawns.out spawns.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/texts))
@@ -362,6 +585,12 @@
   (run %{exe:../../bin/zanec/zanec.exe} --build texts.exe --package fixtures/texts)))
 
 (rule
+ (deps (source_tree fixtures/texts))
+ (targets texts.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build texts.optimized.exe --optimize --package fixtures/texts)))
+
+(rule
  (action
   (with-stdout-to
    texts.out.actual
@@ -373,10 +602,27 @@
   (diff golden/texts.out texts.out.actual)))
 
 (rule
+ (action
+  (with-stdout-to
+   texts.optimized.out.actual
+   (run ./texts.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/texts.out texts.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/zero))
  (targets zero.exe)
  (action
   (run %{exe:../../bin/zanec/zanec.exe} --build zero.exe --package fixtures/zero)))
+
+(rule
+ (deps (source_tree fixtures/zero))
+ (targets zero.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build zero.optimized.exe --optimize --package fixtures/zero)))
 
 (rule
  (action
@@ -390,4 +636,17 @@
  (alias runtest)
  (action
   (diff golden/zero.out zero.out.actual)))
+
+(rule
+ (action
+  (with-outputs-to
+   zero.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./zero.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/zero.out zero.optimized.out.actual)))
 

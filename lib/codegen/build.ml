@@ -3,24 +3,35 @@
 
 (* The machine for *target*, an LLVM triple, or for the host when it is
    absent. An unknown triple is an error, not an exception. *)
-let target_machine ?target () =
+let target_machine ?target ~optimize () =
   Llvm_all_backends.initialize ();
   let triple = Option.value target ~default:(Llvm_target.Target.default_triple ()) in
+  let level = Llvm_target.CodeGenOptLevel.(if optimize then Default else None) in
   match Llvm_target.Target.by_triple triple with
   | target ->
-      Ok (triple, Llvm_target.TargetMachine.create ~triple ~reloc_mode:Llvm_target.RelocMode.PIC target)
+      Ok
+        ( triple,
+          Llvm_target.TargetMachine.create ~triple ~level ~reloc_mode:Llvm_target.RelocMode.PIC
+            target )
   | exception Llvm_target.Error message ->
       Error (Printf.sprintf "cannot compile for the target `%s`: %s" triple message)
 
-let prepare ?target m =
-  Result.map
-    (fun (triple, tm) ->
+(* The module made ready for *target*: its triple and data layout set and,
+   when *optimize*, LLVM's standard `-O2` pipeline run over it. Without it no
+   pass runs, which is what makes an unoptimized build fast. A program means
+   the same either way (docs/design/lowering.md §7). *)
+let prepare ?target ?(optimize = false) m =
+  Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
       Llvm.set_target_triple triple m;
       Llvm.set_data_layout
         (Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm))
         m;
-      (triple, tm))
-    (target_machine ?target ())
+      if optimize then
+        Llvm_passbuilder.run_passes m "default<O2>" tm
+          (Llvm_passbuilder.create_passbuilder_options ())
+        |> Result.map (fun () -> (triple, tm))
+        |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
+      else Ok (triple, tm))
 
 (* The C compiler that links: `ZANE_CC` if set, else `clang`. *)
 let cc () = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC")
@@ -37,8 +48,8 @@ let write_runtime dir =
       ("zane.c", Runtime_source.text);
     ]
 
-let executable ?target m output =
-  match prepare ?target m with
+let executable ?target ?(optimize = false) m output =
+  match prepare ?target ~optimize m with
   | Error _ as error -> error
   | Ok (triple, tm) -> (
       let dir = Filename.temp_dir "zane" "" in
@@ -49,7 +60,8 @@ let executable ?target m output =
       let command =
         String.concat " "
           (List.map Filename.quote
-             ([ cc () ] @ target_flag @ [ "-O2"; "-pthread"; "-o"; output; obj; rt ]))
+             ([ cc () ] @ target_flag
+             @ [ (if optimize then "-O2" else "-O0"); "-pthread"; "-o"; output; obj; rt ]))
       in
       (* The temporary files go however the build ends, a raise included. A
          failure to write them is an error like any other, not an exception. *)

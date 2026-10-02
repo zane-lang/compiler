@@ -8,7 +8,8 @@
    which rules there are:
 
    - codegen: `golden/NAME.cgt` prints fixture NAME's code-generation tree,
-     and `golden/NAME.out` builds it and holds what the program wrote. A
+     and `golden/NAME.out` builds it, unoptimized and optimized, and holds
+     what both builds of the program wrote. A
      fixture whose `expected-status` file holds a status other than 0 is a
      program that stops: its golden file holds stdout and stderr together.
    - parser: `golden/NAME.STAGE.spans` is `span_dump --STAGE`, and
@@ -55,16 +56,24 @@ let codegen () =
         Printf.printf
           "(rule\n (deps (source_tree %s))\n (targets %s.exe)\n (action\n  (run %s --build %s.exe --package %s)))\n\n"
           package name zanec name package;
-        (match status name with
-        | 0 ->
-            Printf.printf
-              "(rule\n (action\n  (with-stdout-to\n   %s.out.actual\n   (run ./%s.exe))))\n\n" name
-              name
-        | n ->
-            Printf.printf
-              "(rule\n (action\n  (with-outputs-to\n   %s.out.actual\n   (with-accepted-exit-codes\n    %d\n    (run ./%s.exe)))))\n\n"
-              name n name);
-        diff (name ^ ".out") (name ^ ".out.actual")
+        Printf.printf
+          "(rule\n (deps (source_tree %s))\n (targets %s.optimized.exe)\n (action\n  (run %s --build %s.optimized.exe --optimize --package %s)))\n\n"
+          package name zanec name package;
+        (* The optimized build is held to the same golden file: optimizing
+           never changes what a program does. *)
+        List.iter
+          (fun exe ->
+            (match status name with
+            | 0 ->
+                Printf.printf
+                  "(rule\n (action\n  (with-stdout-to\n   %s.out.actual\n   (run ./%s.exe))))\n\n" exe
+                  exe
+            | n ->
+                Printf.printf
+                  "(rule\n (action\n  (with-outputs-to\n   %s.out.actual\n   (with-accepted-exit-codes\n    %d\n    (run ./%s.exe)))))\n\n"
+                  exe n exe);
+            diff (name ^ ".out") (exe ^ ".out.actual"))
+          [ name; name ^ ".optimized" ]
       end)
     (List.sort_uniq compare (trees @ outputs))
 

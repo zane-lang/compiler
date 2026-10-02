@@ -28,6 +28,9 @@ type build = {
   kind : kind option;
   (* The LLVM target triple to compile for; the host's when absent. *)
   target : string option;
+  (* Whether `--ll` and `--build` optimize. A program means the same either
+     way; an unoptimized build is the faster one to make. *)
+  optimize : bool;
   packages : Tst.Assembly.request list;
 }
 
@@ -45,7 +48,8 @@ let usage () =
   prerr_endline "usage: zanec [--cst|--sst] (SOURCE|-)";
   prerr_endline
     "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT] [--kind application|library]";
-  prerr_endline "             [--target TRIPLE] --package [NAME=]DIR [--package [NAME=]DIR ...]";
+  prerr_endline
+    "             [--target TRIPLE] [--optimize] --package [NAME=]DIR [--package [NAME=]DIR ...]";
   exit 2
 
 (* The name reported in parse errors travels with the text, so reading from
@@ -114,6 +118,8 @@ let arguments () =
         packages view { build with kind = Some kind } rest
     | "--target" :: target :: rest when build.target = None && is_value target ->
         packages view { build with target = Some target } rest
+    | "--optimize" :: rest when not build.optimize ->
+        packages view { build with optimize = true } rest
     | "--build" :: output :: rest when view = None && is_value output ->
         packages (Some (Build output)) build rest
     | flag :: rest when view = None -> (
@@ -126,10 +132,10 @@ let arguments () =
         | _ -> usage ())
     | _ -> usage ()
   in
-  let empty = { view = Assembled; kind = None; target = None; packages = [] } in
+  let empty = { view = Assembled; kind = None; target = None; optimize = false; packages = [] } in
   match List.tl (Array.to_list Sys.argv) with
-  | ( "--package" | "--kind" | "--target" | "--build" | "--check" | "--decls" | "--tst"
-    | "--cgt" | "--ll" )
+  | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--check" | "--decls"
+    | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
       packages None empty rest
   | rest -> go Cst rest
@@ -167,11 +173,14 @@ let generate packages build program =
       | Cgt -> print_string (Tree_graph.render (Cgt.to_node cgt))
       | Ir -> (
           let m = Codegen.emit cgt in
-          match Codegen.prepare ?target:build.target m with
+          match Codegen.prepare ?target:build.target ~optimize:build.optimize m with
           | Ok () -> print_string (Codegen.ir m)
           | Error message -> fail message)
       | Build output -> (
-          match Codegen.executable ?target:build.target (Codegen.emit cgt) output with
+          match
+            Codegen.executable ?target:build.target ~optimize:build.optimize (Codegen.emit cgt)
+              output
+          with
           | Ok () -> ()
           | Error message -> fail message)
       | Assembled | Check | Declarations | Typed -> ())
