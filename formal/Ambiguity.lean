@@ -2,3 +2,8 @@ import Ambiguity.S
 import Ambiguity.Vpa
 import Ambiguity.Json
 import Ambiguity.VpaSound
+import Ambiguity.Grammar
+import Ambiguity.Automaton
+import Ambiguity.Quotient
+import Ambiguity.Product
+import Ambiguity.Horizontal

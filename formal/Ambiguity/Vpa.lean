@@ -21,7 +21,6 @@ holds for every `n` bounds the number of all paths.
 
 namespace Ambiguity
 
-abbrev Tok := String
 
 inductive Edge where
   | eps (to : Nat) (w : S)

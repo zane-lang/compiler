@@ -8,6 +8,8 @@ semiring and `n ↦ min n 2` is a homomorphism.
 
 namespace Ambiguity
 
+abbrev Tok := String
+
 inductive S where
   | z | o | m
   deriving DecidableEq, Repr, Inhabited, Hashable, Ord
