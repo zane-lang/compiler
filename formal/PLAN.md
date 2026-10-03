@@ -1,0 +1,33 @@
+# Working plan: formally checked unambiguity (session notes, temporary)
+
+Goal: the four milestones of docs/ambiguity/verification-roadmap.md.
+
+## Chain (all executable in Lean, each step with a soundness theorem)
+
+Counts are capped in S = {0,1,2}. Every step proves an UPPER bound
+`count_before ≤ count_after`, so unambiguity flows backward.
+
+- R0  automaton A (Menhir dump) -> Acc-trees (trees of A's grammar whose LR
+      simulation uses only retained actions). Spec-level definition.
+- R1  A -> guarded context grammar C (lr.py), then a quotient (checked morphism).
+- R2  angle tagging (angles.py) checked: tags are a function of the word.
+- R3  bracket grouping + guard elimination product (lookahead.py) + quotient.
+      NO factor.py needed: exact.y alone proves (2704 cfgs / 31 frames / 1486).
+- R5  horizontal compilation: SCC/linearity check, per-component NFA with
+      inlined lower DFAs, determinization (vector certificate check),
+      minimization (bisimulation check), model nodes.
+- R6  visible-stack invariant check (M1). Proof uses a BACKWARD (last-edge)
+      recursive path count W_n; snoc decomposition; post-fixpoint closure
+      (R >= init + E(R)) dominates bounded path counts.
+
+Source side (M3):
+- GLR rewrite: X -> nonempty_X unit productions plus per-occurrence patterns
+  k(keep)/n(nonempty_)/d(drop). 707/714 GLR productions align uniquely; the 7
+  others are the units. rho: GLR trees -> source trees, needs each dropped
+  symbol to have exactly one epsilon-tree. |rho(S)| <= |S|.
+- Validate A's LR(1) items (closure/goto), actions vs items and precedence.
+- Lean expansion of parser.mly (parameterized rules, %inline, standard.mly)
+  compared with A's productions.
+
+Facts: non-determinized NFA model OOMs (15 GB) -> keep det/min.
+Grammar shape after grouping: bracket tokens only in productions b -> o X c | o c.

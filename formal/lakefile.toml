@@ -1,0 +1,10 @@
+name = "ZaneAmbiguity"
+version = "0.1.0"
+defaultTargets = ["zane-ambiguity-check"]
+
+[[lean_lib]]
+name = "Ambiguity"
+
+[[lean_exe]]
+name = "zane-ambiguity-check"
+root = "Main"
