@@ -275,7 +275,8 @@ The binary takes the same `--package` flags as the semantic views:
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
 | `--object OUT` | writes the root package's object file `OUT`, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3) |
-| `--stamp NAME=STAMP` | names package `NAME`'s symbols with `STAMP`; a dependency given one arrives as objects of its own, so its verbs are declared rather than lowered (C1, C6) |
+| `--stamp NAME=STAMP` | names package `NAME`'s symbols with `STAMP`, as `--package STAMPNAME=DIR` does; a dependency given one arrives as objects of its own, so its verbs are declared rather than lowered (C1, C6, C10) |
+| `--import PACKAGE:KEY=PACKAGE` | the package the first imports by `KEY`, each named by its identity (C10) |
 | `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
 | `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it; LLVM gets the triple's normal form, and the C compiler the triple as written ([`platforms.md`](platforms.md)) |
 | `--optimize` | runs LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
@@ -283,6 +284,9 @@ The binary takes the same `--package` flags as the semantic views:
 `zanec --rewrite STAMP INPUT OUTPUT` takes no packages: it writes the
 library object `INPUT` to `OUTPUT` with its `!` placeholder turned into
 `STAMP`, as fetching does ([`separate-compilation.md`](separate-compilation.md) C9).
+`zanec --remap FROM TO INPUT OUTPUT` writes `INPUT` to `OUTPUT` with every
+reference to the package version stamped `FROM` moved to the version stamped
+`TO`, as remapping does (C11).
 
 `--kind library` refuses `--build`, since a library is not an executable.
 With it, lowering starts from every verb the root package declares that is

@@ -1,6 +1,6 @@
 # Separate compilation: one object per package
 
-> **Status: built through §5 step 5.** This page says how the compiler builds
+> **Status: built through §5 step 7.** This page says how the compiler builds
 > one package into an object file of its own, so a library can ship prebuilt
 > objects ([`dependencies.md`](https://github.com/zane-lang/spec/blob/main/spec/dependencies.md)
 > §3.1) and a program can link against them. Each decision is numbered
@@ -39,6 +39,34 @@ package in the graph; caching that is left to measurement (§6).
 library's counterpart to `--build`: no runtime and no link, only the object.
 `--build OUT` keeps its meaning, a linked executable, and for a root with
 dependencies it compiles the root's object and links it with theirs (C7).
+
+**C10. A package is known by its identity, and imports through its own
+keys.** A package's identity is its name, after its stamp when it has one:
+`v1.0.1%3f9a1c02b7e4d6a8%math`. Two versions of one package have two
+stamps, and two packages of one name have two identity hashes, so each is a
+package of the build of its own, with types, verbs and symbols of its own
+(`dependencies.md` §11). The driver gives a package its stamp in its
+`--package`:
+
+```text
+--package v1.0.1%3f9a1c02b7e4d6a8%math=DIR
+```
+
+`--stamp NAME=STAMP` says the same for the one package named `NAME`.
+
+Source imports a dependency by its manifest key (`dependencies.md` §8), so
+each package resolves its imports through its own keys, which the driver
+gives as the importing package, the key and the package it names:
+
+```text
+--import app:geo=v2.0%0123456789abcdef%geometry
+--import v1.0%fedcba9876543210%atlas:geometry=v1.0%0123456789abcdef%geometry
+```
+
+A package given keys imports through them alone. A package given none
+imports a package by its name, which then has to name one package of the
+build, as in the test fixtures; a name two packages share is an error at the
+import, naming both.
 
 ---
 
@@ -151,6 +179,20 @@ table. Nothing else in the object moves, since relocations, section groups
 and COMDATs name a symbol by its index. The rewritten object defines exactly
 what one built from source with `--stamp` does.
 
+**C11. `zanec --remap FROM TO INPUT OUTPUT` moves an object's references
+from one version of a package to another.** Remapping collapses versions of
+a package that its `version-pattern` says are interchangeable onto one
+(`dependencies.md` §15), so an object built against a displaced version has
+to name the chosen one instead: every symbol that starts with the stamp
+`FROM` is renamed to start with `TO`, as in
+`v6.2.9%3f9a1c02b7e4d6a8%math$vec` → `v6.3.4%3f9a1c02b7e4d6a8%math$vec`
+(§15.6). The two stamps must share their identity hash, since remapping
+moves a reference between versions of one package and never to another
+package. A stamp counts only where it starts a package's name, so `v1.0%…%`
+inside `xv1.0%…%` is left alone. It renames the symbol table the way C9
+does, and an instance the object made at a displaced version's types is
+renamed with it, so it merges with the chosen version's copies (C4).
+
 ---
 
 ## 4. What a compilation must agree on
@@ -185,22 +227,17 @@ test passing.
    objects, and generic instances in COMDATs on COFF and ELF (C4). The tests
    compare a rewritten object's symbols with the stamped build's, since a
    Linux runner cannot link for those targets.
+6. **Identities and keys.** Stamped `--package` names and `--import` (C10).
+   A test links a program with two versions of one library, one of them
+   through another library and the other under a key that is not its name.
+7. **Remapping.** `--remap` (C11). A test remaps a library's object from one
+   version of its dependency onto another, checks no reference to the first
+   is left, and links a program with the second alone.
 
 ---
 
 ## 6. Open questions
 
-- **Two versions of one package in a graph.** A package's imports name other
-  packages by name, and one compilation holds each name once
-  ([`assembly.ml`](../../lib/tst/passes/assembly.ml)). Two versions of
-  `math` in one graph (`dependencies.md` §11) need each package to resolve
-  its imports through its own manifest's keys instead, and the two `math`s
-  to be told apart by their stamps. Until then a graph with two versions of
-  one package is refused.
-- **A key that differs from the package's name.** Source imports a dependency
-  by its manifest key (`dependencies.md` §8), and the compiler resolves
-  imports by package name. Until imports resolve through keys, a key must
-  equal the library's `name`.
 - **Package constants.** They are evaluated before `main` in dependency order
   ([`lowering.md`](lowering.md) L16), but only lambda-variables lower yet. A
   library's constants will need an initializer its consumer's program runs.

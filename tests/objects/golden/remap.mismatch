@@ -1,0 +1,1 @@
+Error: `v1.0%0123456789abcdef%` and `v1.1%fedcba9876543210%` are versions of two packages, since their identity hashes differ; remapping moves references between versions of one package

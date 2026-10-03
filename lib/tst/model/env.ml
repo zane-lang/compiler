@@ -71,7 +71,14 @@ and bare = { from : string; member : string; at : Span.t }
 type decl = { id : int; package : string; file : file; span : Span.t; kind : kind }
 
 type package = {
+  (* The package's identity in the build: its name, after its stamp when it
+     has one (Assembly). Declarations, types and symbols name it by this. *)
   name : string;
+  (* The name its files declare and its manifest gives it. *)
+  declared : string;
+  (* The package each of its import keys names, by identity, when the driver
+     gave them; empty when an import names a package by its name. *)
+  imports : (string * string) list;
   is_root : bool;
   files : file list;
   mutable decls : decl list;
@@ -196,6 +203,39 @@ let reset () =
 let package name = Hashtbl.find packages name
 let find_package name = Hashtbl.find_opt packages name
 
+(* What a key in an import, or a qualifier, names from a file
+   (dependencies.md §8). A package the driver gave keys imports through those
+   keys alone; any other imports a package by its declared name, which then
+   has to name one package of the build. *)
+type key = Found of string | Own | Unknown | Ambiguous of string list
+
+let resolve_key (file : file) key =
+  let own = package file.package in
+  match own.imports with
+  | _ :: _ -> (
+      match List.assoc_opt key own.imports with
+      | Some id when String.equal id own.name -> Own
+      | Some id -> Found id
+      | None -> if String.equal key own.declared then Own else Unknown)
+  | [] -> (
+      if String.equal key own.declared then Own
+      else
+        match List.filter (fun id -> String.equal (package id).declared key) !package_order with
+        | [ id ] -> Found id
+        | [] -> Unknown
+        | ids -> Ambiguous ids)
+
+let key_message key = function
+  | Ambiguous ids ->
+      Some
+        (Printf.sprintf
+           "%s could be %s; the driver says which one this package imports with \
+            `--import`"
+           (quote key)
+           (String.concat " or " (List.map quote ids)))
+  | Unknown -> Some (Printf.sprintf "no package named %s is part of this build" (quote key))
+  | Found _ | Own -> None
+
 (* ---------------------------------------------------------------------- *)
 (* Plain-name lookup                                                      *)
 (* ---------------------------------------------------------------------- *)
@@ -231,17 +271,17 @@ let lookup_values file name = bare_entries file name ~members:package_values
 let qualified_package (file : file) q =
   match Hashtbl.find_opt file.qualifiers q with
   | Some (pkg, _) -> Ok pkg
-  | None ->
-      if String.equal q file.package then
-        Error
-          (Printf.sprintf
-             "%s is this file's own package, whose members are written \
-              unqualified"
-             (quote q))
-      else if Hashtbl.mem packages q
-              && Hashtbl.fold (fun _ (p, _) acc -> acc || p = q) file.qualifiers false
-      then Error (Printf.sprintf "this file spells the package %s another way" (quote q))
-      else Error (Printf.sprintf "no import in this file spells a package %s" (quote q))
+  | None -> (
+      match resolve_key file q with
+      | Own ->
+          Error
+            (Printf.sprintf
+               "%s is this file's own package, whose members are written \
+                unqualified"
+               (quote q))
+      | Found id when Hashtbl.fold (fun _ (p, _) acc -> acc || p = id) file.qualifiers false ->
+          Error (Printf.sprintf "this file spells the package %s another way" (quote q))
+      | _ -> Error (Printf.sprintf "no import in this file spells a package %s" (quote q)))
 
 let qualified (file : file) q name ~members =
   Result.map

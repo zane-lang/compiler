@@ -24,7 +24,7 @@ let magic s =
 
 let is s = magic s <> None
 
-let rewrite ~stamp input =
+let rewrite ~rename input =
   let little, wide =
     match magic input with Some m -> m | None -> malformed "the file is not Mach-O"
   in
@@ -69,7 +69,7 @@ let rewrite ~stamp input =
           let old =
             cstring b ~table:stroff ~size:strsize ~at:strx "a symbol's name"
           in
-          match Name.rewrite ~stamp old with
+          match rename old with
           | None -> ()
           | Some fresh -> renamed := (entry, Appended.add added fresh) :: !renamed
       done;

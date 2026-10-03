@@ -1,0 +1,13 @@
+/// A library that depends on the first version of geometry, and makes an
+/// instance of its generic.
+package atlas;
+
+import geometry;
+
+alias Int = @primitives$Int
+
+Int legacy() => geometry$version()
+
+Int measure() => geometry$Point(Int(1), Int(2)):size()
+
+Int echo(x Int) => geometry$same(x)

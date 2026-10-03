@@ -1,0 +1,16 @@
+File "fixtures/versions/atlas/atlas.zn", line 5, characters 8-16:
+5 | import geometry;
+  |        ^^^^^^^^
+Error: `geometry` could be `v1.0%0123456789abcdef%geometry` or `v2.0%0123456789abcdef%geometry`; the driver says which one this package imports with `--import`
+File "fixtures/versions/atlas/atlas.zn", line 9, characters 17-25:
+9 | Int legacy() => geometry$version()
+  |                 ^^^^^^^^
+Error: no import in this file spells a package `geometry`
+File "fixtures/versions/atlas/atlas.zn", line 11, characters 18-26:
+11 | Int measure() => geometry$Point(Int(1), Int(2)):size()
+  |                  ^^^^^^^^
+Error: no import in this file spells a package `geometry`
+File "fixtures/versions/atlas/atlas.zn", line 13, characters 20-28:
+13 | Int echo(x Int) => geometry$same(x)
+  |                    ^^^^^^^^
+Error: no import in this file spells a package `geometry`

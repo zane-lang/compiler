@@ -1,0 +1,18 @@
+/// geometry at its first version, which atlas depends on: a point of two
+/// coordinates.
+package geometry;
+
+alias Int = @primitives$Int
+
+type Point = struct {
+	x Int;
+	y Int;
+}
+
+Point(x Int, y Int) => init{ x; y; }
+
+Int size(this Point) => this.x + this.y
+
+Int version() => Int(1)
+
+T same(value T Type) => value

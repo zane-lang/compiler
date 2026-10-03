@@ -33,3 +33,15 @@ program linked from several objects wrote.
   `golden/geometry.windows-x86_64.symbols` list two of those rewritten
   objects' symbols, showing the instance a weak definition on macOS and in a
   COMDAT on Windows.
+- `versions` holds two versions of `geometry` whose `Point`s differ in
+  layout, `atlas`, which uses the first, and `app`, a program that uses the
+  second under the key `geo` and uses atlas. Each library is built into an
+  object of its own with its stamp, and the program links all three. Every
+  check it makes prints `yes` when it holds. `golden/versions.ambiguous` is
+  the error for atlas's `import geometry` when nothing says which version it
+  means.
+
+  `geometry11` is a later release of the first version, laid out the same,
+  and `remapped` a program that uses it and atlas. atlas's object is
+  remapped from the first version onto `geometry11`, keeps no reference to
+  the first, and links with `geometry11` alone.

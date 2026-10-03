@@ -110,22 +110,20 @@ let import_file (file : file) (decls : N.Decl.t list) =
         Hashtbl.add forms pkg (form, at);
         true
   in
-  let package_exists (name : N.Name.t) =
-    if String.equal (name_of name) file.package then begin
-      error name.N.Name.span
-        (Printf.sprintf
-           "%s is this file's own package; its members are available without an \
-            import"
-           (quote (name_of name)));
-      false
-    end
-    else if Hashtbl.mem packages (name_of name) then true
-    else begin
-      error name.N.Name.span
-        (Printf.sprintf "no package named %s is part of this build"
-           (quote (name_of name)));
-      false
-    end
+  (* The package an import's key names, reported where it names none. *)
+  let imported (name : N.Name.t) =
+    match resolve_key file (name_of name) with
+    | Found id -> Some id
+    | Own ->
+        error name.N.Name.span
+          (Printf.sprintf
+             "%s is this file's own package; its members are available without an \
+              import"
+             (quote (name_of name)));
+        None
+    | (Unknown | Ambiguous _) as key ->
+        Option.iter (error name.N.Name.span) (key_message (name_of name) key);
+        None
   in
   let bring pkg (member : N.Import_member.t) (spelling : N.Import_member.t) at =
     let found = members_of pkg member.N.Import_member.name in
@@ -162,8 +160,10 @@ let import_file (file : file) (decls : N.Decl.t list) =
       match d.N.Decl.node with
       | N.Decl.Import { N.Import.node; span } -> (
           match node with
-          | N.Import.Package { package = p; alias } ->
-              if package_exists p then begin
+          | N.Import.Package { package = p; alias } -> (
+              match imported p with
+              | None -> ()
+              | Some id ->
                 let spelling = Option.value ~default:p alias in
                 if Env.is_upper (name_of spelling) then
                   error spelling.N.Name.span
@@ -180,19 +180,19 @@ let import_file (file : file) (decls : N.Decl.t list) =
                            (quote (name_of spelling))
                            (quote other) (where at))
                   | None ->
-                      if record (name_of p) (Whole (name_of spelling)) span then
+                      if record id (Whole (name_of spelling)) span then
                         Hashtbl.replace file.qualifiers (name_of spelling)
-                          (name_of p, span)
-              end
+                          (id, span))
           | N.Import.Member { package = p; member; alias } ->
-              if package_exists p then
-                bring (name_of p) member (Option.value ~default:member alias) span
+              Option.iter
+                (fun id -> bring id member (Option.value ~default:member alias) span)
+                (imported p)
           | N.Import.Members { package = p; members } ->
-              if package_exists p then
-                List.iter (fun m -> bring (name_of p) m m span) members
-          | N.Import.All { package = p } ->
-              if package_exists p && record (name_of p) All_members span then
-                let target = package (name_of p) in
+              Option.iter (fun id -> List.iter (fun m -> bring id m m span) members) (imported p)
+          | N.Import.All { package = p } -> (
+              match imported p with
+              | Some id when record id All_members span ->
+                let target = package id in
                 let names =
                   Hashtbl.fold (fun n _ acc -> n :: acc) target.types []
                   @ Hashtbl.fold (fun n _ acc -> n :: acc) target.values []
@@ -200,8 +200,9 @@ let import_file (file : file) (decls : N.Decl.t list) =
                   |> List.sort_uniq String.compare
                 in
                 List.iter
-                  (fun n -> Hashtbl.add file.bare n { from = name_of p; member = n; at = span })
-                  names)
+                  (fun n -> Hashtbl.add file.bare n { from = id; member = n; at = span })
+                  names
+              | _ -> ()))
       | _ -> ())
     decls
 
@@ -305,12 +306,12 @@ let check_import_cycles (loaded : (package * (file * Assembly.file) list) list) 
   List.iter
     (fun ((pkg : package), files) ->
       List.iter
-        (fun (_, (f : Assembly.file)) ->
+        (fun ((file : file), (f : Assembly.file)) ->
           List.iter
             (fun (d : N.Decl.t) ->
               match d.N.Decl.node with
-              | N.Decl.Import { N.Import.node; span } ->
-                  let target =
+              | N.Decl.Import { N.Import.node; span } -> (
+                  let key =
                     match node with
                     | N.Import.Package { package = p; _ }
                     | N.Import.Member { package = p; _ }
@@ -318,8 +319,9 @@ let check_import_cycles (loaded : (package * (file * Assembly.file) list) list) 
                     | N.Import.All { package = p } ->
                         name_of p
                   in
-                  if (not (String.equal target pkg.name)) && Hashtbl.mem packages target then
-                    Hashtbl.add edges pkg.name (target, span)
+                  match resolve_key file key with
+                  | Found target -> Hashtbl.add edges pkg.name (target, span)
+                  | Own | Unknown | Ambiguous _ -> ())
               | _ -> ())
             f.sst.N.Package.decls)
         files)
@@ -355,11 +357,13 @@ let run (assembled : Assembly.package list) =
     List.map
       (fun (p : Assembly.package) ->
         let files =
-          List.map (fun (f : Assembly.file) -> (new_file ~package:p.name f.path, f)) p.files
+          List.map (fun (f : Assembly.file) -> (new_file ~package:p.id f.path, f)) p.files
         in
         let pkg =
           {
-            name = p.name;
+            name = p.id;
+            declared = p.name;
+            imports = p.imports;
             is_root = p.is_root;
             files = List.map fst files;
             decls = [];
@@ -368,8 +372,8 @@ let run (assembled : Assembly.package list) =
             method_names = Hashtbl.create 16;
           }
         in
-        Hashtbl.replace packages p.name pkg;
-        package_order := !package_order @ [ p.name ];
+        Hashtbl.replace packages p.id pkg;
+        package_order := !package_order @ [ p.id ];
         (pkg, files))
       assembled
   in

@@ -11,10 +11,13 @@
    when it passes none, the directory's basename stands in, which is how the
    test fixtures name their packages. See docs/design/semantics.md §2.
 
-   Where the directories come from is the driver's business. Fetching,
-   versions and the manifest (dependencies.md) are not modelled; a build is the
-   list of directories it was given, and the first of them is the root
-   (packages.md §6.1). *)
+   Where the directories come from is the driver's business. Fetching and the
+   manifest (dependencies.md) are not modelled; a build is the list of
+   directories it was given, and the first of them is the root (packages.md
+   §6.1). A package given a stamp is one version of a published package
+   (dependencies.md §6.1), and its identity is its stamped name, so two
+   versions of one package, or two packages of one name, are two packages of
+   the build (§11, docs/design/separate-compilation.md C10). *)
 
 module Span = Source.Span
 
@@ -27,10 +30,18 @@ type file = {
 }
 
 type package = {
+  (* What the package is called in the build: its name, after its stamp when
+     it has one. Unique within a build, and what its symbols are named by. *)
+  id : string;
+  (* The name its manifest gives it, which its files declare. *)
   name : string;
   dir : string;
   is_root : bool;
   files : file list;
+  (* The packages its imports name, each by the key the package imports it
+     by and the package's [id], when the driver says. Empty when it does
+     not, and then an import names a package by its name. *)
+  imports : (string * string) list;
 }
 
 (* What went wrong, and whether there is source to point at.
@@ -198,15 +209,18 @@ let package_name dir =
   in
   match components with [] -> "" | last :: _ -> last
 
-(* A package the build asks for: its directory, and the name its manifest
-   gives it, if the driver passed one. *)
-type request = { manifest_name : string option; directory : string }
+(* A package the build asks for: its directory, the name its manifest gives
+   it, if the driver passed one, and its stamp, if it is a version of a
+   published package. *)
+type request = { manifest_name : string option; directory : string; stamp : string option }
 
 let name_of request =
   match request.manifest_name with Some name -> name | None -> package_name request.directory
 
+let id_of request = Option.value ~default:"" request.stamp ^ name_of request
+
 let load_package ~is_root request =
-  let name = name_of request and dir = request.directory in
+  let name = name_of request and id = id_of request and dir = request.directory in
   let given = Option.is_some request.manifest_name in
   if not (Sys.file_exists dir && Sys.is_directory dir) then
     Error [ In_directory { dir; message = "no such directory" } ]
@@ -230,22 +244,61 @@ let load_package ~is_root request =
            report per file, not one report per run (docs/design/semantics.md D4). *)
         List.map (load_file ~name ~given) paths
         |> all_or_problems
-        |> Result.map (fun files -> { name; dir; is_root; files })
+        |> Result.map (fun files -> { id; name; dir; is_root; files; imports = [] })
 
-(* A package name names one package. Two directories with the same name would
+(* An identity names one package. Two directories with the same one would
    both be that package, and which of them a `name$member` meant would depend
-   on nothing the source says. Two versions of one package can coexist
-   (dependencies.md §11), but by rewriting their symbols at fetch time, which
-   is not modelled here. The first directory keeps the name; each later one is
-   reported and not loaded. *)
+   on nothing the source says. Two versions of one package have two stamps,
+   and so two identities. The first directory keeps the identity; each later
+   one is reported and not loaded. *)
 let claimed_by earlier request =
-  let name = name_of request in
-  List.find_opt (fun other -> String.equal (name_of other) name) earlier
+  let id = id_of request in
+  List.find_opt (fun other -> String.equal (id_of other) id) earlier
+
+(* Each key goes to the package that imports by it. Both ends must be
+   packages of the build, and a package imports by each key once. *)
+let attach_imports packages imports =
+  let known id = List.exists (fun p -> String.equal p.id id) packages in
+  let problem message = In_directory { dir = "."; message } in
+  let unknown (from, key, target) =
+    List.filter_map
+      (fun id ->
+        if known id then None
+        else
+          Some
+            (problem
+               (Printf.sprintf "`--import %s:%s=%s` names `%s`, which is no package of the build"
+                  from key target id)))
+      [ from; target ]
+  in
+  let twice =
+    List.sort_uniq compare (List.map (fun (f, k, _) -> (f, k)) imports)
+    |> List.filter_map (fun (from, key) ->
+           if List.length (List.filter (fun (f, k, _) -> f = from && k = key) imports) > 1 then
+             Some (problem (Printf.sprintf "`%s` is given the key `%s` more than once" from key))
+           else None)
+  in
+  match List.concat_map unknown imports @ twice with
+  | [] ->
+      Ok
+        (List.map
+           (fun p ->
+             {
+               p with
+               imports =
+                 List.filter_map
+                   (fun (from, key, target) ->
+                     if String.equal from p.id then Some (key, target) else None)
+                   imports;
+             })
+           packages)
+  | problems -> Error problems
 
 (* Problems come out in the order the directories were given, and within a
    directory in file order, so a run reads top to bottom like the command
-   that started it. *)
-let assemble_requests requests =
+   that started it. [imports] gives each package's keys, as the importing
+   package's identity, the key and the imported package's identity. *)
+let assemble_requests ?(imports = []) requests =
   let rec go earlier index = function
     | [] -> []
     | request :: rest ->
@@ -261,7 +314,7 @@ let assemble_requests requests =
                       message =
                         Printf.sprintf
                           "the package `%s` is already the directory `%s`"
-                          (name_of request) first.directory;
+                          (id_of request) first.directory;
                     };
                 ]
           | None -> load_package ~is_root:(index = 0) request
@@ -271,11 +324,14 @@ let assemble_requests requests =
         let earlier = if claimant = None then request :: earlier else earlier in
         loaded :: go earlier (index + 1) rest
   in
-  all_or_problems (go [] 0 requests)
+  match all_or_problems (go [] 0 requests) with
+  | Error problems -> Error problems
+  | Ok packages -> attach_imports packages imports
 
 (* Each directory named after itself. *)
 let assemble dirs =
-  assemble_requests (List.map (fun directory -> { manifest_name = None; directory }) dirs)
+  assemble_requests
+    (List.map (fun directory -> { manifest_name = None; directory; stamp = None }) dirs)
 
 let render_problem = function
   | In_file { diagnostic; source } -> Diagnostic.render ~source diagnostic
@@ -293,10 +349,11 @@ let to_node packages =
     (fun package ->
       group "package"
         (fields
-           [
+           ((if String.equal package.id package.name then [] else [ ("id", Leaf package.id) ])
+           @ [
              ("name", Leaf package.name);
              ("root", Leaf (string_of_bool package.is_root));
              ("dir", Leaf package.dir);
              ("files", map_seq (fun file -> Leaf file.path) package.files);
-           ]))
+           ])))
     packages

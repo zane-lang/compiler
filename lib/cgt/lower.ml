@@ -1437,19 +1437,19 @@ let library_roots st (root : T.Package.t) =
 
 (* A program lowers from its root package's `main`; a [library] from every
    function its root package declares, into an object with no entry.
-   [stamps] gives a package's stamp (docs/design/separate-compilation.md C6):
-   a dependency given one arrives as objects of its own, and the root
-   library given one is named with it instead of the `!` placeholder, as a
-   dependency compiled from source is. *)
-let program ?(library = false) ?(stamps = []) (p : T.Program.t) =
+
+   A package given a stamp is named by it already: its identity is its
+   stamped name (docs/design/separate-compilation.md C6, C10), which a `%`
+   in it gives away, since no package name holds one. A dependency with a
+   stamp arrives as objects of its own, and a root library with one is
+   named with it instead of the `!` placeholder, as a dependency compiled
+   from source is. *)
+let program ?(library = false) (p : T.Program.t) =
   let root = match p.T.Program.packages with r :: _ -> Some r.T.Package.name | [] -> None in
   let library = if library then root else None in
-  let stamp p =
-    match List.assoc_opt p stamps with
-    | Some s -> s
-    | None -> if Some p = library then "!" else ""
-  in
-  let stamped p = Some p <> root && List.mem_assoc p stamps in
+  let has_stamp p = String.contains p '%' in
+  let stamp p = if Some p = library && not (has_stamp p) then "!" else "" in
+  let stamped p = Some p <> root && has_stamp p in
   let st =
     {
       verbs = Hashtbl.create 64;
