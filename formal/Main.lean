@@ -48,6 +48,13 @@ def main (args : List String) : IO UInt32 := do
       else
         IO.println "REJECTED"
         return 1
+  | ["expand", mly, std] =>
+    match Mly.sourceGrammar (← IO.FS.readFile mly) (← IO.FS.readFile std) with
+    | .error e => IO.eprintln e; return 2
+    | .ok g =>
+      for p in g.prods do
+        IO.println s!"{p.lhs}: {" ".intercalate p.rhs}{match p.prec with | some x => " %prec " ++ x | none => ""}"
+      return 0
   | ["stats", dump] =>
     let A ← IO.ofExcept (parseDump (← IO.FS.readFile dump) "package")
     say s!"states {A.trans.size} productions {A.prods.size} nts {A.nts.size}"
