@@ -77,11 +77,20 @@ type precision = int array
    only merge concrete stacks and therefore admit extra moves; they cannot
    remove one. Keeping the residue in [stack] also means deduplication never
    substitutes the fingerprint of one path for another. *)
-let residue_count = 1024
+(* Lazy for the reason [descent_limit] gives; [Config.settings] forces it. *)
+let residue_count =
+  lazy
+    (let bits = match Sys.getenv_opt "AMBIGUITY_RESIDUE_BITS" with
+       | None | Some "" -> 10
+       | Some value -> (match int_of_string_opt value with
+           | Some bits when bits >= 0 && bits <= 10 -> bits
+           | _ -> invalid_arg "AMBIGUITY_RESIDUE_BITS must be an integer from 0 to 10") in
+     1 lsl bits)
 
 let terminal_residue token =
+  let residue_count = Lazy.force residue_count in
   let value = Hashtbl.hash token land (residue_count - 1) in
-  if value = 0 then 1 else value
+  if residue_count = 1 then 0 else if value = 0 then 1 else value
 
 type stack = { suffix : int list; height : int; residue : int }
 
@@ -101,6 +110,42 @@ let production_residues automaton =
   Array.init (Hashtbl.length automaton.production_text)
     (production_residue automaton)
 
+(* A concrete reduction pops the path labelled by its RHS, not an arbitrary
+   path of the same length. Match those labels backwards, intersecting with
+   every state the retained suffix still knows. The unknown prefix remains
+   existential: all sources compatible with those facts are retained. *)
+let reduction_bases automaton =
+  let incoming = Array.init (Array.length automaton.states)
+      (fun _ -> Hashtbl.create 8) in
+  Array.iteri (fun source state ->
+    Hashtbl.iter (fun symbol target ->
+      let previous = Option.value
+          (Hashtbl.find_opt incoming.(target) symbol) ~default:IntSet.empty in
+      Hashtbl.replace incoming.(target) symbol (IntSet.add source previous))
+      state.transitions) automaton.states;
+  let rhs = Array.init (Hashtbl.length automaton.production_text) (fun prod ->
+    match String.split_on_char '>' (production_name automaton prod) with
+    | _ :: rest -> List.rev (words (String.concat ">" rest))
+    | [] -> invalid_arg "missing reduction production") in
+  fun suffix prod ->
+    let rec walk sources known = function
+      | [] -> sources
+      | symbol :: rest ->
+          let previous = IntSet.fold (fun target all ->
+            IntSet.union all (Option.value
+              (Hashtbl.find_opt incoming.(target) symbol) ~default:IntSet.empty))
+            sources IntSet.empty in
+          let previous, known = match known with
+            | expected :: tail ->
+                (IntSet.inter previous (IntSet.singleton expected), tail)
+            | [] -> (previous, []) in
+          if IntSet.is_empty previous then previous
+          else walk previous known rest
+    in
+    match suffix with
+    | [] -> IntSet.empty
+    | top :: known -> walk (IntSet.singleton top) known rhs.(prod)
+
 (* Residues of terminal symbols along every automaton path from the initial
    state. Every concrete LR stack is such a path. This regular over-approximation
    cheaply rules out a guessed reduction base whose outstanding terminals could
@@ -108,7 +153,7 @@ let production_residues automaton =
 let reachable_stack_residues automaton =
   let reachable =
     Array.init (Array.length automaton.states) (fun _ ->
-        Array.make residue_count false)
+        Array.make (Lazy.force residue_count) false)
   in
   let queue = Queue.create () in
   let push state residue =
@@ -349,11 +394,6 @@ let below_steps preds =
 let deepen (precision : precision) state depth =
   if depth > precision.(state) then precision.(state) <- depth
 
-let rec last_state = function
-  | [] -> invalid_arg "last_state: empty suffix"
-  | [ state ] -> state
-  | _ :: tail -> last_state tail
-
 (* One micro-step of a single run while consuming a token: apply one
    reduction, or terminate the chain by shifting the token (accepting, when
    the token is "#"). *)
@@ -374,7 +414,7 @@ type side_move =
   | Reduce of int * stack (* production id, the stack afterwards *)
   | Terminate of stack (* the stack after the shift, or at acceptance *)
 
-let side_moves automaton gotos below preds reachable reachable_height prod_residues
+let side_moves automaton gotos below bases preds reachable reachable_height prod_residues
     (precision : precision) ceiling reduction_cache cache stack token =
   match Hashtbl.find_opt cache (stack, token) with
   | Some moves -> moves
@@ -451,6 +491,7 @@ let side_moves automaton gotos below preds reachable reachable_height prod_resid
                  stack below and guess where the pop landed. *)
               if height < ceiling && reduction.width >= height then ()
               else
+                let sources = bases suffix reduction.prod in
                 (* A saturated height is not a number, it is the absence of
                    one: subtracting a width from it would manufacture an exact
                    height smaller than the truth, and an under-counted height
@@ -482,7 +523,7 @@ let side_moves automaton gotos below preds reachable reachable_height prod_resid
                   | base :: _ as remaining ->
                       Option.iter
                         (fun target ->
-                          if fits after target
+                          if IntSet.mem base sources && fits after target
                              && residue_fits after target reduced_residue
                           then
                             moves :=
@@ -503,11 +544,9 @@ let side_moves automaton gotos below preds reachable reachable_height prod_resid
                      one entry below the last one popped. Counting from the
                      deepest entry the suffix does know, that is
                      [width - depth + 1] entries further down, and the states
-                     that can be there are exactly the ones that many predecessor
-                     steps away. Popping exactly the suffix is the one-step case
-                     of the same rule. *)
-                  let deepest = last_state suffix in
-                  let sources = below deepest (reduction.width - depth + 1) in
+                     that can be there must also match every popped RHS symbol.
+                     [bases] checks both the labels and the retained states;
+                     counting predecessor steps alone admits unrelated paths. *)
                   (* The goto source does not merely sit that far below the
                      suffix, it sits at a known height. The reduction leaves a
                      stack of [after] entries with the goto target on top, so

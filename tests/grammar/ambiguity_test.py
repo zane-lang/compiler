@@ -234,15 +234,15 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             0,
         )
         self.assert_derivations(
-            "LIDENT UIDENT EQUAL MATCH LPAREN UIDENT RPAREN LCURLY RCURLY "
+            "LIDENT UIDENT EQUAL MATCH LPAREN LIDENT RPAREN LCURLY RCURLY "
             "LESSEQ UIDENT LCURLY RCURLY EOF",
-            "x Foo = match (A) { } <= B { }",
+            "x Foo = match (a) { } <= B { }",
             1,
         )
         self.assert_derivations(
             "LIDENT UIDENT EQUAL MATCH LPAREN UIDENT LCURLY RCURLY LESSEQ "
-            "UIDENT RPAREN LCURLY RCURLY EOF",
-            "x Foo = match (A { } <= B) { }",
+            "LIDENT RPAREN LCURLY RCURLY EOF",
+            "x Foo = match (A { } <= b) { }",
             1,
         )
 
@@ -261,15 +261,15 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         # call is written on the parenthesized match, and on the parenthesized
         # constructor inside the scrutinee list.
         self.assert_derivations(
-            "LIDENT UIDENT EQUAL MATCH LPAREN UIDENT RPAREN LCURLY RCURLY "
+            "LIDENT UIDENT EQUAL MATCH LPAREN LIDENT RPAREN LCURLY RCURLY "
             "LPAREN RPAREN LCURLY RCURLY EOF",
-            "x Foo = match (A) { } ( ) { }",
+            "x Foo = match (a) { } ( ) { }",
             0,
         )
         self.assert_derivations(
-            "LIDENT UIDENT EQUAL LPAREN MATCH LPAREN UIDENT RPAREN LCURLY "
+            "LIDENT UIDENT EQUAL LPAREN MATCH LPAREN LIDENT RPAREN LCURLY "
             "RCURLY RPAREN LPAREN RPAREN LCURLY RCURLY EOF",
-            "x Foo = (match (A) { }) ( ) { }",
+            "x Foo = (match (a) { }) ( ) { }",
             1,
         )
         self.assert_derivations(
@@ -519,17 +519,14 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         )
 
     def test_a_type_passed_as_a_value_is_not_a_postfix_base(self) -> None:
-        # A type may be written where a value is expected (generics.md §5.3),
-        # and the production sits at expression level rather than among the
-        # postfix bases. That is what keeps the three uppercase forms below at
-        # one reading each: written as a `primary` the type name would reach
-        # `.`, `(` and `[` through `app`, and each of them would gain a second
-        # derivation as an access, a call, or a subscript on a type value.
-        self.assert_grouping(
+        # Standalone types are constructor arguments only. An ordinary call
+        # cannot take one, while constructors and type members retain their
+        # existing readings.
+        self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
             "LIDENT LPAREN UIDENT RPAREN SEMICOLON RCURLY EOF",
             "Int length() { abort register(Int); }",
-            "call(name, type_value)",
+            0,
         )
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
@@ -640,7 +637,7 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT RPAREN "
             "EQUAL UIDENT LPAREN INT RPAREN SEMICOLON RCURLY EOF",
             "Unit f() { p (Int) = Int(1); }",
-            1,
+            0,
         )
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT QSTNMARK "

@@ -38,6 +38,7 @@ let timeout = ref None
 let max_witnesses = ref None
 let check_tokens = ref []
 let prove_level = ref 0
+let balanced_proof = ref false
 let cegar_rounds = ref 0
 let survey_limit = ref 0
 let refine_max = ref 0
@@ -120,6 +121,10 @@ let options =
       "N with --prove, after an exact-checked spurious candidate, add its \
        complete token history to a DFA product and restart the abstract walk \
        (0 disables; every terminal-class substitution is checked)" );
+    ( "--prove-balanced",
+      Arg.Set balanced_proof,
+      " with --prove, intersect abstract runs with exactly nested (), [] and {} \
+       histories using recursive summaries; requires balanced production skeletons" );
     ( "--prove-refine",
       Arg.Set_int refine_max,
       "K with --prove, treat a candidate as a reason to sharpen the \
@@ -174,6 +179,8 @@ let settings () =
      before the run starts, rather than at whatever moment the first progress
      line happened to fall due. *)
   ignore (Lazy.force progress_interval : float);
+  ignore (Lazy.force Abstraction.residue_count : int);
+  ignore (Lazy.force Delimiter_history.modulus : int);
   Option.iter
     (fun value ->
       if value < 0 then invalid_arg "--max-tokens must be at least 0")
@@ -210,6 +217,10 @@ let settings () =
     invalid_arg "--prove-cegar requires --prove";
   if !cegar_rounds > 0 && !survey_limit > 0 then
     invalid_arg "--prove-cegar cannot be combined with --prove-survey";
+  if !balanced_proof && !prove_level <= 0 then
+    invalid_arg "--prove-balanced requires --prove";
+  if !balanced_proof && (!survey_limit > 0 || !retire_after > 0 || !trace_forward) then
+    invalid_arg "--prove-balanced cannot be combined with survey, retire or trace";
   if !refine_max < 0 then invalid_arg "--prove-refine must be non-negative";
   if !refine_max > 0 && !prove_level <= 0 then
     invalid_arg "--prove-refine requires --prove";

@@ -215,7 +215,7 @@ the spec's direction needs the spec to say what separates two adjacent
 declarations when the first ends in a name; until it does, the compiler cannot
 drop the `;` without re-admitting the ambiguity.
 
-## 5. Only a bare name may be passed as a type
+## 5. A type is passed only to a constructor, and only by bare name
 
 **Spec** — [`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
 §5.3: "A type or number can instead be passed as an ordinary argument by
@@ -223,41 +223,63 @@ declaring a value parameter of concept type `Type` or `Number`. The argument is
 then written positionally in `()`, like any other value." A type is whatever a
 type expression describes, so nothing in that sentence narrows it to a name.
 
-**Compiler** — a type name may be written where a value is expected; no other
-type spelling may.
+**Compiler** — a type is passed as a value only as a whole argument of a
+constructor call, positional or named, and only as a bare name. A type name
+anywhere else a value is expected is a syntax error: as an argument of an
+ordinary function or method, as an operand of an operator, or as the value of a
+declaration.
 
 ```zane
-arr Array(Int, 10000);        // accepted, and §6.2's own example
+arr Array(Int, 10000);        // accepted
 room Slots(math$Vector, 4);   // accepted: a qualified name is still a name
-held Slot = @primitives$I64;  // accepted: so is an intrinsic one
+held Slot(@primitives$I64);   // accepted: so is an intrinsic one
+item Slot{type = Int;}        // accepted: a named argument
 
-register(Array<Int, 4>);      // rejected
-register(&Int);               // rejected
-register(Int[3]);             // rejected
+register(Int);                // rejected: an ordinary function argument
+held Slot = Int;              // rejected: the value of a declaration
+arr Array(Int + 1);           // rejected: an operand
+room Slots(Array<Int, 4>, 2); // rejected: an applied type
+room Slots(&Int, 2);          // rejected: a guest type
+room Slots(Int[3], 2);        // rejected: an array type
 ```
 
-What separates the two lists is whether the spelling **ends at the name**. A
-bare name does, so the parser reads it and is finished. Every other type
+**Why constructors.** What has to be excluded is a type as an operand. Where a
+type name may be an operand, the `<` after it reads both as a comparison and as
+the opening of the type's `<>` list, and both readings can complete:
+
+```zane
+x Result = Foo<1>[]() {}
+```
+
+is a lambda whose return type is `Foo<1>[]`, and it is also
+`(Foo < 1) > ([]() {})` — `Foo` compared with `1`, and the result compared with
+an empty collection called with a block. Once a type cannot be an operand, the
+`<` after a type name can only open its `<>` list, and the second reading is
+gone. A whole argument is never an operand, since the `,`, `)` or `;` after it
+ends it, so a type passed there brings neither reading back.
+[`ambiguity/experiments.md`](ambiguity/experiments.md#constructor-only-type-arguments)
+records how the ambiguity was found and the proof that the grammar is
+unambiguous with this rule in place.
+
+Excluding operands alone would leave a type usable as a value everywhere except
+beside an operator, which is an odd rule to learn for the sake of a parser
+conflict. The line is drawn at a construct instead. Constructors already have
+semantics of their own, and they are where a passed type pays off: `Array(Int,
+10000)` builds storage for the type it is given. An ordinary function argument
+is a whole argument too, so allowing types there would not bring the ambiguity
+back; it is left out by choice. A generic function gets its type parameter by
+inference instead: `T same(value T Type)` fixes `T` from the argument.
+
+**Why bare names.** A bare name ends where it is written. Every other type
 spelling continues into a bracket that already means something else after an
 expression: `<` opens a comparison, `[` a subscript, and a leading `&` belongs
 to a lambda's return type
 ([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§3.8). The parser would have to complete the type-value reading before seeing
-which, and it cannot.
-
-Measured, that is not a fork GLR resolves but a cost paid in the automaton:
-admitting the applied form adds three **reduce/reduce** states, every one of
-them `expr -> <name> loption_generics_` against `list_verb_type_suffix_ ->`.
-The bare form adds four shift/reduce states and no reduce/reduce state at all.
-`docs/ambiguity/proof-obligations.md` carries the full measurement.
-
-The narrowing costs nothing the spec demonstrates: every §5.3 and §6.2 example
-passes a bare name, and a parameterized type reaches a verb through inference
-instead — `values Array<T Type, n @concepts$Int>` introduces both
-parameters from the argument. (Since spec commit `c4295ca` the number concept
-this entry quotes as `Number` is spelled `@concepts$Int`; the divergence is
-unchanged.) What is out of reach is passing an *already applied* type as a value,
-which the spec neither shows nor rules out.
+§3.8). While a type could stand anywhere a value could, admitting the applied
+form added three reduce/reduce states against the verb-type suffix list;
+[`ambiguity/proof-obligations.md`](ambiguity/proof-obligations.md) carries the
+measurement. The bare-name rule is kept from then; it has not been re-measured
+for the constructor-argument position alone.
 
 ## 6. A `match` parenthesizes its scrutinee list
 

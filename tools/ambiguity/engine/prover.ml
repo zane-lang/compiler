@@ -434,10 +434,12 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
   let automaton = engine.automaton in
   (* Filter states are included in every abstract pair key. Any added sentence
      therefore requires a fresh walk and fresh caches. *)
-  let history_filter = History_filter.create blocked_sentences in
+  if Lazy.force Delimiter_history.modulus > 1 then Balanced_walk.validate automaton;
+  let history_filter = Delimiter_history.create blocked_sentences in
   let gotos = goto_edges automaton in
   let preds = predecessors automaton in
   let below = below_steps preds in
+  let bases = reduction_bases automaton in
   let reachable = reachable_stack_residues automaton in
   let prod_residues = production_residues automaton in
   (* Past the widest reduction in the grammar the exact height stops deciding
@@ -492,7 +494,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
   let reachable_height =
     Array.init height_ceiling (fun _ ->
         Array.init (Array.length automaton.states) (fun _ ->
-            Bytes.make residue_count '\000'))
+            Bytes.make (Lazy.force residue_count) '\000'))
   in
   Bytes.set reachable_height.(1).(0) 0 '\001';
   for height = 1 to height_ceiling - 2 do
@@ -504,7 +506,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
               if StringSet.mem symbol automaton.terminals then
                 terminal_residue symbol else 0
             in
-            for residue = 0 to residue_count - 1 do
+            for residue = 0 to Lazy.force residue_count - 1 do
               if Bytes.get reachable_height.(height).(source) residue = '\001'
               then Bytes.set reachable_height.(height + 1).(target)
                   (residue lxor edge) '\001'
@@ -554,7 +556,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
         fits
   in
   let moves =
-    let raw = side_moves automaton gotos below preds reachable reachable_height
+    let raw = side_moves automaton gotos below bases preds reachable reachable_height
         prod_residues precision height_ceiling reduction_cache moves_cache in
     fun stack token ->
       if viable stack then raw stack token else []
@@ -878,7 +880,14 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
      the same abstract reduction chains, so exploring one covers the class and
      shrinks the abstract pair space by the same factor as the search. *)
   let terminals =
-    StringSet.elements (class_representatives automaton automaton.terminals)
+    if Lazy.force Delimiter_history.modulus = 1 then
+      StringSet.elements (class_representatives automaton automaton.terminals)
+    else
+      let delimiters, ordinary = StringSet.partition
+        (fun token -> Balanced_walk.closing token <> None || Balanced_walk.is_closing token)
+        automaton.terminals in
+      StringSet.elements (StringSet.union delimiters
+        (class_representatives automaton ordinary))
   in
   let render_stack stack =
     String.concat " " (List.map string_of_int stack.suffix)
@@ -956,10 +965,72 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
     in
     (header :: stacks) @ conflict
   in
+  if !Config.balanced_proof then begin
+    Balanced_walk.validate automaton;
+    let start = { suffix = [ 0 ]; height = 1; residue = 0 } in
+    let initial = (start, start, false, Delimiter_history.root history_filter) in
+    let advance (left, right, diverged, history) token =
+      let history = Delimiter_history.advance history_filter history token in
+      List.map (fun (left, right, changed) ->
+        canonical (left, right, diverged || changed, history))
+        (joint (left, right) token diverged)
+    in
+    let accepts (left, right, diverged, history) =
+      not (Delimiter_history.is_blocked history_filter history)
+      && List.exists (fun (_, _, changed) -> diverged || changed)
+           (joint (left, right) "#" diverged)
+    in
+    (* Keep delimiter tokens distinct, including when ordinary terminal
+       equivalence happens to put an opening and closing in one class. *)
+    let delimiter_tokens, ordinary_tokens = StringSet.partition
+      (fun token -> Balanced_walk.closing token <> None || Balanced_walk.is_closing token)
+      automaton.terminals in
+    let alphabet = StringSet.elements
+      (StringSet.union delimiter_tokens
+         (class_representatives automaton ordinary_tokens)) in
+    match Balanced_walk.run ~initial ~terminals:alphabet ~advance ~accepts
+            ~limit:pair_limit ~deadline with
+    | Balanced_walk.Closed entries -> Proven entries
+    | Balanced_walk.Overflow entries -> Pair_overflow entries
+    | Balanced_walk.Timed_out entries -> Prove_timeout entries
+    | Balanced_walk.Candidate (entries, last, trace) ->
+        let steps = Balanced_walk.steps trace in
+        let tokens = List.map (fun (_, token, _) -> token) steps in
+        let rec first_site = function
+          | ((left, right, false, _), token, (_, _, true, _)) :: _ ->
+              (left, right, token)
+          | _ :: rest -> first_site rest
+          | [] -> let left, right, _, _ = last in (left, right, "#")
+        in
+        let site = first_site steps in
+        let frontiers = replay engine tokens in
+        let parses = accepted_count engine frontiers.(Array.length frontiers - 1) in
+        let wanted = Hashtbl.create 16 in
+        let record (top, depth) =
+          let previous = Option.value (Hashtbl.find_opt wanted top) ~default:0 in
+          Hashtbl.replace wanted top (max previous depth)
+        in
+        let request ((left, right, _, _), token, _) =
+          List.iter (fun stack ->
+            List.iter record (chain_imprecision automaton moves stack token);
+            List.iter record (chain_truncations descend moves stack token))
+            (if left = right then [left] else [left; right])
+        in
+        List.iter request steps;
+        request (last, "#", last);
+        let requests = Hashtbl.fold (fun top depth all -> (top, depth) :: all) wanted [] in
+        Abstract_candidate {
+          candidate_tokens = tokens; candidate_pairs = entries;
+          candidate_example = { example_tokens = tokens; example_site = describe_site site };
+          candidate_forward = []; candidate_requests = requests;
+          candidate_site = site_identity site; candidate_derivations = parses;
+          candidate_decisive = None; candidate_path_requests = requests;
+        }
+  end else begin
   if not state.seeded then begin
     let start = { suffix = [ 0 ]; height = 1; residue = 0 } in
     state.seeded <- true;
-    push None (start, start, false, History_filter.root history_filter)
+    push None (start, start, false, Delimiter_history.root history_filter)
   end;
   (* The pairs a deepening put back into play. They are already in [parents]
      from the round that explored them, so [push] would drop them as seen:
@@ -1025,7 +1096,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
     let eof_outcomes = joint (left, right) "#" diverged in
     (* Only complete blocked histories are discarded, at an accepting EOF
        outcome. Prefixes keep all continuations, including longer sentences. *)
-    let excluded_at_eof = History_filter.is_blocked history_filter history in
+    let excluded_at_eof = Delimiter_history.is_blocked history_filter history in
     let accepts_diverged =
       (not excluded_at_eof)
       && List.exists
@@ -1067,7 +1138,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
               if surveying && (not diverged) && chain_diverged then
                 Hashtbl.replace sites (left, right, token) ();
               let next_history =
-                History_filter.advance history_filter history token
+                Delimiter_history.advance history_filter history token
               in
               push
                 (Some (token, node))
@@ -1202,3 +1273,4 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
         if !overflow then Pair_overflow explored
         else if ran_out_of_time then Prove_timeout explored
         else Proven explored
+  end

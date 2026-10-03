@@ -140,6 +140,30 @@
 - `ambiguity classes` — lists the terminal equivalence classes the search
   collapses, so a grammar change that unexpectedly splits or merges a class is
   visible. The same classes bound the prover's terminal alphabet.
+
+### Experimental recursive delimiter summaries
+
+`ambiguity prove 1 --balanced` intersects the abstract parser pair graph with
+the language of correctly nested `()`, `[]`, and `{}` token histories. It
+checks every reachable production's direct-terminal skeleton before enabling
+the filter. A grammar with a mismatched or unclosed skeleton is refused with
+exit 2, rather than silently losing an accepted input.
+
+Unlike a bounded delimiter counter, this uses recursive entry/exit summaries
+and has no nesting-depth limit. The summaries, caller links, and reached
+entries all count against the proof budget. It can still reach that budget or
+the timeout, and then returns `NOT PROVEN`. This mode is experimental: the
+complete Zane grammar has not been proved with it. A `PROVEN` verdict refers
+to the abstract graph intersected with balanced histories, rather than to the
+unfiltered graph.
+
+It supports stack refinement and exact-history CEGAR. Each attempt builds new
+summaries at the current precision. Survey, retirement, and forward tracing
+are currently refused in this mode.
+
+The soundness argument and measured limitations are in
+[`soundness.md`](soundness.md#recursive-delimiter-summaries) and
+[`experiments.md`](experiments.md#recursive-delimiter-summaries-october-1-2026).
 - `menhir --explain` — enumerates the conflict states that constitute the
   obligation ledger. `just explain --conflicts` prints them for the stock
   automaton, and `tools/ambiguity/conflict_census.py` summarises an
@@ -241,3 +265,47 @@ Exact witnesses can be checked without quoting their token names:
 ```sh
 ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN EOF
 ```
+
+## Fingerprint precision
+
+`AMBIGUITY_RESIDUE_BITS` chooses the viable-stack terminal fingerprint width,
+from 0 to 10 bits (default 10). Zero disables that constraint; it does not
+bound the input or permit a partial proof. Smaller fingerprints can make the
+finite graph much smaller, at the cost of more spurious candidates. Every
+setting preserves the same conservative proof direction, and invalid values
+fail closed. This is independent of the retained stack depth.
+
+For example, a lower-memory refinement experiment is:
+
+```sh
+AMBIGUITY_RESIDUE_BITS=0 ambiguity prove 2 --refine 24 --refine-rounds 24
+```
+
+A successful run must still exhaust its abstract graph. A candidate, timeout,
+or state cap remains `NOT PROVEN`. See `experiments.md` for measured results.
+
+## Modular delimiter histories
+
+`AMBIGUITY_DELIMITER_MODULUS` adds a finite product of net counts for `()`,
+`[]`, and `{}`, modulo a value from 1 to 8. The default 1 disables it. This
+requires balanced production skeletons and fails closed when that invariant
+does not hold. It is cheaper than recursive summaries but admits some
+misnested and incomplete histories; it neither bounds nesting nor proves
+unambiguity by itself. It can compose with CEGAR, refinement, or `--balanced`.
+
+```sh
+AMBIGUITY_RESIDUE_BITS=0 AMBIGUITY_DELIMITER_MODULUS=2 ambiguity prove 2 --refine 24 --refine-rounds 24
+```
+
+The October 1 full-grammar probe still reached its state cap with this setting.
+The plain zero-bit run reached four refinement rounds before timing out; the
+extra product did not improve that result at the tested budget.
+
+## Exact visible-stack proof
+
+`dev/bin/ambiguity prove-visible` checks the entire accepted parse relation of
+the shipped GLR backend and independently verifies a finite certificate. It
+needs Python and the pinned Menhir (`--menhir` or `AMBIGUITY_MENHIR`), and does
+not build the OCaml prover. `--stock` checks the grammar before the GLR nullable
+rewrite. See [visible-proof.md](visible-proof.md) for the theorem, scope,
+reproduction command, artifacts, limits, and exit statuses.

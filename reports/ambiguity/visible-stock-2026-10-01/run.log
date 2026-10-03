@@ -1,0 +1,96 @@
+COMMAND ["/home/user/compiler/_opam/bin/menhir", "--no-code-generation", "--only-preprocess-uu", "/home/user/compiler/lib/cst/parser.mly"]
+COMMAND ["/home/user/compiler/_opam/bin/menhir", "--no-code-generation", "--dump", "--base", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/parser", "/home/user/compiler/lib/cst/parser.mly"]
+File "/home/user/compiler/lib/cst/parser.mly", line 102, characters 0-9:
+Warning: the precedence level assigned to AMPERSAND is never useful.
+File "/home/user/compiler/lib/cst/parser.mly", line 103, characters 0-5:
+Warning: the precedence level assigned to DOT is never useful.
+File "/home/user/compiler/lib/cst/parser.mly", line 104, characters 0-5:
+Warning: the precedence level assigned to LBRACKET is never useful.
+File "/home/user/compiler/lib/cst/parser.mly", line 105, characters 0-5:
+Warning: the precedence level assigned to LPAREN is never useful.
+File "/home/user/compiler/lib/cst/parser.mly", line 1236, characters 37-48:
+Warning: this %prec declaration is never useful.
+File "/home/user/compiler/lib/cst/parser.mly", line 1211, characters 31-40:
+Warning: this %prec declaration is never useful.
+File "/home/user/compiler/lib/cst/parser.mly", line 1214, characters 47-55:
+Warning: this %prec declaration is never useful.
+File "/home/user/compiler/lib/cst/parser.mly", line 1225, characters 31-40:
+Warning: this %prec declaration is never useful.
+File "/home/user/compiler/lib/cst/parser.mly", line 1228, characters 31-36:
+Warning: this %prec declaration is never useful.
+Warning: 48 states have shift/reduce conflicts.
+Warning: one state has reduce/reduce conflicts.
+Warning: 64 shift/reduce conflicts were arbitrarily resolved.
+Warning: one reduce/reduce conflict was arbitrarily resolved.
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/lr.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/parser.automaton", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/context.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/expanded.mly", "--minimize"]
+states 1393 productions 481 occurrences 21485
+bisimulation classes 129
+bisimulation classes 151
+bisimulation classes 180
+bisimulation classes 197
+bisimulation classes 202
+bisimulation classes 204
+bisimulation classes 205
+bisimulation classes 205
+context export 205 nts 1760 rules
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/angles.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/context.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/angles.y"]
+Unique annotation certified: 40 opening occurrences; 17 generic-interior nonterminals
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/lookahead.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/angles.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/exact.y", "--bracket-groups"]
+bracket groups 30
+FIRST 0 10572
+FIRST 1 16481
+FIRST 2 16057
+FIRST 3 9518
+FIRST 4 1785
+FIRST 5 21
+FIRST 6 2
+FIRST 7 0
+expanded 100000 queued 13634
+expanded 169064 nonterminals 212589 rules
+partition 95
+partition 355
+partition 698
+partition 989
+partition 1195
+partition 1361
+partition 1511
+partition 1630
+partition 1719
+partition 1758
+partition 1785
+partition 1794
+partition 1797
+partition 1797
+final 1668 nonterminals 3490 rules
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/factor.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/exact.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/factored.y"]
+0 1410 2653
+1 1410 2653
+2 1410 2653
+3 1410 2653
+4 1410 2653
+5 1410 2653
+6 1410 2653
+7 1410 2653
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/prove.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/factored.y", "100000", "300", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/certificate.json"]
+components 945 non-regular obligations 0
+largest component 65
+compiled 900 4 DFA states 7 NFA states 45 languages
+compiled 800 7 DFA states 10 NFA states 159 languages
+compiled 700 17 DFA states 22 NFA states 269 languages
+compiled 641 1012 DFA states 1886 NFA states 342 languages
+compiled 638 1156 DFA states 2176 NFA states 347 languages
+compiled 631 1588 DFA states 2766 NFA states 360 languages
+compiled 630 3669 DFA states 1764 NFA states 422 languages
+compiled 600 6 DFA states 9 NFA states 452 languages
+compiled 510 2169 DFA states 2396 NFA states 542 languages
+compiled 500 5 DFA states 10 NFA states 552 languages
+compiled 400 18 DFA states 23 NFA states 688 languages
+compiled 353 3632 DFA states 1719 NFA states 909 languages
+compiled 300 87 DFA states 92 NFA states 970 languages
+compiled 200 85 DFA states 90 NFA states 1096 languages
+compiled 100 19 DFA states 98 NFA states 1222 languages
+compiled 38 1612 DFA states 1676 NFA states 1317 languages
+compiled 27 2169 DFA states 2396 NFA states 1328 languages
+compiled 0 110 DFA states 120 NFA states 1406 languages
+horizontal library 1406 languages 80395 states; largest 289
+PROVEN 2697 nodes 31 frames 1479 states 0.11 sec

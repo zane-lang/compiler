@@ -23,9 +23,25 @@ let run ~automaton ~engine ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~tim
       ~max_tokens
   in
   printf
-    "Proof budget: %d abstract pairs (single-threaded; the %d-worker \
+    "Proof budget: %d %s (single-threaded; the %d-worker \
      split does not apply).\n"
-    prove_limits.max_frontiers jobs;
+    prove_limits.max_frontiers
+    (if !balanced_proof then "summary entries" else "abstract pairs") jobs;
+  if !balanced_proof then begin
+    Balanced_walk.validate automaton;
+    printf "Balanced proof: all reachable production skeletons are well-nested; \
+            ()/[]/{} histories are checked at arbitrary depth.\n"
+  end;
+  if Lazy.force Delimiter_history.modulus > 1 then begin
+    Balanced_walk.validate automaton;
+    printf "Delimiter history: net counts modulo %d; balanced production \
+            skeletons checked; no depth or input-length bound.\n"
+      (Lazy.force Delimiter_history.modulus)
+  end;
+  let delimiter_description =
+    if Lazy.force Delimiter_history.modulus = 1 then ""
+    else Printf.sprintf " intersected with delimiter counts modulo %d"
+        (Lazy.force Delimiter_history.modulus) in
   (* Refinement's loop. A candidate is a question rather than an
      answer -- it may be a real ambiguity or a gap the abstraction left
      -- and the two are told apart by sharpening the abstraction exactly
@@ -389,7 +405,7 @@ let run ~automaton ~engine ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~tim
         "Stack residue: refused %d move(s) whose outstanding terminals \
          cannot reach the selected automaton state (%d residue \
          classes).\n"
-        !refused_residues residue_count
+        !refused_residues (Lazy.force residue_count)
   in
   (* The retired sites are the part of a retiring run that is not in its
      verdict: the verdict says the rest of the grammar came out clean,
@@ -506,9 +522,11 @@ let run ~automaton ~engine ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~tim
       end;
       printf
         "PROVEN UNAMBIGUOUS: no diverging pair of accepting parses \
-         exists in the top-%d stack abstraction (%d abstract pairs \
+         exists in the top-%d stack abstraction%s (%d abstract pairs \
          explored%s).\n"
-        !prove_level pairs
+        !prove_level
+        ((if !balanced_proof then " intersected with well-nested histories" else "")
+         ^ delimiter_description) pairs
         (if !cegar_used = 0 then ""
          else
            Printf.sprintf
@@ -543,9 +561,9 @@ let run ~automaton ~engine ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~tim
       if survey.accepting = 0 && survey.covered then begin
         printf
           "PROVEN UNAMBIGUOUS: no diverging pair of accepting parses \
-           exists in the top-%d stack abstraction (%d abstract pairs \
+           exists in the top-%d stack abstraction%s (%d abstract pairs \
            explored).\n"
-          !prove_level survey.survey_pairs;
+          !prove_level delimiter_description survey.survey_pairs;
         exit 0
       end;
       printf
@@ -554,10 +572,10 @@ let run ~automaton ~engine ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~tim
       exit not_proven_status
   | Pair_overflow pairs ->
       printf
-        "NOT PROVEN: the abstract pair limit (%d) was reached at \
+        "NOT PROVEN: the %s limit (%d) was reached at \
          abstraction level %d. Raise AMBIGUITY_MEMORY_MB or \
          AMBIGUITY_MAX_FRONTIER_RATIO, or lower --prove.\n"
-        pairs !prove_level;
+        (if !balanced_proof then "summary entry" else "abstract pair") pairs !prove_level;
       report_refinement ~exhaustive:false ();
       exit not_proven_status
   | Prove_timeout pairs ->
