@@ -110,8 +110,11 @@ root (`packages.md` §6.1). Each file parses and lowers exactly as today; stage
 grouping: a package is the `.zn` files directly in its directory (§2.3), named
 by the `NAME` its manifest gives it (§2.1), or for the directory when a bare
 `--package DIR` gives none, which is how the test fixtures name theirs. Each
-file must begin with a `package` line naming it (§2.2), and no two packages
-may share a name. `--check` runs semantics and prints nothing, and
+file must begin with a `package` line naming it (§2.2). A package given a
+stamp is known by its stamped name, and no two packages may share that
+identity; a package's imports name packages through the keys the driver
+gives it, or by name when it gives none
+([`separate-compilation.md`](separate-compilation.md) C10). `--check` runs semantics and prints nothing, and
 `--kind application` makes a root without `main` an error (§6.2).
 
 **D3. The compiler never names `core`.** `core` is an ordinary package
@@ -304,7 +307,8 @@ is "structurally equal to its right-hand side but not interchangeable with it"
 type table as its definition. Type equality is then plain structural equality on
 `Ty.t`, with no alias-chasing.
 
-`Type_id` is the defining package plus the name. That is also how a symbol will
+`Type_id` is the defining package's identity
+([`separate-compilation.md`](separate-compilation.md) C10) plus the name. That is also how a symbol will
 be named in the binary, because "the package name a compiled symbol carries is
 always the defining package's own name" (`packages.md` §3.3). The type table
 keeps, for each `Type_id`:

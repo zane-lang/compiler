@@ -31,7 +31,7 @@ let header s =
 
 let is s = header s <> None
 
-let rewrite ~stamp input =
+let rewrite ~rename input =
   let h = match header input with Some h -> h | None -> malformed "the file is not COFF" in
   let little = true in
   let b = Bytes.of_string input in
@@ -63,7 +63,7 @@ let rewrite ~stamp input =
             | Some n -> String.sub field 0 n
             | None -> field
         in
-        (match Name.rewrite ~stamp name with
+        (match rename name with
         | None -> ()
         | Some fresh -> renamed := (entry, Appended.add added fresh) :: !renamed);
         walk (i + 1 + u8 b (entry + h.record - 1))

@@ -1,0 +1,33 @@
+/// A program that uses atlas, whose object was built against geometry v1.0,
+/// and geometry v1.1. atlas's object is remapped onto v1.1, so the program
+/// links one geometry, and atlas reaches v1.1's verbs. Every check prints
+/// `yes` when it holds and `no` when it does not.
+package remapped;
+
+import geometry;
+import atlas;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(~ok, {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	check(geometry$version() == Int(11));
+	check(atlas$legacy() == Int(11));
+	check(atlas$measure() == Int(3));
+	check(atlas$echo(Int(5)) == Int(5));
+	return Unit();
+}

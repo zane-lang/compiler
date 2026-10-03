@@ -15,10 +15,12 @@ type stage = Cst | Sst
    prints the code-generation tree (`--cgt`) or the LLVM module (`--ll`), or
    builds the program into an executable (`--build OUT`,
    docs/design/lowering.md §7) or the root package into an object file
-   (`--object OUT`, docs/design/separate-compilation.md C3). `--stamp` names
-   a package's symbols with its version and identity (C6), and `--link` adds
-   a stamped dependency's object to the link (C7). `--check` runs semantics and prints nothing,
-   so its exit status and diagnostics are the whole answer. *)
+   (`--object OUT`, docs/design/separate-compilation.md C3). A package's
+   stamp names its symbols with its version and identity (C6), `--import`
+   says which package each of a package's import keys names (C10), and
+   `--link` adds a stamped dependency's object to the link (C7). `--check`
+   runs semantics and prints nothing, so its exit status and diagnostics are
+   the whole answer. *)
 type view = Assembled | Check | Declarations | Typed | Cgt | Ir | Build of string | Object of string
 
 (* What the root package is (packages.md §6.2): an application has a `main`
@@ -37,20 +39,25 @@ type build = {
      way; an unoptimized build is the faster one to make. *)
   optimize : bool;
   packages : Tst.Assembly.request list;
-  (* Each stamped dependency's stamp, and the objects `--build` links with
-     the program (docs/design/separate-compilation.md C6, C7). *)
+  (* Stamps given by package name, the objects `--build` links with the
+     program, and each package's import keys, as the importing package, the
+     key and the imported package (docs/design/separate-compilation.md C6,
+     C7, C10). *)
   stamps : (string * string) list;
   link : string list;
+  imports : (string * string * string) list;
 }
 
 (* `--rewrite STAMP INPUT OUTPUT` is fetching's step, not a build's: a
    library's object, built under the `!` placeholder, written out with the
    placeholder turned into the stamp (docs/design/separate-compilation.md
-   C9). *)
+   C9). `--remap FROM TO INPUT OUTPUT` is remapping's: an object written out
+   with its references to one version of a package moved to another (C11). *)
 type request =
   | File of stage * (string * string)
   | Packages of build
   | Rewrite of { stamp : string; input : string; output : string }
+  | Remap of { from : string; to_ : string; input : string; output : string }
 
 let read_file path =
   try In_channel.with_open_text path In_channel.input_all
@@ -65,8 +72,10 @@ let usage () =
   prerr_endline "             [--kind application|library]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp NAME=STAMP ...] [--link FILE ...]";
-  prerr_endline "             --package [NAME=]DIR [--package [NAME=]DIR ...]";
+  prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
+  prerr_endline "             --package [[STAMP]NAME=]DIR [--package [[STAMP]NAME=]DIR ...]";
   prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
+  prerr_endline "       zanec --remap FROM TO INPUT OUTPUT";
   exit 2
 
 (* The name reported in parse errors travels with the text, so reading from
@@ -82,17 +91,45 @@ let is_package_name name =
   && (match name.[0] with 'a' .. 'z' -> true | _ -> false)
   && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> true | _ -> false) name
 
-(* `NAME=DIR` names the package, as its manifest does (packages.md §2.1);
-   a bare `DIR` is named after the directory. A path that itself holds a `=`
-   is still a path, since what comes before the `=` then is no name. *)
+(* A package as `--package` and `--import` name it: a package name, after
+   its stamp when it has one, as `v1.0.1%3f9a1c02b7e4d6a8%math`. *)
+let package_id id =
+  match String.rindex_opt id '%' with
+  | None -> if is_package_name id then Some (None, id) else None
+  | Some i ->
+      let stamp = String.sub id 0 (i + 1) and name = String.sub id (i + 1) (String.length id - i - 1) in
+      if Rewrite.is_stamp stamp && is_package_name name then Some (Some stamp, name) else None
+
+(* `NAME=DIR` names the package, as its manifest does (packages.md §2.1),
+   and `STAMPNAME=DIR` gives it its stamp as well; a bare `DIR` is named
+   after the directory. A path that itself holds a `=` is still a path,
+   since what comes before the `=` then is no name. *)
 let package_request argument =
+  let whole = { Tst.Assembly.manifest_name = None; directory = argument; stamp = None } in
   match String.index_opt argument '=' with
-  | Some i when is_package_name (String.sub argument 0 i) ->
-      {
-        Tst.Assembly.manifest_name = Some (String.sub argument 0 i);
-        directory = String.sub argument (i + 1) (String.length argument - i - 1);
-      }
-  | _ -> { Tst.Assembly.manifest_name = None; directory = argument }
+  | Some i -> (
+      match package_id (String.sub argument 0 i) with
+      | Some (stamp, name) ->
+          {
+            Tst.Assembly.manifest_name = Some name;
+            directory = String.sub argument (i + 1) (String.length argument - i - 1);
+            stamp;
+          }
+      | None -> whole)
+  | None -> whole
+
+(* `PACKAGE:KEY=PACKAGE`: the package that imports, the key it imports by,
+   and the package the key names (dependencies.md §8). *)
+let import_request argument =
+  match (String.index_opt argument ':', String.index_opt argument '=') with
+  | Some colon, Some equals when colon < equals ->
+      let from = String.sub argument 0 colon
+      and key = String.sub argument (colon + 1) (equals - colon - 1)
+      and target = String.sub argument (equals + 1) (String.length argument - equals - 1) in
+      if package_id from <> None && is_package_name key && package_id target <> None then
+        Some (from, key, target)
+      else None
+  | _ -> None
 
 let arguments () =
   let rec go stage rest =
@@ -129,6 +166,7 @@ let arguments () =
               packages = List.rev build.packages;
               stamps = List.rev build.stamps;
               link = List.rev build.link;
+              imports = List.rev build.imports;
             }
     | "--package" :: dir :: rest when is_value dir ->
         packages view { build with packages = package_request dir :: build.packages } rest
@@ -156,6 +194,10 @@ let arguments () =
         | _ -> usage ())
     | "--link" :: file :: rest when is_value file ->
         packages view { build with link = file :: build.link } rest
+    | "--import" :: import :: rest when is_value import -> (
+        match import_request import with
+        | Some i -> packages view { build with imports = i :: build.imports } rest
+        | None -> usage ())
     | flag :: rest when view = None -> (
         match flag with
         | "--check" -> packages (Some Check) build rest
@@ -175,13 +217,17 @@ let arguments () =
       packages = [];
       stamps = [];
       link = [];
+      imports = [];
     }
   in
   match List.tl (Array.to_list Sys.argv) with
   | [ "--rewrite"; stamp; input; output ] when List.for_all is_value [ stamp; input; output ] ->
       Rewrite { stamp; input; output }
+  | [ "--remap"; from; to_; input; output ]
+    when List.for_all is_value [ from; to_; input; output ] ->
+      Remap { from; to_; input; output }
   | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
-    | "--link" | "--check" | "--decls" | "--tst" | "--cgt" | "--ll" )
+    | "--link" | "--import" | "--check" | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
       packages None empty rest
   | rest -> go Cst rest
@@ -203,7 +249,7 @@ let run_file stage (filename, input) =
    refuses what it cannot handle yet with a diagnostic rather than lowering it
    wrongly (docs/design/lowering.md). *)
 let generate packages build program =
-  match Cgt.lower ~library:(build.kind = Some Library) ~stamps:build.stamps program with
+  match Cgt.lower ~library:(build.kind = Some Library) program with
   | Error (Cgt.Lower.Diagnostic d) ->
       prerr_string (Tst.render_diagnostic packages d);
       exit 1
@@ -261,6 +307,34 @@ let check_kind build (program : Tst.Nodes.Program.t) =
       end
   | _ -> ()
 
+(* `--stamp NAME=STAMP` gives the one package named NAME its stamp. A stamp
+   for a package the build does not have would be dropped silently, and the
+   package it was meant for compiled into the root's object rather than
+   linked from its own; one for a name two packages have would pick between
+   them. *)
+let with_stamps stamps requests =
+  List.fold_left
+    (fun requests (name, stamp) ->
+      let named (r : Tst.Assembly.request) =
+        r.Tst.Assembly.stamp = None && String.equal (Tst.Assembly.name_of r) name
+      in
+      match List.filter named requests with
+      | [ _ ] ->
+          List.map
+            (fun r -> if named r then { r with Tst.Assembly.stamp = Some stamp } else r)
+            requests
+      | [] ->
+          prerr_endline
+            (Printf.sprintf "Error: `--stamp %s=...` names no package given with `--package`" name);
+          exit 1
+      | _ ->
+          prerr_endline
+            (Printf.sprintf
+               "Error: `--stamp %s=...` names more than one package; give each its stamp with `--package STAMP%s=DIR`"
+               name name);
+          exit 1)
+    requests stamps
+
 (* Semantics reports every problem it finds (docs/design/semantics.md D4) and
    prints no tree when there is one, since a tree with holes in it is not what
    either view promises. *)
@@ -270,24 +344,15 @@ let run_packages build =
       prerr_endline "Error: a library is not built into an executable; check it with `--check`";
       exit 1
   | _ -> ());
-  match Tst.Assembly.assemble_requests build.packages with
+  match
+    Tst.Assembly.assemble_requests ~imports:build.imports (with_stamps build.stamps build.packages)
+  with
   | Error problems ->
       List.iter
         (fun problem -> prerr_string (Tst.Assembly.render_problem problem))
         problems;
       exit 1
   | Ok packages -> (
-      (* A stamp for a package the build does not have would be dropped
-         silently, and the package it was meant for compiled into the root's
-         object rather than linked from its own. *)
-      List.iter
-        (fun (name, _) ->
-          if not (List.exists (fun (p : Tst.Assembly.package) -> p.name = name) packages) then begin
-            prerr_endline
-              (Printf.sprintf "Error: `--stamp %s=...` names no package given with `--package`" name);
-            exit 1
-          end)
-        build.stamps;
       match build.view with
       | Assembled ->
           print_string (Tree_graph.render (Tst.Assembly.to_node packages))
@@ -313,21 +378,32 @@ let run_packages build =
    malformed input leaves nothing behind. It is written beside OUTPUT and
    renamed into place, so a failed write leaves an existing OUTPUT, or the
    INPUT it may be, as it was. *)
-let run_rewrite ~stamp ~input ~output =
+let run_rewrite ~stamps ~rewrite ~input ~output =
   let fail message =
     prerr_endline ("Error: " ^ message);
     exit 1
   in
-  if not (Rewrite.is_stamp stamp) then
-    fail
-      (Printf.sprintf
-         "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
-         stamp);
+  List.iter
+    (fun stamp ->
+      if not (Rewrite.is_stamp stamp) then
+        fail
+          (Printf.sprintf
+             "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
+             stamp))
+    stamps;
+  (match stamps with
+  | [ from; to_ ] when not (Rewrite.same_package from to_) ->
+      fail
+        (Printf.sprintf
+           "`%s` and `%s` are versions of two packages, since their identity hashes differ; \
+            remapping moves references between versions of one package"
+           from to_)
+  | _ -> ());
   let contents =
     try In_channel.with_open_bin input In_channel.input_all
     with Sys_error message -> fail message
   in
-  match Rewrite.rewrite ~stamp contents with
+  match rewrite contents with
   | Error message -> fail (input ^ ": " ^ message)
   | Ok (rewritten, _) -> (
       Random.self_init ();
@@ -349,4 +425,7 @@ let () =
   match arguments () with
   | File (stage, input) -> run_file stage input
   | Packages build -> run_packages build
-  | Rewrite { stamp; input; output } -> run_rewrite ~stamp ~input ~output
+  | Rewrite { stamp; input; output } ->
+      run_rewrite ~stamps:[ stamp ] ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
+  | Remap { from; to_; input; output } ->
+      run_rewrite ~stamps:[ from; to_ ] ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output

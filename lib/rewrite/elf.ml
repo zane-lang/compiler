@@ -61,7 +61,7 @@ let sections l b =
 (* The NUL-terminated name at [o] in the string table [t]. *)
 let name b t o = cstring b ~table:t.offset ~size:t.size ~at:o "a symbol's name"
 
-let rewrite ~stamp input =
+let rewrite ~rename input =
   let b = Bytes.of_string input in
   if Bytes.length b < 0x34 then malformed "the file is too short for an ELF header";
   let wide =
@@ -111,7 +111,7 @@ let rewrite ~stamp input =
           let entry = symtab.offset + (i * entsize) in
           let old = u32 l b entry in
           if old <> 0 then
-            match Name.rewrite ~stamp (name b strtab old) with
+            match rename (name b strtab old) with
             | None -> ()
             | Some fresh -> renamed := (entry, Appended.add added fresh) :: !renamed
         done

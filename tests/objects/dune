@@ -315,3 +315,136 @@
 (rule
  (alias runtest)
  (action (diff geometry.windows-arm64.stamped.symbols geometry.windows-arm64.rewritten.symbols)))
+
+; Two versions of geometry in one program: atlas depends on the first, and
+; the program on the second, under the key `geo`. Each package is named by
+; its stamp, each one's imports go through its own keys, and the program
+; links both versions' objects side by side
+; (docs/design/separate-compilation.md C10).
+
+(rule
+ (deps (source_tree fixtures/versions))
+ (targets versions.geometry1.o versions.geometry2.o versions.atlas.o)
+ (action
+  (progn
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.geometry1.o --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.geometry2.o --package v2.0%0123456789abcdef%geometry=fixtures/versions/geometry2)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.atlas.o --package v1.0%fedcba9876543210%atlas=fixtures/versions/atlas --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1))))
+
+(rule
+ (deps (source_tree fixtures/versions))
+ (targets versions.exe)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --build versions.exe
+   --package app=fixtures/versions/app
+   --package v2.0%0123456789abcdef%geometry=fixtures/versions/geometry2
+   --package v1.0%fedcba9876543210%atlas=fixtures/versions/atlas
+   --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1
+   --import app:geo=v2.0%0123456789abcdef%geometry
+   --import app:atlas=v1.0%fedcba9876543210%atlas
+   --import v1.0%fedcba9876543210%atlas:geometry=v1.0%0123456789abcdef%geometry
+   --link %{dep:versions.geometry1.o}
+   --link %{dep:versions.geometry2.o}
+   --link %{dep:versions.atlas.o})))
+
+(rule
+ (action
+  (with-stdout-to
+   versions.out.actual
+   (run ./versions.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/versions.out versions.out.actual)))
+
+; Without the keys, atlas's `import geometry` could mean either version, and
+; the compiler says so rather than choose.
+
+(rule
+ (deps (source_tree fixtures/versions))
+ (action
+  (with-stderr-to
+   versions.ambiguous.actual
+   (with-accepted-exit-codes 1
+    (run
+     %{exe:../../bin/zanec/zanec.exe}
+     --check
+     --package v1.0%fedcba9876543210%atlas=fixtures/versions/atlas
+     --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1
+     --package v2.0%0123456789abcdef%geometry=fixtures/versions/geometry2)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/versions.ambiguous versions.ambiguous.actual)))
+
+; atlas's object, built against geometry v1.0, remapped onto v1.1 as
+; remapping does (docs/design/separate-compilation.md C11): no reference to
+; v1.0 is left in it, and a program links it with v1.1 alone.
+
+(rule
+ (deps (source_tree fixtures/versions))
+ (targets versions.geometry11.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.geometry11.o --package v1.1%0123456789abcdef%geometry=fixtures/versions/geometry11)))
+
+(rule
+ (targets versions.atlas.remapped.o)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --remap
+   v1.0%0123456789abcdef%
+   v1.1%0123456789abcdef%
+   %{dep:versions.atlas.o}
+   versions.atlas.remapped.o)))
+
+(rule
+ (action
+  (with-stdout-to
+   versions.atlas.remapped.left
+   (system "nm %{dep:versions.atlas.remapped.o} > versions.atlas.remapped.nm && { grep -c 'v1[.]0%0123456789abcdef%' versions.atlas.remapped.nm; test $? -le 1; }"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/versions.atlas.remapped.left versions.atlas.remapped.left)))
+
+(rule
+ (deps (source_tree fixtures/versions))
+ (targets remapped.exe)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --build remapped.exe
+   --package remapped=fixtures/versions/remapped
+   --package v1.1%0123456789abcdef%geometry=fixtures/versions/geometry11
+   --package v1.0%fedcba9876543210%atlas=fixtures/versions/atlas
+   --link %{dep:versions.geometry11.o}
+   --link %{dep:versions.atlas.remapped.o})))
+
+(rule
+ (action
+  (with-stdout-to
+   remapped.out.actual
+   (run ./remapped.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/remapped.out remapped.out.actual)))
+
+(rule
+ (action
+  (with-stderr-to
+   remap.mismatch.actual
+   (with-accepted-exit-codes 1
+    (run %{exe:../../bin/zanec/zanec.exe} --remap v1.0%0123456789abcdef% v1.1%fedcba9876543210% %{dep:versions.atlas.o} never.o)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/remap.mismatch remap.mismatch.actual)))
