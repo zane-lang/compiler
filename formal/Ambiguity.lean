@@ -7,3 +7,5 @@ import Ambiguity.Automaton
 import Ambiguity.Quotient
 import Ambiguity.Product
 import Ambiguity.Horizontal
+import Ambiguity.CtxSound
+import Ambiguity.QuotientSound

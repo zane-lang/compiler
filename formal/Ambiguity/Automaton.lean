@@ -41,6 +41,9 @@ inductive ATree where
   | node (p : Nat) (kids : List ATree)
   deriving Repr, Inhabited
 
+def ATree.prod : ATree → Nat
+  | .node p _ => p
+
 mutual
 def ATree.yield (A : Automaton) : ATree → List Tok
   | .node p kids => ayields A (A.rhs p) kids
@@ -71,7 +74,7 @@ inductive ARun (A : Automaton) : Nat → List String → Tok → List ATree → 
       A.isNt a = false → A.step q a = some q' →
       ARun A q' rest fol kids r → ARun A q (a :: rest) fol kids r
   | nt {q x q' rest fol k kids r} :
-      A.isNt x = true → A.step q x = some q' →
+      A.isNt x = true → A.step q x = some q' → A.lhs k.prod = x →
       AccT A q (firstOr (ayields A rest kids) fol) k →
       ARun A q' rest fol kids r → ARun A q (x :: rest) fol (k :: kids) r
 end
@@ -79,7 +82,7 @@ end
 /-- A whole sentence: a tree of the start symbol from the initial state,
 followed by the end of input, whose goto accepts the end of input. -/
 def Accepted (A : Automaton) (t : ATree) : Prop :=
-  AccT A 0 endTok t ∧ (match t with | .node p _ => A.lhs p = A.start) ∧
+  AccT A 0 endTok t ∧ A.lhs t.prod = A.start ∧
     ∃ s, A.step 0 A.start = some s ∧ endTok ∈ A.accept.getD s []
 
 def AUnambiguous (A : Automaton) : Prop :=
@@ -118,16 +121,24 @@ def ctxRule (A : Automaton) (q p : Nat) : GRule :=
     else { rhs := [], guard := [] }
   | none => { rhs := [], guard := [] }
 
-def ctxGrammar (A : Automaton) : GGrammar where
-  rules := Id.run do
-    let byLhs : Std.HashMap String (List Nat) :=
-      (List.range A.prods.size).foldr (fun p m => m.insert (A.lhs p) (p :: m.getD (A.lhs p) [])) {}
-    let mut out : Array (List GRule) := Array.replicate (A.trans.size * A.nts.size) []
-    for q in List.range A.trans.size do
-      for x in A.nts.toList do
-        out := out.set! (A.ctxId q x) ((byLhs.getD x []).map fun p => A.ctxRule q p)
-    return out
-  start := A.ctxId 0 A.start
+/-- Productions grouped by the index of their left-hand side. -/
+def prodTable (A : Automaton) : Array (List Nat) :=
+  Array.ofFn (n := A.nts.size) fun xi =>
+    (List.range A.prods.size).filter fun p => A.ntIndex (A.lhs p) == xi.val
+
+/-- Structural sanity of an exported automaton. -/
+def wf (A : Automaton) : Bool :=
+  0 < A.trans.size && A.reds.size == A.trans.size &&
+  A.trans.all (fun l => l.all fun e => decide (e.2 < A.trans.size)) &&
+  A.reds.all (fun l => l.all fun e => decide (e.1 < A.prods.size)) &&
+  A.prods.all (fun pr => A.nts.contains pr.1) &&
+  A.nts.contains A.start
+
+def ctxGrammar (A : Automaton) : GGrammar :=
+  let tbl := A.prodTable
+  { rules := Array.ofFn (n := A.trans.size * A.nts.size) fun i =>
+      (tbl.getD (i.val % A.nts.size) []).map fun p => A.ctxRule (i.val / A.nts.size) p
+    start := A.ctxId 0 A.start }
 end Automaton
 
 /-! ## Reading Menhir's `.automaton` dump (unverified) -/
