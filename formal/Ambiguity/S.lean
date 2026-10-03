@@ -66,7 +66,7 @@ theorem add_mul (a b c : S) : (a + b) * c = a * c + b * c := by
 
 theorem le_refl (a : S) : a ≤ a := Nat.le_refl _
 theorem le_trans {a b c : S} : a ≤ b → b ≤ c → a ≤ c := Nat.le_trans
-theorem zero_le (a : S) : 0 ≤ a := Nat.zero_le _
+@[simp] theorem zero_le (a : S) : 0 ≤ a := Nat.zero_le _
 theorem le_zero {a : S} : a ≤ 0 → a = 0 := by cases a <;> decide
 theorem le_two (a : S) : a ≤ 2 := by cases a <;> decide
 theorem add_le_add {a b c d : S} : a ≤ b → c ≤ d → a + c ≤ b + d := by

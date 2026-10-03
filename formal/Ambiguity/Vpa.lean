@@ -162,7 +162,7 @@ structure Cert where
   frames : List Frame
 
 def accOf (M : Model) (fs : List Nat) (N : Vec) : List (Nat × S) :=
-  fs.filterMap fun f => let a := getV N f (M.fin f); if a = 0 then none else some (f, a)
+  fs.filterMap fun f => if getV N f (M.fin f) = 0 then none else some (f, getV N f (M.fin f))
 
 def exGet (ex : List (Nat × S)) (f : Nat) : S := sumL ex fun e => if e.1 = f then e.2 else 0
 
@@ -218,8 +218,9 @@ def findFrame (C : Cert) (fs : List Nat) (cl : Option Tok) : Option Frame :=
 
 /-- The checker. `br` maps each opening bracket to its closing bracket. -/
 def checkModel (br : Tok → Option Tok) (M : Model) : Bool :=
+  0 < M.frags.size &&
   (List.range M.size).all fun q => (M.out q).all fun
-    | .call o _ _ c => br o == some c
+    | .call o f _ c => br o == some c && decide (f < M.frags.size)
     | _ => true
 
 def checkNode (br : Tok → Option Tok) (M : Model) (C : Cert) (K : Frame) (isRoot : Bool)
