@@ -1,0 +1,86 @@
+name: Temporary langbench
+
+on:
+  push:
+    branches:
+      - old
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      DOTNET_TieredPGO: "1"
+      DOTNET_TC_QuickJitForLoops: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+
+      - uses: crystal-lang/install-crystal@v1
+
+      - name: Install OCaml and D
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ocaml-nox ldc unzip
+
+      - name: Prepare benchmark
+        run: |
+          set -euxo pipefail
+          base64 -d .tmp-langbench.b64 > /tmp/langbench.zip
+          rm -rf /tmp/langbench
+          mkdir -p /tmp/langbench
+          unzip -q /tmp/langbench.zip -d /tmp/langbench
+          mkdir -p /tmp/langbench-tools
+          cat > /tmp/langbench-tools/dune <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          if [[ "${1:-}" == "build" ]]; then
+            mkdir -p _build/default
+            ocamlopt -O3 -o _build/default/main.exe main.ml
+          else
+            echo "temporary dune shim only supports build" >&2
+            exit 2
+          fi
+          EOF
+          chmod +x /tmp/langbench-tools/dune
+          echo "/tmp/langbench-tools" >> "$GITHUB_PATH"
+
+      - name: Toolchain versions
+        working-directory: /tmp/langbench/langbench
+        run: |
+          ocamlopt -version
+          crystal --version
+          dotnet --version
+          go version
+          ldc2 --version | head -1
+          python3 --version
+          lscpu | grep -E 'Model name|CPU\(s\)|Thread|Core|Socket' || true
+
+      - name: Build all languages
+        working-directory: /tmp/langbench/langbench
+        run: python3 bench.py build
+
+      - name: Run benchmark
+        working-directory: /tmp/langbench/langbench
+        run: |
+          python3 bench.py run --scale 4 --warmups 5 --reps 20 --output results.csv | tee results.txt
+          cat results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: langbench-results
+          path: |
+            /tmp/langbench/langbench/results.csv
+            /tmp/langbench/langbench/results.json
+            /tmp/langbench/langbench/results.txt
