@@ -476,4 +476,230 @@ theorem left_entry (cn : Nat → List Item → S)
 
 end
 
+/-! ## Fragments, witnesses, and the induction on derivation size -/
+
+theorem check_calls {br : Tok → Option Tok} {M : Model} {C : Cert} (hc : check br M C = true) :
+    ∀ p, ∀ e ∈ M.out p, ∀ o f t c, e = .call o f t c → f < M.frags.size := by
+  intro p e he o f t c hec
+  unfold check at hc
+  simp only [Bool.and_eq_true] at hc
+  have hm := hc.1.1
+  unfold checkModel at hm
+  simp only [Bool.and_eq_true, List.all_eq_true, decide_eq_true_eq] at hm
+  have hp : p < M.size := by
+    rcases Nat.lt_or_ge p M.size with h | h; exact h
+    rw [out_of_size M p h] at he; cases he
+  have := hm.2 p (List.mem_range.mpr hp) e he
+  subst hec
+  simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at this
+  exact this.2
+
+theorem wits_member {H : HFacts} {keys : Array UKey} {idx : Std.HashMap UKey Nat} {fI : Array (Option Nat)}
+    {M : Model} {wits : Array CompWit} (hW : checkWits H keys idx fI M wits = true) {c m : Nat}
+    (hm : m ∈ H.mems c) : ∃ w ∈ wits, w.c = c ∧ checkWit H keys idx fI M w = true ∧
+      ∃ s f, lookupId keys idx (startNode H c m) = some s ∧ lookupId keys idx (finalNode H c m) = some f := by
+  unfold checkWits at hW
+  simp only [Bool.and_eq_true, List.all_eq_true, List.mem_range, Bool.or_eq_true, Array.any_eq_true,
+    beq_iff_eq, Array.all_eq_true] at hW
+  have hc : c < H.members.size := by
+    rcases Nat.lt_or_ge c H.members.size with h | h; exact h
+    simp [HFacts.mems, Array.getD, Nat.not_lt.mpr h] at hm
+  rcases hW.1 c hc with he | ⟨i, hi, hwc⟩
+  · rw [List.isEmpty_iff] at he; rw [he] at hm; cases hm
+  · have hw := hW.2 i hi
+    refine ⟨wits[i], Array.getElem_mem hi, hwc, hw, ?_⟩
+    unfold checkWit at hw
+    simp only [Bool.and_eq_true, List.all_eq_true] at hw
+    have := hw.2 m (hwc ▸ hm)
+    rw [hwc] at this
+    split at this
+    · rename_i s f _ _ _ hs hf _ _ _
+      exact ⟨s, f, hs, hf⟩
+    · cases this
+
+section
+variable (H : HFacts) (E : PGrammar) (keys : Array UKey) (fI : Array (Option Nat)) (M : Model)
+variable (hU : checkUniverse H E keys fI M = true)
+variable (idx : Std.HashMap UKey Nat) (hK : checkKeys keys idx = true) (hL : checkLib H = true)
+include hU hK hL
+
+/-- A fragment counts at least the derivations of its interior. -/
+theorem frag_bound (cn : Nat → List Item → S)
+    (hne : ∀ y, H.isNe y = true → ∀ v, cn y v ≤ DW (H.dfa (H.langOf y)) (wtM M fI) 0 v)
+    (heps : ∀ y, H.isNe y = false → ∀ v, cn y v ≤ if v.isEmpty then H.epsOf y else 0)
+    {f : Nat} {inner : Option Nat} (hf : fI[f]? = some inner) (v : List Item) :
+    cntInner cn inner v ≤ fragW M fI inner v := by
+  have parts := universe_parts H E keys fI M hU
+  rw [fragW_eq M fI parts.2.2.2.2.1 hf v]
+  have hfs : f < fI.size := by
+    rcases Nat.lt_or_ge f fI.size with h | h; exact h
+    simp [Array.getElem?_eq_none h] at hf
+  have ⟨hfin, hhead⟩ := parts.2.2.2.2.2 f (parts.2.2.1 ▸ hfs)
+  have hgd : fI.getD f none = inner := by simp [Array.getD, hfs] at hf ⊢; simpa [hfs] using hf
+  rw [hgd] at hhead
+  cases inner with
+  | none =>
+    simp only [headTgt, tgtOk, beq_iff_eq] at hhead
+    rw [hhead]; exact delta_le M _ v
+  | some y =>
+    simp only [cntInner]
+    by_cases hy : H.isNe y = true
+    · simp only [headTgt, hy, ite_true] at hhead
+      obtain ⟨j, hk, hj⟩ := tgtOk_comp0 hhead
+      simp only [tgtOk, beq_iff_eq] at hj; subst hj
+      refine S.le_trans (hne y hy v) ?_
+      have := comp_splits H E keys fI M hU _ (M.fin f) (M.fin f) delta (fun v => delta_le M _ v) v 0 _ hk
+      rwa [conv_delta_right] at this
+    · have hy' : H.isNe y = false := by simpa using hy
+      refine S.le_trans (heps y hy' v) ?_
+      by_cases h2 : H.epsOf y = 2
+      · simp only [headTgt, hy', Bool.false_eq_true, ite_false, h2, ite_true, tgtOk, beq_iff_eq] at hhead
+        have hes := edges_of_key H E keys fI M hU hhead
+        obtain ⟨e, he, hok⟩ := edgesOk_mem hes (s := .eps (.id (M.fin f)) 2) (by simp [specEdges])
+        cases e with
+        | eps t w =>
+          simp only [edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hok
+          obtain ⟨rfl, rfl⟩ := hok
+          refine S.le_trans ?_ (fe_le_Wsup M he v _)
+          simp only [fe, h2]
+          cases v with
+          | nil =>
+            have h1 := delta_le M (M.fin f) []
+            simp only [delta, List.isEmpty_nil, ite_true] at h1 ⊢
+            exact S.le_trans (b := 2 * 1) (by decide) (S.mul_le_mul (S.le_refl _) h1)
+          | cons _ _ => exact S.zero_le _
+        | _ => simp [edgeOk] at hok
+      · simp only [headTgt, hy', Bool.false_eq_true, ite_false, h2, tgtOk, beq_iff_eq] at hhead
+        rw [hhead]
+        refine S.le_trans ?_ (delta_le M _ v)
+        cases v with
+        | nil =>
+          simp only [List.isEmpty_nil, ite_true, delta]
+          revert h2; cases H.epsOf y <;> decide
+        | cons _ _ => exact S.zero_le _
+
+end
+
+theorem cnt_nil_rules {E : PGrammar} {x : Nat} (h : E.rulesOf x = []) : ∀ n v, cnt E n x v = 0
+  | 0, _ => rfl
+  | _ + 1, _ => by simp [cnt, h]
+
+theorem mem_mems {H : HFacts} {E : PGrammar} (hF : checkFacts H E = true) {x : Nat} (hx : H.isNe x = true)
+    {r : List Sym} (hr : r ∈ E.rulesOf x) : x ∈ H.mems (H.compOf x) := by
+  have := ((facts_rule hF hr).2.2 hx).1
+  simpa using this
+
+section
+variable (H : HFacts) (E : PGrammar) (keys : Array UKey) (fI : Array (Option Nat)) (M : Model)
+variable (hU : checkUniverse H E keys fI M = true)
+variable (idx : Std.HashMap UKey Nat) (hK : checkKeys keys idx = true) (hL : checkLib H = true)
+variable (wits : Array CompWit) (hW : checkWits H keys idx fI M wits = true)
+variable (hF : checkFacts H E = true) (hE : checkEps H E = true) (hI : checkInners E fI = true)
+variable (hcall : ∀ p, ∀ e ∈ M.out p, ∀ o f t c, e = .call o f t c → f < fI.size)
+include hU hK hL hW hF hE hI hcall
+
+theorem hfr_of (cn : Nat → List Item → S)
+    (hne : ∀ y, H.isNe y = true → ∀ v, cn y v ≤ DW (H.dfa (H.langOf y)) (wtM M fI) 0 v)
+    (heps : ∀ y, H.isNe y = false → ∀ v, cn y v ≤ if v.isEmpty then H.epsOf y else 0) :
+    ∀ x, ∀ r ∈ E.rulesOf x, ∀ o inner cl, groupRule? r = some (o, inner, cl) →
+      ∀ v, cntInner cn inner v ≤ fragW M fI inner v := by
+  intro x r hr o inner cl hg v
+  have hx : x < E.rules.size := by
+    rcases Nat.lt_or_ge x E.rules.size with h | h; exact h
+    simp [PGrammar.rulesOf, Array.getD, Nat.not_lt.mpr h] at hr
+  unfold checkInners at hI
+  have := List.all_eq_true.mp (List.all_eq_true.mp hI x (List.mem_range.mpr hx)) r hr
+  rw [hg] at this
+  simp only [Array.contains_iff_mem] at this
+  obtain ⟨f, hf, hfe⟩ := Array.mem_iff_getElem.mp this
+  exact frag_bound H E keys fI M hU idx hK hL cn hne heps (f := f) (by simp [hf, hfe]) v
+
+theorem hne_of (n : Nat)
+    (Q : ∀ x, H.isNe x = true → ∀ s z, keys[s]? = some (startNode H (H.compOf x) x) →
+      keys[z]? = some (finalNode H (H.compOf x) x) → ∀ u, cnt E n x u ≤ Wsup M s u z) :
+    ∀ y, H.isNe y = true → ∀ v, cnt E n y v ≤ DW (H.dfa (H.langOf y)) (wtM M fI) 0 v := by
+  intro y hy v
+  cases hr : E.rulesOf y with
+  | nil => rw [cnt_nil_rules hr]; exact S.zero_le _
+  | cons r rs =>
+    have hm := mem_mems hF hy (hr ▸ List.mem_cons_self (a := r) (l := rs))
+    obtain ⟨w, _, hwc, hw, s, f, hs, hf⟩ := wits_member hW hm
+    refine S.le_trans (Q y hy s f (lookupId_spec hs) (lookupId_spec hf) v) ?_
+    rw [← hwc] at hm hs hf
+    exact wit_member H keys idx fI M w hw (universe_parts H E keys fI M hU).2.2.2.2.1 hcall hm hs hf v
+
+/-- Every nonempty symbol is counted by its NFA, at every derivation size. -/
+theorem horiz_main : ∀ n x, H.isNe x = true → ∀ s z, keys[s]? = some (startNode H (H.compOf x) x) →
+    keys[z]? = some (finalNode H (H.compOf x) x) → ∀ u, cnt E n x u ≤ Wsup M s u z := by
+  intro n
+  induction n with
+  | zero => intro x _ s z _ _ u; exact S.zero_le _
+  | succ n ih =>
+    have hne := hne_of H E keys fI M hU idx hK hL wits hW hF hE hI hcall n ih
+    have heps := eps_bound hF hE n
+    have hfr := hfr_of H E keys fI M hU idx hK hL wits hW hF hE hI hcall (cnt E n) hne heps
+    intro x hx s z hs hz u
+    simp only [cnt]
+    cases hr : E.rulesOf x with
+    | nil => exact S.zero_le _
+    | cons r0 rs =>
+      rw [← hr]
+      have hm := mem_mems hF hx (hr ▸ List.mem_cons_self (a := r0) (l := rs))
+      have hbad : ∀ r ∈ E.rulesOf x, ruleNfa H (H.compOf x) x r ≠ .bad := by
+        intro r hrm hb
+        have := ((facts_rule hF hrm).2.2 hx).2
+        rw [hb] at this; cases this
+      cases hl : H.isLeft (H.compOf x)
+      · have hs' : keys[s]? = some (.entry (H.compOf x) x) := by simpa [startNode, hl] using hs
+        have hz' : keys[z]? = some (.cfin (H.compOf x)) := by simpa [finalNode, hl] using hz
+        refine right_entry H E keys fI M hU idx hK hL (cnt E n) hne heps hl hs' hz' hm ?_ (hfr x) hbad u
+        intro y j hy hyc hj v
+        exact ih y hy j z (by simpa [startNode, hyc, hl] using hj) (by simpa [finalNode, hyc, hl] using hz') v
+      · have hs' : keys[s]? = some (.start (H.compOf x)) := by simpa [startNode, hl] using hs
+        have hz' : keys[z]? = some (.entry (H.compOf x) x) := by simpa [finalNode, hl] using hz
+        refine left_entry H E keys fI M hU idx hK hL (cnt E n) hne heps hl hs' hz' hm ?_ (hfr x) hbad u
+        intro y hy hyc
+        cases hry : E.rulesOf y with
+        | nil => exact Or.inr (cnt_nil_rules hry n)
+        | cons r1 rs1 =>
+          have hmy := mem_mems hF hy (hry ▸ List.mem_cons_self (a := r1) (l := rs1))
+          rw [hyc] at hmy
+          obtain ⟨_, _, _, _, _, f, _, hf⟩ := wits_member hW hmy
+          have hfk := lookupId_spec hf
+          simp only [finalNode, hl, ite_true] at hfk
+          refine Or.inl ⟨f, hfk, fun v => ih y hy s f (by simpa [startNode, hyc, hl] using hs') ?_ v⟩
+          simpa [finalNode, hyc, hl] using hfk
+
+theorem root_bound (hroot : RootUnambiguous M) (n : Nat) (v : List Item) : cnt E n E.start v ≤ 1 := by
+  have parts := universe_parts H E keys fI M hU
+  have hne : ∀ y, H.isNe y = true → ∀ v, cnt E n y v ≤ DW (H.dfa (H.langOf y)) (wtM M fI) 0 v :=
+    hne_of H E keys fI M hU idx hK hL wits hW hF hE hI hcall n
+      (horiz_main H E keys fI M hU idx hK hL wits hW hF hE hI hcall n)
+  have h0 : fI[0]? = some (some E.start) := parts.2.2.2.1
+  have := frag_bound H E keys fI M hU idx hK hL (cnt E n) hne (eps_bound hF hE n) h0 v
+  rw [fragW_eq M fI parts.2.2.2.2.1 h0 v] at this
+  have hf0 : M.entry 0 = M.entry 0 := rfl
+  exact S.le_trans this (Wsup_root M hroot v)
+
+/-- **Horizontal soundness.** The checks and a root-unambiguous model make
+the plain grammar unambiguous. -/
+theorem horiz_sound (hroot : RootUnambiguous M) : PUnambiguous E := by
+  intro t₁ t₂ w₁ w₂ hy
+  rcases Classical.em (t₁ = t₂) with h | hne
+  · exact h
+  exfalso
+  have hshape : ∀ x r, r ∈ E.rulesOf x → (groupRule? r).isSome ∨ hasBracket r = false := by
+    intro x r hr
+    rcases (facts_rule hF hr).2.1 with h | h
+    · exact Or.inl h
+    · exact Or.inr h
+  have hiy : t₁.iy E E.start = t₂.iy E E.start :=
+    flatten_inj (iy_proper E hshape w₁) (iy_proper E hshape w₂) (by rw [iy_flat E w₁, iy_flat E w₂, hy])
+  have h2 := cnt_two E (t₁.size + t₂.size) E.start t₁ t₂ w₁ w₂ hne hiy (by omega) (by omega)
+  have hb := root_bound H E keys fI M hU idx hK hL wits hW hF hE hI hcall hroot (t₁.size + t₂.size) (t₁.iy E E.start)
+  rw [h2] at hb
+  exact absurd hb (by decide)
+
+end
+
 end Ambiguity
