@@ -1,10 +1,12 @@
 # Exact unambiguity proof
 
 The current grammar has a complete unambiguity certificate under Menhir's
-precedence and associativity rules, conditional on the correctness of the
-trusted components listed below. The [verification roadmap](verification-roadmap.md)
-describes how to discharge those implementation assumptions. This includes the original grammar's
-retained conflicts and the automaton produced by the shipped `--GLR` backend.
+precedence and associativity rules. It covers the original grammar's retained
+conflicts and the automaton produced by the shipped `--GLR` backend. The
+certificate this document's tools produce is conditional on the correctness of
+the trusted components listed below. [formal-proof.md](formal-proof.md) proves
+the same result in Lean, from the text of `parser.mly`, and does not rely on
+those components.
 The constructor-only restriction on standalone type values is unchanged.
 
 The proof counts syntactic derivations with semantic actions erased. Thus it

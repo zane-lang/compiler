@@ -52,6 +52,26 @@ def main (args : List String) : IO UInt32 := do
         else
           IO.println "REJECTED"
           return 1
+  | ["prove-glr", mly, dump] =>
+    -- `verifyGlr_sound`: a true check gives `GlrSound`, the GLR parser's relation
+    -- unambiguous and read injectively as derivations of the source grammar
+    let text ← IO.FS.readFile mly
+    let G ← IO.ofExcept (parseDump (← IO.FS.readFile dump) "package")
+    let S ← IO.ofExcept (sourceGrammarAut text)
+    let (corr, base, eps) ← match produceCorr G S with
+      | .ok r => pure r
+      | .error e => IO.println s!"REJECTED: correspondence producer failed: {e}"; return 1
+    let units := corr.foldl (fun n c => match c with | .unit => n + 1 | _ => n) 0
+    say s!"correspondence: {G.prods.size} GLR productions against {S.prods.size} source productions ({units} unit), check {checkCorr G S corr base eps}"
+    match produce G with
+    | .error e => IO.println s!"REJECTED: producer failed: {e}"; return 1
+    | .ok ev =>
+      if verifyGlr text G { ev, corr, base, eps } then
+        say s!"VERIFIED: the GLR relation of {dump} is unambiguous and corresponds to {mly} ({G.trans.size} LR states, {ev.M.size} model nodes, {ev.C.frames.length} frames)"
+        return 0
+      else
+        IO.println "REJECTED"
+        return 1
   | ["verify", dump] =>
     -- `verify_sound`: a true `verify` makes the automaton's accepted trees unambiguous
     let A ← IO.ofExcept (parseDump (← IO.FS.readFile dump) "package")
