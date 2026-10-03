@@ -11,10 +11,13 @@ namespace Ambiguity
 
 /-! ## Angle tagging -/
 
+def tagSym : Sym → Sym
+  | .t a => .t (if a = "LESS" then "GLESS" else if a = "MORE" then "GMORE" else a)
+  | s => s
+
 def tagRule (r : GRule) : GRule :=
   if r.rhs.contains (.t "LESS") && r.rhs.contains (.t "MORE") then
-    { rhs := r.rhs.map fun | .t "LESS" => .t "GLESS" | .t "MORE" => .t "GMORE" | s => s,
-      guard := r.guard }
+    { rhs := r.rhs.map tagSym, guard := r.guard }
   else r
 
 def tagGuard (g : List Tok) : List Tok :=
