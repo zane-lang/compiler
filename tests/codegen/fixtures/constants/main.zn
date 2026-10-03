@@ -1,0 +1,73 @@
+/// Package constants (docs/design/lowering.md L16): each made once, before
+/// `main`, one that reads another making that one first whatever their
+/// order. A string that owns its block, a host a guest names, and a value
+/// struct, read in a verb, passed, and read from a spawned call. Each check
+/// prints `yes` when it holds and `no` when it does not.
+package constants;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit say(text &String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, { say(yes); });
+	@controlflow$branch(~ok, { say(no); });
+	return Unit();
+}
+
+Int loud(n Int) {
+	made String("made\n");
+	say(made);
+	return n;
+}
+
+type Person = #struct {
+	name String;
+	age Int;
+}
+
+Person{ name String; age Int; } => init{ name; age; }
+
+type Point = struct {
+	x Int;
+	y Int;
+}
+
+Point(x Int, y Int) => init{ x; y; }
+
+limit Int(42)
+doubled Int = limit * Int(2)
+early Int = later + Int(1)
+later Int = loud(Int(9))
+greeting String = String("hel") + String("lo\n")
+ada Person{ name = String("ada"); age = Int(36); }
+origin Point(Int(0), Int(0))
+
+Int peek() => doubled + early
+
+Int age(p &Person) => p.age
+
+Unit main() {
+	start String("main\n");
+	say(start);
+	check(limit + Int(1) == Int(43));
+	check(peek() == Int(94));
+	say(greeting);
+	check(greeting == String("hello\n"));
+	g &Person = ada;
+	check(g.age == Int(36));
+	check(age(ada) == Int(36));
+	check(ada.name == String("ada"));
+	check(origin.x + origin.y == Int(0));
+	n Int = spawn peek();
+	check(n == Int(94));
+	return Unit();
+}

@@ -1,0 +1,72 @@
+/// Field constructors (types.md §3.3): a call is a call to the constructor,
+/// whose body runs. An entry left out takes its default, the entries run in
+/// the order written and then the defaults, and a generic constructor's
+/// defaults are its instance's. Each check prints `yes` when it holds and
+/// `no` when it does not.
+package defaults;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit say(text &String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, { say(yes); });
+	@controlflow$branch(~ok, { say(no); });
+	return Unit();
+}
+
+Int noisy(text String, value Int) {
+	say(text);
+	return value;
+}
+
+type Weapon = struct {
+	rate Int;
+	damage Int;
+}
+
+Weapon{ rate Int(1); damage Int(10); } => init{ rate; damage; }
+
+type Person = #struct {
+	name String;
+	age Int;
+}
+
+Person{ name String("nobody"); age Int(0); } {
+	made String("made ");
+	say(made);
+	say(name);
+	end String("\n");
+	say(end);
+	return init{ name; age; }
+}
+
+type Tagged<T Type> = struct {
+	value T;
+	count Int;
+}
+
+Tagged<T>{ value T Type; count Int(5); } => init{ value; count; }
+
+Unit main() {
+	w Weapon{ rate = Int(2); }
+	check(w.damage == Int(10) * w.rate + ~Int(10));
+	v Weapon{ damage = noisy(String("d "), Int(3)); rate = noisy(String("r\n"), Int(4)); }
+	check(v.damage + v.rate == Int(7));
+	p Person{ age = Int(36); }
+	q Person{ name = String("ada"); }
+	check(p.age + q.age == Int(36));
+	g Tagged<Bool> = Tagged{ value = true; }
+	check(g.value * (g.count == Int(5)));
+	h Tagged<Int> = Tagged{ count = Int(2); value = Int(9); }
+	check(h.value + h.count == Int(11));
+	return Unit();
+}

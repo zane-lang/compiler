@@ -47,7 +47,11 @@ geometry$Point(%primitives$Int, %primitives$Int)
   the one that declares its subject's type.
 - An operator is named by its token, and a subscript by `[]`.
 - A constructor is named by the type it builds, followed by `.member` for a
-  named constructor.
+  named constructor. A field constructor writes its entries in braces, each
+  with its name, as it is declared:
+  `geometry$Point{x %primitives$Int; y %primitives$Int}`. A positional
+  constructor of the same types is a different verb, and keeps its
+  parentheses.
 - A generic verb's instance writes its arguments after its name, as a type
   does, and its parameter types with those arguments in place:
   `pkg$first<%primitives$Int>(this pkg$List<%primitives$Int>)`. An explicit
@@ -64,6 +68,11 @@ A package variable is called by its package and its name, with no signature:
 ```text
 pkg$requestHandler
 ```
+
+That is the name of the function that makes a constant and gives its address
+([`lowering.md`](lowering.md) L16). Its two variables add `.value` and
+`.state`: `pkg$limit.value` holds the constant, and `pkg$limit.state` how far
+its making has got.
 
 A lambda stored in a package variable is called by that variable's name
 ([`lowering.md`](lowering.md) L14 lifts it to a function of its own).
@@ -104,8 +113,13 @@ The runtime is C, and it finds what it calls by a C name. These keep one:
   them, since every one contains a `$`.
 
 What the compiler makes for itself, with no declaration behind it, is named
-under `zane.`: the function each spawned call runs through (`zane.spawn.N`)
-and each string literal's bytes (`zane.text`).
+under `zane.`: the function each spawned call runs through (`zane.spawn.N`),
+the function a spawned call to a verb expanded where it is called
+(`zane.expanded.N`) or to an intrinsic (`zane.intrinsic.N`) is made into
+([`lowering.md`](lowering.md) §9), each string literal's bytes
+(`zane.text`), the entry that makes a program's constants and then calls
+`main` (`zane.start`), and the variable a guest to a program value such as
+`@program$console` is anchored at (`zane.value.@program$console`).
 
 ## What the compiler does today
 
@@ -113,8 +127,10 @@ and each string literal's bytes (`zane.text`).
   `Symbol.ty`.
 - Lambdas are named as above. A lambda that expands into more than one
   place keeps its one name, and is lifted once.
-- Package constants other than lambda-variables are not lowered yet, so no
-  other variable has a symbol yet.
+- A package constant's function and variables are named as above. They are
+  local to a program's object, and shared by every object of a library or a
+  stamped dependency that reads them
+  ([`separate-compilation.md`](separate-compilation.md) C4).
 - A program builds into one module ([`lowering.md`](lowering.md) L15), so
   every verb but `zane_main` is local to it: its symbol is in the binary, for
   a debugger or a profiler, but no other object links against it. A layout

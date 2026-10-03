@@ -13,7 +13,8 @@ program linked from several objects wrote.
 
 - `geometry` is a library on its own. Every function it declares is exported
   under the `!` placeholder, private ones included, and the instance of its
-  generic verb that it uses is shared. Its other generic verb has no instance,
+  generic verb that it uses is shared, as are the function and variables of
+  the package constant one of its verbs reads. Its other generic verb has no instance,
   so the object holds nothing for it.
 - `atlas` is a library that uses `geometry`, built with it into one object.
   What atlas declares is exported, and what it reaches in geometry is local,
@@ -21,8 +22,9 @@ program linked from several objects wrote.
 - `survey` is a program that uses `geometry` from an object geometry was
   built into on its own, with its stamp. Survey's object declares geometry's
   verbs and makes the instance of geometry's generic at survey's own type,
-  the program links with geometry's object, and every check it makes prints
-  `yes` when it holds.
+  and its own copy of the geometry constant it reads, which merges with
+  geometry's. The program links with geometry's object, and every check it
+  makes prints `yes` when it holds.
 
   geometry's own placeholder object is also rewritten with that stamp, as
   fetching rewrites a release's objects. It must define exactly what the

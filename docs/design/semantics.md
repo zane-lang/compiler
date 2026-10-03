@@ -421,7 +421,11 @@ The SST's `TypeMember`, `TypeValue` and `DotAccess` resolve the same way:
 An expression that failed to type is an `Invalid` node of type `Ty.Error`
 (D4). A declaration carries what passes 3 and 4 resolved about it, and a verb
 its typed body — or, for a generic verb, none: its bodies are the instances
-(D12), which the tree lists after the packages.
+(D12), which the tree lists after the packages. A field constructor's
+defaults (`types.md` §3.3) are typed where it is declared, and the tree lists
+them last, per entry slot: a declaration's, and each instance's of a generic
+one, so a call that leaves an entry out passes the default its instance
+typed.
 
 **D11. Facts for later analyses live beside the tree, not in it.** Resting
 places per parameter and the list of generic instances are side tables keyed

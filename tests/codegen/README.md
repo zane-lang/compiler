@@ -64,3 +64,23 @@ again, read the golden diff and promote that.
   enum map, called through and spawned, with an abort, a subject, a string, a
   host and a guest. Every check prints `yes` when it holds and `no` when it
   does not.
+- `arrays` is step 10's fixed arrays: built from a literal, read and written
+  at an index, copied whole, held in a struct, a host and a variant, and a
+  type that boxes itself through one; a number parameter read as its number;
+  and `@primitives$I32` arithmetic, which wraps at its own width. Every check
+  prints `yes` when it holds and `no` when it does not.
+- `bounds` indexes past an array's end: the program stops with status 1 after
+  what it wrote so far, and says why on stderr.
+- `defaults` is step 10's field constructors: called as verbs whose bodies
+  run, with an entry left out given its default, the entries run in the
+  order written, and a generic constructor's defaults per instance.
+- `constants` is step 10's package constants: each made once before `main`,
+  one reading another made first whatever their order, a string that owns
+  its block, a host a guest names, and a value struct, read from a verb and a
+  spawned call.
+- `spawned` is step 10's spawned calls that need a function made for them: an
+  intrinsic method, verbs expanded where they are called because they take
+  literals, an array literal among them, one that aborts, and one with a
+  `mut` subject; and a spawned call bound to a `mut` function type.
+- `references` is step 10's `&` written before a place, minting and copying
+  guests, and `@program$console` passed where a guest is wanted.

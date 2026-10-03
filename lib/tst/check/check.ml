@@ -1491,24 +1491,39 @@ let check_body (d : decl) (s : S.t) subst =
       Some (locals, typed)
 
 (* A field constructor's defaults are values of their entries' types, and a
-   default is a declaration, not a coercion site. *)
-let check_defaults (d : decl) (s : S.t) =
+   default is a declaration, not a coercion site. Each is typed with the
+   constructor's parameters as [subst] gives them, and given with its entry's
+   slot; an instance's are typed again, and only a declaration's [report]
+   whether a default fits its entry. *)
+let typed_defaults ?(report = true) (d : decl) (s : S.t) subst =
   match d.kind with
   | Verb { N.Verb_decl.node = N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Fields fs; _ }; _ }; _ } ->
-      let ctx, _ = verb_context d s [] in
+      let ctx, _ = verb_context d s subst in
       let ctx = { ctx with scopes = [ Hashtbl.create 1 ]; building = None; ret_target = No_return } in
-      List.iter2
-        (fun (f : N.Constructor_field.t) (p : S.param) ->
-          match f.N.Constructor_field.default with
-          | Some default ->
-              let v = expr ctx default in
-              if not (Ty.assignable ~dst:p.ty ~src:v.T.Expr.ty) then
-                error v.T.Expr.span
-                  (Printf.sprintf "the default of %s is %s, and the entry is %s"
-                     (quote p.name) (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string p.ty)))
-          | None -> ())
-        fs s.params
-  | _ -> ()
+      List.concat
+        (List.mapi
+           (fun slot ((f : N.Constructor_field.t), (p : S.param)) ->
+             match f.N.Constructor_field.default with
+             | Some default ->
+                 let v = expr ctx default in
+                 let dst = Ty.subst subst p.ty in
+                 if report && not (Ty.assignable ~dst ~src:v.T.Expr.ty) then
+                   error v.T.Expr.span
+                     (Printf.sprintf "the default of %s is %s, and the entry is %s"
+                        (quote p.name) (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string p.ty)));
+                 [ (slot, v) ]
+             | None -> [])
+           (List.combine fs s.params))
+  | _ -> []
+
+(* The defaults of every field constructor that has them, as the program
+   carries them: a declaration's, and each instance's. *)
+let defaults : T.Defaults.t list ref = ref []
+
+let check_defaults (d : decl) (s : S.t) =
+  match typed_defaults d s [] with
+  | [] -> ()
+  | values -> if s.S.generics = [] then defaults := { T.Defaults.decl = d.id; args = []; values } :: !defaults
 
 let package_context (d : decl) =
   {
@@ -1626,6 +1641,7 @@ let run () : T.Program.t =
   Hashtbl.reset subscript_instances;
   Queue.clear pending;
   instances := [];
+  defaults := [];
   let packages =
     List.map
       (fun name ->
@@ -1639,6 +1655,12 @@ let run () : T.Program.t =
     (match p.p_sig.kind with
     | S.Subscript -> ()
     | _ -> (
+        (match typed_defaults ~report:false p.p_decl p.p_sig p.p_subst with
+        | [] -> ()
+        | values ->
+            defaults :=
+              { T.Defaults.decl = p.p_decl.id; args = binding_args p.p_sig p.p_subst; values }
+              :: !defaults);
         match check_body p.p_decl p.p_sig p.p_subst with
         | Some (params, body) ->
             instances :=
@@ -1718,4 +1740,8 @@ let run () : T.Program.t =
     (i.decl, String.concat "," (List.map (fun (_, a) -> Ty.arg_to_string a) i.args))
   in
   let all = List.rev !instances @ subscript_bodies in
-  { T.Program.packages; instances = List.sort (fun a b -> compare (key a) (key b)) all }
+  {
+    T.Program.packages;
+    instances = List.sort (fun a b -> compare (key a) (key b)) all;
+    defaults = List.rev !defaults;
+  }

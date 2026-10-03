@@ -161,3 +161,48 @@ void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *lay
 	memcpy(slot, incoming, (size_t)size);
 	zane_arrive(slot, layout);
 }
+
+/* ---------------------------------------------------------------------- */
+/* Package constants (docs/design/lowering.md L16)                        */
+/* ---------------------------------------------------------------------- */
+
+/* A constant is made once, by the first context to read it. Its state is 0
+   until then, the maker's context id plus one while it is being made, and
+   -1 once it is. Any other reader waits for it; its maker reading it again
+   is a constant made of itself. */
+static pthread_mutex_t zane_constants = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t zane_constant_made = PTHREAD_COND_INITIALIZER;
+
+/* 1 when the caller is to make the constant, and 0 once it is made. */
+int64_t zane_constant_begin(int64_t *state) {
+	if (__atomic_load_n(state, __ATOMIC_ACQUIRE) == -1) return 0;
+	int64_t self = (int64_t)zane_self->id + 1, make = 0;
+	pthread_mutex_lock(&zane_constants);
+	for (;;) {
+		int64_t s = *state;
+		if (s == -1) break;
+		if (s == 0) {
+			*state = self;
+			make = 1;
+			break;
+		}
+		if (s == self) {
+			pthread_mutex_unlock(&zane_constants);
+			zane_broken("a package constant read while it is made");
+		}
+		pthread_cond_wait(&zane_constant_made, &zane_constants);
+	}
+	pthread_mutex_unlock(&zane_constants);
+	return make;
+}
+
+/* The constant at `value` is made: the blocks it owns move into the
+   program's own region, which it lives in until the program ends, and
+   every reader may now read it. */
+void zane_constant_end(int64_t *state, char *value, const int64_t *layout) {
+	if (layout) zane_move(value, layout, zane_program, 0);
+	pthread_mutex_lock(&zane_constants);
+	__atomic_store_n(state, -1, __ATOMIC_RELEASE);
+	pthread_cond_broadcast(&zane_constant_made);
+	pthread_mutex_unlock(&zane_constants);
+}

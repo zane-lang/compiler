@@ -1,6 +1,90 @@
 ; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.
 
 (rule
+ (deps (source_tree fixtures/arrays))
+ (action
+  (with-stdout-to
+   arrays.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/arrays))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arrays.cgt arrays.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/arrays))
+ (targets arrays.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build arrays.exe --package fixtures/arrays)))
+
+(rule
+ (deps (source_tree fixtures/arrays))
+ (targets arrays.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build arrays.optimized.exe --optimize --package fixtures/arrays)))
+
+(rule
+ (action
+  (with-stdout-to
+   arrays.out.actual
+   (run ./arrays.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arrays.out arrays.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   arrays.optimized.out.actual
+   (run ./arrays.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arrays.out arrays.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/bounds))
+ (targets bounds.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bounds.exe --package fixtures/bounds)))
+
+(rule
+ (deps (source_tree fixtures/bounds))
+ (targets bounds.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bounds.optimized.exe --optimize --package fixtures/bounds)))
+
+(rule
+ (action
+  (with-outputs-to
+   bounds.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./bounds.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bounds.out bounds.out.actual)))
+
+(rule
+ (action
+  (with-outputs-to
+   bounds.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./bounds.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bounds.out bounds.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/boxes))
  (action
   (with-stdout-to
@@ -47,6 +131,52 @@
   (diff golden/boxes.out boxes.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/constants))
+ (action
+  (with-stdout-to
+   constants.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/constants))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/constants.cgt constants.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/constants))
+ (targets constants.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build constants.exe --package fixtures/constants)))
+
+(rule
+ (deps (source_tree fixtures/constants))
+ (targets constants.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build constants.optimized.exe --optimize --package fixtures/constants)))
+
+(rule
+ (action
+  (with-stdout-to
+   constants.out.actual
+   (run ./constants.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/constants.out constants.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   constants.optimized.out.actual
+   (run ./constants.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/constants.out constants.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/counting))
  (action
   (with-stdout-to
@@ -91,6 +221,52 @@
  (alias runtest)
  (action
   (diff golden/counting.out counting.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/defaults))
+ (action
+  (with-stdout-to
+   defaults.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/defaults))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/defaults.cgt defaults.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/defaults))
+ (targets defaults.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build defaults.exe --package fixtures/defaults)))
+
+(rule
+ (deps (source_tree fixtures/defaults))
+ (targets defaults.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build defaults.optimized.exe --optimize --package fixtures/defaults)))
+
+(rule
+ (action
+  (with-stdout-to
+   defaults.out.actual
+   (run ./defaults.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/defaults.out defaults.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   defaults.optimized.out.actual
+   (run ./defaults.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/defaults.out defaults.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/guests))
@@ -441,6 +617,52 @@
   (diff golden/range.out range.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/references))
+ (action
+  (with-stdout-to
+   references.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/references))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/references.cgt references.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/references))
+ (targets references.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build references.exe --package fixtures/references)))
+
+(rule
+ (deps (source_tree fixtures/references))
+ (targets references.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build references.optimized.exe --optimize --package fixtures/references)))
+
+(rule
+ (action
+  (with-stdout-to
+   references.out.actual
+   (run ./references.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/references.out references.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   references.optimized.out.actual
+   (run ./references.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/references.out references.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/regions))
  (targets regions.exe)
  (action
@@ -519,6 +741,52 @@
  (alias runtest)
  (action
   (diff golden/shapes.out shapes.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/spawned))
+ (action
+  (with-stdout-to
+   spawned.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/spawned))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawned.cgt spawned.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/spawned))
+ (targets spawned.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build spawned.exe --package fixtures/spawned)))
+
+(rule
+ (deps (source_tree fixtures/spawned))
+ (targets spawned.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build spawned.optimized.exe --optimize --package fixtures/spawned)))
+
+(rule
+ (action
+  (with-stdout-to
+   spawned.out.actual
+   (run ./spawned.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawned.out spawned.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   spawned.optimized.out.actual
+   (run ./spawned.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawned.out spawned.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/spawns))

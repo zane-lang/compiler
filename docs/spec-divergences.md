@@ -555,8 +555,9 @@ out-of-range element access" as a separate question.
 
 **Compiler** — the program stops as it does at a division by zero (§10): what
 it wrote so far is flushed, the runtime writes `index out of range` to stderr,
-and the status is 1. `tests/codegen/fixtures/range` is the case, and
-[`design/lowering.md`](design/lowering.md) §9 the decision.
+and the status is 1, for a list and an array alike.
+`tests/codegen/fixtures/range` and `tests/codegen/fixtures/bounds` are the
+cases, and [`design/lowering.md`](design/lowering.md) §9 the decision.
 
 Reconciling means the spec stating an outcome, or making element access
 abortable.

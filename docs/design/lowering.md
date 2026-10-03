@@ -1,6 +1,6 @@
 # Lowering: designing the CGT
 
-> **Status: built through §8 step 8.** Stage 4 — lowering the TST to the
+> **Status: built through §8 step 10.** Stage 4 — lowering the TST to the
 > code-generation tree — and the codegen that reads it follow this design, and
 > every step §8 lists is built and tested. Each decision is numbered
 > (**L1**…). §8 lists the order they were built in, and §9 the questions still
@@ -229,9 +229,26 @@ lifted lambda. A package does not reach codegen as a unit of its own.
 package, which a library's prebuilt release needs.
 
 **L16. Constants live in the program's scope.** A package constant is
-evaluated once, in dependency order, into the arena of the outermost scope,
-before `main` runs. A program's `main` becomes a function the runtime's C
-`main` calls after setting itself up and before draining that scope.
+evaluated once, in dependency order, into the program's own scope, before
+`main` runs. A program's `main` becomes a function the runtime's C `main`
+calls after setting itself up and before draining that scope.
+
+Each constant has a function of its own, named by the constant, and two
+variables: its value and how far its making has got. The first call makes
+the value in a scope of its own, stores it, and moves the blocks it owns into
+the program's region; every call returns the value's address, and a read of
+the constant is a read through it. When a program has constants, its entry
+is a function that calls each one's, the packages a package depends on
+first, and then `main`. A constant that reads another calls that one's
+function first, so dependency order holds whatever order they are declared
+in, and a constant that reads itself, through any chain, stops the program.
+A context that finds another making a constant waits for it.
+
+A function value (a lambda-variable) is its lambda (L14) and has none of
+this. A library's constants are made by whichever program links it: a
+library or a stamped dependency defines a constant's function and variables
+in every object that reads it, shared as a generic instance is
+([`separate-compilation.md`](separate-compilation.md) C4).
 
 ---
 
@@ -361,6 +378,14 @@ test passing.
    lambda-variables in a body and at package scope, and calls through a
    function value, which may abort or be spawned. Function values are passed,
    returned and stored in members.
+10. **The rest of what the TST accepts.** Package constants (L16),
+    `@primitives$Array<T, n>` with its literal and checked elements,
+    `@primitives$I32`, a number parameter read as its number, field
+    constructors called as the verbs they are with their defaults filled in,
+    `&` written before a place, a program value such as `@program$console`
+    passed as a guest, and spawned calls to an intrinsic or to a verb
+    expanded where it is called. After this step lowering refuses no
+    program the TST accepts.
 
 ---
 
@@ -555,26 +580,33 @@ test passing.
 - **Integer division by zero.** The spec leaves it open
   ([`spec-divergences.md`](../spec-divergences.md) §10). Until it says, the
   program stops: what it wrote so far is kept, the runtime writes `division by
-  zero` to stderr, and the status is 1. The one other quotient an `i64` cannot
-  hold, the most negative value over `-1`, wraps, as `+` and `*` do.
+  zero` to stderr, and the status is 1. The one other quotient an integer
+  cannot hold, the most negative value over `-1`, wraps, as `+` and `*` do.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
   §5.2, [`spec-divergences.md`](../spec-divergences.md) §16). Until it says, the program stops as it does at a division by zero:
   what it wrote so far is kept, the runtime writes `index out of range` to
-  stderr, and the status is 1.
+  stderr, and the status is 1, for a list and an array alike.
 - **A type argument passes nothing.** A generic verb is lowered once per
   instance the TST checked ([`semantics.md`](semantics.md) D12), with a
-  symbol of its own, and a type written where a value goes has already
-  picked the instance, so the call passes nothing for it.
-- **What does not lower yet.** Some programs the TST accepts, lowering
-  refuses, with an error that says "does not … yet" at the construct:
-  - a package constant, except a lambda-variable;
-  - `@primitives$Array`: its type, an array literal, and its elements;
-  - an `@primitives$I32` literal, since only `Int` and `I64` embed one;
-  - a field-constructor call that leaves out a field with a default
-    ([`types.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/types.md)
-    §3.3);
-  - a `spawn` of a call to an intrinsic, or to a verb that is expanded where
-    it is called, and one bound to a local of another type than the call
-    returns;
-  - reading a boxed member of, or moving a host out of, a value no place
-    holds, such as a call's result.
+  symbol of its own, and a type written where a value goes, or a number
+  given to an explicit number parameter, has already picked the instance, so
+  the call passes nothing for it. The body reads a number parameter as the
+  number its instance was given.
+- **A spawned call with no function of its own.** A call is spawned by
+  running a function on another thread (step 8), and two kinds of call have
+  none. A verb expanded where it is called because it takes literals (L11)
+  gets one per set of literals it is spawned with, `zane.expanded.N`, with
+  each literal bound where the body reads it. An array literal's elements
+  are values, made where the spawn is written, so that parameter becomes
+  one the function takes, of the array's type. A block argument would
+  capture the spawning frame, and the spec forbids spawning one
+  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
+  §3.1). A call to an intrinsic runs through `zane.intrinsic.N`, which
+  takes its arguments and makes the call.
+- **A field constructor is a call.** A field-constructor call calls the
+  constructor, whose body runs as any verb's does, with each entry's value
+  in its slot. An entry the call leaves out passes the default the TST typed
+  for it ([`semantics.md`](semantics.md) §6). The entries run in the order
+  they are written, then the defaults in declaration order
+  ([`types.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/types.md)
+  §3.3).

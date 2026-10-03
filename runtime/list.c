@@ -4,7 +4,7 @@
 /* Lists (memory.md §3.6)                                                 */
 /* ---------------------------------------------------------------------- */
 
-/* An index outside a list (docs/design/lowering.md §9): what the program wrote so
+/* An index outside a list or an array (docs/design/lowering.md §9): what the program wrote so
    far is kept, and it stops with a failing status. */
 static void zane_out_of_range(void) {
 	fflush(stdout);
@@ -56,4 +56,11 @@ void *zane_list_push(zane_list *list, int64_t stride, const int64_t *layout) {
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
 	if (index < 1 || index > list->count) zane_out_of_range();
 	return list->items + (index - 1) * stride;
+}
+
+/* The element at `index` of an array of `count` elements laid out inline,
+   counted from 1 like a list's. */
+void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride) {
+	if (index < 1 || index > count) zane_out_of_range();
+	return array + (index - 1) * stride;
 }

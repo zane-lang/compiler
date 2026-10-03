@@ -1,6 +1,7 @@
-/* What LLVM's C API offers and its OCaml bindings do not: a function placed
-   in a COMDAT of its own name (docs/design/separate-compilation.md C4), and
-   a target triple in LLVM's normal form. The bindings carry an LLVM pointer
+/* What LLVM's C API offers and its OCaml bindings do not: a function or a
+   variable placed in a COMDAT of its own name
+   (docs/design/separate-compilation.md C4), and a target triple in LLVM's
+   normal form. The bindings carry an LLVM pointer
    with its low bit set; their `from_val` undoes that. The C API is declared
    here rather than included, so the build needs no LLVM headers beyond the
    bindings it already links. */

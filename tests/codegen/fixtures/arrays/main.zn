@@ -1,0 +1,91 @@
+/// Fixed arrays, `@primitives$Array<T, n>`: elements inline, built from a
+/// literal, read and written at an index, copied whole, held in a struct, a
+/// host and a variant, and of a type that boxes itself through one. A
+/// number parameter is read as the number it was given. Then
+/// `@primitives$I32` arithmetic, which wraps at its own width. Each check
+/// prints `yes` when it holds and `no` when it does not.
+package arrays;
+
+alias Int = @primitives$Int
+alias I32 = @primitives$I32
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(~ok, { @program$console!print(no); });
+	return Unit();
+}
+
+Int count(values Array<T Type, n @concepts$Int>) => Int(n)
+Int measured(values Array<Int, n>, n @concepts$Int) => Int(n)
+
+type Grid = struct {
+	cells Array<Int, 4>;
+	width Int;
+}
+
+Grid(cells Array<Int, 4>, width Int) => init{ cells; width; }
+
+Int at(this Grid, i Int) => this.cells[i]
+
+Unit set(this Grid, i Int, v Int) mut {
+	this.cells[i] = v;
+	return Unit();
+}
+
+type Box = #struct {
+	grid Grid;
+}
+
+Box(grid Grid) => init{ grid; }
+
+type Tree = variant {
+	leaf Int;
+	node Array<Tree, 2>;
+}
+
+Int total(t Tree) => match (t) {
+	n leaf => n;
+	k node => total(k[Int(1)]) + total(k[Int(2)]);
+}
+
+Array<Int, 3> three() => @primitives$Array([Int(7), Int(8), Int(9)])
+
+Unit main() {
+	numbers Array<Int, 3> = @primitives$Array([Int(1), Int(2), Int(3)]);
+	check(numbers[Int(1)] == Int(1));
+	numbers[Int(2)] = Int(5);
+	check(numbers[Int(2)] == Int(5));
+	check(count(numbers) == Int(3));
+	check(measured(numbers, 3) == Int(3));
+	copy Array<Int, 3> = numbers;
+	copy[Int(3)] = Int(0);
+	check(numbers[Int(3)] == Int(3));
+	check(three()[Int(2)] == Int(8));
+
+	g Grid(@primitives$Array([Int(1), Int(2), Int(3), Int(4)]), Int(2));
+	g!set(Int(4), Int(40));
+	check(g:at(Int(4)) == Int(40));
+
+	b Box(g);
+	b.grid.cells[Int(1)] = Int(10);
+	check(b.grid.cells[Int(1)] + b.grid:at(Int(4)) == Int(50));
+
+	t Tree = Tree.node(@primitives$Array([Tree.leaf(Int(1)), Tree.node(@primitives$Array([Tree.leaf(Int(2)), Tree.leaf(Int(3))]))]));
+	check(total(t) == Int(6));
+	u Tree = t;
+	check(total(u) == Int(6));
+
+	three32 I32 = I32(3);
+	eleven I32 = three32 + I32(4) * I32(2);
+	check(eleven == I32(11));
+	check(eleven / I32(2) == I32(5));
+	check(~eleven < I32(0));
+	check(I32(2147483647) + I32(1) < I32(0));
+	return Unit();
+}

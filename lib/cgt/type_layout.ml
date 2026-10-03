@@ -44,19 +44,28 @@ let element = function
 
 let is_list t = Option.is_some (element t)
 
+(* `@primitives$Array<T, n>`, a value type: its element type and length. *)
+let array_of = function
+  | Tty.Intrinsic
+      { namespace = "primitives"; name = "Array"; args = [ Tty.Type e; Tty.Number (Tty.Known n) ] }
+    ->
+      Some (e, n)
+  | _ -> None
+
 (* A reference type: a `#` type, whose instances are hosted (memory.md §2.1),
    or a string or a list, whose instance is a handle (§3.6). *)
 let reference st t =
   is_text t || is_list t || match definition st t with Some (_, true) -> true | _ -> false
 
-(* The types a type holds inline: its members and payloads, and what it is
-   distinct from. A guest holds a tether, and a list's elements are in its
-   block. *)
+(* The types a type holds inline: its members and payloads, what it is
+   distinct from, and an array's elements. A guest holds a tether, and a
+   list's elements are in its block. *)
 let inline st t =
-  match definition st t with
-  | Some ((T.Decl.Struct ms | T.Decl.Variant ms), _) ->
+  match (definition st t, array_of t) with
+  | Some ((T.Decl.Struct ms | T.Decl.Variant ms), _), _ ->
       List.filter (fun m -> not (is_guest m)) (List.map snd ms)
-  | Some (T.Decl.Distinct u, _) -> [ u ]
+  | Some (T.Decl.Distinct u, _), _ -> [ u ]
+  | None, Some (e, _) when not (is_guest e) -> [ e ]
   | _ -> []
 
 (* adt.md §4: a member is boxed when its type leads back to the type that
@@ -81,10 +90,11 @@ let collapsed st t =
    members start one index later. *)
 let member_index st t slot = if reference st t then slot + 1 else slot
 
-(* L5: a storage primitive has a machine layout, and a string or a list is
-   a handle. A value struct has its members' in declaration order, except
-   that one of a single member has that member's (concepts-vs-primitives.md)
-   and an empty one has none. A value variant is a sum of its payloads, and
+(* L5: a storage primitive has a machine layout, a string or a list is a
+   handle, and an array is its elements inline. A value struct has its
+   members' in declaration order, except that one of a single member has
+   that member's (concepts-vs-primitives.md) and an empty one has none. A
+   value variant is a sum of its payloads, and
    an enum a sum of cases with none. A reference type's instance is the same
    shape after a `u32` backpointer (memory.md §3.3), a guest is a `u32`
    tether (§4.2), and a boxed member a pointer (adt.md §4). A function value
@@ -97,10 +107,14 @@ let rec ty st span (t : Tty.t) : Nodes.Ty.t =
       | "Unit" -> Nodes.Ty.Void
       | "Bool" -> Nodes.Ty.I1
       | "Int" | "I64" -> Nodes.Ty.I64
+      | "I32" -> Nodes.Ty.I32
       | "Float" -> Nodes.Ty.F64
       | _ -> unhandled span t)
   | Tty.Guest _ -> Nodes.Ty.I32
   | Tty.Verb _ -> Nodes.Ty.Ptr
+  | _ when Option.is_some (array_of t) ->
+      let e, n = Option.get (array_of t) in
+      Nodes.Ty.Array (ty st span e, n)
   | Tty.Named _ -> (
       let member m = if boxed st t m then Nodes.Ty.Ptr else ty st span m in
       let sum ts = Nodes.Ty.Sum ts in
@@ -128,7 +142,8 @@ let stride st span t =
 (* Where a type's hosts and owned blocks are (memory.md §3.6, §4.5): the
    instance, when it is a reference type, each reference-type member, each
    handle, and each boxed member, down through variant payloads under the
-   tag that makes each live. A guest is a tether, and owns nothing. *)
+   tag that makes each live, and through each of an array's elements. A
+   guest is a tether, and owns nothing. *)
 let rec positions st span (t : Tty.t) base tags : Layout.position list =
   let at kind size = { Layout.kind; offset = base; size; tags } in
   let handle = fst (Nodes.Ty.size_align Nodes.Ty.Handle) in
@@ -138,6 +153,13 @@ let rec positions st span (t : Tty.t) base tags : Layout.position list =
       let elements = layout st span e in
       [ at Layout.Host handle; at (Layout.List { stride = stride st span e; elements }) handle ]
   | _ when is_text t -> [ at Layout.Host handle; at Layout.Text handle ]
+  | _ when Option.is_some (array_of t) -> (
+      let e, n = Option.get (array_of t) in
+      match positions st span e base tags with
+      | [] -> []
+      | _ ->
+          let s = stride st span e in
+          List.concat (List.init n (fun i -> positions st span e (base + (i * s)) tags)))
   | _ -> (
       match definition st t with
       | Some (T.Decl.Distinct u, _) -> positions st span u base tags
@@ -192,13 +214,16 @@ and layout st span (t : Tty.t) : Layout.t =
 let hosted st t = (not (is_guest t)) && reference st t
 
 (* Whether a place is reached through a host: a member or a case of a
-   reference-type instance, or of one a guest names, or an element of a
-   list. A spawned call may write back a value there while another thread
-   reads it (concurrency.md §4.4). *)
+   reference-type instance, or of one a guest names, an element of a list,
+   and an element of an array reached through a host. A spawned call may
+   write back a value there while another thread reads it (concurrency.md
+   §4.4). *)
 let rec through_host st (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Field { target; _ } | T.Expr.Case_read { target; _ } ->
       is_guest target.T.Expr.ty || reference st (strip target.T.Expr.ty) || through_host st target
+  | T.Expr.Subscript { target; _ } when Option.is_some (array_of (strip target.T.Expr.ty)) ->
+      through_host st target
   | T.Expr.Subscript _ -> true
   | _ -> false
 

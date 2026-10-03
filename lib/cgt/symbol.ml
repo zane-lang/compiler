@@ -77,6 +77,10 @@ let ty ?(stamp = unstamped) t = ty_ stamp t
      pkg$swapWeapon(this pkg$Player, pkg$Weapon)
      pkg$first<%primitives$Int>(this pkg$List<%primitives$Int>)
 
+   A field constructor writes its entries in braces, each with its name, as
+   it is declared, so it is not taken for a positional constructor of the
+   same types: `geometry$Point{x %primitives$Int; y %primitives$Int}`.
+
    Two overloads never take the same parameter types (functions.md §4.1), and
    two instances of one generic never take the same arguments, so no two verbs
    share a name. An explicit `T Type` or number parameter writes its kind; the
@@ -90,7 +94,14 @@ let verb ?(stamp = unstamped) (s : S.t) (instance : (Tty.param * Tty.arg) list) 
     | None ->
         (if S.is_method s && p.S.name = "this" then "this " else "") ^ ty_ stamp (sub p.S.ty)
   in
+  let params =
+    match s.S.kind with
+    | S.Constructor { fields = true; _ } ->
+        let entry (p : S.param) = p.S.name ^ " " ^ param p in
+        "{" ^ String.concat "; " (List.map entry s.S.params) ^ "}"
+    | _ -> "(" ^ String.concat ", " (List.map param s.S.params) ^ ")"
+  in
   (match s.S.home with S.Package p -> stamp p ^ p | S.Namespace n -> namespace n)
   ^ "$" ^ s.S.name
   ^ args_ stamp (List.map snd instance)
-  ^ "(" ^ String.concat ", " (List.map param s.S.params) ^ ")"
+  ^ params
