@@ -253,7 +253,7 @@ each resolve to one derivation, and a lowercase *lambda-valued* declaration was
 not among them. The reports are in
 [`reports/ambiguity/prove/`](../../reports/ambiguity/prove) — the run that
 found it, and the run that no longer does — and
-[`spec-divergences.md`](../spec-divergences.md) §5 records what the terminator
+[`spec-divergences.md`](../spec-divergences.md) §4 records what the terminator
 costs against the spec.
 
 What it leaves behind is the general lesson the ledger is for: a continuation
