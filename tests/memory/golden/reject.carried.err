@@ -1,0 +1,52 @@
+File "fixtures/reject/carried/main.zn", line 36, characters 18-26:
+36 |         parked = arriving;
+  |                  ^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `parked`'s does
+File "fixtures/reject/carried/main.zn", line 45, characters 12-15:
+45 |     return car;
+  |            ^^^
+Error: this stores a guest to `near` in the caller's result, which outlives the body `near` is owned by
+File "fixtures/reject/carried/main.zn", line 50, characters 12-21:
+50 |     return Car(near);
+  |            ^^^^^^^^^
+Error: this stores a guest to `near` in the caller's result, which outlives the body `near` is owned by
+File "fixtures/reject/carried/main.zn", line 61, characters 22-30:
+61 |         garage.car = arriving;
+  |                      ^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `garage`'s does
+File "fixtures/reject/carried/main.zn", line 63, characters 18-23:
+63 |         garage = inner;
+  |                  ^^^^^
+Error: this stores a guest to `near`, whose block ends before `garage`'s does
+File "fixtures/reject/carried/main.zn", line 76, characters 19-28:
+76 |         cars!push(Car(near));
+  |                   ^^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `cars`'s does (`push` keeps `value` in `this`)
+File "fixtures/reject/carried/main.zn", line 77, characters 24-33:
+77 |         cars[Int(1)] = Car(near);
+  |                        ^^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `cars`'s does
+File "fixtures/reject/carried/main.zn", line 80, characters 16-21:
+80 |         cars = batch;
+  |                ^^^^^
+Error: this stores a guest to `near`, whose block ends before `cars`'s does
+File "fixtures/reject/carried/main.zn", line 90, characters 16-38:
+90 |         slot = Slot.parked(Car(near));
+  |                ^^^^^^^^^^^^^^^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `slot`'s does
+File "fixtures/reject/carried/main.zn", line 101, characters 18-29:
+101 |         parked = mount(near);
+  |                  ^^^^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `parked`'s does
+File "fixtures/reject/carried/main.zn", line 124, characters 21-29:
+124 |         garage!park(arriving);
+  |                     ^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `garage`'s does (`park` keeps `car` in `this`)
+File "fixtures/reject/carried/main.zn", line 126, characters 22-27:
+126 |         garage!valet(again);
+  |                      ^^^^^
+Error: this stores a guest to `near`, whose block ends before `garage`'s does (`valet` keeps `car` in `this`)
+File "fixtures/reject/carried/main.zn", line 142, characters 20-31:
+142 |             high = Car(middle);
+  |                    ^^^^^^^^^^^
+Error: this stores a guest to `middle`, whose block ends before `high`'s does

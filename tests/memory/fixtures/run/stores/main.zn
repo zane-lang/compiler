@@ -1,0 +1,186 @@
+/// The legal side of the store rule (lifetimes.md §1.1, §1.7, §1.11): a guest
+/// stored where its host's owner outlives the destination's, across nested
+/// blocks, through `&` fields, through verbs whose
+/// parameters come to rest in another parameter or in the result, and
+/// returned when rooted in a parameter. Every store here passes the check, and
+/// the program shows each guest reaching the host it was given. Each check
+/// prints `yes` when it holds and `no` when it does not.
+package stores;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Runs the block when the condition holds, and reports whether it did.
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(~ok, {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+type IO = #struct {
+	port Int;
+}
+
+IO(port Int) => init{ port; }
+
+Unit step(this IO) mut {
+	this.port = this.port + Int(1);
+	return Unit();
+}
+
+type Terminal = #struct {
+	io &IO;
+}
+
+Terminal(io &IO) => init{ io; }
+
+/// Hosts a terminal and an io, and names a terminal it does not host.
+type Hub = #struct {
+	terminal Terminal;
+	peer &Terminal;
+	io IO;
+}
+
+Hub(terminal Terminal, peer &Terminal, io IO) => init{ terminal; peer; io; }
+
+/// Records that `io` comes to rest at `this.io`.
+Unit setIO(this Terminal, io &IO) mut {
+	this.io = io;
+	return Unit();
+}
+
+/// Records the same through `setIO`.
+Unit relay(this Terminal, io &IO) mut {
+	this!setIO(io);
+	return Unit();
+}
+
+/// And once more, so the summary passes through two calls.
+Unit relayAgain(this Terminal, io &IO) mut {
+	this!relay(io);
+	return Unit();
+}
+
+/// Records that `io` comes to rest at `this.terminal.io`: the steps after
+/// the root are kept, not collapsed.
+Unit wire(this Hub, io &IO) mut {
+	this.terminal.io = io;
+	return Unit();
+}
+
+/// Records that `io` comes to rest in the result.
+Terminal make(io &IO) => Terminal(io)
+
+/// Returns a guest rooted in `this`, through a hosting field.
+&IO own(this Hub) => this.io
+
+/// Returns a guest rooted in a guest parameter, through a field.
+&IO portOf(terminal &Terminal) => terminal.io
+
+/// Returns whichever of two guests holds the larger port.
+&IO larger(a &IO, b &IO) {
+	if(b.port < a.port) {
+		return a;
+	}
+	return b;
+}
+
+Unit main() {
+	// Siblings in one block: neither outlives the other, and neither needs
+	// to.
+	io IO(Int(1));
+	terminal Terminal(io);
+	r &IO = io;
+	r!step();
+	check(terminal.io.port == Int(2));
+
+	// Outer hosts stored into guests owned by deeper blocks, at every depth,
+	// and an outer guest repointed to an outer host from inside.
+	far IO(Int(10));
+	g &IO = io;
+	if(true) {
+		mid IO(Int(20));
+		h &IO = far;
+		if(true) {
+			deep &IO = mid;
+			deeper &IO = far;
+			h = mid;
+			g = far;
+			deep!step();
+			deeper!step();
+		}
+		check(h.port == Int(21));
+	}
+	check(g.port == Int(11));
+
+	// A guest copied from another guest keeps naming the first host.
+	copy &IO = g;
+	g = io;
+	check(copy.port == Int(11));
+
+	// A guest of an outer host stored from an inner block into an outer
+	// terminal's `&` field.
+	held Terminal(io);
+	if(true) {
+		held.io = far;
+	}
+	held.io!step();
+	check(far.port == Int(12));
+
+	// A verb result names what its arguments name.
+	if(true) {
+		local IO(Int(30));
+		pick &IO = larger(io, local);
+		check(pick.port == Int(30));
+	}
+	g = larger(io, far);
+	check(g.port == Int(12));
+
+	// §1.11's hub: a parameter resting in a field of another, substituted
+	// with paths one block owns.
+	hub Hub(Terminal(io), terminal, IO(Int(40)));
+	hub.terminal!setIO(hub.io);
+	check(hub.terminal.io.port == Int(40));
+	hub.terminal!relay(far);
+	check(hub.terminal.io.port == Int(12));
+	hub.terminal!relayAgain(hub.io);
+	hub.io!step();
+	check(hub.terminal.io.port == Int(41));
+	hub!wire(io);
+	check(hub.terminal.io.port == Int(2));
+
+	// A terminal built in an inner block from an inner io never leaves it.
+	if(true) {
+		ioInner IO(Int(50));
+		t Terminal(ioInner);
+		t!setIO(ioInner);
+		u Terminal = make(ioInner);
+		check(u.io.port == Int(50));
+		hub.terminal!setIO(far);
+	}
+	check(hub.terminal.io.port == Int(12));
+
+	// The hub moves: a guest into its own io follows it, and so does one
+	// returned from a method rooted in `this`.
+	mine &IO = hub:own();
+	moved Hub = hub;
+	mine!step();
+	check(moved.io.port == Int(42));
+	check(portOf(moved.terminal).port == Int(12));
+	check(portOf(moved.peer).port == Int(2));
+	return Unit();
+}

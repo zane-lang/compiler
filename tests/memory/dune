@@ -1,0 +1,21 @@
+; The memory model end to end (memory.md, lifetimes.md): programs that keep
+; every rule and run, and packages that break one and are refused. README.md
+; says what each fixture is for.
+
+; The rules themselves are written from the golden files by
+; tests/gen/gen_rules.ml, into dune.inc. A fixture added without its rules
+; fails the diff below; `dune promote` then writes them.
+
+(include dune.inc)
+
+(rule
+ (deps (glob_files golden/*) (source_tree fixtures))
+ (action
+  (with-stdout-to
+   dune.inc.gen
+   (run %{exe:../gen/gen_rules.exe} memory))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff dune.inc dune.inc.gen)))

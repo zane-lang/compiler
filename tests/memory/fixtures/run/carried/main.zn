@@ -1,0 +1,205 @@
+/// Carried guests (lifetimes.md §1.10): a value whose `&` member names a host
+/// takes that guest wherever it is stored, and every store that keeps the
+/// host outliving the destination is legal. A value whose guest names a host
+/// inside itself may go anywhere, out of a call and out of a block, and its
+/// guest follows the host it owns. Each check prints `yes` when it holds and
+/// `no` when it does not.
+package carried;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Runs the block when the condition holds, and reports whether it did.
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(~ok, {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+type Engine = #struct {
+	power Int;
+}
+
+Engine(power Int) => init{ power; }
+
+Unit tune(this Engine) mut {
+	this.power = this.power + Int(1);
+	return Unit();
+}
+
+/// Names an engine it does not host.
+type Car = #struct {
+	engine &Engine;
+}
+
+Car(engine &Engine) => init{ engine; }
+
+/// Hosts an engine and a car that names it: the guest names inside the value.
+/// The car's guest is minted while `engine` is still the parameter's, and
+/// follows it into the field.
+type Kit = #struct {
+	engine Engine;
+	car Car;
+}
+
+Kit(engine Engine) => init{ car = Car(engine); engine; }
+
+/// Hosts a car, so it carries the car's guest one owning edge down.
+type Garage = #struct {
+	car Car;
+}
+
+Garage(car Car) => init{ car; }
+
+/// Either names an engine or holds a number.
+type Tag = #variant {
+	pinned &Engine;
+	plain Int;
+}
+
+/// Builds a car whose guest is rooted in the parameter.
+Car mount(engine &Engine) => Car(engine)
+
+/// Builds a kit in this call's scope and returns it: what the kit's car names
+/// is inside the kit, so it leaves with it.
+Kit assemble(power Int) {
+	kit Kit(Engine(power));
+	kit.car.engine!tune();
+	return kit;
+}
+
+Int power(this Tag) => match (this) {
+	e pinned => e.power;
+	n plain => n;
+}
+
+Unit main() {
+	// A car stored above the block that built it, naming an engine owned
+	// above that block too.
+	engine Engine(Int(1));
+	parked Car(engine);
+	if(true) {
+		spare Engine(Int(50));
+		local Car(spare);
+		local.engine!tune();
+		check(spare.power == Int(51));
+		arriving Car(engine);
+		parked = arriving;
+	}
+	parked.engine!tune();
+	check(engine.power == Int(2));
+
+	// The same, one owning edge down: a garage's car, replaced from an inner
+	// block, and a whole garage.
+	garage Garage(Car(engine));
+	if(true) {
+		garage.car = Car(engine);
+		replacement Garage(mount(engine));
+		garage = replacement;
+	}
+	garage.car.engine!tune();
+	check(engine.power == Int(3));
+
+	// Cars carrying guests to an outer engine, pushed from an inner block
+	// into an outer list.
+	cars List<Car> = @primitives$List(Car);
+	i Int(1);
+	i!to(Int(10)) {
+		cars!push(Car(engine));
+	}
+	cars[Int(10)].engine!tune();
+	check(cars:size() == Int(10));
+	check(cars[Int(1)].engine.power == Int(4));
+
+	// A verb's result carries the guest its parameter rests in, and binding
+	// it where the engine is owned is legal.
+	mounted Car = mount(engine);
+	mounted.engine!tune();
+	check(engine.power == Int(5));
+
+	// A case form names a host only when it is given one: storing a guest-free
+	// case above the block is legal, and so is one naming an outer engine.
+	tag Tag = Tag.plain(Int(0));
+	if(true) {
+		tag = Tag.plain(Int(7));
+	}
+	check(tag:power() == Int(7));
+	if(true) {
+		tag = Tag.pinned(engine);
+	}
+	check(tag:power() == Int(5));
+
+	// The host moves while a car names it: the guest follows, and a refill
+	// of the old symbol starts a new object the car does not name.
+	moved Engine = engine;
+	parked.engine!tune();
+	check(moved.power == Int(6));
+	engine = Engine(Int(100));
+	check(parked.engine.power == Int(6));
+	check(tag:power() == Int(6));
+
+	// A kit names inside itself, so it leaves the call that built it and its
+	// car still reaches its own engine.
+	kit Kit = assemble(Int(10));
+	check(kit.car.engine.power == Int(11));
+	kit.engine!tune();
+	check(kit.car.engine.power == Int(12));
+
+	// It moves again, into a symbol and into a list, and the guest follows
+	// each time.
+	other Kit = kit;
+	other.car.engine!tune();
+	check(other.engine.power == Int(13));
+	kits List<Kit> = @primitives$List(Kit);
+	kits!push(other);
+	kits[Int(1)].engine!tune();
+	check(kits[Int(1)].car.engine.power == Int(14));
+
+	// A kit built in an inner block and stored above it.
+	outer Kit = assemble(Int(0));
+	if(true) {
+		fresh Kit(Engine(Int(20)));
+		fresh.car.engine!tune();
+		outer = fresh;
+	}
+	check(outer.car.engine.power == Int(21));
+	outer.engine!tune();
+	check(outer.car.engine.power == Int(22));
+
+	// Many kits built in passes and pushed out: each guest follows its engine
+	// into the list.
+	built List<Kit> = @primitives$List(Kit);
+	j Int(1);
+	j!to(Int(1000)) {
+		k Kit(Engine(j));
+		built!push(k);
+	}
+	check(built[Int(1000)].car.engine.power == Int(1000));
+	built[Int(500)].engine!tune();
+	check(built[Int(500)].car.engine.power == Int(501));
+	return Unit();
+}

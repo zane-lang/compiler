@@ -5,7 +5,8 @@ set -euo pipefail
 # it, for `check-programs` to run on Windows (docs/design/platforms.md).
 #
 # Every codegen fixture with an expected output is built twice, as
-# tests/codegen/ builds it, plain and optimized. `survey` is built against
+# tests/codegen/ builds it, plain and optimized, and so is every program
+# under tests/memory/, named `memory.NAME`. `survey` is built against
 # geometry's objects, both the one built from source with geometry's stamp
 # and geometry's placeholder object rewritten with it
 # (docs/design/separate-compilation.md C7, C9). Each program NAME.exe has
@@ -34,16 +35,22 @@ expect() { # NAME GOLDEN STATUS
 	echo "$3" >"$OUT/$1.status"
 }
 
-for golden in tests/codegen/golden/*.out; do
-	name="$(basename "$golden" .out)"
-	fixture="tests/codegen/fixtures/$name"
-	status=0
-	[[ -f "$fixture/expected-status" ]] && status="$(tr -d '[:space:]' <"$fixture/expected-status")"
-	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" --package "$fixture"
-	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" --package "$fixture"
-	expect "$name" "$golden" "$status"
-	expect "$name.optimized" "$golden" "$status"
-done
+programs() { # GOLDENS FIXTURES PREFIX
+	local golden name fixture status
+	for golden in "$1"/*.out; do
+		name="$3$(basename "$golden" .out)"
+		fixture="$2/$(basename "$golden" .out)"
+		status=0
+		[[ -f "$fixture/expected-status" ]] && status="$(tr -d '[:space:]' <"$fixture/expected-status")"
+		"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" --package "$fixture"
+		"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" --package "$fixture"
+		expect "$name" "$golden" "$status"
+		expect "$name.optimized" "$golden" "$status"
+	done
+}
+
+programs tests/codegen/golden tests/codegen/fixtures ""
+programs tests/memory/golden tests/memory/fixtures/run memory.
 
 objects="$(mktemp -d)"
 trap 'rm -rf "$objects"' EXIT

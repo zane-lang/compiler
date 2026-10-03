@@ -1,0 +1,28 @@
+File "fixtures/reject/sources/main.zn", line 21, characters 17-31:
+21 |     a &Engine = build().engine;
+  |                 ^^^^^^^^^^^^^^
+Error: a new guest names a place, and this is a temporary value
+File "fixtures/reject/sources/main.zn", line 24, characters 17-20:
+24 |     b &Engine = car.engine;
+  |                 ^^^
+Error: `car` was moved on line 23, and is spent until a store refills it
+File "fixtures/reject/sources/main.zn", line 25, characters 14-17:
+25 |     c &Car = car;
+  |              ^^^
+Error: `car` was moved on line 23, and is spent until a store refills it
+File "fixtures/reject/sources/main.zn", line 30, characters 1-39:
+30 | type Holds = struct { engine Engine; }
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Holds` is a value type, so its member `engine` cannot hold `sources$Engine`, a reference type; a value type is a value all the way down
+File "fixtures/reject/sources/main.zn", line 31, characters 1-46:
+31 | type Lists = struct { engines List<Engine>; }
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Lists` is a value type, so its member `engines` cannot hold `@primitives$List<sources$Engine>`, a reference type; a value type is a value all the way down
+File "fixtures/reject/sources/main.zn", line 32, characters 1-40:
+32 | type Names = struct { engine &Engine; }
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Names` is a value type, so its member `engine` cannot be an `&`; only a `#` mould may hold one
+File "fixtures/reject/sources/main.zn", line 35, characters 32-36:
+35 | type Pointer = #struct { count &Int; }
+  |                                ^^^^
+Error: `@primitives$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)

@@ -1,0 +1,146 @@
+/// A value carries the guests reachable along its owning edges, and each
+/// store of it asks again whether every host they name outlives the
+/// destination (lifetimes.md §1.1, §1.10). Here a car names an engine owned by
+/// an inner block, and every way of taking the car out of that block is
+/// refused: assigned above it, returned, moved into an outer object's
+/// hosting field or list, built into a case form, and handed to a call that
+/// keeps it. That the car itself is a fresh value, or was moved
+/// legally, does not matter: what it carries is checked on its own.
+package carried;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias List<T Type> = @primitives$List<T>
+
+type Engine = #struct { power Int; }
+type Car = #struct { engine &Engine; }
+type Garage = #struct { car Car; }
+type Slot = #variant { parked Car; empty Unit; }
+
+Engine(power Int) => init{ power; }
+Car(engine &Engine) => init{ engine; }
+Garage(car Car) => init{ car; }
+
+Unit inside(body @concepts$Block) => Unit()
+
+/// A car whose guest is rooted in the parameter comes to rest in the result.
+Car mount(engine &Engine) => Car(engine)
+
+/// Assigned to a car owned by the enclosing block.
+Unit assigned() {
+	far Engine(Int(1));
+	parked Car(far);
+	inside({
+		near Engine(Int(2));
+		arriving Car(near);
+		parked = arriving;
+	});
+	return Unit();
+}
+
+/// Returned from the call whose body owns the engine, by symbol and fresh.
+Car returned() {
+	near Engine(Int(3));
+	car Car(near);
+	return car;
+}
+
+Car built() {
+	near Engine(Int(4));
+	return Car(near);
+}
+
+/// Moved into a hosting field of a garage owned above, and as a whole garage:
+/// the guest is one owning edge down there.
+Unit fielded() {
+	far Engine(Int(5));
+	garage Garage(Car(far));
+	inside({
+		near Engine(Int(6));
+		arriving Car(near);
+		garage.car = arriving;
+		inner Garage(Car(near));
+		garage = inner;
+	});
+	return Unit();
+}
+
+/// Pushed into a list owned above, and a whole list assigned there: an
+/// element is an owning edge too.
+Unit listed() {
+	far Engine(Int(7));
+	cars List<Car> = @primitives$List(Car);
+	cars!push(Car(far));
+	inside({
+		near Engine(Int(8));
+		cars!push(Car(near));
+		cars[Int(1)] = Car(near);
+		batch List<Car> = @primitives$List(Car);
+		batch!push(Car(near));
+		cars = batch;
+	});
+	return Unit();
+}
+
+/// A case form whose hosting payload carries the guest.
+Unit cased() {
+	slot Slot = Slot.empty(Unit());
+	inside({
+		near Engine(Int(9));
+		slot = Slot.parked(Car(near));
+	});
+	return Unit();
+}
+
+/// A verb's result carries the guest its parameter rests in.
+Unit mounted() {
+	far Engine(Int(10));
+	parked Car = mount(far);
+	inside({
+		near Engine(Int(11));
+		parked = mount(near);
+	});
+	return Unit();
+}
+
+/// Handed to a call that keeps it in its subject, directly and through a
+/// second call.
+Unit park(this Garage, car Car) mut {
+	this.car = car;
+	return Unit();
+}
+
+Unit valet(this Garage, car Car) mut {
+	this!park(car);
+	return Unit();
+}
+
+Unit handed() {
+	far Engine(Int(12));
+	garage Garage(Car(far));
+	inside({
+		near Engine(Int(13));
+		arriving Car(near);
+		garage!park(arriving);
+		again Car(near);
+		garage!valet(again);
+	});
+	return Unit();
+}
+
+/// Three blocks: the car is owned at the top, the engine in the middle, and
+/// the store runs at the bottom. Storing into the middle is legal; storing
+/// into the top is not.
+Unit layered() {
+	top Engine(Int(14));
+	high Car(top);
+	inside({
+		middle Engine(Int(15));
+		low Car(middle);
+		inside({
+			low = Car(middle);
+			high = Car(middle);
+		});
+	});
+	return Unit();
+}

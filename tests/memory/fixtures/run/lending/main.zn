@@ -1,0 +1,189 @@
+/// Parameters belong to the call site (lifetimes.md §1.5, §1.8, §1.9). A
+/// value passed to a swallowing parameter outlives the call even when the
+/// callee lends it into a local that drains, so a guest the caller minted
+/// before the call still reaches it. A relayed host comes back through the
+/// return, bound or left to float, and a swallowed parameter may be returned
+/// as a guest. A guest parameter leaves the caller a full host. Each check
+/// prints `yes` when it holds and `no` when it does not.
+package lending;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Runs the block when the condition holds, and reports whether it did.
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(~ok, {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+type Player = #struct {
+	id Int;
+	score Int;
+}
+
+Player(id Int) => init{ id; score = Int(0); }
+
+Unit win(this Player) mut {
+	this.score = this.score + Int(1);
+	return Unit();
+}
+
+type Island = #struct {
+	players List<Player>;
+}
+
+Island() => init{ players = @primitives$List(Player); }
+
+/// Consumes the player into the island's list.
+Unit startMatch(this Island, player Player) mut {
+	this.players!push(player);
+	return Unit();
+}
+
+/// Hands the last player back, leaving a fresh one in its element.
+Player returnPlayer(this Island, id Int) mut {
+	last Int = this.players:size();
+	out Player = Player(id);
+	out.score = this.players[last].score + Int(1);
+	this.players[last] = Player(Int(0));
+	return out;
+}
+
+/// Lends the player into a local island that drains when the call returns.
+/// The player belongs to the call site, so it is not destroyed with it.
+Unit enter(player Player) {
+	island Island();
+	island!startMatch(player);
+	return Unit();
+}
+
+/// Lends the player into a local island, takes a player back out and relays
+/// that (§1.8's `enterMatch`, through a local the body declares).
+Player enterMatch(player Player) {
+	kept Player = player;
+	island Island();
+	playerId Int = kept.id;
+	island!startMatch(kept);
+	kept = island!returnPlayer(playerId);
+	return kept;
+}
+
+/// Relays its argument back through a local that hosts it at the top of
+/// the body.
+Player relay(player Player) {
+	kept Player = player;
+	kept!win();
+	return kept;
+}
+
+/// Swallows the player and returns a guest to it: the guest lands in the
+/// caller, the scope the swallowed value belongs to (memory.md §2.9).
+&Player lend(player Player) => player
+
+/// Reads through a guest parameter: the caller stays the host.
+Int scoreOf(player &Player) => player.score
+
+/// Moves a swallowed parameter into a local at the top level of the body.
+Int settle(player Player) {
+	kept Player = player;
+	kept!win();
+	return kept.score;
+}
+
+Unit main() {
+	// Lent into a callee's local: the caller's guest still reaches it after
+	// that local drains.
+	a Player(Int(1));
+	ga &Player = a;
+	enter(a);
+	check(ga.score == Int(0));
+	ga!win();
+	check(ga.score == Int(1));
+
+	// The symbol was spent by the pass, and a refill starts a new player.
+	a = Player(Int(2));
+	check(a.score == Int(0));
+	check(ga.id == Int(1));
+
+	// Relayed through the island and bound: hosting comes back.
+	b Player(Int(3));
+	b = enterMatch(b);
+	check(b.id == Int(3));
+	check(b.score == Int(1));
+
+	// Relayed and bound to a new host; the guest follows.
+	c Player(Int(4));
+	gc &Player = c;
+	d Player = relay(c);
+	check(gc.score == Int(1));
+	d!win();
+	check(gc.score == Int(2));
+
+	// Relayed and left unbound: the result floats, and the guest reaches it.
+	e Player(Int(5));
+	ge &Player = e;
+	relay(e);
+	check(ge.score == Int(1));
+	ge!win();
+	check(ge.score == Int(2));
+
+	// A swallowed player returned as a guest.
+	f Player(Int(6));
+	gf &Player = lend(f);
+	gf!win();
+	check(gf.id == Int(6));
+	check(gf.score == Int(1));
+
+	// A guest parameter leaves the caller hosting: read, written, and the
+	// host used again after each call.
+	g Player(Int(7));
+	check(scoreOf(g) == Int(0));
+	g!win();
+	check(scoreOf(g) == Int(1));
+	g!win();
+	check(g.score == Int(2));
+	h Player = g;
+	check(h.score == Int(2));
+
+	// Moved into a local at the top of the callee's body.
+	k Player(Int(8));
+	check(settle(k) == Int(1));
+
+	// Many lends: each pass's player outlives the call it was lent to.
+	total Int(0);
+	i Int(1);
+	i!to(Int(1000)) {
+		p Player(i);
+		gp &Player = p;
+		enter(p);
+		gp!win();
+		total = total + gp.score + gp.id;
+	}
+	check(total == Int(501500));
+	return Unit();
+}

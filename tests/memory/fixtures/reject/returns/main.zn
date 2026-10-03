@@ -1,0 +1,52 @@
+/// A returned guest is rooted in a parameter (lifetimes.md §1.7): a local, a
+/// field of a local, a guest copied from a local, and a local chosen in a
+/// nested block are all owned by the body, which drains at the return. A
+/// parameter of either mode, `this`, and a field reached from one are roots.
+package returns;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+
+type Engine = #struct { power Int; }
+type Bay = #struct { engine Engine; }
+type Car = #struct { engine &Engine; }
+
+Engine(power Int) => init{ power; }
+Bay(engine Engine) => init{ engine; }
+Car(engine &Engine) => init{ engine; }
+
+Unit branch(condition Bool, body @concepts$Block) => Unit()
+
+&Engine field() {
+	bay Bay(Engine(Int(1)));
+	return bay.engine;
+}
+
+&Engine copied() {
+	engine Engine(Int(2));
+	g &Engine = engine;
+	return g;
+}
+
+&Engine nested(flag Bool, fallback &Engine) {
+	engine Engine(Int(3));
+	branch(flag, {
+		return engine;
+	});
+	return fallback;
+}
+
+/// A guest stored in a local car, read back out.
+&Engine through() {
+	engine Engine(Int(4));
+	car Car(engine);
+	return car.engine;
+}
+
+/// The legal roots.
+&Engine swallowed(engine Engine) => engine
+&Engine guested(engine &Engine) => engine
+&Engine subject(this Bay) => this.engine
+&Engine reached(bay &Bay) => bay.engine
+&Engine stored(car &Car) => car.engine

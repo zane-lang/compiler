@@ -23,7 +23,7 @@ test: test-compiler test-grammar test-ambiguity-tools
 # Promote an intended move with `just promote`.
 test-compiler: _require-menhir
 	dune build bin/zanec/zanec.exe
-	dune runtest tests/parser tests/semantics tests/codegen tests/runtime tests/objects
+	dune runtest tests/parser tests/semantics tests/codegen tests/memory tests/runtime tests/objects
 	python3 -m unittest tests.parser.syntax_test -v
 
 # The test programs built for Windows and run under Wine, as CI runs them on

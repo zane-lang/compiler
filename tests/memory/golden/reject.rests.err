@@ -1,0 +1,32 @@
+File "fixtures/reject/rests/main.zn", line 44, characters 5-14:
+44 |     this.peer.io = io;
+  |     ^^^^^^^^^
+Error: a store may not go through a guest, since what it names belongs to a tree this path's root does not own; change it with a `mut` method called through the guest
+File "fixtures/reject/rests/main.zn", line 65, characters 28-35:
+65 |         hub.terminal!setIO(ioInner);
+  |                            ^^^^^^^
+Error: this stores a guest to `ioInner`, whose block ends before `hub`'s does (`setIO` keeps `io` in `this`)
+File "fixtures/reject/rests/main.zn", line 66, characters 28-35:
+66 |         hub.terminal!relay(ioInner);
+  |                            ^^^^^^^
+Error: this stores a guest to `ioInner`, whose block ends before `hub`'s does (`relay` keeps `io` in `this`)
+File "fixtures/reject/rests/main.zn", line 67, characters 33-40:
+67 |         hub.terminal!relayAgain(ioInner);
+  |                                 ^^^^^^^
+Error: this stores a guest to `ioInner`, whose block ends before `hub`'s does (`relayAgain` keeps `io` in `this`)
+File "fixtures/reject/rests/main.zn", line 68, characters 18-25:
+68 |         hub!wire(ioInner);
+  |                  ^^^^^^^
+Error: this stores a guest to `ioInner`, whose block ends before `hub`'s does (`wire` keeps `io` in `this`)
+File "fixtures/reject/rests/main.zn", line 71, characters 24-25:
+71 |         hub.terminal = t;
+  |                        ^
+Error: this stores a guest to `ioInner`, whose block ends before `hub`'s does
+File "fixtures/reject/rests/main.zn", line 72, characters 24-37:
+72 |         hub.terminal = make(ioInner);
+  |                        ^^^^^^^^^^^^^
+Error: this stores a guest to `ioInner`, whose block ends before `hub`'s does
+File "fixtures/reject/rests/main.zn", line 73, characters 19-32:
+73 |         hub!adopt(make(ioInner));
+  |                   ^^^^^^^^^^^^^
+Error: this stores a guest to `ioInner`, whose block ends before `hub`'s does (`adopt` keeps `terminal` in `this`)

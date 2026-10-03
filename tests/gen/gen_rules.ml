@@ -1,4 +1,5 @@
-(* The dune rules of tests/codegen/, tests/parser/ and tests/runtime/, written
+(* The dune rules of tests/codegen/, tests/memory/, tests/parser/ and
+   tests/runtime/, written
    from what those directories hold. Each directory's `dune` includes the
    `dune.inc` this prints, and diffs it against a fresh run, so a fixture
    added without its rules fails `dune runtest` until `dune promote` writes
@@ -12,6 +13,9 @@
      what both builds of the program wrote. A
      fixture whose `expected-status` file holds a status other than 0 is a
      program that stops: its golden file holds stdout and stderr together.
+   - memory: `golden/NAME.out` builds and runs `fixtures/run/NAME` as codegen
+     does, and `golden/reject.NAME.err` is what `zanec --check` reports for
+     the package `fixtures/reject/NAME`.
    - parser: `golden/NAME.STAGE.spans` is `span_dump --STAGE`, and
      `golden/NAME.STAGE.tree` `zanec --STAGE`, over `fixtures/NAME.zn`;
      `golden/reject.NAME.err` is what `zanec` reports for
@@ -39,13 +43,12 @@ let status name =
     int_of_string (String.trim (In_channel.with_open_text file In_channel.input_all))
   else 0
 
-let codegen () =
-  let goldens = sorted "golden" in
+let codegen ?(fixtures = "fixtures") ?(goldens = sorted "golden") () =
   let names suffix = List.filter_map (chop_suffix ~suffix) goldens in
   let trees = names ".cgt" and outputs = names ".out" in
   List.iter
     (fun name ->
-      let package = "fixtures/" ^ name in
+      let package = fixtures ^ "/" ^ name in
       if List.mem name trees then begin
         Printf.printf
           "(rule\n (deps (source_tree %s))\n (action\n  (with-stdout-to\n   %s.cgt.actual\n   (run %s --cgt --package %s))))\n\n"
@@ -76,6 +79,24 @@ let codegen () =
           [ name; name ^ ".optimized" ]
       end)
     (List.sort_uniq compare (trees @ outputs))
+
+(* memory *)
+
+let memory () =
+  let goldens = sorted "golden" in
+  let rejects = List.filter_map (chop_suffix ~suffix:".err") goldens in
+  codegen ~fixtures:"fixtures/run" ~goldens:(List.filter (fun g -> Filename.check_suffix g ".out") goldens) ();
+  List.iter
+    (fun golden ->
+      match String.split_on_char '.' golden with
+      | [ "reject"; name ] ->
+          let package = "fixtures/reject/" ^ name in
+          Printf.printf
+            "(rule\n (deps (source_tree %s))\n (action\n  (with-stderr-to\n   %s.err.actual\n   (with-accepted-exit-codes\n    1\n    (run %s --check --package %s)))))\n\n"
+            package golden zanec package;
+          diff (golden ^ ".err") (golden ^ ".err.actual")
+      | _ -> failwith ("gen_rules: no rule makes golden/" ^ golden ^ ".err"))
+    rejects
 
 (* parser *)
 
@@ -117,8 +138,9 @@ let () =
   print_string "; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.\n\n";
   match Sys.argv with
   | [| _; "codegen" |] -> codegen ()
+  | [| _; "memory" |] -> memory ()
   | [| _; "parser" |] -> parser ()
   | [| _; "runtime" |] -> runtime ()
   | _ ->
-      prerr_endline "usage: gen_rules (codegen|parser|runtime)";
+      prerr_endline "usage: gen_rules (codegen|memory|parser|runtime)";
       exit 2

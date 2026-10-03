@@ -1,0 +1,93 @@
+/// A guest stored where its host's owner does not outlive the destination's
+/// (lifetimes.md §1.1): into an `&` local and an `&` field owned by an
+/// enclosing block, by a guest copied from another guest, and by a verb's
+/// result that names the inner host. The legal store beside each
+/// shows the comparison is between owners, not a ban on inner blocks.
+package stores;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias List<T Type> = @primitives$List<T>
+
+type Engine = #struct { power Int; }
+type Car = #struct { engine &Engine; }
+
+Engine(power Int) => init{ power; }
+Car(engine &Engine) => init{ engine; }
+
+Unit inside(body @concepts$Block) => Unit()
+
+&Engine pass(engine &Engine) => engine
+&Engine either(a &Engine, b &Engine) => b
+
+/// An `&` field of a car owned above, written directly.
+Unit fielded() {
+	far Engine(Int(1));
+	car Car(far);
+	inside({
+		near Engine(Int(2));
+		car.engine = far;
+		car.engine = near;
+	});
+	return Unit();
+}
+
+/// A guest copied from a guest still names the first host.
+Unit copied() {
+	far Engine(Int(5));
+	r &Engine = far;
+	inside({
+		near Engine(Int(6));
+		g &Engine = near;
+		h &Engine = g;
+		r = h;
+	});
+	return Unit();
+}
+
+/// A verb's result names what its arguments do: both of them, whichever it
+/// returns.
+Unit called() {
+	far Engine(Int(7));
+	r &Engine = far;
+	inside({
+		near Engine(Int(8));
+		r = pass(far);
+		r = pass(near);
+		r = either(near, far);
+	});
+	return Unit();
+}
+
+/// Three blocks: a guest in the middle may name the top or the middle, and a
+/// guest at the top only the top.
+Unit layered() {
+	top Engine(Int(9));
+	high &Engine = top;
+	inside({
+		middle Engine(Int(10));
+		low &Engine = top;
+		inside({
+			bottom Engine(Int(11));
+			low = middle;
+			low = bottom;
+			high = middle;
+		});
+	});
+	return Unit();
+}
+
+/// A guest to a host that will move to an outer list later is still owned
+/// by the block that declared the host: the comparison is fixed at the
+/// declaration.
+Unit declared() {
+	far Engine(Int(12));
+	hosts List<Engine> = @primitives$List(Engine);
+	r &Engine = far;
+	inside({
+		near Engine(Int(13));
+		r = near;
+		hosts!push(near);
+	});
+	return Unit();
+}

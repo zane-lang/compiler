@@ -1,0 +1,28 @@
+File "fixtures/reject/stores/main.zn", line 30, characters 22-26:
+30 |         car.engine = near;
+  |                      ^^^^
+Error: this stores a guest to `near`, whose block ends before `car`'s does
+File "fixtures/reject/stores/main.zn", line 43, characters 13-14:
+43 |         r = h;
+  |             ^
+Error: this stores a guest to `near`, whose block ends before `r`'s does
+File "fixtures/reject/stores/main.zn", line 56, characters 13-23:
+56 |         r = pass(near);
+  |             ^^^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `r`'s does
+File "fixtures/reject/stores/main.zn", line 57, characters 13-30:
+57 |         r = either(near, far);
+  |             ^^^^^^^^^^^^^^^^^
+Error: this stores a guest to `near`, whose block ends before `r`'s does
+File "fixtures/reject/stores/main.zn", line 73, characters 19-25:
+73 |             low = bottom;
+  |                   ^^^^^^
+Error: this stores a guest to `bottom`, whose block ends before `low`'s does
+File "fixtures/reject/stores/main.zn", line 74, characters 20-26:
+74 |             high = middle;
+  |                    ^^^^^^
+Error: this stores a guest to `middle`, whose block ends before `high`'s does
+File "fixtures/reject/stores/main.zn", line 89, characters 13-17:
+89 |         r = near;
+  |             ^^^^
+Error: this stores a guest to `near`, whose block ends before `r`'s does

@@ -1,0 +1,44 @@
+File "fixtures/reject/moves/main.zn", line 27, characters 23-29:
+27 |         kept Engine = engine;
+  |                       ^^^^^^
+Error: `engine` is declared in an enclosing block, and a symbol is moved only in the block that declares it
+File "fixtures/reject/moves/main.zn", line 36, characters 13-19:
+36 |     a Int = engine.power;
+  |             ^^^^^^
+Error: `engine` was moved on line 35, and is spent until a store refills it
+File "fixtures/reject/moves/main.zn", line 37, characters 13-19:
+37 |     b Int = engine:peek();
+  |             ^^^^^^
+Error: `engine` was moved on line 35, and is spent until a store refills it
+File "fixtures/reject/moves/main.zn", line 38, characters 5-11:
+38 |     engine!tune();
+  |     ^^^^^^
+Error: `engine` was moved on line 35, and is spent until a store refills it
+File "fixtures/reject/moves/main.zn", line 39, characters 17-23:
+39 |     g &Engine = engine;
+  |                 ^^^^^^
+Error: `engine` was moved on line 35, and is spent until a store refills it
+File "fixtures/reject/moves/main.zn", line 40, characters 18-24:
+40 |     c Int = look(engine);
+  |                  ^^^^^^
+Error: `engine` was moved on line 35, and is spent until a store refills it
+File "fixtures/reject/moves/main.zn", line 41, characters 13-19:
+41 |     car Car(engine);
+  |             ^^^^^^
+Error: `engine` was moved on line 35, and is spent until a store refills it
+File "fixtures/reject/moves/main.zn", line 42, characters 13-19:
+42 |     consume(engine);
+  |             ^^^^^^
+Error: `engine` was moved on line 35, and is spent until a store refills it
+File "fixtures/reject/moves/main.zn", line 51, characters 16-22:
+51 |     second Car(engine);
+  |                ^^^^^^
+Error: `engine` was moved on line 50, and is spent until a store refills it
+File "fixtures/reject/moves/main.zn", line 61, characters 23-27:
+61 |         nestedOwner = node;
+  |                       ^^^^
+Error: `node` is declared in an enclosing block, and a symbol is moved only in the block that declares it
+File "fixtures/reject/moves/main.zn", line 70, characters 13-16:
+70 |     p Int = car.engine.power;
+  |             ^^^
+Error: `car` was moved on line 69, and is spent until a store refills it

@@ -1,0 +1,168 @@
+/// What a guest sees when the place it was minted from changes (memory.md
+/// §2.8.1, lifetimes.md §2.1). A stable slot overwritten carries its guests to
+/// the replacement, from any block. A contingent place -- a list element or a
+/// variant payload -- replaced or changed away floats its old occupant into
+/// the place's owner scope, not the block the change ran in, so a guest
+/// minted before the object went there still reaches it after that block
+/// drains. Each check prints `yes` when it holds and `no` when it does not.
+package floats;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Runs the block when the condition holds, and reports whether it did.
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(~ok, {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+type Node = #struct {
+	value Int;
+}
+
+Node(value Int) => init{ value; }
+
+Unit bump(this Node) mut {
+	this.value = this.value + Int(1);
+	return Unit();
+}
+
+type Pair = #struct {
+	left Node;
+	right Node;
+}
+
+Pair(left Node, right Node) => init{ left; right; }
+
+type Holder = #variant {
+	some Node;
+	none Unit;
+}
+
+/// Replaces a list's element: the old occupant floats to the list's owner,
+/// which is the caller's.
+Unit replace(this List<Node>, at Int, value Int) mut {
+	this[at] = Node(value);
+	return Unit();
+}
+
+/// Changes a holder away from its payload, from inside a call.
+Unit clear(this Holder) mut {
+	this = Holder.none(Unit());
+	return Unit();
+}
+
+Unit main() {
+	// A symbol overwritten in an inner block, while it still hosts: the
+	// overwrite is not a refill, so it is legal there, and the guest sees
+	// the replacement.
+	a Node(Int(1));
+	ga &Node = a;
+	if(true) {
+		a = Node(Int(2));
+	}
+	check(ga.value == Int(2));
+	ga!bump();
+	check(a.value == Int(3));
+
+	// A stable field overwritten in an inner block.
+	pair Pair(Node(Int(10)), Node(Int(20)));
+	left &Node = pair.left;
+	right &Node = pair.right;
+	if(true) {
+		pair.left = Node(Int(11));
+	}
+	check(left.value == Int(11));
+	check(right.value == Int(20));
+
+	// The pair moved whole: both field guests follow it.
+	moved Pair = pair;
+	left!bump();
+	right!bump();
+	check(moved.left.value == Int(12));
+	check(moved.right.value == Int(21));
+
+	// A list element replaced in an inner block. The guest was minted while
+	// the node was a symbol, and the node floats to the list's owner, so it
+	// outlives the block that replaced it.
+	n Node(Int(30));
+	gn &Node = n;
+	nodes List<Node> = @primitives$List(Node);
+	nodes!push(n);
+	gn!bump();
+	check(nodes[Int(1)].value == Int(31));
+	if(true) {
+		nodes[Int(1)] = Node(Int(40));
+	}
+	check(gn.value == Int(31));
+	gn!bump();
+	check(gn.value == Int(32));
+	check(nodes[Int(1)].value == Int(40));
+
+	// The same from inside a method whose `this` is the list.
+	m Node(Int(50));
+	gm &Node = m;
+	nodes!push(m);
+	nodes!replace(Int(2), Int(60));
+	check(gm.value == Int(50));
+	check(nodes[Int(2)].value == Int(60));
+
+	// A variant changed away from its payload in an inner block, and from a
+	// method.
+	p Node(Int(70));
+	gp &Node = p;
+	holder Holder = Holder.some(p);
+	if(true) {
+		holder = Holder.none(Unit());
+	}
+	check(gp.value == Int(70));
+	q Node(Int(80));
+	gq &Node = q;
+	other Holder = Holder.some(q);
+	other!clear();
+	gq!bump();
+	check(gq.value == Int(81));
+
+	// Many floats into one owner: each pass moves its node into an outer
+	// list's element and replaces it, and the pass's guest still reads it.
+	sum Int(0);
+	slots List<Node> = @primitives$List(Node);
+	slots!push(Node(Int(0)));
+	i Int(1);
+	i!to(Int(1000)) {
+		x Node(i);
+		gx &Node = x;
+		slots[Int(1)] = x;
+		slots[Int(1)] = Node(Int(0));
+		gx!bump();
+		sum = sum + gx.value;
+	}
+	check(sum == Int(501500));
+	check(slots[Int(1)].value == Int(0));
+	return Unit();
+}

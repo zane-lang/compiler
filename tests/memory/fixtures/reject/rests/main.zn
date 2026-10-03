@@ -1,0 +1,78 @@
+/// Where a parameter comes to rest (lifetimes.md §1.11), with lifetimes.md's
+/// own `Terminal` and `Hub`. A call substitutes its argument paths and keeps
+/// the recorded steps, a summary passes through every call a verb makes, and
+/// a verb's result is a root like a parameter. Every illegal call here stores
+/// a guest to an inner io into something the enclosing block owns.
+package rests;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+type IO = #struct { port Int; }
+type Terminal = #struct { io &IO; }
+type Hub = #struct { terminal Terminal; peer &Terminal; io IO; }
+
+IO(port Int) => init{ port; }
+Terminal(io &IO) => init{ io; }
+Hub(terminal Terminal, peer &Terminal, io IO) => init{ terminal; peer; io; }
+
+Unit inside(body @concepts$Block) => Unit()
+
+Unit setIO(this Terminal, io &IO) mut {
+	this.io = io;
+	return Unit();
+}
+
+Unit relay(this Terminal, io &IO) mut {
+	this!setIO(io);
+	return Unit();
+}
+
+Unit relayAgain(this Terminal, io &IO) mut {
+	this!relay(io);
+	return Unit();
+}
+
+/// Two steps below `this`.
+Unit wire(this Hub, io &IO) mut {
+	this.terminal.io = io;
+	return Unit();
+}
+
+/// A store whose path steps through `peer`, an `&`, has left `this`'s tree.
+Unit cross(this Hub, io &IO) mut {
+	this.peer.io = io;
+	return Unit();
+}
+
+/// The result is a root.
+Terminal make(io &IO) => Terminal(io)
+
+/// A swallowed terminal comes to rest in the hub's hosting field.
+Unit adopt(this Hub, terminal Terminal) mut {
+	this.terminal = terminal;
+	return Unit();
+}
+
+Unit calls() {
+	far IO(Int(1));
+	shared Terminal(far);
+	hub Hub(Terminal(far), shared, IO(Int(2)));
+	hub.terminal!setIO(hub.io);
+	hub!wire(hub.io);
+	inside({
+		ioInner IO(Int(3));
+		hub.terminal!setIO(ioInner);
+		hub.terminal!relay(ioInner);
+		hub.terminal!relayAgain(ioInner);
+		hub!wire(ioInner);
+		t Terminal(ioInner);
+		t!setIO(ioInner);
+		hub.terminal = t;
+		hub.terminal = make(ioInner);
+		hub!adopt(make(ioInner));
+		u Terminal = make(far);
+		hub!adopt(u);
+	});
+	return Unit();
+}

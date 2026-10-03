@@ -1,0 +1,35 @@
+/// Where a new guest may come from (memory.md §2.8), past what the typing
+/// suite covers, and which types may hold one (§2.4, §2.10). A temporary's
+/// field and a spent symbol mint nothing. A value type holds no reference
+/// type and no `&`, and an `&` names a reference type only.
+package sources;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias List<T Type> = @primitives$List<T>
+
+type Engine = #struct { power Int; }
+type Car = #struct { engine Engine; }
+
+Engine(power Int) => init{ power; }
+Car(engine Engine) => init{ engine; }
+
+Car build() => Car(Engine(Int(1)))
+Unit consume(car Car) => Unit()
+
+Unit minted() {
+	a &Engine = build().engine;
+	car Car(Engine(Int(2)));
+	consume(car);
+	b &Engine = car.engine;
+	c &Car = car;
+	return Unit();
+}
+
+/// Value types holding a reference type, a list, and an `&`.
+type Holds = struct { engine Engine; }
+type Lists = struct { engines List<Engine>; }
+type Names = struct { engine &Engine; }
+
+/// An `&` to a value type.
+type Pointer = #struct { count &Int; }

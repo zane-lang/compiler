@@ -1,0 +1,72 @@
+/// Moves and spent symbols (lifetimes.md §1.2–1.6, §1.8), past what the
+/// typing suite covers. A parameter moves only at the top of the body. A
+/// moved symbol is spent for every use: a read, a method call, a `!` call, a
+/// guest minted from it, a guest parameter, a field, and a second move. A
+/// field of a host moved whole is spent with it. A host moves only into a
+/// host owned by its own block or one enclosing it.
+package moves;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+type Engine = #struct { power Int; }
+type Car = #struct { engine Engine; }
+
+Engine(power Int) => init{ power; }
+Car(engine Engine) => init{ engine; }
+
+Unit inside(body @concepts$Block) => Unit()
+Unit consume(engine Engine) => Unit()
+Int look(engine &Engine) => engine.power
+Int peek(this Engine) => this.power
+Unit tune(this Engine) mut => Unit()
+
+/// A parameter moved in a block nested in the body.
+Unit param(engine Engine) {
+	inside({
+		kept Engine = engine;
+	});
+	return Unit();
+}
+
+/// Every use of a spent symbol.
+Unit spent() {
+	engine Engine(Int(1));
+	consume(engine);
+	a Int = engine.power;
+	b Int = engine:peek();
+	engine!tune();
+	g &Engine = engine;
+	c Int = look(engine);
+	car Car(engine);
+	consume(engine);
+	return Unit();
+}
+
+/// A move into the hosting field of a car built in the same statement spends
+/// the symbol for the next.
+Unit twice() {
+	engine Engine(Int(2));
+	first Car(engine);
+	second Car(engine);
+	return Unit();
+}
+
+/// lifetimes.md §1.4's example: the destination is declared in a nested
+/// block, below the source.
+Unit lowered() {
+	node Engine(Int(3));
+	inside({
+		nestedOwner Engine(Int(4));
+		nestedOwner = node;
+	});
+	return Unit();
+}
+
+/// A field of a host moved whole is spent with it.
+Unit whole() {
+	car Car(Engine(Int(5)));
+	moved Car = car;
+	p Int = car.engine.power;
+	return Unit();
+}
