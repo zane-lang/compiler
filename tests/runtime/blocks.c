@@ -1,6 +1,7 @@
-/* The runtime's lists, boxes and dynamic regions, tested in C on their own
-   (docs/design/lowering.md L17), over hand-written layouts. Each check prints `yes`
-   when it holds and `no` when it does not. */
+/* The runtime's lists, arrays, boxes, dynamic regions and package
+   constants, tested in C on their own (docs/design/lowering.md L17), over
+   hand-written layouts. Each check prints `yes` when it holds and `no` when
+   it does not. */
 
 #include "zane_internal.h"
 
@@ -162,4 +163,23 @@ void zane_main(void) {
 	zane_overwrite((char *)&plain, (char *)&replacing_plain, 8, NULL, 0);
 	zane_vacate((char *)&plain, NULL);
 	check(plain == 2);
+
+	/* An array's element, counted from 1, is its stride apart from the one
+	   before it. */
+	int64_t numbers[3] = { 7, 8, 9 };
+	check(*(int64_t *)zane_array_at((char *)numbers, 1, 3, 8) == 7 &&
+	      *(int64_t *)zane_array_at((char *)numbers, 3, 3, 8) == 9);
+
+	/* A package constant is made once, by the first reader, and the block
+	   it owns moves into the program's own region, where it outlives the
+	   scope it was made in. */
+	static int64_t state;
+	static zane_text constant;
+	int64_t making = zane_scope_enter();
+	check(zane_constant_begin(&state) == 1);
+	zane_text_join(&constant, &(zane_text){ 0, "ab", 2, 0 }, &(zane_text){ 0, "cd", 2, 0 });
+	zane_constant_end(&state, (char *)&constant, text_layout);
+	zane_scope_drain(making);
+	check(zane_region_at(constant.bytes) == zane_program && memcmp(constant.bytes, "abcd", 4) == 0);
+	check(zane_constant_begin(&state) == 0);
 }

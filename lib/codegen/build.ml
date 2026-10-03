@@ -28,11 +28,12 @@ let target_machine ?target ~optimize () =
 external set_own_comdat : Llvm.llmodule -> Llvm.llvalue -> string -> unit
   = "zane_set_own_comdat"
 
-(* Every copy of a shared function, a generic instance, is kept to one by the
-   linker (docs/design/separate-compilation.md C4). An ELF or COFF linker
-   does that for a function in a COMDAT of its own; without one, a COFF
-   linker refuses the second copy as a duplicate. Mach-O has no COMDATs, and
-   its linker merges the copies by their weak definitions alone. *)
+(* Every copy of a shared function, a generic instance, and of a shared
+   variable, a package constant's, is kept to one by the linker
+   (docs/design/separate-compilation.md C4). An ELF or COFF linker does that
+   for a definition in a COMDAT of its own; without one, a COFF linker
+   refuses the second copy as a duplicate. Mach-O has no COMDATs, and its
+   linker merges the copies by their weak definitions alone. *)
 let shared_in_comdats triple m =
   let contains part =
     let n = String.length part in
@@ -40,12 +41,14 @@ let shared_in_comdats triple m =
     at 0
   in
   let macho = List.exists contains [ "-apple-"; "darwin"; "macos"; "-ios" ] in
-  if not macho then
-    Llvm.iter_functions
-      (fun f ->
-        if Llvm.linkage f = Llvm.Linkage.Link_once_odr && not (Llvm.is_declaration f) then
-          set_own_comdat m f (Llvm.value_name f))
-      m
+  let own v =
+    if Llvm.linkage v = Llvm.Linkage.Link_once_odr && not (Llvm.is_declaration v) then
+      set_own_comdat m v (Llvm.value_name v)
+  in
+  if not macho then begin
+    Llvm.iter_functions own m;
+    Llvm.iter_globals own m
+  end
 
 (* The module made ready for *target*: its triple and data layout set and,
    when *optimize*, LLVM's standard `-O2` pipeline run over it. Without it no

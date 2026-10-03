@@ -211,6 +211,14 @@ module Package = struct
   type t = { name : string; decls : Decl.t list }
 end
 
+(* A field constructor's defaults (types.md §3.3), typed where the
+   constructor is declared: per entry slot, the value a call that omits the
+   entry passes. A generic constructor has them per instance, which [args]
+   names; a declaration has none. *)
+module Defaults = struct
+  type t = { decl : int; args : (Ty.param * Ty.arg) list; values : (int * Expr.t) list }
+end
+
 module Program = struct
-  type t = { packages : Package.t list; instances : Instance.t list }
+  type t = { packages : Package.t list; instances : Instance.t list; defaults : Defaults.t list }
 end

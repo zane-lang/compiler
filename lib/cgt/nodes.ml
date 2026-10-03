@@ -11,15 +11,27 @@
    pointer to the first byte or element, the length in bytes or elements,
    with no terminator, and the room in bytes of the block they are in, which
    is 0 when the handle owns none: a literal's bytes are the module's own.
-   [Void] is `Unit`, which has no storage.
+   [Void] is `Unit`, which has no storage. [Array] is
+   `@primitives$Array<T, n>`: [n] elements inline, each at the element's
+   stride, its size rounded up to its alignment (L5).
    [Struct] is a value struct's members in declaration order, [Sum] a value
    variant's or enum's cases: a tag and room for the widest payload. [Ptr]
    is the address of a place, which is how a `mut` subject is passed (L6).
-   [I32] is a reference-type instance's backpointer and a guest's tether,
-   each an anchor's identity (memory.md §4.2). A boxed member is a [Ptr] to
+   [I32] is `@primitives$I32`, and a reference-type instance's backpointer
+   and a guest's tether, each an anchor's identity (memory.md §4.2). A boxed member is a [Ptr] to
    its payload's block (adt.md §4). *)
 module Ty = struct
-  type t = Void | I1 | I32 | I64 | F64 | Handle | Ptr | Struct of t list | Sum of t list
+  type t =
+    | Void
+    | I1
+    | I32
+    | I64
+    | F64
+    | Handle
+    | Ptr
+    | Struct of t list
+    | Sum of t list
+    | Array of t * int
 
   (* Size and alignment in bytes on a 64-bit target, where a struct is laid
      out as C lays it out, and a sum is its tag and then its payload room at
@@ -40,6 +52,9 @@ module Ty = struct
         in
         ((size + align - 1) / align * align, align)
     | Sum ts -> ( match words ts with 0 -> (4, 4) | n -> (8 + (8 * n), 8))
+    | Array (t, n) ->
+        let size, align = size_align t in
+        ((size + align - 1) / align * align * n, align)
 
   (* A sum's payload room, in 8-byte words: enough for its widest case, and
      aligned for every one, since no layout here needs more than 8. *)
@@ -70,6 +85,7 @@ module Ty = struct
     | Ptr -> "ptr"
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"
     | Sum ts -> "<" ^ String.concat " | " (List.map to_string ts) ^ ">"
+    | Array (t, n) -> Printf.sprintf "[%d x %s]" n (to_string t)
 end
 
 (* Where a type's hosts and owned blocks are (memory.md §3.6, §4.5): the
@@ -114,11 +130,11 @@ module Expr = struct
     (* A call into the C runtime (L17), by the runtime's symbol. A string
        goes to it, and comes back from it, through the address of a copy. *)
     | Runtime of { fn : string; args : t list }
-    (* A scalar primitive's operator, on two operands of one type: [I64] and
-       [F64] add, multiply, divide, compare; [I1] adds as `or`, multiplies as
-       `and` and compares (operators.md §2.4). *)
+    (* A scalar primitive's operator, on two operands of one type: [I64],
+       [I32] and [F64] add, multiply, divide, compare; [I1] adds as `or`,
+       multiplies as `and` and compares (operators.md §2.4). *)
     | Binary of { op : binop; left : t; right : t }
-    (* `~`: an [I64] or [F64] negated, an [I1] inverted. *)
+    (* `~`: an [I64], [I32] or [F64] negated, an [I1] inverted. *)
     | Flip of t
     (* A verb expanded where it is called (L11): its body runs here, and a
        `return` in it stores [result] and leaves [label]. The expression's
@@ -153,6 +169,8 @@ module Expr = struct
     | Layout of Layout.t
     (* The address of a function of the program, by its symbol. *)
     | Function of string
+    (* The address of a variable of the program, by its symbol. *)
+    | Global of string
     (* The value at an address reached through a host, read as a coherent
        snapshot: retried while a spawned call writes back there
        (concurrency.md §4.4). *)
@@ -270,6 +288,12 @@ module Linkage = struct
   type t = Local | Exported | Shared | Imported
 end
 
+(* A variable of the program, zeroed until it is stored to: a package
+   constant's value, and how far its making has got (L16). *)
+module Global = struct
+  type t = { symbol : string; linkage : Linkage.t; ty : Ty.t }
+end
+
 module Func = struct
   type t = {
     symbol : string;
@@ -280,13 +304,16 @@ module Func = struct
   }
 end
 
-(* One program is one module (L15). [entry] is the symbol of the root
-   package's `main`, which the runtime's C `main` calls (L16), and a
-   library has none. [layouts] is each layout the program names. *)
+(* One program is one module (L15). [entry] is the symbol of the function
+   the runtime's C `main` calls (L16): the root package's `main`, or one
+   that makes the package constants first and then calls it. A library has
+   none. [layouts] is each layout the program names, and [globals] each of
+   its variables. *)
 module Program = struct
   type t = {
     funcs : Func.t list;
     entry : string option;
     layouts : (Layout.t * Layout.position list) list;
+    globals : Global.t list;
   }
 end

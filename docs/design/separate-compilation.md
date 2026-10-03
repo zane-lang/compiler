@@ -82,6 +82,13 @@ copy is the same code, and the linker keeps one. An instance the library
 itself uses is in the library's objects, and a consumer that needs the same
 one emits a copy that merges with it.
 
+A package constant of a library is shared the same way. Its function and
+its two variables ([`lowering.md`](lowering.md) L16) are emitted in every
+object that reads the constant, with `linkonce_odr` linkage, so one program
+has one copy of each, and the constant is made once whichever object reads it
+first. The library needs no initializer of its own: the program that links
+it makes the constant before `main`, or when it is first read.
+
 On ELF and COFF each copy sits in a COMDAT of its own name. A COFF linker
 keeps one copy of a COMDAT and refuses a second plain definition as a
 duplicate, so without one two objects that make the same instance would not
@@ -238,8 +245,5 @@ test passing.
 
 ## 6. Open questions
 
-- **Package constants.** They are evaluated before `main` in dependency order
-  ([`lowering.md`](lowering.md) L16), but only lambda-variables lower yet. A
-  library's constants will need an initializer its consumer's program runs.
 - **Checking every package on every build.** C2 parses and checks the whole
   graph each time. Caching a checked dependency is left to measurement.

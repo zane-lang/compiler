@@ -35,6 +35,24 @@ let symbol st (v : verb) =
       Queue.add v st.pending;
       s
 
+(* L16: the address of a package constant, which a function of its own
+   makes the first time it is called and gives from then on. Asking for one
+   queues that function to be lowered, once. *)
+let constant st decl =
+  let c = Hashtbl.find st.constants decl in
+  let key = "constant " ^ string_of_int decl in
+  if not (Hashtbl.mem st.symbols key) then begin
+    Hashtbl.replace st.symbols key c.symbol;
+    Queue.add decl st.made
+  end;
+  { Expr.node = Expr.Call { fn = c.symbol; args = [] }; ty = Nodes.Ty.Ptr }
+
+(* The next number of a function the compiler makes for itself, of the
+   kind [count] counts: one more than those made so far. *)
+let numbered count =
+  incr count;
+  !count
+
 (* A verb's key: its declaration's id, with an instance's arguments. *)
 let key decl (instance : (Tty.param * Tty.arg) list) =
   match instance with
@@ -125,7 +143,7 @@ let value_verb key (fv : Tty.verb) params body =
       is_mut = true;
     }
   in
-  { decl = -1; key; instance = []; signature; params; body }
+  { decl = -1; key; instance = []; signature; params; body; literals = [] }
 
 let value_params span (fv : Tty.verb) =
   let local name ty = { T.Local.id = -1; name; ty; span } in
@@ -140,24 +158,6 @@ let binop : Sst.Nodes.Operator.node -> Expr.binop = function
   | Div -> Expr.Div
   | Eq -> Expr.Eq
   | Less -> Expr.Less
-
-(* A storage primitive's constructor: `Unit` has no storage, a list starts
-   empty, and the others embed their literal. *)
-let primitive ctx span spelling args : Expr.t =
-  let prefix = "@primitives$" in
-  let n = String.length prefix in
-  let name =
-    if String.length spelling > n && String.sub spelling 0 n = prefix then
-      String.sub spelling n (String.length spelling - n)
-    else spelling
-  in
-  match (name, args) with
-  | "Unit", [] -> { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
-  (* A new list is empty, and owns no block until its first `push`. *)
-  | "List", [ _ ] ->
-      { Expr.node = Expr.Runtime { fn = "zane_list_new"; args = [] }; ty = Nodes.Ty.Handle }
-  | _, [ T.Arg.Value v ] -> literal ctx span name v
-  | _ -> refuse span (Printf.sprintf "lowering does not handle `%s` yet" spelling)
 
 (* An exit ends the run of a block (docs/spec-divergences.md §11). Semantics
    rejects one anywhere else, so this is not reached. *)
@@ -196,6 +196,13 @@ let bind_local st scope (l : T.Local.t) id value =
   bind st scope l.T.Local.span l.T.Local.ty id value
 
 let ptr node = { Expr.node; ty = Nodes.Ty.Ptr }
+
+(* `@primitives$Array<T, n>`, and whether an expression is an array
+   literal. *)
+let array_type t n =
+  Tty.Intrinsic { namespace = "primitives"; name = "Array"; args = [ Tty.Type t; Tty.Number n ] }
+
+let is_array_lit (e : T.Expr.t) = match e.T.Expr.node with T.Expr.Array_lit _ -> true | _ -> false
 
 (* A value of type [t] leaving the arenas an exit drains: a host, or a
    value that owns a block, takes its blocks out of them first. *)
@@ -238,9 +245,9 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | Literal _ | Code _ -> refuse span "lowering does not read this parameter as a value")
   | T.Expr.Bool_lit b -> { Expr.node = Expr.Bool b; ty = Nodes.Ty.I1 }
   | T.Expr.Construct { ctor = { owner = S.Intrinsic spelling; _ }; args; handler = None } ->
-      primitive ctx span spelling args
+      primitive st ctx span spelling args e.T.Expr.ty
   | T.Expr.Coerce { ctor = { owner = S.Intrinsic spelling; _ }; value } ->
-      primitive ctx span spelling [ T.Arg.Value value ]
+      primitive st ctx span spelling [ T.Arg.Value value ] e.T.Expr.ty
   | T.Expr.Construct { ctor = { owner = S.Declared id; instance; _ }; args; handler }
   | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; args; handler } ->
       call st ctx span (verb_of st id instance) args handler e.T.Expr.ty
@@ -369,10 +376,12 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       let owner = strip target.T.Expr.ty in
       let index = member_index st owner slot in
       if boxed st owner (field_type st span owner slot) then
-        (* A boxed member's payload is in its block. *)
+        (* A boxed member's payload is in its block. A fresh value is held
+           in this scope first (storage), so its block is returned at the
+           drain. *)
         match addr st ctx span e with
         | Some p -> { Expr.node = Expr.Deref p; ty = t }
-        | None -> refuse span "lowering does not read a boxed member of a fresh value yet"
+        | None -> refuse span "lowering expected a boxed member to have a place"
       else if is_guest target.T.Expr.ty then
         (* Read through the guest, where its host is now (memory.md §4.4). *)
         let base = resolve (expr st ctx target) in
@@ -380,8 +389,9 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
         { Expr.node = Expr.Deref (ptr (Expr.Offset { base; within; path = [ index ] })); ty = t }
       else if collapsed st owner then { (borrow st ctx span target) with ty = t }
       else { Expr.node = Expr.Member { value = borrow st ctx span target; index }; ty = t }
-  | T.Expr.Init fields | T.Expr.Construct_fields { fields; handler = None; _ } ->
-      record st ctx span e.T.Expr.ty fields
+  | T.Expr.Init fields -> record st ctx span e.T.Expr.ty fields
+  | T.Expr.Construct_fields { ctor = { owner = S.Declared id; instance; _ }; fields; handler } ->
+      construct_fields st ctx span (verb_of st id instance) fields handler e.T.Expr.ty
   | T.Expr.Case { case; payload } ->
       let index = case_index st span e.T.Expr.ty case in
       let t = payload_type st span e.T.Expr.ty case in
@@ -400,11 +410,13 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Spawn call -> expr st ctx call
   | T.Expr.Lambda l ->
       { Expr.node = Expr.Function (lambda st span e.T.Expr.ty l); ty = Nodes.Ty.Ptr }
-  (* A lambda-variable declared at package scope is its lambda. *)
+  (* A lambda-variable declared at package scope is its lambda, and any
+     other package constant is read where it was made. *)
   | T.Expr.Var (T.Name_ref.Global { decl; _ }) -> (
       match Hashtbl.find_opt st.constants decl with
-      | Some ({ T.Expr.node = T.Expr.Lambda _; _ } as value) -> expr st ctx value
-      | _ -> refuse span "lowering does not read a package constant yet")
+      | Some { value = { T.Expr.node = T.Expr.Lambda _; _ } as value; _ } -> expr st ctx value
+      | Some _ -> { Expr.node = Expr.Deref (constant st decl); ty = ty st span e.T.Expr.ty }
+      | None -> refuse span "lowering found no package constant here")
   | T.Expr.Call_value { callee; args; handler } -> (
       match strip callee.T.Expr.ty with
       | Tty.Verb fv ->
@@ -412,7 +424,48 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           let fn = value_of st ctx callee in
           invoke ~fn st ctx span v (arguments st ctx span v args) handler
       | _ -> refuse span "lowering expected a function value here")
+  (* `&` written before a place: a guest to it, minted, or a guest it holds
+     copied (memory.md §2.6). *)
+  | T.Expr.Ref value -> guest st ctx span value
   | _ -> refuse span "lowering does not handle this expression yet"
+
+(* A storage primitive's constructor: `Unit` has no storage, a list starts
+   empty, and the others embed their literal. An array's literal is its
+   elements, each a value moved into its place, in the order written. *)
+and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
+  let prefix = "@primitives$" in
+  let n = String.length prefix in
+  let name =
+    if String.length spelling > n && String.sub spelling 0 n = prefix then
+      String.sub spelling n (String.length spelling - n)
+    else spelling
+  in
+  match (name, args) with
+  | "Unit", [] -> { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
+  (* A new list is empty, and owns no block until its first `push`. *)
+  | "List", [ _ ] ->
+      { Expr.node = Expr.Runtime { fn = "zane_list_new"; args = [] }; ty = Nodes.Ty.Handle }
+  | "Array", [ T.Arg.Value v ] -> (
+      match ((literal_of ctx v).T.Expr.node, array_of (strip t)) with
+      | T.Expr.Array_lit values, Some (e, n) when List.length values = n ->
+          let element i v = (i, moved st ctx span e v) in
+          { Expr.node = Expr.Record (List.mapi element values); ty = ty st span t }
+      (* A spawned call's literal, made into its array where it was spawned
+         (specialized). *)
+      | T.Expr.Var (T.Name_ref.Local l), Some _ -> (
+          let lowered = ty st span t in
+          let value =
+            match lookup ctx span l with
+            | Slot id -> { Expr.node = Expr.Local id; ty = lowered }
+            | Pointer id -> deref id lowered
+            | _ -> refuse span "lowering expected an array literal here"
+          in
+          if owns st span t then
+            { value with Expr.node = Expr.Copy { value; layout = layout st span t } }
+          else value)
+      | _ -> refuse span "lowering expected an array literal of the array's length here")
+  | _, [ T.Arg.Value v ] -> literal ctx span name v
+  | _ -> refuse span (Printf.sprintf "lowering does not handle `%s` yet" spelling)
 
 (* L14. A lambda captures nothing (functions.md §7.4), so it is lifted out
    as a function of its own, once, and its value is that function's address.
@@ -466,7 +519,7 @@ and record st ctx span t (fields : T.Field_value.t list) =
   | Nodes.Ty.Struct ms, _ when List.length ms = List.length fields ->
       { Expr.node = Expr.Record (members fields); ty = lowered }
   | _, [ f ] when collapsed st t -> { (value f) with ty = lowered }
-  | _ -> refuse span "lowering does not fill a member's default yet"
+  | _ -> refuse span "lowering expected a value for every member here"
 
 (* A value read where its type's own storage is wanted: through a guest, the
    host it names. *)
@@ -518,6 +571,19 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
             (* A boxed member's place is its payload, in its block. *)
             if boxed st owner (field_type st span owner slot) then ptr (Expr.Deref at) else at)
         base
+  | T.Expr.Var (T.Name_ref.Global { decl; _ }) -> (
+      match Hashtbl.find_opt st.constants decl with
+      | Some { value = { T.Expr.node = T.Expr.Lambda _; _ }; _ } | None -> None
+      | Some _ -> Some (constant st decl))
+  (* What the program has, such as `@program$console`, holds nothing a
+     program reads (effects.md §6.6), so its place is a variable of the
+     program's that holds only its backpointer, which a guest to it is
+     anchored at. *)
+  | T.Expr.Var (T.Name_ref.Intrinsic name) ->
+      let symbol = "zane.value." ^ name in
+      if not (List.exists (fun (g : Global.t) -> g.Global.symbol = symbol) st.globals) then
+        st.globals <- { Global.symbol; linkage = Linkage.Local; ty = Nodes.Ty.I32 } :: st.globals;
+      Some (ptr (Expr.Global symbol))
   | T.Expr.Subscript { target; impl; args } -> Some (subscript st ctx span target impl args)
   | T.Expr.Case_read { target; case; handler } when held st span e.T.Expr.ty ->
       Some (case_place st ctx span target case handler e.T.Expr.ty)
@@ -544,7 +610,9 @@ and moved st ctx span dst (e : T.Expr.t) =
         | Some address ->
             let l = layout st span dst in
             { Expr.node = Expr.Take { address; layout = l }; ty = ty st span dst }
-        | None -> refuse span "lowering does not move a host out of a fresh value yet")
+        (* Semantics moves a host only out of a symbol (moves.ml), which is
+           a place. *)
+        | None -> refuse span "lowering expected a host to move out of a place")
     | _ -> expr st ctx e
   else if owns st span dst && is_place e then
     let value = value_of st ctx e in
@@ -803,15 +871,15 @@ and case_place st ctx span (target : T.Expr.t) case handler ret =
   in
   ptr (Expr.Expand { label; body; result = Some result })
 
-(* The address of an element (functions.md §2.9): a list's, checked against
-   its length, or what a declared subscript's body names, with `this` bound
-   to the target's place. *)
+(* The address of an element (functions.md §2.9): a list's or an array's,
+   checked against its length, or what a declared subscript's body names,
+   with `this` bound to the target's place. *)
 and subscript st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
+  let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
   match (impl.owner, args) with
   | S.Intrinsic "@primitives$[]", [ index ] -> (
-      match element (strip target.T.Expr.ty) with
-      | Some t ->
-          let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
+      match (element (strip target.T.Expr.ty), array_of (strip target.T.Expr.ty)) with
+      | Some t, _ ->
           ptr
             (Expr.Runtime
                {
@@ -819,7 +887,13 @@ and subscript st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
                  args =
                    [ lend st ctx span target; borrow st ctx span index; int (stride st span t) ];
                })
-      | None -> refuse span "lowering does not handle this subscript yet")
+      | None, Some (t, n) ->
+          let array = lend st ctx span target in
+          let index = borrow st ctx span index in
+          ptr
+            (Expr.Runtime
+               { fn = "zane_array_at"; args = [ array; index; int n; int (stride st span t) ] })
+      | None, None -> refuse span "lowering does not handle this subscript yet")
   | S.Declared id, _ -> (
       match verb_of st id impl.instance with
       | Some ({ params = this :: rest; body = { stats = [ { node = T.Stat.Return e; _ } ]; _ }; _ }
@@ -880,18 +954,91 @@ and in_order st t first second combine =
   }
 
 and call st ctx span verb args handler ret : Expr.t =
-  let args = passed args in
   match verb with
   | None -> refuse span "lowering does not handle a call to this verb yet"
-  | Some v when expands v -> expand st ctx span v args handler ret
-  | Some v -> invoke st ctx span v (arguments st ctx span v args) handler
+  | Some v when expands v -> expand st ctx span v (passed v args) handler ret
+  | Some v -> invoke st ctx span v (arguments st ctx span v (passed v args)) handler
 
-(* A type written where a value goes picks the instance, and an instance
-   takes no parameter for it (generics.md §5.3). *)
-and passed args =
-  List.filter
-    (function T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false | _ -> true)
-    args
+(* types.md §3.3: a field-constructor call is a call to the constructor,
+   with each entry's value in its slot and an entry left out given its
+   default. The entries run in the order written, then the defaults in
+   declaration order. *)
+and construct_fields st ctx span verb (fields : T.Field_value.t list) handler ret =
+  match verb with
+  | None -> refuse span "lowering does not handle a call to this verb yet"
+  | Some v ->
+      let defaults = Option.value ~default:[] (Hashtbl.find_opt st.defaults v.key) in
+      let slots = List.map (fun (f : T.Field_value.t) -> f.T.Field_value.slot) fields in
+      let left_out = List.filter (fun (slot, _) -> not (List.mem slot slots)) defaults in
+      let written =
+        List.map (fun (f : T.Field_value.t) -> (f.T.Field_value.slot, f.value)) fields
+      in
+      let given = written @ left_out in
+      if List.length given <> List.length v.params then
+        refuse span "lowering expected every entry of a field constructor to be given or defaulted";
+      if List.map fst given = List.init (List.length given) Fun.id then
+        call st ctx span verb (List.map (fun (_, e) -> T.Arg.Value e) given) handler ret
+      else
+        (* Each value is stored as the constructor takes it, in the order it
+           runs, and passed in its slot. A constructor expanded where it is
+           called (L11) takes its literals as they are, and a stored value
+           through a local of its own that names the store. *)
+        let stored =
+          List.map
+            (fun (slot, (e : T.Expr.t)) ->
+              let p = List.nth v.params slot in
+              match p.T.Local.ty with
+              | Tty.Concept _ when expands v -> (slot, [], `Arg (T.Arg.Value e))
+              | _ ->
+                  let value = argument st ctx span v p e in
+                  let id = fresh st in
+                  let read = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
+                  let named =
+                    if expands v then begin
+                      let l = { p with T.Local.id = -id } in
+                      Hashtbl.replace ctx.env l.T.Local.id
+                        (if by_address st v p then Pointer id else Slot id);
+                      `Arg (T.Arg.Value { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) })
+                    end
+                    else `Value read
+                  in
+                  (slot, [ Stat.Let { id; value } ], named))
+            given
+        in
+        let lets = List.concat_map (fun (_, l, _) -> l) stored in
+        let in_slot slot = List.find_map (fun (s, _, a) -> if s = slot then Some a else None) stored in
+        let slots = List.init (List.length given) (fun slot -> Option.get (in_slot slot)) in
+        let value =
+          if expands v then
+            let arg = function `Arg a -> a | `Value _ -> refuse span "lowering expected an argument" in
+            expand st ctx span v (List.map arg slots) handler ret
+          else
+            let value = function `Value a -> a | `Arg _ -> refuse span "lowering expected a value" in
+            invoke st ctx span v (List.map value slots) handler
+        in
+        let label = fresh st in
+        if value.Expr.ty = Nodes.Ty.Void then
+          let body = lets @ [ Stat.Eval value ] in
+          { Expr.node = Expr.Expand { label; body; result = None }; ty = value.Expr.ty }
+        else
+          let result = fresh st in
+          let body = lets @ [ Stat.assign result value ] in
+          { Expr.node = Expr.Expand { label; body; result = Some result }; ty = value.Expr.ty }
+
+(* A type written where a value goes, or a number given to an explicit
+   number parameter, picks the instance, and an instance takes no parameter
+   for it (generics.md §5.3). *)
+and passed (v : verb) args =
+  let bound =
+    if List.length v.signature.S.params = List.length args then
+      List.map (fun (p : S.param) -> Option.is_some p.S.binds) v.signature.S.params
+    else List.map (fun _ -> false) args
+  in
+  List.combine bound args
+  |> List.filter_map (fun (bound, arg) ->
+         match arg with
+         | T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> None
+         | _ -> if bound then None else Some arg)
 
 and arguments st ctx span v args =
   List.map2
@@ -920,8 +1067,13 @@ and spawn st ctx span (e : T.Expr.t) =
       match verb_of st id instance with
       | None -> refuse span "lowering does not handle a call to this verb yet"
       | Some v when expands v ->
-          refuse span "lowering does not spawn a verb that is expanded where it is called yet"
-      | Some v -> spawn_call st ctx span v None ~writes:v.signature.S.is_mut (passed args) handler)
+          let v, args = specialized st ctx span v (passed v args) in
+          spawn_call st ctx span v None ~writes:v.signature.S.is_mut args handler
+      | Some v ->
+          spawn_call st ctx span v None ~writes:v.signature.S.is_mut (passed v args) handler)
+  | T.Expr.Call { callee = { owner = S.Intrinsic _; _ } as callee; args; handler } ->
+      let v, args = wrapped st span callee args e.T.Expr.ty in
+      spawn_call st ctx span v None ~writes:false args handler
   | T.Expr.Call_value { callee; args; handler } -> (
       match strip callee.T.Expr.ty with
       | Tty.Verb fv ->
@@ -930,6 +1082,105 @@ and spawn st ctx span (e : T.Expr.t) =
           spawn_call st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler
       | _ -> refuse span "lowering expected a function value here")
   | _ -> refuse span "lowering does not spawn this call yet"
+
+(* A spawned call has a function to run on another thread, which a verb
+   expanded where it is called has not (L11). It gets one of its own, named
+   `zane.expanded.N`: the verb with each literal it was given bound where
+   its body reads it, one function for each verb and set of literals. A
+   block argument cannot be spawned (concurrency.md §3.1), and an array
+   literal's elements are values the spawn makes, so its parameter becomes
+   one the function takes, of the array's type. *)
+and specialized st ctx span (v : verb) args =
+  let concept (p : T.Local.t) = match p.T.Local.ty with Tty.Concept c -> Some c | _ -> None in
+  let pairs = List.combine v.params args in
+  let literals, kept =
+    List.partition_map
+      (fun ((p : T.Local.t), arg) ->
+        match (concept p, arg) with
+        | Some (Tty.Array_lit (t, n)), T.Arg.Value a ->
+            let arr = array_type t n in
+            let ctor =
+              {
+                T.Verb_ref.owner = S.Intrinsic "@primitives$Array";
+                name = "@primitives$Array";
+                instance = [];
+              }
+            in
+            let built = T.Expr.Construct { ctor; args = [ arg ]; handler = None } in
+            let built = { a with T.Expr.node = built; ty = arr } in
+            Right ({ p with T.Local.ty = arr }, T.Arg.Value built)
+        | Some (Tty.Integer_lit | Tty.Decimal_lit | Tty.Text_lit), T.Arg.Value a ->
+            Left (p.T.Local.id, literal_of ctx a)
+        | Some _, _ -> refuse span "lowering expected a literal here"
+        | None, _ -> Right (p, arg))
+      pairs
+  in
+  let text (_, (e : T.Expr.t)) =
+    match e.T.Expr.node with
+    | T.Expr.Integer_lit s | T.Expr.Decimal_lit s -> s
+    | T.Expr.Text_lit s -> Printf.sprintf "%S" s
+    | _ -> refuse span "lowering expected a literal here"
+  in
+  let key = Printf.sprintf "expanded %s(%s)" v.key (String.concat ", " (List.map text literals)) in
+  let params = List.map fst kept in
+  let signature = { v.signature with S.home = S.Namespace "zane" } in
+  let v' = { v with key; params; literals; signature } in
+  if not (Hashtbl.mem st.symbols key) then begin
+    Hashtbl.replace st.symbols key (Printf.sprintf "zane.expanded.%d" (numbered st.expanded));
+    Queue.add v' st.pending
+  end;
+  (v', List.map snd kept)
+
+(* A spawned call to an intrinsic, which has no function of its own, runs
+   through one named `zane.intrinsic.N` that takes the call's arguments
+   and makes the call. One the program has, such as `@program$console`,
+   stays where the call reads it. *)
+and wrapped st span (callee : T.Verb_ref.t) args ret =
+  let spelling = match callee.owner with S.Intrinsic s -> s | S.Declared _ -> "" in
+  let abort =
+    List.find_map
+      (fun (_, (s : S.t)) -> if s.S.owner = callee.owner then s.S.abort else None)
+      Tst.Intrinsics.methods
+    |> Option.map (Tty.subst (List.map (fun ((p : Tty.param), a) -> (p.Tty.id, a)) callee.instance))
+  in
+  let parts =
+    List.mapi
+      (fun i arg ->
+        match arg with
+        | T.Arg.Value ({ T.Expr.node = T.Expr.Var (T.Name_ref.Intrinsic _); _ } as a) -> (None, a)
+        | T.Arg.Value a ->
+            let id = -1 - i and ty = a.T.Expr.ty and span = a.T.Expr.span in
+            let l = { T.Local.id; name = string_of_int i; ty; span } in
+            (Some (l, arg), { a with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) })
+        | T.Arg.Block _ -> refuse span "a block argument cannot be spawned")
+      args
+  in
+  let taken = List.filter_map fst parts in
+  let given = List.map (fun (_, a) -> T.Arg.Value a) parts in
+  let call = T.Expr.Call { callee; args = given; handler = None } in
+  let call = { T.Expr.node = call; ty = ret; span } in
+  let body = { T.Block.stats = [ { T.Stat.node = T.Stat.Return call; span } ]; span } in
+  let signature =
+    {
+      S.owner = callee.owner;
+      name = spelling;
+      home = S.Namespace "zane";
+      kind = S.Function;
+      generics = [];
+      params = [];
+      ret;
+      abort;
+      is_mut = false;
+    }
+  in
+  let n = numbered st.intrinsics in
+  let key = Printf.sprintf "intrinsic %d" n in
+  let v =
+    { decl = -1; key; instance = []; signature; params = List.map fst taken; body; literals = [] }
+  in
+  Hashtbl.replace st.symbols key (Printf.sprintf "zane.intrinsic.%d" n);
+  Queue.add v st.pending;
+  (v, List.map snd taken)
 
 (* A spawned call to [v]'s function, or through [fn], a function value's
    address, which runs before the arguments and rides in the frame ahead of
@@ -1127,7 +1378,7 @@ and expand st ctx span v args handler ret =
   if List.mem v.decl ctx.expanding then
     refuse span (Printf.sprintf "`%s` expands into itself" v.signature.S.name);
   if List.length args <> List.length v.params then
-    refuse span "lowering does not fill a default argument yet";
+    refuse span "lowering expected an argument for every parameter";
   let env = Hashtbl.create 8 in
   let bind (p : T.Local.t) b = Hashtbl.replace env p.T.Local.id b in
   let binds =
@@ -1147,9 +1398,36 @@ and expand st ctx span v args handler ret =
                        []
                    | _ -> refuse span "lowering expected a block here")
                | _ -> refuse span "lowering expected a block here")
-           | T.Arg.Value a, Tty.Concept _ ->
-               bind p (Literal (literal_of ctx a));
-               []
+           (* An array literal's elements are values the caller's code
+              names, so the array is made here, where the call is written,
+              and the parameter names its slot. *)
+           | T.Arg.Value a, Tty.Concept (Tty.Array_lit (t, n)) when is_array_lit (literal_of ctx a)
+             ->
+               let arr = array_type t n in
+               let value = primitive st ctx span "@primitives$Array" [ arg ] arr in
+               let id = fresh st in
+               bind p (Slot id);
+               if held st span arr then
+                 let layout = layout st span arr in
+                 [ Stat.Host { id; scope = arena st ctx.scope; value; layout } ]
+               else [ Stat.Let { id; value } ]
+           (* A literal stands for itself. A spawned call's array literal is
+              a value in a slot by now (specialized), which the parameter
+              names too. *)
+           | T.Arg.Value a, Tty.Concept _ -> (
+               let lit = literal_of ctx a in
+               match lit.T.Expr.node with
+               | T.Expr.Var (T.Name_ref.Local l) -> (
+                   match lookup ctx span l with
+                   | (Slot _ | Pointer _) as b ->
+                       bind p b;
+                       []
+                   | _ ->
+                       bind p (Literal lit);
+                       [])
+               | _ ->
+                   bind p (Literal lit);
+                   [])
            | ( T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); T.Expr.ty = at; _ },
                _ )
              when (p.T.Local.name = "this" || hosted st p.T.Local.ty) && not (is_guest at) -> (
@@ -1242,9 +1520,12 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
   let span = s.T.Stat.span in
   match s.T.Stat.node with
   (* A local bound to a spawned call waits for it where it is read. *)
+  (* A local's type may differ from the call's only as storage that holds
+     it (Tty.held_as): a function type's `mut`, which changes nothing it
+     holds. *)
   | T.Stat.Let { local; value = { T.Expr.node = T.Expr.Spawn call; _ } } ->
-      if not (Tty.equal local.T.Local.ty call.T.Expr.ty) then
-        refuse span "lowering binds a spawned call only to a local of the type it returns yet";
+      if ty st span local.T.Local.ty <> ty st span call.T.Expr.ty then
+        refuse span "lowering expected a spawned call bound to a local of the type it returns";
       let stats, future = spawn st ctx span call in
       Hashtbl.replace ctx.env local.T.Local.id future;
       stats
@@ -1352,6 +1633,7 @@ let func st (v : verb) : Func.t =
         end)
       v.params
   in
+  List.iter (fun (id, lit) -> Hashtbl.replace env id (Literal lit)) v.literals;
   let o = outcome st span v in
   let linkage =
     match (st.library, v.signature.S.home) with
@@ -1390,6 +1672,54 @@ let func st (v : verb) : Func.t =
     in
     { Func.symbol = symbol st v; linkage; params; ret = returned o; body = block st ctx v.body }
   end
+
+(* L16. The function that makes a package constant: the first call makes
+   its value, in a scope of its own, and stores it in the constant's
+   variable, whose blocks then move into the program's own region; every
+   call gives the variable's address. A context that finds another making
+   it waits for it. A program's constants live as long as it does, as its
+   own region does, so nothing ends them. The constant is local to a
+   program's object, and shared by every object of a library or a stamped
+   dependency that reads it, as a generic instance is. *)
+let made st decl : Func.t =
+  let c = Hashtbl.find st.constants decl in
+  let span = c.value.T.Expr.span in
+  st.next <- 0;
+  let linkage =
+    if st.library = None && not (st.stamped c.package) then Linkage.Local else Linkage.Shared
+  in
+  let lowered = ty st span c.ty in
+  let value = c.symbol ^ ".value" and state = c.symbol ^ ".state" in
+  st.globals <-
+    { Global.symbol = state; linkage; ty = Nodes.Ty.I64 }
+    :: { Global.symbol = value; linkage; ty = lowered }
+    :: st.globals;
+  let global g = ptr (Expr.Global g) in
+  let scope = { arena = None; settles = [] } in
+  let ctx = { (constant_ctx ()) with scope } in
+  let stored = Stat.Store { address = global value; value = moved st ctx span c.ty c.value } in
+  let settled = List.concat_map (fun settle -> settle ()) (List.rev scope.settles) in
+  let finish =
+    Expr.Runtime
+      {
+        fn = "zane_constant_end";
+        args = [ global state; global value; layout_table (layout st span c.ty) ];
+      }
+  in
+  let body = (stored :: settled) @ [ Stat.Eval { Expr.node = finish; ty = Nodes.Ty.Void } ] in
+  let body = match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ] in
+  let begin_ = Expr.Runtime { fn = "zane_constant_begin"; args = [ global state ] } in
+  let begin_ = { Expr.node = begin_; ty = Nodes.Ty.I64 } in
+  let one = { Expr.node = Expr.Int 1L; ty = Nodes.Ty.I64 } in
+  let first = Expr.Binary { op = Expr.Eq; left = begin_; right = one } in
+  let first = { Expr.node = first; ty = Nodes.Ty.I1 } in
+  {
+    Func.symbol = c.symbol;
+    linkage;
+    params = [];
+    ret = Nodes.Ty.Ptr;
+    body = [ Stat.If { cond = first; body }; Stat.Return (global value) ];
+  }
 
 (* ---------------------------------------------------------------------- *)
 (* Programs                                                               *)
@@ -1456,6 +1786,11 @@ let program ?(library = false) (p : T.Program.t) =
       types = Hashtbl.create 64;
       maps = Hashtbl.create 16;
       constants = Hashtbl.create 16;
+      made = Queue.create ();
+      expanded = ref 0;
+      intrinsics = ref 0;
+      globals = [];
+      defaults = Hashtbl.create 8;
       lambdas = [];
       layouts = Hashtbl.create 16;
       named = [];
@@ -1474,7 +1809,7 @@ let program ?(library = false) (p : T.Program.t) =
   in
   let add decl instance signature params body =
     let key = key decl instance in
-    Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body };
+    Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };
     name_lambdas st (Symbol.verb ~stamp:st.stamp signature instance) body
   in
   List.iter
@@ -1490,9 +1825,10 @@ let program ?(library = false) (p : T.Program.t) =
               name_lambdas st
                 (Symbol.ty ~stamp:st.stamp enum ^ "." ^ property)
                 { T.Block.stats = List.map stat entries; span = d.T.Decl.span }
-          | T.Decl.Constant { name; value; _ } -> (
-              Hashtbl.replace st.constants d.T.Decl.id value;
+          | T.Decl.Constant { name; value; ty } -> (
               let owner = st.stamp pkg.T.Package.name ^ pkg.T.Package.name ^ "$" ^ name in
+              Hashtbl.replace st.constants d.T.Decl.id
+                { symbol = owner; package = pkg.T.Package.name; ty; value };
               match value.T.Expr.node with
               | T.Expr.Lambda { body; _ } ->
                   if st.stamped pkg.T.Package.name then
@@ -1512,6 +1848,10 @@ let program ?(library = false) (p : T.Program.t) =
           | _ -> ())
         pkg.T.Package.decls)
     p.T.Program.packages;
+  List.iter
+    (fun (d : T.Defaults.t) ->
+      Hashtbl.replace st.defaults (key d.T.Defaults.decl d.T.Defaults.args) d.T.Defaults.values)
+    p.T.Program.defaults;
   (* An instance's signature still names its parameters; its body already
      has its arguments. *)
   List.iter
@@ -1534,14 +1874,17 @@ let program ?(library = false) (p : T.Program.t) =
     (* In the order calls first reach them, the roots first. *)
     let rec drain acc =
       match Queue.take_opt st.pending with
-      | None -> List.rev acc
       | Some v -> drain (func st v :: acc)
+      | None -> (
+          match Queue.take_opt st.made with
+          | Some decl -> drain (made st decl :: acc)
+          | None -> List.rev acc)
     in
-    let finish entry =
+    let finish ?(start = []) entry =
       let funcs = drain [] in
-      let funcs = funcs @ List.rev st.spawned in
+      let funcs = start @ funcs @ List.rev st.spawned in
       let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
-      Ok { Program.funcs; entry; layouts }
+      Ok { Program.funcs; entry; layouts; globals = List.rev st.globals }
     in
     if library <> None then begin
       library_roots st root;
@@ -1569,5 +1912,35 @@ let program ?(library = false) (p : T.Program.t) =
           let span = main.body.T.Block.span in
           if not (plain (outcome st span main)) then
             refuse span "`main` has no caller to abort to or exit";
-          finish (Some (symbol st main))
+          (* L16: every package constant is made before `main` runs, the
+             packages a package depends on first, and within a package in
+             the order declared. One that reads another makes that one
+             first. *)
+          let constants =
+            List.concat_map
+              (fun (pkg : T.Package.t) ->
+                List.filter_map
+                  (fun (d : T.Decl.t) ->
+                    match d.T.Decl.node with
+                    | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda _; _ }; _ } -> None
+                    | T.Decl.Constant _ -> Some d.T.Decl.id
+                    | _ -> None)
+                  pkg.T.Package.decls)
+              (List.rev p.T.Program.packages)
+          in
+          let entry = symbol st main in
+          if constants = [] then finish (Some entry)
+          else
+            let make decl = Stat.Eval (constant st decl) in
+            let call = { Expr.node = Expr.Call { fn = entry; args = [] }; ty = Nodes.Ty.Void } in
+            let start =
+              {
+                Func.symbol = "zane.start";
+                linkage = Linkage.Local;
+                params = [];
+                ret = Nodes.Ty.Void;
+                body = List.map make constants @ [ Stat.Eval call ];
+              }
+            in
+            finish ~start:[ start ] (Some "zane.start")
   with Refused problem -> Error problem

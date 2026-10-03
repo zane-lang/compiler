@@ -106,6 +106,7 @@ let rec expr (e : Expr.t) =
       group "box" (fields [ ("value", expr value); ("layout", layout l) ])
   | Expr.Layout l -> Leaf ("layout " ^ l)
   | Expr.Function fn -> Leaf ("function " ^ fn)
+  | Expr.Global g -> Leaf ("global " ^ g)
   | Expr.Snapshot p ->
       group "snapshot" (fields [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("ptr", expr p) ])
   | Expr.Escape { value; layout = l; exit } ->
@@ -221,6 +222,16 @@ let linkage (f : Func.t) =
   | Linkage.Shared -> [ ("linkage", Leaf "shared") ]
   | Linkage.Imported -> [ ("linkage", Leaf "imported") ]
 
+let global (g : Global.t) =
+  let linkage =
+    match g.Global.linkage with
+    | Linkage.Local -> ""
+    | Linkage.Exported -> ", exported"
+    | Linkage.Shared -> ", shared"
+    | Linkage.Imported -> ", imported"
+  in
+  Leaf (Printf.sprintf "%s : %s%s" g.Global.symbol (Ty.to_string g.Global.ty) linkage)
+
 let func (f : Func.t) =
   group "func"
     (fields
@@ -244,5 +255,6 @@ let program (p : Program.t) =
        ((match p.Program.entry with Some e -> [ ("entry", Leaf e) ] | None -> [])
        @ [
          ("layouts", map_seq named p.Program.layouts);
-         ("funcs", map_seq func p.Program.funcs);
-       ]))
+       ]
+       @ (match p.Program.globals with [] -> [] | gs -> [ ("globals", map_seq global gs) ])
+       @ [ ("funcs", map_seq func p.Program.funcs) ]))

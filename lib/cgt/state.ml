@@ -15,7 +15,9 @@ exception Refused of problem
 let refuse span message = raise (Refused (Diagnostic (Diagnostic.error span message)))
 
 (* A verb to lower: a declaration, or a generic one's instance, which [key]
-   tells apart from its other instances by the arguments it was given. *)
+   tells apart from its other instances by the arguments it was given.
+   [literals] binds parameters the function does not take to the literals a
+   spawned call gave them (docs/design/lowering.md §9). *)
 type verb = {
   decl : int;
   key : string;
@@ -23,6 +25,7 @@ type verb = {
   signature : S.t;
   params : T.Local.t list;
   body : T.Block.t;
+  literals : (int * T.Expr.t) list;
 }
 
 (* What a TST local stands for where lowering reads it. A verb that is
@@ -75,6 +78,10 @@ and scope = { mutable arena : int option; mutable settles : (unit -> Stat.t list
    [ret]: a value moves there, or a guest is minted, as into any storage. *)
 and exit = Function | Leave of { label : int; result : int option; ret : Tty.t }
 
+(* A package constant: its symbol, its package, its declared type and its
+   value. *)
+type constant = { symbol : string; package : string; ty : Tty.t; value : T.Expr.t }
+
 type state = {
   (* Each verb by its [key]: a declaration's id, and an instance's with its
      arguments. *)
@@ -87,8 +94,18 @@ type state = {
   mutable named : string list;
   (* Each enum map: the enum it ranges over, and its entries. *)
   maps : (int, Tty.t * (string * T.Expr.t) list) Hashtbl.t;
-  (* Each package constant's value, by declaration. *)
-  constants : (int, T.Expr.t) Hashtbl.t;
+  (* Each package constant, by declaration, and those whose making is still
+     to lower. *)
+  constants : (int, constant) Hashtbl.t;
+  made : int Queue.t;
+  (* The program's variables, latest first. *)
+  mutable globals : Global.t list;
+  (* How many functions the compiler has made for spawned calls to verbs
+     expanded where they are called, and to intrinsics. *)
+  expanded : int ref;
+  intrinsics : int ref;
+  (* Each field constructor's defaults, by entry slot, by verb key. *)
+  defaults : (string, (int * T.Expr.t) list) Hashtbl.t;
   (* Each lambda's symbol (docs/design/symbols.md), by its body, which is the
      one thing that tells two lambdas apart: an instance's body has lambdas
      of its own. *)

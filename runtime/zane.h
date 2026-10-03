@@ -48,6 +48,8 @@ void zane_text_join(zane_text *out, const zane_text *left, const zane_text *righ
 int64_t zane_text_equal(const zane_text *left, const zane_text *right);
 
 /* value.c */
+int64_t zane_constant_begin(int64_t *state);
+void zane_constant_end(int64_t *state, char *value, const int64_t *layout);
 void zane_arrive(char *slot, const int64_t *layout);
 void zane_promote(char *value, const int64_t *layout, int64_t depth);
 void zane_vacate(char *slot, const int64_t *layout);
@@ -58,6 +60,7 @@ void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *lay
 void zane_list_new(zane_list *out);
 void *zane_list_push(zane_list *list, int64_t stride, const int64_t *layout);
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride);
+void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride);
 
 /* slot.c */
 void *zane_slot(int64_t scope, int64_t size, int64_t align, const int64_t *layout);

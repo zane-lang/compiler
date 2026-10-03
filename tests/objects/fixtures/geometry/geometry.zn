@@ -1,6 +1,7 @@
 /// A library built into an object of its own: a public verb, a private one
-/// it calls, a method, a constructor, a lambda-variable, and a generic verb
-/// with an instance the library uses and a second generic it never uses.
+/// it calls, a method, a constructor, a lambda-variable, a package constant
+/// a verb reads, and a generic verb with an instance the library uses and a
+/// second generic it never uses.
 package geometry;
 
 alias Int = @primitives$Int
@@ -27,3 +28,7 @@ T unused(value T Type) => value
 double Int(x Int) {
 	return x + x;
 }
+
+unit Int(10)
+
+Int scaled(x Int) => x * unit
