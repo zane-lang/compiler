@@ -36,6 +36,22 @@ def main (args : List String) : IO UInt32 := do
     else
       IO.println "REJECTED"
       return 1
+  | ["prove-source", mly] =>
+    -- `verifySource_sound`: a true check makes the source parse relation unambiguous
+    let text ← IO.FS.readFile mly
+    match sourceAutomaton text with
+    | .error e => IO.println s!"REJECTED: {e}"; return 2
+    | .ok A =>
+      say s!"source: {A.prods.size} productions, canonical LR(1) automaton with {A.trans.size} states"
+      match produce A with
+      | .error e => IO.println s!"REJECTED: producer failed: {e}"; return 1
+      | .ok ev =>
+        if verifySource text ev then
+          say s!"VERIFIED: the source parse relation of {mly} is unambiguous ({ev.M.size} model nodes, {ev.C.frames.length} frames)"
+          return 0
+        else
+          IO.println "REJECTED"
+          return 1
   | ["verify", dump] =>
     -- `verify_sound`: a true `verify` makes the automaton's accepted trees unambiguous
     let A ← IO.ofExcept (parseDump (← IO.FS.readFile dump) "package")
@@ -48,16 +64,16 @@ def main (args : List String) : IO UInt32 := do
       else
         IO.println "REJECTED"
         return 1
-  | ["expand", mly, std] =>
-    match Mly.sourceGrammar (← IO.FS.readFile mly) (← IO.FS.readFile std) with
+  | ["expand", mly] =>
+    match Mly.sourceGrammar (← IO.FS.readFile mly) with
     | .error e => IO.eprintln e; return 2
     | .ok g =>
       for p in g.prods do
         IO.println s!"{p.lhs}: {" ".intercalate p.rhs}{match p.prec with | some x => " %prec " ++ x | none => ""}"
       return 0
-  | ["compare", mly, std, dump] =>
+  | ["compare", mly, dump] =>
     -- cross-check the canonical construction against a Menhir --canonical dump
-    let g ← IO.ofExcept (Mly.sourceGrammar (← IO.FS.readFile mly) (← IO.FS.readFile std))
+    let g ← IO.ofExcept (Mly.sourceGrammar (← IO.FS.readFile mly))
     let A ← IO.ofExcept (Lr1.canonical g)
     let B0 ← IO.ofExcept (parseDump (← IO.FS.readFile dump) g.start)
     let mg := fun (x : String) => String.map (fun ch => if ch == '(' || ch == ',' || ch == ')' then '_' else ch) x

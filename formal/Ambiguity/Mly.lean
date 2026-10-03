@@ -430,8 +430,34 @@ partial def expand (f : File) (std : List Rule) (fuel : Nat := 100000) : Except 
           st := { st with todo := st.todo ++ [p] }
   return { tokens, levels := f.levels, start, prods := st.prods }
 
+/-- The rules of Menhir's standard library (manual §5.4), as Menhir defines
+them; actions are irrelevant here and written as `{}`. -/
+def stdlib : String := "%%
+%public %inline endrule(X): X {}
+%public %inline anonymous(X): X {}
+%public midrule(X): X {}
+%public embedded(X): X {}
+%public option(X): {} | X {}
+%public %inline ioption(X): {} | X {}
+%public boption(X): {} | X {}
+%public loption(X): {} | X {}
+%public %inline epsilon: {}
+%public %inline pair(X, Y): X Y {}
+%public %inline separated_pair(X, sep, Y): X sep Y {}
+%public %inline preceded(opening, X): opening X {}
+%public %inline terminated(X, closing): X closing {}
+%public %inline delimited(opening, X, closing): opening X closing {}
+%public list(X): {} | X list(X) {}
+%public nonempty_list(X): X {} | X nonempty_list(X) {}
+%public %inline separated_list(separator, X): loption(separated_nonempty_list(separator, X)) {}
+%public separated_nonempty_list(separator, X): X {} | X separator separated_nonempty_list(separator, X) {}
+%public %inline rev(XS): XS {}
+%public %inline flatten(XSS): XSS {}
+%public %inline append(XS, YS): XS YS {}
+"
+
 /-- The source grammar of a Menhir file, with Menhir's standard library. -/
-def sourceGrammar (text stdText : String) : Except String Grammar := do
+def sourceGrammar (text : String) (stdText : String := stdlib) : Except String Grammar := do
   let f ← parseFile text
   let s ← parseFile stdText
   expand f s.rules
