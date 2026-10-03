@@ -189,7 +189,7 @@ def ruleStart (t : Array Tk) (i : Nat) : Bool :=
       let mut j := i + 2
       let mut d := 1
       while d > 0 && j < t.size do
-        match t[j]! with
+        match t.getD j (.kw "<eof>") with
         | .lp => d := d + 1
         | .rp => d := d - 1
         | _ => pure ()
@@ -221,12 +221,12 @@ partial def parseActual (t : Array Tk) (i : Nat) : Except String (Actual × Nat)
 partial def parseRules (t : Array Tk) (i0 : Nat) : Except String (List Rule) := do
   let mut i := i0
   let mut rules : List Rule := []
-  while i < t.size && t[i]! != .kw "%%" do
+  while i < t.size && t.getD i (.kw "<eof>") != .kw "%%" do
     let mut inline := false
-    while t[i]! == .kw "%public" || t[i]! == .kw "%inline" do
-      if t[i]! == .kw "%inline" then inline := true
+    while t.getD i (.kw "<eof>") == .kw "%public" || t.getD i (.kw "<eof>") == .kw "%inline" do
+      if t.getD i (.kw "<eof>") == .kw "%inline" then inline := true
       i := i + 1
-    let name ← match t[i]! with
+    let name ← match t.getD i (.kw "<eof>") with
       | .id n => pure n
       | tk => throw s!"expected a rule name, found {repr tk}"
     i := i + 1
@@ -234,10 +234,10 @@ partial def parseRules (t : Array Tk) (i0 : Nat) : Except String (List Rule) := 
     if t.getD i .semi == .lp then
       i := i + 1
       repeat
-        match t[i]! with
+        match t.getD i (.kw "<eof>") with
         | .id x => params := params ++ [x]; i := i + 1
         | tk => throw s!"expected a parameter, found {repr tk}"
-        match t[i]! with
+        match t.getD i (.kw "<eof>") with
         | .comma => i := i + 1
         | .rp => i := i + 1; break
         | tk => throw s!"expected , or ), found {repr tk}"
@@ -289,8 +289,8 @@ def parseFile (text : String) : Except String File := do
   let t := lex text
   let mut f : File := {}
   let mut i := 0
-  while i < t.size && t[i]! != .kw "%%" do
-    match t[i]! with
+  while i < t.size && t.getD i (.kw "<eof>") != .kw "%%" do
+    match t.getD i (.kw "<eof>") with
     | .kw "%token" =>
       i := i + 1
       if t.getD i .semi == .ty then i := i + 1
@@ -310,7 +310,7 @@ def parseFile (text : String) : Except String File := do
         i := i + 1
         let mut syms : List String := []
         while (match t.getD i .semi with | .id _ => true | _ => false) do
-          match t[i]! with
+          match t.getD i (.kw "<eof>") with
           | .id x => syms := syms ++ [x]
           | _ => pure ()
           i := i + 1
@@ -319,14 +319,14 @@ def parseFile (text : String) : Except String File := do
         i := i + 1
         if t.getD i .semi == .ty then i := i + 1
         while (match t.getD i .semi with | .id _ => true | _ => false) do
-          match t[i]! with
+          match t.getD i (.kw "<eof>") with
           | .id x => f := { f with starts := f.starts ++ [x] }
           | _ => pure ()
           i := i + 1
       else
         -- %type and the rest carry no grammar
         i := i + 1
-        while i < t.size && (match t[i]! with | .kw _ => false | _ => true) do i := i + 1
+        while i < t.size && (match t.getD i (.kw "<eof>") with | .kw _ => false | _ => true) do i := i + 1
     | _ => i := i + 1
   let rules ← parseRules t (i + 1)
   return { f with rules }
