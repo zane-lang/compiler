@@ -65,50 +65,53 @@ def checkMembers (H : HFacts) : Bool :=
   (List.range H.members.size).all fun c => (H.mems c).all fun m => H.isNe m && H.compOf m == c
 
 /-- (C4) determinization and minimization witnesses. -/
+def lookupId (keys : Array UKey) (idx : Std.HashMap UKey Nat) (k : UKey) : Option Nat :=
+  match idx.get? k with
+  | some j => if keys[j]? == some k then some j else none
+  | none => none
+
 def checkWit (H : HFacts) (keys : Array UKey) (idx : Std.HashMap UKey Nat) (fragInner : Array (Option Nat))
     (M : Model) (w : CompWit) : Bool :=
   let mems := H.mems w.c
-  let ids : UKey → Option Nat := fun k =>
-    match idx.get? k with
-    | some j => if keys[j]? == some k then some j else none
-    | none => none
-  match mems.mapM (fun m => (ids (startNode H w.c m), ids (finalNode H w.c m)).1.bind fun s =>
-      (ids (finalNode H w.c m)).map fun f => (m, s, f)) with
-  | none => false
-  | some sf =>
-    let finals := sf.map (·.2.2)
-    let st := fun (d : Nat) => w.states.getD d []
-    -- every state's successors are post-fixpoint closures with the recorded kept part
-    (List.range w.states.size).all (fun d =>
-      let V := st d
-      let atoms := (V.flatMap fun e => (M.out e.2.1).filterMap (atomOfEdge fragInner)).eraseDups
-      atoms.all fun a =>
-        match (w.trans.getD d []).lookup a with
-        | none => false
-        | some d' =>
-          let c := edgeCounts M V (atomH fragInner a)
-          let R := closure M c
-          isPost M c R && filtH M finals R == st d') &&
-    sf.all fun (m, s, fnode) =>
-      match w.startState.lookup m, w.hmap.lookup m, w.dead.lookup m with
-      | some s0, some h, some dd =>
-        let R := closure M [(0, s, 1)]
-        let isDead := fun d => dd.getD d false
-        isPost M [(0, s, 1)] R && filtH M finals R == st s0 &&
-        h.getD s0 none == some 0 &&
-        let D := H.dfa (H.langOf m)
-        (List.range w.states.size).all fun d =>
-          let accd := getV (st d) 0 fnode
-          (match h.getD d none with
-           | some e =>
-             decide (accd ≤ D.accAt e) &&
-             (w.trans.getD d []).all fun (a, d') =>
-               match h.getD d' none with
-               | some e' => (D.transAt e).lookup a == some e'
-               | none => isDead d'
-           | none => true) &&
-          (!isDead d || (accd == 0 && (w.trans.getD d []).all fun (_, d') => isDead d'))
-      | _, _, _ => false
+  let ids := lookupId keys idx
+  let finals := mems.filterMap fun m => ids (finalNode H w.c m)
+  let st := fun (d : Nat) => w.states.getD d []
+  -- every state's successors are post-fixpoint closures with the recorded kept part
+  (List.range w.states.size).all (fun d =>
+    (w.trans.getD d []).all (fun p => decide (p.2 < w.states.size)) &&
+    decide ((w.trans.getD d []).map (·.1)).Nodup) &&
+  (List.range w.states.size).all (fun d =>
+    let V := st d
+    let atoms := (V.flatMap fun e => (M.out e.2.1).filterMap (atomOfEdge fragInner)).eraseDups
+    atoms.all fun a =>
+      match (w.trans.getD d []).lookup a with
+      | none => false
+      | some d' =>
+        let c := edgeCounts M V (atomH fragInner a)
+        let R := closure M c
+        isPost M c R && filtH M finals R == st d') &&
+  mems.all fun m =>
+    match ids (startNode H w.c m), ids (finalNode H w.c m), w.startState.lookup m,
+        w.hmap.lookup m, w.dead.lookup m with
+    | some s, some fnode, some s0, some h, some dd =>
+      let R := closure M [(0, s, 1)]
+      let isDead := fun d => dd.getD d false
+      decide (s0 < w.states.size) &&
+      isPost M [(0, s, 1)] R && filtH M finals R == st s0 &&
+      h.getD s0 none == some 0 &&
+      let D := H.dfa (H.langOf m)
+      (List.range w.states.size).all fun d =>
+        let accd := getV (st d) 0 fnode
+        (match h.getD d none with
+         | some e =>
+           decide (accd ≤ D.accAt e) &&
+           (w.trans.getD d []).all fun (a, d') =>
+             match h.getD d' none with
+             | some e' => (D.transAt e).lookup a == some e'
+             | none => isDead d'
+         | none => true) &&
+        (!isDead d || (accd == 0 && (w.trans.getD d []).all fun (_, d') => isDead d'))
+    | _, _, _, _, _ => false
 
 def checkWits (H : HFacts) (keys : Array UKey) (idx : Std.HashMap UKey Nat) (fragInner : Array (Option Nat))
     (M : Model) (wits : Array CompWit) : Bool :=
