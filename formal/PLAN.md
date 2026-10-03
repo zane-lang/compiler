@@ -52,3 +52,16 @@ model comp nodes realize DFA runs (labelled model, keys checked).
   (sFirst must eraseDups or duplicate rules create spurious ambiguity: checker caught it.)
   Proof plan: KWF spec-level trees; SL (slices) by induction on len inside NL by
   strong induction on tree size; pi projection gives injectivity.
+- R3 proven (LookaheadSound.lookahead_sound) + plain hom (Plain.phom_sound). Remaining M2: R5 horizontal+model.
+
+## R5 detailed plan (adopted)
+One universe Model holds model nodes AND per-component NFA nodes (labelled keys,
+spec edges checked like checkExplore). Keys: fin f | weight tail w |
+comp lid d tail (= model node and inlined lower DFA copy) | entry c m | start c |
+cfin c | chain c body dest. chainId([],dest)=dest.
+W lemmas needed: monotone in fuel; forward unfolding W_{b+1} >= base + sum of
+first-edge terms; snoc/backward decomposition (as M1). Wsup.
+Checks: (D1/D2) determinization vectors over NFA ids (isPost, filt eq),
+(M) minimization map h with dead states, lang/lib.
+Proof chain: cnt_E(m,u) <= W(start_m,u,final_m) <= DFA <= lib DW <= model comp W
+<= fragment W; items: flatten injective via parser lemma; two trees -> cnt=2.
