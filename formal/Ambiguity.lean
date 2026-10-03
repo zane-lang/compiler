@@ -9,3 +9,5 @@ import Ambiguity.Product
 import Ambiguity.Horizontal
 import Ambiguity.CtxSound
 import Ambiguity.QuotientSound
+import Ambiguity.Angles
+import Ambiguity.AnglesSound
