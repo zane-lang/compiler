@@ -31,3 +31,18 @@ Source side (M3):
 
 Facts: non-determinized NFA model OOMs (15 GB) -> keep det/min.
 Grammar shape after grouping: bracket tokens only in productions b -> o X c | o c.
+
+## Status log
+- M1 done: Ambiguity/VpaSound.lean check_sound (std axioms only).
+- Lean pipeline (Automaton, Quotient, Product, Horizontal) reproduces Python:
+  ctx 36350 rules; quotient 195 reachable; product 226022/281627; exact 2341;
+  model 1486 states; 2704 cfgs; 31 frames; check true. 5.5 min (optimize).
+- Bug lesson: DFA minimization signatures must sort transitions.
+
+## R5 proof plan (horizontal)
+Atom level first (finite alphabet: T a | call o inner c), generic weighted
+automaton theory (backward fuel paths; concat; post-fixpoint; det check as in
+M1; minimization = functional simulation). Symbolic NFA nodes:
+Entry m | Start | Fin | Chain(suffix, dest) | Copy(lid, d, tail).
+Then lift to items: cnt_E(X,u) <= sum_{alpha in cands(u)} cnt_atoms(X,alpha)*match,
+model comp nodes realize DFA runs (labelled model, keys checked).
