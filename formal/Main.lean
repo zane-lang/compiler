@@ -55,6 +55,42 @@ def main (args : List String) : IO UInt32 := do
       for p in g.prods do
         IO.println s!"{p.lhs}: {" ".intercalate p.rhs}{match p.prec with | some x => " %prec " ++ x | none => ""}"
       return 0
+  | ["compare", mly, std, dump] =>
+    -- cross-check the canonical construction against a Menhir --canonical dump
+    let g ← IO.ofExcept (Mly.sourceGrammar (← IO.FS.readFile mly) (← IO.FS.readFile std))
+    let A ← IO.ofExcept (Lr1.canonical g)
+    let B0 ← IO.ofExcept (parseDump (← IO.FS.readFile dump) g.start)
+    let mg := fun (x : String) => String.map (fun ch => if ch == '(' || ch == ',' || ch == ')' then '_' else ch) x
+    let B : Automaton := { B0 with
+      prods := B0.prods.map fun (l, r) => (mg l, r.map mg)
+      trans := B0.trans.map fun l => l.map fun (x, q) => (mg x, q) }
+    say s!"lean: {A.trans.size} states, menhir: {B.trans.size} states"
+    let key := fun (X : Automaton) (p : Nat) => X.prods.getD p ("", [])
+    let mut map : Std.HashMap Nat Nat := ({} : Std.HashMap Nat Nat).insert 0 0
+    let mut todo : List (Nat × Nat) := [(0, 0)]
+    let mut diffs := 0
+    while !todo.isEmpty do
+      let (a, b) :: rest := todo | break
+      todo := rest
+      let ta := A.trans.getD a []
+      let tb := B.trans.getD b []
+      if (ta.map (·.1)).mergeSort != (tb.map (·.1)).mergeSort then
+        diffs := diffs + 1
+        if diffs ≤ 10 then say s!"state {a}/{b}: transitions {ta.map (·.1)} vs {tb.map (·.1)}"
+      for (x, a') in ta do
+        match tb.lookup x with
+        | some b' =>
+          match map.get? a' with
+          | some b'' => if b'' != b' then diffs := diffs + 1; if diffs ≤ 10 then say s!"state {a'} maps to {b''} and {b'}"
+          | none => map := map.insert a' b'; todo := todo ++ [(a', b')]
+        | none => pure ()
+      let ra := ((A.reds.getD a []).map fun (p, ts) => (key A p, ts.mergeSort)).mergeSort (fun u v => toString u ≤ toString v)
+      let rb := ((B.reds.getD b []).map fun (p, ts) => (key B p, ts.mergeSort)).mergeSort (fun u v => toString u ≤ toString v)
+      if ra != rb then
+        diffs := diffs + 1
+        if diffs ≤ 10 then say s!"state {a}/{b}: reductions {ra} vs {rb}"
+    say s!"mapped {map.size} states, {diffs} differences"
+    return (if diffs == 0 && map.size == A.trans.size && A.trans.size == B.trans.size then 0 else 1)
   | ["stats", dump] =>
     let A ← IO.ofExcept (parseDump (← IO.FS.readFile dump) "package")
     say s!"states {A.trans.size} productions {A.prods.size} nts {A.nts.size}"

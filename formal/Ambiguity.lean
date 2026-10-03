@@ -30,3 +30,4 @@ import Ambiguity.RuleSound
 import Ambiguity.HorizMain
 import Ambiguity.Pipeline
 import Ambiguity.Mly
+import Ambiguity.Lr1
