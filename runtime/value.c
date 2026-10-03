@@ -169,7 +169,8 @@ void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *lay
 /* A constant is made once, by the first context to read it. Its state is 0
    until then, the maker's context id plus one while it is being made, and
    -1 once it is. Any other reader waits for it; its maker reading it again
-   is a constant made of itself. */
+   is a constant made of itself. A reader checks for -1 without the lock, so
+   every access to the state is atomic. */
 static pthread_mutex_t zane_constants = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t zane_constant_made = PTHREAD_COND_INITIALIZER;
 
@@ -179,10 +180,10 @@ int64_t zane_constant_begin(int64_t *state) {
 	int64_t self = (int64_t)zane_self->id + 1, make = 0;
 	pthread_mutex_lock(&zane_constants);
 	for (;;) {
-		int64_t s = *state;
+		int64_t s = __atomic_load_n(state, __ATOMIC_RELAXED);
 		if (s == -1) break;
 		if (s == 0) {
-			*state = self;
+			__atomic_store_n(state, self, __ATOMIC_RELAXED);
 			make = 1;
 			break;
 		}

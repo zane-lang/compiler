@@ -47,15 +47,11 @@ let constant st decl =
   end;
   { Expr.node = Expr.Call { fn = c.symbol; args = [] }; ty = Nodes.Ty.Ptr }
 
-(* The next number of a function the compiler makes for itself, whose key
-   starts with [prefix]: one more than those made so far. *)
-let numbered st prefix =
-  let n = String.length prefix in
-  1
-  + Hashtbl.fold
-      (fun key _ count ->
-        if String.length key >= n && String.sub key 0 n = prefix then count + 1 else count)
-      st.symbols 0
+(* The next number of a function the compiler makes for itself, of the
+   kind [count] counts: one more than those made so far. *)
+let numbered count =
+  incr count;
+  !count
 
 (* A verb's key: its declaration's id, with an instance's arguments. *)
 let key decl (instance : (Tty.param * Tty.arg) list) =
@@ -1020,11 +1016,11 @@ and passed (v : verb) args =
       List.map (fun (p : S.param) -> Option.is_some p.S.binds) v.signature.S.params
     else List.map (fun _ -> false) args
   in
-  List.filteri
-    (fun i -> function
-      | T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false
-      | _ -> not (List.nth bound i))
-    args
+  List.combine bound args
+  |> List.filter_map (fun (bound, arg) ->
+         match arg with
+         | T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> None
+         | _ -> if bound then None else Some arg)
 
 and arguments st ctx span v args =
   List.map2
@@ -1112,7 +1108,7 @@ and specialized st ctx span (v : verb) args =
   let signature = { v.signature with S.home = S.Namespace "zane" } in
   let v' = { v with key; params; literals; signature } in
   if not (Hashtbl.mem st.symbols key) then begin
-    Hashtbl.replace st.symbols key (Printf.sprintf "zane.expanded.%d" (numbered st "expanded "));
+    Hashtbl.replace st.symbols key (Printf.sprintf "zane.expanded.%d" (numbered st.expanded));
     Queue.add v' st.pending
   end;
   (v', List.map snd kept)
@@ -1159,7 +1155,7 @@ and wrapped st span (callee : T.Verb_ref.t) args ret =
       is_mut = false;
     }
   in
-  let n = numbered st "intrinsic " in
+  let n = numbered st.intrinsics in
   let key = Printf.sprintf "intrinsic %d" n in
   let v =
     { decl = -1; key; instance = []; signature; params = List.map fst taken; body; literals = [] }
@@ -1773,6 +1769,8 @@ let program ?(library = false) (p : T.Program.t) =
       maps = Hashtbl.create 16;
       constants = Hashtbl.create 16;
       made = Queue.create ();
+      expanded = ref 0;
+      intrinsics = ref 0;
       globals = [];
       defaults = Hashtbl.create 8;
       lambdas = [];

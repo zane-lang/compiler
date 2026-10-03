@@ -100,6 +100,10 @@ type state = {
   made : int Queue.t;
   (* The program's variables, latest first. *)
   mutable globals : Global.t list;
+  (* How many functions the compiler has made for spawned calls to verbs
+     expanded where they are called, and to intrinsics. *)
+  expanded : int ref;
+  intrinsics : int ref;
   (* Each field constructor's defaults, by entry slot, by verb key. *)
   defaults : (string, (int * T.Expr.t) list) Hashtbl.t;
   (* Each lambda's symbol (docs/design/symbols.md), by its body, which is the
