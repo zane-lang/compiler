@@ -74,6 +74,13 @@ def checkLib (H : HFacts) : Bool :=
     decide (0 < D.trans.size) &&
     (List.range D.trans.size).all fun d => (D.transAt d).all fun p => decide (p.2 < D.trans.size)
 
+/-- Every group rule's interior has a fragment. -/
+def checkInners (E : PGrammar) (fragInner : Array (Option Nat)) : Bool :=
+  (List.range E.rules.size).all fun x => (E.rulesOf x).all fun r =>
+    match groupRule? r with
+    | some (_, inner, _) => fragInner.contains inner
+    | none => true
+
 def checkMembers (H : HFacts) : Bool :=
   (List.range H.members.size).all fun c => (H.mems c).all fun m => H.isNe m && H.compOf m == c
 

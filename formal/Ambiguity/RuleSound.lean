@@ -159,13 +159,15 @@ theorem seq_eps : ∀ (syms : List Sym) (w : S), epsCtx H syms = some w →
 end
 
 theorem sameIdx_mem {H : HFacts} {c : Nat} {r : List Sym} {i : Nat} (h : i ∈ sameIdx H c r) :
-    ∃ y, r[i]? = some (.n y) := by
+    ∃ y, r[i]? = some (.n y) ∧ H.isNe y = true ∧ H.compOf y = c := by
   unfold sameIdx at h
   obtain ⟨⟨s, j⟩, hm, rfl⟩ := List.mem_map.mp h
   obtain ⟨hz, hp⟩ := List.mem_filter.mp hm
   have := List.mk_mem_zipIdx_iff_getElem?.mp hz
   cases s with
-  | n y => exact ⟨y, this⟩
+  | n y =>
+    simp only [Bool.and_eq_true, beq_iff_eq] at hp
+    exact ⟨y, this, hp⟩
   | t _ => simp at hp
 
 theorem split_at {r : List Sym} {i : Nat} {s : Sym} (h : r[i]? = some s) :
@@ -185,7 +187,7 @@ theorem ruleNfa_edge {H : HFacts} {c m : Nat} {r : List Sym} {o : UKey} {body : 
        (groupRule? r = none ∧ bodySyms H r = some body)) ∧ w = 1 ∧
       ((H.isLeft c = true ∧ o = .start c ∧ dest = .entry c m) ∨
        (H.isLeft c = false ∧ o = .entry c m ∧ dest = .cfin c)) ∨
-    (groupRule? r = none ∧ ∃ i y, r[i]? = some (.n y) ∧ w ≠ 0 ∧
+    (groupRule? r = none ∧ ∃ i y, r[i]? = some (.n y) ∧ H.isNe y = true ∧ H.compOf y = c ∧ w ≠ 0 ∧
       ((H.isLeft c = true ∧ epsCtx H (r.take i) = some w ∧ bodySyms H (r.drop (i + 1)) = some body ∧
           o = .entry c y ∧ dest = .entry c m) ∨
        (H.isLeft c = false ∧ epsCtx H (r.drop (i + 1)) = some w ∧ bodySyms H (r.take i) = some body ∧
@@ -214,10 +216,10 @@ theorem ruleNfa_edge {H : HFacts} {c m : Nat} {r : List Sym} {o : UKey} {body : 
       cases rest with
       | cons _ _ => simp [hs] at hn
       | nil =>
-        obtain ⟨y, hy⟩ := sameIdx_mem (H := H) (c := c) (r := r) (i := i) (by rw [hs]; simp)
+        obtain ⟨y, hy, hyn, hyc⟩ := sameIdx_mem (H := H) (c := c) (r := r) (i := i) (by rw [hs]; simp)
         simp only [hs, hy] at hn
         right
-        refine ⟨rfl, i, y, hy, ?_⟩
+        refine ⟨rfl, i, y, hy, hyn, hyc, ?_⟩
         cases hl : H.isLeft c
         · simp only [hl] at hn
           cases he : epsCtx H (r.drop (i + 1)) with
@@ -270,7 +272,7 @@ theorem ruleNfa_dead {H : HFacts} {c m : Nat} {r : List Sym} (hn : ruleNfa H c m
       cases rest with
       | cons _ _ => simp [hs] at hn
       | nil =>
-        obtain ⟨y, hy⟩ := sameIdx_mem (H := H) (c := c) (r := r) (i := i) (by rw [hs]; simp)
+        obtain ⟨y, hy, _⟩ := sameIdx_mem (H := H) (c := c) (r := r) (i := i) (by rw [hs]; simp)
         simp only [hs, hy] at hn
         right
         refine ⟨i, y, hy, ?_⟩
@@ -310,19 +312,18 @@ section
 variable (H : HFacts) (M : Model) (fI : Array (Option Nat)) (cn : Nat → List Item → S)
   (hne : ∀ y, H.isNe y = true → ∀ v, cn y v ≤ DW (H.dfa (H.langOf y)) (wtM M fI) 0 v)
   (heps : ∀ y, H.isNe y = false → ∀ v, cn y v ≤ if v.isEmpty then H.epsOf y else 0)
-  (hfrag : ∀ inner v, cntInner cn inner v ≤ fragW M fI inner v)
-include hne heps hfrag
+include hne heps
 
 theorem group_bound {r : List Sym} {o : Tok} {inner : Option Nat} {cl : Tok}
-    (hg : groupRule? r = some (o, inner, cl)) (u : List Item) :
-    cntRule cn r u ≤ bodyCnt H M fI [.call o inner cl] u := by
+    (hg : groupRule? r = some (o, inner, cl)) (hfi : ∀ v, cntInner cn inner v ≤ fragW M fI inner v)
+    (u : List Item) : cntRule cn r u ≤ bodyCnt H M fI [.call o inner cl] u := by
   simp only [cntRule, hg, bodyCnt]
   rw [conv_delta_right]
   split
   · rename_i o' v c'
     simp only [symCnt]
     by_cases h : o = o' ∧ cl = c'
-    · rw [if_pos h, if_pos h]; exact hfrag _ _
+    · rw [if_pos h, if_pos h]; exact hfi _
     · rw [if_neg h]; exact S.zero_le _
   · exact S.zero_le _
 
@@ -334,10 +335,11 @@ theorem plain_bound {r : List Sym} {body : List CSym} (hg : groupRule? r = none)
   rwa [List.append_nil, cntSeq_nil, conv_delta_right] at this
 
 /-- A right-linear rule: its body, then the same-component symbol (or nothing). -/
-theorem rule_right {c m : Nat} {r : List Sym} (hl : H.isLeft c = false) {o : UKey} {body : List CSym}
+theorem rule_right {c m : Nat} {r : List Sym}
+    (hfr : ∀ o inner cl, groupRule? r = some (o, inner, cl) → ∀ v, cntInner cn inner v ≤ fragW M fI inner v) (hl : H.isLeft c = false) {o : UKey} {body : List CSym}
     {dest : UKey} {w : S} (hn : ruleNfa H c m r = .edge o body dest w) (u : List Item) :
     cntRule cn r u ≤ w * conv (bodyCnt H M fI body) (Rk cn dest) u := by
-  rcases ruleNfa_edge hn with ⟨hshape, rfl, hor⟩ | ⟨hg, i, y, hy, _, hcase⟩
+  rcases ruleNfa_edge hn with ⟨hshape, rfl, hor⟩ | ⟨hg, i, y, hy, -, -, _, hcase⟩
   · have hd : dest = .cfin c := by
       rcases hor with ⟨h, _⟩ | ⟨_, _, h⟩
       · rw [hl] at h; cases h
@@ -345,8 +347,8 @@ theorem rule_right {c m : Nat} {r : List Sym} (hl : H.isLeft c = false) {o : UKe
     subst hd
     rw [S.one_mul]; simp only [Rk]; rw [conv_delta_right]
     rcases hshape with ⟨o', inner, cl, hg, rfl⟩ | ⟨hg, hb⟩
-    · exact group_bound H M fI cn hne heps hfrag hg u
-    · exact plain_bound H M fI cn hne heps hfrag hg hb u
+    · exact group_bound H M fI cn hne heps hg (hfr _ _ _ hg) u
+    · exact plain_bound H M fI cn hne heps hg hb u
   · rcases hcase with ⟨h, _⟩ | ⟨_, hw, hb, _, rfl⟩
     · rw [hl] at h; cases h
     have hcr : cntRule cn r u = cntSeq cn r u := by simp [cntRule, hg]
@@ -361,10 +363,11 @@ theorem rule_right {c m : Nat} {r : List Sym} (hl : H.isLeft c = false) {o : UKe
     exact S.le_refl _
 
 /-- A left-linear rule: the same-component symbol (or nothing), then its body. -/
-theorem rule_left {c m : Nat} {r : List Sym} (hl : H.isLeft c = true) {o : UKey} {body : List CSym}
+theorem rule_left {c m : Nat} {r : List Sym}
+    (hfr : ∀ o inner cl, groupRule? r = some (o, inner, cl) → ∀ v, cntInner cn inner v ≤ fragW M fI inner v) (hl : H.isLeft c = true) {o : UKey} {body : List CSym}
     {dest : UKey} {w : S} (hn : ruleNfa H c m r = .edge o body dest w) (u : List Item) :
     cntRule cn r u ≤ w * conv (Rk cn o) (bodyCnt H M fI body) u := by
-  rcases ruleNfa_edge hn with ⟨hshape, rfl, hor⟩ | ⟨hg, i, y, hy, _, hcase⟩
+  rcases ruleNfa_edge hn with ⟨hshape, rfl, hor⟩ | ⟨hg, i, y, hy, -, -, _, hcase⟩
   · have ho : o = .start c := by
       rcases hor with ⟨_, h, _⟩ | ⟨h, _⟩
       · exact h
@@ -372,8 +375,8 @@ theorem rule_left {c m : Nat} {r : List Sym} (hl : H.isLeft c = true) {o : UKey}
     subst ho
     rw [S.one_mul]; simp only [Rk]; rw [conv_delta_left]
     rcases hshape with ⟨o', inner, cl, hg, rfl⟩ | ⟨hg, hb⟩
-    · exact group_bound H M fI cn hne heps hfrag hg u
-    · exact plain_bound H M fI cn hne heps hfrag hg hb u
+    · exact group_bound H M fI cn hne heps hg (hfr _ _ _ hg) u
+    · exact plain_bound H M fI cn hne heps hg hb u
   · rcases hcase with ⟨_, hw, hb, rfl, _⟩ | ⟨h, _⟩
     · have hcr : cntRule cn r u = cntSeq cn r u := by simp [cntRule, hg]
       rw [hcr]; simp only [Rk]; rw [split_at hy]

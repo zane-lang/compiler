@@ -82,7 +82,7 @@ def main (args : List String) : IO UInt32 := do
     say s!"universe: {M.size} nodes, {M.frags.size} fragments"
     say s!"universe check: {checkUniverse H E ub.keys ub.fragInner M}"
     say s!"facts check: {checkFacts H E && checkEps H E && checkMembers H && checkLib H}"
-    say s!"keys check: {checkKeys ub.keys ub.ids}"
+    say s!"keys check: {checkKeys ub.keys ub.ids}, inners check: {checkInners E ub.fragInner}"
     say s!"witness check: {checkWits H ub.keys ub.ids ub.fragInner M wits}"
     let cert ← IO.ofExcept (search zaneBrackets M 1000000)
     let cfgs := cert.frames.foldl (fun a K => a + K.nodes.length) 0
