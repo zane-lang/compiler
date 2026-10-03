@@ -241,6 +241,34 @@ def atomH (fragInner : Array (Option Nat)) (a : Atom) : Edge → Option (Nat × 
   | .call o f t c => if Atom.call o (fragInner.getD f none) c = a then some (t, 1) else none
   | _ => none
 
+def dedupL {α} [DecidableEq α] : List α → List α
+  | [] => []
+  | a :: l => if a ∈ dedupL l then dedupL l else a :: dedupL l
+
+theorem mem_dedupL {α} [DecidableEq α] {x : α} : ∀ {l : List α}, x ∈ dedupL l ↔ x ∈ l
+  | [] => by simp [dedupL]
+  | a :: l => by
+    unfold dedupL
+    split
+    · rename_i h; rw [mem_dedupL]; constructor
+      · intro hx; exact List.mem_cons_of_mem _ hx
+      · intro hx; cases hx with
+        | head => exact mem_dedupL.mp h
+        | tail _ hx => exact hx
+    · simp [mem_dedupL]
+
+theorem nodup_dedupL {α} [DecidableEq α] : ∀ (l : List α), (dedupL l).Nodup
+  | [] => List.nodup_nil
+  | a :: l => by
+    unfold dedupL
+    split
+    · exact nodup_dedupL l
+    · rename_i h; exact List.nodup_cons.mpr ⟨h, nodup_dedupL l⟩
+
+/-- The atoms read from the nodes of a vector. -/
+def atomsOf (M : Model) (fI : Array (Option Nat)) (V : Vec) : List Atom :=
+  dedupL (V.flatMap fun e => (M.out e.2.1).filterMap (atomOfEdge fI))
+
 /-- Kept nodes of a horizontal vector: with a reading edge, or final. -/
 def keptH (M : Model) (finals : List Nat) (q : Nat) : Bool :=
   finals.contains q || (M.out q).any fun e => !e.isEps
@@ -316,7 +344,7 @@ def buildUniverse (E : PGrammar) : Except String (HFacts × UBuild × Array Comp
     let mut di := 0
     while di < states.size do
       let v := states[di]!
-      let atoms := (v.flatMap fun e => (M.out e.2.1).filterMap (atomOfEdge b.fragInner)).eraseDups
+      let atoms := atomsOf M b.fragInner v
       let mut tr : List (Atom × Nat) := []
       for a in atoms do
         let v' := close (edgeCounts M v (atomH b.fragInner a))

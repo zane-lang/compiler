@@ -82,7 +82,7 @@ def checkWit (H : HFacts) (keys : Array UKey) (idx : Std.HashMap UKey Nat) (frag
     decide ((w.trans.getD d []).map (·.1)).Nodup) &&
   (List.range w.states.size).all (fun d =>
     let V := st d
-    let atoms := (V.flatMap fun e => (M.out e.2.1).filterMap (atomOfEdge fragInner)).eraseDups
+    let atoms := atomsOf M fragInner V
     atoms.all fun a =>
       match (w.trans.getD d []).lookup a with
       | none => false
