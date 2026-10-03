@@ -1510,7 +1510,7 @@ let typed_defaults ?(report = true) (d : decl) (s : S.t) subst =
                  if report && not (Ty.assignable ~dst ~src:v.T.Expr.ty) then
                    error v.T.Expr.span
                      (Printf.sprintf "the default of %s is %s, and the entry is %s"
-                        (quote p.name) (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string p.ty)));
+                        (quote p.name) (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string dst)));
                  [ (slot, v) ]
              | None -> [])
            (List.combine fs s.params))

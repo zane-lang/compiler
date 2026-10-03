@@ -978,26 +978,44 @@ and construct_fields st ctx span verb (fields : T.Field_value.t list) handler re
         refuse span "lowering expected every entry of a field constructor to be given or defaulted";
       if List.map fst given = List.init (List.length given) Fun.id then
         call st ctx span verb (List.map (fun (_, e) -> T.Arg.Value e) given) handler ret
-      else if expands v then refuse span "lowering expected a field constructor to have a function"
       else
         (* Each value is stored as the constructor takes it, in the order it
-           runs, and passed in its slot. *)
+           runs, and passed in its slot. A constructor expanded where it is
+           called (L11) takes its literals as they are, and a stored value
+           through a local of its own that names the store. *)
         let stored =
           List.map
-            (fun (slot, e) ->
-              let value = argument st ctx span v (List.nth v.params slot) e in
-              let id = fresh st in
-              (slot, Stat.Let { id; value }, { Expr.node = Expr.Local id; ty = value.Expr.ty }))
+            (fun (slot, (e : T.Expr.t)) ->
+              let p = List.nth v.params slot in
+              match p.T.Local.ty with
+              | Tty.Concept _ when expands v -> (slot, [], `Arg (T.Arg.Value e))
+              | _ ->
+                  let value = argument st ctx span v p e in
+                  let id = fresh st in
+                  let read = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
+                  let named =
+                    if expands v then begin
+                      let l = { p with T.Local.id = -id } in
+                      Hashtbl.replace ctx.env l.T.Local.id
+                        (if by_address st v p then Pointer id else Slot id);
+                      `Arg (T.Arg.Value { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) })
+                    end
+                    else `Value read
+                  in
+                  (slot, [ Stat.Let { id; value } ], named))
             given
         in
-        let lets = List.map (fun (_, l, _) -> l) stored in
-        let args =
-          List.map
-            (fun slot -> List.find_map (fun (s, _, a) -> if s = slot then Some a else None) stored)
-            (List.init (List.length given) Fun.id)
-          |> List.map Option.get
+        let lets = List.concat_map (fun (_, l, _) -> l) stored in
+        let in_slot slot = List.find_map (fun (s, _, a) -> if s = slot then Some a else None) stored in
+        let slots = List.init (List.length given) (fun slot -> Option.get (in_slot slot)) in
+        let value =
+          if expands v then
+            let arg = function `Arg a -> a | `Value _ -> refuse span "lowering expected an argument" in
+            expand st ctx span v (List.map arg slots) handler ret
+          else
+            let value = function `Value a -> a | `Arg _ -> refuse span "lowering expected a value" in
+            invoke st ctx span v (List.map value slots) handler
         in
-        let value = invoke st ctx span v args handler in
         let label = fresh st in
         if value.Expr.ty = Nodes.Ty.Void then
           let body = lets @ [ Stat.Eval value ] in

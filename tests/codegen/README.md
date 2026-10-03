@@ -73,7 +73,8 @@ again, read the golden diff and promote that.
   what it wrote so far, and says why on stderr.
 - `defaults` is step 10's field constructors: called as verbs whose bodies
   run, with an entry left out given its default, the entries run in the
-  order written, and a generic constructor's defaults per instance.
+  order written, a generic constructor's defaults per instance, and a
+  constructor expanded where it is called.
 - `constants` is step 10's package constants: each made once before `main`,
   one reading another made first whatever their order, a string that owns
   its block, a host a guest names, and a value struct, read from a verb and a

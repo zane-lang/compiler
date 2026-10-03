@@ -249,7 +249,79 @@
     │       │       │       ├── index: 1
     │       │       │       └── value: local #31 : {i64, i64}
     │       │       └── right: 11 : i64
-    │       └── body[11] > return: unit : void
+    │       ├── body[11] > let:
+    │       │   ├── local: #43
+    │       │   └── value > expand:
+    │       │       ├── type: {i64, i64}
+    │       │       ├── label: @41
+    │       │       ├── result: #42
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #35
+    │       │       │   └── value > call:
+    │       │       │       ├── type: i64
+    │       │       │       ├── fn: defaults$noisy(%primitives$String, %primitives$Int)
+    │       │       │       ├── args[0] > expand:
+    │       │       │       │   ├── type: ptr
+    │       │       │       │   ├── label: @33
+    │       │       │       │   ├── result: #34
+    │       │       │       │   ├── body[0] > host:
+    │       │       │       │   │   ├── local: #32
+    │       │       │       │   │   ├── scope: %5
+    │       │       │       │   │   ├── value: "b\n" : handle
+    │       │       │       │   │   └── layout: %primitives$String
+    │       │       │       │   └── body[1] > assign:
+    │       │       │       │       ├── place: #34
+    │       │       │       │       └── value: address of #32 : ptr
+    │       │       │       └── args[1]: 2 : i64
+    │       │       ├── body[1] > let:
+    │       │       │   ├── local: #36
+    │       │       │   └── value: 1 : i64
+    │       │       └── body[2] > assign:
+    │       │           ├── place: #42
+    │       │           └── value > expand:
+    │       │               ├── type: {i64, i64}
+    │       │               ├── label: @39
+    │       │               ├── result: #40
+    │       │               ├── body[0] > let:
+    │       │               │   ├── local: #37
+    │       │               │   └── value: local #36 : i64
+    │       │               ├── body[1] > let:
+    │       │               │   ├── local: #38
+    │       │               │   └── value: local #35 : i64
+    │       │               ├── body[2] > assign:
+    │       │               │   ├── place: #40
+    │       │               │   └── value > record:
+    │       │               │       ├── type: {i64, i64}
+    │       │               │       ├── members[0] > member 0 > binary:
+    │       │               │       │   ├── type: i64
+    │       │               │       │   ├── op: *
+    │       │               │       │   ├── left: local #37 : i64
+    │       │               │       │   └── right: 3 : i64
+    │       │               │       └── members[1] > member 1 > binary:
+    │       │               │           ├── type: i64
+    │       │               │           ├── op: *
+    │       │               │           ├── left: local #38 : i64
+    │       │               │           └── right: 3 : i64
+    │       │               └── body[3]: leave @39
+    │       ├── body[12] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: defaults$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: +
+    │       │       │   ├── left > member:
+    │       │       │   │   ├── type: i64
+    │       │       │   │   ├── index: 0
+    │       │       │   │   └── value: local #43 : {i64, i64}
+    │       │       │   └── right > member:
+    │       │       │       ├── type: i64
+    │       │       │       ├── index: 1
+    │       │       │       └── value: local #43 : {i64, i64}
+    │       │       └── right: 9 : i64
+    │       └── body[13] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: defaults$Weapon{rate %primitives$Int; damage %primitives$Int}
     │   ├── params[0]: local #1 : i64

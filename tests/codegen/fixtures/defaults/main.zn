@@ -1,8 +1,9 @@
 /// Field constructors (types.md §3.3): a call is a call to the constructor,
 /// whose body runs. An entry left out takes its default, the entries run in
 /// the order written and then the defaults, and a generic constructor's
-/// defaults are its instance's. Each check prints `yes` when it holds and
-/// `no` when it does not.
+/// defaults are its instance's. A constructor expanded where it is called
+/// takes its entries and defaults the same way. Each check prints `yes` when
+/// it holds and `no` when it does not.
 package defaults;
 
 alias Int = @primitives$Int
@@ -56,6 +57,14 @@ type Tagged<T Type> = struct {
 
 Tagged<T>{ value T Type; count Int(5); } => init{ value; count; }
 
+/// Expanded where it is called, since it takes a literal (L11).
+type Scaled = struct {
+	a Int;
+	b Int;
+}
+
+Scaled{ a Int(1); b Int; by @concepts$Int; } => init{ a = a * Int(by); b = b * Int(by); }
+
 Unit main() {
 	w Weapon{ rate = Int(2); }
 	check(w.damage == Int(10) * w.rate + ~Int(10));
@@ -68,5 +77,7 @@ Unit main() {
 	check(g.value * (g.count == Int(5)));
 	h Tagged<Int> = Tagged{ count = Int(2); value = Int(9); }
 	check(h.value + h.count == Int(11));
+	s Scaled{ by = 3; b = noisy(String("b\n"), Int(2)); }
+	check(s.a + s.b == Int(9));
 	return Unit();
 }
