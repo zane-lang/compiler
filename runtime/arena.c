@@ -84,7 +84,7 @@ int64_t zane_scope_enter(void) {
 	if (!*segment && !(*segment = malloc(ZANE_SEGMENT * sizeof **segment)))
 		zane_broken("out of memory for scopes");
 	*zane_mark_at(c, c->depth) =
-		(zane_mark){ c, c->depth, c->chunks, c->frontier, NULL, NULL, NULL, NULL, 0, NULL, NULL, 0 };
+		(zane_mark){ c, c->depth, c->chunks, c->frontier, NULL, NULL, NULL, NULL, 0, NULL, NULL, 0, NULL };
 	int64_t depth = c->depth++;
 	zane_unlock(c);
 	return depth;
@@ -133,6 +133,13 @@ zane_mark *zane_region_at(const void *at) {
 	}
 	zane_unlock(c);
 	return zane_mark_at(c, lo);
+}
+
+/* Whether `at` is in a region's chunk at all, rather than on the machine
+   stack. */
+int zane_in_region(const void *at) {
+	int32_t *page = zane_page(at, 0);
+	return page && *page != 0;
 }
 
 /* Every block is at least a word, and aligned to one. */

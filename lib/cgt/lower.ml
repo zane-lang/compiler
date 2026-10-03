@@ -124,6 +124,15 @@ let outcome_layout st span (v : verb) =
 let by_address st (v : verb) (p : T.Local.t) =
   (v.signature.S.is_mut && p.T.Local.name = "this") || hosted st p.T.Local.ty
 
+(* The swallowed parameters, by local: a move out of one is lent, since the
+   value belongs to the call site, and the runtime brings it back there if
+   the body's scope drains with it inside (lifetimes.md §1.5). *)
+let swallowed : (int, unit) Hashtbl.t = Hashtbl.create 64
+
+let swallows st (p : T.Local.t) =
+  if p.T.Local.name <> "this" && hosted st p.T.Local.ty then
+    Hashtbl.replace swallowed p.T.Local.id ()
+
 (* L14: a function value is called as a verb of its type would be, so its
    type gives the verb it is called as: the subject first, named `this`, as a
    lambda's own is. A function value's subject is always lent by its
@@ -338,7 +347,9 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           { Expr.node = Expr.Member { value; index = 2 }; ty = Nodes.Ty.I64 }
       | _ -> refuse span "lowering does not handle this call to `size`")
   | T.Expr.Subscript _ -> (
-      match addr st ctx span e with
+      (* The element itself: a guest element's value is its tether, which
+         [addr] would resolve. *)
+      match storage st ctx span e with
       | Some p -> { Expr.node = Expr.Deref p; ty = ty st span e.T.Expr.ty }
       | None -> refuse span "lowering does not handle this subscript yet")
   | T.Expr.Op { op; impl = { owner; instance; _ }; left; right; swapped; handler } -> (
@@ -609,7 +620,12 @@ and moved st ctx span dst (e : T.Expr.t) =
         match addr st ctx span e with
         | Some address ->
             let l = layout st span dst in
-            { Expr.node = Expr.Take { address; layout = l }; ty = ty st span dst }
+            let lent =
+              match e.T.Expr.node with
+              | T.Expr.Var (T.Name_ref.Local l) -> Hashtbl.mem swallowed l.T.Local.id
+              | _ -> false
+            in
+            { Expr.node = Expr.Take { address; layout = l; lent }; ty = ty st span dst }
         (* Semantics moves a host only out of a symbol (moves.ml), which is
            a place. *)
         | None -> refuse span "lowering expected a host to move out of a place")
@@ -1301,7 +1317,7 @@ and spawn_call st ctx span v fn ~writes passed handler =
         match (o.aborts, v.signature.S.abort) with
         | Some a, Some t ->
             let l = layout st span t in
-            let value = Expr.Take { address = payload aborted; layout = l } in
+            let value = Expr.Take { address = payload aborted; layout = l; lent = false } in
             let value = { Expr.node = value; ty = a } in
             [ (aborted, on_abort span value) ]
         | _ -> []
@@ -1380,7 +1396,10 @@ and expand st ctx span v args handler ret =
   if List.length args <> List.length v.params then
     refuse span "lowering expected an argument for every parameter";
   let env = Hashtbl.create 8 in
-  let bind (p : T.Local.t) b = Hashtbl.replace env p.T.Local.id b in
+  let bind (p : T.Local.t) b =
+    swallows st p;
+    Hashtbl.replace env p.T.Local.id b
+  in
   let binds =
     List.concat
       (List.map2
@@ -1623,6 +1642,7 @@ let func st (v : verb) : Func.t =
     List.map
       (fun (p : T.Local.t) ->
         let id = fresh st in
+        swallows st p;
         if by_address st v p then begin
           Hashtbl.replace env p.T.Local.id (Pointer id);
           (id, Nodes.Ty.Ptr)

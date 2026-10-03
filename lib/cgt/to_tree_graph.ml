@@ -90,8 +90,8 @@ let rec expr (e : Expr.t) =
   | Expr.Mint p -> group "mint" (expr p)
   | Expr.Resolve t -> group "resolve" (expr t)
   | Expr.Terminal t -> group "terminal" (expr t)
-  | Expr.Take { address; layout = l } ->
-      group "take"
+  | Expr.Take { address; layout = l; lent } ->
+      group (if lent then "take lent" else "take")
         (fields
            [
              ("type", Leaf (Ty.to_string e.Expr.ty));

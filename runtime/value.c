@@ -105,6 +105,52 @@ void zane_vacate(char *slot, const int64_t *layout) {
    stay out until the program ends. */
 _Atomic int64_t zane_floated;
 
+/* The values lent to `m` as it drains (lifetimes.md §1.5). One still inside
+   it -- in a slot of its, or an element or member of something there --
+   belongs to the call site, so it floats out before the drain ends it, as
+   a contingent place's occupant does, and its guests follow it. One that
+   has moved to a scope between this one and the caller's is now that
+   scope's to bring back. One that left for the caller's scope or beyond,
+   or died, needs nothing, and nor does one on its way out through a
+   `return`: its anchor names the place it left, which no longer carries
+   its identity, or the temporary it travels in, which no region holds. */
+void zane_return_lent(zane_mark *m) {
+	while (m->lent) {
+		zane_lent *l = m->lent;
+		m->lent = l->next;
+		int dead = zane_anchor(l->id)->dead;
+		char *at = dead ? NULL : zane_resolve(l->id);
+		if (at && (!zane_in_region(at) || *(uint32_t *)at != zane_terminal(l->id))) dead = 1;
+		if (dead) {
+			zane_release_hold(l->id);
+			free(l);
+			continue;
+		}
+		zane_mark *r = zane_region_at(at);
+		int above = l->origin->context != m->context || l->origin->depth < m->depth;
+		int inside = above && r->context == m->context && r->depth >= m->depth;
+		int between = r->context == m->context && r->depth < m->depth &&
+		              (l->origin->context != m->context || l->origin->depth < r->depth);
+		if (inside) {
+			char *anonymous = zane_alloc(zane_program, l->size, 8);
+			zane_floated += 1 + zane_owned(at, l->layout, 0, l->size);
+			memcpy(anonymous, at, (size_t)l->size);
+			zane_move(anonymous, l->layout, zane_program, 0);
+			zane_anchor(zane_terminal(l->id))->target = anonymous;
+			zane_vacate(at, l->layout);
+			*(uint32_t *)at = 0;
+		} else if (between) {
+			zane_lock(r->context);
+			l->next = r->lent;
+			r->lent = l;
+			zane_unlock(r->context);
+			continue;
+		}
+		zane_release_hold(l->id);
+		free(l);
+	}
+}
+
 /* `incoming` replaces what `slot` holds (memory.md §3.7, §4.5). A contingent
    place's anchored occupant -- a variant payload's, or anything in a list's
    element when `contingent` is set -- first floats into an anonymous host in

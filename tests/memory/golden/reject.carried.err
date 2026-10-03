@@ -50,3 +50,7 @@ File "fixtures/reject/carried/main.zn", line 142, characters 20-31:
 142 |             high = Car(middle);
   |                    ^^^^^^^^^^^
 Error: this stores a guest to `middle`, whose block ends before `high`'s does
+File "fixtures/reject/carried/main.zn", line 151, characters 11-20:
+151 |     abort Car(near);
+  |           ^^^^^^^^^
+Error: this stores a guest to `near` in the caller's handler, which outlives the body `near` is owned by

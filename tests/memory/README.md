@@ -26,25 +26,29 @@ run it again, read the golden diff and promote that.
   keep their guests, and list elements and variant payloads replaced or
   changed away float their occupant into the place's owner, so a guest
   minted before the move outlives the block that made the change.
-- `lending` is lifetimes.md §1.5, §1.8 and §1.9: a swallowed value lent into
-  a callee's local outlives that local, a relayed host comes back bound or
+- `lending` is lifetimes.md §1.5, §1.8 and §1.9: a swallowed value moved into
+  a callee's local, or into a list a local hosts, outlives that local, with
+  what the callee wrote to it, a relayed host comes back bound or
   floats, a swallowed parameter is returned as a guest, and a guest parameter
   leaves the caller hosting.
 - `stores` is the store rule's legal side (lifetimes.md §1.1, §1.7, §1.11):
-  guests to outer hosts stored into deeper blocks and `&` fields, and calls
-  whose parameters come to rest in another parameter, through one, two and
-  three calls, with the recorded steps kept.
+  guests to outer hosts stored into deeper blocks, `&` fields and lists of
+  guests, calls whose parameters come to rest in another parameter, through
+  one, two and three calls, with the recorded steps kept, and a guest aborted
+  with and taken by a handler.
 
 ## Packages that are refused
 
 - `carried` is the case a carried guest exists for: a car naming an engine an
-  inner block owns, taken out of that block: assigned, returned, moved into a hosting field, a list or a case form, and handed to
-  a call that keeps it.
-- `stores` stores guests to inner hosts into `&` locals and fields owned
-  above, directly, copied, and through a verb's result; and one to a
-  host that only later moves to an outer list.
-- `returns` is lifetimes.md §1.7: guests rooted in the body, and the
-  parameter roots that are legal.
+  inner block owns, taken out of that block every way there is: assigned,
+  returned, moved into a hosting field, a list or a case form, handed to a
+  call that keeps it, and aborted with.
+- `stores` stores guests to inner hosts into `&` locals, fields and lists of
+  guests owned above, directly, copied, through a verb's result and through
+  a handler's binder; and one to a host that only later moves to an outer
+  list.
+- `returns` is lifetimes.md §1.7: guests rooted in the body, returned or
+  aborted with, and the parameter roots that are legal.
 - `moves` is lifetimes.md §1.2–1.6 beyond tests/semantics: a parameter moved
   below the body's top, every use of a spent symbol, a destination below the
   source, and a field of a host moved whole.

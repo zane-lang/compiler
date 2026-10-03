@@ -779,7 +779,7 @@
             │   ├── type: {i32, i32, {i32, i64}}
             │   ├── members[0] > member 0: 0 : i32
             │   ├── members[1] > member 1 > terminal: local #1 : i32
-            │   └── members[2] > member 2 > take:
+            │   └── members[2] > member 2 > take lent:
             │       ├── type: {i32, i64}
             │       ├── address: local #2 : ptr
             │       └── layout: guests$Node

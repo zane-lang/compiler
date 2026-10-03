@@ -94,6 +94,16 @@ let bind_explicit (p : Ty.param) (a : actual) subst =
   | _, T.Arg.Value { T.Expr.ty = Ty.Error; _ } -> Some subst
   | _ -> None
 
+(* Whether [ty] is a type parameter [subst] binds to a guest of what [src]
+   is, or names. *)
+let guest_bound subst ty src =
+  match ty with
+  | Ty.Param q -> (
+      match List.assoc_opt q.Ty.id subst with
+      | Some (Ty.Type (Ty.Guest g)) -> Ty.equal g (Ty.strip_guest src)
+      | _ -> false)
+  | _ -> false
+
 let try_candidate ~phase (s : S.t) (slots : actual option list) : outcome option =
   if List.length slots <> List.length s.params then None
   else if phase = Direct && s.generics <> [] then None
@@ -120,7 +130,12 @@ let try_candidate ~phase (s : S.t) (slots : actual option list) : outcome option
                 Ty.unify ~open_ subst (Ty.strip_guest p.ty) (Ty.held_as ~dst:p.ty ~src:a.aty)
               with
               | Some subst -> (Some subst, Some `Exact)
-              | None -> (Some subst, Some `Convert)))
+              | None ->
+                  (* A type parameter already bound to a guest `&X` takes an
+                     `X` or an `&X` as a parameter declared `&X` does: an
+                     element of a `List<&X>` is one (memory.md §2.8). *)
+                  if guest_bound subst p.ty a.aty then (Some subst, Some `Exact)
+                  else (Some subst, Some `Convert)))
     in
     let subst, marks =
       List.fold_left

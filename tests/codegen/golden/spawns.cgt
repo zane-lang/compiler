@@ -1870,7 +1870,7 @@
     │       ├── value > record:
     │       │   ├── type: {i32, handle, i64}
     │       │   ├── members[0] > member 0: 0 : i32
-    │       │   ├── members[1] > member 1 > take:
+    │       │   ├── members[1] > member 1 > take lent:
     │       │   │   ├── type: handle
     │       │   │   ├── address: local #1 : ptr
     │       │   │   └── layout: %primitives$String

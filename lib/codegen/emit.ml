@@ -67,6 +67,8 @@ let runtime env name =
         | "zane_scope_enter" -> Llvm.function_type env.i64 [||]
         | "zane_slot" -> Llvm.function_type env.ptr [| env.i64; env.i64; env.i64; env.ptr |]
         | "zane_mint" -> Llvm.function_type (Llvm.i32_type env.ctx) [| env.ptr |]
+        | "zane_lend" ->
+            Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.i64; env.ptr |]
         | "zane_resolve" -> Llvm.function_type env.ptr [| Llvm.i32_type env.ctx |]
         | "zane_terminal" ->
             Llvm.function_type (Llvm.i32_type env.ctx) [| Llvm.i32_type env.ctx |]
@@ -286,11 +288,15 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
   | Expr.Resolve t -> Some (call_runtime env b "zane_resolve" [| Option.get (expr env fr b t) |])
   | Expr.Terminal t ->
       Some (call_runtime env b "zane_terminal" [| Option.get (expr env fr b t) |])
-  | Expr.Take { address; layout = l } -> (
+  | Expr.Take { address; layout = l; lent } -> (
       let p = Option.get (expr env fr b address) in
       match e.Expr.ty with
       | Ty.Void -> None
       | t ->
+          if lent then begin
+            let size, _ = size_align t in
+            ignore (call_runtime env b "zane_lend" [| p; Llvm.const_int env.i64 size; layout env l |])
+          end;
           let v = Llvm.build_load (lltype env t) p "" b in
           ignore (call_runtime env b "zane_vacate" [| p; layout env l |]);
           Some v)

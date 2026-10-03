@@ -1,10 +1,11 @@
 /// The legal side of the store rule (lifetimes.md §1.1, §1.7, §1.11): a guest
 /// stored where its host's owner outlives the destination's, across nested
-/// blocks, through `&` fields, through verbs whose
+/// blocks, through `&` fields and lists of guests, through verbs whose
 /// parameters come to rest in another parameter or in the result, and
-/// returned when rooted in a parameter. Every store here passes the check, and
-/// the program shows each guest reaching the host it was given. Each check
-/// prints `yes` when it holds and `no` when it does not.
+/// returned or aborted with when rooted in a parameter. Every store here
+/// passes the check, and the program shows each guest reaching the host it
+/// was given. Each check prints `yes` when it holds and `no` when it does
+/// not.
 package stores;
 
 alias Int = @primitives$Int
@@ -12,6 +13,7 @@ alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
 alias List<T Type> = @primitives$List<T>
+alias Port = &IO
 
 /// Runs the block when the condition holds, and reports whether it did.
 Bool if(condition Bool, body @concepts$Block) {
@@ -91,6 +93,11 @@ Terminal make(io &IO) => Terminal(io)
 /// Returns a guest rooted in a guest parameter, through a field.
 &IO portOf(terminal &Terminal) => terminal.io
 
+/// Aborts with a guest rooted in its parameter.
+Int?&IO refuse(io &IO) {
+	abort io;
+}
+
 /// Returns whichever of two guests holds the larger port.
 &IO larger(a &IO, b &IO) {
 	if(b.port < a.port) {
@@ -141,6 +148,22 @@ Unit main() {
 	held.io!step();
 	check(far.port == Int(12));
 
+	// Guests of outer hosts pushed from an inner block into an outer list of
+	// guests, by guest and by host, and an element overwritten there.
+	ports List<&IO> = @primitives$List(Port);
+	if(true) {
+		gi &IO = io;
+		ports!push(gi);
+		ports!push(far);
+		ports[Int(1)] = far;
+	}
+	ports[Int(2)]!step();
+	check(ports[Int(1)].port == Int(13));
+	check(ports:size() == Int(2));
+	far!step();
+	far!step();
+	check(ports[Int(2)].port == Int(15));
+
 	// A verb result names what its arguments name.
 	if(true) {
 		local IO(Int(30));
@@ -148,7 +171,7 @@ Unit main() {
 		check(pick.port == Int(30));
 	}
 	g = larger(io, far);
-	check(g.port == Int(12));
+	check(g.port == Int(15));
 
 	// §1.11's hub: a parameter resting in a field of another, substituted
 	// with paths one block owns.
@@ -156,7 +179,7 @@ Unit main() {
 	hub.terminal!setIO(hub.io);
 	check(hub.terminal.io.port == Int(40));
 	hub.terminal!relay(far);
-	check(hub.terminal.io.port == Int(12));
+	check(hub.terminal.io.port == Int(15));
 	hub.terminal!relayAgain(hub.io);
 	hub.io!step();
 	check(hub.terminal.io.port == Int(41));
@@ -172,7 +195,7 @@ Unit main() {
 		check(u.io.port == Int(50));
 		hub.terminal!setIO(far);
 	}
-	check(hub.terminal.io.port == Int(12));
+	check(hub.terminal.io.port == Int(15));
 
 	// The hub moves: a guest into its own io follows it, and so does one
 	// returned from a method rooted in `this`.
@@ -180,7 +203,18 @@ Unit main() {
 	moved Hub = hub;
 	mine!step();
 	check(moved.io.port == Int(42));
-	check(portOf(moved.terminal).port == Int(12));
+	check(portOf(moved.terminal).port == Int(15));
 	check(portOf(moved.peer).port == Int(2));
+
+	// A guest aborted with, rooted in the argument, and taken by a handler
+	// into a guest owned where the host is.
+	caught &IO = io;
+	n Int = refuse(far) ? e {
+		caught = e;
+		resolve e.port;
+	}
+	check(n == Int(15));
+	caught!step();
+	check(far.port == Int(16));
 	return Unit();
 }

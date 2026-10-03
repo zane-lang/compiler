@@ -1,6 +1,6 @@
 /// A guest stored where its host's owner does not outlive the destination's
-/// (lifetimes.md §1.1): into an `&` local and an `&` field owned by an
-/// enclosing block, by a guest copied from another guest, and by a verb's
+/// (lifetimes.md §1.1): into an `&` local, an `&` field and a list of guests
+/// owned by an enclosing block, by a guest copied from another guest, and by a verb's
 /// result that names the inner host. The legal store beside each
 /// shows the comparison is between owners, not a ban on inner blocks.
 package stores;
@@ -8,6 +8,7 @@ package stores;
 alias Int = @primitives$Int
 alias Unit = @primitives$Unit
 alias List<T Type> = @primitives$List<T>
+alias Ref = &Engine
 
 type Engine = #struct { power Int; }
 type Car = #struct { engine &Engine; }
@@ -28,6 +29,24 @@ Unit fielded() {
 		near Engine(Int(2));
 		car.engine = far;
 		car.engine = near;
+	});
+	return Unit();
+}
+
+/// A list of guests owned above: pushed to, by guest and by host, and
+/// written at an index.
+Unit listed() {
+	far Engine(Int(3));
+	refs List<&Engine> = @primitives$List(Ref);
+	refs!push(far);
+	inside({
+		near Engine(Int(4));
+		n &Engine = near;
+		refs!push(far);
+		refs!push(n);
+		refs!push(near);
+		refs[Int(1)] = near;
+		refs[Int(1)] = far;
 	});
 	return Unit();
 }
@@ -55,6 +74,42 @@ Unit called() {
 		r = pass(far);
 		r = pass(near);
 		r = either(near, far);
+	});
+	return Unit();
+}
+
+/// A handler's binder is what its call aborted with, which the callee may
+/// root in any argument: one naming an inner host is owned like it. A
+/// match's handler takes what its arms aborted with.
+Int?&Engine refuse(engine &Engine) {
+	abort engine;
+}
+
+type Pick = variant { one Unit; two Unit; }
+
+Unit handled(pick Pick) {
+	far Engine(Int(14));
+	r &Engine = far;
+	inside({
+		near Engine(Int(15));
+		a Int = refuse(far) ? e {
+			r = e;
+			resolve Int(0);
+		}
+		b Int = refuse(near) ? e {
+			r = e;
+			resolve Int(0);
+		}
+		c Int = match (pick) {
+			one {
+				g &Engine = near;
+				abort g;
+			}
+			two => Int(2);
+		} ? e {
+			r = e;
+			resolve Int(0);
+		}
 	});
 	return Unit();
 }

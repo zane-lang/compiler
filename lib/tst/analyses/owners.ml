@@ -10,7 +10,7 @@
 
    What a value [names] is the owners of the hosts it reaches through a guest:
    its own, if it is one, and those it carries (§1.10). A store -- a `let`, an
-   assignment, a field of `init{ }`, a return -- is legal only when every
+   assignment, a field of `init{ }`, a return, an abort -- is legal only when every
    owner the stored value names outlives the destination's. A block outlives
    the blocks nested in it; the call site outlives the body.
 
@@ -85,6 +85,9 @@ type walk = {
   (* Where a `return` sends its value: the verb's caller, or the match it is
      an arm of. A `resolve` sends its value to its handler's expression. *)
   mutable ret : sink;
+  (* Where an `abort` sends its value: the verb's caller, or the match it is
+     an arm of, whose handler's binder then names it. *)
+  mutable abort : sink;
   mutable resolve : (Ty.t * Names.t ref) list;
   (* What a match's arms or a handler's `resolve` hand on, by the span of the
      expression they belong to. *)
@@ -151,7 +154,12 @@ let rec host w (e : T.Expr.t) =
 
 (* What a value of an expression names, before any store. *)
 and names w (e : T.Expr.t) =
-  keep e.T.Expr.ty
+  keep e.T.Expr.ty (Names.union (reached w e) (result w e))
+
+(* What an expression reaches, whatever its type: for a call, every argument
+   the callee may root a guest in, which is also what a value it aborts with
+   may name. *)
+and reached w (e : T.Expr.t) =
     (match e.T.Expr.node with
     | T.Expr.Var (T.Name_ref.Local l) -> names_of w l
     | T.Expr.Var (T.Name_ref.Global { name; _ }) -> Names.singleton (Global, name)
@@ -190,9 +198,6 @@ and names w (e : T.Expr.t) =
     | T.Expr.Flip { impl; value; _ } | T.Expr.Coerce { ctor = impl; value } ->
         passed w (Guests.param_types impl) [ T.Arg.Value value ]
     | _ -> Names.empty)
-    (* A match's arms, and a handler's `resolve`, were walked before the
-       store asked: what they handed on is kept by the expression's span. *)
-    |> Names.union (keep e.T.Expr.ty (result w e))
 
 (* What a value names once stored where a value of type [into] goes: a
    guest minted from a place names that place's host. *)
@@ -306,6 +311,7 @@ let rec expr w (e : T.Expr.t) =
   | T.Expr.Match m ->
       List.iter (expr w) m.T.Match.scrutinees;
       let acc = ref Names.empty in
+      let aborted = ref Names.empty in
       List.iter
         (fun (a : T.Arm.t) ->
           (* A binder is its scrutinee's payload, so it names what the
@@ -322,13 +328,17 @@ let rec expr w (e : T.Expr.t) =
                    | _, None -> [])
                  a.T.Arm.patterns)
           in
-          let verb = w.ret in
+          let verb = (w.ret, w.abort) in
           w.ret <- Value (e.T.Expr.ty, acc);
+          w.abort <- Value (Ty.Error, aborted);
           block ~bind:binders w a.T.Arm.body;
-          w.ret <- verb)
+          w.ret <- fst verb;
+          w.abort <- snd verb)
         m.T.Match.arms;
       record w e !acc;
-      opt_handler w e m.T.Match.handler
+      (* An arm's abort is the match's, which its handler's binder takes; the
+         checker requires the handler. *)
+      opt_handler ~caught:!aborted w e m.T.Match.handler
   | T.Expr.Call { callee; args; handler; _ } | T.Expr.Construct { ctor = callee; args; handler; _ }
     ->
       List.iter (arg w e) args;
@@ -357,13 +367,20 @@ let rec expr w (e : T.Expr.t) =
       List.iter
         (fun (p : T.Local.t) -> Hashtbl.replace w.params p.T.Local.id (-1))
         l.T.Lambda.params;
-      let ret = match e.T.Expr.ty with Ty.Verb v -> v.Ty.ret | _ -> Ty.Error in
-      let saved = (w.ret, w.resolve) in
+      let ret, abort =
+        match e.T.Expr.ty with
+        | Ty.Verb v -> (v.Ty.ret, Option.value ~default:Ty.Error v.Ty.abort)
+        | _ -> (Ty.Error, Ty.Error)
+      in
+      let saved = (w.ret, w.abort, w.resolve) in
       w.ret <- Verb ret;
+      w.abort <- Verb abort;
       w.resolve <- [];
       block w l.T.Lambda.body;
-      w.ret <- fst saved;
-      w.resolve <- snd saved
+      let r, a, rs = saved in
+      w.ret <- r;
+      w.abort <- a;
+      w.resolve <- rs
 
 (* §1.11: each parameter the callee keeps is stored into the place the
    argument for the other names, and the local that place is in now names it
@@ -440,9 +457,16 @@ and arg w (call : T.Expr.t) = function
       block w b;
       w.resolve <- saved;
       record w call !acc
-and opt_handler w e = Option.iter (handler_block w e)
+and opt_handler ?caught w e = Option.iter (handler_block ?caught w e)
 
-and handler_block w (e : T.Expr.t) (h : T.Handler.t) =
+(* A handler's binder is the value its expression aborted with: for a match,
+   what its arms aborted with ([caught]); for a call, anything its arguments
+   name, since the callee may root it in any of them. *)
+and handler_block ?caught w (e : T.Expr.t) (h : T.Handler.t) =
+  Option.iter
+    (fun (b : T.Local.t) ->
+      add w b (keep b.T.Local.ty (match caught with Some n -> n | None -> reached w e)))
+    h.T.Handler.binder;
   let acc = ref Names.empty in
   let saved = w.resolve in
   w.resolve <- (e.T.Expr.ty, acc) :: saved;
@@ -461,7 +485,12 @@ and block ?(bind = []) w (b : T.Block.t) =
 
 and stat w (s : T.Stat.t) =
   match s.T.Stat.node with
-  | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e -> expr w e
+  | T.Stat.Expr e | T.Stat.Spawn e -> expr w e
+  | T.Stat.Abort e -> (
+      expr w e;
+      match w.abort with
+      | Verb ty -> check w e Caller "the caller's handler" (stored w ty e)
+      | Value (_, acc) -> acc := Names.union !acc (names w e))
   | T.Stat.Let { local; value } ->
       expr w value;
       Hashtbl.replace w.declared local.T.Local.id w.block;
@@ -503,6 +532,7 @@ let fresh () =
     block = 0;
     fresh = 0;
     ret = Verb Ty.Error;
+    abort = Verb Ty.Error;
     resolve = [];
     report = false;
     grew = false;
@@ -510,7 +540,7 @@ let fresh () =
 
 (* Walk until no local names anything new, then once more if [report]. Block
    numbers restart each walk, so every walk numbers them alike. *)
-let walk ~report decl ret (params : T.Local.t list) body =
+let walk ~report decl ret abort (params : T.Local.t list) body =
   let w = fresh () in
   List.iteri
     (fun i (p : T.Local.t) ->
@@ -521,6 +551,7 @@ let walk ~report decl ret (params : T.Local.t list) body =
     w.fresh <- 0;
     w.block <- 0;
     w.ret <- Verb ret;
+    w.abort <- Verb (Option.value ~default:Ty.Error abort);
     w.resolve <- [];
     body w
   in
@@ -543,7 +574,7 @@ let bodies (p : T.Program.t) =
         (fun (d : T.Decl.t) ->
           match d.T.Decl.node with
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
-              Some (d.T.Decl.id, signature.S.ret, params, fun w -> block w body)
+              Some (d.T.Decl.id, signature.S.ret, signature.S.abort, params, fun w -> block w body)
           | _ -> None)
         pkg.T.Package.decls)
     p.T.Program.packages
@@ -554,6 +585,7 @@ let bodies (p : T.Program.t) =
           Some
             ( i.T.Instance.decl,
               i.T.Instance.signature.S.ret,
+              i.T.Instance.signature.S.abort,
               i.T.Instance.params,
               fun w -> block w i.T.Instance.body ))
       p.T.Program.instances
@@ -563,7 +595,7 @@ let bodies (p : T.Program.t) =
 let run (p : T.Program.t) =
   Hashtbl.reset summaries;
   let bodies = bodies p in
-  let each report = List.iter (fun (d, ret, ps, b) -> walk ~report d ret ps b) bodies in
+  let each report = List.iter (fun (d, ret, ab, ps, b) -> walk ~report d ret ab ps b) bodies in
   let rec settle () =
     changed := false;
     each false;

@@ -157,8 +157,11 @@ module Expr = struct
     | Resolve of t
     | Terminal of t
     (* A move out of the place an address names: its value, and the place
-       is spent (memory.md §3.7). *)
-    | Take of { address : t; layout : Layout.t }
+       is spent (memory.md §3.7). [lent] when the place is a swallowed
+       parameter's, whose value belongs to the call site (lifetimes.md §1.5):
+       the scope it is moved into brings it back out if it drains with the
+       value still inside. *)
+    | Take of { address : t; layout : Layout.t; lent : bool }
     (* A value copied whole: every block it owns is copied too, so the copy
        owns blocks of its own (memory.md §2.3). *)
     | Copy of { value : t; layout : Layout.t }

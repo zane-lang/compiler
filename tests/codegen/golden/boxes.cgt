@@ -893,12 +893,12 @@
     │       ├── value > record:
     │       │   ├── type: {i32, handle, ptr}
     │       │   ├── members[0] > member 0: 0 : i32
-    │       │   ├── members[1] > member 1 > take:
+    │       │   ├── members[1] > member 1 > take lent:
     │       │   │   ├── type: handle
     │       │   │   ├── address: local #1 : ptr
     │       │   │   └── layout: %primitives$String
     │       │   └── members[2] > member 2 > box:
-    │       │       ├── value > take:
+    │       │       ├── value > take lent:
     │       │       │   ├── type: {i32, <void | ptr>}
     │       │       │   ├── address: local #2 : ptr
     │       │       │   └── layout: boxes$Chain

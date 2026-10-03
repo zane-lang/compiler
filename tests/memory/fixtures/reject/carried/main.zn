@@ -3,8 +3,8 @@
 /// destination (lifetimes.md §1.1, §1.10). Here a car names an engine owned by
 /// an inner block, and every way of taking the car out of that block is
 /// refused: assigned above it, returned, moved into an outer object's
-/// hosting field or list, built into a case form, and handed to a call that
-/// keeps it. That the car itself is a fresh value, or was moved
+/// hosting field or list, built into a case form, handed to a call that
+/// keeps it, and aborted with. That the car itself is a fresh value, or was moved
 /// legally, does not matter: what it carries is checked on its own.
 package carried;
 
@@ -143,4 +143,10 @@ Unit layered() {
 		});
 	});
 	return Unit();
+}
+
+/// Aborted with: the handler's binder is in the caller.
+Int?Car refused() {
+	near Engine(Int(16));
+	abort Car(near);
 }

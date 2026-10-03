@@ -2,6 +2,8 @@
 /// field of a local, a guest copied from a local, and a local chosen in a
 /// nested block are all owned by the body, which drains at the return. A
 /// parameter of either mode, `this`, and a field reached from one are roots.
+/// An abort hands its value to the caller's handler the same way, so a guest
+/// aborted with is held to the same roots.
 package returns;
 
 alias Int = @primitives$Int
@@ -44,7 +46,24 @@ Unit branch(condition Bool, body @concepts$Block) => Unit()
 	return car.engine;
 }
 
+Int?&Engine dropped() {
+	engine Engine(Int(5));
+	g &Engine = engine;
+	abort g;
+}
+
+Int?&Engine fielded() {
+	bay Bay(Engine(Int(6)));
+	abort bay.engine;
+}
+
 /// The legal roots.
+Int?&Engine kept(engine &Engine) {
+	abort engine;
+}
+Int?&Engine owned(this Bay) {
+	abort this.engine;
+}
 &Engine swallowed(engine Engine) => engine
 &Engine guested(engine &Engine) => engine
 &Engine subject(this Bay) => this.engine

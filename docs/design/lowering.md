@@ -145,7 +145,8 @@ that define each:
 - `destroy` — a reference object's or a value's death, returning its dynamic
   blocks and retiring its anchor (§4.6);
 - `float` — a contingent occupant's move into an anonymous host of the same
-  owner (§2.8.1);
+  owner (§2.8.1), and a swallowed parameter's value brought back out of a
+  callee's draining scope ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.5);
 - `mint` — a tether taken from a place, creating its anchor if it has none
   (§4.3);
 - `resolve` — a tether's address, through its anchor chain (§4.4).
@@ -419,6 +420,17 @@ test passing.
   stored into it. A host floated in a spawned call goes there as well. That
   region goes with the program, unchecked. A host has no destructor, so the
   longer life is not observable.
+- **A lent value floats back the same way.** A swallowed parameter's value
+  belongs to the call site ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.5), so a move out of one is
+  a `take lent`: unless it runs in the scope the caller's place is in, the
+  runtime anchors the value, holds the anchor so its cell is not reused,
+  and lists it on the scope it moved into. A drain that finds it still
+  inside that scope, in a slot or in something a slot hosts, floats it
+  before ending the scope's identities, as a contingent occupant floats,
+  and every guest the caller minted follows it; one now in a scope between
+  that and the caller's is passed to that scope's list. The spec moves it
+  back up to the call site, to live until that scope drains; it lives until
+  the program ends instead, for the reason above.
 - **Each scope's dynamic region.** A scope's blocks are in a region of its
   own, as [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1–3.2 has it: chunks of its own, a bump frontier, and
   a stack of returned blocks per size and alignment, all given back at its

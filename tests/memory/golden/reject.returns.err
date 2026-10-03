@@ -1,16 +1,24 @@
-File "fixtures/reject/returns/main.zn", line 23, characters 12-22:
-23 |     return bay.engine;
+File "fixtures/reject/returns/main.zn", line 25, characters 12-22:
+25 |     return bay.engine;
   |            ^^^^^^^^^^
 Error: this stores a guest to `bay` in the caller's result, which outlives the body `bay` is owned by
-File "fixtures/reject/returns/main.zn", line 29, characters 12-13:
-29 |     return g;
+File "fixtures/reject/returns/main.zn", line 31, characters 12-13:
+31 |     return g;
   |            ^
 Error: this stores a guest to `engine` in the caller's result, which outlives the body `engine` is owned by
-File "fixtures/reject/returns/main.zn", line 35, characters 16-22:
-35 |         return engine;
+File "fixtures/reject/returns/main.zn", line 37, characters 16-22:
+37 |         return engine;
   |                ^^^^^^
 Error: this stores a guest to `engine` in the caller's result, which outlives the body `engine` is owned by
-File "fixtures/reject/returns/main.zn", line 44, characters 12-22:
-44 |     return car.engine;
+File "fixtures/reject/returns/main.zn", line 46, characters 12-22:
+46 |     return car.engine;
   |            ^^^^^^^^^^
 Error: this stores a guest to `engine` in the caller's result, which outlives the body `engine` is owned by
+File "fixtures/reject/returns/main.zn", line 52, characters 11-12:
+52 |     abort g;
+  |           ^
+Error: this stores a guest to `engine` in the caller's handler, which outlives the body `engine` is owned by
+File "fixtures/reject/returns/main.zn", line 57, characters 11-21:
+57 |     abort bay.engine;
+  |           ^^^^^^^^^^
+Error: this stores a guest to `bay` in the caller's handler, which outlives the body `bay` is owned by

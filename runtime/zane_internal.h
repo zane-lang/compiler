@@ -86,11 +86,23 @@ typedef struct zane_retired {
 	int64_t size;
 } zane_retired;
 
+/* A swallowed parameter's value that a call moved into its own scope
+   (lifetimes.md §1.5): its identity, which it holds so the cell is not
+   reused, how large it is and where its hosts and blocks are, and the
+   region of the caller's place it was moved out of. */
+typedef struct zane_lent {
+	struct zane_lent *next;
+	uint32_t id;
+	int64_t size;
+	const int64_t *layout;
+	struct zane_mark_ *origin;
+} zane_lent;
+
 /* Each open scope of a context, innermost last: where its slots began,
    what it hosts, the calls it spawned, and its dynamic region with the
-   number of blocks out in it. The first of the program's is the program's
-   own, open until it ends. */
-typedef struct {
+   number of blocks out in it, and the values lent to it. The first of the
+   program's is the program's own, open until it ends. */
+typedef struct zane_mark_ {
 	zane_context *context;
 	int64_t depth;
 	uint32_t chunks;
@@ -103,6 +115,7 @@ typedef struct {
 	zane_stack *stacks;
 	zane_retired *retired;
 	int64_t live;
+	zane_lent *lent;
 } zane_mark;
 
 /* A context's scopes are kept in segments, so a scope's mark stays where it
@@ -149,12 +162,16 @@ typedef struct {
    another cell. Tethers and backpointers hold a cell's index, and index 0
    is never a cell, so it stands for untethered. A cell keeps the cells that
    forward to it, which retire with it: every guest that could still name a
-   forwarder died before the identity it forwards to ended (§4.6). */
+   forwarder died before the identity it forwards to ended (§4.6). A cell a
+   lent value holds is not reused when it retires, only marked dead, until
+   the hold is let go. */
 typedef struct {
 	void *target;
 	uint32_t forward;     /* the cell this one forwards to, or 0 */
 	uint32_t forwarders;  /* the first cell forwarding here */
 	uint32_t sibling;     /* the next cell forwarding where this one does */
+	uint32_t holds;       /* the lent values holding it */
+	uint32_t dead;        /* retired while held */
 } zane_cell;
 
 enum { ZANE_CELL_SEGMENT = 1 << 16 };
@@ -208,6 +225,7 @@ void zane_unlock(zane_context *c);
 zane_context *zane_context_new(void);
 void *zane_bump(int64_t size, int64_t align);
 zane_mark *zane_region_at(const void *at);
+int zane_in_region(const void *at);
 void zane_unmap(zane_mark *region);
 zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align);
 extern _Atomic int64_t zane_blocks;
@@ -223,6 +241,8 @@ int zane_hosts(const char *base, const zane_position *p);
 extern pthread_mutex_t zane_anchors;
 zane_cell *zane_anchor(uint32_t id);
 void zane_retire(uint32_t id);
+void zane_hold(uint32_t id);
+int zane_release_hold(uint32_t id);
 
 /* block.c */
 void zane_unblock(const zane_position *p, void *block, int64_t room);
@@ -235,6 +255,7 @@ int64_t zane_owned(char *base, const int64_t *layout, int64_t lo, int64_t hi);
 /* value.c */
 void zane_move(char *value, const int64_t *layout, zane_mark *region, int64_t from);
 extern _Atomic int64_t zane_floated;
+void zane_return_lent(zane_mark *m);
 
 /* spawn.c */
 int zane_state(zane_task *t);

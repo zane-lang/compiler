@@ -1,7 +1,8 @@
 /// Parameters belong to the call site (lifetimes.md §1.5, §1.8, §1.9). A
 /// value passed to a swallowing parameter outlives the call even when the
-/// callee lends it into a local that drains, so a guest the caller minted
-/// before the call still reaches it. A relayed host comes back through the
+/// callee moves it into a local, or into a list a local hosts, and that
+/// local drains: a guest the caller minted before the call still reaches it,
+/// with what the callee wrote, after other calls reuse the drained memory. A relayed host comes back through the
 /// return, bound or left to float, and a swallowed parameter may be returned
 /// as a guest. A guest parameter leaves the caller a full host. Each check
 /// prints `yes` when it holds and `no` when it does not.
@@ -44,9 +45,10 @@ Unit check(ok Bool) {
 type Player = #struct {
 	id Int;
 	score Int;
+	name String;
 }
 
-Player(id Int) => init{ id; score = Int(0); }
+Player(id Int) => init{ id; score = Int(0); name = String("play") + String("er"); }
 
 Unit win(this Player) mut {
 	this.score = this.score + Int(1);
@@ -108,7 +110,23 @@ Player relay(player Player) {
 /// Reads through a guest parameter: the caller stays the host.
 Int scoreOf(player &Player) => player.score
 
-/// Moves a swallowed parameter into a local at the top level of the body.
+/// Hosts players and islands in its own scope and drains them, reusing the
+/// memory a drained callee scope left behind.
+Int churn(n Int) {
+	total Int(0);
+	i Int(1);
+	i!to(n) {
+		a Player(i);
+		island Island();
+		b Player(i);
+		island!startMatch(b);
+		total = total + a.id + island.players[Int(1)].id;
+	}
+	return total;
+}
+
+/// Moves a swallowed parameter into a local at the top level of the body,
+/// and writes it there: the write is to the caller's player.
 Int settle(player Player) {
 	kept Player = player;
 	kept!win();
@@ -121,6 +139,9 @@ Unit main() {
 	a Player(Int(1));
 	ga &Player = a;
 	enter(a);
+	check(churn(Int(100)) == Int(10100));
+	check(ga.id == Int(1));
+	check(ga.name == String("player"));
 	check(ga.score == Int(0));
 	ga!win();
 	check(ga.score == Int(1));
@@ -172,7 +193,13 @@ Unit main() {
 
 	// Moved into a local at the top of the callee's body.
 	k Player(Int(8));
+	gk &Player = k;
 	check(settle(k) == Int(1));
+	check(churn(Int(10)) == Int(110));
+	check(gk.score == Int(1));
+	gk!win();
+	check(gk.score == Int(2));
+	check(gk.name == String("player"));
 
 	// Many lends: each pass's player outlives the call it was lent to.
 	total Int(0);

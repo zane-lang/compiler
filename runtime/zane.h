@@ -39,6 +39,7 @@ int64_t zane_scope_enter(void);
 uint32_t zane_terminal(uint32_t tether);
 void *zane_resolve(uint32_t tether);
 uint32_t zane_mint(void *payload);
+void zane_lend(char *slot, int64_t size, const int64_t *layout);
 
 /* block.c */
 void zane_copy(char *value, const int64_t *layout);

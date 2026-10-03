@@ -54,11 +54,12 @@ static uint32_t zane_new_cell(void *target) {
 			zane_broken("out of memory for anchors");
 		id = zane_cell_count++;
 	}
-	*zane_anchor(id) = (zane_cell){ target, 0, 0, 0 };
+	*zane_anchor(id) = (zane_cell){ target, 0, 0, 0, 0, 0 };
 	return id;
 }
 
-/* A cell retired with its forwarders; the lock is held. */
+/* A cell retired with its forwarders; the lock is held. One a lent value
+   holds is only marked dead, and is reused once the hold is let go. */
 static void zane_retire_held(uint32_t id) {
 	uint32_t f = zane_anchor(id)->forwarders;
 	while (f) {
@@ -66,8 +67,35 @@ static void zane_retire_held(uint32_t id) {
 		zane_retire_held(f);
 		f = next;
 	}
-	zane_anchor(id)->sibling = zane_free_cell;
+	zane_cell *cell = zane_anchor(id);
+	if (cell->holds) {
+		cell->dead = 1;
+		cell->forward = cell->forwarders = 0;
+		return;
+	}
+	cell->sibling = zane_free_cell;
 	zane_free_cell = id;
+}
+
+void zane_hold(uint32_t id) {
+	pthread_mutex_lock(&zane_anchors);
+	zane_anchor(id)->holds++;
+	pthread_mutex_unlock(&zane_anchors);
+}
+
+/* A hold let go: 1 when the identity is still live, and 0 when it retired
+   while held, in which case the cell is free again. */
+int zane_release_hold(uint32_t id) {
+	pthread_mutex_lock(&zane_anchors);
+	zane_cell *cell = zane_anchor(id);
+	int live = !cell->dead;
+	if (--cell->holds == 0 && cell->dead) {
+		cell->dead = 0;
+		cell->sibling = zane_free_cell;
+		zane_free_cell = id;
+	}
+	pthread_mutex_unlock(&zane_anchors);
+	return live;
 }
 
 void zane_retire(uint32_t id) {
@@ -85,6 +113,27 @@ uint32_t zane_terminal(uint32_t tether) {
 
 /* The address a guest names. */
 void *zane_resolve(uint32_t tether) { return zane_anchor(zane_terminal(tether))->target; }
+
+/* A swallowed parameter's value moving out of the caller's place at `slot`
+   into the calling scope (lifetimes.md §1.5): its identity is held, and the
+   scope remembers it, so its drain can bring the value back out. A move
+   made in the scope the caller's place is in stays there, and needs
+   neither. */
+void zane_lend(char *slot, int64_t size, const int64_t *layout) {
+	zane_context *c = zane_self;
+	zane_mark *m = zane_mark_at(c, c->depth - 1);
+	zane_mark *origin = zane_region_at(slot);
+	if (origin == m) return;
+	uint32_t id = zane_mint(slot);
+	zane_hold(id);
+	zane_lent *l = malloc(sizeof *l);
+	if (!l) zane_broken("out of memory for a lent value");
+	*l = (zane_lent){ NULL, id, size, layout, origin };
+	zane_lock(c);
+	l->next = m->lent;
+	m->lent = l;
+	zane_unlock(c);
+}
 
 /* A guest to the host at `payload`: its anchor, made the first time. Calls
    running at once may each mint one to a host they read, and get the same. */

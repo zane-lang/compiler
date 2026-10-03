@@ -80,6 +80,7 @@ static void zane_forget(zane_mark *m) {
    holds nothing, since the result took its blocks home. */
 static void zane_release(zane_context *c) {
 	zane_mark *m = zane_mark_at(c, 0);
+	zane_return_lent(m);
 	for (zane_hosted *h = m->hosts; h; h = h->next) zane_end(h->slot, h->layout, 1, NULL, NULL, 0);
 	zane_forget(m);
 	zane_lock(c);
@@ -135,6 +136,7 @@ void zane_scope_drain(int64_t scope) {
 	if (scope != c->depth - 1 || scope == 0) zane_broken("a scope drained out of order");
 	zane_mark *m = zane_mark_at(c, scope);
 	for (zane_task *t = m->tasks; t; t = t->next) zane_join_task(t);
+	zane_return_lent(m);
 	for (zane_hosted *h = m->hosts; h; h = h->next) zane_end(h->slot, h->layout, 1, NULL, NULL, 0);
 	zane_forget(m);
 	zane_lock(c);
