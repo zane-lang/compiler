@@ -66,3 +66,4 @@ Checks: (D1/D2) determinization vectors over NFA ids (isPost, filt eq),
 Proof chain: cnt_E(m,u) <= W(start_m,u,final_m) <= DFA <= lib DW <= model comp W
 <= fragment W; items: flatten injective via parser lemma; two trees -> cnt=2.
 - WLemmas: W_mono, fwd (forward unfolding, fuel b+c+1) proven. Concat over a node is FALSE in general with fuel (eps loops) -> use fwd/backward only.
+- Universe.lean producer: same 2704/31 result, 2.6 min, 213598 nodes. Next: UniverseCheck (C1 edges vs spec, C2 frags (fragInner injective), C3 ne/eps/shape/comp order/members, C4 det+min witnesses), then proofs (d) lib->model, (b)(c) NFA->DFA->lib, (a) grammar->NFA, items/flatten, cnt.

@@ -225,6 +225,7 @@ structure CompWit where
   trans : Array (List (Atom × Nat))
   startState : List (Nat × Nat)           -- member ↦ state
   hmap : List (Nat × Array (Option Nat))  -- member ↦ (state ↦ lib state)
+  dead : List (Nat × Array Bool)          -- member ↦ states that never accept
   deriving Inhabited
 
 def startNode (H : HFacts) (c m : Nat) : UKey := if H.isLeft c then .start c else .entry c m
@@ -328,6 +329,7 @@ def buildUniverse (E : PGrammar) : Except String (HFacts × UBuild × Array Comp
       if states.size > 200000 then throw s!"component DFA limit at {c}"
     let nd := states.size
     let mut hmaps : List (Nat × Array (Option Nat)) := []
+    let mut deads : List (Nat × Array Bool) := []
     for (m, fnode) in finalIds do
       let accOf := fun (d : Nat) => getV states[d]! 0 fnode
       let mut live := Array.replicate nd false
@@ -389,7 +391,8 @@ def buildUniverse (E : PGrammar) : Except String (HFacts × UBuild × Array Comp
           pure lid
       H := { H with lang := H.lang.set! m lid }
       hmaps := hmaps ++ [(m, (Array.range nd).map fun d => if live[d]! then ren.get? colors[d]! else none)]
-    wits := wits.push { c, states, trans, startState, hmap := hmaps }
+      deads := deads ++ [(m, live.map (!·))]
+    wits := wits.push { c, states, trans, startState, hmap := hmaps, dead := deads }
   -- fragments, now that every language is known
   let mut frags : Array (Nat × Nat) := #[]
   let mut f := 0
