@@ -61,9 +61,11 @@ type Island = #struct {
 
 Island() => init{ players = @primitives$List(Player); }
 
-/// Consumes the player into the island's list.
+/// Consumes the player into the island's list, and writes it there: the
+/// island hosts it now, so this method may (effects.md §3).
 Unit startMatch(this Island, player Player) mut {
 	this.players!push(player);
+	this.players[this.players:size()]!win();
 	return Unit();
 }
 
@@ -71,7 +73,7 @@ Unit startMatch(this Island, player Player) mut {
 Player returnPlayer(this Island, id Int) mut {
 	last Int = this.players:size();
 	out Player = Player(id);
-	out.score = this.players[last].score + Int(1);
+	out.score = this.players[last].score;
 	this.players[last] = Player(Int(0));
 	return out;
 }
@@ -142,9 +144,9 @@ Unit main() {
 	check(churn(Int(100)) == Int(10100));
 	check(ga.id == Int(1));
 	check(ga.name == String("player"));
-	check(ga.score == Int(0));
-	ga!win();
 	check(ga.score == Int(1));
+	ga!win();
+	check(ga.score == Int(2));
 
 	// The symbol was spent by the pass, and a refill starts a new player.
 	a = Player(Int(2));
@@ -208,7 +210,6 @@ Unit main() {
 		p Player(i);
 		gp &Player = p;
 		enter(p);
-		gp!win();
 		total = total + gp.score + gp.id;
 	}
 	check(total == Int(501500));

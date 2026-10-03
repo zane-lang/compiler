@@ -391,8 +391,13 @@ and arg w = function
 and call w (e : T.Expr.t) (callee : T.Verb_ref.t) taints args =
   let s = summary_of callee in
   let sg = signature_of callee in
+  (* At the types this call instantiated the verb at: an open `T` could hold
+     a guest, and a `List<Player>`'s element cannot. *)
+  let instance = List.map (fun ((q : Ty.param), a) -> (q.Ty.id, a)) callee.T.Verb_ref.instance in
   let tys =
-    match sg with Some sg -> List.map (fun (p : S.param) -> p.S.ty) sg.S.params | None -> []
+    match sg with
+    | Some sg -> List.map (fun (p : S.param) -> Ty.subst instance p.S.ty) sg.S.params
+    | None -> []
   in
   let res =
     match s with
