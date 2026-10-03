@@ -245,27 +245,30 @@ partial def parseRules (t : Array Tk) (i0 : Nat) : Except String (List Rule) := 
     i := i + 1
     if t.getD i .semi == .bar then i := i + 1
     let mut branches : List Branch := []
-    let mut group : List (List Actual) := []
+    -- a production's own `%prec` stays with it; one after the action is the group's
+    let mut group : List (List Actual × Option String) := []
     let mut cur : List Actual := []
     let mut prec : Option String := none
     let mut done := false
     while !done do
       match t.getD i (.kw "<eof>") with
       | .act =>
-        group := group ++ [cur]
+        group := group ++ [(cur, prec)]
+        prec := none
         i := i + 1
         -- a %prec may also follow the action
         if t.getD i .semi == .kw "%prec" then
           match t.getD (i + 1) .semi with
           | .id x => prec := some x; i := i + 2
           | _ => throw "expected a symbol after %prec"
-        branches := branches ++ group.map fun ps => { prods := ps, prec }
+        let shared := prec
+        branches := branches ++ group.map fun (ps, own) => { prods := ps, prec := own.or shared }
         group := []; cur := []; prec := none
         match t.getD i (.kw "<eof>") with
         | .bar => i := i + 1
         | .semi => i := i + 1; done := true
         | _ => done := true
-      | .bar => group := group ++ [cur]; cur := []; i := i + 1
+      | .bar => group := group ++ [(cur, prec)]; cur := []; prec := none; i := i + 1
       | .semi => i := i + 1
       | .kw "%prec" =>
         match t.getD (i + 1) .semi with

@@ -443,9 +443,10 @@ def buildUniverse (E : PGrammar) : Except String (HFacts × UBuild × Array Comp
   let mut frags : Array (Nat × Nat) := #[]
   let mut f := 0
   while f < b.fragInner.size do
+    let before := b.keys.size
     let (fi, b1) := b.node (.fin f)
     let (en, b2) := b1.resolve (headTgt H b.fragInner[f]! fi)
-    b := b2.saturate H E 0
+    b := b2.saturate H E before
     frags := frags.push (en, fi)
     f := f + 1
   return (H, b, wits, frags)

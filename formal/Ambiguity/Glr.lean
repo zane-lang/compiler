@@ -23,9 +23,10 @@ def sourceGrammarAut (text : String) : Except String Automaton := do
 
 def GlrSound (text : String) (G : Automaton) : Prop :=
   AUnambiguous G ∧
-  ∀ S, sourceGrammarAut text = .ok S → ∃ rho : ATree → ATree,
+  ∃ S, sourceGrammarAut text = .ok S ∧ ∃ rho : ATree → ATree,
     (∀ t, Accepted G t → AWF S (rho t) ∧ (rho t).yield S = t.yield G ∧ S.lhs (rho t).prod = S.start) ∧
-    (∀ t₁ t₂, Accepted G t₁ → Accepted G t₂ → (rho t₁).yield S = (rho t₂).yield S → rho t₁ = rho t₂)
+    (∀ t₁ t₂, Accepted G t₁ → Accepted G t₂ → (rho t₁).yield S = (rho t₂).yield S → rho t₁ = rho t₂) ∧
+    (∀ t₁ t₂, Accepted G t₁ → Accepted G t₂ → rho t₁ = rho t₂ → t₁ = t₂)
 
 /-- Everything the producer computes for the GLR check; none of it is trusted. -/
 structure GlrEvidence where
@@ -50,10 +51,15 @@ theorem verifyGlr_sound (text : String) (G : Automaton) (g : GlrEvidence) (h : v
   unfold verifyGlr at h
   simp only [Bool.and_eq_true] at h
   have hU := verify_sound G g.ev h.1
-  refine ⟨hU, fun S hS => ?_⟩
-  have hc : checkCorr G S g.corr g.base g.eps = true := by
-    have := h.2; rw [hS] at this; exact this
-  exact ⟨rho S g.corr g.eps, glr_source G S g.corr g.base g.eps hc (verify_wf h.1) hU⟩
+  have h2 := h.2
+  cases hS : sourceGrammarAut text with
+  | error e => rw [hS] at h2; cases h2
+  | ok S =>
+    rw [hS] at h2
+    have hg := glr_source G S g.corr g.base g.eps h2 (verify_wf h.1) hU
+    refine ⟨hU, S, hS, rho S g.corr g.eps, hg.1, hg.2, fun t₁ t₂ h₁ h₂ he => ?_⟩
+    apply hU t₁ t₂ h₁ h₂
+    rw [← (hg.1 t₁ h₁).2.1, ← (hg.1 t₂ h₂).2.1, he]
 
 /-! ## Producer (unverified) -/
 

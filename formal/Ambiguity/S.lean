@@ -155,8 +155,7 @@ theorem le_sumL {α} {l : List α} {a : α} (h : a ∈ l) (f : α → S) : f a �
     | head => exact S.le_add_right _ _
     | tail _ h => exact S.le_trans (ih h) (S.le_add_left _ _)
 
-/-- A sum is bounded by `c` when every term is, provided at most one term is
-nonzero — used rarely; general sums need the post-fixpoint style instead. -/
+/-- Sums over `l` are equal when the summands agree on every element of `l`. -/
 theorem sumL_congr {α} (l : List α) {f g : α → S} (h : ∀ a ∈ l, f a = g a) :
     sumL l f = sumL l g := by
   induction l with

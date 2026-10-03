@@ -13,8 +13,8 @@ discharges.
 Both theorems count syntactic derivations, with semantic actions erased.
 
 **The source relation.** `SourceUnambiguous text` (`Ambiguity/Source.lean`)
-says that the parse relation `text` defines assigns at most one derivation to
-every token string. That relation is the set of trees accepted by the canonical
+says that `text` defines a parse relation, and that this relation assigns at
+most one derivation to every token string. That relation is the set of trees accepted by the canonical
 LR(1) automaton of the expanded grammar, with conflicts resolved by the
 precedence declarations as Menhir's manual specifies (§6.3); a severe conflict
 keeps all of its actions. Both halves are definitions in Lean:
@@ -37,7 +37,8 @@ says two things:
 - the trees `G` accepts are determined by their yields;
 - a function `rho` reads each accepted tree as a derivation of the expanded
   source grammar of `text`, rooted at its start symbol, with the same tokens,
-  and distinct accepted trees give derivations of distinct token strings.
+  and distinct accepted trees give distinct derivations of distinct token
+  strings.
 
 `verifyGlr_sound` proves it from a `true` answer of `verifyGlr text G ev`, which
 checks `G` and a correspondence between each of its productions and a source
@@ -78,7 +79,8 @@ zane-ambiguity-check prove-glr lib/cst/parser.mly <dir>/parser.automaton
 
 Each prints `VERIFIED` and exits 0, or prints `REJECTED` and exits nonzero. The
 two take about 3½ and 6 minutes. The `Grammar verification` workflow runs the
-recipe on every change to the grammar, `formal/`, or the recipe.
+recipe on every change to the grammar, `formal/`, or the recipe. It blocks a
+merge once the repository marks it as a required check.
 
 ## What remains assumed
 

@@ -160,13 +160,6 @@ def main (args : List String) : IO UInt32 := do
     let (E, _) := pquotient L.plain
     let er := E.rules.foldl (fun a rs => a + rs.length) 0
     say s!"exact: {E.rules.size} nonterminals, {er} rules"
-    let symName := fun (s : Sym) => match s with | .t a => a | .n y => s!"n{y}"
-    let mut txt := "%token X\n%start n0\n%%\n"
-    for x in List.range E.rules.size do
-      let rs := E.rulesOf x
-      if rs.isEmpty then continue
-      txt := txt ++ s!"n{x} : " ++ " | ".intercalate (rs.map fun r => " ".intercalate (r.map symName)) ++ " ;\n"
-    IO.FS.writeFile "/tmp/claude-0/lean-exact.y" txt
     let (H, ub, wits, frags) ← IO.ofExcept (buildUniverse E)
     say s!"horizontal: {wits.size} components, {H.lib.size} languages, {H.lib.foldl (fun a D => a + D.trans.size) 0} states"
     let M := ub.model frags

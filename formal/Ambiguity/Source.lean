@@ -15,8 +15,9 @@ namespace Ambiguity
 def sourceAutomaton (text : String) : Except String Automaton := do
   Lr1.canonical (← Mly.sourceGrammar text)
 
+/-- The file defines a parse relation, and that relation is unambiguous. -/
 def SourceUnambiguous (text : String) : Prop :=
-  ∀ A, sourceAutomaton text = .ok A → AUnambiguous A
+  ∃ A, sourceAutomaton text = .ok A ∧ AUnambiguous A
 
 def verifySource (text : String) (ev : Evidence) : Bool :=
   match sourceAutomaton text with
@@ -25,9 +26,11 @@ def verifySource (text : String) (ev : Evidence) : Bool :=
 
 theorem verifySource_sound (text : String) (ev : Evidence) (h : verifySource text ev = true) :
     SourceUnambiguous text := by
-  intro A hA
   unfold verifySource at h
-  rw [hA] at h
-  exact verify_sound A ev h
+  cases hA : sourceAutomaton text with
+  | error e => rw [hA] at h; cases h
+  | ok A =>
+    rw [hA] at h
+    exact ⟨A, hA, verify_sound A ev h⟩
 
 end Ambiguity

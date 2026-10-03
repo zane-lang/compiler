@@ -13,8 +13,9 @@ assume:
   which are cross-checked against Menhir.
 - That Menhir's generated GLR parser accepts the trees of its dumped automaton.
 
-All four milestones below are complete. Each one ends with a status line naming
-where its evidence lives.
+The four milestones below are complete in the repository. One step is left:
+the repository setting that makes the CI check required (milestone 4). Each
+milestone ends with a status line naming where its evidence lives.
 
 `ambiguity prove-visible` remains the fast, unverified implementation of the
 same construction ([visible-proof.md](visible-proof.md)). It is useful while
@@ -147,11 +148,14 @@ pipeline as the earlier milestones become available.
 a certificate for a different source snapshot. CI preserves the exact source,
 tool versions, verified evidence, and stated assumptions for review.
 
-**Status: done.** `.github/workflows/ambiguity-verify.yml` runs
-`just verify-grammar`. It triggers on changes to the grammar, `formal/`, the
-justfile or the workflow itself, and uploads the run's report. The checker
+**Status: done in the repository; one setting remains.**
+`.github/workflows/ambiguity-verify.yml` runs `just verify-grammar`. It triggers
+on changes to the grammar, `formal/`, the justfile or the workflow itself, and
+uploads the run's report. Its actions are pinned to commit SHAs, its Lean
+installer to a digest, and Lean itself to `formal/lean-toolchain`. The checker
 reads `parser.mly` directly, so no certificate can describe a different
-snapshot. Marking the check as required is a repository setting.
+snapshot. The remaining step is the repository setting that marks the check as
+required for merging; until then, a red run is visible but does not block.
 
 ## Recommended order and reporting
 
