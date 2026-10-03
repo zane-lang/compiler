@@ -1,0 +1,43 @@
+/// Guests written out with `&` (memory.md §2.6): minted from a host, copied
+/// from a guest, passed, and following the host when it is overwritten.
+/// `@program$console` passed where a guest is wanted. Each check prints
+/// `yes` when it holds and `no` when it does not.
+package references;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(~ok, { @program$console!print(no); });
+	return Unit();
+}
+
+type Person = #struct {
+	age Int;
+}
+
+Person(age Int) => init{ age; }
+
+Int age(p &Person) => p.age
+
+Unit pass(c &@runtime$Console) {
+	return Unit();
+}
+
+Unit main() {
+	a Person(Int(3));
+	g &Person = &a;
+	check(age(&a) + g.age == Int(6));
+	h &Person = &g;
+	b Person(Int(4));
+	a = b;
+	check(h.age == Int(4));
+	pass(@program$console);
+	pass(@program$console);
+	return Unit();
+}

@@ -9,16 +9,17 @@ reach the CGT in [`lowering.md`](lowering.md) L4.
 ## Where an instance lives
 
 An instance belongs to the **home package of the generic**. When the compiler
-meets `List<Int>`, it asks `List`'s package to provide that instance. It does
-not build a private copy for the package that used it. So:
+meets `List<Int>`, it asks `List`'s package for that instance, and the
+instance is named there, whichever package used it. So:
 
-- each instance exists exactly once, however many packages use it;
-- every variant of a generic lives in one predictable place, next to the
+- each instance exists exactly once in a linked program, however many
+  packages use it;
+- every variant of a generic is named in one predictable place, next to the
   generic itself, instead of being spread across its callers.
 
-For now, the compiler builds the whole program as one module. Home-package
-placement starts to matter once packages are compiled separately. The plan
-already fits that model: an instance is asked for, and never copied.
+Once packages compile separately, the object that needs an instance emits it
+under its home package's name, and the linker keeps one copy
+([`separate-compilation.md`](separate-compilation.md) C4).
 
 ## What an instance is called
 

@@ -3,6 +3,7 @@ module Ty = Ty
 module Signature = Signature
 module Nodes = Nodes
 module Exits = Exits
+module Intrinsics = Intrinsics
 module Semantics = Semantics
 
 let check = Semantics.check

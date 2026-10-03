@@ -1,0 +1,19 @@
+/// geometry at its second version, which the program depends on: a point of
+/// three coordinates, so its layout differs from the first version's.
+package geometry;
+
+alias Int = @primitives$Int
+
+type Point = struct {
+	x Int;
+	y Int;
+	z Int;
+}
+
+Point(x Int, y Int, z Int) => init{ x; y; z; }
+
+Int size(this Point) => this.x + this.y + this.z
+
+Int version() => Int(2)
+
+T same(value T Type) => value

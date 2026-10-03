@@ -1,0 +1,14 @@
+                 (undefined) external _zane_constant_begin
+                 (undefined) external _zane_constant_end
+0000000000000000 (__TEXT,__text) external _v1.0.1%3f9a1c02b7e4d6a8%geometry$Point(%primitives$Int, %primitives$Int)
+0000000000000020 (__TEXT,__text) external _v1.0.1%3f9a1c02b7e4d6a8%geometry$sum(this v1.0.1%3f9a1c02b7e4d6a8%geometry$Point)
+0000000000000040 (__TEXT,__text) external _v1.0.1%3f9a1c02b7e4d6a8%geometry$area(%primitives$Int, %primitives$Int)
+0000000000000070 (__TEXT,__text) external _v1.0.1%3f9a1c02b7e4d6a8%geometry$_product(%primitives$Int, %primitives$Int)
+0000000000000090 (__TEXT,__text) external _v1.0.1%3f9a1c02b7e4d6a8%geometry$twice(%primitives$Int)
+00000000000000d0 (__TEXT,__text) external _v1.0.1%3f9a1c02b7e4d6a8%geometry$double
+00000000000000e0 (__TEXT,__text) external _v1.0.1%3f9a1c02b7e4d6a8%geometry$scaled(%primitives$Int)
+0000000000000110 (__TEXT,__text) weak external _v1.0.1%3f9a1c02b7e4d6a8%geometry$same<%primitives$Int>(%primitives$Int)
+0000000000000120 (__TEXT,__text) weak external _v1.0.1%3f9a1c02b7e4d6a8%geometry$unit
+0000000000000168 (__TEXT,__const) non-external l_%primitives$Int
+0000000000000170 (__DATA,__data) weak external _v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.value
+0000000000000178 (__DATA,__data) weak external _v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.state

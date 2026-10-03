@@ -23,8 +23,15 @@ test: test-compiler test-grammar test-ambiguity-tools
 # Promote an intended move with `just promote`.
 test-compiler: _require-menhir
 	dune build bin/zanec/zanec.exe
-	dune runtest tests/parser tests/semantics tests/codegen tests/runtime
+	dune runtest tests/parser tests/semantics tests/codegen tests/runtime tests/objects
 	python3 -m unittest tests.parser.syntax_test -v
+
+# The test programs built for Windows and run under Wine, as CI runs them on
+# Windows itself (docs/design/platforms.md). Needs `zig` and `wine64`; set
+# RUNNER to run them some other way.
+test-windows:
+	dev/bin/windows-programs _build/windows-programs
+	RUNNER="${RUNNER:-wine64}" dev/bin/check-programs _build/windows-programs
 
 # The grammar's ambiguity regressions: token sequences with a fixed number of
 # derivations, and the tree each unambiguous one groups to. A few seconds per

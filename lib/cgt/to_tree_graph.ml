@@ -106,6 +106,7 @@ let rec expr (e : Expr.t) =
       group "box" (fields [ ("value", expr value); ("layout", layout l) ])
   | Expr.Layout l -> Leaf ("layout " ^ l)
   | Expr.Function fn -> Leaf ("function " ^ fn)
+  | Expr.Global g -> Leaf ("global " ^ g)
   | Expr.Snapshot p ->
       group "snapshot" (fields [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("ptr", expr p) ])
   | Expr.Escape { value; layout = l; exit } ->
@@ -212,18 +213,38 @@ and stat = function
              | None -> [])))
   | Stat.Join task -> Leaf (Printf.sprintf "join #%d" task)
 
+(* A function local to its object, as every function of a program is, says
+   nothing about its linkage. *)
+let linkage (f : Func.t) =
+  match f.Func.linkage with
+  | Linkage.Local -> []
+  | Linkage.Exported -> [ ("linkage", Leaf "exported") ]
+  | Linkage.Shared -> [ ("linkage", Leaf "shared") ]
+  | Linkage.Imported -> [ ("linkage", Leaf "imported") ]
+
+let global (g : Global.t) =
+  let linkage =
+    match g.Global.linkage with
+    | Linkage.Local -> ""
+    | Linkage.Exported -> ", exported"
+    | Linkage.Shared -> ", shared"
+    | Linkage.Imported -> ", imported"
+  in
+  Leaf (Printf.sprintf "%s : %s%s" g.Global.symbol (Ty.to_string g.Global.ty) linkage)
+
 let func (f : Func.t) =
   group "func"
     (fields
-       [
-         ("symbol", Leaf f.Func.symbol);
+       ([ ("symbol", Leaf f.Func.symbol) ]
+       @ linkage f
+       @ [
          ( "params",
            map_seq
              (fun (id, t) -> Leaf (Printf.sprintf "local #%d : %s" id (Ty.to_string t)))
              f.Func.params );
          ("ret", Leaf (Ty.to_string f.Func.ret));
          ("body", map_seq stat f.Func.body);
-       ])
+       ]))
 
 let program (p : Program.t) =
   let named (name, ps) =
@@ -231,8 +252,9 @@ let program (p : Program.t) =
   in
   group "program"
     (fields
-       [
-         ("entry", Leaf p.Program.entry);
+       ((match p.Program.entry with Some e -> [ ("entry", Leaf e) ] | None -> [])
+       @ [
          ("layouts", map_seq named p.Program.layouts);
-         ("funcs", map_seq func p.Program.funcs);
-       ])
+       ]
+       @ (match p.Program.globals with [] -> [] | gs -> [ ("globals", map_seq global gs) ])
+       @ [ ("funcs", map_seq func p.Program.funcs) ]))

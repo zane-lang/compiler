@@ -6,7 +6,7 @@ type stage = Cst | Sst
 
 (* What the binary was asked to do. One file is enough for the first two
    stages, which never look past it. Semantics takes packages instead
-   (docs/design/semantics.md §2): each `--package DIR` names one, and the first
+   (docs/design/semantics.md §2): each `--package` names one, and the first
    is the root.
 
    A package build prints one of three views: the packages it assembled (the
@@ -14,12 +14,50 @@ type stage = Cst | Sst
    them (`--decls`), or the whole typed tree (`--tst`). Past semantics it
    prints the code-generation tree (`--cgt`) or the LLVM module (`--ll`), or
    builds the program into an executable (`--build OUT`,
-   docs/design/lowering.md §7). *)
-type view = Assembled | Declarations | Typed | Cgt | Ir | Build of string
+   docs/design/lowering.md §7) or the root package into an object file
+   (`--object OUT`, docs/design/separate-compilation.md C3). A package's
+   stamp names its symbols with its version and identity (C6), `--import`
+   says which package each of a package's import keys names (C10), and
+   `--link` adds a stamped dependency's object to the link (C7). `--check`
+   runs semantics and prints nothing, so its exit status and diagnostics are
+   the whole answer. *)
+type view = Assembled | Check | Declarations | Typed | Cgt | Ir | Build of string | Object of string
 
+(* What the root package is (packages.md §6.2): an application has a `main`
+   to start from, and a library does not become an executable. Without
+   `--kind`, `main` is required only to build. A library lowers from every
+   function it declares, with its symbols carrying the `!` placeholder
+   (docs/design/separate-compilation.md C5). *)
+type kind = Application | Library
+
+type build = {
+  view : view;
+  kind : kind option;
+  (* The LLVM target triple to compile for; the host's when absent. *)
+  target : string option;
+  (* Whether `--ll`, `--build` and `--object` optimize. A program means the same either
+     way; an unoptimized build is the faster one to make. *)
+  optimize : bool;
+  packages : Tst.Assembly.request list;
+  (* Stamps given by package name, the objects `--build` links with the
+     program, and each package's import keys, as the importing package, the
+     key and the imported package (docs/design/separate-compilation.md C6,
+     C7, C10). *)
+  stamps : (string * string) list;
+  link : string list;
+  imports : (string * string * string) list;
+}
+
+(* `--rewrite STAMP INPUT OUTPUT` is fetching's step, not a build's: a
+   library's object, built under the `!` placeholder, written out with the
+   placeholder turned into the stamp (docs/design/separate-compilation.md
+   C9). `--remap FROM TO INPUT OUTPUT` is remapping's: an object written out
+   with its references to one version of a package moved to another (C11). *)
 type request =
   | File of stage * (string * string)
-  | Packages of view * string list
+  | Packages of build
+  | Rewrite of { stamp : string; input : string; output : string }
+  | Remap of { from : string; to_ : string; input : string; output : string }
 
 let read_file path =
   try In_channel.with_open_text path In_channel.input_all
@@ -29,8 +67,15 @@ let read_file path =
 
 let usage () =
   prerr_endline "usage: zanec [--cst|--sst] (SOURCE|-)";
-  prerr_endline "       zanec [--decls|--tst|--cgt|--ll] --package DIR [--package DIR ...]";
-  prerr_endline "       zanec --build OUT --package DIR [--package DIR ...]";
+  prerr_endline
+    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT|--object OUT]";
+  prerr_endline "             [--kind application|library]";
+  prerr_endline
+    "             [--target TRIPLE] [--optimize] [--stamp NAME=STAMP ...] [--link FILE ...]";
+  prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
+  prerr_endline "             --package [[STAMP]NAME=]DIR [--package [[STAMP]NAME=]DIR ...]";
+  prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
+  prerr_endline "       zanec --remap FROM TO INPUT OUTPUT";
   exit 2
 
 (* The name reported in parse errors travels with the text, so reading from
@@ -38,6 +83,53 @@ let usage () =
 let read = function
   | "-" -> ("<stdin>", In_channel.input_all In_channel.stdin)
   | path -> (path, read_file path)
+
+(* A package name as lexical.md §3 spells one: camelCase, so a lowercase
+   letter and then letters and digits. *)
+let is_package_name name =
+  name <> ""
+  && (match name.[0] with 'a' .. 'z' -> true | _ -> false)
+  && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> true | _ -> false) name
+
+(* A package as `--package` and `--import` name it: a package name, after
+   its stamp when it has one, as `v1.0.1%3f9a1c02b7e4d6a8%math`. *)
+let package_id id =
+  match String.rindex_opt id '%' with
+  | None -> if is_package_name id then Some (None, id) else None
+  | Some i ->
+      let stamp = String.sub id 0 (i + 1) and name = String.sub id (i + 1) (String.length id - i - 1) in
+      if Rewrite.is_stamp stamp && is_package_name name then Some (Some stamp, name) else None
+
+(* `NAME=DIR` names the package, as its manifest does (packages.md §2.1),
+   and `STAMPNAME=DIR` gives it its stamp as well; a bare `DIR` is named
+   after the directory. A path that itself holds a `=` is still a path,
+   since what comes before the `=` then is no name. *)
+let package_request argument =
+  let whole = { Tst.Assembly.manifest_name = None; directory = argument; stamp = None } in
+  match String.index_opt argument '=' with
+  | Some i -> (
+      match package_id (String.sub argument 0 i) with
+      | Some (stamp, name) ->
+          {
+            Tst.Assembly.manifest_name = Some name;
+            directory = String.sub argument (i + 1) (String.length argument - i - 1);
+            stamp;
+          }
+      | None -> whole)
+  | None -> whole
+
+(* `PACKAGE:KEY=PACKAGE`: the package that imports, the key it imports by,
+   and the package the key names (dependencies.md §8). *)
+let import_request argument =
+  match (String.index_opt argument ':', String.index_opt argument '=') with
+  | Some colon, Some equals when colon < equals ->
+      let from = String.sub argument 0 colon
+      and key = String.sub argument (colon + 1) (equals - colon - 1)
+      and target = String.sub argument (equals + 1) (String.length argument - equals - 1) in
+      if package_id from <> None && is_package_name key && package_id target <> None then
+        Some (from, key, target)
+      else None
+  | _ -> None
 
 let arguments () =
   let rec go stage rest =
@@ -54,21 +146,90 @@ let arguments () =
         File (stage, read source)
     | _ -> usage ()
   in
-  (* A package build takes nothing but `--package` flags after its view: a
-     tree flag or a single source alongside them would ask for two different
-     runs at once. *)
-  let rec packages view dirs = function
-    | [] -> if dirs = [] then usage () else Packages (view, List.rev dirs)
-    | "--package" :: dir :: rest -> packages view (dir :: dirs) rest
+  (* A package build takes its options in any order, each at most once, and at
+     least one `--package`. A tree flag or a single source alongside them would
+     ask for two different runs at once. *)
+  (* A value never starts with `-`, so a value left out cannot swallow the
+     next flag: `--build --package d` is a usage error, not an executable
+     named `--package`. *)
+  let is_value v = not (String.starts_with ~prefix:"-" v) in
+  let rec packages view build = function
+    | [] ->
+        let view = Option.value view ~default:Assembled in
+        if build.packages = [] then usage ()
+        else if build.link <> [] && (match view with Build _ -> false | _ -> true) then usage ()
+        else
+          Packages
+            {
+              build with
+              view;
+              packages = List.rev build.packages;
+              stamps = List.rev build.stamps;
+              link = List.rev build.link;
+              imports = List.rev build.imports;
+            }
+    | "--package" :: dir :: rest when is_value dir ->
+        packages view { build with packages = package_request dir :: build.packages } rest
+    | "--kind" :: kind :: rest when build.kind = None && is_value kind ->
+        let kind =
+          match kind with "application" -> Application | "library" -> Library | _ -> usage ()
+        in
+        packages view { build with kind = Some kind } rest
+    | "--target" :: target :: rest when build.target = None && is_value target ->
+        packages view { build with target = Some target } rest
+    | "--optimize" :: rest when not build.optimize ->
+        packages view { build with optimize = true } rest
+    | "--build" :: output :: rest when view = None && is_value output ->
+        packages (Some (Build output)) build rest
+    | "--object" :: output :: rest when view = None && is_value output ->
+        packages (Some (Object output)) build rest
+    | "--stamp" :: stamp :: rest when is_value stamp -> (
+        match String.index_opt stamp '=' with
+        | Some i when i + 1 < String.length stamp ->
+            let name = String.sub stamp 0 i in
+            if is_package_name name && not (List.mem_assoc name build.stamps) then
+              let value = String.sub stamp (i + 1) (String.length stamp - i - 1) in
+              packages view { build with stamps = (name, value) :: build.stamps } rest
+            else usage ()
+        | _ -> usage ())
+    | "--link" :: file :: rest when is_value file ->
+        packages view { build with link = file :: build.link } rest
+    | "--import" :: import :: rest when is_value import -> (
+        match import_request import with
+        | Some i -> packages view { build with imports = i :: build.imports } rest
+        | None -> usage ())
+    | flag :: rest when view = None -> (
+        match flag with
+        | "--check" -> packages (Some Check) build rest
+        | "--decls" -> packages (Some Declarations) build rest
+        | "--tst" -> packages (Some Typed) build rest
+        | "--cgt" -> packages (Some Cgt) build rest
+        | "--ll" -> packages (Some Ir) build rest
+        | _ -> usage ())
     | _ -> usage ()
   in
+  let empty =
+    {
+      view = Assembled;
+      kind = None;
+      target = None;
+      optimize = false;
+      packages = [];
+      stamps = [];
+      link = [];
+      imports = [];
+    }
+  in
   match List.tl (Array.to_list Sys.argv) with
-  | "--package" :: _ as rest -> packages Assembled [] rest
-  | "--decls" :: rest -> packages Declarations [] rest
-  | "--tst" :: rest -> packages Typed [] rest
-  | "--cgt" :: rest -> packages Cgt [] rest
-  | "--ll" :: rest -> packages Ir [] rest
-  | "--build" :: output :: rest -> packages (Build output) [] rest
+  | [ "--rewrite"; stamp; input; output ] when List.for_all is_value [ stamp; input; output ] ->
+      Rewrite { stamp; input; output }
+  | [ "--remap"; from; to_; input; output ]
+    when List.for_all is_value [ from; to_; input; output ] ->
+      Remap { from; to_; input; output }
+  | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
+    | "--link" | "--import" | "--check" | "--decls" | "--tst" | "--cgt" | "--ll" )
+    :: _ as rest ->
+      packages None empty rest
   | rest -> go Cst rest
 
 let run_file stage (filename, input) =
@@ -87,8 +248,8 @@ let run_file stage (filename, input) =
 (* Lowering and codegen, once semantics has accepted the program. Lowering
    refuses what it cannot handle yet with a diagnostic rather than lowering it
    wrongly (docs/design/lowering.md). *)
-let generate packages view program =
-  match Cgt.lower program with
+let generate packages build program =
+  match Cgt.lower ~library:(build.kind = Some Library) program with
   | Error (Cgt.Lower.Diagnostic d) ->
       prerr_string (Tst.render_diagnostic packages d);
       exit 1
@@ -96,50 +257,175 @@ let generate packages view program =
       prerr_endline ("Error: " ^ m);
       exit 1
   | Ok cgt -> (
-      match view with
+      let fail message =
+        prerr_endline ("Error: " ^ message);
+        exit 1
+      in
+      match build.view with
       | Cgt -> print_string (Tree_graph.render (Cgt.to_node cgt))
-      | Ir ->
+      | Ir -> (
           let m = Codegen.emit cgt in
-          Codegen.prepare m;
-          print_string (Codegen.ir m)
+          match Codegen.prepare ?target:build.target ~optimize:build.optimize m with
+          | Ok () -> print_string (Codegen.ir m)
+          | Error message -> fail message)
       | Build output -> (
-          match Codegen.executable (Codegen.emit cgt) output with
+          match
+            Codegen.executable ?target:build.target ~optimize:build.optimize ~link:build.link
+              (Codegen.emit cgt) output
+          with
           | Ok () -> ()
-          | Error message ->
-              prerr_endline ("Error: " ^ message);
-              exit 1)
-      | Assembled | Declarations | Typed -> ())
+          | Error message -> fail message)
+      | Object output -> (
+          match
+            Codegen.object_file ?target:build.target ~optimize:build.optimize (Codegen.emit cgt)
+              output
+          with
+          | Ok () -> ()
+          | Error message -> fail message)
+      | Assembled | Check | Declarations | Typed -> ())
+
+(* An application starts from `main` (packages.md §6.2), so one without it is
+   an error however far the build goes. Without `--kind`, lowering still
+   refuses to build a root with no `main`; this says so as soon as semantics
+   has run, and for `--check` too. *)
+let check_kind build (program : Tst.Nodes.Program.t) =
+  match (build.kind, program.Tst.Nodes.Program.packages) with
+  | Some Application, root :: _ ->
+      let declares_main =
+        List.exists
+          (fun (d : Tst.Nodes.Decl.t) ->
+            match d.Tst.Nodes.Decl.node with
+            | Tst.Nodes.Decl.Verb { signature; _ } -> signature.Tst.Signature.name = "main"
+            | _ -> false)
+          root.Tst.Nodes.Package.decls
+      in
+      if not declares_main then begin
+        prerr_endline
+          (Printf.sprintf "Error: the application `%s` declares no `main` to start from"
+             root.Tst.Nodes.Package.name);
+        exit 1
+      end
+  | _ -> ()
+
+(* `--stamp NAME=STAMP` gives the one package named NAME its stamp. A stamp
+   for a package the build does not have would be dropped silently, and the
+   package it was meant for compiled into the root's object rather than
+   linked from its own; one for a name two packages have would pick between
+   them. *)
+let with_stamps stamps requests =
+  List.fold_left
+    (fun requests (name, stamp) ->
+      let named (r : Tst.Assembly.request) =
+        r.Tst.Assembly.stamp = None && String.equal (Tst.Assembly.name_of r) name
+      in
+      match List.filter named requests with
+      | [ _ ] ->
+          List.map
+            (fun r -> if named r then { r with Tst.Assembly.stamp = Some stamp } else r)
+            requests
+      | [] ->
+          prerr_endline
+            (Printf.sprintf "Error: `--stamp %s=...` names no package given with `--package`" name);
+          exit 1
+      | _ ->
+          prerr_endline
+            (Printf.sprintf
+               "Error: `--stamp %s=...` names more than one package; give each its stamp with `--package STAMP%s=DIR`"
+               name name);
+          exit 1)
+    requests stamps
 
 (* Semantics reports every problem it finds (docs/design/semantics.md D4) and
    prints no tree when there is one, since a tree with holes in it is not what
    either view promises. *)
-let run_packages view dirs =
-  match Tst.Assembly.assemble dirs with
+let run_packages build =
+  (match (build.kind, build.view) with
+  | Some Library, Build _ ->
+      prerr_endline "Error: a library is not built into an executable; check it with `--check`";
+      exit 1
+  | _ -> ());
+  match
+    Tst.Assembly.assemble_requests ~imports:build.imports (with_stamps build.stamps build.packages)
+  with
   | Error problems ->
       List.iter
         (fun problem -> prerr_string (Tst.Assembly.render_problem problem))
         problems;
       exit 1
   | Ok packages -> (
-      match view with
+      match build.view with
       | Assembled ->
           print_string (Tree_graph.render (Tst.Assembly.to_node packages))
-      | Declarations | Typed | Cgt | Ir | Build _ -> (
+      | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ -> (
           let result = Tst.check packages in
           match result.Tst.Semantics.diagnostics with
           | [] -> (
               let program = result.Tst.Semantics.program in
-              match view with
+              check_kind build program;
+              match build.view with
+              | Check -> ()
               | Declarations | Typed ->
-                  print_string (Tree_graph.render (Tst.to_node ~bodies:(view = Typed) program))
-              | _ -> generate packages view program)
+                  print_string
+                    (Tree_graph.render (Tst.to_node ~bodies:(build.view = Typed) program))
+              | _ -> generate packages build program)
           | diagnostics ->
               List.iter
                 (fun d -> prerr_string (Tst.render_diagnostic packages d))
                 diagnostics;
               exit 1))
 
+(* The output is written only once the whole object has been rewritten, so a
+   malformed input leaves nothing behind. It is written beside OUTPUT and
+   renamed into place, so a failed write leaves an existing OUTPUT, or the
+   INPUT it may be, as it was. *)
+let run_rewrite ~stamps ~rewrite ~input ~output =
+  let fail message =
+    prerr_endline ("Error: " ^ message);
+    exit 1
+  in
+  List.iter
+    (fun stamp ->
+      if not (Rewrite.is_stamp stamp) then
+        fail
+          (Printf.sprintf
+             "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
+             stamp))
+    stamps;
+  (match stamps with
+  | [ from; to_ ] when not (Rewrite.same_package from to_) ->
+      fail
+        (Printf.sprintf
+           "`%s` and `%s` are versions of two packages, since their identity hashes differ; \
+            remapping moves references between versions of one package"
+           from to_)
+  | _ -> ());
+  let contents =
+    try In_channel.with_open_bin input In_channel.input_all
+    with Sys_error message -> fail message
+  in
+  match rewrite contents with
+  | Error message -> fail (input ^ ": " ^ message)
+  | Ok (rewritten, _) -> (
+      Random.self_init ();
+      let temporary =
+        Filename.concat (Filename.dirname output)
+          (Printf.sprintf ".%s.%08x" (Filename.basename output) (Random.bits ()))
+      in
+      try
+        Out_channel.with_open_gen
+          [ Open_wronly; Open_creat; Open_excl; Open_binary ]
+          0o666 temporary
+          (fun oc -> output_string oc rewritten);
+        Sys.rename temporary output
+      with Sys_error message ->
+        (try Sys.remove temporary with Sys_error _ -> ());
+        fail (Printf.sprintf "cannot write `%s`: %s" output message))
+
 let () =
   match arguments () with
   | File (stage, input) -> run_file stage input
-  | Packages (view, dirs) -> run_packages view dirs
+  | Packages build -> run_packages build
+  | Rewrite { stamp; input; output } ->
+      run_rewrite ~stamps:[ stamp ] ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
+  | Remap { from; to_; input; output } ->
+      run_rewrite ~stamps:[ from; to_ ] ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output

@@ -35,13 +35,17 @@ let lookup ctx span (l : T.Local.t) =
   | Some b -> b
   | None -> refuse span (Printf.sprintf "lowering found no slot for `%s`" l.T.Local.name)
 
-(* A literal, read through the concept parameters it was passed on by. *)
+(* A literal, read through the concept parameters it was passed on by. A
+   number parameter read in a body is the number its instance was given
+   (generics.md §3.5), which is an integer literal. *)
 let rec literal_of ctx (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> (
       match lookup ctx e.T.Expr.span l with
       | Literal lit -> literal_of ctx lit
       | _ -> e)
+  | T.Expr.Var (T.Name_ref.Number_param { value = Tst.Ty.Known n; _ }) ->
+      { e with T.Expr.node = T.Expr.Integer_lit (string_of_int n) }
   | _ -> e
 
 (* A numeric literal's digits, without the `'` that only separates groups of
@@ -54,7 +58,11 @@ let literal ctx span name (arg : T.Expr.t) : Expr.t =
   | "Int", T.Expr.Integer_lit s | "I64", T.Expr.Integer_lit s -> (
       match Int64.of_string_opt (digits s) with
       | Some i -> { Expr.node = Expr.Int i; ty = Nodes.Ty.I64 }
-      | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$Int`" s))
+      | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$%s`" s name))
+  | "I32", T.Expr.Integer_lit s -> (
+      match Int32.of_string_opt (digits s) with
+      | Some i -> { Expr.node = Expr.Int (Int64.of_int32 i); ty = Nodes.Ty.I32 }
+      | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$I32`" s))
   | "Float", T.Expr.Decimal_lit s ->
       let value = float_of_string (digits s) in
       if Float.is_finite value then { Expr.node = Expr.Float value; ty = Nodes.Ty.F64 }

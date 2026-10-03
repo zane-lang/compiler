@@ -69,6 +69,110 @@
  (action
   (diff golden/assembly.reject.err assembly.reject.err.actual)))
 
+; A project as `zane` hands it over (docs/design/cli.md in zane-lang/zane): the
+; sources in `src/`, named by the manifest with `--package NAME=DIR`, and the
+; root's kind given with `--kind`. `project.app` checks an application
+; quietly. The others each fail one way: an application without `main`, a
+; library asked to become an executable, a file declaring a package other
+; than the one its manifest names, and a target LLVM does not know.
+
+(rule
+ (deps (source_tree fixtures/project/app))
+ (action
+  (with-outputs-to
+   project.app.check.actual
+   (run
+    %{exe:../../bin/zanec/zanec.exe}
+    --check
+    --kind
+    application
+    --package
+    demo=fixtures/project/app/src))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/project.app.check project.app.check.actual)))
+
+(rule
+ (deps (source_tree fixtures/project/lib))
+ (action
+  (with-outputs-to
+   project.no-main.err.actual
+   (with-accepted-exit-codes
+    1
+    (run
+     %{exe:../../bin/zanec/zanec.exe}
+     --check
+     --kind
+     application
+     --package
+     geometry=fixtures/project/lib/src)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/project.no-main.err project.no-main.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/project/lib))
+ (action
+  (with-outputs-to
+   project.library-build.err.actual
+   (with-accepted-exit-codes
+    1
+    (run
+     %{exe:../../bin/zanec/zanec.exe}
+     --build
+     geometry.exe
+     --kind
+     library
+     --package
+     geometry=fixtures/project/lib/src)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/project.library-build.err project.library-build.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/project/wrong))
+ (action
+  (with-outputs-to
+   project.wrong-name.err.actual
+   (with-accepted-exit-codes
+    1
+    (run
+     %{exe:../../bin/zanec/zanec.exe}
+     --check
+     --package
+     demo=fixtures/project/wrong/src)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/project.wrong-name.err project.wrong-name.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/project/app))
+ (action
+  (with-outputs-to
+   project.bad-target.err.actual
+   (with-accepted-exit-codes
+    1
+    (run
+     %{exe:../../bin/zanec/zanec.exe}
+     --ll
+     --target
+     nowhere-unknown-none
+     --package
+     demo=fixtures/project/app/src)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/project.bad-target.err project.bad-target.err.actual)))
+
 ; Stage 3 proper (docs/design/semantics.md §3). `typing/accept` is a build that checks: the
 ; root `app`, and a second package `shapes` whose methods, operators and
 ; implicit constructors travel with its types. Its `--decls` view is what

@@ -1,0 +1,450 @@
+; Libraries built into objects of their own
+; (docs/design/separate-compilation.md). README.md says what each fixture is
+; for. A library's code-generation tree shows each function's linkage, and
+; its object's defined symbols are listed by `nm`, without their addresses.
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (action
+  (with-stdout-to
+   geometry.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --cgt --package fixtures/geometry))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/geometry.cgt geometry.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object geometry.o --package fixtures/geometry)))
+
+(rule
+ (deps (source_tree fixtures/atlas) (source_tree fixtures/geometry))
+ (targets atlas.o)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --kind
+   library
+   --object
+   atlas.o
+   --package
+   fixtures/atlas
+   --package
+   fixtures/geometry)))
+
+(rule
+ (action
+  (with-stdout-to
+   geometry.symbols.actual
+   (system "nm --defined-only %{dep:geometry.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/geometry.symbols geometry.symbols.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   atlas.symbols.actual
+   (system "nm --defined-only %{dep:atlas.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/atlas.symbols atlas.symbols.actual)))
+
+; geometry built on its own with its stamp, as a dependency compiled from
+; source is, and survey built against it: survey's object declares
+; geometry's verbs and makes the instance it needs, and the program links
+; with geometry's object.
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.stamped.o)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --kind
+   library
+   --stamp
+   geometry=v1.0.1%3f9a1c02b7e4d6a8%
+   --object
+   geometry.stamped.o
+   --package
+   fixtures/geometry)))
+
+(rule
+ (deps (source_tree fixtures/survey) (source_tree fixtures/geometry))
+ (targets survey.o)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --stamp
+   geometry=v1.0.1%3f9a1c02b7e4d6a8%
+   --object
+   survey.o
+   --package
+   fixtures/survey
+   --package
+   fixtures/geometry)))
+
+(rule
+ (action
+  (with-stdout-to
+   survey.symbols.actual
+   (system "nm %{dep:survey.o} | sed 's/^ *[0-9a-f]* //' | grep -v ' [.]L' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/survey.symbols survey.symbols.actual)))
+
+(rule
+ (deps (source_tree fixtures/survey) (source_tree fixtures/geometry))
+ (targets survey.exe)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --stamp
+   geometry=v1.0.1%3f9a1c02b7e4d6a8%
+   --link
+   %{dep:geometry.stamped.o}
+   --build
+   survey.exe
+   --package
+   fixtures/survey
+   --package
+   fixtures/geometry)))
+
+(rule
+ (action
+  (with-stdout-to
+   survey.out.actual
+   (run ./survey.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/survey.out survey.out.actual)))
+
+; geometry's placeholder object rewritten as fetching rewrites a release's
+; (docs/design/separate-compilation.md C9). It defines exactly what the
+; object built from source with the same stamp does, and survey links with
+; it as with that one.
+
+(rule
+ (targets geometry.rewritten.o)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --rewrite
+   v1.0.1%3f9a1c02b7e4d6a8%
+   %{dep:geometry.o}
+   geometry.rewritten.o)))
+
+(rule
+ (action
+  (with-stdout-to
+   geometry.rewritten.symbols
+   (system "nm --defined-only %{dep:geometry.rewritten.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (action
+  (with-stdout-to
+   geometry.stamped.symbols
+   (system "nm --defined-only %{dep:geometry.stamped.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff geometry.stamped.symbols geometry.rewritten.symbols)))
+
+(rule
+ (deps (source_tree fixtures/survey) (source_tree fixtures/geometry))
+ (targets survey.rewritten.exe)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --stamp
+   geometry=v1.0.1%3f9a1c02b7e4d6a8%
+   --link
+   %{dep:geometry.rewritten.o}
+   --build
+   survey.rewritten.exe
+   --package
+   fixtures/survey
+   --package
+   fixtures/geometry)))
+
+(rule
+ (action
+  (with-stdout-to
+   survey.rewritten.out
+   (run ./survey.rewritten.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/survey.out survey.rewritten.out)))
+
+; geometry rewritten for macOS (Mach-O) and Windows (COFF) objects, each
+; held to the object built from source with the same stamp for that target.
+; `llvm-nm` reads both formats, where GNU `nm` reads neither everywhere, and
+; `-m` spells out a Mach-O symbol's kind. The x86-64 listings are also
+; golden: a shared instance is a `weak external` on Mach-O, and on COFF a
+; function in a COMDAT, which `llvm-nm` lists as `T` with no `.weak.` alias
+; beside it.
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.macos-x86_64.o geometry.macos-x86_64.stamped.o)
+ (action
+  (progn
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-apple-macosx11.0.0 --object geometry.macos-x86_64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-apple-macosx11.0.0 --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.macos-x86_64.stamped.o --package fixtures/geometry))))
+
+(rule
+ (targets geometry.macos-x86_64.rewritten.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --rewrite v1.0.1%3f9a1c02b7e4d6a8% %{dep:geometry.macos-x86_64.o} geometry.macos-x86_64.rewritten.o)))
+
+(rule
+ (action
+  (with-stdout-to geometry.macos-x86_64.rewritten.symbols
+   (system "llvm-nm -m %{dep:geometry.macos-x86_64.rewritten.o} | LC_ALL=C sort"))))
+
+(rule
+ (action
+  (with-stdout-to geometry.macos-x86_64.stamped.symbols
+   (system "llvm-nm -m %{dep:geometry.macos-x86_64.stamped.o} | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action (diff geometry.macos-x86_64.stamped.symbols geometry.macos-x86_64.rewritten.symbols)))
+
+(rule
+ (alias runtest)
+ (action (diff golden/geometry.macos-x86_64.symbols geometry.macos-x86_64.rewritten.symbols)))
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.macos-arm64.o geometry.macos-arm64.stamped.o)
+ (action
+  (progn
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target arm64-apple-macosx11.0.0 --object geometry.macos-arm64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target arm64-apple-macosx11.0.0 --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.macos-arm64.stamped.o --package fixtures/geometry))))
+
+(rule
+ (targets geometry.macos-arm64.rewritten.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --rewrite v1.0.1%3f9a1c02b7e4d6a8% %{dep:geometry.macos-arm64.o} geometry.macos-arm64.rewritten.o)))
+
+(rule
+ (action
+  (with-stdout-to geometry.macos-arm64.rewritten.symbols
+   (system "llvm-nm -m %{dep:geometry.macos-arm64.rewritten.o} | LC_ALL=C sort"))))
+
+(rule
+ (action
+  (with-stdout-to geometry.macos-arm64.stamped.symbols
+   (system "llvm-nm -m %{dep:geometry.macos-arm64.stamped.o} | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action (diff geometry.macos-arm64.stamped.symbols geometry.macos-arm64.rewritten.symbols)))
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.windows-x86_64.o geometry.windows-x86_64.stamped.o)
+ (action
+  (progn
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-pc-windows-msvc --object geometry.windows-x86_64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-pc-windows-msvc --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.windows-x86_64.stamped.o --package fixtures/geometry))))
+
+(rule
+ (targets geometry.windows-x86_64.rewritten.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --rewrite v1.0.1%3f9a1c02b7e4d6a8% %{dep:geometry.windows-x86_64.o} geometry.windows-x86_64.rewritten.o)))
+
+(rule
+ (action
+  (with-stdout-to geometry.windows-x86_64.rewritten.symbols
+   (system "llvm-nm %{dep:geometry.windows-x86_64.rewritten.o} | LC_ALL=C sort"))))
+
+(rule
+ (action
+  (with-stdout-to geometry.windows-x86_64.stamped.symbols
+   (system "llvm-nm %{dep:geometry.windows-x86_64.stamped.o} | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action (diff geometry.windows-x86_64.stamped.symbols geometry.windows-x86_64.rewritten.symbols)))
+
+(rule
+ (alias runtest)
+ (action (diff golden/geometry.windows-x86_64.symbols geometry.windows-x86_64.rewritten.symbols)))
+
+(rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.windows-arm64.o geometry.windows-arm64.stamped.o)
+ (action
+  (progn
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target aarch64-pc-windows-msvc --object geometry.windows-arm64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target aarch64-pc-windows-msvc --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.windows-arm64.stamped.o --package fixtures/geometry))))
+
+(rule
+ (targets geometry.windows-arm64.rewritten.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --rewrite v1.0.1%3f9a1c02b7e4d6a8% %{dep:geometry.windows-arm64.o} geometry.windows-arm64.rewritten.o)))
+
+(rule
+ (action
+  (with-stdout-to geometry.windows-arm64.rewritten.symbols
+   (system "llvm-nm %{dep:geometry.windows-arm64.rewritten.o} | LC_ALL=C sort"))))
+
+(rule
+ (action
+  (with-stdout-to geometry.windows-arm64.stamped.symbols
+   (system "llvm-nm %{dep:geometry.windows-arm64.stamped.o} | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action (diff geometry.windows-arm64.stamped.symbols geometry.windows-arm64.rewritten.symbols)))
+
+; Two versions of geometry in one program: atlas depends on the first, and
+; the program on the second, under the key `geo`. Each package is named by
+; its stamp, each one's imports go through its own keys, and the program
+; links both versions' objects side by side
+; (docs/design/separate-compilation.md C10).
+
+(rule
+ (deps (source_tree fixtures/versions))
+ (targets versions.geometry1.o versions.geometry2.o versions.atlas.o)
+ (action
+  (progn
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.geometry1.o --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.geometry2.o --package v2.0%0123456789abcdef%geometry=fixtures/versions/geometry2)
+   (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.atlas.o --package v1.0%fedcba9876543210%atlas=fixtures/versions/atlas --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1))))
+
+(rule
+ (deps (source_tree fixtures/versions))
+ (targets versions.exe)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --build versions.exe
+   --package app=fixtures/versions/app
+   --package v2.0%0123456789abcdef%geometry=fixtures/versions/geometry2
+   --package v1.0%fedcba9876543210%atlas=fixtures/versions/atlas
+   --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1
+   --import app:geo=v2.0%0123456789abcdef%geometry
+   --import app:atlas=v1.0%fedcba9876543210%atlas
+   --import v1.0%fedcba9876543210%atlas:geometry=v1.0%0123456789abcdef%geometry
+   --link %{dep:versions.geometry1.o}
+   --link %{dep:versions.geometry2.o}
+   --link %{dep:versions.atlas.o})))
+
+(rule
+ (action
+  (with-stdout-to
+   versions.out.actual
+   (run ./versions.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/versions.out versions.out.actual)))
+
+; Without the keys, atlas's `import geometry` could mean either version, and
+; the compiler says so rather than choose.
+
+(rule
+ (deps (source_tree fixtures/versions))
+ (action
+  (with-stderr-to
+   versions.ambiguous.actual
+   (with-accepted-exit-codes 1
+    (run
+     %{exe:../../bin/zanec/zanec.exe}
+     --check
+     --package v1.0%fedcba9876543210%atlas=fixtures/versions/atlas
+     --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1
+     --package v2.0%0123456789abcdef%geometry=fixtures/versions/geometry2)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/versions.ambiguous versions.ambiguous.actual)))
+
+; atlas's object, built against geometry v1.0, remapped onto v1.1 as
+; remapping does (docs/design/separate-compilation.md C11): no reference to
+; v1.0 is left in it, and a program links it with v1.1 alone.
+
+(rule
+ (deps (source_tree fixtures/versions))
+ (targets versions.geometry11.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.geometry11.o --package v1.1%0123456789abcdef%geometry=fixtures/versions/geometry11)))
+
+(rule
+ (targets versions.atlas.remapped.o)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --remap
+   v1.0%0123456789abcdef%
+   v1.1%0123456789abcdef%
+   %{dep:versions.atlas.o}
+   versions.atlas.remapped.o)))
+
+(rule
+ (action
+  (with-stdout-to
+   versions.atlas.remapped.left
+   (system "nm %{dep:versions.atlas.remapped.o} > versions.atlas.remapped.nm && { grep -c 'v1[.]0%0123456789abcdef%' versions.atlas.remapped.nm; test $? -le 1; }"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/versions.atlas.remapped.left versions.atlas.remapped.left)))
+
+(rule
+ (deps (source_tree fixtures/versions))
+ (targets remapped.exe)
+ (action
+  (run
+   %{exe:../../bin/zanec/zanec.exe}
+   --build remapped.exe
+   --package remapped=fixtures/versions/remapped
+   --package v1.1%0123456789abcdef%geometry=fixtures/versions/geometry11
+   --package v1.0%fedcba9876543210%atlas=fixtures/versions/atlas
+   --link %{dep:versions.geometry11.o}
+   --link %{dep:versions.atlas.remapped.o})))
+
+(rule
+ (action
+  (with-stdout-to
+   remapped.out.actual
+   (run ./remapped.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/remapped.out remapped.out.actual)))
+
+(rule
+ (action
+  (with-stderr-to
+   remap.mismatch.actual
+   (with-accepted-exit-codes 1
+    (run %{exe:../../bin/zanec/zanec.exe} --remap v1.0%0123456789abcdef% v1.1%fedcba9876543210% %{dep:versions.atlas.o} never.o)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/remap.mismatch remap.mismatch.actual)))

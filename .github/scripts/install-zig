@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Install the Zig release that links the Windows test programs
+# (docs/design/platforms.md), checked against the digest its release
+# publishes, and name it in $GITHUB_ENV as ZIG for dev/bin/zig-cc.
+set -euo pipefail
+
+: "${GITHUB_ENV:?must be set}"
+: "${RUNNER_TEMP:?must be set}"
+
+VERSION=0.16.0
+SHA256=70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
+NAME="zig-x86_64-linux-$VERSION"
+
+curl -fsSL -o "$RUNNER_TEMP/$NAME.tar.xz" "https://ziglang.org/download/$VERSION/$NAME.tar.xz"
+echo "$SHA256  $RUNNER_TEMP/$NAME.tar.xz" | sha256sum --check --strict
+tar -xJf "$RUNNER_TEMP/$NAME.tar.xz" -C "$RUNNER_TEMP"
+"$RUNNER_TEMP/$NAME/zig" version
+echo "ZIG=$RUNNER_TEMP/$NAME/zig" >>"$GITHUB_ENV"

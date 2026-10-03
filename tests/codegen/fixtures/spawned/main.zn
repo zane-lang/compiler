@@ -1,0 +1,87 @@
+/// Spawned calls that have no function of their own until one is made: an
+/// intrinsic method, verbs expanded where they are called because they take
+/// literals (one function per set of literals, an array literal made where
+/// the spawn is written), one that aborts, and one with a `mut` subject.
+/// A spawned call returning a function value is bound to a `mut` function
+/// type. Each check prints `yes` when it holds and `no` when it does not.
+package spawned;
+
+alias Int = @primitives$Int
+alias Float = @primitives$Float
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(~ok, { @program$console!print(no); });
+	return Unit();
+}
+
+Int scaled(x Int, by @concepts$Int) => x * Int(by)
+
+Float half(f @concepts$Float) => Float(f) / Float(2.0)
+
+String greet(name @concepts$String) => String(name) + String("!")
+
+Int sum(values @concepts$Array<Int, 3>) {
+	held Array<Int, 3> = @primitives$Array(values);
+	return held[Int(1)] + held[Int(2)] + held[Int(3)];
+}
+
+/// Hands its literal on to another verb expanded where it is called.
+Int total(values @concepts$Array<Int, 3>) => sum(values)
+
+Int?String careful(x Int, limit @concepts$Int) {
+	@controlflow$branch(Int(limit) < x, { abort String("over"); });
+	return x;
+}
+
+type Counter = struct {
+	count Int;
+}
+
+Counter(count Int) => init{ count; }
+
+Unit add(this Counter, by @concepts$Int) mut {
+	this.count = this.count + Int(by);
+	return Unit();
+}
+
+Int[this Counter, Int] maker() => Int(this Counter, n Int) {
+	return this.count + n;
+}
+
+Unit main() {
+	words List<String> = @primitives$List(String);
+	words!push(String("a"));
+	words!push(String("b"));
+	n Int = spawn words:size();
+	check(n == Int(2));
+	m Int = spawn scaled(Int(2), 3);
+	k Int = spawn scaled(Int(5), 3);
+	j Int = spawn scaled(Int(5), 4);
+	check(m + k + j == Int(41));
+	h Float = spawn half(3.0);
+	check(h == Float(1.5));
+	g String = spawn greet("hi");
+	check(g == String("hi!"));
+	x Int(10);
+	t Int = spawn total([Int(1), x, Int(3)]);
+	check(t == Int(14));
+	check(total([Int(1), x, Int(3)]) == Int(14));
+	c Int = spawn careful(Int(7), 5) ?? Int(0);
+	check(c == Int(0));
+	counter Counter(Int(1));
+	@controlflow$branch(true, {
+		spawn counter!add(4);
+	});
+	check(counter.count == Int(5));
+	f Int[this Counter, Int] mut = spawn maker();
+	check(f(counter, Int(2)) == Int(7));
+	return Unit();
+}

@@ -1,0 +1,18 @@
+/// geometry at a later release of its first version: the same layout as the
+/// first, so atlas's references to the first can be moved onto it.
+package geometry;
+
+alias Int = @primitives$Int
+
+type Point = struct {
+	x Int;
+	y Int;
+}
+
+Point(x Int, y Int) => init{ x; y; }
+
+Int size(this Point) => this.x + this.y
+
+Int version() => Int(11)
+
+T same(value T Type) => value

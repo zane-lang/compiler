@@ -98,7 +98,7 @@ void *zane_bump(int64_t size, int64_t align) {
 	if (c->chunks == 0 || start + (size_t)size > ZANE_CHUNK) {
 		if (c->chunks == ZANE_CHUNKS) zane_broken("out of chunks");
 		if (!c->directory[c->chunks]) {
-			c->directory[c->chunks] = aligned_alloc(ZANE_CHUNK, ZANE_CHUNK);
+			c->directory[c->chunks] = zane_chunk_alloc(ZANE_CHUNK);
 			if (!c->directory[c->chunks]) zane_broken("out of memory for a chunk");
 			*zane_page(c->directory[c->chunks], 1) = zane_entry(c, c->chunks);
 		}
@@ -151,7 +151,7 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 		if ((m = zane_spare)) zane_spare = m->next;
 		pthread_mutex_unlock(&zane_memory);
 	}
-	if (!m && !(m = aligned_alloc(ZANE_CHUNK, size)))
+	if (!m && !(m = zane_chunk_alloc(size)))
 		zane_broken("out of memory for a dynamic chunk");
 	for (size_t at = 0; at < size; at += ZANE_CHUNK)
 		*zane_page((char *)m + at, 1) = -zane_entry(region->context, region->depth);
@@ -174,7 +174,7 @@ void zane_unmap(zane_mark *region) {
 			zane_spare = region->mappings;
 			pthread_mutex_unlock(&zane_memory);
 		} else {
-			free(region->mappings);
+			zane_chunk_free(region->mappings);
 		}
 		region->mappings = next;
 	}

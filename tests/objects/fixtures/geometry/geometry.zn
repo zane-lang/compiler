@@ -1,0 +1,34 @@
+/// A library built into an object of its own: a public verb, a private one
+/// it calls, a method, a constructor, a lambda-variable, a package constant
+/// a verb reads, and a generic verb with an instance the library uses and a
+/// second generic it never uses.
+package geometry;
+
+alias Int = @primitives$Int
+
+type Point = struct {
+	x Int;
+	y Int;
+}
+
+Point(x Int, y Int) => init{ x; y; }
+
+Int sum(this Point) => this.x + this.y
+
+Int area(width Int, height Int) => _product(width, height)
+
+Int _product(a Int, b Int) => a * b
+
+T same(value T Type) => value
+
+Int twice(x Int) => same(x) + same(x)
+
+T unused(value T Type) => value
+
+double Int(x Int) {
+	return x + x;
+}
+
+unit Int(10)
+
+Int scaled(x Int) => x * unit

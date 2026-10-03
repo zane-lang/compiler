@@ -6,14 +6,18 @@
    compilation unit" made of every file in its directory (packages.md §2.3), a
    name in one file resolves to a declaration in another, and `Int` is a
    declaration in `core`, which is a package like any other. So this is the
-   first place files are grouped: by directory, into packages, with the
-   directory's basename as the package's name (§2.1). See docs/design/semantics.md
-   §2.
+   first place files are grouped: by directory, into packages. A package's name
+   is the `name` its manifest gives it (§2.1), which the driver passes along;
+   when it passes none, the directory's basename stands in, which is how the
+   test fixtures name their packages. See docs/design/semantics.md §2.
 
-   Where the directories come from is the driver's business. Fetching,
-   versions and the manifest (dependencies.md) are not modelled; a build is the
-   list of directories it was given, and the first of them is the root
-   (packages.md §6.1). *)
+   Where the directories come from is the driver's business. Fetching and the
+   manifest (dependencies.md) are not modelled; a build is the list of
+   directories it was given, and the first of them is the root (packages.md
+   §6.1). A package given a stamp is one version of a published package
+   (dependencies.md §6.1), and its identity is its stamped name, so two
+   versions of one package, or two packages of one name, are two packages of
+   the build (§11, docs/design/separate-compilation.md C10). *)
 
 module Span = Source.Span
 
@@ -26,10 +30,18 @@ type file = {
 }
 
 type package = {
+  (* What the package is called in the build: its name, after its stamp when
+     it has one. Unique within a build, and what its symbols are named by. *)
+  id : string;
+  (* The name its manifest gives it, which its files declare. *)
   name : string;
   dir : string;
   is_root : bool;
   files : file list;
+  (* The packages its imports name, each by the key the package imports it
+     by and the package's [id], when the driver says. Empty when it does
+     not, and then an import names a package by its name. *)
+  imports : (string * string) list;
 }
 
 (* What went wrong, and whether there is source to point at.
@@ -94,10 +106,10 @@ let all_or_problems results =
 let read_file path = In_channel.with_open_bin path In_channel.input_all
 
 (* §2.2: every file "**MUST** begin with a `package packageName` declaration
-   whose name exactly matches the basename of the file's directory". The
-   grammar accepts a `package` line anywhere at package scope, so "begin with"
-   and "exactly one" are both checked here. *)
-let check_package_line ~name ~path ~source (cst : Cst.Nodes.Package.t) =
+   whose name exactly matches" the package's name. The grammar accepts a
+   `package` line anywhere at package scope, so "begin with" and "exactly one"
+   are both checked here. *)
+let check_package_line ~name ~given ~path ~source (cst : Cst.Nodes.Package.t) =
   let problem span message =
     In_file { diagnostic = Diagnostic.error span message; source }
   in
@@ -118,10 +130,14 @@ let check_package_line ~name ~path ~source (cst : Cst.Nodes.Package.t) =
   | [] ->
       [
         problem (file_start path)
-          (Printf.sprintf
-             "a source file must begin with `package %s;`, the name of its \
-              directory"
-             name);
+          (if given then
+             Printf.sprintf "a source file must begin with `package %s;`, the name of its package"
+               name
+           else
+             Printf.sprintf
+               "a source file must begin with `package %s;`, the name of its \
+                directory"
+               name);
       ]
   | (first, declared) :: rest ->
       let placement =
@@ -139,8 +155,11 @@ let check_package_line ~name ~path ~source (cst : Cst.Nodes.Package.t) =
           [
             problem declared.Cst.Nodes.Name.span
               (Printf.sprintf
-                 "this file is in the directory `%s`, so it must declare \
-                  `package %s;`"
+                 (if given then
+                    "this file is in the package `%s`, so it must declare `package %s;`"
+                  else
+                    "this file is in the directory `%s`, so it must declare \
+                     `package %s;`")
                  name name);
           ]
       in
@@ -153,7 +172,7 @@ let check_package_line ~name ~path ~source (cst : Cst.Nodes.Package.t) =
       in
       placement @ mismatch @ repeated
 
-let load_file ~name path =
+let load_file ~name ~given path =
   match read_file path with
   | exception Sys_error message ->
       Error [ Unreadable { path; message = reason ~path message } ]
@@ -161,7 +180,7 @@ let load_file ~name path =
       match Cst.parse path source with
       | Error diagnostic -> Error [ In_file { diagnostic; source } ]
       | Ok cst -> (
-          match check_package_line ~name ~path ~source cst with
+          match check_package_line ~name ~given ~path ~source cst with
           | [] -> Ok { path; source; sst = Sst.of_cst cst }
           | problems -> Error problems))
 
@@ -190,8 +209,19 @@ let package_name dir =
   in
   match components with [] -> "" | last :: _ -> last
 
-let load_package ~is_root dir =
-  let name = package_name dir in
+(* A package the build asks for: its directory, the name its manifest gives
+   it, if the driver passed one, and its stamp, if it is a version of a
+   published package. *)
+type request = { manifest_name : string option; directory : string; stamp : string option }
+
+let name_of request =
+  match request.manifest_name with Some name -> name | None -> package_name request.directory
+
+let id_of request = Option.value ~default:"" request.stamp ^ name_of request
+
+let load_package ~is_root request =
+  let name = name_of request and id = id_of request and dir = request.directory in
+  let given = Option.is_some request.manifest_name in
   if not (Sys.file_exists dir && Sys.is_directory dir) then
     Error [ In_directory { dir; message = "no such directory" } ]
   else
@@ -212,29 +242,67 @@ let load_package ~is_root dir =
     | paths ->
         (* Every file is loaded, whichever fail: one mistake per file is one
            report per file, not one report per run (docs/design/semantics.md D4). *)
-        List.map (load_file ~name) paths
+        List.map (load_file ~name ~given) paths
         |> all_or_problems
-        |> Result.map (fun files -> { name; dir; is_root; files })
+        |> Result.map (fun files -> { id; name; dir; is_root; files; imports = [] })
 
-(* A package name names one package. Two directories with the same basename
-   would both be that package, and which of them a `name$member` meant would
-   depend on nothing the source says. Two versions of one package can coexist
-   (dependencies.md §11), but by rewriting their symbols at fetch time, which
-   is not modelled here. The first directory keeps the name; each later one is
-   reported and not loaded. *)
-let claimed_by earlier dir =
-  List.find_opt
-    (fun other -> String.equal (package_name other) (package_name dir))
-    earlier
+(* An identity names one package. Two directories with the same one would
+   both be that package, and which of them a `name$member` meant would depend
+   on nothing the source says. Two versions of one package have two stamps,
+   and so two identities. The first directory keeps the identity; each later
+   one is reported and not loaded. *)
+let claimed_by earlier request =
+  let id = id_of request in
+  List.find_opt (fun other -> String.equal (id_of other) id) earlier
+
+(* Each key goes to the package that imports by it. Both ends must be
+   packages of the build, and a package imports by each key once. *)
+let attach_imports packages imports =
+  let known id = List.exists (fun p -> String.equal p.id id) packages in
+  let problem message = In_directory { dir = "."; message } in
+  let unknown (from, key, target) =
+    List.filter_map
+      (fun id ->
+        if known id then None
+        else
+          Some
+            (problem
+               (Printf.sprintf "`--import %s:%s=%s` names `%s`, which is no package of the build"
+                  from key target id)))
+      [ from; target ]
+  in
+  let twice =
+    List.sort_uniq compare (List.map (fun (f, k, _) -> (f, k)) imports)
+    |> List.filter_map (fun (from, key) ->
+           if List.length (List.filter (fun (f, k, _) -> f = from && k = key) imports) > 1 then
+             Some (problem (Printf.sprintf "`%s` is given the key `%s` more than once" from key))
+           else None)
+  in
+  match List.concat_map unknown imports @ twice with
+  | [] ->
+      Ok
+        (List.map
+           (fun p ->
+             {
+               p with
+               imports =
+                 List.filter_map
+                   (fun (from, key, target) ->
+                     if String.equal from p.id then Some (key, target) else None)
+                   imports;
+             })
+           packages)
+  | problems -> Error problems
 
 (* Problems come out in the order the directories were given, and within a
    directory in file order, so a run reads top to bottom like the command
-   that started it. *)
-let assemble dirs =
+   that started it. [imports] gives each package's keys, as the importing
+   package's identity, the key and the imported package's identity. *)
+let assemble_requests ?(imports = []) requests =
   let rec go earlier index = function
     | [] -> []
-    | dir :: rest ->
-        let claimant = claimed_by earlier dir in
+    | request :: rest ->
+        let claimant = claimed_by earlier request in
         let loaded =
           match claimant with
           | Some first ->
@@ -242,21 +310,28 @@ let assemble dirs =
                 [
                   In_directory
                     {
-                      dir;
+                      dir = request.directory;
                       message =
                         Printf.sprintf
                           "the package `%s` is already the directory `%s`"
-                          (package_name dir) first;
+                          (id_of request) first.directory;
                     };
                 ]
-          | None -> load_package ~is_root:(index = 0) dir
+          | None -> load_package ~is_root:(index = 0) request
         in
         (* Only a directory that got the name claims it, so a third
            duplicate is reported against the first, not the second. *)
-        let earlier = if claimant = None then dir :: earlier else earlier in
+        let earlier = if claimant = None then request :: earlier else earlier in
         loaded :: go earlier (index + 1) rest
   in
-  all_or_problems (go [] 0 dirs)
+  match all_or_problems (go [] 0 requests) with
+  | Error problems -> Error problems
+  | Ok packages -> attach_imports packages imports
+
+(* Each directory named after itself. *)
+let assemble dirs =
+  assemble_requests
+    (List.map (fun directory -> { manifest_name = None; directory; stamp = None }) dirs)
 
 let render_problem = function
   | In_file { diagnostic; source } -> Diagnostic.render ~source diagnostic
@@ -274,10 +349,11 @@ let to_node packages =
     (fun package ->
       group "package"
         (fields
-           [
+           ((if String.equal package.id package.name then [] else [ ("id", Leaf package.id) ])
+           @ [
              ("name", Leaf package.name);
              ("root", Leaf (string_of_bool package.is_root));
              ("dir", Leaf package.dir);
              ("files", map_seq (fun file -> Leaf file.path) package.files);
-           ]))
+           ])))
     packages

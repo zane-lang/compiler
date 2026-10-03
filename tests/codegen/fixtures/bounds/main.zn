@@ -1,0 +1,16 @@
+/// An index outside an array stops the program with a failing status, after
+/// what it wrote so far (docs/design/lowering.md §9).
+package bounds;
+
+alias Int = @primitives$Int
+alias String = @primitives$String
+
+@primitives$Unit main() {
+	before String("before\n");
+	after String("after\n");
+	numbers @primitives$Array<Int, 2> = @primitives$Array([Int(1), Int(2)]);
+	@program$console!print(before);
+	missing Int = numbers[Int(3)];
+	@program$console!print(after);
+	return @primitives$Unit();
+}

@@ -10,6 +10,7 @@ type env = {
   ptr : Llvm.lltype;
   i64 : Llvm.lltype;
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
+  globals : (string, Llvm.llvalue) Hashtbl.t;
   (* Each layout the program names, as one constant table, and whether it
      lists any position. *)
   layouts : (Layout.t, Llvm.llvalue * bool) Hashtbl.t;
@@ -37,6 +38,7 @@ let rec lltype env (t : Ty.t) =
       match words ts with
       | 0 -> Llvm.struct_type env.ctx [| tag |]
       | n -> Llvm.struct_type env.ctx [| tag; Llvm.array_type env.i64 n |])
+  | Ty.Array (t, n) -> Llvm.array_type (stored env t) n
 
 (* A `Unit` member takes no room, but keeps its index. *)
 and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype env t
@@ -79,6 +81,7 @@ let runtime env name =
         | "zane_list_new" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr |]
         | "zane_list_push" -> Llvm.function_type env.ptr [| env.ptr; env.i64; env.ptr |]
         | "zane_list_at" -> Llvm.function_type env.ptr [| env.ptr; env.i64; env.i64 |]
+        | "zane_array_at" -> Llvm.function_type env.ptr [| env.ptr; env.i64; env.i64; env.i64 |]
         | "zane_scope_drain" -> Llvm.function_type (Llvm.void_type env.ctx) [| env.i64 |]
         | "zane_frame" -> Llvm.function_type env.ptr [| env.i64; env.i64; env.i64 |]
         | "zane_spawn" ->
@@ -89,6 +92,9 @@ let runtime env name =
         | "zane_set_threads_auto" -> Llvm.function_type (Llvm.void_type env.ctx) [||]
         | "zane_snapshot" ->
             Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.i64 |]
+        | "zane_constant_begin" -> Llvm.function_type env.i64 [| env.ptr |]
+        | "zane_constant_end" ->
+            Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.ptr |]
         | "zane_writeback" ->
             Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.i64; env.ptr |]
         | _ -> failwith ("codegen: unknown runtime function " ^ name)
@@ -219,11 +225,12 @@ let block env fr = Llvm.append_block env.ctx "" fr.fn
 (* ---------------------------------------------------------------------- *)
 
 (* Integer division by zero has no result, and neither has the one quotient
-   an `i64` cannot hold; LLVM leaves both undefined. The first stops the
+   an integer cannot hold; LLVM leaves both undefined. The first stops the
    program (docs/design/lowering.md §9), and the second wraps, as `+` and `*` do. *)
 let divide env fr b l r =
-  let zero = Llvm.const_int env.i64 0 in
-  let minus_one = Llvm.const_int env.i64 (-1) in
+  let t = Llvm.type_of l in
+  let zero = Llvm.const_int t 0 in
+  let minus_one = Llvm.const_int t (-1) in
   let fails = block env fr and ok = block env fr in
   ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Eq r zero "" b) fails ok b);
   Llvm.position_at_end fails b;
@@ -232,17 +239,17 @@ let divide env fr b l r =
   ignore (Llvm.build_unreachable b);
   Llvm.position_at_end ok b;
   let negating = Llvm.build_icmp Llvm.Icmp.Eq r minus_one "" b in
-  let divisor = Llvm.build_select negating (Llvm.const_int env.i64 1) r "" b in
+  let divisor = Llvm.build_select negating (Llvm.const_int t 1) r "" b in
   let quotient = Llvm.build_sdiv l divisor "" b in
   Llvm.build_select negating (Llvm.build_sub zero l "" b) quotient "" b
 
 let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
   match (t, op) with
-  | Ty.I64, Expr.Add -> Llvm.build_add l r "" b
-  | Ty.I64, Expr.Mul -> Llvm.build_mul l r "" b
-  | Ty.I64, Expr.Div -> divide env fr b l r
-  | (Ty.I64 | Ty.I1), Expr.Eq -> Llvm.build_icmp Llvm.Icmp.Eq l r "" b
-  | Ty.I64, Expr.Less -> Llvm.build_icmp Llvm.Icmp.Slt l r "" b
+  | (Ty.I64 | Ty.I32), Expr.Add -> Llvm.build_add l r "" b
+  | (Ty.I64 | Ty.I32), Expr.Mul -> Llvm.build_mul l r "" b
+  | (Ty.I64 | Ty.I32), Expr.Div -> divide env fr b l r
+  | (Ty.I64 | Ty.I32 | Ty.I1), Expr.Eq -> Llvm.build_icmp Llvm.Icmp.Eq l r "" b
+  | (Ty.I64 | Ty.I32), Expr.Less -> Llvm.build_icmp Llvm.Icmp.Slt l r "" b
   | Ty.F64, Expr.Add -> Llvm.build_fadd l r "" b
   | Ty.F64, Expr.Mul -> Llvm.build_fmul l r "" b
   | Ty.F64, Expr.Div -> Llvm.build_fdiv l r "" b
@@ -302,6 +309,7 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
       Some block
   | Expr.Layout l -> Some (layout env l)
   | Expr.Function fn -> Some (fst (Hashtbl.find env.funcs fn))
+  | Expr.Global g -> Some (Hashtbl.find env.globals g)
   | Expr.Snapshot p -> (
       let p = Option.get (expr env fr b p) in
       match e.Expr.ty with
@@ -407,7 +415,7 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | _ -> failwith "codegen: an operand has no value")
   | Expr.Flip value -> (
       match (value.Expr.ty, expr env fr b value) with
-      | Ty.I64, Some v -> Some (Llvm.build_neg v "" b)
+      | (Ty.I64 | Ty.I32), Some v -> Some (Llvm.build_neg v "" b)
       | Ty.F64, Some v -> Some (Llvm.build_fneg v "" b)
       | Ty.I1, Some v -> Some (Llvm.build_not v "" b)
       | _ -> failwith "codegen: `~` on a value it does not flip")
@@ -597,7 +605,10 @@ let func env (f : Func.t) =
     ignore (if f.Func.ret = Ty.Void then Llvm.build_ret_void b else Llvm.build_unreachable b)
 
 (* The program's module. Its entry is named `zane_main` whatever its symbol,
-   since that is the name the runtime calls (L16). *)
+   since that is the name the runtime calls (L16). A function other objects
+   link against keeps its symbol in theirs too, and one a stamped
+   dependency's objects define is only declared
+   (docs/design/separate-compilation.md); the rest are local to this one. *)
 let program (p : Program.t) =
   let ctx = Llvm.create_context () in
   let m = Llvm.create_module ctx "zane" in
@@ -608,19 +619,40 @@ let program (p : Program.t) =
       ptr = Llvm.pointer_type ctx;
       i64 = Llvm.i64_type ctx;
       funcs = Hashtbl.create 32;
+      globals = Hashtbl.create 8;
       layouts = Hashtbl.create 8;
     }
   in
   layouts env p.Program.layouts;
   List.iter
+    (fun (g : Global.t) ->
+      let v = Llvm.define_global g.Global.symbol (Llvm.const_null (stored env g.Global.ty)) m in
+      (match g.Global.linkage with
+      | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal v
+      | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr v
+      | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ());
+      Hashtbl.replace env.globals g.Global.symbol v)
+    p.Program.globals;
+  List.iter
     (fun (f : Func.t) ->
       let fty = fn_type env (List.map snd f.Func.params) f.Func.ret in
-      let name = if f.Func.symbol = p.Program.entry then "zane_main" else f.Func.symbol in
-      let fn = Llvm.define_function name fty m in
-      if name <> "zane_main" then Llvm.set_linkage Llvm.Linkage.Internal fn;
+      let entry = Some f.Func.symbol = p.Program.entry in
+      let name = if entry then "zane_main" else f.Func.symbol in
+      let fn =
+        match f.Func.linkage with
+        | Cgt.Nodes.Linkage.Imported -> Llvm.declare_function name fty m
+        | _ -> Llvm.define_function name fty m
+      in
+      (match f.Func.linkage with
+      | _ when entry -> ()
+      | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal fn
+      | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ()
+      | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr fn);
       Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
     p.Program.funcs;
-  List.iter (func env) p.Program.funcs;
+  List.iter
+    (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
+    p.Program.funcs;
   (match Llvm_analysis.verify_module m with
   | Some problem -> failwith ("codegen built an invalid module: " ^ problem)
   | None -> ());

@@ -1,0 +1,125 @@
+└── program:
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$Int
+    │   └── positions:
+    ├── globals[0]: !geometry$unit.value : i64, shared
+    ├── globals[1]: !geometry$unit.state : i64, shared
+    ├── funcs[0] > func:
+    │   ├── symbol: !geometry$Point(%primitives$Int, %primitives$Int)
+    │   ├── linkage: exported
+    │   ├── params[0]: local #1 : i64
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {i64, i64}
+    │   └── body[0] > return > record:
+    │       ├── type: {i64, i64}
+    │       ├── members[0] > member 0: local #1 : i64
+    │       └── members[1] > member 1: local #2 : i64
+    ├── funcs[1] > func:
+    │   ├── symbol: !geometry$sum(this !geometry$Point)
+    │   ├── linkage: exported
+    │   ├── params[0]: local #1 : {i64, i64}
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left > member:
+    │       │   ├── type: i64
+    │       │   ├── index: 0
+    │       │   └── value: local #1 : {i64, i64}
+    │       └── right > member:
+    │           ├── type: i64
+    │           ├── index: 1
+    │           └── value: local #1 : {i64, i64}
+    ├── funcs[2] > func:
+    │   ├── symbol: !geometry$area(%primitives$Int, %primitives$Int)
+    │   ├── linkage: exported
+    │   ├── params[0]: local #1 : i64
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > call:
+    │       ├── type: i64
+    │       ├── fn: !geometry$_product(%primitives$Int, %primitives$Int)
+    │       ├── args[0]: local #1 : i64
+    │       └── args[1]: local #2 : i64
+    ├── funcs[3] > func:
+    │   ├── symbol: !geometry$_product(%primitives$Int, %primitives$Int)
+    │   ├── linkage: exported
+    │   ├── params[0]: local #1 : i64
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: *
+    │       ├── left: local #1 : i64
+    │       └── right: local #2 : i64
+    ├── funcs[4] > func:
+    │   ├── symbol: !geometry$twice(%primitives$Int)
+    │   ├── linkage: exported
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left > call:
+    │       │   ├── type: i64
+    │       │   ├── fn: !geometry$same<%primitives$Int>(%primitives$Int)
+    │       │   └── args[0]: local #1 : i64
+    │       └── right > call:
+    │           ├── type: i64
+    │           ├── fn: !geometry$same<%primitives$Int>(%primitives$Int)
+    │           └── args[0]: local #1 : i64
+    ├── funcs[5] > func:
+    │   ├── symbol: !geometry$double
+    │   ├── linkage: exported
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left: local #1 : i64
+    │       └── right: local #1 : i64
+    ├── funcs[6] > func:
+    │   ├── symbol: !geometry$scaled(%primitives$Int)
+    │   ├── linkage: exported
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: *
+    │       ├── left: local #1 : i64
+    │       └── right > deref:
+    │           ├── type: i64
+    │           └── ptr > call:
+    │               ├── type: ptr
+    │               ├── fn: !geometry$unit
+    │               └── args:
+    ├── funcs[7] > func:
+    │   ├── symbol: !geometry$same<%primitives$Int>(%primitives$Int)
+    │   ├── linkage: shared
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return: local #1 : i64
+    └── funcs[8] > func:
+        ├── symbol: !geometry$unit
+        ├── linkage: shared
+        ├── params:
+        ├── ret: ptr
+        ├── body[0] > if:
+        │   ├── cond > binary:
+        │   │   ├── type: i1
+        │   │   ├── op: ==
+        │   │   ├── left > runtime:
+        │   │   │   ├── type: i64
+        │   │   │   ├── fn: zane_constant_begin
+        │   │   │   └── args[0]: global !geometry$unit.state
+        │   │   └── right: 1 : i64
+        │   ├── body[0] > store:
+        │   │   ├── address: global !geometry$unit.value
+        │   │   └── value: 10 : i64
+        │   └── body[1] > eval > runtime:
+        │       ├── type: void
+        │       ├── fn: zane_constant_end
+        │       ├── args[0]: global !geometry$unit.state
+        │       ├── args[1]: global !geometry$unit.value
+        │       └── args[2]: layout %primitives$Int
+        └── body[1] > return: global !geometry$unit.value
