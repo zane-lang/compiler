@@ -216,4 +216,244 @@ theorem comp_reach (lid tail : Nat) (wt : Atom → Item → S) :
 
 end
 
+theorem sum_reduce {β} (l : List Nat) (f : Nat → S) (φ : Nat → Option β)
+    (h : ∀ d ∈ l, f d ≠ 0 → (φ d).isSome) :
+    sumL l f = sumL (l.filterMap fun d => (φ d).map (d, ·)) (fun p => f p.1) := by
+  induction l with
+  | nil => rfl
+  | cons d l ih =>
+    rw [List.filterMap_cons, sumL_cons, ih (fun d' hd' => h d' (List.mem_cons_of_mem _ hd'))]
+    cases hφ : φ d with
+    | none =>
+      have : f d = 0 := by
+        rcases Classical.em (f d = 0) with h0 | h0
+        · exact h0
+        · have := h d (List.mem_cons_self ..) h0; rw [hφ] at this; cases this
+      simp [this, hφ]
+    | some b => simp
+
+theorem nodup_pairs {β} : ∀ (l : List Nat) (φ : Nat → Option β), l.Nodup →
+    (∀ d d' b, φ d = some b → φ d' = some b → d = d') →
+    ((l.filterMap fun d => (φ d).map (d, ·)).map Prod.snd).Nodup
+  | [], _, _, _ => List.nodup_nil
+  | d :: l, φ, hn, hinj => by
+    rw [List.nodup_cons] at hn
+    rw [List.filterMap_cons]
+    cases hφ : φ d with
+    | none => exact nodup_pairs l φ hn.2 hinj
+    | some b =>
+      simp only [Option.map_some, List.map_cons]
+      refine List.nodup_cons.mpr ⟨?_, nodup_pairs l φ hn.2 hinj⟩
+      intro hm
+      obtain ⟨pr, hp, hpe⟩ := List.mem_map.mp hm
+      obtain ⟨d'', hd'', he⟩ := List.mem_filterMap.mp hp
+      cases h'' : φ d'' with
+      | none => simp [h''] at he
+      | some b'' =>
+        simp only [h'', Option.map_some, Option.some.injEq] at he
+        have hb : b'' = b := by rw [← hpe, ← he]
+        subst hb
+        exact hn.1 ((hinj d d'' b'' hφ h'') ▸ hd'')
+
+section
+variable (H : HFacts) (E : PGrammar) (keys : Array UKey) (fI : Array (Option Nat)) (M : Model)
+variable (hU : checkUniverse H E keys fI M = true)
+variable (idx : Std.HashMap UKey Nat) (hK : checkKeys keys idx = true) (hL : checkLib H = true)
+include hU hK hL
+
+theorem comp_nodes_nodup (lid tail N : Nat) :
+    (((List.range N).filterMap fun d => (lookupId keys idx (.comp lid d tail)).map (d, ·)).map Prod.snd).Nodup :=
+  nodup_pairs _ _ List.nodup_range fun d d' b h1 h2 => by
+    have := (lookupId_spec h1).symm.trans (lookupId_spec h2)
+    simp only [Option.some.injEq, UKey.comp.injEq] at this
+    exact this.2.1
+
+theorem comp_nonzero (lid tail : Nat) {j₀ : Nat} (hj₀ : keys[j₀]? = some (.comp lid 0 tail))
+    (L : List Item → S) (u : List Item) (d : Nat)
+    (hne : conv L (fun v => DWp (H.dfa lid) (wtM M fI) 0 v d) u ≠ 0) :
+    (lookupId keys idx (.comp lid d tail)).isSome := by
+  unfold conv at hne
+  obtain ⟨p, _, hp⟩ := sumL_ne_zero hne
+  obtain ⟨j, hj⟩ := comp_reach H E keys fI M hU lid tail (wtM M fI) p.2 0 j₀ d hj₀ (mul_ne_zero_right hp)
+  rw [lookupId_of_key hK hj]; rfl
+
+/-- **Backward DFA copy.** A copy entered from `src` by its start edge,
+read to state `d`. -/
+theorem comp_bwd (lid tail q src c0 : Nat) (hc0 : keys[c0]? = some (.comp lid 0 tail))
+    (hsrc : Edge.eps c0 1 ∈ M.out src) (hsk : ∀ d, keys[src]? ≠ some (.comp lid d tail))
+    (L : List Item → S) (hL' : ∀ v, L v ≤ Wsup M q v src) :
+    ∀ (k : Nat) (u : List Item), u.length ≤ k → ∀ d j, keys[j]? = some (.comp lid d tail) →
+      conv L (fun v => DWp (H.dfa lid) (wtM M fI) 0 v d) u ≤ Wsup M q u j := by
+  have hnd := (universe_parts H E keys fI M hU).2.2.2.2.1
+  let D := H.dfa lid
+  let N := D.trans.size + 1
+  have hT : ∀ d < N, ∀ p ∈ D.transAt d, p.2 < N := fun d _ p hp =>
+    Nat.lt_succ_of_lt (lib_trans_lt hL lid d p hp)
+  have base : ∀ u, u = [] → ∀ d j, keys[j]? = some (.comp lid d tail) →
+      conv L (fun v => DWp D (wtM M fI) 0 v d) u ≤ Wsup M q u j := by
+    intro u hu d j hj; subst hu
+    rw [conv_nil]
+    simp only [DWp]
+    by_cases hd : 0 = d
+    · subst hd
+      have := keys_inj hK hj hc0; subst this
+      simp only [ite_true, S.mul_one]
+      refine S.le_trans (hL' []) ?_
+      have := Wsup_last M hsrc q [] j
+      simpa [stepC] using this
+    · simp [hd]
+  intro k
+  induction k with
+  | zero => intro u hu; exact base u (List.eq_nil_of_length_eq_zero (by omega))
+  | succ k ih =>
+    intro u hu d j hj
+    rcases List.eq_nil_or_concat u with h | ⟨u', x, rfl⟩
+    · exact base u h d j hj
+    rw [List.concat_eq_append] at hu ⊢
+    have hu' : u'.length ≤ k := by simp at hu; omega
+    rw [conv_snoc]
+    let B : Nat → S := fun d' => sumL (D.transAt d') fun p => if p.2 = d then wtM M fI p.1 x else 0
+    have e1 : ∀ v, DWp D (wtM M fI) 0 (v ++ [x]) d = sumL (List.range N) fun d' => DWp D (wtM M fI) 0 v d' * B d' :=
+      fun v => DWp_snoc D (wtM M fI) N hT x v 0 d (Nat.succ_pos _)
+    rw [conv_congr (fun _ => rfl) e1, conv_sum_right]
+    let φ : Nat → Option Nat := fun d' => lookupId keys idx (.comp lid d' tail)
+    rw [sum_reduce _ _ φ (fun d' _ hne => comp_nonzero H E keys fI M hU idx hK hL lid tail hc0 L u' d'
+      (fun h0 => hne (by rw [h0, S.zero_mul])))]
+    -- the start edge and the DFA's own edges are distinct last edges
+    let I : List (Option (Nat × Nat)) := (if d = 0 then [none] else []) ++
+      ((List.range N).filterMap fun d' => (φ d').map (d', ·)).map some
+    let ν : Option (Nat × Nat) → Nat := fun i => match i with | none => src | some p => p.2
+    let h : Option (Nat × Nat) → S := fun i => match i with
+      | none => L (u' ++ [x])
+      | some p => conv L (fun v => DWp D (wtM M fI) 0 v p.1) u' * B p.1
+    have hsum : sumL I h = (sumL ((List.range N).filterMap fun d' => (φ d').map (d', ·))
+        fun p => conv L (fun v => DWp D (wtM M fI) 0 v p.1) u' * B p.1) +
+        L (u' ++ [x]) * DWp D (wtM M fI) 0 [] d := by
+      simp only [I, sumL_append, sumL_map, DWp]
+      by_cases hd : d = 0
+      · subst hd; simp [h, S.add_comm]
+      · simp [h, hd, Ne.symm hd]
+    rw [← hsum]
+    refine bwd_idx M I ν ?_ q (u' ++ [x]) j h ?_
+    · simp only [I, List.map_append, List.map_map]
+      have hn := comp_nodes_nodup H E keys fI M hU idx hK hL lid tail N
+      rw [List.nodup_append]
+      refine ⟨?_, ?_, ?_⟩
+      · split <;> simp
+      · exact hn
+      · intro a ha b hb hab
+        split at ha
+        · simp only [List.map_cons, List.map_nil, List.mem_singleton] at ha
+          subst ha; subst hab
+          obtain ⟨pr, hp, hpe⟩ := List.mem_map.mp hb
+          obtain ⟨d'', _, he⟩ := List.mem_filterMap.mp hp
+          cases h'' : φ d'' with
+          | none => simp [h''] at he
+          | some b'' =>
+            simp only [h'', Option.map_some, Option.some.injEq] at he
+            subst he
+            simp only [Function.comp, ν] at hpe
+            exact hsk d'' (hpe ▸ lookupId_spec h'')
+        · cases ha
+    · intro i hi
+      cases i with
+      | none =>
+        have hd : d = 0 := by
+          simp only [I, List.mem_append, List.mem_map] at hi
+          rcases hi with hi | ⟨_, _, hi⟩
+          · split at hi
+            · assumption
+            · cases hi
+          · cases hi
+        subst hd
+        have := keys_inj hK hj hc0; subst this
+        refine S.le_trans (hL' _) ?_
+        refine S.le_trans ?_ (le_sumL hsrc _)
+        simp [stepC, ν]
+      | some p =>
+        obtain ⟨d', j'⟩ := p
+        have hφ : φ d' = some j' := by
+          simp only [I, List.mem_append, List.mem_map] at hi
+          rcases hi with hi | ⟨a, ha, he⟩
+          · split at hi <;> simp at hi
+          · simp only [Option.some.injEq] at he; subst he
+            obtain ⟨d'', _, he⟩ := List.mem_filterMap.mp ha
+            cases h'' : φ d'' with
+            | none => simp [h''] at he
+            | some b'' =>
+              simp only [h'', Option.map_some, Option.some.injEq, Prod.mk.injEq] at he
+              obtain ⟨rfl, rfl⟩ := he; exact h''
+        have hj' := lookupId_spec hφ
+        simp only [h, ν]
+        refine S.le_trans (S.mul_le_mul (ih u' hu' d' j' hj') (S.le_refl _)) ?_
+        have hes := edges_of_key H E keys fI M hU hj'
+        let g : SEdge → S := fun s => match s with
+          | .int a (.key (.comp lid'' d'' tail'')) =>
+            if lid'' = lid ∧ d'' = d ∧ tail'' = tail then wtM M fI (.t a) x * Wsup M q u' j' else 0
+          | .call o inner (.key (.comp lid'' d'' tail'')) c =>
+            if lid'' = lid ∧ d'' = d ∧ tail'' = tail then wtM M fI (.call o inner c) x * Wsup M q u' j' else 0
+          | _ => 0
+        refine S.le_trans ?_ (edgesOk_sum keys fI hes g _ ?_)
+        · simp only [specEdges, sumL_append, sumL_map, B, sumL_mul]
+          refine S.le_trans ?_ (S.le_add_left _ _)
+          rw [mul_sumL]
+          apply sumL_le_sumL; intro p _
+          obtain ⟨a, d''⟩ := p
+          by_cases hd : d'' = d
+          · subst hd; cases a <;> simp [g, S.mul_comm]
+          · cases a <;> simp [g, hd]
+        · intro s e hse
+          cases s with
+          | int a t =>
+            cases t with
+            | key kk =>
+              cases kk with
+              | comp lid'' d'' tail'' =>
+                cases e with
+                | int a' t' =>
+                  simp only [edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hse
+                  obtain ⟨rfl, ht⟩ := hse
+                  simp only [g]
+                  split
+                  · rename_i hc
+                    obtain ⟨rfl, rfl, rfl⟩ := hc
+                    have := keys_inj hK ht hj; subst this
+                    simp only [stepC, ite_true, List.getLast?_concat, List.dropLast_concat]
+                    cases x with
+                    | grp _ _ _ => simp [wtM]
+                    | tok b => simp only [wtM]; split <;> simp_all
+                  · exact S.zero_le _
+                | _ => simp [edgeOk] at hse
+              | _ => exact S.zero_le _
+            | _ => exact S.zero_le _
+          | call o inner t c =>
+            cases t with
+            | key kk =>
+              cases kk with
+              | comp lid'' d'' tail'' =>
+                cases e with
+                | call o' f t' c' =>
+                  simp only [edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hse
+                  obtain ⟨⟨⟨rfl, rfl⟩, hf⟩, ht⟩ := hse
+                  simp only [g]
+                  split
+                  · rename_i hc
+                    obtain ⟨rfl, rfl, rfl⟩ := hc
+                    have := keys_inj hK ht hj; subst this
+                    simp only [stepC, ite_true, List.getLast?_concat, List.dropLast_concat]
+                    cases x with
+                    | tok _ => simp [wtM]
+                    | grp o'' v c'' =>
+                      simp only [wtM]
+                      split
+                      · rw [fragW_eq M fI hnd hf v, S.mul_comm]; exact S.le_refl _
+                      · simp
+                  · exact S.zero_le _
+                | _ => simp [edgeOk] at hse
+              | _ => exact S.zero_le _
+            | _ => exact S.zero_le _
+          | _ => exact S.zero_le _
+
+end
+
 end Ambiguity
