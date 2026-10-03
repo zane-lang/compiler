@@ -60,16 +60,13 @@ def main (args : List String) : IO UInt32 := do
     say s!"quotient: {Q.rules.size} classes, {qn} reachable, {qr} usable rules, hom check {ok}"
     let T := tagGrammar Q
     say s!"angles: {checkAngles T (angleSets T)}"
-    let Gr := groupGrammar T
-    let n0 := T.rules.size
-    let wrapped := fun x => x ≥ n0 && (match (Gr.rulesOf x).head? with
-      | some r => match r.rhs.head? with | some (.t o) => isOpen o | _ => false
-      | none => false)
-    say s!"grouped: {Gr.rules.size - n0} new nonterminals"
-    let (P, _) := product Gr wrapped
-    let pr := P.rules.foldl (fun a rs => a + rs.length) 0
-    say s!"product: {P.rules.size} nonterminals, {pr} rules"
-    let (E, _) := pquotient P
+    let ft := firstTable T
+    let F : FirstTbl := fun y t => ft.getD (y, t) []
+    say s!"first table: {checkFirst T F}"
+    let L := explore T F
+    let lr := L.rules.foldl (fun a rs => a + rs.length) 0
+    say s!"lookahead product: {L.keys.size} keys, {lr} rules, closure check {checkExplore T F L}"
+    let (E, _) := pquotient L.plain
     let er := E.rules.foldl (fun a rs => a + rs.length) 0
     say s!"exact: {E.rules.size} nonterminals, {er} rules"
     let symName := fun (s : Sym) => match s with | .t a => a | .n y => s!"n{y}"

@@ -192,15 +192,16 @@ def compile (E : PGrammar) : Except String Compiled := do
                   if isGroup then [] else r, 1)
         -- build the chain reading `body` into `dest`, right to left
         let mut tail := dest
-        let elems : List (Sum Atom Nat) ←
-          if isGroup then pure body0 else
-            body.foldlM (init := []) fun acc s => match s with
-              | .t a => pure (acc ++ [.inl (.t a)])
+        -- a rule through a symbol with no derivation contributes nothing
+        if !isGroup && body.any (fun | .n y => !ne[y]! && eps[y]! == 0 | _ => false) then continue
+        let elems : List (Sum Atom Nat) :=
+          if isGroup then body0 else
+            body.foldl (init := []) fun acc s => match s with
+              | .t a => acc ++ [.inl (.t a)]
               | .n y =>
-                if ne[y]! then pure (acc ++ [.inr y])
-                else if eps[y]! == 0 then throw s!"epsilon-only {y} has no derivation"
-                else if eps[y]! == 2 then pure (acc ++ [.inr (n + y)])
-                else pure acc
+                if ne[y]! then acc ++ [.inr y]
+                else if eps[y]! == 2 then acc ++ [.inr (n + y)]
+                else acc
         for el in elems.reverse do
           let (key, edge) : (String × Nat) × (Nat → NEdge) := match el with
             | .inl atom => ((s!"A{repr atom}", tail), fun t => .a atom t)
