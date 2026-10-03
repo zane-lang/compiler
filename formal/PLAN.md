@@ -65,3 +65,4 @@ Checks: (D1/D2) determinization vectors over NFA ids (isPost, filt eq),
 (M) minimization map h with dead states, lang/lib.
 Proof chain: cnt_E(m,u) <= W(start_m,u,final_m) <= DFA <= lib DW <= model comp W
 <= fragment W; items: flatten injective via parser lemma; two trees -> cnt=2.
+- WLemmas: W_mono, fwd (forward unfolding, fuel b+c+1) proven. Concat over a node is FALSE in general with fuel (eps loops) -> use fwd/backward only.

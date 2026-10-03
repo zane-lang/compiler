@@ -76,10 +76,10 @@ def main (args : List String) : IO UInt32 := do
       if rs.isEmpty then continue
       txt := txt ++ s!"n{x} : " ++ " | ".intercalate (rs.map fun r => " ".intercalate (r.map symName)) ++ " ;\n"
     IO.FS.writeFile "/tmp/claude-0/lean-exact.y" txt
-    let Cm ← IO.ofExcept (compile E)
-    say s!"horizontal: {Cm.ncomp} components, {Cm.lib.size} languages, {Cm.lib.foldl (fun a D => a + D.trans.size) 0} states"
-    let M := buildModel Cm E.start
-    say s!"model: {M.size} states, {M.frags.size} fragments"
+    let (H, ub, wits, frags) ← IO.ofExcept (buildUniverse E)
+    say s!"horizontal: {wits.size} components, {H.lib.size} languages, {H.lib.foldl (fun a D => a + D.trans.size) 0} states"
+    let M := ub.model frags
+    say s!"universe: {M.size} nodes, {M.frags.size} fragments"
     let cert ← IO.ofExcept (search zaneBrackets M 1000000)
     let cfgs := cert.frames.foldl (fun a K => a + K.nodes.length) 0
     say s!"search: {cfgs} configurations, {cert.frames.length} frames"
