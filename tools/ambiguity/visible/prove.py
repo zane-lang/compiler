@@ -1,8 +1,12 @@
 """Exact weighted determinization over the finite semiring {0,1,many}."""
 import sys, time, collections, json
 from pathlib import Path
-from horizontal import Model
-model = Model()
+try:
+    from horizontal import Model
+    model = Model()
+except (RuntimeError, ValueError, AssertionError) as e:
+    print('NOT_PROVEN', 'model construction:', str(e), flush=True)
+    sys.exit(2)
 vectors = []
 vectorids = {}
 frames = []

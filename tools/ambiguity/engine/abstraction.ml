@@ -77,15 +77,18 @@ type precision = int array
    only merge concrete stacks and therefore admit extra moves; they cannot
    remove one. Keeping the residue in [stack] also means deduplication never
    substitutes the fingerprint of one path for another. *)
+(* Lazy for the reason [descent_limit] gives; [Config.settings] forces it. *)
 let residue_count =
-  let bits = match Sys.getenv_opt "AMBIGUITY_RESIDUE_BITS" with
-    | None | Some "" -> 10
-    | Some value -> (match int_of_string_opt value with
-        | Some bits when bits >= 0 && bits <= 10 -> bits
-        | _ -> invalid_arg "AMBIGUITY_RESIDUE_BITS must be an integer from 0 to 10") in
-  1 lsl bits
+  lazy
+    (let bits = match Sys.getenv_opt "AMBIGUITY_RESIDUE_BITS" with
+       | None | Some "" -> 10
+       | Some value -> (match int_of_string_opt value with
+           | Some bits when bits >= 0 && bits <= 10 -> bits
+           | _ -> invalid_arg "AMBIGUITY_RESIDUE_BITS must be an integer from 0 to 10") in
+     1 lsl bits)
 
 let terminal_residue token =
+  let residue_count = Lazy.force residue_count in
   let value = Hashtbl.hash token land (residue_count - 1) in
   if residue_count = 1 then 0 else if value = 0 then 1 else value
 
@@ -150,7 +153,7 @@ let reduction_bases automaton =
 let reachable_stack_residues automaton =
   let reachable =
     Array.init (Array.length automaton.states) (fun _ ->
-        Array.make residue_count false)
+        Array.make (Lazy.force residue_count) false)
   in
   let queue = Queue.create () in
   let push state residue =

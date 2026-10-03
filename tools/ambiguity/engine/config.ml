@@ -179,6 +179,8 @@ let settings () =
      before the run starts, rather than at whatever moment the first progress
      line happened to fall due. *)
   ignore (Lazy.force progress_interval : float);
+  ignore (Lazy.force Abstraction.residue_count : int);
+  ignore (Lazy.force Delimiter_history.modulus : int);
   Option.iter
     (fun value ->
       if value < 0 then invalid_arg "--max-tokens must be at least 0")

@@ -1,30 +1,30 @@
-COMMAND ["/workspace/scratch/22118b096616/menhir-20260209-0c6d021629bafa2fa32302d01d9594d2a026ec75/_build/default/executable/stage2/main.exe", "--GLR", "--only-preprocess-uu", "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly"]
+COMMAND ["/home/user/compiler/_opam/bin/menhir", "--GLR", "--only-preprocess-uu", "/home/user/compiler/lib/cst/parser.mly"]
 Warning: because not every rule has a merge function,
 a default merge function should be provided.
-COMMAND ["/workspace/scratch/22118b096616/menhir-20260209-0c6d021629bafa2fa32302d01d9594d2a026ec75/_build/default/executable/stage2/main.exe", "--GLR", "--dump", "--base", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/parser", "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly"]
+COMMAND ["/home/user/compiler/_opam/bin/menhir", "--GLR", "--dump", "--base", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/parser", "/home/user/compiler/lib/cst/parser.mly"]
 Warning: because not every rule has a merge function,
 a default merge function should be provided.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 102, characters 0-9:
+File "/home/user/compiler/lib/cst/parser.mly", line 102, characters 0-9:
 Warning: the precedence level assigned to AMPERSAND is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 103, characters 0-5:
+File "/home/user/compiler/lib/cst/parser.mly", line 103, characters 0-5:
 Warning: the precedence level assigned to DOT is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 104, characters 0-5:
+File "/home/user/compiler/lib/cst/parser.mly", line 104, characters 0-5:
 Warning: the precedence level assigned to LBRACKET is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 105, characters 0-5:
+File "/home/user/compiler/lib/cst/parser.mly", line 105, characters 0-5:
 Warning: the precedence level assigned to LPAREN is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1225, characters 31-40:
+File "/home/user/compiler/lib/cst/parser.mly", line 1225, characters 31-40:
 Warning: this %prec declaration is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1228, characters 31-36:
+File "/home/user/compiler/lib/cst/parser.mly", line 1228, characters 31-36:
 Warning: this %prec declaration is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1211, characters 31-40:
+File "/home/user/compiler/lib/cst/parser.mly", line 1211, characters 31-40:
 Warning: this %prec declaration is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1214, characters 47-55:
+File "/home/user/compiler/lib/cst/parser.mly", line 1214, characters 47-55:
 Warning: this %prec declaration is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1236, characters 37-48:
+File "/home/user/compiler/lib/cst/parser.mly", line 1236, characters 37-48:
 Warning: this %prec declaration is never useful.
 Warning: 55 states have shift/reduce conflicts.
 Warning: one state has reduce/reduce conflicts.
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/lr.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/parser.automaton", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/context.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/expanded.mly", "--minimize"]
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/lr.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/parser.automaton", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/context.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/expanded.mly", "--minimize"]
 states 1766 productions 714 occurrences 36350
 bisimulation classes 131
 bisimulation classes 154
@@ -34,9 +34,9 @@ bisimulation classes 191
 bisimulation classes 193
 bisimulation classes 193
 context export 193 nts 2414 rules
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/angles.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/context.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/angles.y"]
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/angles.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/context.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/angles.y"]
 Unique annotation certified: 27 opening occurrences; 14 generic-interior nonterminals
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/lookahead.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/angles.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/exact.y", "--bracket-groups"]
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/lookahead.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/angles.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/exact.y", "--bracket-groups"]
 bracket groups 31
 FIRST 0 10734
 FIRST 1 15255
@@ -65,7 +65,7 @@ partition 2338
 partition 2341
 partition 2341
 final 2241 nonterminals 4536 rules
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/factor.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/exact.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/factored.y"]
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/factor.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/exact.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/factored.y"]
 0 1941 3689
 1 1941 3689
 2 1941 3689
@@ -74,7 +74,7 @@ COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/pyth
 5 1941 3689
 6 1941 3689
 7 1941 3689
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/prove.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/factored.y", "100000", "120", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-glr-2026-10-01/certificate.json"]
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/prove.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/factored.y", "100000", "300", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-glr/certificate.json"]
 components 1375 non-regular obligations 0
 largest component 82
 compiled 1300 6 DFA states 9 NFA states 79 languages
@@ -109,4 +109,4 @@ compiled 46 3230 DFA states 3356 NFA states 1839 languages
 compiled 34 4656 DFA states 5088 NFA states 1851 languages
 compiled 0 327 DFA states 370 NFA states 1937 languages
 horizontal library 1937 languages 107237 states; largest 411
-PROVEN 2704 nodes 31 frames 1486 states 0.07 sec
+PROVEN 2704 nodes 31 frames 1486 states 0.11 sec

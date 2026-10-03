@@ -434,7 +434,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
   let automaton = engine.automaton in
   (* Filter states are included in every abstract pair key. Any added sentence
      therefore requires a fresh walk and fresh caches. *)
-  if Delimiter_history.modulus > 1 then Balanced_walk.validate automaton;
+  if Lazy.force Delimiter_history.modulus > 1 then Balanced_walk.validate automaton;
   let history_filter = Delimiter_history.create blocked_sentences in
   let gotos = goto_edges automaton in
   let preds = predecessors automaton in
@@ -494,7 +494,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
   let reachable_height =
     Array.init height_ceiling (fun _ ->
         Array.init (Array.length automaton.states) (fun _ ->
-            Bytes.make residue_count '\000'))
+            Bytes.make (Lazy.force residue_count) '\000'))
   in
   Bytes.set reachable_height.(1).(0) 0 '\001';
   for height = 1 to height_ceiling - 2 do
@@ -506,7 +506,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
               if StringSet.mem symbol automaton.terminals then
                 terminal_residue symbol else 0
             in
-            for residue = 0 to residue_count - 1 do
+            for residue = 0 to Lazy.force residue_count - 1 do
               if Bytes.get reachable_height.(height).(source) residue = '\001'
               then Bytes.set reachable_height.(height + 1).(target)
                   (residue lxor edge) '\001'
@@ -880,7 +880,7 @@ let prove ?(blocked_sentences = []) engine (state : prove_state)
      the same abstract reduction chains, so exploring one covers the class and
      shrinks the abstract pair space by the same factor as the search. *)
   let terminals =
-    if Delimiter_history.modulus = 1 then
+    if Lazy.force Delimiter_history.modulus = 1 then
       StringSet.elements (class_representatives automaton automaton.terminals)
     else
       let delimiters, ordinary = StringSet.partition

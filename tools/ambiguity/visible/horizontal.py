@@ -140,12 +140,12 @@ for c in reversed(range(len(components))):
         trans[d] = {atom: state(weights) for atom, weights in choices.items()}
         if len(states) > 100000:
             raise RuntimeError('component DFA limit')
+    reverse = collections.defaultdict(set)
+    for d, edges in trans.items():
+        for t in edges.values():
+            reverse[t].add(d)
     for n in members:
         req = n if direction == 'left' else 'end'
-        reverse = collections.defaultdict(set)
-        for d, edges in trans.items():
-            for t in edges.values():
-                reverse[t].add(d)
         live = {d for d in trans if accepts[d].get(req, 0)}
         todo = list(live)
         while todo:

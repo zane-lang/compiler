@@ -1,28 +1,28 @@
-COMMAND ["/workspace/scratch/22118b096616/menhir-20260209-0c6d021629bafa2fa32302d01d9594d2a026ec75/_build/default/executable/stage2/main.exe", "--no-code-generation", "--only-preprocess-uu", "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly"]
-COMMAND ["/workspace/scratch/22118b096616/menhir-20260209-0c6d021629bafa2fa32302d01d9594d2a026ec75/_build/default/executable/stage2/main.exe", "--no-code-generation", "--dump", "--base", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/parser", "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly"]
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 102, characters 0-9:
+COMMAND ["/home/user/compiler/_opam/bin/menhir", "--no-code-generation", "--only-preprocess-uu", "/home/user/compiler/lib/cst/parser.mly"]
+COMMAND ["/home/user/compiler/_opam/bin/menhir", "--no-code-generation", "--dump", "--base", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/parser", "/home/user/compiler/lib/cst/parser.mly"]
+File "/home/user/compiler/lib/cst/parser.mly", line 102, characters 0-9:
 Warning: the precedence level assigned to AMPERSAND is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 103, characters 0-5:
+File "/home/user/compiler/lib/cst/parser.mly", line 103, characters 0-5:
 Warning: the precedence level assigned to DOT is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 104, characters 0-5:
+File "/home/user/compiler/lib/cst/parser.mly", line 104, characters 0-5:
 Warning: the precedence level assigned to LBRACKET is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 105, characters 0-5:
+File "/home/user/compiler/lib/cst/parser.mly", line 105, characters 0-5:
 Warning: the precedence level assigned to LPAREN is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1236, characters 37-48:
+File "/home/user/compiler/lib/cst/parser.mly", line 1236, characters 37-48:
 Warning: this %prec declaration is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1211, characters 31-40:
+File "/home/user/compiler/lib/cst/parser.mly", line 1211, characters 31-40:
 Warning: this %prec declaration is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1214, characters 47-55:
+File "/home/user/compiler/lib/cst/parser.mly", line 1214, characters 47-55:
 Warning: this %prec declaration is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1225, characters 31-40:
+File "/home/user/compiler/lib/cst/parser.mly", line 1225, characters 31-40:
 Warning: this %prec declaration is never useful.
-File "/workspace/scratch/22118b096616/compiler/lib/cst/parser.mly", line 1228, characters 31-36:
+File "/home/user/compiler/lib/cst/parser.mly", line 1228, characters 31-36:
 Warning: this %prec declaration is never useful.
 Warning: 48 states have shift/reduce conflicts.
 Warning: one state has reduce/reduce conflicts.
 Warning: 64 shift/reduce conflicts were arbitrarily resolved.
 Warning: one reduce/reduce conflict was arbitrarily resolved.
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/lr.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/parser.automaton", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/context.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/expanded.mly", "--minimize"]
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/lr.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/parser.automaton", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/context.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/expanded.mly", "--minimize"]
 states 1393 productions 481 occurrences 21485
 bisimulation classes 129
 bisimulation classes 151
@@ -33,9 +33,9 @@ bisimulation classes 204
 bisimulation classes 205
 bisimulation classes 205
 context export 205 nts 1760 rules
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/angles.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/context.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/angles.y"]
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/angles.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/context.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/angles.y"]
 Unique annotation certified: 40 opening occurrences; 17 generic-interior nonterminals
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/lookahead.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/angles.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/exact.y", "--bracket-groups"]
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/lookahead.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/angles.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/exact.y", "--bracket-groups"]
 bracket groups 30
 FIRST 0 10572
 FIRST 1 16481
@@ -62,7 +62,7 @@ partition 1794
 partition 1797
 partition 1797
 final 1668 nonterminals 3490 rules
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/factor.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/exact.y", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/factored.y"]
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/factor.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/exact.y", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/factored.y"]
 0 1410 2653
 1 1410 2653
 2 1410 2653
@@ -71,7 +71,7 @@ COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/pyth
 5 1410 2653
 6 1410 2653
 7 1410 2653
-COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "/workspace/scratch/22118b096616/compiler/tools/ambiguity/visible/prove.py", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/factored.y", "100000", "120", "/workspace/scratch/22118b096616/compiler/reports/ambiguity/visible-stock-2026-10-01/certificate.json"]
+COMMAND ["/usr/bin/python3", "/home/user/compiler/tools/ambiguity/visible/prove.py", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/factored.y", "100000", "300", "/tmp/claude-0/-home-user/8945c945-e642-5e4b-9585-d8f2b7cfdf96/scratchpad/vis-stock/certificate.json"]
 components 945 non-regular obligations 0
 largest component 65
 compiled 900 4 DFA states 7 NFA states 45 languages
@@ -93,4 +93,4 @@ compiled 38 1612 DFA states 1676 NFA states 1317 languages
 compiled 27 2169 DFA states 2396 NFA states 1328 languages
 compiled 0 110 DFA states 120 NFA states 1406 languages
 horizontal library 1406 languages 80395 states; largest 289
-PROVEN 2697 nodes 31 frames 1479 states 0.06 sec
+PROVEN 2697 nodes 31 frames 1479 states 0.11 sec

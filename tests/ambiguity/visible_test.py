@@ -159,7 +159,8 @@ class VisibleProofTests(unittest.TestCase):
             self.assertFalse(cert.exists())
             write_grammar(grammar, {'n0': [('n1', 'EOF')], 'n1': [(), ('INT', 'n1', 'FALSE')]})
             result = self.worker('prove.py', grammar, 10000, 10, cert)
-            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn('NOT_PROVEN', result.stdout)
             self.assertFalse(cert.exists())
 
     def test_certificate_rejects_missing_successors_and_wrong_hash(self):

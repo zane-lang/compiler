@@ -32,16 +32,16 @@ let run ~automaton ~engine ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~tim
     printf "Balanced proof: all reachable production skeletons are well-nested; \
             ()/[]/{} histories are checked at arbitrary depth.\n"
   end;
-  if Delimiter_history.modulus > 1 then begin
+  if Lazy.force Delimiter_history.modulus > 1 then begin
     Balanced_walk.validate automaton;
     printf "Delimiter history: net counts modulo %d; balanced production \
             skeletons checked; no depth or input-length bound.\n"
-      Delimiter_history.modulus
+      (Lazy.force Delimiter_history.modulus)
   end;
   let delimiter_description =
-    if Delimiter_history.modulus = 1 then ""
+    if Lazy.force Delimiter_history.modulus = 1 then ""
     else Printf.sprintf " intersected with delimiter counts modulo %d"
-        Delimiter_history.modulus in
+        (Lazy.force Delimiter_history.modulus) in
   (* Refinement's loop. A candidate is a question rather than an
      answer -- it may be a real ambiguity or a gap the abstraction left
      -- and the two are told apart by sharpening the abstraction exactly
@@ -405,7 +405,7 @@ let run ~automaton ~engine ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~tim
         "Stack residue: refused %d move(s) whose outstanding terminals \
          cannot reach the selected automaton state (%d residue \
          classes).\n"
-        !refused_residues residue_count
+        !refused_residues (Lazy.force residue_count)
   in
   (* The retired sites are the part of a retiring run that is not in its
      verdict: the verdict says the rest of the grammar came out clean,
