@@ -36,7 +36,8 @@ let rewrite ~stamp input =
    [from] moved to the version stamped [to_], as remapping does
    (docs/design/separate-compilation.md C11, dependencies.md §15.6). Both
    are versions of one package, so the two stamps share their identity
-   hash, and only the version tag changes. *)
+   hash, and only the version tag changes. Remapping a stamp onto itself
+   renames nothing, though the object is still read and checked. *)
 let remap ~from ~to_ input =
   if not (Name.is_stamp from) then Error (Printf.sprintf "`%s` is not a stamp" from)
   else if not (Name.is_stamp to_) then Error (Printf.sprintf "`%s` is not a stamp" to_)
@@ -46,4 +47,5 @@ let remap ~from ~to_ input =
          "`%s` and `%s` are versions of two packages, since their identity hashes differ; \
           remapping moves references between versions of one package"
          from to_)
+  else if String.equal from to_ then apply ~rename:(fun _ -> None) input
   else apply ~rename:(Name.remap ~from ~to_) input

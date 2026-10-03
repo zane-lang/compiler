@@ -406,7 +406,7 @@
  (action
   (with-stdout-to
    versions.atlas.remapped.left
-   (system "nm %{dep:versions.atlas.remapped.o} | grep -c 'v1[.]0%0123456789abcdef%' || true"))))
+   (system "nm %{dep:versions.atlas.remapped.o} > versions.atlas.remapped.nm && { grep -c 'v1[.]0%0123456789abcdef%' versions.atlas.remapped.nm; test $? -le 1; }"))))
 
 (rule
  (alias runtest)
