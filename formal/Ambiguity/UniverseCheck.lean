@@ -34,7 +34,7 @@ def checkUniverse (H : HFacts) (E : PGrammar) (keys : Array UKey) (fragInner : A
   (List.range keys.size).all (fun j =>
     edgesOk keys fragInner (specEdges H E (keys[j]?.getD (.fin 0))) (M.out j)) &&
   M.frags.size == fragInner.size && fragInner[0]? == some (some E.start) &&
-  (fragInner.toList.eraseDups.length == fragInner.size) &&
+  decide fragInner.toList.Nodup &&
   (List.range M.frags.size).all fun f =>
     keys[M.fin f]? == some (.fin f) && tgtOk keys (headTgt H (fragInner.getD f none) (M.fin f)) (M.entry f)
 

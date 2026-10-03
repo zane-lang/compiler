@@ -19,3 +19,5 @@ import Ambiguity.Universe
 import Ambiguity.UniverseCheck
 import Ambiguity.Items
 import Ambiguity.Count
+import Ambiguity.Wsup
+import Ambiguity.HorizSound
