@@ -1,4 +1,5 @@
 import Ambiguity.Universe
+import Ambiguity.Count
 
 /-! # Checks on the universe model and the horizontal facts -/
 
@@ -39,7 +40,6 @@ def checkUniverse (H : HFacts) (E : PGrammar) (keys : Array UKey) (fragInner : A
 
 /-- (C3) grammar facts: nonempty and empty-count post-fixpoints, bracket
 shape, component order, membership, and linearity. -/
-def hasBracket (r : List Sym) : Bool := r.any fun | .t a => isOpen a || isClose a | _ => false
 
 def checkFacts (H : HFacts) (E : PGrammar) : Bool :=
   (List.range E.rules.size).all fun x => (E.rulesOf x).all fun r =>
