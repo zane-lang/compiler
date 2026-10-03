@@ -61,6 +61,19 @@ def checkEps (H : HFacts) (E : PGrammar) : Bool :=
     H.isNe x || decide (sumL (E.rulesOf x) (fun r =>
       r.foldl (fun acc s => acc * match s with | .n y => H.epsOf y | _ => 0) 1) ≤ H.epsOf x)
 
+/-- Keys are unique: the index finds every node by its key. -/
+def checkKeys (keys : Array UKey) (idx : Std.HashMap UKey Nat) : Bool :=
+  (List.range keys.size).all fun j => match keys[j]? with
+    | some k => idx.get? k == some j
+    | none => false
+
+/-- Library DFAs have a state 0 and their transitions stay in range. -/
+def checkLib (H : HFacts) : Bool :=
+  (List.range H.lib.size).all fun lid =>
+    let D := H.dfa lid
+    decide (0 < D.trans.size) &&
+    (List.range D.trans.size).all fun d => (D.transAt d).all fun p => decide (p.2 < D.trans.size)
+
 def checkMembers (H : HFacts) : Bool :=
   (List.range H.members.size).all fun c => (H.mems c).all fun m => H.isNe m && H.compOf m == c
 

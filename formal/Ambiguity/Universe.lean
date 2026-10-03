@@ -29,6 +29,7 @@ inductive UKey where
   | start (c : Nat)
   | cfin (c : Nat)
   | chain (c : Nat) (body : List CSym) (dest : UKey)
+  | rpos (c m i k : Nat)
   deriving DecidableEq, Hashable, Repr, Inhabited
 
 /-- Edge targets in the specification: a node id, a keyed node, or the start
@@ -126,11 +127,23 @@ def ruleNfa (H : HFacts) (c m : Nat) (r : List Sym) : RuleNfa :=
 def chainTgt (c : Nat) (body : List CSym) (dest : UKey) : Tgt :=
   if body.isEmpty then .key dest else .key (.chain c body dest)
 
-/-- All rule edges of a component, with their origins, in a fixed order. -/
+/-- The edge reading one body symbol, continuing at `t`. -/
+def symEdge (H : HFacts) (s : CSym) (t : Tgt) : SEdge :=
+  match s with
+  | .term a => .int a t
+  | .call o inner cl => .call o inner t cl
+  | .low y => .eps (.comp0 (H.langOf y) t) 1
+  | .w2 => .eps t 2
+
+/-- All rule edges of a component, with their origins, in a fixed order.
+A right-linear rule enters a chain shared by equal body suffixes; a
+left-linear rule enters its own chain of `rpos` nodes. -/
 def compEdges (H : HFacts) (E : PGrammar) (c : Nat) : List (UKey × SEdge) :=
-  (H.mems c).flatMap fun m => (E.rulesOf m).filterMap fun r =>
+  (H.mems c).flatMap fun m => (E.rulesOf m).zipIdx.filterMap fun (r, i) =>
     match ruleNfa H c m r with
-    | .edge o body dest w => some (o, .eps (chainTgt c body dest) w)
+    | .edge o body dest w =>
+      if H.isLeft c then some (o, .eps (.key (.rpos c m i 0)) w)
+      else some (o, .eps (chainTgt c body dest) w)
     | _ => none
 
 def specEdges (H : HFacts) (E : PGrammar) : UKey → List SEdge
@@ -147,12 +160,17 @@ def specEdges (H : HFacts) (E : PGrammar) : UKey → List SEdge
   | .start c => (compEdges H E c).filterMap fun (o, e) => if o = .start c then some e else none
   | .cfin _ => []
   | .chain _ [] _ => []
-  | .chain c (s :: rest) dest =>
-    match s with
-    | .term a => [.int a (chainTgt c rest dest)]
-    | .call o inner cl => [.call o inner (chainTgt c rest dest) cl]
-    | .low y => [.eps (.comp0 (H.langOf y) (chainTgt c rest dest)) 1]
-    | .w2 => [.eps (chainTgt c rest dest) 2]
+  | .chain c (s :: rest) dest => [symEdge H s (chainTgt c rest dest)]
+  | .rpos c m i k =>
+    match (E.rulesOf m)[i]? with
+    | some r =>
+      match ruleNfa H c m r with
+      | .edge _ body dest _ =>
+        match body[k]? with
+        | some s => [symEdge H s (.key (.rpos c m i (k + 1)))]
+        | none => if k = body.length then [.eps (.key dest) 1] else []
+      | _ => []
+    | none => []
 
 /-- The fragment entry for an interior, continuing at the fragment end. -/
 def headTgt (H : HFacts) (inner : Option Nat) (finId : Nat) : Tgt :=

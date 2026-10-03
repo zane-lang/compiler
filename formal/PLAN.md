@@ -68,3 +68,11 @@ Proof chain: cnt_E(m,u) <= W(start_m,u,final_m) <= DFA <= lib DW <= model comp W
 - WLemmas: W_mono, fwd (forward unfolding, fuel b+c+1) proven. Concat over a node is FALSE in general with fuel (eps loops) -> use fwd/backward only.
 - Universe.lean producer: same 2704/31 result, 2.6 min, 213598 nodes. Next: UniverseCheck (C1 edges vs spec, C2 frags (fragInner injective), C3 ne/eps/shape/comp order/members, C4 det+min witnesses), then proofs (d) lib->model, (b)(c) NFA->DFA->lib, (a) grammar->NFA, items/flatten, cnt.
 - Items (flatten_inj), Count (cnt_ge1, cnt_two, iy_flat, iy_proper) proven. Next: Wsup + (d) lib->model, (b)(c) NFA->DFA->lib, (a) grammar->NFA.
+- (b) det_inv, (c) min_le, wit_member proven (DetSound, MinSound).
+- Producer change: left-linear rules get private chains `rpos c m i k` (backward proofs need
+  unique in-edges); new checks checkKeys (unique keys via idx) and checkLib (lib DFA ranges).
+- (a) plan: Conv.lean (conv over splits, assoc). ChainSound: comp_splits, sym_fwd, chain_fwd
+  (right-linear, forward). Next BwdSound: conv_snoc, DW = sum DWp*acc, comp_bwd (needs reach
+  lemma + checkKeys), sym_bwd, rpos_bwd (left-linear, backward). Then grammar side
+  (cntSeq vs bodyCnt, epsCtx, dead rules), Q(n) induction over fuel for all symbols at once,
+  fragments, root, final theorem.
