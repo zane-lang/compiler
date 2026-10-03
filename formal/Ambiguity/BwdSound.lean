@@ -456,4 +456,221 @@ theorem comp_bwd (lid tail q src c0 : Nat) (hc0 : keys[c0]? = some (.comp lid 0 
 
 end
 
+theorem mem_pairs {β} {l : List Nat} {φ : Nat → Option β} {d : Nat} {b : β}
+    (h : (d, b) ∈ l.filterMap fun d => (φ d).map (d, ·)) : φ d = some b := by
+  obtain ⟨d', _, he⟩ := List.mem_filterMap.mp h
+  cases h' : φ d' with
+  | none => rw [h'] at he; cases he
+  | some b' =>
+    rw [h'] at he
+    simp only [Option.map_some, Option.some.injEq, Prod.mk.injEq] at he
+    obtain ⟨rfl, rfl⟩ := he; exact h'
+
+theorem conv_one_snoc (f g : List Item → S) (hg : ∀ v, v.length ≠ 1 → g v = 0) (u : List Item) (x : Item) :
+    conv f g (u ++ [x]) = f u * g [x] := by
+  rw [conv_snoc, hg [] (by simp), S.mul_zero, S.add_zero]
+  rw [conv_at_nil_right f (fun v => g (v ++ [x])) (fun v hv => hg _ (by
+    cases v with
+    | nil => exact absurd rfl hv
+    | cons _ _ => simp))]
+  rfl
+
+theorem conv_one_nil (f g : List Item → S) (hg : ∀ v, v.length ≠ 1 → g v = 0) : conv f g [] = 0 := by
+  rw [conv_nil, hg [] (by simp), S.mul_zero]
+
+theorem bodyCnt_snoc (H : HFacts) (M : Model) (fI : Array (Option Nat)) (s : CSym) :
+    ∀ (β : List CSym) (u : List Item),
+      bodyCnt H M fI (β ++ [s]) u = conv (bodyCnt H M fI β) (symCnt H M fI s) u
+  | [], u => by
+    simp only [List.nil_append, bodyCnt]
+    rw [conv_delta_right, conv_delta_left]
+  | b :: β, u => by
+    simp only [List.cons_append, bodyCnt]
+    rw [conv_congr (fun _ => rfl) (bodyCnt_snoc H M fI s β), conv_assoc]
+
+section
+variable (H : HFacts) (E : PGrammar) (keys : Array UKey) (fI : Array (Option Nat)) (M : Model)
+variable (hU : checkUniverse H E keys fI M = true)
+variable (idx : Std.HashMap UKey Nat) (hK : checkKeys keys idx = true) (hL : checkLib H = true)
+include hU hK hL
+
+/-- Leaving a DFA copy through its accepting edges. -/
+theorem comp_exit (lid tail q src c0 : Nat) (hc0 : keys[c0]? = some (.comp lid 0 tail))
+    (hsrc : Edge.eps c0 1 ∈ M.out src) (hsk : ∀ d, keys[src]? ≠ some (.comp lid d tail))
+    (L : List Item → S) (hL' : ∀ v, L v ≤ Wsup M q v src) (u : List Item) :
+    conv L (DW (H.dfa lid) (wtM M fI) 0) u ≤ Wsup M q u tail := by
+  let D := H.dfa lid
+  let N := D.trans.size + 1
+  have hT : ∀ d < N, ∀ p ∈ D.transAt d, p.2 < N := fun d _ p hp =>
+    Nat.lt_succ_of_lt (lib_trans_lt hL lid d p hp)
+  rw [conv_congr (fun _ => rfl) (fun v => DW_eq D (wtM M fI) N hT v 0 (Nat.succ_pos _)), conv_sum_right]
+  let φ : Nat → Option Nat := fun d => lookupId keys idx (.comp lid d tail)
+  rw [sum_reduce _ _ φ (fun d _ hne => comp_nonzero H E keys fI M hU idx hK hL lid tail hc0 L u d
+    (fun h0 => hne (by rw [h0, S.zero_mul])))]
+  refine bwd_idx M _ Prod.snd (comp_nodes_nodup H E keys fI M hU idx hK hL lid tail N) q u tail _ ?_
+  intro p hp
+  obtain ⟨d, j⟩ := p
+  have hj := lookupId_spec (mem_pairs hp)
+  refine S.le_trans (S.mul_le_mul (comp_bwd H E keys fI M hU idx hK hL lid tail q src c0 hc0 hsrc hsk L hL'
+    u.length u (Nat.le_refl _) d j hj) (S.le_refl _)) ?_
+  by_cases ha : D.accAt d = 0
+  · show _ * D.accAt d ≤ _
+    rw [ha, S.mul_zero]; exact S.zero_le _
+  · have hes := edges_of_key H E keys fI M hU hj
+    obtain ⟨e, he, hok⟩ := edgesOk_mem hes (s := .eps (.id tail) (D.accAt d)) (by simp [specEdges, D, ha])
+    cases e with
+    | eps t w =>
+      simp only [edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hok
+      obtain ⟨rfl, rfl⟩ := hok
+      refine S.le_trans ?_ (le_sumL he _)
+      simp [stepC]
+    | _ => simp [edgeOk] at hok
+
+theorem symEdge_tgt {s : CSym} {k : UKey} {e : Edge} (hok : edgeOk keys fI (symEdge H s (.key k)) e = true) :
+    ∃ t : Nat, keys[t]? = some k := by
+  cases s with
+  | term a =>
+    cases e with
+    | int a' t => simp only [symEdge, edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hok; exact ⟨t, hok.2⟩
+    | _ => simp [symEdge, edgeOk] at hok
+  | call o inner c =>
+    cases e with
+    | call o' f t c' => simp only [symEdge, edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hok; exact ⟨t, hok.2⟩
+    | _ => simp [symEdge, edgeOk] at hok
+  | low y =>
+    cases e with
+    | eps t w =>
+      simp only [symEdge, edgeOk, Bool.and_eq_true, beq_iff_eq] at hok
+      obtain ⟨j, _, hj⟩ := tgtOk_comp0 hok.2
+      simp only [tgtOk, beq_iff_eq] at hj
+      exact ⟨j, hj⟩
+    | _ => simp [symEdge, edgeOk] at hok
+  | w2 =>
+    cases e with
+    | eps t w => simp only [symEdge, edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hok; exact ⟨t, hok.2⟩
+    | _ => simp [symEdge, edgeOk] at hok
+
+/-- One body symbol read backward into its target. -/
+theorem sym_bwd (s : CSym) (k : UKey) (q src : Nat) (hsk : ∀ lid d tail, keys[src]? ≠ some (.comp lid d tail))
+    (L : List Item → S) (hL' : ∀ v, L v ≤ Wsup M q v src)
+    {e : Edge} (he : e ∈ M.out src) (hok : edgeOk keys fI (symEdge H s (.key k)) e = true)
+    {t : Nat} (ht : keys[t]? = some k) (u : List Item) :
+    conv L (symCnt H M fI s) u ≤ Wsup M q u t := by
+  have hnd := (universe_parts H E keys fI M hU).2.2.2.2.1
+  cases s with
+  | term a =>
+    cases e with
+    | int a' t' =>
+      simp only [symEdge, edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hok
+      obtain ⟨rfl, ht'⟩ := hok
+      have := keys_inj hK ht' ht; subst this
+      have hg : ∀ v, v.length ≠ 1 → symCnt H M fI (.term a) v = 0 := fun v hv => by
+        simp only [symCnt]; split
+        · simp at hv
+        · rfl
+      rcases List.eq_nil_or_concat u with h | ⟨u', x, rfl⟩
+      · subst h; rw [conv_one_nil _ _ hg]; exact S.zero_le _
+      rw [List.concat_eq_append, conv_one_snoc _ _ hg]
+      refine S.le_trans ?_ (Wsup_last M he q _ _)
+      simp only [stepC, ite_true, List.getLast?_concat, List.dropLast_concat, symCnt]
+      cases x with
+      | grp _ _ _ => simp
+      | tok b => by_cases hab : a = b <;> simp [hab, hL']
+    | _ => simp [symEdge, edgeOk] at hok
+  | call o inner c =>
+    cases e with
+    | call o' f t' c' =>
+      simp only [symEdge, edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hok
+      obtain ⟨⟨⟨rfl, rfl⟩, hf⟩, ht'⟩ := hok
+      have := keys_inj hK ht' ht; subst this
+      have hg : ∀ v, v.length ≠ 1 → symCnt H M fI (.call o inner c) v = 0 := fun v hv => by
+        simp only [symCnt]; split
+        · simp at hv
+        · rfl
+      rcases List.eq_nil_or_concat u with h | ⟨u', x, rfl⟩
+      · subst h; rw [conv_one_nil _ _ hg]; exact S.zero_le _
+      rw [List.concat_eq_append, conv_one_snoc _ _ hg]
+      refine S.le_trans ?_ (Wsup_last M he q _ _)
+      simp only [stepC, ite_true, List.getLast?_concat, List.dropLast_concat, symCnt]
+      cases x with
+      | tok _ => simp
+      | grp o'' v c'' =>
+        simp only
+        split
+        · rw [fragW_eq M fI hnd hf v]; exact S.mul_le_mul (hL' _) (S.le_refl _)
+        · simp
+    | _ => simp [symEdge, edgeOk] at hok
+  | low y =>
+    cases e with
+    | eps c0 w =>
+      simp only [symEdge, edgeOk, Bool.and_eq_true, beq_iff_eq] at hok
+      obtain ⟨rfl, hc⟩ := hok
+      obtain ⟨j, hc0, hj⟩ := tgtOk_comp0 hc
+      simp only [tgtOk, beq_iff_eq] at hj
+      have := keys_inj hK hj ht; subst this
+      exact comp_exit H E keys fI M hU idx hK hL _ j q src c0 hc0 he (fun d => hsk _ d j) L hL' u
+    | _ => simp [symEdge, edgeOk] at hok
+  | w2 =>
+    cases e with
+    | eps t' w =>
+      simp only [symEdge, edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hok
+      obtain ⟨rfl, ht'⟩ := hok
+      have := keys_inj hK ht' ht; subst this
+      rw [conv_at_nil_right _ _ (fun v hv => by simp [symCnt, hv])]
+      refine S.le_trans ?_ (Wsup_last M he q _ _)
+      simp only [symCnt, List.isEmpty_nil, ite_true, stepC]
+      exact S.mul_le_mul (hL' u) (S.le_refl _)
+    | _ => simp [symEdge, edgeOk] at hok
+
+end
+
+section
+variable (H : HFacts) (E : PGrammar) (keys : Array UKey) (fI : Array (Option Nat)) (M : Model)
+variable (hU : checkUniverse H E keys fI M = true)
+variable (idx : Std.HashMap UKey Nat) (hK : checkKeys keys idx = true) (hL : checkLib H = true)
+include hU hK hL
+
+/-- **Private chain of a left-linear rule**, read backward from its first node. -/
+theorem rpos_bwd (c m i : Nat) {r : List Sym} (hr : (E.rulesOf m)[i]? = some r)
+    {o : UKey} {body : List CSym} {dest : UKey} {w : S} (hn : ruleNfa H c m r = .edge o body dest w)
+    (q r0 : Nat) (h0 : keys[r0]? = some (.rpos c m i 0)) :
+    ∀ k, k ≤ body.length → ∃ rk, keys[rk]? = some (.rpos c m i k) ∧
+      ∀ u, conv (fun v => Wsup M q v r0) (bodyCnt H M fI (body.take k)) u ≤ Wsup M q u rk
+  | 0, _ => ⟨r0, h0, fun u => by
+      simp only [List.take_zero, bodyCnt]; rw [conv_delta_right]; exact S.le_refl _⟩
+  | k + 1, hk => by
+    obtain ⟨rk, hrk, hb⟩ := rpos_bwd c m i hr hn q r0 h0 k (by omega)
+    have hlt : k < body.length := by omega
+    have hs : body[k]? = some body[k] := List.getElem?_eq_getElem hlt
+    have hes := edges_of_key H E keys fI M hU hrk
+    have hspec : specEdges H E (.rpos c m i k) = [symEdge H body[k] (.key (.rpos c m i (k + 1)))] := by
+      simp [specEdges, hr, hn, hs]
+    rw [hspec] at hes
+    obtain ⟨e, he, hok⟩ := edgesOk_mem hes (List.mem_singleton_self _)
+    obtain ⟨t, ht⟩ := symEdge_tgt H E keys fI M hU idx hK hL hok
+    refine ⟨t, ht, fun u => ?_⟩
+    rw [List.take_succ, hs, Option.toList_some, conv_congr (fun _ => rfl) (bodyCnt_snoc H M fI _ _), conv_assoc]
+    exact sym_bwd H E keys fI M hU idx hK hL _ _ q rk (fun lid d tail h => by rw [hrk] at h; cases h)
+      _ hb he hok ht u
+
+theorem rpos_end (c m i : Nat) {r : List Sym} (hr : (E.rulesOf m)[i]? = some r)
+    {o : UKey} {body : List CSym} {dest : UKey} {w : S} (hn : ruleNfa H c m r = .edge o body dest w)
+    {rk : Nat} (hrk : keys[rk]? = some (.rpos c m i body.length)) {t : Nat} (ht : keys[t]? = some dest)
+    (q : Nat) (u : List Item) : Wsup M q u rk ≤ Wsup M q u t := by
+  have hes := edges_of_key H E keys fI M hU hrk
+  have hspec : specEdges H E (.rpos c m i body.length) = [.eps (.key dest) 1] := by
+    simp [specEdges, hr, hn]
+  rw [hspec] at hes
+  obtain ⟨e, he, hok⟩ := edgesOk_mem hes (List.mem_singleton_self _)
+  cases e with
+  | eps t' w' =>
+    simp only [edgeOk, tgtOk, Bool.and_eq_true, beq_iff_eq] at hok
+    obtain ⟨rfl, ht'⟩ := hok
+    have := keys_inj hK ht' ht; subst this
+    refine S.le_trans ?_ (Wsup_last M he q u _)
+    simp [stepC]
+  | _ => simp [edgeOk] at hok
+
+end
+
 end Ambiguity
