@@ -58,10 +58,7 @@ abbrev FirstTbl := Nat → Tok → List (Option Tok)
 def sFirst (F : FirstTbl) (rhs : List Sym) (a b : Nat) (t : Tok) : List (Option Tok) :=
   if h : a < b then
     match rhs[a]? with
-    | some (.t s) =>
-      match groupAt rhs a with
-      | some (o, _, m) => if m < b then [some o] else []
-      | none => [some s]
+    | some (.t s) => [some s]
     | some (.n y) =>
       ((sFirst F rhs (a + 1) b t).flatMap fun g =>
         (F y (g.getD t)).map fun e => if e.isNone then g else e).eraseDups
@@ -90,13 +87,13 @@ def specRules (T : GGrammar) (F : FirstTbl) : LKey → List (List LSym)
       if a < b then
         match r.rhs[a]? with
         | some (.t s) =>
-          match groupAt r.rhs a with
-          | some (o, _, m) =>
-            if m < b ∧ (f = none ∨ f = some (some o)) then
-              [[.n (.grp x i a), .n (.seq x i (m + 1) b none t)]]
-            else []
-          | none =>
-            if f = none ∨ f = some (some s) then [[.t s, .n (.seq x i (a + 1) b none t)]] else []
+          if f = none ∨ f = some (some s) then
+            match groupAt r.rhs a with
+            | some (_, _, m) =>
+              if m < b then [[.n (.grp x i a), .n (.seq x i (m + 1) b none t)]]
+              else [[.t s, .n (.seq x i (a + 1) b none t)]]
+            | none => [[.t s, .n (.seq x i (a + 1) b none t)]]
+          else []
         | some (.n y) =>
           (sFirst F r.rhs (a + 1) b t).eraseDups.flatMap fun g =>
             let after := g.getD t

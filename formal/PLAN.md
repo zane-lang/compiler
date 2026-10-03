@@ -47,3 +47,8 @@ Entry m | Start | Fin | Chain(suffix, dest) | Copy(lid, d, tail).
 Then lift to items: cnt_E(X,u) <= sum_{alpha in cands(u)} cnt_atoms(X,alpha)*match,
 model comp nodes realize DFA runs (labelled model, keys checked).
 - R2 angles proven (AnglesSound.angles_sound); needs noGTokens Q check in final pipeline.
+- R3 redesign: Lookahead.lean specRules over keys nt/seq(x,i,a,b)/grp/inner/dead,
+  explored + checkExplore + checkFirst. Same final model 1486/2704/31, check true.
+  (sFirst must eraseDups or duplicate rules create spurious ambiguity: checker caught it.)
+  Proof plan: KWF spec-level trees; SL (slices) by induction on len inside NL by
+  strong induction on tree size; pi projection gives injectivity.
