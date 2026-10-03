@@ -36,6 +36,18 @@ def main (args : List String) : IO UInt32 := do
     else
       IO.println "REJECTED"
       return 1
+  | ["verify", dump] =>
+    -- `verify_sound`: a true `verify` makes the automaton's accepted trees unambiguous
+    let A ← IO.ofExcept (parseDump (← IO.FS.readFile dump) "package")
+    match produce A with
+    | .error e => IO.println s!"REJECTED: producer failed: {e}"; return 1
+    | .ok ev =>
+      if verify A ev then
+        say s!"VERIFIED: {A.trans.size} LR states, {ev.E.rules.size} grammar symbols, {ev.M.size} model nodes, {ev.C.frames.length} frames"
+        return 0
+      else
+        IO.println "REJECTED"
+        return 1
   | ["stats", dump] =>
     let A ← IO.ofExcept (parseDump (← IO.FS.readFile dump) "package")
     say s!"states {A.trans.size} productions {A.prods.size} nts {A.nts.size}"
