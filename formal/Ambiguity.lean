@@ -32,3 +32,4 @@ import Ambiguity.Pipeline
 import Ambiguity.Mly
 import Ambiguity.Lr1
 import Ambiguity.Source
+import Ambiguity.GlrCorr
