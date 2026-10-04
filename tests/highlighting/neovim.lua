@@ -1,5 +1,6 @@
 local root = assert(vim.env.ZANE_TEST_ROOT)
 vim.opt.runtimepath:prepend(assert(vim.env.ZANE_TEST_RUNTIME))
+vim.opt.runtimepath:append(vim.env.ZANE_TEST_RUNTIME .. '/after')
 dofile(root .. '/editors/neovim/zane.lua')
 vim.cmd('filetype on')
 vim.cmd.edit(root .. '/tests/parser/fixtures/utf8.zn')

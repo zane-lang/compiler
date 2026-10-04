@@ -49,8 +49,6 @@ binders [
   param
   constructor_field
 ]
-# A parameter is captured where it is declared, and where it is used through
-# zane-bound?. Uses come last so they win over the plain captures.
 # A declared verb name is the identifier right after the return type and right
 # before `(`: anchors skip anonymous tokens, so without the `(` an operator's or
 # a lambda's first parameter would be taken for the name.
@@ -62,6 +60,12 @@ highlights [
   "(simple_decl_braced (ret_type) . (identifier) @function . \"(\")"
   "(param . (identifier) @variable.parameter)"
   "(constructor_field . (identifier) @variable.parameter)"
+]
+# Neovim-only captures, generated into editors/neovim/queries/zane/highlights.scm
+# as an extension of the shared query. A parameter's uses need zane-bound?,
+# which only the generated zane.lua defines; a consumer that skipped the
+# predicate would take every reference for a parameter.
+neovim_highlights [
   "((primary . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter))"
   "((primary_braced \"init\" (identifier) @variable.parameter . \";\") (#zane-bound? @variable.parameter))"
 ]
