@@ -2,27 +2,24 @@
 
 ## Current guarantee
 
-`ambiguity prove-visible` produces a finite certificate for the current
-Menhir parse relation, with its declared precedence and associativity. The
-certificate covers arbitrary token-string length and bracket nesting. It is
-not a bounded search result.
+The grammar's unambiguity is a theorem checked by Lean. `just verify-grammar`
+proves it for the current `lib/cst/parser.mly`, and the `Grammar verification`
+workflow runs that recipe on every relevant change.
+[formal-proof.md](formal-proof.md) states the theorems and what they still
+assume:
 
-The guarantee is conditional on the correctness of the trusted implementations:
-Menhir's export/preprocessing, the grammar transformations, the counted model
-compiler, and the Python certificate/model-binding checkers. An implementation
-bug that drops a derivation could produce a false `PROVEN UNAMBIGUOUS` verdict.
-The tests, independent invariant check, and fresh model rebuild provide useful
-validation, but do not formally establish that these components are sound.
+- Lean's kernel, plus its code generator for the executable check.
+- The Lean definitions of Menhir's preprocessing and precedence resolution,
+  which are cross-checked against Menhir.
+- That Menhir's generated GLR parser accepts the trees of its dumped automaton.
 
-Both the stock retained-action grammar and the shipped GLR backend currently
-pass. The saved source hash and results are in the
-[2026-10-01 summary](../../reports/ambiguity/visible-summary-2026-10-01.md).
-The [construction document](visible-proof.md) explains the mathematics and
-reproduction commands. The constructor-only restriction on standalone type
-values is part of the certified source snapshot; collections remain callable.
+The four milestones below are complete in the repository. One step is left:
+the repository setting that makes the CI check required (milestone 4). Each
+milestone ends with a status line naming where its evidence lives.
 
-The remaining work is to establish the implementation's soundness, rather
-than to increase input bounds or search for a larger finite sample.
+`ambiguity prove-visible` remains the fast, unverified implementation of the
+same construction ([visible-proof.md](visible-proof.md)). It is useful while
+editing the grammar, and its verdict is conditional on its own Python code.
 
 ## Target theorem and scope
 
@@ -62,6 +59,10 @@ accepts both saved model certificates through an executable checker whose
 connection to that theorem is established. A handwritten Python implementation
 of a similar algorithm would still require trust; it is not enough by itself.
 
+**Status: done.** `Ambiguity/VpaSound.lean` proves `check_sound` for the
+executable checker `check`. The `certificate` command of
+`zane-ambiguity-check` runs that checker on a saved certificate.
+
 ### 2. Certify the grammar-to-model transformations
 
 Move backward from the model to the exported parse relation. Make each stage
@@ -86,6 +87,20 @@ could reproduce the same bug. It does not discharge these obligations.
 to the model consumed by milestone 1. No transformation can silently remove a
 competing derivation. Each remaining assumption is stated explicitly.
 
+**Status: done.** `verify_sound` (`Ambiguity/Pipeline.lean`) chains the
+stages:
+
+- context extraction: `CtxSound`;
+- quotienting: `QuotientSound`;
+- angles: `AnglesSound`;
+- lookahead guards: `LookaheadSound`, `Plain`;
+- horizontal compilation and model binding: `HorizMain`, `RuleSound`,
+  `DetSound`, `MinSound`, `ChainSound`, `BwdSound`;
+- the final checker: `VpaSound`.
+
+Its hypothesis is the executable check `verify`, and its conclusion is that the
+automaton's accepted trees are unambiguous.
+
 ### 3. Connect the exported relation to `parser.mly`
 
 The existing production-shape checks and manifests detect many mismatches;
@@ -103,6 +118,14 @@ only a final automaton's internal consistency would leave the source gap open.
 grammar and precedence declarations. It no longer assumes that an arbitrary
 Menhir dump faithfully represents them. Stock and GLR results have explicit
 source correspondences rather than relying on agreement between two runs.
+
+**Status: done**, as a verified front end. `Mly.sourceGrammar` and
+`Lr1.canonical` define the source relation from the file's text, and
+`verifySource_sound` proves it unambiguous. For the shipped `--GLR` parser,
+`verifyGlr_sound` checks a production-by-production correspondence with the
+source grammar: each production either keeps or drops each source symbol, or
+is a unit production. It maps every accepted GLR tree to a source derivation of
+the same tokens.
 
 ### 4. Make proof regeneration a CI gate
 
@@ -124,6 +147,15 @@ pipeline as the earlier milestones become available.
 **Completion evidence:** a relevant PR cannot pass with an incomplete run or
 a certificate for a different source snapshot. CI preserves the exact source,
 tool versions, verified evidence, and stated assumptions for review.
+
+**Status: done in the repository; one setting remains.**
+`.github/workflows/ambiguity-verify.yml` runs `just verify-grammar`. It triggers
+on changes to the grammar, `formal/`, the justfile or the workflow itself, and
+uploads the run's report. Its actions are pinned to commit SHAs, its Lean
+installer to a digest, and Lean itself to `formal/lean-toolchain`. The checker
+reads `parser.mly` directly, so no certificate can describe a different
+snapshot. The remaining step is the repository setting that marks the check as
+required for merging; until then, a red run is visible but does not block.
 
 ## Recommended order and reporting
 

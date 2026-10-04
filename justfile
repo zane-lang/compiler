@@ -50,6 +50,22 @@ test-ambiguity-tools: _require-menhir
 	dune runtest tests/ambiguity
 	python3 -m unittest discover -s tests/ambiguity -p '*_test.py' -t . -v
 
+# The machine-checked unambiguity theorems (docs/ambiguity/verification-roadmap.md):
+# the Lean checker in formal/ proves the parse relation parser.mly defines
+# unambiguous, then proves the GLR parser's relation unambiguous and maps it
+# onto the source grammar. Needs Lean (elan) besides Menhir; about ten minutes.
+verify-grammar: _require-menhir
+	#!/usr/bin/env bash
+	set -euo pipefail
+	command -v lake >/dev/null || { echo "lake not found on PATH; install Lean with elan" >&2; exit 1; }
+	(cd formal && lake build zane-ambiguity-check)
+	dir=$(mktemp -d)
+	trap 'rm -rf "$dir"' EXIT
+	cp lib/cst/parser.mly "$dir/"
+	(cd "$dir" && menhir --GLR --dump parser.mly >/dev/null 2>"$dir/menhir.log") || { cat "$dir/menhir.log" >&2; exit 1; }
+	formal/.lake/build/bin/zane-ambiguity-check prove-source lib/cst/parser.mly
+	formal/.lake/build/bin/zane-ambiguity-check prove-glr lib/cst/parser.mly "$dir/parser.automaton"
+
 # The engine-backed tests skip themselves unless the executables and Menhir are
 # present, so fail loudly on a missing Menhir rather than reporting a green run
 # that silently skipped them. The leading underscore keeps it out of `just -l`.

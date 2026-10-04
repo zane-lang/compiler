@@ -1,0 +1,95 @@
+name: Grammar verification
+
+# The machine-checked counterpart of `ambiguity-prove.yml`: `just verify-grammar`
+# runs the Lean checker in formal/, whose theorems state that the parse relation
+# lib/cst/parser.mly defines is unambiguous and that the GLR parser's relation
+# is unambiguous and maps onto it (docs/ambiguity/verification-roadmap.md).
+#
+# Unlike the search-based prover this is a gate. The grammar is proven today,
+# so a red run means a change made it ambiguous, or moved it outside what the
+# checker can certify; either way the change needs a look before it merges.
+on:
+  pull_request:
+    paths:
+      - lib/cst/parser.mly
+      - formal/**
+      - justfile
+      - .github/workflows/ambiguity-verify.yml
+  merge_group:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ambiguity-verify-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      # The same switch `ci.yml` builds and caches; Menhir is the only part used.
+      - name: Restore the opam switch
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.opam
+            _opam
+          key: opam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/bin/bootstrap-toolchain') }}
+
+      - name: Install devbox + Nix + devbox.json packages
+        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
+        with:
+          enable-cache: true
+
+      - name: Install OCaml dependencies
+        run: devbox run -- dev/bin/bootstrap-toolchain
+
+      # Lean comes from elan, at the version formal/lean-toolchain names. The
+      # installer is fetched from the v4.2.4 release commit and checked against
+      # its digest before it runs.
+      - name: Install Lean
+        run: |
+          curl -sSfL -o elan-init.sh https://raw.githubusercontent.com/leanprover/elan/227caca133724d5516bee25c2aeb3e609478f2d8/elan-init.sh
+          echo "a620ff1641616222c8d37c54845492004bb84d6877cdbc944dd65c1aa685bf53  elan-init.sh" | sha256sum -c -
+          sh elan-init.sh -y --default-toolchain none
+          rm elan-init.sh
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Restore the Lean build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.elan/toolchains
+            formal/.lake
+          key: lean-${{ runner.os }}-${{ hashFiles('formal/lean-toolchain', 'formal/**/*.lean', 'formal/lakefile.toml') }}
+          restore-keys: lean-${{ runner.os }}-
+
+      # The report binds the verdict to the exact source and tool versions.
+      - name: Verify the grammar
+        run: |
+          set -o pipefail
+          {
+            echo "parser.mly sha256: $(sha256sum lib/cst/parser.mly | cut -d' ' -f1)"
+            echo "commit: $GITHUB_SHA"
+            echo "lean: $(cat formal/lean-toolchain)"
+            echo "menhir: $(devbox run -- menhir --version)"
+          } > verify-grammar.txt
+          devbox run -- just verify-grammar 2>&1 | tee -a verify-grammar.txt
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verify-grammar
+          path: verify-grammar.txt
