@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Decide which of CI's slower suites a change needs, and write the answer to
-# $GITHUB_OUTPUT as `grammar=true|false`, `ambiguity-tools=true|false` and
-# `formal=true|false`. The last is read by `ambiguity-verify.yml`, whose Lean
-# proofs only answer something new when the grammar or the proofs change.
+# $GITHUB_OUTPUT as `grammar=true|false`, `ambiguity-tools=true|false`,
+# `highlighting=true|false` and `formal=true|false`. The last is read by
+# `ambiguity-verify.yml`, whose Lean proofs only answer something new when the
+# grammar or the proofs change.
 #
 # On a pull request the answer comes from the files it changes. Anywhere else
 # -- the merge queue, a push to main, a manual run -- there is no single diff to
@@ -17,6 +18,7 @@ set -euo pipefail
 
 grammar=true
 tools=true
+highlighting=true
 formal=true
 
 if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
@@ -27,6 +29,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 
 	grammar=false
 	tools=false
+	highlighting=false
 	formal=false
 	while IFS= read -r file; do
 		case "$file" in
@@ -36,6 +39,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 				.github/workflows/ci.yml | .github/scripts/ci-suites)
 				grammar=true
 				tools=true
+				highlighting=true
 				formal=true
 				;;
 		esac
@@ -60,6 +64,16 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 				;;
 		esac
 		case "$file" in
+			# Everything the editor grammars are generated from or checked
+			# against: the shared sources, the generator, the generated
+			# editor files, and the compiler parser the backend tests compare.
+			grammar/* | tools/grammar/* | editors/* | tests/highlighting/* | \
+				lib/cst/* | tests/parser/* | \
+				.github/scripts/install-highlighting-consumers)
+				highlighting=true
+				;;
+		esac
+		case "$file" in
 			# The proofs read the grammar file itself, and the workflow runs
 			# them through `just verify-grammar`.
 			grammar/syntax.mly | grammar/lexicon.coda | tools/grammar/* | \
@@ -73,9 +87,11 @@ fi
 
 echo "grammar suite: $grammar"
 echo "ambiguity tools suite: $tools"
+echo "highlighting suite: $highlighting"
 echo "formal proofs: $formal"
 {
 	echo "grammar=$grammar"
 	echo "ambiguity-tools=$tools"
+	echo "highlighting=$highlighting"
 	echo "formal=$formal"
 } >>"$GITHUB_OUTPUT"

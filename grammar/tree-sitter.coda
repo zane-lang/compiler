@@ -35,9 +35,13 @@ public_rules [
   abort_handle_braced
   stat
 ]
+# A declared verb name is the identifier right after the return type and right
+# before `(`: anchors skip anonymous tokens, so without the `(` an operator's or
+# a lambda's first parameter would be taken for the name.
 highlights [
   "(unbraced_verb_call (func_callee (primary (identifier) @function.call)))"
   "(func_callee \".\" (identifier) @variable.member)"
-  "(block_decl (ret_type) . (identifier) @function)"
-  "(simple_decl (ret_type) . (identifier) @function)"
+  "(block_decl (ret_type) . (identifier) @function . \"(\")"
+  "(simple_decl (ret_type) . (identifier) @function . \"(\")"
+  "(simple_decl_braced (ret_type) . (identifier) @function . \"(\")"
 ]

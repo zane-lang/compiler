@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Install the editors the highlighting suite drives besides Tree-sitter itself,
+# Neovim and Typst, from their releases checked against these digests, and name
+# them on $GITHUB_PATH. Without them `just test-highlighting` skips their
+# consumer tests rather than failing. The runner's apt Neovim is too old: it
+# cannot load a parser built for Tree-sitter ABI 15 (grammar/README.md).
+set -euo pipefail
+
+: "${GITHUB_PATH:?must be set}"
+: "${RUNNER_TEMP:?must be set}"
+
+# fetch URL SHA256: download into $RUNNER_TEMP, check, and unpack there.
+fetch() {
+	local archive="$RUNNER_TEMP/${1##*/}"
+	curl -fsSL -o "$archive" "$1"
+	echo "$2  $archive" | sha256sum --check --strict
+	tar -xf "$archive" -C "$RUNNER_TEMP"
+}
+
+NVIM_VERSION=0.12.5
+fetch "https://github.com/neovim/neovim/releases/download/v$NVIM_VERSION/nvim-linux-x86_64.tar.gz" \
+	bce0f56eda1f1b1db6eee8f4133d7a38813ea07933837dd1777411ca384c6875
+"$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim" --version | head -n 1
+echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >>"$GITHUB_PATH"
+
+TYPST_VERSION=0.15.1
+fetch "https://github.com/typst/typst/releases/download/v$TYPST_VERSION/typst-x86_64-unknown-linux-musl.tar.xz" \
+	a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c
+"$RUNNER_TEMP/typst-x86_64-unknown-linux-musl/typst" --version
+echo "$RUNNER_TEMP/typst-x86_64-unknown-linux-musl" >>"$GITHUB_PATH"

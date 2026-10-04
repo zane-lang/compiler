@@ -5,9 +5,8 @@ classes. Compile the finite keyword exclusion into each identifier regex.
 """
 from __future__ import annotations
 
-import re
 
-from .lexical import render
+from .lexical import regex_char, regex_literal, render
 
 
 def expand(expr, definitions):
@@ -68,11 +67,11 @@ def excluding(first, rest, words):
     def walk(node, prefix):
         children = [c for c in node if c is not None]
         if prefix and None not in node:
-            alternatives.append(re.escape(prefix))
+            alternatives.append(regex_literal(prefix))
         charset = char_class(first) if not prefix else rest_class
         if children:
-            charset = '[' + charset + '--[' + ''.join(re.escape(c) for c in children) + ']]'
-        alternatives.append(re.escape(prefix) + charset + rest_class + '*')
+            charset = '[' + charset + '--[' + ''.join(regex_char(c) for c in children) + ']]'
+        alternatives.append(regex_literal(prefix) + charset + rest_class + '*')
         for char in children:
             walk(node[char], prefix + char)
 

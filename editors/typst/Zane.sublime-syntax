@@ -6,9 +6,9 @@ file_extensions: ["zn", "zane"]
 scope: source.zane
 contexts:
   main:
-    - match: "(?:///(?:[^\\\n\\\r])*)"
+    - match: "(?:///(?:[^\\n\\r])*)"
       scope: comment.line.documentation.zane
-    - match: "(?://(?:[^\\\n\\\r])*)"
+    - match: "(?://(?:[^\\n\\r])*)"
       scope: comment.line.double-slash.zane
     - match: "\""
       push: string
@@ -116,7 +116,7 @@ contexts:
       scope: keyword.operator.zane
     - match: "\\$"
       scope: keyword.operator.zane
-    - match: "\\#"
+    - match: "#"
       scope: keyword.operator.zane
     - match: "\\&"
       scope: keyword.operator.zane

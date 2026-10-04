@@ -12,9 +12,13 @@ ABI = 15
 
 
 def executable(explicit=None):
-    candidate = (shutil.which(explicit) or explicit) if explicit else shutil.which('tree-sitter')
-    if not candidate:
-        candidate = Path(__file__).resolve().parents[2] / 'editors/tree-sitter-zane/node_modules/.bin/tree-sitter'
+    # The pinned local install wins over whatever `tree-sitter` is on PATH, so
+    # an unrelated global CLI does not shadow it.
+    local = Path(__file__).resolve().parents[2] / 'editors/tree-sitter-zane/node_modules/.bin/tree-sitter'
+    if explicit:
+        candidate = shutil.which(explicit) or explicit
+    else:
+        candidate = local if local.exists() else shutil.which('tree-sitter') or local
     candidate = str(Path(candidate).resolve())
     try:
         result = subprocess.run([candidate, '--version'], capture_output=True, text=True, timeout=10)

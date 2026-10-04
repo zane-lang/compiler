@@ -2,16 +2,35 @@
 from __future__ import annotations
 
 import json
-import re
 
 
 def quoted(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+# Escape only what is special somewhere in the regex dialects the editors use
+# (Rust regex, Oniguruma, fancy-regex): `&`, `-` and `~` start set operations
+# inside Rust classes. Control characters get their named escapes rather than
+# a backslash before the raw character, which not every dialect accepts.
+REGEX_SPECIAL = set("\\^$.|?*+()[]{}&-~")
+
+
+def regex_char(char: str) -> str:
+    named = {"\n": "\\n", "\r": "\\r", "\t": "\\t"}
+    if char in named:
+        return named[char]
+    if ord(char) < 0x20 or ord(char) == 0x7F:
+        return f"\\x{ord(char):02x}"
+    return "\\" + char if char in REGEX_SPECIAL else char
+
+
+def regex_literal(text: str) -> str:
+    return "".join(regex_char(c) for c in text)
+
+
 def render(expr, definitions: dict, backend: str, stack=()) -> str:
     if isinstance(expr, str):
-        return quoted(expr) if backend == "sedlex" else re.escape(expr)
+        return quoted(expr) if backend == "sedlex" else regex_literal(expr)
     if not isinstance(expr, dict) or len(expr) != 1:
         raise ValueError(f"invalid lexical expression: {expr!r}")
     op, value = next(iter(expr.items()))
@@ -44,13 +63,13 @@ def render(expr, definitions: dict, backend: str, stack=()) -> str:
             raise ValueError("range requires two characters")
         if backend == "sedlex":
             return ocaml_char(value[0]) + ".." + ocaml_char(value[1])
-        return "[" + re.escape(value[0]) + "-" + re.escape(value[1]) + "]"
+        return "[" + regex_char(value[0]) + "-" + regex_char(value[1]) + "]"
     if op == "not":
         if not value or any(len(v) != 1 for v in value):
             raise ValueError("not requires a nonempty character list")
         if backend == "sedlex":
             return "Compl (" + " | ".join(ocaml_char(v) for v in value) + ")"
-        return "[^" + "".join(re.escape(v) for v in value) + "]"
+        return "[^" + "".join(regex_char(v) for v in value) + "]"
     if op == "any" and value is True:
         return "any" if backend == "sedlex" else "[\\s\\S]"
     raise ValueError(f"unknown lexical operator: {op}")
@@ -98,7 +117,7 @@ def sublime(spec: dict) -> str:
         if token.get("eof") or token == string:
             continue
         if "literal" in token:
-            pattern = re.escape(token["literal"])
+            pattern = regex_literal(token["literal"])
             if token["literal"][0].isalpha():
                 # Zane's identifier continuation uses Alphabetic and ASCII
                 # digits, not \w; it does not allow internal underscores.

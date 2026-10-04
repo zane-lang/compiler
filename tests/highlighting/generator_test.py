@@ -39,6 +39,14 @@ class LexicalTests(unittest.TestCase):
         grammar, _ = treesitter.generate(self.spec, 'main', {'main': [menhir.Production(('INT', 'EOF'))]}, {}, {})
         self.assertIn('0-7', grammar)
 
+    def test_regex_classes_use_named_escapes_for_control_characters(self):
+        # A backslash before a raw newline is not portable across the editors'
+        # regex dialects; named escapes are, and leave `\` out of the class.
+        self.assertEqual(lexical.render({'not': ['\n', '\r']}, {}, 'regex'), r'[^\n\r]')
+        self.assertEqual(lexical.render({'not': ['"', '\\']}, {}, 'regex'), r'[^"\\]')
+        self.assertEqual(lexical.render({'range': ['\x00', '\t']}, {}, 'regex'), r'[\x00-\t]')
+        self.assertEqual(lexical.render(' -', {}, 'regex'), r' \-')
+
     def test_recursive_and_unknown_lexical_rules_are_rejected(self):
         for definitions in ({'x': {'ref': 'x'}}, {'x': {'ref': 'missing'}}):
             with self.assertRaises(ValueError):

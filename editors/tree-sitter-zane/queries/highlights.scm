@@ -68,5 +68,6 @@
 (comment) @comment
 (unbraced_verb_call (func_callee (primary (identifier) @function.call)))
 (func_callee "." (identifier) @variable.member)
-(block_decl (ret_type) . (identifier) @function)
-(simple_decl (ret_type) . (identifier) @function)
+(block_decl (ret_type) . (identifier) @function . "(")
+(simple_decl (ret_type) . (identifier) @function . "(")
+(simple_decl_braced (ret_type) . (identifier) @function . "(")

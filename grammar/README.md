@@ -13,8 +13,8 @@ export GRAMMAR_PYTHON="$PWD/.grammar-venv/bin/python"
 just generate-grammar
 ```
 
-The CLI is found on `PATH` or in the local npm installation. `--tree-sitter PATH`
-(or `TREE_SITTER`) selects it explicitly. The generator checks its version
+The CLI is taken from the local npm installation, or from `PATH` when that is
+absent. `--tree-sitter PATH` (or `TREE_SITTER`) selects it explicitly. The generator checks its version
 because conflict discovery consumes that CLI's structured diagnostic schema.
 
 | Source | Owns |
@@ -158,24 +158,27 @@ the parser artifact appropriate to their platform on Neovim's runtime path.
 
 ## Validation
 
-The standard CI build checks generated-file drift and runs generator unit tests.
-For actual backend and consumer tests, install their tools and run:
+Every CI build checks generated-file drift. When a change touches the grammar,
+the generator, the editor files or the compiler parser, CI also installs Neovim
+and Typst and runs the backend and consumer tests. To run them locally:
 
 ```sh
 python3 -m venv .highlighting-venv
-. .highlighting-venv/bin/activate
-python3 -m pip install -r tests/highlighting/requirements.txt
+.highlighting-venv/bin/python -m pip install -r tests/highlighting/requirements.txt
+npm ci --prefix editors/tree-sitter-zane
 export GRAMMAR_PYTHON="$PWD/.highlighting-venv/bin/python"
-export PATH="$PWD/editors/tree-sitter-zane/node_modules/.bin:$PATH"
 just test-highlighting
 ```
+
+The recipe uses the npm-installed Tree-sitter CLI.
 
 The backend suite builds the C parser, parses every accepted example from the
 existing compiler syntax suite, checks the larger parser fixtures, loads
 highlight queries, checks reserved words and incomplete edits, and reruns the
 compiler's acceptance/rejection suite through a parser-only driver. The
 Neovim and Typst tests run if their executables are present. To reproduce the
-full consumer check, install both; inspect the test output for skips.
+full consumer check, install both and set `ZANE_REQUIRE_HIGHLIGHTING_TOOLS=1`,
+as CI does, so that a missing tool fails the run instead of skipping its tests.
 
 The initial implementation was tested with Menhir 20260209, Sedlex 3.7,
 Tree-sitter CLI 0.25.10 / Python binding 0.25.2, Neovim 0.12.5 and Typst 0.15.1.

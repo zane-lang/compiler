@@ -2,5 +2,6 @@
 vim.filetype.add({ extension = { ["zn"] = "zane", ["zane"] = "zane" } })
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "zane",
-  callback = function() vim.treesitter.start() end,
+  -- A missing parser must not stop the buffer from opening.
+  callback = function(args) pcall(vim.treesitter.start, args.buf, "zane") end,
 })

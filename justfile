@@ -26,9 +26,14 @@ test-grammar-generation: check-grammar-generation
 	{{grammar_python}} -m unittest tests.highlighting.generator_test tests.highlighting.conflicts_test -v
 
 # Install tests/highlighting/requirements.txt and the pinned Tree-sitter CLI
-# first; Typst and Neovim consumer tests run when those executables are present.
+# (npm ci --prefix editors/tree-sitter-zane) first; Typst and Neovim consumer
+# tests run when those executables are present.
 test-highlighting: test-grammar-generation
-	@command -v tree-sitter >/dev/null || { echo "tree-sitter not found; npm ci --prefix editors/tree-sitter-zane" >&2; exit 1; }
+	#!/usr/bin/env bash
+	set -euo pipefail
+	# The CLI npm installs locally comes first, so the pinned version is the one used.
+	export PATH="{{justfile_directory()}}/editors/tree-sitter-zane/node_modules/.bin:$PATH"
+	command -v tree-sitter >/dev/null || { echo "tree-sitter not found; npm ci --prefix editors/tree-sitter-zane" >&2; exit 1; }
 	{{grammar_python}} -c 'import tree_sitter'
 	dune build tests/highlighting/parser_check.exe
 	{{grammar_python}} -m unittest tests.highlighting.backend_test -v
