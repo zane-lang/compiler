@@ -141,7 +141,7 @@ class BackendTests(unittest.TestCase):
     def test_parameter_captures_are_the_compilers_parameters(self):
         # The compiler's CST says which names are parameters; every one of
         # them, and nothing else, is captured as @variable.parameter where it
-        # is declared. Uses need the zane-bound-by? predicate, which only
+        # is declared. Uses need the zane-bound? predicate, which only
         # Neovim runs, so tests/highlighting/neovim.lua checks those.
         sources = accepted_sources() + [p.read_bytes() for p in sorted((ROOT / 'tests/parser/fixtures').glob('*.zn'))]
         for source in sources:

@@ -70,6 +70,22 @@ class LexicalTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 menhir.keep_inline_rules(template, names)
 
+    def test_binder_containers_see_through_hidden_rules(self):
+        P = menhir.Production
+        rules = {
+            'main': [P(('decl', 'EOF'))],
+            'decl': [P(('helper', 'body'))],
+            'helper': [P(('param',)), P(('param', 'helper'))],
+            'body': [P(('stat', 'body')), P(())],
+            'stat': [P(('INT',))],
+            'param': [P(('INT',))],
+        }
+        overlay = {'public_rules': ['decl', 'body', 'stat'], 'kept_inline_rules': ['param']}
+        # The hidden helper flattens into decl; body never holds a param.
+        self.assertEqual(treesitter.binder_containers('main', rules, overlay, ['param']), ['decl'])
+        with self.assertRaises(ValueError):
+            treesitter.binder_containers('main', rules, overlay, ['helper'])
+
     def test_unknown_conflicts_are_rejected(self):
         with self.assertRaises(ValueError):
             treesitter.generate(self.spec, 'main', {'main': [menhir.Production(('INT',))]}, {}, {}, [['missing']])

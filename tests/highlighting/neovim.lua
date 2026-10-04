@@ -15,7 +15,7 @@ end
 assert(found.type and found.keyword, 'highlight queries did not match')
 assert(vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()], 'highlighting did not start')
 
--- Parameter uses resolve through the zane-bound-by? predicate zane.lua defines.
+-- Parameter uses resolve through the zane-bound? predicate zane.lua defines.
 -- Each `// params:` comment in the fixture lists, in order, the identifiers on
 -- its line that must be highlighted as parameters; no other one may be.
 vim.cmd.edit(root .. '/tests/highlighting/parameters.zn')
