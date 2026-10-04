@@ -1,0 +1,13 @@
+{
+  "name": "tree-sitter-zane",
+  "version": "0.1.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "build": "tree-sitter build --output zane.so"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "0.25.10"
+  }
+}

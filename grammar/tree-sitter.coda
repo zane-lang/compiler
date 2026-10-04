@@ -1,0 +1,47 @@
+# Editor tree shape and contextual captures. Conflicts are discovered, never authored.
+version 1
+public_rules [
+  top_decl
+  type_expr
+  map_lit
+  import_decl
+  header_decl
+  block_decl
+  simple_decl
+  simple_decl_braced
+  fields_var_shorthand
+  trailing_var_shorthand
+  enum_map_decl
+  block_body
+  shorthand_body
+  body
+  shorthand_body_braced
+  body_braced
+  ret_type
+  abort_ret_type
+  unbraced_verb_call
+  braced_verb_call
+  block_call
+  primary
+  primary_braced
+  func_callee
+  app
+  expr
+  ref_target
+  abort_handle
+  expr_braced
+  app_braced
+  ref_target_braced
+  abort_handle_braced
+  stat
+]
+# A declared verb name is the identifier right after the return type and right
+# before `(`: anchors skip anonymous tokens, so without the `(` an operator's or
+# a lambda's first parameter would be taken for the name.
+highlights [
+  "(unbraced_verb_call (func_callee (primary (identifier) @function.call)))"
+  "(func_callee \".\" (identifier) @variable.member)"
+  "(block_decl (ret_type) . (identifier) @function . \"(\")"
+  "(simple_decl (ret_type) . (identifier) @function . \"(\")"
+  "(simple_decl_braced (ret_type) . (identifier) @function . \"(\")"
+]

@@ -1,16 +1,42 @@
+grammar_python := env_var_or_default("GRAMMAR_PYTHON", "python3")
+
 default:
 	just -l
 
-rebuild:
+rebuild: check-grammar-generation
 	dune clean
 	dune build
 
 watch:
 	dune build --watch
 
-# Every suite below. CI runs the three separately, so that a change which
+# Every compiler, grammar and generator suite. CI runs the slower ones separately, so that a change which
 # cannot affect the grammar or the ambiguity tools does not wait on them.
-test: test-compiler test-grammar test-ambiguity-tools
+test: test-compiler test-grammar test-ambiguity-tools test-grammar-generation
+
+# grammar/ owns the concrete syntax and lexicon. Generated compiler files are
+# committed so direct dune builds and the proof tools keep their existing paths.
+generate-grammar: _require-menhir
+	{{grammar_python}} -m tools.grammar
+
+check-grammar-generation: _require-menhir
+	{{grammar_python}} -m tools.grammar --check
+
+test-grammar-generation: check-grammar-generation
+	{{grammar_python}} -m unittest tests.highlighting.generator_test tests.highlighting.conflicts_test -v
+
+# Install tests/highlighting/requirements.txt and the pinned Tree-sitter CLI
+# (npm ci --prefix editors/tree-sitter-zane) first; Typst and Neovim consumer
+# tests run when those executables are present.
+test-highlighting: test-grammar-generation
+	#!/usr/bin/env bash
+	set -euo pipefail
+	# The CLI npm installs locally comes first, so the pinned version is the one used.
+	export PATH="{{justfile_directory()}}/editors/tree-sitter-zane/node_modules/.bin:$PATH"
+	command -v tree-sitter >/dev/null || { echo "tree-sitter not found; npm ci --prefix editors/tree-sitter-zane" >&2; exit 1; }
+	{{grammar_python}} -c 'import tree_sitter'
+	dune build tests/highlighting/parser_check.exe
+	{{grammar_python}} -m unittest tests.highlighting.backend_test -v
 
 # The compiler itself: the golden expectations under tests/ and parser
 # acceptance.

@@ -1,0 +1,340 @@
+# Shared lexical rules. Only schema-defined version, priority and boolean fields are typed.
+version 1
+language zane
+extensions [
+  zn
+  zane
+]
+expressions {
+  digit {
+    range [
+      0
+      9
+    ]
+  }
+  digits {
+    plus {
+      ref digit
+    }
+  }
+  int_lit {
+    seq [
+      {
+        ref digits
+      }
+      {
+        star {
+          seq [
+            {
+              literal '
+            }
+            {
+              ref digits
+            }
+          ]
+        }
+      }
+    ]
+  }
+  decimal_lit {
+    seq [
+      {
+        ref int_lit
+      }
+      {
+        literal .
+      }
+      {
+        ref digits
+      }
+    ]
+  }
+  str_char {
+    choice [
+      {
+        not [
+          "\""
+          \
+        ]
+      }
+      {
+        seq [
+          {
+            literal \
+          }
+          {
+            any true
+          }
+        ]
+      }
+    ]
+  }
+  string_lit {
+    seq [
+      {
+        literal "\""
+      }
+      {
+        star {
+          ref str_char
+        }
+      }
+      {
+        literal "\""
+      }
+    ]
+  }
+  line_char {
+    not [
+      "\n"
+      "\r"
+    ]
+  }
+  ident_char {
+    choice [
+      {
+        unicode alphabetic
+      }
+      {
+        ref digit
+      }
+    ]
+  }
+  lower_ident {
+    seq [
+      {
+        choice [
+          {
+            unicode lowercase
+          }
+          {
+            seq [
+              {
+                literal _
+              }
+              {
+                unicode lowercase
+              }
+            ]
+          }
+        ]
+      }
+      {
+        star {
+          ref ident_char
+        }
+      }
+    ]
+  }
+  upper_ident {
+    seq [
+      {
+        choice [
+          {
+            unicode uppercase
+          }
+          {
+            seq [
+              {
+                literal _
+              }
+              {
+                unicode uppercase
+              }
+            ]
+          }
+        ]
+      }
+      {
+        star {
+          ref ident_char
+        }
+      }
+    ]
+  }
+}
+trivia [
+  {
+    name whitespace
+    pattern {
+      plus {
+        choice [
+          {
+            literal " "
+          }
+          {
+            literal "\t"
+          }
+          {
+            literal "\r"
+          }
+          {
+            literal "\n"
+          }
+        ]
+      }
+    }
+  }
+  {
+    name doc_comment
+    pattern {
+      seq [
+        {
+          literal ///
+        }
+        {
+          star {
+            ref line_char
+          }
+        }
+      ]
+    }
+    capture comment.documentation
+    scope comment.line.documentation
+  }
+  {
+    name comment
+    pattern {
+      seq [
+        {
+          literal //
+        }
+        {
+          star {
+            ref line_char
+          }
+        }
+      ]
+    }
+    capture comment
+    scope comment.line.double-slash
+  }
+]
+pattern_tokens [
+  {
+    name INT
+    example 43
+    type string
+    pattern {
+      ref int_lit
+    }
+    node integer_literal
+    capture number
+    scope constant.numeric.integer
+  }
+  {
+    name DECIMAL
+    example 8.647
+    type string
+    pattern {
+      ref decimal_lit
+    }
+    node decimal_literal
+    capture number.float
+    scope constant.numeric.float
+    highlight_priority 1
+  }
+  {
+    name STRING
+    example "\"john\""
+    type string
+    pattern {
+      ref string_lit
+    }
+    node string_literal
+    capture string
+    scope string.quoted.double
+    value unquote
+  }
+  {
+    name LIDENT
+    example length
+    type string
+    pattern {
+      ref lower_ident
+    }
+    node identifier
+    capture variable
+    scope variable.other
+  }
+  {
+    name UIDENT
+    example Int
+    type string
+    pattern {
+      ref upper_ident
+    }
+    node type_identifier
+    capture type
+    scope entity.name.type
+  }
+]
+eof_token {
+  name EOF
+  eof true
+}
+
+# Literal spellings and lexical highlighting roles. Row order breaks equal-length lexer ties.
+literal_tokens [
+  name           literal       capture                 scope
+  LPAREN         (             punctuation.bracket     punctuation.section
+  RPAREN         )             punctuation.bracket     punctuation.section
+  COMMA          ,             punctuation.delimiter   punctuation.separator
+  LCURLY         "{"           punctuation.bracket     punctuation.section
+  RCURLY         "}"           punctuation.bracket     punctuation.section
+  LBRACKET       "["           punctuation.bracket     punctuation.section
+  RBRACKET       "]"           punctuation.bracket     punctuation.section
+  COLON          :             operator                keyword.operator
+  SEMICOLON      ;             punctuation.delimiter   punctuation.separator
+  DOT            .             punctuation.delimiter   punctuation.separator
+  EQUAL          =             operator                keyword.operator
+  PLUS           +             operator                keyword.operator
+  MINUS          -             operator                keyword.operator
+  STAR           *             operator                keyword.operator
+  SLASH          /             operator                keyword.operator
+  DOLLAR         $             operator                keyword.operator
+  HASH           "#"           operator                keyword.operator
+  AMPERSAND      &             operator                keyword.operator
+  AT             @             operator                keyword.operator
+  EXCL           !             operator                keyword.operator
+  QSTNMARK       ?             operator                keyword.operator
+  QSTNQSTN       ??            operator                keyword.operator
+  TILDE          ~             operator                keyword.operator
+  THICK_ARROW    =>            operator                keyword.operator
+  EQEQ           ==            operator                keyword.operator
+  NOTEQ          ~=            operator                keyword.operator
+  LESSEQ         <=            operator                keyword.operator
+  MOREEQ         >=            operator                keyword.operator
+  LESS           <             operator                keyword.operator
+  MORE           >             operator                keyword.operator
+  LOOSE_STAR     '*            operator                keyword.operator
+  LOOSE_SLASH    '/            operator                keyword.operator
+  LOOSE_PLUS     '+            operator                keyword.operator
+  LOOSE_MINUS    '-            operator                keyword.operator
+  LOOSE_EQEQ     '==           operator                keyword.operator
+  LOOSE_NOTEQ    '~=           operator                keyword.operator
+  LOOSE_LESSEQ   '<=           operator                keyword.operator
+  LOOSE_MOREEQ   '>=           operator                keyword.operator
+  LOOSE_LESS     '<            operator                keyword.operator
+  LOOSE_MORE     '>            operator                keyword.operator
+  LTYPE          type          keyword                 keyword.control
+  ALIAS          alias         keyword                 keyword.control
+  UTYPE          Type          type.builtin            support.type
+  STRUCT         struct        keyword                 keyword.control
+  VARIANT        variant       keyword                 keyword.control
+  ENUM           enum          keyword                 keyword.control
+  PACKAGE        package       keyword                 keyword.control
+  IMPORT         import        keyword                 keyword.control
+  AS             as            keyword                 keyword.control
+  IMPLICIT       implicit      keyword                 keyword.control
+  INIT           init          keyword                 keyword.control
+  MATCH          match         keyword                 keyword.control
+  SPAWN          spawn         keyword                 keyword.control
+  TRUE           true          boolean                 constant.language.boolean
+  FALSE          false         boolean                 constant.language.boolean
+  THIS           this          variable.builtin        variable.language
+  MUT            mut           keyword                 keyword.control
+  ABORT          abort         keyword                 keyword.control
+  RETURN         return        keyword                 keyword.control
+  RESOLVE        resolve       keyword                 keyword.control
+]

@@ -1,0 +1,31 @@
+{
+  "grammars": [
+    {
+      "name": "zane",
+      "camelcase": "Zane",
+      "scope": "source.zane",
+      "path": ".",
+      "file-types": [
+        "zn",
+        "zane"
+      ],
+      "highlights": "queries/highlights.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "GPL-3.0-only",
+    "description": "Zane grammar generated from the compiler grammar",
+    "authors": [
+      {
+        "name": "Zane contributors"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/zane-lang/compiler"
+    }
+  },
+  "bindings": {
+    "c": true
+  }
+}
