@@ -1,16 +1,35 @@
 default:
 	just -l
 
-rebuild:
+rebuild: check-grammar-generation
 	dune clean
 	dune build
 
 watch:
 	dune build --watch
 
-# Every suite below. CI runs the three separately, so that a change which
+# Every compiler, grammar and generator suite. CI runs the slower ones separately, so that a change which
 # cannot affect the grammar or the ambiguity tools does not wait on them.
-test: test-compiler test-grammar test-ambiguity-tools
+test: test-compiler test-grammar test-ambiguity-tools test-grammar-generation
+
+# grammar/ owns the concrete syntax and lexicon. Generated compiler files are
+# committed so direct dune builds and the proof tools keep their existing paths.
+generate-grammar: _require-menhir
+	python3 -m tools.grammar
+
+check-grammar-generation: _require-menhir
+	python3 -m tools.grammar --check
+
+test-grammar-generation: check-grammar-generation
+	python3 -m unittest tests.highlighting.generator_test -v
+
+# Install tests/highlighting/requirements.txt and the pinned Tree-sitter CLI
+# first; Typst and Neovim consumer tests run when those executables are present.
+test-highlighting: test-grammar-generation
+	@command -v tree-sitter >/dev/null || { echo "tree-sitter not found; npm ci --prefix editors/tree-sitter-zane" >&2; exit 1; }
+	python3 -c 'import tree_sitter'
+	dune build tests/highlighting/parser_check.exe
+	python3 -m unittest tests.highlighting.backend_test -v
 
 # The compiler itself: the golden expectations under tests/ and parser
 # acceptance.

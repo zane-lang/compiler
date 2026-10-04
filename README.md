@@ -2,6 +2,11 @@
 
 This repository contains the Zane language compiler and CLI.
 
+The concrete syntax and lexical rules live in [`grammar/`](grammar/README.md).
+`python3 -m tools.grammar` generates the compiler's Menhir grammar and Sedlex
+lexer, a Tree-sitter grammar for Neovim, and Sublime syntax highlighting for
+Typst. See that guide for generation, installation and validation commands.
+
 ## Setup
 
 To setup this project in a new environment or sandbox, install

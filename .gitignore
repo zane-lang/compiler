@@ -22,3 +22,9 @@ dev/machine-config.txt
 *.cmo
 *.o
 *.a
+
+# Reproducible Tree-sitter build products and local highlighting test tools.
+/editors/tree-sitter-zane/src/
+/editors/tree-sitter-zane/node_modules/
+/editors/tree-sitter-zane/*.so
+/.highlighting-venv/

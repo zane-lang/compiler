@@ -89,6 +89,9 @@ jobs:
       - name: Build
         run: devbox run -- just rebuild
 
+      - name: Grammar generator tests
+        run: devbox run -- just test-grammar-generation
+
       # The golden expectations under tests/ and parser acceptance. Every
       # change runs these. The recipes fail loudly when Menhir is missing
       # rather than reporting a green run that skipped them.
