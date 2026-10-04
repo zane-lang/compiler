@@ -140,7 +140,9 @@ class BackendTests(unittest.TestCase):
     @needs(SPAN_DUMP.exists(), 'requires span_dump.exe')
     def test_parameter_captures_are_the_compilers_parameters(self):
         # The compiler's CST says which names are parameters; every one of
-        # them, and nothing else, is captured as @variable.parameter.
+        # them, and nothing else, is captured as @variable.parameter where it
+        # is declared. Uses need the zane-bound-by? predicate, which only
+        # Neovim runs, so tests/highlighting/neovim.lua checks those.
         sources = accepted_sources() + [p.read_bytes() for p in sorted((ROOT / 'tests/parser/fixtures').glob('*.zn'))]
         for source in sources:
             with self.subTest(source=source[:80]), tempfile.NamedTemporaryFile(suffix='.zn', dir=self.runtime) as file:
@@ -150,7 +152,8 @@ class BackendTests(unittest.TestCase):
                 # Concept parameters are named in type case; those are types.
                 expected = re.findall(r'^\s*(?:param|constructor_field) \| ([^\W\dA-Z]\w*)', spans, re.M)
                 captures = QueryCursor(self.query).captures(self.parser.parse(source).root_node)
-                nodes = sorted(captures.get('variable.parameter', []), key=lambda n: n.start_byte)
+                declared = [n for n in captures.get('variable.parameter', []) if n.parent.type in ('param', 'constructor_field')]
+                nodes = sorted(declared, key=lambda n: n.start_byte)
                 self.assertEqual([source[n.start_byte:n.end_byte].decode() for n in nodes], expected)
 
     def test_comments_may_contain_backslashes(self):

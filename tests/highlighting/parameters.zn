@@ -1,0 +1,23 @@
+/// Parameter uses for the Neovim highlighting test. A line's trailing comment
+/// lists, in order, the identifiers on it that are parameters; every other
+/// identifier on the line is not one.
+type Vec = struct {
+	x Int;
+	y Int;
+}
+
+Vec +(a Vec, b Vec) => Vec{x = a.x + b.x; y = a.y + b.y;} // params: a b a b a b
+
+Int dot(this Vec, other Vec) => this.x * other.x // params: other other
+
+Vec{x Int; y Int;} => init{x; y;} // params: x y x y
+
+implicit Vec(both Int) => init{x = both; y = both;} // params: both both both
+
+Int scaled(factor Int, value Int) {
+	total Int = value * factor; // params: value factor
+	twice Int(n Int) => n * factor; // params: n n factor
+	return twice(total); // params:
+}
+
+Int apply(f Int[Int], value Int) => f(value) // params: f value f value

@@ -73,3 +73,5 @@
 (simple_decl_braced (ret_type) . (identifier) @function . "(")
 (param . (identifier) @variable.parameter)
 (constructor_field . (identifier) @variable.parameter)
+((primary . (identifier) @variable.parameter .) (#zane-bound-by? @variable.parameter "param" "constructor_field"))
+((primary_braced "init" (identifier) @variable.parameter . ";") (#zane-bound-by? @variable.parameter "param" "constructor_field"))

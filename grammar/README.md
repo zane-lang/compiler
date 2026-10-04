@@ -151,8 +151,11 @@ cp editors/tree-sitter-zane/queries/highlights.scm ~/.config/nvim/queries/zane/
 cp editors/neovim/zane.lua ~/.config/nvim/plugin/zane.lua
 ```
 
-The generated Lua registers `.zn` and `.zane` files and starts the highlighter.
-No LSP or `nvim-treesitter` registration is needed. Use `:Inspect` and
+The generated Lua registers `.zn` and `.zane` files, starts the highlighter,
+and defines the `zane-bound-by?` query predicate that `highlights.scm` uses to
+colour a parameter where it is used. Install it with the queries: without it,
+Neovim reports `No handler for zane-bound-by?`. No LSP or `nvim-treesitter`
+registration is needed. Use `:Inspect` and
 `:InspectTree` to inspect captures and tree structure. Other platforms can use
 the parser artifact appropriate to their platform on Neovim's runtime path.
 
@@ -225,9 +228,12 @@ hidden. `%inline` rules leave no node of their own, so the overlay's
 Only the Tree-sitter translation sees that change; the compiler grammar still
 inlines them, and the backend suite checks that `@variable.parameter` captures
 exactly the parameters the compiler's CST records. Highlighting includes
-lexical roles plus contextual function, member and parameter captures. It does
-not perform name resolution, so a parameter is marked where it is declared and
-not where it is used.
+lexical roles plus contextual function, member and parameter captures. A
+parameter is marked where it is declared; in Neovim, `zane-bound-by?` also
+marks each use, by finding a parameter of that name in an enclosing verb or
+lambda. That needs no further name resolution because a local may not shadow a
+parameter (`docs/design/semantics.md` D14). Other Tree-sitter consumers do not
+run the predicate.
 
 Grammar edits can produce new Tree-sitter conflicts. Regenerate, review the
 generated conflict report, and rerun the backend suite. Keep source grammar edits

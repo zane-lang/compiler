@@ -42,6 +42,9 @@ kept_inline_rules [
   param
   constructor_field
 ]
+# A parameter is captured where it is declared, and where it is used through
+# the Neovim predicate zane-bound-by? (tools/grammar/neovim.lua), which finds
+# the enclosing binder. Uses come last so they win over the plain captures.
 # A declared verb name is the identifier right after the return type and right
 # before `(`: anchors skip anonymous tokens, so without the `(` an operator's or
 # a lambda's first parameter would be taken for the name.
@@ -53,4 +56,6 @@ highlights [
   "(simple_decl_braced (ret_type) . (identifier) @function . \"(\")"
   "(param . (identifier) @variable.parameter)"
   "(constructor_field . (identifier) @variable.parameter)"
+  "((primary . (identifier) @variable.parameter .) (#zane-bound-by? @variable.parameter \"param\" \"constructor_field\"))"
+  "((primary_braced \"init\" (identifier) @variable.parameter . \";\") (#zane-bound-by? @variable.parameter \"param\" \"constructor_field\"))"
 ]
