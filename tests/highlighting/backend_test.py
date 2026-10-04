@@ -145,11 +145,13 @@ class BackendTests(unittest.TestCase):
         # captures every one of them where it is declared, and nothing else.
         # Uses are Neovim's own captures, checked by tests/highlighting/neovim.lua.
         sources = accepted_sources() + [p.read_bytes() for p in sorted((ROOT / 'tests/parser/fixtures').glob('*.zn'))]
+        # A closed file in the class's own runtime directory, which is removed
+        # with it: Windows cannot let span_dump open a file Python holds open.
+        path = self.runtime / 'parameters.zn'
         for source in sources:
-            with self.subTest(source=source[:80]), tempfile.NamedTemporaryFile(suffix='.zn', dir=self.runtime) as file:
-                file.write(source)
-                file.flush()
-                spans = check([str(SPAN_DUMP), '--cst', file.name]).stdout
+            with self.subTest(source=source[:80]):
+                path.write_bytes(source)
+                spans = check([str(SPAN_DUMP), '--cst', str(path)]).stdout
                 # Concept parameters are named in type case; those are types.
                 expected = re.findall(r'^\s*(?:param|constructor_field) \| ([^\W\dA-Z]\w*)', spans, re.M)
                 captures = QueryCursor(self.query).captures(self.parser.parse(source).root_node)
