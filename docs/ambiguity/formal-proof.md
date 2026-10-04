@@ -78,9 +78,11 @@ zane-ambiguity-check prove-glr lib/cst/parser.mly <dir>/parser.automaton
 ```
 
 Each prints `VERIFIED` and exits 0, or prints `REJECTED` and exits nonzero. The
-two take about 3½ and 6 minutes. The `Grammar verification` workflow runs the
-recipe on every change to the grammar, `formal/`, or the recipe. It blocks a
-merge once the repository marks it as a required check.
+two take about 3½ and 6 minutes. The `Grammar verification` workflow's `verify`
+job reports on every pull request. It runs the recipe when the grammar,
+`formal/`, the toolchain pins or the CI scripts change, and passes at once
+otherwise, so it can be required without holding unrelated merges. It blocks
+a merge once the repository marks it as a required check.
 
 ## What remains assumed
 

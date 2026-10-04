@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Decide which of CI's slower suites a change needs, and write the answer to
-# $GITHUB_OUTPUT as `grammar=true|false` and `ambiguity-tools=true|false`.
+# $GITHUB_OUTPUT as `grammar=true|false`, `ambiguity-tools=true|false` and
+# `formal=true|false`. The last is read by `ambiguity-verify.yml`, whose Lean
+# proofs only answer something new when the grammar or the proofs change.
 #
 # On a pull request the answer comes from the files it changes. Anywhere else
 # -- the merge queue, a push to main, a manual run -- there is no single diff to
@@ -15,6 +17,7 @@ set -euo pipefail
 
 grammar=true
 tools=true
+formal=true
 
 if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 	: "${REPOSITORY:?must be set}"
@@ -24,6 +27,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 
 	grammar=false
 	tools=false
+	formal=false
 	while IFS= read -r file; do
 		case "$file" in
 			# SHARED
@@ -32,6 +36,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 				.github/workflows/ci.yml | .github/scripts/ci-suites)
 				grammar=true
 				tools=true
+				formal=true
 				;;
 		esac
 		case "$file" in
@@ -52,12 +57,22 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 				tools=true
 				;;
 		esac
+		case "$file" in
+			# The proofs read the grammar file itself, and the workflow runs
+			# them through `just verify-grammar`.
+			lib/cst/parser.mly | formal/* | \
+				.github/workflows/ambiguity-verify.yml)
+				formal=true
+				;;
+		esac
 	done <<<"$files"
 fi
 
 echo "grammar suite: $grammar"
 echo "ambiguity tools suite: $tools"
+echo "formal proofs: $formal"
 {
 	echo "grammar=$grammar"
 	echo "ambiguity-tools=$tools"
+	echo "formal=$formal"
 } >>"$GITHUB_OUTPUT"
