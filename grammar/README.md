@@ -111,6 +111,21 @@ The string token's `value: "unquote"` strips its delimiters for the compiler.
 `highlight_priority` controls overlapping Sublime rules: decimals precede
 integers. Compiler and Tree-sitter lexers select longest matches themselves.
 
+## Previews
+
+[`renders/sample.zn`](renders/sample.zn) as each editor shows it. Neovim uses
+the Tree-sitter parser and `highlights.scm`; Typst uses `Zane.sublime-syntax`.
+The light Neovim render has one colour per capture. The dark ones use each
+theme's own colours: Kanagawa (wave), Tokyo Night (night) and Catppuccin Mocha
+from their Neovim plugins, and the `.tmTheme` files those projects publish.
+
+| | Neovim | Typst |
+|---|---|---|
+| Light | ![](renders/neovim-light.png) | ![](renders/typst-light.png) |
+| Kanagawa | ![](renders/neovim-kanagawa.png) | ![](renders/typst-kanagawa.png) |
+| Tokyo Night | ![](renders/neovim-tokyonight.png) | ![](renders/typst-tokyonight.png) |
+| Catppuccin Mocha | ![](renders/neovim-catppuccin.png) | ![](renders/typst-catppuccin.png) |
+
 ## Typst
 
 Copy `editors/typst/Zane.sublime-syntax` beside your Typst document, then use:
