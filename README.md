@@ -70,11 +70,12 @@ ambiguity profiles
 ambiguity search
 ambiguity search deep-function-body --timeout 1h --output deep-search.txt
 ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY RCURLY EOF
-ambiguity prove 3
+ambiguity prove-visible
 grammar-stat
 grammar-sentence
 ```
 
 The `justfile` holds project actions: rebuilding, watching, the test suites,
-promoting golden files, and the grammar sweeps and explanations, which take
-arguments.
+promoting golden files, the machine-checked grammar proof
+(`just verify-grammar`), and automaton explanations (`just explain`, which
+takes arguments).

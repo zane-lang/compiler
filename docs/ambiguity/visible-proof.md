@@ -54,13 +54,9 @@ Exhausting a time, component, model, or configuration limit cannot emit a
 proof. The exact ambiguity verdict currently does not reconstruct a token
 witness; use the existing recognizer/search to obtain one.
 
-## What fundamentally changed
+## The model
 
-The former prover retains a suffix of each LR stack and guesses reductions
-that reach below it. Making that suffix larger can remove a particular
-spurious pair without making the whole grammar tractable.
-
-This prover constructs a count-preserving model of the entire accepted
+The proof constructs a count-preserving model of the entire accepted
 parse relation. It checks that horizontal recursion is regular after matched
 bracket groups are treated as units, and uses visible stack operations only
 at the brackets. Arbitrarily long horizontal sequences are finite automata;

@@ -234,9 +234,8 @@ branch consumes a name the reduce branch needs in order to open a declaration,
 so for both to accept, some token sequence would have to be a run of
 declarations both with and without a name in front of it.
 
-That is exactly what a run of declarations can be. `ambiguity prove` found it,
-the first proof run to exit 1 rather than 3, and the recognizer confirmed two
-derivations of
+That is exactly what a run of declarations can be. An unambiguity proof run
+found it, and the recognizer confirmed two derivations of
 
 ```zane
 import core$

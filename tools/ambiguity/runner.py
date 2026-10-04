@@ -24,40 +24,11 @@ ROOT = Path(__file__).resolve().parents[2]
 # configuration and builds the executable before handing over to it.
 ENGINE_RUNNER = ROOT / "dev" / "bin" / "ambiguity"
 
-def engine_arguments(
-    profile: SearchProfile,
-    prove: int | None = None,
-    survey: int = 0,
-    refine: int = 0,
-    refine_rounds: int = 0,
-    retire: int = 0,
-    trace: bool = False,
-    cegar: int = 0,
-    balanced: bool = False,
-) -> list[str]:
+def engine_arguments(profile: SearchProfile) -> list[str]:
     arguments: list[str] = []
     for setting in SETTINGS:
         if setting.to_engine_args is not None:
             arguments.extend(setting.to_engine_args(profile))
-    if prove is not None:
-        arguments.extend(["--prove", str(prove)])
-    if balanced:
-        arguments.append("--prove-balanced")
-    # A survey is a property of one invocation rather than of a saved search
-    # intent, so it stays a flag and never becomes a profile key. Refinement is
-    # the same: it says how hard to push on one run, not what the run is for.
-    if survey > 0:
-        arguments.extend(["--prove-survey", str(survey)])
-    if cegar > 0:
-        arguments.extend(["--prove-cegar", str(cegar)])
-    if refine > 0:
-        arguments.extend(["--prove-refine", str(refine)])
-        if refine_rounds > 0:
-            arguments.extend(["--prove-refine-rounds", str(refine_rounds)])
-        if retire > 0:
-            arguments.extend(["--prove-retire", str(retire)])
-    if trace:
-        arguments.append("--prove-trace")
     return arguments
 
 

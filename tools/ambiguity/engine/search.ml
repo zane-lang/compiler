@@ -7,8 +7,6 @@
 open Output
 open Automaton
 open Recognizer
-open Abstraction
-open Prover
 
 type outcome = {
   witnesses : ((int * string) list * string list) list;

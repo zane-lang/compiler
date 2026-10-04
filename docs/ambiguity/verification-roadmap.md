@@ -129,14 +129,11 @@ the same tokens.
 
 ### 4. Make proof regeneration a CI gate
 
-This can begin immediately, alongside formalization. The existing
-`ambiguity-prove` workflow runs the older stack-abstraction prover and allows
-inconclusive verdicts; it does not gate changes with `prove-visible`.
+This can begin immediately, alongside formalization.
 
 Add a dedicated workflow that pins Menhir and checker dependencies, regenerates
 the source-bound certificates, checks them, and uploads the manifests and
-reports. Run it on relevant grammar, prover, checker, dependency, and workflow
-changes. Configure the resulting check as required for merging.
+reports. Run it on relevant grammar, checker, dependency, and workflow changes. Configure the resulting check as required for merging.
 
 Ambiguity, unsupported input, timeout, checker failure, and stale source
 identity must all fail this gate. Reusing a historical certificate without
