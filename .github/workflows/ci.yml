@@ -86,6 +86,20 @@ jobs:
       - name: Install OCaml dependencies
         run: devbox run -- dev/bin/bootstrap-toolchain
 
+      - name: Set up Node for grammar generation
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editors/tree-sitter-zane/package-lock.json
+
+      - name: Install grammar generator dependencies
+        run: |
+          npm ci --prefix editors/tree-sitter-zane
+          devbox run -- python3 -m venv .grammar-venv
+          .grammar-venv/bin/python -m pip install -r tools/grammar/requirements.txt
+          echo "GRAMMAR_PYTHON=$PWD/.grammar-venv/bin/python" >> "$GITHUB_ENV"
+
       - name: Build
         run: devbox run -- just rebuild
 

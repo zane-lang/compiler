@@ -21,7 +21,7 @@ class LexicalTests(unittest.TestCase):
         self.assertIn('%token RETURN "giveback"', compiler)
         self.assertIn('"giveback" -> RETURN', lexical.lexer(self.spec))
         self.assertIn('giveback', lexical.sublime(self.spec))
-        grammar, query = treesitter.generate(self.spec, 'main', {'main': [menhir.Production(('RETURN', 'EOF'))]}, {}, {'conflicts': []})
+        grammar, query = treesitter.generate(self.spec, 'main', {'main': [menhir.Production(('RETURN', 'EOF'))]}, {}, {})
         self.assertIn('"giveback"', grammar)
         self.assertIn('"giveback" @keyword', query)
 
@@ -36,7 +36,7 @@ class LexicalTests(unittest.TestCase):
         self.spec['expressions']['digit'] = {'range': ['0', '7']}
         self.assertIn("'0'..'7'", lexical.lexer(self.spec))
         self.assertIn('0-7', lexical.sublime(self.spec))
-        grammar, _ = treesitter.generate(self.spec, 'main', {'main': [menhir.Production(('INT', 'EOF'))]}, {}, {'conflicts': []})
+        grammar, _ = treesitter.generate(self.spec, 'main', {'main': [menhir.Production(('INT', 'EOF'))]}, {}, {})
         self.assertIn('0-7', grammar)
 
     def test_recursive_and_unknown_lexical_rules_are_rejected(self):
@@ -55,11 +55,11 @@ class LexicalTests(unittest.TestCase):
 
     def test_unknown_conflicts_are_rejected(self):
         with self.assertRaises(ValueError):
-            treesitter.generate(self.spec, 'main', {'main': [menhir.Production(('INT',))]}, {}, {'conflicts': [['missing']]})
+            treesitter.generate(self.spec, 'main', {'main': [menhir.Production(('INT',))]}, {}, {}, [['missing']])
 
     def test_nullable_helpers_never_emit_empty_nonstart_rules(self):
         rules = {'main': [menhir.Production(('items', 'EOF'))], 'items': [menhir.Production(()), menhir.Production(('INT', 'items'))]}
-        grammar, _ = treesitter.generate(self.spec, 'main', rules, {}, {'conflicts': []})
+        grammar, _ = treesitter.generate(self.spec, 'main', rules, {}, {})
         self.assertIn('_items: $ => seq($.integer_literal, optional($._items))', grammar)
         self.assertNotIn('_items: $ => choice(seq()', grammar)
 
@@ -86,5 +86,7 @@ class GenerationTests(unittest.TestCase):
             sentinel = destination / 'lib/cst/parser.mly'
             sentinel.parent.mkdir(parents=True)
             sentinel.write_text('keep me')
-            self.assertEqual(main(['--menhir', '/does/not/exist', '--output-root', str(destination)]), 1)
-            self.assertEqual(sentinel.read_text(), 'keep me')
+            for flag in ('--menhir', '--tree-sitter'):
+                with self.subTest(flag=flag):
+                    self.assertEqual(main([flag, '/does/not/exist', '--output-root', str(destination)]), 1)
+                    self.assertEqual(sentinel.read_text(), 'keep me')

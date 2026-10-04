@@ -28,3 +28,4 @@ dev/machine-config.txt
 /editors/tree-sitter-zane/node_modules/
 /editors/tree-sitter-zane/*.so
 /.highlighting-venv/
+/.grammar-venv/

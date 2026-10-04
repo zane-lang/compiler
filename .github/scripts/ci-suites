@@ -43,7 +43,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 			# What the grammar suite builds and runs: the grammar and the
 			# libraries `cst` links, the recognizer that counts derivations,
 			# and the shape printer.
-			grammar/syntax.mly | grammar/lexicon.json | tools/grammar/* | \
+			grammar/syntax.mly | grammar/lexicon.coda | tools/grammar/* | \
 				lib/cst/* | lib/diagnostic/* | lib/source/* | lib/tree_graph/* | \
 				tools/ambiguity/* | tools/inspect/* | \
 				tests/grammar/*)
@@ -53,7 +53,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 		case "$file" in
 			# The tools and their tests. The CLI's tests also run the engine
 			# over the real grammar, so a grammar change selects them too.
-			grammar/syntax.mly | grammar/lexicon.json | tools/grammar/* | \
+			grammar/syntax.mly | grammar/lexicon.coda | tools/grammar/* | \
 				tools/ambiguity/* | tests/ambiguity/* | lib/cst/parser.mly | \
 				dev/bin/ambiguity | dev/lib/*)
 				tools=true
@@ -62,7 +62,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 		case "$file" in
 			# The proofs read the grammar file itself, and the workflow runs
 			# them through `just verify-grammar`.
-			grammar/syntax.mly | grammar/lexicon.json | tools/grammar/* | \
+			grammar/syntax.mly | grammar/lexicon.coda | tools/grammar/* | \
 				lib/cst/parser.mly | formal/* | \
 				.github/workflows/ambiguity-verify.yml)
 				formal=true

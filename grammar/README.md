@@ -2,13 +2,33 @@
 
 Edit this directory, then run `python3 -m tools.grammar` from the repository
 root. Menhir **20260209** must be on `PATH` (the existing Devbox shell provides
-it). The generator itself uses only Python's standard library.
+it). Regeneration also uses Python **3.11+**, the pinned **coda-format 2.2.2**
+parser, Node/npm and **Tree-sitter CLI 0.25.10**:
+
+```sh
+python3 -m venv .grammar-venv
+.grammar-venv/bin/python -m pip install -r tools/grammar/requirements.txt
+npm ci --prefix editors/tree-sitter-zane
+export GRAMMAR_PYTHON="$PWD/.grammar-venv/bin/python"
+just generate-grammar
+```
+
+The CLI is found on `PATH` or in the local npm installation. `--tree-sitter PATH`
+(or `TREE_SITTER`) selects it explicitly. The generator checks its version
+because conflict discovery consumes that CLI's structured diagnostic schema.
 
 | Source | Owns |
 |---|---|
 | `syntax.mly` | Productions, precedence, OCaml actions and the start symbol |
-| `lexicon.json` | Tokens, portable lexical expressions, trivia, payload conversion, token node names and highlighting roles |
-| `tree-sitter.json` | GLR conflict sets, public nodes and contextual highlight queries |
+| `lexicon.coda` | Tokens, portable lexical expressions, trivia, payload conversion, token node names and highlighting roles |
+| `tree-sitter.coda` | Public nodes and contextual highlight queries |
+
+[Coda](https://github.com/zane-lang/coda) supports comments and flat tables.
+Literal tokens use a table; lexical expressions and payload tokens use nested
+blocks. Coda leaves are strings: the loader explicitly interprets only version
+numbers, highlighting priorities, `eof` and `any`. A spelling such as `true`,
+or a range endpoint such as `0`, remains a string. The dependency is pinned to
+the published 2.2.2 release; no custom Coda parser is included.
 
 The productions retain Menhir notation rather than introducing a second grammar
 DSL. Token declarations are inserted at `(* @generated-tokens *)`; do not put
@@ -25,35 +45,57 @@ identical to the previous grammar.
 | `lib/cst/parser.mly` | Menhir / Dune and the existing ambiguity/proof tools |
 | `lib/cst/lexer.ml` | Sedlex / Dune |
 | `editors/tree-sitter-zane/grammar.js` | Tree-sitter CLI |
+| `editors/tree-sitter-zane/conflicts.json` | Generated discovery report with rule groups, example prefixes and lookahead tokens |
 | `editors/tree-sitter-zane/queries/highlights.scm` | Neovim and Tree-sitter highlighting |
 | `editors/tree-sitter-zane/tree-sitter.json`, `package.json` | Tree-sitter build metadata and pinned CLI |
 | `editors/typst/Zane.sublime-syntax` | Typst `raw(syntaxes: ...)` |
 | `editors/neovim/zane.lua` | Neovim filetype detection and highlighting activation |
 
 ```sh
-python3 -m tools.grammar
-python3 -m tools.grammar --check
+.grammar-venv/bin/python -m tools.grammar
+.grammar-venv/bin/python -m tools.grammar --check
 # Equivalent development recipes:
 just generate-grammar
 just check-grammar-generation
 ```
 
 Generated text is committed. Dune and the proof tools keep their existing paths;
-`just rebuild` and CI fail if outputs have drifted. `--check` writes nothing.
-`--source DIR`, `--output-root DIR` and `--menhir PATH` support isolated trials.
+`just rebuild` and CI fail if outputs have drifted. `--check` does not modify
+generated outputs; parser generation runs in disposable temporary directories.
+`--source DIR`, `--output-root DIR`, `--menhir PATH` and `--tree-sitter PATH`
+support isolated trials.
 The generator computes every output before overwriting any existing file.
 
 ### Lexical expressions
 
-Expressions are JSON strings for literals, or objects with one operator:
-`ref`, `seq`, `choice`, `star`, `plus`, `optional`, `range`, `not`, `unicode`,
-or `any`. They compile to Sedlex expressions and regexes. `unicode` supports
+Expressions are Coda blocks containing one operator:
+`literal`, `ref`, `seq`, `choice`, `star`, `plus`, `optional`, `range`, `not`,
+`unicode`, or `any`. They compile to Sedlex expressions and regexes. `unicode` supports
 `alphabetic`, `lowercase` and `uppercase`; `range` takes two characters and
 `not` takes a nonempty list of excluded characters. For example:
 
-```json
-{"seq": [{"ref": "digits"}, ".", {"ref": "digits"}]}
+```coda
+decimal_lit {
+  seq [
+    {
+      ref int_lit
+    }
+    {
+      literal .
+    }
+    {
+      ref digits
+    }
+  ]
+}
 ```
+
+`seq` and `choice` are arrays of expression blocks, including a `literal`
+block for literal children. This avoids Coda's ambiguity between scalar lists
+and table headers. `pattern_tokens` is an array of blocks; `literal_tokens`
+is a table with `name`, `literal`, `capture` and `scope` columns. `eof_token`
+is a single block. Pattern tokens are ordered first, followed by literal rows
+and EOF; the compiler emitter explicitly puts literal matches before patterns.
 
 The initial lexicon preserves Unicode names, a privacy underscore only at the
 start, apostrophes between integer digit groups, decimals with digits on both
@@ -123,6 +165,7 @@ For actual backend and consumer tests, install their tools and run:
 python3 -m venv .highlighting-venv
 . .highlighting-venv/bin/activate
 python3 -m pip install -r tests/highlighting/requirements.txt
+export GRAMMAR_PYTHON="$PWD/.highlighting-venv/bin/python"
 export PATH="$PWD/editors/tree-sitter-zane/node_modules/.bin:$PATH"
 just test-highlighting
 ```
@@ -149,8 +192,21 @@ format and standard-library `@name` attributes; unsupported syntax fails with
 an error. Nullable helpers become optional references to their nonempty rules,
 since Tree-sitter forbids empty non-start rules.
 
-The 20 declared Tree-sitter conflicts retain alternative parses rather than
-forcing a choice with added precedence. Source precedence is translated per
+Tree-sitter conflicts are discovered on every regeneration, including `--check`.
+The generator starts with no declarations, runs `tree-sitter generate --json`,
+adds only the diagnostic's `AddConflict` rule group, and repeats until generation
+succeeds. It currently discovers 20 groups. No generated report or previously
+declared conflict is used as input. It stops on other errors, duplicate groups,
+or more than 128 groups, and computes all outputs before replacing any file.
+The committed report makes changes reviewable without requiring manual upkeep.
+
+This uses the conflicts of the translated grammar directly. Menhir's conflicts
+would need a mapping across the nullable-rule rewrite and different automata;
+they are not needed for this discovery method. The default policy retains
+competing parses rather than inventing extra precedence. New groups are
+automatically accepted, so review report diffs and run the backend suite;
+discovery does not establish correctness or acceptable runtime performance.
+Source precedence is translated per
 production. Menhir `%nonassoc` becomes Tree-sitter `prec`, which does not by
 itself implement rejection on equal precedence. This translation is tested
 against Zane's examples; it is not a proven language-equivalence transformation.
@@ -164,8 +220,7 @@ CST: public nodes are selected in the overlay, and expanded helper nodes are
 hidden. Highlighting includes lexical roles plus a few contextual function and
 member captures; it does not perform name resolution.
 
-Grammar edits can produce new Tree-sitter conflicts. Run `npm run generate`,
-review its conflict report and update the overlay using expanded Menhir rule
-names, then regenerate and rerun the backend suite. Keep source grammar edits
+Grammar edits can produce new Tree-sitter conflicts. Regenerate, review the
+generated conflict report, and rerun the backend suite. Keep source grammar edits
 subject to the existing `just verify-grammar` policy. The compiler's formal
 proof does not cover the generated Tree-sitter parser.

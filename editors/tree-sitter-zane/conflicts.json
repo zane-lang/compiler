@@ -1,0 +1,303 @@
+{
+  "generator": "tree-sitter 0.25.10",
+  "abi": 15,
+  "conflicts": [
+    {
+      "rules": [
+        "_body_decl_block_body_",
+        "_body_decl_shorthand_body_",
+        "enum_map_decl",
+        "type_expr"
+      ],
+      "symbol_sequence": [
+        "type_identifier"
+      ],
+      "lookahead": "'<'"
+    },
+    {
+      "rules": [
+        "type_expr"
+      ],
+      "symbol_sequence": [
+        "'&'",
+        "type_identifier"
+      ],
+      "lookahead": "'<'"
+    },
+    {
+      "rules": [
+        "simple_decl",
+        "trailing_var_shorthand",
+        "type_expr"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier"
+      ],
+      "lookahead": "'('"
+    },
+    {
+      "rules": [
+        "abort_ret_type"
+      ],
+      "symbol_sequence": [
+        "type_expr",
+        "'?'",
+        "type_identifier"
+      ],
+      "lookahead": "'<'"
+    },
+    {
+      "rules": [
+        "block_call",
+        "type_expr",
+        "unbraced_verb_call"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "type_identifier"
+      ],
+      "lookahead": "'('"
+    },
+    {
+      "rules": [
+        "_computed_call_no_trailing_arg_",
+        "_computed_call_trailing_arg_",
+        "app"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_expr",
+        "'='",
+        "func_callee"
+      ],
+      "lookahead": "'('"
+    },
+    {
+      "rules": [
+        "type_expr",
+        "unbraced_verb_call"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "'&'",
+        "type_identifier"
+      ],
+      "lookahead": "'('"
+    },
+    {
+      "rules": [
+        "_body_decl_block_body_",
+        "_body_decl_shorthand_body_",
+        "_body_decl_shorthand_body_braced_",
+        "block_call",
+        "type_expr",
+        "unbraced_verb_call"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "'{'",
+        "type_identifier"
+      ],
+      "lookahead": "'('"
+    },
+    {
+      "rules": [
+        "_body_decl_block_body_",
+        "_body_decl_shorthand_body_",
+        "_body_decl_shorthand_body_braced_",
+        "enum_map_decl",
+        "type_expr"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "'{'",
+        "type_identifier"
+      ],
+      "lookahead": "'<'"
+    },
+    {
+      "rules": [
+        "app_braced",
+        "stat"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "'{'",
+        "braced_verb_call"
+      ],
+      "lookahead": "'?'"
+    },
+    {
+      "rules": [
+        "func_callee",
+        "stat"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "'{'",
+        "unbraced_verb_call"
+      ],
+      "lookahead": "'?'"
+    },
+    {
+      "rules": [
+        "_computed_call_no_trailing_arg_",
+        "app"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_expr",
+        "'='",
+        "'&'",
+        "func_callee"
+      ],
+      "lookahead": "'('"
+    },
+    {
+      "rules": [
+        "expr",
+        "func_callee"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_expr",
+        "'='",
+        "'spawn'",
+        "unbraced_verb_call"
+      ],
+      "lookahead": "'('"
+    },
+    {
+      "rules": [
+        "expr",
+        "stat"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "'{'",
+        "'spawn'",
+        "braced_verb_call"
+      ],
+      "lookahead": "'?'"
+    },
+    {
+      "rules": [
+        "_body_decl_block_body_",
+        "_body_decl_shorthand_body_",
+        "_body_decl_shorthand_body_braced_",
+        "type_expr"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "'{'",
+        "type_identifier",
+        "_loption_generics_"
+      ],
+      "lookahead": "'('"
+    },
+    {
+      "rules": [
+        "app",
+        "block_call",
+        "unbraced_verb_call"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_expr",
+        "'='",
+        "type_identifier",
+        "'.'",
+        "identifier"
+      ],
+      "lookahead": "'('"
+    },
+    {
+      "rules": [
+        "app",
+        "unbraced_verb_call"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_expr",
+        "'='",
+        "'&'",
+        "type_identifier",
+        "'.'",
+        "identifier"
+      ],
+      "lookahead": "'('"
+    },
+    {
+      "rules": [
+        "abort_handle",
+        "expr",
+        "expr_braced"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "'{'",
+        "'abort'",
+        "expr",
+        "'??'",
+        "expr"
+      ],
+      "lookahead": "'?'"
+    },
+    {
+      "rules": [
+        "expr",
+        "expr_braced"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "'{'",
+        "'abort'",
+        "expr",
+        "'=='",
+        "expr"
+      ],
+      "lookahead": "'?'"
+    },
+    {
+      "rules": [
+        "expr",
+        "expr_braced",
+        "shorthand_body"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "type_identifier",
+        "'('",
+        "'{'",
+        "'abort'",
+        "expr",
+        "'?'",
+        "identifier",
+        "'=>'",
+        "expr"
+      ],
+      "lookahead": "'?'"
+    }
+  ]
+}

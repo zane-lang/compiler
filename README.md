@@ -39,7 +39,9 @@ Then enter the project development shell:
 devbox shell
 ```
 
-The shell provides the project toolchain and adds `dev/bin` to `PATH`.
+The shell provides the compiler toolchain and adds `dev/bin` to `PATH`.
+For regeneration and `just test`, also install Node/npm and the pinned grammar
+generator dependencies as described in [`grammar/README.md`](grammar/README.md).
 
 ## Where things are
 
@@ -61,7 +63,7 @@ just test
 ```
 
 `just -l` lists the recipes: `test` runs the compiler, grammar and
-ambiguity-tool suites, each of which also has its own recipe.
+ambiguity-tool and grammar-generator suites, each of which also has its own recipe.
 
 ## Usage
 
