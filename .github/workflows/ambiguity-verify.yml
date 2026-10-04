@@ -8,13 +8,13 @@ name: Grammar verification
 # Unlike the search-based prover this is a gate. The grammar is proven today,
 # so a red run means a change made it ambiguous, or moved it outside what the
 # checker can certify; either way the change needs a look before it merges.
+#
+# The job runs on every pull request, so it can be a required check: one that
+# never started would hold a merge forever. A pull request that touches
+# neither the grammar nor the proofs passes it at once, after
+# `.github/scripts/ci-suites` says so.
 on:
   pull_request:
-    paths:
-      - lib/cst/parser.mly
-      - formal/**
-      - justfile
-      - .github/workflows/ambiguity-verify.yml
   merge_group:
   push:
     branches: [main]
@@ -22,6 +22,8 @@ on:
 
 permissions:
   contents: read
+  # `.github/scripts/ci-suites` lists a pull request's changed files.
+  pull-requests: read
 
 concurrency:
   group: ambiguity-verify-${{ github.event.pull_request.number || github.ref }}
@@ -38,8 +40,18 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Decide whether the proofs need to run
+        id: suites
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: .github/scripts/ci-suites
+
       # The same switch `ci.yml` builds and caches; Menhir is the only part used.
       - name: Restore the opam switch
+        if: steps.suites.outputs.formal == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -48,17 +60,20 @@ jobs:
           key: opam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/bin/bootstrap-toolchain') }}
 
       - name: Install devbox + Nix + devbox.json packages
+        if: steps.suites.outputs.formal == 'true'
         uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
         with:
           enable-cache: true
 
       - name: Install OCaml dependencies
+        if: steps.suites.outputs.formal == 'true'
         run: devbox run -- dev/bin/bootstrap-toolchain
 
       # Lean comes from elan, at the version formal/lean-toolchain names. The
       # installer is fetched from the v4.2.4 release commit and checked against
       # its digest before it runs.
       - name: Install Lean
+        if: steps.suites.outputs.formal == 'true'
         run: |
           curl -sSfL -o elan-init.sh https://raw.githubusercontent.com/leanprover/elan/227caca133724d5516bee25c2aeb3e609478f2d8/elan-init.sh
           echo "a620ff1641616222c8d37c54845492004bb84d6877cdbc944dd65c1aa685bf53  elan-init.sh" | sha256sum -c -
@@ -67,6 +82,7 @@ jobs:
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
       - name: Restore the Lean build
+        if: steps.suites.outputs.formal == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -77,6 +93,7 @@ jobs:
 
       # The report binds the verdict to the exact source and tool versions.
       - name: Verify the grammar
+        if: steps.suites.outputs.formal == 'true'
         run: |
           set -o pipefail
           {
@@ -88,7 +105,7 @@ jobs:
           devbox run -- just verify-grammar 2>&1 | tee -a verify-grammar.txt
 
       - name: Keep the report
-        if: always()
+        if: always() && steps.suites.outputs.formal == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: verify-grammar

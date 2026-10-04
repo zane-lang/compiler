@@ -149,9 +149,11 @@ a certificate for a different source snapshot. CI preserves the exact source,
 tool versions, verified evidence, and stated assumptions for review.
 
 **Status: done in the repository; one setting remains.**
-`.github/workflows/ambiguity-verify.yml` runs `just verify-grammar`. It triggers
-on changes to the grammar, `formal/`, the justfile or the workflow itself, and
-uploads the run's report. Its actions are pinned to commit SHAs, its Lean
+`.github/workflows/ambiguity-verify.yml` runs `just verify-grammar`. Its `verify`
+job reports on every pull request: `.github/scripts/ci-suites` selects the
+proofs when the grammar, `formal/`, the toolchain pins or the CI scripts change,
+and the job passes at once otherwise, so requiring it holds no unrelated merge.
+A run of the proofs uploads its report. Its actions are pinned to commit SHAs, its Lean
 installer to a digest, and Lean itself to `formal/lean-toolchain`. The checker
 reads `parser.mly` directly, so no certificate can describe a different
 snapshot. The remaining step is the repository setting that marks the check as
