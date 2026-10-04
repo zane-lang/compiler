@@ -40,7 +40,7 @@ def generate(spec, start, rules, precedence, overlay, conflicts=()):
 
     # Keep the start node public, compiler helper nodes private. Leaf tokens
     # are public and stable so highlight queries survive helper renumbering.
-    public = set(overlay.get('public_rules', []))
+    public = set(overlay.get('public_rules', [])) | set(overlay.get('kept_inline_rules', []))
     if public - productive:
         raise ValueError(f"unknown public rules: {sorted(public - productive)}")
     names = {name: ("source_file" if name == start else name if name in public else "_" + name) for name in productive | {start}}

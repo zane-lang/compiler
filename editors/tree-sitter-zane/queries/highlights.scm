@@ -71,3 +71,5 @@
 (block_decl (ret_type) . (identifier) @function . "(")
 (simple_decl (ret_type) . (identifier) @function . "(")
 (simple_decl_braced (ret_type) . (identifier) @function . "(")
+(param . (identifier) @variable.parameter)
+(constructor_field . (identifier) @variable.parameter)

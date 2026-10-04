@@ -35,6 +35,13 @@ public_rules [
   abort_handle_braced
   stat
 ]
+# %inline rules the editor tree keeps as nodes of their own, so queries can
+# name a parameter rather than guess it from its neighbours. The compiler
+# grammar still inlines them.
+kept_inline_rules [
+  param
+  constructor_field
+]
 # A declared verb name is the identifier right after the return type and right
 # before `(`: anchors skip anonymous tokens, so without the `(` an operator's or
 # a lambda's first parameter would be taken for the name.
@@ -44,4 +51,6 @@ highlights [
   "(block_decl (ret_type) . (identifier) @function . \"(\")"
   "(simple_decl (ret_type) . (identifier) @function . \"(\")"
   "(simple_decl_braced (ret_type) . (identifier) @function . \"(\")"
+  "(param . (identifier) @variable.parameter)"
+  "(constructor_field . (identifier) @variable.parameter)"
 ]

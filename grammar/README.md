@@ -21,7 +21,7 @@ because conflict discovery consumes that CLI's structured diagnostic schema.
 |---|---|
 | `syntax.mly` | Productions, precedence, OCaml actions and the start symbol |
 | `lexicon.coda` | Tokens, portable lexical expressions, trivia, payload conversion, token node names and highlighting roles |
-| `tree-sitter.coda` | Public nodes and contextual highlight queries |
+| `tree-sitter.coda` | Public nodes, `%inline` rules kept as editor nodes, and contextual highlight queries |
 
 [Coda](https://github.com/zane-lang/coda) supports comments and flat tables.
 Literal tokens use a table; lexical expressions and payload tokens use nested
@@ -220,8 +220,14 @@ rejects, including certain trailing-block continuations, mismatched import
 alias casing, and statement terminators after braces. Compiler checks remain
 authoritative. The editor tree also differs from the compiler's constructed
 CST: public nodes are selected in the overlay, and expanded helper nodes are
-hidden. Highlighting includes lexical roles plus a few contextual function and
-member captures; it does not perform name resolution.
+hidden. `%inline` rules leave no node of their own, so the overlay's
+`kept_inline_rules` names those the editor tree keeps as rules, such as `param`.
+Only the Tree-sitter translation sees that change; the compiler grammar still
+inlines them, and the backend suite checks that `@variable.parameter` captures
+exactly the parameters the compiler's CST records. Highlighting includes
+lexical roles plus contextual function, member and parameter captures. It does
+not perform name resolution, so a parameter is marked where it is declared and
+not where it is used.
 
 Grammar edits can produce new Tree-sitter conflicts. Regenerate, review the
 generated conflict report, and rerun the backend suite. Keep source grammar edits

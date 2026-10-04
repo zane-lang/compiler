@@ -61,6 +61,15 @@ class LexicalTests(unittest.TestCase):
             menhir.generate('(* @generated-tokens *)\n%%\nmain: "+" { () }', self.spec)
         menhir.generate('(* @generated-tokens *)\n%%\n(* "+" (* nested *) *)\nmain: PLUS { ignore "{"; ignore \'}\'; () }', self.spec)
 
+    def test_kept_inline_rules_become_editor_nodes_only(self):
+        template = '%inline param:\n  | x=LIDENT { x }\n%inline other:\n  | y=UIDENT { y }\n'
+        kept = menhir.keep_inline_rules(template, ['param'])
+        self.assertIn('\nparam:', '\n' + kept)
+        self.assertIn('%inline other:', kept)
+        for names in (['missing'], ['func_lambda('], ['param', 'param']):
+            with self.assertRaises(ValueError):
+                menhir.keep_inline_rules(template, names)
+
     def test_unknown_conflicts_are_rejected(self):
         with self.assertRaises(ValueError):
             treesitter.generate(self.spec, 'main', {'main': [menhir.Production(('INT',))]}, {}, {}, [['missing']])
