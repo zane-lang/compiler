@@ -35,6 +35,20 @@ public_rules [
   abort_handle_braced
   stat
 ]
+# %inline rules the editor tree keeps as nodes of their own, so queries can
+# name a parameter rather than guess it from its neighbours. The compiler
+# grammar still inlines them.
+kept_inline_rules [
+  param
+  constructor_field
+]
+# Rules whose first named child binds a name. The Neovim predicate zane-bound?
+# (tools/grammar/neovim.lua) marks a reference bound when one of its ancestors
+# has a binder of that name as a child.
+binders [
+  param
+  constructor_field
+]
 # A declared verb name is the identifier right after the return type and right
 # before `(`: anchors skip anonymous tokens, so without the `(` an operator's or
 # a lambda's first parameter would be taken for the name.
@@ -44,4 +58,14 @@ highlights [
   "(block_decl (ret_type) . (identifier) @function . \"(\")"
   "(simple_decl (ret_type) . (identifier) @function . \"(\")"
   "(simple_decl_braced (ret_type) . (identifier) @function . \"(\")"
+  "(param . (identifier) @variable.parameter)"
+  "(constructor_field . (identifier) @variable.parameter)"
+]
+# Neovim-only captures, generated into editors/neovim/queries/zane/highlights.scm
+# as an extension of the shared query. A parameter's uses need zane-bound?,
+# which only the generated zane.lua defines; a consumer that skipped the
+# predicate would take every reference for a parameter.
+neovim_highlights [
+  "((primary . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter))"
+  "((primary_braced \"init\" (identifier) @variable.parameter . \";\") (#zane-bound? @variable.parameter))"
 ]

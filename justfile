@@ -35,7 +35,7 @@ test-highlighting: test-grammar-generation
 	export PATH="{{justfile_directory()}}/editors/tree-sitter-zane/node_modules/.bin:$PATH"
 	command -v tree-sitter >/dev/null || { echo "tree-sitter not found; npm ci --prefix editors/tree-sitter-zane" >&2; exit 1; }
 	{{grammar_python}} -c 'import tree_sitter'
-	dune build tests/highlighting/parser_check.exe
+	dune build tests/highlighting/parser_check.exe tools/inspect/span_dump.exe
 	{{grammar_python}} -m unittest tests.highlighting.backend_test -v
 
 # The compiler itself: the golden expectations under tests/ and parser

@@ -21,7 +21,7 @@ because conflict discovery consumes that CLI's structured diagnostic schema.
 |---|---|
 | `syntax.mly` | Productions, precedence, OCaml actions and the start symbol |
 | `lexicon.coda` | Tokens, portable lexical expressions, trivia, payload conversion, token node names and highlighting roles |
-| `tree-sitter.coda` | Public nodes and contextual highlight queries |
+| `tree-sitter.coda` | Public nodes, `%inline` rules kept as editor nodes, and contextual highlight queries |
 
 [Coda](https://github.com/zane-lang/coda) supports comments and flat tables.
 Literal tokens use a table; lexical expressions and payload tokens use nested
@@ -49,7 +49,8 @@ identical to the previous grammar.
 | `editors/tree-sitter-zane/queries/highlights.scm` | Neovim and Tree-sitter highlighting |
 | `editors/tree-sitter-zane/tree-sitter.json`, `package.json` | Tree-sitter build metadata and pinned CLI |
 | `editors/typst/Zane.sublime-syntax` | Typst `raw(syntaxes: ...)` |
-| `editors/neovim/zane.lua` | Neovim filetype detection and highlighting activation |
+| `editors/neovim/zane.lua` | Neovim filetype detection, highlighting activation and the `zane-bound?` predicate |
+| `editors/neovim/queries/zane/highlights.scm` | Neovim-only captures, appended to the shared query |
 
 ```sh
 .grammar-venv/bin/python -m tools.grammar
@@ -111,6 +112,21 @@ The string token's `value: "unquote"` strips its delimiters for the compiler.
 `highlight_priority` controls overlapping Sublime rules: decimals precede
 integers. Compiler and Tree-sitter lexers select longest matches themselves.
 
+## Previews
+
+[`renders/sample.zn`](renders/sample.zn) as each editor shows it. Neovim uses
+the Tree-sitter parser and `highlights.scm`; Typst uses `Zane.sublime-syntax`.
+The light Neovim render has one colour per capture. The dark ones use each
+theme's own colours: Kanagawa (wave), Tokyo Night (night) and Catppuccin Mocha
+from their Neovim plugins, and the `.tmTheme` files those projects publish.
+
+| | Neovim | Typst |
+|---|---|---|
+| Light | ![Zane in Neovim, one colour per capture](renders/neovim-light.png) | ![Zane in Typst, default light theme](renders/typst-light.png) |
+| Kanagawa | ![Zane in Neovim, Kanagawa wave theme](renders/neovim-kanagawa.png) | ![Zane in Typst, Kanagawa theme](renders/typst-kanagawa.png) |
+| Tokyo Night | ![Zane in Neovim, Tokyo Night theme](renders/neovim-tokyonight.png) | ![Zane in Typst, Tokyo Night theme](renders/typst-tokyonight.png) |
+| Catppuccin Mocha | ![Zane in Neovim, Catppuccin Mocha theme](renders/neovim-catppuccin.png) | ![Zane in Typst, Catppuccin Mocha theme](renders/typst-catppuccin.png) |
+
 ## Typst
 
 Copy `editors/typst/Zane.sublime-syntax` beside your Typst document, then use:
@@ -145,13 +161,18 @@ priority even in positions where Tree-sitter expects an identifier.
 For a simple local Linux installation:
 
 ```sh
-mkdir -p ~/.config/nvim/parser ~/.config/nvim/queries/zane ~/.config/nvim/plugin
+mkdir -p ~/.config/nvim/parser ~/.config/nvim/queries/zane ~/.config/nvim/plugin \
+  ~/.config/nvim/after/queries/zane
 cp editors/tree-sitter-zane/zane.so ~/.config/nvim/parser/zane.so
 cp editors/tree-sitter-zane/queries/highlights.scm ~/.config/nvim/queries/zane/
+cp editors/neovim/queries/zane/highlights.scm ~/.config/nvim/after/queries/zane/
 cp editors/neovim/zane.lua ~/.config/nvim/plugin/zane.lua
 ```
 
-The generated Lua registers `.zn` and `.zane` files and starts the highlighter.
+The generated Lua registers `.zn` and `.zane` files, starts the highlighter,
+and defines the `zane-bound?` query predicate. The query under `after/` begins
+with `; extends`, so Neovim appends it to the shared one; it uses the predicate
+to colour a parameter where it is used, and needs `zane.lua` installed with it.
 No LSP or `nvim-treesitter` registration is needed. Use `:Inspect` and
 `:InspectTree` to inspect captures and tree structure. Other platforms can use
 the parser artifact appropriate to their platform on Neovim's runtime path.
@@ -220,8 +241,20 @@ rejects, including certain trailing-block continuations, mismatched import
 alias casing, and statement terminators after braces. Compiler checks remain
 authoritative. The editor tree also differs from the compiler's constructed
 CST: public nodes are selected in the overlay, and expanded helper nodes are
-hidden. Highlighting includes lexical roles plus a few contextual function and
-member captures; it does not perform name resolution.
+hidden. `%inline` rules leave no node of their own, so the overlay's
+`kept_inline_rules` names those the editor tree keeps as rules, such as `param`.
+Only the Tree-sitter translation sees that change; the compiler grammar still
+inlines them, and the backend suite checks that `@variable.parameter` captures
+exactly the parameters the compiler's CST records. Highlighting includes
+lexical roles plus contextual function, member and parameter captures. The
+shared query marks a parameter where it is declared. Neovim's extension query
+also marks each use, through `zane-bound?`, which looks for a parameter of that
+name in an enclosing verb or lambda. That needs no further name resolution
+because a local may not shadow a parameter (`docs/design/semantics.md` D14).
+The overlay's `binders` names the rules that bind a name; the generator writes
+them into `zane.lua`, with the node types the grammar lets hold one as a
+direct child, so the predicate scans only those. Other Tree-sitter consumers
+read only the shared query.
 
 Grammar edits can produce new Tree-sitter conflicts. Regenerate, review the
 generated conflict report, and rerun the backend suite. Keep source grammar edits

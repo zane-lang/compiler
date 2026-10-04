@@ -40,7 +40,7 @@ def generate(spec, start, rules, precedence, overlay, conflicts=()):
 
     # Keep the start node public, compiler helper nodes private. Leaf tokens
     # are public and stable so highlight queries survive helper renumbering.
-    public = set(overlay.get('public_rules', []))
+    public = set(overlay.get('public_rules', [])) | set(overlay.get('kept_inline_rules', []))
     if public - productive:
         raise ValueError(f"unknown public rules: {sorted(public - productive)}")
     names = {name: ("source_file" if name == start else name if name in public else "_" + name) for name in productive | {start}}
@@ -115,3 +115,32 @@ def generate(spec, start, rules, precedence, overlay, conflicts=()):
         queries.append(node + ' @' + t['capture'])
     queries.extend(overlay.get('highlights', []))
     return '\n'.join(lines), '\n'.join([*queries, ''])
+
+
+def binder_containers(start, rules, overlay, binders):
+    """Visible node types that can have one of `binders` as a direct child.
+
+    Hidden rules flatten into their parent, so a binder under a hidden helper
+    is a child of the nearest visible ancestor. Neovim's zane-bound?
+    predicate only scans these nodes for binders.
+    """
+    visible = {start} | set(overlay.get('public_rules', [])) | set(overlay.get('kept_inline_rules', []))
+    unknown = set(binders) - (visible & rules.keys())
+    if unknown:
+        raise ValueError(f"binders must be visible rules: {sorted(unknown)}")
+    # children[r]: the visible rules that appear as r's direct children.
+    children = {r: set() for r in rules}
+    while True:
+        changed = False
+        for r, productions in rules.items():
+            for p in productions:
+                for s in p.symbols:
+                    if s not in rules:
+                        continue
+                    found = {s} if s in visible else children[s]
+                    if not found <= children[r]:
+                        children[r] |= found
+                        changed = True
+        if not changed:
+            break
+    return sorted(("source_file" if r == start else r) for r in visible & rules.keys() if children[r] & set(binders))

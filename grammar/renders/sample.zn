@@ -1,0 +1,30 @@
+/// A 2D vector with an operator and a method.
+package geometry;
+
+import core$;
+
+type Vec = struct {
+	x Int;
+	y Int;
+}
+
+type Shape = enum [ round, square ]
+
+// Operators are declared like verbs; `a` and `b` are parameters.
+Vec +(a Vec, b Vec) => Vec{x = a.x + b.x; y = a.y + b.y;}
+
+Int dot(this Vec, other Vec) => this.x * other.x + this.y * other.y
+
+String describe(s Shape) => match (s) {
+	round => "round // not a comment";
+	square => "square\tshape";
+}
+
+Unit main() {
+	origin Vec = Vec{x = 0; y = 0;}
+	scale Float = 1'000.5;
+	twice Int(n Int) => n * 2;
+	ok Bool = true;
+	print(describe(Shape.round));
+	return Unit();
+}

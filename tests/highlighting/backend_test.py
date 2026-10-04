@@ -2,6 +2,7 @@
 import ctypes
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -15,6 +16,8 @@ try:
     from tree_sitter import Language, Parser, Query, QueryCursor
 except ImportError:
     Language = None
+
+SPAN_DUMP = ROOT / '_build/default/tools/inspect/span_dump.exe'
 
 try:
     # The pinned CLI, found on PATH or where npm ci installs it.
@@ -36,6 +39,21 @@ def cases(suite):
             yield from cases(case)
         else:
             yield case
+
+
+def accepted_sources():
+    """Every source the compiler's syntax suite expects to parse."""
+    suite = unittest.defaultTestLoader.loadTestsFromModule(syntax_test)
+    accepted = []
+    for case in cases(suite):
+        case.setUp = lambda: None
+        case.assert_parses = lambda source: accepted.append(source.encode())
+        case.assert_rejects = lambda source: None
+    result = unittest.TestResult()
+    suite.run(result)
+    if result.errors or result.failures:
+        raise AssertionError(result.errors + result.failures)
+    return accepted
 
 
 def check(command, **kwargs):
@@ -69,23 +87,16 @@ class BackendTests(unittest.TestCase):
         cls.parser = Parser(cls.language)
         cls.query = Query(cls.language, (source / 'queries/highlights.scm').read_text())
         shutil.copytree(source / 'queries', cls.runtime / 'queries/zane')
+        # Neovim's own captures extend the shared query from an `after` directory.
+        shutil.copytree(ROOT / 'editors/neovim/queries', cls.runtime / 'after/queries')
 
     def test_existing_accepted_syntax_examples(self):
         # Reuse all accepted examples from the compiler's syntax suite. The
         # editor parser intentionally omits OCaml actions and Statement_check;
         # compiler rejection expectations are tested separately below.
-        suite = unittest.defaultTestLoader.loadTestsFromModule(syntax_test)
-        accepted = []
-        for case in cases(suite):
-            case.setUp = lambda: None
-            def accept(source):
-                accepted.append(source)
-                self.assertFalse(self.parser.parse(source.encode()).root_node.has_error, source)
-            case.assert_parses = accept
-            case.assert_rejects = lambda source: None
-        result = unittest.TestResult()
-        suite.run(result)
-        self.assertFalse(result.errors or result.failures, result.errors + result.failures)
+        accepted = accepted_sources()
+        for source in accepted:
+            self.assertFalse(self.parser.parse(source).root_node.has_error, source)
         self.assertGreater(len(accepted), 50)
 
     def test_existing_parser_fixtures(self):
@@ -127,6 +138,25 @@ class BackendTests(unittest.TestCase):
                 captures = QueryCursor(self.query).captures(tree.root_node)
                 found = sorted((n.start_byte, source[n.start_byte:n.end_byte]) for n in captures.get('function', []))
                 self.assertEqual([name for _, name in found], names)
+
+    @needs(SPAN_DUMP.exists(), 'requires span_dump.exe')
+    def test_parameter_captures_are_the_compilers_parameters(self):
+        # The compiler's CST says which names are parameters; the shared query
+        # captures every one of them where it is declared, and nothing else.
+        # Uses are Neovim's own captures, checked by tests/highlighting/neovim.lua.
+        sources = accepted_sources() + [p.read_bytes() for p in sorted((ROOT / 'tests/parser/fixtures').glob('*.zn'))]
+        # A closed file in the class's own runtime directory, which is removed
+        # with it: Windows cannot let span_dump open a file Python holds open.
+        path = self.runtime / 'parameters.zn'
+        for source in sources:
+            with self.subTest(source=source[:80]):
+                path.write_bytes(source)
+                spans = check([str(SPAN_DUMP), '--cst', str(path)]).stdout
+                # Concept parameters are named in type case; those are types.
+                expected = re.findall(r'^\s*(?:param|constructor_field) \| ([^\W\dA-Z]\w*)', spans, re.M)
+                captures = QueryCursor(self.query).captures(self.parser.parse(source).root_node)
+                nodes = sorted(captures.get('variable.parameter', []), key=lambda n: n.start_byte)
+                self.assertEqual([source[n.start_byte:n.end_byte].decode() for n in nodes], expected)
 
     def test_comments_may_contain_backslashes(self):
         source = b'x Int = 1 // a \\ b\nUnit main() {}'
