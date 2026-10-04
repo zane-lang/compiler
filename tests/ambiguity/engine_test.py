@@ -1,13 +1,77 @@
 #!/usr/bin/env python3
 """Tests of the OCaml engine itself, run on small grammars: terminal
-classes, the minimum token bound and the partition budget."""
+classes, how a search reports its end, duplicate reductions, the minimum token
+bound and the partition budget."""
 
+import re
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
 from tests.ambiguity.engine_support import ENGINE, TINY_GRAMMAR, engine_environment
+
+
+# Witnesses are announced by "Found N complete ambiguity families." The search
+# says "no complete ambiguity was found" when there are none, so this has to be
+# anchored: a bare "complete ambiguity" substring matches both.
+WITNESS_LINE = re.compile(r"^Found \d+ complete ambiguity", re.MULTILINE)
+# Every search reports how it ended, whether or not it found witnesses and
+# whether or not a limit curtailed it.
+TERMINATION_LINE = re.compile(r"^Search ended at depth \d+ because ", re.MULTILINE)
+
+# Plainly LR(1): one action per state and lookahead.
+LR1_LIST = """\
+%token A "a"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: items EOF { () }
+items:
+  | { () }
+  | items A { () }
+"""
+
+# Ambiguous: `a + a + a` groups two ways with nothing to choose between them.
+AMBIGUOUS_EXPRESSION = """\
+%token A "a"
+%token PLUS "+"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: e EOF { () }
+e:
+  | A { () }
+  | e PLUS e { () }
+"""
+
+# Menhir prints both alternatives as `e -> A`; they are still two reductions.
+DUPLICATE_PRODUCTION = """\
+%token A "a"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: e EOF { () }
+e:
+  | A { () }
+  | A { () }
+"""
+
+# The duplicate reductions live on B, which is not its class's representative.
+# If terminal equivalence discarded reduction multiplicity, A and B would merge
+# and the search would only try A, missing the ambiguous sentence `B EOF`.
+DUPLICATE_NONREPRESENTATIVE_TERMINAL = """\
+%token A "a"
+%token B "b"
+%token EOF "<eof>"
+%start <unit> main
+%%
+main: e EOF { () }
+e:
+  | A { () }
+  | B { () }
+  | B { () }
+"""
 
 
 # The short derivation accepts at A EOF; a longer accepted derivation needs
@@ -67,38 +131,113 @@ class TerminalClassEngineTests(unittest.TestCase):
         self.assertIn("Accepting derivations: 2", result.stdout)
         self.assertEqual(result.returncode, 0)
 
-    def test_prove_finds_the_ambiguity_via_the_representative(self) -> None:
-        # prove drives the abstract BFS over class representatives, then
-        # concretizes; it must surface the e-PLUS-e ambiguity even though every
-        # witness is spelled with the representative atom.
+    def test_search_finds_the_ambiguity_via_the_representative(self) -> None:
+        # The search shifts class representatives only; it must still surface
+        # the e-PLUS-e ambiguity, spelled with the representative atom.
         result = self.engine(
-            "--prove", "2",
             "--max-tokens", "8",
             "--timeout", "30",
             "--max-witnesses", "5",
         )
-        # TINY_GRAMMAR is ambiguous, so proof mode settles on the ambiguous
-        # verdict and reports it in its status.
-        self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertTrue(
-            "complete ambiguity" in result.stdout
-            or "AMBIGUOUS: the recognizer found two derivations" in result.stdout,
-            result.stdout,
-        )
-        # The witness must be spelled with the class representative A, never the
-        # non-representative B, confirming concretization stays on representatives.
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertRegex(result.stdout, WITNESS_LINE)
         witnesses = [
             line for line in result.stdout.splitlines() if "Tokens (" in line
         ]
-        if witnesses:
-            tokens = witnesses[0].split(":", 1)[1].split()
-            self.assertIn("A", tokens)
-            self.assertNotIn("B", tokens)
-        else:
-            self.assertIn(
-                "AMBIGUOUS: the recognizer found two derivations of A PLUS A PLUS A EOF",
-                result.stdout,
+        tokens = witnesses[0].split(":", 1)[1].split()
+        self.assertIn("A", tokens)
+        self.assertNotIn("B", tokens)
+
+
+class EngineTestCase(unittest.TestCase):
+    """Writes one grammar per test into a temporary directory and runs the
+    engine on it."""
+
+    def setUp(self) -> None:
+        self.environment = engine_environment()
+        if self.environment is None:
+            self.skipTest(
+                "requires a built _build/default/tools/ambiguity/engine/ambiguity_search.exe and menhir"
             )
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.grammar = Path(directory.name) / "grammar.mly"
+
+    def engine(self, grammar: str, *arguments: str) -> subprocess.CompletedProcess[str]:
+        self.grammar.write_text(grammar, encoding="utf-8")
+        return subprocess.run(
+            [str(ENGINE), *arguments, str(self.grammar)],
+            env=self.environment,
+            text=True,
+            capture_output=True,
+            timeout=180,
+        )
+
+    def search(
+        self, grammar: str, *, max_tokens: str = "6", timeout: str = "30"
+    ) -> str:
+        result = self.engine(
+            grammar,
+            "--max-tokens", max_tokens,
+            "--timeout", timeout,
+            "--max-witnesses", "5",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result.stdout
+
+
+class SearchTerminationTests(EngineTestCase):
+    """Every search says how it ended, so silence is never the explanation."""
+
+    def test_an_exhausted_bound_says_so(self) -> None:
+        # The conclusive case: nothing of this length is ambiguous because
+        # every sentence of this length was checked, not because the search
+        # gave up.
+        output = self.search(LR1_LIST)
+        self.assertRegex(output, TERMINATION_LINE)
+        self.assertIn("the search space within the token bound was exhausted", output)
+
+    def test_a_curtailed_search_names_its_limit(self) -> None:
+        # A deadline of zero stops the search before it can rule anything
+        # out, and the report has to say which of the two happened.
+        output = self.search(AMBIGUOUS_EXPRESSION, max_tokens="16", timeout="0")
+        self.assertRegex(output, TERMINATION_LINE)
+        self.assertIn("the timeout was reached", output)
+        self.assertNotIn("the search space within the token bound was exhausted", output)
+
+    def test_a_search_with_witnesses_also_reports_termination(self) -> None:
+        # Witnesses do not excuse the run from saying how it ended: whether the
+        # ones reported are all of them depends on the same distinction. A
+        # search that finds witnesses is still a successful run, so it exits 0.
+        output = self.search(AMBIGUOUS_EXPRESSION)
+        self.assertRegex(output, WITNESS_LINE)
+        self.assertRegex(output, TERMINATION_LINE)
+
+
+class DuplicateReductionTests(EngineTestCase):
+    """Two identical-looking alternatives are two derivations, including on a
+    terminal that is not its class's representative."""
+
+    CASES = (
+        ("duplicate production text", DUPLICATE_PRODUCTION, "A EOF"),
+        (
+            "duplicate non-representative terminal",
+            DUPLICATE_NONREPRESENTATIVE_TERMINAL,
+            "B EOF",
+        ),
+    )
+
+    def test_the_recognizer_counts_both_derivations(self) -> None:
+        for name, grammar, tokens in self.CASES:
+            with self.subTest(grammar=name):
+                result = self.engine(grammar, "--check-tokens", tokens)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("Accepting derivations: 2", result.stdout)
+
+    def test_the_search_reports_the_ambiguity(self) -> None:
+        for name, grammar, _ in self.CASES:
+            with self.subTest(grammar=name):
+                self.assertRegex(self.search(grammar), WITNESS_LINE)
 
 
 class MinTokenEngineTests(unittest.TestCase):

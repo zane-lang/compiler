@@ -2,15 +2,15 @@
 """Dump Menhir's LR automaton and conflict explanations for a grammar.
 
 `docs/ambiguity/README.md` calls `menhir --explain` the obligation ledger, but reading
-it has to be done the same way the prover does or the two disagree. The prover
-expands parameterized rules first, with `--only-preprocess-uu`, which is why a
-proof report cites productions under their expanded names -- `loption_generics_`
-rather than `loption(generics)`. Running Menhir directly on the unexpanded
-grammar produces different state numbers and different production names, so a
-state number from a proof report would name a different state here.
+it has to be done the same way the ambiguity engine does or the two disagree.
+The engine expands parameterized rules first, with `--only-preprocess-uu`, which
+is why its reports cite productions under their expanded names --
+`loption_generics_` rather than `loption(generics)`. Running Menhir directly on
+the unexpanded grammar produces different state numbers and different production
+names, so a state number from a search report would name a different state here.
 
 This runs the same two steps in the same order, so a state number printed by
-`ambiguity prove` selects the state that produced it.
+`ambiguity search` selects the state that produced it.
 
 Usage:
     python3 -m tools.ambiguity.explain_automaton --state 27

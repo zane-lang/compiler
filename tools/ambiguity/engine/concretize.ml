@@ -1,22 +1,14 @@
-(* The bounded concretization search: a plain `ambiguity search`, or the
-   last step of a proof whose abstract candidate the recognizer could not
-   settle. It reports the witnesses it found, or how it ended without one. *)
+(* The bounded witness search behind `ambiguity search`. It reports the
+   witnesses it found, or how it ended without one. *)
 
 open Output
 open Automaton
 open Recognizer
-open Prover
 open Search
 open Config
 
 let run ~automaton ~engine ~temporary ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens ~timeout
-    ~max_witnesses ~initial ~retirements ~confirmed =
-  (* Only the concretization search runs workers, and only the code below
-     reaches it: a proof that finished on its own never needs the
-     worker-divided limits, and deriving them here keeps a proof-only
-     verdict from depending on AMBIGUITY_JOBS at all - including through
-     the error this derivation raises when the per-worker share is too
-     small to hold a single queue entry. *)
+    ~max_witnesses ~initial =
   let memory_limits =
     derive_memory_limits ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens
   in
@@ -46,10 +38,8 @@ let run ~automaton ~engine ~temporary ~memory_mb ~max_frontier_ratio ~jobs ~max_
   in
   (* Why the search ended decides what its silence is worth: a run that
      exhausted the space within the token bound has checked every sentence
-     that short, while one that hit a limit has merely stopped looking.
-     Both used to print "no ambiguity found", and only the second named a
-     reason - so the conclusive case was the one identifiable by the
-     absence of an explanation. Every run says how it ended now. *)
+     that short, while one that hit a limit has merely stopped looking, so
+     every run says how it ended. *)
   let termination =
     match outcome.stopped with
     | Some reason -> reason
@@ -60,45 +50,6 @@ let run ~automaton ~engine ~temporary ~memory_mb ~max_frontier_ratio ~jobs ~max_
       printf
         "Search ended at depth %d because %s; no complete ambiguity was found in %d explored frontiers (%d unique).\n"
         outcome.deepest termination outcome.explored outcome.unique;
-      if !prove_level > 0 then begin
-        (* A retiring run reaches here having closed the abstract phase
-           everywhere it was still looking, so "the candidate could not be
-           concretized" would describe a candidate it does not have. What
-           is left open is exactly the retired list, and saying so is the
-           difference between a verdict a reader can act on and one that
-           sends them to raise --prove for no reason. *)
-        (match !confirmed with
-         | Some tokens ->
-             (* The search did not reach it, but nothing about the finding
-                depends on the search: the recognizer parsed this sentence
-                twice. The bound is what is missing, so the verdict names
-                it rather than the grammar. *)
-             printf
-               "AMBIGUOUS: the recognizer found two derivations of %s \
-                (%s), which the bounded search did not reach within %d \
-                tokens, so no witness family is rendered. Raise the token \
-                bound to render it.\n"
-               (String.concat " " tokens) (render automaton tokens)
-               max_tokens;
-             exit ambiguous_status
-         | None -> ());
-        (if !retirements <> [] then
-           printf
-             "NOT PROVEN: %d retired site(s) were stepped over rather \
-              than answered, and the bounded search found no concrete \
-              ambiguity at them; the grammar is unproven at those sites \
-              and closed everywhere else. Raising --prove-refine, or \
-              changing the grammar at those sites, is what would settle \
-              them.\n"
-             (List.length !retirements)
-         else
-           printf
-             "NOT PROVEN: the abstract candidate could not be concretized \
-              within the search bounds; the grammar is neither proven \
-              unambiguous nor shown ambiguous. Raising --prove may remove \
-              the spurious candidate.\n");
-        exit not_proven_status
-      end;
       printf "This is a bounded result, not a proof of unambiguity.\n";
       exit 0
   | witnesses ->
@@ -121,8 +72,4 @@ let run ~automaton ~engine ~temporary ~memory_mb ~max_frontier_ratio ~jobs ~max_
         outcome.explored outcome.unique conflict_seeds;
       printf "Search ended at depth %d because %s.\n"
         outcome.deepest termination;
-      (* Concretizing the abstract candidate settles the proof: the
-         witnesses above are the ambiguity the level-K abstraction
-         suspected. A plain search reports the same witnesses as a bounded
-         finding, not as a verdict, so it keeps its own status. *)
-      exit (if !prove_level > 0 then ambiguous_status else 0)
+      exit 0

@@ -1,13 +1,14 @@
 name: Grammar verification
 
-# The machine-checked counterpart of `ambiguity-prove.yml`: `just verify-grammar`
-# runs the Lean checker in formal/, whose theorems state that the parse relation
-# lib/cst/parser.mly defines is unambiguous and that the GLR parser's relation
-# is unambiguous and maps onto it (docs/ambiguity/verification-roadmap.md).
+# `just verify-grammar` runs the Lean checker in formal/, whose theorems state
+# that the parse relation lib/cst/parser.mly defines is unambiguous and that the
+# GLR parser's relation is unambiguous and maps onto it
+# (docs/ambiguity/formal-proof.md).
 #
-# Unlike the search-based prover this is a gate. The grammar is proven today,
-# so a red run means a change made it ambiguous, or moved it outside what the
-# checker can certify; either way the change needs a look before it merges.
+# This is a gate. The grammar is proven today, so a red run means a change made
+# it ambiguous, or moved it outside what the checker can certify; either way
+# the change needs a look before it merges. `ambiguity search` finds a concrete
+# ambiguous input when it is the former.
 #
 # The job runs on every pull request, so it can be a required check: one that
 # never started would hold a merge forever. A pull request that touches

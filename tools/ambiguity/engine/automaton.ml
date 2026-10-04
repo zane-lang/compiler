@@ -1,7 +1,6 @@
-(* The automaton a run proves or searches: how the grammar's tokens are
-   declared, how Menhir is invoked and its dump parsed, and the derived facts
-   the rest of the engine reads off the result -- minimum stack heights,
-   terminal equivalence classes and production names. *)
+(* The automaton a run searches: how the grammar's tokens are declared, how
+   Menhir is invoked and its dump parsed, and the terminal equivalence classes
+   the rest of the engine reads off the result. *)
 
 module StringSet = Set.Make (String)
 module IntMap = Map.Make (Int)
@@ -28,28 +27,7 @@ type automaton = {
      automorphism of the recognition relation, so the search only needs to try
      one representative per class instead of every interchangeable token. *)
   terminal_class : (string, int) Hashtbl.t;
-  (* Production ids are unique to reduction occurrences in the automaton dump,
-     even when Menhir printed the same lhs/rhs text for two alternatives. The
-     search compares ids, while diagnostics need the text that gave each id a
-     name, so the mapping is kept rather than discarded after parsing. *)
-  production_text : (int, string) Hashtbl.t;
-  (* The fewest entries a stack can have with a state on top: the length of
-     the shortest path from the initial state to it.
-
-     This is the one thing about a stack that the retained suffix never says.
-     A suffix is a chain of adjacent states and nothing more, so an abstract
-     stack rebuilt on a guessed goto source can name a state that no stack
-     that short could be carrying - the chain is a valid path through the
-     automaton, just not one that fits. Comparing it against the height rules
-     those out, and it is a property of the automaton, so it costs one table
-     built once. *)
-  min_height : int array;
 }
-
-let production_name automaton prod =
-  Option.value
-    (Hashtbl.find_opt automaton.production_text prod)
-    ~default:(Printf.sprintf "production %d" prod)
 
 let empty_state () =
   {
@@ -222,35 +200,6 @@ let prepare_automaton ~menhir ~grammar ~directory =
     failwith "Menhir did not produce an LR automaton"
   end;
   automaton
-
-(* How short a stack can be with each state on top.
-
-   A stack is a path from the initial state, one entry per edge, so this is a
-   breadth-first walk of the transition graph and nothing more. [max_int] marks
-   a state no path reaches, which is a state no stack can be carrying at all.
-
-   The bound is sound in the direction it is used. It is a minimum over all
-   paths, so a stack shorter than a state's minimum cannot have that state on
-   top; one that clears it may or may not. Rejecting on it can therefore remove
-   impossible stacks and never a possible one. *)
-let solve_min_height states =
-  let distance = Array.make (Array.length states) max_int in
-  if Array.length states > 0 then begin
-    distance.(0) <- 1;
-    let queue = Queue.create () in
-    Queue.add 0 queue;
-    while not (Queue.is_empty queue) do
-      let source = Queue.take queue in
-      Hashtbl.iter
-        (fun _ target ->
-          if distance.(target) = max_int then begin
-            distance.(target) <- distance.(source) + 1;
-            Queue.add target queue
-          end)
-        states.(source).transitions
-    done
-  end;
-  distance
 
 (* Terminal equivalence classes.
 
@@ -432,11 +381,11 @@ let parse_automaton path terminals aliases =
      alternatives with the same text still represent two derivation steps.
      Allocate one id for every reduction occurrence in the dump. Reusing a
      text-keyed id here turns a reduce/reduce conflict into two copies of the
-     same move and lets the prover dismiss a real ambiguity. *)
-  let production_text = Hashtbl.create 512 in
-  let fresh_production text =
-    let id = Hashtbl.length production_text in
-    Hashtbl.add production_text id text;
+     same move. *)
+  let productions = ref 0 in
+  let fresh_production () =
+    let id = !productions in
+    incr productions;
     id
   in
   let get_state number =
@@ -473,7 +422,7 @@ let parse_automaton path terminals aliases =
                 {
                   lhs;
                   width = List.length (words rhs);
-                  prod = fresh_production (lhs ^ " -> " ^ rhs);
+                  prod = fresh_production ();
                 }
               in
               List.iter
@@ -495,5 +444,4 @@ let parse_automaton path terminals aliases =
   let maximum = Hashtbl.fold (fun number _ value -> max number value) table 0 in
   let states = Array.init (maximum + 1) (fun number -> get_state number) in
   let terminal_class = compute_terminal_classes states terminals in
-  let min_height = solve_min_height states in
-  { states; terminals; aliases; terminal_class; production_text; min_height }
+  { states; terminals; aliases; terminal_class }

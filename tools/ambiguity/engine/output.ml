@@ -2,20 +2,17 @@
    line and its cadence, the compact number and clock formats, and the search
    progress record as it is rendered and persisted.
 
-   Presentation only. Nothing here knows what an automaton, a stack or a proof
-   is, which is what keeps the two proof algorithms free of it. *)
+   Presentation only. Nothing here knows what an automaton or a stack is. *)
 
 (* Everything this tool prints is written as it is produced, not at the end.
 
-   A proof run is long -- an abstract phase that can hold the whole timeout,
-   then a bounded search that can run for an hour -- and it is nearly always
-   read through a pipe: `tools/ambiguity/runner.py` folds stderr into stdout, streams
-   both to the terminal, and copies every line into the saved report. On a pipe
-   OCaml block-buffers stdout, so the survey, the retirements and the line
-   announcing that concretization has started all sat in a 64 KiB buffer until
-   the process exited, and the report file stayed empty for the whole run it
-   was meant to document. Flushing on every write costs one syscall per line,
-   on output no run produces much of. *)
+   A search can run for an hour, and it is nearly always read through a pipe:
+   `tools/ambiguity/runner.py` folds stderr into stdout, streams both to the
+   terminal, and copies every line into the saved report. On a pipe OCaml
+   block-buffers stdout, which would hold every line in a 64 KiB buffer until
+   the process exited and leave the report file empty for the whole run it is
+   meant to document. Flushing on every write costs one syscall per line, on
+   output no run produces much of. *)
 let printf fmt =
   Printf.ksprintf
     (fun text ->
@@ -68,10 +65,8 @@ let progress_interval =
 
 let progress_is_visible () = Lazy.force progress_interval > 0.
 
-(* One clock across every phase, so that handing over from the abstract phase
-   to the concretization search cannot produce two lines at once, and so a
-   phase that ends quickly does not leave the next one waiting out an interval
-   it never used. *)
+(* When a progress line was last shown: one clock for the whole run, shared by
+   everything that renders progress. *)
 let last_progress_render = ref 0.
 
 let progress_due () =

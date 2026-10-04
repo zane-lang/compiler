@@ -42,12 +42,11 @@ test-grammar: _require-menhir
 	dune runtest tests/grammar
 	python3 -m unittest tests.grammar.ambiguity_test -v
 
-# The ambiguity tools' own tests: the prover's soundness corpus, the search
-# CLI, and the sweep's process runner. They say whether the tools are right,
-# not whether the grammar is.
+# The ambiguity tools' own tests: the search engine on small grammars, the
+# search CLI and its profiles, and the visible-stack proof's checker. They say
+# whether the tools are right, not whether the grammar is.
 test-ambiguity-tools: _require-menhir
 	dune build tools/ambiguity/engine/ambiguity_search.exe
-	dune runtest tests/ambiguity
 	python3 -m unittest discover -s tests/ambiguity -p '*_test.py' -t . -v
 
 # The machine-checked unambiguity theorems (docs/ambiguity/verification-roadmap.md):
@@ -78,21 +77,9 @@ _require-menhir:
 promote:
 	dune promote
 
-# Sweep the prover's abstraction level over a grammar to tell a bounded blind
-# spot from an unbounded one. A bounded one keeps its shape and disappears once
-# the window is wider than the widest competing reduction; an unbounded one
-# holds its accepting-pair count flat at every level and never proves. Defaults
-# to Zane's own grammar; pass a path or `--corpus NAME` for anything else.
-#
-# Levels cost roughly an order of magnitude each, so start narrow and widen.
-sweep GRAMMAR="lib/cst/parser.mly" *ARGS:
-	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
-	dune build tools/ambiguity/engine/ambiguity_search.exe
-	python3 -m tools.ambiguity.precision_sweep {{GRAMMAR}} {{ARGS}}
-
 # Dump Menhir's LR automaton or its conflict explanations -- the obligation
 # ledger docs/ambiguity/README.md refers to. Expanded exactly as the ambiguity tools
-# expand it, so a state number cited by a proof report selects the state that
+# expand it, so a state number cited by a search report selects the state that
 # produced it; running menhir on the unexpanded grammar renumbers everything.
 #
 #   just explain --state 27

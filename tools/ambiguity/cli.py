@@ -72,80 +72,6 @@ def parser() -> argparse.ArgumentParser:
         help="terminal names, including EOF when required",
     )
 
-    prove = commands.add_parser(
-        "prove", help="attempt an unbounded top-K proof, then concretize if needed"
-    )
-    prove.add_argument("level", type=int, metavar="LEVEL")
-    prove.add_argument(
-        "profile",
-        nargs="?",
-        default="quick",
-        help="profile for bounded concretization (default: quick)",
-    )
-    prove.add_argument(
-        "--survey",
-        type=int,
-        default=0,
-        metavar="N",
-        help=(
-            "do not stop at the first divergence: count every distinct site "
-            "the abstraction cannot separate, showing up to N examples"
-        ),
-    )
-    prove.add_argument(
-        "--balanced",
-        action="store_true",
-        help="use exact recursive delimiter summaries; requires balanced production skeletons",
-    )
-    prove.add_argument(
-        "--cegar",
-        type=int,
-        default=0,
-        metavar="N",
-        help=(
-            "after an exact-checkable spurious candidate, exclude its complete "
-            "token history in a DFA product and restart the abstract walk"
-        ),
-    )
-    prove.add_argument(
-        "--refine",
-        type=int,
-        default=0,
-        metavar="K",
-        help=(
-            "treat a candidate as a reason to sharpen the abstraction rather "
-            "than as an answer: deepen the retained stack behind it, up to K "
-            "states, and try again"
-        ),
-    )
-    prove.add_argument(
-        "--trace",
-        action="store_true",
-        help=(
-            "follow the reported candidate from its divergence site down to "
-            "acceptance, naming every step where a side had to guess a goto"
-        ),
-    )
-    prove.add_argument(
-        "--refine-rounds",
-        type=int,
-        default=0,
-        metavar="N",
-        help="give up refining after N rounds (default: the engine's own)",
-    )
-    prove.add_argument(
-        "--retire",
-        type=int,
-        default=0,
-        metavar="N",
-        help=(
-            "stop pursuing a divergence site once N rounds of deepening have "
-            "left the candidate at the same site, and carry on with the rest "
-            "of the grammar; a run that retires anything never reports a proof"
-        ),
-    )
-    add_overrides(prove)
-
     visible = commands.add_parser(
         "prove-visible", help="prove all accepted parses using exact visible-stack summaries"
     )
@@ -200,69 +126,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"unknown profile {arguments.profile!r}; available: {available}"
             )
         profile = apply_overrides(profiles[arguments.profile], arguments)
-        if arguments.command == "prove" and arguments.level < 1:
-            raise ConfigurationError("proof level must be at least 1")
-        proof_level = arguments.level if arguments.command == "prove" else None
-        action = (
-            f"Proof level {proof_level}, concretization"
-            if proof_level is not None
-            else "Search"
-        )
         output_path = (
             None
             if profile.output is None
             else expand_output_path(profile.output, profile.name)
         )
-        summary = profile_summary(profile, action)
+        summary = profile_summary(profile, "Search")
         if output_path is not None:
             summary += f"\nReport: {output_path}"
-        survey = getattr(arguments, "survey", 0)
-        if survey < 0:
-            raise ConfigurationError("--survey must be non-negative")
-        cegar = getattr(arguments, "cegar", 0)
-        if cegar < 0:
-            raise ConfigurationError("--cegar must be non-negative")
-        if cegar > 0 and proof_level is None:
-            raise ConfigurationError("--cegar requires prove mode")
-        if cegar > 0 and survey > 0:
-            raise ConfigurationError("--cegar cannot be combined with --survey")
-        refine = getattr(arguments, "refine", 0)
-        refine_rounds = getattr(arguments, "refine_rounds", 0)
-        if refine < 0:
-            raise ConfigurationError("--refine must be non-negative")
-        if refine_rounds < 0:
-            raise ConfigurationError("--refine-rounds must be non-negative")
-        # Without --refine there is no loop for a round limit to bound, and the
-        # engine never sees the option, so accepting it would run exactly as if
-        # it had not been typed.
-        if refine_rounds > 0 and refine == 0:
-            raise ConfigurationError("--refine-rounds requires --refine")
-        # Caught here rather than left to the engine so the message names the
-        # option the caller actually typed.
-        if refine > 0 and proof_level is not None and refine < proof_level:
-            raise ConfigurationError("--refine must be at least the proof level")
-        if refine > 0 and survey > 0:
-            raise ConfigurationError("--refine cannot be combined with --survey")
-        retire = getattr(arguments, "retire", 0)
-        if retire < 0:
-            raise ConfigurationError("--retire must be non-negative")
-        # Retiring names what refinement failed to close, so it has nothing to
-        # act on without refinement, and the engine would never see the option.
-        if retire > 0 and refine == 0:
-            raise ConfigurationError("--retire requires --refine")
-        trace = getattr(arguments, "trace", False)
-        # A survey reports every site rather than one candidate, so there is no
-        # single path for a trace to follow.
-        if trace and survey > 0:
-            raise ConfigurationError("--trace cannot be combined with --survey")
-        balanced = getattr(arguments, "balanced", False)
-        if balanced and (survey > 0 or retire > 0 or trace):
-            raise ConfigurationError("--balanced cannot be combined with survey, retire or trace")
-        engine_args = engine_arguments(
-            profile, proof_level, survey, refine, refine_rounds, retire, trace,
-            cegar,
-            balanced=balanced,
-        )
+        engine_args = engine_arguments(profile)
         if arguments.dry_run:
             print(summary)
             print("\nEngine arguments:")

@@ -2,8 +2,7 @@
 
    The concrete side of the engine: GLR frontiers over exact stacks, the
    reduction closure and shift that move them, acceptance counting capped at
-   two, exact replay of a token sequence, and the lower bounds the bounded
-   search prunes with. *)
+   two, and the lower bounds the bounded search prunes with. *)
 
 open Automaton
 
@@ -107,40 +106,6 @@ let accepted_count engine frontier =
       then cap_add total count
       else total)
     (closure engine frontier "#") 0
-
-(* One sentence, parsed for real, keeping the frontier the recognizer stood on
-   after each of its tokens.
-
-   The abstract phase reasons about every sentence at once and has to
-   approximate to do it. A single candidate is short enough to parse exactly,
-   and the exact parse is the ground truth the abstraction is being measured
-   against: what it accepts, and which stacks it was ever standing on. *)
-let replay engine tokens =
-  let initial = IntMap.singleton engine.stacks.root.id 1 in
-  let collected =
-    List.fold_left
-      (fun frontiers token ->
-        match frontiers with
-        | [] -> assert false
-        | current :: _ -> shift engine current token :: frontiers)
-      [ initial ] tokens
-  in
-  Array.of_list (List.rev collected)
-
-(* The top [depth] states of one concrete stack, deepest entry last, written
-   the way an abstract suffix is. A stack with fewer entries than that returns
-   all of them: it has reached the initial state, and a suffix that matches it
-   there has matched the whole stack. *)
-let concrete_suffix engine stack_id depth =
-  let rec walk node remaining collected =
-    if remaining <= 0 then List.rev collected
-    else
-      let collected = node.Stack_pool.state :: collected in
-      match node.Stack_pool.parent with
-      | None -> List.rev collected
-      | Some parent -> walk parent (remaining - 1) collected
-  in
-  walk (Stack_pool.find engine.stacks stack_id) depth []
 
 let possible_tokens engine frontier =
   IntMap.fold

@@ -11,7 +11,7 @@ ENGINE = ROOT / "_build" / "default" / "tools" / "ambiguity" / "engine" / "ambig
 # A minimal grammar whose two atoms A and B are interchangeable (both reduce to
 # [e] in the same contexts) so they collapse into one terminal class, while the
 # unparenthesized [e PLUS e] rule is genuinely ambiguous. It exercises the
-# equivalence-class machinery on a grammar small enough for the prover to finish
+# equivalence-class machinery on a grammar small enough for a search to finish
 # instantly.
 TINY_GRAMMAR = """\
 %token A "a"

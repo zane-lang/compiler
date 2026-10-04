@@ -5,7 +5,7 @@ _opam/
 .claude/settings.local.json
 dev/machine-config.txt
 
-# Ambiguity search and prove runs write their logs here, locally and in the
+# Ambiguity search and visible-proof runs write their logs here, locally and in the
 # workflows (which upload them as artifacts). Run output is not committed; a
 # result worth keeping goes into docs/ambiguity/experiments.md.
 /reports/
@@ -16,7 +16,7 @@ dev/machine-config.txt
 *.automaton
 
 # ocamlopt writes these beside the source when a module is compiled
-# outside dune, which is how the prover gets built without the full switch.
+# outside dune, which is how the engine gets built without the full switch.
 *.cmi
 *.cmx
 *.cmo

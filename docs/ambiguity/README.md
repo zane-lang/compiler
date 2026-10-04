@@ -22,12 +22,15 @@ dev/bin/ambiguity prove-visible
 ```
 
 The proof covers arbitrary sentence length and bracket nesting. It uses an
-exact counted visibly pushdown model; the former stack-suffix prover remains
-available for investigation and other grammars. Grammar edits require a fresh
+exact counted visibly pushdown model. Grammar edits require a fresh
 certificate. General CFG ambiguity remains undecidable, but this grammar
 passes the structural checks needed for the exact method.
 
-This page is the index. The detail is in eight documents, each written for one
+To find a concrete ambiguous input rather than prove there is none,
+`ambiguity search` runs a bounded search for complete ambiguous sentences, and
+`ambiguity check` counts the derivations of one token sequence.
+
+This page is the index. The detail is in seven documents, each written for one
 question:
 
 - [**visible-proof.md**](visible-proof.md) — the complete exact proof and its
@@ -42,12 +45,9 @@ question:
   every LR conflict state carries, what a semantic action is allowed to do
   under GLR, and where the current conflicts come from. Read this before
   changing the grammar.
-- [**tooling.md**](tooling.md) — `ambiguity search`, `prove`,
-  `survey` and `refine`, watching a run, the search profiles, and the local
-  machine configuration they all need. Read this to run something.
-- [**soundness.md**](soundness.md) — what bounds the prover's
-  abstraction, what each verdict is allowed to mean, and why the scheme is
-  sound at all. Read this to know what a "proven" run has proved.
-- [**experiments.md**](experiments.md) — grammar restructurings and
-  abstraction sharpenings that were measured and rejected. Read this before
-  proposing one of them again.
+- [**tooling.md**](tooling.md) — `ambiguity search`, `check`, `classes` and
+  `prove-visible`, watching a run, the search profiles, and the local machine
+  configuration they need. Read this to run something.
+- [**experiments.md**](experiments.md) — ambiguities that were found and
+  resolved, and grammar restructurings that were measured and rejected. Read
+  this before proposing one of them again.

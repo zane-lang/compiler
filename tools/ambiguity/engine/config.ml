@@ -37,14 +37,6 @@ let nodes_per_depth = ref None
 let timeout = ref None
 let max_witnesses = ref None
 let check_tokens = ref []
-let prove_level = ref 0
-let balanced_proof = ref false
-let cegar_rounds = ref 0
-let survey_limit = ref 0
-let refine_max = ref 0
-let refine_rounds = ref 12
-let retire_after = ref 0
-let trace_forward = ref false
 let dump_classes = ref false
 
 type memory_limits = {
@@ -89,7 +81,7 @@ let options =
   [
     ( "--max-tokens",
       Arg.Int (fun value -> max_tokens := Some value),
-      "N maximum tokens, including EOF (required for search/prove)" );
+      "N maximum tokens, including EOF (required for search)" );
     ( "--min-tokens",
       Arg.Set_int min_tokens,
       "N minimum tokens for reported witnesses, including the prefix and EOF \
@@ -103,53 +95,13 @@ let options =
        for breadth-first search" );
     ( "--timeout",
       Arg.Float (fun value -> timeout := Some value),
-      "SECONDS time limit per search phase (required for search/prove)" );
+      "SECONDS time limit per search phase (required for search)" );
     ( "--max-witnesses",
       Arg.Int (fun value -> max_witnesses := Some value),
-      "N ambiguity families to report (required for search/prove)" );
+      "N ambiguity families to report (required for search)" );
     ( "--check-tokens",
       Arg.String (fun value -> check_tokens := words value),
       "TOKENS check one space-separated token sequence" );
-    ( "--prove",
-      Arg.Set_int prove_level,
-      "K attempt an unambiguity proof with a top-K stack abstraction; \
-       exits 0 proven, 1 a concrete ambiguous sentence, 3 neither, \
-       2 a failed run \
-       (the derived dedup-frontier limit also bounds the abstract pair count)" );
-    ( "--prove-cegar",
-      Arg.Set_int cegar_rounds,
-      "N with --prove, after an exact-checked spurious candidate, add its \
-       complete token history to a DFA product and restart the abstract walk \
-       (0 disables; every terminal-class substitution is checked)" );
-    ( "--prove-balanced",
-      Arg.Set balanced_proof,
-      " with --prove, intersect abstract runs with exactly nested (), [] and {} \
-       histories using recursive summaries; requires balanced production skeletons" );
-    ( "--prove-refine",
-      Arg.Set_int refine_max,
-      "K with --prove, treat a candidate as a reason to sharpen the \
-       abstraction rather than as an answer: deepen the retained stack along \
-       the candidate's own chain to a depth of at most K, and try again \
-       (0 disables)" );
-    ( "--prove-refine-rounds",
-      Arg.Set_int refine_rounds,
-      "N give up after N refinement rounds (default 12)" );
-    ( "--prove-retire",
-      Arg.Set_int retire_after,
-      "N with --prove-refine, stop pursuing a divergence site once N \
-       consecutive rounds of deepening have left the candidate at the same \
-       site, and continue with the rest of the grammar; a run that retired \
-       anything reports which sites and never reports a proof (0 disables)" );
-    ( "--prove-trace",
-      Arg.Set trace_forward,
-      " with --prove, follow the reported candidate from its divergence site \
-       down to acceptance, naming every step where either side needed the \
-       abstraction to guess a goto" );
-    ( "--prove-survey",
-      Arg.Set_int survey_limit,
-      "N with --prove, do not stop at the first divergence: walk the whole \
-       abstract space and report how many distinct sites produce one, with up \
-       to N example sentences" );
     ( "--dump-terminal-classes",
       Arg.Set dump_classes,
       " list the terminal equivalence classes the search collapses, then exit" );
@@ -163,8 +115,8 @@ type settings = {
   memory_mb : int;
   max_frontier_ratio : float;
   jobs : int;
-  (* The bounds search and proof runs require and the other subcommands do
-     not: maximum tokens, timeout, and how many witness families to report. *)
+  (* The bounds a search requires and the other subcommands do not: maximum
+     tokens, timeout, and how many witness families to report. *)
   search_limits : (int * float * int) option;
 }
 
@@ -179,8 +131,6 @@ let settings () =
      before the run starts, rather than at whatever moment the first progress
      line happened to fall due. *)
   ignore (Lazy.force progress_interval : float);
-  ignore (Lazy.force Abstraction.residue_count : int);
-  ignore (Lazy.force Delimiter_history.modulus : int);
   Option.iter
     (fun value ->
       if value < 0 then invalid_arg "--max-tokens must be at least 0")
@@ -207,50 +157,12 @@ let settings () =
     (fun value ->
       if value < 1 then invalid_arg "--max-witnesses must be at least 1")
     !max_witnesses;
-  if !survey_limit < 0 then
-    invalid_arg "--prove-survey must be non-negative";
-  if !survey_limit > 0 && !prove_level <= 0 then
-    invalid_arg "--prove-survey requires --prove";
-  if !cegar_rounds < 0 then
-    invalid_arg "--prove-cegar must be non-negative";
-  if !cegar_rounds > 0 && !prove_level <= 0 then
-    invalid_arg "--prove-cegar requires --prove";
-  if !cegar_rounds > 0 && !survey_limit > 0 then
-    invalid_arg "--prove-cegar cannot be combined with --prove-survey";
-  if !balanced_proof && !prove_level <= 0 then
-    invalid_arg "--prove-balanced requires --prove";
-  if !balanced_proof && (!survey_limit > 0 || !retire_after > 0 || !trace_forward) then
-    invalid_arg "--prove-balanced cannot be combined with survey, retire or trace";
-  if !refine_max < 0 then invalid_arg "--prove-refine must be non-negative";
-  if !refine_max > 0 && !prove_level <= 0 then
-    invalid_arg "--prove-refine requires --prove";
-  if !refine_max > 0 && !refine_max < !prove_level then
-    invalid_arg "--prove-refine must be at least --prove";
-  (* A survey walks the whole abstract space and reports every site rather than
-     stopping at one, so it never produces the single candidate a refinement
-     would be guided by. Refusing the combination is better than accepting it
-     and silently refining nothing. *)
-  if !refine_max > 0 && !survey_limit > 0 then
-    invalid_arg "--prove-refine cannot be combined with --prove-survey";
-  if !refine_rounds < 1 then
-    invalid_arg "--prove-refine-rounds must be at least 1";
-  if !retire_after < 0 then invalid_arg "--prove-retire must be non-negative";
-  (* Retiring is a decision about what refinement is failing to close, so it has
-     nothing to act on without refinement running. *)
-  if !retire_after > 0 && !refine_max = 0 then
-    invalid_arg "--prove-retire requires --prove-refine";
-  if !trace_forward && !prove_level <= 0 then
-    invalid_arg "--prove-trace requires --prove";
-  (* A survey never reports a single candidate, so there is no path to follow;
-     it walks the whole abstract space and prints sites instead. *)
-  if !trace_forward && !survey_limit > 0 then
-    invalid_arg "--prove-trace cannot be combined with --prove-survey";
   let search_limits =
     if !check_tokens <> [] || !dump_classes then None
     else
       let required name = function
         | Some value -> value
-        | None -> invalid_arg (name ^ " is required for search/prove")
+        | None -> invalid_arg (name ^ " is required for search")
       in
       Some
         ( required "--max-tokens" !max_tokens,

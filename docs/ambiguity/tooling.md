@@ -71,99 +71,14 @@
   theorem up to renaming terminals within their class: an ambiguous sentence
   exists with one member iff it exists with every member, so no obligation is
   lost. Witnesses render with the representative terminal.
-- `ambiguity prove K [PROFILE]` — conservative unambiguity proof mode built
-  into the ambiguity search. It abstracts GLR stacks to their top-K states and
-  exhaustively explores pairs of abstract parses of the same input, comparing
-  reduction chains in lockstep. It does not depend on an external constraint
-  solver. Three verdicts, each reported in the exit status so a script can act
-  on it without reading the report: exit 0 "PROVEN UNAMBIGUOUS" is a genuine
-  proof with no sentence-length bound; exit 1 means a concrete ambiguous
-  sentence was found, which is a bug in the grammar rather than a limit of the
-  abstraction; exit 3 means not proven — the abstraction reported a candidate
-  the bounded search could not concretize, so raise the proof level or override
-  the concretization profile; or the abstract pair limit was reached, so raise
-  the memory budget; or the timeout expired mid-proof, so raise it. Exit 2
-  keeps its usual meaning
-  everywhere in this tool — the run itself failed — so a caller can tell a
-  verdict from a broken invocation. Only proof mode reports a verdict: a plain
-  `ambiguity search` exits 0 whether or not it found witnesses, since a bounded
-  finding is not one.
-
-  Reduction chains are compared only until their histories first differ. Once a
-  pair has diverged, later reductions cannot make the two derivations equal
-  again, so each side is closed independently and only their final stacks are
-  paired. Final pairs are unordered, just like the global pair table. This
-  avoids constructing the Cartesian product of every intermediate reduction
-  state without changing the relation the proof explores. **A candidate is
-  parsed for real before anything is spent on it.** The abstract phase reasons
-  about every sentence at once and has to approximate to do it, but a single
-  candidate sentence is short, and the engine already carries the exact GLR
-  recognizer that `ambiguity check` drives. So the sentence is recognized the
-  moment the abstraction names it, and the answer decides what happens next.
-  Two derivations settle the grammar: it is ambiguous, refining would be
-  sharpening an abstraction that turned out to be right, and the run prints
-  `AMBIGUOUS:` and exits directly. Only an unconfirmed candidate continues to
-  the bounded search; that search can render a witness family, while the exact
-  recognizer's finding is already decisive. Nought or one makes the pair
-  spurious, and the report says which rather than leaving it to be inferred.
-  The two spurious answers are not the same finding. Nought means the
-  abstraction accepted something that is not a sentence — `x Foo(y(Bar` and its
-  neighbours, unclosed parentheses and all — and a round spent on one buys
-  nothing. One means the sentence is a real program whose single parse the
-  abstraction cannot tell from a second, which is the blind spot itself. Of the
-  twenty-two candidates the ninety-minute run in
-  [`reports/ambiguity/prove/`](../../reports/ambiguity/prove) worked through,
-  sixteen are the first kind and six the second, and before this check they
-  were indistinguishable. The third answer has been seen once: the
-  `import pkg$` bug, where the recognizer would have settled it in
-  milliseconds rather than at the end of the bounded search.
-
-  Because unambiguity is undecidable in general, the "not proven" verdict can
-  never be eliminated entirely; the prover is validated against known-ambiguous
-  grammars, LR(1) grammars, precedence-resolved expression grammars, and
-  unambiguous non-LR grammars such as palindromes. That corpus lives in
-  `tests/ambiguity/prover/`, which pins both directions of soundness — an
-  ambiguous grammar is never proven, and an unambiguous one never yields a
-  witness — so a change that sharpens the abstraction cannot quietly start
-  proving false theorems. A conflict-free automaton offers one action per state
-  and lookahead, so no pair of abstract runs can ever diverge and it is proven
-  at every level, given a pair budget large enough to finish: that is a
-  property of the automaton rather than of how sharp the abstraction currently
-  is, but exhausting the budget still reports "not proven", since a search that
-  stopped early has proved nothing.
-
-  What the abstraction can and cannot see — the three things that bound its
-  reach, and what each of them does to a verdict — is in
-  [`soundness.md`](soundness.md), along with the argument that the whole scheme
-  is sound.
-
+  A search exits 0 whether or not it found witnesses, since a bounded finding
+  is not a verdict; exit 2 means the run itself failed.
+- `ambiguity check TOKEN...` — runs the exact GLR recognizer on one token
+  sequence, `EOF` included, and prints how many accepting derivations it has,
+  capped at two. Token names can be passed separately or as one quoted string.
 - `ambiguity classes` — lists the terminal equivalence classes the search
   collapses, so a grammar change that unexpectedly splits or merges a class is
-  visible. The same classes bound the prover's terminal alphabet.
-
-### Experimental recursive delimiter summaries
-
-`ambiguity prove 1 --balanced` intersects the abstract parser pair graph with
-the language of correctly nested `()`, `[]`, and `{}` token histories. It
-checks every reachable production's direct-terminal skeleton before enabling
-the filter. A grammar with a mismatched or unclosed skeleton is refused with
-exit 2, rather than silently losing an accepted input.
-
-Unlike a bounded delimiter counter, this uses recursive entry/exit summaries
-and has no nesting-depth limit. The summaries, caller links, and reached
-entries all count against the proof budget. It can still reach that budget or
-the timeout, and then returns `NOT PROVEN`. This mode is experimental: the
-complete Zane grammar has not been proved with it. A `PROVEN` verdict refers
-to the abstract graph intersected with balanced histories, rather than to the
-unfiltered graph.
-
-It supports stack refinement and exact-history CEGAR. Each attempt builds new
-summaries at the current precision. Survey, retirement, and forward tracing
-are currently refused in this mode.
-
-The soundness argument and measured limitations are in
-[`soundness.md`](soundness.md#recursive-delimiter-summaries) and
-[`experiments.md`](experiments.md#recursive-delimiter-summaries-october-1-2026).
+  visible.
 - `menhir --explain` — enumerates the conflict states that constitute the
   obligation ledger. `just explain --conflicts` prints them for the stock
   automaton, and `tools/ambiguity/conflict_census.py` summarises an
@@ -174,32 +89,26 @@ The soundness argument and measured limitations are in
 ## Watching a run
 
 Every tool here writes as it goes, so a run in progress is readable rather than
-a wait for a verdict. The engine flushes each line as it prints it, `ambiguity`
-streams the engine's output to the terminal and into `--output` line by line,
-and the sweep passes each level's output through under a `[level N]` prefix
-while the level runs. What ends up on disk is therefore always current: a run
-that is killed or interrupted leaves behind everything it had printed, not an
-empty file.
+a wait for a verdict. The engine flushes each line as it prints it, and
+`ambiguity` streams the engine's output to the terminal and into `--output`
+line by line. What ends up on disk is therefore always current: a run that is
+killed or interrupted leaves behind everything it had printed, not an empty
+file.
 
-Both long phases report their own throughput. The abstract phase prints how
-many stack pairs it has settled, how many are still queued, and how many
-accepting divergences it has found; the concretization search prints its depth,
-witness count, explored and unique frontiers, and resident memory. On a
-terminal these are one line rewritten in place several times a second.
-Elsewhere — under a wrapper, in a saved report, in CI — there is no cursor to
+A search reports its own throughput: its depth, witness count, explored and
+unique frontiers, and resident memory. On a terminal these are one line
+rewritten in place several times a second. Elsewhere — under a wrapper, in a saved report, in CI — there is no cursor to
 move back to, so the same numbers go out as ordinary lines every ten seconds and
 stay in the log.
 
 `AMBIGUITY_PROGRESS_SECONDS` overrides that cadence; zero or less turns progress
-off entirely, for a caller that wants the verdict and nothing else. Anything
+off entirely, for a caller that wants the result and nothing else. Anything
 that is not a finite number is refused rather than obeyed: `nan` and `infinity`
 parse as floats and would each be taken for a setting and then quietly show
 nothing, one reading as switched off and the other as enabled but never due. Unlike the
 four settings below it is optional, so it does not belong in
 `machine-config.txt` — it is a property of how a particular run is being
-watched, not of the machine. The sweep's `--quiet` (`just sweep GRAMMAR
---quiet`) suppresses the pass-through of the engine's output without touching
-what the sweep prints itself.
+watched, not of the machine.
 
 ## Local machine configuration
 
@@ -266,46 +175,13 @@ Exact witnesses can be checked without quoting their token names:
 ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN EOF
 ```
 
-## Fingerprint precision
-
-`AMBIGUITY_RESIDUE_BITS` chooses the viable-stack terminal fingerprint width,
-from 0 to 10 bits (default 10). Zero disables that constraint; it does not
-bound the input or permit a partial proof. Smaller fingerprints can make the
-finite graph much smaller, at the cost of more spurious candidates. Every
-setting preserves the same conservative proof direction, and invalid values
-fail closed. This is independent of the retained stack depth.
-
-For example, a lower-memory refinement experiment is:
-
-```sh
-AMBIGUITY_RESIDUE_BITS=0 ambiguity prove 2 --refine 24 --refine-rounds 24
-```
-
-A successful run must still exhaust its abstract graph. A candidate, timeout,
-or state cap remains `NOT PROVEN`. See `experiments.md` for measured results.
-
-## Modular delimiter histories
-
-`AMBIGUITY_DELIMITER_MODULUS` adds a finite product of net counts for `()`,
-`[]`, and `{}`, modulo a value from 1 to 8. The default 1 disables it. This
-requires balanced production skeletons and fails closed when that invariant
-does not hold. It is cheaper than recursive summaries but admits some
-misnested and incomplete histories; it neither bounds nesting nor proves
-unambiguity by itself. It can compose with CEGAR, refinement, or `--balanced`.
-
-```sh
-AMBIGUITY_RESIDUE_BITS=0 AMBIGUITY_DELIMITER_MODULUS=2 ambiguity prove 2 --refine 24 --refine-rounds 24
-```
-
-The October 1 full-grammar probe still reached its state cap with this setting.
-The plain zero-bit run reached four refinement rounds before timing out; the
-extra product did not improve that result at the tested budget.
-
 ## Exact visible-stack proof
 
 `dev/bin/ambiguity prove-visible` checks the entire accepted parse relation of
 the shipped GLR backend and independently verifies a finite certificate. It
 needs Python and the pinned Menhir (`--menhir` or `AMBIGUITY_MENHIR`), and does
-not build the OCaml prover. `--stock` checks the grammar before the GLR nullable
+not build the OCaml engine. `--stock` checks the grammar before the GLR nullable
 rewrite. See [visible-proof.md](visible-proof.md) for the theorem, scope,
-reproduction command, artifacts, limits, and exit statuses.
+reproduction command, artifacts, limits, and exit statuses. It is the fast,
+unverified implementation of the construction `just verify-grammar` checks in
+Lean ([formal-proof.md](formal-proof.md)).
