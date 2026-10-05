@@ -65,6 +65,10 @@ optimized build alike.
   their source; `s = s`, `s = s + s`, `c = c`, `c = c.more`,
   `t = t.node.right`, `f.left = f.right` and `f.right = Tree.node(f)` all read
   the pre-overwrite value.
+- **Values in lists** (`valuelists`; §2.3). An element copied out, an
+  element copied over another, an element and its field overwritten from
+  their own contents, and a list of recursive values grown 2,000 times by
+  pushing copies of its own elements.
 - **Moves** (`moves`; lifetimes.md §1.2–§1.9). Chains of moves, relays through
   `^T` parameters, a field moved out of a roaming root and refilled, ignored
   `^T` results, owners pushed into a growing list and overwritten there.
