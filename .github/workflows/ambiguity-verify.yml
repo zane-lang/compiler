@@ -58,7 +58,7 @@ jobs:
           path: |
             ~/.opam
             _opam
-          key: opam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/bin/bootstrap-toolchain') }}
+          key: opam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/setup/bootstrap-toolchain') }}
 
       - name: Install devbox + Nix + devbox.json packages
         if: steps.suites.outputs.formal == 'true'
@@ -68,7 +68,7 @@ jobs:
 
       - name: Install OCaml dependencies
         if: steps.suites.outputs.formal == 'true'
-        run: devbox run -- dev/bin/bootstrap-toolchain
+        run: devbox run -- dev/setup/bootstrap-toolchain
 
       # Lean comes from elan, at the version formal/lean-toolchain names. The
       # installer is fetched from the v4.2.4 release commit and checked against

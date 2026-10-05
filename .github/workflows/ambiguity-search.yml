@@ -85,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          devbox run -- dev/bin/bootstrap-toolchain
+          devbox run -- dev/setup/bootstrap-toolchain
 
       - name: Build ambiguity finder
         shell: bash

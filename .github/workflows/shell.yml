@@ -109,7 +109,7 @@ jobs:
       # failing, which is the same reason CI splits them.
       - name: Install OCaml dependencies
         if: ${{ inputs.devbox }}
-        run: devbox run -- dev/bin/bootstrap-toolchain
+        run: devbox run -- dev/setup/bootstrap-toolchain
 
       # `bash -lc` rather than `devbox run --`, so the command keeps its shell
       # syntax: pipelines, redirects, and quoting all survive. `devbox run`

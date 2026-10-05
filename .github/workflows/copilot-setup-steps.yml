@@ -22,4 +22,4 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y llvm-19-dev libzstd-dev
 
       - name: Install OCaml dependencies
-        run: devbox run -- dev/bin/bootstrap-toolchain
+        run: devbox run -- dev/setup/bootstrap-toolchain
