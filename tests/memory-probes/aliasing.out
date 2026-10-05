@@ -1,0 +1,5 @@
+== checks; building and running
+element borrowed while its list grows yes
+value subject and value borrow: borrow sees the write NO
+reference subject and reference borrow: borrow sees the write yes
+== exit 0

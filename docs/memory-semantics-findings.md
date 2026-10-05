@@ -29,6 +29,7 @@ Findings are numbered and classified:
 |---|---|---|---|
 | 6 | Bug | `lambdas` | A call through a function value records no resting place, so a reference dangles and a write through it corrupts a live object |
 | 7 | Bug | `deepvalue` | Overwriting a recursive value deeper than about 22,700 levels overflows the C stack and segfaults |
+| 8 | Bug | `aliasing` | A value parameter is passed by copy, which `v!setFrom(v)` observes; memory.md §2.9 makes it a borrow |
 | 1 | Bug | `reflist` | Nothing can be pushed into a `List<&T>` |
 | 2 | Gap | `genref` | `Box(r)` with `r &Port` infers `Box<Port>`; no way to make a `Box<&Port>` |
 | 3 | Nit | `genref` | An error inside a generic instance names neither the instance nor the call that made it |
@@ -115,6 +116,16 @@ optimized build alike.
   A block whose spawned calls still read its owners drains only after
   them: ten spawned readers, each 200,000 reads long, see their own owner
   even though the next pass reuses its slot.
+- **One object reached twice by a call** (`aliasing`; memory.md §2.9).
+  `keepAndRead(cup, cup)`, a borrow and a take of one owner, is reported. A
+  reference-type `mut` subject and a borrow of the same object agree: the
+  borrow sees the subject's write. A list element borrowed while the list's
+  own `mut` method grows it 1,000 times and then reuses every block it gave
+  back still reads its original value. (But see 8.)
+- **Resting places across packages** (`across`; lifetimes.md §1.11). A
+  dependency's `wire`, its transitive `relay`, a result naming an argument,
+  a result read through an `&` field of an `&T` parameter, and a field
+  constructor's result are all checked at the importing package's calls.
 - **Oversized blocks** (`oversized`; memory.md §3.1, §3.6). A 3.2 MB list
   returned out of its scope, a 2 MiB string copied out of an inner block, a
   list of 100,000 strings, and a big list overwritten 20 times.
@@ -143,6 +154,34 @@ Consequences of the spec worth knowing, all correctly implemented:
   cleanly. The spec states no limit.
 
 ## Findings
+
+### 8. A value parameter is a copy, and a call can tell (bug)
+
+Probe `aliasing`. memory.md §2.9: a value-type parameter "has one mode, the
+borrow", and "passing a value by borrow is the semantic model rather than an
+optimization; where a read-only borrow is indistinguishable from a copy, the
+compiler may still pass a small value by copy". A `mut` subject aliasing the
+same value makes the two distinguishable:
+
+```zane
+Unit setFrom(this V, other V) mut {
+	this.x = Int(100);
+	this.y = other.x;     // a borrow of v reads 100
+	return Unit();
+}
+v V(Int(1), Int(2));
+v!setFrom(v);             // v.y is 1: other was a copy
+```
+
+`design/lowering.md` §9 ("Values by value, for now") passes value types as
+LLVM aggregates and argues "a value parameter cannot be written, so nothing
+observes the difference"; the subject is the one way it can. The
+reference-type form, `car!swapFrom(car)`, passes its borrow by address and
+does see the write, so the two kinds of type disagree. Either the compiler
+passes a value that a `mut` subject of the same call may reach by address,
+or the spec forbids a call to lend one place as both its `mut` subject and
+another argument; the compiler already rejects the borrow-and-take form of
+the same alias.
 
 ### 7. A deep recursive value crashes the runtime (bug)
 
