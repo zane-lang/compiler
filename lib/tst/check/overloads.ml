@@ -48,7 +48,7 @@ let implicit_constructors env ~src ~dst =
              match s.params with
              | [ p ] -> (
                  let open_ = s.generics in
-                 match Ty.unify ~open_ [] p.ty (Ty.strip_mode src) with
+                 match Ty.unify ~open_ [] (Ty.strip_mode p.ty) (Ty.strip_mode src) with
                  | None -> None
                  | Some subst -> (
                      match Ty.unify ~open_ subst s.ret dst with
@@ -130,8 +130,19 @@ let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome op
               (subst', marks @ [ mark ]))
         (Some [], []) pairs
     in
+    (* A function argument matches only at the modes it was written with,
+       once inference has filled the parameter's type. *)
+    let modes_hold subst =
+      List.for_all
+        (fun ((p : S.param), slot) ->
+          match slot with
+          | Some a when p.binds = None -> Type_decls.modes_agree env (Ty.subst subst p.ty) a.aty
+          | _ -> true)
+        pairs
+    in
     match subst with
     | None -> None
+    | Some subst when not (modes_hold subst) -> None
     | Some subst ->
         if List.exists (fun m -> m = None) marks then None
         else if phase <> Implicit && List.exists (fun m -> m = Some `Convert) marks then None

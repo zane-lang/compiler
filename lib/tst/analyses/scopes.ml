@@ -79,6 +79,9 @@ type walk = {
   (* Where a `return` sends its value: the verb's caller, or the match it is
      an arm of. A `resolve` sends its value to its handler's expression. *)
   mutable ret : sink;
+  (* Where an `abort` sends its value: the verb's caller's handler, at the
+     verb's abort type. *)
+  mutable abort : Ty.t;
   mutable resolve : (Ty.t * Names.t ref) list;
   (* What a match's arms or a handler's `resolve` hand on, by the span of the
      expression they belong to. *)
@@ -353,13 +356,20 @@ let rec expr env w (e : T.Expr.t) =
       (* A `^T` parameter is the body's own, declared in its top block. *)
       let roaming, lent = List.partition (fun (p : T.Local.t) -> Ty.is_roaming p.T.Local.ty) l.T.Lambda.params in
       List.iter (fun (p : T.Local.t) -> Hashtbl.replace w.params p.T.Local.id (-1)) lent;
-      let ret = match e.T.Expr.ty with Ty.Verb v -> v.Ty.ret | _ -> Ty.Error in
-      let saved = (w.ret, w.resolve) in
+      let ret, abort =
+        match e.T.Expr.ty with
+        | Ty.Verb v -> (v.Ty.ret, Option.value ~default:Ty.Error v.Ty.abort)
+        | _ -> (Ty.Error, Ty.Error)
+      in
+      let saved = (w.ret, w.abort, w.resolve) in
       w.ret <- Verb ret;
+      w.abort <- abort;
       w.resolve <- [];
       block env ~bind:roaming w l.T.Lambda.body;
-      w.ret <- fst saved;
-      w.resolve <- snd saved
+      let r, a, s = saved in
+      w.ret <- r;
+      w.abort <- a;
+      w.resolve <- s
 
 (* §1.11: each parameter the callee keeps is stored into the place the
    argument for the other names, and the local that place is in now names it
@@ -439,6 +449,11 @@ and arg env w (call : T.Expr.t) = function
 and opt_handler env w e = Option.iter (handler_block env w e)
 
 and handler_block env w (e : T.Expr.t) (h : T.Handler.t) =
+  (* The handler's binder holds what the call aborted with, which may carry
+     a reference to whatever its arguments name, as its result may. *)
+  Option.iter
+    (fun (b : T.Local.t) -> add w b (names env w { e with T.Expr.ty = b.T.Local.ty }))
+    h.T.Handler.binder;
   let acc = ref Names.empty in
   let saved = w.resolve in
   w.resolve <- (e.T.Expr.ty, acc) :: saved;
@@ -457,7 +472,11 @@ and block env ?(bind = []) w (b : T.Block.t) =
 
 and stat env w (s : T.Stat.t) =
   match s.T.Stat.node with
-  | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e -> expr env w e
+  | T.Stat.Expr e | T.Stat.Spawn e -> expr env w e
+  (* An abort is a store into the caller's frame, as a return is (§1.7). *)
+  | T.Stat.Abort e ->
+      expr env w e;
+      check env w e Caller "the caller's handler" (stored env w w.abort e)
   | T.Stat.Let { local; value } ->
       expr env w value;
       Hashtbl.replace w.declared local.T.Local.id w.block;
@@ -501,6 +520,7 @@ let fresh summaries =
     block = 0;
     fresh = 0;
     ret = Verb Ty.Error;
+    abort = Ty.Error;
     resolve = [];
     report = false;
     grew = false;
@@ -508,7 +528,7 @@ let fresh summaries =
 
 (* Walk until no local names anything new, then once more if [report]. Block
    numbers restart each walk, so every walk numbers them alike. *)
-let walk summaries ~report decl ret (params : T.Local.t list) body =
+let walk summaries ~report decl (ret, abort) (params : T.Local.t list) body =
   let w = fresh summaries in
   List.iteri
     (fun i (p : T.Local.t) ->
@@ -520,6 +540,7 @@ let walk summaries ~report decl ret (params : T.Local.t list) body =
     w.fresh <- 0;
     w.block <- 0;
     w.ret <- Verb ret;
+    w.abort <- Option.value ~default:Ty.Error abort;
     w.resolve <- [];
     body w
   in
@@ -542,7 +563,7 @@ let bodies env (p : T.Program.t) =
         (fun (d : T.Decl.t) ->
           match d.T.Decl.node with
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
-              Some (d.T.Decl.id, signature.S.ret, params, fun w -> block env w body)
+              Some (d.T.Decl.id, (signature.S.ret, signature.S.abort), params, fun w -> block env w body)
           | _ -> None)
         pkg.T.Package.decls)
     p.T.Program.packages
@@ -552,7 +573,7 @@ let bodies env (p : T.Program.t) =
         else
           Some
             ( i.T.Instance.decl,
-              i.T.Instance.signature.S.ret,
+              (i.T.Instance.signature.S.ret, i.T.Instance.signature.S.abort),
               i.T.Instance.params,
               fun w -> block env w i.T.Instance.body ))
       p.T.Program.instances

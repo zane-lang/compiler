@@ -3,8 +3,8 @@
    TST (docs/design/semantics.md D1).
 
    A reference-type value is never copied, so storing one where an owner goes
-   -- an owning local or field, a `^T` parameter, a return, an element, a case
-   payload -- moves it. What may be moved is a roaming value the store is
+   -- an owning local or field, a `^T` parameter, a return, an abort, an
+   element, a case payload -- moves it. What may be moved is a roaming value the store is
    entitled to consume:
 
    - a roaming owner named by a symbol, a local or a parameter declared
@@ -42,6 +42,8 @@ type walk = {
   states : States.t;
   mutable block : int;
   mutable ret : Ty.t;
+  (* Where an `abort` hands its value: the enclosing verb's abort type. *)
+  mutable abort : Ty.t;
   mutable resolve : Ty.t list;
 }
 
@@ -230,17 +232,18 @@ let rec expr env ?(into = Ty.Error) w (e : T.Expr.t) =
         match (Env.signature_of env callee, args) with
         | Some sg, subject :: rest when S.is_method sg ->
             arg env w subject;
-            rest
-        | _ -> args
+            (lent_by subject, rest)
+        | _ -> ([], args)
       in
-      pass env w (References.param_types env callee) args;
+      let lent, args = args in
+      pass env ~lent w (References.param_types env callee) args;
       opt_handler env w into handler
   | T.Expr.Call_value { callee; args; handler } ->
       expr env w callee;
       (match (callee.T.Expr.ty, args) with
       | Ty.Verb { Ty.this_ = Some _; params; _ }, subject :: rest ->
           arg env w subject;
-          pass env w params rest
+          pass env ~lent:(lent_by subject) w params rest
       | Ty.Verb { Ty.params; _ }, _ -> pass env w params args
       | _ -> List.iter (arg env w) args);
       opt_handler env w into handler
@@ -272,12 +275,19 @@ and value env w into v =
   store env w into v
 
 (* Arguments in order, each read and then, for a `^T` parameter, moved: a
-   symbol passed twice is spent by the first. *)
-and pass env w tys args =
+   symbol passed twice is spent by the first. An argument passed to a borrow
+   is lent for the whole call (memory.md §2.9), so a later argument may not
+   take the place it lends, or any place overlapping it; [lent] starts with
+   the subject's. *)
+and pass env ?(lent = []) w tys args =
+  let lent = ref lent in
   let rec go tys args =
     match (tys, args) with
     | ty :: tys, T.Arg.Value v :: args ->
-        value env w (taken env ty) v;
+        let into = taken env ty in
+        if owning env into then not_lent env !lent v;
+        value env w into v;
+        if not (Ty.is_roaming ty || Ty.is_ref ty) then lent := lent_by (T.Arg.Value v) @ !lent;
         go tys args
     | _ :: tys, a :: args ->
         arg env w a;
@@ -290,6 +300,31 @@ and pass env w tys args =
   go tys args
 
 and arg env w = function T.Arg.Value e -> expr env w e | T.Arg.Block b -> block env w b
+
+(* The place an argument lends to a borrow, as its root symbol and field
+   path. *)
+and lent_by = function
+  | T.Arg.Value e -> (
+      match States.field_path e with Some (l, path) -> [ (l, path) ] | None -> [])
+  | T.Arg.Block _ -> []
+
+and not_lent env lent (v : T.Expr.t) =
+  match States.field_path v with
+  | Some (l, path) -> (
+      match
+        List.find_opt
+          (fun ((m : T.Local.t), p) -> m.T.Local.id = l.T.Local.id && overlaps p path)
+          lent
+      with
+      | Some (m, p) ->
+          Env.error env v.T.Expr.span
+            (Printf.sprintf
+               "this takes %s, while an earlier argument of the same call borrows %s, and a \
+                borrow lasts for the whole call"
+               (Env.quote (dotted (l.T.Local.name :: path)))
+               (Env.quote (dotted (m.T.Local.name :: p))))
+      | None -> ())
+  | None -> ()
 
 (* `init{ }` entries fill the fields of what it builds, and a field
    constructor's entries are its parameters (types.md §3.3); [slot_type]
@@ -310,18 +345,21 @@ and handler_block env w ty (h : T.Handler.t) =
   w.resolve <- (match w.resolve with _ :: r -> r | [] -> [])
 
 and lambda env w (e : T.Expr.t) (l : T.Lambda.t) =
-  let has_this, ret =
+  let has_this, ret, abort =
     match e.T.Expr.ty with
-    | Ty.Verb v -> (Option.is_some v.Ty.this_, v.Ty.ret)
-    | _ -> (false, Ty.Error)
+    | Ty.Verb v -> (Option.is_some v.Ty.this_, v.Ty.ret, Option.value ~default:Ty.Error v.Ty.abort)
+    | _ -> (false, Ty.Error, Ty.Error)
   in
   params w has_this l.T.Lambda.params;
-  let saved = (w.ret, w.resolve) in
+  let saved = (w.ret, w.abort, w.resolve) in
   w.ret <- ret;
+  w.abort <- abort;
   w.resolve <- [];
   block env ~bind:l.T.Lambda.params w l.T.Lambda.body;
-  w.ret <- fst saved;
-  w.resolve <- snd saved
+  let r, a, s = saved in
+  w.ret <- r;
+  w.abort <- a;
+  w.resolve <- s
 
 (* A block is its own scope: what it declares, [bind] included, is declared
    in it. *)
@@ -335,7 +373,10 @@ and block env ?(bind = []) w (b : T.Block.t) =
 
 and stat env w (s : T.Stat.t) =
   match s.T.Stat.node with
-  | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e -> expr env w e
+  | T.Stat.Expr e | T.Stat.Spawn e -> expr env w e
+  (* An abort hands its value to the caller's handler as a return hands it
+     to the caller (lifetimes.md §1.7): a store like any other. *)
+  | T.Stat.Abort e -> value env w w.abort e
   | T.Stat.Let { local; value = v } ->
       value env w local.T.Local.ty v;
       Hashtbl.replace w.declared local.T.Local.id w.block
@@ -380,7 +421,7 @@ and params w has_this (ps : T.Local.t list) =
 (* Declarations                                                           *)
 (* ---------------------------------------------------------------------- *)
 
-let fresh projections blocks ret =
+let fresh ?(abort = Ty.Error) projections blocks ret =
   {
     blocks;
     declared = Hashtbl.create 32;
@@ -389,11 +430,12 @@ let fresh projections blocks ret =
     states = States.create projections;
     block = 0;
     ret;
+    abort;
     resolve = [];
   }
 
 let verb env projections blocks (sg : S.t) (ps : T.Local.t list) body =
-  let w = fresh projections blocks sg.S.ret in
+  let w = fresh ?abort:sg.S.abort projections blocks sg.S.ret in
   params w (S.is_method sg || sg.S.kind = S.Subscript) ps;
   block env ~bind:ps w body
 

@@ -65,6 +65,7 @@ let func st (v : verb) : Func.t =
   else begin
     st.returns <- (if plain o then Fun.id else outcome_case o done_);
     st.ret <- v.signature.S.ret;
+    st.aborts <- Option.value ~default:Tty.Error v.signature.S.abort;
     let ctx =
       {
         env;

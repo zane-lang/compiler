@@ -1,0 +1,80 @@
+package bad;
+
+type Parcel = #struct { label String; }
+Parcel(label String) => init{ label; }
+
+/// A function is used only at the passing modes it was written with: a
+/// borrow, a take and a reference are passed differently (memory.md §2.9),
+/// so inference does not turn one into another.
+type Courier<T Type> = #struct { deliver Int[^T]; }
+Courier<T>(deliver Int[^T], hint T Type) => init{ deliver; }
+type Pointer<T Type> = #struct { follow Int[&T]; }
+Pointer<T>(follow Int[&T], hint T Type) => init{ follow; }
+
+Unit couriers() {
+	c Courier(Int(p Parcel) => Int(1), Parcel(String("hint")));
+	d Pointer(Int(n Int) => n, Int(2));
+	return Unit();
+}
+
+/// An argument passed to a borrow is lent for the whole call, so a later
+/// argument of the same call may not take it.
+Unit observe(before Parcel, taken ^Parcel) => Unit()
+Unit inspect(this Parcel, taken ^Parcel) => Unit()
+
+Unit lending() {
+	p ^Parcel = Parcel(String("left"));
+	observe(p, p);
+	q ^Parcel = Parcel(String("right"));
+	q:inspect(q);
+	return Unit();
+}
+
+/// A spawned call is lent the owners it borrows until its block drains, so
+/// passing one to a `^T` parameter, which moves it, is an error there.
+Unit glimpse(p Parcel) => Unit()
+Unit keep(p ^Parcel) => Unit()
+
+Unit loaned() {
+	p ^Parcel = Parcel(String("lent"));
+	spawn glimpse(p);
+	keep(p);
+	return Unit();
+}
+
+/// An abort is a store into the caller's handler, like a return: a borrow is
+/// never moved out by one, and a reference it hands back may not name the
+/// body's own locals.
+Int?^Parcel refuse(p Parcel) { abort p; }
+Int?&Parcel wander() {
+	p Parcel(String("wander"));
+	abort &p;
+}
+
+/// A bare type parameter as a result hands back a borrow once it is filled
+/// with a reference type, which a written signature may not do.
+T same(p ^T Type) => p
+
+Unit results() {
+	p Parcel = same(Parcel(String("same")));
+	return Unit();
+}
+
+/// A handler's binder holds what the call aborted with, which may carry a
+/// reference to anything its arguments name.
+type Satchel = #struct { at &Parcel; }
+Satchel(at &Parcel) => init{ at; }
+Int?^Satchel hand(p &Parcel) { abort Satchel(p); }
+
+Unit binders() {
+	kept Parcel(String("kept"));
+	outer &Parcel = &kept;
+	@controlflow$branch(true, {
+		inner Parcel(String("inner"));
+		n Int = hand(&inner) ? e {
+			outer = e.at;
+			resolve Int(0);
+		}
+	});
+	return Unit();
+}

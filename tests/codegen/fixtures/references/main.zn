@@ -1,8 +1,8 @@
 /// References written out with `&` (memory.md §2.6): minted from a settled
 /// owner, copied from a reference, passed, and observing the owner when it
 /// is overwritten in place. A generic `&T Type` parameter, stored in a
-/// generic mould's `&T` field. `@program$console` passed where a reference is
-/// wanted. Each check prints
+/// generic mould's `&T` field. An `&T` abort type handing a reference to the
+/// handler. `@program$console` passed where a reference is wanted. Each check prints
 /// `yes` when it holds and `no` when it does not.
 package references;
 
@@ -35,6 +35,16 @@ Pin<T>(at &T Type) => init{ at; }
 
 Int ageOf(at &T Type, p Person) => p.age
 
+type Wrap = #struct {
+	child Person;
+}
+
+Wrap(child ^Person) => init{ child; }
+
+Int?&Person refuse(w &Wrap) {
+	abort w.child;
+}
+
 Unit pass(c &@runtime$Console) {
 	return Unit();
 }
@@ -50,6 +60,11 @@ Unit main() {
 	a = Person(Int(5));
 	check(pin.at.age == Int(5));
 	check(ageOf(a, a) == Int(5));
+	w Wrap(Person(Int(9)));
+	n Int = refuse(w) ? e {
+		resolve e.age;
+	}
+	check(n == Int(9));
 	pass(@program$console);
 	pass(@program$console);
 	return Unit();

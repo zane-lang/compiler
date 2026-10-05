@@ -642,7 +642,10 @@
     │   │       ├── index: 1
     │   │       └── payload > escape:
     │   │           ├── exit: function
-    │   │           ├── value: "over" : handle
+    │   │           ├── value > escape:
+    │   │           │   ├── exit: function
+    │   │           │   ├── value: "over" : handle
+    │   │           │   └── layout: %primitives$String
     │   │           └── layout: %primitives$String
     │   └── body[1] > return > case:
     │       ├── type: <i64 | handle | void>

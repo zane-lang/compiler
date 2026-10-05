@@ -228,7 +228,7 @@ let walk_body env multi (body : T.Block.t) =
   (* A write to the place [e], or a move out of it, while a spawn may still
      read an owner it was lent. Where either place is unknown, what might
      overlap is decided by type. *)
-  let write frames (e : T.Expr.t) =
+  let write ?(verb = "writes") frames (e : T.Expr.t) =
     match place_of e with
     | None -> ()
     | Some p -> (
@@ -249,16 +249,16 @@ let walk_body env multi (body : T.Block.t) =
             in
             Env.error env e.T.Expr.span
               (Printf.sprintf
-                 "this writes %s, which may be part of an owner lent through %s to a spawned call \
+                 "this %s %s, which may be part of an owner lent through %s to a spawned call \
                   that may read it until its block drains"
-                 (describe p) lent)
+                 verb (describe p) lent)
         | None -> ())
   in
   (* An owner read from a place into owning storage moves out of the place. *)
   let moved frames (e : T.Expr.t) =
     match e.T.Expr.ty with
     | Ty.Reference _ -> ()
-    | t when Type_decls.is_reference env t -> write frames e
+    | t when Type_decls.is_reference env (Ty.strip_mode t) -> write ~verb:"moves" frames e
     | _ -> ()
   in
   let claim (e : T.Expr.t) p = { written = p; at = resolve p; ty = Ty.strip_mode e.T.Expr.ty } in
@@ -276,6 +276,7 @@ let walk_body env multi (body : T.Block.t) =
         expr frames value;
         (match local.T.Local.ty with
         | Ty.Reference _ -> Hashtbl.replace origins local.T.Local.id (origin value)
+        | _ when Ty.is_roaming local.T.Local.ty -> moved frames value
         | _ -> moved frames value);
         declare frames local
     | T.Stat.Assign { target; value } ->
@@ -310,8 +311,9 @@ let walk_body env multi (body : T.Block.t) =
              (describe p) (describe b))
     | None -> ()
   and expr frames (e : T.Expr.t) =
-    (* A `!` call writes its subject, and an owner passed to a owning
-       parameter moves. *)
+    (* A `!` call writes its subject, and an owner passed to a `^T`
+       parameter moves; a bare reference-type parameter borrows it
+       (memory.md §2.9). *)
     (match e.T.Expr.node with
     | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } -> (
         match Env.signature_of env callee with
@@ -321,11 +323,15 @@ let walk_body env multi (body : T.Block.t) =
             | _ -> ());
             (match callee.T.Verb_ref.owner with
             | S.Declared _ when List.length sg.S.params = List.length args ->
+                let filled =
+                  List.map (fun ((q : Ty.param), a) -> (q.Ty.id, a)) callee.T.Verb_ref.instance
+                in
                 List.iter2
                   (fun (p : S.param) a ->
-                    match (a, p.S.ty) with
-                    | T.Arg.Value ({ T.Expr.node = T.Expr.Var (T.Name_ref.Local _); _ } as v), t
-                      when (match t with Ty.Reference _ -> false | _ -> true) && Type_decls.is_reference env t ->
+                    match a with
+                    | T.Arg.Value v
+                      when Ty.is_roaming p.S.ty
+                           && Type_decls.is_reference env (Ty.strip_mode (Ty.subst filled p.S.ty)) ->
                         moved frames v
                     | _ -> ())
                   sg.S.params args

@@ -31,6 +31,8 @@ type walk = {
   states : States.t;
   (* Where a `return` and a `resolve` send their value. *)
   mutable ret : Ty.t;
+  (* Where an `abort` sends its value: the enclosing verb's abort type. *)
+  mutable abort : Ty.t;
   mutable resolve : Ty.t list;
 }
 
@@ -253,24 +255,32 @@ and handler_block env w ty (h : T.Handler.t) =
   w.resolve <- (match w.resolve with _ :: r -> r | [] -> [])
 
 and lambda env w (e : T.Expr.t) (l : T.Lambda.t) =
-  let has_this, ret =
+  let has_this, ret, abort =
     match e.T.Expr.ty with
-    | Ty.Verb v -> (Option.is_some v.Ty.this_, v.Ty.ret)
-    | _ -> (false, Ty.Error)
+    | Ty.Verb v -> (Option.is_some v.Ty.this_, v.Ty.ret, Option.value ~default:Ty.Error v.Ty.abort)
+    | _ -> (false, Ty.Error, Ty.Error)
   in
-  let saved = (w.ret, w.resolve) in
+  let saved = (w.ret, w.abort, w.resolve) in
   params w has_this l.T.Lambda.params;
   w.ret <- ret;
+  w.abort <- abort;
   w.resolve <- [];
   block env w l.T.Lambda.body;
-  w.ret <- fst saved;
-  w.resolve <- snd saved
+  let r, a, s = saved in
+  w.ret <- r;
+  w.abort <- a;
+  w.resolve <- s
 
 and block env w (b : T.Block.t) = List.iter (stat env w) b.T.Block.stats
 
 and stat env w (s : T.Stat.t) =
   match s.T.Stat.node with
-  | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e -> expr env w e
+  | T.Stat.Expr e | T.Stat.Spawn e -> expr env w e
+  (* An abort hands its value to the caller's handler as a return does
+     (lifetimes.md §1.7). *)
+  | T.Stat.Abort e ->
+      expr env w e;
+      store env w w.abort e
   | T.Stat.Let { local; value } ->
       expr env w value;
       store env w local.T.Local.ty value
@@ -296,10 +306,11 @@ and params w has_this (ps : T.Local.t list) =
 (* Declarations                                                           *)
 (* ---------------------------------------------------------------------- *)
 
-let fresh projections ret = { states = States.create projections; ret; resolve = [] }
+let fresh ?(abort = Ty.Error) projections ret =
+  { states = States.create projections; ret; abort; resolve = [] }
 
 let verb env projections (sg : S.t) ps run =
-  let w = fresh projections sg.S.ret in
+  let w = fresh ?abort:sg.S.abort projections sg.S.ret in
   params w (S.is_method sg || sg.S.kind = S.Subscript) ps;
   run w
 

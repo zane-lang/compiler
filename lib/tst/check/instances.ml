@@ -56,16 +56,26 @@ let check_result env (s : S.t) subst at =
    the same mistake again. *)
 let check_kinds env (s : S.t) subst at (args : T.Arg.t option list) =
   let instantiated = List.map (fun (p : S.param) -> (p, Ty.subst subst p.S.ty)) s.params in
+  (* A subscript's result is a place, and a constructor's is the value it
+     builds: neither hands back a borrow. *)
+  let returns = match s.kind with S.Subscript | S.Constructor _ -> false | _ -> true in
   let found =
     List.find_map
-      (fun (slot, raw, t) ->
+      (fun (slot, top, raw, t) ->
         match Type_decls.filled_references env raw t with
-        | bad :: _ -> Some { Type_decls.path = [ slot ]; bad; under_reference = true }
-        | [] -> Type_decls.wrong_kind env (Ty.strip_mode t))
-      (("the result", s.ret, Ty.subst subst s.ret)
-      :: List.map
-           (fun ((p : S.param), t) -> (Printf.sprintf "the parameter %s" (quote p.S.name), p.S.ty, t))
-           instantiated)
+        | bad :: _ -> Some { Type_decls.path = [ slot ]; bad; slot = Type_decls.Under_reference }
+        | [] -> (
+            match Type_decls.bare_results env ~top raw t with
+            | bad :: _ -> Some { Type_decls.path = [ slot ]; bad; slot = Type_decls.Bare_result }
+            | [] -> Type_decls.wrong_kind env (Ty.strip_mode t)))
+      (((Printf.sprintf "the result of %s" (quote s.name), returns, s.ret, Ty.subst subst s.ret)
+       :: Option.fold ~none:[]
+            ~some:(fun a -> [ (Printf.sprintf "the abort type of %s" (quote s.name), true, a, Ty.subst subst a) ])
+            s.abort)
+      @ List.map
+          (fun ((p : S.param), t) ->
+            (Printf.sprintf "the parameter %s" (quote p.S.name), false, p.S.ty, t))
+          instantiated)
   in
   match found with
   | None -> true

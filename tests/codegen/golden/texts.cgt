@@ -889,20 +889,23 @@
                 ├── index: 1
                 └── payload > escape:
                     ├── exit: function
-                    ├── value > runtime:
-                    │   ├── type: handle
-                    │   ├── fn: zane_text_join
-                    │   ├── args[0]: local #1 : handle
-                    │   └── args[1] > expand:
-                    │       ├── type: handle
-                    │       ├── label: @3
-                    │       ├── result: #4
-                    │       ├── body[0] > hold:
-                    │       │   ├── local: #2
-                    │       │   ├── scope: %5
-                    │       │   ├── value: "!" : handle
-                    │       │   └── layout: %primitives$String
-                    │       └── body[1] > assign:
-                    │           ├── place: #4
-                    │           └── value: local #2 : handle
+                    ├── value > escape:
+                    │   ├── exit: function
+                    │   ├── value > runtime:
+                    │   │   ├── type: handle
+                    │   │   ├── fn: zane_text_join
+                    │   │   ├── args[0]: local #1 : handle
+                    │   │   └── args[1] > expand:
+                    │   │       ├── type: handle
+                    │   │       ├── label: @3
+                    │   │       ├── result: #4
+                    │   │       ├── body[0] > hold:
+                    │   │       │   ├── local: #2
+                    │   │       │   ├── scope: %5
+                    │   │       │   ├── value: "!" : handle
+                    │   │       │   └── layout: %primitives$String
+                    │   │       └── body[1] > assign:
+                    │   │           ├── place: #4
+                    │   │           └── value: local #2 : handle
+                    │   └── layout: %primitives$String
                     └── layout: %primitives$String

@@ -114,6 +114,42 @@ File "fixtures/typing/reject/bad/calls.zn", line 44, characters 5-20:
 44 |     resolve Int(1);
   |     ^^^^^^^^^^^^^^^
 Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it is not one
+File "fixtures/typing/reject/bad/conventions.zn", line 15, characters 7-63:
+15 |     c Courier(Int(p Parcel) => Int(1), Parcel(String("hint")));
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `Courier` accepts (@primitives$Int[bad$Parcel], bad$Parcel); the candidate is `Courier(@primitives$Int[^T], T)`
+File "fixtures/typing/reject/bad/conventions.zn", line 16, characters 7-39:
+16 |     d Pointer(Int(n Int) => n, Int(2));
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `Pointer` accepts (@primitives$Int[@primitives$Int], @primitives$Int); the candidate is `Pointer(@primitives$Int[&T], T)`
+File "fixtures/typing/reject/bad/conventions.zn", line 27, characters 16-17:
+27 |     observe(p, p);
+  |                ^
+Error: this takes `p`, while an earlier argument of the same call borrows `p`, and a borrow lasts for the whole call
+File "fixtures/typing/reject/bad/conventions.zn", line 29, characters 15-16:
+29 |     q:inspect(q);
+  |               ^
+Error: this takes `q`, while an earlier argument of the same call borrows `q`, and a borrow lasts for the whole call
+File "fixtures/typing/reject/bad/conventions.zn", line 41, characters 10-11:
+41 |     keep(p);
+  |          ^
+Error: this moves `p`, which may be part of an owner lent through `p` to a spawned call that may read it until its block drains
+File "fixtures/typing/reject/bad/conventions.zn", line 48, characters 38-39:
+48 | Int?^Parcel refuse(p Parcel) { abort p; }
+  |                                      ^
+Error: `p` is a borrow: the caller lends it for the call, and a borrow is never moved, stored or returned; a parameter that takes its argument is declared `^T`
+File "fixtures/typing/reject/bad/conventions.zn", line 51, characters 11-13:
+51 |     abort &p;
+  |           ^^
+Error: this stores a reference to `p` in the caller's handler, which outlives the body `p` is scoped to
+File "fixtures/typing/reject/bad/conventions.zn", line 59, characters 21-43:
+59 |     p Parcel = same(Parcel(String("same")));
+  |                     ^^^^^^^^^^^^^^^^^^^^^^
+Error: `bad$Parcel` is a reference type, and it fills the result of `same`, written bare; a borrow is never returned or aborted, so that position needs `^` or `&` to take this type
+File "fixtures/typing/reject/bad/conventions.zn", line 75, characters 21-25:
+75 |             outer = e.at;
+  |                     ^^^^
+Error: this stores a reference to `inner`, whose block ends before `outer`'s does
 File "fixtures/typing/reject/bad/exits.zn", line 6, characters 5-17:
 6 |     guard(ready);
   |     ^^^^^^^^^^^^

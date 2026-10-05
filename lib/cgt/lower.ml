@@ -1488,7 +1488,10 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           [ Stat.Return (st.returns (escape st span st.ret None (moved st ctx span st.ret e))) ]
       | Leave { label; result; ret } ->
           leave label result (escape st span ret (Some label) (moved st ctx span ret e)))
-  | T.Stat.Abort e -> ctx.abort span (moved st ctx span e.T.Expr.ty e)
+  (* An abort hands its value to the caller's handler as a return hands it
+     to the caller, at the declared abort type: an `&T` abort type takes a
+     reference, whatever the expression's own type. *)
+  | T.Stat.Abort e -> ctx.abort span (escape st span st.aborts None (moved st ctx span st.aborts e))
   | T.Stat.Resolve e -> (
       match ctx.resolve with
       | Some resolve -> resolve e.T.Expr.ty (moved st ctx span e.T.Expr.ty e)

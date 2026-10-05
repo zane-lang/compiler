@@ -165,7 +165,9 @@ let rec check_function_types env span (t : Ty.t) =
    themselves, which were checked where they were written. What it finds is
    the slot that rejects the type, as the path that reaches it, and the
    type. *)
-type wrong_kind = { path : string list; bad : Ty.t; under_reference : bool }
+type slot = Value_slot | Under_reference | Bare_result
+
+type wrong_kind = { path : string list; bad : Ty.t; slot : slot }
 
 (* A value type for `&`: what `&` cannot mark (memory.md §2.4). *)
 let is_value env (t : Ty.t) =
@@ -186,6 +188,74 @@ let rec filled_references env (raw : Ty.t) (inst : Ty.t) =
            (fun r i ->
              match (r, i) with Ty.Type r, Ty.Type i -> filled_references env r i | _ -> [])
            ra ia)
+  | Ty.Verb r, Ty.Verb i -> (
+      match (verb_parts r, verb_parts i) with
+      | rs, is when List.length rs = List.length is ->
+          List.concat (List.map2 (filled_references env) rs is)
+      | _ -> [])
+  | _ -> []
+
+and verb_parts (v : Ty.verb) =
+  Option.to_list v.Ty.this_ @ v.Ty.params @ [ v.Ty.ret ] @ Option.to_list v.Ty.abort
+
+(* A function type's parts keep their passing modes: a borrow, a take and a
+   reference are passed differently, so a function is used only at the
+   modes it was written with. The one latitude is `^` over a type
+   parameter filled with a value type, which is a plain value (memory.md
+   §2.9). [expected] is a parameter's type with its arguments filled in;
+   [actual] is the argument's. *)
+let rec modes_agree env (expected : Ty.t) (actual : Ty.t) =
+  let rec erase (t : Ty.t) : Ty.t =
+    match t with
+    | Ty.Roaming v when Ty.free_params v = [] && v <> Ty.Error && not (is_reference env v) -> erase v
+    | Ty.Roaming v -> Ty.Roaming (erase v)
+    | Ty.Reference v -> Ty.Reference (erase v)
+    | Ty.Verb v ->
+        Ty.Verb
+          {
+            v with
+            Ty.this_ = Option.map erase v.Ty.this_;
+            params = List.map erase v.Ty.params;
+            ret = erase v.Ty.ret;
+            abort = Option.map erase v.Ty.abort;
+          }
+    | Ty.Named (id, args) -> Ty.Named (id, List.map erase_arg args)
+    | Ty.Intrinsic i -> Ty.Intrinsic { i with args = List.map erase_arg i.args }
+    | t -> t
+  and erase_arg = function Ty.Type t -> Ty.Type (erase t) | n -> n in
+  match (Ty.strip_mode expected, Ty.strip_mode actual) with
+  | Ty.Verb _, Ty.Verb _ ->
+      Ty.contains_error expected || Ty.contains_error actual
+      || Ty.equal (erase (Ty.strip_mode expected)) (erase (Ty.held_as ~dst:expected ~src:actual))
+  | Ty.Named (x, xs), Ty.Named (y, ys) when x = y && List.length xs = List.length ys ->
+      List.for_all2 (modes_agree_arg env) xs ys
+  | Ty.Intrinsic x, Ty.Intrinsic y when List.length x.args = List.length y.args ->
+      List.for_all2 (modes_agree_arg env) x.args y.args
+  | _ -> true
+
+and modes_agree_arg env a b =
+  match (a, b) with Ty.Type a, Ty.Type b -> modes_agree env a b | _ -> true
+
+(* The reference types [inst] puts where [raw] writes a bare type parameter
+   as a result or abort type: of the verb itself when [top], and of every
+   function type inside it. Such a result would hand back a borrow
+   (memory.md §2.9), which a written signature is rejected for. *)
+let rec bare_results env ~top (raw : Ty.t) (inst : Ty.t) =
+  let here r i = match r with Ty.Param _ when is_reference env i -> [ i ] | _ -> [] in
+  let inside r i = bare_results env ~top:false r i in
+  match (raw, inst) with
+  | Ty.Param _, i when top -> here raw i
+  | (Ty.Reference r | Ty.Roaming r), (Ty.Reference i | Ty.Roaming i) -> inside r i
+  | Ty.Verb r, Ty.Verb i
+    when List.length r.Ty.params = List.length i.Ty.params
+         && Option.is_some r.Ty.abort = Option.is_some i.Ty.abort ->
+      here r.Ty.ret i.Ty.ret
+      @ (match (r.Ty.abort, i.Ty.abort) with Some r, Some i -> here r i | _ -> [])
+      @ List.concat (List.map2 inside (verb_parts r) (verb_parts i))
+  | Ty.Named (_, ra), Ty.Named (_, ia) | Ty.Intrinsic { args = ra; _ }, Ty.Intrinsic { args = ia; _ }
+    when List.length ra = List.length ia ->
+      List.concat
+        (List.map2 (fun r i -> match (r, i) with Ty.Type r, Ty.Type i -> inside r i | _ -> []) ra ia)
   | _ -> []
 
 let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
@@ -204,11 +274,12 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
           List.find_map
             (fun (n, raw) ->
               let ft = Ty.instantiate info.params args raw in
-              if value && bad ft then Some { path = [ step n ]; bad = ft; under_reference = false }
+              if value && bad ft then Some { path = [ step n ]; bad = ft; slot = Value_slot }
               else
-                match filled_references env raw ft with
-                | x :: _ -> Some { path = [ step n ]; bad = x; under_reference = true }
-                | [] ->
+                match (filled_references env raw ft, bare_results env ~top:false raw ft) with
+                | x :: _, _ -> Some { path = [ step n ]; bad = x; slot = Under_reference }
+                | [], x :: _ -> Some { path = [ step n ]; bad = x; slot = Bare_result }
+                | [], [] ->
                     Option.map
                       (fun found -> { found with path = step n :: found.path })
                       (wrong_kind env ~seen:(tid :: seen) (Ty.strip_mode ft)))
@@ -221,22 +292,28 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
         {
           path = [ Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) ];
           bad = e;
-          under_reference = false;
+          slot = Value_slot;
         }
   | _ -> None
 
-let describe_wrong_kind { path; bad; under_reference } =
-  if under_reference then
-    Printf.sprintf
-      "%s is a value type, and it fills an `&`%s; `&` marks only a reference type, since a value \
-       is never referenced, only copied"
-      (quote (Ty.to_string bad))
-      (if path = [] then "" else " at " ^ String.concat ", then " path)
-  else
-    Printf.sprintf
-      "%s is a reference type, and it reaches %s, a value type's slot; a value type holds only \
-       values, all the way down"
-      (quote (Ty.to_string bad)) (String.concat ", then " path)
+let describe_wrong_kind { path; bad; slot } =
+  match slot with
+  | Under_reference ->
+      Printf.sprintf
+        "%s is a value type, and it fills an `&`%s; `&` marks only a reference type, since a value \
+         is never referenced, only copied"
+        (quote (Ty.to_string bad))
+        (if path = [] then "" else " at " ^ String.concat ", then " path)
+  | Bare_result ->
+      Printf.sprintf
+        "%s is a reference type, and it fills %s, written bare; a borrow is never returned or \
+         aborted, so that position needs `^` or `&` to take this type"
+        (quote (Ty.to_string bad)) (String.concat ", then " path)
+  | Value_slot ->
+      Printf.sprintf
+        "%s is a reference type, and it reaches %s, a value type's slot; a value type holds only \
+         values, all the way down"
+        (quote (Ty.to_string bad)) (String.concat ", then " path)
 
 (* Report a wrong-kind type once kinds are known: at the argument written
    explicitly that brought the rejected type in, or at [span]. *)

@@ -943,11 +943,14 @@
     │   │   │       ├── index: 1
     │   │   │       └── payload > escape:
     │   │   │           ├── exit: function
-    │   │   │           ├── value > call:
-    │   │   │           │   ├── type: {i64, i64}
-    │   │   │           │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
-    │   │   │           │   ├── args[0]: 7 : i64
-    │   │   │           │   └── args[1]: 70 : i64
+    │   │   │           ├── value > escape:
+    │   │   │           │   ├── exit: function
+    │   │   │           │   ├── value > call:
+    │   │   │           │   │   ├── type: {i64, i64}
+    │   │   │           │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │   │   │           │   │   ├── args[0]: 7 : i64
+    │   │   │           │   │   └── args[1]: 70 : i64
+    │   │   │           │   └── layout: ^owners$Account
     │   │   │           └── layout: ^owners$Account
     │   │   ├── body[2] > assign:
     │   │   │   ├── place: #4
@@ -1016,10 +1019,7 @@
     │           │   │   │       ├── body[0] > hold:
     │           │   │   │       │   ├── local: #12
     │           │   │   │       │   ├── scope: %13
-    │           │   │   │       │   ├── value > take:
-    │           │   │   │       │   │   ├── type: {i64, i64}
-    │           │   │   │       │   │   ├── address: address of #6 : ptr
-    │           │   │   │       │   │   └── layout: owners$Account
+    │           │   │   │       │   ├── value: local #6 : {i64, i64}
     │           │   │   │       │   └── layout: owners$Account
     │           │   │   │       ├── body[1] > assign:
     │           │   │   │       │   ├── place: #3

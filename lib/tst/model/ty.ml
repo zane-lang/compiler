@@ -329,12 +329,10 @@ let rec unify ~open_ (s : subst) pattern actual : subst option =
   | _, Error -> Some s
   (* `^T` over a type parameter takes an owner when it is filled with a
      reference type and borrows a value otherwise (memory.md §2.9), so a
-     function type's `^T` is filled from a value type's result written bare. *)
+     function type's `^T` is filled from a value type's result written bare.
+     Only a value type may fill it that way, which kinds decide: the caller
+     checks the filled type ([Type_decls.modes_agree]). *)
   | Roaming (Param p), actual when is_open p && not (is_roaming actual) ->
-      unify ~open_ s (Param p) actual
-  (* `&T` over a type parameter is filled from the place the reference is
-     minted from, whose own type is the owner's. *)
-  | Reference (Param p), actual when is_open p && not (is_ref actual) ->
       unify ~open_ s (Param p) actual
   | Named (x, xs), Named (y, ys) when x = y -> unify_args ~open_ s xs ys
   | Intrinsic x, Intrinsic y when x.namespace = y.namespace && x.name = y.name ->

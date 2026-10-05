@@ -119,6 +119,8 @@ type state = {
      type. *)
   mutable returns : Expr.t -> Expr.t;
   mutable ret : Tty.t;
+  (* The verb's abort type, which an `abort` hands its value on as. *)
+  mutable aborts : Tty.t;
   (* The function each spawned call runs through, latest first. *)
   mutable spawned : Func.t list;
   (* The root package when it is a library built into an object, whose
@@ -155,6 +157,7 @@ let create ~library ~stamp ~stamped =
     next = 0;
     returns = Fun.id;
     ret = Tty.Error;
+    aborts = Tty.Error;
     spawned = [];
     library;
     stamp;

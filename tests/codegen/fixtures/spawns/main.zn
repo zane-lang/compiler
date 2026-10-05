@@ -162,6 +162,8 @@ Int pick(n Int) {
 	return n;
 }
 
+Int ageOf(p Person) => p.age
+
 Unit main() {
 	// The pool resized before it starts, and a count it refuses.
 	@program$runtime!setThreads(Int(2)) ? u {
@@ -189,6 +191,13 @@ Unit main() {
 	g &Person = p;
 	n String = spawn nameOf(g);
 	check(n == String("grace!"));
+
+	// An owner lent to a spawned call by a borrow may be borrowed again
+	// while the call reads it.
+	lent ^Person = Person(String("ada"), Int(36));
+	read Int = spawn ageOf(lent);
+	check(ageOf(lent) == Int(36));
+	check(read == Int(36));
 
 	// An owner returned: it settles where it comes home, and a reference
 	// names it there.
