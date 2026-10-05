@@ -52,7 +52,7 @@ generator dependencies as described in [`grammar/README.md`](grammar/README.md).
 | `runtime/` | The C runtime every program links with |
 | `tests/` | One directory per thing tested: `parser`, `grammar`, `semantics`, `codegen`, `runtime`, `ambiguity` |
 | `tools/` | Developer tools: the ambiguity engine and its front end, and `inspect` |
-| `dev/` | Commands for the development shell (`dev/bin/`) and their shared scripts |
+| `dev/` | Commands for the development shell (`dev/bin/`), their shared scripts (`dev/lib/`), and the toolchain bootstrap CI and the shell run (`dev/setup/`) |
 | `docs/` | Design and process documents; [`docs/README.md`](docs/README.md) is the index |
 
 ## Building and testing
