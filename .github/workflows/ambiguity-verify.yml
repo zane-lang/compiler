@@ -58,7 +58,7 @@ jobs:
           path: |
             ~/.opam
             _opam
-          key: opam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/setup/bootstrap-toolchain') }}
+          key: opam-devbox-llvm-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/setup/bootstrap-toolchain') }}
 
       - name: Install devbox + Nix + devbox.json packages
         if: steps.suites.outputs.formal == 'true'
