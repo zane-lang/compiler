@@ -1,6 +1,8 @@
 # Refactoring proposal
 
-Status: **proposal**. None of it is carried out yet.
+Status: **being carried out**, in the four steps of §12. Step 1 is done: DC1,
+DC2, DC3, ST1, IF1's two deletions, IF2's five re-exports, SH1, TS2, IV1 to
+IV5, and T4.
 
 This is the second strict review of the repository. The first one,
 [`file-structure-proposal.md`](file-structure-proposal.md), was about where
@@ -216,30 +218,28 @@ Each one was checked against the tree. They are tracked here from now on.
 
 ## 12. Migration order
 
-Each step should be its own PR, and each step should answer one question:
-*did this change behavior?* Golden files must pass unchanged after every step,
-except where a step says otherwise.
+The work lands in four pull requests, each a coherent refactor, each under
+the 100 files a review covers. Within a pull request, each item is its own
+commit. Golden files pass unchanged after every step, except where a step
+says otherwise.
 
-1. **Small fixes**: DC1, DC2, ST1, IF1's two deletions, IF2's five
-   re-exports, SH1. None of these changes output.
-2. **The safety net**: TS2, the unit tests. These come before anything that
-   changes a helper.
-3. **Internal errors**: IV2, then IV3, IV4 and IV1. IV1 changes behavior
-   only for compiler bugs, which now fail loudly.
-4. **One error type**: IV5 and DR2, and T4 with them. The two "no `main`"
-   messages become one, so `project.no-main.err` changes, and that is
-   intended.
-5. **Lowering's refusals**: IV6, then TS1. IV6 sorts the messages into
-   limits and bugs. TS1 then pins every limit with a golden file.
-6. **File splits**, one per PR: SZ1, SZ2, SZ3. Pure moves, and every golden
-   stays the same.
-7. **The runtime ABI**: SH3.
-8. **The driver**: DR1.
-9. **Semantics state**: ST2 step one (all tables in `Env`), ST3, ST4, then
-   SH2. ST2 step two (an `Env` per check) goes pass by pass, analyses first.
-10. **Interfaces**: L1/L2, as IF1 and IF2 describe, bottom up.
-11. **Carried over and optional**: A1's remainder, H3, H1, TS3, SZ4, D3,
-    P2, R13.
+1. **Honest errors and invariants.** DC1, DC2, DC3, ST1, IF1's two
+   deletions, IF2's five re-exports; then TS2, the unit tests, before
+   anything that changes a helper; then SH1; then IV2, IV3, IV4 and IV1;
+   then IV5 with T4, so every error that reaches the driver is a
+   `Diagnostic.t`. The one check for `main` stays in `zanec`'s
+   `check_kind` until DR1 moves it into `lib/driver/`, and its message is
+   the one `project.no-main.err` already holds.
+2. **Lowering and the checker.** IV6 sorts lowering's refusals into limits
+   and bugs and moves the two checks only lowering has into semantics, so
+   their goldens change, as intended. TS1 then pins every limit with a
+   golden file. SZ1 and SZ2 split `lower.ml` and `check.ml`, as pure
+   moves.
+3. **Architecture.** SH3, the runtime's functions as a variant; DR1 and
+   the rest of DR2, `lib/driver/`; ST2's two steps, ST3, ST4 and SH2, one
+   `Env` per check; then L1 and L2, as IF1 and IF2 describe, bottom up.
+4. **Tools and the repository.** A1's remainder, SZ3, SZ4, H3, TS3, D3,
+   P2, R13, H1 and Q1.
 
 ---
 
