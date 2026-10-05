@@ -27,17 +27,18 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-and-test:
+  suites:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      highlighting: ${{ steps.suites.outputs.highlighting }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The grammar and ambiguity-tool suites only answer something new when
-      # the grammar or the tools change, so a pull request that touches
-      # neither skips them. The merge queue and main run everything.
+      # PRs select the slower suites by changed files; main and the merge
+      # queue run everything. Generator tests always run in highlighting.
       - name: Decide which suites to run
         id: suites
         env:
@@ -47,89 +48,79 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: .github/scripts/ci-suites
 
-      # The opam switch is most of a cold setup: dune, menhir and sedlex are
-      # built from source. It is restored before devbox starts because the
-      # devbox init hook runs `bootstrap-toolchain`, which finds a warm switch
-      # already at its pins and installs nothing.
-      #
-      # The key covers everything the switch is built from: the system OCaml
-      # devbox provides, and the pins. It is hashed from the committed files,
-      # before devbox has had a chance to rewrite its lock.
-      - name: Restore the opam switch
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.opam
-            _opam
-          key: opam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/setup/bootstrap-toolchain') }}
-
-      - name: Install devbox + Nix + devbox.json packages
-        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
-        with:
-          enable-cache: true
-
-      - name: Sanity check
-        run: devbox list
-
-      # Codegen builds its module through LLVM's OCaml bindings, which wrap
-      # LLVM 19 (dev/setup/bootstrap-toolchain). The runner's apt has it, and
-      # the bindings find it as `llvm-config-19` before any other.
-      - name: Install LLVM 19
-        run: sudo apt-get update && sudo apt-get install -y llvm-19-dev libzstd-dev
-
-      # The init hook bootstraps the opam switch, but doing it as its own step
-      # keeps a toolchain failure from being reported as a build failure.
-      #
-      # Every command below is a single word followed by plain arguments:
-      # `devbox run` quotes each argument and `eval`s the result, so a shell
-      # snippet passed this way would be mangled rather than run.
-      - name: Install OCaml dependencies
-        run: devbox run -- dev/setup/bootstrap-toolchain
-
-      - name: Set up Node for grammar generation
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: editors/tree-sitter-zane/package-lock.json
-
-      # The highlighting requirements include the generator's own.
-      - name: Install grammar generator dependencies
+      - name: Select parallel checks
+        id: matrix
+        env:
+          GRAMMAR: ${{ steps.suites.outputs.grammar }}
+          AMBIGUITY_TOOLS: ${{ steps.suites.outputs.ambiguity-tools }}
         run: |
-          npm ci --prefix editors/tree-sitter-zane
-          devbox run -- python3 -m venv .grammar-venv
-          .grammar-venv/bin/python -m pip install -r tests/highlighting/requirements.txt
-          echo "GRAMMAR_PYTHON=$PWD/.grammar-venv/bin/python" >> "$GITHUB_ENV"
+          matrix=$(jq -cn --arg grammar "$GRAMMAR" --arg tools "$AMBIGUITY_TOOLS" '
+            {suite: (["compiler", "highlighting"]
+              + (if $grammar == "true" then ["grammar"] else [] end)
+              + (if $tools == "true" then ["ambiguity-tools"] else [] end))}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
+  # Each suite owns its checkout and Dune build directory. A failing suite
+  # does not cancel the others, so one run reports every failure.
+  linux-tests:
+    needs: suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.suites.outputs.matrix) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
+        with:
+          grammar-dependencies: ${{ matrix.suite == 'compiler' || matrix.suite == 'highlighting' }}
+
+      # Preserve the full build and generated-file freshness check.
       - name: Build
+        if: matrix.suite == 'compiler'
         run: devbox run -- just rebuild
 
+      - name: Compiler tests
+        if: matrix.suite == 'compiler'
+        run: devbox run -- just test-compiler
+
       - name: Grammar generator tests
-        if: steps.suites.outputs.highlighting != 'true'
+        if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting != 'true'
         run: devbox run -- just test-grammar-generation
 
       - name: Install Neovim and Typst
-        if: steps.suites.outputs.highlighting == 'true'
+        if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting == 'true'
         run: .github/scripts/install-highlighting-consumers
 
-      # The generated editor parser and queries, loaded by Tree-sitter, Neovim
-      # and Typst, against the compiler's own syntax examples. The recipe runs
-      # the generator tests first.
       - name: Grammar generator and highlighting tests
-        if: steps.suites.outputs.highlighting == 'true'
+        if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting == 'true'
         env:
           ZANE_REQUIRE_HIGHLIGHTING_TOOLS: '1'
         run: devbox run -- just test-highlighting
 
-      # The golden expectations under tests/ and parser acceptance. Every
-      # change runs these. The recipes fail loudly when Menhir is missing
-      # rather than reporting a green run that skipped them.
-      - name: Compiler tests
-        run: devbox run -- just test-compiler
+      - name: Grammar ambiguity tests
+        if: matrix.suite == 'grammar'
+        run: devbox run -- just test-grammar
 
-      # The test programs built for Windows, which the `windows` job below
-      # runs there (docs/design/platforms.md). Zig links them; it comes from
-      # its release, checked against the release's digest.
+      - name: Ambiguity tool tests
+        if: matrix.suite == 'ambiguity-tools'
+        run: devbox run -- just test-ambiguity-tools
+
+  # Build the Windows artifacts independently: Windows execution need not
+  # wait for Linux's grammar, highlighting or compiler tests.
+  windows-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
+
       - name: Install Zig
         run: .github/scripts/install-zig
 
@@ -143,13 +134,18 @@ jobs:
           path: windows-programs
           if-no-files-found: error
 
-      - name: Grammar ambiguity tests
-        if: steps.suites.outputs.grammar == 'true'
-        run: devbox run -- just test-grammar
-
-      - name: Ambiguity tool tests
-        if: steps.suites.outputs.ambiguity-tools == 'true'
-        run: devbox run -- just test-ambiguity-tools
+  # Aggregate the Linux checks. always() makes a failed or skipped
+  # prerequisite fail this gate instead of silently skipping it.
+  linux-checks:
+    needs: [suites, linux-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every platform job to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
 
   # Every hand-written source file stays under 2,000 lines, with a warning
   # past 1,500 (`.github/scripts/file-sizes`). It needs nothing but git, so it
@@ -170,8 +166,8 @@ jobs:
   # Linux and Windows are the first tier (docs/design/platforms.md): the
   # programs the job above built for Windows run on Windows itself, each held
   # to the output and status its fixture expects.
-  windows:
-    needs: build-and-test
+  windows-tests:
+    needs: windows-build
     runs-on: windows-latest
     timeout-minutes: 10
 
@@ -196,3 +192,15 @@ jobs:
       - name: Run the Windows programs
         shell: bash
         run: dev/bin/check-programs windows-programs
+
+  # Aggregate the Windows checks with the same success rule as Linux.
+  windows-checks:
+    needs: [windows-build, windows-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every platform job to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"

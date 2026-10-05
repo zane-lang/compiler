@@ -1,0 +1,69 @@
+name: Set up CI toolchain
+description: Restore the cached Devbox and OCaml toolchain for an isolated CI job.
+inputs:
+  grammar-dependencies:
+    description: Install Node and Python dependencies for grammar generation.
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    # The opam switch is most of a cold setup: dune, menhir and sedlex are
+    # built from source. It is restored before devbox starts because the
+    # devbox init hook runs `bootstrap-toolchain`, which finds a warm switch
+    # already at its pins and installs nothing.
+    #
+    # The key covers everything the switch is built from: the system OCaml
+    # devbox provides, and the pins. It is hashed from the committed files,
+    # before devbox has had a chance to rewrite its lock.
+    - name: Restore the opam switch
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.opam
+          _opam
+        key: opam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/setup/bootstrap-toolchain') }}
+
+    - name: Install devbox + Nix + devbox.json packages
+      uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
+      with:
+        enable-cache: true
+
+    - name: Sanity check
+      shell: bash
+      run: devbox list
+
+    # Codegen builds its module through LLVM's OCaml bindings, which wrap
+    # LLVM 19 (dev/setup/bootstrap-toolchain). The runner's apt has it, and
+    # the bindings find it as `llvm-config-19` before any other.
+    - name: Install LLVM 19
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y llvm-19-dev libzstd-dev
+
+    # The init hook bootstraps the opam switch, but doing it as its own step
+    # keeps a toolchain failure from being reported as a build failure.
+    #
+    # Every command below is a single word followed by plain arguments:
+    # `devbox run` quotes each argument and `eval`s the result, so a shell
+    # snippet passed this way would be mangled rather than run.
+    - name: Install OCaml dependencies
+      shell: bash
+      run: devbox run -- dev/setup/bootstrap-toolchain
+
+    - name: Set up Node for grammar generation
+      if: inputs.grammar-dependencies == 'true'
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: editors/tree-sitter-zane/package-lock.json
+
+    # The highlighting requirements include the generator's own.
+    - name: Install grammar generator dependencies
+      if: inputs.grammar-dependencies == 'true'
+      shell: bash
+      run: |
+        npm ci --prefix editors/tree-sitter-zane
+        devbox run -- python3 -m venv .grammar-venv
+        .grammar-venv/bin/python -m pip install -r tests/highlighting/requirements.txt
+        echo "GRAMMAR_PYTHON=$PWD/.grammar-venv/bin/python" >> "$GITHUB_ENV"
+

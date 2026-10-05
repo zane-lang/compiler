@@ -36,7 +36,8 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 			# SHARED
 			devbox.json | devbox.lock | dune-project | justfile | \
 				dev/setup/bootstrap-toolchain | \
-				.github/workflows/ci.yml | .github/scripts/ci-suites)
+				.github/workflows/ci.yml | .github/actions/setup-ci/* | \
+				.github/scripts/ci-suites)
 				grammar=true
 				tools=true
 				highlighting=true
