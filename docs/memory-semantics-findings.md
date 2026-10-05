@@ -29,6 +29,7 @@ Findings are numbered and classified:
 |---|---|---|---|
 | 6 | Bug | `lambdas` | A call through a function value records no resting place, so a reference dangles and a write through it corrupts a live object |
 | 7 | Bug | `deepvalue` | Overwriting a recursive value deeper than about 22,700 levels overflows the C stack and segfaults |
+| 11 | Bug | `storeorder` | `list[i] = <expression that grows list>` writes into the list's freed block |
 | 10 | Bug | `binders` | A match binder dangles once its arm overwrites the scrutinee |
 | 9 | Bug | `aliasing`, `blockalias` | A borrowed list element or payload is freed by the same call's `mut` subject or block argument, and then read |
 | 8 | Bug | `aliasing` | A value parameter is passed by copy, which `v!setFrom(v)` observes; memory.md §2.9 makes it a borrow |
@@ -163,6 +164,31 @@ Consequences of the spec worth knowing, all correctly implemented:
   cleanly. The spec states no limit.
 
 ## Findings
+
+### 11. An element store resolves its destination before its value (bug)
+
+Probe `storeorder`. When the right-hand side of an element store grows the
+same list, the store writes to where the element *was*:
+
+```zane
+ints[Int(1)] = ints!growAndGive(Int(1000));   // pushes 1,000, returns 4242
+// ints[Int(1)] is still 1: 4242 went into the block the list gave back
+```
+
+The destination's address is computed first, the right-hand side then
+relocates the backing store and returns the old block to its size stack, and
+the store lands in that freed block. For `List<Int>` the element keeps its
+old value; for `List<Engine>` the same; and with both cases in one program
+the first write corrupts the allocator's free stack and the second
+segfaults inside `zane_alloc`. (Something allocated after each list keeps
+the growth from happening in place, which would hide the bug.)
+
+memory.md §2.3 fixes that the right-hand side is evaluated against the
+destination's pre-overwrite state, but not when a place destination is
+resolved relative to its value. Either the compiler resolves a subscript
+destination after evaluating the right-hand side, or it rejects a `!` call
+on the list (or on anything owning it) inside a store into one of its
+elements; the spec should say which.
 
 ### 10. A match binder dangles after its arm overwrites the scrutinee (bug)
 
