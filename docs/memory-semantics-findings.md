@@ -28,6 +28,7 @@ Findings are numbered and classified:
 | # | Kind | Probe | Finding |
 |---|---|---|---|
 | 6 | Bug | `lambdas` | A call through a function value records no resting place, so a reference dangles and a write through it corrupts a live object |
+| 7 | Bug | `deepvalue` | Overwriting a recursive value deeper than about 22,700 levels overflows the C stack and segfaults |
 | 1 | Bug | `reflist` | Nothing can be pushed into a `List<&T>` |
 | 2 | Gap | `genref` | `Box(r)` with `r &Port` infers `Box<Port>`; no way to make a `Box<&Port>` |
 | 3 | Nit | `genref` | An error inside a generic instance names neither the instance nor the call that made it |
@@ -84,6 +85,40 @@ optimized build alike.
   field and a generic resting place, a moved roaming value, and a nested
   construction. The same stores of an outer owner are accepted.
 
+- **Self-overlapping stores of owners** (`selfstore`; memory.md §2.2, §3.5,
+  §2.8.1). `r = r` and `r = relay(r)` on a roaming owner, `r.engine =
+  r.engine`, a settled owner overwritten with a value a call built from its
+  own contents, a field rebuilt from itself, and an object wired to its own
+  part after it settles, which then observes that part's overwrite and the
+  whole object's.
+- **Reference variants and `ArrayRef`** (`variants`, `payloads`; memory.md
+  §2.2, §2.8, §2.8.1). A reference to a `#variant` observes each case change;
+  100,000 case changes in a loop; a binder writes its payload in place;
+  `ArrayRef` element references observe element and whole-array overwrites.
+  A payload is never a reference or move source, through a binder or an
+  `&T` parameter; an `ArrayRef` element is never moved out, under a settled
+  or a roaming root.
+- **Spent symbols** (`spent`; lifetimes.md §1.3, §1.6, §1.8). The order of a
+  statement's own arguments is respected (read-then-move passes,
+  move-then-read is reported); `risky(cup) ?? see(cup)` is reported, since
+  passing to `^T` spends whatever happens; moves inside a handler, an arm
+  and a `return` written in a block argument are reported as moves from a
+  nested block; a field two steps into a roaming root is moved out, read
+  spent, refilled, and its roots are partly spent until then.
+- **Stores through a reference** (`throughref`; lifetimes.md §1.1). `r.engine
+  = …`, `r.engine.power = …` with `r` an `&` local, and `car.peer.power =
+  …` are all reported, and the same changes made by a `!` call through the
+  reference are accepted.
+- **Spawned calls** (`spawnstore`, `watertower`; lifetimes.md §2.2,
+  concurrency.md §4.1). A spawned call's result, its resting places and a
+  value it returns carrying a reference are checked as a plain call's are.
+  A block whose spawned calls still read its owners drains only after
+  them: ten spawned readers, each 200,000 reads long, see their own owner
+  even though the next pass reuses its slot.
+- **Oversized blocks** (`oversized`; memory.md §3.1, §3.6). A 3.2 MB list
+  returned out of its scope, a 2 MiB string copied out of an inner block, a
+  list of 100,000 strings, and a big list overwritten 20 times.
+
 Consequences of the spec worth knowing, all correctly implemented:
 
 - A roaming recursive structure cannot be grown in a loop: a loop body is a
@@ -94,9 +129,37 @@ Consequences of the spec worth knowing, all correctly implemented:
   body (effects.md §4.4). A block argument counts as running any number of
   times (`design/semantics.md` §9), so a store inside
   `@controlflow$branch(…, { … })` followed by the next run's `!` call is
-  rejected even though `branch` runs its block at most once.
+  rejected even though `branch` runs its block at most once. The same holds
+  for spawns: a `spawn x!m()` in any block argument must take its subject
+  from storage declared in that block.
+- A `#struct` whose `&` field names its own type can never get a first
+  instance: there is no null reference and every symbol is directly
+  initialized (memory.md §2.11, lifetimes.md §2.4) (`throughref`, `Loop`).
+- A value copied from a place it then overwrites, `acc = Count.more(acc)`,
+  is a deep copy each time (memory.md §2.3), so growing a recursive value in
+  a loop costs time quadratic in its depth.
+- The runtime caps scopes nested at once at 32,768 (`ZANE_DEPTH`) and stops
+  with "scopes nested too deep" past it, so a recursion deeper than that ends
+  cleanly. The spec states no limit.
 
 ## Findings
+
+### 7. A deep recursive value crashes the runtime (bug)
+
+Probe `deepvalue`. A value variant `Count = variant { done Int; more Count; }`
+built 30,000 levels deep by recursion, then overwritten, kills the program
+with SIGSEGV in both builds. `zane_overwrite` (`runtime/value.c`) writes the
+replacement into each boxed member's existing block by calling itself once
+per level, and on an 8 MB stack it overflows at about 22,700 levels (the
+backtrace is 22,765 `zane_overwrite` frames deep). Built in a loop with
+`acc = Count.more(acc)`, it crashes the same way somewhere between 20,000
+and 50,000 iterations. `zane_copy` (`runtime/block.c`) is recursive in the
+same way. memory.md sets no depth limit, and the spec's own recursive
+examples (`adt.md` §4) are this shape; the recursion along the last boxed
+member can be a loop, which removes the limit for list-like values.
+
+The program's output before the crash is lost too, because stdout is
+buffered and the segfault never flushes it.
 
 ### 6. A function value launders a reference into a dangling one (bug)
 

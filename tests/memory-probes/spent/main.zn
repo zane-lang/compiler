@@ -1,0 +1,99 @@
+/// Spent symbols in corners (lifetimes.md §1.3, §1.6, §1.8): the order of
+/// a statement's own moves and reads, moves inside handlers, arms and a
+/// `return` written in a block argument, and partly spent roots. ILLEGAL
+/// marks what the spec rejects.
+package spent;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+type Cup = #struct { size Int; }
+type Saucer = #struct { cup Cup; }
+type Tray = #struct { saucer Saucer; }
+type Order = #variant { hot Int; cold Int; }
+Cup(size Int) => init{ size; }
+Saucer(cup ^Cup) => init{ cup; }
+Tray(saucer ^Saucer) => init{ saucer; }
+
+Unit drink(cup ^Cup) => Unit()
+Int see(cup Cup) => cup.size
+Int both(a Int, b Unit) => a
+Int both2(a Unit, b Int) => b
+Int?Unit risky(cup ^Cup) => Int(1)
+Unit loop(body @concepts$Block) => Unit()
+
+Unit order1() {
+	cup ^Cup = Cup(Int(1));
+	n Int = both(see(cup), drink(cup));     // legal: read, then move
+	return Unit();
+}
+Unit order2() {
+	cup ^Cup = Cup(Int(1));
+	n Int = both2(drink(cup), see(cup));    // ILLEGAL: moved by the first argument
+	return Unit();
+}
+Unit handler() {
+	cup ^Cup = Cup(Int(1));
+	n Int = risky(cup) ?? see(cup);         // ILLEGAL: passing to ^T spends cup whatever happens (§1.8)
+	return Unit();
+}
+Unit handler2() {
+	cup ^Cup = Cup(Int(1));
+	other ^Cup = Cup(Int(2));
+	n Int = risky(cup) ? u {
+		drink(other);                       // ILLEGAL: other is declared outside the handler's block
+		resolve Int(0);
+	}
+	return Unit();
+}
+Unit arms(order Order) {
+	cup ^Cup = Cup(Int(1));
+	n Int = match (order) {
+		h hot {
+			drink(cup);                     // ILLEGAL: an arm is a nested block
+			return h;
+		}
+		c cold => c;
+	}
+	return Unit();
+}
+^Cup early(flag @primitives$Bool) {
+	cup ^Cup = Cup(Int(1));
+	@controlflow$branch(flag, {
+		return cup;                         // ILLEGAL: a move from a nested block, even by return
+	});
+	return cup;
+}
+Unit deep() {
+	tray ^Tray = Tray(Saucer(Cup(Int(1))));
+	c Cup = tray.saucer.cup;                // legal: a field two steps into a roaming root
+	n Int = see(tray.saucer.cup);           // ILLEGAL: spent
+	s ^Saucer = tray.saucer;                // ILLEGAL: partly spent
+	tray.saucer.cup = Cup(Int(2));          // legal: refilled
+	s2 ^Saucer = tray.saucer;               // legal
+	t ^Tray = tray;                         // ILLEGAL: tray.saucer was moved out
+	tray.saucer = Saucer(Cup(Int(3)));      // legal: refilled
+	t2 ^Tray = tray;                        // legal
+	return Unit();
+}
+Unit wholeBorrow() {
+	saucer ^Saucer = Saucer(Cup(Int(1)));
+	c Cup = saucer.cup;
+	n Int = see(saucer.cup);                // ILLEGAL
+	return Unit();
+}
+Unit perPass() {
+	loop({
+		cup ^Cup = Cup(Int(1));
+		drink(cup);                         // legal: declared in this block, each pass
+		cup = Cup(Int(2));                  // legal
+		drink(cup);
+	});
+	return Unit();
+}
+Unit twice() {
+	saucer ^Saucer = Saucer(Cup(Int(1)));
+	a Cup = saucer.cup;
+	b Cup = saucer.cup;                     // ILLEGAL: spent
+	return Unit();
+}

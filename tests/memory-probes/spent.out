@@ -1,0 +1,41 @@
+File "spent/main.zn", line 32, characters 35-38:
+32 |     n Int = both2(drink(cup), see(cup));    // ILLEGAL: moved by the first argument
+  |                                   ^^^
+Error: `cup` was moved on line 32, and is spent until a store refills it
+File "spent/main.zn", line 37, characters 31-34:
+37 |     n Int = risky(cup) ?? see(cup);         // ILLEGAL: passing to ^T spends cup whatever happens (§1.8)
+  |                               ^^^
+Error: `cup` was moved on line 37, and is spent until a store refills it
+File "spent/main.zn", line 44, characters 15-20:
+44 |         drink(other);                       // ILLEGAL: other is declared outside the handler's block
+  |               ^^^^^
+Error: `other` is declared in an enclosing block, and a roaming owner is moved only in the block that declares it
+File "spent/main.zn", line 53, characters 19-22:
+53 |             drink(cup);                     // ILLEGAL: an arm is a nested block
+  |                   ^^^
+Error: `cup` is declared in an enclosing block, and a roaming owner is moved only in the block that declares it
+File "spent/main.zn", line 63, characters 16-19:
+63 |         return cup;                         // ILLEGAL: a move from a nested block, even by return
+  |                ^^^
+Error: `cup` is declared in an enclosing block, and a roaming owner is moved only in the block that declares it
+File "spent/main.zn", line 70, characters 17-32:
+70 |     n Int = see(tray.saucer.cup);           // ILLEGAL: spent
+  |                 ^^^^^^^^^^^^^^^
+Error: `tray.saucer.cup` was moved on line 69, and is spent until a store refills it
+File "spent/main.zn", line 71, characters 17-28:
+71 |     s ^Saucer = tray.saucer;                // ILLEGAL: partly spent
+  |                 ^^^^^^^^^^^
+Error: `tray.saucer.cup` was moved on line 69, and is spent until a store refills it
+File "spent/main.zn", line 74, characters 15-19:
+74 |     t ^Tray = tray;                         // ILLEGAL: tray.saucer was moved out
+  |               ^^^^
+Error: `tray` is partly spent: its field `saucer` was moved on line 73, and the owner is spent as a whole until a store refills that field
+File "spent/main.zn", line 82, characters 17-27:
+82 |     n Int = see(saucer.cup);                // ILLEGAL
+  |                 ^^^^^^^^^^
+Error: `saucer.cup` was moved on line 81, and is spent until a store refills it
+File "spent/main.zn", line 97, characters 13-23:
+97 |     b Cup = saucer.cup;                     // ILLEGAL: spent
+  |             ^^^^^^^^^^
+Error: `saucer.cup` was moved on line 96, and is spent until a store refills it
+== rejected
