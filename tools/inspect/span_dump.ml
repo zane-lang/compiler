@@ -72,8 +72,8 @@ let run_file stage path =
   | Ok package ->
       print_string
         (match stage with
-        | Cst -> Cst.To_span_text.render ~source:input package
-        | Sst -> Sst.To_span_text.render ~source:input (Sst.of_cst package))
+        | Cst -> Cst.to_span_text ~source:input package
+        | Sst -> Sst.to_span_text ~source:input (Sst.of_cst package))
 
 let () =
   match arguments () with
