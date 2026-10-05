@@ -1,0 +1,17 @@
+File "spawnstore/main.zn", line 59, characters 19-29:
+59 |         r = spawn pass(near);           // ILLEGAL: the result names near
+  |                   ^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `r`'s does
+File "spawnstore/main.zn", line 60, characters 15-19:
+60 |         spawn plug!wire(near);          // ILLEGAL: resting place
+  |               ^^^^
+Error: a spawned `mut` call writes its subject, and `spawnstore$Plug` is a reference type: only a value-typed subject may be written from spawned work
+File "spawnstore/main.zn", line 60, characters 25-29:
+60 |         spawn plug!wire(near);          // ILLEGAL: resting place
+  |                         ^^^^
+Error: this stores a reference to `near`, whose block ends before `plug`'s does (`wire` keeps `port` in `this`)
+File "spawnstore/main.zn", line 62, characters 20-21:
+62 |         plugs!push(p);                  // ILLEGAL: p carries a reference to near
+  |                    ^
+Error: this stores a reference to `near`, whose block ends before `plugs`'s does (`push` keeps `value` in `this`)
+== rejected
