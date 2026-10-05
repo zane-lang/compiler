@@ -7,8 +7,8 @@
 name = "zane-compiler-tools"
 version = "0"
 description = "The Zane compiler's Python tooling and tests"
-# `tomllib`, which the ambiguity profiles and the grammar generator read
-# their configuration with, is new in 3.11.
+# `tomllib`, which the ambiguity front end reads its profiles with, is new
+# in 3.11.
 requires-python = ">=3.11"
 
 [tool.ruff]
