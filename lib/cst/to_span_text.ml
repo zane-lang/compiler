@@ -12,14 +12,16 @@
    a file parses. `tests/parser/golden/` checks the output on every run, so a
    grammar change that moves a span shows the move as a diff.
 
-   The printer is a module-level reference rather than an argument threaded
-   through every function below, because every one of them would carry it and
-   none of them would do anything with it but pass it on. [render] is the only
-   entry point and it sets the reference before walking, so the state does not
-   outlive a call. *)
+   [render] makes the printer, and every function below is handed it with the
+   depth of the lines it writes, so no state outlives a call. *)
 
-let printer = ref (Source.Span_text.create "")
-let line depth kind span = Source.Span_text.line !printer depth kind span
+(* Where a line goes: the printer [render] made, and how deep the line is.
+   Every function below takes one and hands a [deeper] one to the parts of
+   its node. *)
+type cursor = { printer : Source.Span_text.t; depth : int }
+
+let deeper d = { d with depth = d.depth + 1 }
+let line d kind span = Source.Span_text.line d.printer d.depth kind span
 
 open Nodes
 
@@ -30,10 +32,10 @@ let each d f xs = List.iter (f d) xs
 let name_type d (x : Name_type.t) =
   line d "name_type" x.Name_type.span;
   match x.Name_type.node with
-  | Name_type.Ident n -> name (d + 1) "ident" n
+  | Name_type.Ident n -> name (deeper d) "ident" n
   | Name_type.Qualified { package; ident } | Name_type.Intrinsic { package; ident } ->
-      name (d + 1) "package" package;
-      name (d + 1) "ident" ident
+      name (deeper d) "package" package;
+      name (deeper d) "ident" ident
 
 
 let concept d (x : Concept.t) =
@@ -41,15 +43,15 @@ let concept d (x : Concept.t) =
   | Concept.Type -> line d "concept Type" x.Concept.span
   | Concept.Named n ->
       line d "concept Named" x.Concept.span;
-      name_type (d + 1) n
+      name_type (deeper d) n
 
 let name_expr d (x : Name_expr.t) =
   line d "name_expr" x.Name_expr.span;
   match x.Name_expr.node with
-  | Name_expr.Ident n -> name (d + 1) "ident" n
+  | Name_expr.Ident n -> name (deeper d) "ident" n
   | Name_expr.Qualified { package; ident } | Name_expr.Intrinsic { package; ident } ->
-      name (d + 1) "package" package;
-      name (d + 1) "ident" ident
+      name (deeper d) "package" package;
+      name (deeper d) "ident" ident
 
 let operator d (x : Operator.t) = line d "operator" x.Operator.span
 
@@ -60,25 +62,25 @@ let import d (x : Import.t) =
   line d "import" x.Import.span;
   match x.Import.node with
   | Import.Package { package; alias } ->
-      name (d + 1) "package" package;
-      opt (d + 1) (fun d a -> name d "alias" a) alias
+      name (deeper d) "package" package;
+      opt (deeper d) (fun d a -> name d "alias" a) alias
   | Import.Member { package; member; alias } ->
-      name (d + 1) "package" package;
-      import_member (d + 1) member;
-      opt (d + 1) import_member alias
+      name (deeper d) "package" package;
+      import_member (deeper d) member;
+      opt (deeper d) import_member alias
   | Import.Members { package; members } ->
-      name (d + 1) "package" package;
-      each (d + 1) import_member members
-  | Import.All { package } -> name (d + 1) "package" package
+      name (deeper d) "package" package;
+      each (deeper d) import_member members
+  | Import.All { package } -> name (deeper d) "package" package
 
 let generic_param d (x : Generic_param.t) =
   line d "generic_param" x.Generic_param.span;
-  name (d + 1) "name" x.Generic_param.name;
-  concept (d + 1) x.Generic_param.type_
+  name (deeper d) "name" x.Generic_param.name;
+  concept (deeper d) x.Generic_param.type_
 
 let rec type_expr d (x : Type_expr.t) =
   line d "type_expr" x.Type_expr.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Type_expr.node with
   | Type_expr.Path { name = n; generics } ->
       name_type d n;
@@ -88,7 +90,7 @@ let rec type_expr d (x : Type_expr.t) =
 
 and verb_type d (x : Verb_type.t) =
   line d "verb_type" x.Verb_type.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Verb_type.node with
   | Verb_type.Func { params; ret_type } ->
       each d param_type params;
@@ -100,7 +102,7 @@ and verb_type d (x : Verb_type.t) =
 
 and ret_type_ d (x : Ret_type.t) =
   line d "ret_type" x.Ret_type.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Ret_type.node with
   | Ret_type.Safe t -> type_expr d t
   | Ret_type.Abort { ok; abort } ->
@@ -109,7 +111,7 @@ and ret_type_ d (x : Ret_type.t) =
 
 and generic_arg d (x : Generic_arg.t) =
   line d "generic_arg" x.Generic_arg.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Generic_arg.node with
   | Generic_arg.Type t -> type_expr d t
   | Generic_arg.Number _ -> ()
@@ -118,7 +120,7 @@ and generic_arg d (x : Generic_arg.t) =
 
 and param_type d (x : Param_type.t) =
   line d "param_type" x.Param_type.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Param_type.node with
   | Param_type.Concrete t -> type_expr d t
   | Param_type.Concept c -> concept d c
@@ -128,50 +130,50 @@ and param_type d (x : Param_type.t) =
 
 and param d (x : Param.t) =
   line d "param" x.Param.span;
-  name (d + 1) "name" x.Param.name;
-  param_type (d + 1) x.Param.type_
+  name (deeper d) "name" x.Param.name;
+  param_type (deeper d) x.Param.type_
 
 and constructor_field d (x : Constructor_field.t) =
   line d "constructor_field" x.Constructor_field.span;
-  let d = d + 1 in
+  let d = deeper d in
   name d "name" x.Constructor_field.name;
   param_type d x.Constructor_field.type_;
   opt d expr x.Constructor_field.default
 
 and constructor_params d (x : Constructor_params.t) =
   line d "constructor_params" x.Constructor_params.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Constructor_params.node with
   | Constructor_params.Positional ps -> each d param ps
   | Constructor_params.Fields fs -> each d constructor_field fs
 
 and constructor_name d (x : Constructor_name.t) =
   line d "constructor_name" x.Constructor_name.span;
-  name_type (d + 1) x.Constructor_name.type_;
-  opt (d + 1) (fun d m -> name d "member" m) x.Constructor_name.member
+  name_type (deeper d) x.Constructor_name.type_;
+  opt (deeper d) (fun d m -> name d "member" m) x.Constructor_name.member
 
 and field_arg d (x : Field_arg.t) =
   line d "field_arg" x.Field_arg.span;
-  name (d + 1) "name" x.Field_arg.name;
-  opt (d + 1) expr x.Field_arg.value
+  name (deeper d) "name" x.Field_arg.name;
+  opt (deeper d) expr x.Field_arg.value
 
 and call_arg d (x : Call_arg.t) =
   line d "call_arg" x.Call_arg.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Call_arg.node with
   | Call_arg.Value v -> expr d v
   | Call_arg.Block stats -> each d statement stats
 
 and constructor_args d (x : Constructor_args.t) =
   line d "constructor_args" x.Constructor_args.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Constructor_args.node with
   | Constructor_args.Positional args -> each d call_arg args
   | Constructor_args.Fields fs -> each d field_arg fs
 
 and abort_handle d (x : Abort_handle.t) =
   line d "abort_handle" x.Abort_handle.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Abort_handle.node with
   | Abort_handle.Shorthand e -> expr d e
   | Abort_handle.Longhand { binder; body = b } ->
@@ -180,7 +182,7 @@ and abort_handle d (x : Abort_handle.t) =
 
 and verb_call d (x : Verb_call.t) =
   line d "verb_call" x.Verb_call.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Verb_call.node with
   | Verb_call.Func { callee; args; abort_handle = h; _ } ->
       expr d callee;
@@ -206,31 +208,31 @@ and verb_call d (x : Verb_call.t) =
 
 and match_pattern d (x : Match_pattern.t) =
   line d "match_pattern" x.Match_pattern.span;
-  opt (d + 1) (fun d n -> name d "binder" n) x.Match_pattern.binder;
-  List.iter (name (d + 1) "case") x.Match_pattern.cases
+  opt (deeper d) (fun d n -> name d "binder" n) x.Match_pattern.binder;
+  List.iter (name (deeper d) "case") x.Match_pattern.cases
 
 and match_arm d (x : Match_arm.t) =
   line d "match_arm" x.Match_arm.span;
-  each (d + 1) match_pattern x.Match_arm.patterns;
-  body (d + 1) x.Match_arm.body
+  each (deeper d) match_pattern x.Match_arm.patterns;
+  body (deeper d) x.Match_arm.body
 
 and match_expr d (x : Match_expr.t) =
   line d "match_expr" x.Match_expr.span;
-  let d = d + 1 in
+  let d = deeper d in
   each d expr x.Match_expr.scrutinees;
   each d match_arm x.Match_expr.arms;
   opt d abort_handle x.Match_expr.abort_handle
 
 and func_lambda d (x : Func_lambda.t) =
   line d "func_lambda" x.Func_lambda.span;
-  let d = d + 1 in
+  let d = deeper d in
   each d param x.Func_lambda.params;
   ret_type_ d x.Func_lambda.ret_type;
   body d x.Func_lambda.body
 
 and meth_lambda d (x : Meth_lambda.t) =
   line d "meth_lambda" x.Meth_lambda.span;
-  let d = d + 1 in
+  let d = deeper d in
   type_expr d x.Meth_lambda.this_type;
   each d param x.Meth_lambda.params;
   ret_type_ d x.Meth_lambda.ret_type;
@@ -238,7 +240,7 @@ and meth_lambda d (x : Meth_lambda.t) =
 
 and expr d (x : Expr.t) =
   line d "expr" x.Expr.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Expr.node with
   | Expr.IntLit _ | Expr.DecimalLit _ | Expr.StrLit _ | Expr.BoolLit _ -> ()
   | Expr.CollectionLit items -> each d expr items
@@ -269,18 +271,18 @@ and expr d (x : Expr.t) =
 
 and body d (x : Body.t) =
   line d "body" x.Body.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Body.node with
   | Body.Shorthand e -> expr d e
   | Body.Longhand stats -> each d statement stats
 
 and statement d (x : Statement.t) =
   line d "statement" x.Statement.span;
-  stat (d + 1) x.Statement.stat
+  stat (deeper d) x.Statement.stat
 
 and stat d (x : Stat.t) =
   line d "stat" x.Stat.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Stat.node with
   | Stat.VerbCall c | Stat.Spawn c -> verb_call d c
   | Stat.Decl dl -> decl d dl
@@ -291,31 +293,31 @@ and stat d (x : Stat.t) =
 
 and mould d (x : Mould.t) =
   line d "mould" x.Mould.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Mould.node with
   | Mould.Struct fs | Mould.Variant fs -> each d body_field fs
   | Mould.Enum members -> List.iter (name d "member") members
 
 and body_field d (x : Body_field.t) =
   line d "body_field" x.Body_field.span;
-  name (d + 1) "name" x.Body_field.name;
-  type_expr (d + 1) x.Body_field.type_
+  name (deeper d) "name" x.Body_field.name;
+  type_expr (deeper d) x.Body_field.type_
 
 and moulded d (x : Moulded.t) =
   line d "moulded" x.Moulded.span;
-  mould (d + 1) x.Moulded.mould;
-  line (d + 1) "type_axis" x.Moulded.axis.Type_axis.span
+  mould (deeper d) x.Moulded.mould;
+  line (deeper d) "type_axis" x.Moulded.axis.Type_axis.span
 
 and type_or_moulded d (x : Type_or_moulded.t) =
   line d "type_or_moulded" x.Type_or_moulded.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Type_or_moulded.node with
   | Type_or_moulded.Raw t -> type_expr d t
   | Type_or_moulded.Moulded m -> moulded d m
 
 and verb_decl d (x : Verb_decl.t) =
   line d "verb_decl" x.Verb_decl.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Verb_decl.node with
   | Verb_decl.Func { name = n; params; ret_type; body = b } ->
       name d "name" n;
@@ -349,7 +351,7 @@ and verb_decl d (x : Verb_decl.t) =
 
 and decl d (x : Decl.t) =
   line d "decl" x.Decl.span;
-  let d = d + 1 in
+  let d = deeper d in
   match x.Decl.node with
   | Decl.Package n -> name d "name" n
   | Decl.Import i -> import d i
@@ -380,7 +382,7 @@ and decl d (x : Decl.t) =
    parsed. Handing it in rather than re-reading the file keeps this honest for
    a caller that parsed standard input. *)
 let render ~source (package : Package.t) =
-  printer := Source.Span_text.create source;
-  line 0 "package" package.Package.span;
-  each 1 decl package.Package.decls;
-  Source.Span_text.contents !printer
+  let d = { printer = Source.Span_text.create source; depth = 0 } in
+  line d "package" package.Package.span;
+  each (deeper d) decl package.Package.decls;
+  Source.Span_text.contents d.printer
