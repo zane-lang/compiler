@@ -61,11 +61,11 @@ and verb = {
   is_mut : bool;
 }
 
-let fresh_param =
-  let next = ref 0 in
-  fun ~name ~kind ->
-    incr next;
-    { id = !next; name; kind }
+let next_param = ref 0
+
+let fresh_param ~name ~kind =
+  incr next_param;
+  { id = !next_param; name; kind }
 
 let unit_primitive = Intrinsic { namespace = "primitives"; name = "Unit"; args = [] }
 let bool_primitive = Intrinsic { namespace = "primitives"; name = "Bool"; args = [] }
@@ -220,6 +220,7 @@ let free_params t =
    for the lifetime analysis (docs/design/semantics.md D1), not for typing. So the
    comparisons below look through a guest marker at the top of either side. *)
 let strip_guest = function Guest t -> t | t -> t
+let is_guest = function Guest _ -> true | _ -> false
 
 let rec equal a b =
   match (a, b) with

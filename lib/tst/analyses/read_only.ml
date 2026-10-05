@@ -173,8 +173,6 @@ type walk = {
   mutable resolved : Taint.t list;
 }
 
-let quote s = "`" ^ s ^ "`"
-
 let read_only w s =
   Taint.exists
     (fun e -> match Hashtbl.find_opt w.origins e.origin with Some b -> b.read_only | None -> false)
@@ -191,8 +189,8 @@ let blame w s =
   in
   match List.sort compare names with
   | [ "this" ] -> "`this`, which is read-only in a method that is not `mut`"
-  | [ n ] -> quote n ^ ", a read-only parameter"
-  | ns -> String.concat " and " (List.map quote ns) ^ ", read-only parameters"
+  | [ n ] -> Env.quote n ^ ", a read-only parameter"
+  | ns -> String.concat " and " (List.map Env.quote ns) ^ ", read-only parameters"
 
 let error w span message = if w.report then Env.error span message
 
@@ -220,14 +218,6 @@ let add w (l : T.Local.t) p s =
     let old = taint_of w l in
     Hashtbl.replace w.taints l.T.Local.id (Taint.union old (under p s))
   end
-
-let signature_of (r : T.Verb_ref.t) =
-  match r.T.Verb_ref.owner with
-  | S.Declared id -> Hashtbl.find_opt Env.signatures id
-  | S.Intrinsic spelling ->
-      List.find_map
-        (fun (_, (sg : S.t)) -> if sg.S.owner = S.Intrinsic spelling then Some sg else None)
-        Intrinsics.methods
 
 let summary_of (r : T.Verb_ref.t) =
   match r.T.Verb_ref.owner with
@@ -295,7 +285,7 @@ let rec expr w (e : T.Expr.t) : Taint.t =
           fields
       in
       (* A field constructor's parameters are its fields, by name. *)
-      let params = match signature_of ctor with Some sg -> sg.S.params | None -> [] in
+      let params = match Env.signature_of ctor with Some sg -> sg.S.params | None -> [] in
       let taint_of_param (p : S.param) =
         Option.value ~default:Taint.empty (List.assoc_opt p.S.name taints)
       in
@@ -390,7 +380,7 @@ and arg w = function
 
 and call w (e : T.Expr.t) (callee : T.Verb_ref.t) taints args =
   let s = summary_of callee in
-  let sg = signature_of callee in
+  let sg = Env.signature_of callee in
   let tys =
     match sg with Some sg -> List.map (fun (p : S.param) -> p.S.ty) sg.S.params | None -> []
   in

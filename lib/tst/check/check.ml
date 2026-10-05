@@ -1635,6 +1635,7 @@ let declaration (d : decl) : T.Decl.t option =
   Option.map (fun node -> { T.Decl.id = d.id; span = d.span; node }) node
 
 let run () : T.Program.t =
+  Context.next_local := 0;
   Hashtbl.reset instance_keys;
   Hashtbl.reset instance_counts;
   Hashtbl.reset subscript_results;

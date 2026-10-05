@@ -93,8 +93,6 @@ type walk = {
   mutable grew : bool;
 }
 
-let quote s = "`" ^ s ^ "`"
-
 (* Whether block [b] is [d] or encloses it. *)
 let rec within w b d =
   b = d || match Hashtbl.find_opt w.parent d with Some p -> within w b p | None -> false
@@ -131,7 +129,6 @@ let result w (e : T.Expr.t) =
 
 let carries t = match t with Ty.Guest _ -> true | t -> Read_only.carries t
 let keep t n = if carries t then n else Names.empty
-let is_guest = function Ty.Guest _ -> true | _ -> false
 
 (* ---------------------------------------------------------------------- *)
 (* What a value names                                                     *)
@@ -146,8 +143,8 @@ let rec host w (e : T.Expr.t) =
   | T.Expr.Var _ -> Names.empty
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
     ->
-      if is_guest target.T.Expr.ty then names w target else host w target
-  | _ -> if is_guest e.T.Expr.ty then names w e else Names.empty
+      if Ty.is_guest target.T.Expr.ty then names w target else host w target
+  | _ -> if Ty.is_guest e.T.Expr.ty then names w e else Names.empty
 
 (* What a value of an expression names, before any store. *)
 and names w (e : T.Expr.t) =
@@ -157,7 +154,7 @@ and names w (e : T.Expr.t) =
     | T.Expr.Var (T.Name_ref.Global { name; _ }) -> Names.singleton (Global, name)
     | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } -> names w target
     | T.Expr.Case_read { target; _ } -> names w target
-    | T.Expr.Ref inner -> if is_guest inner.T.Expr.ty then names w inner else host w inner
+    | T.Expr.Ref inner -> if Ty.is_guest inner.T.Expr.ty then names w inner else host w inner
     | T.Expr.Spawn inner -> names w inner
     | T.Expr.Array_lit items ->
         let element =
@@ -176,7 +173,7 @@ and names w (e : T.Expr.t) =
         let subject, args =
           match (Guests.signature_of callee, args) with
           | Some sg, T.Arg.Value s :: rest when S.is_method sg ->
-              ((if is_guest s.T.Expr.ty then names w s else host w s), rest)
+              ((if Ty.is_guest s.T.Expr.ty then names w s else host w s), rest)
           | _ -> (Names.empty, args)
         in
         Names.union subject (passed w (Guests.param_types callee) args)
@@ -198,7 +195,7 @@ and names w (e : T.Expr.t) =
    guest minted from a place names that place's host. *)
 and stored w into (v : T.Expr.t) =
   keep into
-    (if is_guest into && not (is_guest v.T.Expr.ty) then host w v else names w v)
+    (if Ty.is_guest into && not (Ty.is_guest v.T.Expr.ty) then host w v else names w v)
 
 (* A verb may hand back a guest rooted in any parameter, so its result
    names what each argument names as that parameter takes it. *)
@@ -238,12 +235,12 @@ let check ?(via = "") w (at : T.Expr.t) dest (what : string) n =
               ((match dest with
                | Block _ ->
                    Printf.sprintf
-                     "this stores a guest to %s, whose block ends before %s's does" (quote name)
+                     "this stores a guest to %s, whose block ends before %s's does" (Env.quote name)
                      what
                | Caller | Global | Param _ ->
                    Printf.sprintf
                      "this stores a guest to %s in %s, which outlives the body %s is owned by"
-                     (quote name) what (quote name))
+                     (Env.quote name) what (Env.quote name))
               ^ via))
     n
 
@@ -257,7 +254,7 @@ let rec destination w (e : T.Expr.t) =
       Some
         ( o,
           (if param then None else Some l),
-          if param then "the caller's " ^ quote l.T.Local.name else quote l.T.Local.name )
+          if param then "the caller's " ^ Env.quote l.T.Local.name else Env.quote l.T.Local.name )
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
     ->
       destination w target
@@ -378,7 +375,7 @@ and rest w callee args =
     let name i =
       match sg with
       | Some sg -> (
-          match List.nth_opt sg.S.params i with Some p -> quote p.S.name | None -> "")
+          match List.nth_opt sg.S.params i with Some p -> Env.quote p.S.name | None -> "")
       | None -> ""
     in
     Rests.iter
@@ -387,21 +384,21 @@ and rest w callee args =
           match (args.(i), args.(j)) with
           | T.Arg.Value v, T.Arg.Value d ->
               let n =
-                if method_ && i = 0 then if is_guest v.T.Expr.ty then names w v else host w v
+                if method_ && i = 0 then if Ty.is_guest v.T.Expr.ty then names w v else host w v
                 else stored w tys.(i) v
               in
               let via =
                 match sg with
                 | Some sg ->
-                    Printf.sprintf " (%s keeps %s in %s)" (quote sg.S.name) (name i) (name j)
+                    Printf.sprintf " (%s keeps %s in %s)" (Env.quote sg.S.name) (name i) (name j)
                 | None -> ""
               in
               Names.iter
                 (fun (o, root) ->
                   let what =
                     match o with
-                    | Caller | Param _ -> "the caller's " ^ quote root
-                    | Global | Block _ -> quote root
+                    | Caller | Param _ -> "the caller's " ^ Env.quote root
+                    | Global | Block _ -> Env.quote root
                   in
                   check ~via w v o what n)
                 (host w d);
@@ -417,7 +414,7 @@ and root_local w (e : T.Expr.t) =
   | T.Expr.Var (T.Name_ref.Local l) when not (Hashtbl.mem w.params l.T.Local.id) -> Some l
   | T.Expr.Ref inner -> root_local w inner
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
-    when not (is_guest target.T.Expr.ty) ->
+    when not (Ty.is_guest target.T.Expr.ty) ->
       root_local w target
   | _ -> None
 
@@ -466,7 +463,7 @@ and stat w (s : T.Stat.t) =
       expr w value;
       Hashtbl.replace w.declared local.T.Local.id w.block;
       let n = stored w local.T.Local.ty value in
-      check w value (Block w.block) (quote local.T.Local.name) n;
+      check w value (Block w.block) (Env.quote local.T.Local.name) n;
       add w local n
   | T.Stat.Assign { target; value } -> (
       expr w value;

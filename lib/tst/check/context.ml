@@ -116,8 +116,6 @@ let rec definition ?(depth = 0) (t : Ty.t) : (Ty.type_id * definition) option =
       | _ -> None)
   | _ -> None
 
-let signature_home = function S.Package p -> Some (S.Package p) | h -> Some h
-
 let accessible_sig ctx (s : S.t) =
   match s.home with
   | S.Package p -> String.equal p ctx.package || not (is_private s.name)

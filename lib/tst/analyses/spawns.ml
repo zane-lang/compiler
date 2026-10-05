@@ -129,10 +129,6 @@ let find_multi bodies =
     bodies;
   !changed
 
-let signature_of = Read_only.signature_of
-
-let strip = function Ty.Guest t -> t | t -> t
-
 (* The types a type holds by owning edges: its members, what it is distinct
    from, a list's elements. A guest member holds none. *)
 let members (t : Ty.t) =
@@ -163,7 +159,7 @@ let rec contains ?(seen = []) outer inner =
 
 (* The types a place passes through, from the place itself to its root. *)
 let rec chain (e : T.Expr.t) =
-  strip e.T.Expr.ty
+  Ty.strip_guest e.T.Expr.ty
   ::
   (match e.T.Expr.node with
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
@@ -245,7 +241,7 @@ let walk_body (body : T.Block.t) =
           match (written, l.at) with
           | Some w, Some a -> overlap w a
           | _ ->
-              contains (strip e.T.Expr.ty) l.host || List.exists (fun c -> contains l.host c) types
+              contains (Ty.strip_guest e.T.Expr.ty) l.host || List.exists (fun c -> contains l.host c) types
         in
         match List.find_map (fun f -> List.find_opt clash f.lends) frames with
         | Some l ->
@@ -268,7 +264,7 @@ let walk_body (body : T.Block.t) =
     | t when Type_decls.is_reference t -> write frames e
     | _ -> ()
   in
-  let claim (e : T.Expr.t) p = { written = p; at = resolve p; ty = strip e.T.Expr.ty } in
+  let claim (e : T.Expr.t) p = { written = p; at = resolve p; ty = Ty.strip_guest e.T.Expr.ty } in
   let rec block frames often (b : T.Block.t) =
     let f = { declared = Hashtbl.create 8; often; borrows = []; lends = [] } in
     let frames = f :: frames in
@@ -321,7 +317,7 @@ let walk_body (body : T.Block.t) =
        parameter moves. *)
     (match e.T.Expr.node with
     | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } -> (
-        match signature_of callee with
+        match Env.signature_of callee with
         | Some sg ->
             (match args with
             | T.Arg.Value subject :: _ when sg.S.is_mut -> write frames subject
@@ -373,7 +369,7 @@ let walk_body (body : T.Block.t) =
     let inner = match e.T.Expr.node with T.Expr.Spawn inner -> inner | _ -> e in
     match inner.T.Expr.node with
     | T.Expr.Call { callee; args = T.Arg.Value subject :: rest; handler }
-      when (match signature_of callee with Some sg -> sg.S.is_mut | None -> false) ->
+      when (match Env.signature_of callee with Some sg -> sg.S.is_mut | None -> false) ->
         let owner = match subject.T.Expr.ty with Ty.Guest t -> t | t -> t in
         let reference = Type_decls.is_reference owner in
         if reference then
@@ -431,7 +427,7 @@ let walk_body (body : T.Block.t) =
   and lend frames args =
     List.iter
       (fun (a : T.Expr.t) ->
-        let host = strip a.T.Expr.ty in
+        let host = Ty.strip_guest a.T.Expr.ty in
         let lent =
           match a.T.Expr.ty with
           | Ty.Guest _ -> Some { at = origin a; host; through = a }

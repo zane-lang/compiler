@@ -27,11 +27,6 @@ let definition st (t : Tty.t) =
       | _ -> None)
   | _ -> None
 
-let is_guest = function Tty.Guest _ -> true | _ -> false
-
-(* What a guest names, or the type itself. *)
-let strip = function Tty.Guest t -> t | t -> t
-
 (* `@primitives$String`, the string view, and `@primitives$List<T>`: the
    storage primitives that are reference types, each a handle. *)
 let is_text = function
@@ -63,9 +58,9 @@ let reference st t =
 let inline st t =
   match (definition st t, array_of t) with
   | Some ((T.Decl.Struct ms | T.Decl.Variant ms), _), _ ->
-      List.filter (fun m -> not (is_guest m)) (List.map snd ms)
+      List.filter (fun m -> not (Tty.is_guest m)) (List.map snd ms)
   | Some (T.Decl.Distinct u, _), _ -> [ u ]
-  | None, Some (e, _) when not (is_guest e) -> [ e ]
+  | None, Some (e, _) when not (Tty.is_guest e) -> [ e ]
   | _ -> []
 
 (* adt.md §4: a member is boxed when its type leads back to the type that
@@ -73,7 +68,7 @@ let inline st t =
    A boxed member is a pointer to its payload's block. *)
 let boxed st holder member =
   let rec reaches seen t =
-    (not (is_guest t))
+    (not (Tty.is_guest t))
     && (Tty.equal t holder
        || (not (List.exists (Tty.equal t) seen)) && List.exists (reaches (t :: seen)) (inline st t))
   in
@@ -211,7 +206,7 @@ and layout st span (t : Tty.t) : Layout.t =
 
 (* Whether a local of this type is a host: a reference type's instance lives
    in its scope's arena (memory.md §3.3). A guest is a tether, not a host. *)
-let hosted st t = (not (is_guest t)) && reference st t
+let hosted st t = (not (Tty.is_guest t)) && reference st t
 
 (* Whether a place is reached through a host: a member or a case of a
    reference-type instance, or of one a guest names, an element of a list,
@@ -221,8 +216,8 @@ let hosted st t = (not (is_guest t)) && reference st t
 let rec through_host st (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Field { target; _ } | T.Expr.Case_read { target; _ } ->
-      is_guest target.T.Expr.ty || reference st (strip target.T.Expr.ty) || through_host st target
-  | T.Expr.Subscript { target; _ } when Option.is_some (array_of (strip target.T.Expr.ty)) ->
+      Tty.is_guest target.T.Expr.ty || reference st (Tty.strip_guest target.T.Expr.ty) || through_host st target
+  | T.Expr.Subscript { target; _ } when Option.is_some (array_of (Tty.strip_guest target.T.Expr.ty)) ->
       through_host st target
   | T.Expr.Subscript _ -> true
   | _ -> false
@@ -230,7 +225,7 @@ let rec through_host st (e : T.Expr.t) =
 (* Whether a value of this type owns a dynamic block (memory.md §3.6), which
    it returns when it dies and copies when it is copied. *)
 let owns st span t =
-  (not (is_guest t))
+  (not (Tty.is_guest t))
   && List.exists (fun (p : Layout.position) -> p.kind <> Layout.Host) (positions st span t 0 [])
 
 (* Whether a local of this type is held in its scope's arena: a host, or a
@@ -259,7 +254,7 @@ let case_of st span t index (payload : Expr.t) =
 
 (* The cases of a variant or enum, in declaration order. *)
 let cases st span t =
-  let t = strip t in
+  let t = Tty.strip_guest t in
   match definition st t with
   | Some (T.Decl.Variant cs, _) -> List.map fst cs
   | Some (T.Decl.Enum cs, _) -> cs
@@ -275,12 +270,12 @@ let case_index st span t case =
 
 (* The type a variant case carries, and a struct field. *)
 let payload_type st span t case =
-  match definition st (strip t) with
+  match definition st (Tty.strip_guest t) with
   | Some (T.Decl.Variant cs, _) -> (
       match List.assoc_opt case cs with Some c -> c | None -> unhandled span t)
   | _ -> unhandled span t
 
 let field_type st span t slot =
-  match definition st (strip t) with
+  match definition st (Tty.strip_guest t) with
   | Some (T.Decl.Struct ms, _) when slot < List.length ms -> snd (List.nth ms slot)
   | _ -> unhandled span t
