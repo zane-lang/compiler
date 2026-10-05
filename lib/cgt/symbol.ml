@@ -32,8 +32,8 @@ let rec ty_ stamp = function
   | Tty.Guest t -> "&" ^ ty_ stamp t
   | Tty.Concept c -> concept stamp c
   | Tty.Verb v -> verb_type stamp v
-  | Tty.Param p -> invalid_arg ("Symbol.ty: the type parameter " ^ p.Tty.name ^ " is not concrete")
-  | Tty.Error -> invalid_arg "Symbol.ty: an ill-typed type has no symbol"
+  | Tty.Param p -> Diagnostic.bug ("Symbol.ty: the type parameter " ^ p.Tty.name ^ " is not concrete")
+  | Tty.Error -> Diagnostic.bug "Symbol.ty: an ill-typed type has no symbol"
 
 and args_ stamp = function
   | [] -> ""
@@ -46,7 +46,7 @@ and arg stamp = function
 and number = function
   | Tty.Known n -> string_of_int n
   | Tty.Number_param p ->
-      invalid_arg ("Symbol.number: the number parameter " ^ p.Tty.name ^ " is not concrete")
+      Diagnostic.bug ("Symbol.number: the number parameter " ^ p.Tty.name ^ " is not concrete")
 
 and concept stamp = function
   | Tty.Integer_lit -> namespace "concepts" ^ "$Int"

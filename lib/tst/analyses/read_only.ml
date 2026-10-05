@@ -85,10 +85,7 @@ let rec carries ?(seen = []) (t : Ty.t) =
          match Hashtbl.find_opt Env.type_infos_by_id tid with
          | None -> false
          | Some info -> (
-             let s =
-               try List.combine (List.map (fun (p : Ty.param) -> p.Ty.id) info.Env.params) args
-               with Invalid_argument _ -> []
-             in
+             let s = Ty.bindings info.Env.params args in
              let seen = tid :: seen in
              match info.Env.definition with
              | Some (Env.Struct fs) | Some (Env.Variant fs) ->
@@ -110,9 +107,7 @@ let field_type (t : Ty.t) name =
       match Hashtbl.find_opt Env.type_infos_by_id tid with
       | Some { Env.definition = Some (Env.Struct fs); params; _ } -> (
           match List.assoc_opt name fs with
-          | Some ft -> (
-              let ids = List.map (fun (p : Ty.param) -> p.Ty.id) params in
-              try Some (Ty.subst (List.combine ids args) ft) with Invalid_argument _ -> Some ft)
+          | Some ft -> Some (Ty.instantiate params args ft)
           | None -> None)
       | _ -> None)
   | _ -> None

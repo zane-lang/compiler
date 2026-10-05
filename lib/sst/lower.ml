@@ -139,7 +139,7 @@ and expression (x : C.Expr.t) : S.Expr.t =
   | node ->
       let node =
         match node with
-        | C.Expr.Parenthized _ -> assert false
+        | C.Expr.Parenthized _ -> Diagnostic.bug "Sst.Lower: parentheses reached the inner match"
         | C.Expr.IntLit s -> S.Expr.IntLit s
         | C.Expr.DecimalLit s -> S.Expr.DecimalLit s
         | C.Expr.StrLit s -> S.Expr.StrLit s
@@ -388,7 +388,7 @@ and match_arm (x : C.Match_arm.t) : S.Match_arm.t list =
            below would silently drop the arm, which is the one outcome worth
            refusing outright. *)
         (match pattern.C.Match_pattern.cases with
-        | [] -> invalid_arg "Sst.Lower: a match pattern selects no case"
+        | [] -> Diagnostic.bug "Sst.Lower: a match pattern selects no case"
         | cases ->
             List.concat_map
               (fun case ->
@@ -596,7 +596,7 @@ and declared_operator (x : C.Operator.t) : S.Operator.t =
     | C.Operator.Less -> S.Operator.Less
     | C.Operator.Sub | C.Operator.NotEq | C.Operator.More | C.Operator.LessEq
     | C.Operator.MoreEq ->
-        invalid_arg
+        Diagnostic.bug ~span
           "Sst.Lower: a derived operator reached a declaration; the grammar \
            admits only the primitives there"
   in

@@ -132,7 +132,7 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
   | T.Expr.Init fields -> fields_ w e.T.Expr.ty fields
   | T.Expr.Construct_fields { ctor; fields; handler } ->
       fields_ w
-        (match Guests.signature_of ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty)
+        (match Env.signature_of ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty)
         fields;
       opt_handler w into handler
   | T.Expr.Match m ->
@@ -153,7 +153,7 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
       opt_handler w into m.T.Match.handler
   | T.Expr.Call { callee; args; handler } | T.Expr.Construct { ctor = callee; args; handler } ->
       let args =
-        match (Guests.signature_of callee, args) with
+        match (Env.signature_of callee, args) with
         | Some sg, subject :: rest when S.is_method sg ->
             arg w subject;
             rest
@@ -176,7 +176,7 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
   | T.Expr.Op { left; right; impl; swapped; handler; _ } ->
       let args = if swapped then [ right; left ] else [ left; right ] in
       let tys =
-        match Guests.signature_of impl with
+        match Env.signature_of impl with
         (* An intrinsic operator reads its operands (docs/design/semantics.md §9). *)
         | Some { S.owner = S.Intrinsic _; _ } | None -> []
         | Some _ -> Guests.param_types ~subject:true impl

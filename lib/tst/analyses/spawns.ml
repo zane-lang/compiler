@@ -135,10 +135,8 @@ let members (t : Ty.t) =
   match t with
   | Ty.Named (tid, args) -> (
       match Type_decls.type_info_of_id tid with
-      | Some info when List.length info.Env.params = List.length args -> (
-          let sub =
-            Ty.subst (List.combine (List.map (fun (p : Ty.param) -> p.id) info.Env.params) args)
-          in
+      | Some info -> (
+          let sub = Ty.instantiate info.Env.params args in
           match info.Env.definition with
           | Some (Env.Struct fs | Env.Variant fs) -> List.map (fun (_, m) -> sub m) fs
           | Some (Env.Distinct u) -> [ sub u ]

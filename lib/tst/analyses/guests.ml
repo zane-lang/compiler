@@ -48,9 +48,7 @@ let member_type (t : Ty.t) name =
       match Hashtbl.find_opt Env.type_infos_by_id tid with
       | Some { Env.definition = Some (Env.Struct ms | Env.Variant ms); params; _ } -> (
           match List.assoc_opt name ms with
-          | Some mt -> (
-              let ids = List.map (fun (p : Ty.param) -> p.Ty.id) params in
-              try Some (Ty.subst (List.combine ids args) mt) with Invalid_argument _ -> Some mt)
+          | Some mt -> Some (Ty.instantiate params args mt)
           | None -> None)
       | _ -> None)
   | _ -> None

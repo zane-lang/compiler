@@ -186,6 +186,20 @@ and subst_concept s = function
   | Map_lit (k, v) -> Map_lit (subst s k, subst s v)
   | c -> c
 
+(* What each of a generic's [params] stands for, given its [args]. The counts
+   always agree: [Type_decls.apply_args] reports a wrong count in the program
+   and builds no type from it, so a [Named] type with the wrong number of
+   arguments is a compiler bug. *)
+let bindings (params : param list) (args : arg list) : subst =
+  if List.compare_lengths params args <> 0 then
+    Diagnostic.bug
+      (Printf.sprintf "Ty.bindings: %d arguments for %d parameters" (List.length args)
+         (List.length params))
+  else List.map2 (fun p a -> (p.id, a)) params args
+
+(* [t], a generic's member, at the generic's [args]. *)
+let instantiate params args t = subst (bindings params args) t
+
 (* The parameters a type still mentions, first occurrence first. *)
 let free_params t =
   let seen = ref [] in

@@ -94,6 +94,12 @@ let bind_explicit (p : Ty.param) (a : actual) subst =
   | _, T.Arg.Value { T.Expr.ty = Ty.Error; _ } -> Some subst
   | _ -> None
 
+(* Every element, when none is missing. *)
+let all_some xs =
+  List.fold_right
+    (fun x acc -> match (x, acc) with Some x, Some acc -> Some (x :: acc) | _ -> None)
+    xs (Some [])
+
 let try_candidate ~phase (s : S.t) (slots : actual option list) : outcome option =
   if List.length slots <> List.length s.params then None
   else if phase = Direct && s.generics <> [] then None
@@ -172,15 +178,10 @@ let try_candidate ~phase (s : S.t) (slots : actual option list) : outcome option
                 | _ -> None)
               pairs marks
           in
-          if List.exists Option.is_none converted then None
-          else
-            Some
-              {
-                sig_ = s;
-                subst;
-                converted = List.map Option.get converted;
-                site_errors = List.rev !site_errors;
-              }
+          match all_some converted with
+          | None -> None
+          | Some converted ->
+              Some { sig_ = s; subst; converted; site_errors = List.rev !site_errors }
         end
 
 type resolution = Resolved of outcome | No_match | Ambiguous of S.t list

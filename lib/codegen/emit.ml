@@ -97,7 +97,7 @@ let runtime env name =
             Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.ptr |]
         | "zane_writeback" ->
             Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.i64; env.ptr |]
-        | _ -> failwith ("codegen: unknown runtime function " ^ name)
+        | _ -> Diagnostic.bug ("codegen: unknown runtime function " ^ name)
       in
       let f = Llvm.declare_function name fty env.m in
       Hashtbl.replace env.funcs name (f, fty);
@@ -258,18 +258,28 @@ let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
   | Ty.I1, Expr.Add -> Llvm.build_or l r "" b
   | Ty.I1, Expr.Mul -> Llvm.build_and l r "" b
   | _ ->
-      failwith
+      Diagnostic.bug
         (Printf.sprintf "codegen: no `%s` on %s" (Expr.binop_to_string op) (Ty.to_string t))
 
 (* ---------------------------------------------------------------------- *)
 (* Expressions and statements                                             *)
 (* ---------------------------------------------------------------------- *)
 
-let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
+(* An expression that has a value: anything but a [Void] one, which lowering
+   never puts where a value is used. *)
+let rec value_of env fr b (e : Expr.t) : Llvm.llvalue =
+  match expr env fr b e with
+  | Some v -> v
+  | None ->
+      Diagnostic.bug
+        (Printf.sprintf "codegen: a %s of type %s has no value" (Expr.kind e.Expr.node)
+           (Ty.to_string e.Expr.ty))
+
+and expr env fr b (e : Expr.t) : Llvm.llvalue option =
   match e.Expr.node with
   | Expr.Int i -> Some (Llvm.const_of_int64 (lltype env e.Expr.ty) i true)
   | Expr.Offset { base; within; path } ->
-      let base = Option.get (expr env fr b base) in
+      let base = value_of env fr b base in
       let at, _ =
         List.fold_left
           (fun (p, t) i ->
@@ -278,16 +288,16 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
             (* A sum's payload room holds case [i]'s payload. *)
             | Ty.Sum ts when List.nth ts i = Ty.Void -> (p, Ty.Void)
             | Ty.Sum ts -> (Llvm.build_struct_gep (lltype env t) p 1 "" b, List.nth ts i)
-            | _ -> failwith "codegen: an offset through something not a struct")
+            | _ -> Diagnostic.bug "codegen: an offset through something not a struct")
           (base, within) path
       in
       Some at
-  | Expr.Mint p -> Some (call_runtime env b "zane_mint" [| Option.get (expr env fr b p) |])
-  | Expr.Resolve t -> Some (call_runtime env b "zane_resolve" [| Option.get (expr env fr b t) |])
+  | Expr.Mint p -> Some (call_runtime env b "zane_mint" [| value_of env fr b p |])
+  | Expr.Resolve t -> Some (call_runtime env b "zane_resolve" [| value_of env fr b t |])
   | Expr.Terminal t ->
-      Some (call_runtime env b "zane_terminal" [| Option.get (expr env fr b t) |])
+      Some (call_runtime env b "zane_terminal" [| value_of env fr b t |])
   | Expr.Take { address; layout = l } -> (
-      let p = Option.get (expr env fr b address) in
+      let p = value_of env fr b address in
       match e.Expr.ty with
       | Ty.Void -> None
       | t ->
@@ -311,7 +321,7 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
   | Expr.Function fn -> Some (fst (Hashtbl.find env.funcs fn))
   | Expr.Global g -> Some (Hashtbl.find env.globals g)
   | Expr.Snapshot p -> (
-      let p = Option.get (expr env fr b p) in
+      let p = value_of env fr b p in
       match e.Expr.ty with
       | Ty.Void -> None
       | t ->
@@ -382,7 +392,7 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
   | Expr.Call_value { fn; args } ->
       (* The function's type is its arguments' and its result's, which the
          tree gives, as for a direct call. *)
-      let f = Option.get (expr env fr b fn) in
+      let f = value_of env fr b fn in
       let fty = fn_type env (List.map (fun (a : Expr.t) -> a.Expr.ty) args) e.Expr.ty in
       let args = Array.of_list (List.filter_map (expr env fr b) args) in
       let v = Llvm.build_call fty f args "" b in
@@ -412,13 +422,13 @@ let rec expr env fr b (e : Expr.t) : Llvm.llvalue option =
       let l = expr env fr b left in
       match (l, expr env fr b right) with
       | Some l, Some r -> Some (binary env fr b op left.Expr.ty l r)
-      | _ -> failwith "codegen: an operand has no value")
+      | _ -> Diagnostic.bug "codegen: an operand has no value")
   | Expr.Flip value -> (
       match (value.Expr.ty, expr env fr b value) with
       | (Ty.I64 | Ty.I32), Some v -> Some (Llvm.build_neg v "" b)
       | Ty.F64, Some v -> Some (Llvm.build_fneg v "" b)
       | Ty.I1, Some v -> Some (Llvm.build_not v "" b)
-      | _ -> failwith "codegen: `~` on a value it does not flip")
+      | _ -> Diagnostic.bug "codegen: `~` on a value it does not flip")
   | Expr.Expand { label; body; result } ->
       Option.iter (fun id -> ignore (slot env fr id (lltype env e.Expr.ty))) result;
       let exit = block env fr in
@@ -445,13 +455,13 @@ and stat env fr b (s : Stat.t) =
               (fun (p, t) i ->
                 match t with
                 | Ty.Struct ts -> (Llvm.build_struct_gep (lltype env t) p i "" b, List.nth ts i)
-                | _ -> failwith "codegen: a member path through something not a struct")
+                | _ -> Diagnostic.bug "codegen: a member path through something not a struct")
               (base, place.Expr.ty) place.Expr.path
           in
           ignore (Llvm.build_store v target b)
       | _ -> ())
   | Stat.Switch { value; cases } ->
-      let v = Option.get (expr env fr b value) in
+      let v = value_of env fr b value in
       let tag = Llvm.build_extractvalue v 0 "" b in
       let after = block env fr and otherwise = block env fr in
       let sw = Llvm.build_switch tag otherwise (List.length cases) b in
@@ -499,13 +509,13 @@ and stat env fr b (s : Stat.t) =
       let slot = call_runtime env b "zane_slot" [| arena; n size; n align; layout env l |] in
       Hashtbl.replace fr.locals id (slot, lltype env t)
   | Stat.Place { address; value; layout = l } -> (
-      let p = Option.get (expr env fr b address) in
+      let p = value_of env fr b address in
       match expr env fr b value with Some v -> place env b p v l | None -> ())
   | Stat.Store { address; value } -> (
-      let p = Option.get (expr env fr b address) in
+      let p = value_of env fr b address in
       match expr env fr b value with Some v -> ignore (Llvm.build_store v p b) | None -> ())
   | Stat.Overwrite { address; value; layout = l; contingent } -> (
-      let p = Option.get (expr env fr b address) in
+      let p = value_of env fr b address in
       match expr env fr b value with
       | None -> ()
       | Some v ->
@@ -516,7 +526,7 @@ and stat env fr b (s : Stat.t) =
           ignore
             (call_runtime env b "zane_overwrite" [| p; incoming; size; layout env l; contingent |]))
   | Stat.If { cond; body } ->
-      let c = Option.get (expr env fr b cond) in
+      let c = value_of env fr b cond in
       let taken = block env fr and after = block env fr in
       ignore (Llvm.build_cond_br c taken after b);
       Llvm.position_at_end taken b;
@@ -525,7 +535,7 @@ and stat env fr b (s : Stat.t) =
       Llvm.position_at_end after b
   | Stat.Repeat { count; body } ->
       (* The count is read once; a count below one runs the body no times. *)
-      let n = Option.get (expr env fr b count) in
+      let n = value_of env fr b count in
       let i = alloca env fr env.i64 in
       ignore (Llvm.build_store (Llvm.const_int env.i64 0) i b);
       let head = block env fr and step = block env fr and after = block env fr in
@@ -654,6 +664,6 @@ let program (p : Program.t) =
     (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
     p.Program.funcs;
   (match Llvm_analysis.verify_module m with
-  | Some problem -> failwith ("codegen built an invalid module: " ^ problem)
+  | Some problem -> Diagnostic.bug ("codegen built an invalid module: " ^ problem)
   | None -> ());
   m

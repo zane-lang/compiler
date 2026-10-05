@@ -167,11 +167,11 @@ and names w (e : T.Expr.t) =
     | T.Expr.Init fields -> fields_names w e.T.Expr.ty fields
     | T.Expr.Construct_fields { ctor; fields; _ } ->
         fields_names w
-          (match Guests.signature_of ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty)
+          (match Env.signature_of ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty)
           fields
     | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } ->
         let subject, args =
-          match (Guests.signature_of callee, args) with
+          match (Env.signature_of callee, args) with
           | Some sg, T.Arg.Value s :: rest when S.is_method sg ->
               ((if Ty.is_guest s.T.Expr.ty then names w s else host w s), rest)
           | _ -> (Names.empty, args)
@@ -368,7 +368,7 @@ let rec expr w (e : T.Expr.t) =
 and rest w callee args =
   let rs = summary_of callee in
   if not (Rests.is_empty rs) then begin
-    let sg = Guests.signature_of callee in
+    let sg = Env.signature_of callee in
     let method_ = match sg with Some sg -> S.is_method sg | None -> false in
     let tys = Array.of_list (Guests.param_types ~subject:true callee) in
     let args = Array.of_list args in

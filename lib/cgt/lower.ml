@@ -14,8 +14,6 @@ module S = Tst.Signature
 module Tty = Tst.Ty
 open Nodes
 
-type problem = State.problem = Diagnostic of Diagnostic.t | Message of string
-
 open State
 open Type_layout
 open Literals
@@ -302,7 +300,11 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
          move its elements, and the value moves into the new last element. *)
       match args with
       | [ T.Arg.Value list; T.Arg.Value value ] ->
-          let t = Option.get (element (strip list.T.Expr.ty)) in
+          let t =
+            match element (Tty.strip_guest list.T.Expr.ty) with
+            | Some t -> t
+            | None -> Diagnostic.bug ~span "lowering: `push` onto something not a list"
+          in
           let taken = moved st ctx span t value in
           let v = fresh st in
           let at = fresh st in
@@ -373,7 +375,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       call st ctx span (verb_of st id instance) [ T.Arg.Value value ] handler e.T.Expr.ty
   | T.Expr.Field { target; slot; _ } ->
       let t = ty st span e.T.Expr.ty in
-      let owner = strip target.T.Expr.ty in
+      let owner = Tty.strip_guest target.T.Expr.ty in
       let index = member_index st owner slot in
       if boxed st owner (field_type st span owner slot) then
         (* A boxed member's payload is in its block. A fresh value is held
@@ -382,7 +384,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
         match addr st ctx span e with
         | Some p -> { Expr.node = Expr.Deref p; ty = t }
         | None -> refuse span "lowering expected a boxed member to have a place"
-      else if is_guest target.T.Expr.ty then
+      else if Tty.is_guest target.T.Expr.ty then
         (* Read through the guest, where its host is now (memory.md §4.4). *)
         let base = resolve (expr st ctx target) in
         let within = ty st span owner in
@@ -418,7 +420,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | Some _ -> { Expr.node = Expr.Deref (constant st decl); ty = ty st span e.T.Expr.ty }
       | None -> refuse span "lowering found no package constant here")
   | T.Expr.Call_value { callee; args; handler } -> (
-      match strip callee.T.Expr.ty with
+      match Tty.strip_guest callee.T.Expr.ty with
       | Tty.Verb fv ->
           let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
           let fn = value_of st ctx callee in
@@ -446,7 +448,7 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
   | "List", [ _ ] ->
       { Expr.node = Expr.Runtime { fn = "zane_list_new"; args = [] }; ty = Nodes.Ty.Handle }
   | "Array", [ T.Arg.Value v ] -> (
-      match ((literal_of ctx v).T.Expr.node, array_of (strip t)) with
+      match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_guest t)) with
       | T.Expr.Array_lit values, Some (e, n) when List.length values = n ->
           let element i v = (i, moved st ctx span e v) in
           { Expr.node = Expr.Record (List.mapi element values); ty = ty st span t }
@@ -524,8 +526,8 @@ and record st ctx span t (fields : T.Field_value.t list) =
 (* A value read where its type's own storage is wanted: through a guest, the
    host it names. *)
 and value_of st ctx (e : T.Expr.t) =
-  if is_guest e.T.Expr.ty then
-    let t = ty st e.T.Expr.span (strip e.T.Expr.ty) in
+  if Tty.is_guest e.T.Expr.ty then
+    let t = ty st e.T.Expr.span (Tty.strip_guest e.T.Expr.ty) in
     { Expr.node = Expr.Deref (resolve (expr st ctx e)); ty = t }
   else read st ctx e
 
@@ -542,7 +544,7 @@ and read st ctx (e : T.Expr.t) =
 (* The address of the value a place holds (L10): through a guest, the host
    it names now (memory.md §4.4); otherwise the place's own storage. *)
 and addr st ctx span (e : T.Expr.t) : Expr.t option =
-  if is_guest e.T.Expr.ty then Some (resolve (expr st ctx e)) else storage st ctx span e
+  if Tty.is_guest e.T.Expr.ty then Some (resolve (expr st ctx e)) else storage st ctx span e
 
 (* The address of a place's own storage: a local's slot, a `mut` subject's
    or swallowed argument's pointer, and a member of what any place holds. *)
@@ -555,7 +557,7 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
       | Future { settle; at = Some p } -> Some (joined st (settle ()) p)
       | _ -> None)
   | T.Expr.Field { target; slot; _ } ->
-      let owner = strip target.T.Expr.ty in
+      let owner = Tty.strip_guest target.T.Expr.ty in
       let base =
         match addr st ctx span target with
         | Some base -> Some base
@@ -592,7 +594,7 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
 (* A guest to a place, minted, or an existing guest copied as the identity
    it ends at (memory.md §2.6, §4.4). *)
 and guest st ctx span (e : T.Expr.t) =
-  if is_guest e.T.Expr.ty then { Expr.node = Expr.Terminal (expr st ctx e); ty = Nodes.Ty.I32 }
+  if Tty.is_guest e.T.Expr.ty then { Expr.node = Expr.Terminal (expr st ctx e); ty = Nodes.Ty.I32 }
   else
     match addr st ctx span e with
     | Some p -> { Expr.node = Expr.Mint p; ty = Nodes.Ty.I32 }
@@ -602,8 +604,8 @@ and guest st ctx span (e : T.Expr.t) =
    or copied, and a reference-type host read from a place moves, which
    spends the place (memory.md §3.7). *)
 and moved st ctx span dst (e : T.Expr.t) =
-  if is_guest dst then guest st ctx span e
-  else if hosted st dst && not (is_guest e.T.Expr.ty) then
+  if Tty.is_guest dst then guest st ctx span e
+  else if hosted st dst && not (Tty.is_guest e.T.Expr.ty) then
     match e.T.Expr.node with
     | T.Expr.Var _ | T.Expr.Field _ -> (
         match addr st ctx span e with
@@ -623,7 +625,7 @@ and moved st ctx span dst (e : T.Expr.t) =
    making a fresh one: a place, a member of any value, which a fresh value
    is borrowed for, an element, or what a case read gives. *)
 and is_place (e : T.Expr.t) =
-  is_guest e.T.Expr.ty
+  Tty.is_guest e.T.Expr.ty
   ||
   match e.T.Expr.node with
   | T.Expr.Var _ | T.Expr.Field _ | T.Expr.Subscript _ | T.Expr.Case_read _ -> true
@@ -677,7 +679,7 @@ and match_ st ctx span scrutinees (arms : T.Arm.t list) handler ret =
   let stored =
     List.map
       (fun (e : T.Expr.t) ->
-        let tsty = strip e.T.Expr.ty in
+        let tsty = Tty.strip_guest e.T.Expr.ty in
         let within = ty st span tsty in
         let lets, pointer =
           match addr st ctx span e with
@@ -815,7 +817,7 @@ and case_read st ctx span (target : T.Expr.t) case handler ret =
     let value = borrow st ctx span target in
     let id = fresh st in
     let live = case_index st span target.T.Expr.ty case in
-    let tsty = strip target.T.Expr.ty in
+    let tsty = Tty.strip_guest target.T.Expr.ty in
     let source = sum_of st span tsty { Expr.node = Expr.Local id; ty = value.Expr.ty } in
     let payload i = { Expr.node = Expr.Payload { value = source; index = i }; ty = t } in
     let cases =
@@ -834,7 +836,7 @@ and case_read st ctx span (target : T.Expr.t) case handler ret =
    owns blocks of its own. *)
 and case_place st ctx span (target : T.Expr.t) case handler ret =
   let t = ty st span ret in
-  let tsty = strip target.T.Expr.ty in
+  let tsty = Tty.strip_guest target.T.Expr.ty in
   let within = ty st span tsty in
   let label = fresh st in
   let result = fresh st in
@@ -878,7 +880,7 @@ and subscript st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
   let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
   match (impl.owner, args) with
   | S.Intrinsic "@primitives$[]", [ index ] -> (
-      match (element (strip target.T.Expr.ty), array_of (strip target.T.Expr.ty)) with
+      match (element (Tty.strip_guest target.T.Expr.ty), array_of (Tty.strip_guest target.T.Expr.ty)) with
       | Some t, _ ->
           ptr
             (Expr.Runtime
@@ -1007,7 +1009,12 @@ and construct_fields st ctx span verb (fields : T.Field_value.t list) handler re
         in
         let lets = List.concat_map (fun (_, l, _) -> l) stored in
         let in_slot slot = List.find_map (fun (s, _, a) -> if s = slot then Some a else None) stored in
-        let slots = List.init (List.length given) (fun slot -> Option.get (in_slot slot)) in
+        let slots =
+          List.init (List.length given) (fun slot ->
+              match in_slot slot with
+              | Some a -> a
+              | None -> Diagnostic.bug ~span (Printf.sprintf "lowering: argument slot %d is empty" slot))
+        in
         let value =
           if expands v then
             let arg = function `Arg a -> a | `Value _ -> refuse span "lowering expected an argument" in
@@ -1075,7 +1082,7 @@ and spawn st ctx span (e : T.Expr.t) =
       let v, args = wrapped st span callee args e.T.Expr.ty in
       spawn_call st ctx span v None ~writes:false args handler
   | T.Expr.Call_value { callee; args; handler } -> (
-      match strip callee.T.Expr.ty with
+      match Tty.strip_guest callee.T.Expr.ty with
       | Tty.Verb fv ->
           let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
           let fn = value_of st ctx callee in
@@ -1283,7 +1290,11 @@ and spawn_call st ctx span v fn ~writes passed handler =
   if plain o then
     (pre @ [ spawned ], Future { settle = (fun () -> [ Stat.Join task ]); at = slot })
   else
-    let slot = Option.get slot in
+    let slot =
+      match slot with
+      | Some slot -> slot
+      | None -> Diagnostic.bug ~span "lowering: a spawn with an outcome has nowhere to put it"
+    in
     let pending = fresh st in
     let payload i = ptr (Expr.Offset { base = slot; within = whole; path = [ i ] }) in
     let settle () =
@@ -1331,7 +1342,7 @@ and spawn_call st ctx span v fn ~writes passed handler =
    a value is borrowed. *)
 and argument st ctx span v (p : T.Local.t) a =
   if by_address st v p then lend st ctx span a
-  else if is_guest p.T.Local.ty then guest st ctx span a
+  else if Tty.is_guest p.T.Local.ty then guest st ctx span a
   else borrow st ctx span a
 
 (* L12. A call that can end more than one way is switched on how it ended:
@@ -1430,7 +1441,7 @@ and expand st ctx span v args handler ret =
                    [])
            | ( T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); T.Expr.ty = at; _ },
                _ )
-             when (p.T.Local.name = "this" || hosted st p.T.Local.ty) && not (is_guest at) -> (
+             when (p.T.Local.name = "this" || hosted st p.T.Local.ty) && not (Tty.is_guest at) -> (
                match lookup ctx span l with
                | (Slot _ | Pointer _) as b ->
                    bind p b;
@@ -1449,7 +1460,7 @@ and expand st ctx span v args handler ret =
                [ Stat.Let { id; value } ]
            | T.Arg.Value a, _ ->
                let value =
-                 if is_guest p.T.Local.ty then guest st ctx span a else borrow st ctx span a
+                 if Tty.is_guest p.T.Local.ty then guest st ctx span a else borrow st ctx span a
                in
                let id = fresh st in
                bind p (Slot id);
@@ -1606,7 +1617,7 @@ and place st ctx span (target : T.Expr.t) : Expr.place option =
          call has returned. *)
       | Future _ -> None
       | _ -> refuse span "lowering expected a place here")
-  | T.Expr.Field { target = inner; _ } when is_guest inner.T.Expr.ty -> None
+  | T.Expr.Field { target = inner; _ } when Tty.is_guest inner.T.Expr.ty -> None
   | T.Expr.Field { target = inner; slot; _ } ->
       Option.map
         (fun (p : Expr.place) ->
@@ -1780,33 +1791,7 @@ let program ?(library = false) (p : T.Program.t) =
   let has_stamp p = String.contains p '%' in
   let stamp p = if Some p = library && not (has_stamp p) then "!" else "" in
   let stamped p = Some p <> root && has_stamp p in
-  let st =
-    {
-      verbs = Hashtbl.create 64;
-      types = Hashtbl.create 64;
-      maps = Hashtbl.create 16;
-      constants = Hashtbl.create 16;
-      made = Queue.create ();
-      expanded = ref 0;
-      intrinsics = ref 0;
-      globals = [];
-      defaults = Hashtbl.create 8;
-      lambdas = [];
-      layouts = Hashtbl.create 16;
-      named = [];
-      symbols = Hashtbl.create 64;
-      pending = Queue.create ();
-      next = 0;
-      returns = Fun.id;
-      ret = Tty.Error;
-      spawned = [];
-      library;
-      stamp;
-      stamped;
-      exported = Hashtbl.create 8;
-      imported = Hashtbl.create 8;
-    }
-  in
+  let st = create ~library ~stamp ~stamped in
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };
@@ -1869,7 +1854,7 @@ let program ?(library = false) (p : T.Program.t) =
     let root =
       match p.T.Program.packages with
       | r :: _ -> r
-      | [] -> raise (Refused (Message "no packages"))
+      | [] -> Diagnostic.bug "lowering: assembly gave it no packages"
     in
     (* In the order calls first reach them, the roots first. *)
     let rec drain acc =
@@ -1902,11 +1887,9 @@ let program ?(library = false) (p : T.Program.t) =
       in
       match main with
       | None ->
-          raise
-            (Refused
-               (Message
-                  (Printf.sprintf "the root package `%s` declares no `main` to start from"
-                     root.T.Package.name)))
+          Diagnostic.bug
+            (Printf.sprintf "lowering: the root package `%s` declares no `main`"
+               root.T.Package.name)
       | Some main ->
           (* The runtime calls `main` and reads no outcome from it. *)
           let span = main.body.T.Block.span in
@@ -1943,4 +1926,4 @@ let program ?(library = false) (p : T.Program.t) =
               }
             in
             finish ~start:[ start ] (Some "zane.start")
-  with Refused problem -> Error problem
+  with Refused d -> Error d

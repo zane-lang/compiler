@@ -16,8 +16,8 @@ let definition st (t : Tty.t) =
   match t with
   | Tty.Named ({ package; name }, args) -> (
       match Hashtbl.find_opt st.types (package, name) with
-      | Some (params, definition, reference) when List.length params = List.length args -> (
-          let sub = Tty.subst (List.map2 (fun (p : Tty.param) a -> (p.id, a)) params args) in
+      | Some (params, definition, reference) -> (
+          let sub = Tty.instantiate params args in
           let members = List.map (fun (n, m) -> (n, sub m)) in
           match definition with
           | T.Decl.Struct ms -> Some (T.Decl.Struct (members ms), reference)
@@ -107,8 +107,9 @@ let rec ty st span (t : Tty.t) : Nodes.Ty.t =
       | _ -> unhandled span t)
   | Tty.Guest _ -> Nodes.Ty.I32
   | Tty.Verb _ -> Nodes.Ty.Ptr
-  | _ when Option.is_some (array_of t) ->
-      let e, n = Option.get (array_of t) in
+  | Tty.Intrinsic
+      { namespace = "primitives"; name = "Array"; args = [ Tty.Type e; Tty.Number (Tty.Known n) ] }
+    ->
       Nodes.Ty.Array (ty st span e, n)
   | Tty.Named _ -> (
       let member m = if boxed st t m then Nodes.Ty.Ptr else ty st span m in
@@ -148,8 +149,9 @@ let rec positions st span (t : Tty.t) base tags : Layout.position list =
       let elements = layout st span e in
       [ at Layout.Host handle; at (Layout.List { stride = stride st span e; elements }) handle ]
   | _ when is_text t -> [ at Layout.Host handle; at Layout.Text handle ]
-  | _ when Option.is_some (array_of t) -> (
-      let e, n = Option.get (array_of t) in
+  | ( Tty.Intrinsic
+        { namespace = "primitives"; name = "Array"; args = [ Tty.Type e; Tty.Number (Tty.Known n) ] },
+      _ ) -> (
       match positions st span e base tags with
       | [] -> []
       | _ ->
