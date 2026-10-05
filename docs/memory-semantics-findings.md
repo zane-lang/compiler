@@ -29,6 +29,7 @@ Findings are numbered and classified:
 |---|---|---|---|
 | 6 | Bug | `lambdas` | A call through a function value records no resting place, so a reference dangles and a write through it corrupts a live object |
 | 7 | Bug | `deepvalue` | Overwriting a recursive value deeper than about 22,700 levels overflows the C stack and segfaults |
+| 10 | Bug | `binders` | A match binder dangles once its arm overwrites the scrutinee |
 | 9 | Bug | `aliasing` | A borrowed list element or payload is freed by the same call's `mut` subject, and then read |
 | 8 | Bug | `aliasing` | A value parameter is passed by copy, which `v!setFrom(v)` observes; memory.md §2.9 makes it a borrow |
 | 1 | Bug | `reflist` | Nothing can be pushed into a `List<&T>` |
@@ -153,6 +154,36 @@ Consequences of the spec worth knowing, all correctly implemented:
   cleanly. The spec states no limit.
 
 ## Findings
+
+### 10. A match binder dangles after its arm overwrites the scrutinee (bug)
+
+Probe `binders`. The compiler makes a binder the payload's place, not a copy
+(`design/semantics.md` §9: "A `match` binder is its case's payload"), and
+adt.md §5 agrees that it "behaves as that case's payload" and that the
+scrutinee "stays in scope". Nothing stops the arm from overwriting the
+scrutinee, which destroys the payload under the binder:
+
+```zane
+n Int = match (slot) {
+	e full {
+		slot = Slot.empty(Unit());   // destroys e's payload
+		churn();                     // reuses its blocks
+		return e.power;              // not 42
+	}
+	u empty => Int(0);
+}
+```
+
+For a `#variant` the read returns garbage. For a value `variant` with a
+`String` payload, returning the binder copies a string through a freed
+handle: the unoptimized build stops with `zane runtime: out of memory for a
+dynamic chunk` (status 134) and the optimized build prints `NO` and exits 0,
+so the two builds disagree, as undefined behaviour may.
+
+The fix is the binder's counterpart of 9: while a binder is live, its
+scrutinee may not be overwritten, nor be a `mut` subject (a `mut` method
+could change its case), in the arm. The spec should state it; adt.md is
+silent.
 
 ### 9. A call's `mut` subject frees what its borrow names (bug)
 

@@ -1,0 +1,7 @@
+== checks; building and running
+binder after its scrutinee is overwritten (reference) NO
+zane runtime: out of memory for a dynamic chunk
+== the optimized build differs (exit 0):
+binder after its scrutinee is overwritten (reference) NO
+binder after its scrutinee is overwritten (value) NO
+== exit 134
