@@ -1,0 +1,5 @@
+== checks; building and running
+victim untouched (lambda-variable) NO
+victim untouched (function parameter) NO
+victim untouched (carried, pushed) NO
+== exit 0

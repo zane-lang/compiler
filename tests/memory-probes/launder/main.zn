@@ -68,12 +68,14 @@ Unit main() {
 	arr @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([r, r]);
 	plugs List<Plug> = @primitives$List(Plug);
 	plugs!push(Plug(far));
+	passer &Port(p &Port) => p;
 	inner({
 		near Port(Int(2));
 		tmp &Port = near;
 		r = tmp;                              // ILLEGAL: through a local
 		r = pass(near);                       // ILLEGAL: through a call result
 		r = frame:pick(near);                 // ILLEGAL: through a method result
+		r = passer(near);                     // ILLEGAL: through a function value's result
 		r = maybe(near, false) ?? far;        // ILLEGAL: through a handled result
 		r = maybe(far, false) ?? near;        // ILLEGAL: through the handler's value
 		plug.port = near;                     // ILLEGAL: into a field of an outer root

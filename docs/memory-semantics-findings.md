@@ -27,6 +27,7 @@ Findings are numbered and classified:
 
 | # | Kind | Probe | Finding |
 |---|---|---|---|
+| 6 | Bug | `lambdas` | A call through a function value records no resting place, so a reference dangles and a write through it corrupts a live object |
 | 1 | Bug | `reflist` | Nothing can be pushed into a `List<&T>` |
 | 2 | Gap | `genref` | `Box(r)` with `r &Port` infers `Box<Port>`; no way to make a `Box<&Port>` |
 | 3 | Nit | `genref` | An error inside a generic instance names neither the instance nor the call that made it |
@@ -74,9 +75,9 @@ optimized build alike.
   10 MB) at 10,000 and at 1,000,000 iterations. The control, which keeps one
   owner per iteration in a list, grows to 73 MB, so the measurement can see
   growth.
-- **The store rule** (`launder`; lifetimes.md §1.1, §1.10, §1.11). Nineteen
+- **The store rule** (`launder`; lifetimes.md §1.1, §1.10, §1.11). Twenty
   routes for storing a reference to an inner-block owner into an outer place
-  are all reported: through a local, a call result, a method result, either
+  are all reported: through a local, a call result, a method result, a function value's result, either
   side of `??`, a field, a nested field, a resting place, a resting place
   reached through mutual recursion, `push` of a value carrying one, an
   element overwrite, an element's field, an `ArrayRef` element, a generic
@@ -96,6 +97,40 @@ Consequences of the spec worth knowing, all correctly implemented:
   rejected even though `branch` runs its block at most once.
 
 ## Findings
+
+### 6. A function value launders a reference into a dangling one (bug)
+
+Probe `lambdas`. `design/semantics.md` §10 lists "resting places for a
+function value" as not done, and §9 says "a call through a function value
+keeps nothing". The consequence is a hole in the store rule that a running
+program falls through. A lambda that stores its `&T` parameter into its
+subject,
+
+```zane
+wire Unit(this Plug, port &Port) mut {
+	this.port = port;
+	return Unit();
+}
+inner({
+	near Port(Int(2));
+	plug!wire(near);          // accepted; lifetimes.md §1.11 makes it ILLEGAL
+});
+```
+
+leaves `plug.port` naming `near`'s slot after `near`'s block has drained.
+The probe then declares `victim Port(Int(100))` in a fresh block, which lands
+in the same slot, writes `plug.port!set(Int(999))`, and reads `victim.n`: it
+is no longer 100. The same happens when the lambda is passed as a
+`Unit[this Plug, &Port] mut` parameter and called there, and when a lambda
+`push`es a `^Plug` carrying a reference to an inner owner into an outer
+`List<Plug>`. All three print `NO`, in both builds. The *result* of a call
+through a function value is checked (`r = passer(near)` is reported, in
+`launder`); only stores into the subject or another parameter escape.
+
+Until function types carry a resting-place summary, a sound stopgap is the
+conservative one §9 already uses for intrinsics: assume a call through a
+function value stores every `&`-holding argument into its subject (when the
+type is `mut`) and into every other `&`-holding parameter's object.
 
 ### 1. Nothing can be pushed into a `List<&T>` (bug)
 
