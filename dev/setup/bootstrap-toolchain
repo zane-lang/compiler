@@ -69,7 +69,8 @@ fi
 # Without that LLVM the bindings are skipped rather than failed: the grammar
 # and ambiguity tools build without them, and only codegen needs them.
 if [[ "$(opam show --field=installed-version llvm 2>/dev/null)" != "$LLVM_VERSION-shared" ]]; then
-	if command -v "llvm-config-$LLVM_VERSION" >/dev/null 2>&1; then
+	if command -v "llvm-config-$LLVM_VERSION" >/dev/null 2>&1 ||
+		[[ "$(llvm-config --version 2>/dev/null)" == "$LLVM_VERSION".* ]]; then
 		opam install -y --assume-depexts "llvm.$LLVM_VERSION-shared"
 	else
 		echo "bootstrap-toolchain: llvm-config-$LLVM_VERSION not found, so the LLVM bindings are not installed;" >&2
