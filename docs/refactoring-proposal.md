@@ -2,7 +2,10 @@
 
 Status: **being carried out**, in the four steps of §12. Step 1 is done: DC1,
 DC2, DC3, ST1, IF1's two deletions, IF2's five re-exports, SH1, TS2, IV1 to
-IV5, and T4.
+IV5, and T4. Step 2 is done: IV6, TS1, SZ1 and SZ2. IV6 found that of the 21
+"does not handle … yet" refusals only three can be reached by a program
+semantics accepts, and that lowering alone checked a third rule, a literal's
+range, which semantics now checks too.
 
 This is the second strict review of the repository. The first one,
 [`file-structure-proposal.md`](file-structure-proposal.md), was about where
