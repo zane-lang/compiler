@@ -1,0 +1,5 @@
+# How the OCaml here is laid out, for an editor's formatter or `dune fmt`.
+# The tree has not been reformatted wholesale, so format what you change
+# rather than whole files.
+profile = default
+margin = 100
