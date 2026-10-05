@@ -62,7 +62,7 @@ jobs:
 
   # Each suite owns its checkout and Dune build directory. A failing suite
   # does not cancel the others, so one run reports every failure.
-  checks:
+  linux-tests:
     needs: suites
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -137,7 +137,7 @@ jobs:
   # Aggregate the Linux checks. always() makes a failed or skipped
   # prerequisite fail this gate instead of silently skipping it.
   linux-checks:
-    needs: [suites, checks]
+    needs: [suites, linux-tests]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
