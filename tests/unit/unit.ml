@@ -161,16 +161,21 @@ let type_layout () =
 (* Semantics twice                                                        *)
 (* ---------------------------------------------------------------------- *)
 
+(* The fixture's typed tree, when it assembles and checks cleanly. *)
 let tree () =
   match Tst.Assembly.assemble [ "../codegen/fixtures/lambdas" ] with
-  | Error _ -> "assembly failed"
-  | Ok packages ->
-      let result = Tst.check packages in
-      Tree_graph.render (Tst.to_node ~bodies:true result.Tst.Semantics.program)
+  | Error _ -> None
+  | Ok packages -> (
+      match Tst.check packages with
+      | { Tst.Semantics.diagnostics = []; program } ->
+          Some (Tree_graph.render (Tst.to_node ~bodies:true program))
+      | _ -> None)
 
 let twice () =
-  let first = tree () in
-  check "semantics run twice gives the same tree" (String.equal first (tree ()))
+  match (tree (), tree ()) with
+  | Some first, Some second ->
+      check "semantics run twice gives the same tree" (String.equal first second)
+  | _ -> check "the fixture checked twice assembles and checks cleanly" false
 
 let () =
   ty ();
