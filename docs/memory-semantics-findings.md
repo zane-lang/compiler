@@ -15,7 +15,20 @@ writes what the compiler and the program printed to `NAME.out`, which is
 committed, so a behaviour change shows as a diff. The probes are not part of
 `dune runtest`.
 
-Findings are numbered and classified:
+To rerun them: `dune build bin/zanec/zanec.exe`, then
+`tests/memory-probes/run [NAME...]` for the programs and
+`python3 tests/memory-probes/reclaim.py` for the memory measurements, and
+`git diff tests/memory-probes` to see what changed.
+
+The headline: the compile-time rules the spec states are implemented
+thoroughly — every rejection the probes expected was reported, and no
+legal program was refused except by findings 6 and 8 and the conservative
+block rules noted below — and the runtime does what they promise. But four routes let an accepted program read or write freed
+storage (findings 1–4), each a rule the checker does not yet have, and in
+three of them the spec does not state the rule either. A fifth bug crashes
+the runtime on deep recursive values (5).
+
+Findings are numbered by severity and classified:
 
 - **Bug** — the compiler does something the spec says it must not.
 - **Gap** — the compiler accepts or rejects something where the spec is
@@ -27,17 +40,17 @@ Findings are numbered and classified:
 
 | # | Kind | Probe | Finding |
 |---|---|---|---|
-| 6 | Bug | `lambdas` | A call through a function value records no resting place, so a reference dangles and a write through it corrupts a live object |
-| 7 | Bug | `deepvalue` | Overwriting a recursive value deeper than about 22,700 levels overflows the C stack and segfaults |
-| 11 | Bug | `storeorder`, `subjectorder` | `list[i] = <grows list>` and `list[i]!m(<grows list>)` write into the list's freed block |
-| 10 | Bug | `binders` | A match binder dangles once its arm overwrites the scrutinee |
-| 9 | Bug | `aliasing`, `blockalias`, `argorder` | A borrowed list element or payload is freed by the same call's `mut` subject, block argument or later argument, and then read |
-| 8 | Bug | `aliasing` | A value parameter is passed by copy, which `v!setFrom(v)` observes; memory.md §2.9 makes it a borrow |
-| 1 | Bug | `reflist` | Nothing can be pushed into a `List<&T>` |
-| 2 | Gap | `genref` | `Box(r)` with `r &Port` infers `Box<Port>`; no way to make a `Box<&Port>` |
-| 3 | Nit | `genref` | An error inside a generic instance names neither the instance nor the call that made it |
-| 4 | Gap | `modes` | Returning `&T` minted from a package constant is accepted; `lifetimes.md` §1.7 says only an `&T` parameter is a root |
-| 5 | Nit | `downstream` | The transitive value-downstream error calls `&Engine` "a reference type" |
+| 1 | Bug | `lambdas` | A call through a function value records no resting place, so a reference dangles and a write through it corrupts a live object |
+| 2 | Bug | `aliasing`, `blockalias`, `argorder` | A borrowed list element or payload is freed by the same call's `mut` subject, block argument or later argument, and then read |
+| 3 | Bug | `binders` | A match binder dangles once its arm overwrites the scrutinee |
+| 4 | Bug | `storeorder`, `subjectorder` | `list[i] = <grows list>` and `list[i]!m(<grows list>)` write into the list's freed block |
+| 5 | Bug | `deepvalue` | Overwriting a recursive value deeper than about 22,700 levels overflows the C stack and segfaults |
+| 6 | Bug | `reflist` | Nothing can be pushed into a `List<&T>` |
+| 7 | Bug | `aliasing` | A value parameter is passed by copy, which `v!setFrom(v)` observes; memory.md §2.9 makes it a borrow |
+| 8 | Gap | `genref` | `Box(r)` with `r &Port` infers `Box<Port>`; no way to make a `Box<&Port>` |
+| 9 | Gap | `modes` | Returning `&T` minted from a package constant is accepted; `lifetimes.md` §1.7 says only an `&T` parameter is a root |
+| 10 | Nit | `genref` | An error inside a generic instance names neither the instance nor the call that made it |
+| 11 | Nit | `downstream` | The transitive value-downstream error calls `&Engine` "a reference type" |
 
 ## What holds
 
@@ -51,13 +64,14 @@ optimized build alike.
   parameter is read-only, so a `^T` parameter is never refilled or `!`-called;
   a spent symbol and a spent field are reported until refilled, and only in
   the declaring block; `&T` returns and aborts are rooted only in `&T`
-  parameters (but see 4).
+  parameters (but see 9).
 - **Value-downstream** (`downstream`; §2.10). Every reference type, `&`, `List`,
   `ArrayRef` and `Array` of either inside a value type is reported, through
   nested value fields and through a generic value type's instance; a
   recursive value variant is accepted.
 - **Settled overwrite in place** (`overwrite`; §2.2, §3.6). A reference to an
-  owner, to its field, or to a field below a boxed member observes a field
+  owner, to its field, or to a field of an owner that also holds a boxed
+  recursive member observes a field
   overwrite, a whole-owner overwrite, and a moved-in replacement, and still
   does after 100,000 overwrites in a loop.
 - **Deep value copies and overlapping overwrites** (`copies`; §2.3). Copies of
@@ -128,7 +142,7 @@ optimized build alike.
 - **One object reached twice by a call** (`aliasing`; memory.md §2.9).
   `keepAndRead(cup, cup)`, a borrow and a take of one owner, is reported. A
   reference-type `mut` subject and a borrow of the same object agree: the
-  borrow sees the subject's write. (But see 8 and 9.)
+  borrow sees the subject's write. (But see 2 and 7.)
 - **Resting places across packages** (`across`; lifetimes.md §1.11). A
   dependency's `wire`, its transitive `relay`, a result naming an argument,
   a result read through an `&` field of an `&T` parameter, and a field
@@ -170,71 +184,41 @@ Consequences of the spec worth knowing, all correctly implemented:
 
 ## Findings
 
-### 11. An element store resolves its destination before its value (bug)
+### 1. A function value launders a reference into a dangling one (bug)
 
-Probe `storeorder`. When the right-hand side of an element store grows the
-same list, the store writes to where the element *was*:
-
-```zane
-ints[Int(1)] = ints!growAndGive(Int(1000));   // pushes 1,000, returns 4242
-// ints[Int(1)] is still 1: 4242 went into the block the list gave back
-```
-
-The destination's address is computed first, the right-hand side then
-relocates the backing store and returns the old block to its size stack, and
-the store lands in that freed block. For `List<Int>` the element keeps its
-old value; for `List<Engine>` the same; and with both cases in one program
-the first write corrupts the allocator's free stack and the second
-segfaults inside `zane_alloc`. (Something allocated after each list keeps
-the growth from happening in place, which would hide the bug.)
-
-A `!` call has the same order problem (probe `subjectorder`):
-`engines[Int(1)]!setTo(engines!growAndGive(Int(1000)))` takes the subject's
-address, then evaluates the argument, which relocates the list, and
-`setTo`'s write goes into the freed block; the element keeps its old value.
-
-memory.md §2.3 fixes that the right-hand side is evaluated against the
-destination's pre-overwrite state, but not when a place destination is
-resolved relative to its value. Either the compiler resolves a subscript
-destination or subject after evaluating the right-hand side and the
-arguments, or it rejects a `!` call on the list (or on anything owning it)
-inside a store into, or a call on, one of its elements; the spec should say
-which.
-
-### 10. A match binder dangles after its arm overwrites the scrutinee (bug)
-
-Probe `binders`. The compiler makes a binder the payload's place, not a copy
-(`design/semantics.md` §9: "A `match` binder is its case's payload"), and
-adt.md §5 agrees that it "behaves as that case's payload" and that the
-scrutinee "stays in scope". Nothing stops the arm from overwriting the
-scrutinee, which destroys the payload under the binder:
+Probe `lambdas`. `design/semantics.md` §10 lists "resting places for a
+function value" as not done, and §9 says "a call through a function value
+keeps nothing". The consequence is a hole in the store rule that a running
+program falls through. A lambda that stores its `&T` parameter into its
+subject,
 
 ```zane
-n Int = match (slot) {
-	e full {
-		slot = Slot.empty(Unit());   // destroys e's payload
-		churn();                     // reuses its blocks
-		return e.power;              // not 42
-	}
-	u empty => Int(0);
+wire Unit(this Plug, port &Port) mut {
+	this.port = port;
+	return Unit();
 }
+inner({
+	near Port(Int(2));
+	plug!wire(near);          // accepted; lifetimes.md §1.11 makes it ILLEGAL
+});
 ```
 
-For a `#variant` the read returns garbage. For a value `variant` with a
-`String` payload, returning the binder copies a string through a freed
-handle. The committed probe prints `NO` for it in both builds; an earlier
-version of the same probe, differing only in code after it, had the
-unoptimized build stop with `zane runtime: out of memory for a dynamic
-chunk` (status 134) while the optimized build printed `NO` — the two builds
-disagreeing, as undefined behaviour may. A `mut` call on the
-scrutinee in the arm, `slot!clear()`, which changes its case, does the same.
+leaves `plug.port` naming `near`'s slot after `near`'s block has drained.
+The probe then declares `victim Port(Int(100))` in a fresh block, which lands
+in the same slot, writes `plug.port!set(Int(999))`, and reads `victim.n`: it
+is no longer 100. The same happens when the lambda is passed as a
+`Unit[this Plug, &Port] mut` parameter and called there, and when a lambda
+`push`es a `^Plug` carrying a reference to an inner owner into an outer
+`List<Plug>`. All three print `NO`, in both builds. The *result* of a call
+through a function value is checked (`r = passer(near)` is reported, in
+`launder`); only stores into the subject or another parameter escape.
 
-The fix is the binder's counterpart of 9: while a binder is live, its
-scrutinee may not be overwritten, nor be a `mut` subject (a `mut` method
-could change its case), in the arm. The spec should state it; adt.md is
-silent.
+Until function types carry a resting-place summary, a sound stopgap is the
+conservative one §9 already uses for intrinsics: assume a call through a
+function value stores every `&`-holding argument into its subject (when the
+type is `mut`) and into every other `&`-holding parameter's object.
 
-### 9. Something else in the same call frees what a borrow names (bug)
+### 2. Something else in the same call frees what a borrow names (bug)
 
 Probe `aliasing`. A borrow argument may name storage *inside* the call's
 own `mut` subject, and the callee can then destroy that storage while the
@@ -284,7 +268,7 @@ anything reached through one. memory.md §2.9 says a borrow is "non-owning,
 non-escaping access to the caller's owner for the duration of the call" but
 states no such rule either, so the spec needs it too. (A borrow of a
 settled field is safe: a field is overwritten in place, and the borrow
-observes the replacement, as the reference-type case in finding 8 shows.)
+observes the replacement, as the reference-type case in finding 7 shows.)
 
 The rule exists already for spawned calls: lend `list[Int(1)]` to a
 `spawn` and then `list!push(…)` in the same block, and the compiler reports
@@ -293,7 +277,109 @@ a spawned call" (`spec-divergences.md` §13). A synchronous call lends for a
 shorter time but to a callee that can write through its subject, so the
 same reasoning applies within the call.
 
-### 8. A value parameter is a copy, and a call can tell (bug)
+### 3. A match binder dangles after its arm overwrites the scrutinee (bug)
+
+Probe `binders`. The compiler makes a binder the payload's place, not a copy
+(`design/semantics.md` §9: "A `match` binder is its case's payload"), and
+adt.md §5 agrees that it "behaves as that case's payload" and that the
+scrutinee "stays in scope". Nothing stops the arm from overwriting the
+scrutinee, which destroys the payload under the binder:
+
+```zane
+n Int = match (slot) {
+	e full {
+		slot = Slot.empty(Unit());   // destroys e's payload
+		churn();                     // reuses its blocks
+		return e.power;              // not 42
+	}
+	u empty => Int(0);
+}
+```
+
+For a `#variant` the read returns garbage. For a value `variant` with a
+`String` payload, returning the binder copies a string through a freed
+handle. The committed probe prints `NO` for it in both builds; an earlier
+version of the same probe, differing only in code after it, had the
+unoptimized build stop with `zane runtime: out of memory for a dynamic
+chunk` (status 134) while the optimized build printed `NO` — the two builds
+disagreeing, as undefined behaviour may. A `mut` call on the
+scrutinee in the arm, `slot!clear()`, which changes its case, does the same.
+
+The fix is the binder's counterpart of 2: while a binder is live, its
+scrutinee may not be overwritten, nor be a `mut` subject (a `mut` method
+could change its case), in the arm. The spec should state it; adt.md is
+silent.
+
+### 4. An element store resolves its destination before its value (bug)
+
+Probe `storeorder`. When the right-hand side of an element store grows the
+same list, the store writes to where the element *was*:
+
+```zane
+ints[Int(1)] = ints!growAndGive(Int(1000));   // pushes 1,000, returns 4242
+// ints[Int(1)] is still 1: 4242 went into the block the list gave back
+```
+
+The destination's address is computed first, the right-hand side then
+relocates the backing store and returns the old block to its size stack, and
+the store lands in that freed block. For `List<Int>` the element keeps its
+old value; for `List<Engine>` the same; and with both cases in one program
+the first write corrupts the allocator's free stack and the second
+segfaults inside `zane_alloc`. (Something allocated after each list keeps
+the growth from happening in place, which would hide the bug.)
+
+A `!` call has the same order problem (probe `subjectorder`):
+`engines[Int(1)]!setTo(engines!growAndGive(Int(1000)))` takes the subject's
+address, then evaluates the argument, which relocates the list, and
+`setTo`'s write goes into the freed block; the element keeps its old value.
+
+memory.md §2.3 fixes that the right-hand side is evaluated against the
+destination's pre-overwrite state, but not when a place destination is
+resolved relative to its value. Either the compiler resolves a subscript
+destination or subject after evaluating the right-hand side and the
+arguments, or it rejects a `!` call on the list (or on anything owning it)
+inside a store into, or a call on, one of its elements; the spec should say
+which.
+
+### 5. A deep recursive value crashes the runtime (bug)
+
+Probe `deepvalue`. A value variant `Count = variant { done Int; more Count; }`
+built 30,000 levels deep by recursion, then overwritten, kills the program
+with SIGSEGV in both builds. `zane_overwrite` (`runtime/value.c`) writes the
+replacement into each boxed member's existing block by calling itself once
+per level, and on an 8 MB stack it overflows at about 22,700 levels (the
+backtrace is 22,765 `zane_overwrite` frames deep). Built in a loop with
+`acc = Count.more(acc)`, it crashes the same way somewhere between 20,000
+and 50,000 iterations. `zane_copy` (`runtime/block.c`) is recursive in the
+same way. memory.md sets no depth limit, and the spec's own recursive
+examples (`adt.md` §4) are this shape; the recursion along the last boxed
+member can be a loop, which removes the limit for list-like values.
+
+The program's output before the crash is lost too, because stdout is
+buffered and the segfault never flushes it.
+
+### 6. Nothing can be pushed into a `List<&T>` (bug)
+
+Probe `reflist`. `memory.md` §2.2 speaks of "an `&T` stored *as an element
+value*" and §2.8 reads `current &Weapon = weapons[1]` out of a
+`List<&Weapon>`. The compiler accepts the type and its constructor
+(`@primitives$List(PortRef)` through `alias PortRef = &Port`, since a type
+argument is a bare name, `spec-divergences.md` §5), but rejects every push:
+
+```text
+refs!push(r);   // r &Port
+Error: no method `push` accepts (@primitives$List<&reflist$Port>, &reflist$Port);
+the candidate is `@primitives$Unit push(this @primitives$List<T>, ^T) mut`
+```
+
+Minting at the call (`refs!push(p)` with `p` settled) fails the same way. With
+`T = &Port`, `^T` should take an `&Port` — `memory.md` §2.9 says what `^T` is
+for a reference type and a value type, but not for `T` filled with an `&`, so
+the spec needs a sentence too. The `ArrayRef<&Port, 2>` built from `[r, r]`
+is accepted, so only the list's `push` is affected. As it stands a list of
+references can be declared but never filled.
+
+### 7. A value parameter is a copy, and a call can tell (bug)
 
 Probe `aliasing`. memory.md §2.9: a value-type parameter "has one mode, the
 borrow", and "passing a value by borrow is the semantic model rather than an
@@ -321,79 +407,7 @@ or the spec forbids a call to lend one place as both its `mut` subject and
 another argument; the compiler already rejects the borrow-and-take form of
 the same alias.
 
-### 7. A deep recursive value crashes the runtime (bug)
-
-Probe `deepvalue`. A value variant `Count = variant { done Int; more Count; }`
-built 30,000 levels deep by recursion, then overwritten, kills the program
-with SIGSEGV in both builds. `zane_overwrite` (`runtime/value.c`) writes the
-replacement into each boxed member's existing block by calling itself once
-per level, and on an 8 MB stack it overflows at about 22,700 levels (the
-backtrace is 22,765 `zane_overwrite` frames deep). Built in a loop with
-`acc = Count.more(acc)`, it crashes the same way somewhere between 20,000
-and 50,000 iterations. `zane_copy` (`runtime/block.c`) is recursive in the
-same way. memory.md sets no depth limit, and the spec's own recursive
-examples (`adt.md` §4) are this shape; the recursion along the last boxed
-member can be a loop, which removes the limit for list-like values.
-
-The program's output before the crash is lost too, because stdout is
-buffered and the segfault never flushes it.
-
-### 6. A function value launders a reference into a dangling one (bug)
-
-Probe `lambdas`. `design/semantics.md` §10 lists "resting places for a
-function value" as not done, and §9 says "a call through a function value
-keeps nothing". The consequence is a hole in the store rule that a running
-program falls through. A lambda that stores its `&T` parameter into its
-subject,
-
-```zane
-wire Unit(this Plug, port &Port) mut {
-	this.port = port;
-	return Unit();
-}
-inner({
-	near Port(Int(2));
-	plug!wire(near);          // accepted; lifetimes.md §1.11 makes it ILLEGAL
-});
-```
-
-leaves `plug.port` naming `near`'s slot after `near`'s block has drained.
-The probe then declares `victim Port(Int(100))` in a fresh block, which lands
-in the same slot, writes `plug.port!set(Int(999))`, and reads `victim.n`: it
-is no longer 100. The same happens when the lambda is passed as a
-`Unit[this Plug, &Port] mut` parameter and called there, and when a lambda
-`push`es a `^Plug` carrying a reference to an inner owner into an outer
-`List<Plug>`. All three print `NO`, in both builds. The *result* of a call
-through a function value is checked (`r = passer(near)` is reported, in
-`launder`); only stores into the subject or another parameter escape.
-
-Until function types carry a resting-place summary, a sound stopgap is the
-conservative one §9 already uses for intrinsics: assume a call through a
-function value stores every `&`-holding argument into its subject (when the
-type is `mut`) and into every other `&`-holding parameter's object.
-
-### 1. Nothing can be pushed into a `List<&T>` (bug)
-
-Probe `reflist`. `memory.md` §2.2 speaks of "an `&T` stored *as an element
-value*" and §2.8 reads `current &Weapon = weapons[1]` out of a
-`List<&Weapon>`. The compiler accepts the type and its constructor
-(`@primitives$List(PortRef)` through `alias PortRef = &Port`, since a type
-argument is a bare name, `spec-divergences.md` §5), but rejects every push:
-
-```text
-refs!push(r);   // r &Port
-Error: no method `push` accepts (@primitives$List<&reflist$Port>, &reflist$Port);
-the candidate is `@primitives$Unit push(this @primitives$List<T>, ^T) mut`
-```
-
-Minting at the call (`refs!push(p)` with `p` settled) fails the same way. With
-`T = &Port`, `^T` should take an `&Port` — `memory.md` §2.9 says what `^T` is
-for a reference type and a value type, but not for `T` filled with an `&`, so
-the spec needs a sentence too. The `ArrayRef<&Port, 2>` built from `[r, r]`
-is accepted, so only the list's `push` is affected. As it stands a list of
-references can be declared but never filled.
-
-### 2. `Box(r)` infers `Box<Port>` from an `&Port` argument (gap)
+### 8. `Box(r)` infers `Box<Port>` from an `&Port` argument (gap)
 
 Probe `genref`. With `Box<T>(item T Type)` and `r &Port`, `Box(r)` infers
 `T = Port`, so `a Box<&Port> = Box(r)` is a type mismatch. A constructor call
@@ -405,9 +419,20 @@ Type)` over a `&T` field (generics.md §3.2), and that works; but
 generics.md never says whether inference from an `&X` argument binds `T` to
 `X` or to `&X`, and `List<&T>` shows the compiler does allow `T` to be an `&`.
 
-### 3. An error inside a generic instance names nothing that made it (nit)
+### 9. A reference to a package constant may be returned (gap)
 
-Probe `genref`. The `Box<Port>` instance from 2 reports
+Probe `modes`. `&Engine constRef() => garage`, with `garage` a package
+constant, is accepted. `lifetimes.md` §1.7 says a returned `&T` must be
+rooted in an `&T` parameter and "Nothing else is a root", listing locals,
+`^T` parameters and borrows as excluded; a package constant is not mentioned.
+The store rule (§1.1) it says the rule comes from would allow it, since a
+package constant outlives every caller, and memory.md §2.8 lists a package
+constant as a reference source. The compiler follows §1.1; §1.7 should say
+so or exclude it.
+
+### 10. An error inside a generic instance names nothing that made it (nit)
+
+Probe `genref`. The `Box<Port>` instance from 8 reports
 
 ```text
 File "genref/main.zn", line 18 ...
@@ -420,18 +445,7 @@ whose call made the instance; delete line 26 and the error goes away.
 `design/semantics.md` §9 says such an error "is reported inside the
 instance, which names the call that required it".
 
-### 4. A reference to a package constant may be returned (gap)
-
-Probe `modes`. `&Engine constRef() => garage`, with `garage` a package
-constant, is accepted. `lifetimes.md` §1.7 says a returned `&T` must be
-rooted in an `&T` parameter and "Nothing else is a root", listing locals,
-`^T` parameters and borrows as excluded; a package constant is not mentioned.
-The store rule (§1.1) it says the rule comes from would allow it, since a
-package constant outlives every caller, and memory.md §2.8 lists a package
-constant as a reference source. The compiler follows §1.1; §1.7 should say
-so or exclude it.
-
-### 5. "`&Engine` is a reference type" (nit)
+### 11. "`&Engine` is a reference type" (nit)
 
 Probe `downstream`. The transitive form of the value-downstream error reads
 "`&downstream$Engine` is a reference type, and it reaches
