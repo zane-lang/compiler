@@ -214,9 +214,10 @@ through a function value is checked (`r = passer(near)` is reported, in
 `launder`); only stores into the subject or another parameter escape.
 
 Until function types carry a resting-place summary, a sound stopgap is the
-conservative one §9 already uses for intrinsics: assume a call through a
-function value stores every `&`-holding argument into its subject (when the
-type is `mut`) and into every other `&`-holding parameter's object.
+assumption §9's read-only analysis already makes for the very same call:
+that a call through a function value which writes its subject stores every
+argument there, wherever the parameter's type can hold a reference. The
+scope analysis makes the opposite assumption today.
 
 ### 2. Something else in the same call frees what a borrow names (bug)
 
@@ -263,8 +264,8 @@ one owner in the same call ("a borrow lasts for the whole call"). The
 missing rule is the same one for a `mut` subject, a block argument and a
 later argument: a call may not lend, as an argument, a place inside its
 `mut` subject, inside storage its block argument writes, or inside storage
-another argument's evaluation writes, that could be destroyed or moved — a list element or a variant payload, or
-anything reached through one. memory.md §2.9 says a borrow is "non-owning,
+another argument's evaluation writes, that could be destroyed or moved — a
+list element or a variant payload, or anything reached through one. memory.md §2.9 says a borrow is "non-owning,
 non-escaping access to the caller's owner for the duration of the call" but
 states no such rule either, so the spec needs it too. (A borrow of a
 settled field is safe: a field is overwritten in place, and the borrow
