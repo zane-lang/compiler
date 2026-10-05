@@ -1,0 +1,99 @@
+/// Parameter modes (memory.md §2.9, lifetimes.md §1.5-§1.8): what a borrow,
+/// a take and a reference parameter, and the subject, may do. ILLEGAL marks
+/// what the spec rejects; QUESTION marks a case the spec does not settle.
+package modes;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+type Engine = #struct { power Int; }
+type Car = #struct { engine &Engine; spare Engine; }
+Engine(power Int) => init{ power; }
+Car(engine &Engine, spare ^Engine) => init{ engine; spare; }
+
+Unit tune(this Engine) mut {
+	this.power = this.power + Int(1);
+	return Unit();
+}
+
+// borrow stored into an owning field
+Unit setSpare(this Car, engine Engine) mut {
+	this.spare = engine;  // ILLEGAL: a borrow is never stored
+	return Unit();
+}
+// borrow returned as an owner
+^Engine relay(engine Engine) => engine  // ILLEGAL: a borrow is never moved
+// borrow returned as a value of the type
+Engine relay2(engine Engine) => engine  // ILLEGAL
+// borrow written
+Unit write(engine Engine) {
+	engine = Engine(Int(2));  // ILLEGAL: parameters are read-only
+	return Unit();
+}
+// borrow mut-called
+Unit poke(engine Engine) {
+	engine!tune();  // ILLEGAL: parameters are read-only
+	return Unit();
+}
+// ref param repointed
+Unit repoint(engine &Engine, other &Engine) {
+	engine = other;  // ILLEGAL: parameters are read-only
+	return Unit();
+}
+// take param refilled
+Unit refill(engine ^Engine) {
+	engine = Engine(Int(3));  // ILLEGAL: a parameter is never refilled (§1.6)
+	return Unit();
+}
+// take param used after move
+Unit twice(engine ^Engine) {
+	a Engine = engine;
+	b Engine = engine;  // ILLEGAL: engine is spent
+	return Unit();
+}
+// take param minted
+&Engine fromTake(engine ^Engine) => engine  // ILLEGAL: roaming, and scoped to the body
+// take param ref stored in local
+Unit takeRef(engine ^Engine) {
+	r &Engine = engine;  // ILLEGAL: a take is roaming
+	return Unit();
+}
+// a take param moved into local, then the local referenced (settles)
+Int settle(engine ^Engine) {
+	e Engine = engine;
+	r &Engine = e;
+	return r.power;
+}
+// a take param mutated (roaming owner used like any other)
+^Engine tuned(engine ^Engine) {
+	engine!tune();  // ILLEGAL (effects.md §2.4), though §2.8.1 uses a roaming local this way
+	return engine;
+}
+// the subject returned as ref
+&Engine self(this Engine) => this  // ILLEGAL: the subject is a borrow
+// the subject stored in a ref field
+Unit selfStore(this Engine, car Car) {
+	return Unit();
+}
+// package constant
+garage Engine = Engine(Int(9))
+&Engine constRef() => garage  // QUESTION: §1.7 says only an &T parameter is a root; §1.1 allows it
+Unit constLocal() {
+	r &Engine = garage;
+	return Unit();
+}
+// abort a ref
+Int?&Engine refused() {
+	value Engine(Int(1));
+	abort value;  // ILLEGAL
+}
+Int?&Engine passed(e &Engine) {
+	abort e;  // legal
+}
+Int?&Engine fromTakeAbort(e ^Engine) {
+	abort e;  // ILLEGAL: roaming, and scoped to the body
+}
+
+Unit main() {
+	return Unit();
+}

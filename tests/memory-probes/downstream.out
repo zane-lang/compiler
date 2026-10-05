@@ -1,0 +1,73 @@
+File "downstream/main.zn", line 13, characters 1-42:
+13 | type BadOwner = struct { engine Engine; }                    // ILLEGAL
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `BadOwner` is a value type, so its member `engine` cannot hold `downstream$Engine`, a reference type; a value type is a value all the way down
+File "downstream/main.zn", line 14, characters 1-41:
+14 | type BadRef = struct { target &Engine; }                     // ILLEGAL
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `BadRef` is a value type, so its member `target` cannot be an `&`; only a `#` mould may hold one
+File "downstream/main.zn", line 15, characters 1-43:
+15 | type BadList = struct { items List<Int>; }                   // ILLEGAL: List is a reference type
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `BadList` is a value type, so its member `items` cannot hold `@primitives$List<@primitives$Int>`, a reference type; a value type is a value all the way down
+File "downstream/main.zn", line 16, characters 1-64:
+16 | type BadArrRef = struct { items @primitives$ArrayRef<Int, 2>; }  // ILLEGAL: ArrayRef too
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `BadArrRef` is a value type, so its member `items` cannot hold `@primitives$ArrayRef<@primitives$Int, 2>`, a reference type; a value type is a value all the way down
+File "downstream/main.zn", line 17, characters 1-35:
+17 | type Inner = struct { e &Engine; }                           // ILLEGAL
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Inner` is a value type, so its member `e` cannot be an `&`; only a `#` mould may hold one
+File "downstream/main.zn", line 18, characters 29-34:
+18 | type Outer = struct { inner Inner; }                         // ILLEGAL transitively
+  |                             ^^^^^
+Error: `&downstream$Engine` is a reference type, and it reaches `downstream$Inner`'s field `e`, a value type's slot; a value type holds only values, all the way down
+File "downstream/main.zn", line 19, characters 30-35:
+19 | type Deeper = struct { outer Outer; }                        // ILLEGAL transitively
+  |                              ^^^^^
+Error: `&downstream$Engine` is a reference type, and it reaches `downstream$Outer`'s field `inner`, then `downstream$Inner`'s field `e`, a value type's slot; a value type holds only values, all the way down
+File "downstream/main.zn", line 20, characters 1-47:
+20 | type BadVariant = variant { a Engine; b Int; }               // ILLEGAL
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `BadVariant` is a value type, so its member `a` cannot hold `downstream$Engine`, a reference type; a value type is a value all the way down
+File "downstream/main.zn", line 21, characters 1-51:
+21 | type BadVariantRef = variant { a &Engine; b Int; }           // ILLEGAL
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `BadVariantRef` is a value type, so its member `a` cannot be an `&`; only a `#` mould may hold one
+File "downstream/main.zn", line 22, characters 48-54:
+22 | type ArrOfRef = struct { arr @primitives$Array<Engine, 2>; }  // ILLEGAL: Array is a value type
+  |                                                ^^^^^^
+Error: `downstream$Engine` is a reference type, and it reaches the elements of `@primitives$Array<downstream$Engine, 2>`, a value type's slot; a value type holds only values, all the way down
+File "downstream/main.zn", line 23, characters 48-55:
+23 | type ArrOfAmp = struct { arr @primitives$Array<&Engine, 2>; } // ILLEGAL
+  |                                                ^^^^^^^
+Error: `&downstream$Engine` is a reference type, and it reaches the elements of `@primitives$Array<&downstream$Engine, 2>`, a value type's slot; a value type holds only values, all the way down
+File "downstream/main.zn", line 24, characters 1-35:
+24 | type Caret = struct { e ^Engine; }                           // ILLEGAL (and ^ is no field type)
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Caret` is a value type, so its member `e` cannot hold `^downstream$Engine`, a reference type; a value type is a value all the way down
+File "downstream/main.zn", line 24, characters 25-32:
+24 | type Caret = struct { e ^Engine; }                           // ILLEGAL (and ^ is no field type)
+  |                         ^^^^^^^
+Error: `^downstream$Engine` is a roaming owner, and `^` is written only on a local, a parameter or a return type, so it cannot be a field
+File "downstream/main.zn", line 25, characters 27-34:
+25 | type RCaret = #struct { e ^Engine; }                         // ILLEGAL: a field is never declared roaming (§2.8.1)
+  |                           ^^^^^^^
+Error: `^downstream$Engine` is a roaming owner, and `^` is written only on a local, a parameter or a return type, so it cannot be a field
+File "downstream/main.zn", line 26, characters 36-40:
+26 | type ListAmpInt = #struct { e List<&Int>; }                  // ILLEGAL: & over a value type (§2.4)
+  |                                    ^^^^
+Error: `@primitives$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
+File "downstream/main.zn", line 35, characters 31-37:
+35 | type UseGen = #struct { g Gen<Engine>; }                     // ILLEGAL
+  |                               ^^^^^^
+Error: `downstream$Engine` is a reference type, and it reaches `downstream$Gen<downstream$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
+File "downstream/main.zn", line 39, characters 11-17:
+39 |     g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
+  |           ^^^^^^
+Error: `downstream$Engine` is a reference type, and it reaches `downstream$Gen<downstream$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
+File "downstream/main.zn", line 39, characters 25-39:
+39 |     g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
+  |                         ^^^^^^^^^^^^^^
+Error: `downstream$Engine` is a reference type, and it reaches `downstream$Gen<downstream$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
+== rejected
