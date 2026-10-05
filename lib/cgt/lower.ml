@@ -6,8 +6,9 @@
    handle yet is refused with a diagnostic at the node, rather than lowered
    wrongly.
 
-   This file is the recursive walk over verbs and programs. What it reads is
-   beside it: [State], [Type_layout] and [Literals]. *)
+   This file is the recursive walk over a verb's body. What it reads is
+   beside it: [State], [Type_layout], [Literals], [Verbs], [Outcome] and
+   [Build]; [Program] lowers a whole program with it. *)
 
 module T = Tst.Nodes
 module S = Tst.Signature
@@ -17,215 +18,13 @@ open Nodes
 open State
 open Type_layout
 open Literals
+open Verbs
+open Outcome
+open Build
 
 (* ---------------------------------------------------------------------- *)
-(* Verbs                                                                  *)
+(* Expressions                                                            *)
 (* ---------------------------------------------------------------------- *)
-
-(* A verb's symbol is its declaration as written (Symbol.verb). Asking for
-   one queues the verb to be lowered, once. *)
-let symbol st (v : verb) =
-  match Hashtbl.find_opt st.symbols v.key with
-  | Some s -> s
-  | None ->
-      let s = Symbol.verb ~stamp:st.stamp v.signature v.instance in
-      Hashtbl.replace st.symbols v.key s;
-      Queue.add v st.pending;
-      s
-
-(* L16: the address of a package constant, which a function of its own
-   makes the first time it is called and gives from then on. Asking for one
-   queues that function to be lowered, once. *)
-let constant st decl =
-  let c = Hashtbl.find st.constants decl in
-  let key = "constant " ^ string_of_int decl in
-  if not (Hashtbl.mem st.symbols key) then begin
-    Hashtbl.replace st.symbols key c.symbol;
-    Queue.add decl st.made
-  end;
-  { Expr.node = Expr.Call { fn = c.symbol; args = [] }; ty = Nodes.Ty.Ptr }
-
-(* The next number of a function the compiler makes for itself, of the
-   kind [count] counts: one more than those made so far. *)
-let numbered count =
-  incr count;
-  !count
-
-(* A verb's key: its declaration's id, with an instance's arguments. *)
-let key decl (instance : (Tty.param * Tty.arg) list) =
-  match instance with
-  | [] -> string_of_int decl
-  | args ->
-      Printf.sprintf "%d<%s>" decl
-        (String.concat ", " (List.map (fun (_, a) -> Tty.arg_to_string a) args))
-
-(* The verb a reference names: a declaration, or the instance its arguments
-   pick. *)
-let verb_of st id instance = Hashtbl.find_opt st.verbs (key id instance)
-
-(* L11: a verb with a concept parameter -- a block, or a literal it embeds --
-   has no function. Each call to it is replaced by its body. *)
-let expands (v : verb) =
-  List.exists
-    (fun (p : T.Local.t) -> match p.T.Local.ty with Tty.Concept _ -> true | _ -> false)
-    v.params
-
-(* How a verb's call can end (L12): its primary result, and the abort value
-   when it declares an abort type, and an exit when it has one. *)
-type outcome = { ok : Nodes.Ty.t; aborts : Nodes.Ty.t option; exit_ : bool }
-
-let outcome st span (v : verb) =
-  {
-    ok = ty st span v.signature.S.ret;
-    aborts = Option.map (ty st span) v.signature.S.abort;
-    exit_ = Tst.Exits.block v.body;
-  }
-
-(* A function that can end more than one way returns a sum of the three:
-   done with its result, aborted with its abort value, or exited
-   (docs/design/lowering.md §9). One that can only finish returns its result. *)
-let plain o = o.aborts = None && not o.exit_
-
-let returned o =
-  if plain o then o.ok
-  else Nodes.Ty.Sum [ o.ok; Option.value o.aborts ~default:Nodes.Ty.Void; Nodes.Ty.Void ]
-
-let done_ = 0
-let aborted = 1
-let exited = 2
-
-let outcome_case o index (payload : Expr.t) =
-  { Expr.node = Expr.Case { index; payload }; ty = returned o }
-
-let unit_ = { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
-
-(* Where the hosts and blocks of a call's outcome are, when it can end more
-   than one way: the result's under the done tag, and the abort value's
-   under the aborted one. *)
-let outcome_layout st span (v : verb) =
-  let s = v.signature in
-  let name =
-    Printf.sprintf "outcome of %s%s" (Symbol.ty s.S.ret)
-      (match s.S.abort with Some a -> " ? " ^ Symbol.ty a | None -> "")
-  in
-  if not (Hashtbl.mem st.layouts name) then begin
-    let under tag t = positions st span t Nodes.Ty.payload_offset [ (0, tag) ] in
-    let failed = match s.S.abort with Some a -> under aborted a | None -> [] in
-    Hashtbl.replace st.layouts name (under done_ s.S.ret @ failed);
-    st.named <- name :: st.named
-  end;
-  name
-
-(* L6: a `mut` method's subject, a reference-type subject, and a swallowed
-   reference-type argument are passed as the address of the caller's place;
-   the caller's host keeps the value (lifetimes.md §1.5). *)
-let by_address st (v : verb) (p : T.Local.t) =
-  (v.signature.S.is_mut && p.T.Local.name = "this") || hosted st p.T.Local.ty
-
-(* L14: a function value is called as a verb of its type would be, so its
-   type gives the verb it is called as: the subject first, named `this`, as a
-   lambda's own is. A function value's subject is always lent by its
-   address, since a lambda that does not declare `mut` may be held by a
-   `mut` function type (functions.md §7.2), and one convention serves both. *)
-let value_verb key (fv : Tty.verb) params body =
-  let signature =
-    {
-      S.owner = S.Intrinsic "<lambda>";
-      name = "lambda";
-      home = S.Namespace "lambda";
-      kind = S.Function;
-      generics = [];
-      params = [];
-      ret = fv.Tty.ret;
-      abort = fv.Tty.abort;
-      is_mut = true;
-    }
-  in
-  { decl = -1; key; instance = []; signature; params; body; literals = [] }
-
-let value_params span (fv : Tty.verb) =
-  let local name ty = { T.Local.id = -1; name; ty; span } in
-  Option.to_list (Option.map (local "this") fv.Tty.this_)
-  @ List.mapi (fun i t -> local (string_of_int i) t) fv.Tty.params
-
-let deref id t = { Expr.node = Expr.Deref { Expr.node = Expr.Local id; ty = Nodes.Ty.Ptr }; ty = t }
-
-let binop : Sst.Nodes.Operator.node -> Expr.binop = function
-  | Add -> Expr.Add
-  | Mul -> Expr.Mul
-  | Div -> Expr.Div
-  | Eq -> Expr.Eq
-  | Less -> Expr.Less
-
-(* An exit ends the run of a block (docs/spec-divergences.md §11). Semantics
-   rejects one anywhere else, so this is not reached. *)
-let no_block span = Diagnostic.bug ~span "lowering: an exit ends the block its call is written in, and this is in none"
-
-(* Where nothing leaves: an enum map's entry, which is a constant. *)
-let constant_ctx () =
-  let nowhere span = Diagnostic.bug ~span "lowering expected nothing here to leave" in
-  {
-    env = Hashtbl.create 1;
-    exit = Function;
-    expanding = [];
-    abort = (fun span _ -> nowhere span);
-    resolve = None;
-    finish = nowhere;
-    exit_call = nowhere;
-    scope = { arena = None; settles = [] };
-  }
-
-(* A block's arena, made the first time it is needed. *)
-let arena st scope =
-  match scope.arena with
-  | Some a -> a
-  | None ->
-      let a = fresh st in
-      scope.arena <- Some a;
-      a
-
-(* A new local: held in the block's arena when it is a host or owns a
-   block. *)
-let bind st scope span t id value =
-  if held st span t then Stat.Host { id; scope = arena st scope; value; layout = layout st span t }
-  else Stat.Let { id; value }
-
-let bind_local st scope (l : T.Local.t) id value =
-  bind st scope l.T.Local.span l.T.Local.ty id value
-
-let ptr node = { Expr.node; ty = Nodes.Ty.Ptr }
-
-(* `@primitives$Array<T, n>`, and whether an expression is an array
-   literal. *)
-let array_type t n =
-  Tty.Intrinsic { namespace = "primitives"; name = "Array"; args = [ Tty.Type t; Tty.Number n ] }
-
-let is_array_lit (e : T.Expr.t) = match e.T.Expr.node with T.Expr.Array_lit _ -> true | _ -> false
-
-(* A value of type [t] leaving the arenas an exit drains: a host, or a
-   value that owns a block, takes its blocks out of them first. *)
-let escape st span t exit (value : Expr.t) =
-  if held st span t then
-    { value with Expr.node = Expr.Escape { value; layout = layout st span t; exit } }
-  else value
-let layout_table l = ptr (Expr.Layout l)
-let resolve (tether : Expr.t) = ptr (Expr.Resolve tether)
-let local_ptr id = ptr (Expr.Local id)
-
-(* A storage primitive's operator. The scalars have the machine's own, and
-   `@primitives$String` joins and compares in the runtime. *)
-let primitive_op span op t (l : Expr.t) (r : Expr.t) =
-  match (l.Expr.ty, op) with
-  | Nodes.Ty.Handle, Sst.Nodes.Operator.Add ->
-      { Expr.node = Expr.Runtime { fn = "zane_text_join"; args = [ l; r ] }; ty = t }
-  | Nodes.Ty.Handle, Sst.Nodes.Operator.Eq ->
-      let same =
-        { Expr.node = Expr.Runtime { fn = "zane_text_equal"; args = [ l; r ] }; ty = Nodes.Ty.I64 }
-      in
-      let yes = { Expr.node = Expr.Int 1L; ty = Nodes.Ty.I64 } in
-      { Expr.node = Expr.Binary { op = Expr.Eq; left = same; right = yes }; ty = t }
-  | Nodes.Ty.Handle, _ -> Diagnostic.bug ~span "lowering: `@primitives$String` has no such operator"
-  | _ -> { Expr.node = Expr.Binary { op = binop op; left = l; right = r }; ty = t }
 
 let rec expr st ctx (e : T.Expr.t) : Expr.t =
   let span = e.T.Expr.span in
@@ -436,6 +235,10 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)
   | _ -> Diagnostic.bug ~span "lowering: an expression of a form it has no case for"
 
+(* ---------------------------------------------------------------------- *)
+(* Primitives, lambdas and records                                        *)
+(* ---------------------------------------------------------------------- *)
+
 (* A storage primitive's constructor: `Unit` has no storage, a list starts
    empty, and the others embed their literal. An array's literal is its
    elements, each a value moved into its place, in the order written. *)
@@ -527,6 +330,10 @@ and record st ctx span t (fields : T.Field_value.t list) =
       { Expr.node = Expr.Record (members fields); ty = lowered }
   | _, [ f ] when collapsed st t -> { (value f) with ty = lowered }
   | _ -> Diagnostic.bug ~span "lowering expected a value for every member here"
+
+(* ---------------------------------------------------------------------- *)
+(* Storage, moves and borrows                                             *)
+(* ---------------------------------------------------------------------- *)
 
 (* A value read where its type's own storage is wanted: through a guest, the
    host it names. *)
@@ -670,6 +477,10 @@ and lend st ctx span (a : T.Expr.t) =
         [ bind st ctx.scope span a.T.Expr.ty id value; Stat.assign result (ptr (Expr.Address id)) ]
       in
       ptr (Expr.Expand { label; body; result = Some result })
+
+(* ---------------------------------------------------------------------- *)
+(* Match, handlers and case reads                                         *)
+(* ---------------------------------------------------------------------- *)
 
 (* L13. The scrutinees are reached once, in order, and a switch on each one's
    tag nests inside the last; the semantic pass wrote one arm per
@@ -878,6 +689,10 @@ and case_place st ctx span (target : T.Expr.t) case handler ret =
   in
   ptr (Expr.Expand { label; body; result = Some result })
 
+(* ---------------------------------------------------------------------- *)
+(* Subscripts, calls and arguments                                        *)
+(* ---------------------------------------------------------------------- *)
+
 (* The address of an element (functions.md §2.9): a list's or an array's,
    checked against its length, or what a declared subscript's body names,
    with `this` bound to the target's place. *)
@@ -1059,6 +874,10 @@ and arguments st ctx span v args =
       | T.Arg.Value a -> argument st ctx span v p a
       | T.Arg.Block _ -> Diagnostic.bug ~span "lowering: a block argument to a verb it does not expand")
     v.params args
+
+(* ---------------------------------------------------------------------- *)
+(* Spawns                                                                 *)
+(* ---------------------------------------------------------------------- *)
 
 (* concurrency.md §3. A spawned call's arguments run here, as any call's do
    (L6), and are stored in a frame in this block's arena. A function of its
@@ -1342,6 +1161,10 @@ and spawn_call st ctx span v fn ~writes passed handler =
     let at = if o.ok = Nodes.Ty.Void then None else Some (payload done_) in
     (pre @ [ first; spawned ], Future { settle; at })
 
+(* ---------------------------------------------------------------------- *)
+(* Calls and expansion                                                    *)
+(* ---------------------------------------------------------------------- *)
+
 (* An argument as the callee takes it (L6): a place it may write or take
    the host from is lent by its address, a guest is minted or copied, and
    a value is borrowed. *)
@@ -1500,6 +1323,10 @@ and expand st ctx span v args handler ret =
   | [ Stat.Eval value; Stat.Leave l ] when result = None && l = label -> value
   | body -> { Expr.node = Expr.Expand { label; body; result }; ty = t }
 
+(* ---------------------------------------------------------------------- *)
+(* Blocks, statements and places                                          *)
+(* ---------------------------------------------------------------------- *)
+
 (* L8: a block that hosts a reference-type local has an arena of its own. *)
 and block st ctx (b : T.Block.t) =
   let scope = { arena = None; settles = [] } in
@@ -1630,305 +1457,3 @@ and place st ctx span (target : T.Expr.t) : Expr.place option =
           else { p with path = p.path @ [ member_index st inner.T.Expr.ty slot ] })
         (place st ctx span inner)
   | _ -> None
-
-let func st (v : verb) : Func.t =
-  let span = v.body.T.Block.span in
-  st.next <- 0;
-  let env = Hashtbl.create 16 in
-  let params =
-    List.map
-      (fun (p : T.Local.t) ->
-        let id = fresh st in
-        if by_address st v p then begin
-          Hashtbl.replace env p.T.Local.id (Pointer id);
-          (id, Nodes.Ty.Ptr)
-        end
-        else begin
-          Hashtbl.replace env p.T.Local.id (Slot id);
-          (id, ty st p.T.Local.span p.T.Local.ty)
-        end)
-      v.params
-  in
-  List.iter (fun (id, lit) -> Hashtbl.replace env id (Literal lit)) v.literals;
-  let o = outcome st span v in
-  let linkage =
-    match (st.library, v.signature.S.home) with
-    | Some root, S.Package p when p = root ->
-        if v.instance = [] then Linkage.Exported else Linkage.Shared
-    | _, S.Package p when st.stamped p ->
-        if v.instance = [] then Linkage.Imported else Linkage.Shared
-    | _ ->
-        if Hashtbl.mem st.exported v.key then Linkage.Exported
-        else if Hashtbl.mem st.imported v.key then Linkage.Imported
-        else Linkage.Local
-  in
-  if linkage = Linkage.Imported then
-    { Func.symbol = symbol st v; linkage; params; ret = returned o; body = [] }
-  else begin
-    st.returns <- (if plain o then Fun.id else outcome_case o done_);
-    st.ret <- v.signature.S.ret;
-    let ctx =
-      {
-        env;
-        exit = Function;
-        expanding = [];
-        abort =
-          (fun _ value ->
-            let value =
-              match v.signature.S.abort with
-              | Some t -> escape st span t None value
-              | None -> value
-            in
-            [ Stat.Return (outcome_case o aborted value) ]);
-        resolve = None;
-        finish = no_block;
-        exit_call = (fun _ -> [ Stat.Return (outcome_case o exited unit_) ]);
-        scope = { arena = None; settles = [] };
-      }
-    in
-    { Func.symbol = symbol st v; linkage; params; ret = returned o; body = block st ctx v.body }
-  end
-
-(* L16. The function that makes a package constant: the first call makes
-   its value, in a scope of its own, and stores it in the constant's
-   variable, whose blocks then move into the program's own region; every
-   call gives the variable's address. A context that finds another making
-   it waits for it. A program's constants live as long as it does, as its
-   own region does, so nothing ends them. The constant is local to a
-   program's object, and shared by every object of a library or a stamped
-   dependency that reads it, as a generic instance is. *)
-let made st decl : Func.t =
-  let c = Hashtbl.find st.constants decl in
-  let span = c.value.T.Expr.span in
-  st.next <- 0;
-  let linkage =
-    if st.library = None && not (st.stamped c.package) then Linkage.Local else Linkage.Shared
-  in
-  let lowered = ty st span c.ty in
-  let value = c.symbol ^ ".value" and state = c.symbol ^ ".state" in
-  st.globals <-
-    { Global.symbol = state; linkage; ty = Nodes.Ty.I64 }
-    :: { Global.symbol = value; linkage; ty = lowered }
-    :: st.globals;
-  let global g = ptr (Expr.Global g) in
-  let scope = { arena = None; settles = [] } in
-  let ctx = { (constant_ctx ()) with scope } in
-  let stored = Stat.Store { address = global value; value = moved st ctx span c.ty c.value } in
-  let settled = List.concat_map (fun settle -> settle ()) (List.rev scope.settles) in
-  let finish =
-    Expr.Runtime
-      {
-        fn = "zane_constant_end";
-        args = [ global state; global value; layout_table (layout st span c.ty) ];
-      }
-  in
-  let body = (stored :: settled) @ [ Stat.Eval { Expr.node = finish; ty = Nodes.Ty.Void } ] in
-  let body = match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ] in
-  let begin_ = Expr.Runtime { fn = "zane_constant_begin"; args = [ global state ] } in
-  let begin_ = { Expr.node = begin_; ty = Nodes.Ty.I64 } in
-  let one = { Expr.node = Expr.Int 1L; ty = Nodes.Ty.I64 } in
-  let first = Expr.Binary { op = Expr.Eq; left = begin_; right = one } in
-  let first = { Expr.node = first; ty = Nodes.Ty.I1 } in
-  {
-    Func.symbol = c.symbol;
-    linkage;
-    params = [];
-    ret = Nodes.Ty.Ptr;
-    body = [ Stat.If { cond = first; body }; Stat.Return (global value) ];
-  }
-
-(* ---------------------------------------------------------------------- *)
-(* Programs                                                               *)
-(* ---------------------------------------------------------------------- *)
-
-(* docs/design/symbols.md: a lambda is called by the verb it is written in
-   and its place among that verb's lambdas, counted from 1 in source order,
-   nested ones included, and a package lambda-variable's by the variable.
-   [owner] is the verb's symbol, the variable's, or an enum map's. *)
-let name_lambdas st owner (b : T.Block.t) =
-  let n = ref 0 in
-  let rec block (b : T.Block.t) =
-    List.iter (fun s -> List.iter expr (Tst.Exits.stat_exprs s)) b.T.Block.stats
-  and expr e = List.iter part (Tst.Exits.parts e)
-  and part = function
-    | Tst.Exits.Same x -> expr x
-    | Tst.Exits.Arm b | Tst.Exits.Handler b | Tst.Exits.Block b -> block b
-    | Tst.Exits.Lambda b ->
-        incr n;
-        st.lambdas <- (b, Printf.sprintf "%s$lambda%d" owner !n) :: st.lambdas;
-        block b
-  in
-  block b
-
-(* The functions a library's object holds, besides what they call: every
-   verb of the root package that is not generic and has a function of its
-   own (L11), and every lambda-variable, which other objects call by name
-   (docs/design/separate-compilation.md C5). *)
-let library_roots st (root : T.Package.t) =
-  List.iter
-    (fun (d : T.Decl.t) ->
-      let declared (signature : S.t) =
-        if signature.S.generics = [] then
-          match verb_of st d.T.Decl.id [] with
-          | Some v when not (expands v) -> ignore (symbol st v)
-          | _ -> ()
-      in
-      match d.T.Decl.node with
-      | T.Decl.Verb { signature; body = T.Decl.Checked _ } -> declared signature
-      | T.Decl.Subscript { signature; value = Some _; _ } -> declared signature
-      | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; _ } ->
-          Hashtbl.replace st.exported ("lambda " ^ lambda st span ty l) ()
-      | _ -> ())
-    root.T.Package.decls
-
-(* A program lowers from its root package's `main`; a [library] from every
-   function its root package declares, into an object with no entry.
-
-   A package given a stamp is named by it already: its identity is its
-   stamped name (docs/design/separate-compilation.md C6, C10), which a `%`
-   in it gives away, since no package name holds one. A dependency with a
-   stamp arrives as objects of its own, and a root library with one is
-   named with it instead of the `!` placeholder, as a dependency compiled
-   from source is. *)
-let program ?(library = false) (p : T.Program.t) =
-  let root = match p.T.Program.packages with r :: _ -> Some r.T.Package.name | [] -> None in
-  let library = if library then root else None in
-  let has_stamp p = String.contains p '%' in
-  let stamp p = if Some p = library && not (has_stamp p) then "!" else "" in
-  let stamped p = Some p <> root && has_stamp p in
-  let st = create ~library ~stamp ~stamped in
-  let add decl instance signature params body =
-    let key = key decl instance in
-    Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };
-    name_lambdas st (Symbol.verb ~stamp:st.stamp signature instance) body
-  in
-  List.iter
-    (fun (pkg : T.Package.t) ->
-      List.iter
-        (fun (d : T.Decl.t) ->
-          match d.T.Decl.node with
-          | T.Decl.Type { name; params; reference; definition } ->
-              Hashtbl.replace st.types (pkg.T.Package.name, name) (params, definition, reference)
-          | T.Decl.Enum_map { enum; property; entries; _ } ->
-              Hashtbl.replace st.maps d.T.Decl.id (enum, entries);
-              let stat (_, (e : T.Expr.t)) = { T.Stat.node = T.Stat.Expr e; span = e.T.Expr.span } in
-              name_lambdas st
-                (Symbol.ty ~stamp:st.stamp enum ^ "." ^ property)
-                { T.Block.stats = List.map stat entries; span = d.T.Decl.span }
-          | T.Decl.Constant { name; value; ty } -> (
-              let owner = st.stamp pkg.T.Package.name ^ pkg.T.Package.name ^ "$" ^ name in
-              Hashtbl.replace st.constants d.T.Decl.id
-                { symbol = owner; package = pkg.T.Package.name; ty; value };
-              match value.T.Expr.node with
-              | T.Expr.Lambda { body; _ } ->
-                  if st.stamped pkg.T.Package.name then
-                    Hashtbl.replace st.imported ("lambda " ^ owner) ();
-                  st.lambdas <- (body, owner) :: st.lambdas;
-                  name_lambdas st owner body
-              | _ ->
-                  let stat = { T.Stat.node = T.Stat.Expr value; span = value.T.Expr.span } in
-                  name_lambdas st owner { T.Block.stats = [ stat ]; span = value.T.Expr.span })
-          | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
-              add d.T.Decl.id [] signature params body
-          (* A subscript's body is the place it names (functions.md §2.9). *)
-          | T.Decl.Subscript { signature; params; value = Some e } ->
-              let return = { T.Stat.node = T.Stat.Return e; span = e.T.Expr.span } in
-              let body = { T.Block.stats = [ return ]; span = e.T.Expr.span } in
-              add d.T.Decl.id [] signature params body
-          | _ -> ())
-        pkg.T.Package.decls)
-    p.T.Program.packages;
-  List.iter
-    (fun (d : T.Defaults.t) ->
-      Hashtbl.replace st.defaults (key d.T.Defaults.decl d.T.Defaults.args) d.T.Defaults.values)
-    p.T.Program.defaults;
-  (* An instance's signature still names its parameters; its body already
-     has its arguments. *)
-  List.iter
-    (fun (i : T.Instance.t) ->
-      let sub = Tty.subst (List.map (fun ((p : Tty.param), a) -> (p.id, a)) i.T.Instance.args) in
-      let signature = i.T.Instance.signature in
-      let signature =
-        { signature with S.ret = sub signature.S.ret; abort = Option.map sub signature.S.abort }
-      in
-      add i.T.Instance.decl i.T.Instance.args signature i.T.Instance.params i.T.Instance.body)
-    p.T.Program.instances;
-  try
-    (* The root package is the first (docs/design/semantics.md §2), and its `main`
-       is where the program starts (packages.md §6.2). *)
-    let root =
-      match p.T.Program.packages with
-      | r :: _ -> r
-      | [] -> Diagnostic.bug "lowering: assembly gave it no packages"
-    in
-    (* In the order calls first reach them, the roots first. *)
-    let rec drain acc =
-      match Queue.take_opt st.pending with
-      | Some v -> drain (func st v :: acc)
-      | None -> (
-          match Queue.take_opt st.made with
-          | Some decl -> drain (made st decl :: acc)
-          | None -> List.rev acc)
-    in
-    let finish ?(start = []) entry =
-      let funcs = drain [] in
-      let funcs = start @ funcs @ List.rev st.spawned in
-      let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
-      Ok { Program.funcs; entry; layouts; globals = List.rev st.globals }
-    in
-    if library <> None then begin
-      library_roots st root;
-      finish None
-    end
-    else
-      let main =
-        List.find_map
-          (fun (d : T.Decl.t) ->
-            match d.T.Decl.node with
-            | T.Decl.Verb { signature; _ } when signature.S.name = "main" ->
-                verb_of st d.T.Decl.id []
-            | _ -> None)
-          root.T.Package.decls
-      in
-      match main with
-      | None ->
-          Diagnostic.bug
-            (Printf.sprintf "lowering: the root package `%s` declares no `main`"
-               root.T.Package.name)
-      | Some main ->
-          (* The runtime calls `main` and reads no outcome from it. *)
-          let span = main.body.T.Block.span in
-          if not (plain (outcome st span main)) then
-            Diagnostic.bug ~span "lowering: `main` can abort or exit";
-          (* L16: every package constant is made before `main` runs, the
-             packages a package depends on first, and within a package in
-             the order declared. One that reads another makes that one
-             first. *)
-          let constants =
-            List.concat_map
-              (fun (pkg : T.Package.t) ->
-                List.filter_map
-                  (fun (d : T.Decl.t) ->
-                    match d.T.Decl.node with
-                    | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda _; _ }; _ } -> None
-                    | T.Decl.Constant _ -> Some d.T.Decl.id
-                    | _ -> None)
-                  pkg.T.Package.decls)
-              (List.rev p.T.Program.packages)
-          in
-          let entry = symbol st main in
-          if constants = [] then finish (Some entry)
-          else
-            let make decl = Stat.Eval (constant st decl) in
-            let call = { Expr.node = Expr.Call { fn = entry; args = [] }; ty = Nodes.Ty.Void } in
-            let start =
-              {
-                Func.symbol = "zane.start";
-                linkage = Linkage.Local;
-                params = [];
-                ret = Nodes.Ty.Void;
-                body = List.map make constants @ [ Stat.Eval call ];
-              }
-            in
-            finish ~start:[ start ] (Some "zane.start")
-  with Refused d -> Error d

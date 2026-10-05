@@ -1,7 +1,6 @@
 (* Stage 4's entry module (docs/design/lowering.md). *)
 
 module Nodes = Nodes
-module Lower = Lower
 
-let lower = Lower.program
+let lower = Program.program
 let to_node = To_tree_graph.program
