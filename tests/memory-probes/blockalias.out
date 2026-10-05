@@ -1,0 +1,4 @@
+== checks; building and running
+payload borrowed while a block argument changes the case NO
+element borrowed while a block argument replaces the list NO
+== exit 0

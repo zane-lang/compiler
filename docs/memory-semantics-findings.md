@@ -30,7 +30,7 @@ Findings are numbered and classified:
 | 6 | Bug | `lambdas` | A call through a function value records no resting place, so a reference dangles and a write through it corrupts a live object |
 | 7 | Bug | `deepvalue` | Overwriting a recursive value deeper than about 22,700 levels overflows the C stack and segfaults |
 | 10 | Bug | `binders` | A match binder dangles once its arm overwrites the scrutinee |
-| 9 | Bug | `aliasing` | A borrowed list element or payload is freed by the same call's `mut` subject, and then read |
+| 9 | Bug | `aliasing`, `blockalias` | A borrowed list element or payload is freed by the same call's `mut` subject or block argument, and then read |
 | 8 | Bug | `aliasing` | A value parameter is passed by copy, which `v!setFrom(v)` observes; memory.md §2.9 makes it a borrow |
 | 1 | Bug | `reflist` | Nothing can be pushed into a `List<&T>` |
 | 2 | Gap | `genref` | `Box(r)` with `r &Port` infers `Box<Port>`; no way to make a `Box<&Port>` |
@@ -188,7 +188,7 @@ scrutinee may not be overwritten, nor be a `mut` subject (a `mut` method
 could change its case), in the arm. The spec should state it; adt.md is
 silent.
 
-### 9. A call's `mut` subject frees what its borrow names (bug)
+### 9. A call's `mut` subject or block frees what its borrow names (bug)
 
 Probe `aliasing`. A borrow argument may name storage *inside* the call's
 own `mut` subject, and the callee can then destroy that storage while the
@@ -212,11 +212,19 @@ subject merely growing — its block relocates — while an element is borrowed
 (that one needs the list's block not to be last at the frontier, or it
 grows in place and the bug hides).
 
+A block argument of the same call does it with no `mut` subject at all
+(probe `blockalias`): `readAfter(slot.full ?? …, { slot = Slot.empty(Unit());
+})` and `readAfter(list[Int(1)], { list = @primitives$List(Engine); })`,
+where `readAfter` runs its block and then reads its borrow, both read freed
+blocks. A block captures the caller's frame (control-flow.md §2), so it can
+overwrite whatever the borrow points into.
+
 The compiler already rejects the closest relative, a borrow and a take of
 one owner in the same call ("a borrow lasts for the whole call"). The
-missing rule is the same one for a `mut` subject: a call may not lend, as
-another argument, a place inside its `mut` subject that the subject's
-method could destroy or move — a list element or a variant payload, or
+missing rule is the same one for a `mut` subject and a block argument: a
+call may not lend, as another argument, a place inside its `mut` subject, or
+inside storage its block argument writes, that the callee could destroy or
+move — a list element or a variant payload, or
 anything reached through one. memory.md §2.9 says a borrow is "non-owning,
 non-escaping access to the caller's owner for the duration of the call" but
 states no such rule either, so the spec needs it too. (A borrow of a
