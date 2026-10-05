@@ -73,9 +73,10 @@ optimized build alike.
   aborted with, yielded from a match arm — arrive with their data intact,
   and the runtime finds no block left out at any drain.
 - **Reclamation** (`reclaim.py`, `reclaim.out`; memory.md §3.2, lifetimes.md
-  §2.1). Ten allocating loop bodies — settled and element overwrites, string
+  §2.1). Eleven allocating loop bodies — settled and element overwrites, string
   copies and concatenation, ignored `^T` results, block-local owners, refilled
-  roaming owners, deep copies, rebuilt lists — keep the same peak RSS (about
+  roaming owners, deep copies, rebuilt lists, owners resolved out of a
+  handler — keep the same peak RSS (about
   10 MB) at 10,000 and at 1,000,000 iterations. The control, which keeps one
   owner per iteration in a list, grows to 73 MB, so the measurement can see
   growth.
@@ -126,6 +127,10 @@ optimized build alike.
   dependency's `wire`, its transitive `relay`, a result naming an argument,
   a result read through an `&` field of an `&T` parameter, and a field
   constructor's result are all checked at the importing package's calls.
+- **Owners through aborts** (`aborts`; lifetimes.md §1.7). An aborted owner
+  resolved out of its handler and moved on, a result moved through `??`,
+  ignored abortable results, 100,000 aborted owners in a loop, and an owning
+  symbol overwritten from a handler.
 - **Oversized blocks** (`oversized`; memory.md §3.1, §3.6). A 3.2 MB list
   returned out of its scope, a 2 MiB string copied out of an inner block, a
   list of 100,000 strings, and a big list overwritten 20 times.

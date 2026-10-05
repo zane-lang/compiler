@@ -16,6 +16,9 @@ type Car = #struct { engine Engine; }
 Car(engine ^Engine) => init{ engine; }
 type Count = variant { done Int; more Count; }
 ^Engine make(power Int) => Engine(power, String("made") + String("!"))
+^Engine?^Engine risky(power Int) {
+	abort Engine(power, String("aborted") + String("!"));
+}
 Int depth(c Count) => match (c) { n done => n; m more => depth(m) + Int(1); }
 '''
 cases={
@@ -25,6 +28,7 @@ cases={
 "ignored_result": ("", "make(i);"),
 "inner_owner": ("", "e Engine = make(i);"),
 "roaming_refill": ("keep Car(make(Int(0)));", "r ^Engine = make(i); keep = Car(r); r = make(i); keep = Car(r);"),
+"aborted_owner": ("", "x ^Engine = risky(i) ? e { resolve e; }"),
 "control_push_grows": ("l List<Car> = @primitives$List(Car);", "l!push(Car(make(i)));"),
 "deep_copy": ("c Count = Count.more(Count.more(Count.more(Count.done(Int(1))))); d Count = c;", "d = c;"),
 "list_elem_overwrite": ("l List<Car> = @primitives$List(Car); l!push(Car(make(Int(0))));", "l[Int(1)] = Car(make(i));"),

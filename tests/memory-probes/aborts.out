@@ -1,0 +1,8 @@
+== checks; building and running
+abort value moved out of the handler yes
+result moved through ?? yes
+fallback settled yes
+ignored abortable results yes
+loop of aborted owners yes
+refill an owning symbol from a handler yes
+== exit 0
