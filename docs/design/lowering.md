@@ -275,9 +275,12 @@ Lowering lives in `lib/cgt/`, beside `lib/tst/`: `nodes.ml` for the tree,
 `lower.ml` for the TST → CGT walk, `to_tree_graph.ml` to render it. Codegen
 lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,
 and `build.ml` writes the object file and links it with the runtime. The
-runtime's source, `runtime/zane.c`, is compiled into the compiler as a
-string, so a build needs nothing beside the compiler and a C compiler
-(`clang`, or `ZANE_CC`).
+runtime is written as nine parts in `runtime/` (`main.c`, `arena.c`,
+`anchor.c` and so on), with `zane.h` as the ABI that emitted code calls and
+`zane_internal.h` as what the parts share. `runtime/dune` joins the parts in
+a fixed order into one generated `zane.c` and embeds it, with both headers,
+into the compiler as strings, so a build needs nothing beside the compiler
+and a C compiler (`clang`, or `ZANE_CC`).
 
 Lowering starts at the root package's `main` and lowers each verb the first
 time a call reaches it, so a program's unused declarations never need to

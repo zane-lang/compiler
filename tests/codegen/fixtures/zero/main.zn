@@ -1,5 +1,5 @@
 /// An integer division by zero stops the program with a failing status,
-/// after what it wrote so far (docs/lowering.md §9).
+/// after what it wrote so far (docs/design/lowering.md §9).
 package zero;
 
 alias Int = @primitives$Int
