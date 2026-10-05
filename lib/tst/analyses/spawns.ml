@@ -47,7 +47,6 @@ let describe p =
 
 (* The block parameters each verb runs more than once, by declaration and
    position. *)
-let multi : (int * int, unit) Hashtbl.t = Hashtbl.create 16
 
 (* The arguments a call passes, by position: a type written where a value
    goes passes nothing (generics.md §5.3). *)
@@ -58,7 +57,7 @@ let passed args =
 
 (* Whether the argument at [i] of a call to [r] is run more than once:
    `@controlflow$repeat`'s body, or a block parameter a verb runs so. *)
-let runs_often (r : T.Verb_ref.t) i =
+let runs_often multi (r : T.Verb_ref.t) i =
   match r.T.Verb_ref.owner with
   | S.Intrinsic "@controlflow$repeat" -> i = 1
   | S.Declared id -> Hashtbl.mem multi (id, i)
@@ -72,7 +71,7 @@ let call_parts (e : T.Expr.t) =
 (* One pass of the fixed point: a verb runs a block parameter more than once
    when it passes it where it runs more than once, or passes it anywhere from
    inside a block that does. *)
-let find_multi bodies =
+let find_multi multi bodies =
   let changed = ref false in
   let mark id i =
     if not (Hashtbl.mem multi (id, i)) then begin
@@ -99,7 +98,7 @@ let find_multi bodies =
                 match a with
                 | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
                     match param l.T.Local.id with
-                    | Some p when often || runs_often callee i -> mark id p
+                    | Some p when often || runs_often multi callee i -> mark id p
                     | _ -> ())
                 | _ -> ())
               args
@@ -110,7 +109,7 @@ let find_multi bodies =
               List.concat
                 (List.mapi
                    (fun i a ->
-                     match a with T.Arg.Block b -> [ (b, often || runs_often callee i) ] | _ -> [])
+                     match a with T.Arg.Block b -> [ (b, often || runs_often multi callee i) ] | _ -> [])
                    args)
           | None -> []
         in
@@ -206,7 +205,7 @@ let rec beside (e : T.Expr.t) =
    than once. *)
 type piece = Plain of Exits.part | Run of T.Block.t * bool
 
-let walk_body (body : T.Block.t) =
+let walk_body multi (body : T.Block.t) =
   (* Where each guest local points, when the checker knows: the place it was
      minted from, followed through other guests. *)
   let origins : (int, place option) Hashtbl.t = Hashtbl.create 8 in
@@ -348,7 +347,7 @@ let walk_body (body : T.Block.t) =
         let often =
           List.concat
             (List.mapi
-               (fun i a -> match a with T.Arg.Block b -> [ (b, runs_often callee i) ] | _ -> [])
+               (fun i a -> match a with T.Arg.Block b -> [ (b, runs_often multi callee i) ] | _ -> [])
                args)
         in
         List.map
@@ -439,7 +438,9 @@ let walk_body (body : T.Block.t) =
   block [] false body
 
 let run (p : T.Program.t) =
-  Hashtbl.reset multi;
+  (* Each block parameter, by verb and index, that its verb runs more than
+     once. *)
+  let multi : (int * int, unit) Hashtbl.t = Hashtbl.create 16 in
   let bodies =
     List.concat_map
       (fun (pkg : T.Package.t) ->
@@ -455,7 +456,7 @@ let run (p : T.Program.t) =
         (fun (i : T.Instance.t) -> (i.T.Instance.decl, i.T.Instance.params, i.T.Instance.body))
         p.T.Program.instances
   in
-  while find_multi bodies do
+  while find_multi multi bodies do
     ()
   done;
-  List.iter (fun (_, _, b) -> walk_body b) bodies
+  List.iter (fun (_, _, b) -> walk_body multi b) bodies

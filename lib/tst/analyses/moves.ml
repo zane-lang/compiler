@@ -23,6 +23,8 @@ module T = Nodes
 module S = Signature
 
 type walk = {
+  (* The last block number given, shared by every walk of a run. *)
+  blocks : int ref;
   (* The block each local is declared in. *)
   declared : (int, int) Hashtbl.t;
   (* Where each spent symbol was moved. *)
@@ -36,7 +38,6 @@ type walk = {
   mutable resolve : Ty.t list;
 }
 
-let next_block = ref 0
 
 (* Whether storage of type [t] hosts what is stored in it. *)
 let hosting (t : Ty.t) =
@@ -251,8 +252,8 @@ and lambda w (e : T.Expr.t) (l : T.Lambda.t) =
    in it. *)
 and block ?(bind = []) w (b : T.Block.t) =
   let outer = w.block in
-  incr next_block;
-  w.block <- !next_block;
+  incr w.blocks;
+  w.block <- !(w.blocks);
   List.iter (fun (l : T.Local.t) -> Hashtbl.replace w.declared l.T.Local.id w.block) bind;
   List.iter (stat w) b.T.Block.stats;
   w.block <- outer
@@ -285,8 +286,9 @@ and stat w (s : T.Stat.t) =
 (* Declarations                                                           *)
 (* ---------------------------------------------------------------------- *)
 
-let fresh ret =
+let fresh blocks ret =
   {
+    blocks;
     declared = Hashtbl.create 32;
     spent = Hashtbl.create 8;
     subjects = Hashtbl.create 2;
@@ -296,22 +298,24 @@ let fresh ret =
     resolve = [];
   }
 
-let verb (sg : S.t) (params : T.Local.t list) body =
-  let w = fresh sg.S.ret in
+let verb blocks (sg : S.t) (params : T.Local.t list) body =
+  let w = fresh blocks sg.S.ret in
   (match params with
   | this :: _ when S.is_method sg -> Hashtbl.replace w.subjects this.T.Local.id ()
   | _ -> ());
   block ~bind:params w body
 
 let run (p : T.Program.t) =
-  next_block := 0;
+  (* Blocks are numbered across the whole run. *)
+  let blocks = ref 0 in
+  let fresh = fresh blocks in
   List.iter
     (fun (pkg : T.Package.t) ->
       List.iter
         (fun (d : T.Decl.t) ->
           match d.T.Decl.node with
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
-              verb signature params body
+              verb blocks signature params body
           (* A subscript's body is a place, not a value it hands over
              (functions.md §2.9): it is read, and moves nothing out. *)
           | T.Decl.Subscript { value = Some v; _ } -> expr (fresh Ty.Error) v
@@ -333,5 +337,5 @@ let run (p : T.Program.t) =
     (fun (i : T.Instance.t) ->
       let sg = i.T.Instance.signature in
       let sg = if sg.S.kind = S.Subscript then { sg with S.ret = Ty.Error } else sg in
-      verb sg i.T.Instance.params i.T.Instance.body)
+      verb blocks sg i.T.Instance.params i.T.Instance.body)
     p.T.Program.instances
