@@ -65,6 +65,9 @@ just test
 `just -l` lists the recipes: `test` runs the compiler, grammar and
 ambiguity-tool and grammar-generator suites, each of which also has its own recipe.
 
+CI holds every hand-written source file to 2,000 lines, and warns about one
+past 1,500. `just check-file-sizes` runs the same check.
+
 ## Usage
 
 Common tools are available directly inside the development shell:

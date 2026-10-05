@@ -151,6 +151,22 @@ jobs:
         if: steps.suites.outputs.ambiguity-tools == 'true'
         run: devbox run -- just test-ambiguity-tools
 
+  # Every hand-written source file stays under 2,000 lines, with a warning
+  # past 1,500 (`.github/scripts/file-sizes`). It needs nothing but git, so it
+  # runs on its own and answers in seconds.
+  file-sizes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Check file sizes
+        run: .github/scripts/file-sizes
+
   # Linux and Windows are the first tier (docs/design/platforms.md): the
   # programs the job above built for Windows run on Windows itself, each held
   # to the output and status its fixture expects.

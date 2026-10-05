@@ -98,6 +98,10 @@ verify-grammar: _require-menhir
 _require-menhir:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
 
+# Every hand-written source file under 2,000 lines, as CI checks it.
+check-file-sizes:
+	.github/scripts/file-sizes
+
 # Accept the span expectation as it currently stands, after reading the diff
 # `just test-compiler` printed and satisfying yourself that each moved span
 # still covers what its node stands for.
