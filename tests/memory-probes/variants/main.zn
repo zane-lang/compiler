@@ -56,6 +56,21 @@ Int power(s &Slot) => match (s) {
 
 ^Slot fill(n Int) => Slot.full(Engine(n, String("filled")))
 
+alias Block = @concepts$Block
+Unit inner(body Block) {
+	@controlflow$branch(true, body);
+	return Unit();
+}
+type Shed = #struct { row @primitives$ArrayRef<Engine, 2>; }
+Shed(row ^@primitives$ArrayRef<Engine, 2>) => init{ row; }
+Unit churn() {
+	j Int(1);
+	j!to(Int(200)) {
+		l List<Engine> = @primitives$List(Engine);
+		l!push(Engine(Int(999), String("junk") + String("junk")));
+	}
+	return Unit();
+}
 Unit main() {
 	slot Slot = Slot.full(Engine(Int(1), String("one")));
 	view &Slot = slot;
@@ -95,5 +110,20 @@ Unit main() {
 	check(String("write through element reference"), row[Int(2)].power == Int(21));
 	row = @primitives$ArrayRef([Engine(Int(4), String("d")), Engine(Int(5), String("e")), Engine(Int(6), String("f"))]);
 	check(String("whole ArrayRef overwrite seen"), (second.power == Int(5)) * (second.label == String("e")));
+
+	// Replaced from an inner block, whose blocks then drain.
+	second2 &Engine = row[Int(2)];
+	inner({
+		row = @primitives$ArrayRef([Engine(Int(3), String("c") + String("c")), Engine(Int(4), String("d") + String("d"))]);
+	});
+	churn();
+	check(String("element ref after the ArrayRef is replaced from an inner block"), (second2.power == Int(4)) * (second2.label == String("dd")));
+	shed Shed(@primitives$ArrayRef([Engine(Int(1), String("a")), Engine(Int(2), String("b"))]));
+	s &Engine = shed.row[Int(1)];
+	inner({
+		shed = Shed(@primitives$ArrayRef([Engine(Int(5), String("e") + String("e")), Engine(Int(6), String("f"))]));
+	});
+	churn();
+	check(String("element ref after its owner is replaced from an inner block"), (s.power == Int(5)) * (s.label == String("ee")));
 	return Unit();
 }

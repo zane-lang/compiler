@@ -1,11 +1,5 @@
-== checks; building and running
-payload read through a reference yes
-case change seen through the reference yes
-changed to empty yes
-refilled from a result yes
-binder writes the payload yes
-loop of case changes yes
-ArrayRef element overwrite seen yes
-write through element reference yes
-whole ArrayRef overwrite seen yes
-== exit 0
+File "variants/main.zn", line 117, characters 15-123:
+117 |         row = @primitives$ArrayRef([Engine(Int(3), String("c") + String("c")), Engine(Int(4), String("d") + String("d"))]);
+  |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: this assigns `@primitives$ArrayRef<variants$Engine, 2>` to `@primitives$ArrayRef<variants$Engine, 3>`; an assignment is not a coercion site, so a conversion is written out
+== rejected

@@ -99,7 +99,8 @@ optimized build alike.
 - **Reference variants and `ArrayRef`** (`variants`, `payloads`; memory.md
   §2.2, §2.8, §2.8.1). A reference to a `#variant` observes each case change;
   100,000 case changes in a loop; a binder writes its payload in place;
-  `ArrayRef` element references observe element and whole-array overwrites.
+  `ArrayRef` element references observe element and whole-array overwrites,
+  including ones made from an inner block whose blocks then drain.
   A payload is never a reference or move source, through a binder or an
   `&T` parameter; an `ArrayRef` element is never moved out, under a settled
   or a roaming root.
