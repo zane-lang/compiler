@@ -236,8 +236,8 @@ says otherwise.
 2. **Lowering and the checker.** IV6 sorts lowering's refusals into limits
    and bugs and moves the three checks only lowering has into semantics --
    whether `main` can exit, whether a verb expands into itself, and whether
-   a primitive can hold its literal -- so their goldens change, as intended. TS1 then pins every limit with a
-   golden file. SZ1 and SZ2 split `lower.ml` and `check.ml`, as pure
+   a primitive can hold its literal -- so their goldens change, as
+   intended. TS1 then pins every limit with a golden file. SZ1 and SZ2 split `lower.ml` and `check.ml`, as pure
    moves.
 3. **Architecture.** SH3, the runtime's functions as a variant; DR1 and
    the rest of DR2, `lib/driver/`; ST2's two steps, ST3, ST4 and SH2, one
