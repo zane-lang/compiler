@@ -1,0 +1,35 @@
+/// Direct initialization (memory.md §2.11) and package constants as owners
+/// (§2.8: a package constant is a bare settled symbol). ILLEGAL marks what
+/// the spec rejects. Package constants are immutable (packages.md: 'Package scope may contain
+/// immutable constants and verbs').
+package constants;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+type Engine = #struct { power Int; }
+Engine(power Int) => init{ power; }
+Unit tune(this Engine) mut {
+	this.power = this.power + Int(1);
+	return Unit();
+}
+type Car = #struct { engine &Engine; }
+Car(engine &Engine) => init{ engine; }
+
+garage Engine(Int(1))
+spare ^Engine = Engine(Int(2))                // ILLEGAL: ^ is no constant's type
+parked Car(garage)                            // legal: a reference to a constant
+
+Unit consume(e ^Engine) => Unit()
+
+Unit main() {
+	// text String;  ILLEGAL, and a parse error: no initial value. Left out so
+	// the rest of the file is checked.
+	r &Engine = garage;                       // legal
+	m Engine = garage;                        // ILLEGAL: a settled owner never moves
+	consume(spare);                           // ILLEGAL: constants are immutable (packages.md §4)
+	garage = Engine(Int(3));                  // ILLEGAL: the same
+	garage!tune();                            // ILLEGAL: the same
+	return Unit();
+}

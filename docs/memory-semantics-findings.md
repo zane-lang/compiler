@@ -127,6 +127,10 @@ optimized build alike.
   dependency's `wire`, its transitive `relay`, a result naming an argument,
   a result read through an `&` field of an `&T` parameter, and a field
   constructor's result are all checked at the importing package's calls.
+- **Package constants and direct initialization** (`constants`; memory.md
+  §2.8, §2.11). A reference to a constant is minted and stored; a constant is
+  never moved, overwritten or `!`-called, and `^` is refused on one. A
+  declaration without a value is rejected, as a parse error.
 - **Owners through aborts** (`aborts`; lifetimes.md §1.7). An aborted owner
   resolved out of its handler and moved on, a result moved through `??`,
   ignored abortable results, 100,000 aborted owners in a loop, and an owning

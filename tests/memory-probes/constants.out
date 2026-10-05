@@ -1,0 +1,21 @@
+File "constants/main.zn", line 21, characters 7-14:
+21 | spare ^Engine = Engine(Int(2))                // ILLEGAL: ^ is no constant's type
+  |       ^^^^^^^
+Error: `^constants$Engine` is a roaming owner, and `^` is written only on a local, a parameter or a return type, so it cannot be a constant
+File "constants/main.zn", line 30, characters 16-22:
+30 |     m Engine = garage;                        // ILLEGAL: a settled owner never moves
+  |                ^^^^^^
+Error: a package constant is not a move-source: an owner is moved only from a roaming symbol (one declared `^T`), a field of one, a verb's result or a case form
+File "constants/main.zn", line 31, characters 13-18:
+31 |     consume(spare);                           // ILLEGAL: constants are immutable (packages.md §4)
+  |             ^^^^^
+Error: a package constant is not a move-source: an owner is moved only from a roaming symbol (one declared `^T`), a field of one, a verb's result or a case form
+File "constants/main.zn", line 32, characters 5-11:
+32 |     garage = Engine(Int(3));                  // ILLEGAL: the same
+  |     ^^^^^^
+Error: a package constant is immutable: package scope holds no mutable state
+File "constants/main.zn", line 33, characters 5-11:
+33 |     garage!tune();                            // ILLEGAL: the same
+  |     ^^^^^^
+Error: a `!` call writes its subject, and a package constant is immutable
+== rejected
