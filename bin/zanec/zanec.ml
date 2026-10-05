@@ -366,6 +366,10 @@ let () =
         2
     | Diagnostic.Internal { span; message } -> internal ?span message
     | Stack_overflow -> internal "the stack overflowed"
-    | e -> internal (Printexc.to_string e)
+    | e ->
+        (* With OCAMLRUNPARAM=b, where it was raised. *)
+        let backtrace = Printexc.get_backtrace () in
+        internal
+          (if backtrace = "" then Printexc.to_string e else Printexc.to_string e ^ "\n" ^ backtrace)
   in
   exit status
