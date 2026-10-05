@@ -709,11 +709,6 @@ signature does not show, is reported inside the instance, which names the
 call that required it.
 
 **Where `^` is written, beyond what the spec shows.**
-- An abort type follows the return rule: a reference-typed one is `^T` or
-  `&T`, never bare. [`syntax.md`](https://github.com/zane-lang/spec/blob/911d749/spec/syntax.md) §4.10 states the rule for a
-  return type; an abort hands its value to the caller's handler as a return
-  hands it to the caller ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.7), and a
-  bare one would hand back a borrow.
 - `x ^T Type` introduces `T` and takes an owner when `T` is filled with a
   reference type, borrowing a value otherwise. [`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md)
   §2.9 gives that meaning to "a type parameter written `^T`", and a generic
