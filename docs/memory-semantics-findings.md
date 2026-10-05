@@ -176,9 +176,11 @@ n Int = match (slot) {
 
 For a `#variant` the read returns garbage. For a value `variant` with a
 `String` payload, returning the binder copies a string through a freed
-handle: the unoptimized build stops with `zane runtime: out of memory for a
-dynamic chunk` (status 134) and the optimized build prints `NO` and exits 0,
-so the two builds disagree, as undefined behaviour may. A `mut` call on the
+handle. The committed probe prints `NO` for it in both builds; an earlier
+version of the same probe, differing only in code after it, had the
+unoptimized build stop with `zane runtime: out of memory for a dynamic
+chunk` (status 134) while the optimized build printed `NO` — the two builds
+disagreeing, as undefined behaviour may. A `mut` call on the
 scrutinee in the arm, `slot!clear()`, which changes its case, does the same.
 
 The fix is the binder's counterpart of 9: while a binder is live, its
