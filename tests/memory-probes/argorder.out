@@ -1,0 +1,4 @@
+== checks; building and running
+borrowed payload freed by a later argument NO
+borrowed element moved by a later argument NO
+== exit 0
