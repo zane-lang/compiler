@@ -2,7 +2,8 @@
 # Runs every memory-semantics probe program: each directory here is one
 # package. It is type-checked; if it checks, it is built and run. What the
 # compiler and the program printed goes to NAME.out beside the directory, so
-# a change in behaviour shows as a diff. Usage: run [NAME...]
+# a change in behaviour shows as a diff. A program is built unoptimized and
+# optimized, and the second's output is shown too when it differs. Usage: run [NAME...]
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
@@ -16,8 +17,16 @@ for n in "${names[@]}"; do
 	{
 		if "$zanec" --check --package "$n" 2>&1; then
 			echo "== checks; building and running"
-			if "$zanec" --build "$tmp/$n.exe" --package "$n" 2>&1; then
-				"$tmp/$n.exe" 2>&1; echo "== exit $?"
+			if "$zanec" --build "$tmp/$n.exe" --package "$n" 2>&1 &&
+				"$zanec" --build "$tmp/$n.opt.exe" --optimize --package "$n" 2>&1; then
+				"$tmp/$n.exe" > "$tmp/$n.plain" 2>&1; plain=$?
+				"$tmp/$n.opt.exe" > "$tmp/$n.opt" 2>&1; opt=$?
+				cat "$tmp/$n.plain"
+				if ! cmp -s "$tmp/$n.plain" "$tmp/$n.opt" || [ $plain != $opt ]; then
+					echo "== the optimized build differs (exit $opt):"
+					cat "$tmp/$n.opt"
+				fi
+				echo "== exit $plain"
 			else
 				echo "== build failed"
 			fi

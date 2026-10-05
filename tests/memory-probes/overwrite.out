@@ -1,0 +1,12 @@
+== checks; building and running
+field overwrite seen through field ref yes
+whole overwrite seen through field ref yes
+whole overwrite seen through whole ref yes
+string field replaced yes
+moved-in replacement seen yes
+refilled source is independent yes
+ref into settled struct field yes
+ref observes overwrite of enclosing field yes
+ref observes overwrite of root yes
+loop overwrite ends at last yes
+== exit 0
