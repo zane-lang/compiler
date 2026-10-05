@@ -112,9 +112,10 @@ Unit main() {
 	check(String("whole ArrayRef overwrite seen"), (second.power == Int(5)) * (second.label == String("e")));
 
 	// Replaced from an inner block, whose blocks then drain.
-	second2 &Engine = row[Int(2)];
+	row2 @primitives$ArrayRef<Engine, 2> = @primitives$ArrayRef([Engine(Int(1), String("a")), Engine(Int(2), String("b"))]);
+	second2 &Engine = row2[Int(2)];
 	inner({
-		row = @primitives$ArrayRef([Engine(Int(3), String("c") + String("c")), Engine(Int(4), String("d") + String("d"))]);
+		row2 = @primitives$ArrayRef([Engine(Int(3), String("c") + String("c")), Engine(Int(4), String("d") + String("d"))]);
 	});
 	churn();
 	check(String("element ref after the ArrayRef is replaced from an inner block"), (second2.power == Int(4)) * (second2.label == String("dd")));
