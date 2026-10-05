@@ -12,6 +12,11 @@
 # A file matching SHARED can change how anything builds or runs, so it selects
 # every suite. The toolchain pins and this workflow are in it, and so is this
 # script, since a mistake in these patterns would otherwise pass unseen.
+#
+# It also warns, without failing, about any file under lib/ that has grown
+# past 1,500 lines, the size one recursive walk was accepted at
+# (docs/refactoring-proposal.md SZ4), so a file that grows back after a split
+# is noticed in the pull request that grows it.
 set -euo pipefail
 
 : "${GITHUB_OUTPUT:?must be set}"
@@ -84,6 +89,13 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 		esac
 	done <<<"$files"
 fi
+
+while IFS= read -r file; do
+	lines="$(wc -l <"$file")"
+	if ((lines > 1500)); then
+		echo "::warning file=$file::$file is $lines lines, past the 1,500 one recursive walk was accepted at; split out what is not part of the walk"
+	fi
+done < <(git ls-files 'lib/*.ml')
 
 echo "grammar suite: $grammar"
 echo "ambiguity tools suite: $tools"
