@@ -1,0 +1,33 @@
+File "payloads/main.zn", line 13, characters 25-69:
+13 | &Engine get(s &Slot) => s.full ?? s.full ?? s.full ?? Engine(Int(0))  // ILLEGAL: a payload is no reference source
+  |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a new reference must come from a settled place, and a variant case's payload is roaming: the variant may change case while it lives
+File "payloads/main.zn", line 20, characters 25-26:
+20 |             r &Engine = e;          // ILLEGAL: the binder is the payload
+  |                         ^
+Error: a new reference must come from a settled place, and a variant case's payload is roaming: the variant may change case while it lives
+File "payloads/main.zn", line 21, characters 24-25:
+21 |             m Engine = e;           // ILLEGAL: a payload is no move-source
+  |                        ^
+Error: a variant case's payload is not a move-source: an owner is moved only from a roaming symbol (one declared `^T`), a field of one, a verb's result or a case form
+File "payloads/main.zn", line 26, characters 15-19:
+26 |     s2 Slot = slot;                 // ILLEGAL: slot is settled
+  |               ^^^^
+Error: `slot` is a settled owner, which may be referenced and so never moves; an owner that is to move is declared `^T`
+File "payloads/main.zn", line 28, characters 15-22:
+28 |     q &Slot = roaming;              // ILLEGAL: roaming
+  |               ^^^^^^^
+Error: a new reference must come from a settled place, and this is a roaming owner, which may still move; settle it first by moving it into an owner declared without `^`
+File "payloads/main.zn", line 30, characters 26-39:
+30 |     s3 ^Slot = Slot.full(settledEngine);  // ILLEGAL: settledEngine is settled
+  |                          ^^^^^^^^^^^^^
+Error: `settledEngine` is a settled owner, which may be referenced and so never moves; an owner that is to move is declared `^T`
+File "payloads/main.zn", line 32, characters 16-27:
+32 |     x Engine = row[Int(1)];         // ILLEGAL: an ArrayRef element is never moved out
+  |                ^^^^^^^^^^^
+Error: this settled place is not a move-source: an owner is moved only from a roaming symbol (one declared `^T`), a field of one, a verb's result or a case form
+File "payloads/main.zn", line 34, characters 16-29:
+34 |     y Engine = loose[Int(1)];       // ILLEGAL: not even under a roaming root
+  |                ^^^^^^^^^^^^^
+Error: this place is not a move-source: an owner is moved only from a roaming symbol (one declared `^T`), a field of one, a verb's result or a case form
+== rejected

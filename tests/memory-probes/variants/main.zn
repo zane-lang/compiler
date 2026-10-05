@@ -1,0 +1,99 @@
+/// Reference variants and `ArrayRef` at run time (memory.md §2.2, §2.8,
+/// §2.8.1, lifetimes.md §2.1): a payload is roaming and never referenced,
+/// a reference to the variant itself observes a case change, a binder is the
+/// payload's place, and an `ArrayRef`'s elements are settled under a settled
+/// root and overwritten in place.
+package variants;
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+/// Prints the label and `yes` when the condition holds, `no` when not.
+Unit check(label String, ok Bool) {
+	say(label);
+	@controlflow$branch(ok, { say(String(" yes\n")); });
+	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	return Unit();
+}
+
+type Engine = #struct { power Int; label String; }
+Engine(power Int, label String) => init{ power; label; }
+
+Unit tune(this Engine) mut {
+	this.power = this.power + Int(1);
+	return Unit();
+}
+
+type Slot = #variant { full Engine; empty Unit; pair Twin; }
+type Twin = #struct { a Engine; b Engine; }
+Twin(a ^Engine, b ^Engine) => init{ a; b; }
+
+Int power(s &Slot) => match (s) {
+	e full => e.power;
+	u empty => Int(0);
+	t pair => t.a.power + t.b.power;
+}
+
+^Slot fill(n Int) => Slot.full(Engine(n, String("filled")))
+
+Unit main() {
+	slot Slot = Slot.full(Engine(Int(1), String("one")));
+	view &Slot = slot;
+	check(String("payload read through a reference"), power(view) == Int(1));
+	slot = Slot.pair(Twin(Engine(Int(2), String("a")), Engine(Int(3), String("b"))));
+	check(String("case change seen through the reference"), power(view) == Int(5));
+	slot = Slot.empty(Unit());
+	check(String("changed to empty"), power(view) == Int(0));
+	slot = fill(Int(7));
+	check(String("refilled from a result"), power(view) == Int(7));
+
+	// A binder is the payload's place: a write through it stays.
+	n Int = match (slot) {
+		e full {
+			e!tune();
+			return e.power;
+		}
+		u empty => Int(0);
+		t pair => Int(0);
+	}
+	check(String("binder writes the payload"), (n == Int(8)) * (power(view) == Int(8)));
+
+	// Case changes in a loop destroy each payload.
+	i Int(1);
+	i!to(Int(100000)) {
+		slot = Slot.pair(Twin(Engine(i, String("x") + String("y")), Engine(i, String("z"))));
+		slot = Slot.full(Engine(i, String("w") + String("v")));
+	}
+	check(String("loop of case changes"), power(view) == Int(100000));
+
+	// ArrayRef elements: settled under a settled root.
+	row @primitives$ArrayRef<Engine, 3> = @primitives$ArrayRef([Engine(Int(1), String("a")), Engine(Int(2), String("b")), Engine(Int(3), String("c"))]);
+	second &Engine = row[Int(2)];
+	row[Int(2)] = Engine(Int(20), String("bb"));
+	check(String("ArrayRef element overwrite seen"), second.power == Int(20));
+	second!tune();
+	check(String("write through element reference"), row[Int(2)].power == Int(21));
+	row = @primitives$ArrayRef([Engine(Int(4), String("d")), Engine(Int(5), String("e")), Engine(Int(6), String("f"))]);
+	check(String("whole ArrayRef overwrite seen"), (second.power == Int(5)) * (second.label == String("e")));
+	return Unit();
+}
