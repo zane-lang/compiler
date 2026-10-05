@@ -6,13 +6,13 @@ type Pin = #struct { leaf &Leaf; }
 type Tag = #variant { plain Int; pinned &Leaf; }
 
 Leaf(size Int) => init{ size; }
-Branch(leaf Leaf) => init{ leaf; }
+Branch(leaf ^Leaf) => init{ leaf; }
 Pin(leaf &Leaf) => init{ leaf; }
 
 Unit inside(body @concepts$Block) => Unit()
 
-/// A store may not raise a value above what it names: a guest into a place
-/// owned by a block that outlives the host's (lifetimes.md §1.1).
+/// A store may not raise a value above what it names: a reference into a
+/// place scoped to a block that outlives the owner's (lifetimes.md §1.1).
 Unit raise() {
 	outer Branch(Leaf(Int(1)));
 	r &Leaf = outer.leaf;
@@ -25,15 +25,15 @@ Unit raise() {
 	return Unit();
 }
 
-/// A value carries the guests reachable inside it, and each store asks again
-/// (§1.10): a struct, and a case form.
+/// A roaming value carries the references reachable inside it, and each
+/// store of it asks again (§1.10): a struct, and a case form.
 Unit carry() {
 	far Branch(Leaf(Int(3)));
-	parked Pin(far.leaf);
+	parked ^Pin = Pin(far.leaf);
 	tag Tag = Tag.plain(Int(0));
 	inside({
 		near Branch(Leaf(Int(4)));
-		arriving Pin(near.leaf);
+		arriving ^Pin = Pin(near.leaf);
 		parked = arriving;
 		tag = Tag.pinned(near.leaf);
 		tag = Tag.plain(Int(5));
@@ -41,9 +41,9 @@ Unit carry() {
 	return Unit();
 }
 
-/// A returned guest is rooted in a parameter (§1.7), and so is one stored in
-/// `this`: the caller's frame outlives the body.
-&Leaf root(this Branch) => this.leaf
+/// A returned reference is rooted in an `&T` parameter (§1.7), and so is one
+/// stored in `this`: the caller's frame outlives the body.
+&Leaf root(branch &Branch) => branch.leaf
 &Leaf lost() {
 	value Leaf(Int(6));
 	return value;

@@ -1,9 +1,9 @@
 /// Regions: every scope keeps the blocks its values own in a dynamic region
 /// of its own, returned together at its drain (memory.md §3.1–3.2). A value
-/// that leaves a scope takes its blocks out first: a host returned with a
-/// guest made to it, a list built in a loop, a result left from a `match`
-/// arm, a string aborted with, and values stored or pushed from an inner
-/// block into an outer one. The runtime stops the program if a drain finds a
+/// that escapes a scope takes its blocks out first: a roaming owner
+/// returned, a list built in a loop, a result left from a `match` arm, a
+/// string aborted with, and values stored or pushed from an inner block into
+/// an outer one, which a reference then names. The runtime stops the program if a drain finds a
 /// block still out, so a run that ends cleanly moved every one. Each check
 /// prints `yes` when it holds and `no` when it does not.
 package regions;
@@ -49,19 +49,18 @@ Unit check(ok Bool) {
 	return Unit();
 }
 
-/// A host made here, read through a guest, and returned: its blocks leave
-/// with it before this call's scope drains.
-Person made() {
-	p Person(String("ada") + String(" lovelace"));
-	g &Person = p;
-	g.friends!push(String("charles") + String(" babbage"));
-	check(g.name == String("ada lovelace"));
+/// A roaming owner made here, written, and returned: its blocks leave with
+/// it before this call's scope drains.
+^Person made() {
+	p ^Person = Person(String("ada") + String(" lovelace"));
+	p.friends!push(String("charles") + String(" babbage"));
+	check(p.name == String("ada lovelace"));
 	return p;
 }
 
-/// A list of strings built in a loop, where each pass hosts one of its own.
-Words built(n Int) {
-	words List<String> = @primitives$List(String);
+/// A list of strings built in a loop, where each pass holds one of its own.
+^Words built(n Int) {
+	words ^Words = @primitives$List(String);
 	i Int(1);
 	i!to(n) {
 		piece String = String("w") + String("!");
@@ -71,8 +70,8 @@ Words built(n Int) {
 }
 
 /// A list of lists, returned from a scope nested in the call's.
-List<Words> nested() {
-	rows List<Words> = @primitives$List(Words);
+^List<Words> nested() {
+	rows ^List<Words> = @primitives$List(Words);
 	i Int(1);
 	i!to(Int(3)) {
 		rows!push(built(i));
@@ -80,7 +79,7 @@ List<Words> nested() {
 	return rows;
 }
 
-/// A result left from a `match` arm that hosts a string of its own.
+/// A result left from a `match` arm that holds a string of its own.
 String chosen(c Choice) => match (c) {
 	l left {
 		here String = String("le") + String("ft");
@@ -95,8 +94,8 @@ String?String refused() {
 }
 
 Unit main() {
-	// A returned host keeps its blocks, and a guest made to it here reaches
-	// them.
+	// A returned owner keeps its blocks, settles here, and a reference made
+	// to it reaches them.
 	p Person = made();
 	h &Person = p;
 	check(h.name == String("ada lovelace"));

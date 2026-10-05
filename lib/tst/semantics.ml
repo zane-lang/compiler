@@ -16,9 +16,9 @@ let check (packages : Assembly.package list) =
   let program = Program.run env in
   (* The analyses over the finished tree (D1). *)
   Read_only.run env program;
-  Guests.run env program;
+  References.run env program;
   Moves.run env program;
-  Owners.run env program;
+  Scopes.run env program;
   Exits.run env program;
   Expansions.run env program;
   Literal_ranges.run env program;

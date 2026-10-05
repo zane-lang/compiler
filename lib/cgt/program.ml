@@ -32,6 +32,21 @@ let func st (v : verb) : Func.t =
         end)
       v.params
   in
+  (* A `^T` parameter is an owner of the body (lifetimes.md §1.5): it is held
+     in the body's own arena, so the body's drain ends it unless the body
+     moved it on. *)
+  let enter scope =
+    List.concat
+      (List.map2
+         (fun (p : T.Local.t) (id, t) ->
+           if roaming st p.T.Local.ty && held st p.T.Local.span p.T.Local.ty then begin
+             let kept = fresh st in
+             Hashtbl.replace env p.T.Local.id (Slot kept);
+             [ bind_local st scope p kept { Expr.node = Expr.Local id; ty = t } ]
+           end
+           else [])
+         v.params params)
+  in
   List.iter (fun (id, lit) -> Hashtbl.replace env id (Literal lit)) v.literals;
   let o = outcome st span v in
   let linkage =
@@ -50,6 +65,7 @@ let func st (v : verb) : Func.t =
   else begin
     st.returns <- (if plain o then Fun.id else outcome_case o done_);
     st.ret <- v.signature.S.ret;
+    st.aborts <- Option.value ~default:Tty.Error v.signature.S.abort;
     let ctx =
       {
         env;
@@ -69,7 +85,7 @@ let func st (v : verb) : Func.t =
         scope = { arena = None; settles = [] };
       }
     in
-    { Func.symbol = symbol st v; linkage; params; ret = returned o; body = block st ctx v.body }
+    { Func.symbol = symbol st v; linkage; params; ret = returned o; body = block ~enter st ctx v.body }
   end
 
 (* L16. The function that makes a package constant: the first call makes

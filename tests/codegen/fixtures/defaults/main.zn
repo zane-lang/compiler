@@ -11,7 +11,7 @@ alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
 
-Unit say(text &String) {
+Unit say(text String) {
 	@program$console!print(text);
 	return Unit();
 }

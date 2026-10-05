@@ -2,16 +2,13 @@
     ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
-    │   ├── positions[0]: @0 (32 bytes)
-    │   └── positions[1]: text @0
+    │   └── positions[0]: text @0
     ├── layouts[1] > layout:
     │   ├── type: %primitives$Int
     │   └── positions:
     ├── layouts[2] > layout:
     │   ├── type: constants$Person
-    │   ├── positions[0]: @0 (48 bytes)
-    │   ├── positions[1]: @8 (32 bytes)
-    │   └── positions[2]: text @8
+    │   └── positions[0]: text @0
     ├── layouts[3] > layout:
     │   ├── type: constants$Point
     │   └── positions:
@@ -25,7 +22,7 @@
     ├── globals[7]: constants$later.state : i64
     ├── globals[8]: constants$greeting.value : handle
     ├── globals[9]: constants$greeting.state : i64
-    ├── globals[10]: constants$ada.value : {i32, handle, i64}
+    ├── globals[10]: constants$ada.value : {handle, i64}
     ├── globals[11]: constants$ada.state : i64
     ├── globals[12]: constants$origin.value : {i64, i64}
     ├── globals[13]: constants$origin.state : i64
@@ -71,15 +68,15 @@
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %2
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #1
     │       │   ├── scope: %2
     │       │   ├── value: "main\n" : handle
     │       │   └── layout: %primitives$String
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: constants$say(&%primitives$String)
-    │       │   └── args[0] > mint: address of #1 : ptr
+    │       │   ├── fn: constants$say(%primitives$String)
+    │       │   └── args[0]: local #1 : handle
     │       ├── body[2] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
@@ -110,11 +107,13 @@
     │       │       └── right: 94 : i64
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: constants$say(&%primitives$String)
-    │       │   └── args[0] > mint > call:
-    │       │       ├── type: ptr
-    │       │       ├── fn: constants$greeting
-    │       │       └── args:
+    │       │   ├── fn: constants$say(%primitives$String)
+    │       │   └── args[0] > deref:
+    │       │       ├── type: handle
+    │       │       └── ptr > call:
+    │       │           ├── type: ptr
+    │       │           ├── fn: constants$greeting
+    │       │           └── args:
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
@@ -134,7 +133,7 @@
     │       │       │       ├── type: handle
     │       │       │       ├── label: @4
     │       │       │       ├── result: #5
-    │       │       │       ├── body[0] > host:
+    │       │       │       ├── body[0] > hold:
     │       │       │       │   ├── local: #3
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "hello\n" : handle
@@ -145,7 +144,7 @@
     │       │       └── right: 1 : i64
     │       ├── body[6] > let:
     │       │   ├── local: #6
-    │       │   └── value > mint > call:
+    │       │   └── value > call:
     │       │       ├── type: ptr
     │       │       ├── fn: constants$ada
     │       │       └── args:
@@ -158,9 +157,9 @@
     │       │       ├── left > snapshot:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
-    │       │       │       ├── within: {i32, handle, i64}
-    │       │       │       ├── path: 2
-    │       │       │       └── base > resolve: local #6 : i32
+    │       │       │       ├── within: {handle, i64}
+    │       │       │       ├── path: 1
+    │       │       │       └── base: local #6 : ptr
     │       │       └── right: 36 : i64
     │       ├── body[8] > eval > call:
     │       │   ├── type: void
@@ -171,7 +170,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: constants$age(&constants$Person)
-    │       │       │   └── args[0] > mint > call:
+    │       │       │   └── args[0] > call:
     │       │       │       ├── type: ptr
     │       │       │       ├── fn: constants$ada
     │       │       │       └── args:
@@ -185,12 +184,12 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0] > member:
+    │       │       │   ├── args[0] > snapshot:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── index: 1
-    │       │       │   │   └── value > deref:
-    │       │       │   │       ├── type: {i32, handle, i64}
-    │       │       │   │       └── ptr > call:
+    │       │       │   │   └── ptr > offset:
+    │       │       │   │       ├── within: {handle, i64}
+    │       │       │   │       ├── path: 0
+    │       │       │   │       └── base > call:
     │       │       │   │           ├── type: ptr
     │       │       │   │           ├── fn: constants$ada
     │       │       │   │           └── args:
@@ -198,7 +197,7 @@
     │       │       │       ├── type: handle
     │       │       │       ├── label: @8
     │       │       │       ├── result: #9
-    │       │       │       ├── body[0] > host:
+    │       │       │       ├── body[0] > hold:
     │       │       │       │   ├── local: #7
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "ada" : handle
@@ -262,15 +261,13 @@
     │       │       └── right: 94 : i64
     │       └── body[13] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: constants$say(&%primitives$String)
-    │   ├── params[0]: local #1 : i32
+    │   ├── symbol: constants$say(%primitives$String)
+    │   ├── params[0]: local #1 : handle
     │   ├── ret: void
     │   ├── body[0] > eval > runtime:
     │   │   ├── type: void
     │   │   ├── fn: zane_print
-    │   │   └── args[0] > deref:
-    │   │       ├── type: handle
-    │   │       └── ptr > resolve: local #1 : i32
+    │   │   └── args[0]: local #1 : handle
     │   └── body[1] > return: unit : void
     ├── funcs[3] > func:
     │   ├── symbol: constants$check(%primitives$Bool)
@@ -278,12 +275,12 @@
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "yes\n" : handle
     │       │   └── layout: %primitives$String
-    │       ├── body[1] > host:
+    │       ├── body[1] > hold:
     │       │   ├── local: #4
     │       │   ├── scope: %3
     │       │   ├── value: "no\n" : handle
@@ -292,16 +289,16 @@
     │       │   ├── cond: local #1 : i1
     │       │   └── body[0] > eval > call:
     │       │       ├── type: void
-    │       │       ├── fn: constants$say(&%primitives$String)
-    │       │       └── args[0] > mint: address of #2 : ptr
+    │       │       ├── fn: constants$say(%primitives$String)
+    │       │       └── args[0]: local #2 : handle
     │       ├── body[3] > if:
     │       │   ├── cond > flip:
     │       │   │   ├── type: i1
     │       │   │   └── value: local #1 : i1
     │       │   └── body[0] > eval > call:
     │       │       ├── type: void
-    │       │       ├── fn: constants$say(&%primitives$String)
-    │       │       └── args[0] > mint: address of #4 : ptr
+    │       │       ├── fn: constants$say(%primitives$String)
+    │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[4] > func:
     │   ├── symbol: constants$peek()
@@ -324,14 +321,14 @@
     │               └── args:
     ├── funcs[5] > func:
     │   ├── symbol: constants$age(&constants$Person)
-    │   ├── params[0]: local #1 : i32
+    │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   └── body[0] > return > snapshot:
     │       ├── type: i64
     │       └── ptr > offset:
-    │           ├── within: {i32, handle, i64}
-    │           ├── path: 2
-    │           └── base > resolve: local #1 : i32
+    │           ├── within: {handle, i64}
+    │           ├── path: 1
+    │           └── base: local #1 : ptr
     ├── funcs[6] > func:
     │   ├── symbol: constants$limit
     │   ├── params:
@@ -451,15 +448,15 @@
     │   ├── ret: i64
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "made\n" : handle
     │       │   └── layout: %primitives$String
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: constants$say(&%primitives$String)
-    │       │   └── args[0] > mint: address of #2 : ptr
+    │       │   ├── fn: constants$say(%primitives$String)
+    │       │   └── args[0]: local #2 : handle
     │       └── body[2] > return: local #1 : i64
     ├── funcs[11] > func:
     │   ├── symbol: constants$greeting
@@ -485,7 +482,7 @@
     │   │       │       │   ├── type: handle
     │   │       │       │   ├── label: @2
     │   │       │       │   ├── result: #3
-    │   │       │       │   ├── body[0] > host:
+    │   │       │       │   ├── body[0] > hold:
     │   │       │       │   │   ├── local: #1
     │   │       │       │   │   ├── scope: %4
     │   │       │       │   │   ├── value: "hel" : handle
@@ -497,7 +494,7 @@
     │   │       │           ├── type: handle
     │   │       │           ├── label: @6
     │   │       │           ├── result: #7
-    │   │       │           ├── body[0] > host:
+    │   │       │           ├── body[0] > hold:
     │   │       │           │   ├── local: #5
     │   │       │           │   ├── scope: %4
     │   │       │           │   ├── value: "lo\n" : handle
@@ -530,20 +527,20 @@
     │   │       ├── body[0] > store:
     │   │       │   ├── address: global constants$ada.value
     │   │       │   └── value > call:
-    │   │       │       ├── type: {i32, handle, i64}
+    │   │       │       ├── type: {handle, i64}
     │   │       │       ├── fn: constants$Person{name %primitives$String; age %primitives$Int}
     │   │       │       ├── args[0] > expand:
-    │   │       │       │   ├── type: ptr
+    │   │       │       │   ├── type: handle
     │   │       │       │   ├── label: @2
     │   │       │       │   ├── result: #3
-    │   │       │       │   ├── body[0] > host:
+    │   │       │       │   ├── body[0] > hold:
     │   │       │       │   │   ├── local: #1
     │   │       │       │   │   ├── scope: %4
     │   │       │       │   │   ├── value: "ada" : handle
     │   │       │       │   │   └── layout: %primitives$String
     │   │       │       │   └── body[1] > assign:
     │   │       │       │       ├── place: #3
-    │   │       │       │       └── value: address of #1 : ptr
+    │   │       │       │       └── value: local #1 : handle
     │   │       │       └── args[1]: 36 : i64
     │   │       └── body[1] > eval > runtime:
     │   │           ├── type: void
@@ -554,19 +551,18 @@
     │   └── body[1] > return: global constants$ada.value
     ├── funcs[13] > func:
     │   ├── symbol: constants$Person{name %primitives$String; age %primitives$Int}
-    │   ├── params[0]: local #1 : ptr
+    │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
-    │   ├── ret: {i32, handle, i64}
+    │   ├── ret: {handle, i64}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {i32, handle, i64}
-    │       │   ├── members[0] > member 0: 0 : i32
-    │       │   ├── members[1] > member 1 > take:
+    │       │   ├── type: {handle, i64}
+    │       │   ├── members[0] > member 0 > copy:
     │       │   │   ├── type: handle
-    │       │   │   ├── address: local #1 : ptr
+    │       │   │   ├── value: local #1 : handle
     │       │   │   └── layout: %primitives$String
-    │       │   └── members[2] > member 2: local #2 : i64
+    │       │   └── members[1] > member 1: local #2 : i64
     │       └── layout: constants$Person
     ├── funcs[14] > func:
     │   ├── symbol: constants$origin

@@ -2,7 +2,7 @@
     ├── entry: arrays$main()
     ├── layouts[0] > layout:
     │   ├── type: arrays$Box
-    │   └── positions[0]: @0 (48 bytes)
+    │   └── positions:
     ├── layouts[1] > layout:
     │   ├── type: %primitives$Array<arrays$Tree, 2>
     │   ├── positions[0]: box @8 of %primitives$Array<arrays$Tree, 2> (32 bytes) when [0]=1
@@ -12,8 +12,7 @@
     │   └── positions[0]: box @8 of %primitives$Array<arrays$Tree, 2> (32 bytes) when [0]=1
     ├── layouts[3] > layout:
     │   ├── type: %primitives$String
-    │   ├── positions[0]: @0 (32 bytes)
-    │   └── positions[1]: text @0
+    │   └── positions[0]: text @0
     ├── funcs[0] > func:
     │   ├── symbol: arrays$main()
     │   ├── params:
@@ -176,11 +175,11 @@
     │       │       │   ├── args[0]: local #6 : {[4 x i64], i64}
     │       │       │   └── args[1]: 4 : i64
     │       │       └── right: 40 : i64
-    │       ├── body[13] > host:
+    │       ├── body[13] > hold:
     │       │   ├── local: #7
     │       │   ├── scope: %8
     │       │   ├── value > call:
-    │       │   │   ├── type: {i32, {[4 x i64], i64}}
+    │       │   │   ├── type: {{[4 x i64], i64}}
     │       │   │   ├── fn: arrays$Box(arrays$Grid)
     │       │   │   └── args[0]: local #6 : {[4 x i64], i64}
     │       │   └── layout: arrays$Box
@@ -192,8 +191,8 @@
     │       │   │   │   ├── within: {[4 x i64], i64}
     │       │   │   │   ├── path: 0
     │       │   │   │   └── base > offset:
-    │       │   │   │       ├── within: {i32, {[4 x i64], i64}}
-    │       │   │   │       ├── path: 1
+    │       │   │   │       ├── within: {{[4 x i64], i64}}
+    │       │   │   │       ├── path: 0
     │       │   │   │       └── base: address of #7 : ptr
     │       │   │   ├── args[1]: 1 : i64
     │       │   │   ├── args[2]: 4 : i64
@@ -217,8 +216,8 @@
     │       │       │   │       │   ├── within: {[4 x i64], i64}
     │       │       │   │       │   ├── path: 0
     │       │       │   │       │   └── base > offset:
-    │       │       │   │       │       ├── within: {i32, {[4 x i64], i64}}
-    │       │       │   │       │       ├── path: 1
+    │       │       │   │       │       ├── within: {{[4 x i64], i64}}
+    │       │       │   │       │       ├── path: 0
     │       │       │   │       │       └── base: address of #7 : ptr
     │       │       │   │       ├── args[1]: 1 : i64
     │       │       │   │       ├── args[2]: 4 : i64
@@ -229,12 +228,12 @@
     │       │       │       ├── args[0] > snapshot:
     │       │       │       │   ├── type: {[4 x i64], i64}
     │       │       │       │   └── ptr > offset:
-    │       │       │       │       ├── within: {i32, {[4 x i64], i64}}
-    │       │       │       │       ├── path: 1
+    │       │       │       │       ├── within: {{[4 x i64], i64}}
+    │       │       │       │       ├── path: 0
     │       │       │       │       └── base: address of #7 : ptr
     │       │       │       └── args[1]: 4 : i64
     │       │       └── right: 50 : i64
-    │       ├── body[16] > host:
+    │       ├── body[16] > hold:
     │       │   ├── local: #9
     │       │   ├── scope: %8
     │       │   ├── value > case:
@@ -275,7 +274,7 @@
     │       │       │   ├── fn: arrays$total(arrays$Tree)
     │       │       │   └── args[0]: local #9 : <i64 | ptr>
     │       │       └── right: 6 : i64
-    │       ├── body[18] > host:
+    │       ├── body[18] > hold:
     │       │   ├── local: #10
     │       │   ├── scope: %8
     │       │   ├── value > copy:
@@ -357,12 +356,12 @@
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "yes\n" : handle
     │       │   └── layout: %primitives$String
-    │       ├── body[1] > host:
+    │       ├── body[1] > hold:
     │       │   ├── local: #4
     │       │   ├── scope: %3
     │       │   ├── value: "no\n" : handle
@@ -449,13 +448,12 @@
     ├── funcs[8] > func:
     │   ├── symbol: arrays$Box(arrays$Grid)
     │   ├── params[0]: local #1 : {[4 x i64], i64}
-    │   ├── ret: {i32, {[4 x i64], i64}}
+    │   ├── ret: {{[4 x i64], i64}}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {i32, {[4 x i64], i64}}
-    │       │   ├── members[0] > member 0: 0 : i32
-    │       │   └── members[1] > member 1: local #1 : {[4 x i64], i64}
+    │       │   ├── type: {{[4 x i64], i64}}
+    │       │   └── members[0] > member 0: local #1 : {[4 x i64], i64}
     │       └── layout: arrays$Box
     └── funcs[9] > func:
         ├── symbol: arrays$total(arrays$Tree)

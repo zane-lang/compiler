@@ -1,8 +1,8 @@
 ; The runtime on its own (docs/design/lowering.md L17): `arenas.c`,
-; `anchors.c`, `texts.c`, `blocks.c` and `spawns.c` link its parts, built
-; separately, and exercise the scope arenas, the anchors, the strings, the
-; lists, arrays, boxes and dynamic regions, package constants, and spawned
-; calls directly, and the golden files hold what each printed.
+; `texts.c`, `blocks.c` and `spawns.c` link its parts, built separately, and
+; exercise the scope arenas, the strings, the lists, arrays, boxes, in-place
+; overwrites and dynamic regions, package constants, and spawned calls
+; directly, and the golden files hold what each printed.
 
 ; The rules themselves are written from the golden files by
 ; tests/gen/gen_rules.ml, into dune.inc. A fixture added without its rules

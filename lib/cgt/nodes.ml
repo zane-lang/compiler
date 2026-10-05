@@ -5,21 +5,20 @@
    be understood. It grows with each step of docs/design/lowering.md §8; what is here
    is what lowering handles so far. *)
 
-(* A CGT type is a machine layout (L5). [Handle] is `@primitives$String`,
-   the string view (types.md §2.7), and `@primitives$List<T>`: reference
-   types whose instance is a backpointer and a handle (memory.md §3.6), a
+(* A CGT type is a machine layout (L5). [Handle] is `@primitives$String`
+   (types.md §2.7) and `@primitives$List<T>`: a handle (memory.md §3.6), a
    pointer to the first byte or element, the length in bytes or elements,
    with no terminator, and the room in bytes of the block they are in, which
    is 0 when the handle owns none: a literal's bytes are the module's own.
    [Void] is `Unit`, which has no storage. [Array] is
    `@primitives$Array<T, n>`: [n] elements inline, each at the element's
    stride, its size rounded up to its alignment (L5).
-   [Struct] is a value struct's members in declaration order, [Sum] a value
-   variant's or enum's cases: a tag and room for the widest payload. [Ptr]
-   is the address of a place, which is how a `mut` subject is passed (L6).
-   [I32] is `@primitives$I32`, and a reference-type instance's backpointer
-   and a guest's tether, each an anchor's identity (memory.md §4.2). A boxed member is a [Ptr] to
-   its payload's block (adt.md §4). *)
+   [Struct] is a struct's members in declaration order, [Sum] a variant's or
+   enum's cases: a tag and room for the widest payload. [Ptr] is the address
+   of a place, which is how a `mut` subject and a borrow are passed (L6),
+   and what a reference holds: the address of the settled owner it names
+   (memory.md §4.1). [I32] is `@primitives$I32`. A boxed member is a [Ptr]
+   to its payload's block (adt.md §4). *)
 module Ty = struct
   type t =
     | Void
@@ -41,7 +40,7 @@ module Ty = struct
     | I1 -> (1, 1)
     | I32 -> (4, 4)
     | I64 | F64 | Ptr -> (8, 8)
-    | Handle -> (32, 8)
+    | Handle -> (24, 8)
     | Struct ts ->
         let size, align =
           List.fold_left
@@ -88,10 +87,8 @@ module Ty = struct
     | Array (t, n) -> Printf.sprintf "[%d x %s]" n (to_string t)
 end
 
-(* Where a type's hosts and owned blocks are (memory.md §3.6, §4.5): the
-   instance itself when it is a reference type, every reference-type host
-   inside it, outermost first, and every handle and boxed member, each of
-   which may own a dynamic block. A list's block holds elements laid out as
+(* Where a type's owned blocks are (memory.md §3.6): every handle and boxed
+   member, outermost first, each of which may own a dynamic block. A list's block holds elements laid out as
    [elements] says, [stride] bytes apart, and a box's holds one payload of
    [size] bytes laid out as [payload] says. A position inside a variant
    payload is there only while each of [tags] -- a tag's offset and the case
@@ -99,7 +96,6 @@ end
    the program lists each one once, so a layout may name itself. *)
 module Layout = struct
   type kind =
-    | Host
     | Text
     | List of { stride : int; elements : string }
     | Box of { size : int; payload : string }
@@ -151,13 +147,8 @@ module Expr = struct
     (* The address of a member inside the place an address names, down
        [path] through the struct type [within]. *)
     | Offset of { base : t; within : Ty.t; path : int list }
-    (* A guest's tether minted from a host's address, the address a tether
-       resolves to, and the identity it ends at (L9). *)
-    | Mint of t
-    | Resolve of t
-    | Terminal of t
     (* A move out of the place an address names: its value, and the place
-       is spent (memory.md §3.7). *)
+       is spent (lifetimes.md §1.6). *)
     | Take of { address : t; layout : Layout.t }
     (* A value copied whole: every block it owns is copied too, so the copy
        owns blocks of its own (memory.md §2.3). *)
@@ -171,7 +162,7 @@ module Expr = struct
     | Function of string
     (* The address of a variable of the program, by its symbol. *)
     | Global of string
-    (* The value at an address reached through a host, read as a coherent
+    (* The value at an address reached through an owner, read as a coherent
        snapshot: retried while a spawned call writes back there
        (concurrency.md §4.4). *)
     | Snapshot of t
@@ -192,11 +183,11 @@ module Expr = struct
      [Repeat] are `@controlflow$branch` and `@controlflow$repeat`, [Switch]
      jumps on a sum's tag (L13), and [Leave] ends the [Expand] its label
      names. [Scope] is a block's arena (L8), entered before its body and
-     drained on every way out of it, and [Host] fills a new local whose slot
+     drained on every way out of it, and [Hold] fills a new local whose slot
      is in that arena. *)
   and stat =
     | Let of { id : int; value : t }
-    | Host of { id : int; scope : int; value : t; layout : Layout.t }
+    | Hold of { id : int; scope : int; value : t; layout : Layout.t }
     | Scope of { id : int; body : stat list }
     | Assign of { place : place; value : t }
     | Eval of t
@@ -205,16 +196,15 @@ module Expr = struct
     | Repeat of { count : t; body : stat list }
     | Switch of { value : t; cases : (int * stat list) list }
     | Leave of int
-    (* A store through an address, and a value replaced there: a host's
-       identities kept, merged or floated (memory.md §4.5), the blocks the
-       old value owned returned, and the new one's moved into the place's
-       region. A contingent place -- a list's element
-       -- keeps none of its identities, and an anchored occupant floats. *)
+    (* A store through an address, and a value replaced there in place
+       (memory.md §2.2): written at the occupant's address, each boxed
+       member's block kept, the other blocks the old value owned returned,
+       and the new one's arriving in the place's region. *)
     | Store of { address : t; value : t }
-    | Overwrite of { address : t; value : t; layout : Layout.t; contingent : bool }
-    (* A value moved into a fresh place at an address: stored, the anchors
-       it carries follow it there, and the blocks it owns move into the
-       region of the scope that holds the place. *)
+    | Overwrite of { address : t; value : t; layout : Layout.t }
+    (* A value moved into a fresh place at an address: stored, and the
+       blocks it owns that the place's region outlives move into it, which is
+       an escape (memory.md §3.5). *)
     | Place of { address : t; value : t; layout : Layout.t }
     (* A slot of type [ty] in a scope's arena, zeroed so that it holds
        nothing until a [Place] fills it, which the drain then ends. *)
@@ -260,9 +250,6 @@ module Expr = struct
     | Case _ -> "Case"
     | Payload _ -> "Payload"
     | Offset _ -> "Offset"
-    | Mint _ -> "Mint"
-    | Resolve _ -> "Resolve"
-    | Terminal _ -> "Terminal"
     | Take _ -> "Take"
     | Copy _ -> "Copy"
     | Box _ -> "Box"
@@ -283,7 +270,7 @@ end
 module Stat = struct
   type t = Expr.stat =
     | Let of { id : int; value : Expr.t }
-    | Host of { id : int; scope : int; value : Expr.t; layout : Layout.t }
+    | Hold of { id : int; scope : int; value : Expr.t; layout : Layout.t }
     | Scope of { id : int; body : t list }
     | Assign of { place : Expr.place; value : Expr.t }
     | Eval of Expr.t
@@ -293,7 +280,7 @@ module Stat = struct
     | Switch of { value : Expr.t; cases : (int * t list) list }
     | Leave of int
     | Store of { address : Expr.t; value : Expr.t }
-    | Overwrite of { address : Expr.t; value : Expr.t; layout : Layout.t; contingent : bool }
+    | Overwrite of { address : Expr.t; value : Expr.t; layout : Layout.t }
     | Place of { address : Expr.t; value : Expr.t; layout : Layout.t }
     | Reserve of { id : int; scope : int; ty : Ty.t; layout : Layout.t }
     | Spawn of {

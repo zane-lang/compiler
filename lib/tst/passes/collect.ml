@@ -270,7 +270,7 @@ let check_import_overloads env (file : file) =
                      (fun (s : Signature.t) ->
                        Ty.canonical
                          (List.map
-                            (fun (p : Signature.param) -> Ty.without_mut (Ty.strip_guest p.ty))
+                            (fun (p : Signature.param) -> Ty.without_mut (Ty.strip_mode p.ty))
                             s.params))
                      (Hashtbl.find_opt env.signatures d.id)
                  in

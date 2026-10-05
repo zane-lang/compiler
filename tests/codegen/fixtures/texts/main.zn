@@ -1,7 +1,7 @@
-/// Strings: `@primitives$String`, the string view, a reference type whose
-/// handle owns its bytes (memory.md §3.6). Joined, compared and printed;
-/// hosted, moved, guested, overwritten, floated, returned, discarded and
-/// aborted with. The runtime stops the program if a block outlives its
+/// Strings: `@primitives$String`, a value type whose handle owns its bytes
+/// (memory.md §3.6, types.md §2.7). Joined, compared and printed; copied
+/// deep, held in an owner and read through a reference to it, overwritten,
+/// carried in a payload, returned, discarded and aborted with. The runtime stops the program if a block outlives its
 /// owner, and a block returned twice fails under the C library, so a run that
 /// ends cleanly returned each block once. Each check prints `yes` when it
 /// holds and `no` when it does not.
@@ -45,7 +45,7 @@ type Holder = #variant {
 	none Unit;
 }
 
-String twice(text &String) => text + text
+String twice(text String) => text + text
 
 String?String refuse(text String) {
 	abort text + String("!");
@@ -72,36 +72,40 @@ Unit main() {
 	check(~(a == b));
 	check(twice(a) == String("abab"));
 
-	// A move takes the bytes along, and a refill brings new ones.
+	// A copy owns bytes of its own, so overwriting the original leaves it
+	// as it was.
 	c String = b;
 	check(c == String("abcd\n"));
 	b = String("again");
 	check(b == String("again"));
+	check(c == String("abcd\n"));
 
-	// A host holding a string: moved, guested, and its string replaced.
+	// An owner holding a string, read through a reference, and its string
+	// replaced; a copy of the field keeps the old bytes.
 	p Person(String("ada"));
 	g &Person = p;
-	q Person = p;
 	check(g:greeting() == String("hello, ada"));
-	q.name = a + String("!");
+	old String = p.name;
+	p.name = a + String("!");
 	check(g:greeting() == String("hello, ab!"));
-	n &String = q.name;
-	check(n == String("ab!"));
+	check(old == String("ada"));
 
-	// A payload read through a binder, and one that floats.
+	// A payload read through a binder, and a payload owner that dies with
+	// its case.
 	t Tagged = Tagged.named(String("abcd?"));
 	check(match (t) {
 		k named => k == String("abcd?");
 		z anonymous => false;
 	});
 	t = Tagged.anonymous(Unit());
-	kept Person(String("floating"));
-	w &Person = kept;
+	kept ^Person = Person(String("held"));
+	kept!rename(a + String("?"));
 	holder Holder = Holder.some(kept);
+	check(match (holder) {
+		h some => h:greeting() == String("hello, ab?");
+		z none => false;
+	});
 	holder = Holder.none(Unit());
-	check(w:greeting() == String("hello, floating"));
-	w!rename(a + String("!"));
-	check(w:greeting() == String("hello, ab!"));
 
 	// A result nobody keeps, and a string aborted with.
 	twice(a);

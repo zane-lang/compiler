@@ -53,8 +53,8 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$print"; _ }; args; handler = None }
     -> (
       (* The program has one console (effects.md §6.6), so the subject names
-         nothing the runtime needs. The text is a guest to a place in this
-         frame, and the runtime reads the view stored there (L10). *)
+         nothing the runtime needs. The text is a borrowed value, which the
+         runtime reads where it is (L6). *)
       match args with
       | [ T.Arg.Value _console; T.Arg.Value text ] ->
           {
@@ -96,11 +96,12 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$push"; _ }; args; handler = None }
     -> (
       (* The value is taken first, then the list makes room for it, which may
-         move its elements, and the value moves into the new last element. *)
+         move its elements' bytes, and the value moves into the new last
+         element. *)
       match args with
       | [ T.Arg.Value list; T.Arg.Value value ] ->
           let t =
-            match element (Tty.strip_guest list.T.Expr.ty) with
+            match element (Tty.strip_mode list.T.Expr.ty) with
             | Some t -> t
             | None -> Diagnostic.bug ~span "lowering: `push` onto something not a list"
           in
@@ -112,10 +113,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           let l = layout st span t in
           let room =
             Expr.Runtime
-              {
-                fn = Runtime.List_push;
-                args = [ lend st ctx span list; int (stride st span t); layout_table l ];
-              }
+              { fn = Runtime.List_push; args = [ lend st ctx span list; int (stride st span t) ] }
           in
           let body =
             [
@@ -136,7 +134,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       match args with
       | [ T.Arg.Value list ] ->
           let value = borrow st ctx span list in
-          { Expr.node = Expr.Member { value; index = 2 }; ty = Nodes.Ty.I64 }
+          { Expr.node = Expr.Member { value; index = 1 }; ty = Nodes.Ty.I64 }
       | _ -> Diagnostic.bug ~span "lowering: `size` with the wrong arguments")
   | T.Expr.Subscript _ -> (
       match addr st ctx span e with
@@ -176,7 +174,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       call st ctx span (verb_of st id instance) [ T.Arg.Value value ] handler e.T.Expr.ty
   | T.Expr.Field { target; slot; _ } ->
       let t = ty st span e.T.Expr.ty in
-      let owner = Tty.strip_guest target.T.Expr.ty in
+      let owner = Tty.strip_mode target.T.Expr.ty in
       let index = member_index st owner slot in
       if boxed st owner (field_type st span owner slot) then
         (* A boxed member's payload is in its block. A fresh value is held
@@ -185,9 +183,10 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
         match addr st ctx span e with
         | Some p -> { Expr.node = Expr.Deref p; ty = t }
         | None -> Diagnostic.bug ~span "lowering expected a boxed member to have a place"
-      else if Tty.is_guest target.T.Expr.ty then
-        (* Read through the guest, where its host is now (memory.md §4.4). *)
-        let base = resolve (expr st ctx target) in
+      else if Tty.is_ref target.T.Expr.ty then
+        (* Read through the reference, at the address of the owner it names
+           (memory.md §4.1). *)
+        let base = expr st ctx target in
         let within = ty st span owner in
         { Expr.node = Expr.Deref (ptr (Expr.Offset { base; within; path = [ index ] })); ty = t }
       else if collapsed st owner then { (borrow st ctx span target) with ty = t }
@@ -221,15 +220,15 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | Some _ -> { Expr.node = Expr.Deref (constant st decl); ty = ty st span e.T.Expr.ty }
       | None -> Diagnostic.bug ~span "lowering found no package constant here")
   | T.Expr.Call_value { callee; args; handler } -> (
-      match Tty.strip_guest callee.T.Expr.ty with
+      match Tty.strip_mode callee.T.Expr.ty with
       | Tty.Verb fv ->
           let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
           let fn = value_of st ctx callee in
           invoke ~fn st ctx span v (arguments st ctx span v args) handler
       | _ -> Diagnostic.bug ~span "lowering expected a function value here")
-  (* `&` written before a place: a guest to it, minted, or a guest it holds
-     copied (memory.md §2.6). *)
-  | T.Expr.Ref value -> guest st ctx span value
+  (* `&` written before a place: a reference to it, minted, or a reference it
+     holds copied (memory.md §2.6). *)
+  | T.Expr.Ref value -> reference_to st ctx span value
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ }
     when String.starts_with ~prefix:"@controlflow$" spelling ->
       refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)
@@ -255,8 +254,9 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
   (* A new list is empty, and owns no block until its first `push`. *)
   | "List", [ _ ] ->
       { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = Nodes.Ty.Handle }
-  | "Array", [ T.Arg.Value v ] -> (
-      match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_guest t)) with
+  | "ArrayRef.fill", [ _; T.Arg.Value make ] -> fill st ctx span make t
+  | ("Array" | "ArrayRef"), [ T.Arg.Value v ] -> (
+      match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_mode t)) with
       | T.Expr.Array_lit values, Some (e, n) when List.length values = n ->
           let element i v = (i, moved st ctx span e v) in
           { Expr.node = Expr.Record (List.mapi element values); ty = ty st span t }
@@ -276,6 +276,58 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
       | _ -> Diagnostic.bug ~span "lowering expected an array literal of the array's length here")
   | _, [ T.Arg.Value v ] -> literal ctx span name v
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
+
+(* `ArrayRef.fill(n, make)` (generics.md §8.4): a slot this scope holds,
+   each element made by calling `make` with its position, counted from 1, in
+   order, and moved into place; then the whole array moves out of the slot,
+   which is spent, into wherever the call's value goes. *)
+and fill st ctx span (make : T.Expr.t) (t : Tty.t) : Expr.t =
+  match (array_of (Tty.strip_mode t), make.T.Expr.ty) with
+  | Some (e, n), Tty.Verb fv ->
+      let arr = ty st span t in
+      let int k = { Expr.node = Expr.Int (Int64.of_int k); ty = Nodes.Ty.I64 } in
+      let f = fresh st and slot = fresh st and i = fresh st and made = fresh st in
+      let label = fresh st and result = fresh st in
+      let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
+      let fn = { Expr.node = Expr.Local f; ty = Nodes.Ty.Ptr } in
+      let index = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
+      let call = invoke ~fn st ctx span v [ index ] None in
+      let at =
+        ptr
+          (Expr.Runtime
+             {
+               fn = Runtime.Array_at;
+               args = [ ptr (Expr.Address slot); index; int n; int (stride st span e) ];
+             })
+      in
+      let next = { Expr.node = Expr.Binary { op = Expr.Add; left = index; right = int 1 }; ty = Nodes.Ty.I64 } in
+      let whole = layout st span t in
+      let body =
+        [
+          Stat.Let { id = f; value = value_of st ctx make };
+          Stat.Reserve { id = slot; scope = arena st ctx.scope; ty = arr; layout = whole };
+          Stat.Let { id = i; value = int 1 };
+          Stat.Repeat
+            {
+              count = int n;
+              body =
+                [
+                  Stat.Let { id = made; value = call };
+                  Stat.Place
+                    {
+                      address = at;
+                      value = { Expr.node = Expr.Local made; ty = call.Expr.ty };
+                      layout = layout st span e;
+                    };
+                  Stat.assign i next;
+                ];
+            };
+          Stat.assign result
+            { Expr.node = Expr.Take { address = ptr (Expr.Address slot); layout = whole }; ty = arr };
+        ]
+      in
+      { Expr.node = Expr.Expand { label; body; result = Some result }; ty = arr }
+  | _ -> Diagnostic.bug ~span "lowering: `ArrayRef.fill` with the wrong arguments"
 
 (* L14. A lambda captures nothing (functions.md §7.4), so it is lifted out
    as a function of its own, once, and its value is that function's address.
@@ -322,10 +374,6 @@ and record st ctx span t (fields : T.Field_value.t list) =
   in
   match (lowered, fields) with
   | Nodes.Ty.Void, [] -> { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
-  (* A reference type's instance starts untethered (memory.md §4.3). *)
-  | Nodes.Ty.Struct (bp :: rest), _ when reference st t && List.length rest = List.length fields ->
-      let untethered = (0, { Expr.node = Expr.Int 0L; ty = bp }) in
-      { Expr.node = Expr.Record (untethered :: members fields); ty = lowered }
   | Nodes.Ty.Struct ms, _ when List.length ms = List.length fields ->
       { Expr.node = Expr.Record (members fields); ty = lowered }
   | _, [ f ] when collapsed st t -> { (value f) with ty = lowered }
@@ -335,31 +383,31 @@ and record st ctx span t (fields : T.Field_value.t list) =
 (* Storage, moves and borrows                                             *)
 (* ---------------------------------------------------------------------- *)
 
-(* A value read where its type's own storage is wanted: through a guest, the
-   host it names. *)
+(* A value read where its type's own storage is wanted: through a reference,
+   the owner it names. *)
 and value_of st ctx (e : T.Expr.t) =
-  if Tty.is_guest e.T.Expr.ty then
-    let t = ty st e.T.Expr.span (Tty.strip_guest e.T.Expr.ty) in
-    { Expr.node = Expr.Deref (resolve (expr st ctx e)); ty = t }
+  if Tty.is_ref e.T.Expr.ty then
+    let t = ty st e.T.Expr.span (Tty.strip_mode e.T.Expr.ty) in
+    { Expr.node = Expr.Deref (expr st ctx e); ty = t }
   else read st ctx e
 
-(* A value read out of its place. One reached through a host is read as a
+(* A value read out of its place. One reached through an owner is read as a
    snapshot (concurrency.md §4.4). *)
 and read st ctx (e : T.Expr.t) =
   let span = e.T.Expr.span in
-  if through_host st e && not (reference st e.T.Expr.ty) then
+  if through_owner st e && not (reference st e.T.Expr.ty) then
     match addr st ctx span e with
     | Some p -> { Expr.node = Expr.Snapshot p; ty = ty st span e.T.Expr.ty }
     | None -> expr st ctx e
   else expr st ctx e
 
-(* The address of the value a place holds (L10): through a guest, the host
-   it names now (memory.md §4.4); otherwise the place's own storage. *)
+(* The address of the value a place holds (L10): through a reference, the
+   owner it names (memory.md §4.1); otherwise the place's own storage. *)
 and addr st ctx span (e : T.Expr.t) : Expr.t option =
-  if Tty.is_guest e.T.Expr.ty then Some (resolve (expr st ctx e)) else storage st ctx span e
+  if Tty.is_ref e.T.Expr.ty then Some (expr st ctx e) else storage st ctx span e
 
 (* The address of a place's own storage: a local's slot, a `mut` subject's
-   or swallowed argument's pointer, and a member of what any place holds. *)
+   or borrowed argument's pointer, and a member of what any place holds. *)
 and storage st ctx span (e : T.Expr.t) : Expr.t option =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> (
@@ -369,7 +417,7 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
       | Future { settle; at = Some p } -> Some (joined st (settle ()) p)
       | _ -> None)
   | T.Expr.Field { target; slot; _ } ->
-      let owner = Tty.strip_guest target.T.Expr.ty in
+      let owner = Tty.strip_mode target.T.Expr.ty in
       let base =
         match addr st ctx span target with
         | Some base -> Some base
@@ -391,42 +439,43 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
       | Some _ -> Some (constant st decl))
   (* What the program has, such as `@program$console`, holds nothing a
      program reads (effects.md §6.6), so its place is a variable of the
-     program's that holds only its backpointer, which a guest to it is
-     anchored at. *)
+     program's that holds nothing, whose address a reference to it holds. *)
   | T.Expr.Var (T.Name_ref.Intrinsic name) ->
       let symbol = "zane.value." ^ name in
       if not (List.exists (fun (g : Global.t) -> g.Global.symbol = symbol) st.globals) then
-        st.globals <- { Global.symbol; linkage = Linkage.Local; ty = Nodes.Ty.I32 } :: st.globals;
+        st.globals <- { Global.symbol; linkage = Linkage.Local; ty = Nodes.Ty.I64 } :: st.globals;
       Some (ptr (Expr.Global symbol))
   | T.Expr.Subscript { target; impl; args } -> Some (subscript st ctx span target impl args)
   | T.Expr.Case_read { target; case; handler } when held st span e.T.Expr.ty ->
       Some (case_place st ctx span target case handler e.T.Expr.ty)
   | _ -> None
 
-(* A guest to a place, minted, or an existing guest copied as the identity
-   it ends at (memory.md §2.6, §4.4). *)
-and guest st ctx span (e : T.Expr.t) =
-  if Tty.is_guest e.T.Expr.ty then { Expr.node = Expr.Terminal (expr st ctx e); ty = Nodes.Ty.I32 }
+(* A reference to a place, minted as the place's address, or an existing
+   reference copied (memory.md §2.6, §4.1). The semantic pass let only a
+   settled place mint one, and a settled owner never moves, so the address
+   holds until the owner's scope drains. *)
+and reference_to st ctx span (e : T.Expr.t) =
+  if Tty.is_ref e.T.Expr.ty then expr st ctx e
   else
     match addr st ctx span e with
-    | Some p -> { Expr.node = Expr.Mint p; ty = Nodes.Ty.I32 }
-    | None -> Diagnostic.bug ~span "lowering expected a guest source here"
+    | Some p -> p
+    | None -> Diagnostic.bug ~span "lowering expected a reference source here"
 
-(* A value on its way into storage of type [dst]: a guest there is minted
-   or copied, and a reference-type host read from a place moves, which
-   spends the place (memory.md §3.7). *)
+(* A value on its way into storage of type [dst]: a reference there is
+   minted or copied, and a reference-type owner read from a place moves,
+   which spends the place (lifetimes.md §1.6). *)
 and moved st ctx span dst (e : T.Expr.t) =
-  if Tty.is_guest dst then guest st ctx span e
-  else if hosted st dst && not (Tty.is_guest e.T.Expr.ty) then
+  if Tty.is_ref dst then reference_to st ctx span e
+  else if owned st dst && not (Tty.is_ref e.T.Expr.ty) then
     match e.T.Expr.node with
     | T.Expr.Var _ | T.Expr.Field _ -> (
         match addr st ctx span e with
         | Some address ->
             let l = layout st span dst in
             { Expr.node = Expr.Take { address; layout = l }; ty = ty st span dst }
-        (* Semantics moves a host only out of a symbol (moves.ml), which is
-           a place. *)
-        | None -> Diagnostic.bug ~span "lowering expected a host to move out of a place")
+        (* Semantics moves an owner only out of a roaming symbol or a field
+           of one (moves.ml), which is a place. *)
+        | None -> Diagnostic.bug ~span "lowering expected an owner to move out of a place")
     | _ -> expr st ctx e
   else if owns st span dst && is_place e then
     let value = value_of st ctx e in
@@ -437,14 +486,14 @@ and moved st ctx span dst (e : T.Expr.t) =
    making a fresh one: a place, a member of any value, which a fresh value
    is borrowed for, an element, or what a case read gives. *)
 and is_place (e : T.Expr.t) =
-  Tty.is_guest e.T.Expr.ty
+  Tty.is_ref e.T.Expr.ty
   ||
   match e.T.Expr.node with
   | T.Expr.Var _ | T.Expr.Field _ | T.Expr.Subscript _ | T.Expr.Case_read _ -> true
   | _ -> false
 
 (* A value read where it is only looked at, as a value parameter or an
-   operand: a place is read where it is, and a fresh host, or a fresh value
+   operand: a place is read where it is, and a fresh owner, or a fresh value
    that owns a block, is held in this scope first, so the scope's drain ends
    it and returns its blocks. *)
 and borrow st ctx span (e : T.Expr.t) =
@@ -464,7 +513,7 @@ and borrow st ctx span (e : T.Expr.t) =
   else value_of st ctx e
 
 (* The address a callee is lent (L6): the caller's place, or a fresh value
-   stored here first, which this scope then hosts. *)
+   stored here first, which this scope then holds. *)
 and lend st ctx span (a : T.Expr.t) =
   match addr st ctx span a with
   | Some p -> p
@@ -495,7 +544,7 @@ and match_ st ctx span scrutinees (arms : T.Arm.t list) handler ret =
   let stored =
     List.map
       (fun (e : T.Expr.t) ->
-        let tsty = Tty.strip_guest e.T.Expr.ty in
+        let tsty = Tty.strip_mode e.T.Expr.ty in
         let within = ty st span tsty in
         let lets, pointer =
           match addr st ctx span e with
@@ -506,7 +555,7 @@ and match_ st ctx span scrutinees (arms : T.Arm.t list) handler ret =
               let value = value_of st ctx e in
               let id = fresh st in
               let pointer = fresh st in
-              (* A fresh instance is hosted here, like any other. *)
+              (* A fresh instance is held here, like any other. *)
               let at = Stat.Let { id = pointer; value = ptr (Expr.Address id) } in
               ([ bind st ctx.scope span tsty id value; at ], pointer)
         in
@@ -532,7 +581,7 @@ and match_ st ctx span scrutinees (arms : T.Arm.t list) handler ret =
                  | None -> []
                  | Some l ->
                      let index = case_index st span tsty p.case in
-                     let path = (if reference st tsty then [ 1 ] else []) @ [ index ] in
+                     let path = [ index ] in
                      let within = ty st span tsty in
                      let at = ptr (Expr.Offset { base = local_ptr pointer; within; path }) in
                      (* A boxed payload is in its block. *)
@@ -597,7 +646,7 @@ and map_read st ctx span target map ret =
 (* A handler, run where its operation aborted: its binder holds the abort
    value, and a `resolve` gives the operation its value and goes past it. *)
 (* A handler is a block of its own, so an abort value of a reference type
-   is hosted in the handler's arena, which is innermost wherever the handler
+   is held in the handler's arena, which is innermost wherever the handler
    runs. *)
 and handle ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value : Expr.t) =
   let scope = { arena = None; settles = [] } in
@@ -608,7 +657,7 @@ and handle ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value :
         Hashtbl.replace ctx.env l.T.Local.id (Slot id);
         [ bind_local st scope l id value ]
     (* An abort value no binder names, of type [dropped], is still held
-       here when it is a host or owns a block, so the drain ends it. *)
+       here when it is an owner or owns a block, so the drain ends it. *)
     | None, Some t when held st span t -> [ bind st scope span t (fresh st) value ]
     | None, _ -> [ Stat.Eval value ]
   in
@@ -633,7 +682,7 @@ and case_read st ctx span (target : T.Expr.t) case handler ret =
     let value = borrow st ctx span target in
     let id = fresh st in
     let live = case_index st span target.T.Expr.ty case in
-    let tsty = Tty.strip_guest target.T.Expr.ty in
+    let tsty = Tty.strip_mode target.T.Expr.ty in
     let source = sum_of st span tsty { Expr.node = Expr.Local id; ty = value.Expr.ty } in
     let payload i = { Expr.node = Expr.Payload { value = source; index = i }; ty = t } in
     let cases =
@@ -645,14 +694,14 @@ and case_read st ctx span (target : T.Expr.t) case handler ret =
     let body = [ Stat.Let { id; value }; Stat.Switch { value = source; cases } ] @ otherwise in
     { Expr.node = Expr.Expand { label; body; result }; ty = t }
 
-(* A case read of a host, or of a value that owns a block, as a place: the
+(* A case read of an owner, or of a value that owns a block, as a place: the
    payload where the variant holds it when the case is live, or else a slot
    reserved in this scope before the read, which the handler's `resolve`
    fills. Either way what the read gives has one owner, and a copy of it
    owns blocks of its own. *)
 and case_place st ctx span (target : T.Expr.t) case handler ret =
   let t = ty st span ret in
-  let tsty = Tty.strip_guest target.T.Expr.ty in
+  let tsty = Tty.strip_mode target.T.Expr.ty in
   let within = ty st span tsty in
   let label = fresh st in
   let result = fresh st in
@@ -662,7 +711,7 @@ and case_place st ctx span (target : T.Expr.t) case handler ret =
   let live = case_index st span tsty case in
   let whole = { Expr.node = Expr.Deref (local_ptr base); ty = within } in
   let payload =
-    let path = (if reference st tsty then [ 1 ] else []) @ [ live ] in
+    let path = [ live ] in
     let at = ptr (Expr.Offset { base = local_ptr base; within; path }) in
     if boxed st tsty ret then ptr (Expr.Deref at) else at
   in
@@ -700,7 +749,7 @@ and subscript st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
   let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
   match (impl.owner, args) with
   | S.Intrinsic "@primitives$[]", [ index ] -> (
-      match (element (Tty.strip_guest target.T.Expr.ty), array_of (Tty.strip_guest target.T.Expr.ty)) with
+      match (element (Tty.strip_mode target.T.Expr.ty), array_of (Tty.strip_mode target.T.Expr.ty)) with
       | Some t, _ ->
           ptr
             (Expr.Runtime
@@ -888,7 +937,7 @@ and arguments st ctx span v args =
 
    A call that can abort or exit settles on this thread, once, where it is
    first read, or where the block ends when nothing reads it first
-   (docs/spec-divergences.md §13). An abort runs the handler written at the
+   (docs/spec-divergences.md §12). An abort runs the handler written at the
    spawn (§3.3), or goes where an abort from here goes, and its `resolve`
    gives the result; an exit ends the run of the block the spawn is in. *)
 and spawn st ctx span (e : T.Expr.t) =
@@ -906,7 +955,7 @@ and spawn st ctx span (e : T.Expr.t) =
       let v, args = wrapped st span callee args e.T.Expr.ty in
       spawn_call st ctx span v None ~writes:false args handler
   | T.Expr.Call_value { callee; args; handler } -> (
-      match Tty.strip_guest callee.T.Expr.ty with
+      match Tty.strip_mode callee.T.Expr.ty with
       | Tty.Verb fv ->
           let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
           let fn = value_of st ctx callee in
@@ -1020,7 +1069,7 @@ and spawn_call st ctx span v fn ~writes passed handler =
   let o = outcome st span v in
   let whole = returned o in
   let args = arguments st ctx span v passed in
-  (* A `mut` subject reached through a host is copied into the frame,
+  (* A `mut` subject reached through an owner is copied into the frame,
      and the call works on the copy, which it writes back when it
      returns (§4.4). A function value's subject is lent by its address
      (L14), so one it may not write is read into the frame here, where
@@ -1030,8 +1079,8 @@ and spawn_call st ctx span v fn ~writes passed handler =
     | this :: _, T.Arg.Value subject :: _
       when by_address st v this && this.T.Local.name = "this"
            && (not (reference st this.T.Local.ty))
-           && (through_host st subject || not writes) ->
-        Some (this.T.Local.ty, through_host st subject)
+           && (through_owner st subject || not writes) ->
+        Some (this.T.Local.ty, through_owner st subject)
     | _ -> None
   in
   let pre, args =
@@ -1165,12 +1214,13 @@ and spawn_call st ctx span v fn ~writes passed handler =
 (* Calls and expansion                                                    *)
 (* ---------------------------------------------------------------------- *)
 
-(* An argument as the callee takes it (L6): a place it may write or take
-   the host from is lent by its address, a guest is minted or copied, and
-   a value is borrowed. *)
+(* An argument as the callee takes it (L6): a place it may write, or a
+   borrowed owner, is lent by its address, a reference is minted or copied,
+   a `^T` argument is moved, and a value is borrowed. *)
 and argument st ctx span v (p : T.Local.t) a =
   if by_address st v p then lend st ctx span a
-  else if Tty.is_guest p.T.Local.ty then guest st ctx span a
+  else if Tty.is_ref p.T.Local.ty then reference_to st ctx span a
+  else if roaming st p.T.Local.ty then moved st ctx span p.T.Local.ty a
   else borrow st ctx span a
 
 (* L12. A call that can end more than one way is switched on how it ended:
@@ -1210,9 +1260,10 @@ and invoke ?fn st ctx span v args handler =
     { Expr.node = Expr.Expand { label; body; result }; ty = o.ok }
 
 (* L11. A parameter is bound to what it stands for in the body: a block
-   argument to its code, a literal to itself, the subject or a swallowed
-   host to the caller's place, and any other argument to a new slot holding
-   its value (L6). *)
+   argument to its code, a literal to itself, the subject or a borrowed
+   owner to the caller's place, a `^T` argument to a slot this scope holds
+   the moved value in, and any other argument to a new slot holding its
+   value (L6). *)
 and expand st ctx span v args handler ret =
   if List.mem v.decl ctx.expanding then
     Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` expands into itself" v.signature.S.name);
@@ -1248,7 +1299,7 @@ and expand st ctx span v args handler ret =
                bind p (Slot id);
                if held st span arr then
                  let layout = layout st span arr in
-                 [ Stat.Host { id; scope = arena st ctx.scope; value; layout } ]
+                 [ Stat.Hold { id; scope = arena st ctx.scope; value; layout } ]
                else [ Stat.Let { id; value } ]
            (* A literal stands for itself. A spawned call's array literal is
               a value in a slot by now (specialized), which the parameter
@@ -1269,7 +1320,8 @@ and expand st ctx span v args handler ret =
                    [])
            | ( T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); T.Expr.ty = at; _ },
                _ )
-             when (p.T.Local.name = "this" || hosted st p.T.Local.ty) && not (Tty.is_guest at) -> (
+             when (p.T.Local.name = "this" || (owned st p.T.Local.ty && not (roaming st p.T.Local.ty)))
+                  && not (Tty.is_ref at) -> (
                match lookup ctx span l with
                | (Slot _ | Pointer _) as b ->
                    bind p b;
@@ -1279,16 +1331,24 @@ and expand st ctx span v args handler ret =
                    bind p (Pointer id);
                    settle () @ [ Stat.Let { id; value = at } ]
                | _ -> Diagnostic.bug ~span "lowering expected a place here")
-           (* Any other place the body may write, or take the host from, is
-              lent by its address. *)
-           | T.Arg.Value a, _ when p.T.Local.name = "this" || hosted st p.T.Local.ty ->
+           (* Any other place the body may write, or that it borrows, is lent
+              by its address. *)
+           | T.Arg.Value a, _
+             when p.T.Local.name = "this" || (owned st p.T.Local.ty && not (roaming st p.T.Local.ty)) ->
                let value = lend st ctx span a in
                let id = fresh st in
                bind p (Pointer id);
                [ Stat.Let { id; value } ]
+           (* A taken owner is moved into a slot of its own, which this scope
+              holds, so it dies with the scope unless the body moves it on. *)
+           | T.Arg.Value a, _ when roaming st p.T.Local.ty ->
+               let value = moved st ctx span p.T.Local.ty a in
+               let id = fresh st in
+               bind p (Slot id);
+               [ Build.bind st ctx.scope span p.T.Local.ty id value ]
            | T.Arg.Value a, _ ->
                let value =
-                 if Tty.is_guest p.T.Local.ty then guest st ctx span a else borrow st ctx span a
+                 if Tty.is_ref p.T.Local.ty then reference_to st ctx span a else borrow st ctx span a
                in
                let id = fresh st in
                bind p (Slot id);
@@ -1327,17 +1387,20 @@ and expand st ctx span v args handler ret =
 (* Blocks, statements and places                                          *)
 (* ---------------------------------------------------------------------- *)
 
-(* L8: a block that hosts a reference-type local has an arena of its own. *)
-and block st ctx (b : T.Block.t) =
+(* L8: a block that holds a reference-type local has an arena of its own.
+   [enter] runs first, in the block's scope: a function's `^T` parameters
+   are held there, so the body's drain ends any it did not move on. *)
+and block ?(enter = fun _ -> []) st ctx (b : T.Block.t) =
   let scope = { arena = None; settles = [] } in
-  let body = List.concat_map (stat st { ctx with scope }) b.T.Block.stats in
+  let entered = enter scope in
+  let body = entered @ List.concat_map (stat st { ctx with scope }) b.T.Block.stats in
   (* A spawned call that can abort or exit, and that nothing has read,
      settles where the block ends. *)
   let body = body @ List.concat_map (fun settle -> settle ()) (List.rev scope.settles) in
   match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ]
 
 (* A block argument's code, where it was written. An exit ends this run of
-   it (docs/spec-divergences.md §11). *)
+   it (docs/spec-divergences.md §10). *)
 and code st ctx span (arg : T.Arg.t) =
   let run ctx b =
     let label = fresh st in
@@ -1387,15 +1450,12 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
         | None -> refuse span "lowering does not store into this place yet"
       in
       if held st span t then
-        (* A host replaced in place keeps, merges or floats its identities
-           (memory.md §4.5), and what it replaces returns its blocks. An
-           element is a contingent place (§2.2). *)
+        (* An owner, or a value that owns blocks, is replaced in place
+           (memory.md §2.2): at the same address, each boxed member's block
+           kept, and the rest of what it replaces returning its blocks. *)
         let address = address () in
         let value = moved st ctx span t value in
-        let contingent =
-          match target.T.Expr.node with T.Expr.Subscript _ -> true | _ -> false
-        in
-        [ Stat.Overwrite { address; value; layout = layout st span t; contingent } ]
+        [ Stat.Overwrite { address; value; layout = layout st span t } ]
       else
         match place st ctx span target with
         | Some place -> [ Stat.Assign { place; value = moved st ctx span t value } ]
@@ -1428,7 +1488,10 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           [ Stat.Return (st.returns (escape st span st.ret None (moved st ctx span st.ret e))) ]
       | Leave { label; result; ret } ->
           leave label result (escape st span ret (Some label) (moved st ctx span ret e)))
-  | T.Stat.Abort e -> ctx.abort span (moved st ctx span e.T.Expr.ty e)
+  (* An abort hands its value to the caller's handler as a return hands it
+     to the caller, at the declared abort type: an `&T` abort type takes a
+     reference, whatever the expression's own type. *)
+  | T.Stat.Abort e -> ctx.abort span (escape st span st.aborts None (moved st ctx span st.aborts e))
   | T.Stat.Resolve e -> (
       match ctx.resolve with
       | Some resolve -> resolve e.T.Expr.ty (moved st ctx span e.T.Expr.ty e)
@@ -1436,8 +1499,8 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
 
 (* Where an assignment stores: a local, or the place a `mut` subject points
    at, and the members below it. A struct of one member adds no step. A
-   place reached through a guest has no local to start from, and is stored
-   through its address instead. *)
+   place reached through a reference has no local to start from, and is
+   stored through its address instead. *)
 and place st ctx span (target : T.Expr.t) : Expr.place option =
   match target.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> (
@@ -1449,7 +1512,7 @@ and place st ctx span (target : T.Expr.t) : Expr.place option =
          call has returned. *)
       | Future _ -> None
       | _ -> Diagnostic.bug ~span "lowering expected a place here")
-  | T.Expr.Field { target = inner; _ } when Tty.is_guest inner.T.Expr.ty -> None
+  | T.Expr.Field { target = inner; _ } when Tty.is_ref inner.T.Expr.ty -> None
   | T.Expr.Field { target = inner; slot; _ } ->
       Option.map
         (fun (p : Expr.place) ->

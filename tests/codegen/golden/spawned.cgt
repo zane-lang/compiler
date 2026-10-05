@@ -2,12 +2,10 @@
     ├── entry: spawned$main()
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
-    │   ├── positions[0]: @0 (32 bytes)
-    │   └── positions[1]: text @0
+    │   └── positions[0]: text @0
     ├── layouts[1] > layout:
     │   ├── type: %primitives$List<%primitives$String>
-    │   ├── positions[0]: @0 (32 bytes)
-    │   └── positions[1]: list @0 of %primitives$String (32 bytes apart)
+    │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
     ├── layouts[2] > layout:
     │   ├── type: %primitives$Int
     │   └── positions:
@@ -16,8 +14,7 @@
     │   └── positions:
     ├── layouts[4] > layout:
     │   ├── type: outcome of %primitives$Int ? %primitives$String
-    │   ├── positions[0]: @8 (32 bytes) when [0]=1
-    │   └── positions[1]: text @8 when [0]=1
+    │   └── positions[0]: text @8 when [0]=1
     ├── layouts[5] > layout:
     │   ├── type: %primitives$Unit
     │   └── positions:
@@ -30,7 +27,7 @@
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %2
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #1
     │       │   ├── scope: %2
     │       │   ├── value > runtime:
@@ -50,8 +47,7 @@
     │       │   │       ├── type: ptr
     │       │   │       ├── fn: zane_list_push
     │       │   │       ├── args[0]: address of #1 : ptr
-    │       │   │       ├── args[1]: 32 : i64
-    │       │   │       └── args[2]: layout %primitives$String
+    │       │   │       └── args[1]: 24 : i64
     │       │   └── body[2] > place:
     │       │       ├── address: local #4 : ptr
     │       │       ├── value: local #3 : handle
@@ -68,8 +64,7 @@
     │       │   │       ├── type: ptr
     │       │   │       ├── fn: zane_list_push
     │       │   │       ├── args[0]: address of #1 : ptr
-    │       │   │       ├── args[1]: 32 : i64
-    │       │   │       └── args[2]: layout %primitives$String
+    │       │   │       └── args[1]: 24 : i64
     │       │   └── body[2] > place:
     │       │       ├── address: local #7 : ptr
     │       │       ├── value: local #6 : handle
@@ -222,7 +217,7 @@
     │       │       │       ├── type: handle
     │       │       │       ├── label: @40
     │       │       │       ├── result: #41
-    │       │       │       ├── body[0] > host:
+    │       │       │       ├── body[0] > hold:
     │       │       │       │   ├── local: #39
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "hi!" : handle
@@ -364,7 +359,7 @@
     │       │       │   │           ├── cases[0] > case 0:
     │       │       │   │           └── cases[1] > case 1[0] > scope:
     │       │       │   │               ├── id: %60
-    │       │       │   │               ├── body[0] > host:
+    │       │       │   │               ├── body[0] > hold:
     │       │       │   │               │   ├── local: #59
     │       │       │   │               │   ├── scope: %60
     │       │       │   │               │   ├── value > take:
@@ -462,7 +457,7 @@
     │                   ├── cases[0] > case 0:
     │                   └── cases[1] > case 1[0] > scope:
     │                       ├── id: %75
-    │                       ├── body[0] > host:
+    │                       ├── body[0] > hold:
     │                       │   ├── local: #74
     │                       │   ├── scope: %75
     │                       │   ├── value > take:
@@ -487,7 +482,7 @@
     │   ├── ret: i64
     │   └── body[0] > return > member:
     │       ├── type: i64
-    │       ├── index: 2
+    │       ├── index: 1
     │       └── value > deref:
     │           ├── type: handle
     │           └── ptr: local #1 : ptr
@@ -497,12 +492,12 @@
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "yes\n" : handle
     │       │   └── layout: %primitives$String
-    │       ├── body[1] > host:
+    │       ├── body[1] > hold:
     │       │   ├── local: #4
     │       │   ├── scope: %3
     │       │   ├── value: "no\n" : handle
@@ -564,7 +559,7 @@
     │           │   │   ├── type: handle
     │           │   │   ├── label: @2
     │           │   │   ├── result: #3
-    │           │   │   ├── body[0] > host:
+    │           │   │   ├── body[0] > hold:
     │           │   │   │   ├── local: #1
     │           │   │   │   ├── scope: %4
     │           │   │   │   ├── value: "hi" : handle
@@ -576,7 +571,7 @@
     │           │       ├── type: handle
     │           │       ├── label: @6
     │           │       ├── result: #7
-    │           │       ├── body[0] > host:
+    │           │       ├── body[0] > hold:
     │           │       │   ├── local: #5
     │           │       │   ├── scope: %4
     │           │       │   ├── value: "!" : handle
@@ -647,7 +642,10 @@
     │   │       ├── index: 1
     │   │       └── payload > escape:
     │   │           ├── exit: function
-    │   │           ├── value: "over" : handle
+    │   │           ├── value > escape:
+    │   │           │   ├── exit: function
+    │   │           │   ├── value: "over" : handle
+    │   │           │   └── layout: %primitives$String
     │   │           └── layout: %primitives$String
     │   └── body[1] > return > case:
     │       ├── type: <i64 | handle | void>

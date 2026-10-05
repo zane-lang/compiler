@@ -26,7 +26,10 @@ type type_id = { package : string; name : string }
 type t =
   | Named of type_id * arg list
   | Intrinsic of { namespace : string; name : string; args : arg list }
-  | Guest of t
+  (* `&T`: a reference to a settled owner (memory.md §2.4). *)
+  | Reference of t
+  (* `^T`: a roaming owner (memory.md §2.1). *)
+  | Roaming of t
   | Concept of concept
   | Verb of verb
   | Param of param
@@ -47,7 +50,7 @@ and concept =
   | Array_lit of t * number
   | Map_lit of t * t
   (* A block argument: statements that yield nothing (docs/spec-divergences.md
-     §12). *)
+     §11). *)
   | Block
   (* The type of a type written where a value goes: what a `T Type` value
      parameter accepts (generics.md §5.3). *)
@@ -75,7 +78,7 @@ let bool_primitive = Intrinsic { namespace = "primitives"; name = "Bool"; args =
 let rec contains_error = function
   | Error -> true
   | Named (_, args) | Intrinsic { args; _ } -> List.exists arg_contains_error args
-  | Guest t -> contains_error t
+  | Reference t | Roaming t -> contains_error t
   | Concept c -> concept_contains_error c
   | Verb v ->
       Option.fold ~none:false ~some:contains_error v.this_
@@ -101,7 +104,8 @@ let rec to_string = function
   | Named ({ package; name }, args) -> package ^ "$" ^ name ^ args_to_string args
   | Intrinsic { namespace; name; args } ->
       "@" ^ namespace ^ "$" ^ name ^ args_to_string args
-  | Guest t -> "&" ^ to_string t
+  | Reference t -> "&" ^ to_string t
+  | Roaming t -> "^" ^ to_string t
   | Concept c -> concept_to_string c
   | Verb v -> verb_to_string v
   | Param p -> p.name
@@ -161,7 +165,8 @@ let rec subst (s : subst) t =
         | Some (Number _) | None -> t)
     | Named (id, args) -> Named (id, List.map (subst_arg s) args)
     | Intrinsic i -> Intrinsic { i with args = List.map (subst_arg s) i.args }
-    | Guest t -> Guest (subst s t)
+    | Reference t -> Reference (subst s t)
+    | Roaming t -> Roaming (subst s t)
     | Concept c -> Concept (subst_concept s c)
     | Verb v ->
         Verb
@@ -209,7 +214,7 @@ let free_params t =
   let rec go = function
     | Param p -> add p
     | Named (_, args) | Intrinsic { args; _ } -> List.iter go_arg args
-    | Guest t -> go t
+    | Reference t | Roaming t -> go t
     | Concept c -> go_concept c
     | Verb v ->
         Option.iter go v.this_;
@@ -231,12 +236,13 @@ let free_params t =
 (* Comparison                                                             *)
 (* ---------------------------------------------------------------------- *)
 
-(* The passing mode is not part of what a value is: a `&T` argument and a `T`
+(* The passing mode is not part of what a value is: a `&T`, a `^T` and a `T`
    one carry the same type, and which mode a position may take is a question
    for the lifetime analysis (docs/design/semantics.md D1), not for typing. So the
-   comparisons below look through a guest marker at the top of either side. *)
-let strip_guest = function Guest t -> t | t -> t
-let is_guest = function Guest _ -> true | _ -> false
+   comparisons below look through a mode marker, `&` or `^`, at the top of either side. *)
+let strip_mode = function Reference t | Roaming t -> t | t -> t
+let is_ref = function Reference _ -> true | _ -> false
+let is_roaming = function Roaming _ -> true | _ -> false
 
 let rec equal a b =
   match (a, b) with
@@ -244,7 +250,7 @@ let rec equal a b =
   | Named (x, xs), Named (y, ys) -> x = y && args_equal xs ys
   | Intrinsic x, Intrinsic y ->
       x.namespace = y.namespace && x.name = y.name && args_equal x.args y.args
-  | Guest x, Guest y -> equal x y
+  | Reference x, Reference y | Roaming x, Roaming y -> equal x y
   | Concept x, Concept y -> concept_equal x y
   | Verb x, Verb y ->
       Option.equal equal x.this_ y.this_
@@ -283,14 +289,14 @@ and concept_equal a b =
    does. An argument is held the same way (§4.1 keeps it from matching two
    overloads). *)
 let held_as ~dst ~src =
-  match (strip_guest dst, strip_guest src) with
+  match (strip_mode dst, strip_mode src) with
   | Verb d, Verb s when d.is_mut && not s.is_mut -> Verb { s with is_mut = true }
   | _, s -> s
 
 (* Whether a value of [src] may be stored where [dst] is declared, at a
    position that is not a coercion site: a declaration, an assignment, a
    `return`. Exact, up to the passing mode and [held_as]. *)
-let assignable ~dst ~src = equal (strip_guest dst) (held_as ~dst ~src)
+let assignable ~dst ~src = equal (strip_mode dst) (held_as ~dst ~src)
 
 (* A function type without its `mut`, which overload identity does not read
    (functions.md §4.1). *)
@@ -321,10 +327,17 @@ let rec unify ~open_ (s : subst) pattern actual : subst option =
       | Some (Number _) -> None
       | None -> if is_bare_literal actual then None else Some ((p.id, Type actual) :: s))
   | _, Error -> Some s
+  (* `^T` over a type parameter takes an owner when it is filled with a
+     reference type and borrows a value otherwise (memory.md §2.9), so a
+     function type's `^T` is filled from a value type's result written bare.
+     Only a value type may fill it that way, which kinds decide: the caller
+     checks the filled type ([Type_decls.modes_agree]). *)
+  | Roaming (Param p), actual when is_open p && not (is_roaming actual) ->
+      unify ~open_ s (Param p) actual
   | Named (x, xs), Named (y, ys) when x = y -> unify_args ~open_ s xs ys
   | Intrinsic x, Intrinsic y when x.namespace = y.namespace && x.name = y.name ->
       unify_args ~open_ s x.args y.args
-  | Guest x, Guest y -> unify ~open_ s x y
+  | Reference x, Reference y | Roaming x, Roaming y -> unify ~open_ s x y
   | Concept x, Concept y -> unify_concept ~open_ s x y
   | Verb x, Verb y
     when List.length x.params = List.length y.params
@@ -389,7 +402,8 @@ let canonical ts =
     | Param p -> "$" ^ string_of_int (index p)
     | Named ({ package; name }, args) -> package ^ "$" ^ name ^ go_args args
     | Intrinsic { namespace; name; args } -> "@" ^ namespace ^ "$" ^ name ^ go_args args
-    | Guest t -> "&" ^ go t
+    | Reference t -> "&" ^ go t
+    | Roaming t -> "^" ^ go t
     | Concept c -> (
         match c with
         | Array_lit (t, n) -> "@concepts$Array<" ^ go t ^ "," ^ go_number n ^ ">"

@@ -1,10 +1,11 @@
-/// Guests: `&T` minted from hosts, fields and parameters, read and written
-/// through, passed and returned, and stored in fields. A guest follows its
-/// host through moves, sees a stable overwrite, forwards when two anchored
-/// hosts merge, and keeps a variant payload alive when the case changes
-/// (memory.md §2.8.1, §4.5). Each check prints `yes` when it holds and `no`
-/// when it does not.
-package guests;
+/// References: `&T` minted from settled owners, their fields and
+/// parameters, read and written through, passed and returned, and stored in
+/// fields. A settled owner never moves, so a reference is its address: an
+/// overwrite of the owner, or of the owner around it, is made in place and
+/// the reference observes the replacement (memory.md §2.2, §4). A roaming
+/// owner settles where it lands. Each check prints `yes` when it holds and
+/// `no` when it does not.
+package settled;
 
 alias Int = @primitives$Int
 alias Bool = @primitives$Bool
@@ -42,7 +43,7 @@ Int twice(this Node) => this.value * Int(2)
 
 Int peek(node &Node) => node.value
 
-/// Returns one of two guests it was given.
+/// Returns one of two references it was given.
 &Node larger(a &Node, b &Node) {
 	if(b.value < a.value) {
 		return a;
@@ -55,7 +56,7 @@ type Car = #struct {
 	spare Node;
 }
 
-Car(engine &Node, spare Node) => init{ engine; spare; }
+Car(engine &Node, spare ^Node) => init{ engine; spare; }
 
 type Holder = #variant {
 	some Node;
@@ -75,7 +76,8 @@ Unit check(ok Bool) {
 }
 
 Unit main() {
-	// A guest reads and writes its host, and the host's writes show.
+	// A reference reads and writes the settled owner it names, and the
+	// owner's own writes show through it.
 	a Node(Int(1));
 	g &Node = a;
 	a!bump();
@@ -85,50 +87,41 @@ Unit main() {
 	check((peek(g) == Int(3)) * (peek(a) == Int(3)));
 	check(g:twice() == Int(6));
 
-	// A move takes the identity along, and a refill starts a new one.
-	b Node = a;
-	g!bump();
-	check(b.value == Int(4));
-	a = Node(Int(100));
-	check(g.value == Int(4));
-
-	// A stable overwrite keeps the identity.
-	b = Node(Int(7));
+	// An overwrite of a settled owner is made in place, and the reference
+	// observes the replacement.
+	a = Node(Int(7));
 	check(g.value == Int(7));
 
-	// Two anchored hosts merge: the moved one's guests forward to the host
-	// that stays.
-	c Node(Int(20));
-	h &Node = c;
-	b = c;
-	h!bump();
-	check(g.value == Int(21));
-	check(b.value == Int(21));
+	// A roaming owner settles where it lands, and is referenced from there.
+	spare ^Node = Node(Int(20));
+	spare!bump();
+	b Node = spare;
+	h &Node = b;
+	check(h.value == Int(21));
+	b = Node(Int(100));
+	check(h.value == Int(100));
 
-	// A guest passed and returned, and one repointed.
+	// A reference passed and returned, and one repointed.
 	check(larger(a, b).value == Int(100));
-	g = a;
+	g = b;
 	check(g.value == Int(100));
 
-	// A guest field, and a guest minted from a hosting field.
-	car Car(b, Node(Int(5)));
+	// A reference field, and a reference minted from an owning field of a
+	// settled owner.
+	car Car(a, Node(Int(5)));
 	car.engine!bump();
-	check(b.value == Int(22));
+	check(a.value == Int(8));
 	s &Node = car.spare;
-	moved Car = car;
 	s!bump();
-	check(moved.spare.value == Int(6));
-	moved.spare = Node(Int(50));
+	check(car.spare.value == Int(6));
+	car.spare = Node(Int(50));
 	check(s.value == Int(50));
 
-	// A variant payload floats when the case changes, and its guests live on.
-	n Node(Int(9));
-	w &Node = n;
-	holder Holder = Holder.some(n);
-	holder = Holder.none(Unit());
-	check(w.value == Int(9));
-	w!bump();
-	check(w.value == Int(10));
+	// The whole owner overwritten in place: a reference into its field
+	// observes the replacement's field.
+	car = Car(b, Node(Int(60)));
+	check(s.value == Int(60));
+	check(car.engine.value == Int(100));
 
 	// A binder is its payload's place: a write through it stays.
 	kept Holder = Holder.some(Node(Int(30)));
@@ -144,7 +137,7 @@ Unit main() {
 		z none => false;
 	});
 
-	// A fresh scrutinee is hosted where it is matched.
+	// A fresh scrutinee is held where it is matched.
 	check(match (Holder.some(Node(Int(40)))) {
 		k some {
 			k!bump();
@@ -153,7 +146,8 @@ Unit main() {
 		z none => false;
 	});
 
-	// Many guests minted and dropped: each pass's anchors retire with it.
+	// Many references minted and dropped: each pass's owner drains with its
+	// block, and nothing is kept for a reference.
 	total Int(0);
 	i Int(1);
 	i!to(Int(100000)) {

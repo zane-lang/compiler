@@ -11,9 +11,6 @@ type fn =
   | Divide_by_zero
   | Scope_enter
   | Slot
-  | Mint
-  | Resolve
-  | Terminal
   | Promote
   | Arrive
   | Vacate
@@ -35,7 +32,7 @@ type fn =
   | Constant_end
   | Writeback
 
-let all = [ Print; Text_join; Text_equal; Divide_by_zero; Scope_enter; Slot; Mint; Resolve; Terminal; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback ]
+let all = [ Print; Text_join; Text_equal; Divide_by_zero; Scope_enter; Slot; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback ]
 
 let name = function
   | Print -> "zane_print"
@@ -44,9 +41,6 @@ let name = function
   | Divide_by_zero -> "zane_divide_by_zero"
   | Scope_enter -> "zane_scope_enter"
   | Slot -> "zane_slot"
-  | Mint -> "zane_mint"
-  | Resolve -> "zane_resolve"
-  | Terminal -> "zane_terminal"
   | Promote -> "zane_promote"
   | Arrive -> "zane_arrive"
   | Vacate -> "zane_vacate"
@@ -68,8 +62,8 @@ let name = function
   | Constant_end -> "zane_constant_end"
   | Writeback -> "zane_writeback"
 
-(* A value as the C ABI passes it: [I32] is a guest's tether (`uint32_t`),
-   [I64] an `int64_t`, and [Ptr] any pointer, a function's included. *)
+(* A value as the C ABI passes it: [I32] a `uint32_t`, [I64] an `int64_t`,
+   and [Ptr] any pointer, a function's included. *)
 type ty = Void | I32 | I64 | Ptr
 
 (* The return type, then the parameters. *)
@@ -80,17 +74,14 @@ let signature = function
   | Divide_by_zero -> (Void, [  ])
   | Scope_enter -> (I64, [  ])
   | Slot -> (Ptr, [ I64; I64; I64; Ptr ])
-  | Mint -> (I32, [ Ptr ])
-  | Resolve -> (Ptr, [ I32 ])
-  | Terminal -> (I32, [ I32 ])
   | Promote -> (Void, [ Ptr; Ptr; I64 ])
   | Arrive -> (Void, [ Ptr; Ptr ])
   | Vacate -> (Void, [ Ptr; Ptr ])
   | Copy -> (Void, [ Ptr; Ptr ])
-  | Overwrite -> (Void, [ Ptr; Ptr; I64; Ptr; I64 ])
+  | Overwrite -> (Void, [ Ptr; Ptr; I64; Ptr ])
   | Box -> (Ptr, [ I64; I64 ])
   | List_new -> (Void, [ Ptr ])
-  | List_push -> (Ptr, [ Ptr; I64; Ptr ])
+  | List_push -> (Ptr, [ Ptr; I64 ])
   | List_at -> (Ptr, [ Ptr; I64; I64 ])
   | Array_at -> (Ptr, [ Ptr; I64; I64; I64 ])
   | Scope_drain -> (Void, [ I64 ])

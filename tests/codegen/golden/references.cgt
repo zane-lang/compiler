@@ -2,29 +2,37 @@
     ├── entry: references$main()
     ├── layouts[0] > layout:
     │   ├── type: references$Person
-    │   └── positions[0]: @0 (16 bytes)
+    │   └── positions:
     ├── layouts[1] > layout:
+    │   ├── type: references$Pin<references$Person>
+    │   └── positions:
+    ├── layouts[2] > layout:
+    │   ├── type: references$Wrap
+    │   └── positions:
+    ├── layouts[3] > layout:
     │   ├── type: %primitives$String
-    │   ├── positions[0]: @0 (32 bytes)
-    │   └── positions[1]: text @0
-    ├── globals[0]: zane.value.@program$console : i32
+    │   └── positions[0]: text @0
+    ├── layouts[4] > layout:
+    │   ├── type: ^references$Person
+    │   └── positions:
+    ├── globals[0]: zane.value.@program$console : i64
     ├── funcs[0] > func:
     │   ├── symbol: references$main()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %2
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #1
     │       │   ├── scope: %2
     │       │   ├── value > call:
-    │       │   │   ├── type: {i32, i64}
+    │       │   │   ├── type: {i64}
     │       │   │   ├── fn: references$Person(%primitives$Int)
     │       │   │   └── args[0]: 3 : i64
     │       │   └── layout: references$Person
     │       ├── body[1] > let:
     │       │   ├── local: #3
-    │       │   └── value > terminal > mint: address of #1 : ptr
+    │       │   └── value: address of #1 : ptr
     │       ├── body[2] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: references$check(%primitives$Bool)
@@ -37,33 +45,25 @@
     │       │       │   ├── left > call:
     │       │       │   │   ├── type: i64
     │       │       │   │   ├── fn: references$age(&references$Person)
-    │       │       │   │   └── args[0] > terminal > mint: address of #1 : ptr
+    │       │       │   │   └── args[0]: address of #1 : ptr
     │       │       │   └── right > snapshot:
     │       │       │       ├── type: i64
     │       │       │       └── ptr > offset:
-    │       │       │           ├── within: {i32, i64}
-    │       │       │           ├── path: 1
-    │       │       │           └── base > resolve: local #3 : i32
+    │       │       │           ├── within: {i64}
+    │       │       │           ├── path: 0
+    │       │       │           └── base: local #3 : ptr
     │       │       └── right: 6 : i64
     │       ├── body[3] > let:
     │       │   ├── local: #4
-    │       │   └── value > terminal > terminal: local #3 : i32
-    │       ├── body[4] > host:
-    │       │   ├── local: #5
-    │       │   ├── scope: %2
+    │       │   └── value: local #3 : ptr
+    │       ├── body[4] > overwrite:
+    │       │   ├── address: address of #1 : ptr
     │       │   ├── value > call:
-    │       │   │   ├── type: {i32, i64}
+    │       │   │   ├── type: {i64}
     │       │   │   ├── fn: references$Person(%primitives$Int)
     │       │   │   └── args[0]: 4 : i64
     │       │   └── layout: references$Person
-    │       ├── body[5] > overwrite:
-    │       │   ├── address: address of #1 : ptr
-    │       │   ├── value > take:
-    │       │   │   ├── type: {i32, i64}
-    │       │   │   ├── address: address of #5 : ptr
-    │       │   │   └── layout: references$Person
-    │       │   └── layout: references$Person
-    │       ├── body[6] > eval > call:
+    │       ├── body[5] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: references$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -72,52 +72,149 @@
     │       │       ├── left > snapshot:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
-    │       │       │       ├── within: {i32, i64}
-    │       │       │       ├── path: 1
-    │       │       │       └── base > resolve: local #4 : i32
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: local #4 : ptr
     │       │       └── right: 4 : i64
-    │       ├── body[7] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: references$pass(&%runtime$Console)
-    │       │   └── args[0] > mint: global zane.value.@program$console
+    │       ├── body[6] > hold:
+    │       │   ├── local: #5
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: {ptr}
+    │       │   │   ├── fn: references$Pin<references$Person>(&references$Person)
+    │       │   │   └── args[0]: address of #1 : ptr
+    │       │   └── layout: references$Pin<references$Person>
+    │       ├── body[7] > overwrite:
+    │       │   ├── address: address of #1 : ptr
+    │       │   ├── value > call:
+    │       │   │   ├── type: {i64}
+    │       │   │   ├── fn: references$Person(%primitives$Int)
+    │       │   │   └── args[0]: 5 : i64
+    │       │   └── layout: references$Person
     │       ├── body[8] > eval > call:
     │       │   ├── type: void
+    │       │   ├── fn: references$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base > member:
+    │       │       │           ├── type: ptr
+    │       │       │           ├── index: 0
+    │       │       │           └── value: local #5 : {ptr}
+    │       │       └── right: 5 : i64
+    │       ├── body[9] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: references$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: references$ageOf<references$Person>(&references$Person, references$Person)
+    │       │       │   ├── args[0]: address of #1 : ptr
+    │       │       │   └── args[1]: address of #1 : ptr
+    │       │       └── right: 5 : i64
+    │       ├── body[10] > hold:
+    │       │   ├── local: #6
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: {{i64}}
+    │       │   │   ├── fn: references$Wrap(^references$Person)
+    │       │   │   └── args[0] > call:
+    │       │   │       ├── type: {i64}
+    │       │   │       ├── fn: references$Person(%primitives$Int)
+    │       │   │       └── args[0]: 9 : i64
+    │       │   └── layout: references$Wrap
+    │       ├── body[11] > let:
+    │       │   ├── local: #11
+    │       │   └── value > expand:
+    │       │       ├── type: i64
+    │       │       ├── label: @7
+    │       │       ├── result: #8
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #9
+    │       │       │   └── value > call:
+    │       │       │       ├── type: <i64 | ptr | void>
+    │       │       │       ├── fn: references$refuse(&references$Wrap)
+    │       │       │       └── args[0]: address of #6 : ptr
+    │       │       └── body[1] > switch:
+    │       │           ├── value: local #9 : <i64 | ptr | void>
+    │       │           ├── cases[0] > case 0[0] > assign:
+    │       │           │   ├── place: #8
+    │       │           │   └── value > payload:
+    │       │           │       ├── type: i64
+    │       │           │       ├── index: 0
+    │       │           │       └── value: local #9 : <i64 | ptr | void>
+    │       │           ├── cases[0] > case 0[1]: leave @7
+    │       │           ├── cases[1] > case 1[0] > let:
+    │       │           │   ├── local: #10
+    │       │           │   └── value > payload:
+    │       │           │       ├── type: ptr
+    │       │           │       ├── index: 1
+    │       │           │       └── value: local #9 : <i64 | ptr | void>
+    │       │           ├── cases[1] > case 1[1] > assign:
+    │       │           │   ├── place: #8
+    │       │           │   └── value > snapshot:
+    │       │           │       ├── type: i64
+    │       │           │       └── ptr > offset:
+    │       │           │           ├── within: {i64}
+    │       │           │           ├── path: 0
+    │       │           │           └── base: local #10 : ptr
+    │       │           └── cases[1] > case 1[2]: leave @7
+    │       ├── body[12] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: references$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #11 : i64
+    │       │       └── right: 9 : i64
+    │       ├── body[13] > eval > call:
+    │       │   ├── type: void
     │       │   ├── fn: references$pass(&%runtime$Console)
-    │       │   └── args[0] > mint: global zane.value.@program$console
-    │       └── body[9] > return: unit : void
+    │       │   └── args[0]: global zane.value.@program$console
+    │       ├── body[14] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: references$pass(&%runtime$Console)
+    │       │   └── args[0]: global zane.value.@program$console
+    │       └── body[15] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: references$Person(%primitives$Int)
     │   ├── params[0]: local #1 : i64
-    │   ├── ret: {i32, i64}
+    │   ├── ret: {i64}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {i32, i64}
-    │       │   ├── members[0] > member 0: 0 : i32
-    │       │   └── members[1] > member 1: local #1 : i64
+    │       │   ├── type: {i64}
+    │       │   └── members[0] > member 0: local #1 : i64
     │       └── layout: references$Person
     ├── funcs[2] > func:
     │   ├── symbol: references$age(&references$Person)
-    │   ├── params[0]: local #1 : i32
+    │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   └── body[0] > return > snapshot:
     │       ├── type: i64
     │       └── ptr > offset:
-    │           ├── within: {i32, i64}
-    │           ├── path: 1
-    │           └── base > resolve: local #1 : i32
+    │           ├── within: {i64}
+    │           ├── path: 0
+    │           └── base: local #1 : ptr
     ├── funcs[3] > func:
     │   ├── symbol: references$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "yes\n" : handle
     │       │   └── layout: %primitives$String
-    │       ├── body[1] > host:
+    │       ├── body[1] > hold:
     │       │   ├── local: #4
     │       │   ├── scope: %3
     │       │   ├── value: "no\n" : handle
@@ -137,8 +234,60 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    └── funcs[4] > func:
+    ├── funcs[4] > func:
+    │   ├── symbol: references$Pin<references$Person>(&references$Person)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: {ptr}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {ptr}
+    │       │   └── members[0] > member 0: local #1 : ptr
+    │       └── layout: references$Pin<references$Person>
+    ├── funcs[5] > func:
+    │   ├── symbol: references$ageOf<references$Person>(&references$Person, references$Person)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > snapshot:
+    │       ├── type: i64
+    │       └── ptr > offset:
+    │           ├── within: {i64}
+    │           ├── path: 0
+    │           └── base: local #2 : ptr
+    ├── funcs[6] > func:
+    │   ├── symbol: references$Wrap(^references$Person)
+    │   ├── params[0]: local #1 : {i64}
+    │   ├── ret: {{i64}}
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: local #1 : {i64}
+    │       │   └── layout: ^references$Person
+    │       └── body[1] > return > escape:
+    │           ├── exit: function
+    │           ├── value > record:
+    │           │   ├── type: {{i64}}
+    │           │   └── members[0] > member 0 > take:
+    │           │       ├── type: {i64}
+    │           │       ├── address: address of #2 : ptr
+    │           │       └── layout: references$Person
+    │           └── layout: references$Wrap
+    ├── funcs[7] > func:
+    │   ├── symbol: references$refuse(&references$Wrap)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: <i64 | ptr | void>
+    │   └── body[0] > return > case:
+    │       ├── type: <i64 | ptr | void>
+    │       ├── index: 1
+    │       └── payload > offset:
+    │           ├── within: {{i64}}
+    │           ├── path: 0
+    │           └── base: local #1 : ptr
+    └── funcs[8] > func:
         ├── symbol: references$pass(&%runtime$Console)
-        ├── params[0]: local #1 : i32
+        ├── params[0]: local #1 : ptr
         ├── ret: void
         └── body[0] > return: unit : void

@@ -20,8 +20,7 @@ void zane_broken(const char *what) {
    final flush has nothing left to fail on. The program's own scope is open
    around `main`, and when it returns every other scope has drained, and
    every call it spawned has returned. What its own region still holds --
-   floated hosts, and what they own, which may have changed since they
-   floated -- goes with the program. On Windows stdout and stderr start in
+   the package constants and what they own -- goes with the program. On Windows stdout and stderr start in
    text mode, which would write each `\n` as `\r\n`; a program writes the
    bytes it says, as it does everywhere else. */
 int main(void) {

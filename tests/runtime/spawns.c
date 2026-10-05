@@ -8,8 +8,7 @@
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
 static const int64_t text_layout[] = {
-	2,
-	ZANE_HOST, 0, sizeof(zane_text), 0, 0, 0,
+	1,
 	ZANE_TEXT, 0, sizeof(zane_text), 0, 0, 0,
 };
 
@@ -98,7 +97,7 @@ static int holds(const zane_text *t, const char *s) {
 }
 
 void zane_main(void) {
-	zane_text ab = { 0, "ab", 2, 0 }, cd = { 0, "cd", 2, 0 };
+	zane_text ab = { "ab", 2, 0 }, cd = { "cd", 2, 0 };
 
 	/* A result comes home when it is read: its bytes move into the
 	   region of the scope that holds the slot, and the call's context is

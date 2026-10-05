@@ -1,6 +1,6 @@
 /// Package constants (docs/design/lowering.md L16): each made once, before
 /// `main`, one that reads another making that one first whatever their
-/// order. A string that owns its block, a host a guest names, and a value
+/// order. A string that owns its block, an owner a reference names, and a value
 /// struct, read in a verb, passed, and read from a spawned call. Each check
 /// prints `yes` when it holds and `no` when it does not.
 package constants;
@@ -10,7 +10,7 @@ alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
 
-Unit say(text &String) {
+Unit say(text String) {
 	@program$console!print(text);
 	return Unit();
 }

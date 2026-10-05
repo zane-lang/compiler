@@ -1,0 +1,63 @@
+package bad;
+
+type Kite = #struct { span Int; }
+Kite(span Int) => init{ span; }
+
+/// `^` marks a roaming owner of a reference type, written on a local, a
+/// parameter or a return type, and nowhere else (syntax.md §2.3).
+type Tether = #struct { kite ^Kite; }
+
+alias Kites = List<^Kite>
+
+Unit fly(span ^Int) => Unit()
+
+Unit tug(this ^Kite) => Unit()
+
+/// A reference-typed result is `^T` or `&T`: a bare one would hand back a
+/// borrow (memory.md §2.9). An abort hands its value to the caller as a
+/// return does, so an abort type follows the same rule.
+Kite build() => Kite(Int(1))
+Int?Kite refuse() => Int(0)
+Unit launch(make Kite[Int]) => Unit()
+
+/// Overloads differ by more than a passing mode (functions.md §4.1).
+Unit hold(kite Kite) => Unit()
+Unit hold(kite ^Kite) => Unit()
+
+/// A reference type cannot fill a value mould's field, and the mistake is
+/// reported where the type enters (generics.md §3.6): the explicit argument,
+/// or the value an inferred one is read from, not inside a verb that
+/// forwards it.
+type Hamper<T Type> = struct { item T; }
+Hamper<T>(item ^T Type) => init{ item; }
+Hamper<T> pack(item ^T Type) => Hamper(item)
+
+alias Kited = Hamper<Kite>
+
+Unit wrong() {
+	a Hamper(Kite(Int(2)));
+	b Hamper<Int> = pack(Int(3));
+	c Hamper = pack(Kite(Int(4)));
+	d @primitives$Array([Kite(Int(5)), Kite(Int(6))]);
+	return Unit();
+}
+
+/// `&` marks only a reference type, so a value type that fills an `&` written
+/// over a type parameter is the wrong kind, reported where it enters
+/// (generics.md §3.6): the explicit argument, or the value an inferred one is
+/// read from.
+type Peg<T Type> = #struct { at &T; }
+Peg<T>(at &T Type) => init{ at; }
+Unit tap(at &T Type) => Unit()
+
+alias Pegged = Peg<Int>
+
+Unit pegs(kite Kite) {
+	count Int = Int(7);
+	e Peg(count);
+	tap(count);
+	settled Kite = Kite(Int(8));
+	f Peg(settled);
+	tap(settled);
+	return Unit();
+}

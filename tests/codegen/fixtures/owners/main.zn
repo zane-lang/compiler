@@ -1,10 +1,13 @@
-/// Reference types: `#struct` and `#variant` instances hosted in their
-/// scope's arena, moved by `let`, `return` and a swallowing parameter, and
-/// written through `mut` methods. Every way out of a block drains its arena:
-/// falling off the end, `return`, `abort`, a `resolve`, and an exit. The
-/// runtime stops the program if a scope is drained out of order or left
-/// open. Each check prints `yes` when it holds and `no` when it does not.
-package hosts;
+/// Reference types: `#struct` and `#variant` instances owned in their
+/// scope's arena. A roaming owner (`^T`) moves by `let`, `return`, `abort`
+/// and a `^T` parameter, and settles where it lands; a bare parameter
+/// borrows; and `mut` methods write through the subject. A taken owner the
+/// body does not move on dies with the body. Every way out of a block drains
+/// its arena: falling off the end, `return`, `abort`, a `resolve`, and an
+/// exit. The runtime stops the program if a scope is drained out of order or
+/// left open. Each check prints `yes` when it holds and `no` when it does
+/// not.
+package owners;
 
 alias Int = @primitives$Int
 alias Bool = @primitives$Bool
@@ -47,22 +50,33 @@ Unit deposit(this Account, amount Int) mut {
 
 Int funds(this Account) => this.balance
 
-/// Moves the local it built out through its return.
-Account opened(owner Int, amount Int) {
-	a Account(owner);
+/// Moves the roaming local it built out through its return.
+^Account opened(owner Int, amount Int) {
+	a ^Account = Account(owner);
 	a!deposit(amount);
 	return a;
 }
 
-/// Swallows its argument.
-Int closed(account Account) => account.balance
+/// Borrows its argument.
+Int balanceOf(account Account) => account.balance
+
+/// Takes its argument, which dies with the body.
+Int closed(account ^Account) => account.balance
+
+/// Takes its argument and hands it back: a parameter is read-only, so it
+/// moves into a local first.
+^Account relayed(account ^Account) {
+	kept ^Account = account;
+	kept!deposit(Int(1));
+	return kept;
+}
 
 type Slot = #variant {
 	empty Unit;
 	held Account;
 }
 
-/// Returns from inside a block that hosts a local.
+/// Returns from inside a block that holds a local.
 Int richest(limit Int) {
 	i Int(1);
 	i!to(limit) {
@@ -74,7 +88,7 @@ Int richest(limit Int) {
 	return Int(0);
 }
 
-/// Aborts from inside a block that hosts a local.
+/// Aborts from inside a block that holds a local.
 Int?Int overdrawn(amount Int) {
 	a Account = opened(Int(9), Int(5));
 	if(a.balance < amount) {
@@ -84,8 +98,8 @@ Int?Int overdrawn(amount Int) {
 	return a.balance;
 }
 
-/// Aborts with a reference type, which the handler's binder hosts.
-Int?Account refused(owner Int) {
+/// Aborts with a roaming owner, which the handler's binder holds.
+Int?^Account refused(owner Int) {
 	if(owner == Int(0)) {
 		abort opened(Int(7), Int(70));
 	}
@@ -97,11 +111,11 @@ type Choice = variant {
 	skip Unit;
 }
 
-/// A `match` arm aborts from inside its own hosting block, and the
-/// `match`'s handler hosts the abort value there.
+/// A `match` arm aborts from inside its own block, and the `match`'s handler
+/// holds the abort value there.
 Int chosen(c Choice) => match (c) {
 	n pick {
-		a Account = opened(n, n);
+		a ^Account = opened(n, n);
 		if(a.balance == Int(0)) {
 			abort a;
 		}
@@ -114,7 +128,7 @@ Int chosen(c Choice) => match (c) {
 	resolve e.owner * Int(100);
 }
 
-/// Sums balances, skipping one pass with `guard` after hosting a local.
+/// Sums balances, skipping one pass with `guard` after holding a local.
 Int total(skipped Int) {
 	sum Int(0);
 	i Int(1);
@@ -139,19 +153,27 @@ Unit check(ok Bool) {
 }
 
 Unit main() {
-	// A host, written through a `mut` method and read through another.
-	a Account = opened(Int(1), Int(5));
+	// A roaming owner, written through a `mut` method and read through
+	// another.
+	a ^Account = opened(Int(1), Int(5));
 	a!deposit(Int(10));
 	check(a:funds() == Int(15));
 
-	// A move, a refilled host, and a swallowed argument.
+	// A move that settles, a refilled roaming owner, a borrow, a take, and a
+	// relay.
 	b Account = a;
 	check(b.balance == Int(15));
 	a = Account(Int(2));
 	check(a.owner == Int(2));
-	check(closed(b) == Int(15));
+	check(balanceOf(b) == Int(15));
+	check(balanceOf(a) == Int(0));
+	check(closed(a) == Int(0));
+	c ^Account = opened(Int(3), Int(7));
+	c = relayed(c);
+	check(c.balance == Int(8));
+	check(closed(Account(Int(4))) == Int(0));
 
-	// A variant hosting a struct.
+	// A variant holding a struct.
 	s Slot = Slot.held(Account(Int(3)));
 	check(match (s) {
 		e empty => false;
@@ -169,13 +191,15 @@ Unit main() {
 	check(chosen(Choice.pick(Int(0))) == Int(0));
 	check(chosen(Choice.skip(Unit())) == Int(600));
 
-	// A hundred thousand passes, each hosting two locals and draining them.
+	// A hundred thousand passes, each holding two owners and draining them,
+	// and each taking one into a call that drops it.
 	count Int(0);
 	i Int(1);
 	i!to(Int(100000)) {
-		c Account = opened(i, Int(1));
-		d Account = c;
+		e ^Account = opened(i, Int(1));
+		d Account = e;
 		count = count + d.balance;
+		count = count + closed(opened(i, Int(0)));
 	}
 	check(count == Int(100000));
 	return Unit();

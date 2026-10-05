@@ -115,8 +115,11 @@ let rec type_expr d (x : Type_expr.t) =
       line d "type_expr Path" x.Type_expr.span;
       name_type (deeper d) n;
       each (deeper d) generic_arg generics
-  | Type_expr.Guest inner ->
-      line d "type_expr Guest" x.Type_expr.span;
+  | Type_expr.Reference inner ->
+      line d "type_expr Reference" x.Type_expr.span;
+      type_expr (deeper d) inner
+  | Type_expr.Roaming inner ->
+      line d "type_expr Roaming" x.Type_expr.span;
       type_expr (deeper d) inner
   | Type_expr.Verb v ->
       line d "type_expr Verb" x.Type_expr.span;
@@ -167,7 +170,7 @@ and param_type d (x : Param_type.t) =
   | Param_type.Concept c ->
       line d "param_type Concept" x.Param_type.span;
       concept (deeper d) c
-  | Param_type.InferredType { name = n; concept = c } ->
+  | Param_type.InferredType { name = n; concept = c; _ } ->
       line d "param_type InferredType" x.Param_type.span;
       name (deeper d) "name" n;
       concept (deeper d) c

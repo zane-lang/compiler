@@ -59,8 +59,8 @@ numbers in a proof report refer to.
 
 | Automaton | Conflict states | with shift/reduce | with reduce/reduce |
 | --------- | --------------: | ----------------: | -----------------: |
-| `--GLR`, the parser that ships | 56 | 55 | 1 |
-| stock | 49 | 48 | 1 |
+| `--GLR`, the parser that ships | 62 | 61 | 1 |
+| stock | 55 | 54 | 1 |
 
 Menhir explains each conflict state once, so the explanations file holds one
 block per state; a state with both kinds of conflict counts in both of Menhir's
@@ -95,7 +95,7 @@ are not independent problems:
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
 | `(`             | 15 | `loption_generics_ ->` | before a call or a lambda, including standalone constructor type arguments |
-| `<`             | 12 | `loption_generics_ ->` | against `<` as a declared operator |
+| `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<`         | 3 | `loption_generics_ ->` | a named type opening a call or a generic list |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
@@ -118,13 +118,16 @@ type from a constructor call or lambda continuing after that name. The
 constructor-type regression checks the permitted and rejected spellings;
 operator operands and ordinary function arguments no longer admit bare types.
 
-The `<` row is about the declaration form, not the comparison. Its twelve states
+The `<` row is about the declaration form, not the comparison. Its eighteen states
 all reduce toward `ret_type "<" "(" params ")" body`, the declaration of the
 `<` operator, against shifting `<` as the opening bracket of a generic argument
 list: after a name type, `Foo<Int> …` and `Foo <(a Int) { }` open with the same
-two tokens. Three of the twelve are the same fork after an abort type,
-`Int?Foo<Int>` against `Int?Foo <(a Int) { }`. Dropping `<` and `>` from the
-operators a declaration may name removes all twelve and nothing else, which is what identifies the family; it is a
+two tokens. Six of the eighteen are the same fork after an abort type,
+`Int?Foo<Int>` against `Int?Foo <(a Int) { }`. Each fork comes three times,
+once for each way a return type may name its type: bare, `&Foo` and `^Foo`,
+the roaming owner a reference-typed return is written as. The `^` forms add
+six states and nothing else, since `^` begins no expression. Dropping `<` and `>` from the
+operators a declaration may name removes all eighteen and nothing else, which is what identifies the family; it is a
 language change rather than a restructuring, so it is a measurement here and
 not a proposal.
 

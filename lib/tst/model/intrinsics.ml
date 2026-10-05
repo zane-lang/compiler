@@ -37,10 +37,13 @@ let types =
     t "primitives" "Float";
     t "primitives" "Bool";
     t "primitives" "Unit";
-    (* "opaque runtime primitives used by fundamental types" (syntax.md §2.7):
-       the storage behind `core`'s `String`, which is a reference type. *)
-    t ~reference:true "primitives" "String";
+    (* The storage behind `core`'s `String`: a value type whose handle owns
+       its bytes, so a copy owns bytes of its own (types.md §2.7). *)
+    t "primitives" "String";
     t ~params:[ Ty.Type_kind; Ty.Number_kind ] "primitives" "Array";
+    (* Array's layout as a reference type, whose elements are fixed storage
+       (generics.md §8.4). *)
+    t ~params:[ Ty.Type_kind; Ty.Number_kind ] ~reference:true "primitives" "ArrayRef";
     t ~params:[ Ty.Type_kind ] ~reference:true "primitives" "List";
     t ~reference:true "runtime" "Console";
     t ~reference:true "runtime" "Runtime";
@@ -131,15 +134,24 @@ let flips =
    §2.7): a literal becomes a primitive only where it is written, or inside a
    type's own implicit conversion. *)
 let constructors =
-  let ctor ?(implicit = false) ?(generics = []) name params ret =
+  let ctor ?(implicit = false) ?(generics = []) ?member name params ret =
+    let spelling =
+      "@primitives$" ^ name ^ match member with Some m -> "." ^ m | None -> ""
+    in
     ( ("primitives", name),
       verb ~generics ~namespace:"primitives"
-        ~kind:(S.Constructor { implicit; member = None; fields = false })
-        ~name:("@primitives$" ^ name) ~spelling:("@primitives$" ^ name) params ret )
+        ~kind:(S.Constructor { implicit; member; fields = false })
+        ~name:spelling ~spelling params ret )
   in
   let element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
   let list_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+  let fixed name e n = prim name ~args:[ Ty.Type (Ty.Param e); Ty.Number (Ty.Number_param n) ] in
+  let elements e n = Ty.Concept (Ty.Array_lit (Ty.Param e, Ty.Number_param n)) in
+  let ref_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+  let ref_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
+  let fill_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+  let fill_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
   List.map
     (fun s -> ctor s [ param "value" (Ty.Concept (literal s)) ] (prim s))
     scalars
@@ -147,11 +159,28 @@ let constructors =
       ctor "String" [ param "value" (Ty.Concept Ty.Text_lit) ] (prim "String");
       ctor "Unit" [] (prim "Unit");
       ctor ~generics:[ element; length ] "Array"
+        [ param "values" (elements element length) ]
+        (fixed "Array" element length);
+      (* An `ArrayRef` is built from an array literal, each element moved into
+         its place, or by `fill`, which calls `make` once per position, in
+         order, with the position counted from 1 (generics.md §8.4). *)
+      ctor ~generics:[ ref_element; ref_length ] "ArrayRef"
+        [ param "values" (elements ref_element ref_length) ]
+        (fixed "ArrayRef" ref_element ref_length);
+      ctor ~generics:[ fill_element; fill_length ] ~member:"fill" "ArrayRef"
         [
-          param "values"
-            (Ty.Concept (Ty.Array_lit (Ty.Param element, Ty.Number_param length)));
+          param ~binds:fill_length "n" (Ty.Concept Ty.Integer_lit);
+          param "make"
+            (Ty.Verb
+               {
+                 Ty.this_ = None;
+                 params = [ prim "Int" ];
+                 ret = Ty.Roaming (Ty.Param fill_element);
+                 abort = None;
+                 is_mut = false;
+               });
         ]
-        (prim "Array" ~args:[ Ty.Type (Ty.Param element); Ty.Number (Ty.Number_param length) ]);
+        (fixed "ArrayRef" fill_element fill_length);
       ctor ~generics:[ list_element ] "List"
         [ param ~binds:list_element "T" (Ty.Concept Ty.Type_value) ]
         (prim "List" ~args:[ Ty.Type (Ty.Param list_element) ]);
@@ -160,6 +189,8 @@ let constructors =
 let subscripts =
   let element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
+  let ref_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+  let ref_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
   let list_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let subscript generics subject element =
     verb ~generics ~namespace:"primitives" ~kind:S.Subscript ~name:"[]"
@@ -171,6 +202,10 @@ let subscripts =
     subscript [ element; length ]
       (prim "Array" ~args:[ Ty.Type (Ty.Param element); Ty.Number (Ty.Number_param length) ])
       (Ty.Param element);
+    subscript [ ref_element; ref_length ]
+      (prim "ArrayRef"
+         ~args:[ Ty.Type (Ty.Param ref_element); Ty.Number (Ty.Number_param ref_length) ])
+      (Ty.Param ref_element);
     subscript [ list_element ]
       (prim "List" ~args:[ Ty.Type (Ty.Param list_element) ])
       (Ty.Param list_element);
@@ -188,14 +223,14 @@ let methods =
   in
   [
     meth ~is_mut:true "runtime" "print"
-      [ param "this" (runtime "Console"); param "text" (Ty.Guest (prim "String")) ]
+      [ param "this" (runtime "Console"); param "text" (prim "String") ]
       (prim "Unit");
     meth ~abort:(Some (prim "Unit")) ~is_mut:true "runtime" "setThreads"
       [ param "this" (runtime "Runtime"); param "count" (prim "Int") ]
       (prim "Unit");
     meth ~is_mut:true "runtime" "setThreadsAuto" [ param "this" (runtime "Runtime") ] (prim "Unit");
     meth ~generics:[ list_element ] ~is_mut:true "primitives" "push"
-      [ param "this" list; param "value" (Ty.Param list_element) ]
+      [ param "this" list; param "value" (Ty.Roaming (Ty.Param list_element)) ]
       (prim "Unit");
     meth ~generics:[ list_element ] "primitives" "size" [ param "this" list ] (prim "Int");
   ]

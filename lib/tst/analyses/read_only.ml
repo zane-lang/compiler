@@ -1,17 +1,17 @@
-(* Read-only guests (effects.md §4.4): the first analysis over the finished
+(* Read-only references (effects.md §4.4): the first analysis over the finished
    TST (docs/design/semantics.md D1).
 
-   A guest derived from a read-only binding is read-only wherever it goes:
+   A reference derived from a read-only binding is read-only wherever it goes:
    bound to a local, stored in a field, passed as an argument, or returned.
    §4.1 is checked while the tree is built, because it needs nothing but the
    place a write names: a parameter, or something reached through one. This
-   rule needs to know where a guest went, which the tree only shows once every
+   rule needs to know where a reference went, which the tree only shows once every
    call in it has a callee. So it runs after, over the whole program.
 
-   What it tracks is a [taint]: for a value, the places in it that hold a guest
+   What it tracks is a [taint]: for a value, the places in it that hold a reference
    taken from a parameter. Each [elem] says that at [at] inside the value sits
    something reached from parameter [origin] at [src]. A value type carries
-   nothing, because a value is copied deep and holds no guest (memory.md
+   nothing, because a value is copied deep and holds no reference (memory.md
    §2.10), so storing one drops its taint.
 
    A verb's [summary] is what a call needs without the body: which parameters
@@ -52,9 +52,9 @@ let rec is_prefix p q =
 
 let rec drop p q = match (p, q) with _ :: p, _ :: q -> drop p q | _, q -> q
 
-(* The taint of the part of a value at [p]. A guest at [p] or below stays,
-   re-rooted; a guest above [p] covers it, since [p] is then reached through
-   that guest. *)
+(* The taint of the part of a value at [p]. A reference at [p] or below stays,
+   re-rooted; a reference above [p] covers it, since [p] is then reached through
+   that reference. *)
 let navigate s p =
   Taint.fold
     (fun e acc ->
@@ -72,10 +72,11 @@ let whole s = Taint.map (fun e -> elem e.origin e.src []) s
 (* Types                                                                  *)
 (* ---------------------------------------------------------------------- *)
 
-(* Whether storage of type [t] can hold a guest. *)
+(* Whether storage of type [t] can hold a reference. *)
 let rec carries env ?(seen = []) (t : Ty.t) =
   match t with
-  | Ty.Guest _ | Ty.Param _ -> true
+  | Ty.Reference _ | Ty.Param _ -> true
+  | Ty.Roaming t -> carries env ~seen t
   | Ty.Error | Ty.Verb _ | Ty.Concept _ -> false
   | Ty.Intrinsic { args; _ } -> List.exists (carries_arg env ~seen) args
   | Ty.Named (tid, args) -> (
@@ -99,7 +100,7 @@ and carries_arg env ~seen = function Ty.Type t -> carries env ~seen t | Ty.Numbe
 let store env t s = if carries env t then s else Taint.empty
 
 (* The declared type of a struct's field, which is what decides whether the
-   field can hold a guest: the value written into it may be a place a guest
+   field can hold a reference: the value written into it may be a place a reference
    is minted from, whose own type says nothing about that. *)
 let field_type env (t : Ty.t) name =
   match t with
@@ -199,7 +200,7 @@ let taint_by_id w id = Option.value ~default:Taint.empty (Hashtbl.find_opt w.tai
 let taint_of w (l : T.Local.t) = taint_by_id w l.T.Local.id
 
 (* §4.1 already reported a write whose place is reached straight from a
-   read-only parameter; this rule adds the guests derived from one. *)
+   read-only parameter; this rule adds the references derived from one. *)
 let direct w (l : T.Local.t) =
   match Hashtbl.find_opt w.origins l.T.Local.id with Some b -> b.read_only | None -> false
 
@@ -392,7 +393,7 @@ and call env w (e : T.Expr.t) (callee : T.Verb_ref.t) taints args =
 
 (* What a verb with no body to summarise -- an intrinsic, a function value --
    may have kept of its arguments: anything a parameter's type can hold a
-   guest in. A parameter whose type cannot hold one keeps nothing. *)
+   reference in. A parameter whose type cannot hold one keeps nothing. *)
 and passed env tys taints =
   let rec go tys taints =
     match (tys, taints) with
@@ -402,7 +403,7 @@ and passed env tys taints =
   in
   go tys taints
 
-(* A `!` call writes its subject: it may not reach a read-only guest, and what
+(* A `!` call writes its subject: it may not reach a read-only reference, and what
    the call stores in it is now there. *)
 and write_subject env w args taints into =
   match (args, taints) with
@@ -411,7 +412,7 @@ and write_subject env w args taints into =
       (match place subject with Some (l, p) -> add w l p into | None -> ())
   | _ -> ()
 
-(* effects.md §4.4: a `!` call is an error when its subject reaches a guest
+(* effects.md §4.4: a `!` call is an error when its subject reaches a reference
    derived from a read-only binding. *)
 and check_subject env w (subject : T.Expr.t) own =
   let reaches =
@@ -422,7 +423,7 @@ and check_subject env w (subject : T.Expr.t) own =
   in
   if read_only w reaches then
     error env w subject.T.Expr.span
-      (Printf.sprintf "a `!` call writes its subject, and it reaches a guest taken from %s"
+      (Printf.sprintf "a `!` call writes its subject, and it reaches a reference taken from %s"
          (blame w reaches))
 
 and opt_handler env w = function Some h -> handler_value env w h | None -> Taint.empty
@@ -481,8 +482,8 @@ and stat env w (s : T.Stat.t) =
       let v = store env target.T.Expr.ty (expr env w value) in
       match place target with
       | Some (l, []) when not (direct w l) -> Hashtbl.replace w.taints l.T.Local.id v
-      (* A store through a guest is rejected whatever the guest was taken
-         from (lifetimes.md §1.1, [Guests]), so only a `!` call is left for
+      (* A store through a reference is rejected whatever the reference was taken
+         from (lifetimes.md §1.1, [References]), so only a `!` call is left for
          this rule. *)
       | Some (l, p) -> add w l p v
       | None -> ignore (expr env w target))

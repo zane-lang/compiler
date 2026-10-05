@@ -398,9 +398,14 @@ and Type_expr : sig
 
   and node =
     | Path of { name : Name_type.t; generics : Generic_arg.t list }
-    | Guest of t
+    | Reference of t
+    | Roaming of t
     | Verb of Verb_type.t
 end = Type_expr
+
+and Marker : sig
+  type t = Bare | Roaming | Reference
+end = Marker
 
 and Param_type : sig
   type t = {
@@ -411,7 +416,10 @@ and Param_type : sig
   and node =
     | Concrete of Type_expr.t
     | Concept of Concept.t
-    | InferredType of { name : Name.t; concept : Concept.t }
+    (* [marker] is the passing mode written before the introduction: `^T Type`
+       takes an owner when [name] is filled with a reference type, and `&T Type`
+       takes a reference (memory.md §2.9). *)
+    | InferredType of { name : Name.t; concept : Concept.t; marker : Marker.t }
 end = Param_type
 
 and Param : sig

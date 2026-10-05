@@ -1,8 +1,8 @@
 /// Spawns: calls started with `spawn` run on the pool's threads while the
 /// caller goes on (concurrency.md §3). A local bound to one waits for it
 /// where it is read, and a block waits for every call spawned in it before
-/// it drains (§4.1). Results come home with their blocks and their anchors:
-/// numbers, strings, lists and hosts, read, left unread, or dropped. The
+/// it drains (§4.1). Results come home with their blocks: numbers, strings,
+/// lists and owners, read, left unread, or dropped. The
 /// runtime stops the program if a drain finds a block still out. Each check
 /// prints `yes` when it holds and `no` when it does not.
 package spawns;
@@ -54,7 +54,7 @@ Unit deepen(this Countdown, n Int) mut {
 	return Unit();
 }
 
-/// A host holding values that spawned calls write while others read them.
+/// An owner holding values that spawned calls write while others read them.
 type Holder = #struct {
 	count Countdown;
 	tally Tally;
@@ -62,7 +62,7 @@ type Holder = #struct {
 
 Holder(count Countdown) => init{ count; tally = Tally(Int(0)); }
 
-/// Reads the countdown through the host `n` times. Each read is a whole
+/// Reads the countdown through the owner `n` times. Each read is a whole
 /// snapshot, so it sees every level a write-back put there or none.
 Int watch(h &Holder, n Int, whole Int) {
 	seen Int(0);
@@ -121,12 +121,12 @@ String nameOf(p &Person) {
 	return p.name + String("!");
 }
 
-Person born(name String, age Int) {
+^Person born(name String, age Int) {
 	return Person(name + String(" lovelace"), age);
 }
 
-List<String> words(n Int) {
-	all List<String> = @primitives$List(String);
+^List<String> words(n Int) {
+	all ^List<String> = @primitives$List(String);
 	i Int(1);
 	i!to(n) {
 		all!push(String("w") + String("!"));
@@ -162,6 +162,8 @@ Int pick(n Int) {
 	return n;
 }
 
+Int ageOf(p Person) => p.age
+
 Unit main() {
 	// The pool resized before it starts, and a count it refuses.
 	@program$runtime!setThreads(Int(2)) ? u {
@@ -179,18 +181,26 @@ Unit main() {
 	check(a == Int(6765));
 
 	// A string made on another thread comes home with its bytes, and the
-	// host lent to the call lives until it returns.
+	// value lent to the call lives until it returns.
 	who String("ada");
 	s String = spawn greet(who);
 	check(s == String("hi ada"));
 
-	// A guest passed to a spawned call.
+	// A reference passed to a spawned call.
 	p Person(String("grace"), Int(85));
 	g &Person = p;
 	n String = spawn nameOf(g);
 	check(n == String("grace!"));
 
-	// A host returned: its anchor follows it home.
+	// An owner lent to a spawned call by a borrow may be borrowed again
+	// while the call reads it.
+	lent ^Person = Person(String("ada"), Int(36));
+	read Int = spawn ageOf(lent);
+	check(ageOf(lent) == Int(36));
+	check(read == Int(36));
+
+	// An owner returned: it settles where it comes home, and a reference
+	// names it there.
 	q Person = spawn born(String("ada"), Int(36));
 	h &Person = q;
 	check(h.name == String("ada lovelace"));
@@ -219,7 +229,7 @@ Unit main() {
 	});
 	check(depth(c1) + depth(c2) + depth(c3) == Int(900));
 
-	// A value in a host written by a spawned call while another reads it:
+	// A value in an owner written by a spawned call while another reads it:
 	// the writer works on a copy it writes back, and each read is a
 	// coherent snapshot.
 	holder Holder(Countdown.done(Unit()));
