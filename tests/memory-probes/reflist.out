@@ -1,0 +1,9 @@
+File "reflist/main.zn", line 17, characters 5-17:
+17 |     refs!push(r);                                             // legal: copies an existing reference
+  |     ^^^^^^^^^^^^
+Error: no method `push` accepts (@primitives$List<&reflist$Port>, &reflist$Port); the candidate is `@primitives$Unit push(this @primitives$List<T>, ^T) mut`
+File "reflist/main.zn", line 18, characters 5-17:
+18 |     refs!push(p);                                             // legal: mints one from a settled symbol
+  |     ^^^^^^^^^^^^
+Error: no method `push` accepts (@primitives$List<&reflist$Port>, reflist$Port); the candidate is `@primitives$Unit push(this @primitives$List<T>, ^T) mut`
+== rejected
