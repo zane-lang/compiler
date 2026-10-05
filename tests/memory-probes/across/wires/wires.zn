@@ -1,0 +1,27 @@
+/// A dependency whose verbs keep their reference parameters: the resting
+/// places must travel with the signatures (lifetimes.md §1.11: "published
+/// with the signature, so a call can be checked without the body in hand").
+package wires;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+type Port = #struct { n Int; }
+Port(n Int) => init{ n; }
+
+type Plug = #struct { port &Port; }
+Plug(port &Port) => init{ port; }
+Plug{ port &Port; } => init{ port; }
+
+Unit wire(this Plug, port &Port) mut {
+	this.port = port;
+	return Unit();
+}
+
+Unit relay(this Plug, port &Port) mut {
+	this!wire(port);
+	return Unit();
+}
+
+&Port pass(port &Port) => port
+&Port through(plug &Plug) => plug.port

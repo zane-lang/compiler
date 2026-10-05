@@ -1,0 +1,21 @@
+File "across/app/main.zn", line 20, characters 19-23:
+20 |         plug!wire(near);                 // ILLEGAL: resting place from another package
+  |                   ^^^^
+Error: this stores a reference to `near`, whose block ends before `plug`'s does (`wire` keeps `port` in `this`)
+File "across/app/main.zn", line 21, characters 20-24:
+21 |         plug!relay(near);                // ILLEGAL: transitively
+  |                    ^^^^
+Error: this stores a reference to `near`, whose block ends before `plug`'s does (`relay` keeps `port` in `this`)
+File "across/app/main.zn", line 22, characters 13-23:
+22 |         r = pass(near);                  // ILLEGAL: the result names near
+  |             ^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `r`'s does
+File "across/app/main.zn", line 24, characters 13-27:
+24 |         r = through(local);              // ILLEGAL: names local's scope at least
+  |             ^^^^^^^^^^^^^^
+Error: this stores a reference to `local`, whose block ends before `r`'s does
+File "across/app/main.zn", line 27, characters 16-21:
+27 |         plug = spare;                    // ILLEGAL: a field constructor's result carries near
+  |                ^^^^^
+Error: this stores a reference to `near`, whose block ends before `plug`'s does
+== rejected

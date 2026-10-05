@@ -1,0 +1,31 @@
+/// Calls into `wires` from an inner block. ILLEGAL marks what the spec rejects.
+package app;
+
+import wires$[Port, Plug, pass, through];
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+Unit inner(body @concepts$Block) {
+	@controlflow$branch(true, body);
+	return Unit();
+}
+
+Unit main() {
+	far Port(Int(1));
+	plug Plug(far);
+	r &Port = far;
+	inner({
+		near Port(Int(2));
+		plug!wire(near);                 // ILLEGAL: resting place from another package
+		plug!relay(near);                // ILLEGAL: transitively
+		r = pass(near);                  // ILLEGAL: the result names near
+		local Plug(near);
+		r = through(local);              // ILLEGAL: names local's scope at least
+		r = through(plug);               // legal
+		spare ^Plug = Plug{ port = near; }
+		plug = spare;                    // ILLEGAL: a field constructor's result carries near
+		named Plug{ port = near; }      // legal: one scope holds both
+	});
+	return Unit();
+}
