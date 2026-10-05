@@ -66,4 +66,9 @@ let run env (p : T.Program.t) =
           | _ -> ())
         pkg.T.Package.decls)
     p.T.Program.packages;
-  List.iter (fun (i : T.Instance.t) -> block env i.T.Instance.body) p.T.Program.instances
+  List.iter (fun (i : T.Instance.t) -> block env i.T.Instance.body) p.T.Program.instances;
+  (* A field constructor's defaults, which a call that leaves an entry out
+     builds from. *)
+  List.iter
+    (fun (d : T.Defaults.t) -> List.iter (fun (_, e) -> expr env e) d.T.Defaults.values)
+    p.T.Program.defaults

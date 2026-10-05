@@ -456,7 +456,11 @@ let register env () =
                     }
                   in
                   Hashtbl.replace env.type_infos d.id info;
-                  Hashtbl.replace env.type_infos_by_id info.tid info)
+                  (* A type declared twice is reported where it is collected;
+                     its id keeps naming the first declaration, the one name
+                     lookup finds. *)
+                  if not (Hashtbl.mem env.type_infos_by_id info.tid) then
+                    Hashtbl.replace env.type_infos_by_id info.tid info)
           | _ -> ())
         pkg.decls)
     !(env.package_order)
