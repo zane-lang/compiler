@@ -134,23 +134,18 @@ jobs:
           path: windows-programs
           if-no-files-found: error
 
-  # Keep the existing required-check name. always() makes a failed or
-  # skipped prerequisite fail this gate instead of silently skipping it.
-  build-and-test:
-    needs: [suites, checks, windows-build]
+  # Aggregate the Linux checks. always() makes a failed or skipped
+  # prerequisite fail this gate instead of silently skipping it.
+  linux-checks:
+    needs: [suites, checks]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require every Linux check to pass
+      - name: Require every platform job to pass
         env:
-          SUITES_RESULT: ${{ needs.suites.result }}
-          CHECKS_RESULT: ${{ needs.checks.result }}
-          WINDOWS_BUILD_RESULT: ${{ needs.windows-build.result }}
-        run: |
-          test "$SUITES_RESULT" = success
-          test "$CHECKS_RESULT" = success
-          test "$WINDOWS_BUILD_RESULT" = success
+          RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
 
   # Every hand-written source file stays under 2,000 lines, with a warning
   # past 1,500 (`.github/scripts/file-sizes`). It needs nothing but git, so it
@@ -171,7 +166,7 @@ jobs:
   # Linux and Windows are the first tier (docs/design/platforms.md): the
   # programs the job above built for Windows run on Windows itself, each held
   # to the output and status its fixture expects.
-  windows:
+  windows-tests:
     needs: windows-build
     runs-on: windows-latest
     timeout-minutes: 10
@@ -197,3 +192,15 @@ jobs:
       - name: Run the Windows programs
         shell: bash
         run: dev/bin/check-programs windows-programs
+
+  # Aggregate the Windows checks with the same success rule as Linux.
+  windows-checks:
+    needs: [windows-build, windows-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every platform job to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
