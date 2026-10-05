@@ -38,14 +38,14 @@ type walk = {
   mutable resolve : Ty.t list;
 }
 
-let error w span message = if w.report then Env.error span message
+let error env w span message = if w.report then Env.error env span message
 
 (* The declared type of a struct field or a variant case, with the type's
    arguments substituted. *)
-let member_type (t : Ty.t) name =
+let member_type env (t : Ty.t) name =
   match Ty.strip_guest t with
   | Ty.Named (tid, args) -> (
-      match Hashtbl.find_opt Env.type_infos_by_id tid with
+      match Hashtbl.find_opt env.Env.type_infos_by_id tid with
       | Some { Env.definition = Some (Env.Struct ms | Env.Variant ms); params; _ } -> (
           match List.assoc_opt name ms with
           | Some mt -> Some (Ty.instantiate params args mt)
@@ -56,8 +56,8 @@ let member_type (t : Ty.t) name =
 (* A call's parameter types, at the generic arguments it was instantiated
    with. The subject is left out unless [subject]: a method takes its subject
    as a guest, and never mints one for it (memory.md §2.9). *)
-let param_types ?(subject = false) (r : T.Verb_ref.t) =
-  match Env.signature_of r with
+let param_types env ?(subject = false) (r : T.Verb_ref.t) =
+  match Env.signature_of env r with
   | None -> []
   | Some sg ->
       let ps =
@@ -83,8 +83,8 @@ let rec source w (e : T.Expr.t) =
   | _ when Ty.is_guest e.T.Expr.ty -> `Stable
   | _ -> `Temporary
 
-let mint w (v : T.Expr.t) =
-  let say = error w v.T.Expr.span in
+let mint env w (v : T.Expr.t) =
+  let say = error env w v.T.Expr.span in
   match source w v with
   | `Stable -> ()
   | `Subscript -> say "a new guest must come from a stable place, and this path crosses `[]`"
@@ -117,15 +117,15 @@ let hold w (l : T.Local.t) (v : T.Expr.t) =
 (* A value [v] stored where a value of type [into] goes. [storage] is a field,
    an element or a case payload: somewhere a guest comes to rest, rather than
    a local or an argument. *)
-let store w ?(storage = false) (into : Ty.t) (v : T.Expr.t) =
+let store env w ?(storage = false) (into : Ty.t) (v : T.Expr.t) =
   if Ty.is_guest into then begin
     (match v.T.Expr.ty with
     | Ty.Guest _ | Ty.Error | Ty.Param _ -> ()
-    | _ -> mint w v);
+    | _ -> mint env w v);
     if storage then
       match swallowed_of w v with
       | Some name ->
-          error w v.T.Expr.span
+          error env w v.T.Expr.span
             (Printf.sprintf
                "%s swallows its argument, so it may not be bound into `&` storage; a \
                 parameter stored as a guest is declared `&`"
@@ -136,7 +136,7 @@ let store w ?(storage = false) (into : Ty.t) (v : T.Expr.t) =
 (* lifetimes.md §1.1: no step of a store's destination goes through a guest,
    unless it is the root and a parameter. What a guest names is changed by a
    `mut` call on it (effects.md §4.3), which the message points to. *)
-let rec through w (e : T.Expr.t) =
+let rec through env w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
     ->
@@ -146,45 +146,45 @@ let rec through w (e : T.Expr.t) =
         | _ -> false
       in
       if Ty.is_guest target.T.Expr.ty && not param_root then
-        error w target.T.Expr.span
+        error env w target.T.Expr.span
           "a store may not go through a guest, since what it names belongs to a tree this \
            path's root does not own; change it with a `mut` method called through the guest"
-      else through w target
+      else through env w target
   | _ -> ()
 
 (* ---------------------------------------------------------------------- *)
 (* Walking a body                                                         *)
 (* ---------------------------------------------------------------------- *)
 
-let rec expr w (e : T.Expr.t) =
+let rec expr env w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Text_lit _ | T.Expr.Bool_lit _
   | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid | T.Expr.Var _ ->
       ()
-  | T.Expr.Array_lit items -> List.iter (expr w) items
+  | T.Expr.Array_lit items -> List.iter (expr env w) items
   | T.Expr.Map_lit entries ->
       List.iter
         (fun (k, v) ->
-          expr w k;
-          expr w v)
+          expr env w k;
+          expr env w v)
         entries
   | T.Expr.Case { case; payload } ->
-      expr w payload;
-      Option.iter (fun t -> store w ~storage:true t payload) (member_type e.T.Expr.ty case)
-  | T.Expr.Field { target; _ } | T.Expr.Map_read { target; _ } -> expr w target
+      expr env w payload;
+      Option.iter (fun t -> store env w ~storage:true t payload) (member_type env e.T.Expr.ty case)
+  | T.Expr.Field { target; _ } | T.Expr.Map_read { target; _ } -> expr env w target
   | T.Expr.Case_read { target; handler; _ } ->
-      expr w target;
-      handler_block w e.T.Expr.ty handler
+      expr env w target;
+      handler_block env w e.T.Expr.ty handler
   | T.Expr.Ref inner ->
-      expr w inner;
-      store w e.T.Expr.ty inner
-  | T.Expr.Spawn inner -> expr w inner
-  | T.Expr.Init fields -> fields_ w e.T.Expr.ty fields
+      expr env w inner;
+      store env w e.T.Expr.ty inner
+  | T.Expr.Spawn inner -> expr env w inner
+  | T.Expr.Init fields -> fields_ env w e.T.Expr.ty fields
   | T.Expr.Construct_fields { ctor; fields; handler } ->
-      fields_ w (match Env.signature_of ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty) fields;
-      opt_handler w e.T.Expr.ty handler
+      fields_ env w (match Env.signature_of env ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty) fields;
+      opt_handler env w e.T.Expr.ty handler
   | T.Expr.Match m ->
-      List.iter (expr w) m.T.Match.scrutinees;
+      List.iter (expr env w) m.T.Match.scrutinees;
       List.iter
         (fun (a : T.Arm.t) ->
           List.iter
@@ -197,126 +197,126 @@ let rec expr w (e : T.Expr.t) =
              §9). *)
           let verb = w.ret in
           w.ret <- e.T.Expr.ty;
-          block w a.T.Arm.body;
+          block env w a.T.Arm.body;
           w.ret <- verb)
         m.T.Match.arms;
-      opt_handler w e.T.Expr.ty m.T.Match.handler
+      opt_handler env w e.T.Expr.ty m.T.Match.handler
   | T.Expr.Call { callee; args; handler } | T.Expr.Construct { ctor = callee; args; handler } ->
       let args =
-        match (Env.signature_of callee, args) with
+        match (Env.signature_of env callee, args) with
         | Some sg, subject :: rest when S.is_method sg ->
-            arg w subject;
+            arg env w subject;
             rest
         | _ -> args
       in
-      pass w (param_types callee) args;
-      opt_handler w e.T.Expr.ty handler
+      pass env w (param_types env callee) args;
+      opt_handler env w e.T.Expr.ty handler
   | T.Expr.Call_value { callee; args; handler } ->
-      expr w callee;
+      expr env w callee;
       (match callee.T.Expr.ty with
       | Ty.Verb { Ty.this_ = Some _; params; _ } -> (
           match args with
           | subject :: rest ->
-              arg w subject;
-              pass w params rest
+              arg env w subject;
+              pass env w params rest
           | [] -> ())
-      | Ty.Verb { Ty.params; _ } -> pass w params args
-      | _ -> List.iter (arg w) args);
-      opt_handler w e.T.Expr.ty handler
+      | Ty.Verb { Ty.params; _ } -> pass env w params args
+      | _ -> List.iter (arg env w) args);
+      opt_handler env w e.T.Expr.ty handler
   | T.Expr.Subscript { target; impl; args } ->
-      expr w target;
-      pass w (param_types impl) (List.map (fun a -> T.Arg.Value a) args)
+      expr env w target;
+      pass env w (param_types env impl) (List.map (fun a -> T.Arg.Value a) args)
   | T.Expr.Op { left; right; impl; swapped; handler; _ } ->
       let args = if swapped then [ right; left ] else [ left; right ] in
-      pass w (param_types ~subject:true impl) (List.map (fun a -> T.Arg.Value a) args);
-      opt_handler w e.T.Expr.ty handler
+      pass env w (param_types env ~subject:true impl) (List.map (fun a -> T.Arg.Value a) args);
+      opt_handler env w e.T.Expr.ty handler
   | T.Expr.Flip { impl; value; handler } ->
-      pass w (param_types impl) [ T.Arg.Value value ];
-      opt_handler w e.T.Expr.ty handler
-  | T.Expr.Coerce { ctor; value } -> pass w (param_types ctor) [ T.Arg.Value value ]
-  | T.Expr.Lambda l -> lambda w e l
+      pass env w (param_types env impl) [ T.Arg.Value value ];
+      opt_handler env w e.T.Expr.ty handler
+  | T.Expr.Coerce { ctor; value } -> pass env w (param_types env ctor) [ T.Arg.Value value ]
+  | T.Expr.Lambda l -> lambda env w e l
 
 (* Arguments against the parameters they bind. *)
-and pass w tys args =
+and pass env w tys args =
   let rec go tys args =
     match (tys, args) with
     | ty :: tys, (T.Arg.Value v as a) :: args ->
-        arg w a;
-        store w ty v;
+        arg env w a;
+        store env w ty v;
         go tys args
     | _ :: tys, a :: args ->
-        arg w a;
+        arg env w a;
         go tys args
     | [], a :: args ->
-        arg w a;
+        arg env w a;
         go [] args
     | _, [] -> ()
   in
   go tys args
 
-and arg w = function T.Arg.Value e -> expr w e | T.Arg.Block b -> block w b
+and arg env w = function T.Arg.Value e -> expr env w e | T.Arg.Block b -> block env w b
 
-and fields_ w ty fields =
+and fields_ env w ty fields =
   List.iter
     (fun (f : T.Field_value.t) ->
       let v = f.T.Field_value.value in
-      expr w v;
-      Option.iter (fun t -> store w ~storage:true t v) (member_type ty f.T.Field_value.name))
+      expr env w v;
+      Option.iter (fun t -> store env w ~storage:true t v) (member_type env ty f.T.Field_value.name))
     fields
 
-and opt_handler w ty = Option.iter (handler_block w ty)
+and opt_handler env w ty = Option.iter (handler_block env w ty)
 
-and handler_block w ty (h : T.Handler.t) =
+and handler_block env w ty (h : T.Handler.t) =
   w.resolve <- ty :: w.resolve;
-  block w h.T.Handler.body;
+  block env w h.T.Handler.body;
   w.resolve <- (match w.resolve with _ :: r -> r | [] -> [])
 
-and lambda w (e : T.Expr.t) (l : T.Lambda.t) =
+and lambda env w (e : T.Expr.t) (l : T.Lambda.t) =
   let has_this, ret =
     match e.T.Expr.ty with
     | Ty.Verb v -> (Option.is_some v.Ty.this_, v.Ty.ret)
     | _ -> (false, Ty.Error)
   in
   let saved = (w.ret, w.resolve) in
-  params w has_this l.T.Lambda.params;
+  params env w has_this l.T.Lambda.params;
   w.ret <- ret;
   w.resolve <- [];
-  block w l.T.Lambda.body;
+  block env w l.T.Lambda.body;
   w.ret <- fst saved;
   w.resolve <- snd saved
 
-and block w (b : T.Block.t) = List.iter (stat w) b.T.Block.stats
+and block env w (b : T.Block.t) = List.iter (stat env w) b.T.Block.stats
 
-and stat w (s : T.Stat.t) =
+and stat env w (s : T.Stat.t) =
   match s.T.Stat.node with
-  | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e -> expr w e
+  | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e -> expr env w e
   | T.Stat.Let { local; value } ->
-      expr w value;
-      store w local.T.Local.ty value;
+      expr env w value;
+      store env w local.T.Local.ty value;
       hold w local value
   | T.Stat.Assign { target; value } ->
-      expr w value;
-      expr w target;
-      through w target;
+      expr env w value;
+      expr env w target;
+      through env w target;
       (match target.T.Expr.node with
       | T.Expr.Var (T.Name_ref.Local l) -> hold w l value
       | _ -> ());
       let storage = match target.T.Expr.node with T.Expr.Var _ -> false | _ -> true in
-      store w ~storage target.T.Expr.ty value
+      store env w ~storage target.T.Expr.ty value
   | T.Stat.Return e ->
-      expr w e;
-      store w w.ret e
+      expr env w e;
+      store env w w.ret e
   | T.Stat.Resolve e -> (
-      expr w e;
-      match w.resolve with ty :: _ -> store w ty e | [] -> ())
+      expr env w e;
+      match w.resolve with ty :: _ -> store env w ty e | [] -> ())
 
-and params w has_this (ps : T.Local.t list) =
+and params env w has_this (ps : T.Local.t list) =
   List.iteri
     (fun i (p : T.Local.t) ->
       let kind =
         if i = 0 && has_this then This
         else if Ty.is_guest p.T.Local.ty then Guest
-        else if Type_decls.is_reference p.T.Local.ty then Swallow
+        else if Type_decls.is_reference env p.T.Local.ty then Swallow
         else Borrow
       in
       Hashtbl.replace w.params p.T.Local.id (p.T.Local.name, kind))
@@ -351,38 +351,38 @@ let walk ret run =
   w.ret <- ret;
   run w
 
-let verb (sg : S.t) ps run =
+let verb env (sg : S.t) ps run =
   walk sg.S.ret (fun w ->
-      params w (S.is_method sg) ps;
+      params env w (S.is_method sg) ps;
       run w)
 
-let run (p : T.Program.t) =
+let run env (p : T.Program.t) =
   List.iter
     (fun (pkg : T.Package.t) ->
       List.iter
         (fun (d : T.Decl.t) ->
           match d.T.Decl.node with
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
-              verb signature params (fun w -> block w body)
+              verb env signature params (fun w -> block env w body)
           | T.Decl.Subscript { signature; params; value = Some v } ->
-              verb signature params (fun w ->
-                  expr w v;
-                  store w w.ret v)
+              verb env signature params (fun w ->
+                  expr env w v;
+                  store env w w.ret v)
           | T.Decl.Constant { ty; value; _ } ->
               walk ty (fun w ->
-                  expr w value;
-                  store w ty value)
+                  expr env w value;
+                  store env w ty value)
           | T.Decl.Enum_map { ty; entries; _ } ->
               walk ty (fun w ->
                   List.iter
                     (fun (_, v) ->
-                      expr w v;
-                      store w ty v)
+                      expr env w v;
+                      store env w ty v)
                     entries)
           | _ -> ())
         pkg.T.Package.decls)
     p.T.Program.packages;
   List.iter
     (fun (i : T.Instance.t) ->
-      verb i.T.Instance.signature i.T.Instance.params (fun w -> block w i.T.Instance.body))
+      verb env i.T.Instance.signature i.T.Instance.params (fun w -> block env w i.T.Instance.body))
     p.T.Program.instances

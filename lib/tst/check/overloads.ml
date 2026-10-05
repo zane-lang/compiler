@@ -36,13 +36,13 @@ let arg_expr = function T.Arg.Value e -> Some e | T.Arg.Block _ -> None
 (* The implicit constructors that take a [src] to a [dst]: declared in the
    home package of either, which is the only place one may be (types.md
    §4.5), so no import is involved. *)
-let implicit_constructors ~src ~dst =
+let implicit_constructors env ~src ~dst =
   let dst = Ty.strip_guest dst in
   match Verb_signatures.type_key dst with
   | None -> []
   | Some key ->
       let homes = List.filter_map Verb_signatures.home [ src; dst ] in
-      Hashtbl.find_all constructors key
+      Hashtbl.find_all env.constructors key
       |> List.filter (fun (s : S.t) -> S.is_implicit s && List.mem s.home homes)
       |> List.filter_map (fun (s : S.t) ->
              match s.params with
@@ -92,7 +92,7 @@ let all_some xs =
     (fun x acc -> match (x, acc) with Some x, Some acc -> Some (x :: acc) | _ -> None)
     xs (Some [])
 
-let try_candidate ~phase (s : S.t) (slots : actual option list) : outcome option =
+let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome option =
   if List.length slots <> List.length s.params then None
   else if phase = Direct && s.generics <> [] then None
   else if phase = Generic && s.generics = [] then None
@@ -153,7 +153,7 @@ let try_candidate ~phase (s : S.t) (slots : actual option list) : outcome option
                           let dst = Ty.subst subst p.ty in
                           if Ty.free_params dst <> [] then None
                           else
-                            match implicit_constructors ~src:a.aty ~dst with
+                            match implicit_constructors env ~src:a.aty ~dst with
                             | [ found ] -> Some (Some (T.Arg.Value (coerce_value e found)))
                             | [] -> None
                             | several ->
@@ -178,10 +178,10 @@ let try_candidate ~phase (s : S.t) (slots : actual option list) : outcome option
 
 type resolution = Resolved of outcome | No_match | Ambiguous of S.t list
 
-let resolve candidates (slots_for : S.t -> actual option list option) =
+let resolve env candidates (slots_for : S.t -> actual option list option) =
   let attempt phase =
     List.filter_map
-      (fun s -> Option.bind (slots_for s) (fun slots -> try_candidate ~phase s slots))
+      (fun s -> Option.bind (slots_for s) (fun slots -> try_candidate env ~phase s slots))
       candidates
   in
   let rec phases = function
@@ -232,27 +232,27 @@ let list_candidates cands =
 
 (* The implicit constructors the chosen candidate inserted, instantiated
    now that it is chosen. *)
-let request_coercions (o : outcome) =
+let request_coercions env (o : outcome) =
   List.iter
     (function
       | Some
           (T.Arg.Value
              { T.Expr.node = T.Expr.Coerce { ctor = { T.Verb_ref.owner = S.Declared id; instance; _ }; _ }; span; _ })
         when instance <> [] -> (
-          match Hashtbl.find_opt signatures id with
-          | Some s -> request s (List.map (fun ((p : Ty.param), a) -> (p.id, a)) instance) span
+          match Hashtbl.find_opt env.signatures id with
+          | Some s -> request env s (List.map (fun ((p : Ty.param), a) -> (p.id, a)) instance) span
           | None -> ())
       | _ -> ())
     o.converted
 
-let report_resolution ?(literal = false) ~span ~what ~args result cands =
+let report_resolution env ?(literal = false) ~span ~what ~args result cands =
   match result with
   | Resolved o ->
-      List.iter (fun (at, message) -> error at message) o.site_errors;
-      request_coercions o;
+      List.iter (fun (at, message) -> error env at message) o.site_errors;
+      request_coercions env o;
       Some o
   | Ambiguous several ->
-      error span
+      error env span
         (Printf.sprintf "the call to %s is ambiguous: %s %s accept %s" what
            (list_candidates several)
            (if List.length several = 2 then "both" else "all")
@@ -267,7 +267,7 @@ let report_resolution ?(literal = false) ~span ~what ~args result cands =
            the type it is meant to be, as `Int(4)`"
         else ""
       in
-      error span
+      error env span
         (Printf.sprintf "no %s accepts %s; the %s %s%s" what args
            (if List.length cands = 1 then "candidate is" else "candidates are")
            (list_candidates cands) hint);

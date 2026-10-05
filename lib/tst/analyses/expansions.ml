@@ -28,7 +28,7 @@ and expr_calls (e : T.Expr.t) =
         | Exits.Lambda _ -> [])
       (Exits.parts e)
 
-let run (p : T.Program.t) =
+let run env (p : T.Program.t) =
   let names = Hashtbl.create 16 in
   List.iter
     (fun (pkg : T.Package.t) ->
@@ -96,7 +96,7 @@ let run (p : T.Program.t) =
         (fun (callee, (e : T.Expr.t)) ->
           if reaches callee id && not (Hashtbl.mem reported e.T.Expr.span) then begin
             Hashtbl.replace reported e.T.Expr.span ();
-            Env.error e.T.Expr.span
+            Env.error env e.T.Expr.span
               (Printf.sprintf
                  "`%s` expands into itself: it takes a block or a literal, so each call to it is \
                   written out in place of the call, and this call is reached again"

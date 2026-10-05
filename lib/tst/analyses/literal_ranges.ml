@@ -29,17 +29,17 @@ let text = function
 
 let prefix = "@primitives$"
 
-let rec block (b : T.Block.t) =
-  List.iter (fun s -> List.iter expr (Exits.stat_exprs s)) b.T.Block.stats
+let rec block env (b : T.Block.t) =
+  List.iter (fun s -> List.iter (expr env) (Exits.stat_exprs s)) b.T.Block.stats
 
-and expr (e : T.Expr.t) =
+and expr env (e : T.Expr.t) =
   let check spelling (v : T.Expr.t) =
     if String.starts_with ~prefix spelling then
       let name =
         String.sub spelling (String.length prefix) (String.length spelling - String.length prefix)
       in
       if not (fits name v.T.Expr.node) then
-        Env.error v.T.Expr.span
+        Env.error env v.T.Expr.span
           (Printf.sprintf "`%s` is out of range for `%s`" (text v.T.Expr.node) spelling)
   in
   (match e.T.Expr.node with
@@ -49,26 +49,26 @@ and expr (e : T.Expr.t) =
   | _ -> ());
   List.iter
     (function
-      | Exits.Same x -> expr x
-      | Exits.Arm b | Exits.Handler b | Exits.Block b | Exits.Lambda b -> block b)
+      | Exits.Same x -> expr env x
+      | Exits.Arm b | Exits.Handler b | Exits.Block b | Exits.Lambda b -> block env b)
     (Exits.parts e)
 
-let run (p : T.Program.t) =
+let run env (p : T.Program.t) =
   List.iter
     (fun (pkg : T.Package.t) ->
       List.iter
         (fun (d : T.Decl.t) ->
           match d.T.Decl.node with
-          | T.Decl.Verb { body = T.Decl.Checked { body; _ }; _ } -> block body
-          | T.Decl.Constant { value; _ } -> expr value
-          | T.Decl.Subscript { value = Some v; _ } -> expr v
-          | T.Decl.Enum_map { entries; _ } -> List.iter (fun (_, e) -> expr e) entries
+          | T.Decl.Verb { body = T.Decl.Checked { body; _ }; _ } -> block env body
+          | T.Decl.Constant { value; _ } -> expr env value
+          | T.Decl.Subscript { value = Some v; _ } -> expr env v
+          | T.Decl.Enum_map { entries; _ } -> List.iter (fun (_, e) -> expr env e) entries
           | _ -> ())
         pkg.T.Package.decls)
     p.T.Program.packages;
-  List.iter (fun (i : T.Instance.t) -> block i.T.Instance.body) p.T.Program.instances;
+  List.iter (fun (i : T.Instance.t) -> block env i.T.Instance.body) p.T.Program.instances;
   (* A field constructor's defaults, which a call that leaves an entry out
      builds from. *)
   List.iter
-    (fun (d : T.Defaults.t) -> List.iter (fun (_, e) -> expr e) d.T.Defaults.values)
+    (fun (d : T.Defaults.t) -> List.iter (fun (_, e) -> expr env e) d.T.Defaults.values)
     p.T.Program.defaults
