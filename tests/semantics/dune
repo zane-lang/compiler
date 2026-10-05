@@ -182,97 +182,30 @@
 ; `typing/reject` is one build that fails every way the passes can report: one
 ; file per area in the root package `bad`, and `lib`, a dependency that reaches
 ; for `@program$`. As with `assembly/reject` above, the golden file is what shows every
-; problem was reported in one run.
+; problem was reported in one run. `typing/exiting` is a root whose `main` can
+; exit, which the runtime, calling it from no block, has nothing for.
+;
+; `typing.accept.tst.spans` is every node of the typed tree, with the source
+; text its span covers: the TST's counterpart of tests/parser's `.cst.spans`
+; and `.sst.spans`, over the same `typing/accept` build. A node the checker
+; built -- an inserted `Coerce`, a parameter's local, a generic instance's body
+; -- that pointed at the wrong text, or into the wrong file, shows here and
+; nowhere else. A moved line is read and promoted the same way as there.
+;
+; The `typing.*` rules are written by tests/gen/gen_rules.ml from the golden
+; files, into dune.inc. A build added without its rules fails the diff below;
+; `dune promote` then writes them.
+
+(include dune.inc)
 
 (rule
- (deps (source_tree fixtures/typing/accept))
+ (deps (glob_files golden/*) (source_tree fixtures))
  (action
   (with-stdout-to
-   typing.accept.decls.actual
-   (run
-    %{exe:../../bin/zanec/zanec.exe}
-    --decls
-    --package fixtures/typing/accept/app
-    --package fixtures/typing/accept/shapes))))
+   dune.inc.gen
+   (run %{exe:../gen/gen_rules.exe} semantics))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/typing.accept.decls typing.accept.decls.actual)))
-
-(rule
- (deps (source_tree fixtures/typing/accept))
- (action
-  (with-stdout-to
-   typing.accept.tst.actual
-   (run
-    %{exe:../../bin/zanec/zanec.exe}
-    --tst
-    --package fixtures/typing/accept/app
-    --package fixtures/typing/accept/shapes))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/typing.accept.tst typing.accept.tst.actual)))
-
-(rule
- (deps (source_tree fixtures/typing))
- (action
-  (with-stderr-to
-   typing.reject.err.actual
-   (with-accepted-exit-codes
-    1
-    (run
-     %{exe:../../bin/zanec/zanec.exe}
-     --tst
-     --package fixtures/typing/reject/bad
-     --package fixtures/typing/reject/lib)))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/typing.reject.err typing.reject.err.actual)))
-
-; `typing/reject/exiting` is a root whose `main` can exit, which the runtime,
-; calling it from no block, has nothing for.
-
-(rule
- (deps (source_tree fixtures/typing/reject/exiting))
- (action
-  (with-stderr-to
-   typing.exiting.err.actual
-   (with-accepted-exit-codes
-    1
-    (run
-     %{exe:../../bin/zanec/zanec.exe}
-     --check
-     --package fixtures/typing/reject/exiting)))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/typing.exiting.err typing.exiting.err.actual)))
-
-; Every node of the typed tree, with the source text its span covers: the
-; TST's counterpart of tests/parser's `.cst.spans` and `.sst.spans`, over the
-; same `typing/accept` build. A node the checker built -- an inserted `Coerce`, a
-; parameter's local, a generic instance's body -- that pointed at the wrong
-; text, or into the wrong file, shows here and nowhere else. A moved line is
-; read and promoted the same way as there.
-
-(rule
- (deps (source_tree fixtures/typing/accept))
- (action
-  (with-stdout-to
-   typing.accept.tst.spans.actual
-   (run
-    %{exe:../../tools/inspect/span_dump.exe}
-    --tst
-    --package fixtures/typing/accept/app
-    --package fixtures/typing/accept/shapes))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/typing.accept.tst.spans typing.accept.tst.spans.actual)))
+  (diff dune.inc dune.inc.gen)))
