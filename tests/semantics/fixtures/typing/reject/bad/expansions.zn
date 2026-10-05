@@ -1,0 +1,29 @@
+package bad;
+
+/// A verb that takes a block or a literal is written out at each call to it
+/// (docs/design/lowering.md L11), so it cannot reach a call to itself: not
+/// directly, and not through another such verb.
+Unit forever(body @concepts$Block) {
+	forever(body);
+	return Unit();
+}
+
+Unit ping(times @concepts$Int) {
+	pong(times);
+	return Unit();
+}
+
+Unit pong(times @concepts$Int) {
+	ping(times);
+	return Unit();
+}
+
+/// A lambda is a function of its own, and is not written out: it may call
+/// the verb it is written in.
+Unit relay(body @concepts$Block) {
+	again Unit() {
+		relay({ });
+		return Unit();
+	}
+	return Unit();
+}

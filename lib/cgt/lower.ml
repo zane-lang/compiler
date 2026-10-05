@@ -159,11 +159,11 @@ let binop : Sst.Nodes.Operator.node -> Expr.binop = function
 
 (* An exit ends the run of a block (docs/spec-divergences.md §11). Semantics
    rejects one anywhere else, so this is not reached. *)
-let no_block span = refuse span "an exit ends the block its call is written in, and this is in none"
+let no_block span = Diagnostic.bug ~span "lowering: an exit ends the block its call is written in, and this is in none"
 
 (* Where nothing leaves: an enum map's entry, which is a constant. *)
 let constant_ctx () =
-  let nowhere span = refuse span "lowering expected nothing here to leave" in
+  let nowhere span = Diagnostic.bug ~span "lowering expected nothing here to leave" in
   {
     env = Hashtbl.create 1;
     exit = Function;
@@ -224,7 +224,7 @@ let primitive_op span op t (l : Expr.t) (r : Expr.t) =
       in
       let yes = { Expr.node = Expr.Int 1L; ty = Nodes.Ty.I64 } in
       { Expr.node = Expr.Binary { op = Expr.Eq; left = same; right = yes }; ty = t }
-  | Nodes.Ty.Handle, _ -> refuse span "`@primitives$String` has no such operator"
+  | Nodes.Ty.Handle, _ -> Diagnostic.bug ~span "lowering: `@primitives$String` has no such operator"
   | _ -> { Expr.node = Expr.Binary { op = binop op; left = l; right = r }; ty = t }
 
 let rec expr st ctx (e : T.Expr.t) : Expr.t =
@@ -240,7 +240,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
             match at with Some p -> { Expr.node = Expr.Deref p; ty = t } | None -> unit_
           in
           joined st (settle ()) value
-      | Literal _ | Code _ -> refuse span "lowering does not read this parameter as a value")
+      | Literal _ | Code _ -> Diagnostic.bug ~span "lowering: a block or literal parameter read as a value")
   | T.Expr.Bool_lit b -> { Expr.node = Expr.Bool b; ty = Nodes.Ty.I1 }
   | T.Expr.Construct { ctor = { owner = S.Intrinsic spelling; _ }; args; handler = None } ->
       primitive st ctx span spelling args e.T.Expr.ty
@@ -262,7 +262,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
             Expr.node = Expr.Runtime { fn = "zane_print"; args = [ borrow st ctx span text ] };
             ty = Nodes.Ty.Void;
           }
-      | _ -> refuse span "lowering does not handle this call to `print`")
+      | _ -> Diagnostic.bug ~span "lowering: `print` with the wrong arguments")
   | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$setThreads"; _ }; args; handler }
     -> (
       (* The pool is resized (concurrency.md §2.4), or, for a count below
@@ -286,7 +286,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
             [ Stat.Let { id; value = set }; Stat.If { cond = failed; body = on_abort span unit_ } ]
           in
           { Expr.node = Expr.Expand { label; body; result = None }; ty = Nodes.Ty.Void }
-      | _ -> refuse span "lowering does not handle this call to `setThreads`")
+      | _ -> Diagnostic.bug ~span "lowering: `setThreads` with the wrong arguments")
   | T.Expr.Call
       {
         callee = { owner = S.Intrinsic "@runtime$setThreadsAuto"; _ };
@@ -331,18 +331,18 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
             ]
           in
           { Expr.node = Expr.Expand { label; body; result = None }; ty = Nodes.Ty.Void }
-      | _ -> refuse span "lowering does not handle this call to `push`")
+      | _ -> Diagnostic.bug ~span "lowering: `push` with the wrong arguments")
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$size"; _ }; args; handler = None }
     -> (
       match args with
       | [ T.Arg.Value list ] ->
           let value = borrow st ctx span list in
           { Expr.node = Expr.Member { value; index = 2 }; ty = Nodes.Ty.I64 }
-      | _ -> refuse span "lowering does not handle this call to `size`")
+      | _ -> Diagnostic.bug ~span "lowering: `size` with the wrong arguments")
   | T.Expr.Subscript _ -> (
       match addr st ctx span e with
       | Some p -> { Expr.node = Expr.Deref p; ty = ty st span e.T.Expr.ty }
-      | None -> refuse span "lowering does not handle this subscript yet")
+      | None -> Diagnostic.bug ~span "lowering: a subscript with no address")
   | T.Expr.Op { op; impl = { owner; instance; _ }; left; right; swapped; handler } -> (
       let t = ty st span e.T.Expr.ty in
       (* [left] and [right] are in written order, and run in it
@@ -368,7 +368,9 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
                 (fun () -> argument st ctx span v for_left left)
                 (fun () -> argument st ctx span v for_right right)
                 (fun l r -> invoke st ctx span v [ l; r ] handler)
-          | _ -> refuse span "lowering does not handle this operator yet"))
+          | Some v when expands v ->
+              refuse span "lowering does not handle an operator that takes a block or a literal yet"
+          | _ -> Diagnostic.bug ~span "lowering: an operator with no verb to call"))
   | T.Expr.Flip { impl = { owner = S.Intrinsic _; _ }; value; handler = None } ->
       { Expr.node = Expr.Flip (expr st ctx value); ty = ty st span e.T.Expr.ty }
   | T.Expr.Flip { impl = { owner = S.Declared id; instance; _ }; value; handler } ->
@@ -383,7 +385,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
            drain. *)
         match addr st ctx span e with
         | Some p -> { Expr.node = Expr.Deref p; ty = t }
-        | None -> refuse span "lowering expected a boxed member to have a place"
+        | None -> Diagnostic.bug ~span "lowering expected a boxed member to have a place"
       else if Tty.is_guest target.T.Expr.ty then
         (* Read through the guest, where its host is now (memory.md §4.4). *)
         let base = resolve (expr st ctx target) in
@@ -418,18 +420,21 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       match Hashtbl.find_opt st.constants decl with
       | Some { value = { T.Expr.node = T.Expr.Lambda _; _ } as value; _ } -> expr st ctx value
       | Some _ -> { Expr.node = Expr.Deref (constant st decl); ty = ty st span e.T.Expr.ty }
-      | None -> refuse span "lowering found no package constant here")
+      | None -> Diagnostic.bug ~span "lowering found no package constant here")
   | T.Expr.Call_value { callee; args; handler } -> (
       match Tty.strip_guest callee.T.Expr.ty with
       | Tty.Verb fv ->
           let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
           let fn = value_of st ctx callee in
           invoke ~fn st ctx span v (arguments st ctx span v args) handler
-      | _ -> refuse span "lowering expected a function value here")
+      | _ -> Diagnostic.bug ~span "lowering expected a function value here")
   (* `&` written before a place: a guest to it, minted, or a guest it holds
      copied (memory.md §2.6). *)
   | T.Expr.Ref value -> guest st ctx span value
-  | _ -> refuse span "lowering does not handle this expression yet"
+  | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ }
+    when String.starts_with ~prefix:"@controlflow$" spelling ->
+      refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)
+  | _ -> Diagnostic.bug ~span "lowering: an expression of a form it has no case for"
 
 (* A storage primitive's constructor: `Unit` has no storage, a list starts
    empty, and the others embed their literal. An array's literal is its
@@ -460,14 +465,14 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
             match lookup ctx span l with
             | Slot id -> { Expr.node = Expr.Local id; ty = lowered }
             | Pointer id -> deref id lowered
-            | _ -> refuse span "lowering expected an array literal here"
+            | _ -> Diagnostic.bug ~span "lowering expected an array literal here"
           in
           if owns st span t then
             { value with Expr.node = Expr.Copy { value; layout = layout st span t } }
           else value)
-      | _ -> refuse span "lowering expected an array literal of the array's length here")
+      | _ -> Diagnostic.bug ~span "lowering expected an array literal of the array's length here")
   | _, [ T.Arg.Value v ] -> literal ctx span name v
-  | _ -> refuse span (Printf.sprintf "lowering does not handle `%s` yet" spelling)
+  | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
 
 (* L14. A lambda captures nothing (functions.md §7.4), so it is lifted out
    as a function of its own, once, and its value is that function's address.
@@ -475,7 +480,7 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
    lambda's body may not exit (control-flow.md §4.2). *)
 and lambda st span t (l : T.Lambda.t) =
   match (List.assq_opt l.T.Lambda.body st.lambdas, t) with
-  | None, _ -> refuse span "lowering does not lift a lambda written here yet"
+  | None, _ -> Diagnostic.bug ~span "lowering: a lambda it gave no name"
   | Some s, Tty.Verb fv ->
       let key = "lambda " ^ s in
       if not (Hashtbl.mem st.symbols key) then begin
@@ -483,7 +488,7 @@ and lambda st span t (l : T.Lambda.t) =
         Queue.add (value_verb key fv l.T.Lambda.params l.T.Lambda.body) st.pending
       end;
       s
-  | Some _, _ -> refuse span "lowering expected a function type here"
+  | Some _, _ -> Diagnostic.bug ~span "lowering expected a function type here"
 
 (* A spawned call's result, read once the call has returned (concurrency.md
    §3.2). *)
@@ -521,7 +526,7 @@ and record st ctx span t (fields : T.Field_value.t list) =
   | Nodes.Ty.Struct ms, _ when List.length ms = List.length fields ->
       { Expr.node = Expr.Record (members fields); ty = lowered }
   | _, [ f ] when collapsed st t -> { (value f) with ty = lowered }
-  | _ -> refuse span "lowering expected a value for every member here"
+  | _ -> Diagnostic.bug ~span "lowering expected a value for every member here"
 
 (* A value read where its type's own storage is wanted: through a guest, the
    host it names. *)
@@ -598,7 +603,7 @@ and guest st ctx span (e : T.Expr.t) =
   else
     match addr st ctx span e with
     | Some p -> { Expr.node = Expr.Mint p; ty = Nodes.Ty.I32 }
-    | None -> refuse span "lowering expected a guest source here"
+    | None -> Diagnostic.bug ~span "lowering expected a guest source here"
 
 (* A value on its way into storage of type [dst]: a guest there is minted
    or copied, and a reference-type host read from a place moves, which
@@ -614,7 +619,7 @@ and moved st ctx span dst (e : T.Expr.t) =
             { Expr.node = Expr.Take { address; layout = l }; ty = ty st span dst }
         (* Semantics moves a host only out of a symbol (moves.ml), which is
            a place. *)
-        | None -> refuse span "lowering expected a host to move out of a place")
+        | None -> Diagnostic.bug ~span "lowering expected a host to move out of a place")
     | _ -> expr st ctx e
   else if owns st span dst && is_place e then
     let value = value_of st ctx e in
@@ -706,7 +711,7 @@ and match_ st ctx span scrutinees (arms : T.Arm.t list) handler ret =
   in
   let arm chosen =
     match List.find_opt (selects chosen) arms with
-    | None -> refuse span "lowering found no arm for a combination of cases"
+    | None -> Diagnostic.bug ~span "lowering found no arm for a combination of cases"
     | Some a ->
         let binds =
           List.concat
@@ -743,7 +748,7 @@ and match_ st ctx span scrutinees (arms : T.Arm.t list) handler ret =
 (* An enum map read is a switch on the member, each case giving its entry. *)
 and map_read st ctx span target map ret =
   match Hashtbl.find_opt st.maps map with
-  | None -> refuse span "lowering found no enum map here"
+  | None -> Diagnostic.bug ~span "lowering found no enum map here"
   | Some (enum, entries) ->
       let t = ty st span ret in
       let label = fresh st in
@@ -756,7 +761,7 @@ and map_read st ctx span target map ret =
           (fun i member ->
             match List.assoc_opt member entries with
             | Some e -> (i, leave label result (expr st entry_ctx e))
-            | None -> refuse span (Printf.sprintf "the enum map has no entry for `%s`" member))
+            | None -> Diagnostic.bug ~span (Printf.sprintf "lowering: the enum map has no entry for `%s`" member))
           (cases st span enum)
       in
       {
@@ -895,7 +900,7 @@ and subscript st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
           ptr
             (Expr.Runtime
                { fn = "zane_array_at"; args = [ array; index; int n; int (stride st span t) ] })
-      | None, None -> refuse span "lowering does not handle this subscript yet")
+      | None, None -> Diagnostic.bug ~span "lowering: an intrinsic subscript of something not a list or an array")
   | S.Declared id, _ -> (
       match verb_of st id impl.instance with
       | Some ({ params = this :: rest; body = { stats = [ { node = T.Stat.Return e; _ } ]; _ }; _ }
@@ -919,13 +924,13 @@ and subscript st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
           let place =
             match addr st inner span e with
             | Some p -> p
-            | None -> refuse span "lowering expected a subscript's body to name a place"
+            | None -> Diagnostic.bug ~span "lowering expected a subscript's body to name a place"
           in
           ptr
             (Expr.Expand
                { label; body = binds @ [ Stat.assign result place ]; result = Some result })
-      | _ -> refuse span "lowering does not handle this subscript yet")
-  | _ -> refuse span "lowering does not handle this subscript yet"
+      | _ -> Diagnostic.bug ~span "lowering: a declared subscript with no single place to name")
+  | _ -> Diagnostic.bug ~span "lowering: a subscript of no owner it knows"
 
 (* What a `return` to an expansion does: store the result, and leave. *)
 and leave label result value =
@@ -957,7 +962,7 @@ and in_order st t first second combine =
 
 and call st ctx span verb args handler ret : Expr.t =
   match verb with
-  | None -> refuse span "lowering does not handle a call to this verb yet"
+  | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
   | Some v when expands v -> expand st ctx span v (passed v args) handler ret
   | Some v -> invoke st ctx span v (arguments st ctx span v (passed v args)) handler
 
@@ -967,7 +972,7 @@ and call st ctx span verb args handler ret : Expr.t =
    declaration order. *)
 and construct_fields st ctx span verb (fields : T.Field_value.t list) handler ret =
   match verb with
-  | None -> refuse span "lowering does not handle a call to this verb yet"
+  | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
   | Some v ->
       let defaults = Option.value ~default:[] (Hashtbl.find_opt st.defaults v.key) in
       let slots = List.map (fun (f : T.Field_value.t) -> f.T.Field_value.slot) fields in
@@ -977,7 +982,7 @@ and construct_fields st ctx span verb (fields : T.Field_value.t list) handler re
       in
       let given = written @ left_out in
       if List.length given <> List.length v.params then
-        refuse span "lowering expected every entry of a field constructor to be given or defaulted";
+        Diagnostic.bug ~span "lowering expected every entry of a field constructor to be given or defaulted";
       if List.map fst given = List.init (List.length given) Fun.id then
         call st ctx span verb (List.map (fun (_, e) -> T.Arg.Value e) given) handler ret
       else
@@ -1017,10 +1022,10 @@ and construct_fields st ctx span verb (fields : T.Field_value.t list) handler re
         in
         let value =
           if expands v then
-            let arg = function `Arg a -> a | `Value _ -> refuse span "lowering expected an argument" in
+            let arg = function `Arg a -> a | `Value _ -> Diagnostic.bug ~span "lowering expected an argument" in
             expand st ctx span v (List.map arg slots) handler ret
           else
-            let value = function `Value a -> a | `Arg _ -> refuse span "lowering expected a value" in
+            let value = function `Value a -> a | `Arg _ -> Diagnostic.bug ~span "lowering expected a value" in
             invoke st ctx span v (List.map value slots) handler
         in
         let label = fresh st in
@@ -1052,7 +1057,7 @@ and arguments st ctx span v args =
     (fun (p : T.Local.t) arg ->
       match arg with
       | T.Arg.Value a -> argument st ctx span v p a
-      | T.Arg.Block _ -> refuse span "lowering does not expand block arguments here")
+      | T.Arg.Block _ -> Diagnostic.bug ~span "lowering: a block argument to a verb it does not expand")
     v.params args
 
 (* concurrency.md §3. A spawned call's arguments run here, as any call's do
@@ -1072,7 +1077,7 @@ and spawn st ctx span (e : T.Expr.t) =
   | T.Expr.Spawn inner -> spawn st ctx span inner
   | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; args; handler } -> (
       match verb_of st id instance with
-      | None -> refuse span "lowering does not handle a call to this verb yet"
+      | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
       | Some v when expands v ->
           let v, args = specialized st ctx span v (passed v args) in
           spawn_call st ctx span v None ~writes:v.signature.S.is_mut args handler
@@ -1087,8 +1092,8 @@ and spawn st ctx span (e : T.Expr.t) =
           let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
           let fn = value_of st ctx callee in
           spawn_call st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler
-      | _ -> refuse span "lowering expected a function value here")
-  | _ -> refuse span "lowering does not spawn this call yet"
+      | _ -> Diagnostic.bug ~span "lowering expected a function value here")
+  | _ -> Diagnostic.bug ~span "lowering: a spawn of something not a call"
 
 (* A spawned call has a function to run on another thread, which a verb
    expanded where it is called has not (L11). It gets one of its own, named
@@ -1118,7 +1123,7 @@ and specialized st ctx span (v : verb) args =
             Right ({ p with T.Local.ty = arr }, T.Arg.Value built)
         | Some (Tty.Integer_lit | Tty.Decimal_lit | Tty.Text_lit), T.Arg.Value a ->
             Left (p.T.Local.id, literal_of ctx a)
-        | Some _, _ -> refuse span "lowering expected a literal here"
+        | Some _, _ -> Diagnostic.bug ~span "lowering expected a literal here"
         | None, _ -> Right (p, arg))
       pairs
   in
@@ -1126,7 +1131,7 @@ and specialized st ctx span (v : verb) args =
     match e.T.Expr.node with
     | T.Expr.Integer_lit s | T.Expr.Decimal_lit s -> s
     | T.Expr.Text_lit s -> Printf.sprintf "%S" s
-    | _ -> refuse span "lowering expected a literal here"
+    | _ -> Diagnostic.bug ~span "lowering expected a literal here"
   in
   let key = Printf.sprintf "expanded %s(%s)" v.key (String.concat ", " (List.map text literals)) in
   let params = List.map fst kept in
@@ -1159,7 +1164,7 @@ and wrapped st span (callee : T.Verb_ref.t) args ret =
             let id = -1 - i and ty = a.T.Expr.ty and span = a.T.Expr.span in
             let l = { T.Local.id; name = string_of_int i; ty; span } in
             (Some (l, arg), { a with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) })
-        | T.Arg.Block _ -> refuse span "a block argument cannot be spawned")
+        | T.Arg.Block _ -> Diagnostic.bug ~span "lowering: a block argument cannot be spawned")
       args
   in
   let taken = List.filter_map fst parts in
@@ -1387,9 +1392,9 @@ and invoke ?fn st ctx span v args handler =
    its value (L6). *)
 and expand st ctx span v args handler ret =
   if List.mem v.decl ctx.expanding then
-    refuse span (Printf.sprintf "`%s` expands into itself" v.signature.S.name);
+    Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` expands into itself" v.signature.S.name);
   if List.length args <> List.length v.params then
-    refuse span "lowering expected an argument for every parameter";
+    Diagnostic.bug ~span "lowering expected an argument for every parameter";
   let env = Hashtbl.create 8 in
   let bind (p : T.Local.t) b = Hashtbl.replace env p.T.Local.id b in
   let binds =
@@ -1407,8 +1412,8 @@ and expand st ctx span v args handler ret =
                    | Code c ->
                        bind p (Code c);
                        []
-                   | _ -> refuse span "lowering expected a block here")
-               | _ -> refuse span "lowering expected a block here")
+                   | _ -> Diagnostic.bug ~span "lowering expected a block here")
+               | _ -> Diagnostic.bug ~span "lowering expected a block here")
            (* An array literal's elements are values the caller's code
               names, so the array is made here, where the call is written,
               and the parameter names its slot. *)
@@ -1450,7 +1455,7 @@ and expand st ctx span v args handler ret =
                    let id = fresh st in
                    bind p (Pointer id);
                    settle () @ [ Stat.Let { id; value = at } ]
-               | _ -> refuse span "lowering expected a place here")
+               | _ -> Diagnostic.bug ~span "lowering expected a place here")
            (* Any other place the body may write, or take the host from, is
               lent by its address. *)
            | T.Arg.Value a, _ when p.T.Local.name = "this" || hosted st p.T.Local.ty ->
@@ -1524,8 +1529,8 @@ and code st ctx span (arg : T.Arg.t) =
   | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
       match lookup ctx span l with
       | Code c -> run c.ctx c.block
-      | _ -> refuse span "lowering expected a block here")
-  | T.Arg.Value _ -> refuse span "lowering expected a block here"
+      | _ -> Diagnostic.bug ~span "lowering expected a block here")
+  | T.Arg.Value _ -> Diagnostic.bug ~span "lowering expected a block here"
 
 and stat st ctx (s : T.Stat.t) : Stat.t list =
   let span = s.T.Stat.span in
@@ -1536,7 +1541,7 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
      holds. *)
   | T.Stat.Let { local; value = { T.Expr.node = T.Expr.Spawn call; _ } } ->
       if ty st span local.T.Local.ty <> ty st span call.T.Expr.ty then
-        refuse span "lowering expected a spawned call bound to a local of the type it returns";
+        Diagnostic.bug ~span "lowering expected a spawned call bound to a local of the type it returns";
       let stats, future = spawn st ctx span call in
       Hashtbl.replace ctx.env local.T.Local.id future;
       stats
@@ -1585,7 +1590,7 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           let count = expr st ctx count in
           [ Stat.Repeat { count; body = code st ctx span body } ]
       | "@controlflow$exitFromCall", [] -> ctx.exit_call span
-      | _ -> refuse span (Printf.sprintf "lowering does not handle `%s` yet" spelling))
+      | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
   (* A fresh value nothing keeps is held here, so the drain ends it. *)
   | T.Stat.Expr e when held st span e.T.Expr.ty && not (is_place e) ->
       [ bind st ctx.scope span e.T.Expr.ty (fresh st) (expr st ctx e) ]
@@ -1600,7 +1605,7 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
   | T.Stat.Resolve e -> (
       match ctx.resolve with
       | Some resolve -> resolve e.T.Expr.ty (moved st ctx span e.T.Expr.ty e)
-      | None -> refuse span "lowering does not handle a block that yields a value yet")
+      | None -> Diagnostic.bug ~span "lowering: a `resolve` outside a handler")
 
 (* Where an assignment stores: a local, or the place a `mut` subject points
    at, and the members below it. A struct of one member adds no step. A
@@ -1616,7 +1621,7 @@ and place st ctx span (target : T.Expr.t) : Expr.place option =
       (* A spawned call's result is stored through its address, once the
          call has returned. *)
       | Future _ -> None
-      | _ -> refuse span "lowering expected a place here")
+      | _ -> Diagnostic.bug ~span "lowering expected a place here")
   | T.Expr.Field { target = inner; _ } when Tty.is_guest inner.T.Expr.ty -> None
   | T.Expr.Field { target = inner; slot; _ } ->
       Option.map
@@ -1894,7 +1899,7 @@ let program ?(library = false) (p : T.Program.t) =
           (* The runtime calls `main` and reads no outcome from it. *)
           let span = main.body.T.Block.span in
           if not (plain (outcome st span main)) then
-            refuse span "`main` has no caller to abort to or exit";
+            Diagnostic.bug ~span "lowering: `main` can abort or exit";
           (* L16: every package constant is made before `main` runs, the
              packages a package depends on first, and within a package in
              the order declared. One that reads another makes that one

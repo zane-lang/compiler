@@ -8,7 +8,7 @@ open Nodes
 open State
 
 let unhandled span t =
-  refuse span (Printf.sprintf "lowering does not handle `%s` yet" (Tty.to_string t))
+  Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` has no layout" (Tty.to_string t))
 
 (* A declared type's definition, with its parameters replaced by the
    arguments it was given, and whether it is a reference type. *)
@@ -264,7 +264,7 @@ let cases st span t =
 
 let case_index st span t case =
   let rec find i = function
-    | [] -> refuse span (Printf.sprintf "`%s` has no case `%s`" (Tty.to_string t) case)
+    | [] -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` has no case `%s`" (Tty.to_string t) case)
     | c :: _ when c = case -> i
     | _ :: rest -> find (i + 1) rest
   in
