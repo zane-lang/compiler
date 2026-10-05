@@ -37,7 +37,6 @@ type walk = {
 }
 
 let next_block = ref 0
-let quote s = "`" ^ s ^ "`"
 
 (* Whether storage of type [t] hosts what is stored in it. *)
 let hosting (t : Ty.t) =
@@ -59,7 +58,7 @@ let move w (v : T.Expr.t) =
   in
   match v.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) ->
-      let name = quote l.T.Local.name in
+      let name = Env.quote l.T.Local.name in
       if Hashtbl.mem w.subjects l.T.Local.id then
         Env.error v.T.Expr.span
           "`this` is the object the method was called on, and a method never moves it"
@@ -99,7 +98,7 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
           Env.error e.T.Expr.span
             (Printf.sprintf
                "%s was moved on line %d, and is spent until a store refills it"
-               (quote l.T.Local.name) (line at))
+               (Env.quote l.T.Local.name) (line at))
       | None -> ())
   | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Text_lit _ | T.Expr.Bool_lit _
   | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid | T.Expr.Var _ ->
@@ -133,7 +132,7 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
   | T.Expr.Init fields -> fields_ w e.T.Expr.ty fields
   | T.Expr.Construct_fields { ctor; fields; handler } ->
       fields_ w
-        (match Guests.signature_of ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty)
+        (match Env.signature_of ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty)
         fields;
       opt_handler w into handler
   | T.Expr.Match m ->
@@ -154,7 +153,7 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
       opt_handler w into m.T.Match.handler
   | T.Expr.Call { callee; args; handler } | T.Expr.Construct { ctor = callee; args; handler } ->
       let args =
-        match (Guests.signature_of callee, args) with
+        match (Env.signature_of callee, args) with
         | Some sg, subject :: rest when S.is_method sg ->
             arg w subject;
             rest
@@ -177,7 +176,7 @@ let rec expr ?(into = Ty.Error) w (e : T.Expr.t) =
   | T.Expr.Op { left; right; impl; swapped; handler; _ } ->
       let args = if swapped then [ right; left ] else [ left; right ] in
       let tys =
-        match Guests.signature_of impl with
+        match Env.signature_of impl with
         (* An intrinsic operator reads its operands (docs/design/semantics.md §9). *)
         | Some { S.owner = S.Intrinsic _; _ } | None -> []
         | Some _ -> Guests.param_types ~subject:true impl
@@ -275,7 +274,7 @@ and stat w (s : T.Stat.t) =
             Env.error target.T.Expr.span
               (Printf.sprintf
                  "%s is spent, and a store that refills it must be in the block that declares it"
-                 (quote l.T.Local.name))
+                 (Env.quote l.T.Local.name))
       | T.Expr.Var _ -> ()
       | _ -> expr w target)
   | T.Stat.Return e -> value w w.ret e
@@ -305,6 +304,7 @@ let verb (sg : S.t) (params : T.Local.t list) body =
   block ~bind:params w body
 
 let run (p : T.Program.t) =
+  next_block := 0;
   List.iter
     (fun (pkg : T.Package.t) ->
       List.iter

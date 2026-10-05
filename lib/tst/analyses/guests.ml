@@ -38,8 +38,6 @@ type walk = {
   mutable resolve : Ty.t list;
 }
 
-let quote s = "`" ^ s ^ "`"
-let is_guest = function Ty.Guest _ -> true | _ -> false
 let error w span message = if w.report then Env.error span message
 
 (* The declared type of a struct field or a variant case, with the type's
@@ -50,26 +48,16 @@ let member_type (t : Ty.t) name =
       match Hashtbl.find_opt Env.type_infos_by_id tid with
       | Some { Env.definition = Some (Env.Struct ms | Env.Variant ms); params; _ } -> (
           match List.assoc_opt name ms with
-          | Some mt -> (
-              let ids = List.map (fun (p : Ty.param) -> p.Ty.id) params in
-              try Some (Ty.subst (List.combine ids args) mt) with Invalid_argument _ -> Some mt)
+          | Some mt -> Some (Ty.instantiate params args mt)
           | None -> None)
       | _ -> None)
   | _ -> None
-
-let signature_of (r : T.Verb_ref.t) =
-  match r.T.Verb_ref.owner with
-  | S.Declared id -> Hashtbl.find_opt Env.signatures id
-  | S.Intrinsic spelling ->
-      List.find_map
-        (fun (_, (sg : S.t)) -> if sg.S.owner = S.Intrinsic spelling then Some sg else None)
-        Intrinsics.methods
 
 (* A call's parameter types, at the generic arguments it was instantiated
    with. The subject is left out unless [subject]: a method takes its subject
    as a guest, and never mints one for it (memory.md §2.9). *)
 let param_types ?(subject = false) (r : T.Verb_ref.t) =
-  match signature_of r with
+  match Env.signature_of r with
   | None -> []
   | Some sg ->
       let ps =
@@ -92,7 +80,7 @@ let rec source w (e : T.Expr.t) =
   | T.Expr.Field { target; _ } -> source w target
   | T.Expr.Subscript _ -> `Subscript
   | T.Expr.Case_read _ -> `Case
-  | _ when is_guest e.T.Expr.ty -> `Stable
+  | _ when Ty.is_guest e.T.Expr.ty -> `Stable
   | _ -> `Temporary
 
 let mint w (v : T.Expr.t) =
@@ -123,14 +111,14 @@ let swallowed_of w (v : T.Expr.t) =
   | None -> None
 
 let hold w (l : T.Local.t) (v : T.Expr.t) =
-  if is_guest l.T.Local.ty && not (Hashtbl.mem w.swallowed l.T.Local.id) then
+  if Ty.is_guest l.T.Local.ty && not (Hashtbl.mem w.swallowed l.T.Local.id) then
     Option.iter (Hashtbl.replace w.swallowed l.T.Local.id) (swallowed_of w v)
 
 (* A value [v] stored where a value of type [into] goes. [storage] is a field,
    an element or a case payload: somewhere a guest comes to rest, rather than
    a local or an argument. *)
 let store w ?(storage = false) (into : Ty.t) (v : T.Expr.t) =
-  if is_guest into then begin
+  if Ty.is_guest into then begin
     (match v.T.Expr.ty with
     | Ty.Guest _ | Ty.Error | Ty.Param _ -> ()
     | _ -> mint w v);
@@ -141,7 +129,7 @@ let store w ?(storage = false) (into : Ty.t) (v : T.Expr.t) =
             (Printf.sprintf
                "%s swallows its argument, so it may not be bound into `&` storage; a \
                 parameter stored as a guest is declared `&`"
-               (quote name))
+               (Env.quote name))
       | None -> ()
   end
 
@@ -157,7 +145,7 @@ let rec through w (e : T.Expr.t) =
         | T.Expr.Var (T.Name_ref.Local l) -> Hashtbl.mem w.params l.T.Local.id
         | _ -> false
       in
-      if is_guest target.T.Expr.ty && not param_root then
+      if Ty.is_guest target.T.Expr.ty && not param_root then
         error w target.T.Expr.span
           "a store may not go through a guest, since what it names belongs to a tree this \
            path's root does not own; change it with a `mut` method called through the guest"
@@ -193,7 +181,7 @@ let rec expr w (e : T.Expr.t) =
   | T.Expr.Spawn inner -> expr w inner
   | T.Expr.Init fields -> fields_ w e.T.Expr.ty fields
   | T.Expr.Construct_fields { ctor; fields; handler } ->
-      fields_ w (match signature_of ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty) fields;
+      fields_ w (match Env.signature_of ctor with Some sg -> sg.S.ret | None -> e.T.Expr.ty) fields;
       opt_handler w e.T.Expr.ty handler
   | T.Expr.Match m ->
       List.iter (expr w) m.T.Match.scrutinees;
@@ -215,7 +203,7 @@ let rec expr w (e : T.Expr.t) =
       opt_handler w e.T.Expr.ty m.T.Match.handler
   | T.Expr.Call { callee; args; handler } | T.Expr.Construct { ctor = callee; args; handler } ->
       let args =
-        match (signature_of callee, args) with
+        match (Env.signature_of callee, args) with
         | Some sg, subject :: rest when S.is_method sg ->
             arg w subject;
             rest
@@ -327,7 +315,7 @@ and params w has_this (ps : T.Local.t list) =
     (fun i (p : T.Local.t) ->
       let kind =
         if i = 0 && has_this then This
-        else if is_guest p.T.Local.ty then Guest
+        else if Ty.is_guest p.T.Local.ty then Guest
         else if Type_decls.is_reference p.T.Local.ty then Swallow
         else Borrow
       in

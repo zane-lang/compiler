@@ -51,8 +51,8 @@ let arguments () =
    compiler's `--tst` prints no tree. *)
 let run_packages dirs =
   match Tst.Assembly.assemble dirs with
-  | Error problems ->
-      List.iter (fun p -> prerr_string (Tst.Assembly.render_problem p)) problems;
+  | Error { Tst.Assembly.diagnostics; sources } ->
+      List.iter (fun d -> prerr_string (Diagnostic.render_in sources d)) diagnostics;
       exit 1
   | Ok packages -> (
       let result = Tst.check packages in

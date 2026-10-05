@@ -1,16 +1,9 @@
 # File structure proposal
 
-Status: **carried out**, except for these, which are still open:
-
-- L1 and L2 (§5.1): no library has an `.mli` yet, and the entry modules still
-  expose their APIs in different ways. This is step 10 of §13.
-- The optional step 11: D3, T4, P2, R13, H1 and H3. Q1 is partial: new run
-  output under `reports/` is ignored, but the committed logs stay, because
-  `docs/ambiguity/` cites them as evidence.
-- Two parts of splits that did land. G1: the Verbs section of `lower.ml` has
-  no sub-banners yet. A1: the engine's phases open only the modules they use,
-  but names are not yet qualified, and options are still parsed into
-  `Config`'s references rather than a record.
+Status: **carried out**. The items that were still open moved to
+[`refactoring-proposal.md`](refactoring-proposal.md) §11, which tracks them
+from now on. The body below is the record of this review as it was written:
+its sizes and counts describe the tree at that time.
 
 Two names differ from the ones proposed below: the CGT layout module is
 `type_layout.ml`, since `Nodes` already has a `Layout`, and the engine's `main`

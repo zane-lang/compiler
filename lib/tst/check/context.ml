@@ -103,10 +103,7 @@ let rec definition ?(depth = 0) (t : Ty.t) : (Ty.type_id * definition) option =
   | Ty.Named (tid, args) -> (
       match Type_decls.type_info_of_id tid with
       | Some ({ definition = Some def; _ } as info) -> (
-          let s =
-            try List.combine (List.map (fun (p : Ty.param) -> p.id) info.params) args
-            with Invalid_argument _ -> []
-          in
+          let s = Ty.bindings info.params args in
           let apply = List.map (fun (n, t) -> (n, Ty.subst s t)) in
           match def with
           | Struct fs -> Some (tid, Struct (apply fs))
@@ -115,8 +112,6 @@ let rec definition ?(depth = 0) (t : Ty.t) : (Ty.type_id * definition) option =
           | Distinct rhs -> if depth > 16 then None else definition ~depth:(depth + 1) (Ty.subst s rhs))
       | _ -> None)
   | _ -> None
-
-let signature_home = function S.Package p -> Some (S.Package p) | h -> Some h
 
 let accessible_sig ctx (s : S.t) =
   match s.home with

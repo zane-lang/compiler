@@ -60,8 +60,7 @@ let rec is_reference ?(seen = []) (t : Ty.t) =
           | None -> (
               match info.definition with
               | Some (Distinct rhs) when not (List.mem tid seen) ->
-                  let s = List.combine (List.map (fun (p : Ty.param) -> p.id) info.params) args in
-                  is_reference ~seen:(tid :: seen) (Ty.subst s rhs)
+                  is_reference ~seen:(tid :: seen) (Ty.instantiate info.params args rhs)
               | _ -> false)))
   | Ty.Intrinsic { namespace; name; _ } -> (
       match Intrinsics.find_type namespace name with
@@ -280,8 +279,7 @@ and apply scope span head (name : N.Name_type.t) generics : Ty.t =
               match apply_args scope span (quote (decl_name d)) kinds generics with
               | Some args ->
                   let target = alias_target alias in
-                  let s = List.combine (List.map (fun (p : Ty.param) -> p.id) alias.alias_params) args in
-                  Ty.subst s target
+                  Ty.instantiate alias.alias_params args target
               | None -> Ty.Error)
           | None ->
               ignore name;
@@ -390,8 +388,11 @@ and alias_target (alias : alias_info) =
           | _ -> Ty.Error
         in
         alias.resolving <- false;
-        (match alias.target with None -> alias.target <- Some t | Some _ -> ());
-        Option.get alias.target
+        match alias.target with
+        | None ->
+            alias.target <- Some t;
+            t
+        | Some t -> t
       end
 
 and param_arg (p : Ty.param) =

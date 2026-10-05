@@ -43,7 +43,7 @@ let expand_tabs s =
   in
   aux 0 0
 
-let render ~source ({ Report.severity; span; message } : Report.t) =
+let at_span ~source severity span message =
   let pos_start = span.Source.Span.start_ and pos_end = span.Source.Span.end_ in
   let filename = pos_start.Lexing.pos_fname in
   let line = pos_start.Lexing.pos_lnum in
@@ -87,3 +87,13 @@ let render ~source ({ Report.severity; span; message } : Report.t) =
   Buffer.add_string buf
     (Printf.sprintf "%s: %s\n" (Report.Severity.label severity) message);
   Buffer.contents buf
+
+(* A report about a file or a directory has no source excerpt: the same two
+   lines a report about text starts with, minus the excerpt. *)
+let render ~source ({ Report.severity; location; message } : Report.t) =
+  let label = Report.Severity.label severity in
+  match location with
+  | Report.Location.Span span -> at_span ~source severity span message
+  | Report.Location.File path -> Printf.sprintf "File \"%s\":\n%s: %s\n" path label message
+  | Report.Location.Directory dir ->
+      Printf.sprintf "Directory \"%s\":\n%s: %s\n" dir label message

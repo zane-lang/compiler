@@ -250,11 +250,8 @@ let run_file stage (filename, input) =
    wrongly (docs/design/lowering.md). *)
 let generate packages build program =
   match Cgt.lower ~library:(build.kind = Some Library) program with
-  | Error (Cgt.Lower.Diagnostic d) ->
+  | Error d ->
       prerr_string (Tst.render_diagnostic packages d);
-      exit 1
-  | Error (Cgt.Lower.Message m) ->
-      prerr_endline ("Error: " ^ m);
       exit 1
   | Ok cgt -> (
       let fail message =
@@ -285,12 +282,17 @@ let generate packages build program =
       | Assembled | Check | Declarations | Typed -> ())
 
 (* An application starts from `main` (packages.md §6.2), so one without it is
-   an error however far the build goes. Without `--kind`, lowering still
-   refuses to build a root with no `main`; this says so as soon as semantics
-   has run, and for `--check` too. *)
+   an error however far the build goes, `--check` included. Without `--kind`,
+   a root is an application once it is lowered, since lowering starts from its
+   `main`. This is the one check for `main`: lowering takes it as given. *)
+let needs_main build =
+  match (build.kind, build.view) with
+  | Some Application, _ | None, (Cgt | Ir | Build _ | Object _) -> true
+  | Some Library, _ | None, (Assembled | Check | Declarations | Typed) -> false
+
 let check_kind build (program : Tst.Nodes.Program.t) =
-  match (build.kind, program.Tst.Nodes.Program.packages) with
-  | Some Application, root :: _ ->
+  match program.Tst.Nodes.Program.packages with
+  | root :: _ when needs_main build ->
       let declares_main =
         List.exists
           (fun (d : Tst.Nodes.Decl.t) ->
@@ -347,10 +349,8 @@ let run_packages build =
   match
     Tst.Assembly.assemble_requests ~imports:build.imports (with_stamps build.stamps build.packages)
   with
-  | Error problems ->
-      List.iter
-        (fun problem -> prerr_string (Tst.Assembly.render_problem problem))
-        problems;
+  | Error { Tst.Assembly.diagnostics; sources } ->
+      List.iter (fun d -> prerr_string (Diagnostic.render_in sources d)) diagnostics;
       exit 1
   | Ok packages -> (
       match build.view with
@@ -421,11 +421,27 @@ let run_rewrite ~stamps ~rewrite ~input ~output =
         (try Sys.remove temporary with Sys_error _ -> ());
         fail (Printf.sprintf "cannot write `%s`: %s" output message))
 
+(* A broken invariant is the compiler's fault, so it says so and exits with
+   a status of its own: 1 is a program the compiler refused, 2 a usage
+   error. Any other exception that escapes a stage broke an invariant too. *)
+let internal_error ?span message =
+  prerr_string (Diagnostic.render_internal ?span message);
+  exit 3
+
 let () =
-  match arguments () with
-  | File (stage, input) -> run_file stage input
-  | Packages build -> run_packages build
-  | Rewrite { stamp; input; output } ->
-      run_rewrite ~stamps:[ stamp ] ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
-  | Remap { from; to_; input; output } ->
-      run_rewrite ~stamps:[ from; to_ ] ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output
+  try
+    match arguments () with
+    | File (stage, input) -> run_file stage input
+    | Packages build -> run_packages build
+    | Rewrite { stamp; input; output } ->
+        run_rewrite ~stamps:[ stamp ] ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
+    | Remap { from; to_; input; output } ->
+        run_rewrite ~stamps:[ from; to_ ] ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output
+  with
+  | Diagnostic.Internal { span; message } -> internal_error ?span message
+  | Stack_overflow -> internal_error "the stack overflowed"
+  | e ->
+      (* With OCAMLRUNPARAM=b, where it was raised. *)
+      let backtrace = Printexc.get_backtrace () in
+      internal_error
+        (if backtrace = "" then Printexc.to_string e else Printexc.to_string e ^ "\n" ^ backtrace)

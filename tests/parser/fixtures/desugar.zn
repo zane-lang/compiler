@@ -1,4 +1,4 @@
-/// One file exercising every rewrite in `docs/desugaring.md` §2.
+/// One file exercising every rewrite in `docs/design/desugaring.md` §2.
 ///
 /// `main.zn` covers the breadth of the grammar, but it was written to prove
 /// the parser and reaches only two of the five derived operators — so three of

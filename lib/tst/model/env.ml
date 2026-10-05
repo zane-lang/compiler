@@ -153,6 +153,16 @@ let type_infos : (int, type_info) Hashtbl.t = Hashtbl.create 64
 let type_infos_by_id : (Ty.type_id, type_info) Hashtbl.t = Hashtbl.create 64
 let alias_infos : (int, alias_info) Hashtbl.t = Hashtbl.create 16
 let signatures : (int, Signature.t) Hashtbl.t = Hashtbl.create 256
+
+(* The signature a call names: a declared verb's, or an intrinsic method's. *)
+let signature_of (r : Nodes.Verb_ref.t) =
+  match r.Nodes.Verb_ref.owner with
+  | Signature.Declared id -> Hashtbl.find_opt signatures id
+  | Signature.Intrinsic spelling ->
+      List.find_map
+        (fun (_, (sg : Signature.t)) ->
+          if sg.Signature.owner = Signature.Intrinsic spelling then Some sg else None)
+        Intrinsics.methods
 let constant_types : (int, Ty.t) Hashtbl.t = Hashtbl.create 32
 
 (* Pass 4 files every verb where a call site finds it: constructors under the
@@ -175,7 +185,13 @@ type enum_map = {
 
 let enum_maps : (Ty.type_id * string, enum_map list) Hashtbl.t = Hashtbl.create 16
 
+(* The parameters [Intrinsics] made when it loaded: a check numbers its own
+   after them. *)
+let intrinsic_params = !Ty.next_param
+
 let reset () =
+  next_decl := 0;
+  Ty.next_param := intrinsic_params;
   diagnostics := [];
   note := None;
   Hashtbl.reset packages;
@@ -201,7 +217,6 @@ let reset () =
   subscripts := Intrinsics.subscripts
 
 let package name = Hashtbl.find packages name
-let find_package name = Hashtbl.find_opt packages name
 
 (* What a key in an import, or a qualifier, names from a file
    (dependencies.md §8). A package the driver gave keys imports through those

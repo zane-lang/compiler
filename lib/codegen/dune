@@ -6,4 +6,4 @@
  (foreign_stubs
   (language c)
   (names llvm_stubs))
- (libraries cgt runtime_source llvm llvm.analysis llvm.target llvm.passbuilder llvm.all_backends))
+ (libraries cgt diagnostic runtime_source llvm llvm.analysis llvm.target llvm.passbuilder llvm.all_backends))
