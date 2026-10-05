@@ -1,0 +1,14 @@
+/// A literal handed to a verb's literal parameter is known to fit its
+/// primitive only where the verb is written out, so lowering reports one that
+/// does not.
+package literalRange;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+Int embed(n @concepts$Int) => Int(n)
+
+Unit main() {
+	big Int = embed(99999999999999999999);
+	return Unit();
+}

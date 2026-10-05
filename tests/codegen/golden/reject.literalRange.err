@@ -1,0 +1,4 @@
+File "fixtures/reject/literalRange/main.zn", line 9, characters 31-37:
+9 | Int embed(n @concepts$Int) => Int(n)
+  |                               ^^^^^^
+Error: `99999999999999999999` is out of range for `@primitives$Int`

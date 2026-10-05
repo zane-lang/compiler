@@ -1,0 +1,10 @@
+/// A control-flow intrinsic used as a value: `branch` returns `Unit`, and
+/// lowering writes it out only as a statement.
+package valueFlow;
+
+alias Unit = @primitives$Unit
+
+Unit main() {
+	done Unit = @controlflow$branch(true, { });
+	return done;
+}

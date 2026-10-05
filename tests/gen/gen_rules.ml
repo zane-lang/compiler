@@ -12,6 +12,8 @@
      what both builds of the program wrote. A
      fixture whose `expected-status` file holds a status other than 0 is a
      program that stops: its golden file holds stdout and stderr together.
+     `golden/reject.NAME.err` is what lowering reports for the package
+     `fixtures/reject/NAME`, a program semantics accepts and lowering refuses.
    - parser: `golden/NAME.STAGE.spans` is `span_dump --STAGE`, and
      `golden/NAME.STAGE.tree` `zanec --STAGE`, over `fixtures/NAME.zn`;
      `golden/reject.NAME.err` is what `zanec` reports for
@@ -75,7 +77,18 @@ let codegen () =
             diff (name ^ ".out") (exe ^ ".out.actual"))
           [ name; name ^ ".optimized" ]
       end)
-    (List.sort_uniq compare (trees @ outputs))
+    (List.sort_uniq compare (trees @ outputs));
+  List.iter
+    (fun golden ->
+      match String.split_on_char '.' golden with
+      | [ "reject"; name; "err" ] ->
+          let package = "fixtures/reject/" ^ name in
+          Printf.printf
+            "(rule\n (deps (source_tree %s))\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    (run %s --cgt --package %s)))))\n\n"
+            package golden zanec package;
+          diff golden (golden ^ ".actual")
+      | _ -> ())
+    goldens
 
 (* parser *)
 
