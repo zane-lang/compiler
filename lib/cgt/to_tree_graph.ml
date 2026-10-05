@@ -117,7 +117,7 @@ let rec expr (e : Expr.t) =
       group "call value"
         (fields
            [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("fn", expr fn); ("args", map_seq expr args) ])
-  | Expr.Runtime { fn; args } -> call "runtime" fn args
+  | Expr.Runtime { fn; args } -> call "runtime" (Runtime.name fn) args
   | Expr.Binary { op; left; right } ->
       group "binary"
         (fields

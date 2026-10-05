@@ -80,10 +80,10 @@ let local_ptr id = ptr (Expr.Local id)
 let primitive_op span op t (l : Expr.t) (r : Expr.t) =
   match (l.Expr.ty, op) with
   | Nodes.Ty.Handle, Sst.Nodes.Operator.Add ->
-      { Expr.node = Expr.Runtime { fn = "zane_text_join"; args = [ l; r ] }; ty = t }
+      { Expr.node = Expr.Runtime { fn = Runtime.Text_join; args = [ l; r ] }; ty = t }
   | Nodes.Ty.Handle, Sst.Nodes.Operator.Eq ->
       let same =
-        { Expr.node = Expr.Runtime { fn = "zane_text_equal"; args = [ l; r ] }; ty = Nodes.Ty.I64 }
+        { Expr.node = Expr.Runtime { fn = Runtime.Text_equal; args = [ l; r ] }; ty = Nodes.Ty.I64 }
       in
       let yes = { Expr.node = Expr.Int 1L; ty = Nodes.Ty.I64 } in
       { Expr.node = Expr.Binary { op = Expr.Eq; left = same; right = yes }; ty = t }

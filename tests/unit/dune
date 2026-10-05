@@ -12,4 +12,5 @@
  (name unit)
  (libraries cgt diagnostic source tree_graph tst)
  (deps
+  ../../runtime/zane.h
   (source_tree ../codegen/fixtures/lambdas)))

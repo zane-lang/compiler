@@ -101,13 +101,13 @@ let made st decl : Func.t =
   let finish =
     Expr.Runtime
       {
-        fn = "zane_constant_end";
+        fn = Runtime.Constant_end;
         args = [ global state; global value; layout_table (layout st span c.ty) ];
       }
   in
   let body = (stored :: settled) @ [ Stat.Eval { Expr.node = finish; ty = Nodes.Ty.Void } ] in
   let body = match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ] in
-  let begin_ = Expr.Runtime { fn = "zane_constant_begin"; args = [ global state ] } in
+  let begin_ = Expr.Runtime { fn = Runtime.Constant_begin; args = [ global state ] } in
   let begin_ = { Expr.node = begin_; ty = Nodes.Ty.I64 } in
   let one = { Expr.node = Expr.Int 1L; ty = Nodes.Ty.I64 } in
   let first = Expr.Binary { op = Expr.Eq; left = begin_; right = one } in

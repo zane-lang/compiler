@@ -129,7 +129,7 @@ module Expr = struct
     | Call_value of { fn : t; args : t list }
     (* A call into the C runtime (L17), by the runtime's symbol. A string
        goes to it, and comes back from it, through the address of a copy. *)
-    | Runtime of { fn : string; args : t list }
+    | Runtime of { fn : Runtime.fn; args : t list }
     (* A scalar primitive's operator, on two operands of one type: [I64],
        [I32] and [F64] add, multiply, divide, compare; [I1] adds as `or`,
        multiplies as `and` and compares (operators.md §2.4). *)
