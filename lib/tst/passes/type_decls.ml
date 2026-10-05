@@ -456,7 +456,11 @@ let register () =
                     }
                   in
                   Hashtbl.replace type_infos d.id info;
-                  Hashtbl.replace type_infos_by_id info.tid info)
+                  (* A type declared twice is reported where it is collected;
+                     its id keeps naming the first declaration, the one name
+                     lookup finds. *)
+                  if not (Hashtbl.mem type_infos_by_id info.tid) then
+                    Hashtbl.replace type_infos_by_id info.tid info)
           | _ -> ())
         pkg.decls)
     !package_order
