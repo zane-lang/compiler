@@ -197,7 +197,7 @@ let rec home (t : Ty.t) : S.home option =
   | Ty.Named (tid, _) -> Some (S.Package tid.Ty.package)
   | Ty.Intrinsic { namespace; _ } -> Some (S.Namespace namespace)
   | Ty.Concept _ -> Some (S.Namespace "concepts")
-  | Ty.Reference t -> home t
+  | Ty.Reference t | Ty.Roaming t -> home t
   | _ -> None
 
 (* The names a verb writes where a number goes, in its signature or in any

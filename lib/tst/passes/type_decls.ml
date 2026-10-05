@@ -62,6 +62,7 @@ let rec is_reference env ?(seen = []) (t : Ty.t) =
       | Some t -> t.reference
       | None -> false)
   | Ty.Reference _ -> true
+  | Ty.Roaming t -> is_reference env ~seen t
   | _ -> false
 
 let type_info_of_id env tid = Hashtbl.find_opt env.type_infos_by_id tid
@@ -73,7 +74,7 @@ let rec concept_in (t : Ty.t) =
   | Ty.Concept _ -> Some t
   | Ty.Named (_, args) | Ty.Intrinsic { args; _ } ->
       List.find_map (function Ty.Type t -> concept_in t | Ty.Number _ -> None) args
-  | Ty.Reference t -> concept_in t
+  | Ty.Reference t | Ty.Roaming t -> concept_in t
   | _ -> None
 
 let mentions_concept t = Option.is_some (concept_in t)
