@@ -27,3 +27,13 @@ Unit relay(body @concepts$Block) {
 	}
 	return Unit();
 }
+
+/// A subscript's body is written out where it is used, so a call through one
+/// reaches the verb again.
+type Stand = struct {
+	items Array<Int, 2>;
+}
+
+(this Stand)[index Int] => this.items[around(this, 1)]
+
+Int around(stand Stand, n @concepts$Int) => stand[Int(n)]
