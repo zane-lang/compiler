@@ -127,7 +127,7 @@ let check_marker env span (marked : Ty.t) =
 
 (* A reference-typed result is a roaming owner or a reference, written `^T`
    or `&T`: a bare one would hand back a borrow, which is never returned
-   (memory.md §2.9, syntax.md §4.10). An abort hands its value to the
+   (memory.md §2.9, syntax.md §3.1). An abort hands its value to the
    caller's handler as a return hands it to the caller (lifetimes.md §1.7),
    so an abort type follows the same rule. *)
 let bare_reference env (t : Ty.t) =
@@ -157,13 +157,38 @@ let rec check_function_types env span (t : Ty.t) =
 
 (* A type argument of the wrong kind (generics.md §3.6): a reference type,
    or an `&`, that an instance puts where a value mould holds only values
-   (memory.md §2.10). The walk follows what the instance builds: the fields
-   of each mould it applies, with the arguments substituted, down through
-   the moulds those fields apply in turn, and an `@primitives$Array`'s
-   elements. It does not look inside the arguments themselves, which were
-   checked where they were written. What it finds is the slot that rejects
-   the type, as the path that reaches it, and the type. *)
-let rec wrong_kind env ?(seen = []) (t : Ty.t) : (string list * Ty.t) option =
+   (memory.md §2.10), or a value type it puts under an `&` written over a
+   type parameter (memory.md §2.4). The walk follows what the instance
+   builds: the fields of each mould it applies, with the arguments
+   substituted, down through the moulds those fields apply in turn, and an
+   `@primitives$Array`'s elements. It does not look inside the arguments
+   themselves, which were checked where they were written. What it finds is
+   the slot that rejects the type, as the path that reaches it, and the
+   type. *)
+type wrong_kind = { path : string list; bad : Ty.t; under_reference : bool }
+
+(* A value type for `&`: what `&` cannot mark (memory.md §2.4). *)
+let is_value env (t : Ty.t) =
+  match t with
+  | Ty.Param _ | Ty.Error | Ty.Concept _ | Ty.Reference _ | Ty.Roaming _ -> false
+  | t -> not (is_reference env t)
+
+(* The value types [inst] puts where [raw] writes `&` over a type parameter.
+   An `&` written over a concrete type was checked where it was written. *)
+let rec filled_references env (raw : Ty.t) (inst : Ty.t) =
+  match (raw, inst) with
+  | Ty.Reference (Ty.Param _), Ty.Reference x -> if is_value env x then [ x ] else []
+  | (Ty.Reference r | Ty.Roaming r), (Ty.Reference i | Ty.Roaming i) -> filled_references env r i
+  | Ty.Named (_, ra), Ty.Named (_, ia) | Ty.Intrinsic { args = ra; _ }, Ty.Intrinsic { args = ia; _ }
+    when List.length ra = List.length ia ->
+      List.concat
+        (List.map2
+           (fun r i ->
+             match (r, i) with Ty.Type r, Ty.Type i -> filled_references env r i | _ -> [])
+           ra ia)
+  | _ -> []
+
+let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
   let bad (ft : Ty.t) =
     match ft with
     | Ty.Reference _ -> true
@@ -175,28 +200,43 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : (string list * Ty.t) option =
       match Hashtbl.find_opt env.type_infos_by_id tid with
       | Some ({ definition = Some (Struct fs | Variant fs); _ } as info) ->
           let value = info.reference = Some false in
-          let fields = List.map (fun (n, ft) -> (n, Ty.instantiate info.params args ft)) fs in
           let step n = Printf.sprintf "%s's field %s" (quote (Ty.to_string t)) (quote n) in
           List.find_map
-            (fun (n, ft) ->
-              if value && bad ft then Some ([ step n ], ft)
+            (fun (n, raw) ->
+              let ft = Ty.instantiate info.params args raw in
+              if value && bad ft then Some { path = [ step n ]; bad = ft; under_reference = false }
               else
-                Option.map
-                  (fun (path, b) -> (step n :: path, b))
-                  (wrong_kind env ~seen:(tid :: seen) (Ty.strip_mode ft)))
-            fields
+                match filled_references env raw ft with
+                | x :: _ -> Some { path = [ step n ]; bad = x; under_reference = true }
+                | [] ->
+                    Option.map
+                      (fun found -> { found with path = step n :: found.path })
+                      (wrong_kind env ~seen:(tid :: seen) (Ty.strip_mode ft)))
+            fs
       | Some ({ definition = Some (Distinct u); _ } as info) ->
           wrong_kind env ~seen:(tid :: seen) (Ty.instantiate info.params args u)
       | _ -> None)
   | Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = Ty.Type e :: _ } when bad e ->
-      Some ([ Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) ], e)
+      Some
+        {
+          path = [ Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) ];
+          bad = e;
+          under_reference = false;
+        }
   | _ -> None
 
-let describe_wrong_kind (path, bad) =
-  Printf.sprintf
-    "%s is a reference type, and it reaches %s, a value type's slot; a value type holds only \
-     values, all the way down"
-    (quote (Ty.to_string bad)) (String.concat ", then " path)
+let describe_wrong_kind { path; bad; under_reference } =
+  if under_reference then
+    Printf.sprintf
+      "%s is a value type, and it fills an `&`%s; `&` marks only a reference type, since a value \
+       is never referenced, only copied"
+      (quote (Ty.to_string bad))
+      (if path = [] then "" else " at " ^ String.concat ", then " path)
+  else
+    Printf.sprintf
+      "%s is a reference type, and it reaches %s, a value type's slot; a value type holds only \
+       values, all the way down"
+      (quote (Ty.to_string bad)) (String.concat ", then " path)
 
 (* Report a wrong-kind type once kinds are known: at the argument written
    explicitly that brought the rejected type in, or at [span]. *)
@@ -204,7 +244,7 @@ let check_kinds env span (t : Ty.t) (args : (Ty.arg * Span.t) list) =
   let run () =
     match wrong_kind env t with
     | None -> ()
-    | Some ((_, bad) as found) ->
+    | Some ({ bad; _ } as found) ->
         let rec mentions (x : Ty.t) =
           Ty.equal (Ty.strip_mode x) (Ty.strip_mode bad)
           ||
@@ -483,7 +523,7 @@ and param_type env scope (p : N.Param_type.t) : Ty.t =
   (* Only a type's header entry is written this way, and the grammar builds
      one nowhere else. *)
   | N.Param_type.Concept { N.Concept.node = N.Concept.Named _; _ } -> Ty.Error
-  | N.Param_type.InferredType { name; roaming; _ } -> (
+  | N.Param_type.InferredType { name; marker; _ } -> (
       if not scope.signature then begin
         error env p.N.Param_type.span
           (Printf.sprintf
@@ -494,7 +534,11 @@ and param_type env scope (p : N.Param_type.t) : Ty.t =
       end
       else
         match List.assoc_opt name.N.Name.text scope.params with
-        | Some (Ty.Type t) -> if roaming then Ty.Roaming t else t
+        | Some (Ty.Type t) -> (
+            match marker with
+            | N.Marker.Bare -> t
+            | N.Marker.Roaming -> Ty.Roaming t
+            | N.Marker.Reference -> Ty.Reference t)
         | _ -> Ty.Error)
 
 (* An alias is expanded where it is written (D5), so it has no identity of

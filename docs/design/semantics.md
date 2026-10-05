@@ -709,12 +709,6 @@ signature does not show, is reported inside the instance, which names the
 call that required it.
 
 **Where `^` is written, beyond what the spec shows.**
-- `x ^T Type` introduces `T` and takes an owner when `T` is filled with a
-  reference type, borrowing a value otherwise. [`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md)
-  §2.9 gives that meaning to "a type parameter written `^T`", and a generic
-  verb that stores its argument, such as a constructor whose field is `T`,
-  has no other way to take one, since `T` is introduced at its first marked
-  occurrence ([`generics.md`](https://github.com/zane-lang/spec/blob/911d749/spec/generics.md) §3.2).
 - A function type's `^T` result over a type parameter is filled by a value
   type's result written bare: `ArrayRef.fill`'s lambda is `^T[Int]`, and an
   `Int(n Int)` lambda fills it with `T` = `Int`.

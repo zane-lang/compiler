@@ -332,6 +332,10 @@ let rec unify ~open_ (s : subst) pattern actual : subst option =
      function type's `^T` is filled from a value type's result written bare. *)
   | Roaming (Param p), actual when is_open p && not (is_roaming actual) ->
       unify ~open_ s (Param p) actual
+  (* `&T` over a type parameter is filled from the place the reference is
+     minted from, whose own type is the owner's. *)
+  | Reference (Param p), actual when is_open p && not (is_ref actual) ->
+      unify ~open_ s (Param p) actual
   | Named (x, xs), Named (y, ys) when x = y -> unify_args ~open_ s xs ys
   | Intrinsic x, Intrinsic y when x.namespace = y.namespace && x.name = y.name ->
       unify_args ~open_ s x.args y.args

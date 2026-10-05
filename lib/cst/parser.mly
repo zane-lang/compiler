@@ -391,13 +391,19 @@ map_lit:
       ignore concept_;
       param_type $loc
         (Nodes.Param_type.InferredType
-           { name; concept = concept $loc(concept_) Nodes.Concept.Type; roaming = false })
+           { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Bare })
     }
   | CARET name=uname concept_=UTYPE {
       ignore concept_;
       param_type $loc
         (Nodes.Param_type.InferredType
-           { name; concept = concept $loc(concept_) Nodes.Concept.Type; roaming = true })
+           { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Roaming })
+    }
+  | AMPERSAND name=uname concept_=UTYPE {
+      ignore concept_;
+      param_type $loc
+        (Nodes.Param_type.InferredType
+           { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Reference })
     }
 
 %inline constructor_field:

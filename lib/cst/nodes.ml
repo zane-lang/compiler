@@ -403,6 +403,10 @@ and Type_expr : sig
     | Verb of Verb_type.t
 end = Type_expr
 
+and Marker : sig
+  type t = Bare | Roaming | Reference
+end = Marker
+
 and Param_type : sig
   type t = {
     node : node;
@@ -412,9 +416,10 @@ and Param_type : sig
   and node =
     | Concrete of Type_expr.t
     | Concept of Concept.t
-    (* [roaming] is `^T Type`: a parameter that takes an owner when [name] is
-       filled with a reference type (memory.md §2.9). *)
-    | InferredType of { name : Name.t; concept : Concept.t; roaming : bool }
+    (* [marker] is the passing mode written before the introduction: `^T Type`
+       takes an owner when [name] is filled with a reference type, and `&T Type`
+       takes a reference (memory.md §2.9). *)
+    | InferredType of { name : Name.t; concept : Concept.t; marker : Marker.t }
 end = Param_type
 
 and Param : sig

@@ -309,6 +309,10 @@ and Type_expr : sig
     | Verb of Verb_type.t
 end = Type_expr
 
+and Marker : sig
+  type t = Bare | Roaming | Reference
+end = Marker
+
 and Param_type : sig
   type t = {
     node : node;
@@ -318,7 +322,7 @@ and Param_type : sig
   and node =
     | Concrete of Type_expr.t
     | Concept of Concept.t
-    | InferredType of { name : Name.t; concept : Concept.t; roaming : bool }
+    | InferredType of { name : Name.t; concept : Concept.t; marker : Marker.t }
 end = Param_type
 
 and Param : sig

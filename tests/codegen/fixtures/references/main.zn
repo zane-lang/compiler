@@ -1,6 +1,7 @@
 /// References written out with `&` (memory.md §2.6): minted from a settled
 /// owner, copied from a reference, passed, and observing the owner when it
-/// is overwritten in place. `@program$console` passed where a reference is
+/// is overwritten in place. A generic `&T Type` parameter, stored in a
+/// generic mould's `&T` field. `@program$console` passed where a reference is
 /// wanted. Each check prints
 /// `yes` when it holds and `no` when it does not.
 package references;
@@ -26,6 +27,14 @@ Person(age Int) => init{ age; }
 
 Int age(p &Person) => p.age
 
+type Pin<T Type> = #struct {
+	at &T;
+}
+
+Pin<T>(at &T Type) => init{ at; }
+
+Int ageOf(at &T Type, p Person) => p.age
+
 Unit pass(c &@runtime$Console) {
 	return Unit();
 }
@@ -37,6 +46,10 @@ Unit main() {
 	h &Person = &g;
 	a = Person(Int(4));
 	check(h.age == Int(4));
+	pin Pin(a);
+	a = Person(Int(5));
+	check(pin.at.age == Int(5));
+	check(ageOf(a, a) == Int(5));
 	pass(@program$console);
 	pass(@program$console);
 	return Unit();

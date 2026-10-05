@@ -41,3 +41,23 @@ Unit wrong() {
 	d @primitives$Array([Kite(Int(5)), Kite(Int(6))]);
 	return Unit();
 }
+
+/// `&` marks only a reference type, so a value type that fills an `&` written
+/// over a type parameter is the wrong kind, reported where it enters
+/// (generics.md §3.6): the explicit argument, or the value an inferred one is
+/// read from.
+type Peg<T Type> = #struct { at &T; }
+Peg<T>(at &T Type) => init{ at; }
+Unit tap(at &T Type) => Unit()
+
+alias Pegged = Peg<Int>
+
+Unit pegs(kite Kite) {
+	count Int = Int(7);
+	e Peg(count);
+	tap(count);
+	settled Kite = Kite(Int(8));
+	f Peg(settled);
+	tap(settled);
+	return Unit();
+}

@@ -44,10 +44,14 @@ let rec concept_to_node (x: Nodes.Concept.t) = match x.Nodes.Concept.node with
 and param_type_to_node (x: Nodes.Param_type.t) = match x.Nodes.Param_type.node with
   | Concrete x -> type_to_node x
   | Concept x -> concept_to_node x
-  | InferredType { name; concept; roaming } ->
+  | InferredType { name; concept; marker } ->
       fields
         ([ ("name", Leaf (text name)); ("concept", concept_to_node concept) ]
-        @ if roaming then [ ("roaming", Leaf "^") ] else [])
+        @
+        match marker with
+        | Bare -> []
+        | Roaming -> [ ("roaming", Leaf "^") ]
+        | Reference -> [ ("reference", Leaf "&") ])
 
 and verb_type_to_node (x: Nodes.Verb_type.t) = match x.Nodes.Verb_type.node with
   | Func { params; ret_type } ->

@@ -49,7 +49,7 @@ let check_result env (s : S.t) subst at =
       false
 
 (* generics.md §3.6: an instance that puts a reference type where a value
-   mould holds only values is reported at the type's origin, the argument it
+   mould holds only values, or a value type under an `&`, is reported at the type's origin, the argument it
    was read from: a type passed as a value, or the value an inferred one was
    inferred from. A generic verb that only forwards its parameter is never
    the origin, so the instance is not made, and nothing inside it reports
@@ -58,12 +58,18 @@ let check_kinds env (s : S.t) subst at (args : T.Arg.t option list) =
   let instantiated = List.map (fun (p : S.param) -> (p, Ty.subst subst p.S.ty)) s.params in
   let found =
     List.find_map
-      (fun t -> Type_decls.wrong_kind env (Ty.strip_mode t))
-      (Ty.subst subst s.ret :: List.map snd instantiated)
+      (fun (slot, raw, t) ->
+        match Type_decls.filled_references env raw t with
+        | bad :: _ -> Some { Type_decls.path = [ slot ]; bad; under_reference = true }
+        | [] -> Type_decls.wrong_kind env (Ty.strip_mode t))
+      (("the result", s.ret, Ty.subst subst s.ret)
+      :: List.map
+           (fun ((p : S.param), t) -> (Printf.sprintf "the parameter %s" (quote p.S.name), p.S.ty, t))
+           instantiated)
   in
   match found with
   | None -> true
-  | Some ((_, bad) as f) ->
+  | Some ({ Type_decls.bad; _ } as f) ->
       let reads (p : S.param) =
         List.exists
           (fun (q : Ty.param) ->

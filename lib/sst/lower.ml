@@ -117,8 +117,11 @@ and param_type (x : C.Param_type.t) : S.Param_type.t =
     match x.C.Param_type.node with
     | C.Param_type.Concrete t -> S.Param_type.Concrete (type_expr t)
     | C.Param_type.Concept c -> S.Param_type.Concept (concept c)
-    | C.Param_type.InferredType { name = n; concept = c; roaming } ->
-        S.Param_type.InferredType { name = name n; concept = concept c; roaming }
+    | C.Param_type.InferredType { name = n; concept = c; marker } ->
+        let marker : S.Marker.t =
+          match marker with Bare -> Bare | Roaming -> Roaming | Reference -> Reference
+        in
+        S.Param_type.InferredType { name = name n; concept = concept c; marker }
   in
   { S.Param_type.node; span }
 
