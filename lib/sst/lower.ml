@@ -139,7 +139,7 @@ and expression (x : C.Expr.t) : S.Expr.t =
   | node ->
       let node =
         match node with
-        | C.Expr.Parenthized _ -> Diagnostic.bug "Sst.Lower: parentheses reached the inner match"
+        | C.Expr.Parenthized _ -> Diagnostic.bug ~span "Sst.Lower: parentheses reached the inner match"
         | C.Expr.IntLit s -> S.Expr.IntLit s
         | C.Expr.DecimalLit s -> S.Expr.DecimalLit s
         | C.Expr.StrLit s -> S.Expr.StrLit s
