@@ -8,20 +8,17 @@
 
 #include <stdint.h>
 
-/* `@primitives$String`, the string view, and `@primitives$List<T>`:
-   reference types whose instance is its backpointer and a handle to its
-   bytes or elements. A string has no terminator, and its length is in
-   bytes; a list's is in elements. `room` is the size of the block the
-   handle owns, or 0 when it owns none: a literal's bytes are the program's
-   own and are never returned. */
+/* `@primitives$String`, a value type, and `@primitives$List<T>`, a
+   reference type: each a handle to its bytes or elements. A string has no
+   terminator, and its length is in bytes; a list's is in elements. `room`
+   is the size of the block the handle owns, or 0 when it owns none: a
+   literal's bytes are the program's own and are never returned. */
 typedef struct {
-	uint32_t bp;
 	const char *bytes;
 	int64_t length, room;
 } zane_text;
 
 typedef struct {
-	uint32_t bp;
 	char *items;
 	int64_t count, room;
 } zane_list;
@@ -34,11 +31,6 @@ void zane_divide_by_zero(void);
 
 /* arena.c */
 int64_t zane_scope_enter(void);
-
-/* anchor.c */
-uint32_t zane_terminal(uint32_t tether);
-void *zane_resolve(uint32_t tether);
-uint32_t zane_mint(void *payload);
 
 /* block.c */
 void zane_copy(char *value, const int64_t *layout);
@@ -53,12 +45,11 @@ void zane_constant_end(int64_t *state, char *value, const int64_t *layout);
 void zane_arrive(char *slot, const int64_t *layout);
 void zane_promote(char *value, const int64_t *layout, int64_t depth);
 void zane_vacate(char *slot, const int64_t *layout);
-void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *layout,
-                    int64_t contingent);
+void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *layout);
 
 /* list.c */
 void zane_list_new(zane_list *out);
-void *zane_list_push(zane_list *list, int64_t stride, const int64_t *layout);
+void *zane_list_push(zane_list *list, int64_t stride);
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride);
 void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride);
 

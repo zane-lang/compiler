@@ -138,6 +138,31 @@ package app
         expr Op / | numerator / denominator
           expr Var numerator | numerator
           expr Var denominator | denominator
+  decl Type Crew | type Crew = #struct { lead Shape; backup &Shape; }
+  decl Verb Crew | Crew(lead ^Shape, backup & … ) => init{ lead; backup; }
+    param lead | lead ^Shape
+    param backup | backup &Shape
+    block | => init{ lead; backup; }
+      stat Return | => init{ lead; backup; }
+        expr Init | init{ lead; backup; }
+          field lead | lead
+            expr Var lead | lead
+          field backup | backup
+            expr Var backup | backup
+  decl Verb grown | ^Shape grown(shape ^Shape) … pe = shape; return kept; }
+    param shape | shape ^Shape
+    block | { kept ^Shape = shape; return kept; }
+      stat Let | kept ^Shape = shape;
+        local kept | kept
+        expr Var shape | shape
+      stat Return | return kept;
+        expr Var kept | kept
+  decl Verb leadOf | &Shape leadOf(crew &Crew) => crew.lead
+    param crew | crew &Crew
+    block | => crew.lead
+      stat Return | => crew.lead
+        expr Field lead | crew.lead
+          expr Var crew | crew
   decl Verb describe | String describe(corner Cor … ht] => String("bottom"); }
     param corner | corner Corner
     block | => match (corner) { [topLe … ht] => String("bottom"); }
@@ -269,6 +294,51 @@ package app
         local both | both
         expr Call sum | sum(floats)
           expr Var floats | floats
+      stat Let | spare ^Shape = Shape.circle(Float(1.0));
+        local spare | spare
+        expr Case circle | Shape.circle(Float(1.0))
+          expr Construct @primitives$Float | Float(1.0)
+            expr Decimal_lit | 1.0
+      stat Assign | spare = grown(spare);
+        expr Var spare | spare
+        expr Call grown | grown(spare)
+          expr Var spare | spare
+      stat Let | crew Crew(spare, shape);
+        local crew | crew
+        expr Construct Crew | Crew(spare, shape)
+          expr Var spare | spare
+          expr Var shape | shape
+      stat Let | lead &Shape = leadOf(crew);
+        local lead | lead
+        expr Call leadOf | leadOf(crew)
+          expr Var crew | crew
+      stat Let | shapes @primitives$ArrayRe … hape.circle(Float(4.0))]);
+        local shapes | shapes
+        expr Construct @primitives$ArrayRef | @primitives$ArrayRef([Shap … Shape.circle(Float(4.0))])
+          expr Array_lit | [Shape.circle(Float(3.0)), Shape.circle(Float(4.0))]
+            expr Case circle | Shape.circle(Float(3.0))
+              expr Construct @primitives$Float | Float(3.0)
+                expr Decimal_lit | 3.0
+            expr Case circle | Shape.circle(Float(4.0))
+              expr Construct @primitives$Float | Float(4.0)
+                expr Decimal_lit | 4.0
+      stat Let | second &Shape = shapes[Int(2)];
+        local second | second
+        expr Subscript | shapes[Int(2)]
+          expr Var shapes | shapes
+          expr Construct @primitives$Int | Int(2)
+            expr Integer_lit | 2
+      stat Let | tiles @primitives$ArrayRef … l(4, Int(n Int) => n * n);
+        local tiles | tiles
+        expr Construct @primitives$ArrayRef.fill | @primitives$ArrayRef.fill(4, Int(n Int) => n * n)
+          expr Integer_lit | 4
+          expr Lambda | Int(n Int) => n * n
+            param n | n Int
+            block | => n * n
+              stat Return | => n * n
+                expr Op * | n * n
+                  expr Var n | n
+                  expr Var n | n
       stat Let | numbers Array<Int, 3> = @p … [Int(1), Int(2), Int(3)]);
         local numbers | numbers
         expr Construct @primitives$Array | @primitives$Array([Int(1), Int(2), Int(3)])

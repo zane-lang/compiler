@@ -65,8 +65,10 @@ let rec type_expr (x : C.Type_expr.t) : S.Type_expr.t =
           S.Type_expr.Path
             { name = name_type n; generics = List.map generic_arg generics };
       }
-  | C.Type_expr.Guest inner ->
-      { S.Type_expr.span; node = S.Type_expr.Guest (type_expr inner) }
+  | C.Type_expr.Reference inner ->
+      { S.Type_expr.span; node = S.Type_expr.Reference (type_expr inner) }
+  | C.Type_expr.Roaming inner ->
+      { S.Type_expr.span; node = S.Type_expr.Roaming (type_expr inner) }
   | C.Type_expr.Verb v ->
       { S.Type_expr.span; node = S.Type_expr.Verb (verb_type v) }
 
@@ -115,8 +117,11 @@ and param_type (x : C.Param_type.t) : S.Param_type.t =
     match x.C.Param_type.node with
     | C.Param_type.Concrete t -> S.Param_type.Concrete (type_expr t)
     | C.Param_type.Concept c -> S.Param_type.Concept (concept c)
-    | C.Param_type.InferredType { name = n; concept = c } ->
-        S.Param_type.InferredType { name = name n; concept = concept c }
+    | C.Param_type.InferredType { name = n; concept = c; marker } ->
+        let marker : S.Marker.t =
+          match marker with Bare -> Bare | Roaming -> Roaming | Reference -> Reference
+        in
+        S.Param_type.InferredType { name = name n; concept = concept c; marker }
   in
   { S.Param_type.node; span }
 

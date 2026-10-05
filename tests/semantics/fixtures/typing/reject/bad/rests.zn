@@ -7,13 +7,14 @@ type Bay = #struct { plugs List<Plug>; }
 
 Port(n Int) => init{ n; }
 Plug(port &Port) => init{ port; }
-Frame(plug Plug, port Port) => init{ plug; port; }
+Frame(plug ^Plug, port ^Port) => init{ plug; port; }
 Bay() => init{ plugs = @primitives$List(Plug); }
 
 Unit nest(body @concepts$Block) => Unit()
 
-/// A parameter stored into a place reached from another comes to rest there
-/// (lifetimes.md §1.11), and each call compares what it stores.
+/// A reference parameter stored into a place reached from another comes to
+/// rest there (lifetimes.md §1.11), and so does a taken one that carries a
+/// reference; each call compares what it stores.
 Unit wire(this Plug, port &Port) mut {
 	this.port = port;
 	return Unit();
@@ -25,7 +26,7 @@ Unit relay(this Plug, port &Port) mut {
 	return Unit();
 }
 
-Unit dock(this Bay, plug Plug) mut {
+Unit dock(this Bay, plug ^Plug) mut {
 	this.plugs!push(plug);
 	return Unit();
 }
@@ -44,7 +45,7 @@ Unit rest() {
 		near Port(Int(4));
 		frame.plug!wire(near);
 		frame.plug!relay(near);
-		spare Plug(far);
+		spare ^Plug = Plug(far);
 		spare!wire(near);
 		frame.plug = spare;
 	});
@@ -59,9 +60,9 @@ Unit queue() {
 	bay Bay();
 	nest({
 		near Port(Int(6));
-		arriving Plug(near);
+		arriving ^Plug = Plug(near);
 		plugs!push(arriving);
-		docked Plug(near);
+		docked ^Plug = Plug(near);
 		bay!dock(docked);
 	});
 	return Unit();

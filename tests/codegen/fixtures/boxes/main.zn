@@ -1,7 +1,9 @@
 /// Boxed members: types that contain themselves (adt.md §4). A value one is
-/// copied whole, each copy owning blocks of its own; a reference one hosts
-/// its children, which stay where they are when it moves, so guests into
-/// them hold. A case read gives a boxed payload, or what its handler
+/// copied whole, each copy owning blocks of its own; a reference one owns
+/// its children, which stay where they are when it moves. An overwrite of a
+/// settled owner writes into the blocks its boxed members already have, so a
+/// reference into one keeps naming it and observes the replacement
+/// (memory.md §2.2). A case read gives a boxed payload, or what its handler
 /// resolves. Each check prints `yes` when it holds and `no` when it does
 /// not.
 package boxes;
@@ -49,7 +51,7 @@ Int total(tree Tree) => match (tree) {
 	p node => total(p.left) + total(p.right);
 }
 
-/// A reference type that hosts its children.
+/// A reference type that owns its children.
 type Chain = #variant {
 	end Unit;
 	link Link;
@@ -60,11 +62,30 @@ type Link = #struct {
 	rest Chain;
 }
 
-Link(name String, rest Chain) => init{ name; rest; }
+Link(name String, rest ^Chain) => init{ name; rest; }
 
 Int length(this Chain) => match (this) {
 	e end => Int(0);
 	l link => Int(1) + l.rest:length();
+}
+
+/// A cycle through a reference struct, whose boxed field a reference may
+/// name.
+type Tower = #struct {
+	height Int;
+	next Storey;
+}
+
+type Storey = #variant {
+	top Unit;
+	more Tower;
+}
+
+Tower(height Int, next ^Storey) => init{ height; next; }
+
+Int levels(this Storey) => match (this) {
+	t top => Int(0);
+	m more => Int(1) + m.next:levels();
 }
 
 Unit check(ok Bool) {
@@ -101,16 +122,25 @@ Unit main() {
 	check(total(copy) == Int(6));
 	check(total(tree) == Int(0));
 
-	// A reference chain: a guest to a host inside a boxed payload holds
-	// while the chain moves.
-	chain Chain = Chain.link(Link(String("a"), Chain.link(Link(String("b"), Chain.end(Unit())))));
+	// A roaming chain moves with its boxed links where they are, and settles
+	// where it lands.
+	chain ^Chain = Chain.link(Link(String("a"), Chain.link(Link(String("b"), Chain.end(Unit())))));
 	check(chain:length() == Int(2));
-	first &Chain = chain;
 	moved Chain = chain;
+	first &Chain = moved;
 	check(first:length() == Int(2));
 	check((moved.link ? none { resolve Link(String("none"), Chain.end(Unit())); }).name == String("a"));
 	check((Chain.end(Unit()).link ? none { resolve Link(String("none"), Chain.end(Unit())); }).name
 		== String("none"));
+
+	// A reference to a settled owner's boxed field observes an overwrite of
+	// the owner, which reuses the field's block.
+	tower Tower(Int(1), Storey.more(Tower(Int(2), Storey.top(Unit()))));
+	upper &Storey = tower.next;
+	check(upper:levels() == Int(1));
+	tower = Tower(Int(5), Storey.more(Tower(Int(6), Storey.more(Tower(Int(7), Storey.top(Unit()))))));
+	check(upper:levels() == Int(2));
+	check(tower.height == Int(5));
 
 	// Many built and dropped: each pass returns every block it made.
 	i Int(1);

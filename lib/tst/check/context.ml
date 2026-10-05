@@ -91,14 +91,20 @@ let declare env ctx role (name : N.Name.t) ty =
   bind ctx role local;
   local
 
-let mk node ty span = { T.Expr.node; ty; span }
+(* `^` says how a place holds its owner, not what the value is (memory.md
+   §2.1), so no expression's type carries it: a `^T` local read, and a call
+   that returns `^T`, are values of type `T`. What the place holds is read
+   from the local's or the signature's declared type. *)
+let mk node ty span =
+  let ty = match ty with Ty.Roaming t -> t | t -> t in
+  { T.Expr.node; ty; span }
 let invalid span = mk T.Expr.Invalid Ty.Error span
 
 (* A declared type's definition with its arguments applied. A distinct type
    reads through to the type it was defined as, since it is "structurally
    equal to its right-hand side" (types.md §5.1). *)
 let rec definition env ?(depth = 0) (t : Ty.t) : (Ty.type_id * definition) option =
-  match Ty.strip_guest t with
+  match Ty.strip_mode t with
   | Ty.Named (tid, args) -> (
       match Type_decls.type_info_of_id env tid with
       | Some ({ definition = Some def; _ } as info) -> (

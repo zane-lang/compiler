@@ -9,7 +9,7 @@
 ;              1 and 2), [Type_decls] (3) and [Verb_signatures] (4);
 ; - check/     pass 5, [Check], and the parts of it that are not the
 ;              recursive walk, with [Program] running it over the build;
-; - analyses/  [Read_only], [Guests], [Moves], [Owners], [Exits],
+; - analyses/  [Read_only], [States], [References], [Moves], [Scopes], [Exits],
 ;              [Expansions], [Literal_ranges] and [Spawns], over the tree
 ;              pass 5 builds;
 ; - render/    [To_tree_graph] and [To_span_text].

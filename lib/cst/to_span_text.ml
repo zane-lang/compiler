@@ -85,7 +85,7 @@ let rec type_expr d (x : Type_expr.t) =
   | Type_expr.Path { name = n; generics } ->
       name_type d n;
       each d generic_arg generics
-  | Type_expr.Guest t -> type_expr d t
+  | Type_expr.Reference t | Type_expr.Roaming t -> type_expr d t
   | Type_expr.Verb v -> verb_type d v
 
 and verb_type d (x : Verb_type.t) =
@@ -124,7 +124,7 @@ and param_type d (x : Param_type.t) =
   match x.Param_type.node with
   | Param_type.Concrete t -> type_expr d t
   | Param_type.Concept c -> concept d c
-  | Param_type.InferredType { name = n; concept = c } ->
+  | Param_type.InferredType { name = n; concept = c; _ } ->
       name d "name" n;
       concept d c
 

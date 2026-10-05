@@ -1,6 +1,52 @@
 ; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.
 
 (rule
+ (deps (source_tree fixtures/arrayrefs))
+ (action
+  (with-stdout-to
+   arrayrefs.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/arrayrefs))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arrayrefs.cgt arrayrefs.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/arrayrefs))
+ (targets arrayrefs.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build arrayrefs.exe --package fixtures/arrayrefs)))
+
+(rule
+ (deps (source_tree fixtures/arrayrefs))
+ (targets arrayrefs.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build arrayrefs.optimized.exe --optimize --package fixtures/arrayrefs)))
+
+(rule
+ (action
+  (with-stdout-to
+   arrayrefs.out.actual
+   (run ./arrayrefs.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arrayrefs.out arrayrefs.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   arrayrefs.optimized.out.actual
+   (run ./arrayrefs.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arrayrefs.out arrayrefs.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/arrays))
  (action
   (with-stdout-to
@@ -269,52 +315,6 @@
   (diff golden/defaults.out defaults.optimized.out.actual)))
 
 (rule
- (deps (source_tree fixtures/guests))
- (action
-  (with-stdout-to
-   guests.cgt.actual
-   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/guests))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/guests.cgt guests.cgt.actual)))
-
-(rule
- (deps (source_tree fixtures/guests))
- (targets guests.exe)
- (action
-  (run %{exe:../../bin/zanec/zanec.exe} --build guests.exe --package fixtures/guests)))
-
-(rule
- (deps (source_tree fixtures/guests))
- (targets guests.optimized.exe)
- (action
-  (run %{exe:../../bin/zanec/zanec.exe} --build guests.optimized.exe --optimize --package fixtures/guests)))
-
-(rule
- (action
-  (with-stdout-to
-   guests.out.actual
-   (run ./guests.exe))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/guests.out guests.out.actual)))
-
-(rule
- (action
-  (with-stdout-to
-   guests.optimized.out.actual
-   (run ./guests.optimized.exe))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/guests.out guests.optimized.out.actual)))
-
-(rule
  (deps (source_tree fixtures/hello))
  (action
   (with-stdout-to
@@ -359,52 +359,6 @@
  (alias runtest)
  (action
   (diff golden/hello.out hello.optimized.out.actual)))
-
-(rule
- (deps (source_tree fixtures/hosts))
- (action
-  (with-stdout-to
-   hosts.cgt.actual
-   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/hosts))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/hosts.cgt hosts.cgt.actual)))
-
-(rule
- (deps (source_tree fixtures/hosts))
- (targets hosts.exe)
- (action
-  (run %{exe:../../bin/zanec/zanec.exe} --build hosts.exe --package fixtures/hosts)))
-
-(rule
- (deps (source_tree fixtures/hosts))
- (targets hosts.optimized.exe)
- (action
-  (run %{exe:../../bin/zanec/zanec.exe} --build hosts.optimized.exe --optimize --package fixtures/hosts)))
-
-(rule
- (action
-  (with-stdout-to
-   hosts.out.actual
-   (run ./hosts.exe))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/hosts.out hosts.out.actual)))
-
-(rule
- (action
-  (with-stdout-to
-   hosts.optimized.out.actual
-   (run ./hosts.optimized.exe))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/hosts.out hosts.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/lambdas))
@@ -579,6 +533,52 @@
   (diff golden/outcomes.out outcomes.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/owners))
+ (action
+  (with-stdout-to
+   owners.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/owners))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/owners.cgt owners.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/owners))
+ (targets owners.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build owners.exe --package fixtures/owners)))
+
+(rule
+ (deps (source_tree fixtures/owners))
+ (targets owners.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build owners.optimized.exe --optimize --package fixtures/owners)))
+
+(rule
+ (action
+  (with-stdout-to
+   owners.out.actual
+   (run ./owners.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/owners.out owners.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   owners.optimized.out.actual
+   (run ./owners.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/owners.out owners.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/range))
  (targets range.exe)
  (action
@@ -695,6 +695,52 @@
  (alias runtest)
  (action
   (diff golden/regions.out regions.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/settled))
+ (action
+  (with-stdout-to
+   settled.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/settled))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/settled.cgt settled.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/settled))
+ (targets settled.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build settled.exe --package fixtures/settled)))
+
+(rule
+ (deps (source_tree fixtures/settled))
+ (targets settled.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build settled.optimized.exe --optimize --package fixtures/settled)))
+
+(rule
+ (action
+  (with-stdout-to
+   settled.out.actual
+   (run ./settled.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/settled.out settled.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   settled.optimized.out.actual
+   (run ./settled.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/settled.out settled.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/shapes))

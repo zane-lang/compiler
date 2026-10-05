@@ -7,49 +7,77 @@ type Slot = #variant { full Bell; empty Int; }
 Bell(tone Int) => init{ tone; }
 
 &Bell ring(bell &Bell) => bell
-Bell forge() => Bell(Int(1))
+^Bell forge() => Bell(Int(1))
 Int weight(bell &Bell) => bell.tone
 
-/// A new guest comes from a stable place: a symbol, or fields reached from
-/// one (memory.md §2.8). A value that is already a guest is copied, from
-/// wherever it is.
-Unit mint(rack Rack, bells List<Bell>, hooks List<&Bell>, slot Slot) {
+/// A new reference comes from a settled place: a settled symbol, or a path
+/// from one, or from a reference, through struct fields (memory.md §2.8).
+/// A list's element, a payload and a temporary are not one; a value that is
+/// already a reference is copied, from wherever it is.
+Unit mint(rack &Rack, bells &List<Bell>, hooks &List<&Bell>, slot &Slot) {
 	a &Bell = rack.bell;
-	b &Bell = bells[Int(0)];
-	c &Bell = hooks[Int(0)];
+	b &Bell = bells[Int(1)];
+	c &Bell = hooks[Int(1)];
 	d &Bell = slot.full ?? rack.bell;
 	e &Bell = forge();
-	f &Bell = ring(bells[Int(0)]);
+	f &Bell = ring(bells[Int(1)]);
 	g &Bell = ring(rack.bell);
 	h Int = match (slot) {
 		x full => ring(x).tone;
 		empty => Int(0);
 	}
 	tones List<Int> = @primitives$List(Int);
-	tones[weight(bells[Int(0)])] = Int(1);
+	tones[weight(bells[Int(1)])] = Int(1);
 	return Unit();
 }
 
-/// A swallowed parameter is hosted at the call site, so it is never bound
-/// into `&` storage; returning it as a guest is a different matter
-/// (memory.md §2.9).
+/// A roaming owner may still move, so nothing references it or anything in
+/// it; an `ArrayRef`'s elements are fixed storage, which take their root's
+/// state (memory.md §2.8.1, generics.md §8.4).
+Unit fixed() {
+	spare ^Bell = Bell(Int(5));
+	s &Bell = spare;
+	row @primitives$ArrayRef<Bell, 2> = @primitives$ArrayRef([Bell(Int(1)), Bell(Int(2))]);
+	r &Bell = row[Int(1)];
+	loose ^@primitives$ArrayRef<Bell, 2> = @primitives$ArrayRef([Bell(Int(3)), Bell(Int(4))]);
+	l &Bell = loose[Int(1)];
+	return Unit();
+}
+
+/// A declared subscript is a reference source exactly when the projection
+/// its body ends at is one (functions.md §2.9).
+type Belfry = #struct { _row @primitives$ArrayRef<Bell, 2>; }
+type Cupboard = #struct { _items List<Bell>; }
+
+(this Belfry)[index Int] => this._row[index]
+(this Cupboard)[index Int] => this._items[index]
+
+Unit project(belfry &Belfry, cupboard &Cupboard) {
+	a &Bell = belfry[Int(1)];
+	b &Bell = cupboard[Int(1)];
+	return Unit();
+}
+
+/// A borrow is the caller's only for the call: it is never bound into `&`
+/// storage and never returned as `&T` (memory.md §2.9). Neither is the
+/// subject, which is a borrow too.
 Unit hang(this Rack, bell Bell, spare &Bell) mut {
 	this.hook = bell;
 	this.hook = spare;
 	held &Bell = bell;
-	this.hook = held;
 	later &Bell = spare;
 	repeat({
 		this.hook = later;
-		later = bell;
+		later = this.bell;
 	});
 	return Unit();
 }
 
 &Bell lend(bell Bell) => bell
+&Bell own(this Rack) => this.bell
 
-/// A store never goes through a guest, unless the guest is a parameter the
-/// path starts at (lifetimes.md §1.1).
+/// A store never goes through a reference, unless the reference is a
+/// parameter the path starts at (lifetimes.md §1.1).
 Unit retone(this Rack, other &Rack) mut {
 	this.bell = Bell(Int(2));
 	this.hook.tone = Int(3);

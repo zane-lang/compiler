@@ -295,6 +295,7 @@ literal_tokens [
   DOLLAR         $             operator                keyword.operator
   HASH           "#"           operator                keyword.operator
   AMPERSAND      &             operator                keyword.operator
+  CARET          ^             operator                keyword.operator
   AT             @             operator                keyword.operator
   EXCL           !             operator                keyword.operator
   QSTNMARK       ?             operator                keyword.operator

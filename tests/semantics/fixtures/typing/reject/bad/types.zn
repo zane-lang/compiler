@@ -5,7 +5,7 @@ type Box<T Type> = struct { item T; }
 type Holder = struct {
 	many Box<Int, Int>;
 	sized Array<Int, Int>;
-	text String;
+	list List<Int>;
 	guest &Int;
 	literal @concepts$Int;
 	inline Box<T Type>;

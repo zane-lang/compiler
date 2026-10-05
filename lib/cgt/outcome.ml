@@ -35,7 +35,7 @@ let exited = 2
 let outcome_case o index (payload : Expr.t) =
   { Expr.node = Expr.Case { index; payload }; ty = returned o }
 
-(* Where the hosts and blocks of a call's outcome are, when it can end more
+(* Where the blocks of a call's outcome are, when it can end more
    than one way: the result's under the done tag, and the abort value's
    under the aborted one. *)
 let outcome_layout st span (v : verb) =

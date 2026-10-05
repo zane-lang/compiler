@@ -2,11 +2,10 @@
     ├── entry: lambdas$main()
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
-    │   ├── positions[0]: @0 (32 bytes)
-    │   └── positions[1]: text @0
+    │   └── positions[0]: text @0
     ├── layouts[1] > layout:
     │   ├── type: lambdas$Tally
-    │   └── positions[0]: @0 (16 bytes)
+    │   └── positions:
     ├── layouts[2] > layout:
     │   ├── type: %primitives$Int
     │   └── positions:
@@ -15,7 +14,7 @@
     │   └── positions:
     ├── layouts[4] > layout:
     │   ├── type: lambdas$Shelf
-    │   └── positions[0]: @0 (16 bytes)
+    │   └── positions:
     ├── layouts[5] > layout:
     │   ├── type: lambdas$Counter
     │   └── positions:
@@ -279,24 +278,24 @@
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── label: @21
     │       │       │   │   ├── result: #22
-    │       │       │   │   ├── body[0] > host:
+    │       │       │   │   ├── body[0] > hold:
     │       │       │   │   │   ├── local: #20
     │       │       │   │   │   ├── scope: %19
     │       │       │   │   │   ├── value > call value:
     │       │       │   │   │   │   ├── type: handle
     │       │       │   │   │   │   ├── fn: local #15 : ptr
     │       │       │   │   │   │   └── args[0] > expand:
-    │       │       │   │   │   │       ├── type: ptr
+    │       │       │   │   │   │       ├── type: handle
     │       │       │   │   │   │       ├── label: @17
     │       │       │   │   │   │       ├── result: #18
-    │       │       │   │   │   │       ├── body[0] > host:
+    │       │       │   │   │   │       ├── body[0] > hold:
     │       │       │   │   │   │       │   ├── local: #16
     │       │       │   │   │   │       │   ├── scope: %19
     │       │       │   │   │   │       │   ├── value: "hey" : handle
     │       │       │   │   │   │       │   └── layout: %primitives$String
     │       │       │   │   │   │       └── body[1] > assign:
     │       │       │   │   │   │           ├── place: #18
-    │       │       │   │   │   │           └── value: address of #16 : ptr
+    │       │       │   │   │   │           └── value: local #16 : handle
     │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
     │       │       │   │       ├── place: #22
@@ -305,7 +304,7 @@
     │       │       │       ├── type: handle
     │       │       │       ├── label: @24
     │       │       │       ├── result: #25
-    │       │       │       ├── body[0] > host:
+    │       │       │       ├── body[0] > hold:
     │       │       │       │   ├── local: #23
     │       │       │       │   ├── scope: %19
     │       │       │       │   ├── value: "hey!" : handle
@@ -317,7 +316,7 @@
     │       ├── body[25] > let:
     │       │   ├── local: #26
     │       │   └── value: function lambdas$main()$lambda8
-    │       ├── body[26] > host:
+    │       ├── body[26] > hold:
     │       │   ├── local: #27
     │       │   ├── scope: %19
     │       │   ├── value: "ab" : handle
@@ -335,13 +334,13 @@
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── label: @29
     │       │       │   │   ├── result: #30
-    │       │       │   │   ├── body[0] > host:
+    │       │       │   │   ├── body[0] > hold:
     │       │       │   │   │   ├── local: #28
     │       │       │   │   │   ├── scope: %19
     │       │       │   │   │   ├── value > call value:
     │       │       │   │   │   │   ├── type: handle
     │       │       │   │   │   │   ├── fn: local #26 : ptr
-    │       │       │   │   │   │   └── args[0] > mint: address of #27 : ptr
+    │       │       │   │   │   │   └── args[0]: local #27 : handle
     │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
     │       │       │   │       ├── place: #30
@@ -350,7 +349,7 @@
     │       │       │       ├── type: handle
     │       │       │       ├── label: @32
     │       │       │       ├── result: #33
-    │       │       │       ├── body[0] > host:
+    │       │       │       ├── body[0] > hold:
     │       │       │       │   ├── local: #31
     │       │       │       │   ├── scope: %19
     │       │       │       │   ├── value: "abab" : handle
@@ -359,11 +358,11 @@
     │       │       │           ├── place: #33
     │       │       │           └── value: local #31 : handle
     │       │       └── right: 1 : i64
-    │       ├── body[28] > host:
+    │       ├── body[28] > hold:
     │       │   ├── local: #34
     │       │   ├── scope: %19
     │       │   ├── value > call:
-    │       │   │   ├── type: {i32, i64}
+    │       │   │   ├── type: {i64}
     │       │   │   ├── fn: lambdas$Tally(%primitives$Int)
     │       │   │   └── args[0]: 2 : i64
     │       │   └── layout: lambdas$Tally
@@ -387,7 +386,7 @@
     │       │       ├── left > call value:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: local #36 : ptr
-    │       │       │   └── args[0] > mint: address of #34 : ptr
+    │       │       │   └── args[0]: address of #34 : ptr
     │       │       └── right: 6 : i64
     │       ├── body[33] > spawn:
     │       │   ├── task: #38
@@ -484,20 +483,20 @@
     │       │   ├── task: #55
     │       │   ├── scope: %19
     │       │   ├── thunk: zane.spawn.3
-    │       │   ├── frame: {handle, ptr, ptr}
+    │       │   ├── frame: {handle, ptr, handle}
     │       │   ├── args[0]: local #15 : ptr
     │       │   ├── args[1] > expand:
-    │       │   │   ├── type: ptr
+    │       │   │   ├── type: handle
     │       │   │   ├── label: @52
     │       │   │   ├── result: #53
-    │       │   │   ├── body[0] > host:
+    │       │   │   ├── body[0] > hold:
     │       │   │   │   ├── local: #51
     │       │   │   │   ├── scope: %19
     │       │   │   │   ├── value: "go" : handle
     │       │   │   │   └── layout: %primitives$String
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #53
-    │       │   │       └── value: address of #51 : ptr
+    │       │   │       └── value: local #51 : handle
     │       │   ├── dest: #56
     │       │   └── layout: %primitives$String
     │       ├── body[39] > eval > call:
@@ -523,7 +522,7 @@
     │       │       │       ├── type: handle
     │       │       │       ├── label: @60
     │       │       │       ├── result: #61
-    │       │       │       ├── body[0] > host:
+    │       │       │       ├── body[0] > hold:
     │       │       │       │   ├── local: #59
     │       │       │       │   ├── scope: %19
     │       │       │       │   ├── value: "go!" : handle
@@ -598,11 +597,11 @@
     │       │       │           ├── type: i64
     │       │       │           └── ptr: address of #73 : ptr
     │       │       └── right: 7 : i64
-    │       ├── body[46] > host:
+    │       ├── body[46] > hold:
     │       │   ├── local: #76
     │       │   ├── scope: %19
     │       │   ├── value > call:
-    │       │   │   ├── type: {i32, i64}
+    │       │   │   ├── type: {i64}
     │       │   │   ├── fn: lambdas$Shelf(lambdas$Counter)
     │       │   │   └── args[0] > call:
     │       │   │       ├── type: i64
@@ -623,8 +622,8 @@
     │       │   │       ├── body[0] > let:
     │       │   │       │   ├── local: #81
     │       │   │       │   └── value > offset:
-    │       │   │       │       ├── within: {i32, i64}
-    │       │   │       │       ├── path: 1
+    │       │   │       │       ├── within: {i64}
+    │       │   │       │       ├── path: 0
     │       │   │       │       └── base: address of #76 : ptr
     │       │   │       └── body[1] > spawn:
     │       │   │           ├── task: #83
@@ -650,15 +649,15 @@
     │       │       ├── left > snapshot:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
-    │       │       │       ├── within: {i32, i64}
-    │       │       │       ├── path: 1
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
     │       │       │       └── base: address of #76 : ptr
     │       │       └── right: 15 : i64
     │       ├── body[49] > let:
     │       │   ├── local: #85
     │       │   └── value > offset:
-    │       │       ├── within: {i32, i64}
-    │       │       ├── path: 1
+    │       │       ├── within: {i64}
+    │       │       ├── path: 0
     │       │       └── base: address of #76 : ptr
     │       ├── body[50] > spawn:
     │       │   ├── task: #87
@@ -763,17 +762,17 @@
     │       │   ├── type: void
     │       │   ├── fn: local #99 : ptr
     │       │   └── args[0] > expand:
-    │       │       ├── type: ptr
+    │       │       ├── type: handle
     │       │       ├── label: @101
     │       │       ├── result: #102
-    │       │       ├── body[0] > host:
+    │       │       ├── body[0] > hold:
     │       │       │   ├── local: #100
     │       │       │   ├── scope: %19
     │       │       │   ├── value: "said\n" : handle
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #102
-    │       │           └── value: address of #100 : ptr
+    │       │           └── value: local #100 : handle
     │       └── body[58] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: lambdas$main()$lambda1
@@ -790,12 +789,12 @@
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "yes\n" : handle
     │       │   └── layout: %primitives$String
-    │       ├── body[1] > host:
+    │       ├── body[1] > hold:
     │       │   ├── local: #4
     │       │   ├── scope: %3
     │       │   ├── value: "no\n" : handle
@@ -975,7 +974,7 @@
     │   └── body[0] > return: unit : void
     ├── funcs[15] > func:
     │   ├── symbol: lambdas$main()$lambda7
-    │   ├── params[0]: local #1 : ptr
+    │   ├── params[0]: local #1 : handle
     │   ├── ret: handle
     │   └── body[0] > scope:
     │       ├── id: %5
@@ -984,14 +983,12 @@
     │           ├── value > runtime:
     │           │   ├── type: handle
     │           │   ├── fn: zane_text_join
-    │           │   ├── args[0] > deref:
-    │           │   │   ├── type: handle
-    │           │   │   └── ptr: local #1 : ptr
+    │           │   ├── args[0]: local #1 : handle
     │           │   └── args[1] > expand:
     │           │       ├── type: handle
     │           │       ├── label: @3
     │           │       ├── result: #4
-    │           │       ├── body[0] > host:
+    │           │       ├── body[0] > hold:
     │           │       │   ├── local: #2
     │           │       │   ├── scope: %5
     │           │       │   ├── value: "!" : handle
@@ -1002,30 +999,25 @@
     │           └── layout: %primitives$String
     ├── funcs[16] > func:
     │   ├── symbol: lambdas$main()$lambda8
-    │   ├── params[0]: local #1 : i32
+    │   ├── params[0]: local #1 : handle
     │   ├── ret: handle
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > runtime:
     │       │   ├── type: handle
     │       │   ├── fn: zane_text_join
-    │       │   ├── args[0] > deref:
-    │       │   │   ├── type: handle
-    │       │   │   └── ptr > resolve: local #1 : i32
-    │       │   └── args[1] > deref:
-    │       │       ├── type: handle
-    │       │       └── ptr > resolve: local #1 : i32
+    │       │   ├── args[0]: local #1 : handle
+    │       │   └── args[1]: local #1 : handle
     │       └── layout: %primitives$String
     ├── funcs[17] > func:
     │   ├── symbol: lambdas$Tally(%primitives$Int)
     │   ├── params[0]: local #1 : i64
-    │   ├── ret: {i32, i64}
+    │   ├── ret: {i64}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {i32, i64}
-    │       │   ├── members[0] > member 0: 0 : i32
-    │       │   └── members[1] > member 1: local #1 : i64
+    │       │   ├── type: {i64}
+    │       │   └── members[0] > member 0: local #1 : i64
     │       └── layout: lambdas$Tally
     ├── funcs[18] > func:
     │   ├── symbol: lambdas$main()$lambda9
@@ -1033,28 +1025,28 @@
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
     │   ├── body[0] > assign:
-    │   │   ├── place: *#1.1
+    │   │   ├── place: *#1.0
     │   │   └── value > binary:
     │   │       ├── type: i64
     │   │       ├── op: *
     │   │       ├── left > snapshot:
     │   │       │   ├── type: i64
     │   │       │   └── ptr > offset:
-    │   │       │       ├── within: {i32, i64}
-    │   │       │       ├── path: 1
+    │   │       │       ├── within: {i64}
+    │   │       │       ├── path: 0
     │   │       │       └── base: local #1 : ptr
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
     ├── funcs[19] > func:
     │   ├── symbol: lambdas$main()$lambda10
-    │   ├── params[0]: local #1 : i32
+    │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   └── body[0] > return > snapshot:
     │       ├── type: i64
     │       └── ptr > offset:
-    │           ├── within: {i32, i64}
-    │           ├── path: 1
-    │           └── base > resolve: local #1 : i32
+    │           ├── within: {i64}
+    │           ├── path: 0
+    │           └── base: local #1 : ptr
     ├── funcs[20] > func:
     │   ├── symbol: lambdas$main()$lambda11
     │   ├── params[0]: local #1 : ptr
@@ -1065,13 +1057,12 @@
     ├── funcs[21] > func:
     │   ├── symbol: lambdas$Shelf(lambdas$Counter)
     │   ├── params[0]: local #1 : i64
-    │   ├── ret: {i32, i64}
+    │   ├── ret: {i64}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {i32, i64}
-    │       │   ├── members[0] > member 0: 0 : i32
-    │       │   └── members[1] > member 1: local #1 : i64
+    │       │   ├── type: {i64}
+    │       │   └── members[0] > member 0: local #1 : i64
     │       └── layout: lambdas$Shelf
     ├── funcs[22] > func:
     │   ├── symbol: lambdas$Op.apply$lambda1
@@ -1093,14 +1084,12 @@
     │       └── right: 3 : i64
     ├── funcs[24] > func:
     │   ├── symbol: lambdas$main()$lambda12
-    │   ├── params[0]: local #1 : ptr
+    │   ├── params[0]: local #1 : handle
     │   ├── ret: void
     │   ├── body[0] > eval > runtime:
     │   │   ├── type: void
     │   │   ├── fn: zane_print
-    │   │   └── args[0] > deref:
-    │   │       ├── type: handle
-    │   │       └── ptr: local #1 : ptr
+    │   │   └── args[0]: local #1 : handle
     │   └── body[1] > return: unit : void
     ├── funcs[25] > func:
     │   ├── symbol: lambdas$pick(%primitives$Bool)$lambda1
@@ -1163,7 +1152,7 @@
     │   ├── ret: void
     │   └── body[0] > store:
     │       ├── address > offset:
-    │       │   ├── within: {handle, ptr, ptr}
+    │       │   ├── within: {handle, ptr, handle}
     │       │   ├── path: 0
     │       │   └── base: local #54 : ptr
     │       └── value > call value:
@@ -1171,13 +1160,13 @@
     │           ├── fn > deref:
     │           │   ├── type: ptr
     │           │   └── ptr > offset:
-    │           │       ├── within: {handle, ptr, ptr}
+    │           │       ├── within: {handle, ptr, handle}
     │           │       ├── path: 1
     │           │       └── base: local #54 : ptr
     │           └── args[0] > deref:
-    │               ├── type: ptr
+    │               ├── type: handle
     │               └── ptr > offset:
-    │                   ├── within: {handle, ptr, ptr}
+    │                   ├── within: {handle, ptr, handle}
     │                   ├── path: 2
     │                   └── base: local #54 : ptr
     ├── funcs[29] > func:

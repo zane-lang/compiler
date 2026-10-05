@@ -29,7 +29,8 @@ let rec ty_ stamp = function
   | Tty.Named ({ Tty.package; name }, args) ->
       stamp package ^ package ^ "$" ^ name ^ args_ stamp args
   | Tty.Intrinsic { namespace = ns; name; args } -> namespace ns ^ "$" ^ name ^ args_ stamp args
-  | Tty.Guest t -> "&" ^ ty_ stamp t
+  | Tty.Reference t -> "&" ^ ty_ stamp t
+  | Tty.Roaming t -> "^" ^ ty_ stamp t
   | Tty.Concept c -> concept stamp c
   | Tty.Verb v -> verb_type stamp v
   | Tty.Param p -> Diagnostic.bug ("Symbol.ty: the type parameter " ^ p.Tty.name ^ " is not concrete")

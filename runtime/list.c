@@ -13,16 +13,17 @@ static void zane_out_of_range(void) {
 }
 
 /* `@primitives$List(T)`: empty, owning no block. */
-void zane_list_new(zane_list *out) { *out = (zane_list){ 0, NULL, 0, 0 }; }
+void zane_list_new(zane_list *out) { *out = (zane_list){ NULL, 0, 0 }; }
 
 /* Room for one more element, `stride` bytes wide, at the end: the address
    the caller then moves it into. A full list's block doubles, from 128
    bytes, in the region of the scope that holds the list (§3.6): into a
    returned block of that size, or in place when it is the last thing at
    the region's frontier with room after it in its chunk, or else into new
-   bytes there. Elements that move take their anchors along, as `layout`
-   says. */
-void *zane_list_push(zane_list *list, int64_t stride, const int64_t *layout) {
+   bytes there. Nothing references an element, which is roaming (memory.md
+   §2.8.1), and the blocks the elements own stay where they are, so a move
+   copies their bytes and nothing else. */
+void *zane_list_push(zane_list *list, int64_t stride) {
 	int64_t needed = (list->count + 1) * stride;
 	if (needed > list->room) {
 		int64_t room = list->room ? list->room * 2 : 128;
@@ -44,9 +45,6 @@ void *zane_list_push(zane_list *list, int64_t stride, const int64_t *layout) {
 			if (list->room) zane_free(list->items, list->room, ZANE_LINE);
 			list->items = items;
 			list->room = room;
-			if (layout)
-				for (int64_t i = 0; i < list->count; i++)
-					zane_move(items + i * stride, layout, region, 0);
 		}
 	}
 	return list->items + list->count++ * stride;

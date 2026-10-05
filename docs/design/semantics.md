@@ -59,7 +59,7 @@ That splits the work like this:
 |---|---|
 | Package assembly and imports ([`packages.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/packages.md) §2–§3) | Moves, stores and lifetimes ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/lifetimes.md) §1) |
 | Type declarations, aliases, value-downstream ([`memory.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/memory.md) §2.10) | Resting places published with a signature ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/lifetimes.md) §1.11) |
-| Signatures, inline generic parameters ([`generics.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/generics.md) §3–§4) | Read-only guests: a guest derived from a parameter stays read-only ([`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §4.4) |
+| Signatures, inline generic parameters ([`generics.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/generics.md) §3–§4) | Read-only references: a reference derived from a parameter stays read-only ([`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §4.4) |
 | Overload identity and resolution ([`functions.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/functions.md) §4–§6) | `spawn` safety ([`concurrency.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/concurrency.md) §3–§4) |
 | Implicit constructors at coercion sites ([`types.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/types.md) §4) | |
 | `:`/`!` against `mut` ([`functions.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/functions.md) §2.5) | |
@@ -163,13 +163,19 @@ else.
    operator import (§3.6).
 3. **Types.** Resolve every `type` and `alias` right-hand side to a `Ty.t`
    (§4). Check here: alias cycles; moulds only on a right-hand side
-   (`types.md` §5.3); value-downstream (`memory.md` §2.10); `&` only on a
-   reference type (`memory.md` §2.4).
+   (`types.md` §5.3); value-downstream (`memory.md` §2.10); `&` and `^` only
+   on a reference type, and `^` only on a local, a parameter or a return type
+   ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.1, §2.4, [`syntax.md`](https://github.com/zane-lang/spec/blob/911d749/spec/syntax.md)
+   §2.3); a type argument of the wrong kind, reported where it is written
+   ([`generics.md`](https://github.com/zane-lang/spec/blob/911d749/spec/generics.md) §3.6).
 4. **Signatures.** Resolve every verb's parameter and return types, introducing
    inline generic parameters at their first marked occurrence (`generics.md`
    §3.2, §4.4). Check here:
    - overload identity, including no overloads that differ only by passing mode
-     or by the `mut` of a function-type parameter (`functions.md` §4.1);
+     (`T`, `^T` or `&T`) or by the `mut` of a function-type parameter
+     (`functions.md` §4.1);
+   - a reference-typed result or abort type written `^T` or `&T`, never bare,
+     and no marker on `this` ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.9);
    - the operator home-package rule ([`operators.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/operators.md) §2.2);
    - implicit-constructor source and destination kinds, and the orphan rule
      (`types.md` §4.4–§4.5);
@@ -180,53 +186,83 @@ else.
 
 Then the analyses of D1's right-hand column run over the finished tree.
 
-**Read-only guests** (`lib/tst/analyses/read_only.ml`,
-[`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §4.4): a `!` call whose subject reaches a guest taken from
+**Read-only references** (`lib/tst/analyses/read_only.ml`,
+[`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §4.4): a `!` call whose subject reaches a reference taken from
 a read-only binding is an error. It follows each
-guest through locals, fields, arguments and returns, and summarises every verb
+reference through locals, fields, arguments and returns, and summarises every verb
 by which parameters reach its result and which come to rest in its `this`, the
 resting places of `lifetimes.md` §1.11 without their owners. A call substitutes
 its arguments into the callee's summary; summaries are computed to a fixed
 point first, because verbs may call each other in a cycle.
 
-**Guest sources and stores** (`lib/tst/analyses/guests.ml`) are the store rules that
-need nothing but the store in hand:
-- a new guest is minted only from a stable place: a symbol, or fields reached
-  from one, with no `[]` and no variant case on the way ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.8);
-- a swallowed parameter is never bound into `&` storage ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.9);
-- a store never goes through a guest, unless that guest is a parameter the
-  path starts at ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.1).
+**States** (`lib/tst/analyses/states.ml`, [`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.1,
+§2.8.1). The one function the three analyses below read to know what state
+the place an expression denotes is in:
+- **settled**: a bare reference-type local or a package constant, what a
+  reference names, and a struct field or `ArrayRef` element of a settled root;
+- **roaming**: a local or parameter declared `^T`, and a field or `ArrayRef`
+  element of one;
+- **borrowed**: a bare reference-type parameter, `this`, and what is reached
+  from either;
+- **contingent**: a list's element, a variant's payload, a case read, a
+  `match` binder, and a member of a temporary — storage that is neither an
+  owner a store may move from nor a place a reference may name;
+- **fresh**: a verb's result, a case form, or any other value nothing owns.
 
-**Moves** (`lib/tst/analyses/moves.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.2–§1.3, §1.6, §1.8). A
-reference-type value stored where a host goes — a hosting local or field, a
-`T` parameter, a return, an element, a case payload — is moved:
-- only a symbol, a verb's result or a case form is moved; a field, an
-  element, a case payload, a package constant, a guest and `this` are not;
-- a symbol is moved only in the block that declares it, and a parameter is
-  declared at the top of the body;
+A declared subscript is followed through its body to the projection it ends
+at ([`functions.md`](https://github.com/zane-lang/spec/blob/911d749/spec/functions.md) §2.9), so it is settled exactly
+when that projection is an `ArrayRef` element of a settled root. Every answer
+comes from declared types along the path, so it is the same at every point of
+the body.
+
+**References** (`lib/tst/analyses/references.ml`) are the store rules that
+need nothing but the store in hand:
+- a new reference is minted only from a settled place ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md)
+  §2.8); a value that is already a reference is copied, from anywhere;
+- a store never goes through a reference, unless that reference is a
+  parameter the path starts at ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.1).
+
+A borrow needs no rule of its own: it is no place to mint from and no owner
+to move from, so it is never stored or returned
+([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.9).
+
+**Moves** (`lib/tst/analyses/moves.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.2–§1.3, §1.6, §1.8). A
+reference-type value stored where an owner goes — an owning local or field, a
+`^T` parameter, a return, an element, a case payload — is moved:
+- only a roaming symbol, a field of one, a verb's result or a case form is
+  moved; a settled owner, a borrow, `this`, an element, a case payload, a
+  package constant and a reference are not;
+- a bare reference-type parameter is a borrow, so passing to one moves
+  nothing;
+- a roaming symbol is moved only in the block that declares it, and a
+  parameter is declared at the top of the body;
 - a moved symbol is spent: using it is an error until a store refills it, in
-  that same block.
+  that same block. A field moved out of a roaming symbol leaves that field
+  spent and the symbol spent as a whole, until a store in the symbol's block
+  refills the field ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.8.1).
 
 A symbol is spent or refilled only in its own block, and a nested block can do
 neither, so one walk in source order sees every use against the right state.
 
-**Owners** (`lib/tst/analyses/owners.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md) §1.1, §1.4, §1.7, §1.10, §1.11). A
-local is owned by its declaring block, a field or element by its root's
-owner, and a parameter or `init{ }` by the call site, which outlives the body.
-A value names the owners of the hosts it reaches through a guest, its own and
-those it carries. A `let`, an assignment, a field of `init{ }` and a return
-are legal only when every owner the value names outlives the destination's.
-A move needs no check of its own (§1.4): a symbol moves only in its declaring
-block, so the host it moves into is declared there or above.
+**Scopes** (`lib/tst/analyses/scopes.ml`, [`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.1, §1.4, §1.7, §1.10, §1.11). A
+local's scope is its declaring block, a field's or element's is its root's,
+and a `^T` parameter's is the body's top block; any other parameter and
+`init{ }` stand for the call site, which outlives the body. A value names the
+scopes of the owners it reaches through a reference, its own and those it
+carries. A `let`, an assignment, a field of `init{ }` and a return are legal
+only when every scope the value names outlives the destination's. A move
+needs no check of its own (§1.4): a symbol moves only in its declaring block,
+so the owner it moves into is declared there or above.
 
 A store from one parameter into a place reached from another is where the first
-comes to rest (§1.11). It goes in the verb's summary, as a pair of parameter
+comes to rest (§1.11), whether it is a reference or a `^T` parameter carrying
+one. It goes in the verb's summary, as a pair of parameter
 indices, and each call makes that store with its own arguments and compares
 there. A call in a body can store one parameter into another in turn, so the
 summaries are computed to a fixed point over every body before any reports.
 
 **Exits** (`lib/tst/analyses/exits.ml`, [`docs/spec-divergences.md`](../spec-divergences.md)
-§11). A verb exits when `@controlflow$exitFromCall` is in its own frame: its
+§10). A verb exits when `@controlflow$exitFromCall` is in its own frame: its
 body, or a block written there. A call to one ends the run of the block it is
 written in, so it is an error in no block. A lambda's own frame holds no
 `@controlflow$exitFromCall` at all
@@ -252,15 +288,15 @@ constructor only where the verb is written out, so lowering checks that one.
 
 **Spawns** (`lib/tst/analyses/spawns.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md) §4.2–§4.3). A
 spawned `mut` call writes its subject, so a subject of a reference type, or a
-guest to one, is an error. A spawn written as a statement or bound by a `let`
+reference to one, is an error. A spawn written as a statement or bound by a `let`
 borrows its subject's place until the block it is written in drains, since
 the drain waits for it; one read where it is written is waited for at once and
 borrows nothing past itself. While a borrow lasts, a second spawn borrowing
 an overlapping place is an error, and so is any read or write of one in that
 block or a block inside it. Two places overlap when one's path of fields and
 cases is a prefix of the other's, and any two elements of one list overlap.
-A place reached through a guest is the place the guest names, followed as
-below for a lent host; where the checker cannot follow it, two places may
+A place reached through a reference is the place the reference names, followed
+as below for a lent owner; where the checker cannot follow it, two places may
 overlap when either's type may hold the other's. A spawned subject's index,
 or its case read's handler, is read at the spawn like any other read.
 In a block that runs more than once, a spawn takes its subject from a local
@@ -270,17 +306,17 @@ verb runs more than once: one it passes on to such a position, or passes
 anywhere from inside a block that runs more than once, computed to a fixed
 point over every body.
 
-The same spawn is lent every host passed to it, directly or through a guest,
+The same spawn is lent every owner passed to it, directly or through a reference,
 until the same drain, and the block may not write one meanwhile
-([`spec-divergences.md`](../spec-divergences.md) §14): not by assignment, not as
+([`spec-divergences.md`](../spec-divergences.md) §13): not by assignment, not as
 a `!` call's subject, not by moving it out. A spawned `mut` call on part of it
 is allowed, since it writes back (docs/design/lowering.md §9). Where a write goes
-through a guest, the checker follows the guest to the place it was minted
-from, through other guests, as long as the guest has not been bound again in
-a block inside its own. A guest whose place it cannot follow may name any host
-of its type, so a write through it clashes with a lent host that could be,
-or contain, or be inside, what it writes; so does a write to a known place
-when the lent host came through such a guest.
+through a reference, the checker follows the reference to the place it was
+minted from, through other references, as long as the reference has not been
+bound again in a block inside its own. A reference whose place it cannot
+follow may name any owner of its type, so a write through it clashes with a
+lent owner that could be, or contain, or be inside, what it writes; so does a
+write to a known place when the lent owner came through such a reference.
 
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
@@ -297,7 +333,8 @@ exits non-zero if there is any.
 (* lib/tst/model/ty.ml *)
 type t =
   | Named of { id : Type_id.t; args : arg list }  (* a declared type, applied *)
-  | Guest of t                                    (* &T *)
+  | Reference of t                                (* &T *)
+  | Roaming of t                                  (* ^T *)
   | Primitive of Primitive.t                      (* @primitives$Int, ... *)
   | Concept of concept                            (* literals, blocks *)
   | Verb of verb                                  (* a function type *)
@@ -368,7 +405,7 @@ Where the typing rules need care:
 | Operator | Candidates from the operand types' home packages only; imports add none (`operators.md` §2.2). A swapped `Op` is resolved as the primitive with operands in passed order (see D8). |
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
-| Block argument | Typed `@concepts$Block`: a block yields nothing ([`spec-divergences.md`](../spec-divergences.md) §12). |
+| Block argument | Typed `@concepts$Block`: a block yields nothing ([`spec-divergences.md`](../spec-divergences.md) §11). |
 | Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). |
 
 ---
@@ -620,7 +657,7 @@ only reject more, never let a write through.
 - An intrinsic, or a call through a function value, has no body to summarise.
   It is taken to hand every argument back in its result and, when it writes its
   subject, to store every argument there — each only where the parameter's type
-  can hold a guest.
+  can hold a reference.
 - A path into a value is cut at four steps, since a recursive type would let
   one grow without end. A cut path names the place that contains the real one.
 - A block argument may run any number of times, so after it a local holds what
@@ -629,40 +666,52 @@ only reject more, never let a write through.
   stored.
 - A generic verb's summary is the union over its instances.
 
-**What the owner analysis assumes.** Each choice can only reject more.
+**What the scope analysis assumes.** Each choice can only reject more.
 - A local names everything ever stored in it, at any path: the body is walked
   until that stops growing, then once more to report.
 - A call's result names what each argument names as its parameter takes it,
-  a guest parameter adding the owner of the place it is minted from: a verb
-  may return a guest rooted in any parameter (`lifetimes.md` §1.7).
+  a reference parameter adding the scope of the place it is minted from: a
+  verb may return a reference rooted in any `&T` parameter (`lifetimes.md`
+  §1.7).
 - A resting place (§1.11) is kept as the pair of parameters, not the path
-  between them. Every step of a path takes its root's owner, so the call
-  compares the owner of the argument's place, or, for an argument that is a
-  guest, the owners it names.
-- A value read through a guest parameter, `other.port`, names that
-  parameter's host. A guest the host carries outlives the host (§1.1), so the
-  host is the shorter of the two.
+  between them. Every step of a path takes its root's scope, so the call
+  compares the scope of the argument's place, or, for an argument that is a
+  reference, the scopes it names.
+- A value read through a reference parameter, `other.port`, names that
+  parameter's owner. A reference the owner carries outlives the owner (§1.1),
+  so the owner is the shorter of the two.
 - `push` keeps its value in `this`; no other intrinsic keeps anything. A call
   through a function value keeps nothing, since its type carries no summary.
 
 **What moves, where the spec leaves it to the table.**
 - A subscript's body is a place (`functions.md` §2.9), so it moves nothing
-  out; reading `list[i]` into a host is what the move rule then rejects.
+  out; reading `list[i]` into an owner is what the move rule then rejects.
 - A case read and what its handler resolves are a place too: the store the
   whole expression feeds decides whether it moves.
-- An intrinsic operator or constructor reads its operands.
-- The runtime's `print` takes `text &@primitives$String`, a guest, so a
-  string type wrapping one hands it its field, which it could not move. The spec declares a plain
-  `@primitives$String` ([`spec-divergences.md`](../spec-divergences.md) §9).
+- An intrinsic operator or constructor reads its operands, and `push` takes
+  its value as `^T`.
+- `^T` describes a place, not a value, so no expression's type carries it: a
+  `^T` local read, and a call returning `^T`, are values of type `T`. What a
+  place holds is read from the local's or the signature's declared type.
 
-**Where a guest source is decided.**
-- A `match` binder is its case's payload, so no guest is minted from it.
-- A method's subject is a guest the call lends, not storage, so a call never
+**Where a reference source is decided.**
+- A `match` binder is its case's payload, so no reference is minted from it.
+- A method's subject is a borrow the call lends, not storage, so a call never
   mints one for it: `list[i]:inspect()` is a read.
-- The swallowed-parameter rule looks at a store into a field, an element or a
-  case payload written in the body, directly or through a guest local that
-  ever held the parameter. One reached through a call's resting places
-  (`lifetimes.md` §1.11) is not checked yet.
+
+**Where a wrong-kind type argument is reported** (`generics.md` §3.6). An
+explicit argument, in a type written anywhere, is reported where it is
+written. An inferred one is reported at the value argument it was read from,
+when the instance's own signature puts it in a value mould's field; that
+instance is then not made, so nothing inside a forwarding verb reports it
+again. A mistake that only a generic body's own code makes, and that its
+signature does not show, is reported inside the instance, which names the
+call that required it.
+
+**Where `^` is written, beyond what the spec shows.**
+- A function type's `^T` result over a type parameter is filled by a value
+  type's result written bare: `ArrayRef.fill`'s lambda is `^T[Int]`, and an
+  `Int(n Int)` lambda fills it with `T` = `Int`.
 
 **`main`** is not required, since a library built on its own is also a root.
 When the root declares one, it takes no parameters, and it may return any
@@ -672,5 +721,4 @@ type, whose value is discarded (`packages.md` §6.2).
 
 ## 10. Not done yet
 
-- Resting places for a function value, whose type would have to carry them,
-  and the swallowed-parameter rule applied through a call's resting places.
+- Resting places for a function value, whose type would have to carry them.

@@ -23,7 +23,8 @@ geometry$List<%primitives$Int>
 %primitives$Int
 ```
 
-Arguments are separated by `, `. A guest is written `&` before its type.
+Arguments are separated by `, `. A reference is written `&` before its type,
+and a roaming owner `^`.
 
 An intrinsic namespace is written with `%` where the source writes `@`:
 `%primitives$Int` is `@primitives$Int`. A linker reads `@` in an exported
@@ -98,7 +99,7 @@ pkg$Op.apply$lambda1
 
 ## Layout tables
 
-The table the runtime reads to find a type's hosts and blocks
+The table the runtime reads to find the blocks a type's values own
 ([`lowering.md`](lowering.md) L9) is called by the type's name. An outcome's
 table is called `outcome of T`, with ` ? A` added when the verb can abort
 with `A`.
@@ -118,8 +119,8 @@ the function a spawned call to a verb expanded where it is called
 (`zane.expanded.N`) or to an intrinsic (`zane.intrinsic.N`) is made into
 ([`lowering.md`](lowering.md) §9), each string literal's bytes
 (`zane.text`), the entry that makes a program's constants and then calls
-`main` (`zane.start`), and the variable a guest to a program value such as
-`@program$console` is anchored at (`zane.value.@program$console`).
+`main` (`zane.start`), and the variable whose address a reference to a
+program value such as `@program$console` holds (`zane.value.@program$console`).
 
 ## What the compiler does today
 

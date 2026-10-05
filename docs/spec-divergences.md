@@ -17,7 +17,7 @@ settles, in one pass rather than section by section. Until then:
   the claim can be rechecked rather than taken on trust.
 
 A choice the spec leaves open is recorded here when a running program can
-observe it, as §10 and §13 are. The rest sit beside the design they belong
+observe it, as §9 and §12 are. The rest sit beside the design they belong
 to: what the type checker decides is in
 [`design/semantics.md`](design/semantics.md) §9, with D12 and D14, and how
 lowering and the runtime place and represent things is in
@@ -239,7 +239,7 @@ register(Int);                // rejected: an ordinary function argument
 held Slot = Int;              // rejected: the value of a declaration
 arr Array(Int + 1);           // rejected: an operand
 room Slots(Array<Int, 4>, 2); // rejected: an applied type
-room Slots(&Int, 2);          // rejected: a guest type
+room Slots(&Int, 2);          // rejected: a reference type
 room Slots(Int[3], 2);        // rejected: an array type
 ```
 
@@ -381,37 +381,7 @@ mention one. It needs a digit on each side, and none of the loose operators of
 (`docs/ambiguity/proof-obligations.md`). Reconciling means either the spec
 adopting the separator or the lexer dropping it.
 
-## 9. The console's `print` takes a guest
-
-**Spec** — [`effects.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/effects.md)
-§6.6, as of `7fa876f`, which introduced it:
-
-```zane
-@primitives$Unit print(this @runtime$Console, text @primitives$String) mut
-```
-
-`@primitives$String` is a reference type ([`types.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/types.md)
-§2.7), so a plain parameter of it swallows its argument: the caller moves a
-view in.
-
-**Compiler** — `text &@primitives$String`, a guest. `print` writes the view
-out and keeps nothing, which is what a guest parameter is for. Zane has no
-borrow of a reference type, and a guest differs from one only in taking a
-place rather than any expression, so a view built for the call is stored
-first:
-
-```zane
-text @primitives$String("hello world");
-@program$console!print(text);                               // accepted
-@program$console!print(@primitives$String("hello world"));  // rejected: a temporary
-```
-
-A swallowing `print` would also leave `core`'s `String` no way to reach the
-console, since its view is a field (`text.raw`), and a field is not a
-move-source ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/lifetimes.md)
-§1.2). Reconciling means the spec declaring the parameter `&@primitives$String`.
-
-## 10. An integer division by zero stops the program
+## 9. An integer division by zero stops the program
 
 **Spec** — silent. [`operators.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/operators.md)
 §4.3 says division is declared rather than derived, and nothing says what
@@ -431,7 +401,7 @@ quotient Int = Int(1) / zero();   // stops here, status 1
 Reconciling means the spec stating an outcome, or making `/` abortable, now
 that aborts lower (step 4 of `docs/design/lowering.md` §8).
 
-## 11. An exit ends the run of a block
+## 10. An exit ends the run of a block
 
 **Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §2.3 and §4.2: `@controlflow$exitFromCall` ends the invocation that called
@@ -443,7 +413,7 @@ the verb containing it, and blocks are transparent to it, so a `guard` inside
 written in, and a call to an exiting verb is legal only inside a block. A
 verb's body must end in an explicit `return`, `Unit()` included
 ([`error-handling.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/error-handling.md)
-§8), while a block yields nothing (§12 below), so it has nothing to give and
+§8), while a block yields nothing (§11 below), so it has nothing to give and
 is the one thing an exit can end.
 
 ```zane
@@ -463,7 +433,7 @@ written there. `lib/tst/analyses/exits.ml` checks the calls, and
 `tests/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
 Reconciling means the spec adopting this reading.
 
-## 12. A block yields nothing
+## 11. A block yields nothing
 
 **Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §2.1 and §2.4: a block's type is `@concepts$Block`, or `@concepts$Block<T>`
@@ -491,7 +461,7 @@ done Bool = if(ready) {
 condition of §3.3 has no form here. Reconciling means the spec dropping
 `Block<T>`, or the compiler taking it back.
 
-## 13. A spawned call's handler runs where the call settles
+## 12. A spawned call's handler runs where the call settles
 
 **Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
 §3.3: an abortable spawned call attaches `?` or `??` directly to the
@@ -503,7 +473,7 @@ or what happens when nothing reads the symbol.
 its local is first read, or where the block it is spawned in ends, when
 nothing has read it by then. Settling waits for the call. An abort runs the
 handler there, and an exit ends the run of the block the spawn is written in
-(§11), from there. A block left before it ends -- by a `return`, an exit or
+(§10), from there. A block left before it ends -- by a `return`, an exit or
 an `abort` -- still waits for the call as it drains, but runs no handler, and
 the outcome dies with the block.
 
@@ -519,21 +489,22 @@ check(q == Int(7));         // settled already: the handler does not run again
 `tests/codegen/fixtures/spawns` has these cases. Reconciling means the spec
 saying where the handler runs.
 
-## 14. A block does not write a host it lent a running spawn
+## 13. A block does not write an owner it lent a running spawn
 
 **Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
 §4.2 lets spawned work read the reference-type object graph without writing
 it, which makes "every concurrent **read** of the reference-typed object
 graph safe by construction". §4.3 keeps the spawning block off a location
 while a spawn holds its mutable borrow. Neither says anything about the
-spawning block writing a host it passed to a spawn that only reads it, and
+spawning block writing an owner it passed to a spawn that only reads it, and
 that block keeps running while the spawn does.
 
 **Compiler** — a spawn written as a statement or bound by a `let` is lent
-every host passed to it, directly or through a guest, until its block drains,
-and the block may not write one meanwhile: by assignment, as a `!` call's
-subject, or by moving it out. Where a guest's host cannot be followed, the
-write is judged by type, so some programs that would not race are rejected.
+every owner passed to it, directly or through a reference, until its block
+drains, and the block may not write one meanwhile: by assignment, as a `!`
+call's subject, or by moving it out. Where the owner a reference names cannot
+be followed, the write is judged by type, so some programs that would not race
+are rejected.
 
 ```zane
 view &Dial = dial;
@@ -547,7 +518,7 @@ spawn dial.reading!nudge();      // accepted: written back (§4.4)
 Reconciling means the spec stating a rule for this write, this one or
 another.
 
-## 15. A case is not a type
+## 14. A case is not a type
 
 **Spec** — [`adt.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/adt.md)
 §3: "A member projected as a type is written `Expr.intLit`", and §5.2: "if the
@@ -569,13 +540,13 @@ projected case type would still be the whole variant (§3.2), and the
 narrowing it enables is an optimization the tag jump already gives. Reconciling
 means adding the type form and its narrowing, or the spec dropping it.
 
-## 16. An index out of range stops the program
+## 15. An index out of range stops the program
 
 **Spec** — silent. [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §5.2 fixes the ordinal base and leaves "the language-level behavior for
 out-of-range element access" as a separate question.
 
-**Compiler** — the program stops as it does at a division by zero (§10): what
+**Compiler** — the program stops as it does at a division by zero (§9): what
 it wrote so far is flushed, the runtime writes `index out of range` to stderr,
 and the status is 1, for a list and an array alike.
 `tests/codegen/fixtures/range` and `tests/codegen/fixtures/bounds` are the
@@ -592,8 +563,9 @@ Kept briefly so a reader who remembers them can see they were closed on
 purpose, and by what. The first three closed at the `034f11a` re-pin, when the
 spec moved to `;`-terminated statements and a brace that ends one. The next
 closed from the other side, when the compiler adopted a spec rule it had been
-standing in for, and the last when the compiler followed the spec in removing a
-form.
+standing in for, the next when the compiler followed the spec in removing a
+form, and the last when the spec's memory model made the compiler's departure
+unnecessary.
 
 - **Statements are terminated, not separated.** The spec separated statements
   by newline and called it "the one place a newline is structural"; the
@@ -676,3 +648,16 @@ form.
   lexer, and the call is written `show(Color.red)`. The `Pipe` and
   `MethodTarget` nodes went with it, since a method target was only ever a
   pipe's callee.
+
+- **The console's `print` took a reference.** The spec declares
+  `print(this @runtime$Console, text @primitives$String)`, and while
+  `@primitives$String` was a reference type a plain parameter of it consumed
+  its argument, which would have spent the caller's string and left `core`'s
+  `String` no way to pass the view it holds in a field. The compiler took
+  `text &@primitives$String` instead. Spec
+  [#209](https://github.com/zane-lang/spec/pull/209) made
+  `@primitives$String` a value type, whose parameter is a read-only borrow,
+  and [#212](https://github.com/zane-lang/spec/pull/212) made a bare
+  reference-type parameter a borrow too, so the spec's own signature reads the
+  text without taking it. The compiler now declares `print` exactly as the
+  spec does, and a string built in the argument is passed as it is.

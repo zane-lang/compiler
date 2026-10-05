@@ -173,7 +173,9 @@ type t = {
   type_infos_by_id : (Ty.type_id, type_info) Hashtbl.t;
   alias_infos : (int, alias_info) Hashtbl.t;
   ready : bool ref;
-  deferred_guests : (Ty.t * Span.t) list ref;
+  deferred_marks : (Ty.t * Span.t) list ref;
+  (* Checks that need every type's kind, made once the types are defined. *)
+  deferred_kinds : (unit -> unit) list ref;
   (* Pass 4 ([Verb_signatures]): every verb's signature, each constant's
      type, every verb where a call site finds it -- constructors under the
      type they build, methods under their name, operators under their token,
@@ -227,7 +229,8 @@ let create () =
       type_infos_by_id = Hashtbl.create 64;
       alias_infos = Hashtbl.create 16;
       ready = ref false;
-      deferred_guests = ref [];
+      deferred_marks = ref [];
+      deferred_kinds = ref [];
       signatures = Hashtbl.create 256;
       constant_types = Hashtbl.create 32;
       constructors = Hashtbl.create 64;

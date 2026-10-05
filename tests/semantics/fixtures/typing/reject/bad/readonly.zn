@@ -8,7 +8,7 @@ Desk(pen &Pen) => init{ pen; }
 
 Unit fill(this Pen) mut => Unit()
 
-/// A `mut` method writes what its `this` reaches, guests included.
+/// A `mut` method writes what its `this` reaches, references included.
 Unit use(this Desk) mut {
 	this.pen!fill();
 	return Unit();
@@ -21,7 +21,7 @@ Unit hold(this Desk, pen &Pen) mut {
 
 &Pen pass(pen &Pen) => pen
 
-/// A guest taken from a read-only parameter stays read-only wherever it
+/// A reference taken from a read-only parameter stays read-only wherever it
 /// goes: into a local, into a field through a constructor, back out of a
 /// call, or into `this` through a `mut` call (effects.md §4.4).
 Unit sneak(pen &Pen) {
@@ -39,7 +39,7 @@ Unit sneak(pen &Pen) {
 	return Unit();
 }
 
-/// `this` is read-only in a method that is not `mut`, and so is a guest taken
+/// `this` is read-only in a method that is not `mut`, and so is a reference taken
 /// from it.
 Unit look(this Desk) {
 	k &Pen = this.pen;
@@ -47,7 +47,7 @@ Unit look(this Desk) {
 	return Unit();
 }
 
-/// Writing through `this` is a write once a call has stored such a guest
+/// Writing through `this` is a write once a call has stored such a reference
 /// there.
 Unit tidy(this Desk, pen &Pen) mut {
 	this!use();
@@ -68,7 +68,7 @@ Unit loop(pen &Pen) {
 }
 
 /// A value copied out of a read-only parameter is the verb's own, and a field
-/// that holds no guest carries nothing.
+/// that holds no reference carries nothing.
 type Caddy = #struct { count Int; pen &Pen; }
 
 Caddy(count Int, pen &Pen) => init{ count; pen; }
@@ -103,9 +103,9 @@ Unit rotate(pen &Pen) {
 /// A summary does not depend on the order verbs are declared in: `forward`
 /// is walked before `make`, and still learns that only `other` reaches the
 /// result.
-Desk forward(pen &Pen, other &Pen) => make(pen, other)
+^Desk forward(pen &Pen, other &Pen) => make(pen, other)
 
-Desk make(pen &Pen, other &Pen) => Desk(other)
+^Desk make(pen &Pen, other &Pen) => Desk(other)
 
 Unit order(pen &Pen) {
 	own Pen(Int(6));

@@ -53,14 +53,14 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
       let v = expr env ctx inner in
       (match v.T.Expr.ty with
       | Ty.Error | Ty.Param _ -> ()
-      | Ty.Guest _ -> ()
+      | Ty.Reference _ -> ()
       | t ->
           if not (Type_decls.is_reference env t) then
             error env span
               (Printf.sprintf
-                 "`&` takes a guest of a reference type, and %s is a value type"
+                 "`&` takes a reference to a reference type, and %s is a value type"
                  (quote (Ty.to_string t))));
-      mk (T.Expr.Ref v) (Ty.Guest (Ty.strip_guest v.T.Expr.ty)) span
+      mk (T.Expr.Ref v) (Ty.Reference (Ty.strip_mode v.T.Expr.ty)) span
   | N.Expr.Init fields -> init env ctx span fields
   | N.Expr.Spawn call -> spawn env ctx call
   | N.Expr.Match m -> match_ env ~flow ctx m
@@ -275,7 +275,7 @@ and member env ~flow ctx span target (field : N.Name.t) handle =
           invalid span)
 
 and private_access ctx tid =
-  match Option.map Ty.strip_guest ctx.this_type with
+  match Option.map Ty.strip_mode ctx.this_type with
   | Some (Ty.Named (this_tid, _)) -> this_tid = tid
   | _ -> false
 
@@ -428,7 +428,7 @@ and actual_of env ctx (a : N.Call_arg.t) =
 
 (* A block argument captures the scope it is written in (control-flow.md
    §2.2) and yields nothing: a `return`, `resolve` or `abort` in it acts on
-   what encloses the call (docs/spec-divergences.md §12). *)
+   what encloses the call (docs/spec-divergences.md §11). *)
 and block_argument env ctx (b : N.Block.t) = (block_in env (push ctx) b, Ty.Concept Ty.Block)
 
 and verb_call env ~flow ctx (vc : N.Verb_call.t) : T.Expr.t * S.t option =
@@ -448,7 +448,7 @@ and verb_call env ~flow ctx (vc : N.Verb_call.t) : T.Expr.t * S.t option =
 and any_error actuals = List.exists (fun a -> Ty.contains_error a.aty) actuals
 
 and finish_call env ~flow ctx ~span ~what (o : outcome) handle build =
-  request env o.sig_ o.subst span;
+  request env ~args:o.converted o.sig_ o.subst span;
   let ok = Ty.subst o.subst o.sig_.ret in
   let abort = Option.map (Ty.subst o.subst) o.sig_.abort in
   let handler = handle_call env ~flow ctx ~what ~span ~abort ~ok handle in
@@ -539,7 +539,7 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
 (* Calling a function value. It is one value with one type, so there is one
    candidate; its arguments are still coercion sites. *)
 and call_value env ~flow ctx span (fn : T.Expr.t) actuals handle =
-  match Ty.strip_guest fn.T.Expr.ty with
+  match Ty.strip_mode fn.T.Expr.ty with
   | Ty.Error ->
       skip_handler env ctx handle;
       (invalid span, None)
@@ -806,7 +806,7 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
                   with
                   | None -> invalid span
                   | Some o ->
-                      request env o.sig_ o.subst span;
+                      request env ~args:o.converted o.sig_ o.subst span;
                       let ret = Ty.subst o.subst o.sig_.ret in
                       mk
                         (T.Expr.Construct
@@ -855,7 +855,7 @@ and field_constructor_call env ctx span what cands (fs : N.Field_arg.t list) =
     match report_resolution env ~span ~what ~args (resolve env field_cands slots_for) field_cands with
     | None -> invalid span
     | Some o ->
-        request env o.sig_ o.subst span;
+        request env ~args:o.converted o.sig_ o.subst span;
         let converted = List.combine o.sig_.params o.converted in
         let fields =
           List.filter_map
@@ -1178,6 +1178,15 @@ and lambda env ctx span ~this_type ~params ~ret_type ~is_mut ~body =
   if not (ends ~resolve:false typed.T.Block.stats) then
     error env body.N.Block.span "not every path through this lambda returns; a block body returns explicitly";
   let v = { Ty.this_ = Option.map fst this_; params = List.map fst ps; ret; abort; is_mut } in
+  (match this_ with
+  | Some (((Ty.Reference _ | Ty.Roaming _) as t), _) ->
+      error env span
+        (Printf.sprintf
+           "the subject is written %s, and it is always a borrow, so neither `^` nor `&` is \
+            written on `this`"
+           (quote (Ty.to_string t)))
+  | _ -> ());
+  Type_decls.check_function_types env span (Ty.Verb v);
   mk
     (T.Expr.Lambda { params = List.map snd (Option.to_list this_) @ List.map snd ps; body = typed })
     (Ty.Verb v) span
@@ -1269,7 +1278,8 @@ and local_declaration env ctx (d : N.Decl.t) =
   | N.Decl.Var { name; type_; value } ->
       let v = expr env ctx value in
       let declared = declared_type env ctx type_ v.T.Expr.ty in
-      Type_decls.check_storage env type_.N.Type_expr.span "a local" declared;
+      Type_decls.check_storage env ~roaming:true type_.N.Type_expr.span "a local" declared;
+      Type_decls.check_function_types env type_.N.Type_expr.span declared;
       if not (Ty.assignable ~dst:declared ~src:v.T.Expr.ty) then
         error env v.T.Expr.span
           (Printf.sprintf
@@ -1292,14 +1302,14 @@ and declared_type env ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
   | N.Type_expr.Path { name; generics = [] } -> (
       match Type_decls.resolve_head env (type_scope ctx) name with
       | Type_decls.Declared d as head -> (
-          match (Hashtbl.find_opt env.type_infos d.id, Ty.strip_guest value_ty) with
-          | Some info, Ty.Named (tid, _) when info.params <> [] && tid = info.tid -> Ty.strip_guest value_ty
+          match (Hashtbl.find_opt env.type_infos d.id, Ty.strip_mode value_ty) with
+          | Some info, Ty.Named (tid, _) when info.params <> [] && tid = info.tid -> Ty.strip_mode value_ty
           | Some info, Ty.Error when info.params <> [] -> Ty.Error
           | _ -> Type_decls.apply env (type_scope ctx) te.N.Type_expr.span head name [])
       | Type_decls.Intrinsic_type info as head when info.params <> [] -> (
-          match Ty.strip_guest value_ty with
+          match Ty.strip_mode value_ty with
           | Ty.Intrinsic { namespace; name = n; _ } when namespace = info.namespace && n = info.name ->
-              Ty.strip_guest value_ty
+              Ty.strip_mode value_ty
           | Ty.Error -> Ty.Error
           | _ -> Type_decls.apply env (type_scope ctx) te.N.Type_expr.span head name [])
       | Type_decls.Unknown -> Ty.Error

@@ -51,14 +51,14 @@ enum { ZANE_DEPTH = 1 << 15, ZANE_SEGMENT = 64, ZANE_CONTEXTS = (1 << 16) - 1 };
 
 enum { ZANE_PAGES = 1 << 14 };
 
-/* A host placed in a scope, with where its contained hosts' backpointers
-   are, so the scope's drain can end their identities. It lives in the
-   scope's own arena. */
-typedef struct zane_hosted {
-	struct zane_hosted *next;
+/* A slot held in a scope because what it holds owns blocks, with the
+   layout that says where they are, so the scope's drain can return them.
+   It lives in the scope's own arena. */
+typedef struct zane_held {
+	struct zane_held *next;
 	char *slot;
 	const int64_t *layout;
-} zane_hosted;
+} zane_held;
 
 /* The returned blocks of one size and alignment, each naming the next. */
 typedef struct zane_stack {
@@ -87,7 +87,7 @@ typedef struct zane_retired {
 } zane_retired;
 
 /* Each open scope of a context, innermost last: where its slots began,
-   what it hosts, the calls it spawned, and its dynamic region with the
+   what it holds, the calls it spawned, and its dynamic region with the
    number of blocks out in it. The first of the program's is the program's
    own, open until it ends. */
 typedef struct {
@@ -95,7 +95,7 @@ typedef struct {
 	int64_t depth;
 	uint32_t chunks;
 	size_t frontier;
-	zane_hosted *hosts;
+	zane_held *held;
 	zane_task *tasks;
 	zane_mapping *mappings;
 	char *chunk;
@@ -122,16 +122,13 @@ struct zane_context {
 	zane_context *next;
 };
 
-/* A reference-type instance begins with a `u32` backpointer, and so does
-   every host it contains; a string's or a list's handle, and a boxed
-   member's pointer, name the block it owns. A layout lists where they are:
-   a count, then for each position, outermost first, its kind, its offset,
-   its size, a list's stride or a box's payload size, the layout of a
-   list's elements or a box's payload, and the variant tags that must be
-   live for it to be there, as a count and then (tag offset, tag) pairs. A
-   host under no tag is stable; one under a tag is a variant payload, a
-   contingent place (memory.md §2.2). */
-enum { ZANE_HOST = 0, ZANE_TEXT = 1, ZANE_LIST = 2, ZANE_BOX = 3 };
+/* A string's or a list's handle, and a boxed member's pointer, name the
+   block it owns. A layout lists where they are: a count, then for each
+   position its kind, its offset, its size, a list's stride or a box's
+   payload size, the layout of a list's elements or a box's payload, and
+   the variant tags that must be live for it to be there, as a count and
+   then (tag offset, tag) pairs. */
+enum { ZANE_TEXT = 1, ZANE_LIST = 2, ZANE_BOX = 3 };
 
 typedef struct {
 	int64_t kind, offset, size, extra;
@@ -145,26 +142,13 @@ typedef struct {
 	for (int64_t zane_cursor = 1, zane_left = (layout) ? (layout)[0] : 0;           \
 	     zane_next_position((layout), &zane_cursor, &zane_left, &(p));)
 
-/* A cell is a payload anchor, naming the host's address, or a forwarder to
-   another cell. Tethers and backpointers hold a cell's index, and index 0
-   is never a cell, so it stands for untethered. A cell keeps the cells that
-   forward to it, which retire with it: every guest that could still name a
-   forwarder died before the identity it forwards to ended (§4.6). */
-typedef struct {
-	void *target;
-	uint32_t forward;     /* the cell this one forwards to, or 0 */
-	uint32_t forwarders;  /* the first cell forwarding here */
-	uint32_t sibling;     /* the next cell forwarding where this one does */
-} zane_cell;
-
-enum { ZANE_CELL_SEGMENT = 1 << 16 };
 
 /* A spawned call. Its frame -- room for its result, then its arguments --
    follows this header in the fixed region of the scope that spawned it,
    which waits for it before it drains (§4.1). The call runs in a context of
    its own, which it keeps until its result comes home: copied to `dest`,
-   `size` bytes laid out as `layout` says, where its anchors follow it and
-   its blocks move into the destination's region. */
+   `size` bytes laid out as `layout` says, where its blocks move into the
+   destination's region. */
 struct zane_task {
 	zane_task *next;           /* the next the same scope spawned */
 	zane_task *before, *after; /* in its deque, while queued */
@@ -214,27 +198,17 @@ extern _Atomic int64_t zane_blocks;
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align);
 void zane_free(char *block, int64_t size, int64_t align);
 
-/* anchor.c */
+/* block.c */
 int zane_next_position(const int64_t *layout, int64_t *cursor, int64_t *left,
                        zane_position *p);
 int zane_present(const char *base, const zane_position *p);
-uint32_t *zane_backpointer(char *base, const zane_position *p);
-int zane_hosts(const char *base, const zane_position *p);
-extern pthread_mutex_t zane_anchors;
-zane_cell *zane_anchor(uint32_t id);
-void zane_retire(uint32_t id);
-
-/* block.c */
 void zane_unblock(const zane_position *p, void *block, int64_t room);
 void *zane_at(char *base, const zane_position *p);
-int zane_inside(int64_t offset, const int64_t *from, const int64_t *size, int64_t n);
-void zane_end(char *base, const int64_t *layout, int identities, const int64_t *from,
-              const int64_t *length, int64_t n);
-int64_t zane_owned(char *base, const int64_t *layout, int64_t lo, int64_t hi);
+void zane_end_at(char *base, const zane_position *p);
+void zane_end(char *base, const int64_t *layout);
 
 /* value.c */
 void zane_move(char *value, const int64_t *layout, zane_mark *region, int64_t from);
-extern _Atomic int64_t zane_floated;
 
 /* spawn.c */
 int zane_state(zane_task *t);

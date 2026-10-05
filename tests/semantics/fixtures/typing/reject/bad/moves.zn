@@ -5,32 +5,45 @@ type Saucer = #struct { cup Cup; }
 type Order = #variant { hot Cup; none Int; }
 
 Cup(size Int) => init{ size; }
-Saucer(cup Cup) => init{ cup; }
+Saucer(cup ^Cup) => init{ cup; }
 
-Unit drink(cup Cup) => Unit()
-Unit look(cup &Cup) => Unit()
-Cup brew() => Cup(Int(1))
-Unit serve(first Cup, second Cup) => Unit()
+Unit drink(cup ^Cup) => Unit()
+Unit see(cup Cup) => Unit()
+^Cup brew() => Cup(Int(1))
+Unit serve(first ^Cup, second ^Cup) => Unit()
 Unit loop(body @concepts$Block) => Unit()
 
-/// A host moves from a symbol, a verb's result or a case form, and from
-/// nothing else (lifetimes.md §1.2).
-Unit sources(saucer Saucer, cups List<Cup>, order Order, guest &Cup) {
+/// An owner moves from a roaming symbol, a field of one, a verb's result or
+/// a case form, and from nothing else (lifetimes.md §1.2): not a settled
+/// owner, a part of a borrow, an element, a reference or a payload.
+Unit sources(saucer Saucer, cups List<Cup>, order Order, ref &Cup) {
 	a Cup = brew();
 	b Cup = saucer.cup;
 	c Cup = cups[Int(1)];
-	d Cup = guest;
+	d Cup = ref;
 	e Order = Order.hot(Cup(Int(2)));
 	drink(order.hot ?? Cup(Int(3)));
+	settled Cup = Cup(Int(4));
+	f Cup = settled;
 	return Unit();
 }
 
-/// A symbol moves only in the block that declares it (§1.3).
-Unit blocks(cup Cup) {
-	outer Cup = Cup(Int(4));
+/// A borrow is the caller's for the call, and is never moved: neither a bare
+/// parameter nor the subject (memory.md §2.9).
+Unit borrowed(cup Cup) {
+	drink(cup);
+	return Unit();
+}
+
+^Saucer give(this Saucer) => this
+
+/// A roaming symbol moves only in the block that declares it (§1.3), and a
+/// `^T` parameter is declared at the top of the body.
+Unit blocks(cup ^Cup) {
+	outer ^Cup = Cup(Int(4));
 	loop({
 		drink(outer);
-		inner Cup = Cup(Int(5));
+		inner ^Cup = Cup(Int(5));
 		drink(inner);
 	});
 	drink(cup);
@@ -38,40 +51,53 @@ Unit blocks(cup Cup) {
 }
 
 /// A moved symbol is spent: using it again is an error until a store in its
-/// own block refills it (§1.6). Passing to a `T` parameter moves (§1.8), and
-/// a `&T` parameter does not.
+/// own block refills it (§1.6). Passing to a `^T` parameter moves (§1.8), and
+/// a borrow does not.
 Unit spent() {
-	cup Cup = Cup(Int(6));
-	look(cup);
+	cup ^Cup = Cup(Int(6));
+	see(cup);
 	drink(cup);
-	look(cup);
+	see(cup);
 	loop({
 		cup = Cup(Int(7));
 	});
 	cup = Cup(Int(8));
-	look(cup);
-	both Cup = Cup(Int(9));
+	see(cup);
+	both ^Cup = Cup(Int(9));
 	serve(both, both);
 	return Unit();
 }
 
-/// A method never moves its subject.
-Saucer give(this Saucer) => this
+/// A field moved out of a roaming owner leaves the field spent, and the
+/// owner spent as a whole, until a store in the owner's block refills the
+/// field (memory.md §2.8.1).
+Unit partly() {
+	saucer ^Saucer = Saucer(Cup(Int(10)));
+	cup Cup = saucer.cup;
+	see(saucer.cup);
+	whole ^Saucer = saucer;
+	loop({
+		saucer.cup = Cup(Int(11));
+	});
+	saucer.cup = Cup(Int(12));
+	again ^Saucer = saucer;
+	return Unit();
+}
 
 /// A generic parameter moves at the type it was called with.
-Unit stock(cup Cup) {
+Unit stock(cup ^Cup) {
 	cups List<Cup> = @primitives$List(Cup);
 	cups!push(cup);
-	look(cup);
+	see(cup);
 	return Unit();
 }
 
 /// A match arm hands its value to wherever the match's value goes: here a
-/// method's subject, which is not a move, so `kept` stays a host.
+/// method's subject, which is a borrow, so `kept` still owns its cup.
 Int sip(this Cup) => this.size
 
 Unit arms(order Order) {
-	kept Cup = Cup(Int(10));
+	kept ^Cup = Cup(Int(10));
 	n Int = (match (order) {
 		hot => kept;
 		none => kept;

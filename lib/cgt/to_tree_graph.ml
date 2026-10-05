@@ -4,8 +4,8 @@
 open Tree_graph
 open Nodes
 
-(* A layout, one position per line: a host as `@8 (16 bytes) when [0]=1`,
-   a string's handle as `text @8`, a list's as `list @8 of T (16 bytes
+(* A layout, one position per line: a string's handle as `text @8 when
+   [0]=1`, a list's as `list @8 of T (16 bytes
    apart)`, and a boxed member as `box @8 of T (24 bytes)`. *)
 let positions (ps : Layout.position list) =
   map_seq
@@ -18,7 +18,6 @@ let positions (ps : Layout.position list) =
             " when " ^ String.concat ", " (List.map tag ts)
       in
       match p.kind with
-      | Layout.Host -> Leaf (Printf.sprintf "@%d (%d bytes)%s" p.offset p.size tags)
       | Layout.Text -> Leaf (Printf.sprintf "text @%d%s" p.offset tags)
       | Layout.List { stride; elements } ->
           Leaf (Printf.sprintf "list @%d of %s (%d bytes apart)%s" p.offset elements stride tags)
@@ -87,9 +86,6 @@ let rec expr (e : Expr.t) =
              ("path", Leaf (String.concat "." (List.map string_of_int path)));
              ("base", expr base);
            ])
-  | Expr.Mint p -> group "mint" (expr p)
-  | Expr.Resolve t -> group "resolve" (expr t)
-  | Expr.Terminal t -> group "terminal" (expr t)
   | Expr.Take { address; layout = l } ->
       group "take"
         (fields
@@ -144,8 +140,8 @@ let rec expr (e : Expr.t) =
 and stat = function
   | Stat.Let { id; value } ->
       group "let" (fields [ ("local", Leaf (Printf.sprintf "#%d" id)); ("value", expr value) ])
-  | Stat.Host { id; scope; value; layout = l } ->
-      group "host"
+  | Stat.Hold { id; scope; value; layout = l } ->
+      group "hold"
         (fields
            ([
               ("local", Leaf (Printf.sprintf "#%d" id));
@@ -155,8 +151,8 @@ and stat = function
            @ [ ("layout", layout l) ]))
   | Stat.Store { address; value } ->
       group "store" (fields [ ("address", expr address); ("value", expr value) ])
-  | Stat.Overwrite { address; value; layout = l; contingent } ->
-      group (if contingent then "overwrite contingent" else "overwrite")
+  | Stat.Overwrite { address; value; layout = l } ->
+      group "overwrite"
         (fields [ ("address", expr address); ("value", expr value); ("layout", layout l) ])
   | Stat.Place { address; value; layout = l } ->
       group "place"
