@@ -70,3 +70,18 @@ its subject has already become an argument.
 Each stage's library under `lib/` is named after the tree it produces:
 `lib/cst/`, `lib/sst/`, `lib/tst/` and `lib/cgt/`. Codegen produces no tree,
 so its library is named after the stage, `lib/codegen/`.
+
+Every stage reports a problem with the program as a diagnostic, a
+`Diagnostic.t` that points at the source, a file or a directory, and `zanec`
+exits with status 1 once it has printed them. Each stage also relies on what
+the stages before it established. When one of those guarantees does not hold,
+the fault is the compiler's, not the program's: the stage raises
+`Diagnostic.bug`, and `zanec` prints `internal compiler error: …` with a
+request to report it, and exits with status 3. Status 2 is a usage error.
+
+The stages run in order through `lib/driver/`: one function per step
+(assemble, check, lower, and emit an IR module, an object or an executable),
+each a result whose failure is the step's diagnostics with the text they
+point into. The rules about a build rather than a stage live there too: which
+package a `--stamp` names, and whether the root needs a `main`. `zanec` and
+the inspection tools parse their arguments, call the driver, and print.

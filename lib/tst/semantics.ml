@@ -7,44 +7,32 @@ type result = {
   diagnostics : Diagnostic.t list;
 }
 
-let position (d : Diagnostic.t) =
-  let p = d.Diagnostic.span.Source.Span.start_ in
-  (p.Lexing.pos_fname, p.Lexing.pos_cnum)
-
+(* Every pass, over tables of this check's own. *)
 let check (packages : Assembly.package list) =
-  Env.reset ();
-  Collect.run packages;
-  Type_decls.run ();
-  Verb_signatures.run ();
-  let program = Check.run () in
+  let env = Env.create () in
+  Collect.run env packages;
+  Type_decls.run env;
+  Verb_signatures.run env;
+  let program = Program.run env in
   (* The analyses over the finished tree (D1). *)
-  Read_only.run program;
-  Guests.run program;
-  Moves.run program;
-  Owners.run program;
-  Exits.run program;
-  Spawns.run program;
+  Read_only.run env program;
+  Guests.run env program;
+  Moves.run env program;
+  Owners.run env program;
+  Exits.run env program;
+  Expansions.run env program;
+  Literal_ranges.run env program;
+  Spawns.run env program;
   let diagnostics =
     List.sort_uniq
       (fun a b ->
-        match compare (position a) (position b) with
+        match compare (Diagnostic.position a) (Diagnostic.position b) with
         | 0 -> compare a.Diagnostic.message b.Diagnostic.message
         | c -> c)
-      !Env.diagnostics
+      !(env.Env.diagnostics)
   in
   { program; diagnostics }
 
-(* The text a build read from [path]: what a diagnostic's caret is drawn
-   under, and what a span is read back out of. *)
-let source (packages : Assembly.package list) path =
-  List.find_map
-    (fun (p : Assembly.package) ->
-      List.find_map
-        (fun (f : Assembly.file) -> if String.equal f.path path then Some f.source else None)
-        p.files)
-    packages
+(* The text a build read from [path]: what a span is read back out of. *)
+let source packages path = Source.Files.find (Assembly.sources packages) path
 
-(* A diagnostic points into one of the build's files. *)
-let render packages (d : Diagnostic.t) =
-  let path, _ = position d in
-  Diagnostic.render ~source:(Option.value ~default:"" (source packages path)) d

@@ -88,7 +88,7 @@ let callee (e : T.Expr.t) =
   | _ -> None
 
 
-let run (p : T.Program.t) =
+let run env (p : T.Program.t) =
   let exiting = Hashtbl.create 8 in
   let bodies =
     List.concat_map
@@ -119,7 +119,7 @@ let run (p : T.Program.t) =
   and walk in_block (e : T.Expr.t) =
     (match callee e with
     | Some (id, name) when Hashtbl.mem exiting id && not in_block ->
-        Env.error e.T.Expr.span
+        Env.error env e.T.Expr.span
           (Printf.sprintf
              "`%s` can exit, which ends the block its call is written in, and this call is in \
               no block"
@@ -136,11 +136,24 @@ let run (p : T.Program.t) =
         | Lambda b ->
             List.iter
               (fun (x : T.Expr.t) ->
-                Env.error x.T.Expr.span
+                Env.error env x.T.Expr.span
                   "`@controlflow$exitFromCall` cannot be written in a lambda's body: a call \
                    through a function value cannot say that it exits (control-flow.md §4.2)")
               (exits b);
             walk_block false b)
       (parts e)
   in
-  List.iter (fun (_, b) -> walk_block false b) bodies
+  List.iter (fun (_, b) -> walk_block false b) bodies;
+  (* The runtime calls the root's `main`, from no block (packages.md §6.2). *)
+  match p.T.Program.packages with
+  | root :: _ ->
+      List.iter
+        (fun (d : T.Decl.t) ->
+          match d.T.Decl.node with
+          | T.Decl.Verb { signature = { S.kind = S.Function; name = "main"; _ }; _ }
+            when Hashtbl.mem exiting d.T.Decl.id ->
+              Env.error env d.T.Decl.span
+                "`main` cannot exit: the runtime calls it from no block for the exit to end"
+          | _ -> ())
+        root.T.Package.decls
+  | [] -> ()

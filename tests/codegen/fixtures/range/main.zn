@@ -1,5 +1,5 @@
 /// An index outside a list stops the program with a failing status, after
-/// what it wrote so far (docs/lowering.md §9).
+/// what it wrote so far (docs/design/lowering.md §9).
 package range;
 
 alias Int = @primitives$Int

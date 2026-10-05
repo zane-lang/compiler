@@ -37,7 +37,7 @@ is the one step left to a system linker, which `clang` drives.
 The bindings are LLVM's own, from `llvm/bindings/ocaml` in llvm-project,
 which opam builds from each LLVM release as its `llvm` package. They are
 tied to that release, and the compiler uses LLVM 19, the newest opam
-packages. `dev/bin/bootstrap-toolchain` pins it; devbox provides LLVM 19
+packages. `dev/setup/bootstrap-toolchain` pins it; devbox provides LLVM 19
 with its `llvm-config` and headers, and CI installs `llvm-19-dev`.
 
 The module's text is LLVM's to print and changes between releases, so the
@@ -272,17 +272,37 @@ code C states without ceremony.
 ## 7. How it is built, and how to look at it
 
 Lowering lives in `lib/cgt/`, beside `lib/tst/`: `nodes.ml` for the tree,
-`lower.ml` for the TST → CGT walk, `to_tree_graph.ml` to render it. Codegen
+`lower.ml` for the TST → CGT walk over a verb's body, `program.ml` for a
+whole program built with it, and `to_tree_graph.ml` to render it. Codegen
 lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,
 and `build.ml` writes the object file and links it with the runtime. The
-runtime's source, `runtime/zane.c`, is compiled into the compiler as a
-string, so a build needs nothing beside the compiler and a C compiler
-(`clang`, or `ZANE_CC`).
+runtime is written as nine parts in `runtime/` (`main.c`, `arena.c`,
+`anchor.c` and so on), with `zane.h` as the ABI that emitted code calls and
+`zane_internal.h` as what the parts share. `runtime/dune` joins the parts in
+a fixed order into one generated `zane.c` and embeds it, with both headers,
+into the compiler as strings, so a build needs nothing beside the compiler
+and a C compiler (`clang`, or `ZANE_CC`).
 
 Lowering starts at the root package's `main` and lowers each verb the first
 time a call reaches it, so a program's unused declarations never need to
 lower. Whatever it cannot handle yet it refuses with a diagnostic at that
 node, never by lowering it wrongly.
+
+Lowering does not handle these yet, and refuses each where it is written:
+
+- a control-flow intrinsic, such as `@controlflow$branch`, used as a value
+  rather than as a statement;
+- an operator that takes a block or a literal, which would be written out
+  where it is called (L11) as a verb that takes one is;
+- a store into the result of a spawned call that returns `Unit`, which has no
+  storage.
+
+Each has a reject fixture in `tests/codegen/fixtures/reject/`. Lowering also
+refuses one error in the program that semantics cannot see: a literal handed
+to a verb's literal parameter that does not fit the primitive the verb builds
+from it, which is known only where the verb is written out. Anything else
+lowering finds wrong is an invariant an earlier stage broke, and is an
+internal error ([`stages.md`](stages.md)).
 
 The binary takes the same `--package` flags as the semantic views:
 

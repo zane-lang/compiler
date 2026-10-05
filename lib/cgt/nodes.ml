@@ -129,7 +129,7 @@ module Expr = struct
     | Call_value of { fn : t; args : t list }
     (* A call into the C runtime (L17), by the runtime's symbol. A string
        goes to it, and comes back from it, through the address of a copy. *)
-    | Runtime of { fn : string; args : t list }
+    | Runtime of { fn : Runtime.fn; args : t list }
     (* A scalar primitive's operator, on two operands of one type: [I64],
        [I32] and [F64] add, multiply, divide, compare; [I1] adds as `or`,
        multiplies as `and` and compares (operators.md §2.4). *)
@@ -238,6 +238,39 @@ module Expr = struct
       }
     (* Waiting for the call [task] names, whose result then comes home. *)
     | Join of int
+
+  (* A node's constructor, for a message about the node. *)
+  let kind = function
+    | Int _ -> "Int"
+    | Float _ -> "Float"
+    | Bool _ -> "Bool"
+    | Text _ -> "Text"
+    | Unit -> "Unit"
+    | Local _ -> "Local"
+    | Address _ -> "Address"
+    | Deref _ -> "Deref"
+    | Call _ -> "Call"
+    | Call_value _ -> "Call_value"
+    | Runtime _ -> "Runtime"
+    | Binary _ -> "Binary"
+    | Flip _ -> "Flip"
+    | Expand _ -> "Expand"
+    | Record _ -> "Record"
+    | Member _ -> "Member"
+    | Case _ -> "Case"
+    | Payload _ -> "Payload"
+    | Offset _ -> "Offset"
+    | Mint _ -> "Mint"
+    | Resolve _ -> "Resolve"
+    | Terminal _ -> "Terminal"
+    | Take _ -> "Take"
+    | Copy _ -> "Copy"
+    | Box _ -> "Box"
+    | Layout _ -> "Layout"
+    | Function _ -> "Function"
+    | Global _ -> "Global"
+    | Snapshot _ -> "Snapshot"
+    | Escape _ -> "Escape"
 
   let binop_to_string = function
     | Add -> "+"

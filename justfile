@@ -46,10 +46,11 @@ test-highlighting: test-grammar-generation
 # whether a file parses and what shape it parsed to, and neither question reads
 # a position or looks at the desugared or typed tree. A moved span is a diff
 # there and nothing anywhere else, and so is a rewrite that stopped happening.
-# Promote an intended move with `just promote`.
+# Promote an intended move with `just promote`. tests/unit/ tests the shared
+# helpers directly, so a broken one is named rather than found in a diff.
 test-compiler: _require-menhir
 	dune build bin/zanec/zanec.exe
-	dune runtest tests/parser tests/semantics tests/codegen tests/runtime tests/objects
+	dune runtest tests/parser tests/semantics tests/codegen tests/runtime tests/objects tests/unit
 	python3 -m unittest tests.parser.syntax_test -v
 
 # The test programs built for Windows and run under Wine, as CI runs them on
@@ -96,6 +97,10 @@ verify-grammar: _require-menhir
 # that silently skipped them. The leading underscore keeps it out of `just -l`.
 _require-menhir:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
+
+# Every hand-written source file under 2,000 lines, as CI checks it.
+check-file-sizes:
+	.github/scripts/file-sizes
 
 # Accept the span expectation as it currently stands, after reading the diff
 # `just test-compiler` printed and satisfying yourself that each moved span

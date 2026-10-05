@@ -85,3 +85,19 @@ again, read the golden diff and promote that.
   `mut` subject; and a spawned call bound to a `mut` function type.
 - `references` is step 10's `&` written before a place, minting and copying
   guests, and `@program$console` passed where a guest is wanted.
+
+## Rejects
+
+Each package under `fixtures/reject/` is a program semantics accepts and
+lowering refuses, and `golden/reject.NAME.err` is what lowering says. There is
+one for each construct lowering does not handle yet (docs/design/lowering.md
+§7), so implementing one changes its golden file, and so does a refusal that
+stops firing by mistake:
+
+- `valueFlow` uses a control-flow intrinsic as a value;
+- `literalOperator` calls an operator that takes a literal;
+- `unitFuture` stores into a spawned call's `Unit` result.
+
+`literalRange` is a refusal of the program itself: a literal too large for
+its primitive, which reaches the primitive through a verb's literal parameter
+and so is found only where the verb is written out.

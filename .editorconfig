@@ -1,0 +1,32 @@
+# How files in this repository are laid out, as each kind already is.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# OCaml, its grammar files, Lean, and the grammar's own sources: two spaces.
+[*.{ml,mli,mll,mly,lean,coda}]
+indent_style = space
+indent_size = 2
+
+# Python: four spaces.
+[*.py]
+indent_style = space
+indent_size = 4
+
+# The C runtime, shell scripts, the justfile and Zane sources: tabs.
+[{*.{c,h,sh,zn},justfile,dev/bin/*,dev/lib/*,.github/scripts/*}]
+indent_style = tab
+
+# Data and workflow files: two spaces. YAML cannot hold a tab.
+[*.{yml,yaml,json,toml}]
+indent_style = space
+indent_size = 2
+
+# Markdown indents with four spaces where rendering needs indentation.
+[*.md]
+indent_style = space
+indent_size = 4

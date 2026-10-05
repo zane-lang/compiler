@@ -1,0 +1,4 @@
+File "fixtures/typing/exiting/exiting/main.zn", line 12, characters 1-14:
+12 | Unit main() {
+  | ^^^^^^^^^^^^^
+Error: `main` cannot exit: the runtime calls it from no block for the exit to end

@@ -46,7 +46,6 @@ type ctx = {
   building : Ty.t option;
 }
 
-let next_local = ref 0
 
 let type_scope ctx = Type_decls.scope ~params:ctx.params ctx.file
 
@@ -54,9 +53,9 @@ let find_local ctx name = List.find_map (fun tbl -> Hashtbl.find_opt tbl name) c
 
 let push ctx = { ctx with scopes = Hashtbl.create 8 :: ctx.scopes }
 
-let fresh_local name ty span =
-  incr next_local;
-  { T.Local.id = !next_local; name; ty; span }
+let fresh_local env name ty span =
+  incr env.next_local;
+  { T.Local.id = !(env.next_local); name; ty; span }
 
 let bind ctx role (local : T.Local.t) =
   match ctx.scopes with
@@ -66,29 +65,29 @@ let bind ctx role (local : T.Local.t) =
 (* D14: a local may not shadow a name already in scope -- an enclosing local
    or parameter, a parameter of the generic signature, or a package-scope name
    the file can write. *)
-let declare ctx role (name : N.Name.t) ty =
+let declare env ctx role (name : N.Name.t) ty =
   let text = name.N.Name.text and span = name.N.Name.span in
   (match find_local ctx text with
   | Some b ->
-      error span
+      error env span
         (Printf.sprintf
            "%s is already declared at %s, and a local may not shadow a name in scope"
            (quote text) (where b.local.T.Local.span))
   | None -> (
       if List.mem_assoc text ctx.params then
-        error span
+        error env span
           (Printf.sprintf "%s is a parameter of this verb, and a local may not shadow it"
              (quote text))
       else
-        match lookup_values ctx.file text with
+        match lookup_values env ctx.file text with
         | d :: _ ->
-            error span
+            error env span
               (Printf.sprintf
                  "%s names the declaration at %s, and a local may not shadow a name in \
                   scope"
                  (quote text) (where d.span))
         | [] -> ()));
-  let local = fresh_local text ty span in
+  let local = fresh_local env text ty span in
   bind ctx role local;
   local
 
@@ -98,25 +97,20 @@ let invalid span = mk T.Expr.Invalid Ty.Error span
 (* A declared type's definition with its arguments applied. A distinct type
    reads through to the type it was defined as, since it is "structurally
    equal to its right-hand side" (types.md §5.1). *)
-let rec definition ?(depth = 0) (t : Ty.t) : (Ty.type_id * definition) option =
+let rec definition env ?(depth = 0) (t : Ty.t) : (Ty.type_id * definition) option =
   match Ty.strip_guest t with
   | Ty.Named (tid, args) -> (
-      match Type_decls.type_info_of_id tid with
+      match Type_decls.type_info_of_id env tid with
       | Some ({ definition = Some def; _ } as info) -> (
-          let s =
-            try List.combine (List.map (fun (p : Ty.param) -> p.id) info.params) args
-            with Invalid_argument _ -> []
-          in
+          let s = Ty.bindings info.params args in
           let apply = List.map (fun (n, t) -> (n, Ty.subst s t)) in
           match def with
           | Struct fs -> Some (tid, Struct (apply fs))
           | Variant cs -> Some (tid, Variant (apply cs))
           | Enum ms -> Some (tid, Enum ms)
-          | Distinct rhs -> if depth > 16 then None else definition ~depth:(depth + 1) (Ty.subst s rhs))
+          | Distinct rhs -> if depth > 16 then None else definition env ~depth:(depth + 1) (Ty.subst s rhs))
       | _ -> None)
   | _ -> None
-
-let signature_home = function S.Package p -> Some (S.Package p) | h -> Some h
 
 let accessible_sig ctx (s : S.t) =
   match s.home with

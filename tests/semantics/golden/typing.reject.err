@@ -146,6 +146,22 @@ File "fixtures/typing/reject/bad/exits.zn", line 63, characters 5-32:
 63 |     @controlflow$exitFromCall();
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `@controlflow$exitFromCall` cannot be written in a lambda's body: a call through a function value cannot say that it exits (control-flow.md §4.2)
+File "fixtures/typing/reject/bad/expansions.zn", line 7, characters 5-18:
+7 |     forever(body);
+  |     ^^^^^^^^^^^^^
+Error: `forever` expands into itself: it takes a block or a literal, so each call to it is written out in place of the call, and this call is reached again
+File "fixtures/typing/reject/bad/expansions.zn", line 12, characters 5-16:
+12 |     pong(times);
+  |     ^^^^^^^^^^^
+Error: `ping` expands into itself: it takes a block or a literal, so each call to it is written out in place of the call, and this call is reached again
+File "fixtures/typing/reject/bad/expansions.zn", line 17, characters 5-16:
+17 |     ping(times);
+  |     ^^^^^^^^^^^
+Error: `pong` expands into itself: it takes a block or a literal, so each call to it is written out in place of the call, and this call is reached again
+File "fixtures/typing/reject/bad/expansions.zn", line 39, characters 45-58:
+39 | Int around(stand Stand, n @concepts$Int) => stand[Int(n)]
+  |                                             ^^^^^^^^^^^^^
+Error: `around` expands into itself: it takes a block or a literal, so each call to it is written out in place of the call, and this call is reached again
 File "fixtures/typing/reject/bad/guests.zn", line 29, characters 5-6:
 29 |     k!fill();
   |     ^
@@ -270,6 +286,22 @@ File "fixtures/typing/reject/bad/literals.zn", line 47, characters 18-31:
 47 |     mixed Unit = twice(2, 3.5);
   |                  ^^^^^^^^^^^^^
 Error: no `twice` accepts (@concepts$Int, @concepts$Float); the candidates are `@primitives$Unit twice(@concepts$Int, @concepts$Int)`; `@primitives$Unit twice(@concepts$Float, @concepts$Float)`
+File "fixtures/typing/reject/bad/literals.zn", line 52, characters 21-41:
+52 | Int tooBig() => Int(99999999999999999999)
+  |                     ^^^^^^^^^^^^^^^^^^^^
+Error: `99999999999999999999` is out of range for `@primitives$Int`
+File "fixtures/typing/reject/bad/literals.zn", line 53, characters 46-56:
+53 | @primitives$I32 tooWide() => @primitives$I32(4294967296)
+  |                                              ^^^^^^^^^^
+Error: `4294967296` is out of range for `@primitives$I32`
+File "fixtures/typing/reject/bad/literals.zn", line 54, characters 25-428:
+54 | Float tooFar() => Float(10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0)
+  |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0` is out of range for `@primitives$Float`
+File "fixtures/typing/reject/bad/literals.zn", line 61, characters 16-36:
+61 | Bin{ count Int(99999999999999999999); } => init{ count; }
+  |                ^^^^^^^^^^^^^^^^^^^^
+Error: `99999999999999999999` is out of range for `@primitives$Int`
 File "fixtures/typing/reject/bad/matches.zn", line 6, characters 29-44:
 6 | Int answer(value Answer) => match (value) {
   |                             ^^^^^^^^^^^^^^^
@@ -338,28 +370,32 @@ File "fixtures/typing/reject/bad/names.zn", line 4, characters 6-11:
 4 | type Twice = struct { b Int; }
   |      ^^^^^
 Error: the type `Twice` is already declared at fixtures/typing/reject/bad/names.zn:3
-File "fixtures/typing/reject/bad/names.zn", line 7, characters 1-6:
-7 | limit Int(4)
+File "fixtures/typing/reject/bad/names.zn", line 9, characters 6-10:
+9 | type Pair = struct { only Int; }
+  |      ^^^^
+Error: the type `Pair` is already declared at fixtures/typing/reject/bad/names.zn:8
+File "fixtures/typing/reject/bad/names.zn", line 14, characters 1-6:
+14 | limit Int(4)
   | ^^^^^
-Error: the name `limit` is already declared at fixtures/typing/reject/bad/names.zn:6
-File "fixtures/typing/reject/bad/names.zn", line 10, characters 1-8:
-10 | limited Int(5)
+Error: the name `limit` is already declared at fixtures/typing/reject/bad/names.zn:13
+File "fixtures/typing/reject/bad/names.zn", line 17, characters 1-8:
+17 | limited Int(5)
   | ^^^^^^^
-Error: the name `limited` is already declared at fixtures/typing/reject/bad/names.zn:9
-File "fixtures/typing/reject/bad/names.zn", line 13, characters 13-20:
-13 |     x Int = unknown;
+Error: the name `limited` is already declared at fixtures/typing/reject/bad/names.zn:16
+File "fixtures/typing/reject/bad/names.zn", line 20, characters 13-20:
+20 |     x Int = unknown;
   |             ^^^^^^^
 Error: no name `unknown` is in scope
-File "fixtures/typing/reject/bad/names.zn", line 14, characters 7-14:
-14 |     y Nowhere = Int(1);
+File "fixtures/typing/reject/bad/names.zn", line 21, characters 7-14:
+21 |     y Nowhere = Int(1);
   |       ^^^^^^^
 Error: no type named `Nowhere` is in scope
-File "fixtures/typing/reject/bad/names.zn", line 15, characters 13-17:
-15 |     f Int = twin;
+File "fixtures/typing/reject/bad/names.zn", line 22, characters 13-17:
+22 |     f Int = twin;
   |             ^^^^
 Error: `twin` is a function, and a function has no value form: call it, or hold a function value in a lambda-variable (functions.md §7.1)
-File "fixtures/typing/reject/bad/names.zn", line 16, characters 13-17:
-16 |     z Int = nope$value;
+File "fixtures/typing/reject/bad/names.zn", line 23, characters 13-17:
+23 |     z Int = nope$value;
   |             ^^^^
 Error: no import in this file spells a package `nope`
 File "fixtures/typing/reject/bad/overloads.zn", line 6, characters 1-29:

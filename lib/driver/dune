@@ -1,0 +1,7 @@
+; The pipeline as a front end runs it (docs/design/stages.md): assemble the
+; packages, check them, lower and emit the program, each step a result whose
+; failure is diagnostics with the text they point into. `zanec` and the
+; inspection tools parse their arguments, call these, and print.
+(library
+ (name driver)
+ (libraries cgt codegen diagnostic source tst))

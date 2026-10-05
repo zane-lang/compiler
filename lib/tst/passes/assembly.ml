@@ -44,17 +44,15 @@ type package = {
   imports : (string * string) list;
 }
 
-(* What went wrong, and whether there is source to point at.
+(* What went wrong, with the text of the file it points into when there is
+   one: a package that failed to load is no package, so its files' text
+   travels with the problem for the caret to be drawn under. *)
+type problem = Diagnostic.t * Source.Files.t
 
-   Most problems are in a file, and those are ordinary diagnostics. A few are
-   about a directory -- missing, unlistable, empty, or named the same as
-   another -- and have no text to put a caret under, so they carry only the
-   directory. A file that could not be read has no text either, and carries
-   only its path. *)
-type problem =
-  | In_file of { diagnostic : Diagnostic.t; source : string }
-  | Unreadable of { path : string; message : string }
-  | In_directory of { dir : string; message : string }
+(* Every problem a build ran into, and the text they point into. *)
+type failure = { diagnostics : Diagnostic.t list; sources : Source.Files.t }
+
+let in_directory dir message = (Diagnostic.in_directory dir message, [])
 
 (* What the file system said, without the path it starts with: [Sys_error]
    messages read "PATH: reason", and a problem already names its path. *)
@@ -111,7 +109,7 @@ let read_file path = In_channel.with_open_bin path In_channel.input_all
    are both checked here. *)
 let check_package_line ~name ~given ~path ~source (cst : Cst.Nodes.Package.t) =
   let problem span message =
-    In_file { diagnostic = Diagnostic.error span message; source }
+    (Diagnostic.error span message, [ (path, source) ])
   in
   let package_lines =
     List.filter_map
@@ -175,10 +173,10 @@ let check_package_line ~name ~given ~path ~source (cst : Cst.Nodes.Package.t) =
 let load_file ~name ~given path =
   match read_file path with
   | exception Sys_error message ->
-      Error [ Unreadable { path; message = reason ~path message } ]
+      Error [ (Diagnostic.in_file path (reason ~path message), []) ]
   | source -> (
       match Cst.parse path source with
-      | Error diagnostic -> Error [ In_file { diagnostic; source } ]
+      | Error diagnostic -> Error [ (diagnostic, [ (path, source) ]) ]
       | Ok cst -> (
           match check_package_line ~name ~given ~path ~source cst with
           | [] -> Ok { path; source; sst = Sst.of_cst cst }
@@ -223,21 +221,16 @@ let load_package ~is_root request =
   let name = name_of request and id = id_of request and dir = request.directory in
   let given = Option.is_some request.manifest_name in
   if not (Sys.file_exists dir && Sys.is_directory dir) then
-    Error [ In_directory { dir; message = "no such directory" } ]
+    Error [ in_directory dir "no such directory" ]
   else
     match source_files dir with
     | exception Sys_error message ->
-        Error [ In_directory { dir; message = reason ~path:dir message } ]
+        Error [ in_directory dir (reason ~path:dir message) ]
     | [] ->
         Error
           [
-            In_directory
-              {
-                dir;
-                message =
-                  Printf.sprintf "no `%s` files directly in the directory"
-                    source_extension;
-              };
+            in_directory dir
+              (Printf.sprintf "no `%s` files directly in the directory" source_extension);
           ]
     | paths ->
         (* Every file is loaded, whichever fail: one mistake per file is one
@@ -259,7 +252,7 @@ let claimed_by earlier request =
    packages of the build, and a package imports by each key once. *)
 let attach_imports packages imports =
   let known id = List.exists (fun p -> String.equal p.id id) packages in
-  let problem message = In_directory { dir = "."; message } in
+  let problem message = in_directory "." message in
   let unknown (from, key, target) =
     List.filter_map
       (fun id ->
@@ -308,14 +301,9 @@ let assemble_requests ?(imports = []) requests =
           | Some first ->
               Error
                 [
-                  In_directory
-                    {
-                      dir = request.directory;
-                      message =
-                        Printf.sprintf
-                          "the package `%s` is already the directory `%s`"
-                          (id_of request) first.directory;
-                    };
+                  in_directory request.directory
+                    (Printf.sprintf "the package `%s` is already the directory `%s`" (id_of request)
+                       first.directory);
                 ]
           | None -> load_package ~is_root:(index = 0) request
         in
@@ -324,23 +312,24 @@ let assemble_requests ?(imports = []) requests =
         let earlier = if claimant = None then request :: earlier else earlier in
         loaded :: go earlier (index + 1) rest
   in
+  let failure problems =
+    Error { diagnostics = List.map fst problems; sources = List.concat_map snd problems }
+  in
   match all_or_problems (go [] 0 requests) with
-  | Error problems -> Error problems
-  | Ok packages -> attach_imports packages imports
+  | Error problems -> failure problems
+  | Ok packages -> (
+      match attach_imports packages imports with
+      | Ok packages -> Ok packages
+      | Error problems -> failure problems)
 
 (* Each directory named after itself. *)
 let assemble dirs =
   assemble_requests
     (List.map (fun directory -> { manifest_name = None; directory; stamp = None }) dirs)
 
-let render_problem = function
-  | In_file { diagnostic; source } -> Diagnostic.render ~source diagnostic
-  (* The same two lines a diagnostic starts with, minus the source excerpt
-     there is none of. *)
-  | In_directory { dir; message } ->
-      Printf.sprintf "Directory \"%s\":\nError: %s\n" dir message
-  | Unreadable { path; message } ->
-      Printf.sprintf "File \"%s\":\nError: %s\n" path message
+(* The text of every file of the build. *)
+let sources packages : Source.Files.t =
+  List.concat_map (fun p -> List.map (fun (f : file) -> (f.path, f.source)) p.files) packages
 
 let to_node packages =
   let open Tree_graph in

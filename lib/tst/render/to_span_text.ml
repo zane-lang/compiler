@@ -18,20 +18,23 @@
    its own span names, which also means a node that took its span from the
    wrong file shows the wrong text rather than going unnoticed.
 
-   The printer is a module-level reference for the same reason it is one in
-   [Sst.To_span_text]: [render] is the only entry point and sets it before
-   walking. *)
+   [render] makes the printer, and every function below is handed it with the
+   depth of the lines it writes, as in [Sst.To_span_text]. *)
 
 open Nodes
 
-let printer = ref (Source.Span_text.create "")
-let sources : (string -> string option) ref = ref (fun _ -> None)
+(* Where a line goes: the printer [render] made, the text of each file by
+   its path, and how deep the line is. Every function below takes one and
+   hands a [deeper] one to the parts of its node. *)
+type cursor = { printer : Source.Span_text.t; sources : string -> string option; depth : int }
+
+let deeper d = { d with depth = d.depth + 1 }
 
 let line d kind (span : Source.Span.t) =
   let source =
-    Option.value ~default:"" (!sources span.Source.Span.start_.Lexing.pos_fname)
+    Option.value ~default:"" (d.sources span.Source.Span.start_.Lexing.pos_fname)
   in
-  Source.Span_text.line (Source.Span_text.with_source !printer source) d kind span
+  Source.Span_text.line (Source.Span_text.with_source d.printer source) d.depth kind span
 
 let each d f xs = List.iter (f d) xs
 let opt d f = function None -> () | Some x -> f d x
@@ -39,7 +42,7 @@ let local label d (l : Local.t) = line d (label ^ " " ^ l.Local.name) l.Local.sp
 
 let rec expr d (e : Expr.t) =
   let at kind = line d ("expr " ^ kind) e.Expr.span in
-  let d = d + 1 in
+  let d = deeper d in
   match e.Expr.node with
   | Expr.Integer_lit _ -> at "Integer_lit"
   | Expr.Decimal_lit _ -> at "Decimal_lit"
@@ -138,29 +141,29 @@ and arg d = function Arg.Value e -> expr d e | Arg.Block b -> block d b
 
 and field_value d (f : Field_value.t) =
   line d ("field " ^ f.Field_value.name) f.Field_value.span;
-  expr (d + 1) f.Field_value.value
+  expr (deeper d) f.Field_value.value
 
 and handler d (h : Handler.t) =
   line d "handler" h.Handler.span;
-  opt (d + 1) (local "binder") h.Handler.binder;
-  block (d + 1) h.Handler.body
+  opt (deeper d) (local "binder") h.Handler.binder;
+  block (deeper d) h.Handler.body
 
 and arm d (a : Arm.t) =
   line d "arm" a.Arm.span;
   List.iter
     (fun (p : Pattern.t) ->
-      line (d + 1) ("pattern " ^ p.Pattern.case) p.Pattern.span;
-      opt (d + 2) (local "binder") p.Pattern.binder)
+      line (deeper d) ("pattern " ^ p.Pattern.case) p.Pattern.span;
+      opt (deeper (deeper d)) (local "binder") p.Pattern.binder)
     a.Arm.patterns;
-  block (d + 1) a.Arm.body
+  block (deeper d) a.Arm.body
 
 and block d (b : Block.t) =
   line d "block" b.Block.span;
-  each (d + 1) stat b.Block.stats
+  each (deeper d) stat b.Block.stats
 
 and stat d (s : Stat.t) =
   let at kind = line d ("stat " ^ kind) s.Stat.span in
-  let d = d + 1 in
+  let d = deeper d in
   match s.Stat.node with
   | Stat.Expr e ->
       at "Expr";
@@ -188,7 +191,7 @@ and stat d (s : Stat.t) =
 
 let decl d (x : Decl.t) =
   let at kind name = line d ("decl " ^ kind ^ " " ^ name) x.Decl.span in
-  let d = d + 1 in
+  let d = deeper d in
   match x.Decl.node with
   | Decl.Type { name; _ } -> at "Type" name
   | Decl.Alias { name; _ } -> at "Alias" name
@@ -218,24 +221,24 @@ let instance spans d (i : Instance.t) =
        (String.concat ", "
           (List.map (fun ((p : Ty.param), a) -> p.Ty.name ^ " = " ^ Ty.arg_to_string a) i.Instance.args)))
     (Option.value ~default:Source.Span.none (Hashtbl.find_opt spans i.Instance.decl));
-  each (d + 1) (local "param") i.Instance.params;
-  block (d + 1) i.Instance.body
+  each (deeper d) (local "param") i.Instance.params;
+  block (deeper d) i.Instance.body
 
 (* [source] finds a file's text by the path its spans carry, which is the
    path the build read it from. *)
 let render ~source (p : Program.t) =
-  printer := Source.Span_text.create "";
   (* Every line looks its file up, and [source] may scan the whole build to
      find one, so each file is found once. *)
   let found = Hashtbl.create 16 in
-  (sources :=
-     fun path ->
-       match Hashtbl.find_opt found path with
-       | Some text -> text
-       | None ->
-           let text = source path in
-           Hashtbl.add found path text;
-           text);
+  let sources path =
+    match Hashtbl.find_opt found path with
+    | Some text -> text
+    | None ->
+        let text = source path in
+        Hashtbl.add found path text;
+        text
+  in
+  let d = { printer = Source.Span_text.create ""; sources; depth = 0 } in
   let spans = Hashtbl.create 64 in
   List.iter
     (fun (pkg : Package.t) ->
@@ -243,9 +246,9 @@ let render ~source (p : Program.t) =
     p.Program.packages;
   List.iter
     (fun (pkg : Package.t) ->
-      Source.Span_text.heading !printer 0 ("package " ^ pkg.Package.name);
-      each 1 decl pkg.Package.decls)
+      Source.Span_text.heading d.printer d.depth ("package " ^ pkg.Package.name);
+      each (deeper d) decl pkg.Package.decls)
     p.Program.packages;
-  if p.Program.instances <> [] then Source.Span_text.heading !printer 0 "instances";
-  each 1 (instance spans) p.Program.instances;
-  Source.Span_text.contents !printer
+  if p.Program.instances <> [] then Source.Span_text.heading d.printer d.depth "instances";
+  each (deeper d) (instance spans) p.Program.instances;
+  Source.Span_text.contents d.printer

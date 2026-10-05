@@ -13,7 +13,8 @@
    ask for more.
 
    This file is the recursive walk. What it reads but is not part of it is
-   beside it: [Context], [Instances], [Overloads] and [Termination]. *)
+   beside it: [Context], [Instances], [Overloads] and [Termination]; [Program]
+   runs the walk over every body of the build. *)
 
 open Env
 module N = Sst.Nodes
@@ -29,61 +30,61 @@ open Termination
 (* Expressions                                                            *)
 (* ---------------------------------------------------------------------- *)
 
-let rec expr ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
+let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   let span = e.N.Expr.span in
   match e.N.Expr.node with
   | N.Expr.IntLit s -> mk (T.Expr.Integer_lit s) (Ty.Concept Ty.Integer_lit) span
   | N.Expr.DecimalLit s -> mk (T.Expr.Decimal_lit s) (Ty.Concept Ty.Decimal_lit) span
   | N.Expr.StrLit s -> mk (T.Expr.Text_lit s) (Ty.Concept Ty.Text_lit) span
   | N.Expr.BoolLit b -> mk (T.Expr.Bool_lit b) Ty.bool_primitive span
-  | N.Expr.CollectionLit items -> array_literal ctx span items
-  | N.Expr.MapLit entries -> map_literal ctx span entries
-  | N.Expr.NameExpr n -> name_value ctx n
-  | N.Expr.TypeMember { type_; member } -> type_member ctx span type_ member
+  | N.Expr.CollectionLit items -> array_literal env ctx span items
+  | N.Expr.MapLit entries -> map_literal env ctx span entries
+  | N.Expr.NameExpr n -> name_value env ctx n
+  | N.Expr.TypeMember { type_; member } -> type_member env ctx span type_ member
   | N.Expr.TypeValue name -> (
-      match Type_decls.resolve_head (type_scope ctx) name with
+      match Type_decls.resolve_head env (type_scope ctx) name with
       | Type_decls.Unknown -> invalid span
       | head ->
-          let t = Type_decls.apply (type_scope ctx) span head name [] in
+          let t = Type_decls.apply env (type_scope ctx) span head name [] in
           mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span)
-  | N.Expr.DotAccess { target; field; abort_handle } -> member ~flow ctx span target field abort_handle
-  | N.Expr.Subscript { target; args } -> subscript ctx span target args
+  | N.Expr.DotAccess { target; field; abort_handle } -> member env ~flow ctx span target field abort_handle
+  | N.Expr.Subscript { target; args } -> subscript env ctx span target args
   | N.Expr.Ref inner ->
-      let v = expr ctx inner in
+      let v = expr env ctx inner in
       (match v.T.Expr.ty with
       | Ty.Error | Ty.Param _ -> ()
       | Ty.Guest _ -> ()
       | t ->
-          if not (Type_decls.is_reference t) then
-            error span
+          if not (Type_decls.is_reference env t) then
+            error env span
               (Printf.sprintf
                  "`&` takes a guest of a reference type, and %s is a value type"
                  (quote (Ty.to_string t))));
       mk (T.Expr.Ref v) (Ty.Guest (Ty.strip_guest v.T.Expr.ty)) span
-  | N.Expr.Init fields -> init ctx span fields
-  | N.Expr.Spawn call -> spawn ctx call
-  | N.Expr.Match m -> match_ ~flow ctx m
-  | N.Expr.VerbCall call -> fst (verb_call ~flow ctx call)
+  | N.Expr.Init fields -> init env ctx span fields
+  | N.Expr.Spawn call -> spawn env ctx call
+  | N.Expr.Match m -> match_ env ~flow ctx m
+  | N.Expr.VerbCall call -> fst (verb_call env ~flow ctx call)
   | N.Expr.FuncLambda l ->
-      lambda ctx span ~this_type:None ~params:l.N.Func_lambda.params ~ret_type:l.N.Func_lambda.ret_type
+      lambda env ctx span ~this_type:None ~params:l.N.Func_lambda.params ~ret_type:l.N.Func_lambda.ret_type
         ~is_mut:false ~body:l.N.Func_lambda.body
   | N.Expr.MethLambda l ->
-      lambda ctx span ~this_type:(Some l.N.Meth_lambda.this_type) ~params:l.N.Meth_lambda.params
+      lambda env ctx span ~this_type:(Some l.N.Meth_lambda.this_type) ~params:l.N.Meth_lambda.params
         ~ret_type:l.N.Meth_lambda.ret_type ~is_mut:l.N.Meth_lambda.is_mut ~body:l.N.Meth_lambda.body
 
 (* syntax.md §2.9: every element already has the one element type; nothing
    searches for a common one. *)
-and array_literal ctx span items =
-  let items = List.map (expr ctx) items in
+and array_literal env ctx span items =
+  let items = List.map (expr env ctx) items in
   match items with
   | [] ->
-      error span "an array literal holds at least one element; name the type to build an empty one";
+      error env span "an array literal holds at least one element; name the type to build an empty one";
       invalid span
   | first :: rest ->
       List.iter
         (fun (item : T.Expr.t) ->
           if not (Ty.equal item.T.Expr.ty first.T.Expr.ty) then
-            error item.T.Expr.span
+            error env item.T.Expr.span
               (Printf.sprintf
                  "every element of an array literal has one type: this one is %s, and \
                   the first is %s"
@@ -94,39 +95,39 @@ and array_literal ctx span items =
         (Ty.Concept (Ty.Array_lit (first.T.Expr.ty, Ty.Known (List.length items))))
         span
 
-and map_literal ctx span entries =
-  let entries = List.map (fun (k, v) -> (expr ctx k, expr ctx v)) entries in
+and map_literal env ctx span entries =
+  let entries = List.map (fun (k, v) -> (expr env ctx k, expr env ctx v)) entries in
   match entries with
   | [] ->
-      error span "a map literal holds at least one entry";
+      error env span "a map literal holds at least one entry";
       invalid span
   | (k0, v0) :: rest ->
       List.iter
         (fun ((k : T.Expr.t), (v : T.Expr.t)) ->
           if not (Ty.equal k.T.Expr.ty k0.T.Expr.ty) then
-            error k.T.Expr.span
+            error env k.T.Expr.span
               (Printf.sprintf "every key of a map literal has one type: this one is %s, and the first is %s"
                  (quote (Ty.to_string k.T.Expr.ty)) (quote (Ty.to_string k0.T.Expr.ty)));
           if not (Ty.equal v.T.Expr.ty v0.T.Expr.ty) then
-            error v.T.Expr.span
+            error env v.T.Expr.span
               (Printf.sprintf "every value of a map literal has one type: this one is %s, and the first is %s"
                  (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string v0.T.Expr.ty))))
         rest;
       mk (T.Expr.Map_lit entries) (Ty.Concept (Ty.Map_lit (k0.T.Expr.ty, v0.T.Expr.ty))) span
 
-and constant_ref (d : decl) span =
-  let ty = Option.value ~default:Ty.Error (Hashtbl.find_opt constant_types d.id) in
+and constant_ref env (d : decl) span =
+  let ty = Option.value ~default:Ty.Error (Hashtbl.find_opt env.constant_types d.id) in
   mk (T.Expr.Var (T.Name_ref.Global { decl = d.id; name = decl_name d })) ty span
 
-and call_only span name =
-  error span
+and call_only env span name =
+  error env span
     (Printf.sprintf
        "%s is a function, and a function has no value form: call it, or hold a \
         function value in a lambda-variable (functions.md §7.1)"
        (quote name));
   invalid span
 
-and name_value ctx (n : N.Name_expr.t) =
+and name_value env ctx (n : N.Name_expr.t) =
   let span = n.N.Name_expr.span in
   match n.N.Name_expr.node with
   | N.Name_expr.Ident id -> (
@@ -139,25 +140,25 @@ and name_value ctx (n : N.Name_expr.t) =
               mk (T.Expr.Var (T.Name_ref.Number_param { name = text; value })) (Ty.Concept Ty.Integer_lit) span
           | Some (Ty.Type t) -> mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span
           | None -> (
-              match lookup_values ctx.file text with
-              | d :: _ when not (is_function d) -> constant_ref d span
-              | _ :: _ -> call_only span text
+              match lookup_values env ctx.file text with
+              | d :: _ when not (is_function d) -> constant_ref env d span
+              | _ :: _ -> call_only env span text
               | [] ->
-                  error span
+                  error env span
                     (Printf.sprintf "no name %s is in scope%s" (quote text)
-                       (missing_import_hint ctx.file text ~members:package_values));
+                       (missing_import_hint env ctx.file text ~members:(package_values env)));
                   invalid span)))
   | N.Name_expr.Qualified { package = q; ident } -> (
-      match qualified ctx.file q.N.Name.text ident.N.Name.text ~members:package_values with
+      match qualified env ctx.file q.N.Name.text ident.N.Name.text ~members:(package_values env) with
       | Error message ->
-          error q.N.Name.span message;
+          error env q.N.Name.span message;
           invalid span
       | Ok (pkg, found, reachable) -> (
           match reachable with
-          | d :: _ when not (is_function d) -> constant_ref d span
-          | _ :: _ -> call_only span (pkg ^ "$" ^ ident.N.Name.text)
+          | d :: _ when not (is_function d) -> constant_ref env d span
+          | _ :: _ -> call_only env span (pkg ^ "$" ^ ident.N.Name.text)
           | [] ->
-              error span
+              error env span
                 (if found <> [] then
                    Printf.sprintf "%s is private to the package %s" (quote ident.N.Name.text) (quote pkg)
                  else Printf.sprintf "the package %s has no member %s" (quote pkg) (quote ident.N.Name.text));
@@ -166,7 +167,7 @@ and name_value ctx (n : N.Name_expr.t) =
       let ns = ns.N.Name.text and text = ident.N.Name.text in
       let spelling = "@" ^ ns ^ "$" ^ text in
       if ns = "program" && not ctx.is_root then begin
-        error span
+        error env span
           (Printf.sprintf
              "only the root package reaches `@program$`; %s receives the console and \
               runtime from it as an argument"
@@ -178,29 +179,29 @@ and name_value ctx (n : N.Name_expr.t) =
         | Some ty -> mk (T.Expr.Var (T.Name_ref.Intrinsic spelling)) ty span
         | None ->
             if List.mem_assoc (ns, text) Intrinsics.functions then
-              error span
+              error env span
                 (Printf.sprintf "%s is an intrinsic operation, and has no value form" (quote spelling))
-            else error span (Printf.sprintf "no intrinsic named %s" (quote spelling));
+            else error env span (Printf.sprintf "no intrinsic named %s" (quote spelling));
             invalid span)
 
 (* `Colors.red`: a payloadless enum member. A variant case is written with its
    payload, and a named constructor is called. *)
-and type_member ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
+and type_member env ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
   let m = member.N.Name.text in
-  let t = Type_decls.apply (type_scope ctx) span (Type_decls.resolve_head (type_scope ctx) type_) type_ [] in
-  match (t, definition t) with
+  let t = Type_decls.apply env (type_scope ctx) span (Type_decls.resolve_head env (type_scope ctx) type_) type_ [] in
+  match (t, definition env t) with
   | Ty.Error, _ -> invalid span
   | _, Some (_, Enum members) when List.mem m members -> mk (T.Expr.Enum_member m) t span
   | _, Some (tid, Enum _) ->
-      error member.N.Name.span (Printf.sprintf "%s has no member %s" (quote tid.Ty.name) (quote m));
+      error env member.N.Name.span (Printf.sprintf "%s has no member %s" (quote tid.Ty.name) (quote m));
       invalid span
   | _, Some (tid, Variant cases) when List.mem_assoc m cases ->
-      error span
+      error env span
         (Printf.sprintf "%s is a case of %s, and a case is built with its payload: `%s.%s(...)`"
            (quote m) (quote tid.Ty.name) tid.Ty.name m);
       invalid span
   | _ ->
-      error span
+      error env span
         (Printf.sprintf "%s has no member %s that can be read without a call"
            (quote (Ty.to_string t)) (quote m));
       invalid span
@@ -208,22 +209,22 @@ and type_member ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
 (* D10: a member read is a field read, a case read or an enum-map read, and
    only the target's type says which. D13: a case read can fail, so it takes a
    handler, and the others cannot, so they take none. *)
-and member ~flow ctx span target (field : N.Name.t) handle =
-  let target = expr ctx target in
+and member env ~flow ctx span target (field : N.Name.t) handle =
+  let target = expr env ctx target in
   let f = field.N.Name.text in
   let no_handler () =
     match handle with
     | Some (h : N.Abort_handle.t) ->
-        error h.N.Abort_handle.span
+        error env h.N.Abort_handle.span
           (Printf.sprintf "reading %s cannot fail, so it takes no handler" (quote f))
     | None -> ()
   in
   match target.T.Expr.ty with
   | Ty.Error ->
-      ignore (handler_opt ctx ~abort:Ty.Error ~ok:Ty.Error handle);
+      ignore (handler_opt env ctx ~abort:Ty.Error ~ok:Ty.Error handle);
       invalid span
   | ty -> (
-      match definition ty with
+      match definition env ty with
       | Some (tid, Struct fields) -> (
           no_handler ();
           let rec slot i = function
@@ -231,12 +232,12 @@ and member ~flow ctx span target (field : N.Name.t) handle =
             | (n, t) :: rest -> if String.equal n f then Some (i, t) else slot (i + 1) rest
           in
           match slot 0 fields with
-          | None -> map_read ctx span target tid f ~missing:(fun () ->
-                error field.N.Name.span
+          | None -> map_read env ctx span target tid f ~missing:(fun () ->
+                error env field.N.Name.span
                   (Printf.sprintf "%s has no field %s" (quote tid.Ty.name) (quote f)))
           | Some (i, t) ->
               if is_private f && not (private_access ctx tid) then
-                error field.N.Name.span
+                error env field.N.Name.span
                   (Printf.sprintf
                      "%s is private: only a method whose subject is %s may read it \
                       (types.md §2.3)"
@@ -246,30 +247,30 @@ and member ~flow ctx span target (field : N.Name.t) handle =
           match List.assoc_opt f cases with
           | None ->
               no_handler ();
-              map_read ctx span target tid f ~missing:(fun () ->
-                  error field.N.Name.span
+              map_read env ctx span target tid f ~missing:(fun () ->
+                  error env field.N.Name.span
                     (Printf.sprintf "%s has no case %s" (quote tid.Ty.name) (quote f)))
           | Some payload -> (
               match handle with
               | None ->
-                  error span
+                  error env span
                     (Printf.sprintf
                        "reading the case %s of %s fails when another case is live, so \
                         it takes a `?` or `??` handler"
                        (quote f) (quote tid.Ty.name));
                   mk (T.Expr.Case_read { target; case = f; handler = { T.Handler.binder = None; body = { T.Block.stats = []; span }; span } }) payload span
               | Some h ->
-                  let h = type_handler ctx ~abort:Ty.unit_primitive ~ok:payload h in
+                  let h = type_handler env ctx ~abort:Ty.unit_primitive ~ok:payload h in
                   mk (T.Expr.Case_read { target; case = f; handler = h }) payload span))
       | Some (tid, Enum _) ->
           no_handler ();
-          map_read ctx span target tid f ~missing:(fun () ->
-              error field.N.Name.span
+          map_read env ctx span target tid f ~missing:(fun () ->
+              error env field.N.Name.span
                 (Printf.sprintf "no enum map %s is declared for %s" (quote f) (quote tid.Ty.name)))
       | _ ->
           ignore flow;
           no_handler ();
-          error field.N.Name.span
+          error env field.N.Name.span
             (Printf.sprintf "%s has no member %s" (quote (Ty.to_string ty)) (quote f));
           invalid span)
 
@@ -280,8 +281,8 @@ and private_access ctx tid =
 
 (* An enum map is found where a method is: in the enum's home package, then
    in the current one. *)
-and map_read ctx span target tid property ~missing =
-  let maps = Option.value ~default:[] (Hashtbl.find_opt enum_maps (tid, property)) in
+and map_read env ctx span target tid property ~missing =
+  let maps = Option.value ~default:[] (Hashtbl.find_opt env.enum_maps (tid, property)) in
   let in_package p = List.filter (fun m -> m.map_decl.package = p) maps in
   let visible = in_package tid.Ty.package @ in_package ctx.package in
   match visible with
@@ -290,12 +291,12 @@ and map_read ctx span target tid property ~missing =
       missing ();
       invalid span
 
-and subscript ctx span target args =
-  let target = expr ctx target in
-  let args = List.map (expr ctx) args in
+and subscript env ctx span target args =
+  let target = expr env ctx target in
+  let args = List.map (expr env ctx) args in
   let homes = List.filter_map Verb_signatures.home [ target.T.Expr.ty ] @ [ S.Package ctx.package ] in
   let cands =
-    List.filter (fun (s : S.t) -> List.mem s.home homes && accessible_sig ctx s) !subscripts
+    List.filter (fun (s : S.t) -> List.mem s.home homes && accessible_sig ctx s) !(env.subscripts)
   in
   if target.T.Expr.ty = Ty.Error || List.exists (fun (a : T.Expr.t) -> a.T.Expr.ty = Ty.Error) args then
     invalid span
@@ -305,55 +306,55 @@ and subscript ctx span target args =
       :: List.map (fun (a : T.Expr.t) -> { arg = T.Arg.Value a; aty = a.T.Expr.ty; aspan = a.T.Expr.span; subject = false }) args
     in
     if cands = [] then begin
-      error span (Printf.sprintf "%s declares no subscript" (quote (Ty.to_string target.T.Expr.ty)));
+      error env span (Printf.sprintf "%s declares no subscript" (quote (Ty.to_string target.T.Expr.ty)));
       invalid span
     end
     else
       match
-        report_resolution ~span ~what:"subscript" ~args:(describe_args actuals)
-          (resolve cands (positional actuals)) cands
+        report_resolution env ~span ~what:"subscript" ~args:(describe_args actuals)
+          (resolve env cands (positional actuals)) cands
       with
       | None -> invalid span
       | Some o ->
           let ty =
             match o.sig_.owner with
             | S.Intrinsic _ -> Ty.subst o.subst o.sig_.ret
-            | S.Declared id -> subscript_result (Hashtbl.find decls id) o.sig_ o.subst span
+            | S.Declared id -> subscript_result env (Hashtbl.find env.decls id) o.sig_ o.subst span
           in
           let args = List.filter_map (function Some (T.Arg.Value e) -> Some e | _ -> None) (List.tl o.converted) in
           mk (T.Expr.Subscript { target; impl = verb_ref o.sig_ o.subst; args }) ty span
 
-and init ctx span fields =
+and init env ctx span fields =
   match ctx.building with
   | None ->
-      error span "`init{ }` is valid only in a constructor body, which is what naming a verb after a type unlocks";
-      List.iter (fun (f : N.Field_arg.t) -> ignore (expr ctx f.N.Field_arg.value)) fields;
+      error env span "`init{ }` is valid only in a constructor body, which is what naming a verb after a type unlocks";
+      List.iter (fun (f : N.Field_arg.t) -> ignore (expr env ctx f.N.Field_arg.value)) fields;
       invalid span
   | Some built -> (
-      match definition built with
+      match definition env built with
       | Some (_, Struct declared) ->
           let seen = Hashtbl.create 8 in
           let values =
             List.filter_map
               (fun (f : N.Field_arg.t) ->
                 let name = f.N.Field_arg.name.N.Name.text in
-                let value = expr ctx f.N.Field_arg.value in
+                let value = expr env ctx f.N.Field_arg.value in
                 let rec slot i = function
                   | [] -> None
                   | (n, t) :: rest -> if String.equal n name then Some (i, t) else slot (i + 1) rest
                 in
                 match slot 0 declared with
                 | None ->
-                    error f.N.Field_arg.name.N.Name.span
+                    error env f.N.Field_arg.name.N.Name.span
                       (Printf.sprintf "%s has no field %s" (quote (Ty.to_string built)) (quote name));
                     None
                 | Some (i, t) ->
                     if Hashtbl.mem seen name then
-                      error f.N.Field_arg.name.N.Name.span
+                      error env f.N.Field_arg.name.N.Name.span
                         (Printf.sprintf "the field %s is already assigned" (quote name))
                     else Hashtbl.add seen name ();
                     if not (Ty.assignable ~dst:t ~src:value.T.Expr.ty) then
-                      error value.T.Expr.span
+                      error env value.T.Expr.span
                         (Printf.sprintf
                            "the field %s is %s, and this is %s; `init{ }` is not a coercion \
                             site, so a conversion is written out"
@@ -363,12 +364,12 @@ and init ctx span fields =
           in
           let missing = List.filter (fun (n, _) -> not (Hashtbl.mem seen n)) declared in
           if missing <> [] then
-            error span
+            error env span
               (Printf.sprintf "`init{ }` assigns every field, and this one leaves out %s"
                  (String.concat ", " (List.map (fun (n, _) -> quote n) missing)));
           mk (T.Expr.Init values) built span
       | _ ->
-          error span
+          error env span
             (Printf.sprintf "`init{ }` builds a struct, and %s is not one" (quote (Ty.to_string built)));
           invalid span)
 
@@ -376,29 +377,29 @@ and init ctx span fields =
 (* Handlers                                                               *)
 (* ---------------------------------------------------------------------- *)
 
-and type_handler ctx ~abort ~ok (h : N.Abort_handle.t) : T.Handler.t =
+and type_handler env ctx ~abort ~ok (h : N.Abort_handle.t) : T.Handler.t =
   let inner = push { ctx with resolve_target = To_handler ok } in
-  let binder = Option.map (fun b -> declare inner Binder b abort) h.N.Abort_handle.binder in
-  let body = block_in inner h.N.Abort_handle.body in
+  let binder = Option.map (fun b -> declare env inner Binder b abort) h.N.Abort_handle.binder in
+  let body = block_in env inner h.N.Abort_handle.body in
   if not (ends ~resolve:true body.T.Block.stats) then
-    error h.N.Abort_handle.span
+    error env h.N.Abort_handle.span
       "every path through a handler ends in `resolve`, `return` or `abort`; this one \
        can fall through (error-handling.md §3.2)";
   { T.Handler.binder; body; span = h.N.Abort_handle.span }
 
-and handler_opt ctx ~abort ~ok handle = Option.map (type_handler ctx ~abort ~ok) handle
+and handler_opt env ctx ~abort ~ok handle = Option.map (type_handler env ctx ~abort ~ok) handle
 
 (* What an abortable operation's call site owes: a handler when it can
    abort, none when it cannot (error-handling.md §6). In the value position
    of an arm's `return`, an unhandled abort flows out through the `match`
    instead (adt.md §5.4). *)
-and owe_handler ~flow ctx ~what ~span ~abort ~ok handle =
+and owe_handler env ~flow ctx ~what ~span ~abort ~ok handle =
   match (abort, handle) with
   | None, None -> None
   | None, Some (h : N.Abort_handle.t) ->
-      error h.N.Abort_handle.span (Printf.sprintf "%s cannot abort, so it takes no handler" what);
-      Some (type_handler ctx ~abort:Ty.Error ~ok h)
-  | Some a, Some h -> Some (type_handler ctx ~abort:a ~ok h)
+      error env h.N.Abort_handle.span (Printf.sprintf "%s cannot abort, so it takes no handler" what);
+      Some (type_handler env ctx ~abort:Ty.Error ~ok h)
+  | Some a, Some h -> Some (type_handler env ctx ~abort:a ~ok h)
   | Some a, None -> (
       match (flow, ctx.ret_target) with
       | true, To_arm r ->
@@ -406,137 +407,141 @@ and owe_handler ~flow ctx ~what ~span ~abort ~ok handle =
           None
       | _ ->
           if a <> Ty.Error then
-            error span
+            error env span
               (Printf.sprintf
                  "%s can abort with %s, so the call needs a `?` or `??` handler"
                  what (quote (Ty.to_string a)));
           None)
 
 (* ---------------------------------------------------------------------- *)
-(* Calls                                                                  *)
+(* Calls: arguments and dispatch                                          *)
 (* ---------------------------------------------------------------------- *)
 
-and actual_of ctx (a : N.Call_arg.t) =
+and actual_of env ctx (a : N.Call_arg.t) =
   match a.N.Call_arg.node with
   | N.Call_arg.Value e ->
-      let v = expr ctx e in
+      let v = expr env ctx e in
       { arg = T.Arg.Value v; aty = v.T.Expr.ty; aspan = v.T.Expr.span; subject = false }
   | N.Call_arg.Block b ->
-      let typed, ty = block_argument ctx b in
+      let typed, ty = block_argument env ctx b in
       { arg = T.Arg.Block typed; aty = ty; aspan = a.N.Call_arg.span; subject = false }
 
 (* A block argument captures the scope it is written in (control-flow.md
    §2.2) and yields nothing: a `return`, `resolve` or `abort` in it acts on
    what encloses the call (docs/spec-divergences.md §12). *)
-and block_argument ctx (b : N.Block.t) = (block_in (push ctx) b, Ty.Concept Ty.Block)
+and block_argument env ctx (b : N.Block.t) = (block_in env (push ctx) b, Ty.Concept Ty.Block)
 
-and verb_call ~flow ctx (vc : N.Verb_call.t) : T.Expr.t * S.t option =
+and verb_call env ~flow ctx (vc : N.Verb_call.t) : T.Expr.t * S.t option =
   let span = vc.N.Verb_call.span in
   match vc.N.Verb_call.node with
   | N.Verb_call.Call { callee; args; form; abort_handle } -> (
-      let actuals = List.map (actual_of ctx) args in
+      let actuals = List.map (actual_of env ctx) args in
       match form with
-      | N.Call_form.Function -> function_call ~flow ctx span callee actuals abort_handle
-      | N.Call_form.Method { is_mut } -> method_call ~flow ctx span callee actuals ~is_mut abort_handle)
+      | N.Call_form.Function -> function_call env ~flow ctx span callee actuals abort_handle
+      | N.Call_form.Method { is_mut } -> method_call env ~flow ctx span callee actuals ~is_mut abort_handle)
   | N.Verb_call.Constructor { name; args; abort_handle } ->
-      (constructor_call ctx span name args abort_handle, None)
+      (constructor_call env ctx span name args abort_handle, None)
   | N.Verb_call.Op { op; left; right; swapped; abort_handle } ->
-      operator ~flow ctx span op left right ~swapped abort_handle
-  | N.Verb_call.Flip { value; abort_handle } -> flip ~flow ctx span value abort_handle
+      operator env ~flow ctx span op left right ~swapped abort_handle
+  | N.Verb_call.Flip { value; abort_handle } -> flip env ~flow ctx span value abort_handle
 
 and any_error actuals = List.exists (fun a -> Ty.contains_error a.aty) actuals
 
-and finish_call ~flow ctx ~span ~what (o : outcome) handle build =
-  request o.sig_ o.subst span;
+and finish_call env ~flow ctx ~span ~what (o : outcome) handle build =
+  request env o.sig_ o.subst span;
   let ok = Ty.subst o.subst o.sig_.ret in
   let abort = Option.map (Ty.subst o.subst) o.sig_.abort in
-  let handler = handle_call ~flow ctx ~what ~span ~abort ~ok handle in
+  let handler = handle_call env ~flow ctx ~what ~span ~abort ~ok handle in
   let args = List.filter_map Fun.id o.converted in
   (mk (build (verb_ref o.sig_ o.subst) args handler) ok span, Some o.sig_)
 
-and handle_call ~flow ctx ~what ~span ~abort ~ok h = owe_handler ~flow ctx ~what ~span ~abort ~ok h
+and handle_call env ~flow ctx ~what ~span ~abort ~ok h = owe_handler env ~flow ctx ~what ~span ~abort ~ok h
 
-and skip_handler ctx handle = ignore (handler_opt ctx ~abort:Ty.Error ~ok:Ty.Error handle)
+and skip_handler env ctx handle = ignore (handler_opt env ctx ~abort:Ty.Error ~ok:Ty.Error handle)
 
-and function_call ~flow ctx span (callee : N.Expr.t) actuals handle =
+(* ---------------------------------------------------------------------- *)
+(* Calls: functions and function values                                   *)
+(* ---------------------------------------------------------------------- *)
+
+and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
   let call_decls ~name cands =
-    let cands = List.filter_map (fun (d : decl) -> Hashtbl.find_opt signatures d.id) cands in
+    let cands = List.filter_map (fun (d : decl) -> Hashtbl.find_opt env.signatures d.id) cands in
     if any_error actuals then begin
-      skip_handler ctx handle;
+      skip_handler env ctx handle;
       (invalid span, None)
     end
     else
       match
-        report_resolution ~literal:(literal_drives_inference cands actuals) ~span ~what:(quote name)
-          ~args:(describe_args actuals) (resolve cands (positional actuals)) cands
+        report_resolution env ~literal:(literal_drives_inference cands actuals) ~span ~what:(quote name)
+          ~args:(describe_args actuals) (resolve env cands (positional actuals)) cands
       with
       | None ->
-          skip_handler ctx handle;
+          skip_handler env ctx handle;
           (invalid span, None)
       | Some o ->
-          finish_call ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
+          finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
               T.Expr.Call { callee; args; handler })
   in
-  let value_call (fn : T.Expr.t) = call_value ~flow ctx span fn actuals handle in
+  let value_call (fn : T.Expr.t) = call_value env ~flow ctx span fn actuals handle in
   match callee.N.Expr.node with
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Ident id; span = at } -> (
       let text = id.N.Name.text in
       match find_local ctx text with
       | Some b -> value_call (mk (T.Expr.Var (T.Name_ref.Local b.local)) b.local.T.Local.ty at)
       | None -> (
-          match lookup_values ctx.file text with
-          | d :: _ when not (is_function d) -> value_call (constant_ref d at)
+          match lookup_values env ctx.file text with
+          | d :: _ when not (is_function d) -> value_call (constant_ref env d at)
           | [] ->
-              let hint = missing_import_hint ctx.file text ~members:package_values in
-              error at (Printf.sprintf "no function named %s is in scope%s" (quote text) hint);
-              skip_handler ctx handle;
+              let hint = missing_import_hint env ctx.file text ~members:(package_values env) in
+              error env at (Printf.sprintf "no function named %s is in scope%s" (quote text) hint);
+              skip_handler env ctx handle;
               (invalid span, None)
           | fns -> call_decls ~name:text fns))
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Qualified { package = q; ident }; span = at } -> (
-      match qualified ctx.file q.N.Name.text ident.N.Name.text ~members:package_values with
+      match qualified env ctx.file q.N.Name.text ident.N.Name.text ~members:(package_values env) with
       | Error message ->
-          error q.N.Name.span message;
-          skip_handler ctx handle;
+          error env q.N.Name.span message;
+          skip_handler env ctx handle;
           (invalid span, None)
       | Ok (pkg, found, reachable) -> (
           let name = pkg ^ "$" ^ ident.N.Name.text in
           match reachable with
-          | d :: _ when not (is_function d) -> value_call (constant_ref d at)
+          | d :: _ when not (is_function d) -> value_call (constant_ref env d at)
           | [] ->
-              error at
+              error env at
                 (if found <> [] then Printf.sprintf "%s is private to the package %s" (quote ident.N.Name.text) (quote pkg)
                  else Printf.sprintf "the package %s has no function %s" (quote pkg) (quote ident.N.Name.text));
-              skip_handler ctx handle;
+              skip_handler env ctx handle;
               (invalid span, None)
           | fns -> call_decls ~name fns))
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Intrinsic { package = ns; ident }; span = at } -> (
       let ns = ns.N.Name.text and text = ident.N.Name.text in
       match List.assoc_opt (ns, text) Intrinsics.functions with
       | None ->
-          error at (Printf.sprintf "no intrinsic operation named %s" (quote ("@" ^ ns ^ "$" ^ text)));
-          skip_handler ctx handle;
+          error env at (Printf.sprintf "no intrinsic operation named %s" (quote ("@" ^ ns ^ "$" ^ text)));
+          skip_handler env ctx handle;
           (invalid span, None)
       | Some s -> (
-          if any_error actuals then (skip_handler ctx handle; (invalid span, None))
+          if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
           else
             match
-              report_resolution ~span ~what:(quote s.S.name) ~args:(describe_args actuals)
-                (resolve [ s ] (positional actuals)) [ s ]
+              report_resolution env ~span ~what:(quote s.S.name) ~args:(describe_args actuals)
+                (resolve env [ s ] (positional actuals)) [ s ]
             with
             | None ->
-                skip_handler ctx handle;
+                skip_handler env ctx handle;
                 (invalid span, None)
             | Some o ->
-                finish_call ~flow ctx ~span ~what:(quote s.S.name) o handle (fun callee args handler ->
+                finish_call env ~flow ctx ~span ~what:(quote s.S.name) o handle (fun callee args handler ->
                     T.Expr.Call { callee; args; handler })))
-  | _ -> value_call (expr ctx callee)
+  | _ -> value_call (expr env ctx callee)
 
 (* Calling a function value. It is one value with one type, so there is one
    candidate; its arguments are still coercion sites. *)
-and call_value ~flow ctx span (fn : T.Expr.t) actuals handle =
+and call_value env ~flow ctx span (fn : T.Expr.t) actuals handle =
   match Ty.strip_guest fn.T.Expr.ty with
   | Ty.Error ->
-      skip_handler ctx handle;
+      skip_handler env ctx handle;
       (invalid span, None)
   | Ty.Verb v -> (
       let params =
@@ -564,59 +569,63 @@ and call_value ~flow ctx span (fn : T.Expr.t) actuals handle =
           is_mut = v.Ty.is_mut;
         }
       in
-      if any_error actuals then (skip_handler ctx handle; (invalid span, None))
+      if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
       else
         match
-          report_resolution ~span ~what ~args:(describe_args actuals)
-            (resolve [ s ] (positional actuals)) [ s ]
+          report_resolution env ~span ~what ~args:(describe_args actuals)
+            (resolve env [ s ] (positional actuals)) [ s ]
         with
         | None ->
-            skip_handler ctx handle;
+            skip_handler env ctx handle;
             (invalid span, None)
         | Some o ->
-            let handler = owe_handler ~flow ctx ~what ~span ~abort:v.Ty.abort ~ok:v.Ty.ret handle in
+            let handler = owe_handler env ~flow ctx ~what ~span ~abort:v.Ty.abort ~ok:v.Ty.ret handle in
             let args = List.filter_map Fun.id o.converted in
             (mk (T.Expr.Call_value { callee = fn; args; handler }) v.Ty.ret span, None))
   | other ->
-      error fn.T.Expr.span (Printf.sprintf "%s is not a function value, so it cannot be called" (quote (Ty.to_string other)));
-      skip_handler ctx handle;
+      error env fn.T.Expr.span (Printf.sprintf "%s is not a function value, so it cannot be called" (quote (Ty.to_string other)));
+      skip_handler env ctx handle;
       (invalid span, None)
+
+(* ---------------------------------------------------------------------- *)
+(* Calls: methods                                                         *)
+(* ---------------------------------------------------------------------- *)
 
 (* A `!` call runs a `mut` method, which writes its subject: the call is a
    write, exactly as an assignment is (effects.md §4.1). A temporary is no
    binding, so writing one is always legal. *)
-and write_subject ctx (subject : actual) =
+and write_subject env ctx (subject : actual) =
   match subject.arg with
-  | T.Arg.Value e -> check_writable ctx e ~bang:true
+  | T.Arg.Value e -> check_writable env ctx e ~bang:true
   | T.Arg.Block _ -> ()
 
 (* functions.md §6.1: the subject type's home package first, then the
    current one; a qualified call names its package instead. *)
-and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
+and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
   let actuals = match actuals with a :: rest -> { a with subject = true } :: rest | [] -> [] in
   let subject = List.hd actuals in
   let named_in home name =
-    Hashtbl.find_all methods name
+    Hashtbl.find_all env.methods name
     |> List.filter (fun (s : S.t) -> s.home = home && accessible_sig ctx s)
     |> List.rev
   in
   let check_marker (s : S.t) =
     if s.is_mut && not is_mut then
-      error span
+      error env span
         (Printf.sprintf "%s is a `mut` method, so it is called with `!`" (quote s.name))
     else if (not s.is_mut) && is_mut then
-      error span
+      error env span
         (Printf.sprintf "%s is not a `mut` method, so it is called with `:`" (quote s.name))
   in
   let resolve_in stages name =
-    if any_error actuals then (skip_handler ctx handle; (invalid span, None))
+    if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
     else
       let all = List.concat stages in
       let rec try_stages = function
         | [] -> No_match
         | [] :: rest -> try_stages rest
         | cands :: rest -> (
-            match resolve cands (positional actuals) with
+            match resolve env cands (positional actuals) with
             | No_match -> try_stages rest
             | r -> r)
       in
@@ -626,24 +635,24 @@ and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
           | Some h -> Printf.sprintf " in %s, the home of %s," (quote (S.home_to_string h)) (quote (Ty.to_string subject.aty))
           | None -> ""
         in
-        error span
+        error env span
           (Printf.sprintf "no method named %s is declared%s or in this package" (quote name) home);
-        skip_handler ctx handle;
+        skip_handler env ctx handle;
         (invalid span, None)
       end
       else
         match
-          report_resolution ~literal:(literal_drives_inference all actuals) ~span
+          report_resolution env ~literal:(literal_drives_inference all actuals) ~span
             ~what:(Printf.sprintf "method %s" (quote name))
             ~args:(describe_args actuals) (try_stages stages) all
         with
         | None ->
-            skip_handler ctx handle;
+            skip_handler env ctx handle;
             (invalid span, None)
         | Some o ->
             check_marker o.sig_;
-            if o.sig_.is_mut && is_mut then write_subject ctx subject;
-            finish_call ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
+            if o.sig_.is_mut && is_mut then write_subject env ctx subject;
+            finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
                 T.Expr.Call { callee; args; handler })
   in
   match callee.N.Expr.node with
@@ -658,11 +667,11 @@ and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
       match value with
       | Some ({ T.Expr.ty = Ty.Verb { Ty.this_ = Some _; is_mut = m; _ }; _ } as fn) ->
           if m <> is_mut then
-            error span
+            error env span
               (if m then "this function value is `mut`, so it is called with `!`"
                else "this function value is not `mut`, so it is called with `:`")
-          else if m then write_subject ctx subject;
-          call_value ~flow ctx span fn actuals handle
+          else if m then write_subject env ctx subject;
+          call_value env ~flow ctx span fn actuals handle
       | _ ->
           let home_stage =
             match Verb_signatures.home subject.aty with Some h -> named_in h text | None -> []
@@ -673,34 +682,38 @@ and method_call ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
           in
           resolve_in [ home_stage; current ] text)
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Qualified { package = q; ident }; _ } -> (
-      match qualified_package ctx.file q.N.Name.text with
+      match qualified_package env ctx.file q.N.Name.text with
       | Error message ->
-          error q.N.Name.span message;
-          skip_handler ctx handle;
+          error env q.N.Name.span message;
+          skip_handler env ctx handle;
           (invalid span, None)
       | Ok pkg -> resolve_in [ named_in (S.Package pkg) ident.N.Name.text ] ident.N.Name.text)
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Intrinsic { package = ns; ident }; _ } ->
       resolve_in [ named_in (S.Namespace ns.N.Name.text) ident.N.Name.text ] ident.N.Name.text
   | _ ->
-      error callee.N.Expr.span "a method is called by its name";
-      skip_handler ctx handle;
+      error env callee.N.Expr.span "a method is called by its name";
+      skip_handler env ctx handle;
       (invalid span, None)
 
-and constructor_call ctx span (name : N.Constructor_name.t) (args : N.Constructor_args.t) handle =
+(* ---------------------------------------------------------------------- *)
+(* Calls: constructors and case forms                                     *)
+(* ---------------------------------------------------------------------- *)
+
+and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constructor_args.t) handle =
   let sc = type_scope ctx in
   let member = Option.map (fun (m : N.Name.t) -> m.N.Name.text) name.N.Constructor_name.member in
-  let head = Type_decls.resolve_head sc name.N.Constructor_name.type_ in
+  let head = Type_decls.resolve_head env sc name.N.Constructor_name.type_ in
   let no_handler () =
     match handle with
     | Some (h : N.Abort_handle.t) ->
-        error h.N.Abort_handle.span "a constructor cannot abort, so it takes no handler";
-        skip_handler ctx handle
+        error env h.N.Abort_handle.span "a constructor cannot abort, so it takes no handler";
+        skip_handler env ctx handle
     | None -> ()
   in
   let type_args () =
     match args.N.Constructor_args.node with
-    | N.Constructor_args.Positional ps -> List.iter (fun a -> ignore (actual_of ctx a)) ps
-    | N.Constructor_args.Fields fs -> List.iter (fun (f : N.Field_arg.t) -> ignore (expr ctx f.N.Field_arg.value)) fs
+    | N.Constructor_args.Positional ps -> List.iter (fun a -> ignore (actual_of env ctx a)) ps
+    | N.Constructor_args.Fields fs -> List.iter (fun (f : N.Field_arg.t) -> ignore (expr env ctx f.N.Field_arg.value)) fs
   in
   (* What the name builds, before any arguments: a generic type is named
      bare, and its arguments are inferred (generics.md §5.1). *)
@@ -708,46 +721,46 @@ and constructor_call ctx span (name : N.Constructor_name.t) (args : N.Constructo
     match head with
     | Type_decls.Unknown -> `None
     | Type_decls.Declared d -> (
-        match Hashtbl.find_opt type_infos d.id with
+        match Hashtbl.find_opt env.type_infos d.id with
         | Some info -> `Type (Ty.Named (info.tid, List.map Type_decls.param_arg info.params), info.params)
         | None -> (
-            match Hashtbl.find_opt alias_infos d.id with
-            | Some a when a.alias_params = [] -> `Type (Type_decls.alias_target a, [])
+            match Hashtbl.find_opt env.alias_infos d.id with
+            | Some a when a.alias_params = [] -> `Type (Type_decls.alias_target env a, [])
             | Some _ ->
-                error span "a generic alias cannot name a constructor; name the type it stands for";
+                error env span "a generic alias cannot name a constructor; name the type it stands for";
                 `None
             | None -> `None))
     | Type_decls.Intrinsic_type info ->
-        let params = List.map (fun k -> Ty.fresh_param ~name:"_" ~kind:k) info.params in
+        let params = List.map (fun k -> Env.fresh_param env ~name:"_" ~kind:k) info.params in
         `Type (Ty.Intrinsic { namespace = info.namespace; name = info.name; args = List.map Type_decls.param_arg params }, params)
     | Type_decls.Bound (Ty.Type t) -> `Type (t, [])
     | Type_decls.Bound (Ty.Number _) ->
-        error span "a number parameter has no constructor";
+        error env span "a number parameter has no constructor";
         `None
     | Type_decls.Concept_type c ->
-        error span (Printf.sprintf "%s is a concept type, which has no constructor" (quote ("@concepts$" ^ c)));
+        error env span (Printf.sprintf "%s is a concept type, which has no constructor" (quote ("@concepts$" ^ c)));
         `None
   in
   match target with
   | `None ->
       type_args ();
-      skip_handler ctx handle;
+      skip_handler env ctx handle;
       invalid span
   | `Type (built, open_) -> (
-      match (definition built, member) with
+      match (definition env built, member) with
       | Some (tid, Variant cases), Some m when List.mem_assoc m cases ->
           no_handler ();
-          case_form ctx span tid (List.assoc m cases) built open_ m args
+          case_form env ctx span tid (List.assoc m cases) built open_ m args
       | Some (tid, Variant _), None ->
           type_args ();
           no_handler ();
-          error span
+          error env span
             (Printf.sprintf "a variant is built by naming a case, as `%s.case(payload)`" tid.Ty.name);
           invalid span
       | Some (tid, Enum members), Some m when List.mem m members ->
           type_args ();
           no_handler ();
-          error span
+          error env span
             (Printf.sprintf "%s is a member of the enum %s and carries no payload; it is written `%s.%s`"
                (quote m) (quote tid.Ty.name) tid.Ty.name m);
           invalid span
@@ -764,7 +777,7 @@ and constructor_call ctx span (name : N.Constructor_name.t) (args : N.Constructo
             match Verb_signatures.type_key built with
             | None -> []
             | Some key ->
-                Hashtbl.find_all constructors key
+                Hashtbl.find_all env.constructors key
                 |> List.rev
                 |> List.filter (fun (s : S.t) ->
                        (match s.kind with S.Constructor c -> c.member = member | _ -> false)
@@ -773,7 +786,7 @@ and constructor_call ctx span (name : N.Constructor_name.t) (args : N.Constructo
           no_handler ();
           if cands = [] then begin
             type_args ();
-            error span
+            error env span
               (Printf.sprintf "%s has no constructor%s" (quote (Ty.to_string built))
                  (match member with Some m -> " named " ^ quote m | None -> ""));
             invalid span
@@ -781,39 +794,39 @@ and constructor_call ctx span (name : N.Constructor_name.t) (args : N.Constructo
           else
             match args.N.Constructor_args.node with
             | N.Constructor_args.Positional ps -> (
-                let actuals = List.map (actual_of ctx) ps in
+                let actuals = List.map (actual_of env ctx) ps in
                 if any_error actuals then invalid span
                 else
                   match
-                    report_resolution ~literal:(literal_drives_inference cands actuals) ~span ~what
+                    report_resolution env ~literal:(literal_drives_inference cands actuals) ~span ~what
                       ~args:(describe_args actuals)
-                      (resolve (List.filter (fun (s : S.t) -> match s.kind with S.Constructor { fields; _ } -> not fields | _ -> false) cands)
+                      (resolve env (List.filter (fun (s : S.t) -> match s.kind with S.Constructor { fields; _ } -> not fields | _ -> false) cands)
                          (positional actuals))
                       cands
                   with
                   | None -> invalid span
                   | Some o ->
-                      request o.sig_ o.subst span;
+                      request env o.sig_ o.subst span;
                       let ret = Ty.subst o.subst o.sig_.ret in
                       mk
                         (T.Expr.Construct
                            { ctor = verb_ref o.sig_ o.subst; args = List.filter_map Fun.id o.converted; handler = None })
                         ret span)
-            | N.Constructor_args.Fields fs -> field_constructor_call ctx span what cands fs))
+            | N.Constructor_args.Fields fs -> field_constructor_call env ctx span what cands fs))
 
 (* `Type{ a = x; b = y; }` against the field constructors: each entry fills
    the slot of the same name and is a coercion site; an entry left out must
    have a default (types.md §3.3). *)
-and field_constructor_call ctx span what cands (fs : N.Field_arg.t list) =
+and field_constructor_call env ctx span what cands (fs : N.Field_arg.t list) =
   let seen = Hashtbl.create 8 in
   let entries =
     List.map
       (fun (f : N.Field_arg.t) ->
         let name = f.N.Field_arg.name.N.Name.text in
         if Hashtbl.mem seen name then
-          error f.N.Field_arg.name.N.Name.span (Printf.sprintf "the field %s is given twice" (quote name))
+          error env f.N.Field_arg.name.N.Name.span (Printf.sprintf "the field %s is given twice" (quote name))
         else Hashtbl.add seen name ();
-        let v = expr ctx f.N.Field_arg.value in
+        let v = expr env ctx f.N.Field_arg.value in
         (name, f, { arg = T.Arg.Value v; aty = v.T.Expr.ty; aspan = v.T.Expr.span; subject = false }))
       fs
   in
@@ -832,17 +845,17 @@ and field_constructor_call ctx span what cands (fs : N.Field_arg.t list) =
   in
   if List.exists (fun (_, _, a) -> Ty.contains_error a.aty) entries then invalid span
   else if field_cands = [] then begin
-    error span (Printf.sprintf "%s has no field constructor" what);
+    error env span (Printf.sprintf "%s has no field constructor" what);
     invalid span
   end
   else
     let args =
       "{" ^ String.concat "; " (List.map (fun (n, _, a) -> n ^ " = " ^ Ty.to_string a.aty) entries) ^ "}"
     in
-    match report_resolution ~span ~what ~args (resolve field_cands slots_for) field_cands with
+    match report_resolution env ~span ~what ~args (resolve env field_cands slots_for) field_cands with
     | None -> invalid span
     | Some o ->
-        request o.sig_ o.subst span;
+        request env o.sig_ o.subst span;
         let converted = List.combine o.sig_.params o.converted in
         let fields =
           List.filter_map
@@ -862,10 +875,10 @@ and field_constructor_call ctx span what cands (fs : N.Field_arg.t list) =
 
 (* adt.md §3.2: naming a case and supplying its one payload, which is a
    coercion site. Not a constructor verb, so there is nothing to name. *)
-and case_form ctx span tid payload built open_ case (args : N.Constructor_args.t) =
+and case_form env ctx span tid payload built open_ case (args : N.Constructor_args.t) =
   match args.N.Constructor_args.node with
   | N.Constructor_args.Positional [ a ] -> (
-      let actual = actual_of ctx a in
+      let actual = actual_of env ctx a in
       if Ty.contains_error actual.aty then invalid span
       else
         let s =
@@ -882,8 +895,8 @@ and case_form ctx span tid payload built open_ case (args : N.Constructor_args.t
           }
         in
         match
-          report_resolution ~span ~what:(quote s.S.name) ~args:(describe_args [ actual ])
-            (resolve [ s ] (positional [ actual ])) [ s ]
+          report_resolution env ~span ~what:(quote s.S.name) ~args:(describe_args [ actual ])
+            (resolve env [ s ] (positional [ actual ])) [ s ]
         with
         | None -> invalid span
         | Some o -> (
@@ -891,116 +904,120 @@ and case_form ctx span tid payload built open_ case (args : N.Constructor_args.t
             | [ Some (T.Arg.Value v) ] -> mk (T.Expr.Case { case; payload = v }) (Ty.subst o.subst built) span
             | _ -> invalid span))
   | N.Constructor_args.Positional ps ->
-      List.iter (fun a -> ignore (actual_of ctx a)) ps;
-      error span
+      List.iter (fun a -> ignore (actual_of env ctx a)) ps;
+      error env span
         (Printf.sprintf "a case carries exactly one payload, so `%s.%s(...)` takes one argument"
            tid.Ty.name case);
       invalid span
   | N.Constructor_args.Fields fs ->
-      List.iter (fun (f : N.Field_arg.t) -> ignore (expr ctx f.N.Field_arg.value)) fs;
-      error span
+      List.iter (fun (f : N.Field_arg.t) -> ignore (expr env ctx f.N.Field_arg.value)) fs;
+      error env span
         (Printf.sprintf "a case is built from one positional payload, `%s.%s(value)`" tid.Ty.name case);
       invalid span
 
 (* operators.md §2.2: the candidates are the operand types' home packages'
    operators, and nothing an import brings. Operands evaluate in written
    order and are passed in the order the desugaring gives (§2.3). *)
-and operator ~flow ctx span (op : N.Operator.t) left right ~swapped handle =
-  let left = expr ctx left and right = expr ctx right in
+(* ---------------------------------------------------------------------- *)
+(* Calls: operators, flips and spawns                                     *)
+(* ---------------------------------------------------------------------- *)
+
+and operator env ~flow ctx span (op : N.Operator.t) left right ~swapped handle =
+  let left = expr env ctx left and right = expr env ctx right in
   let token = Intrinsics.operator_token op.N.Operator.node in
   let passed = if swapped then [ right; left ] else [ left; right ] in
   let actuals =
     List.map (fun (e : T.Expr.t) -> { arg = T.Arg.Value e; aty = e.T.Expr.ty; aspan = e.T.Expr.span; subject = false }) passed
   in
-  if any_error actuals then (skip_handler ctx handle; (invalid span, None))
+  if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
   else
     let homes = List.filter_map (fun (e : T.Expr.t) -> Verb_signatures.home e.T.Expr.ty) passed in
     let cands =
-      Hashtbl.find_all operators op.N.Operator.node |> List.rev
+      Hashtbl.find_all env.operators op.N.Operator.node |> List.rev
       |> List.filter (fun (s : S.t) -> List.mem s.home homes)
     in
     if cands = [] then begin
-      error span
+      error env span
         (Printf.sprintf "no operator %s is declared for %s in the home package of either operand"
            (quote token) (describe_args actuals));
-      skip_handler ctx handle;
+      skip_handler env ctx handle;
       (invalid span, None)
     end
     else
       match
-        report_resolution ~span ~what:(Printf.sprintf "operator %s" (quote token))
-          ~args:(describe_args actuals) (resolve cands (positional actuals)) cands
+        report_resolution env ~span ~what:(Printf.sprintf "operator %s" (quote token))
+          ~args:(describe_args actuals) (resolve env cands (positional actuals)) cands
       with
       | None ->
-          skip_handler ctx handle;
+          skip_handler env ctx handle;
           (invalid span, None)
       | Some o ->
-          finish_call ~flow ctx ~span ~what:(quote token) o handle (fun impl args handler ->
+          finish_call env ~flow ctx ~span ~what:(quote token) o handle (fun impl args handler ->
               match List.filter_map arg_expr args with
               | [ a; b ] ->
                   let left, right = if swapped then (b, a) else (a, b) in
                   T.Expr.Op { op = op.N.Operator.node; impl; left; right; swapped; handler }
               | _ -> T.Expr.Invalid)
 
-and flip ~flow ctx span value handle =
-  let value = expr ctx value in
+and flip env ~flow ctx span value handle =
+  let value = expr env ctx value in
   let actual = { arg = T.Arg.Value value; aty = value.T.Expr.ty; aspan = value.T.Expr.span; subject = false } in
-  if Ty.contains_error value.T.Expr.ty then (skip_handler ctx handle; (invalid span, None))
+  if Ty.contains_error value.T.Expr.ty then (skip_handler env ctx handle; (invalid span, None))
   else
     let homes = Option.to_list (Verb_signatures.home value.T.Expr.ty) in
-    let cands = List.filter (fun (s : S.t) -> List.mem s.home homes) !flips in
+    let cands = List.filter (fun (s : S.t) -> List.mem s.home homes) !(env.flips) in
     if cands = [] then begin
-      error span
+      error env span
         (Printf.sprintf "no operator `~` is declared for %s in its home package"
            (quote (Ty.to_string value.T.Expr.ty)));
-      skip_handler ctx handle;
+      skip_handler env ctx handle;
       (invalid span, None)
     end
     else
       match
-        report_resolution ~span ~what:"operator `~`" ~args:(describe_args [ actual ])
-          (resolve cands (positional [ actual ])) cands
+        report_resolution env ~span ~what:"operator `~`" ~args:(describe_args [ actual ])
+          (resolve env cands (positional [ actual ])) cands
       with
       | None ->
-          skip_handler ctx handle;
+          skip_handler env ctx handle;
           (invalid span, None)
       | Some o ->
-          finish_call ~flow ctx ~span ~what:"`~`" o handle (fun impl args handler ->
+          finish_call env ~flow ctx ~span ~what:"`~`" o handle (fun impl args handler ->
               match List.filter_map arg_expr args with
               | [ v ] -> T.Expr.Flip { impl; value = v; handler }
               | _ -> T.Expr.Invalid)
 
 (* concurrency.md §3.1, syntax.md §4.4. *)
-and spawn ctx (call : N.Verb_call.t) =
+and spawn env ctx (call : N.Verb_call.t) =
   let span = call.N.Verb_call.span in
-  let e, s = verb_call ~flow:false ctx call in
+  let e, s = verb_call env ~flow:false ctx call in
   (match (e.T.Expr.node, s) with
   | T.Expr.Invalid, _ -> ()
   | T.Expr.Call _, Some s ->
       if S.has_block_param s then
-        error span
+        error env span
           (Printf.sprintf "%s takes a block, and a verb that takes a block cannot be spawned"
              (quote s.name))
   | T.Expr.Call_value _, _ -> ()
-  | _ -> error span "`spawn` starts a function or method call, and this is neither");
+  | _ -> error env span "`spawn` starts a function or method call, and this is neither");
   mk (T.Expr.Spawn e) e.T.Expr.ty span
 
 (* ---------------------------------------------------------------------- *)
 (* Match                                                                  *)
 (* ---------------------------------------------------------------------- *)
 
-and match_ ~flow ctx (m : N.Match_expr.t) =
+and match_ env ~flow ctx (m : N.Match_expr.t) =
   let span = m.N.Match_expr.span in
-  let scrutinees = List.map (expr ctx) m.N.Match_expr.scrutinees in
+  let scrutinees = List.map (expr env ctx) m.N.Match_expr.scrutinees in
   let shapes =
     List.map
       (fun (s : T.Expr.t) ->
-        match (s.T.Expr.ty, definition s.T.Expr.ty) with
+        match (s.T.Expr.ty, definition env s.T.Expr.ty) with
         | Ty.Error, _ -> `Unknown
         | _, Some (tid, Variant cases) -> `Variant (tid, cases)
         | _, Some (tid, Enum members) -> `Enum (tid, members)
         | t, _ ->
-            error s.T.Expr.span
+            error env s.T.Expr.span
               (Printf.sprintf "a match dispatches on a variant or an enum, and %s is neither"
                  (quote (Ty.to_string t)));
             `Unknown)
@@ -1015,7 +1032,7 @@ and match_ ~flow ctx (m : N.Match_expr.t) =
         let inner = push arm_ctx in
         let patterns = arm.N.Match_arm.patterns in
         if List.length patterns <> List.length shapes then
-          error arm.N.Match_arm.span
+          error env arm.N.Match_arm.span
             (Printf.sprintf "this arm selects %d case%s, and the match has %d scrutinee%s"
                (List.length patterns) (if List.length patterns = 1 then "" else "s")
                (List.length shapes) (if List.length shapes = 1 then "" else "s"));
@@ -1030,16 +1047,16 @@ and match_ ~flow ctx (m : N.Match_expr.t) =
                     match List.assoc_opt case cases with
                     | Some t -> Some t
                     | None ->
-                        error p.N.Match_pattern.case.N.Name.span
+                        error env p.N.Match_pattern.case.N.Name.span
                           (Printf.sprintf "%s has no case %s" (quote tid.Ty.name) (quote case));
                         Some Ty.Error)
                 | `Enum (tid, members) ->
                     if not (List.mem case members) then
-                      error p.N.Match_pattern.case.N.Name.span
+                      error env p.N.Match_pattern.case.N.Name.span
                         (Printf.sprintf "%s has no member %s" (quote tid.Ty.name) (quote case));
                     (match p.N.Match_pattern.binder with
                     | Some b ->
-                        error b.N.Name.span
+                        error env b.N.Name.span
                           (Printf.sprintf "%s is an enum member and carries no payload to bind" (quote case))
                     | None -> ());
                     None
@@ -1047,7 +1064,7 @@ and match_ ~flow ctx (m : N.Match_expr.t) =
               in
               let binder =
                 match (p.N.Match_pattern.binder, payload) with
-                | Some b, Some t -> Some (declare inner Binder b t)
+                | Some b, Some t -> Some (declare env inner Binder b t)
                 | _ -> None
               in
               { T.Pattern.binder; case; span = p.N.Match_pattern.span })
@@ -1056,13 +1073,13 @@ and match_ ~flow ctx (m : N.Match_expr.t) =
         let key = String.concat "," (List.map (fun (p : T.Pattern.t) -> p.T.Pattern.case) typed) in
         (match Hashtbl.find_opt covered key with
         | Some (first : Span.t) ->
-            error arm.N.Match_arm.span
+            error env arm.N.Match_arm.span
               (Printf.sprintf "%s is already covered by the arm at %s; every case is covered exactly once"
                  (quote key) (where first))
         | None -> Hashtbl.add covered key arm.N.Match_arm.span);
-        let body = block_in inner arm.N.Match_arm.body in
+        let body = block_in env inner arm.N.Match_arm.body in
         if not (ends ~resolve:false body.T.Block.stats) then
-          error arm.N.Match_arm.body.N.Block.span "every path through a match arm ends in `return` or `abort`";
+          error env arm.N.Match_arm.body.N.Block.span "every path through a match arm ends in `return` or `abort`";
         { T.Arm.patterns = typed; body; span = arm.N.Match_arm.span })
       m.N.Match_expr.arms
   in
@@ -1081,7 +1098,7 @@ and match_ ~flow ctx (m : N.Match_expr.t) =
     let missing = List.filter (fun combo -> not (Hashtbl.mem covered (String.concat "," combo))) combos in
     if missing <> [] then
       let shown = List.filteri (fun i _ -> i < 3) missing in
-      error span
+      error env span
         (Printf.sprintf "the match does not cover %s%s; every case needs an arm, and there is no default"
            (String.concat ", " (List.map (fun c -> quote (String.concat ", " c)) shown))
            (if List.length missing > 3 then Printf.sprintf " (and %d more)" (List.length missing - 3) else ""))
@@ -1093,7 +1110,7 @@ and match_ ~flow ctx (m : N.Match_expr.t) =
         List.iter
           (fun (t, at) ->
             if not (Ty.equal t first) then
-              error at
+              error env at
                 (Printf.sprintf
                    "every arm of a match yields one type: this yields %s, and the first \
                     arm yields %s; an arm is not a coercion site"
@@ -1108,13 +1125,13 @@ and match_ ~flow ctx (m : N.Match_expr.t) =
         List.iter
           (fun (t, at) ->
             if not (Ty.equal t first) then
-              error at
+              error env at
                 (Printf.sprintf "the arms of a match abort with one type: this is %s, and an earlier arm's is %s"
                    (quote (Ty.to_string t)) (quote (Ty.to_string first))))
           rest;
         Some first
   in
-  let handler = owe_handler ~flow ctx ~what:"this match" ~span ~abort ~ok:ty m.N.Match_expr.abort_handle in
+  let handler = owe_handler env ~flow ctx ~what:"this match" ~span ~abort ~ok:ty m.N.Match_expr.abort_handle in
   mk (T.Expr.Match { scrutinees; arms; handler }) ty span
 
 (* ---------------------------------------------------------------------- *)
@@ -1124,14 +1141,14 @@ and match_ ~flow ctx (m : N.Match_expr.t) =
 (* A lambda does not capture (functions.md §7.4): its body sees its own
    parameters and the package-scope names of its file, and no local of the
    verb it is written in. *)
-and lambda ctx span ~this_type ~params ~ret_type ~is_mut ~body =
+and lambda env ctx span ~this_type ~params ~ret_type ~is_mut ~body =
   let sc = type_scope ctx in
   let inner_scope = Hashtbl.create 8 in
   let this_ =
     Option.map
       (fun te ->
-        let t = Type_decls.resolve sc te in
-        let local = fresh_local "this" t te.N.Type_expr.span in
+        let t = Type_decls.resolve env sc te in
+        let local = fresh_local env "this" t te.N.Type_expr.span in
         Hashtbl.replace inner_scope "this" { local; role = This };
         (t, local))
       this_type
@@ -1139,13 +1156,13 @@ and lambda ctx span ~this_type ~params ~ret_type ~is_mut ~body =
   let ps =
     List.map
       (fun (p : N.Param.t) ->
-        let t = Type_decls.param_type sc p.N.Param.type_ in
-        let local = fresh_local p.N.Param.name.N.Name.text t p.N.Param.span in
+        let t = Type_decls.param_type env sc p.N.Param.type_ in
+        let local = fresh_local env p.N.Param.name.N.Name.text t p.N.Param.span in
         Hashtbl.replace inner_scope local.T.Local.name { local; role = Parameter };
         (t, local))
       params
   in
-  let ret, abort = Type_decls.ret_type_of sc ret_type in
+  let ret, abort = Type_decls.ret_type_of env sc ret_type in
   let inner =
     {
       ctx with
@@ -1157,9 +1174,9 @@ and lambda ctx span ~this_type ~params ~ret_type ~is_mut ~body =
       building = None;
     }
   in
-  let typed = block_in inner body in
+  let typed = block_in env inner body in
   if not (ends ~resolve:false typed.T.Block.stats) then
-    error body.N.Block.span "not every path through this lambda returns; a block body returns explicitly";
+    error env body.N.Block.span "not every path through this lambda returns; a block body returns explicitly";
   let v = { Ty.this_ = Option.map fst this_; params = List.map fst ps; ret; abort; is_mut } in
   mk
     (T.Expr.Lambda { params = List.map snd (Option.to_list this_) @ List.map snd ps; body = typed })
@@ -1169,26 +1186,26 @@ and lambda ctx span ~this_type ~params ~ret_type ~is_mut ~body =
 (* Statements                                                             *)
 (* ---------------------------------------------------------------------- *)
 
-and block_in ctx (b : N.Block.t) : T.Block.t =
-  { T.Block.stats = List.map (stat ctx) b.N.Block.stats; span = b.N.Block.span }
+and block_in env ctx (b : N.Block.t) : T.Block.t =
+  { T.Block.stats = List.map (stat env ctx) b.N.Block.stats; span = b.N.Block.span }
 
-and stat ctx (s : N.Stat.t) : T.Stat.t =
+and stat env ctx (s : N.Stat.t) : T.Stat.t =
   let span = s.N.Stat.span in
   let node =
     match s.N.Stat.node with
-    | N.Stat.VerbCall call -> T.Stat.Expr (fst (verb_call ~flow:false ctx call))
-    | N.Stat.Spawn call -> T.Stat.Spawn (spawn ctx call)
-    | N.Stat.Decl d -> local_declaration ctx d
-    | N.Stat.Assign { target; value } -> assign ctx span target value
+    | N.Stat.VerbCall call -> T.Stat.Expr (fst (verb_call env ~flow:false ctx call))
+    | N.Stat.Spawn call -> T.Stat.Spawn (spawn env ctx call)
+    | N.Stat.Decl d -> local_declaration env ctx d
+    | N.Stat.Assign { target; value } -> assign env ctx span target value
     | N.Stat.Abort value -> (
-        let v = expr ctx value in
+        let v = expr env ctx value in
         match ctx.ret_target with
         | To_verb { abort = None; _ } ->
-            error span "`abort` leaves by the abort path, and this verb declares no abort type";
+            error env span "`abort` leaves by the abort path, and this verb declares no abort type";
             T.Stat.Abort v
         | To_verb { abort = Some a; _ } ->
             if not (Ty.assignable ~dst:a ~src:v.T.Expr.ty) then
-              error v.T.Expr.span
+              error env v.T.Expr.span
                 (Printf.sprintf "this aborts with %s, and the verb's abort type is %s"
                    (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string a)));
             T.Stat.Abort v
@@ -1196,42 +1213,42 @@ and stat ctx (s : N.Stat.t) : T.Stat.t =
             r.aborts <- r.aborts @ [ (v.T.Expr.ty, v.T.Expr.span) ];
             T.Stat.Abort v
         | No_return ->
-            error span "`abort` leaves a verb, and this is not in one";
+            error env span "`abort` leaves a verb, and this is not in one";
             T.Stat.Abort v)
     | N.Stat.Ret value -> (
         match ctx.ret_target with
         | To_arm r ->
-            let v = expr ~flow:true ctx value in
-            escapes v;
+            let v = expr env ~flow:true ctx value in
+            escapes env v;
             r.results <- r.results @ [ (v.T.Expr.ty, v.T.Expr.span) ];
             T.Stat.Return v
         | To_verb { ret; _ } ->
-            let v = expr ctx value in
-            escapes v;
+            let v = expr env ctx value in
+            escapes env v;
             if not (Ty.assignable ~dst:ret ~src:v.T.Expr.ty) then
-              error v.T.Expr.span
+              error env v.T.Expr.span
                 (Printf.sprintf
                    "this returns %s, and the verb returns %s; `return` is not a coercion \
                     site, so a conversion is written out"
                    (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string ret)));
             T.Stat.Return v
         | No_return ->
-            let v = expr ctx value in
-            error span "`return` leaves a verb, and this is not in one";
+            let v = expr env ctx value in
+            error env span "`return` leaves a verb, and this is not in one";
             T.Stat.Return v)
     | N.Stat.Resolve value -> (
-        let v = expr ctx value in
+        let v = expr env ctx value in
         match ctx.resolve_target with
         | To_handler ok ->
             if not (Ty.assignable ~dst:ok ~src:v.T.Expr.ty) then
-              error v.T.Expr.span
+              error env v.T.Expr.span
                 (Printf.sprintf
                    "this resolves %s, and the handled operation yields %s; `resolve` is \
                     not a coercion site"
                    (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string ok)));
             T.Stat.Resolve v
         | No_resolve ->
-            error span
+            error env span
               "`resolve` finishes a handler, and this is in none: a block yields nothing, so \
                it is not one";
             T.Stat.Resolve v)
@@ -1239,55 +1256,55 @@ and stat ctx (s : N.Stat.t) : T.Stat.t =
   { T.Stat.node; span }
 
 (* A block never escapes the call it is written at (control-flow.md §2.2). *)
-and escapes (v : T.Expr.t) =
+and escapes env (v : T.Expr.t) =
   match v.T.Expr.ty with
   | Ty.Concept Ty.Block ->
-      error v.T.Expr.span "a block cannot be returned: it never escapes the call it is written at"
+      error env v.T.Expr.span "a block cannot be returned: it never escapes the call it is written at"
   | _ -> ()
 
 (* A declaration is not a coercion site (types.md §4.2): the value has the
    declared type already. *)
-and local_declaration ctx (d : N.Decl.t) =
+and local_declaration env ctx (d : N.Decl.t) =
   match d.N.Decl.node with
   | N.Decl.Var { name; type_; value } ->
-      let v = expr ctx value in
-      let declared = declared_type ctx type_ v.T.Expr.ty in
-      Type_decls.check_storage type_.N.Type_expr.span "a local" declared;
+      let v = expr env ctx value in
+      let declared = declared_type env ctx type_ v.T.Expr.ty in
+      Type_decls.check_storage env type_.N.Type_expr.span "a local" declared;
       if not (Ty.assignable ~dst:declared ~src:v.T.Expr.ty) then
-        error v.T.Expr.span
+        error env v.T.Expr.span
           (Printf.sprintf
              "%s is declared %s, and its value is %s; a declaration is not a coercion \
               site, so a conversion is written out"
              (quote name.N.Name.text) (quote (Ty.to_string declared))
              (quote (Ty.to_string v.T.Expr.ty)));
-      let local = declare ctx Symbol name declared in
+      let local = declare env ctx Symbol name declared in
       T.Stat.Let { local; value = v }
   | _ ->
-      error d.N.Decl.span "only a symbol is declared in a body; every other declaration is at package scope";
+      error env d.N.Decl.span "only a symbol is declared in a body; every other declaration is at package scope";
       T.Stat.Expr (invalid d.N.Decl.span)
 
 (* `p Pair(Int(1), Int(2))` declares `p` as the bare `Pair`, since the
    shorthand writes the constructor's name and a call carries no `< >`
    (docs/design/desugaring.md §2.7). A generic type named with no arguments takes
    them from the value it is declared with. *)
-and declared_type ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
+and declared_type env ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
   match te.N.Type_expr.node with
   | N.Type_expr.Path { name; generics = [] } -> (
-      match Type_decls.resolve_head (type_scope ctx) name with
+      match Type_decls.resolve_head env (type_scope ctx) name with
       | Type_decls.Declared d as head -> (
-          match (Hashtbl.find_opt type_infos d.id, Ty.strip_guest value_ty) with
+          match (Hashtbl.find_opt env.type_infos d.id, Ty.strip_guest value_ty) with
           | Some info, Ty.Named (tid, _) when info.params <> [] && tid = info.tid -> Ty.strip_guest value_ty
           | Some info, Ty.Error when info.params <> [] -> Ty.Error
-          | _ -> Type_decls.apply (type_scope ctx) te.N.Type_expr.span head name [])
+          | _ -> Type_decls.apply env (type_scope ctx) te.N.Type_expr.span head name [])
       | Type_decls.Intrinsic_type info as head when info.params <> [] -> (
           match Ty.strip_guest value_ty with
           | Ty.Intrinsic { namespace; name = n; _ } when namespace = info.namespace && n = info.name ->
               Ty.strip_guest value_ty
           | Ty.Error -> Ty.Error
-          | _ -> Type_decls.apply (type_scope ctx) te.N.Type_expr.span head name [])
+          | _ -> Type_decls.apply env (type_scope ctx) te.N.Type_expr.span head name [])
       | Type_decls.Unknown -> Ty.Error
-      | head -> Type_decls.apply (type_scope ctx) te.N.Type_expr.span head name [])
-  | _ -> Type_decls.resolve (type_scope ctx) te
+      | head -> Type_decls.apply env (type_scope ctx) te.N.Type_expr.span head name [])
+  | _ -> Type_decls.resolve env (type_scope ctx) te
 
 (* The binding a place is reached through. A field, an element or a case
    payload of a read-only binding is read-only too (effects.md §4.1). A case
@@ -1306,9 +1323,9 @@ and place_root ?(cases = false) (e : T.Expr.t) =
    the subject of a `!` call, and a read-only binding admits neither. The
    read-only bindings are every parameter other than `this`, and `this` in a
    method without `mut`. [bang] says the write is a `!` call. *)
-and check_writable ctx (e : T.Expr.t) ~bang =
+and check_writable env ctx (e : T.Expr.t) ~bang =
   let say plain because =
-    error e.T.Expr.span
+    error env e.T.Expr.span
       (if bang then "a `!` call writes its subject, and " ^ because else plain)
   in
   match place_root ~cases:bang e with
@@ -1329,14 +1346,14 @@ and check_writable ctx (e : T.Expr.t) ~bang =
       | _ -> ())
 
 (* functions.md §2.3, §2.7; packages.md §5.1. *)
-and assign ctx span target value =
-  let t = expr ctx target in
-  let v = expr ctx value in
+and assign env ctx span target value =
+  let t = expr env ctx target in
+  let v = expr env ctx value in
   (match place_root t with
-  | `Not_place -> error t.T.Expr.span "only a symbol, a field or a subscript can be assigned"
-  | _ -> check_writable ctx t ~bang:false);
+  | `Not_place -> error env t.T.Expr.span "only a symbol, a field or a subscript can be assigned"
+  | _ -> check_writable env ctx t ~bang:false);
   if not (Ty.assignable ~dst:t.T.Expr.ty ~src:v.T.Expr.ty) then
-    error v.T.Expr.span
+    error env v.T.Expr.span
       (Printf.sprintf
          "this assigns %s to %s; an assignment is not a coercion site, so a conversion \
           is written out"
@@ -1355,33 +1372,31 @@ and subscript_key id subst (s : S.t) =
   string_of_int id ^ ":"
   ^ String.concat "," (List.map (fun (_, a) -> Ty.arg_to_string a) (binding_args s subst))
 
-and subscript_result (d : decl) (s : S.t) subst at =
+and subscript_result env (d : decl) (s : S.t) subst at =
   let key = subscript_key d.id subst s in
-  match Hashtbl.find_opt subscript_results key with
+  match Hashtbl.find_opt env.subscript_results key with
   | Some (Some t) -> t
   | Some None ->
-      error at "this subscript's type depends on itself";
+      error env at "this subscript's type depends on itself";
       Ty.Error
   | None -> (
-      Hashtbl.replace subscript_results key None;
-      let saved = !note in
-      if subst <> [] then note := Some (describe_instance s subst at);
-      let checked = subscript_body d s subst in
-      note := saved;
+      Hashtbl.replace env.subscript_results key None;
+      let body () = subscript_body env d s subst in
+      let checked = if subst <> [] then with_note env (describe_instance s subst at) body else body () in
       match checked with
       | Some (locals, v) ->
-          Hashtbl.replace subscript_results key (Some v.T.Expr.ty);
-          Hashtbl.replace subscript_instances key (s, subst, locals, v);
+          Hashtbl.replace env.subscript_results key (Some v.T.Expr.ty);
+          Hashtbl.replace env.subscript_instances key (s, subst, locals, v);
           v.T.Expr.ty
       | None -> Ty.Error)
 
 (* A subscript's body typed at one set of arguments, with its parameters as
    locals. *)
-and subscript_body (d : decl) (s : S.t) subst =
+and subscript_body env (d : decl) (s : S.t) subst =
   match d.kind with
   | Verb { N.Verb_decl.node = N.Verb_decl.Subscript { value; _ }; _ } ->
-      let ctx, locals = verb_context d s subst in
-      let v = expr ctx value in
+      let ctx, locals = verb_context env d s subst in
+      let v = expr env ctx value in
       let rec is_place (e : T.Expr.t) =
         match e.T.Expr.node with
         | T.Expr.Var (T.Name_ref.Local _) -> true
@@ -1390,7 +1405,7 @@ and subscript_body (d : decl) (s : S.t) subst =
         | _ -> false
       in
       if not (is_place v) then
-        error v.T.Expr.span
+        error env v.T.Expr.span
           "a subscript's body is a place expression: a symbol, a field of one, or a \
            subscript of one (syntax.md §3.6)";
       Some (locals, v)
@@ -1426,8 +1441,8 @@ and param_spans (d : decl) =
 (* The context a verb's body is checked in, at one set of generic arguments:
    its parameters as locals, and the explicit `T Type` / `n @concepts$Int` ones as the
    types and numbers they were given. *)
-and verb_context (d : decl) (s : S.t) subst =
-  let pkg = package d.package in
+and verb_context env (d : decl) (s : S.t) subst =
+  let pkg = package env d.package in
   let spans = param_spans d in
   let span_of name = Option.value ~default:d.span (List.assoc_opt name spans) in
   let params = List.map (fun ((p : Ty.param), a) -> (p.name, a)) (binding_args s subst) in
@@ -1438,7 +1453,7 @@ and verb_context (d : decl) (s : S.t) subst =
         match p.binds with
         | Some _ -> None
         | None ->
-            let local = fresh_local p.name (Ty.subst subst p.ty) (span_of p.name) in
+            let local = fresh_local env p.name (Ty.subst subst p.ty) (span_of p.name) in
             let role = if p.name = "this" && S.is_method s then This else Parameter in
             Hashtbl.replace scope p.name { local; role };
             Some local)
@@ -1463,285 +1478,3 @@ and verb_context (d : decl) (s : S.t) subst =
     }
   in
   (ctx, locals)
-
-let verb_body (d : decl) =
-  match d.kind with
-  | Verb v -> (
-      match v.N.Verb_decl.node with
-      | N.Verb_decl.Func { body; _ }
-      | N.Verb_decl.Meth { body; _ }
-      | N.Verb_decl.Op { body; _ }
-      | N.Verb_decl.Flip { body; _ }
-      | N.Verb_decl.Constructor { body; _ } -> Some body
-      | N.Verb_decl.Subscript _ -> None)
-  | _ -> None
-
-let check_body (d : decl) (s : S.t) subst =
-  let ctx, locals = verb_context d s subst in
-  match verb_body d with
-  | None -> None
-  | Some body ->
-      let typed = block_in ctx body in
-      if not (ends ~resolve:false typed.T.Block.stats) then
-        error body.N.Block.span
-          (Printf.sprintf
-             "not every path through %s returns; a block-bodied verb returns explicitly \
-              on every path, `Unit` included (functions.md §3.5)"
-             (quote s.name));
-      Some (locals, typed)
-
-(* A field constructor's defaults are values of their entries' types, and a
-   default is a declaration, not a coercion site. Each is typed with the
-   constructor's parameters as [subst] gives them, and given with its entry's
-   slot; an instance's are typed again, and only a declaration's [report]
-   whether a default fits its entry. *)
-let typed_defaults ?(report = true) (d : decl) (s : S.t) subst =
-  match d.kind with
-  | Verb { N.Verb_decl.node = N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Fields fs; _ }; _ }; _ } ->
-      let ctx, _ = verb_context d s subst in
-      let ctx = { ctx with scopes = [ Hashtbl.create 1 ]; building = None; ret_target = No_return } in
-      List.concat
-        (List.mapi
-           (fun slot ((f : N.Constructor_field.t), (p : S.param)) ->
-             match f.N.Constructor_field.default with
-             | Some default ->
-                 let v = expr ctx default in
-                 let dst = Ty.subst subst p.ty in
-                 if report && not (Ty.assignable ~dst ~src:v.T.Expr.ty) then
-                   error v.T.Expr.span
-                     (Printf.sprintf "the default of %s is %s, and the entry is %s"
-                        (quote p.name) (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string dst)));
-                 [ (slot, v) ]
-             | None -> [])
-           (List.combine fs s.params))
-  | _ -> []
-
-(* The defaults of every field constructor that has them, as the program
-   carries them: a declaration's, and each instance's. *)
-let defaults : T.Defaults.t list ref = ref []
-
-let check_defaults (d : decl) (s : S.t) =
-  match typed_defaults d s [] with
-  | [] -> ()
-  | values -> if s.S.generics = [] then defaults := { T.Defaults.decl = d.id; args = []; values } :: !defaults
-
-let package_context (d : decl) =
-  {
-    file = d.file;
-    package = d.package;
-    is_root = (package d.package).is_root;
-    params = [];
-    scopes = [ Hashtbl.create 1 ];
-    ret_target = No_return;
-    resolve_target = No_resolve;
-    this_type = None;
-    is_mut = false;
-    building = None;
-  }
-
-(* An enum-map entry is a coercion site (adt.md §6): exact, or converted by
-   the one implicit constructor that applies. *)
-let coerce_to ctx (v : T.Expr.t) dst =
-  if Ty.assignable ~dst ~src:v.T.Expr.ty then v
-  else
-    match implicit_constructors ~src:v.T.Expr.ty ~dst with
-    | [ ((s, subst) as found) ] ->
-        request s subst v.T.Expr.span;
-        coerce_value v found
-    | [] ->
-        error v.T.Expr.span
-          (Printf.sprintf "this entry is %s, and the map holds %s, with no implicit constructor between them"
-             (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string dst)));
-        v
-    | several ->
-        ignore ctx;
-        error v.T.Expr.span
-          (Printf.sprintf "more than one implicit constructor converts %s to %s: %s"
-             (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string dst))
-             (String.concat ", " (List.map (fun ((s : S.t), _) -> quote (S.to_string s)) several)));
-        v
-
-let type_definition (info : type_info) : T.Decl.definition =
-  match info.definition with
-  | Some (Struct fs) -> T.Decl.Struct fs
-  | Some (Variant cs) -> T.Decl.Variant cs
-  | Some (Enum ms) -> T.Decl.Enum ms
-  | Some (Distinct t) -> T.Decl.Distinct t
-  | None -> T.Decl.Distinct Ty.Error
-
-let declaration (d : decl) : T.Decl.t option =
-  let node : T.Decl.node option =
-    match d.kind with
-    | Type_decl { name; _ } -> (
-        match Hashtbl.find_opt type_infos d.id with
-        | Some info ->
-            Some
-              (T.Decl.Type
-                 {
-                   name = name.N.Name.text;
-                   params = info.params;
-                   reference = Type_decls.is_reference (Ty.Named (info.tid, List.map Type_decls.param_arg info.params));
-                   definition = type_definition info;
-                 })
-        | None -> (
-            match Hashtbl.find_opt alias_infos d.id with
-            | Some a ->
-                Some (T.Decl.Alias { name = name.N.Name.text; params = a.alias_params; target = Type_decls.alias_target a })
-            | None -> None))
-    | Constant { name; value; _ } ->
-        let ty = Option.value ~default:Ty.Error (Hashtbl.find_opt constant_types d.id) in
-        let v = expr (package_context d) value in
-        if not (Ty.assignable ~dst:ty ~src:v.T.Expr.ty) then
-          error v.T.Expr.span
-            (Printf.sprintf
-               "%s is declared %s, and its value is %s; a declaration is not a coercion \
-                site, so a conversion is written out"
-               (quote name.N.Name.text) (quote (Ty.to_string ty)) (quote (Ty.to_string v.T.Expr.ty)));
-        Some (T.Decl.Constant { name = name.N.Name.text; ty; value = v })
-    | Enum_map { enum; property; entries; _ } ->
-        let ty = Option.value ~default:Ty.Error (Hashtbl.find_opt constant_types d.id) in
-        let ctx = package_context d in
-        let entries =
-          List.map (fun ((m : N.Name.t), value) -> (m.N.Name.text, coerce_to ctx (expr ctx value) ty)) entries
-        in
-        Some
-          (T.Decl.Enum_map
-             { enum = Type_decls.resolve (Type_decls.scope d.file) enum; property = property.N.Name.text; ty; entries })
-    | Verb _ -> (
-        match Hashtbl.find_opt signatures d.id with
-        | None -> None
-        | Some s -> (
-            check_defaults d s;
-            match s.kind with
-            | S.Subscript ->
-                if s.generics = [] then begin
-                  let ty = subscript_result d s [] d.span in
-                  let key = subscript_key d.id [] s in
-                  let params, value =
-                    match Hashtbl.find_opt subscript_instances key with
-                    | Some (_, _, ps, v) -> (ps, Some v)
-                    | None -> ([], None)
-                  in
-                  Some (T.Decl.Subscript { signature = { s with ret = ty }; params; value })
-                end
-                else Some (T.Decl.Subscript { signature = s; params = []; value = None })
-            | _ ->
-                if s.generics <> [] then Some (T.Decl.Verb { signature = s; body = T.Decl.Per_instance })
-                else
-                  match check_body d s [] with
-                  | Some (params, body) -> Some (T.Decl.Verb { signature = s; body = T.Decl.Checked { params; body } })
-                  | None -> None))
-  in
-  Option.map (fun node -> { T.Decl.id = d.id; span = d.span; node }) node
-
-let run () : T.Program.t =
-  Hashtbl.reset instance_keys;
-  Hashtbl.reset instance_counts;
-  Hashtbl.reset subscript_results;
-  Hashtbl.reset subscript_instances;
-  Queue.clear pending;
-  instances := [];
-  defaults := [];
-  let packages =
-    List.map
-      (fun name ->
-        let pkg = package name in
-        { T.Package.name; decls = List.filter_map declaration pkg.decls })
-      !package_order
-  in
-  while not (Queue.is_empty pending) do
-    let p = Queue.pop pending in
-    note := Some (describe_instance p.p_sig p.p_subst p.p_at);
-    (match p.p_sig.kind with
-    | S.Subscript -> ()
-    | _ -> (
-        (match typed_defaults ~report:false p.p_decl p.p_sig p.p_subst with
-        | [] -> ()
-        | values ->
-            defaults :=
-              { T.Defaults.decl = p.p_decl.id; args = binding_args p.p_sig p.p_subst; values }
-              :: !defaults);
-        match check_body p.p_decl p.p_sig p.p_subst with
-        | Some (params, body) ->
-            instances :=
-              {
-                T.Instance.decl = p.p_decl.id;
-                signature = p.p_sig;
-                args = binding_args p.p_sig p.p_subst;
-                params;
-                body;
-              }
-              :: !instances
-        | None -> ()));
-    note := None
-  done;
-  (* D12 checks a generic body once per instantiation, so one nothing
-     instantiates would go unchecked. It is checked once more where it is
-     declared, with every type parameter standing for [Ty.Error]: what depends
-     on the parameter is accepted as it is for any expression that failed to
-     type, and what does not -- a name that resolves nowhere, a call no
-     overload takes -- is reported. A number parameter stays the parameter it
-     is. Nothing from this check enters the tree; there is no instance to
-     hold it. *)
-  let instantiated_subscripts = Hashtbl.create 16 in
-  Hashtbl.iter
-    (fun _ ((t : S.t), _, _, _) ->
-      match t.S.owner with S.Declared id -> Hashtbl.replace instantiated_subscripts id () | _ -> ())
-    subscript_instances;
-  let instantiated (d : decl) (s : S.t) =
-    match s.S.kind with
-    | S.Subscript -> Hashtbl.mem instantiated_subscripts d.id
-    | _ -> Hashtbl.mem instance_counts d.id
-  in
-  defining := true;
-  Fun.protect
-    ~finally:(fun () -> defining := false)
-    (fun () ->
-      List.iter
-        (fun name ->
-          List.iter
-            (fun (d : decl) ->
-              match Hashtbl.find_opt signatures d.id with
-              | Some s when s.S.generics <> [] && not (instantiated d s) ->
-                  let subst =
-                    List.filter_map
-                      (fun (p : Ty.param) ->
-                        match p.Ty.kind with
-                        | Ty.Type_kind -> Some (p.Ty.id, Ty.Type Ty.Error)
-                        | Ty.Number_kind -> None)
-                      s.S.generics
-                  in
-                  note := Some (Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name));
-                  (match s.S.kind with
-                  | S.Subscript -> ignore (subscript_body d s subst)
-                  | _ -> ignore (check_body d s subst));
-                  note := None
-              | _ -> ())
-            (package name).decls)
-        !package_order);
-  (* Generic subscripts were instantiated as their call sites were typed. *)
-  let subscript_bodies =
-    Hashtbl.fold
-      (fun _ (s, subst, params, (v : T.Expr.t)) acc ->
-        match s.S.owner with
-        | S.Declared id when s.S.generics <> [] ->
-            {
-              T.Instance.decl = id;
-              signature = { s with ret = v.T.Expr.ty };
-              args = binding_args s subst;
-              params;
-              body = { T.Block.stats = [ { T.Stat.node = T.Stat.Return v; span = v.T.Expr.span } ]; span = v.T.Expr.span };
-            }
-            :: acc
-        | _ -> acc)
-      subscript_instances []
-  in
-  let key (i : T.Instance.t) =
-    (i.decl, String.concat "," (List.map (fun (_, a) -> Ty.arg_to_string a) i.args))
-  in
-  let all = List.rev !instances @ subscript_bodies in
-  {
-    T.Program.packages;
-    instances = List.sort (fun a b -> compare (key a) (key b)) all;
-    defaults = List.rev !defaults;
-  }

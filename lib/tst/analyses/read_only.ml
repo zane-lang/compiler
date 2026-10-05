@@ -73,51 +73,46 @@ let whole s = Taint.map (fun e -> elem e.origin e.src []) s
 (* ---------------------------------------------------------------------- *)
 
 (* Whether storage of type [t] can hold a guest. *)
-let rec carries ?(seen = []) (t : Ty.t) =
+let rec carries env ?(seen = []) (t : Ty.t) =
   match t with
   | Ty.Guest _ | Ty.Param _ -> true
   | Ty.Error | Ty.Verb _ | Ty.Concept _ -> false
-  | Ty.Intrinsic { args; _ } -> List.exists (carries_arg ~seen) args
+  | Ty.Intrinsic { args; _ } -> List.exists (carries_arg env ~seen) args
   | Ty.Named (tid, args) -> (
-      List.exists (carries_arg ~seen) args
+      List.exists (carries_arg env ~seen) args
       || (not (List.mem tid seen))
          &&
-         match Hashtbl.find_opt Env.type_infos_by_id tid with
+         match Hashtbl.find_opt env.Env.type_infos_by_id tid with
          | None -> false
          | Some info -> (
-             let s =
-               try List.combine (List.map (fun (p : Ty.param) -> p.Ty.id) info.Env.params) args
-               with Invalid_argument _ -> []
-             in
+             let s = Ty.bindings info.Env.params args in
              let seen = tid :: seen in
              match info.Env.definition with
              | Some (Env.Struct fs) | Some (Env.Variant fs) ->
-                 List.exists (fun (_, t) -> carries ~seen (Ty.subst s t)) fs
-             | Some (Env.Distinct t) -> carries ~seen (Ty.subst s t)
+                 List.exists (fun (_, t) -> carries env ~seen (Ty.subst s t)) fs
+             | Some (Env.Distinct t) -> carries env ~seen (Ty.subst s t)
              | _ -> false))
 
-and carries_arg ~seen = function Ty.Type t -> carries ~seen t | Ty.Number _ -> false
+and carries_arg env ~seen = function Ty.Type t -> carries env ~seen t | Ty.Number _ -> false
 
 (* What storing a value of type [t] keeps of its taint. *)
-let store t s = if carries t then s else Taint.empty
+let store env t s = if carries env t then s else Taint.empty
 
 (* The declared type of a struct's field, which is what decides whether the
    field can hold a guest: the value written into it may be a place a guest
    is minted from, whose own type says nothing about that. *)
-let field_type (t : Ty.t) name =
+let field_type env (t : Ty.t) name =
   match t with
   | Ty.Named (tid, args) -> (
-      match Hashtbl.find_opt Env.type_infos_by_id tid with
+      match Hashtbl.find_opt env.Env.type_infos_by_id tid with
       | Some { Env.definition = Some (Env.Struct fs); params; _ } -> (
           match List.assoc_opt name fs with
-          | Some ft -> (
-              let ids = List.map (fun (p : Ty.param) -> p.Ty.id) params in
-              try Some (Ty.subst (List.combine ids args) ft) with Invalid_argument _ -> Some ft)
+          | Some ft -> Some (Ty.instantiate params args ft)
           | None -> None)
       | _ -> None)
   | _ -> None
 
-let store_field t name s = match field_type t name with Some ft -> store ft s | None -> s
+let store_field env t name s = match field_type env t name with Some ft -> store env ft s | None -> s
 
 (* ---------------------------------------------------------------------- *)
 (* Summaries                                                              *)
@@ -131,18 +126,12 @@ type summary = {
 }
 
 let empty = { result = Taint.empty; into_this = Taint.empty }
-let summaries : (int, summary) Hashtbl.t = Hashtbl.create 64
-let changed = ref false
 
-let merge id s =
-  let old = Option.value ~default:empty (Hashtbl.find_opt summaries id) in
-  let s =
-    { result = Taint.union old.result s.result; into_this = Taint.union old.into_this s.into_this }
-  in
-  if not (Taint.equal s.result old.result && Taint.equal s.into_this old.into_this) then begin
-    Hashtbl.replace summaries id s;
-    changed := true
-  end
+let summaries () =
+  Fixpoint.create ~empty
+    ~union:(fun a b ->
+      { result = Taint.union a.result b.result; into_this = Taint.union a.into_this b.into_this })
+    ~equal:(fun a b -> Taint.equal a.result b.result && Taint.equal a.into_this b.into_this)
 
 (* A summary's taint with each parameter replaced by its argument's. *)
 let substitute (args : Taint.t array) s =
@@ -165,6 +154,7 @@ type binding = { name : string; read_only : bool }
 type walk = {
   (* Report, or only gather summaries. *)
   report : bool;
+  summaries : summary Fixpoint.t;
   taints : (int, Taint.t) Hashtbl.t;
   (* Every parameter an origin can name, in this body and its lambdas. *)
   origins : (int, binding) Hashtbl.t;
@@ -172,8 +162,6 @@ type walk = {
   mutable returned : Taint.t;
   mutable resolved : Taint.t list;
 }
-
-let quote s = "`" ^ s ^ "`"
 
 let read_only w s =
   Taint.exists
@@ -191,10 +179,10 @@ let blame w s =
   in
   match List.sort compare names with
   | [ "this" ] -> "`this`, which is read-only in a method that is not `mut`"
-  | [ n ] -> quote n ^ ", a read-only parameter"
-  | ns -> String.concat " and " (List.map quote ns) ^ ", read-only parameters"
+  | [ n ] -> Env.quote n ^ ", a read-only parameter"
+  | ns -> String.concat " and " (List.map Env.quote ns) ^ ", read-only parameters"
 
-let error w span message = if w.report then Env.error span message
+let error env w span message = if w.report then Env.error env span message
 
 (* A place: the local it is reached through, and the path from there. *)
 let rec place (e : T.Expr.t) =
@@ -221,20 +209,12 @@ let add w (l : T.Local.t) p s =
     Hashtbl.replace w.taints l.T.Local.id (Taint.union old (under p s))
   end
 
-let signature_of (r : T.Verb_ref.t) =
+let summary_of w (r : T.Verb_ref.t) =
   match r.T.Verb_ref.owner with
-  | S.Declared id -> Hashtbl.find_opt Env.signatures id
-  | S.Intrinsic spelling ->
-      List.find_map
-        (fun (_, (sg : S.t)) -> if sg.S.owner = S.Intrinsic spelling then Some sg else None)
-        Intrinsics.methods
-
-let summary_of (r : T.Verb_ref.t) =
-  match r.T.Verb_ref.owner with
-  | S.Declared id -> Hashtbl.find_opt summaries id
+  | S.Declared id -> Fixpoint.find_opt w.summaries id
   | S.Intrinsic _ -> None
 
-let rec expr w (e : T.Expr.t) : Taint.t =
+let rec expr env w (e : T.Expr.t) : Taint.t =
   match e.T.Expr.node with
   | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Text_lit _ | T.Expr.Bool_lit _
   | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid ->
@@ -242,30 +222,30 @@ let rec expr w (e : T.Expr.t) : Taint.t =
   | T.Expr.Var (T.Name_ref.Local l) -> taint_of w l
   | T.Expr.Var _ -> Taint.empty
   | T.Expr.Map_read { target; _ } ->
-      ignore (expr w target);
+      ignore (expr env w target);
       Taint.empty
   | T.Expr.Array_lit items ->
-      List.fold_left (fun acc i -> Taint.union acc (under [ Elem ] (expr w i))) Taint.empty items
+      List.fold_left (fun acc i -> Taint.union acc (under [ Elem ] (expr env w i))) Taint.empty items
   | T.Expr.Map_lit entries ->
       List.fold_left
-        (fun acc (k, v) -> Taint.union acc (under [ Elem ] (Taint.union (expr w k) (expr w v))))
+        (fun acc (k, v) -> Taint.union acc (under [ Elem ] (Taint.union (expr env w k) (expr env w v))))
         Taint.empty entries
-  | T.Expr.Case { case; payload } -> under [ Case case ] (expr w payload)
-  | T.Expr.Field { target; field; _ } -> navigate (expr w target) [ Field field ]
+  | T.Expr.Case { case; payload } -> under [ Case case ] (expr env w payload)
+  | T.Expr.Field { target; field; _ } -> navigate (expr env w target) [ Field field ]
   | T.Expr.Case_read { target; case; handler } ->
-      let t = navigate (expr w target) [ Case case ] in
-      Taint.union t (handler_value w handler)
-  | T.Expr.Ref inner | T.Expr.Spawn inner -> expr w inner
+      let t = navigate (expr env w target) [ Case case ] in
+      Taint.union t (handler_value env w handler)
+  | T.Expr.Ref inner | T.Expr.Spawn inner -> expr env w inner
   | T.Expr.Init fields ->
       List.fold_left
         (fun acc (f : T.Field_value.t) ->
           let name = f.T.Field_value.name in
-          let v = store_field e.T.Expr.ty name (expr w f.T.Field_value.value) in
+          let v = store_field env e.T.Expr.ty name (expr env w f.T.Field_value.value) in
           Taint.union acc (under [ Field name ] v))
         Taint.empty fields
   | T.Expr.Match m ->
       let scrutinee =
-        List.fold_left (fun acc s -> Taint.union acc (expr w s)) Taint.empty m.T.Match.scrutinees
+        List.fold_left (fun acc s -> Taint.union acc (expr env w s)) Taint.empty m.T.Match.scrutinees
       in
       let arms =
         List.fold_left
@@ -275,54 +255,54 @@ let rec expr w (e : T.Expr.t) : Taint.t =
                 Option.iter
                   (fun (b : T.Local.t) ->
                     Hashtbl.replace w.taints b.T.Local.id
-                      (store b.T.Local.ty (navigate scrutinee [ Case p.T.Pattern.case ])))
+                      (store env b.T.Local.ty (navigate scrutinee [ Case p.T.Pattern.case ])))
                   p.T.Pattern.binder)
               a.T.Arm.patterns;
-            Taint.union acc (arm_value w a.T.Arm.body))
+            Taint.union acc (arm_value env w a.T.Arm.body))
           Taint.empty m.T.Match.arms
       in
-      Taint.union arms (opt_handler w m.T.Match.handler)
+      Taint.union arms (opt_handler env w m.T.Match.handler)
   | T.Expr.Call { callee; args; handler } ->
-      let r = call w e callee (List.map (arg w) args) args in
-      Taint.union r (opt_handler w handler)
+      let r = call env w e callee (List.map (arg env w) args) args in
+      Taint.union r (opt_handler env w handler)
   | T.Expr.Construct { ctor; args; handler } ->
-      let r = call w e ctor (List.map (arg w) args) args in
-      Taint.union r (opt_handler w handler)
+      let r = call env w e ctor (List.map (arg env w) args) args in
+      Taint.union r (opt_handler env w handler)
   | T.Expr.Construct_fields { ctor; fields; handler } ->
       let taints =
         List.map
-          (fun (f : T.Field_value.t) -> (f.T.Field_value.name, expr w f.T.Field_value.value))
+          (fun (f : T.Field_value.t) -> (f.T.Field_value.name, expr env w f.T.Field_value.value))
           fields
       in
       (* A field constructor's parameters are its fields, by name. *)
-      let params = match signature_of ctor with Some sg -> sg.S.params | None -> [] in
+      let params = match Env.signature_of env ctor with Some sg -> sg.S.params | None -> [] in
       let taint_of_param (p : S.param) =
         Option.value ~default:Taint.empty (List.assoc_opt p.S.name taints)
       in
       let r =
-        match summary_of ctor with
+        match summary_of w ctor with
         | Some s -> substitute (Array.of_list (List.map taint_of_param params)) s.result
         | None when params = [] ->
             whole (List.fold_left (fun acc (_, t) -> Taint.union acc t) Taint.empty taints)
         | None ->
             List.fold_left
               (fun acc (p : S.param) ->
-                Taint.union acc (under [ Field p.S.name ] (store p.S.ty (taint_of_param p))))
+                Taint.union acc (under [ Field p.S.name ] (store env p.S.ty (taint_of_param p))))
               Taint.empty params
       in
-      Taint.union (store e.T.Expr.ty r) (opt_handler w handler)
+      Taint.union (store env e.T.Expr.ty r) (opt_handler env w handler)
   | T.Expr.Subscript { target; impl; args } ->
-      let t = expr w target in
-      let rest = List.map (expr w) args in
+      let t = expr env w target in
+      let rest = List.map (expr env w) args in
       let r =
-        match summary_of impl with
+        match summary_of w impl with
         | Some s -> substitute (Array.of_list (t :: rest)) s.result
         | None -> navigate t [ Elem ]
       in
-      store_or_place e r
+      store_or_place env e r
   | T.Expr.Call_value { callee; args; handler } ->
-      let fn = expr w callee in
-      let taints = List.map (arg w) args in
+      let fn = expr env w callee in
+      let taints = List.map (arg env w) args in
       let tys =
         match callee.T.Expr.ty with
         | Ty.Verb v -> Option.to_list v.Ty.this_ @ v.Ty.params
@@ -330,39 +310,39 @@ let rec expr w (e : T.Expr.t) : Taint.t =
       in
       (match callee.T.Expr.ty with
       | Ty.Verb { Ty.this_ = Some _; is_mut = true; _ } ->
-          write_subject w args taints (whole (passed (List.tl tys) (List.tl taints)))
+          write_subject env w args taints (whole (passed env (List.tl tys) (List.tl taints)))
       | _ -> ());
-      let r = whole (Taint.union fn (passed tys taints)) in
-      Taint.union (store e.T.Expr.ty r) (opt_handler w handler)
+      let r = whole (Taint.union fn (passed env tys taints)) in
+      Taint.union (store env e.T.Expr.ty r) (opt_handler env w handler)
   | T.Expr.Op { left; right; handler; impl; swapped; _ } ->
-      let l = expr w left and r = expr w right in
+      let l = expr env w left and r = expr env w right in
       let args = if swapped then [ r; l ] else [ l; r ] in
       let res =
-        match summary_of impl with
+        match summary_of w impl with
         | Some s -> substitute (Array.of_list args) s.result
         | None -> whole (Taint.union l r)
       in
-      Taint.union (store e.T.Expr.ty res) (opt_handler w handler)
+      Taint.union (store env e.T.Expr.ty res) (opt_handler env w handler)
   | T.Expr.Flip { value; impl; handler } ->
-      let v = expr w value in
-      let res = one impl v in
-      Taint.union (store e.T.Expr.ty res) (opt_handler w handler)
+      let v = expr env w value in
+      let res = one w impl v in
+      Taint.union (store env e.T.Expr.ty res) (opt_handler env w handler)
   | T.Expr.Coerce { ctor; value } ->
-      let v = expr w value in
-      let res = one ctor v in
-      store e.T.Expr.ty res
-  | T.Expr.Lambda l -> lambda w e l
+      let v = expr env w value in
+      let res = one w ctor v in
+      store env e.T.Expr.ty res
+  | T.Expr.Lambda l -> lambda env w e l
 
 (* A call with one argument. *)
-and one callee v =
-  match summary_of callee with Some s -> substitute [| v |] s.result | None -> whole v
+and one w callee v =
+  match summary_of w callee with Some s -> substitute [| v |] s.result | None -> whole v
 
 (* A subscript names a place, so what it yields is read where it is, not
    stored: its taint stays whole unless the value is a copy. *)
-and store_or_place (e : T.Expr.t) r = if carries e.T.Expr.ty then r else Taint.empty
+and store_or_place env (e : T.Expr.t) r = if carries env e.T.Expr.ty then r else Taint.empty
 
-and arg w = function
-  | T.Arg.Value e -> expr w e
+and arg env w = function
+  | T.Arg.Value e -> expr env w e
   | T.Arg.Block b ->
       (* A block argument may run any number of times, each run seeing what
          the last one stored, so it is walked until that stops growing. *)
@@ -372,7 +352,7 @@ and arg w = function
          why the join, and not the size of the table, decides. *)
       let rec settle () =
         let before = Hashtbl.copy w.taints in
-        block w b;
+        block env w b;
         Hashtbl.iter
           (fun id old -> Hashtbl.replace w.taints id (Taint.union old (taint_by_id w id)))
           before;
@@ -388,35 +368,35 @@ and arg w = function
       settle ();
       Taint.empty
 
-and call w (e : T.Expr.t) (callee : T.Verb_ref.t) taints args =
-  let s = summary_of callee in
-  let sg = signature_of callee in
+and call env w (e : T.Expr.t) (callee : T.Verb_ref.t) taints args =
+  let s = summary_of w callee in
+  let sg = Env.signature_of env callee in
   let tys =
     match sg with Some sg -> List.map (fun (p : S.param) -> p.S.ty) sg.S.params | None -> []
   in
   let res =
     match s with
     | Some s -> substitute (Array.of_list taints) s.result
-    | None -> whole (passed tys taints)
+    | None -> whole (passed env tys taints)
   in
   (match sg with
   | Some sg when sg.S.is_mut && S.is_method sg ->
       let into =
         match s with
         | Some s -> substitute (Array.of_list taints) s.into_this
-        | None -> whole (passed (List.tl tys) (List.tl taints))
+        | None -> whole (passed env (List.tl tys) (List.tl taints))
       in
-      write_subject w args taints into
+      write_subject env w args taints into
   | _ -> ());
-  store e.T.Expr.ty res
+  store env e.T.Expr.ty res
 
 (* What a verb with no body to summarise -- an intrinsic, a function value --
    may have kept of its arguments: anything a parameter's type can hold a
    guest in. A parameter whose type cannot hold one keeps nothing. *)
-and passed tys taints =
+and passed env tys taints =
   let rec go tys taints =
     match (tys, taints) with
-    | ty :: tys, t :: taints -> Taint.union (store ty t) (go tys taints)
+    | ty :: tys, t :: taints -> Taint.union (store env ty t) (go tys taints)
     | [], t :: taints -> Taint.union t (go [] taints)
     | _, [] -> Taint.empty
   in
@@ -424,16 +404,16 @@ and passed tys taints =
 
 (* A `!` call writes its subject: it may not reach a read-only guest, and what
    the call stores in it is now there. *)
-and write_subject w args taints into =
+and write_subject env w args taints into =
   match (args, taints) with
   | T.Arg.Value subject :: _, own :: _ ->
-      check_subject w subject own;
+      check_subject env w subject own;
       (match place subject with Some (l, p) -> add w l p into | None -> ())
   | _ -> ()
 
 (* effects.md §4.4: a `!` call is an error when its subject reaches a guest
    derived from a read-only binding. *)
-and check_subject w (subject : T.Expr.t) own =
+and check_subject env w (subject : T.Expr.t) own =
   let reaches =
     match place subject with
     | Some (l, _) when direct w l -> Taint.empty
@@ -441,38 +421,38 @@ and check_subject w (subject : T.Expr.t) own =
     | None -> own
   in
   if read_only w reaches then
-    error w subject.T.Expr.span
+    error env w subject.T.Expr.span
       (Printf.sprintf "a `!` call writes its subject, and it reaches a guest taken from %s"
          (blame w reaches))
 
-and opt_handler w = function Some h -> handler_value w h | None -> Taint.empty
+and opt_handler env w = function Some h -> handler_value env w h | None -> Taint.empty
 
-and handler_value w (h : T.Handler.t) =
+and handler_value env w (h : T.Handler.t) =
   Option.iter
     (fun (b : T.Local.t) -> Hashtbl.replace w.taints b.T.Local.id Taint.empty)
     h.T.Handler.binder;
-  resolving w h.T.Handler.body
+  resolving env w h.T.Handler.body
 
 (* A `return` in a match arm gives the arm's value, not the verb's
    (docs/design/semantics.md §9). *)
-and arm_value w b =
+and arm_value env w b =
   let verb = w.returned in
   w.returned <- Taint.empty;
-  block w b;
+  block env w b;
   let arm = w.returned in
   w.returned <- verb;
   arm
 
-and resolving w b =
+and resolving env w b =
   w.resolved <- Taint.empty :: w.resolved;
-  block w b;
+  block env w b;
   match w.resolved with
   | r :: rest ->
       w.resolved <- rest;
       r
   | [] -> Taint.empty
 
-and lambda w (e : T.Expr.t) (l : T.Lambda.t) =
+and lambda env w (e : T.Expr.t) (l : T.Lambda.t) =
   (* A lambda captures nothing (concurrency.md §5.2): its body sees only its
      own parameters, every one read-only but a `mut` lambda's `this`. *)
   let writable_this =
@@ -487,28 +467,28 @@ and lambda w (e : T.Expr.t) (l : T.Lambda.t) =
       Hashtbl.replace w.origins p.T.Local.id { name = p.T.Local.name; read_only };
       Hashtbl.replace inner.taints p.T.Local.id (Taint.singleton (elem p.T.Local.id [] [])))
     l.T.Lambda.params;
-  block inner l.T.Lambda.body;
+  block env inner l.T.Lambda.body;
   Taint.empty
 
-and block w (b : T.Block.t) = List.iter (stat w) b.T.Block.stats
+and block env w (b : T.Block.t) = List.iter (stat env w) b.T.Block.stats
 
-and stat w (s : T.Stat.t) =
+and stat env w (s : T.Stat.t) =
   match s.T.Stat.node with
-  | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e -> ignore (expr w e)
+  | T.Stat.Expr e | T.Stat.Spawn e | T.Stat.Abort e -> ignore (expr env w e)
   | T.Stat.Let { local; value } ->
-      Hashtbl.replace w.taints local.T.Local.id (store local.T.Local.ty (expr w value))
+      Hashtbl.replace w.taints local.T.Local.id (store env local.T.Local.ty (expr env w value))
   | T.Stat.Assign { target; value } -> (
-      let v = store target.T.Expr.ty (expr w value) in
+      let v = store env target.T.Expr.ty (expr env w value) in
       match place target with
       | Some (l, []) when not (direct w l) -> Hashtbl.replace w.taints l.T.Local.id v
       (* A store through a guest is rejected whatever the guest was taken
          from (lifetimes.md §1.1, [Guests]), so only a `!` call is left for
          this rule. *)
       | Some (l, p) -> add w l p v
-      | None -> ignore (expr w target))
-  | T.Stat.Return e -> w.returned <- Taint.union w.returned (store e.T.Expr.ty (expr w e))
+      | None -> ignore (expr env w target))
+  | T.Stat.Return e -> w.returned <- Taint.union w.returned (store env e.T.Expr.ty (expr env w e))
   | T.Stat.Resolve e -> (
-      let v = expr w e in
+      let v = expr env w e in
       match w.resolved with r :: rest -> w.resolved <- Taint.union r v :: rest | [] -> ())
 
 (* ---------------------------------------------------------------------- *)
@@ -517,10 +497,11 @@ and stat w (s : T.Stat.t) =
 
 type body = { decl : int; signature : S.t; params : T.Local.t list; run : walk -> unit }
 
-let walk_body ~report (b : body) =
+let walk_body summaries ~report (b : body) =
   let w =
     {
       report;
+      summaries;
       taints = Hashtbl.create 32;
       origins = Hashtbl.create 8;
       returned = Taint.empty;
@@ -551,20 +532,20 @@ let walk_body ~report (b : body) =
         Taint.remove (elem 0 [] []) (to_index (taint_of w this))
     | _ -> Taint.empty
   in
-  merge b.decl { result = to_index w.returned; into_this }
+  Fixpoint.add w.summaries b.decl { result = to_index w.returned; into_this }
 
-let bodies (p : T.Program.t) =
+let bodies env (p : T.Program.t) =
   let of_decl (d : T.Decl.t) =
     match d.T.Decl.node with
     | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
-        Some { decl = d.T.Decl.id; signature; params; run = (fun w -> block w body) }
+        Some { decl = d.T.Decl.id; signature; params; run = (fun w -> block env w body) }
     | T.Decl.Subscript { signature; params; value = Some v } ->
         Some
           {
             decl = d.T.Decl.id;
             signature;
             params;
-            run = (fun w -> w.returned <- Taint.union w.returned (expr w v));
+            run = (fun w -> w.returned <- Taint.union w.returned (expr env w v));
           }
     | _ -> None
   in
@@ -577,20 +558,14 @@ let bodies (p : T.Program.t) =
           decl = i.T.Instance.decl;
           signature = i.T.Instance.signature;
           params = i.T.Instance.params;
-          run = (fun w -> block w i.T.Instance.body);
+          run = (fun w -> block env w i.T.Instance.body);
         })
       p.T.Program.instances
 
-let run (p : T.Program.t) =
-  Hashtbl.reset summaries;
-  let bodies = bodies p in
+let run env (p : T.Program.t) =
+  let summaries = summaries () in
+  let bodies = bodies env p in
   (* Every body starts from nothing, so a callee not yet walked is not
      mistaken for one that has no body to walk. *)
-  List.iter (fun (b : body) -> Hashtbl.replace summaries b.decl empty) bodies;
-  let rec settle () =
-    changed := false;
-    List.iter (walk_body ~report:false) bodies;
-    if !changed then settle ()
-  in
-  settle ();
-  List.iter (walk_body ~report:true) bodies
+  List.iter (fun (b : body) -> Fixpoint.start summaries b.decl) bodies;
+  Fixpoint.settle summaries (fun ~report -> List.iter (walk_body summaries ~report) bodies)

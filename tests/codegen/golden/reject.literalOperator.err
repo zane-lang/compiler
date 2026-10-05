@@ -1,0 +1,4 @@
+File "fixtures/reject/literalOperator/main.zn", line 17, characters 21-39:
+17 |     longer Meters = Meters(Int(1)) + 2;
+  |                     ^^^^^^^^^^^^^^^^^^
+Error: lowering does not handle an operator that takes a block or a literal yet

@@ -47,7 +47,6 @@ let describe p =
 
 (* The block parameters each verb runs more than once, by declaration and
    position. *)
-let multi : (int * int, unit) Hashtbl.t = Hashtbl.create 16
 
 (* The arguments a call passes, by position: a type written where a value
    goes passes nothing (generics.md §5.3). *)
@@ -58,7 +57,7 @@ let passed args =
 
 (* Whether the argument at [i] of a call to [r] is run more than once:
    `@controlflow$repeat`'s body, or a block parameter a verb runs so. *)
-let runs_often (r : T.Verb_ref.t) i =
+let runs_often multi (r : T.Verb_ref.t) i =
   match r.T.Verb_ref.owner with
   | S.Intrinsic "@controlflow$repeat" -> i = 1
   | S.Declared id -> Hashtbl.mem multi (id, i)
@@ -72,7 +71,7 @@ let call_parts (e : T.Expr.t) =
 (* One pass of the fixed point: a verb runs a block parameter more than once
    when it passes it where it runs more than once, or passes it anywhere from
    inside a block that does. *)
-let find_multi bodies =
+let find_multi multi bodies =
   let changed = ref false in
   let mark id i =
     if not (Hashtbl.mem multi (id, i)) then begin
@@ -99,7 +98,7 @@ let find_multi bodies =
                 match a with
                 | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
                     match param l.T.Local.id with
-                    | Some p when often || runs_often callee i -> mark id p
+                    | Some p when often || runs_often multi callee i -> mark id p
                     | _ -> ())
                 | _ -> ())
               args
@@ -110,7 +109,7 @@ let find_multi bodies =
               List.concat
                 (List.mapi
                    (fun i a ->
-                     match a with T.Arg.Block b -> [ (b, often || runs_often callee i) ] | _ -> [])
+                     match a with T.Arg.Block b -> [ (b, often || runs_often multi callee i) ] | _ -> [])
                    args)
           | None -> []
         in
@@ -129,20 +128,14 @@ let find_multi bodies =
     bodies;
   !changed
 
-let signature_of = Read_only.signature_of
-
-let strip = function Ty.Guest t -> t | t -> t
-
 (* The types a type holds by owning edges: its members, what it is distinct
    from, a list's elements. A guest member holds none. *)
-let members (t : Ty.t) =
+let members env (t : Ty.t) =
   match t with
   | Ty.Named (tid, args) -> (
-      match Type_decls.type_info_of_id tid with
-      | Some info when List.length info.Env.params = List.length args -> (
-          let sub =
-            Ty.subst (List.combine (List.map (fun (p : Ty.param) -> p.id) info.Env.params) args)
-          in
+      match Type_decls.type_info_of_id env tid with
+      | Some info -> (
+          let sub = Ty.instantiate info.Env.params args in
           match info.Env.definition with
           | Some (Env.Struct fs | Env.Variant fs) -> List.map (fun (_, m) -> sub m) fs
           | Some (Env.Distinct u) -> [ sub u ]
@@ -152,18 +145,18 @@ let members (t : Ty.t) =
   | _ -> []
 
 (* Whether a value of type [outer] may hold one of type [inner]. *)
-let rec contains ?(seen = []) outer inner =
+let rec contains env ?(seen = []) outer inner =
   Ty.equal outer inner
   || (not (List.exists (Ty.equal outer) seen))
      && List.exists
           (fun m ->
             (match m with Ty.Guest _ -> false | _ -> true)
-            && contains ~seen:(outer :: seen) m inner)
-          (members outer)
+            && contains env ~seen:(outer :: seen) m inner)
+          (members env outer)
 
 (* The types a place passes through, from the place itself to its root. *)
 let rec chain (e : T.Expr.t) =
-  strip e.T.Expr.ty
+  Ty.strip_guest e.T.Expr.ty
   ::
   (match e.T.Expr.node with
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
@@ -191,12 +184,12 @@ type frame = {
 (* Two claims on storage overlap when their places do. Where a place is
    reached through a guest whose host the checker cannot follow, they may
    overlap when either's type may hold the other's. *)
-let clashes a b =
+let clashes env a b =
   match (a.at, b.at) with
   | Some x, Some y -> overlap x y
-  | _ -> contains a.ty b.ty || contains b.ty a.ty
+  | _ -> contains env a.ty b.ty || contains env b.ty a.ty
 
-let borrowed frames c = List.find_map (fun f -> List.find_opt (clashes c) f.borrows) frames
+let borrowed env frames c = List.find_map (fun f -> List.find_opt (clashes env c) f.borrows) frames
 
 (* The parts of a place other than the place it is reached through: a
    subscript's index, and a case read's handler. *)
@@ -212,7 +205,7 @@ let rec beside (e : T.Expr.t) =
    than once. *)
 type piece = Plain of Exits.part | Run of T.Block.t * bool
 
-let walk_body (body : T.Block.t) =
+let walk_body env multi (body : T.Block.t) =
   (* Where each guest local points, when the checker knows: the place it was
      minted from, followed through other guests. *)
   let origins : (int, place option) Hashtbl.t = Hashtbl.create 8 in
@@ -245,7 +238,7 @@ let walk_body (body : T.Block.t) =
           match (written, l.at) with
           | Some w, Some a -> overlap w a
           | _ ->
-              contains (strip e.T.Expr.ty) l.host || List.exists (fun c -> contains l.host c) types
+              contains env (Ty.strip_guest e.T.Expr.ty) l.host || List.exists (fun c -> contains env l.host c) types
         in
         match List.find_map (fun f -> List.find_opt clash f.lends) frames with
         | Some l ->
@@ -254,7 +247,7 @@ let walk_body (body : T.Block.t) =
               | Some p -> describe p
               | None -> "`" ^ Ty.to_string l.through.T.Expr.ty ^ "`"
             in
-            Env.error e.T.Expr.span
+            Env.error env e.T.Expr.span
               (Printf.sprintf
                  "this writes %s, which may be part of a host lent through %s to a spawned call \
                   that may read it until its block drains"
@@ -265,10 +258,10 @@ let walk_body (body : T.Block.t) =
   let moved frames (e : T.Expr.t) =
     match e.T.Expr.ty with
     | Ty.Guest _ -> ()
-    | t when Type_decls.is_reference t -> write frames e
+    | t when Type_decls.is_reference env t -> write frames e
     | _ -> ()
   in
-  let claim (e : T.Expr.t) p = { written = p; at = resolve p; ty = strip e.T.Expr.ty } in
+  let claim (e : T.Expr.t) p = { written = p; at = resolve p; ty = Ty.strip_guest e.T.Expr.ty } in
   let rec block frames often (b : T.Block.t) =
     let f = { declared = Hashtbl.create 8; often; borrows = []; lends = [] } in
     let frames = f :: frames in
@@ -308,9 +301,9 @@ let walk_body (body : T.Block.t) =
     match frames with f :: _ -> Hashtbl.replace f.declared l.T.Local.id () | [] -> ()
   (* A place touched while a spawn holds an overlapping borrow. *)
   and touch frames (e : T.Expr.t) p =
-    match borrowed frames (claim e p) with
+    match borrowed env frames (claim e p) with
     | Some { written = b; _ } ->
-        Env.error e.T.Expr.span
+        Env.error env e.T.Expr.span
           (Printf.sprintf
              "%s is borrowed by a spawned `mut` call on %s, which holds it until its block \
               drains"
@@ -321,7 +314,7 @@ let walk_body (body : T.Block.t) =
        parameter moves. *)
     (match e.T.Expr.node with
     | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } -> (
-        match signature_of callee with
+        match Env.signature_of env callee with
         | Some sg ->
             (match args with
             | T.Arg.Value subject :: _ when sg.S.is_mut -> write frames subject
@@ -332,7 +325,7 @@ let walk_body (body : T.Block.t) =
                   (fun (p : S.param) a ->
                     match (a, p.S.ty) with
                     | T.Arg.Value ({ T.Expr.node = T.Expr.Var (T.Name_ref.Local _); _ } as v), t
-                      when (match t with Ty.Guest _ -> false | _ -> true) && Type_decls.is_reference t ->
+                      when (match t with Ty.Guest _ -> false | _ -> true) && Type_decls.is_reference env t ->
                         moved frames v
                     | _ -> ())
                   sg.S.params args
@@ -354,7 +347,7 @@ let walk_body (body : T.Block.t) =
         let often =
           List.concat
             (List.mapi
-               (fun i a -> match a with T.Arg.Block b -> [ (b, runs_often callee i) ] | _ -> [])
+               (fun i a -> match a with T.Arg.Block b -> [ (b, runs_often multi callee i) ] | _ -> [])
                args)
         in
         List.map
@@ -373,11 +366,11 @@ let walk_body (body : T.Block.t) =
     let inner = match e.T.Expr.node with T.Expr.Spawn inner -> inner | _ -> e in
     match inner.T.Expr.node with
     | T.Expr.Call { callee; args = T.Arg.Value subject :: rest; handler }
-      when (match signature_of callee with Some sg -> sg.S.is_mut | None -> false) ->
+      when (match Env.signature_of env callee with Some sg -> sg.S.is_mut | None -> false) ->
         let owner = match subject.T.Expr.ty with Ty.Guest t -> t | t -> t in
-        let reference = Type_decls.is_reference owner in
+        let reference = Type_decls.is_reference env owner in
         if reference then
-          Env.error subject.T.Expr.span
+          Env.error env subject.T.Expr.span
             (Printf.sprintf
                "a spawned `mut` call writes its subject, and `%s` is a reference type: only a \
                 value-typed subject may be written from spawned work"
@@ -387,9 +380,9 @@ let walk_body (body : T.Block.t) =
         | Some p -> (
             (* An index or a case read's handler in the subject is read here. *)
             List.iter (fun x -> part frames (Plain x)) (beside subject);
-            match borrowed frames (claim subject p) with
+            match borrowed env frames (claim subject p) with
             | Some { written = b; _ } ->
-                Env.error subject.T.Expr.span
+                Env.error env subject.T.Expr.span
                   (Printf.sprintf
                      "%s overlaps %s, which a spawned `mut` call in this block or around it \
                       already borrows"
@@ -411,7 +404,7 @@ let walk_body (body : T.Block.t) =
                     Hashtbl.mem f.declared p.local.T.Local.id || ((not f.often) && inside rest)
               in
               if not (inside frames) then
-                Env.error subject.T.Expr.span
+                Env.error env subject.T.Expr.span
                   (Printf.sprintf
                      "this block runs more than once, so a spawned `mut` call in it takes its \
                       subject from storage declared in it, and %s is declared outside"
@@ -431,11 +424,11 @@ let walk_body (body : T.Block.t) =
   and lend frames args =
     List.iter
       (fun (a : T.Expr.t) ->
-        let host = strip a.T.Expr.ty in
+        let host = Ty.strip_guest a.T.Expr.ty in
         let lent =
           match a.T.Expr.ty with
           | Ty.Guest _ -> Some { at = origin a; host; through = a }
-          | t when Type_decls.is_reference t && Option.is_some (place_of a) ->
+          | t when Type_decls.is_reference env t && Option.is_some (place_of a) ->
               Some { at = origin a; host; through = a }
           | _ -> None
         in
@@ -444,8 +437,10 @@ let walk_body (body : T.Block.t) =
   in
   block [] false body
 
-let run (p : T.Program.t) =
-  Hashtbl.reset multi;
+let run env (p : T.Program.t) =
+  (* Each block parameter, by verb and index, that its verb runs more than
+     once. *)
+  let multi : (int * int, unit) Hashtbl.t = Hashtbl.create 16 in
   let bodies =
     List.concat_map
       (fun (pkg : T.Package.t) ->
@@ -461,7 +456,7 @@ let run (p : T.Program.t) =
         (fun (i : T.Instance.t) -> (i.T.Instance.decl, i.T.Instance.params, i.T.Instance.body))
         p.T.Program.instances
   in
-  while find_multi bodies do
+  while find_multi multi bodies do
     ()
   done;
-  List.iter (fun (_, _, b) -> walk_body b) bodies
+  List.iter (fun (_, _, b) -> walk_body env multi b) bodies

@@ -8,11 +8,9 @@ module S = Tst.Signature
 module Tty = Tst.Ty
 open Nodes
 
-type problem = Diagnostic of Diagnostic.t | Message of string
+exception Refused of Diagnostic.t
 
-exception Refused of problem
-
-let refuse span message = raise (Refused (Diagnostic (Diagnostic.error span message)))
+let refuse span message = raise (Refused (Diagnostic.error span message))
 
 (* A verb to lower: a declaration, or a generic one's instance, which [key]
    tells apart from its other instances by the arguments it was given.
@@ -136,6 +134,34 @@ type state = {
   exported : (string, unit) Hashtbl.t;
   imported : (string, unit) Hashtbl.t;
 }
+
+(* A state that has reached nothing yet. *)
+let create ~library ~stamp ~stamped =
+  {
+    verbs = Hashtbl.create 64;
+    types = Hashtbl.create 64;
+    maps = Hashtbl.create 16;
+    constants = Hashtbl.create 16;
+    made = Queue.create ();
+    expanded = ref 0;
+    intrinsics = ref 0;
+    globals = [];
+    defaults = Hashtbl.create 8;
+    lambdas = [];
+    layouts = Hashtbl.create 16;
+    named = [];
+    symbols = Hashtbl.create 64;
+    pending = Queue.create ();
+    next = 0;
+    returns = Fun.id;
+    ret = Tty.Error;
+    spawned = [];
+    library;
+    stamp;
+    stamped;
+    exported = Hashtbl.create 8;
+    imported = Hashtbl.create 8;
+  }
 
 let fresh st =
   st.next <- st.next + 1;

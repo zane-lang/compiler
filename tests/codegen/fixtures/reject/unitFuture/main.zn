@@ -1,0 +1,13 @@
+/// A store into the result of a spawned call that returns `Unit`, which has
+/// no storage to store into.
+package unitFuture;
+
+alias Unit = @primitives$Unit
+
+Unit nothing() => Unit()
+
+Unit main() {
+	later Unit = spawn nothing();
+	later = Unit();
+	return Unit();
+}

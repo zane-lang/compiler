@@ -33,7 +33,7 @@ let unescape s =
 let lookup ctx span (l : T.Local.t) =
   match Hashtbl.find_opt ctx.env l.T.Local.id with
   | Some b -> b
-  | None -> refuse span (Printf.sprintf "lowering found no slot for `%s`" l.T.Local.name)
+  | None -> Diagnostic.bug ~span (Printf.sprintf "lowering found no slot for `%s`" l.T.Local.name)
 
 (* A literal, read through the concept parameters it was passed on by. A
    number parameter read in a body is the number its instance was given
@@ -68,4 +68,4 @@ let literal ctx span name (arg : T.Expr.t) : Expr.t =
       if Float.is_finite value then { Expr.node = Expr.Float value; ty = Nodes.Ty.F64 }
       else refuse span (Printf.sprintf "`%s` is out of range for `@primitives$Float`" s)
   | "String", T.Expr.Text_lit s -> { Expr.node = Expr.Text (unescape s); ty = Nodes.Ty.Handle }
-  | _ -> refuse span (Printf.sprintf "lowering does not handle this `@primitives$%s` yet" name)
+  | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `@primitives$%s` of something not its literal" name)

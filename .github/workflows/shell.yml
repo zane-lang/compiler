@@ -94,13 +94,13 @@ jobs:
           esac
 
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
 
       - name: Install devbox + Nix + devbox.json packages
         if: ${{ inputs.devbox }}
-        uses: jetify-com/devbox-install-action@a0d2d53632934ae004f878c840055956d9f741b0 # v0.14.0
+        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
         with:
           enable-cache: true
 
@@ -109,7 +109,7 @@ jobs:
       # failing, which is the same reason CI splits them.
       - name: Install OCaml dependencies
         if: ${{ inputs.devbox }}
-        run: devbox run -- dev/bin/bootstrap-toolchain
+        run: devbox run -- dev/setup/bootstrap-toolchain
 
       # `bash -lc` rather than `devbox run --`, so the command keeps its shell
       # syntax: pipelines, redirects, and quoting all survive. `devbox run`

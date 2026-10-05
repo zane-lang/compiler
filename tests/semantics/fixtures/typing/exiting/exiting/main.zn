@@ -1,0 +1,17 @@
+package exiting;
+
+alias Unit = @primitives$Unit
+
+Unit run(body @concepts$Block) {
+	@controlflow$branch(true, body);
+	return Unit();
+}
+
+/// The runtime calls `main` from no block, so `main` cannot exit
+/// (packages.md §6.2): not in its body, and not in a block it passes.
+Unit main() {
+	run({
+		@controlflow$exitFromCall();
+	});
+	return Unit();
+}
