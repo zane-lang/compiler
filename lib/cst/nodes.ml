@@ -398,7 +398,8 @@ and Type_expr : sig
 
   and node =
     | Path of { name : Name_type.t; generics : Generic_arg.t list }
-    | Guest of t
+    | Reference of t
+    | Roaming of t
     | Verb of Verb_type.t
 end = Type_expr
 
@@ -411,7 +412,9 @@ and Param_type : sig
   and node =
     | Concrete of Type_expr.t
     | Concept of Concept.t
-    | InferredType of { name : Name.t; concept : Concept.t }
+    (* [roaming] is `^T Type`: a parameter that takes an owner when [name] is
+       filled with a reference type (memory.md §2.9). *)
+    | InferredType of { name : Name.t; concept : Concept.t; roaming : bool }
 end = Param_type
 
 and Param : sig

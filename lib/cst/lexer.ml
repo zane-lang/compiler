@@ -27,6 +27,7 @@ let rec token buf =
   | "$" -> DOLLAR
   | "#" -> HASH
   | "&" -> AMPERSAND
+  | "^" -> CARET
   | "@" -> AT
   | "!" -> EXCL
   | "?" -> QSTNMARK

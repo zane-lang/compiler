@@ -4,10 +4,10 @@
 /* Snapshots (concurrency.md §4.4, docs/design/lowering.md §9)                   */
 /* ---------------------------------------------------------------------- */
 
-/* A spawned `mut` call whose subject is reached through a host works on a
+/* A spawned `mut` call whose subject is reached through an owner works on a
    copy of its own, and writes it back when it returns. A write-back counts
    itself begun, replaces the bytes, and counts itself done; a reader of a
-   value reached through a host takes its bytes when every write-back begun
+   value reached through an owner takes its bytes when every write-back begun
    is done, and keeps them when none began while it read. The bytes move a
    word at a time, as atomics, so a read is torn only where it is retried. */
 static uint64_t zane_begun, zane_done;
@@ -71,7 +71,7 @@ static void zane_forget(zane_mark *m) {
 	while (m->retired) {
 		zane_retired *r = m->retired;
 		m->retired = r->next;
-		zane_end((char *)(r + 1), r->layout, 1, NULL, NULL, 0);
+		zane_end((char *)(r + 1), r->layout);
 		zane_free((char *)r, (int64_t)sizeof *r + r->size, 8);
 	}
 }
@@ -80,7 +80,7 @@ static void zane_forget(zane_mark *m) {
    holds nothing, since the result took its blocks home. */
 static void zane_release(zane_context *c) {
 	zane_mark *m = zane_mark_at(c, 0);
-	for (zane_hosted *h = m->hosts; h; h = h->next) zane_end(h->slot, h->layout, 1, NULL, NULL, 0);
+	for (zane_held *h = m->held; h; h = h->next) zane_end(h->slot, h->layout);
 	zane_forget(m);
 	zane_lock(c);
 	if (m->live != 0) zane_broken("a dynamic block outlived its owner");
@@ -124,9 +124,7 @@ static void zane_join_task(zane_task *t) {
 /* A read of what a spawned call returns. */
 void zane_join(char *frame) { zane_join_task((zane_task *)frame - 1); }
 
-/* Every identity the scope still hosts ends: its anchors, and the
-   forwarders to them, retire. The blocks its values still own are
-   returned, and by then no block is out in its region, since every one has
+/* The blocks the scope's values still own are returned, and by then no block is out in its region, since every one has
    an owner in the scope or has moved out with it. Then both regions are
    released together. First, as the water tower has it (§4.1), the scope
    waits for every call it spawned, and each result comes home. */
@@ -135,7 +133,7 @@ void zane_scope_drain(int64_t scope) {
 	if (scope != c->depth - 1 || scope == 0) zane_broken("a scope drained out of order");
 	zane_mark *m = zane_mark_at(c, scope);
 	for (zane_task *t = m->tasks; t; t = t->next) zane_join_task(t);
-	for (zane_hosted *h = m->hosts; h; h = h->next) zane_end(h->slot, h->layout, 1, NULL, NULL, 0);
+	for (zane_held *h = m->held; h; h = h->next) zane_end(h->slot, h->layout);
 	zane_forget(m);
 	zane_lock(c);
 	if (m->live != 0) zane_broken("a dynamic block outlived its owner");

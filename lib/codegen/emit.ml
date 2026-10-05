@@ -30,7 +30,7 @@ let rec lltype env (t : Ty.t) =
   | Ty.I32 -> Llvm.i32_type env.ctx
   | Ty.I64 -> env.i64
   | Ty.F64 -> Llvm.double_type env.ctx
-  | Ty.Handle -> Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx; env.ptr; env.i64; env.i64 |]
+  | Ty.Handle -> Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |]
   | Ty.Ptr -> env.ptr
   | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
   | Ty.Sum ts -> (
@@ -95,7 +95,6 @@ let layouts env (named : (Layout.t * Layout.position list) list) =
       let position (p : Layout.position) =
         let kind, extra, inner =
           match p.kind with
-          | Layout.Host -> (0, 0, int 0)
           | Layout.Text -> (1, 0, int 0)
           | Layout.List { stride; elements } -> (2, stride, table elements)
           | Layout.Box { size; payload } -> (3, size, table payload)
@@ -118,8 +117,8 @@ let layout env (l : Layout.t) =
 let listed env (l : Layout.t) =
   match Hashtbl.find_opt env.layouts l with Some (_, listed) -> listed | None -> false
 
-(* A string literal is constant bytes the module owns, with no terminator.
-   Its instance starts untethered, and owns no block. *)
+(* A string literal is constant bytes the module owns, with no terminator,
+   and owns no block. *)
 let text env s =
   let bytes = Llvm.const_string env.ctx s in
   let g = Llvm.define_global "zane.text" bytes env.m in
@@ -127,8 +126,7 @@ let text env s =
   Llvm.set_global_constant true g;
   Llvm.set_unnamed_addr true g;
   let n = Llvm.const_int env.i64 in
-  Llvm.const_struct env.ctx
-    [| Llvm.const_int (Llvm.i32_type env.ctx) 0; g; n (String.length s); n 0 |]
+  Llvm.const_struct env.ctx [| g; n (String.length s); n 0 |]
 
 (* ---------------------------------------------------------------------- *)
 (* Frames and slots                                                       *)
@@ -170,9 +168,8 @@ let slot env fr id t =
   Hashtbl.replace fr.locals id (s, t);
   s
 
-(* A value moved into a fresh place: stored, the anchors it carries follow
-   it there (memory.md §4.5), and its blocks move into the place's region
-   (§3.5). *)
+(* A value moved into a fresh place: stored, and the blocks it owns that the
+   place's region outlives move into it (memory.md §3.5). *)
 let place env b p v l =
   ignore (Llvm.build_store v p b);
   if listed env l then ignore (call_runtime env b Cgt.Runtime.Arrive [| p; layout env l |])
@@ -260,10 +257,6 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           (base, within) path
       in
       Some at
-  | Expr.Mint p -> Some (call_runtime env b Cgt.Runtime.Mint [| value_of env fr b p |])
-  | Expr.Resolve t -> Some (call_runtime env b Cgt.Runtime.Resolve [| value_of env fr b t |])
-  | Expr.Terminal t ->
-      Some (call_runtime env b Cgt.Runtime.Terminal [| value_of env fr b t |])
   | Expr.Take { address; layout = l } -> (
       let p = value_of env fr b address in
       match e.Expr.ty with
@@ -460,7 +453,7 @@ and stat env fr b (s : Stat.t) =
       stats env fr b body;
       if not (has_terminator b) then ignore (call_runtime env b Cgt.Runtime.Scope_drain [| arena |]);
       fr.open_ <- List.tl fr.open_
-  | Stat.Host { id; scope; value; layout = l } -> (
+  | Stat.Hold { id; scope; value; layout = l } -> (
       match expr env fr b value with
       | None -> ()
       | Some v ->
@@ -482,7 +475,7 @@ and stat env fr b (s : Stat.t) =
   | Stat.Store { address; value } -> (
       let p = value_of env fr b address in
       match expr env fr b value with Some v -> ignore (Llvm.build_store v p b) | None -> ())
-  | Stat.Overwrite { address; value; layout = l; contingent } -> (
+  | Stat.Overwrite { address; value; layout = l } -> (
       let p = value_of env fr b address in
       match expr env fr b value with
       | None -> ()
@@ -490,9 +483,7 @@ and stat env fr b (s : Stat.t) =
           let incoming = spill env fr b v in
           let n x = Llvm.const_int env.i64 x in
           let size = n (fst (size_align value.Expr.ty)) in
-          let contingent = n (if contingent then 1 else 0) in
-          ignore
-            (call_runtime env b Cgt.Runtime.Overwrite [| p; incoming; size; layout env l; contingent |]))
+          ignore (call_runtime env b Cgt.Runtime.Overwrite [| p; incoming; size; layout env l |]))
   | Stat.If { cond; body } ->
       let c = value_of env fr b cond in
       let taken = block env fr and after = block env fr in

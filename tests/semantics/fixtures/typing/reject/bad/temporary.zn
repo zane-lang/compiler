@@ -1,8 +1,14 @@
 package bad;
 
-/// `print` takes a guest, and a guest names a place: a view built in the
-/// argument is a temporary, so it is stored first (memory.md §2.8).
+type Note = #struct { pitch @primitives$Int; }
+
+Note(pitch @primitives$Int) => init{ pitch; }
+
+@primitives$Unit hear(note &Note) => @primitives$Unit()
+
+/// A reference names a place: a value built in the argument is a temporary,
+/// so it is stored first (memory.md §2.8).
 @primitives$Unit greet() {
-	@program$console!print(@primitives$String("hello world"));
+	hear(Note(@primitives$Int(1)));
 	return @primitives$Unit();
 }

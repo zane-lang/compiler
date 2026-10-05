@@ -35,7 +35,7 @@ Unit check(holds Bool) {
 }
 
 /// A value that says when it is read.
-Int say(value Int, name &String) {
+Int say(value Int, name String) {
 	@program$console!print(name);
 	return value;
 }
@@ -47,7 +47,7 @@ Weight(grams Int) => init{ grams; }
 
 Bool <(left Weight, right Weight) => left.grams < right.grams
 
-Weight heavy(grams Int, name &String) {
+Weight heavy(grams Int, name String) {
 	@program$console!print(name);
 	return Weight(grams);
 }

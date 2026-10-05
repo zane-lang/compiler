@@ -61,7 +61,7 @@ let rec is_reference env ?(seen = []) (t : Ty.t) =
       match Intrinsics.find_type namespace name with
       | Some t -> t.reference
       | None -> false)
-  | Ty.Guest _ -> true
+  | Ty.Reference _ -> true
   | _ -> false
 
 let type_info_of_id env tid = Hashtbl.find_opt env.type_infos_by_id tid
@@ -73,7 +73,7 @@ let rec concept_in (t : Ty.t) =
   | Ty.Concept _ -> Some t
   | Ty.Named (_, args) | Ty.Intrinsic { args; _ } ->
       List.find_map (function Ty.Type t -> concept_in t | Ty.Number _ -> None) args
-  | Ty.Guest t -> concept_in t
+  | Ty.Reference t -> concept_in t
   | _ -> None
 
 let mentions_concept t = Option.is_some (concept_in t)
@@ -87,25 +87,141 @@ let describe_concept (t : Ty.t) =
       Printf.sprintf "%s holds %s, a concept type" (quote (Ty.to_string t)) (quote (Ty.to_string c))
   | None -> quote (Ty.to_string t)
 
-let check_storage env span what (t : Ty.t) =
+(* [roaming] says whether the storage may be a roaming owner: a local may,
+   and a field, a constant or a type's definition may not (syntax.md §2.3). *)
+let check_storage env ?(roaming = false) span what (t : Ty.t) =
   if mentions_concept t then
     error env span
       (Printf.sprintf "%s, which may type a parameter but is never storage, so it cannot be %s"
          (describe_concept t) what)
+  else if Ty.is_roaming t && not roaming then
+    error env span
+      (Printf.sprintf
+         "%s is a roaming owner, and `^` is written only on a local, a parameter or a return \
+          type, so it cannot be %s"
+         (quote (Ty.to_string t)) what)
 
-let check_guest env span (inner : Ty.t) =
+(* `&` and `^` mark only a reference type (memory.md §2.1, §2.4). A type
+   parameter may be either kind, and is checked where it is filled. Kinds
+   are known only once every type is defined, so a marker met before then
+   is checked afterwards. *)
+let check_marker env span (marked : Ty.t) =
   if !(env.ready) then begin
-    match inner with
-    | Ty.Param _ | Ty.Error -> ()
-    | _ ->
-        if not (is_reference env inner) then
-          error env span
-            (Printf.sprintf
-               "%s is a value type, and `&` marks only a reference type (a `#` \
-                mould or a reference primitive)"
-               (quote (Ty.to_string inner)))
+    match marked with
+    | Ty.Reference (Ty.Param _ | Ty.Error) | Ty.Roaming (Ty.Param _ | Ty.Error) -> ()
+    | Ty.Reference inner when not (is_reference env inner) ->
+        error env span
+          (Printf.sprintf
+             "%s is a value type, and `&` marks only a reference type (a `#` \
+              mould or a reference primitive)"
+             (quote (Ty.to_string inner)))
+    | Ty.Roaming inner when not (is_reference env inner) ->
+        error env span
+          (Printf.sprintf
+             "%s is a value type, and `^` marks only a roaming owner of a reference type; a \
+              value is never owned, only copied"
+             (quote (Ty.to_string inner)))
+    | _ -> ()
   end
-  else env.deferred_guests := (inner, span) :: !(env.deferred_guests)
+  else env.deferred_marks := (marked, span) :: !(env.deferred_marks)
+
+(* A reference-typed result is a roaming owner or a reference, written `^T`
+   or `&T`: a bare one would hand back a borrow, which is never returned
+   (memory.md §2.9, syntax.md §4.10). An abort hands its value to the
+   caller's handler as a return hands it to the caller (lifetimes.md §1.7),
+   so an abort type follows the same rule. *)
+let bare_reference env (t : Ty.t) =
+  match t with
+  | Ty.Reference _ | Ty.Roaming _ | Ty.Param _ | Ty.Error -> false
+  | t -> is_reference env t
+
+let check_result env span what (t : Ty.t) =
+  if bare_reference env t then
+    error env span
+      (Printf.sprintf
+         "%s %s, a reference type, bare; a borrow is never returned, so write `^%s` to hand back \
+          an owner or `&%s` to hand back a reference"
+         what (quote (Ty.to_string t)) (Ty.to_string t) (Ty.to_string t))
+
+(* The same rule for every function type written inside [t]. *)
+let rec check_function_types env span (t : Ty.t) =
+  match t with
+  | Ty.Verb v ->
+      check_result env span "this function type returns" v.Ty.ret;
+      Option.iter (check_result env span "this function type aborts with") v.Ty.abort;
+      List.iter (check_function_types env span) (Option.to_list v.Ty.this_ @ v.Ty.params @ [ v.Ty.ret ])
+  | Ty.Named (_, args) | Ty.Intrinsic { args; _ } ->
+      List.iter (function Ty.Type t -> check_function_types env span t | Ty.Number _ -> ()) args
+  | Ty.Reference t | Ty.Roaming t -> check_function_types env span t
+  | _ -> ()
+
+(* A type argument of the wrong kind (generics.md §3.6): a reference type,
+   or an `&`, that an instance puts where a value mould holds only values
+   (memory.md §2.10). The walk follows what the instance builds: the fields
+   of each mould it applies, with the arguments substituted, down through
+   the moulds those fields apply in turn, and an `@primitives$Array`'s
+   elements. It does not look inside the arguments themselves, which were
+   checked where they were written. What it finds is the slot that rejects
+   the type, as the path that reaches it, and the type. *)
+let rec wrong_kind env ?(seen = []) (t : Ty.t) : (string list * Ty.t) option =
+  let bad (ft : Ty.t) =
+    match ft with
+    | Ty.Reference _ -> true
+    | Ty.Param _ | Ty.Error | Ty.Roaming _ -> false
+    | ft -> is_reference env ft
+  in
+  match t with
+  | Ty.Named (tid, args) when not (List.mem tid seen) -> (
+      match Hashtbl.find_opt env.type_infos_by_id tid with
+      | Some ({ definition = Some (Struct fs | Variant fs); _ } as info) ->
+          let value = info.reference = Some false in
+          let fields = List.map (fun (n, ft) -> (n, Ty.instantiate info.params args ft)) fs in
+          let step n = Printf.sprintf "%s's field %s" (quote (Ty.to_string t)) (quote n) in
+          List.find_map
+            (fun (n, ft) ->
+              if value && bad ft then Some ([ step n ], ft)
+              else
+                Option.map
+                  (fun (path, b) -> (step n :: path, b))
+                  (wrong_kind env ~seen:(tid :: seen) (Ty.strip_mode ft)))
+            fields
+      | Some ({ definition = Some (Distinct u); _ } as info) ->
+          wrong_kind env ~seen:(tid :: seen) (Ty.instantiate info.params args u)
+      | _ -> None)
+  | Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = Ty.Type e :: _ } when bad e ->
+      Some ([ Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) ], e)
+  | _ -> None
+
+let describe_wrong_kind (path, bad) =
+  Printf.sprintf
+    "%s is a reference type, and it reaches %s, a value type's slot; a value type holds only \
+     values, all the way down"
+    (quote (Ty.to_string bad)) (String.concat ", then " path)
+
+(* Report a wrong-kind type once kinds are known: at the argument written
+   explicitly that brought the rejected type in, or at [span]. *)
+let check_kinds env span (t : Ty.t) (args : (Ty.arg * Span.t) list) =
+  let run () =
+    match wrong_kind env t with
+    | None -> ()
+    | Some ((_, bad) as found) ->
+        let rec mentions (x : Ty.t) =
+          Ty.equal (Ty.strip_mode x) (Ty.strip_mode bad)
+          ||
+          match x with
+          | Ty.Named (_, a) | Ty.Intrinsic { args = a; _ } ->
+              List.exists (function Ty.Type x -> mentions x | Ty.Number _ -> false) a
+          | Ty.Reference x | Ty.Roaming x -> mentions x
+          | _ -> false
+        in
+        let at =
+          match List.find_opt (function Ty.Type x, _ -> mentions x | _ -> false) args with
+          | Some (_, s) -> s
+          | None -> span
+        in
+        error env at (describe_wrong_kind found)
+  in
+  if !(env.ready) then run () else env.deferred_kinds := run :: !(env.deferred_kinds)
 
 (* ---------------------------------------------------------------------- *)
 (* Resolution                                                             *)
@@ -178,17 +294,31 @@ let parse_number env span text =
 let rec resolve env scope (te : N.Type_expr.t) : Ty.t =
   let span = te.N.Type_expr.span in
   match te.N.Type_expr.node with
-  | N.Type_expr.Guest inner ->
-      let t = resolve env scope inner in
-      check_guest env span t;
-      Ty.Guest t
+  | N.Type_expr.Reference inner ->
+      let t = Ty.Reference (resolve env scope inner) in
+      check_marker env span t;
+      t
+  | N.Type_expr.Roaming inner ->
+      let t = Ty.Roaming (resolve env scope inner) in
+      check_marker env span t;
+      t
   | N.Type_expr.Verb v -> Ty.Verb (verb_type env scope v)
   | N.Type_expr.Path { name; generics } -> apply env scope span (resolve_head env scope name) name generics
 
 and generic_arg env scope (a : N.Generic_arg.t) : Ty.arg =
   let span = a.N.Generic_arg.span in
   match a.N.Generic_arg.node with
-  | N.Generic_arg.Type t -> Ty.Type (resolve env scope t)
+  | N.Generic_arg.Type t ->
+      let t = resolve env scope t in
+      (* A type argument is what a type holds, and a type's members are
+         never roaming owners (syntax.md §2.3). *)
+      if Ty.is_roaming t then
+        error env span
+          (Printf.sprintf
+             "%s is a roaming owner, and `^` is written only on a local, a parameter or a \
+              return type, never inside another type's arguments"
+             (quote (Ty.to_string t)));
+      Ty.Type t
   | N.Generic_arg.Number text -> Ty.Number (parse_number env span text)
   | N.Generic_arg.NumberRef n -> (
       match List.assoc_opt n.N.Name.text scope.params with
@@ -257,7 +387,10 @@ and apply env scope span head (name : N.Name_type.t) generics : Ty.t =
       Ty.Error
   | Intrinsic_type info -> (
       match apply_args env scope span (quote ("@" ^ info.namespace ^ "$" ^ info.name)) info.params generics with
-      | Some args -> Ty.Intrinsic { namespace = info.namespace; name = info.name; args }
+      | Some args ->
+          let t = Ty.Intrinsic { namespace = info.namespace; name = info.name; args } in
+          check_kinds env span t (arg_spans args generics);
+          t
       | None -> Ty.Error)
   | Concept_type c -> concept env scope span c generics
   | Declared d -> (
@@ -265,7 +398,10 @@ and apply env scope span head (name : N.Name_type.t) generics : Ty.t =
       | Some info -> (
           let kinds = List.map (fun (p : Ty.param) -> p.kind) info.params in
           match apply_args env scope span (quote info.tid.name) kinds generics with
-          | Some args -> Ty.Named (info.tid, args)
+          | Some args ->
+              let t = Ty.Named (info.tid, args) in
+              check_kinds env span t (arg_spans args generics);
+              t
           | None -> Ty.Error)
       | None -> (
           match Hashtbl.find_opt env.alias_infos d.id with
@@ -279,6 +415,9 @@ and apply env scope span head (name : N.Name_type.t) generics : Ty.t =
           | None ->
               ignore name;
               Ty.Error))
+
+and arg_spans args (generics : N.Generic_arg.t list) =
+  List.combine args (List.map (fun (g : N.Generic_arg.t) -> g.N.Generic_arg.span) generics)
 
 and concept env scope span c generics : Ty.t =
   let args () = List.map (generic_arg env scope) generics in
@@ -301,7 +440,7 @@ and concept env scope span c generics : Ty.t =
       | _ ->
           error env span
             "`@concepts$Block` takes no type argument: a block yields nothing \
-             (docs/spec-divergences.md §12)";
+             (docs/spec-divergences.md §11)";
           Ty.Error)
   | "Array" -> (
       match args () with
@@ -344,7 +483,7 @@ and param_type env scope (p : N.Param_type.t) : Ty.t =
   (* Only a type's header entry is written this way, and the grammar builds
      one nowhere else. *)
   | N.Param_type.Concept { N.Concept.node = N.Concept.Named _; _ } -> Ty.Error
-  | N.Param_type.InferredType { name; _ } -> (
+  | N.Param_type.InferredType { name; roaming; _ } -> (
       if not scope.signature then begin
         error env p.N.Param_type.span
           (Printf.sprintf
@@ -355,7 +494,7 @@ and param_type env scope (p : N.Param_type.t) : Ty.t =
       end
       else
         match List.assoc_opt name.N.Name.text scope.params with
-        | Some (Ty.Type t) -> t
+        | Some (Ty.Type t) -> if roaming then Ty.Roaming t else t
         | _ -> Ty.Error)
 
 (* An alias is expanded where it is written (D5), so it has no identity of
@@ -560,6 +699,11 @@ let check_distinct_cycles env () =
 let check_value_downstream env () =
   List.iter
     (fun (info : type_info) ->
+      (match info.definition with
+      | Some (Struct fs) | Some (Variant fs) ->
+          List.iter (fun (_, t) -> check_function_types env info.decl.span t) fs
+      | Some (Distinct t) -> check_function_types env info.decl.span t
+      | _ -> ());
       if info.reference = Some false then
         let members =
           match info.definition with
@@ -569,7 +713,7 @@ let check_value_downstream env () =
         List.iter
           (fun (name, (t : Ty.t)) ->
             match t with
-            | Ty.Guest _ ->
+            | Ty.Reference _ ->
                 error env info.decl.span
                   (Printf.sprintf
                      "%s is a value type, so its member %s cannot be an `&`; only a \
@@ -593,6 +737,8 @@ let run env =
   List.iter (fun a -> ignore (alias_target env a)) (List.sort (fun a b -> compare a.alias_decl.id b.alias_decl.id) aliases);
   check_distinct_cycles env ();
   env.ready := true;
-  List.iter (fun (t, span) -> check_guest env span t) (List.rev !(env.deferred_guests));
-  env.deferred_guests := [];
+  List.iter (fun (t, span) -> check_marker env span t) (List.rev !(env.deferred_marks));
+  env.deferred_marks := [];
+  List.iter (fun run -> run ()) (List.rev !(env.deferred_kinds));
+  env.deferred_kinds := [];
   check_value_downstream env ()

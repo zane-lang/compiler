@@ -1,398 +1,464 @@
 └── program:
-    ├── entry: hosts$main()
+    ├── entry: owners$main()
     ├── layouts[0] > layout:
-    │   ├── type: hosts$Account
-    │   └── positions[0]: @0 (24 bytes)
+    │   ├── type: ^owners$Account
+    │   └── positions:
     ├── layouts[1] > layout:
-    │   ├── type: hosts$Slot
-    │   ├── positions[0]: @0 (40 bytes)
-    │   └── positions[1]: @16 (24 bytes) when [8]=1
+    │   ├── type: owners$Account
+    │   └── positions:
     ├── layouts[2] > layout:
+    │   ├── type: owners$Slot
+    │   └── positions:
+    ├── layouts[3] > layout:
     │   ├── type: %primitives$String
-    │   ├── positions[0]: @0 (32 bytes)
-    │   └── positions[1]: text @0
+    │   └── positions[0]: text @0
     ├── funcs[0] > func:
-    │   ├── symbol: hosts$main()
+    │   ├── symbol: owners$main()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %2
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #1
     │       │   ├── scope: %2
     │       │   ├── value > call:
-    │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   ├── fn: hosts$opened(%primitives$Int, %primitives$Int)
+    │       │   │   ├── type: {i64, i64}
+    │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
     │       │   │   ├── args[0]: 1 : i64
     │       │   │   └── args[1]: 5 : i64
-    │       │   └── layout: hosts$Account
+    │       │   └── layout: ^owners$Account
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$deposit(this hosts$Account, %primitives$Int)
+    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$Int)
     │       │   ├── args[0]: address of #1 : ptr
     │       │   └── args[1]: 10 : i64
     │       ├── body[2] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: hosts$funds(this hosts$Account)
+    │       │       │   ├── fn: owners$funds(this owners$Account)
     │       │       │   └── args[0]: address of #1 : ptr
     │       │       └── right: 15 : i64
-    │       ├── body[3] > host:
+    │       ├── body[3] > hold:
     │       │   ├── local: #3
     │       │   ├── scope: %2
     │       │   ├── value > take:
-    │       │   │   ├── type: {i32, i64, i64}
+    │       │   │   ├── type: {i64, i64}
     │       │   │   ├── address: address of #1 : ptr
-    │       │   │   └── layout: hosts$Account
-    │       │   └── layout: hosts$Account
+    │       │   │   └── layout: owners$Account
+    │       │   └── layout: owners$Account
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > snapshot:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
-    │       │       │       ├── within: {i32, i64, i64}
-    │       │       │       ├── path: 2
+    │       │       │       ├── within: {i64, i64}
+    │       │       │       ├── path: 1
     │       │       │       └── base: address of #3 : ptr
     │       │       └── right: 15 : i64
     │       ├── body[5] > overwrite:
     │       │   ├── address: address of #1 : ptr
     │       │   ├── value > call:
-    │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   ├── fn: hosts$Account(%primitives$Int)
+    │       │   │   ├── type: {i64, i64}
+    │       │   │   ├── fn: owners$Account(%primitives$Int)
     │       │   │   └── args[0]: 2 : i64
-    │       │   └── layout: hosts$Account
+    │       │   └── layout: owners$Account
     │       ├── body[6] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > snapshot:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
-    │       │       │       ├── within: {i32, i64, i64}
-    │       │       │       ├── path: 1
+    │       │       │       ├── within: {i64, i64}
+    │       │       │       ├── path: 0
     │       │       │       └── base: address of #1 : ptr
     │       │       └── right: 2 : i64
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: hosts$closed(hosts$Account)
+    │       │       │   ├── fn: owners$balanceOf(owners$Account)
     │       │       │   └── args[0]: address of #3 : ptr
     │       │       └── right: 15 : i64
-    │       ├── body[8] > host:
-    │       │   ├── local: #4
-    │       │   ├── scope: %2
-    │       │   ├── value > record:
-    │       │   │   ├── type: {i32, <void | {i32, i64, i64}>}
-    │       │   │   ├── members[0] > member 0: 0 : i32
-    │       │   │   └── members[1] > member 1 > case:
-    │       │   │       ├── type: <void | {i32, i64, i64}>
-    │       │   │       ├── index: 1
-    │       │   │       └── payload > call:
-    │       │   │           ├── type: {i32, i64, i64}
-    │       │   │           ├── fn: hosts$Account(%primitives$Int)
-    │       │   │           └── args[0]: 3 : i64
-    │       │   └── layout: hosts$Slot
+    │       ├── body[8] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: owners$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: owners$balanceOf(owners$Account)
+    │       │       │   └── args[0]: address of #1 : ptr
+    │       │       └── right: 0 : i64
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: owners$closed(^owners$Account)
+    │       │       │   └── args[0] > take:
+    │       │       │       ├── type: {i64, i64}
+    │       │       │       ├── address: address of #1 : ptr
+    │       │       │       └── layout: ^owners$Account
+    │       │       └── right: 0 : i64
+    │       ├── body[10] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: {i64, i64}
+    │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │       │   │   ├── args[0]: 3 : i64
+    │       │   │   └── args[1]: 7 : i64
+    │       │   └── layout: ^owners$Account
+    │       ├── body[11] > overwrite:
+    │       │   ├── address: address of #4 : ptr
+    │       │   ├── value > call:
+    │       │   │   ├── type: {i64, i64}
+    │       │   │   ├── fn: owners$relayed(^owners$Account)
+    │       │   │   └── args[0] > take:
+    │       │   │       ├── type: {i64, i64}
+    │       │   │       ├── address: address of #4 : ptr
+    │       │   │       └── layout: ^owners$Account
+    │       │   └── layout: owners$Account
+    │       ├── body[12] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: owners$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64, i64}
+    │       │       │       ├── path: 1
+    │       │       │       └── base: address of #4 : ptr
+    │       │       └── right: 8 : i64
+    │       ├── body[13] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: owners$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: owners$closed(^owners$Account)
+    │       │       │   └── args[0] > call:
+    │       │       │       ├── type: {i64, i64}
+    │       │       │       ├── fn: owners$Account(%primitives$Int)
+    │       │       │       └── args[0]: 4 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[14] > hold:
+    │       │   ├── local: #5
+    │       │   ├── scope: %2
+    │       │   ├── value > case:
+    │       │   │   ├── type: <void | {i64, i64}>
+    │       │   │   ├── index: 1
+    │       │   │   └── payload > call:
+    │       │   │       ├── type: {i64, i64}
+    │       │   │       ├── fn: owners$Account(%primitives$Int)
+    │       │   │       └── args[0]: 3 : i64
+    │       │   └── layout: owners$Slot
+    │       ├── body[15] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @5
-    │       │       ├── result: #6
+    │       │       ├── label: @6
+    │       │       ├── result: #7
     │       │       ├── body[0] > let:
-    │       │       │   ├── local: #7
-    │       │       │   └── value: address of #4 : ptr
+    │       │       │   ├── local: #8
+    │       │       │   └── value: address of #5 : ptr
     │       │       └── body[1] > switch:
-    │       │           ├── value > member:
-    │       │           │   ├── type: <void | {i32, i64, i64}>
-    │       │           │   ├── index: 1
-    │       │           │   └── value > deref:
-    │       │           │       ├── type: {i32, <void | {i32, i64, i64}>}
-    │       │           │       └── ptr: local #7 : ptr
+    │       │           ├── value > deref:
+    │       │           │   ├── type: <void | {i64, i64}>
+    │       │           │   └── ptr: local #8 : ptr
     │       │           ├── cases[0] > case 0[0] > let:
-    │       │           │   ├── local: #8
-    │       │           │   └── value > offset:
-    │       │           │       ├── within: {i32, <void | {i32, i64, i64}>}
-    │       │           │       ├── path: 1.0
-    │       │           │       └── base: local #7 : ptr
-    │       │           ├── cases[0] > case 0[1] > assign:
-    │       │           │   ├── place: #6
-    │       │           │   └── value: false : i1
-    │       │           ├── cases[0] > case 0[2]: leave @5
-    │       │           ├── cases[1] > case 1[0] > let:
     │       │           │   ├── local: #9
     │       │           │   └── value > offset:
-    │       │           │       ├── within: {i32, <void | {i32, i64, i64}>}
-    │       │           │       ├── path: 1.1
-    │       │           │       └── base: local #7 : ptr
+    │       │           │       ├── within: <void | {i64, i64}>
+    │       │           │       ├── path: 0
+    │       │           │       └── base: local #8 : ptr
+    │       │           ├── cases[0] > case 0[1] > assign:
+    │       │           │   ├── place: #7
+    │       │           │   └── value: false : i1
+    │       │           ├── cases[0] > case 0[2]: leave @6
+    │       │           ├── cases[1] > case 1[0] > let:
+    │       │           │   ├── local: #10
+    │       │           │   └── value > offset:
+    │       │           │       ├── within: <void | {i64, i64}>
+    │       │           │       ├── path: 1
+    │       │           │       └── base: local #8 : ptr
     │       │           ├── cases[1] > case 1[1] > assign:
-    │       │           │   ├── place: #6
+    │       │           │   ├── place: #7
     │       │           │   └── value > binary:
     │       │           │       ├── type: i1
     │       │           │       ├── op: ==
     │       │           │       ├── left > snapshot:
     │       │           │       │   ├── type: i64
     │       │           │       │   └── ptr > offset:
-    │       │           │       │       ├── within: {i32, i64, i64}
-    │       │           │       │       ├── path: 1
-    │       │           │       │       └── base: local #9 : ptr
+    │       │           │       │       ├── within: {i64, i64}
+    │       │           │       │       ├── path: 0
+    │       │           │       │       └── base: local #10 : ptr
     │       │           │       └── right: 3 : i64
-    │       │           └── cases[1] > case 1[2]: leave @5
-    │       ├── body[10] > eval > call:
+    │       │           └── cases[1] > case 1[2]: leave @6
+    │       ├── body[16] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: hosts$richest(%primitives$Int)
+    │       │       │   ├── fn: owners$richest(%primitives$Int)
     │       │       │   └── args[0]: 9 : i64
     │       │       └── right: 4 : i64
-    │       ├── body[11] > eval > call:
+    │       ├── body[17] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @10
-    │       │       │   ├── result: #11
+    │       │       │   ├── label: @11
+    │       │       │   ├── result: #12
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #12
+    │       │       │   │   ├── local: #13
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | i64 | void>
-    │       │       │   │       ├── fn: hosts$overdrawn(%primitives$Int)
+    │       │       │   │       ├── fn: owners$overdrawn(%primitives$Int)
     │       │       │   │       └── args[0]: 1 : i64
     │       │       │   └── body[1] > switch:
-    │       │       │       ├── value: local #12 : <i64 | i64 | void>
+    │       │       │       ├── value: local #13 : <i64 | i64 | void>
     │       │       │       ├── cases[0] > case 0[0] > assign:
-    │       │       │       │   ├── place: #11
+    │       │       │       │   ├── place: #12
     │       │       │       │   └── value > payload:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── index: 0
-    │       │       │       │       └── value: local #12 : <i64 | i64 | void>
-    │       │       │       ├── cases[0] > case 0[1]: leave @10
+    │       │       │       │       └── value: local #13 : <i64 | i64 | void>
+    │       │       │       ├── cases[0] > case 0[1]: leave @11
     │       │       │       ├── cases[1] > case 1[0] > eval > payload:
     │       │       │       │   ├── type: i64
     │       │       │       │   ├── index: 1
-    │       │       │       │   └── value: local #12 : <i64 | i64 | void>
+    │       │       │       │   └── value: local #13 : <i64 | i64 | void>
     │       │       │       ├── cases[1] > case 1[1] > assign:
-    │       │       │       │   ├── place: #11
+    │       │       │       │   ├── place: #12
     │       │       │       │   └── value: 0 : i64
-    │       │       │       └── cases[1] > case 1[2]: leave @10
+    │       │       │       └── cases[1] > case 1[2]: leave @11
     │       │       └── right: 5 : i64
-    │       ├── body[12] > eval > call:
+    │       ├── body[18] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @13
-    │       │       │   ├── result: #14
+    │       │       │   ├── label: @14
+    │       │       │   ├── result: #15
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #15
+    │       │       │   │   ├── local: #16
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | i64 | void>
-    │       │       │   │       ├── fn: hosts$overdrawn(%primitives$Int)
+    │       │       │   │       ├── fn: owners$overdrawn(%primitives$Int)
     │       │       │   │       └── args[0]: 7 : i64
     │       │       │   └── body[1] > switch:
-    │       │       │       ├── value: local #15 : <i64 | i64 | void>
+    │       │       │       ├── value: local #16 : <i64 | i64 | void>
     │       │       │       ├── cases[0] > case 0[0] > assign:
-    │       │       │       │   ├── place: #14
+    │       │       │       │   ├── place: #15
     │       │       │       │   └── value > payload:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── index: 0
-    │       │       │       │       └── value: local #15 : <i64 | i64 | void>
-    │       │       │       ├── cases[0] > case 0[1]: leave @13
+    │       │       │       │       └── value: local #16 : <i64 | i64 | void>
+    │       │       │       ├── cases[0] > case 0[1]: leave @14
     │       │       │       ├── cases[1] > case 1[0] > let:
-    │       │       │       │   ├── local: #16
+    │       │       │       │   ├── local: #17
     │       │       │       │   └── value > payload:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── index: 1
-    │       │       │       │       └── value: local #15 : <i64 | i64 | void>
+    │       │       │       │       └── value: local #16 : <i64 | i64 | void>
     │       │       │       ├── cases[1] > case 1[1] > assign:
-    │       │       │       │   ├── place: #14
+    │       │       │       │   ├── place: #15
     │       │       │       │   └── value > binary:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── op: +
-    │       │       │       │       ├── left: local #16 : i64
+    │       │       │       │       ├── left: local #17 : i64
     │       │       │       │       └── right: 1 : i64
-    │       │       │       └── cases[1] > case 1[2]: leave @13
+    │       │       │       └── cases[1] > case 1[2]: leave @14
     │       │       └── right: 8 : i64
-    │       ├── body[13] > eval > call:
+    │       ├── body[19] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: hosts$total(%primitives$Int)
+    │       │       │   ├── fn: owners$total(%primitives$Int)
     │       │       │   └── args[0]: 3 : i64
     │       │       └── right: 12 : i64
-    │       ├── body[14] > eval > call:
+    │       ├── body[20] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @17
-    │       │       │   ├── result: #18
+    │       │       │   ├── label: @18
+    │       │       │   ├── result: #19
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #19
+    │       │       │   │   ├── local: #20
     │       │       │   │   └── value > call:
-    │       │       │   │       ├── type: <i64 | {i32, i64, i64} | void>
-    │       │       │   │       ├── fn: hosts$refused(%primitives$Int)
+    │       │       │   │       ├── type: <i64 | {i64, i64} | void>
+    │       │       │   │       ├── fn: owners$refused(%primitives$Int)
     │       │       │   │       └── args[0]: 0 : i64
     │       │       │   └── body[1] > switch:
-    │       │       │       ├── value: local #19 : <i64 | {i32, i64, i64} | void>
+    │       │       │       ├── value: local #20 : <i64 | {i64, i64} | void>
     │       │       │       ├── cases[0] > case 0[0] > assign:
-    │       │       │       │   ├── place: #18
+    │       │       │       │   ├── place: #19
     │       │       │       │   └── value > payload:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── index: 0
-    │       │       │       │       └── value: local #19 : <i64 | {i32, i64, i64} | void>
-    │       │       │       ├── cases[0] > case 0[1]: leave @17
+    │       │       │       │       └── value: local #20 : <i64 | {i64, i64} | void>
+    │       │       │       ├── cases[0] > case 0[1]: leave @18
     │       │       │       └── cases[1] > case 1[0] > scope:
-    │       │       │           ├── id: %21
-    │       │       │           ├── body[0] > host:
-    │       │       │           │   ├── local: #20
-    │       │       │           │   ├── scope: %21
+    │       │       │           ├── id: %22
+    │       │       │           ├── body[0] > hold:
+    │       │       │           │   ├── local: #21
+    │       │       │           │   ├── scope: %22
     │       │       │           │   ├── value > payload:
-    │       │       │           │   │   ├── type: {i32, i64, i64}
+    │       │       │           │   │   ├── type: {i64, i64}
     │       │       │           │   │   ├── index: 1
-    │       │       │           │   │   └── value: local #19 : <i64 | {i32, i64, i64} | void>
-    │       │       │           │   └── layout: hosts$Account
+    │       │       │           │   │   └── value: local #20 : <i64 | {i64, i64} | void>
+    │       │       │           │   └── layout: ^owners$Account
     │       │       │           ├── body[1] > assign:
-    │       │       │           │   ├── place: #18
+    │       │       │           │   ├── place: #19
     │       │       │           │   └── value > snapshot:
     │       │       │           │       ├── type: i64
     │       │       │           │       └── ptr > offset:
-    │       │       │           │           ├── within: {i32, i64, i64}
-    │       │       │           │           ├── path: 2
-    │       │       │           │           └── base: address of #20 : ptr
-    │       │       │           └── body[2]: leave @17
+    │       │       │           │           ├── within: {i64, i64}
+    │       │       │           │           ├── path: 1
+    │       │       │           │           └── base: address of #21 : ptr
+    │       │       │           └── body[2]: leave @18
     │       │       └── right: 70 : i64
-    │       ├── body[15] > eval > call:
+    │       ├── body[21] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @22
-    │       │       │   ├── result: #23
+    │       │       │   ├── label: @23
+    │       │       │   ├── result: #24
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #24
+    │       │       │   │   ├── local: #25
     │       │       │   │   └── value > call:
-    │       │       │   │       ├── type: <i64 | {i32, i64, i64} | void>
-    │       │       │   │       ├── fn: hosts$refused(%primitives$Int)
+    │       │       │   │       ├── type: <i64 | {i64, i64} | void>
+    │       │       │   │       ├── fn: owners$refused(%primitives$Int)
     │       │       │   │       └── args[0]: 4 : i64
     │       │       │   └── body[1] > switch:
-    │       │       │       ├── value: local #24 : <i64 | {i32, i64, i64} | void>
+    │       │       │       ├── value: local #25 : <i64 | {i64, i64} | void>
     │       │       │       ├── cases[0] > case 0[0] > assign:
-    │       │       │       │   ├── place: #23
+    │       │       │       │   ├── place: #24
     │       │       │       │   └── value > payload:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── index: 0
-    │       │       │       │       └── value: local #24 : <i64 | {i32, i64, i64} | void>
-    │       │       │       ├── cases[0] > case 0[1]: leave @22
+    │       │       │       │       └── value: local #25 : <i64 | {i64, i64} | void>
+    │       │       │       ├── cases[0] > case 0[1]: leave @23
     │       │       │       └── cases[1] > case 1[0] > scope:
-    │       │       │           ├── id: %26
-    │       │       │           ├── body[0] > host:
-    │       │       │           │   ├── local: #25
-    │       │       │           │   ├── scope: %26
+    │       │       │           ├── id: %27
+    │       │       │           ├── body[0] > hold:
+    │       │       │           │   ├── local: #26
+    │       │       │           │   ├── scope: %27
     │       │       │           │   ├── value > payload:
-    │       │       │           │   │   ├── type: {i32, i64, i64}
+    │       │       │           │   │   ├── type: {i64, i64}
     │       │       │           │   │   ├── index: 1
-    │       │       │           │   │   └── value: local #24 : <i64 | {i32, i64, i64} | void>
-    │       │       │           │   └── layout: hosts$Account
+    │       │       │           │   │   └── value: local #25 : <i64 | {i64, i64} | void>
+    │       │       │           │   └── layout: ^owners$Account
     │       │       │           ├── body[1] > assign:
-    │       │       │           │   ├── place: #23
+    │       │       │           │   ├── place: #24
     │       │       │           │   └── value > snapshot:
     │       │       │           │       ├── type: i64
     │       │       │           │       └── ptr > offset:
-    │       │       │           │           ├── within: {i32, i64, i64}
-    │       │       │           │           ├── path: 2
-    │       │       │           │           └── base: address of #25 : ptr
-    │       │       │           └── body[2]: leave @22
+    │       │       │           │           ├── within: {i64, i64}
+    │       │       │           │           ├── path: 1
+    │       │       │           │           └── base: address of #26 : ptr
+    │       │       │           └── body[2]: leave @23
     │       │       └── right: 4 : i64
-    │       ├── body[16] > eval > call:
+    │       ├── body[22] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: hosts$chosen(hosts$Choice)
+    │       │       │   ├── fn: owners$chosen(owners$Choice)
     │       │       │   └── args[0] > case:
     │       │       │       ├── type: <i64 | void>
     │       │       │       ├── index: 0
     │       │       │       └── payload: 5 : i64
     │       │       └── right: 5 : i64
-    │       ├── body[17] > eval > call:
+    │       ├── body[23] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: hosts$chosen(hosts$Choice)
+    │       │       │   ├── fn: owners$chosen(owners$Choice)
     │       │       │   └── args[0] > case:
     │       │       │       ├── type: <i64 | void>
     │       │       │       ├── index: 0
     │       │       │       └── payload: 0 : i64
     │       │       └── right: 0 : i64
-    │       ├── body[18] > eval > call:
+    │       ├── body[24] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: hosts$chosen(hosts$Choice)
+    │       │       │   ├── fn: owners$chosen(owners$Choice)
     │       │       │   └── args[0] > case:
     │       │       │       ├── type: <i64 | void>
     │       │       │       ├── index: 1
     │       │       │       └── payload: unit : void
     │       │       └── right: 600 : i64
-    │       ├── body[19] > let:
-    │       │   ├── local: #27
-    │       │   └── value: 0 : i64
-    │       ├── body[20] > let:
+    │       ├── body[25] > let:
     │       │   ├── local: #28
+    │       │   └── value: 0 : i64
+    │       ├── body[26] > let:
+    │       │   ├── local: #29
     │       │   └── value: 1 : i64
-    │       ├── body[21] > eval > expand:
+    │       ├── body[27] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @30
+    │       │   ├── label: @31
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #29
+    │       │   │   ├── local: #30
     │       │   │   └── value: 100000 : i64
     │       │   ├── body[1] > repeat:
     │       │   │   ├── count > binary:
@@ -401,129 +467,143 @@
     │       │   │   │   ├── left > binary:
     │       │   │   │   │   ├── type: i64
     │       │   │   │   │   ├── op: +
-    │       │   │   │   │   ├── left: local #29 : i64
+    │       │   │   │   │   ├── left: local #30 : i64
     │       │   │   │   │   └── right > flip:
     │       │   │   │   │       ├── type: i64
-    │       │   │   │   │       └── value: local #28 : i64
+    │       │   │   │   │       └── value: local #29 : i64
     │       │   │   │   └── right: 1 : i64
     │       │   │   ├── body[0] > if:
     │       │   │   │   ├── cond: true : i1
     │       │   │   │   └── body[0] > scope:
-    │       │   │   │       ├── id: %34
-    │       │   │   │       ├── body[0] > host:
-    │       │   │   │       │   ├── local: #33
-    │       │   │   │       │   ├── scope: %34
+    │       │   │   │       ├── id: %35
+    │       │   │   │       ├── body[0] > hold:
+    │       │   │   │       │   ├── local: #34
+    │       │   │   │       │   ├── scope: %35
     │       │   │   │       │   ├── value > call:
-    │       │   │   │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   │       │   │   ├── fn: hosts$opened(%primitives$Int, %primitives$Int)
-    │       │   │   │       │   │   ├── args[0]: local #28 : i64
+    │       │   │   │       │   │   ├── type: {i64, i64}
+    │       │   │   │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │       │   │   │       │   │   ├── args[0]: local #29 : i64
     │       │   │   │       │   │   └── args[1]: 1 : i64
-    │       │   │   │       │   └── layout: hosts$Account
-    │       │   │   │       ├── body[1] > host:
-    │       │   │   │       │   ├── local: #35
-    │       │   │   │       │   ├── scope: %34
+    │       │   │   │       │   └── layout: ^owners$Account
+    │       │   │   │       ├── body[1] > hold:
+    │       │   │   │       │   ├── local: #36
+    │       │   │   │       │   ├── scope: %35
     │       │   │   │       │   ├── value > take:
-    │       │   │   │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   │       │   │   ├── address: address of #33 : ptr
-    │       │   │   │       │   │   └── layout: hosts$Account
-    │       │   │   │       │   └── layout: hosts$Account
-    │       │   │   │       └── body[2] > assign:
-    │       │   │   │           ├── place: #27
+    │       │   │   │       │   │   ├── type: {i64, i64}
+    │       │   │   │       │   │   ├── address: address of #34 : ptr
+    │       │   │   │       │   │   └── layout: owners$Account
+    │       │   │   │       │   └── layout: owners$Account
+    │       │   │   │       ├── body[2] > assign:
+    │       │   │   │       │   ├── place: #28
+    │       │   │   │       │   └── value > binary:
+    │       │   │   │       │       ├── type: i64
+    │       │   │   │       │       ├── op: +
+    │       │   │   │       │       ├── left: local #28 : i64
+    │       │   │   │       │       └── right > snapshot:
+    │       │   │   │       │           ├── type: i64
+    │       │   │   │       │           └── ptr > offset:
+    │       │   │   │       │               ├── within: {i64, i64}
+    │       │   │   │       │               ├── path: 1
+    │       │   │   │       │               └── base: address of #36 : ptr
+    │       │   │   │       └── body[3] > assign:
+    │       │   │   │           ├── place: #28
     │       │   │   │           └── value > binary:
     │       │   │   │               ├── type: i64
     │       │   │   │               ├── op: +
-    │       │   │   │               ├── left: local #27 : i64
-    │       │   │   │               └── right > snapshot:
+    │       │   │   │               ├── left: local #28 : i64
+    │       │   │   │               └── right > call:
     │       │   │   │                   ├── type: i64
-    │       │   │   │                   └── ptr > offset:
-    │       │   │   │                       ├── within: {i32, i64, i64}
-    │       │   │   │                       ├── path: 2
-    │       │   │   │                       └── base: address of #35 : ptr
+    │       │   │   │                   ├── fn: owners$closed(^owners$Account)
+    │       │   │   │                   └── args[0] > call:
+    │       │   │   │                       ├── type: {i64, i64}
+    │       │   │   │                       ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │       │   │   │                       ├── args[0]: local #29 : i64
+    │       │   │   │                       └── args[1]: 0 : i64
     │       │   │   └── body[1] > assign:
-    │       │   │       ├── place: #28
+    │       │   │       ├── place: #29
     │       │   │       └── value > binary:
     │       │   │           ├── type: i64
     │       │   │           ├── op: +
-    │       │   │           ├── left: local #28 : i64
+    │       │   │           ├── left: local #29 : i64
     │       │   │           └── right: 1 : i64
     │       │   ├── body[2] > eval: unit : void
-    │       │   └── body[3]: leave @30
-    │       ├── body[22] > eval > call:
+    │       │   └── body[3]: leave @31
+    │       ├── body[28] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$check(%primitives$Bool)
+    │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left: local #27 : i64
+    │       │       ├── left: local #28 : i64
     │       │       └── right: 100000 : i64
-    │       └── body[23] > return: unit : void
+    │       └── body[29] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: hosts$opened(%primitives$Int, %primitives$Int)
+    │   ├── symbol: owners$opened(%primitives$Int, %primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
-    │   ├── ret: {i32, i64, i64}
+    │   ├── ret: {i64, i64}
     │   └── body[0] > scope:
     │       ├── id: %4
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #3
     │       │   ├── scope: %4
     │       │   ├── value > call:
-    │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   ├── fn: hosts$Account(%primitives$Int)
+    │       │   │   ├── type: {i64, i64}
+    │       │   │   ├── fn: owners$Account(%primitives$Int)
     │       │   │   └── args[0]: local #1 : i64
-    │       │   └── layout: hosts$Account
+    │       │   └── layout: ^owners$Account
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: hosts$deposit(this hosts$Account, %primitives$Int)
+    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$Int)
     │       │   ├── args[0]: address of #3 : ptr
     │       │   └── args[1]: local #2 : i64
     │       └── body[2] > return > escape:
     │           ├── exit: function
     │           ├── value > take:
-    │           │   ├── type: {i32, i64, i64}
+    │           │   ├── type: {i64, i64}
     │           │   ├── address: address of #3 : ptr
-    │           │   └── layout: hosts$Account
-    │           └── layout: hosts$Account
+    │           │   └── layout: ^owners$Account
+    │           └── layout: ^owners$Account
     ├── funcs[2] > func:
-    │   ├── symbol: hosts$deposit(this hosts$Account, %primitives$Int)
+    │   ├── symbol: owners$deposit(this owners$Account, %primitives$Int)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
     │   ├── body[0] > assign:
-    │   │   ├── place: *#1.2
+    │   │   ├── place: *#1.1
     │   │   └── value > binary:
     │   │       ├── type: i64
     │   │       ├── op: +
     │   │       ├── left > snapshot:
     │   │       │   ├── type: i64
     │   │       │   └── ptr > offset:
-    │   │       │       ├── within: {i32, i64, i64}
-    │   │       │       ├── path: 2
+    │   │       │       ├── within: {i64, i64}
+    │   │       │       ├── path: 1
     │   │       │       └── base: local #1 : ptr
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: hosts$funds(this hosts$Account)
+    │   ├── symbol: owners$funds(this owners$Account)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   └── body[0] > return > snapshot:
     │       ├── type: i64
     │       └── ptr > offset:
-    │           ├── within: {i32, i64, i64}
-    │           ├── path: 2
+    │           ├── within: {i64, i64}
+    │           ├── path: 1
     │           └── base: local #1 : ptr
     ├── funcs[4] > func:
-    │   ├── symbol: hosts$check(%primitives$Bool)
+    │   ├── symbol: owners$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value: "yes\n" : handle
     │       │   └── layout: %primitives$String
-    │       ├── body[1] > host:
+    │       ├── body[1] > hold:
     │       │   ├── local: #4
     │       │   ├── scope: %3
     │       │   ├── value: "no\n" : handle
@@ -544,29 +624,76 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[5] > func:
-    │   ├── symbol: hosts$Account(%primitives$Int)
+    │   ├── symbol: owners$Account(%primitives$Int)
     │   ├── params[0]: local #1 : i64
-    │   ├── ret: {i32, i64, i64}
+    │   ├── ret: {i64, i64}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {i32, i64, i64}
-    │       │   ├── members[0] > member 0: 0 : i32
-    │       │   ├── members[1] > member 1: local #1 : i64
-    │       │   └── members[2] > member 2: 0 : i64
-    │       └── layout: hosts$Account
+    │       │   ├── type: {i64, i64}
+    │       │   ├── members[0] > member 0: local #1 : i64
+    │       │   └── members[1] > member 1: 0 : i64
+    │       └── layout: owners$Account
     ├── funcs[6] > func:
-    │   ├── symbol: hosts$closed(hosts$Account)
+    │   ├── symbol: owners$balanceOf(owners$Account)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   └── body[0] > return > snapshot:
     │       ├── type: i64
     │       └── ptr > offset:
-    │           ├── within: {i32, i64, i64}
-    │           ├── path: 2
+    │           ├── within: {i64, i64}
+    │           ├── path: 1
     │           └── base: local #1 : ptr
     ├── funcs[7] > func:
-    │   ├── symbol: hosts$richest(%primitives$Int)
+    │   ├── symbol: owners$closed(^owners$Account)
+    │   ├── params[0]: local #1 : {i64, i64}
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: local #1 : {i64, i64}
+    │       │   └── layout: ^owners$Account
+    │       └── body[1] > return > snapshot:
+    │           ├── type: i64
+    │           └── ptr > offset:
+    │               ├── within: {i64, i64}
+    │               ├── path: 1
+    │               └── base: address of #2 : ptr
+    ├── funcs[8] > func:
+    │   ├── symbol: owners$relayed(^owners$Account)
+    │   ├── params[0]: local #1 : {i64, i64}
+    │   ├── ret: {i64, i64}
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: local #1 : {i64, i64}
+    │       │   └── layout: ^owners$Account
+    │       ├── body[1] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value > take:
+    │       │   │   ├── type: {i64, i64}
+    │       │   │   ├── address: address of #2 : ptr
+    │       │   │   └── layout: ^owners$Account
+    │       │   └── layout: ^owners$Account
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$Int)
+    │       │   ├── args[0]: address of #4 : ptr
+    │       │   └── args[1]: 1 : i64
+    │       └── body[3] > return > escape:
+    │           ├── exit: function
+    │           ├── value > take:
+    │           │   ├── type: {i64, i64}
+    │           │   ├── address: address of #4 : ptr
+    │           │   └── layout: ^owners$Account
+    │           └── layout: ^owners$Account
+    ├── funcs[9] > func:
+    │   ├── symbol: owners$richest(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -594,19 +721,19 @@
     │   │   │   │   ├── cond: true : i1
     │   │   │   │   └── body[0] > scope:
     │   │   │   │       ├── id: %8
-    │   │   │   │       ├── body[0] > host:
+    │   │   │   │       ├── body[0] > hold:
     │   │   │   │       │   ├── local: #7
     │   │   │   │       │   ├── scope: %8
     │   │   │   │       │   ├── value > call:
-    │   │   │   │       │   │   ├── type: {i32, i64, i64}
-    │   │   │   │       │   │   ├── fn: hosts$opened(%primitives$Int, %primitives$Int)
+    │   │   │   │       │   │   ├── type: {i64, i64}
+    │   │   │   │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
     │   │   │   │       │   │   ├── args[0]: local #2 : i64
     │   │   │   │       │   │   └── args[1] > binary:
     │   │   │   │       │   │       ├── type: i64
     │   │   │   │       │   │       ├── op: *
     │   │   │   │       │   │       ├── left: local #2 : i64
     │   │   │   │       │   │       └── right: 10 : i64
-    │   │   │   │       │   └── layout: hosts$Account
+    │   │   │   │       │   └── layout: owners$Account
     │   │   │   │       └── body[1] > eval > expand:
     │   │   │   │           ├── type: i1
     │   │   │   │           ├── label: @10
@@ -620,16 +747,16 @@
     │   │   │   │           │       └── right > snapshot:
     │   │   │   │           │           ├── type: i64
     │   │   │   │           │           └── ptr > offset:
-    │   │   │   │           │               ├── within: {i32, i64, i64}
-    │   │   │   │           │               ├── path: 2
+    │   │   │   │           │               ├── within: {i64, i64}
+    │   │   │   │           │               ├── path: 1
     │   │   │   │           │               └── base: address of #7 : ptr
     │   │   │   │           ├── body[1] > if:
     │   │   │   │           │   ├── cond: local #9 : i1
     │   │   │   │           │   └── body[0] > return > snapshot:
     │   │   │   │           │       ├── type: i64
     │   │   │   │           │       └── ptr > offset:
-    │   │   │   │           │           ├── within: {i32, i64, i64}
-    │   │   │   │           │           ├── path: 1
+    │   │   │   │           │           ├── within: {i64, i64}
+    │   │   │   │           │           ├── path: 0
     │   │   │   │           │           └── base: address of #7 : ptr
     │   │   │   │           ├── body[2] > assign:
     │   │   │   │           │   ├── place: #11
@@ -645,21 +772,21 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @4
     │   └── body[2] > return: 0 : i64
-    ├── funcs[8] > func:
-    │   ├── symbol: hosts$overdrawn(%primitives$Int)
+    ├── funcs[10] > func:
+    │   ├── symbol: owners$overdrawn(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | i64 | void>
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value > call:
-    │       │   │   ├── type: {i32, i64, i64}
-    │       │   │   ├── fn: hosts$opened(%primitives$Int, %primitives$Int)
+    │       │   │   ├── type: {i64, i64}
+    │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
     │       │   │   ├── args[0]: 9 : i64
     │       │   │   └── args[1]: 5 : i64
-    │       │   └── layout: hosts$Account
+    │       │   └── layout: owners$Account
     │       ├── body[1] > eval > expand:
     │       │   ├── type: i1
     │       │   ├── label: @5
@@ -672,31 +799,31 @@
     │       │   │       ├── left > snapshot:
     │       │   │       │   ├── type: i64
     │       │   │       │   └── ptr > offset:
-    │       │   │       │       ├── within: {i32, i64, i64}
-    │       │   │       │       ├── path: 2
+    │       │   │       │       ├── within: {i64, i64}
+    │       │   │       │       ├── path: 1
     │       │   │       │       └── base: address of #2 : ptr
     │       │   │       └── right: local #1 : i64
     │       │   ├── body[1] > if:
     │       │   │   ├── cond: local #4 : i1
     │       │   │   └── body[0] > scope:
     │       │   │       ├── id: %9
-    │       │   │       ├── body[0] > host:
+    │       │   │       ├── body[0] > hold:
     │       │   │       │   ├── local: #8
     │       │   │       │   ├── scope: %9
     │       │   │       │   ├── value > call:
-    │       │   │       │   │   ├── type: {i32, i64, i64}
-    │       │   │       │   │   ├── fn: hosts$opened(%primitives$Int, %primitives$Int)
+    │       │   │       │   │   ├── type: {i64, i64}
+    │       │   │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
     │       │   │       │   │   ├── args[0]: 8 : i64
     │       │   │       │   │   └── args[1]: local #1 : i64
-    │       │   │       │   └── layout: hosts$Account
+    │       │   │       │   └── layout: owners$Account
     │       │   │       └── body[1] > return > case:
     │       │   │           ├── type: <i64 | i64 | void>
     │       │   │           ├── index: 1
     │       │   │           └── payload > snapshot:
     │       │   │               ├── type: i64
     │       │   │               └── ptr > offset:
-    │       │   │                   ├── within: {i32, i64, i64}
-    │       │   │                   ├── path: 2
+    │       │   │                   ├── within: {i64, i64}
+    │       │   │                   ├── path: 1
     │       │   │                   └── base: address of #8 : ptr
     │       │   ├── body[2] > assign:
     │       │   │   ├── place: #6
@@ -708,11 +835,11 @@
     │           └── payload > snapshot:
     │               ├── type: i64
     │               └── ptr > offset:
-    │                   ├── within: {i32, i64, i64}
-    │                   ├── path: 2
+    │                   ├── within: {i64, i64}
+    │                   ├── path: 1
     │                   └── base: address of #2 : ptr
-    ├── funcs[9] > func:
-    │   ├── symbol: hosts$total(%primitives$Int)
+    ├── funcs[11] > func:
+    │   ├── symbol: owners$total(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -746,15 +873,15 @@
     │   │   │   │       ├── label: @7
     │   │   │   │       └── body[0] > scope:
     │   │   │   │           ├── id: %9
-    │   │   │   │           ├── body[0] > host:
+    │   │   │   │           ├── body[0] > hold:
     │   │   │   │           │   ├── local: #8
     │   │   │   │           │   ├── scope: %9
     │   │   │   │           │   ├── value > call:
-    │   │   │   │           │   │   ├── type: {i32, i64, i64}
-    │   │   │   │           │   │   ├── fn: hosts$opened(%primitives$Int, %primitives$Int)
+    │   │   │   │           │   │   ├── type: {i64, i64}
+    │   │   │   │           │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
     │   │   │   │           │   │   ├── args[0]: local #3 : i64
     │   │   │   │           │   │   └── args[1]: local #3 : i64
-    │   │   │   │           │   └── layout: hosts$Account
+    │   │   │   │           │   └── layout: owners$Account
     │   │   │   │           ├── body[1] > eval > expand:
     │   │   │   │           │   ├── type: void
     │   │   │   │           │   ├── label: @10
@@ -762,7 +889,7 @@
     │   │   │   │           │   │   ├── local: #11
     │   │   │   │           │   │   └── value > call:
     │   │   │   │           │   │       ├── type: <void | void | void>
-    │   │   │   │           │   │       ├── fn: hosts$guard(%primitives$Bool)
+    │   │   │   │           │   │       ├── fn: owners$guard(%primitives$Bool)
     │   │   │   │           │   │       └── args[0] > binary:
     │   │   │   │           │   │           ├── type: i1
     │   │   │   │           │   │           ├── op: ==
@@ -781,8 +908,8 @@
     │   │   │   │                   └── right > snapshot:
     │   │   │   │                       ├── type: i64
     │   │   │   │                       └── ptr > offset:
-    │   │   │   │                           ├── within: {i32, i64, i64}
-    │   │   │   │                           ├── path: 2
+    │   │   │   │                           ├── within: {i64, i64}
+    │   │   │   │                           ├── path: 1
     │   │   │   │                           └── base: address of #8 : ptr
     │   │   │   └── body[1] > assign:
     │   │   │       ├── place: #3
@@ -794,10 +921,10 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[10] > func:
-    │   ├── symbol: hosts$refused(%primitives$Int)
+    ├── funcs[12] > func:
+    │   ├── symbol: owners$refused(%primitives$Int)
     │   ├── params[0]: local #1 : i64
-    │   ├── ret: <i64 | {i32, i64, i64} | void>
+    │   ├── ret: <i64 | {i64, i64} | void>
     │   ├── body[0] > eval > expand:
     │   │   ├── type: i1
     │   │   ├── label: @3
@@ -812,26 +939,26 @@
     │   │   ├── body[1] > if:
     │   │   │   ├── cond: local #2 : i1
     │   │   │   └── body[0] > return > case:
-    │   │   │       ├── type: <i64 | {i32, i64, i64} | void>
+    │   │   │       ├── type: <i64 | {i64, i64} | void>
     │   │   │       ├── index: 1
     │   │   │       └── payload > escape:
     │   │   │           ├── exit: function
     │   │   │           ├── value > call:
-    │   │   │           │   ├── type: {i32, i64, i64}
-    │   │   │           │   ├── fn: hosts$opened(%primitives$Int, %primitives$Int)
+    │   │   │           │   ├── type: {i64, i64}
+    │   │   │           │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
     │   │   │           │   ├── args[0]: 7 : i64
     │   │   │           │   └── args[1]: 70 : i64
-    │   │   │           └── layout: hosts$Account
+    │   │   │           └── layout: ^owners$Account
     │   │   ├── body[2] > assign:
     │   │   │   ├── place: #4
     │   │   │   └── value: local #2 : i1
     │   │   └── body[3]: leave @3
     │   └── body[1] > return > case:
-    │       ├── type: <i64 | {i32, i64, i64} | void>
+    │       ├── type: <i64 | {i64, i64} | void>
     │       ├── index: 0
     │       └── payload: local #1 : i64
-    ├── funcs[11] > func:
-    │   ├── symbol: hosts$chosen(hosts$Choice)
+    ├── funcs[13] > func:
+    │   ├── symbol: owners$chosen(owners$Choice)
     │   ├── params[0]: local #1 : <i64 | void>
     │   ├── ret: i64
     │   └── body[0] > return > expand:
@@ -853,19 +980,19 @@
     │           │       └── base: local #4 : ptr
     │           ├── cases[0] > case 0[1] > scope:
     │           │   ├── id: %7
-    │           │   ├── body[0] > host:
+    │           │   ├── body[0] > hold:
     │           │   │   ├── local: #6
     │           │   │   ├── scope: %7
     │           │   │   ├── value > call:
-    │           │   │   │   ├── type: {i32, i64, i64}
-    │           │   │   │   ├── fn: hosts$opened(%primitives$Int, %primitives$Int)
+    │           │   │   │   ├── type: {i64, i64}
+    │           │   │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
     │           │   │   │   ├── args[0] > deref:
     │           │   │   │   │   ├── type: i64
     │           │   │   │   │   └── ptr: local #5 : ptr
     │           │   │   │   └── args[1] > deref:
     │           │   │   │       ├── type: i64
     │           │   │   │       └── ptr: local #5 : ptr
-    │           │   │   └── layout: hosts$Account
+    │           │   │   └── layout: ^owners$Account
     │           │   ├── body[1] > eval > expand:
     │           │   │   ├── type: i1
     │           │   │   ├── label: @9
@@ -878,22 +1005,22 @@
     │           │   │   │       ├── left > snapshot:
     │           │   │   │       │   ├── type: i64
     │           │   │   │       │   └── ptr > offset:
-    │           │   │   │       │       ├── within: {i32, i64, i64}
-    │           │   │   │       │       ├── path: 2
+    │           │   │   │       │       ├── within: {i64, i64}
+    │           │   │   │       │       ├── path: 1
     │           │   │   │       │       └── base: address of #6 : ptr
     │           │   │   │       └── right: 0 : i64
     │           │   │   ├── body[1] > if:
     │           │   │   │   ├── cond: local #8 : i1
     │           │   │   │   └── body[0] > scope:
     │           │   │   │       ├── id: %13
-    │           │   │   │       ├── body[0] > host:
+    │           │   │   │       ├── body[0] > hold:
     │           │   │   │       │   ├── local: #12
     │           │   │   │       │   ├── scope: %13
     │           │   │   │       │   ├── value > take:
-    │           │   │   │       │   │   ├── type: {i32, i64, i64}
+    │           │   │   │       │   │   ├── type: {i64, i64}
     │           │   │   │       │   │   ├── address: address of #6 : ptr
-    │           │   │   │       │   │   └── layout: hosts$Account
-    │           │   │   │       │   └── layout: hosts$Account
+    │           │   │   │       │   │   └── layout: owners$Account
+    │           │   │   │       │   └── layout: owners$Account
     │           │   │   │       ├── body[1] > assign:
     │           │   │   │       │   ├── place: #3
     │           │   │   │       │   └── value > binary:
@@ -902,8 +1029,8 @@
     │           │   │   │       │       ├── left > snapshot:
     │           │   │   │       │       │   ├── type: i64
     │           │   │   │       │       │   └── ptr > offset:
-    │           │   │   │       │       │       ├── within: {i32, i64, i64}
-    │           │   │   │       │       │       ├── path: 1
+    │           │   │   │       │       │       ├── within: {i64, i64}
+    │           │   │   │       │       │       ├── path: 0
     │           │   │   │       │       │       └── base: address of #12 : ptr
     │           │   │   │       │       └── right: 100 : i64
     │           │   │   │       └── body[2]: leave @2
@@ -916,8 +1043,8 @@
     │           │   │   └── value > snapshot:
     │           │   │       ├── type: i64
     │           │   │       └── ptr > offset:
-    │           │   │           ├── within: {i32, i64, i64}
-    │           │   │           ├── path: 2
+    │           │   │           ├── within: {i64, i64}
+    │           │   │           ├── path: 1
     │           │   │           └── base: address of #6 : ptr
     │           │   └── body[3]: leave @2
     │           ├── cases[1] > case 1[0] > let:
@@ -928,14 +1055,14 @@
     │           │       └── base: local #4 : ptr
     │           └── cases[1] > case 1[1] > scope:
     │               ├── id: %16
-    │               ├── body[0] > host:
+    │               ├── body[0] > hold:
     │               │   ├── local: #15
     │               │   ├── scope: %16
     │               │   ├── value > call:
-    │               │   │   ├── type: {i32, i64, i64}
-    │               │   │   ├── fn: hosts$Account(%primitives$Int)
+    │               │   │   ├── type: {i64, i64}
+    │               │   │   ├── fn: owners$Account(%primitives$Int)
     │               │   │   └── args[0]: 6 : i64
-    │               │   └── layout: hosts$Account
+    │               │   └── layout: owners$Account
     │               ├── body[1] > assign:
     │               │   ├── place: #3
     │               │   └── value > binary:
@@ -944,13 +1071,13 @@
     │               │       ├── left > snapshot:
     │               │       │   ├── type: i64
     │               │       │   └── ptr > offset:
-    │               │       │       ├── within: {i32, i64, i64}
-    │               │       │       ├── path: 1
+    │               │       │       ├── within: {i64, i64}
+    │               │       │       ├── path: 0
     │               │       │       └── base: address of #15 : ptr
     │               │       └── right: 100 : i64
     │               └── body[2]: leave @2
-    └── funcs[12] > func:
-        ├── symbol: hosts$guard(%primitives$Bool)
+    └── funcs[14] > func:
+        ├── symbol: owners$guard(%primitives$Bool)
         ├── params[0]: local #1 : i1
         ├── ret: <void | void | void>
         ├── body[0] > if:

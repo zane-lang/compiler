@@ -42,7 +42,7 @@ let introduce env intro span name kind =
 (* The names a type writes where a number goes. *)
 let rec number_refs (te : N.Type_expr.t) =
   match te.N.Type_expr.node with
-  | N.Type_expr.Guest inner -> number_refs inner
+  | N.Type_expr.Reference inner | N.Type_expr.Roaming inner -> number_refs inner
   | N.Type_expr.Verb v -> (
       match v.N.Verb_type.node with
       | N.Verb_type.Func { params; ret_type } ->
@@ -71,7 +71,7 @@ and ret_number_refs (r : N.Ret_type.t) =
 
 let rec scan_type env intro (te : N.Type_expr.t) =
   match te.N.Type_expr.node with
-  | N.Type_expr.Guest inner -> scan_type env intro inner
+  | N.Type_expr.Reference inner | N.Type_expr.Roaming inner -> scan_type env intro inner
   | N.Type_expr.Verb v -> (
       match v.N.Verb_type.node with
       | N.Verb_type.Func { params; ret_type } ->
@@ -197,7 +197,7 @@ let rec home (t : Ty.t) : S.home option =
   | Ty.Named (tid, _) -> Some (S.Package tid.Ty.package)
   | Ty.Intrinsic { namespace; _ } -> Some (S.Namespace namespace)
   | Ty.Concept _ -> Some (S.Namespace "concepts")
-  | Ty.Guest t -> home t
+  | Ty.Reference t -> home t
   | _ -> None
 
 (* The names a verb writes where a number goes, in its signature or in any
@@ -504,13 +504,13 @@ let params_key erase (s : S.t) = Ty.canonical (List.map (fun (p : S.param) -> er
    parameter types, and none that differ only in a passing mode or in the
    `mut` of a function-type parameter. *)
 let check_overload_set env what (sigs : (decl * S.t) list) =
-  let modes t = Ty.without_mut (Ty.strip_guest t) in
+  let modes t = Ty.without_mut (Ty.strip_mode t) in
   let rec go seen = function
     | [] -> ()
     | ((d : decl), s) :: rest ->
         (match List.find_opt (fun (_, t) -> params_key modes t = params_key modes s) seen with
         | Some ((first : decl), t) ->
-            if params_key Ty.strip_guest t <> params_key Ty.strip_guest s then
+            if params_key Ty.strip_mode t <> params_key Ty.strip_mode s then
               error env d.span
                 (Printf.sprintf
                    "illegal overload set: this %s differs from the one at %s only by \
@@ -576,7 +576,7 @@ let check_implicit env (d : decl) (s : S.t) =
         | [ source ] ->
             let source_ty = source.ty in
             (match source_ty with
-            | Ty.Guest _ ->
+            | Ty.Reference _ ->
                 error env d.span
                   "the source of an implicit constructor cannot be an `&`; it must be a \
                    value type or a concept type"
@@ -617,6 +617,30 @@ let check_constructor_target env (d : decl) (s : S.t) =
                (quote m) (quote tid.Ty.name))
       | _ -> ())
   | _ -> ()
+
+(* memory.md §2.9: the subject is always a borrow, so no marker is written
+   on it, and a reference-typed result is written `^T` or `&T`. A
+   constructor's result is the value it builds, which is fresh, and a
+   subscript's is the place it projects, so neither is a return. *)
+let check_modes env (d : decl) (s : S.t) =
+  (match (s.kind, s.params) with
+  | (S.Method | S.Subscript), { S.ty = (Ty.Reference _ | Ty.Roaming _) as t; _ } :: _ ->
+      error env d.span
+        (Printf.sprintf
+           "the subject is written %s, and it is always a borrow of the object the method is \
+            called on, so neither `^` nor `&` is written on `this`"
+           (quote (Ty.to_string t)))
+  | _ -> ());
+  List.iter (fun (p : S.param) -> Type_decls.check_function_types env d.span p.S.ty) s.params;
+  match s.kind with
+  | S.Constructor _ | S.Subscript -> ()
+  | _ ->
+      Type_decls.check_result env d.span
+        (Printf.sprintf "%s returns" (quote s.name)) s.ret;
+      Option.iter
+        (Type_decls.check_result env d.span (Printf.sprintf "%s aborts with" (quote s.name)))
+        s.abort;
+      Type_decls.check_function_types env d.span s.ret
 
 let enum_map env (d : decl) =
   match d.kind with
@@ -756,7 +780,8 @@ let run env =
       | S.Operator | S.Flip -> check_operator_home env d s
       | _ -> ());
       check_implicit env d s;
-      check_constructor_target env d s)
+      check_constructor_target env d s;
+      check_modes env d s)
     built;
   (* `main` takes no parameters and declares no abort type; it may return any
      type (packages.md §6.2). *)

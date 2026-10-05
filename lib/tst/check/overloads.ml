@@ -37,7 +37,7 @@ let arg_expr = function T.Arg.Value e -> Some e | T.Arg.Block _ -> None
    home package of either, which is the only place one may be (types.md
    §4.5), so no import is involved. *)
 let implicit_constructors env ~src ~dst =
-  let dst = Ty.strip_guest dst in
+  let dst = Ty.strip_mode dst in
   match Verb_signatures.type_key dst with
   | None -> []
   | Some key ->
@@ -48,7 +48,7 @@ let implicit_constructors env ~src ~dst =
              match s.params with
              | [ p ] -> (
                  let open_ = s.generics in
-                 match Ty.unify ~open_ [] p.ty (Ty.strip_guest src) with
+                 match Ty.unify ~open_ [] p.ty (Ty.strip_mode src) with
                  | None -> None
                  | Some subst -> (
                      match Ty.unify ~open_ subst s.ret dst with
@@ -115,7 +115,7 @@ let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome op
               | None -> (None, None))
           | None -> (
               match
-                Ty.unify ~open_ subst (Ty.strip_guest p.ty) (Ty.held_as ~dst:p.ty ~src:a.aty)
+                Ty.unify ~open_ subst (Ty.strip_mode p.ty) (Ty.held_as ~dst:p.ty ~src:a.aty)
               with
               | Some subst -> (Some subst, Some `Exact)
               | None -> (Some subst, Some `Convert)))

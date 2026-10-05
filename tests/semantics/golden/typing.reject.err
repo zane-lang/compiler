@@ -125,7 +125,7 @@ Error: `guard` can exit, which ends the block its call is written in, and this c
 File "fixtures/typing/reject/bad/exits.zn", line 19, characters 23-44:
 19 | Bool lazily(condition @concepts$Block<Bool>) => true
   |                       ^^^^^^^^^^^^^^^^^^^^^
-Error: `@concepts$Block` takes no type argument: a block yields nothing (docs/spec-divergences.md §12)
+Error: `@concepts$Block` takes no type argument: a block yields nothing (docs/spec-divergences.md §11)
 File "fixtures/typing/reject/bad/exits.zn", line 23, characters 9-23:
 23 |         resolve ready;
   |         ^^^^^^^^^^^^^^
@@ -162,46 +162,6 @@ File "fixtures/typing/reject/bad/expansions.zn", line 39, characters 45-58:
 39 | Int around(stand Stand, n @concepts$Int) => stand[Int(n)]
   |                                             ^^^^^^^^^^^^^
 Error: `around` expands into itself: it takes a block or a literal, so each call to it is written out in place of the call, and this call is reached again
-File "fixtures/typing/reject/bad/guests.zn", line 29, characters 5-6:
-29 |     k!fill();
-  |     ^
-Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 31, characters 5-9:
-31 |     desk!use();
-  |     ^^^^
-Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 33, characters 5-9:
-33 |     back!fill();
-  |     ^^^^
-Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 38, characters 5-9:
-38 |     mine!use();
-  |     ^^^^
-Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 46, characters 5-6:
-46 |     k!fill();
-  |     ^
-Error: a `!` call writes its subject, and it reaches a guest taken from `this`, which is read-only in a method that is not `mut`
-File "fixtures/typing/reject/bad/guests.zn", line 55, characters 5-9:
-55 |     this!use();
-  |     ^^^^
-Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 64, characters 9-13:
-64 |         desk!use();
-  |         ^^^^
-Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 65, characters 9-13:
-65 |         desk!hold(pen);
-  |         ^^^^
-Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 98, characters 5-6:
-98 |     a!fill();
-  |     ^
-Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/guests.zn", line 99, characters 5-6:
-99 |     b!fill();
-  |     ^
-Error: a `!` call writes its subject, and it reaches a guest taken from `pen`, a read-only parameter
 File "fixtures/typing/reject/bad/imports.zn", line 3, characters 8-15:
 3 | import missing;
   |        ^^^^^^^
@@ -302,6 +262,54 @@ File "fixtures/typing/reject/bad/literals.zn", line 61, characters 16-36:
 61 | Bin{ count Int(99999999999999999999); } => init{ count; }
   |                ^^^^^^^^^^^^^^^^^^^^
 Error: `99999999999999999999` is out of range for `@primitives$Int`
+File "fixtures/typing/reject/bad/marks.zn", line 8, characters 30-35:
+8 | type Tether = #struct { kite ^Kite; }
+  |                              ^^^^^
+Error: `^bad$Kite` is a roaming owner, and `^` is written only on a local, a parameter or a return type, so it cannot be a field
+File "fixtures/typing/reject/bad/marks.zn", line 10, characters 20-25:
+10 | alias Kites = List<^Kite>
+  |                    ^^^^^
+Error: `^bad$Kite` is a roaming owner, and `^` is written only on a local, a parameter or a return type, never inside another type's arguments
+File "fixtures/typing/reject/bad/marks.zn", line 12, characters 15-19:
+12 | Unit fly(span ^Int) => Unit()
+  |               ^^^^
+Error: `@primitives$Int` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
+File "fixtures/typing/reject/bad/marks.zn", line 14, characters 1-31:
+14 | Unit tug(this ^Kite) => Unit()
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: the subject is written `^bad$Kite`, and it is always a borrow of the object the method is called on, so neither `^` nor `&` is written on `this`
+File "fixtures/typing/reject/bad/marks.zn", line 19, characters 1-29:
+19 | Kite build() => Kite(Int(1))
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `build` returns `bad$Kite`, a reference type, bare; a borrow is never returned, so write `^bad$Kite` to hand back an owner or `&bad$Kite` to hand back a reference
+File "fixtures/typing/reject/bad/marks.zn", line 20, characters 1-28:
+20 | Int?Kite refuse() => Int(0)
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `refuse` aborts with `bad$Kite`, a reference type, bare; a borrow is never returned, so write `^bad$Kite` to hand back an owner or `&bad$Kite` to hand back a reference
+File "fixtures/typing/reject/bad/marks.zn", line 21, characters 1-38:
+21 | Unit launch(make Kite[Int]) => Unit()
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: this function type returns `bad$Kite`, a reference type, bare; a borrow is never returned, so write `^bad$Kite` to hand back an owner or `&bad$Kite` to hand back a reference
+File "fixtures/typing/reject/bad/marks.zn", line 25, characters 1-32:
+25 | Unit hold(kite ^Kite) => Unit()
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: illegal overload set: this function differs from the one at fixtures/typing/reject/bad/marks.zn:24 only by the passing mode on a parameter; rename one declaration or choose a single signature
+File "fixtures/typing/reject/bad/marks.zn", line 35, characters 22-26:
+35 | alias Kited = Hamper<Kite>
+  |                      ^^^^
+Error: `bad$Kite` is a reference type, and it reaches `bad$Hamper<bad$Kite>`'s field `item`, a value type's slot; a value type holds only values, all the way down
+File "fixtures/typing/reject/bad/marks.zn", line 38, characters 14-26:
+38 |     a Hamper(Kite(Int(2)));
+  |              ^^^^^^^^^^^^
+Error: `bad$Kite` is a reference type, and it reaches `bad$Hamper<bad$Kite>`'s field `item`, a value type's slot; a value type holds only values, all the way down
+File "fixtures/typing/reject/bad/marks.zn", line 40, characters 21-33:
+40 |     c Hamper = pack(Kite(Int(4)));
+  |                     ^^^^^^^^^^^^
+Error: `bad$Kite` is a reference type, and it reaches `bad$Hamper<bad$Kite>`'s field `item`, a value type's slot; a value type holds only values, all the way down
+File "fixtures/typing/reject/bad/marks.zn", line 41, characters 25-53:
+41 |     d @primitives$Array([Kite(Int(5)), Kite(Int(6))]);
+  |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `bad$Kite` is a reference type, and it reaches the elements of `@primitives$Array<bad$Kite, 2>`, a value type's slot; a value type holds only values, all the way down
 File "fixtures/typing/reject/bad/matches.zn", line 6, characters 29-44:
 6 | Int answer(value Answer) => match (value) {
   |                             ^^^^^^^^^^^^^^^
@@ -326,46 +334,66 @@ File "fixtures/typing/reject/bad/matches.zn", line 17, characters 32-37:
 17 | Int plain(value Int) => match (value) {
   |                                ^^^^^
 Error: a match dispatches on a variant or an enum, and `@primitives$Int` is neither
-File "fixtures/typing/reject/bad/moves.zn", line 20, characters 13-23:
-20 |     b Cup = saucer.cup;
+File "fixtures/typing/reject/bad/moves.zn", line 21, characters 13-23:
+21 |     b Cup = saucer.cup;
   |             ^^^^^^^^^^
-Error: a field is not a move-source: a host is moved only from a symbol, a verb's result or a case form
-File "fixtures/typing/reject/bad/moves.zn", line 21, characters 13-25:
-21 |     c Cup = cups[Int(1)];
+Error: a part of a borrow is not a move-source: an owner is moved only from a roaming symbol (one declared `^T`), a field of one, a verb's result or a case form
+File "fixtures/typing/reject/bad/moves.zn", line 22, characters 13-25:
+22 |     c Cup = cups[Int(1)];
   |             ^^^^^^^^^^^^
-Error: an element of a container is not a move-source: a host is moved only from a symbol, a verb's result or a case form
-File "fixtures/typing/reject/bad/moves.zn", line 22, characters 13-18:
-22 |     d Cup = guest;
-  |             ^^^^^
-Error: `guest`, a guest, is not a move-source: a host is moved only from a symbol, a verb's result or a case form
-File "fixtures/typing/reject/bad/moves.zn", line 24, characters 11-35:
-24 |     drink(order.hot ?? Cup(Int(3)));
+Error: an element of a container is not a move-source: an owner is moved only from a roaming symbol (one declared `^T`), a field of one, a verb's result or a case form
+File "fixtures/typing/reject/bad/moves.zn", line 23, characters 13-16:
+23 |     d Cup = ref;
+  |             ^^^
+Error: a reference, which names an owner rather than being one, is not a move-source: an owner is moved only from a roaming symbol (one declared `^T`), a field of one, a verb's result or a case form
+File "fixtures/typing/reject/bad/moves.zn", line 25, characters 11-35:
+25 |     drink(order.hot ?? Cup(Int(3)));
   |           ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: a variant case's payload is not a move-source: a host is moved only from a symbol, a verb's result or a case form
-File "fixtures/typing/reject/bad/moves.zn", line 32, characters 15-20:
-32 |         drink(outer);
+Error: a variant case's payload is not a move-source: an owner is moved only from a roaming symbol (one declared `^T`), a field of one, a verb's result or a case form
+File "fixtures/typing/reject/bad/moves.zn", line 27, characters 13-20:
+27 |     f Cup = settled;
+  |             ^^^^^^^
+Error: `settled` is a settled owner, which may be referenced and so never moves; an owner that is to move is declared `^T`
+File "fixtures/typing/reject/bad/moves.zn", line 34, characters 11-14:
+34 |     drink(cup);
+  |           ^^^
+Error: `cup` is a borrow: the caller lends it for the call, and a borrow is never moved, stored or returned; a parameter that takes its argument is declared `^T`
+File "fixtures/typing/reject/bad/moves.zn", line 38, characters 30-34:
+38 | ^Saucer give(this Saucer) => this
+  |                              ^^^^
+Error: `this` is a borrow of the object the method was called on, and a method never moves it
+File "fixtures/typing/reject/bad/moves.zn", line 45, characters 15-20:
+45 |         drink(outer);
   |               ^^^^^
-Error: `outer` is declared in an enclosing block, and a symbol is moved only in the block that declares it
-File "fixtures/typing/reject/bad/moves.zn", line 47, characters 10-13:
-47 |     look(cup);
-  |          ^^^
-Error: `cup` was moved on line 46, and is spent until a store refills it
-File "fixtures/typing/reject/bad/moves.zn", line 49, characters 9-12:
-49 |         cup = Cup(Int(7));
+Error: `outer` is declared in an enclosing block, and a roaming owner is moved only in the block that declares it
+File "fixtures/typing/reject/bad/moves.zn", line 60, characters 9-12:
+60 |     see(cup);
   |         ^^^
-Error: `cup` is spent, and a store that refills it must be in the block that declares it
-File "fixtures/typing/reject/bad/moves.zn", line 54, characters 17-21:
-54 |     serve(both, both);
+Error: `cup` was moved on line 59, and is spent until a store refills it
+File "fixtures/typing/reject/bad/moves.zn", line 62, characters 9-12:
+62 |         cup = Cup(Int(7));
+  |         ^^^
+Error: `cup` is spent, and a store that refills it must be in the block that declares `cup`
+File "fixtures/typing/reject/bad/moves.zn", line 67, characters 17-21:
+67 |     serve(both, both);
   |                 ^^^^
-Error: `both` was moved on line 54, and is spent until a store refills it
-File "fixtures/typing/reject/bad/moves.zn", line 59, characters 29-33:
-59 | Saucer give(this Saucer) => this
-  |                             ^^^^
-Error: `this` is the object the method was called on, and a method never moves it
-File "fixtures/typing/reject/bad/moves.zn", line 65, characters 10-13:
-65 |     look(cup);
-  |          ^^^
-Error: `cup` was moved on line 64, and is spent until a store refills it
+Error: `both` was moved on line 67, and is spent until a store refills it
+File "fixtures/typing/reject/bad/moves.zn", line 77, characters 9-19:
+77 |     see(saucer.cup);
+  |         ^^^^^^^^^^
+Error: `saucer.cup` was moved on line 76, and is spent until a store refills it
+File "fixtures/typing/reject/bad/moves.zn", line 78, characters 21-27:
+78 |     whole ^Saucer = saucer;
+  |                     ^^^^^^
+Error: `saucer` is partly spent: its field `cup` was moved on line 76, and the owner is spent as a whole until a store refills that field
+File "fixtures/typing/reject/bad/moves.zn", line 80, characters 9-19:
+80 |         saucer.cup = Cup(Int(11));
+  |         ^^^^^^^^^^
+Error: `saucer.cup` is spent, and a store that refills it must be in the block that declares `saucer`
+File "fixtures/typing/reject/bad/moves.zn", line 91, characters 9-12:
+91 |     see(cup);
+  |         ^^^
+Error: `cup` was moved on line 90, and is spent until a store refills it
 File "fixtures/typing/reject/bad/names.zn", line 4, characters 6-11:
 4 | type Twice = struct { b Int; }
   |      ^^^^^
@@ -446,102 +474,162 @@ File "fixtures/typing/reject/bad/overloads.zn", line 39, characters 1-18:
 39 | Int?Unit main() {
   | ^^^^^^^^^^^^^^^^^
 Error: `main` declares no abort type: no caller exists to handle an abort
-File "fixtures/typing/reject/bad/owners.zn", line 22, characters 13-23:
+File "fixtures/typing/reject/bad/readonly.zn", line 29, characters 5-6:
+29 |     k!fill();
+  |     ^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 31, characters 5-9:
+31 |     desk!use();
+  |     ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 33, characters 5-9:
+33 |     back!fill();
+  |     ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 38, characters 5-9:
+38 |     mine!use();
+  |     ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 46, characters 5-6:
+46 |     k!fill();
+  |     ^
+Error: a `!` call writes its subject, and it reaches a reference taken from `this`, which is read-only in a method that is not `mut`
+File "fixtures/typing/reject/bad/readonly.zn", line 55, characters 5-9:
+55 |     this!use();
+  |     ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 64, characters 9-13:
+64 |         desk!use();
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 65, characters 9-13:
+65 |         desk!hold(pen);
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 98, characters 5-6:
+98 |     a!fill();
+  |     ^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 99, characters 5-6:
+99 |     b!fill();
+  |     ^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/rests.zn", line 36, characters 15-20:
+36 |     this!wire(local);
+  |               ^^^^^
+Error: this stores a reference to `local` in the caller's `this`, which outlives the body `local` is scoped to (`wire` keeps `port` in `this`)
+File "fixtures/typing/reject/bad/rests.zn", line 46, characters 25-29:
+46 |         frame.plug!wire(near);
+  |                         ^^^^
+Error: this stores a reference to `near`, whose block ends before `frame`'s does (`wire` keeps `port` in `this`)
+File "fixtures/typing/reject/bad/rests.zn", line 47, characters 26-30:
+47 |         frame.plug!relay(near);
+  |                          ^^^^
+Error: this stores a reference to `near`, whose block ends before `frame`'s does (`relay` keeps `port` in `this`)
+File "fixtures/typing/reject/bad/rests.zn", line 50, characters 22-27:
+50 |         frame.plug = spare;
+  |                      ^^^^^
+Error: this stores a reference to `near`, whose block ends before `frame`'s does
+File "fixtures/typing/reject/bad/rests.zn", line 64, characters 20-28:
+64 |         plugs!push(arriving);
+  |                    ^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `plugs`'s does (`push` keeps `value` in `this`)
+File "fixtures/typing/reject/bad/rests.zn", line 66, characters 18-24:
+66 |         bay!dock(docked);
+  |                  ^^^^^^
+Error: this stores a reference to `near`, whose block ends before `bay`'s does (`dock` keeps `plug` in `this`)
+File "fixtures/typing/reject/bad/scopes.zn", line 22, characters 13-23:
 22 |         r = inner.leaf;
   |             ^^^^^^^^^^
-Error: this stores a guest to `inner`, whose block ends before `r`'s does
-File "fixtures/typing/reject/bad/owners.zn", line 37, characters 18-26:
+Error: this stores a reference to `inner`, whose block ends before `r`'s does
+File "fixtures/typing/reject/bad/scopes.zn", line 37, characters 18-26:
 37 |         parked = arriving;
   |                  ^^^^^^^^
-Error: this stores a guest to `near`, whose block ends before `parked`'s does
-File "fixtures/typing/reject/bad/owners.zn", line 38, characters 15-36:
+Error: this stores a reference to `near`, whose block ends before `parked`'s does
+File "fixtures/typing/reject/bad/scopes.zn", line 38, characters 15-36:
 38 |         tag = Tag.pinned(near.leaf);
   |               ^^^^^^^^^^^^^^^^^^^^^
-Error: this stores a guest to `near`, whose block ends before `tag`'s does
-File "fixtures/typing/reject/bad/owners.zn", line 49, characters 12-17:
+Error: this stores a reference to `near`, whose block ends before `tag`'s does
+File "fixtures/typing/reject/bad/scopes.zn", line 49, characters 12-17:
 49 |     return value;
   |            ^^^^^
-Error: this stores a guest to `value` in the caller's result, which outlives the body `value` is owned by
-File "fixtures/typing/reject/bad/owners.zn", line 55, characters 17-22:
+Error: this stores a reference to `value` in the caller's result, which outlives the body `value` is scoped to
+File "fixtures/typing/reject/bad/scopes.zn", line 55, characters 17-22:
 55 |     this.leaf = local;
   |                 ^^^^^
-Error: this stores a guest to `local` in the caller's `this`, which outlives the body `local` is owned by
-File "fixtures/typing/reject/bad/owners.zn", line 63, characters 12-23:
+Error: this stores a reference to `local` in the caller's `this`, which outlives the body `local` is scoped to
+File "fixtures/typing/reject/bad/scopes.zn", line 63, characters 12-23:
 63 |     return pass(value);
   |            ^^^^^^^^^^^
-Error: this stores a guest to `value` in the caller's result, which outlives the body `value` is owned by
-File "fixtures/typing/reject/bad/owners.zn", line 73, characters 13-24:
+Error: this stores a reference to `value` in the caller's result, which outlives the body `value` is scoped to
+File "fixtures/typing/reject/bad/scopes.zn", line 73, characters 13-24:
 73 |         r = match (t) {
   |             ^^^^^^^^^^^
-Error: this stores a guest to `near`, whose block ends before `r`'s does
-File "fixtures/typing/reject/bad/rests.zn", line 35, characters 15-20:
-35 |     this!wire(local);
-  |               ^^^^^
-Error: this stores a guest to `local` in the caller's `this`, which outlives the body `local` is owned by (`wire` keeps `port` in `this`)
-File "fixtures/typing/reject/bad/rests.zn", line 45, characters 25-29:
-45 |         frame.plug!wire(near);
-  |                         ^^^^
-Error: this stores a guest to `near`, whose block ends before `frame`'s does (`wire` keeps `port` in `this`)
-File "fixtures/typing/reject/bad/rests.zn", line 46, characters 26-30:
-46 |         frame.plug!relay(near);
-  |                          ^^^^
-Error: this stores a guest to `near`, whose block ends before `frame`'s does (`relay` keeps `port` in `this`)
-File "fixtures/typing/reject/bad/rests.zn", line 49, characters 22-27:
-49 |         frame.plug = spare;
-  |                      ^^^^^
-Error: this stores a guest to `near`, whose block ends before `frame`'s does
-File "fixtures/typing/reject/bad/rests.zn", line 63, characters 20-28:
-63 |         plugs!push(arriving);
-  |                    ^^^^^^^^
-Error: this stores a guest to `near`, whose block ends before `plugs`'s does (`push` keeps `value` in `this`)
-File "fixtures/typing/reject/bad/rests.zn", line 65, characters 18-24:
-65 |         bay!dock(docked);
-  |                  ^^^^^^
-Error: this stores a guest to `near`, whose block ends before `bay`'s does (`dock` keeps `plug` in `this`)
-File "fixtures/typing/reject/bad/sources.zn", line 18, characters 15-28:
-18 |     b &Bell = bells[Int(0)];
+Error: this stores a reference to `near`, whose block ends before `r`'s does
+File "fixtures/typing/reject/bad/sources.zn", line 19, characters 15-28:
+19 |     b &Bell = bells[Int(1)];
   |               ^^^^^^^^^^^^^
-Error: a new guest must come from a stable place, and this path crosses `[]`
-File "fixtures/typing/reject/bad/sources.zn", line 20, characters 15-37:
-20 |     d &Bell = slot.full ?? rack.bell;
+Error: a new reference must come from a settled place, and a list's element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
+File "fixtures/typing/reject/bad/sources.zn", line 21, characters 15-37:
+21 |     d &Bell = slot.full ?? rack.bell;
   |               ^^^^^^^^^^^^^^^^^^^^^^
-Error: a new guest must come from a stable place, and a variant case's payload is not one
-File "fixtures/typing/reject/bad/sources.zn", line 21, characters 15-22:
-21 |     e &Bell = forge();
+Error: a new reference must come from a settled place, and a variant case's payload is roaming: the variant may change case while it lives
+File "fixtures/typing/reject/bad/sources.zn", line 22, characters 15-22:
+22 |     e &Bell = forge();
   |               ^^^^^^^
-Error: a new guest names a place, and this is a temporary value
-File "fixtures/typing/reject/bad/sources.zn", line 22, characters 20-33:
-22 |     f &Bell = ring(bells[Int(0)]);
+Error: a new reference names a place, and this is a temporary value
+File "fixtures/typing/reject/bad/sources.zn", line 23, characters 20-33:
+23 |     f &Bell = ring(bells[Int(1)]);
   |                    ^^^^^^^^^^^^^
-Error: a new guest must come from a stable place, and this path crosses `[]`
-File "fixtures/typing/reject/bad/sources.zn", line 25, characters 24-25:
-25 |         x full => ring(x).tone;
+Error: a new reference must come from a settled place, and a list's element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
+File "fixtures/typing/reject/bad/sources.zn", line 26, characters 24-25:
+26 |         x full => ring(x).tone;
   |                        ^
-Error: a new guest must come from a stable place, and a variant case's payload is not one
-File "fixtures/typing/reject/bad/sources.zn", line 29, characters 18-31:
-29 |     tones[weight(bells[Int(0)])] = Int(1);
+Error: a new reference must come from a settled place, and a variant case's payload is roaming: the variant may change case while it lives
+File "fixtures/typing/reject/bad/sources.zn", line 30, characters 18-31:
+30 |     tones[weight(bells[Int(1)])] = Int(1);
   |                  ^^^^^^^^^^^^^
-Error: a new guest must come from a stable place, and this path crosses `[]`
-File "fixtures/typing/reject/bad/sources.zn", line 37, characters 17-21:
-37 |     this.hook = bell;
+Error: a new reference must come from a settled place, and a list's element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
+File "fixtures/typing/reject/bad/sources.zn", line 39, characters 15-20:
+39 |     s &Bell = spare;
+  |               ^^^^^
+Error: a new reference must come from a settled place, and this is a roaming owner, which may still move; settle it first by moving it into an owner declared without `^`
+File "fixtures/typing/reject/bad/sources.zn", line 43, characters 15-28:
+43 |     l &Bell = loose[Int(1)];
+  |               ^^^^^^^^^^^^^
+Error: a new reference must come from a settled place, and this is a roaming owner, which may still move; settle it first by moving it into an owner declared without `^`
+File "fixtures/typing/reject/bad/sources.zn", line 57, characters 15-31:
+57 |     b &Bell = cupboard[Int(1)];
+  |               ^^^^^^^^^^^^^^^^
+Error: a new reference must come from a settled place, and a list's element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
+File "fixtures/typing/reject/bad/sources.zn", line 65, characters 17-21:
+65 |     this.hook = bell;
   |                 ^^^^
-Error: `bell` swallows its argument, so it may not be bound into `&` storage; a parameter stored as a guest is declared `&`
-File "fixtures/typing/reject/bad/sources.zn", line 40, characters 17-21:
-40 |     this.hook = held;
-  |                 ^^^^
-Error: `bell` swallows its argument, so it may not be bound into `&` storage; a parameter stored as a guest is declared `&`
-File "fixtures/typing/reject/bad/sources.zn", line 43, characters 21-26:
-43 |         this.hook = later;
-  |                     ^^^^^
-Error: `bell` swallows its argument, so it may not be bound into `&` storage; a parameter stored as a guest is declared `&`
-File "fixtures/typing/reject/bad/sources.zn", line 55, characters 5-14:
-55 |     this.hook.tone = Int(3);
+Error: a new reference must come from a settled place, and this is a borrow, which is the caller's only for the call; take the parameter as `&T` to keep a reference to it
+File "fixtures/typing/reject/bad/sources.zn", line 67, characters 18-22:
+67 |     held &Bell = bell;
+  |                  ^^^^
+Error: a new reference must come from a settled place, and this is a borrow, which is the caller's only for the call; take the parameter as `&T` to keep a reference to it
+File "fixtures/typing/reject/bad/sources.zn", line 71, characters 17-26:
+71 |         later = this.bell;
+  |                 ^^^^^^^^^
+Error: `this` is a borrow, never a source of a reference; a verb that hands out a reference into an object takes the object as an `&T` parameter
+File "fixtures/typing/reject/bad/sources.zn", line 76, characters 26-30:
+76 | &Bell lend(bell Bell) => bell
+  |                          ^^^^
+Error: a new reference must come from a settled place, and this is a borrow, which is the caller's only for the call; take the parameter as `&T` to keep a reference to it
+File "fixtures/typing/reject/bad/sources.zn", line 77, characters 25-34:
+77 | &Bell own(this Rack) => this.bell
+  |                         ^^^^^^^^^
+Error: `this` is a borrow, never a source of a reference; a verb that hands out a reference into an object takes the object as an `&T` parameter
+File "fixtures/typing/reject/bad/sources.zn", line 83, characters 5-14:
+83 |     this.hook.tone = Int(3);
   |     ^^^^^^^^^
-Error: a store may not go through a guest, since what it names belongs to a tree this path's root does not own; change it with a `mut` method called through the guest
-File "fixtures/typing/reject/bad/sources.zn", line 57, characters 5-8:
-57 |     own.bell = Bell(Int(4));
+Error: a store may not go through a reference, since what it names belongs to a tree this path's root does not hold; change it with a `mut` method called through the reference
+File "fixtures/typing/reject/bad/sources.zn", line 85, characters 5-8:
+85 |     own.bell = Bell(Int(4));
   |     ^^^
-Error: a store may not go through a guest, since what it names belongs to a tree this path's root does not own; change it with a `mut` method called through the guest
+Error: a store may not go through a reference, since what it names belongs to a tree this path's root does not hold; change it with a `mut` method called through the reference
 File "fixtures/typing/reject/bad/spawns.zn", line 44, characters 11-15:
 44 |     spawn dial!tune();
   |           ^^^^
@@ -577,19 +665,19 @@ Error: this block runs more than once, so a spawned `mut` call in it takes its s
 File "fixtures/typing/reject/bad/spawns.zn", line 100, characters 9-21:
 100 |         dial.reading = Gauge(Int(3));
   |         ^^^^^^^^^^^^
-Error: this writes `dial.reading`, which may be part of a host lent through `view` to a spawned call that may read it until its block drains
+Error: this writes `dial.reading`, which may be part of an owner lent through `view` to a spawned call that may read it until its block drains
 File "fixtures/typing/reject/bad/spawns.zn", line 101, characters 9-27:
 101 |         dial.reading.level!bump();
   |         ^^^^^^^^^^^^^^^^^^
-Error: this writes `dial.reading.level`, which may be part of a host lent through `view` to a spawned call that may read it until its block drains
+Error: this writes `dial.reading.level`, which may be part of an owner lent through `view` to a spawned call that may read it until its block drains
 File "fixtures/typing/reject/bad/spawns.zn", line 102, characters 9-21:
 102 |         view.reading!nudge();
   |         ^^^^^^^^^^^^
-Error: this writes `view.reading`, which may be part of a host lent through `view` to a spawned call that may read it until its block drains
+Error: this writes `view.reading`, which may be part of an owner lent through `view` to a spawned call that may read it until its block drains
 File "fixtures/typing/reject/bad/spawns.zn", line 107, characters 9-22:
 107 |         other.reading!nudge();
   |         ^^^^^^^^^^^^^
-Error: this writes `other.reading`, which may be part of a host lent through `view` to a spawned call that may read it until its block drains
+Error: this writes `other.reading`, which may be part of an owner lent through `view` to a spawned call that may read it until its block drains
 File "fixtures/typing/reject/bad/spawns.zn", line 122, characters 15-28:
 122 |         spawn other.reading!nudge();
   |               ^^^^^^^^^^^^^
@@ -602,10 +690,10 @@ File "fixtures/typing/reject/bad/spawns.zn", line 133, characters 9-13:
 133 |         view!push(Gauge(Int(2)));
   |         ^^^^
 Error: `view` is borrowed by a spawned `mut` call on `gauges[]`, which holds it until its block drains
-File "fixtures/typing/reject/bad/temporary.zn", line 6, characters 28-61:
-6 |     @program$console!print(@primitives$String("hello world"));
-  |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: a new guest names a place, and this is a temporary value
+File "fixtures/typing/reject/bad/temporary.zn", line 12, characters 10-34:
+12 |     hear(Note(@primitives$Int(1)));
+  |          ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a new reference names a place, and this is a temporary value
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
 5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^
@@ -613,7 +701,7 @@ Error: `Holder` is a value type, so its member `guest` cannot be an `&`; only a 
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
 5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^
-Error: `Holder` is a value type, so its member `text` cannot hold `@primitives$String`, a reference type; a value type is a value all the way down
+Error: `Holder` is a value type, so its member `list` cannot hold `@primitives$List<@primitives$Int>`, a reference type; a value type is a value all the way down
 File "fixtures/typing/reject/bad/types.zn", line 6, characters 10-23:
 6 |     many Box<Int, Int>;
   |          ^^^^^^^^^^^^^

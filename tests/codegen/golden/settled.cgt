@@ -1,0 +1,695 @@
+└── program:
+    ├── entry: settled$main()
+    ├── layouts[0] > layout:
+    │   ├── type: settled$Node
+    │   └── positions:
+    ├── layouts[1] > layout:
+    │   ├── type: ^settled$Node
+    │   └── positions:
+    ├── layouts[2] > layout:
+    │   ├── type: settled$Car
+    │   └── positions:
+    ├── layouts[3] > layout:
+    │   ├── type: settled$Holder
+    │   └── positions:
+    ├── layouts[4] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── funcs[0] > func:
+    │   ├── symbol: settled$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %2
+    │       ├── body[0] > hold:
+    │       │   ├── local: #1
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: {i64}
+    │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   └── args[0]: 1 : i64
+    │       │   └── layout: settled$Node
+    │       ├── body[1] > let:
+    │       │   ├── local: #3
+    │       │   └── value: address of #1 : ptr
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$bump(this settled$Node)
+    │       │   └── args[0]: address of #1 : ptr
+    │       ├── body[3] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: local #3 : ptr
+    │       │       └── right: 2 : i64
+    │       ├── body[4] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$bump(this settled$Node)
+    │       │   └── args[0]: local #3 : ptr
+    │       ├── body[5] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: address of #1 : ptr
+    │       │       └── right: 3 : i64
+    │       ├── body[6] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: *
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i1
+    │       │       │   ├── op: ==
+    │       │       │   ├── left > call:
+    │       │       │   │   ├── type: i64
+    │       │       │   │   ├── fn: settled$peek(&settled$Node)
+    │       │       │   │   └── args[0]: local #3 : ptr
+    │       │       │   └── right: 3 : i64
+    │       │       └── right > binary:
+    │       │           ├── type: i1
+    │       │           ├── op: ==
+    │       │           ├── left > call:
+    │       │           │   ├── type: i64
+    │       │           │   ├── fn: settled$peek(&settled$Node)
+    │       │           │   └── args[0]: address of #1 : ptr
+    │       │           └── right: 3 : i64
+    │       ├── body[7] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: settled$twice(this settled$Node)
+    │       │       │   └── args[0]: local #3 : ptr
+    │       │       └── right: 6 : i64
+    │       ├── body[8] > overwrite:
+    │       │   ├── address: address of #1 : ptr
+    │       │   ├── value > call:
+    │       │   │   ├── type: {i64}
+    │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   └── args[0]: 7 : i64
+    │       │   └── layout: settled$Node
+    │       ├── body[9] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: local #3 : ptr
+    │       │       └── right: 7 : i64
+    │       ├── body[10] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: {i64}
+    │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   └── args[0]: 20 : i64
+    │       │   └── layout: ^settled$Node
+    │       ├── body[11] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$bump(this settled$Node)
+    │       │   └── args[0]: address of #4 : ptr
+    │       ├── body[12] > hold:
+    │       │   ├── local: #5
+    │       │   ├── scope: %2
+    │       │   ├── value > take:
+    │       │   │   ├── type: {i64}
+    │       │   │   ├── address: address of #4 : ptr
+    │       │   │   └── layout: settled$Node
+    │       │   └── layout: settled$Node
+    │       ├── body[13] > let:
+    │       │   ├── local: #6
+    │       │   └── value: address of #5 : ptr
+    │       ├── body[14] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: local #6 : ptr
+    │       │       └── right: 21 : i64
+    │       ├── body[15] > overwrite:
+    │       │   ├── address: address of #5 : ptr
+    │       │   ├── value > call:
+    │       │   │   ├── type: {i64}
+    │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   └── args[0]: 100 : i64
+    │       │   └── layout: settled$Node
+    │       ├── body[16] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: local #6 : ptr
+    │       │       └── right: 100 : i64
+    │       ├── body[17] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base > call:
+    │       │       │           ├── type: ptr
+    │       │       │           ├── fn: settled$larger(&settled$Node, &settled$Node)
+    │       │       │           ├── args[0]: address of #1 : ptr
+    │       │       │           └── args[1]: address of #5 : ptr
+    │       │       └── right: 100 : i64
+    │       ├── body[18] > assign:
+    │       │   ├── place: #3
+    │       │   └── value: address of #5 : ptr
+    │       ├── body[19] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: local #3 : ptr
+    │       │       └── right: 100 : i64
+    │       ├── body[20] > hold:
+    │       │   ├── local: #7
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: {ptr, {i64}}
+    │       │   │   ├── fn: settled$Car(&settled$Node, ^settled$Node)
+    │       │   │   ├── args[0]: address of #1 : ptr
+    │       │   │   └── args[1] > call:
+    │       │   │       ├── type: {i64}
+    │       │   │       ├── fn: settled$Node(%primitives$Int)
+    │       │   │       └── args[0]: 5 : i64
+    │       │   └── layout: settled$Car
+    │       ├── body[21] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$bump(this settled$Node)
+    │       │   └── args[0] > member:
+    │       │       ├── type: ptr
+    │       │       ├── index: 0
+    │       │       └── value: local #7 : {ptr, {i64}}
+    │       ├── body[22] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: address of #1 : ptr
+    │       │       └── right: 8 : i64
+    │       ├── body[23] > let:
+    │       │   ├── local: #8
+    │       │   └── value > offset:
+    │       │       ├── within: {ptr, {i64}}
+    │       │       ├── path: 1
+    │       │       └── base: address of #7 : ptr
+    │       ├── body[24] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$bump(this settled$Node)
+    │       │   └── args[0]: local #8 : ptr
+    │       ├── body[25] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base > offset:
+    │       │       │           ├── within: {ptr, {i64}}
+    │       │       │           ├── path: 1
+    │       │       │           └── base: address of #7 : ptr
+    │       │       └── right: 6 : i64
+    │       ├── body[26] > overwrite:
+    │       │   ├── address > offset:
+    │       │   │   ├── within: {ptr, {i64}}
+    │       │   │   ├── path: 1
+    │       │   │   └── base: address of #7 : ptr
+    │       │   ├── value > call:
+    │       │   │   ├── type: {i64}
+    │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   └── args[0]: 50 : i64
+    │       │   └── layout: settled$Node
+    │       ├── body[27] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: local #8 : ptr
+    │       │       └── right: 50 : i64
+    │       ├── body[28] > overwrite:
+    │       │   ├── address: address of #7 : ptr
+    │       │   ├── value > call:
+    │       │   │   ├── type: {ptr, {i64}}
+    │       │   │   ├── fn: settled$Car(&settled$Node, ^settled$Node)
+    │       │   │   ├── args[0]: address of #5 : ptr
+    │       │   │   └── args[1] > call:
+    │       │   │       ├── type: {i64}
+    │       │   │       ├── fn: settled$Node(%primitives$Int)
+    │       │   │       └── args[0]: 60 : i64
+    │       │   └── layout: settled$Car
+    │       ├── body[29] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: local #8 : ptr
+    │       │       └── right: 60 : i64
+    │       ├── body[30] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base > member:
+    │       │       │           ├── type: ptr
+    │       │       │           ├── index: 0
+    │       │       │           └── value: local #7 : {ptr, {i64}}
+    │       │       └── right: 100 : i64
+    │       ├── body[31] > hold:
+    │       │   ├── local: #9
+    │       │   ├── scope: %2
+    │       │   ├── value > case:
+    │       │   │   ├── type: <{i64} | void>
+    │       │   │   ├── index: 0
+    │       │   │   └── payload > call:
+    │       │   │       ├── type: {i64}
+    │       │   │       ├── fn: settled$Node(%primitives$Int)
+    │       │   │       └── args[0]: 30 : i64
+    │       │   └── layout: settled$Holder
+    │       ├── body[32] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: i1
+    │       │       ├── label: @10
+    │       │       ├── result: #11
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #12
+    │       │       │   └── value: address of #9 : ptr
+    │       │       └── body[1] > switch:
+    │       │           ├── value > deref:
+    │       │           │   ├── type: <{i64} | void>
+    │       │           │   └── ptr: local #12 : ptr
+    │       │           ├── cases[0] > case 0[0] > let:
+    │       │           │   ├── local: #13
+    │       │           │   └── value > offset:
+    │       │           │       ├── within: <{i64} | void>
+    │       │           │       ├── path: 0
+    │       │           │       └── base: local #12 : ptr
+    │       │           ├── cases[0] > case 0[1] > eval > call:
+    │       │           │   ├── type: void
+    │       │           │   ├── fn: settled$bump(this settled$Node)
+    │       │           │   └── args[0]: local #13 : ptr
+    │       │           ├── cases[0] > case 0[2] > assign:
+    │       │           │   ├── place: #11
+    │       │           │   └── value > binary:
+    │       │           │       ├── type: i1
+    │       │           │       ├── op: ==
+    │       │           │       ├── left > snapshot:
+    │       │           │       │   ├── type: i64
+    │       │           │       │   └── ptr > offset:
+    │       │           │       │       ├── within: {i64}
+    │       │           │       │       ├── path: 0
+    │       │           │       │       └── base: local #13 : ptr
+    │       │           │       └── right: 31 : i64
+    │       │           ├── cases[0] > case 0[3]: leave @10
+    │       │           ├── cases[1] > case 1[0] > let:
+    │       │           │   ├── local: #14
+    │       │           │   └── value > offset:
+    │       │           │       ├── within: <{i64} | void>
+    │       │           │       ├── path: 1
+    │       │           │       └── base: local #12 : ptr
+    │       │           ├── cases[1] > case 1[1] > assign:
+    │       │           │   ├── place: #11
+    │       │           │   └── value: false : i1
+    │       │           └── cases[1] > case 1[2]: leave @10
+    │       ├── body[33] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: i1
+    │       │       ├── label: @15
+    │       │       ├── result: #16
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #17
+    │       │       │   └── value: address of #9 : ptr
+    │       │       └── body[1] > switch:
+    │       │           ├── value > deref:
+    │       │           │   ├── type: <{i64} | void>
+    │       │           │   └── ptr: local #17 : ptr
+    │       │           ├── cases[0] > case 0[0] > let:
+    │       │           │   ├── local: #18
+    │       │           │   └── value > offset:
+    │       │           │       ├── within: <{i64} | void>
+    │       │           │       ├── path: 0
+    │       │           │       └── base: local #17 : ptr
+    │       │           ├── cases[0] > case 0[1] > assign:
+    │       │           │   ├── place: #16
+    │       │           │   └── value > binary:
+    │       │           │       ├── type: i1
+    │       │           │       ├── op: ==
+    │       │           │       ├── left > snapshot:
+    │       │           │       │   ├── type: i64
+    │       │           │       │   └── ptr > offset:
+    │       │           │       │       ├── within: {i64}
+    │       │           │       │       ├── path: 0
+    │       │           │       │       └── base: local #18 : ptr
+    │       │           │       └── right: 31 : i64
+    │       │           ├── cases[0] > case 0[2]: leave @15
+    │       │           ├── cases[1] > case 1[0] > let:
+    │       │           │   ├── local: #19
+    │       │           │   └── value > offset:
+    │       │           │       ├── within: <{i64} | void>
+    │       │           │       ├── path: 1
+    │       │           │       └── base: local #17 : ptr
+    │       │           ├── cases[1] > case 1[1] > assign:
+    │       │           │   ├── place: #16
+    │       │           │   └── value: false : i1
+    │       │           └── cases[1] > case 1[2]: leave @15
+    │       ├── body[34] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: i1
+    │       │       ├── label: @20
+    │       │       ├── result: #21
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #22
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > case:
+    │       │       │   │   ├── type: <{i64} | void>
+    │       │       │   │   ├── index: 0
+    │       │       │   │   └── payload > call:
+    │       │       │   │       ├── type: {i64}
+    │       │       │   │       ├── fn: settled$Node(%primitives$Int)
+    │       │       │   │       └── args[0]: 40 : i64
+    │       │       │   └── layout: settled$Holder
+    │       │       ├── body[1] > let:
+    │       │       │   ├── local: #23
+    │       │       │   └── value: address of #22 : ptr
+    │       │       └── body[2] > switch:
+    │       │           ├── value > deref:
+    │       │           │   ├── type: <{i64} | void>
+    │       │           │   └── ptr: local #23 : ptr
+    │       │           ├── cases[0] > case 0[0] > let:
+    │       │           │   ├── local: #24
+    │       │           │   └── value > offset:
+    │       │           │       ├── within: <{i64} | void>
+    │       │           │       ├── path: 0
+    │       │           │       └── base: local #23 : ptr
+    │       │           ├── cases[0] > case 0[1] > eval > call:
+    │       │           │   ├── type: void
+    │       │           │   ├── fn: settled$bump(this settled$Node)
+    │       │           │   └── args[0]: local #24 : ptr
+    │       │           ├── cases[0] > case 0[2] > assign:
+    │       │           │   ├── place: #21
+    │       │           │   └── value > binary:
+    │       │           │       ├── type: i1
+    │       │           │       ├── op: ==
+    │       │           │       ├── left > snapshot:
+    │       │           │       │   ├── type: i64
+    │       │           │       │   └── ptr > offset:
+    │       │           │       │       ├── within: {i64}
+    │       │           │       │       ├── path: 0
+    │       │           │       │       └── base: local #24 : ptr
+    │       │           │       └── right: 41 : i64
+    │       │           ├── cases[0] > case 0[3]: leave @20
+    │       │           ├── cases[1] > case 1[0] > let:
+    │       │           │   ├── local: #25
+    │       │           │   └── value > offset:
+    │       │           │       ├── within: <{i64} | void>
+    │       │           │       ├── path: 1
+    │       │           │       └── base: local #23 : ptr
+    │       │           ├── cases[1] > case 1[1] > assign:
+    │       │           │   ├── place: #21
+    │       │           │   └── value: false : i1
+    │       │           └── cases[1] > case 1[2]: leave @20
+    │       ├── body[35] > let:
+    │       │   ├── local: #26
+    │       │   └── value: 0 : i64
+    │       ├── body[36] > let:
+    │       │   ├── local: #27
+    │       │   └── value: 1 : i64
+    │       ├── body[37] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @29
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #28
+    │       │   │   └── value: 100000 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #28 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #27 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > scope:
+    │       │   │   │       ├── id: %33
+    │       │   │   │       ├── body[0] > hold:
+    │       │   │   │       │   ├── local: #32
+    │       │   │   │       │   ├── scope: %33
+    │       │   │   │       │   ├── value > call:
+    │       │   │   │       │   │   ├── type: {i64}
+    │       │   │   │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   │       │   │   └── args[0]: local #27 : i64
+    │       │   │   │       │   └── layout: settled$Node
+    │       │   │   │       ├── body[1] > let:
+    │       │   │   │       │   ├── local: #34
+    │       │   │   │       │   └── value: address of #32 : ptr
+    │       │   │   │       └── body[2] > assign:
+    │       │   │   │           ├── place: #26
+    │       │   │   │           └── value > binary:
+    │       │   │   │               ├── type: i64
+    │       │   │   │               ├── op: +
+    │       │   │   │               ├── left: local #26 : i64
+    │       │   │   │               └── right > call:
+    │       │   │   │                   ├── type: i64
+    │       │   │   │                   ├── fn: settled$peek(&settled$Node)
+    │       │   │   │                   └── args[0]: local #34 : ptr
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #27
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #27 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @29
+    │       ├── body[38] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: settled$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #26 : i64
+    │       │       └── right: 5000050000 : i64
+    │       └── body[39] > return: unit : void
+    ├── funcs[1] > func:
+    │   ├── symbol: settled$Node(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: {i64}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {i64}
+    │       │   └── members[0] > member 0: local #1 : i64
+    │       └── layout: settled$Node
+    ├── funcs[2] > func:
+    │   ├── symbol: settled$bump(this settled$Node)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > assign:
+    │   │   ├── place: *#1.0
+    │   │   └── value > binary:
+    │   │       ├── type: i64
+    │   │       ├── op: +
+    │   │       ├── left > snapshot:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr > offset:
+    │   │       │       ├── within: {i64}
+    │   │       │       ├── path: 0
+    │   │       │       └── base: local #1 : ptr
+    │   │       └── right: 1 : i64
+    │   └── body[1] > return: unit : void
+    ├── funcs[3] > func:
+    │   ├── symbol: settled$check(%primitives$Bool)
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[2] > if:
+    │       │   ├── cond: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #2 : handle
+    │       ├── body[3] > if:
+    │       │   ├── cond > flip:
+    │       │   │   ├── type: i1
+    │       │   │   └── value: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #4 : handle
+    │       └── body[4] > return: unit : void
+    ├── funcs[4] > func:
+    │   ├── symbol: settled$peek(&settled$Node)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > snapshot:
+    │       ├── type: i64
+    │       └── ptr > offset:
+    │           ├── within: {i64}
+    │           ├── path: 0
+    │           └── base: local #1 : ptr
+    ├── funcs[5] > func:
+    │   ├── symbol: settled$twice(this settled$Node)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: *
+    │       ├── left > snapshot:
+    │       │   ├── type: i64
+    │       │   └── ptr > offset:
+    │       │       ├── within: {i64}
+    │       │       ├── path: 0
+    │       │       └── base: local #1 : ptr
+    │       └── right: 2 : i64
+    ├── funcs[6] > func:
+    │   ├── symbol: settled$larger(&settled$Node, &settled$Node)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : ptr
+    │   ├── ret: ptr
+    │   ├── body[0] > eval > expand:
+    │   │   ├── type: i1
+    │   │   ├── label: @4
+    │   │   ├── result: #5
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #3
+    │   │   │   └── value > binary:
+    │   │   │       ├── type: i1
+    │   │   │       ├── op: <
+    │   │   │       ├── left > snapshot:
+    │   │   │       │   ├── type: i64
+    │   │   │       │   └── ptr > offset:
+    │   │   │       │       ├── within: {i64}
+    │   │   │       │       ├── path: 0
+    │   │   │       │       └── base: local #2 : ptr
+    │   │   │       └── right > snapshot:
+    │   │   │           ├── type: i64
+    │   │   │           └── ptr > offset:
+    │   │   │               ├── within: {i64}
+    │   │   │               ├── path: 0
+    │   │   │               └── base: local #1 : ptr
+    │   │   ├── body[1] > if:
+    │   │   │   ├── cond: local #3 : i1
+    │   │   │   └── body[0] > return: local #1 : ptr
+    │   │   ├── body[2] > assign:
+    │   │   │   ├── place: #5
+    │   │   │   └── value: local #3 : i1
+    │   │   └── body[3]: leave @4
+    │   └── body[1] > return: local #2 : ptr
+    └── funcs[7] > func:
+        ├── symbol: settled$Car(&settled$Node, ^settled$Node)
+        ├── params[0]: local #1 : ptr
+        ├── params[1]: local #2 : {i64}
+        ├── ret: {ptr, {i64}}
+        └── body[0] > scope:
+            ├── id: %4
+            ├── body[0] > hold:
+            │   ├── local: #3
+            │   ├── scope: %4
+            │   ├── value: local #2 : {i64}
+            │   └── layout: ^settled$Node
+            └── body[1] > return > escape:
+                ├── exit: function
+                ├── value > record:
+                │   ├── type: {ptr, {i64}}
+                │   ├── members[0] > member 0: local #1 : ptr
+                │   └── members[1] > member 1 > take:
+                │       ├── type: {i64}
+                │       ├── address: address of #3 : ptr
+                │       └── layout: settled$Node
+                └── layout: settled$Car

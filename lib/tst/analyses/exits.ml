@@ -1,4 +1,4 @@
-(* Exits (control-flow.md §4.2, as docs/spec-divergences.md §11 reads it): an
+(* Exits (control-flow.md §4.2, as docs/spec-divergences.md §10 reads it): an
    analysis over the finished TST (docs/design/semantics.md D1).
 
    A verb exits when `@controlflow$exitFromCall` is in its own frame: its

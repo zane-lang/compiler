@@ -2,30 +2,29 @@
     ├── entry: counting$main()
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
-    │   ├── positions[0]: @0 (32 bytes)
-    │   └── positions[1]: text @0
+    │   └── positions[0]: text @0
     ├── funcs[0] > func:
     │   ├── symbol: counting$main()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %2
-    │       ├── body[0] > host:
+    │       ├── body[0] > hold:
     │       │   ├── local: #1
     │       │   ├── scope: %2
     │       │   ├── value: "yes\n" : handle
     │       │   └── layout: %primitives$String
-    │       ├── body[1] > host:
+    │       ├── body[1] > hold:
     │       │   ├── local: #3
     │       │   ├── scope: %2
     │       │   ├── value: "no\n" : handle
     │       │   └── layout: %primitives$String
-    │       ├── body[2] > host:
+    │       ├── body[2] > hold:
     │       │   ├── local: #4
     │       │   ├── scope: %2
     │       │   ├── value: "." : handle
     │       │   └── layout: %primitives$String
-    │       ├── body[3] > host:
+    │       ├── body[3] > hold:
     │       │   ├── local: #5
     │       │   ├── scope: %2
     │       │   ├── value: "\n" : handle

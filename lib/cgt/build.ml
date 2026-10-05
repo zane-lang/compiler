@@ -20,7 +20,7 @@ let binop : Sst.Nodes.Operator.node -> Expr.binop = function
   | Eq -> Expr.Eq
   | Less -> Expr.Less
 
-(* An exit ends the run of a block (docs/spec-divergences.md §11). Semantics
+(* An exit ends the run of a block (docs/spec-divergences.md §10). Semantics
    rejects one anywhere else, so this is not reached. *)
 let no_block span = Diagnostic.bug ~span "lowering: an exit ends the block its call is written in, and this is in none"
 
@@ -47,10 +47,10 @@ let arena st scope =
       scope.arena <- Some a;
       a
 
-(* A new local: held in the block's arena when it is a host or owns a
+(* A new local: held in the block's arena when it is an owner or owns a
    block. *)
 let bind st scope span t id value =
-  if held st span t then Stat.Host { id; scope = arena st scope; value; layout = layout st span t }
+  if held st span t then Stat.Hold { id; scope = arena st scope; value; layout = layout st span t }
   else Stat.Let { id; value }
 
 let bind_local st scope (l : T.Local.t) id value =
@@ -65,14 +65,13 @@ let array_type t n =
 
 let is_array_lit (e : T.Expr.t) = match e.T.Expr.node with T.Expr.Array_lit _ -> true | _ -> false
 
-(* A value of type [t] leaving the arenas an exit drains: a host, or a
+(* A value of type [t] leaving the arenas an exit drains: an owner, or a
    value that owns a block, takes its blocks out of them first. *)
 let escape st span t exit (value : Expr.t) =
   if held st span t then
     { value with Expr.node = Expr.Escape { value; layout = layout st span t; exit } }
   else value
 let layout_table l = ptr (Expr.Layout l)
-let resolve (tether : Expr.t) = ptr (Expr.Resolve tether)
 let local_ptr id = ptr (Expr.Local id)
 
 (* A storage primitive's operator. The scalars have the machine's own, and

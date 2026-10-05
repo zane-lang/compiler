@@ -44,11 +44,10 @@ let rec concept_to_node (x: Nodes.Concept.t) = match x.Nodes.Concept.node with
 and param_type_to_node (x: Nodes.Param_type.t) = match x.Nodes.Param_type.node with
   | Concrete x -> type_to_node x
   | Concept x -> concept_to_node x
-  | InferredType { name; concept } ->
-      fields [
-        ("name", Leaf (text name));
-        ("concept", concept_to_node concept);
-      ]
+  | InferredType { name; concept; roaming } ->
+      fields
+        ([ ("name", Leaf (text name)); ("concept", concept_to_node concept) ]
+        @ if roaming then [ ("roaming", Leaf "^") ] else [])
 
 and verb_type_to_node (x: Nodes.Verb_type.t) = match x.Nodes.Verb_type.node with
   | Func { params; ret_type } ->
@@ -83,7 +82,8 @@ and generic_arg_to_node (x: Nodes.Generic_arg.t) = match x.Nodes.Generic_arg.nod
 
 and type_to_node (x: Nodes.Type_expr.t) = match x.Nodes.Type_expr.node with
   | Verb x -> verb_type_to_node x
-  | Guest x -> group "guest" (type_to_node x)
+  | Reference x -> group "reference" (type_to_node x)
+  | Roaming x -> group "roaming" (type_to_node x)
   | Path { name; generics } ->
       fields [
         ("qualifier", name_type_to_node name);

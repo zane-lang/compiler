@@ -1,10 +1,10 @@
 /// Lists: `@primitives$List<T>`, a handle to a block that grows (memory.md
 /// §3.6). Pushed to, measured, indexed and written at an index; lists of
-/// scalars, strings, hosts and lists; a generic type over one with a
-/// declared subscript, and a generic verb. A host that moves into a list
-/// keeps its guests while the list grows and moves it again, and one
-/// replaced at an index floats. Each check prints `yes` when it holds and
-/// `no` when it does not.
+/// scalars, strings, owners and lists; a generic type over one with a
+/// declared subscript, and a generic verb. A roaming owner moves into a
+/// list, whose elements move with every block it grows into, and one
+/// replaced at an index dies. Each check prints `yes` when it holds and `no`
+/// when it does not.
 package lists;
 
 alias Int = @primitives$Int
@@ -91,30 +91,28 @@ Unit main() {
 	words[Int(1)] = String("or");
 	check(words[Int(1)] == String("or"));
 
-	// Hosts: a guest follows its host into the list, and through every
-	// block the list grows into.
+	// Owners: a roaming one moves into the list, which keeps its elements
+	// through every block it grows into.
 	people List<Person> = @primitives$List(Person);
-	ada Person(String("ada"), Int(36));
-	g &Person = ada;
+	ada ^Person = Person(String("ada"), Int(36));
 	people!push(ada);
 	j Int(1);
 	j!to(Int(1000)) {
 		people!push(Person(String("x"), j));
 	}
-	check(g.name == String("ada"));
+	check(people[Int(1)].name == String("ada"));
 	check(people[Int(1001)].age == Int(1000));
 
-	// An anchored element replaced at its index floats, and its guest lives
-	// on.
+	// An element replaced at its index: the old one dies with its block.
 	people[Int(1)] = Person(String("grace"), Int(45));
-	check(g.age == Int(36));
 	check(people[Int(1)].name == String("grace"));
+	check(people:size() == Int(1001));
 
 	// A list of lists.
 	rows List<Row> = @primitives$List(Row);
 	k Int(1);
 	k!to(Int(3)) {
-		row List<Int> = @primitives$List(Int);
+		row ^Row = @primitives$List(Int);
 		row!push(k);
 		row!push(k * Int(10));
 		rows!push(row);

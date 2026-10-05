@@ -71,7 +71,7 @@ let rec expr (e : Expr.t) : node =
       node "map_read" [ ("target", expr target); ("map", Leaf (Printf.sprintf "%s #%d" property map)) ]
   | Expr.Subscript { target; impl; args } ->
       node "subscript" [ ("impl", Leaf (verb_ref impl)); ("target", expr target); ("args", map_seq expr args) ]
-  | Expr.Ref inner -> node "guest" [ ("of", expr inner) ]
+  | Expr.Ref inner -> node "reference" [ ("of", expr inner) ]
   | Expr.Init fs -> node "init" [ ("fields", map_seq field_value fs) ]
   | Expr.Spawn inner -> node "spawn" [ ("call", expr inner) ]
   | Expr.Match m ->

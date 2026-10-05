@@ -1023,7 +1023,7 @@ package | package main; /// Every im … ettled"); return Unit(); }
         mould Struct | struct { env &Environment; position Int; }
           body_field | env &Environment;
             name env | env
-            type_expr Guest | &Environment
+            type_expr Reference | &Environment
               type_expr Path | Environment
                 name_type | Environment
                   ident Environment | Environment
@@ -1042,7 +1042,7 @@ package | package main; /// Every im … ettled"); return Unit(); }
         param | env &Environment
           name env | env
           param_type Concrete | &Environment
-            type_expr Guest | &Environment
+            type_expr Reference | &Environment
               type_expr Path | Environment
                 name_type | Environment
                   ident Environment | Environment
@@ -1099,7 +1099,7 @@ package | package main; /// Every im … ettled"); return Unit(); }
       param | env &Environment
         name env | env
         param_type Concrete | &Environment
-          type_expr Guest | &Environment
+          type_expr Reference | &Environment
             type_expr Path | Environment
               name_type | Environment
                 ident Environment | Environment

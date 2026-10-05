@@ -1,6 +1,6 @@
-49 conflict states
+55 conflict states
 
- 12  shift/reduce  [LESS]  loption(generics) ->
+ 18  shift/reduce  [LESS]  loption(generics) ->
   2  shift/reduce  [LPAREN]  app -> AT LIDENT DOLLAR UIDENT DOT LIDENT
   2  shift/reduce  [LPAREN]  app -> LIDENT DOLLAR UIDENT DOT LIDENT
   2  shift/reduce  [LPAREN]  app -> UIDENT DOT LIDENT

@@ -57,11 +57,13 @@ let expands (v : verb) =
     (fun (p : T.Local.t) -> match p.T.Local.ty with Tty.Concept _ -> true | _ -> false)
     v.params
 
-(* L6: a `mut` method's subject, a reference-type subject, and a swallowed
+(* L6: a `mut` method's subject, a reference-type subject, and a borrowed
    reference-type argument are passed as the address of the caller's place;
-   the caller's host keeps the value (lifetimes.md §1.5). *)
+   the caller stays a full owner (memory.md §2.9). A `^T` argument is the
+   moved value itself. *)
 let by_address st (v : verb) (p : T.Local.t) =
-  (v.signature.S.is_mut && p.T.Local.name = "this") || hosted st p.T.Local.ty
+  (v.signature.S.is_mut && p.T.Local.name = "this")
+  || (owned st p.T.Local.ty && not (Tty.is_roaming p.T.Local.ty))
 
 (* L14: a function value is called as a verb of its type would be, so its
    type gives the verb it is called as: the subject first, named `this`, as a

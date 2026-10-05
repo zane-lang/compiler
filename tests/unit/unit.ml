@@ -29,14 +29,14 @@ let param name = Ty.fresh_param ~name ~kind:Ty.Type_kind
 
 let ty () =
   let t = param "T" and u = param "U" in
-  check "equal keeps a guest apart" (not (Ty.equal (Ty.Guest int) int));
-  check "assignable looks through a guest" (Ty.assignable ~dst:int ~src:(Ty.Guest int));
+  check "equal keeps a guest apart" (not (Ty.equal (Ty.Reference int) int));
+  check "assignable looks through a guest" (Ty.assignable ~dst:int ~src:(Ty.Reference int));
   check "equal tells primitives apart" (not (Ty.equal int float));
   check "Error equals anything" (Ty.equal Ty.Error (named "Point"));
   check "parameters are equal by id, not name"
     (not (Ty.equal (Ty.Param t) (Ty.Param { t with Ty.id = t.Ty.id + 1000 })));
-  check "strip_guest" (Ty.strip_guest (Ty.Guest int) = int);
-  check "is_guest" (Ty.is_guest (Ty.Guest int) && not (Ty.is_guest int));
+  check "strip_mode" (Ty.strip_mode (Ty.Reference int) = int);
+  check "is_ref" (Ty.is_ref (Ty.Reference int) && not (Ty.is_ref int));
   let pair = named "Pair" ~args:[ Ty.Type (Ty.Param t); Ty.Type (Ty.Param u) ] in
   check "subst replaces every parameter"
     (Ty.equal
@@ -48,7 +48,7 @@ let ty () =
     (Ty.bindings [ t; u ] [ Ty.Type int; Ty.Type float ]
     = [ (t.Ty.id, Ty.Type int); (u.Ty.id, Ty.Type float) ]);
   check "instantiate"
-    (Ty.equal (Ty.instantiate [ t ] [ Ty.Type int ] (Ty.Guest (Ty.Param t))) (Ty.Guest int));
+    (Ty.equal (Ty.instantiate [ t ] [ Ty.Type int ] (Ty.Reference (Ty.Param t))) (Ty.Reference int));
   raises_bug "instantiate with too few arguments is a bug" (fun () ->
       Ty.instantiate [ t; u ] [ Ty.Type int ] (Ty.Param t));
   raises_bug "instantiate with too many arguments is a bug" (fun () ->

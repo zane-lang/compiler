@@ -120,6 +120,8 @@ contexts:
       scope: keyword.operator.zane
     - match: "\\&"
       scope: keyword.operator.zane
+    - match: "\\^"
+      scope: keyword.operator.zane
     - match: "@"
       scope: keyword.operator.zane
     - match: "!"

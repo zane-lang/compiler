@@ -63,17 +63,17 @@ and ctx = {
   (* What `@controlflow$exitFromCall` does here: end the invocation that
      called the verb whose body it is in. *)
   exit_call : Source.Span.t -> Stat.t list;
-  (* The block being lowered, which hosts its reference-type locals (L8). *)
+  (* The block being lowered, which holds its reference-type locals (L8). *)
   scope : scope;
 }
 
-(* A block's arena, made the first time the block hosts something, and what
+(* A block's arena, made the first time the block holds something, and what
    settles each call spawned in it that can abort or exit, in case nothing
    reads it first. *)
 and scope = { mutable arena : int option; mutable settles : (unit -> Stat.t list) list }
 
 (* A `return` from an expansion stores into [result], which has the TST type
-   [ret]: a value moves there, or a guest is minted, as into any storage. *)
+   [ret]: a value moves there, or a reference is minted, as into any storage. *)
 and exit = Function | Leave of { label : int; result : int option; ret : Tty.t }
 
 (* A package constant: its symbol, its package, its declared type and its

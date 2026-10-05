@@ -34,6 +34,7 @@ open Statement_shape
 %token DOLLAR "$"
 %token HASH "#"
 %token AMPERSAND "&"
+%token CARET "^"
 %token AT "@"
 %token EXCL "!"
 %token QSTNMARK "?"
@@ -200,7 +201,10 @@ top_decl:
       type_
     }
   | AMPERSAND type_=type_base {
-      type_expr $loc (Nodes.Type_expr.Guest type_)
+      type_expr $loc (Nodes.Type_expr.Reference type_)
+    }
+  | CARET type_=type_base {
+      type_expr $loc (Nodes.Type_expr.Roaming type_)
     }
 
 (* A suffix is parsed as its own bracket group and only then applied to the
@@ -387,7 +391,13 @@ map_lit:
       ignore concept_;
       param_type $loc
         (Nodes.Param_type.InferredType
-           { name; concept = concept $loc(concept_) Nodes.Concept.Type })
+           { name; concept = concept $loc(concept_) Nodes.Concept.Type; roaming = false })
+    }
+  | CARET name=uname concept_=UTYPE {
+      ignore concept_;
+      param_type $loc
+        (Nodes.Param_type.InferredType
+           { name; concept = concept $loc(concept_) Nodes.Concept.Type; roaming = true })
     }
 
 %inline constructor_field:

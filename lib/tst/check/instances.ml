@@ -48,11 +48,49 @@ let check_result env (s : S.t) subst at =
            (quote (Ty.to_string ret)) (quote (Ty.to_string c)));
       false
 
+(* generics.md §3.6: an instance that puts a reference type where a value
+   mould holds only values is reported at the type's origin, the argument it
+   was read from: a type passed as a value, or the value an inferred one was
+   inferred from. A generic verb that only forwards its parameter is never
+   the origin, so the instance is not made, and nothing inside it reports
+   the same mistake again. *)
+let check_kinds env (s : S.t) subst at (args : T.Arg.t option list) =
+  let instantiated = List.map (fun (p : S.param) -> (p, Ty.subst subst p.S.ty)) s.params in
+  let found =
+    List.find_map
+      (fun t -> Type_decls.wrong_kind env (Ty.strip_mode t))
+      (Ty.subst subst s.ret :: List.map snd instantiated)
+  in
+  match found with
+  | None -> true
+  | Some ((_, bad) as f) ->
+      let reads (p : S.param) =
+        List.exists
+          (fun (q : Ty.param) ->
+            match List.assoc_opt q.id subst with
+            | Some (Ty.Type x) ->
+                Ty.equal (Ty.strip_mode x) (Ty.strip_mode bad)
+                && (p.S.binds = Some q || List.exists (fun r -> r.Ty.id = q.id) (Ty.free_params p.S.ty))
+            | _ -> false)
+          s.generics
+      in
+      let origin =
+        List.find_map
+          (fun ((p : S.param), a) ->
+            match a with
+            | Some (T.Arg.Value e) when reads p -> Some e.T.Expr.span
+            | _ -> None)
+          (List.combine s.params (if List.length args = List.length s.params then args else List.map (fun _ -> None) s.params))
+      in
+      error env (Option.value ~default:at origin) (Type_decls.describe_wrong_kind f);
+      false
+
 (* A call that builds storage out of a concept was reported, and its instance
    would only report it again. *)
-let request env (s : S.t) subst at =
+let request env ?(args = []) (s : S.t) subst at =
   match s.owner with
   | _ when not (check_result env s subst at) -> ()
+  | _ when s.generics <> [] && not (check_kinds env s subst at args) -> ()
   | _ when !(env.defining) -> ()
   | S.Declared id when s.generics <> [] ->
       let args = binding_args s subst in

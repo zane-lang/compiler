@@ -1,8 +1,8 @@
 /// Function values (functions.md §7): lambdas lifted to functions of their
 /// own, held by lambda-variables at package scope and in a body, passed,
 /// returned and stored, and called through and spawned, with an abort, a
-/// subject, a string, a host and a guest. Each check prints `yes` when it holds and `no` when it
-/// does not.
+/// subject, a string, an owner and a reference. Each check prints `yes` when it
+/// holds and `no` when it does not.
 package lambdas;
 
 alias Int = @primitives$Int
@@ -60,7 +60,7 @@ Unit bump(this Counter, by Int, f Unit[this Counter, Int] mut) mut {
 	return Unit();
 }
 
-/// A reference type: a function value takes its host by the caller's place.
+/// A reference type: a function value borrows its owner by the caller's place.
 type Tally = #struct {
 	total Int;
 }
@@ -75,7 +75,7 @@ Op.apply Int[Int] {
 	thrice = Int(x Int) { return x * Int(3); };
 }
 
-/// A host whose member spawned calls through function values write and read.
+/// An owner whose member spawned calls through function values write and read.
 type Shelf = #struct {
 	counter Counter;
 }
@@ -138,10 +138,10 @@ Unit main() {
 	c!bump(Int(4), still);
 	check(c.count == Int(5));
 
-	// A string passed and returned, a host lent, and a guest read through.
+	// A string passed and returned, an owner lent, and a reference read through.
 	shout String(text String) { return text + String("!"); }
 	check(shout(String("hey")) == String("hey!"));
-	echo String(text &String) { return text + text; }
+	echo String(text String) { return text + text; }
 	word String("ab");
 	check(echo(word) == String("abab"));
 	tally Tally(Int(2));
@@ -173,7 +173,7 @@ Unit main() {
 	seen Int = spawn get(c);
 	check(seen == Int(7));
 
-	// The same, with the subject reached through a host.
+	// The same, with the subject reached through an owner.
 	shelf Shelf(Counter(Int(10)));
 	if(true) {
 		spawn add(shelf.counter, Int(5));

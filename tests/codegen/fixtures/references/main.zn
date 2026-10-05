@@ -1,6 +1,7 @@
-/// Guests written out with `&` (memory.md §2.6): minted from a host, copied
-/// from a guest, passed, and following the host when it is overwritten.
-/// `@program$console` passed where a guest is wanted. Each check prints
+/// References written out with `&` (memory.md §2.6): minted from a settled
+/// owner, copied from a reference, passed, and observing the owner when it
+/// is overwritten in place. `@program$console` passed where a reference is
+/// wanted. Each check prints
 /// `yes` when it holds and `no` when it does not.
 package references;
 
@@ -34,8 +35,7 @@ Unit main() {
 	g &Person = &a;
 	check(age(&a) + g.age == Int(6));
 	h &Person = &g;
-	b Person(Int(4));
-	a = b;
+	a = Person(Int(4));
 	check(h.age == Int(4));
 	pass(@program$console);
 	pass(@program$console);
