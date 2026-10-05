@@ -18,6 +18,13 @@ let diagnostics : Diagnostic.t list ref = ref []
    names the instantiation that exposed it (D12). *)
 let note : string option ref = ref None
 
+(* Runs [f] with [note] set, and puts back the note it found however [f]
+   ends. *)
+let with_note n f =
+  let saved = !note in
+  note := Some n;
+  Fun.protect ~finally:(fun () -> note := saved) f
+
 let error span message =
   let message =
     match !note with None -> message | Some n -> message ^ " (" ^ n ^ ")"

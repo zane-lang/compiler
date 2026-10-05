@@ -1381,10 +1381,8 @@ and subscript_result (d : decl) (s : S.t) subst at =
       Ty.Error
   | None -> (
       Hashtbl.replace subscript_results key None;
-      let saved = !note in
-      if subst <> [] then note := Some (describe_instance s subst at);
-      let checked = subscript_body d s subst in
-      note := saved;
+      let body () = subscript_body d s subst in
+      let checked = if subst <> [] then with_note (describe_instance s subst at) body else body () in
       match checked with
       | Some (locals, v) ->
           Hashtbl.replace subscript_results key (Some v.T.Expr.ty);

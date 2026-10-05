@@ -191,29 +191,28 @@ let run () : T.Program.t =
   in
   while not (Queue.is_empty pending) do
     let p = Queue.pop pending in
-    note := Some (describe_instance p.p_sig p.p_subst p.p_at);
-    (match p.p_sig.kind with
-    | S.Subscript -> ()
-    | _ -> (
-        (match typed_defaults ~report:false p.p_decl p.p_sig p.p_subst with
-        | [] -> ()
-        | values ->
-            defaults :=
-              { T.Defaults.decl = p.p_decl.id; args = binding_args p.p_sig p.p_subst; values }
-              :: !defaults);
-        match check_body p.p_decl p.p_sig p.p_subst with
-        | Some (params, body) ->
-            instances :=
-              {
-                T.Instance.decl = p.p_decl.id;
-                signature = p.p_sig;
-                args = binding_args p.p_sig p.p_subst;
-                params;
-                body;
-              }
-              :: !instances
-        | None -> ()));
-    note := None
+    with_note (describe_instance p.p_sig p.p_subst p.p_at) (fun () ->
+      match p.p_sig.kind with
+      | S.Subscript -> ()
+      | _ -> (
+          (match typed_defaults ~report:false p.p_decl p.p_sig p.p_subst with
+          | [] -> ()
+          | values ->
+              defaults :=
+                { T.Defaults.decl = p.p_decl.id; args = binding_args p.p_sig p.p_subst; values }
+                :: !defaults);
+          match check_body p.p_decl p.p_sig p.p_subst with
+          | Some (params, body) ->
+              instances :=
+                {
+                  T.Instance.decl = p.p_decl.id;
+                  signature = p.p_sig;
+                  args = binding_args p.p_sig p.p_subst;
+                  params;
+                  body;
+                }
+                :: !instances
+          | None -> ()))
   done;
   (* D12 checks a generic body once per instantiation, so one nothing
      instantiates would go unchecked. It is checked once more where it is
@@ -251,11 +250,11 @@ let run () : T.Program.t =
                         | Ty.Number_kind -> None)
                       s.S.generics
                   in
-                  note := Some (Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name));
-                  (match s.S.kind with
-                  | S.Subscript -> ignore (subscript_body d s subst)
-                  | _ -> ignore (check_body d s subst));
-                  note := None
+                  with_note (Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name))
+                    (fun () ->
+                      match s.S.kind with
+                      | S.Subscript -> ignore (subscript_body d s subst)
+                      | _ -> ignore (check_body d s subst))
               | _ -> ())
             (package name).decls)
         !package_order);
