@@ -178,7 +178,8 @@ For a `#variant` the read returns garbage. For a value `variant` with a
 `String` payload, returning the binder copies a string through a freed
 handle: the unoptimized build stops with `zane runtime: out of memory for a
 dynamic chunk` (status 134) and the optimized build prints `NO` and exits 0,
-so the two builds disagree, as undefined behaviour may.
+so the two builds disagree, as undefined behaviour may. A `mut` call on the
+scrutinee in the arm, `slot!clear()`, which changes its case, does the same.
 
 The fix is the binder's counterpart of 9: while a binder is live, its
 scrutinee may not be overwritten, nor be a `mut` subject (a `mut` method
@@ -219,6 +220,13 @@ non-escaping access to the caller's owner for the duration of the call" but
 states no such rule either, so the spec needs it too. (A borrow of a
 settled field is safe: a field is overwritten in place, and the borrow
 observes the replacement, as the reference-type case in finding 8 shows.)
+
+The rule exists already for spawned calls: lend `list[Int(1)]` to a
+`spawn` and then `list!push(…)` in the same block, and the compiler reports
+"this writes `list`, which may be part of an owner lent through `list[]` to
+a spawned call" (`spec-divergences.md` §13). A synchronous call lends for a
+shorter time but to a callee that can write through its subject, so the
+same reasoning applies within the call.
 
 ### 8. A value parameter is a copy, and a call can tell (bug)
 

@@ -39,6 +39,11 @@ Engine(power Int, label String) => init{ power; label; }
 type Slot = #variant { full Engine; empty Unit; }
 type VSlot = variant { full String; empty Unit; }
 
+Unit clear(this Slot) mut {
+	this = Slot.empty(Unit());
+	return Unit();
+}
+
 Unit churn() {
 	j Int(1);
 	j!to(Int(200)) {
@@ -70,5 +75,16 @@ Unit main() {
 		u empty => String("");
 	}
 	check(String("binder after its scrutinee is overwritten (value)"), m == String("original"));
+
+	slot2 Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
+	k Int = match (slot2) {
+		e full {
+			slot2!clear();
+			churn();
+			return e.power;
+		}
+		u empty => Int(0);
+	}
+	check(String("binder after a mut call on its scrutinee"), k == Int(42));
 	return Unit();
 }
