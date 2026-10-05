@@ -1,0 +1,4 @@
+File "fixtures/reject/unitFuture/main.zn", line 11, characters 5-20:
+11 |     later = Unit();
+  |     ^^^^^^^^^^^^^^^
+Error: lowering does not store into this place yet

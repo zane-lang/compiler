@@ -233,6 +233,22 @@ written in, so it is an error in no block. A lambda's own frame holds no
 ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/control-flow.md)
 §4.2): it is called through a function value, whose type does not say that it
 exits.
+The root's `main` cannot exit either: the runtime calls it from no block
+([`packages.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/packages.md) §6.2).
+
+**Expansions** (`lib/tst/analyses/expansions.ml`). A verb that takes a block
+or a literal has no function of its own: each call to it is written out in
+place of the call ([`lowering.md`](lowering.md) L11). So such a verb is an
+error when its body reaches a call to itself, directly or through other such
+verbs. A call written in a lambda does not count, since a lambda is a
+function of its own.
+
+**Literal ranges** (`lib/tst/analyses/literal_ranges.ml`,
+[`types.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/types.md) §2.7).
+A storage primitive's constructor embeds its literal, which must fit it:
+`@primitives$Int` and `I64` a 64-bit integer, `I32` a 32-bit one, and `Float`
+a finite double. A literal handed to a verb's literal parameter reaches its
+constructor only where the verb is written out, so lowering checks that one.
 
 **Spawns** (`lib/tst/analyses/spawns.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md) §4.2–§4.3). A
 spawned `mut` call writes its subject, so a subject of a reference type, or a

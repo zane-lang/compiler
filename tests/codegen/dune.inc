@@ -918,3 +918,59 @@
  (action
   (diff golden/zero.out zero.optimized.out.actual)))
 
+(rule
+ (deps (source_tree fixtures/reject/literalOperator))
+ (action
+  (with-stderr-to
+   reject.literalOperator.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/literalOperator)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.literalOperator.err reject.literalOperator.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/literalRange))
+ (action
+  (with-stderr-to
+   reject.literalRange.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/literalRange)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.literalRange.err reject.literalRange.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/unitFuture))
+ (action
+  (with-stderr-to
+   reject.unitFuture.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/unitFuture)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.unitFuture.err reject.unitFuture.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/valueFlow))
+ (action
+  (with-stderr-to
+   reject.valueFlow.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/valueFlow)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.valueFlow.err reject.valueFlow.err.actual)))
+

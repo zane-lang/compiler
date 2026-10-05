@@ -12,13 +12,15 @@ let check (packages : Assembly.package list) =
   Collect.run packages;
   Type_decls.run ();
   Verb_signatures.run ();
-  let program = Check.run () in
+  let program = Program.run () in
   (* The analyses over the finished tree (D1). *)
   Read_only.run program;
   Guests.run program;
   Moves.run program;
   Owners.run program;
   Exits.run program;
+  Expansions.run program;
+  Literal_ranges.run program;
   Spawns.run program;
   let diagnostics =
     List.sort_uniq

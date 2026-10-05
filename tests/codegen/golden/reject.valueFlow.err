@@ -1,0 +1,4 @@
+File "fixtures/reject/valueFlow/main.zn", line 8, characters 17-47:
+8 |     done Unit = @controlflow$branch(true, { });
+  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: lowering does not handle `@controlflow$branch` used as a value yet

@@ -1,0 +1,19 @@
+/// An operator that takes a literal: lowering writes out a verb that takes a
+/// block or a literal where it is called, and does not yet for an operator.
+package literalOperator;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+type Meters = struct {
+	value Int;
+}
+
+Meters(value Int) => init{ value; }
+
+Meters +(left Meters, right @concepts$Int) => Meters(left.value + Int(right))
+
+Unit main() {
+	longer Meters = Meters(Int(1)) + 2;
+	return Unit();
+}

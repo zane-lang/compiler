@@ -2,7 +2,10 @@
 
 Status: **being carried out**, in the four steps of §12. Step 1 is done: DC1,
 DC2, DC3, ST1, IF1's two deletions, IF2's five re-exports, SH1, TS2, IV1 to
-IV5, and T4.
+IV5, and T4. Step 2 is done: IV6, TS1, SZ1 and SZ2. IV6 found that of the 21
+"does not handle … yet" refusals only three can be reached by a program
+semantics accepts, and that lowering alone checked a third rule, a literal's
+range, which semantics now checks too.
 
 This is the second strict review of the repository. The first one,
 [`file-structure-proposal.md`](file-structure-proposal.md), was about where
@@ -231,9 +234,10 @@ says otherwise.
    `check_kind` until DR1 moves it into `lib/driver/`, and its message is
    the one `project.no-main.err` already holds.
 2. **Lowering and the checker.** IV6 sorts lowering's refusals into limits
-   and bugs and moves the two checks only lowering has into semantics, so
-   their goldens change, as intended. TS1 then pins every limit with a
-   golden file. SZ1 and SZ2 split `lower.ml` and `check.ml`, as pure
+   and bugs and moves the three checks only lowering has into semantics --
+   whether `main` can exit, whether a verb expands into itself, and whether
+   a primitive can hold its literal -- so their goldens change, as
+   intended. TS1 then pins every limit with a golden file. SZ1 and SZ2 split `lower.ml` and `check.ml`, as pure
    moves.
 3. **Architecture.** SH3, the runtime's functions as a variant; DR1 and
    the rest of DR2, `lib/driver/`; ST2's two steps, ST3, ST4 and SH2, one

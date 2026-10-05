@@ -3,6 +3,13 @@ package bad;
 type Twice = struct { a Int; }
 type Twice = struct { b Int; }
 
+/// A generic type declared again without parameters: its uses keep the first
+/// declaration's parameters.
+type Pair<T Type> = struct { left T; right T; }
+type Pair = struct { only Int; }
+
+Int left(pair Pair<Int>) => pair.left
+
 limit Int(3)
 limit Int(4)
 

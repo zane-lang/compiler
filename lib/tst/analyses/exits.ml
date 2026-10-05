@@ -143,4 +143,17 @@ let run (p : T.Program.t) =
             walk_block false b)
       (parts e)
   in
-  List.iter (fun (_, b) -> walk_block false b) bodies
+  List.iter (fun (_, b) -> walk_block false b) bodies;
+  (* The runtime calls the root's `main`, from no block (packages.md §6.2). *)
+  match p.T.Program.packages with
+  | root :: _ ->
+      List.iter
+        (fun (d : T.Decl.t) ->
+          match d.T.Decl.node with
+          | T.Decl.Verb { signature = { S.kind = S.Function; name = "main"; _ }; _ }
+            when Hashtbl.mem exiting d.T.Decl.id ->
+              Env.error d.T.Decl.span
+                "`main` cannot exit: the runtime calls it from no block for the exit to end"
+          | _ -> ())
+        root.T.Package.decls
+  | [] -> ()

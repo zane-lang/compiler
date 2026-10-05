@@ -234,6 +234,26 @@
  (action
   (diff golden/typing.reject.err typing.reject.err.actual)))
 
+; `typing/reject/exiting` is a root whose `main` can exit, which the runtime,
+; calling it from no block, has nothing for.
+
+(rule
+ (deps (source_tree fixtures/typing/reject/exiting))
+ (action
+  (with-stderr-to
+   typing.exiting.err.actual
+   (with-accepted-exit-codes
+    1
+    (run
+     %{exe:../../bin/zanec/zanec.exe}
+     --check
+     --package fixtures/typing/reject/exiting)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typing.exiting.err typing.exiting.err.actual)))
+
 ; Every node of the typed tree, with the source text its span covers: the
 ; TST's counterpart of tests/parser's `.cst.spans` and `.sst.spans`, over the
 ; same `typing/accept` build. A node the checker built -- an inserted `Coerce`, a
