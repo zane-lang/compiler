@@ -58,7 +58,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       match args with
       | [ T.Arg.Value _console; T.Arg.Value text ] ->
           {
-            Expr.node = Expr.Runtime { fn = "zane_print"; args = [ borrow st ctx span text ] };
+            Expr.node = Expr.Runtime { fn = Runtime.Print; args = [ borrow st ctx span text ] };
             ty = Nodes.Ty.Void;
           }
       | _ -> Diagnostic.bug ~span "lowering: `print` with the wrong arguments")
@@ -72,7 +72,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           let count = borrow st ctx span count in
           let label = fresh st in
           let id = fresh st in
-          let set = Expr.Runtime { fn = "zane_set_threads"; args = [ count ] } in
+          let set = Expr.Runtime { fn = Runtime.Set_threads; args = [ count ] } in
           let set = { Expr.node = set; ty = Nodes.Ty.I64 } in
           let zero = { Expr.node = Expr.Int 0L; ty = Nodes.Ty.I64 } in
           let local = { Expr.node = Expr.Local id; ty = Nodes.Ty.I64 } in
@@ -92,7 +92,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
         args = [ _ ];
         handler = None;
       } ->
-      { Expr.node = Expr.Runtime { fn = "zane_set_threads_auto"; args = [] }; ty = Nodes.Ty.Void }
+      { Expr.node = Expr.Runtime { fn = Runtime.Set_threads_auto; args = [] }; ty = Nodes.Ty.Void }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$push"; _ }; args; handler = None }
     -> (
       (* The value is taken first, then the list makes room for it, which may
@@ -113,7 +113,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           let room =
             Expr.Runtime
               {
-                fn = "zane_list_push";
+                fn = Runtime.List_push;
                 args = [ lend st ctx span list; int (stride st span t); layout_table l ];
               }
           in
@@ -254,7 +254,7 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
   | "Unit", [] -> { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
   (* A new list is empty, and owns no block until its first `push`. *)
   | "List", [ _ ] ->
-      { Expr.node = Expr.Runtime { fn = "zane_list_new"; args = [] }; ty = Nodes.Ty.Handle }
+      { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = Nodes.Ty.Handle }
   | "Array", [ T.Arg.Value v ] -> (
       match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_guest t)) with
       | T.Expr.Array_lit values, Some (e, n) when List.length values = n ->
@@ -705,7 +705,7 @@ and subscript st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
           ptr
             (Expr.Runtime
                {
-                 fn = "zane_list_at";
+                 fn = Runtime.List_at;
                  args =
                    [ lend st ctx span target; borrow st ctx span index; int (stride st span t) ];
                })
@@ -714,7 +714,7 @@ and subscript st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
           let index = borrow st ctx span index in
           ptr
             (Expr.Runtime
-               { fn = "zane_array_at"; args = [ array; index; int n; int (stride st span t) ] })
+               { fn = Runtime.Array_at; args = [ array; index; int n; int (stride st span t) ] })
       | None, None -> Diagnostic.bug ~span "lowering: an intrinsic subscript of something not a list or an array")
   | S.Declared id, _ -> (
       match verb_of st id impl.instance with
@@ -1081,7 +1081,7 @@ and spawn_call st ctx span v fn ~writes passed handler =
         let back =
           Expr.Runtime
             {
-              fn = "zane_writeback";
+              fn = Runtime.Writeback;
               args = [ target; member copied; int size; layout_table (layout st span t) ];
             }
         in

@@ -247,8 +247,6 @@ let verb_number_refs (v : N.Verb_decl.t) =
    one the promotion did not anticipate only costs a generic parameter where
    an ordinary one would have done. *)
 
-let promoted : (int, string list) Hashtbl.t = Hashtbl.create 64
-let own_numbers : (int, string list) Hashtbl.t = Hashtbl.create 64
 
 let numbers_of (d : decl) v =
   let own =
@@ -349,8 +347,6 @@ let takes_number_at (d, v) arity i =
   && match List.nth_opt ps i with Some (Some name) -> List.mem name (numbers_of d v) | _ -> false
 
 let promote () =
-  Hashtbl.reset promoted;
-  Hashtbl.reset own_numbers;
   (* Names are looked up here ahead of pass 5, which looks them up again and
      reports whatever is wrong with them; this pass reports nothing. *)
   let saved = !diagnostics in

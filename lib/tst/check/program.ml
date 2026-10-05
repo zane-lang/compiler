@@ -66,9 +66,6 @@ let typed_defaults ?(report = true) (d : decl) (s : S.t) subst =
            (List.combine fs s.params))
   | _ -> []
 
-(* The defaults of every field constructor that has them, as the program
-   carries them: a declaration's, and each instance's. *)
-let defaults : T.Defaults.t list ref = ref []
 
 let check_defaults (d : decl) (s : S.t) =
   match typed_defaults d s [] with
@@ -185,14 +182,6 @@ let declaration (d : decl) : T.Decl.t option =
   Option.map (fun node -> { T.Decl.id = d.id; span = d.span; node }) node
 
 let run () : T.Program.t =
-  Context.next_local := 0;
-  Hashtbl.reset instance_keys;
-  Hashtbl.reset instance_counts;
-  Hashtbl.reset subscript_results;
-  Hashtbl.reset subscript_instances;
-  Queue.clear pending;
-  instances := [];
-  defaults := [];
   let packages =
     List.map
       (fun name ->
@@ -202,29 +191,28 @@ let run () : T.Program.t =
   in
   while not (Queue.is_empty pending) do
     let p = Queue.pop pending in
-    note := Some (describe_instance p.p_sig p.p_subst p.p_at);
-    (match p.p_sig.kind with
-    | S.Subscript -> ()
-    | _ -> (
-        (match typed_defaults ~report:false p.p_decl p.p_sig p.p_subst with
-        | [] -> ()
-        | values ->
-            defaults :=
-              { T.Defaults.decl = p.p_decl.id; args = binding_args p.p_sig p.p_subst; values }
-              :: !defaults);
-        match check_body p.p_decl p.p_sig p.p_subst with
-        | Some (params, body) ->
-            instances :=
-              {
-                T.Instance.decl = p.p_decl.id;
-                signature = p.p_sig;
-                args = binding_args p.p_sig p.p_subst;
-                params;
-                body;
-              }
-              :: !instances
-        | None -> ()));
-    note := None
+    with_note (describe_instance p.p_sig p.p_subst p.p_at) (fun () ->
+      match p.p_sig.kind with
+      | S.Subscript -> ()
+      | _ -> (
+          (match typed_defaults ~report:false p.p_decl p.p_sig p.p_subst with
+          | [] -> ()
+          | values ->
+              defaults :=
+                { T.Defaults.decl = p.p_decl.id; args = binding_args p.p_sig p.p_subst; values }
+                :: !defaults);
+          match check_body p.p_decl p.p_sig p.p_subst with
+          | Some (params, body) ->
+              instances :=
+                {
+                  T.Instance.decl = p.p_decl.id;
+                  signature = p.p_sig;
+                  args = binding_args p.p_sig p.p_subst;
+                  params;
+                  body;
+                }
+                :: !instances
+          | None -> ()))
   done;
   (* D12 checks a generic body once per instantiation, so one nothing
      instantiates would go unchecked. It is checked once more where it is
@@ -262,11 +250,11 @@ let run () : T.Program.t =
                         | Ty.Number_kind -> None)
                       s.S.generics
                   in
-                  note := Some (Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name));
-                  (match s.S.kind with
-                  | S.Subscript -> ignore (subscript_body d s subst)
-                  | _ -> ignore (check_body d s subst));
-                  note := None
+                  with_note (Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name))
+                    (fun () ->
+                      match s.S.kind with
+                      | S.Subscript -> ignore (subscript_body d s subst)
+                      | _ -> ignore (check_body d s subst))
               | _ -> ())
             (package name).decls)
         !package_order);

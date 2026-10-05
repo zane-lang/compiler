@@ -46,7 +46,6 @@ type ctx = {
   building : Ty.t option;
 }
 
-let next_local = ref 0
 
 let type_scope ctx = Type_decls.scope ~params:ctx.params ctx.file
 

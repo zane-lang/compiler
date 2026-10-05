@@ -18,7 +18,9 @@ end
    named the same as another -- or about a file that could not be read, and
    have no text to point into. *)
 module Location = struct
-  type t = Span of Source.Span.t | File of string | Directory of string
+  (* [Invocation] is the command the compiler was run with: a report about
+     its flags, which point into no file. *)
+  type t = Span of Source.Span.t | File of string | Directory of string | Invocation
 
   (* The path, and the byte offset into it, that reports are sorted by. *)
   let position = function
@@ -26,6 +28,7 @@ module Location = struct
         let p = s.Source.Span.start_ in
         (p.Lexing.pos_fname, p.Lexing.pos_cnum)
     | File path | Directory path -> (path, -1)
+    | Invocation -> ("", -1)
 end
 
 type t = {
@@ -39,5 +42,8 @@ let in_file path message = { severity = Severity.Error; location = Location.File
 
 let in_directory dir message =
   { severity = Severity.Error; location = Location.Directory dir; message }
+
+let about_invocation message =
+  { severity = Severity.Error; location = Location.Invocation; message }
 
 let position d = Location.position d.location

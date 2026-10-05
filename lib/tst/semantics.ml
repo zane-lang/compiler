@@ -35,5 +35,3 @@ let check (packages : Assembly.package list) =
 (* The text a build read from [path]: what a span is read back out of. *)
 let source packages path = Source.Files.find (Assembly.sources packages) path
 
-(* A diagnostic points into one of the build's files. *)
-let render packages (d : Diagnostic.t) = Diagnostic.render_in (Assembly.sources packages) d

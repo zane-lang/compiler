@@ -7,7 +7,6 @@ module Intrinsics = Intrinsics
 module Semantics = Semantics
 
 let check = Semantics.check
-let render_diagnostic = Semantics.render
 let to_node = To_tree_graph.to_node
 
 let to_span_text packages program =

@@ -1,0 +1,5 @@
+; A value an interface hides and nothing uses is dead code: warning 32
+; reports it, so every library's interface keeps its implementation honest.
+(env
+ (_
+  (flags (:standard -w +32))))

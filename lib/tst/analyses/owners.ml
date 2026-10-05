@@ -43,21 +43,10 @@ module Rests = Set.Make (struct
   let compare = compare
 end)
 
-let summaries : (int, Rests.t) Hashtbl.t = Hashtbl.create 64
-let changed = ref false
-
-let merge id r =
-  let old = Option.value ~default:Rests.empty (Hashtbl.find_opt summaries id) in
-  let now = Rests.union old r in
-  if not (Rests.equal old now) then begin
-    Hashtbl.replace summaries id now;
-    changed := true
-  end
-
 (* An intrinsic has no body to summarise: `push` keeps its value in `this`. *)
-let summary_of (r : T.Verb_ref.t) =
+let summary_of summaries (r : T.Verb_ref.t) =
   match r.T.Verb_ref.owner with
-  | S.Declared id -> Option.value ~default:Rests.empty (Hashtbl.find_opt summaries id)
+  | S.Declared id -> Fixpoint.find summaries id
   | S.Intrinsic "@primitives$push" -> Rests.singleton (1, 0)
   | S.Intrinsic _ -> Rests.empty
 
@@ -71,6 +60,7 @@ end)
 type sink = Verb of Ty.t | Value of Ty.t * Names.t ref
 
 type walk = {
+  summaries : Rests.t Fixpoint.t;
   (* What each local names, at any path. *)
   names : (int, Names.t) Hashtbl.t;
   (* The block each local is declared in, and each block's parent. *)
@@ -366,7 +356,7 @@ let rec expr w (e : T.Expr.t) =
    argument for the other names, and the local that place is in now names it
    too. A subject is taken as a guest, never minted one for. *)
 and rest w callee args =
-  let rs = summary_of callee in
+  let rs = summary_of w.summaries callee in
   if not (Rests.is_empty rs) then begin
     let sg = Env.signature_of callee in
     let method_ = match sg with Some sg -> S.is_method sg | None -> false in
@@ -489,8 +479,9 @@ and stat w (s : T.Stat.t) =
 (* Declarations                                                           *)
 (* ---------------------------------------------------------------------- *)
 
-let fresh () =
+let fresh summaries =
   {
+    summaries;
     names = Hashtbl.create 32;
     declared = Hashtbl.create 32;
     parent = Hashtbl.create 16;
@@ -507,8 +498,8 @@ let fresh () =
 
 (* Walk until no local names anything new, then once more if [report]. Block
    numbers restart each walk, so every walk numbers them alike. *)
-let walk ~report decl ret (params : T.Local.t list) body =
-  let w = fresh () in
+let walk summaries ~report decl ret (params : T.Local.t list) body =
+  let w = fresh summaries in
   List.iteri
     (fun i (p : T.Local.t) ->
       Hashtbl.replace w.params p.T.Local.id i;
@@ -531,7 +522,7 @@ let walk ~report decl ret (params : T.Local.t list) body =
     w.report <- true;
     once ()
   end;
-  merge decl w.rests
+  Fixpoint.add summaries decl w.rests
 
 let bodies (p : T.Program.t) =
   List.concat_map
@@ -558,13 +549,7 @@ let bodies (p : T.Program.t) =
 (* Summaries first, to a fixed point, since verbs may call each other in a
    cycle; then each body once more to report. *)
 let run (p : T.Program.t) =
-  Hashtbl.reset summaries;
+  let summaries = Fixpoint.create ~empty:Rests.empty ~union:Rests.union ~equal:Rests.equal in
   let bodies = bodies p in
-  let each report = List.iter (fun (d, ret, ps, b) -> walk ~report d ret ps b) bodies in
-  let rec settle () =
-    changed := false;
-    each false;
-    if !changed then settle ()
-  in
-  settle ();
-  each true
+  Fixpoint.settle summaries (fun ~report ->
+      List.iter (fun (d, ret, ps, b) -> walk summaries ~report d ret ps b) bodies)

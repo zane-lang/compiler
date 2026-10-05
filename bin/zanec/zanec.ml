@@ -28,7 +28,7 @@ type view = Assembled | Check | Declarations | Typed | Cgt | Ir | Build of strin
    `--kind`, `main` is required only to build. A library lowers from every
    function it declares, with its symbols carrying the `!` placeholder
    (docs/design/separate-compilation.md C5). *)
-type kind = Application | Library
+type kind = Driver.kind = Application | Library
 
 type build = {
   view : view;
@@ -59,13 +59,17 @@ type request =
   | Rewrite of { stamp : string; input : string; output : string }
   | Remap of { from : string; to_ : string; input : string; output : string }
 
+(* A command the binary cannot run: the arguments do not say a run it
+   knows, or a source it names cannot be read. Exits with status 2. *)
+exception Usage of string option
+
 let read_file path =
   try In_channel.with_open_text path In_channel.input_all
-  with Sys_error message ->
-    prerr_endline message;
-    exit 2
+  with Sys_error message -> raise (Usage (Some message))
 
-let usage () =
+let usage () = raise (Usage None)
+
+let print_usage () =
   prerr_endline "usage: zanec [--cst|--sst] (SOURCE|-)";
   prerr_endline
     "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT|--object OUT]";
@@ -75,8 +79,7 @@ let usage () =
   prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
   prerr_endline "             --package [[STAMP]NAME=]DIR [--package [[STAMP]NAME=]DIR ...]";
   prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
-  prerr_endline "       zanec --remap FROM TO INPUT OUTPUT";
-  exit 2
+  prerr_endline "       zanec --remap FROM TO INPUT OUTPUT"
 
 (* The name reported in parse errors travels with the text, so reading from
    standard input still produces a located message. *)
@@ -234,214 +237,139 @@ let arguments () =
 
 let run_file stage (filename, input) =
   match Cst.parse filename input with
-  | Error diagnostic ->
-      prerr_string (Diagnostic.render ~source:input diagnostic);
-      exit 1
+  | Error diagnostic -> Driver.fail ~sources:[ (filename, input) ] [ diagnostic ]
   | Ok cst ->
       let output =
         match stage with
         | Cst -> Cst.to_node cst
         | Sst -> Sst.to_node (Sst.of_cst cst)
       in
-      print_string (Tree_graph.render output)
+      print_string (Tree_graph.render output);
+      Ok ()
 
-(* Lowering and codegen, once semantics has accepted the program. Lowering
-   refuses what it cannot handle yet with a diagnostic rather than lowering it
-   wrongly (docs/design/lowering.md). *)
+let ( let* ) = Result.bind
+
+(* Lowering and codegen, once semantics has accepted the program. *)
 let generate packages build program =
-  match Cgt.lower ~library:(build.kind = Some Library) program with
-  | Error d ->
-      prerr_string (Tst.render_diagnostic packages d);
-      exit 1
-  | Ok cgt -> (
-      let fail message =
-        prerr_endline ("Error: " ^ message);
-        exit 1
-      in
-      match build.view with
-      | Cgt -> print_string (Tree_graph.render (Cgt.to_node cgt))
-      | Ir -> (
-          let m = Codegen.emit cgt in
-          match Codegen.prepare ?target:build.target ~optimize:build.optimize m with
-          | Ok () -> print_string (Codegen.ir m)
-          | Error message -> fail message)
-      | Build output -> (
-          match
-            Codegen.executable ?target:build.target ~optimize:build.optimize ~link:build.link
-              (Codegen.emit cgt) output
-          with
-          | Ok () -> ()
-          | Error message -> fail message)
-      | Object output -> (
-          match
-            Codegen.object_file ?target:build.target ~optimize:build.optimize (Codegen.emit cgt)
-              output
-          with
-          | Ok () -> ()
-          | Error message -> fail message)
-      | Assembled | Check | Declarations | Typed -> ())
+  let* cgt = Driver.lower ~kind:(Option.value build.kind ~default:Application) packages program in
+  let target = build.target and optimize = build.optimize in
+  match build.view with
+  | Cgt ->
+      print_string (Tree_graph.render (Cgt.to_node cgt));
+      Ok ()
+  | Ir ->
+      let* ir = Driver.ir ?target ~optimize cgt in
+      print_string ir;
+      Ok ()
+  | Build output -> Driver.executable ?target ~optimize ~link:build.link cgt output
+  | Object output -> Driver.object_file ?target ~optimize cgt output
+  | Assembled | Check | Declarations | Typed -> Ok ()
 
-(* An application starts from `main` (packages.md §6.2), so one without it is
-   an error however far the build goes, `--check` included. Without `--kind`,
-   a root is an application once it is lowered, since lowering starts from its
-   `main`. This is the one check for `main`: lowering takes it as given. *)
+(* Without `--kind`, a root is an application once it is lowered, since
+   lowering starts from its `main`. *)
 let needs_main build =
   match (build.kind, build.view) with
   | Some Application, _ | None, (Cgt | Ir | Build _ | Object _) -> true
   | Some Library, _ | None, (Assembled | Check | Declarations | Typed) -> false
 
-let check_kind build (program : Tst.Nodes.Program.t) =
-  match program.Tst.Nodes.Program.packages with
-  | root :: _ when needs_main build ->
-      let declares_main =
-        List.exists
-          (fun (d : Tst.Nodes.Decl.t) ->
-            match d.Tst.Nodes.Decl.node with
-            | Tst.Nodes.Decl.Verb { signature; _ } -> signature.Tst.Signature.name = "main"
-            | _ -> false)
-          root.Tst.Nodes.Package.decls
-      in
-      if not declares_main then begin
-        prerr_endline
-          (Printf.sprintf "Error: the application `%s` declares no `main` to start from"
-             root.Tst.Nodes.Package.name);
-        exit 1
-      end
-  | _ -> ()
-
-(* `--stamp NAME=STAMP` gives the one package named NAME its stamp. A stamp
-   for a package the build does not have would be dropped silently, and the
-   package it was meant for compiled into the root's object rather than
-   linked from its own; one for a name two packages have would pick between
-   them. *)
-let with_stamps stamps requests =
-  List.fold_left
-    (fun requests (name, stamp) ->
-      let named (r : Tst.Assembly.request) =
-        r.Tst.Assembly.stamp = None && String.equal (Tst.Assembly.name_of r) name
-      in
-      match List.filter named requests with
-      | [ _ ] ->
-          List.map
-            (fun r -> if named r then { r with Tst.Assembly.stamp = Some stamp } else r)
-            requests
-      | [] ->
-          prerr_endline
-            (Printf.sprintf "Error: `--stamp %s=...` names no package given with `--package`" name);
-          exit 1
-      | _ ->
-          prerr_endline
-            (Printf.sprintf
-               "Error: `--stamp %s=...` names more than one package; give each its stamp with `--package STAMP%s=DIR`"
-               name name);
-          exit 1)
-    requests stamps
-
-(* Semantics reports every problem it finds (docs/design/semantics.md D4) and
-   prints no tree when there is one, since a tree with holes in it is not what
-   either view promises. *)
+(* Semantics prints no tree when it found a problem, since a tree with holes
+   in it is not what either view promises. *)
 let run_packages build =
-  (match (build.kind, build.view) with
-  | Some Library, Build _ ->
-      prerr_endline "Error: a library is not built into an executable; check it with `--check`";
-      exit 1
-  | _ -> ());
-  match
-    Tst.Assembly.assemble_requests ~imports:build.imports (with_stamps build.stamps build.packages)
-  with
-  | Error { Tst.Assembly.diagnostics; sources } ->
-      List.iter (fun d -> prerr_string (Diagnostic.render_in sources d)) diagnostics;
-      exit 1
-  | Ok packages -> (
+  let* () = match build.view with Build _ -> Driver.buildable build.kind | _ -> Ok () in
+  let* packages = Driver.assemble ~imports:build.imports ~stamps:build.stamps build.packages in
+  match build.view with
+  | Assembled ->
+      print_string (Tree_graph.render (Tst.Assembly.to_node packages));
+      Ok ()
+  | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ -> (
+      let* program = Driver.check packages in
+      let* () = if needs_main build then Driver.require_main program else Ok () in
       match build.view with
-      | Assembled ->
-          print_string (Tree_graph.render (Tst.Assembly.to_node packages))
-      | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ -> (
-          let result = Tst.check packages in
-          match result.Tst.Semantics.diagnostics with
-          | [] -> (
-              let program = result.Tst.Semantics.program in
-              check_kind build program;
-              match build.view with
-              | Check -> ()
-              | Declarations | Typed ->
-                  print_string
-                    (Tree_graph.render (Tst.to_node ~bodies:(build.view = Typed) program))
-              | _ -> generate packages build program)
-          | diagnostics ->
-              List.iter
-                (fun d -> prerr_string (Tst.render_diagnostic packages d))
-                diagnostics;
-              exit 1))
+      | Check -> Ok ()
+      | Declarations | Typed ->
+          print_string (Tree_graph.render (Tst.to_node ~bodies:(build.view = Typed) program));
+          Ok ()
+      | _ -> generate packages build program)
 
 (* The output is written only once the whole object has been rewritten, so a
    malformed input leaves nothing behind. It is written beside OUTPUT and
    renamed into place, so a failed write leaves an existing OUTPUT, or the
    INPUT it may be, as it was. *)
 let run_rewrite ~stamps ~rewrite ~input ~output =
-  let fail message =
-    prerr_endline ("Error: " ^ message);
-    exit 1
+  let fail message = Driver.fail [ Diagnostic.about_invocation message ] in
+  let not_stamp stamp =
+    Printf.sprintf
+      "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
+      stamp
   in
-  List.iter
-    (fun stamp ->
-      if not (Rewrite.is_stamp stamp) then
-        fail
-          (Printf.sprintf
-             "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
-             stamp))
-    stamps;
-  (match stamps with
-  | [ from; to_ ] when not (Rewrite.same_package from to_) ->
-      fail
-        (Printf.sprintf
-           "`%s` and `%s` are versions of two packages, since their identity hashes differ; \
-            remapping moves references between versions of one package"
-           from to_)
-  | _ -> ());
-  let contents =
-    try In_channel.with_open_bin input In_channel.input_all
-    with Sys_error message -> fail message
-  in
-  match rewrite contents with
-  | Error message -> fail (input ^ ": " ^ message)
-  | Ok (rewritten, _) -> (
-      Random.self_init ();
-      let temporary =
-        Filename.concat (Filename.dirname output)
-          (Printf.sprintf ".%s.%08x" (Filename.basename output) (Random.bits ()))
-      in
-      try
-        Out_channel.with_open_gen
-          [ Open_wronly; Open_creat; Open_excl; Open_binary ]
-          0o666 temporary
-          (fun oc -> output_string oc rewritten);
-        Sys.rename temporary output
-      with Sys_error message ->
-        (try Sys.remove temporary with Sys_error _ -> ());
-        fail (Printf.sprintf "cannot write `%s`: %s" output message))
+  match List.find_opt (fun stamp -> not (Rewrite.is_stamp stamp)) stamps with
+  | Some stamp -> fail (not_stamp stamp)
+  | None -> (
+      match stamps with
+      | [ from; to_ ] when not (Rewrite.same_package from to_) ->
+          fail
+            (Printf.sprintf
+               "`%s` and `%s` are versions of two packages, since their identity hashes differ; \
+                remapping moves references between versions of one package"
+               from to_)
+      | _ -> (
+          match In_channel.with_open_bin input In_channel.input_all with
+          | exception Sys_error message -> fail message
+          | contents -> (
+              match rewrite contents with
+              | Error message -> fail (input ^ ": " ^ message)
+              | Ok (rewritten, _) -> (
+                  Random.self_init ();
+                  let temporary =
+                    Filename.concat (Filename.dirname output)
+                      (Printf.sprintf ".%s.%08x" (Filename.basename output) (Random.bits ()))
+                  in
+                  try
+                    Out_channel.with_open_gen
+                      [ Open_wronly; Open_creat; Open_excl; Open_binary ]
+                      0o666 temporary
+                      (fun oc -> output_string oc rewritten);
+                    Sys.rename temporary output;
+                    Ok ()
+                  with Sys_error message ->
+                    (try Sys.remove temporary with Sys_error _ -> ());
+                    fail (Printf.sprintf "cannot write `%s`: %s" output message)))))
 
-(* A broken invariant is the compiler's fault, so it says so and exits with
-   a status of its own: 1 is a program the compiler refused, 2 a usage
-   error. Any other exception that escapes a stage broke an invariant too. *)
-let internal_error ?span message =
-  prerr_string (Diagnostic.render_internal ?span message);
-  exit 3
-
+(* The one place the binary exits: 0 when the run did what it was asked,
+   1 when the compiler refused the program, 2 for a command it cannot run,
+   and 3 for a broken invariant, the compiler's own fault. Any other
+   exception that escapes a stage broke an invariant too. *)
 let () =
-  try
-    match arguments () with
-    | File (stage, input) -> run_file stage input
-    | Packages build -> run_packages build
-    | Rewrite { stamp; input; output } ->
-        run_rewrite ~stamps:[ stamp ] ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
-    | Remap { from; to_; input; output } ->
-        run_rewrite ~stamps:[ from; to_ ] ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output
-  with
-  | Diagnostic.Internal { span; message } -> internal_error ?span message
-  | Stack_overflow -> internal_error "the stack overflowed"
-  | e ->
-      (* With OCAMLRUNPARAM=b, where it was raised. *)
-      let backtrace = Printexc.get_backtrace () in
-      internal_error
-        (if backtrace = "" then Printexc.to_string e else Printexc.to_string e ^ "\n" ^ backtrace)
+  let internal ?span message =
+    prerr_string (Diagnostic.render_internal ?span message);
+    3
+  in
+  let status =
+    try
+      let result =
+        match arguments () with
+        | File (stage, input) -> run_file stage input
+        | Packages build -> run_packages build
+        | Rewrite { stamp; input; output } ->
+            run_rewrite ~stamps:[ stamp ] ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
+        | Remap { from; to_; input; output } ->
+            run_rewrite ~stamps:[ from; to_ ] ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output
+      in
+      match result with
+      | Ok () -> 0
+      | Error failure ->
+          List.iter prerr_string (Driver.render failure);
+          1
+    with
+    | Usage message ->
+        (match message with Some m -> prerr_endline m | None -> print_usage ());
+        2
+    | Diagnostic.Internal { span; message } -> internal ?span message
+    | Stack_overflow -> internal "the stack overflowed"
+    | e ->
+        (* With OCAMLRUNPARAM=b, where it was raised. *)
+        let backtrace = Printexc.get_backtrace () in
+        internal
+          (if backtrace = "" then Printexc.to_string e else Printexc.to_string e ^ "\n" ^ backtrace)
+  in
+  exit status

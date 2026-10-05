@@ -158,6 +158,104 @@ let type_layout () =
       Type_layout.definition st (named "Box"))
 
 (* ---------------------------------------------------------------------- *)
+(* The runtime's ABI                                                      *)
+(* ---------------------------------------------------------------------- *)
+
+(* runtime/zane.h without its comments and preprocessor lines. *)
+let header () =
+  let text = In_channel.with_open_text "../../runtime/zane.h" In_channel.input_all in
+  let b = Buffer.create (String.length text) in
+  let n = String.length text in
+  let rec go i =
+    if i >= n then ()
+    else if i + 1 < n && text.[i] = '/' && text.[i + 1] = '*' then
+      let rec close j = if j + 1 >= n || (text.[j] = '*' && text.[j + 1] = '/') then j + 2 else close (j + 1) in
+      go (close (i + 2))
+    else if text.[i] = '#' && (i = 0 || text.[i - 1] = '\n') then
+      go (match String.index_from_opt text i '\n' with Some j -> j | None -> n)
+    else begin
+      Buffer.add_char b text.[i];
+      go (i + 1)
+    end
+  in
+  go 0;
+  Buffer.contents b
+
+(* Each prototype the header declares: its name, the C type it returns and
+   the C types of its parameters, by the text that spells them. *)
+let prototypes () =
+  let declarations = String.split_on_char ';' (header ()) in
+  List.filter_map
+    (fun d ->
+      let d = String.trim (String.map (function '\n' | '\t' -> ' ' | c -> c) d) in
+      match String.index_opt d '(' with
+      | None -> None
+      | Some open_ ->
+          let before = String.trim (String.sub d 0 open_) in
+          let cut = match String.rindex_opt before ' ' with Some i -> i + 1 | None -> 0 in
+          let cut = match String.rindex_opt before '*' with Some i when i + 1 > cut -> i + 1 | _ -> cut in
+          let name = String.sub before cut (String.length before - cut) in
+          if not (String.starts_with ~prefix:"zane_" name) then None
+          else
+            let ret = String.trim (String.sub before 0 cut) in
+            (* The parameters: up to the parenthesis that closes the list,
+               split at the commas outside a function pointer's own. *)
+            let params = Buffer.create 64 and parts = ref [] and depth = ref 0 in
+            String.iteri
+              (fun i c ->
+                if i > open_ then
+                  match c with
+                  | '(' -> incr depth; Buffer.add_char params c
+                  | ')' when !depth = 0 -> depth := -1
+                  | ')' -> decr depth; Buffer.add_char params c
+                  | ',' when !depth = 0 ->
+                      parts := Buffer.contents params :: !parts;
+                      Buffer.clear params
+                  | c -> if !depth >= 0 then Buffer.add_char params c)
+              d;
+            parts := Buffer.contents params :: !parts;
+            let params = List.rev_map String.trim !parts in
+            let params = match params with [ "void" ] | [ "" ] -> [] | ps -> ps in
+            Some (name, ret, params))
+    declarations
+
+(* How the C ABI passes a type the header spells. *)
+let abi c =
+  let module R = Cgt.Runtime in
+  if String.contains c '*' then Some R.Ptr
+  else
+    let words = List.filter (fun w -> w <> "" && w <> "const") (String.split_on_char ' ' c) in
+    match words with
+    | [ "void" ] -> Some R.Void
+    | ("int64_t" :: _) -> Some R.I64
+    | (("uint32_t" | "int32_t") :: _) -> Some R.I32
+    | _ -> None
+
+let runtime_abi () =
+  let module R = Cgt.Runtime in
+  let declared = prototypes () in
+  check "the header declares functions" (List.length declared > 20);
+  List.iter
+    (fun fn ->
+      let name = R.name fn in
+      match List.find_opt (fun (n, _, _) -> n = name) declared with
+      | None -> check (name ^ " is declared in zane.h") false
+      | Some (_, ret, params) ->
+          let ret', params' = R.signature fn in
+          check (name ^ " returns what zane.h says") (abi ret = Some ret');
+          check
+            (name ^ " takes what zane.h says")
+            (List.length params = List.length params'
+            && List.for_all2 (fun c t -> abi c = Some t) params params'))
+    R.all;
+  (* `zane_main` is the one function the program defines rather than calls. *)
+  List.iter
+    (fun (name, _, _) ->
+      check (name ^ " in zane.h is a function the compiler knows")
+        (name = "zane_main" || List.exists (fun fn -> R.name fn = name) R.all))
+    declared
+
+(* ---------------------------------------------------------------------- *)
 (* Semantics twice                                                        *)
 (* ---------------------------------------------------------------------- *)
 
@@ -182,6 +280,7 @@ let () =
   signatures ();
   overloads ();
   type_layout ();
+  runtime_abi ();
   twice ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;

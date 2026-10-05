@@ -97,3 +97,4 @@ let render ~source ({ Report.severity; location; message } : Report.t) =
   | Report.Location.File path -> Printf.sprintf "File \"%s\":\n%s: %s\n" path label message
   | Report.Location.Directory dir ->
       Printf.sprintf "Directory \"%s\":\n%s: %s\n" dir label message
+  | Report.Location.Invocation -> Printf.sprintf "%s: %s\n" label message

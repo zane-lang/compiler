@@ -1,7 +1,8 @@
 module Nodes = Nodes
-module To_span_text = To_span_text
 module Walk = Walk
-include To_tree_graph
+
+let to_node = To_tree_graph.to_node
+let to_span_text = To_span_text.render
 
 (* The entry point: a parsed package, with every shorthand written out.
 

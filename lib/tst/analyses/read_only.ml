@@ -126,18 +126,12 @@ type summary = {
 }
 
 let empty = { result = Taint.empty; into_this = Taint.empty }
-let summaries : (int, summary) Hashtbl.t = Hashtbl.create 64
-let changed = ref false
 
-let merge id s =
-  let old = Option.value ~default:empty (Hashtbl.find_opt summaries id) in
-  let s =
-    { result = Taint.union old.result s.result; into_this = Taint.union old.into_this s.into_this }
-  in
-  if not (Taint.equal s.result old.result && Taint.equal s.into_this old.into_this) then begin
-    Hashtbl.replace summaries id s;
-    changed := true
-  end
+let summaries () =
+  Fixpoint.create ~empty
+    ~union:(fun a b ->
+      { result = Taint.union a.result b.result; into_this = Taint.union a.into_this b.into_this })
+    ~equal:(fun a b -> Taint.equal a.result b.result && Taint.equal a.into_this b.into_this)
 
 (* A summary's taint with each parameter replaced by its argument's. *)
 let substitute (args : Taint.t array) s =
@@ -160,6 +154,7 @@ type binding = { name : string; read_only : bool }
 type walk = {
   (* Report, or only gather summaries. *)
   report : bool;
+  summaries : summary Fixpoint.t;
   taints : (int, Taint.t) Hashtbl.t;
   (* Every parameter an origin can name, in this body and its lambdas. *)
   origins : (int, binding) Hashtbl.t;
@@ -214,9 +209,9 @@ let add w (l : T.Local.t) p s =
     Hashtbl.replace w.taints l.T.Local.id (Taint.union old (under p s))
   end
 
-let summary_of (r : T.Verb_ref.t) =
+let summary_of w (r : T.Verb_ref.t) =
   match r.T.Verb_ref.owner with
-  | S.Declared id -> Hashtbl.find_opt summaries id
+  | S.Declared id -> Fixpoint.find_opt w.summaries id
   | S.Intrinsic _ -> None
 
 let rec expr w (e : T.Expr.t) : Taint.t =
@@ -285,7 +280,7 @@ let rec expr w (e : T.Expr.t) : Taint.t =
         Option.value ~default:Taint.empty (List.assoc_opt p.S.name taints)
       in
       let r =
-        match summary_of ctor with
+        match summary_of w ctor with
         | Some s -> substitute (Array.of_list (List.map taint_of_param params)) s.result
         | None when params = [] ->
             whole (List.fold_left (fun acc (_, t) -> Taint.union acc t) Taint.empty taints)
@@ -300,7 +295,7 @@ let rec expr w (e : T.Expr.t) : Taint.t =
       let t = expr w target in
       let rest = List.map (expr w) args in
       let r =
-        match summary_of impl with
+        match summary_of w impl with
         | Some s -> substitute (Array.of_list (t :: rest)) s.result
         | None -> navigate t [ Elem ]
       in
@@ -323,24 +318,24 @@ let rec expr w (e : T.Expr.t) : Taint.t =
       let l = expr w left and r = expr w right in
       let args = if swapped then [ r; l ] else [ l; r ] in
       let res =
-        match summary_of impl with
+        match summary_of w impl with
         | Some s -> substitute (Array.of_list args) s.result
         | None -> whole (Taint.union l r)
       in
       Taint.union (store e.T.Expr.ty res) (opt_handler w handler)
   | T.Expr.Flip { value; impl; handler } ->
       let v = expr w value in
-      let res = one impl v in
+      let res = one w impl v in
       Taint.union (store e.T.Expr.ty res) (opt_handler w handler)
   | T.Expr.Coerce { ctor; value } ->
       let v = expr w value in
-      let res = one ctor v in
+      let res = one w ctor v in
       store e.T.Expr.ty res
   | T.Expr.Lambda l -> lambda w e l
 
 (* A call with one argument. *)
-and one callee v =
-  match summary_of callee with Some s -> substitute [| v |] s.result | None -> whole v
+and one w callee v =
+  match summary_of w callee with Some s -> substitute [| v |] s.result | None -> whole v
 
 (* A subscript names a place, so what it yields is read where it is, not
    stored: its taint stays whole unless the value is a copy. *)
@@ -374,7 +369,7 @@ and arg w = function
       Taint.empty
 
 and call w (e : T.Expr.t) (callee : T.Verb_ref.t) taints args =
-  let s = summary_of callee in
+  let s = summary_of w callee in
   let sg = Env.signature_of callee in
   let tys =
     match sg with Some sg -> List.map (fun (p : S.param) -> p.S.ty) sg.S.params | None -> []
@@ -502,10 +497,11 @@ and stat w (s : T.Stat.t) =
 
 type body = { decl : int; signature : S.t; params : T.Local.t list; run : walk -> unit }
 
-let walk_body ~report (b : body) =
+let walk_body summaries ~report (b : body) =
   let w =
     {
       report;
+      summaries;
       taints = Hashtbl.create 32;
       origins = Hashtbl.create 8;
       returned = Taint.empty;
@@ -536,7 +532,7 @@ let walk_body ~report (b : body) =
         Taint.remove (elem 0 [] []) (to_index (taint_of w this))
     | _ -> Taint.empty
   in
-  merge b.decl { result = to_index w.returned; into_this }
+  Fixpoint.add w.summaries b.decl { result = to_index w.returned; into_this }
 
 let bodies (p : T.Program.t) =
   let of_decl (d : T.Decl.t) =
@@ -567,15 +563,9 @@ let bodies (p : T.Program.t) =
       p.T.Program.instances
 
 let run (p : T.Program.t) =
-  Hashtbl.reset summaries;
+  let summaries = summaries () in
   let bodies = bodies p in
   (* Every body starts from nothing, so a callee not yet walked is not
      mistaken for one that has no body to walk. *)
-  List.iter (fun (b : body) -> Hashtbl.replace summaries b.decl empty) bodies;
-  let rec settle () =
-    changed := false;
-    List.iter (walk_body ~report:false) bodies;
-    if !changed then settle ()
-  in
-  settle ();
-  List.iter (walk_body ~report:true) bodies
+  List.iter (fun (b : body) -> Fixpoint.start summaries b.decl) bodies;
+  Fixpoint.settle summaries (fun ~report -> List.iter (walk_body summaries ~report) bodies)
