@@ -29,6 +29,7 @@ Findings are numbered and classified:
 |---|---|---|---|
 | 6 | Bug | `lambdas` | A call through a function value records no resting place, so a reference dangles and a write through it corrupts a live object |
 | 7 | Bug | `deepvalue` | Overwriting a recursive value deeper than about 22,700 levels overflows the C stack and segfaults |
+| 9 | Bug | `aliasing` | A borrowed list element or payload is freed by the same call's `mut` subject, and then read |
 | 8 | Bug | `aliasing` | A value parameter is passed by copy, which `v!setFrom(v)` observes; memory.md §2.9 makes it a borrow |
 | 1 | Bug | `reflist` | Nothing can be pushed into a `List<&T>` |
 | 2 | Gap | `genref` | `Box(r)` with `r &Port` infers `Box<Port>`; no way to make a `Box<&Port>` |
@@ -119,9 +120,7 @@ optimized build alike.
 - **One object reached twice by a call** (`aliasing`; memory.md §2.9).
   `keepAndRead(cup, cup)`, a borrow and a take of one owner, is reported. A
   reference-type `mut` subject and a borrow of the same object agree: the
-  borrow sees the subject's write. A list element borrowed while the list's
-  own `mut` method grows it 1,000 times and then reuses every block it gave
-  back still reads its original value. (But see 8.)
+  borrow sees the subject's write. (But see 8 and 9.)
 - **Resting places across packages** (`across`; lifetimes.md §1.11). A
   dependency's `wire`, its transitive `relay`, a result naming an argument,
   a result read through an `&` field of an `&T` parameter, and a field
@@ -154,6 +153,41 @@ Consequences of the spec worth knowing, all correctly implemented:
   cleanly. The spec states no limit.
 
 ## Findings
+
+### 9. A call's `mut` subject frees what its borrow names (bug)
+
+Probe `aliasing`. A borrow argument may name storage *inside* the call's
+own `mut` subject, and the callee can then destroy that storage while the
+borrow still lends it. Every read of the borrow afterwards goes to a freed
+block, which in the probe has already been reused:
+
+```zane
+Int clearThenRead(this Slot, e Engine) mut {
+	this = Slot.empty(Unit());    // destroys the payload e names
+	churn();                      // reuses its blocks
+	return e.power;               // not 42
+}
+a Int = slot!clearThenRead(slot.full ?? Engine(Int(0), String("none")));
+```
+
+Four routes, all accepted and all reading garbage in both builds: a
+`#variant` subject changing case while its payload is borrowed; a `List`
+subject replaced wholesale while an element is borrowed; a `#struct` subject
+replacing its list field while an element of it is borrowed; and a `List`
+subject merely growing — its block relocates — while an element is borrowed
+(that one needs the list's block not to be last at the frontier, or it
+grows in place and the bug hides).
+
+The compiler already rejects the closest relative, a borrow and a take of
+one owner in the same call ("a borrow lasts for the whole call"). The
+missing rule is the same one for a `mut` subject: a call may not lend, as
+another argument, a place inside its `mut` subject that the subject's
+method could destroy or move — a list element or a variant payload, or
+anything reached through one. memory.md §2.9 says a borrow is "non-owning,
+non-escaping access to the caller's owner for the duration of the call" but
+states no such rule either, so the spec needs it too. (A borrow of a
+settled field is safe: a field is overwritten in place, and the borrow
+observes the replacement, as the reference-type case in finding 8 shows.)
 
 ### 8. A value parameter is a copy, and a call can tell (bug)
 

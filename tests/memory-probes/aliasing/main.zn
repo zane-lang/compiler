@@ -82,6 +82,43 @@ Unit swapFrom(this Car, other Car) mut {
 	return Unit();
 }
 
+/// A `mut` subject that destroys what another argument borrows: the variant
+/// changes case, the list is replaced. `churn` then reuses the freed blocks.
+type Slot = #variant { full Engine; empty Unit; }
+
+Unit churn() {
+	j Int(1);
+	j!to(Int(200)) {
+		l List<Engine> = @primitives$List(Engine);
+		l!push(Engine(Int(999), String("junk") + String("junk")));
+		s Slot = Slot.full(Engine(Int(999), String("junk") + String("junk")));
+	}
+	return Unit();
+}
+
+Int clearThenRead(this Slot, e Engine) mut {
+	this = Slot.empty(Unit());
+	churn();
+	keep Slot = Slot.full(Engine(Int(999), String("junk") + String("junk")));
+	return e.power;
+}
+
+Int replaceThenRead(this List<Engine>, e Engine) mut {
+	this = @primitives$List(Engine);
+	this!push(Engine(Int(999), String("junk") + String("junk")));
+	churn();
+	return e.power;
+}
+
+type Garage = #struct { items List<Engine>; }
+Garage() => init{ items = @primitives$List(Engine); }
+Int resetThenRead(this Garage, e Engine) mut {
+	this.items = @primitives$List(Engine);
+	this.items!push(Engine(Int(999), String("junk") + String("junk")));
+	churn();
+	return e.power;
+}
+
 Unit main() {
 	cup ^Cup = Cup(Int(7));
 	// ILLEGAL (reported): the take ends the owner the borrow still lends.
@@ -89,6 +126,10 @@ Unit main() {
 
 	list List<Engine> = @primitives$List(Engine);
 	list!push(Engine(Int(42), String("first")));
+	// Something allocated after the list's block, so that growing it cannot
+	// extend it in place at the frontier.
+	pad List<Engine> = @primitives$List(Engine);
+	pad!push(Engine(Int(0), String("pad")));
 	m Int = list!growThenRead(list[Int(1)]);
 	check(String("element borrowed while its list grows"), m == Int(42));
 
@@ -99,5 +140,22 @@ Unit main() {
 	car Car(Engine(Int(1), String("old")));
 	car!swapFrom(car);
 	check(String("reference subject and reference borrow: borrow sees the write"), car.engine.label == String("new"));
+
+	// The subject destroys what the borrow names. Nothing in memory.md §2.9
+	// lets the callee end the caller's owner while it lends it; each read
+	// below goes to a freed and reused block.
+	slot Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
+	a Int = slot!clearThenRead(slot.full ?? Engine(Int(0), String("none")));
+	check(String("payload borrowed while its variant changes case"), a == Int(42));
+
+	list2 List<Engine> = @primitives$List(Engine);
+	list2!push(Engine(Int(42), String("orig") + String("inal")));
+	b Int = list2!replaceThenRead(list2[Int(1)]);
+	check(String("element borrowed while its list is replaced"), b == Int(42));
+
+	g Garage();
+	g.items!push(Engine(Int(42), String("orig") + String("inal")));
+	c Int = g!resetThenRead(g.items[Int(1)]);
+	check(String("element borrowed while the owner's list is replaced"), c == Int(42));
 	return Unit();
 }
