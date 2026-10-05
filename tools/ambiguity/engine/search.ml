@@ -4,10 +4,6 @@
    over concrete frontiers, the caches that keep it from re-exploring, and the
    partitioning that spreads it over forked workers. *)
 
-open Output
-open Automaton
-open Recognizer
-
 type outcome = {
   witnesses : ((int * string) list * string list) list;
   explored : int;
@@ -40,33 +36,33 @@ let render automaton tokens =
   tokens
   |> List.filter (fun token -> token <> "EOF")
   |> List.map (fun token ->
-         Option.value (Hashtbl.find_opt automaton.aliases token)
+         Option.value (Hashtbl.find_opt automaton.Automaton.aliases token)
            ~default:("<" ^ token ^ ">"))
   |> String.concat " "
 
 let conflict_profile engine tokens =
-  let frontier = ref (IntMap.singleton engine.stacks.root.id 1) in
-  let conflicts = ref ConflictSet.empty in
+  let frontier = ref (Automaton.IntMap.singleton engine.Recognizer.stacks.root.id 1) in
+  let conflicts = ref Automaton.ConflictSet.empty in
   let inspect token =
-    let reduced = closure engine !frontier token in
-    IntMap.iter
+    let reduced = Recognizer.closure engine !frontier token in
+    Automaton.IntMap.iter
       (fun stack_id _ ->
         let stack = Stack_pool.find engine.stacks stack_id in
         let state = engine.automaton.states.(stack.state) in
-        let reductions = reductions state token in
+        let reductions = Recognizer.reductions state token in
         if
           List.length reductions > 1
           || (reductions <> [] && Hashtbl.mem state.transitions token)
-        then conflicts := ConflictSet.add (stack.state, token) !conflicts)
+        then conflicts := Automaton.ConflictSet.add (stack.state, token) !conflicts)
       reduced
   in
   List.iter
     (fun token ->
       inspect token;
-      frontier := shift engine !frontier token)
+      frontier := Recognizer.shift engine !frontier token)
     tokens;
   inspect "#";
-  ConflictSet.elements !conflicts
+  Automaton.ConflictSet.elements !conflicts
 
 let compare_witness (_, left) (_, right) =
   match compare (List.length left) (List.length right) with
@@ -89,7 +85,7 @@ let merge_witnesses limit lists =
 type directed_item = {
   tokens_rev : string list;
   depth : int;
-  frontier : frontier;
+  frontier : Recognizer.frontier;
   branched : bool;
 }
 
@@ -116,7 +112,7 @@ module Seen_cache = struct
      could only skip a frontier wrongly, never produce a false witness. *)
   let digest branched progress frontier =
     let lane seed =
-      IntMap.fold
+      Automaton.IntMap.fold
         (fun stack_id count hash -> mix (mix hash stack_id) count)
         frontier
         (mix (mix seed (Bool.to_int branched)) progress)
@@ -172,7 +168,7 @@ let managed_heap_bytes () =
 
 let resident_memory_bytes () =
   try
-    read_lines "/proc/self/status"
+    Automaton.read_lines "/proc/self/status"
     |> List.find_map (fun line ->
            if String.starts_with ~prefix:"VmRSS:" line then
              try Some (Scanf.sscanf line "VmRSS: %f kB" (fun kib -> kib *. 1024.))
@@ -234,7 +230,7 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
   let expanded_at_depth = ref 0 in
   let last_depth = ref 0 in
   let last_progress = ref 0. in
-  let interval = Lazy.force progress_interval in
+  let interval = Lazy.force Output.progress_interval in
   let emit_progress force =
     let now = Unix.gettimeofday () in
     if show_progress && (force || now -. !last_progress >= interval) then begin
@@ -242,7 +238,7 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
       on_progress
         {
           depth = !last_depth;
-          ambiguities =
+          Output.ambiguities =
             Hashtbl.fold
               (fun profile tokens result ->
                 (profile, List.length tokens) :: result)
@@ -264,9 +260,9 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
       (fun bucket ->
         Queue.iter
           (fun item ->
-            IntMap.iter
+            Automaton.IntMap.iter
               (fun stack_id _ ->
-                mark (Stack_pool.find engine.stacks stack_id))
+                mark (Stack_pool.find engine.Recognizer.stacks stack_id))
               item.frontier)
           bucket)
       buckets
@@ -362,7 +358,7 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
       incr explored;
       last_depth := item.depth;
       deepest := max !deepest item.depth;
-      let accepting = accepted_count engine item.frontier >= 2 in
+      let accepting = Recognizer.accepted_count engine item.frontier >= 2 in
       if accepting && item.depth >= min_tokens then begin
         let tokens = List.rev item.tokens_rev in
         let profile = conflict_profile engine tokens in
@@ -373,17 +369,17 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
          expanding it so the lower bound cannot hide a longer witness. *)
       if item.depth < max_tokens && (not accepting || item.depth < min_tokens)
       then
-        StringSet.iter
+        Automaton.StringSet.iter
           (fun token ->
-            let next = shift engine item.frontier token in
-            if not (IntMap.is_empty next) then begin
-              let branched = item.branched || derivations next >= 2 in
+            let next = Recognizer.shift engine item.frontier token in
+            if not (Automaton.IntMap.is_empty next) then begin
+              let branched = item.branched || Recognizer.derivations next >= 2 in
               if branched && not item.branched then incr conflict_seeds;
               let distance =
                 if branched then accept_distance else conflict_distance
               in
               let next_depth = item.depth + 1 in
-              let lower = frontier_lower_bound engine distance next in
+              let lower = Recognizer.frontier_lower_bound engine distance next in
               if next_depth + lower <= max_tokens then
                 add
                   {
@@ -393,8 +389,8 @@ let unified_search engine initial ~max_tokens ~min_tokens ~nodes_per_depth
                     branched;
                   }
             end)
-          (class_representatives engine.automaton
-             (possible_tokens engine item.frontier))
+          (Automaton.class_representatives engine.automaton
+             (Recognizer.possible_tokens engine item.frontier))
     end;
     emit_progress false
   done;
@@ -459,7 +455,7 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
       List.iter
         (fun item ->
           if !stopped = None && over_budget () then ()
-          else if accepted_count engine item.frontier >= 2
+          else if Recognizer.accepted_count engine item.frontier >= 2
              && item.depth >= min_tokens then begin
             if current_count + !next_count >= max_queue then
               stop "the queue budget stopped initial partitioning"
@@ -469,13 +465,13 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
             end
           end
           else
-            StringSet.iter
+            Automaton.StringSet.iter
               (fun token ->
                 if !stopped = None && not (over_budget ()) then begin
-                  let frontier = shift engine item.frontier token in
-                  if not (IntMap.is_empty frontier) then begin
+                  let frontier = Recognizer.shift engine item.frontier token in
+                  if not (Automaton.IntMap.is_empty frontier) then begin
                     let branched =
-                      item.branched || derivations frontier >= 2
+                      item.branched || Recognizer.derivations frontier >= 2
                     in
                     if branched && not item.branched then incr conflict_seeds;
                     let item =
@@ -486,7 +482,7 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
                         branched;
                       }
                     in
-                    let key = (branched, signature frontier) in
+                    let key = (branched, Recognizer.signature frontier) in
                     if not (Hashtbl.mem seen key) then begin
                       if current_count + !next_count >= max_queue then
                         stop "the queue budget stopped initial partitioning"
@@ -501,8 +497,8 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
                     end
                   end
                 end)
-              (class_representatives engine.automaton
-                 (possible_tokens engine item.frontier)))
+              (Automaton.class_representatives engine.automaton
+                 (Recognizer.possible_tokens engine item.frontier)))
         !current;
       (* If a budget stops this level partway through, [next] is only a
          partial set of children. Keep the last complete level so workers
@@ -524,7 +520,7 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
         List.iter
           (fun item ->
             let hash =
-              Hashtbl.hash (item.branched, signature item.frontier) land max_int
+              Hashtbl.hash (item.branched, Recognizer.signature item.frontier) land max_int
             in
             let bucket = hash mod count in
             buckets.(bucket) <- item :: buckets.(bucket))
@@ -568,7 +564,7 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
   let prefix_progress =
     {
       depth = initial.depth;
-      ambiguities = [];
+      Output.ambiguities = [];
       explored = prefix_explored;
       unique = prefix_unique;
       rss_bytes = 0.;
@@ -576,7 +572,7 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
   in
   if Array.length partitions = 1 then
     let show progress =
-      render_progress ~started ~max_tokens ~memory_budget
+      Output.render_progress ~started ~max_tokens ~memory_budget
         [ (false, prefix_progress); (true, progress) ]
     in
     let outcome, seeds =
@@ -584,10 +580,10 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
         ~nodes_per_depth ~timeout:remaining_timeout ~max_frontiers ~max_queue
         ~max_witnesses
         ~soft_heap_bytes ~hard_heap_bytes
-        ~show_progress:(progress_is_visible ())
+        ~show_progress:(Output.progress_is_visible ())
         ~on_progress:show conflict_distance accept_distance
     in
-    clear_progress ();
+    Output.clear_progress ();
     ( {
         outcome with
         explored = prefix_explored + outcome.explored;
@@ -617,14 +613,14 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
         match Unix.fork () with
         | 0 ->
             let report progress =
-              if progress_is_visible () then
-                write_progress progress_path progress
+              if Output.progress_is_visible () then
+                Output.write_progress progress_path progress
             in
             let result =
               unified_search engine initial ~max_tokens ~min_tokens
                 ~nodes_per_depth ~timeout:remaining_timeout ~max_frontiers ~max_queue
                 ~max_witnesses ~soft_heap_bytes ~hard_heap_bytes
-                ~show_progress:(progress_is_visible ()) ~on_progress:report
+                ~show_progress:(Output.progress_is_visible ()) ~on_progress:report
                 conflict_distance accept_distance
             in
             let channel = open_out_bin output in
@@ -682,7 +678,7 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
         (fun (pid, _, progress_path) ->
           Option.iter
             (fun progress -> Hashtbl.replace latest pid progress)
-            (read_progress progress_path))
+            (Output.read_progress progress_path))
         pending;
       let active = Hashtbl.create (List.length pending) in
       List.iter (fun (pid, _, _) -> Hashtbl.replace active pid ()) pending;
@@ -693,7 +689,7 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
                (Hashtbl.mem active pid, progress) :: result)
              latest []
       in
-      render_progress ~started ~max_tokens ~memory_budget entries;
+      Output.render_progress ~started ~max_tokens ~memory_budget entries;
       match pending with
       | [] -> List.rev outcomes
       | _ ->
@@ -713,7 +709,7 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
                   worker_result pid output status
                 in
                 let final_progress =
-                  Option.value (read_progress progress_path)
+                  Option.value (Output.read_progress progress_path)
                     ~default:
                       {
                         depth = outcome.deepest;
@@ -741,10 +737,10 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
       with exn ->
         let backtrace = Printexc.get_raw_backtrace () in
         terminate_live ();
-        clear_progress ();
+        Output.clear_progress ();
         Printexc.raise_with_backtrace exn backtrace
     in
-    clear_progress ();
+    Output.clear_progress ();
     let outcome, seeds = List.fold_left
       (fun (combined, seeds) (outcome, worker_seeds) ->
         ( {

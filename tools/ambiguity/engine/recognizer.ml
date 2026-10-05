@@ -4,41 +4,39 @@
    reduction closure and shift that move them, acceptance counting capped at
    two, and the lower bounds the bounded search prunes with. *)
 
-open Automaton
-
-type frontier = int IntMap.t
+type frontier = int Automaton.IntMap.t
 type signature = (int * int) list
 
 let add_count stack_id count frontier =
-  let old = Option.value (IntMap.find_opt stack_id frontier) ~default:0 in
-  let updated = cap_add old count in
-  (IntMap.add stack_id updated frontier, updated - old)
+  let old = Option.value (Automaton.IntMap.find_opt stack_id frontier) ~default:0 in
+  let updated = Automaton.cap_add old count in
+  (Automaton.IntMap.add stack_id updated frontier, updated - old)
 
-let signature frontier : signature = IntMap.bindings frontier
+let signature frontier : signature = Automaton.IntMap.bindings frontier
 
 let derivations frontier =
-  IntMap.fold (fun _ count total -> cap_add total count) frontier 0
+  Automaton.IntMap.fold (fun _ count total -> Automaton.cap_add total count) frontier 0
 
 type engine = {
-  automaton : automaton;
+  automaton : Automaton.automaton;
   stacks : Stack_pool.t;
   closure_cache : ((int * string), frontier) Hashtbl.t;
 }
 
 let reductions state token =
-  Option.value (Hashtbl.find_opt state.reductions token) ~default:[]
+  Option.value (Hashtbl.find_opt state.Automaton.reductions token) ~default:[]
 
 let closure_one engine stack_id token =
   match Hashtbl.find_opt engine.closure_cache (stack_id, token) with
   | Some result -> result
   | None ->
-      let closure = ref (IntMap.singleton stack_id 1) in
+      let closure = ref (Automaton.IntMap.singleton stack_id 1) in
       let propagated = Hashtbl.create 16 in
       let queue = Queue.create () in
       Queue.add stack_id queue;
       while not (Queue.is_empty queue) do
         let current_id = Queue.take queue in
-        let count = IntMap.find current_id !closure in
+        let count = Automaton.IntMap.find current_id !closure in
         let sent =
           Option.value (Hashtbl.find_opt propagated current_id) ~default:0
         in
@@ -49,7 +47,7 @@ let closure_one engine stack_id token =
           let state = engine.automaton.states.(current.state) in
           List.iter
             (fun reduction ->
-              match Stack_pool.pop current reduction.width with
+              match Stack_pool.pop current reduction.Automaton.width with
               | None -> ()
               | Some base ->
                   (match
@@ -72,19 +70,19 @@ let closure_one engine stack_id token =
       !closure
 
 let closure engine frontier token =
-  IntMap.fold
+  Automaton.IntMap.fold
     (fun stack_id outer_count result ->
-      IntMap.fold
+      Automaton.IntMap.fold
         (fun reduced_id inner_count result ->
           fst
             (add_count reduced_id
                (min 2 (outer_count * inner_count))
                result))
         (closure_one engine stack_id token) result)
-    frontier IntMap.empty
+    frontier Automaton.IntMap.empty
 
 let shift engine frontier token =
-  IntMap.fold
+  Automaton.IntMap.fold
     (fun stack_id count result ->
       let stack = Stack_pool.find engine.stacks stack_id in
       match
@@ -94,37 +92,37 @@ let shift engine frontier token =
       | Some target ->
           let shifted = Stack_pool.push engine.stacks stack target in
           fst (add_count shifted.id count result))
-    (closure engine frontier token) IntMap.empty
+    (closure engine frontier token) Automaton.IntMap.empty
 
 let accepted_count engine frontier =
-  IntMap.fold
+  Automaton.IntMap.fold
     (fun stack_id count total ->
       let stack = Stack_pool.find engine.stacks stack_id in
       if
-        StringSet.mem "#"
+        Automaton.StringSet.mem "#"
           engine.automaton.states.(stack.state).accepts
-      then cap_add total count
+      then Automaton.cap_add total count
       else total)
     (closure engine frontier "#") 0
 
 let possible_tokens engine frontier =
-  IntMap.fold
+  Automaton.IntMap.fold
     (fun stack_id _ tokens ->
       let stack = Stack_pool.find engine.stacks stack_id in
       let state = engine.automaton.states.(stack.state) in
       let tokens =
         Hashtbl.fold
           (fun symbol _ tokens ->
-            if StringSet.mem symbol engine.automaton.terminals then
-              StringSet.add symbol tokens
+            if Automaton.StringSet.mem symbol engine.automaton.terminals then
+              Automaton.StringSet.add symbol tokens
             else tokens)
           state.transitions tokens
       in
       Hashtbl.fold
         (fun token _ tokens ->
-          if token = "#" then tokens else StringSet.add token tokens)
+          if token = "#" then tokens else Automaton.StringSet.add token tokens)
         state.reductions tokens)
-    frontier StringSet.empty
+    frontier Automaton.StringSet.empty
 
 let conflict_states automaton =
   Array.map
@@ -133,15 +131,15 @@ let conflict_states automaton =
         (fun token reductions conflict ->
           conflict
           || List.length reductions > 1
-          || Hashtbl.mem state.transitions token)
+          || Hashtbl.mem state.Automaton.transitions token)
         state.reductions false)
-    automaton.states
+    automaton.Automaton.states
 
 (* Build an optimistic state graph. Terminal shifts cost one token;
    nonterminal transitions and reductions cost zero. Reverse shortest paths on
    this graph are safe lower bounds, even though stack context is ignored. *)
 let reverse_distances automaton targets =
-  let count = Array.length automaton.states in
+  let count = Array.length automaton.Automaton.states in
   let reverse = Array.make count [] in
   let add_edge source target cost =
     reverse.(target) <- (source, cost) :: reverse.(target)
@@ -150,21 +148,21 @@ let reverse_distances automaton targets =
     (fun source state ->
       Hashtbl.iter
         (fun symbol target ->
-          let cost = if StringSet.mem symbol automaton.terminals then 1 else 0 in
+          let cost = if Automaton.StringSet.mem symbol automaton.terminals then 1 else 0 in
           add_edge source target cost)
-        state.transitions)
+        state.Automaton.transitions)
     automaton.states;
   let gotos = Hashtbl.create 128 in
   Array.iter
     (fun state ->
       Hashtbl.iter
         (fun symbol target ->
-          if not (StringSet.mem symbol automaton.terminals) then
+          if not (Automaton.StringSet.mem symbol automaton.terminals) then
             let previous =
               Option.value (Hashtbl.find_opt gotos symbol) ~default:[]
             in
             Hashtbl.replace gotos symbol (target :: previous))
-        state.transitions)
+        state.Automaton.transitions)
     automaton.states;
   Array.iteri
     (fun source state ->
@@ -173,9 +171,9 @@ let reverse_distances automaton targets =
           List.iter
             (fun reduction ->
               List.iter (fun target -> add_edge source target 0)
-                (Option.value (Hashtbl.find_opt gotos reduction.lhs) ~default:[]))
+                (Option.value (Hashtbl.find_opt gotos reduction.Automaton.lhs) ~default:[]))
             reductions)
-        state.reductions)
+        state.Automaton.reductions)
     automaton.states;
   let infinity = max_int / 4 in
   let distance = Array.make count infinity in
@@ -203,7 +201,7 @@ let reverse_distances automaton targets =
   distance
 
 let frontier_lower_bound engine distances frontier =
-  IntMap.fold
+  Automaton.IntMap.fold
     (fun stack_id _ best ->
       let stack = Stack_pool.find engine.stacks stack_id in
       min best distances.(stack.state))

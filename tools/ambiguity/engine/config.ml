@@ -2,12 +2,8 @@
    the flags the command line accepts, the memory limits derived from both, and
    the refusal of flag combinations that cannot mean anything together.
 
-   [Automaton] is opened for [words] alone, which splits a token list the same
-   way the grammar's own token declarations are split; nothing else here knows
-   about the automaton. *)
-
-open Output
-open Automaton
+   [Automaton.words] splits a token list the same way the grammar's own token
+   declarations are split; nothing else here knows about the automaton. *)
 
 let environment name =
   match Sys.getenv_opt name with
@@ -28,16 +24,6 @@ let environment_float name =
   | Some value ->
       (try float_of_string value
        with Failure _ -> invalid_arg (name ^ " must be a number"))
-
-let grammar = ref ""
-let max_tokens = ref None
-let min_tokens = ref 0
-let prefix_tokens = ref []
-let nodes_per_depth = ref None
-let timeout = ref None
-let max_witnesses = ref None
-let check_tokens = ref []
-let dump_classes = ref false
 
 type memory_limits = {
   max_queue : int;
@@ -77,35 +63,79 @@ let derive_memory_limits ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens =
   let max_frontiers = max 1 (int_of_float max_frontiers_float) in
   { max_queue; max_frontiers; soft_heap_bytes; hard_heap_bytes }
 
-let options =
-  [
-    ( "--max-tokens",
-      Arg.Int (fun value -> max_tokens := Some value),
-      "N maximum tokens, including EOF (required for search)" );
-    ( "--min-tokens",
-      Arg.Set_int min_tokens,
-      "N minimum tokens for reported witnesses, including the prefix and EOF \
-       (default 0)" );
-    ( "--prefix-tokens",
-      Arg.String (fun value -> prefix_tokens := words value),
-      "TOKENS consume a space-separated token prefix before searching" );
-    ( "--nodes-per-depth",
-      Arg.Int (fun value -> nodes_per_depth := Some value),
-      "N queued frontiers to expand at each depth before descending; omitted \
-       for breadth-first search" );
-    ( "--timeout",
-      Arg.Float (fun value -> timeout := Some value),
-      "SECONDS time limit per search phase (required for search)" );
-    ( "--max-witnesses",
-      Arg.Int (fun value -> max_witnesses := Some value),
-      "N ambiguity families to report (required for search)" );
-    ( "--check-tokens",
-      Arg.String (fun value -> check_tokens := words value),
-      "TOKENS check one space-separated token sequence" );
-    ( "--dump-terminal-classes",
-      Arg.Set dump_classes,
-      " list the terminal equivalence classes the search collapses, then exit" );
-  ]
+(* What the command line asked for. *)
+type options = {
+  grammar : string;
+  max_tokens : int option;
+  min_tokens : int;
+  prefix_tokens : string list;
+  nodes_per_depth : int option;
+  timeout : float option;
+  max_witnesses : int option;
+  check_tokens : string list;
+  dump_classes : bool;
+}
+
+let usage = "ambiguity_search [options] GRAMMAR"
+
+(* The command line, parsed. Without a GRAMMAR it prints the usage and exits
+   with status 2. *)
+let parse_options () =
+  let grammar = ref "" in
+  let max_tokens = ref None in
+  let min_tokens = ref 0 in
+  let prefix_tokens = ref [] in
+  let nodes_per_depth = ref None in
+  let timeout = ref None in
+  let max_witnesses = ref None in
+  let check_tokens = ref [] in
+  let dump_classes = ref false in
+  let specs =
+    [
+      ( "--max-tokens",
+        Arg.Int (fun value -> max_tokens := Some value),
+        "N maximum tokens, including EOF (required for search)" );
+      ( "--min-tokens",
+        Arg.Set_int min_tokens,
+        "N minimum tokens for reported witnesses, including the prefix and EOF \
+         (default 0)" );
+      ( "--prefix-tokens",
+        Arg.String (fun value -> prefix_tokens := Automaton.words value),
+        "TOKENS consume a space-separated token prefix before searching" );
+      ( "--nodes-per-depth",
+        Arg.Int (fun value -> nodes_per_depth := Some value),
+        "N queued frontiers to expand at each depth before descending; omitted \
+         for breadth-first search" );
+      ( "--timeout",
+        Arg.Float (fun value -> timeout := Some value),
+        "SECONDS time limit per search phase (required for search)" );
+      ( "--max-witnesses",
+        Arg.Int (fun value -> max_witnesses := Some value),
+        "N ambiguity families to report (required for search)" );
+      ( "--check-tokens",
+        Arg.String (fun value -> check_tokens := Automaton.words value),
+        "TOKENS check one space-separated token sequence" );
+      ( "--dump-terminal-classes",
+        Arg.Set dump_classes,
+        " list the terminal equivalence classes the search collapses, then exit" );
+    ]
+  in
+  Arg.parse specs (fun value -> grammar := value) usage;
+  if !grammar = "" then begin
+    Arg.usage specs usage;
+    exit 2
+  end;
+  {
+    grammar = !grammar;
+    max_tokens = !max_tokens;
+    min_tokens = !min_tokens;
+    prefix_tokens = !prefix_tokens;
+    nodes_per_depth = !nodes_per_depth;
+    timeout = !timeout;
+    max_witnesses = !max_witnesses;
+    check_tokens = !check_tokens;
+    dump_classes = !dump_classes;
+  }
 
 (* Everything a run needs to know before it builds anything, read and checked
    in one place so a bad setting is refused at the start rather than at the
@@ -120,7 +150,7 @@ type settings = {
   search_limits : (int * float * int) option;
 }
 
-let settings () =
+let settings (o : options) =
   let menhir = environment "AMBIGUITY_MENHIR" in
   let memory_mb = environment_int "AMBIGUITY_MEMORY_MB" in
   let max_frontier_ratio =
@@ -130,16 +160,16 @@ let settings () =
   (* Read here with the rest of the settings so a malformed cadence is refused
      before the run starts, rather than at whatever moment the first progress
      line happened to fall due. *)
-  ignore (Lazy.force progress_interval : float);
+  ignore (Lazy.force Output.progress_interval : float);
   Option.iter
     (fun value ->
       if value < 0 then invalid_arg "--max-tokens must be at least 0")
-    !max_tokens;
-  if !min_tokens < 0 then invalid_arg "--min-tokens must be at least 0";
+    o.max_tokens;
+  if o.min_tokens < 0 then invalid_arg "--min-tokens must be at least 0";
   Option.iter
     (fun value ->
       if value < 1 then invalid_arg "--nodes-per-depth must be at least 1")
-    !nodes_per_depth;
+    o.nodes_per_depth;
   if memory_mb < 1 then invalid_arg "AMBIGUITY_MEMORY_MB must be at least 1";
   if
     Float.is_nan max_frontier_ratio
@@ -151,22 +181,22 @@ let settings () =
   Option.iter
     (fun value ->
       if value < 0. then invalid_arg "--timeout must be non-negative")
-    !timeout;
+    o.timeout;
   if jobs < 1 then invalid_arg "AMBIGUITY_JOBS must be at least 1";
   Option.iter
     (fun value ->
       if value < 1 then invalid_arg "--max-witnesses must be at least 1")
-    !max_witnesses;
+    o.max_witnesses;
   let search_limits =
-    if !check_tokens <> [] || !dump_classes then None
+    if o.check_tokens <> [] || o.dump_classes then None
     else
       let required name = function
         | Some value -> value
         | None -> invalid_arg (name ^ " is required for search")
       in
       Some
-        ( required "--max-tokens" !max_tokens,
-          required "--timeout" !timeout,
-          required "--max-witnesses" !max_witnesses )
+        ( required "--max-tokens" o.max_tokens,
+          required "--timeout" o.timeout,
+          required "--max-witnesses" o.max_witnesses )
   in
   { menhir; memory_mb; max_frontier_ratio; jobs; search_limits }
