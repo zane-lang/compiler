@@ -8,6 +8,9 @@ defines the language; these describe how this compiler implements it.
   Read it before relying on a spec section.
 - [`file-structure-proposal.md`](file-structure-proposal.md): the review the
   current repository layout came from, finding by finding.
+- [`refactoring-proposal.md`](refactoring-proposal.md): the review of the code
+  inside the files (size, state, invariants, interfaces, tests), and the items
+  the file-structure proposal left open.
 
 ## Design
 
