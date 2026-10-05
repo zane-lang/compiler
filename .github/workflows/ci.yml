@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       # The grammar and ambiguity-tool suites only answer something new when
       # the grammar or the tools change, so a pull request that touches
@@ -56,7 +56,7 @@ jobs:
       # devbox provides, and the pins. It is hashed from the committed files,
       # before devbox has had a chance to rewrite its lock.
       - name: Restore the opam switch
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.opam
@@ -64,7 +64,7 @@ jobs:
           key: opam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/setup/bootstrap-toolchain') }}
 
       - name: Install devbox + Nix + devbox.json packages
-        uses: jetify-com/devbox-install-action@v0.15.0
+        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
         with:
           enable-cache: true
 
@@ -87,7 +87,7 @@ jobs:
         run: devbox run -- dev/setup/bootstrap-toolchain
 
       - name: Set up Node for grammar generation
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -137,7 +137,7 @@ jobs:
         run: devbox run -- dev/bin/windows-programs windows-programs
 
       - name: Keep the Windows programs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-programs
           path: windows-programs
@@ -167,12 +167,12 @@ jobs:
 
       # The job runs no git command, so the token is not left behind.
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
       - name: Fetch the Windows programs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: windows-programs
           path: windows-programs
