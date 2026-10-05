@@ -14,4 +14,4 @@
 (executable
  (name span_dump)
  (modules span_dump)
- (libraries cst diagnostic sst tst))
+ (libraries cst diagnostic driver sst tst))

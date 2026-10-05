@@ -50,17 +50,18 @@ let arguments () =
 (* A build that does not check prints its diagnostics and no spans, as the
    compiler's `--tst` prints no tree. *)
 let run_packages dirs =
-  match Tst.Assembly.assemble dirs with
-  | Error { Tst.Assembly.diagnostics; sources } ->
-      List.iter (fun d -> prerr_string (Diagnostic.render_in sources d)) diagnostics;
+  let requests =
+    List.map
+      (fun directory -> { Tst.Assembly.manifest_name = None; directory; stamp = None })
+      dirs
+  in
+  match Result.bind (Driver.assemble requests) (fun packages ->
+            Result.map (fun program -> (packages, program)) (Driver.check packages))
+  with
+  | Ok (packages, program) -> print_string (Tst.to_span_text packages program)
+  | Error failure ->
+      List.iter prerr_string (Driver.render failure);
       exit 1
-  | Ok packages -> (
-      let result = Tst.check packages in
-      match result.Tst.Semantics.diagnostics with
-      | [] -> print_string (Tst.to_span_text packages result.Tst.Semantics.program)
-      | diagnostics ->
-          List.iter (fun d -> prerr_string (Tst.render_diagnostic packages d)) diagnostics;
-          exit 1)
 
 let run_file stage path =
   let input = In_channel.with_open_text path In_channel.input_all in

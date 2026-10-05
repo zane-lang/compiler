@@ -2,5 +2,5 @@
  (name zanec)
  (public_name zanec)
  (package zane-compiler)
- (libraries cgt codegen cst diagnostic rewrite sst tree_graph tst)
+ (libraries cgt codegen cst diagnostic driver rewrite sst tree_graph tst)
  (modules zanec))
