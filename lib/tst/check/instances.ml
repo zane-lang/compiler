@@ -8,12 +8,6 @@ module S = Signature
 
 open Context
 
-type pending = { p_decl : decl; p_sig : S.t; p_subst : Ty.subst; p_at : Span.t }
-
-let instance_keys : (string, unit) Hashtbl.t = Hashtbl.create 32
-let instance_counts : (int, int) Hashtbl.t = Hashtbl.create 32
-let pending : pending Queue.t = Queue.create ()
-let instances : T.Instance.t list ref = ref []
 
 (* How many instances of one declaration are enough to call it recursion
    without end: `f<T>` calling `f<Pair<T>>`, which no program can finish
@@ -38,10 +32,6 @@ let describe_instance (s : S.t) subst at =
 let verb_ref (s : S.t) subst =
   { T.Verb_ref.owner = s.owner; name = s.name; instance = binding_args s subst }
 
-(* Set while a generic verb nothing instantiates is checked where it is
-   declared: that check asks for no instances, since whatever it calls is
-   checked when something that runs calls it. *)
-let defining = ref false
 
 (* A concept type is never storage (syntax.md §2.8), and a generic call can
    make it one no written type shows: `Jar(body)` builds a `Jar` whose field

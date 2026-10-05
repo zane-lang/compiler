@@ -39,11 +39,6 @@ let is_integer_concept_type (te : N.Type_expr.t) =
   | N.Type_expr.Path { name; generics = [] } -> is_integer_concept name
   | _ -> false
 
-(* Once pass 3 has run, whether a type is a reference type can be asked of
-   any type; before it has, the answer may depend on a definition not yet
-   resolved, so the checks that need it wait. *)
-let ready = ref false
-let deferred_guests : (Ty.t * Span.t) list ref = ref []
 
 (* ---------------------------------------------------------------------- *)
 (* Kind                                                                   *)
@@ -588,8 +583,6 @@ let check_value_downstream () =
     (infos_in_order ())
 
 let run () =
-  ready := false;
-  deferred_guests := [];
   register ();
   List.iter define (infos_in_order ());
   let aliases = Hashtbl.fold (fun _ a acc -> a :: acc) alias_infos [] in

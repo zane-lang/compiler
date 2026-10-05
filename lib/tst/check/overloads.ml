@@ -31,14 +31,6 @@ type outcome = {
   site_errors : (Span.t * string) list;
 }
 
-(* A subscript's result type per set of arguments, and the body typed for
-   it. [None] while it is being computed, which is how a subscript whose type
-   depends on itself is caught. *)
-let subscript_results : (string, Ty.t option) Hashtbl.t = Hashtbl.create 16
-
-let subscript_instances : (string, S.t * Ty.subst * T.Local.t list * T.Expr.t) Hashtbl.t =
-  Hashtbl.create 16
-
 let arg_expr = function T.Arg.Value e -> Some e | T.Arg.Block _ -> None
 
 (* The implicit constructors that take a [src] to a [dst]: declared in the

@@ -66,9 +66,6 @@ let typed_defaults ?(report = true) (d : decl) (s : S.t) subst =
            (List.combine fs s.params))
   | _ -> []
 
-(* The defaults of every field constructor that has them, as the program
-   carries them: a declaration's, and each instance's. *)
-let defaults : T.Defaults.t list ref = ref []
 
 let check_defaults (d : decl) (s : S.t) =
   match typed_defaults d s [] with
@@ -185,14 +182,6 @@ let declaration (d : decl) : T.Decl.t option =
   Option.map (fun node -> { T.Decl.id = d.id; span = d.span; node }) node
 
 let run () : T.Program.t =
-  Context.next_local := 0;
-  Hashtbl.reset instance_keys;
-  Hashtbl.reset instance_counts;
-  Hashtbl.reset subscript_results;
-  Hashtbl.reset subscript_instances;
-  Queue.clear pending;
-  instances := [];
-  defaults := [];
   let packages =
     List.map
       (fun name ->

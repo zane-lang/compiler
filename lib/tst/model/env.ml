@@ -185,12 +185,69 @@ type enum_map = {
 
 let enum_maps : (Ty.type_id * string, enum_map list) Hashtbl.t = Hashtbl.create 16
 
+(* ---------------------------------------------------------------------- *)
+(* What one pass leaves for itself or the next                            *)
+(* ---------------------------------------------------------------------- *)
+
+(* Pass 3 ([Type_decls]). Once it has run, whether a type is a reference type
+   can be asked of any type; before it has, the answer may depend on a
+   definition not yet resolved, so the checks that need it wait. *)
+let ready = ref false
+let deferred_guests : (Ty.t * Span.t) list ref = ref []
+
+(* Pass 4 ([Verb_signatures]): each verb's parameters promoted to number
+   parameters because a call hands them to one, and those it declares so. *)
+let promoted : (int, string list) Hashtbl.t = Hashtbl.create 64
+let own_numbers : (int, string list) Hashtbl.t = Hashtbl.create 64
+
+(* Pass 5 ([Check]): the next local's number. *)
+let next_local = ref 0
+
+(* Pass 5's generic instances ([Instances], D12): each one recorded, by key,
+   how many each declaration has, those still to check, and those checked.
+   [defining] is set while a generic verb nothing instantiates is checked
+   where it is declared: that check asks for no instances, since whatever it
+   calls is checked when something that runs calls it. *)
+type pending = { p_decl : decl; p_sig : Signature.t; p_subst : Ty.subst; p_at : Span.t }
+
+let instance_keys : (string, unit) Hashtbl.t = Hashtbl.create 32
+let instance_counts : (int, int) Hashtbl.t = Hashtbl.create 32
+let pending : pending Queue.t = Queue.create ()
+let instances : Nodes.Instance.t list ref = ref []
+let defining = ref false
+
+(* Pass 5's subscripts ([Overloads]): a subscript's result type per set of
+   arguments, and the body typed for it. [None] while it is being computed,
+   which is how a subscript whose type depends on itself is caught. *)
+let subscript_results : (string, Ty.t option) Hashtbl.t = Hashtbl.create 16
+
+let subscript_instances : (string, Signature.t * Ty.subst * Nodes.Local.t list * Nodes.Expr.t) Hashtbl.t =
+  Hashtbl.create 16
+
+(* Pass 5's field-constructor defaults, as the program carries them: a
+   declaration's, and each instance's. *)
+let defaults : Nodes.Defaults.t list ref = ref []
+
 (* The parameters [Intrinsics] made when it loaded: a check numbers its own
    after them. *)
 let intrinsic_params = !Ty.next_param
 
+(* Every table above, as a check starts. *)
 let reset () =
   next_decl := 0;
+  ready := false;
+  deferred_guests := [];
+  Hashtbl.reset promoted;
+  Hashtbl.reset own_numbers;
+  next_local := 0;
+  Hashtbl.reset instance_keys;
+  Hashtbl.reset instance_counts;
+  Queue.clear pending;
+  instances := [];
+  defining := false;
+  Hashtbl.reset subscript_results;
+  Hashtbl.reset subscript_instances;
+  defaults := [];
   Ty.next_param := intrinsic_params;
   diagnostics := [];
   note := None;
