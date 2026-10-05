@@ -29,7 +29,7 @@ Findings are numbered and classified:
 |---|---|---|---|
 | 6 | Bug | `lambdas` | A call through a function value records no resting place, so a reference dangles and a write through it corrupts a live object |
 | 7 | Bug | `deepvalue` | Overwriting a recursive value deeper than about 22,700 levels overflows the C stack and segfaults |
-| 11 | Bug | `storeorder` | `list[i] = <expression that grows list>` writes into the list's freed block |
+| 11 | Bug | `storeorder`, `subjectorder` | `list[i] = <grows list>` and `list[i]!m(<grows list>)` write into the list's freed block |
 | 10 | Bug | `binders` | A match binder dangles once its arm overwrites the scrutinee |
 | 9 | Bug | `aliasing`, `blockalias` | A borrowed list element or payload is freed by the same call's `mut` subject or block argument, and then read |
 | 8 | Bug | `aliasing` | A value parameter is passed by copy, which `v!setFrom(v)` observes; memory.md §2.9 makes it a borrow |
@@ -183,12 +183,18 @@ the first write corrupts the allocator's free stack and the second
 segfaults inside `zane_alloc`. (Something allocated after each list keeps
 the growth from happening in place, which would hide the bug.)
 
+A `!` call has the same order problem (probe `subjectorder`):
+`engines[Int(1)]!setTo(engines!growAndGive(Int(1000)))` takes the subject's
+address, then evaluates the argument, which relocates the list, and
+`setTo`'s write goes into the freed block; the element keeps its old value.
+
 memory.md §2.3 fixes that the right-hand side is evaluated against the
 destination's pre-overwrite state, but not when a place destination is
 resolved relative to its value. Either the compiler resolves a subscript
-destination after evaluating the right-hand side, or it rejects a `!` call
-on the list (or on anything owning it) inside a store into one of its
-elements; the spec should say which.
+destination or subject after evaluating the right-hand side and the
+arguments, or it rejects a `!` call on the list (or on anything owning it)
+inside a store into, or a call on, one of its elements; the spec should say
+which.
 
 ### 10. A match binder dangles after its arm overwrites the scrutinee (bug)
 
