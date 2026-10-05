@@ -249,11 +249,11 @@ evidence behind the obligation had tried every continuation but this one: a
 following `import`, a lowercase *variable* declaration, an uppercase verb
 declaration, a `type` declaration, a constructor declaration and an enum map
 each resolve to one derivation, and a lowercase *lambda-valued* declaration was
-not among them. The reports are in
-[`reports/ambiguity/prove/`](../../reports/ambiguity/prove) — the run that
-found it, and the run that no longer does — and
-[`spec-divergences.md`](../spec-divergences.md) §4 records what the terminator
-costs against the spec.
+not among them. A proof run on 2026-09-14 found the witness, the ten tokens
+`IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN RPAREN LCURLY RCURLY EOF`
+(`import length $ length Int ( ) { }`); the same run with `package` and
+`import` terminated no longer produced the candidate. [`spec-divergences.md`](../spec-divergences.md)
+§4 records what the terminator costs against the spec.
 
 What it leaves behind is the general lesson the ledger is for: a continuation
 survey is evidence that an obligation is *plausible*, never that it holds.
@@ -270,11 +270,10 @@ requiring it removed all fifteen.
 **A `match` does not reach this fork.** Its scrutinee list is parenthesized, so
 the brace that opens the arms is read after a `)` rather than after an
 expression, and `list_match_arm_` appears in no conflict explanation the
-grammar produces. What made that necessary is recorded in
-[`2026-09-18_full-grammar-ambiguity.txt`](../../reports/ambiguity/prove/2026-09-18_full-grammar-ambiguity.txt)
-and closed in
-[`2026-09-18_match-scrutinee-parens.txt`](../../reports/ambiguity/prove/2026-09-18_match-scrutinee-parens.txt):
-with a bare scrutinee, `x Foo = match A { } <= B { }` had two complete
+grammar produces. What made that necessary was a witness the exact recognizer
+confirmed on 2026-09-18, the thirteen tokens `LIDENT AMPERSAND UIDENT EQUAL
+MATCH UIDENT LCURLY RCURLY LOOSE_LESSEQ UIDENT LCURLY RCURLY EOF`, which
+parenthesizing the scrutinee list closed: with a bare scrutinee, `x Foo = match A { } <= B { }` had two complete
 derivations — `(match A { }) <= (B { })` and `match (A { } <= B) { }` — because
 an expression may itself end in a brace and an operator gives both groupings
 enough to finish on. Every binary operator in the language produced it, and no
@@ -315,10 +314,8 @@ opens it as well as a field access; that last is three of the six
 `app -> ... DOT LIDENT` states in the table. Under GLR both readings are
 explored and one survives, measured on every case in
 [`tests/grammar/ambiguity_test.py`](../../tests/grammar/ambiguity_test.py) and
-searched for in
-[`reports/ambiguity/search/general/`](../../reports/ambiguity/search/general),
-where the run that added the rule exhausted every sentence of at most nine
-tokens without finding one.
+searched for with the `general` profile, where the run that added the rule
+exhausted every sentence of at most nine tokens without finding one.
 
 The trailing form reads a non-empty argument list, and the plain form's empty
 `( )` is a production of its own rather than a list that may be empty. Both

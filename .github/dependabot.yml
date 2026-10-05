@@ -1,0 +1,13 @@
+# Every workflow pins its actions by commit, one version per action. This
+# keeps those pins current, all of them in one pull request, so the
+# workflows never drift onto different versions of one action.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"

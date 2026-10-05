@@ -336,8 +336,7 @@ def expand_output_path(pattern: Path, profile_name: str) -> Path:
 
     Placeholders use brace syntax: ``{name}``, with ``{{`` and ``}}`` for
     literal braces. The supported names are ``profile`` and three timestamp
-    forms whose date and time layout matches the existing ``reports/``
-    filenames (e.g. ``2026-07-23_21-38-17``)."""
+    forms, ``date``, ``time`` and ``datetime`` (e.g. ``2026-07-23_21-38-17``)."""
     now = datetime.datetime.now()
     fields = {
         "profile": profile_name,

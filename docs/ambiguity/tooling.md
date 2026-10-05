@@ -150,11 +150,11 @@ child's choice replaces whichever the parent set. On the command line,
 The `output` path — whether set as a profile key or passed with `--output` —
 may contain placeholders that are filled in when the run starts: `{profile}` is
 the resolved profile name, and `{date}`, `{time}`, and `{datetime}` are
-timestamps laid out like the existing `reports/` filenames (`2026-07-23`,
-`21-38-17`, and `2026-07-23_21-38-17`). Any directories in the expanded path are
-created automatically, so `output = "reports/{profile}-{date}.txt"` in a profile
-(or `--output reports/{profile}-{date}.txt` on the command line) drops a dated
-report into `reports/` without a manual `mkdir`. Write `{{` and `}}` for literal
+timestamps (`2026-07-23`, `21-38-17`, and `2026-07-23_21-38-17`). Any
+directories in the expanded path are created automatically, so
+`output = "reports/{profile}-{date}.txt"` in a profile (or
+`--output reports/{profile}-{date}.txt` on the command line) drops a dated
+report into `reports/`, which git ignores, without a manual `mkdir`. Write `{{` and `}}` for literal
 braces.
 
 To concentrate a run inside a function body and favor depth over breadth:

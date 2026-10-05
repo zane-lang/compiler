@@ -6,7 +6,8 @@ IV5, and T4. Step 2 is done: IV6, TS1, SZ1 and SZ2. IV6 found that of the 21
 "does not handle … yet" refusals only three can be reached by a program
 semantics accepts, and that lowering alone checked a third rule, a literal's
 range, which semantics now checks too. Step 3 has carried out SH3, DR1, DR2, ST2's first
-step, ST2's second step for the analyses, ST3, ST4, SH2, L1 and L2.
+step, ST2's second step for the analyses, ST3, ST4, SH2, L1 and L2. Step 4
+is done: A1's remainder, SZ3, SZ4, H3, TS3, D3, P2, R13, H1 and Q1.
 
 This is the second strict review of the repository. The first one,
 [`file-structure-proposal.md`](file-structure-proposal.md), was about where

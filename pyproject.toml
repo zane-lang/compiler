@@ -1,0 +1,22 @@
+# The Python here is tooling and its tests -- the grammar generator, the
+# ambiguity front end, the parser acceptance suite -- run from the repository
+# root and never published. This file says what they need and how they are
+# checked.
+
+[project]
+name = "zane-compiler-tools"
+version = "0"
+description = "The Zane compiler's Python tooling and tests"
+# `tomllib`, which the ambiguity front end reads its profiles with, is new
+# in 3.11.
+requires-python = ">=3.11"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.pytest.ini_options]
+# The suites are unittest modules named `*_test.py`, which `just` runs with
+# `python3 -m unittest`; pytest finds the same ones.
+testpaths = ["tests"]
+python_files = ["*_test.py"]

@@ -48,11 +48,11 @@ generator dependencies as described in [`grammar/README.md`](grammar/README.md).
 | Path | What it holds |
 |---|---|
 | `bin/zanec/` | The compiler binary, `zanec` |
-| `lib/` | One library per stage, `cst` → `sst` → `tst` → `cgt` → `codegen`, over `source`, `diagnostic` and `tree_graph` |
+| `lib/` | One library per stage, `cst` → `sst` → `tst` → `cgt` → `codegen`, over `source`, `diagnostic` and `tree_graph`, and `driver`, which runs them in order |
 | `runtime/` | The C runtime every program links with |
-| `tests/` | One directory per thing tested: `parser`, `grammar`, `semantics`, `codegen`, `runtime`, `ambiguity` |
+| `tests/` | One directory per thing tested: `parser`, `grammar`, `semantics`, `codegen`, `runtime`, `objects`, `unit`, `highlighting`, `ambiguity` |
 | `tools/` | Developer tools: the ambiguity engine and its front end, and `inspect` |
-| `dev/` | Commands for the development shell (`dev/bin/`) and their shared scripts |
+| `dev/` | Commands for the development shell (`dev/bin/`), their shared scripts (`dev/lib/`), and the toolchain bootstrap CI and the shell run (`dev/setup/`) |
 | `docs/` | Design and process documents; [`docs/README.md`](docs/README.md) is the index |
 
 ## Building and testing
