@@ -13,15 +13,16 @@ runs:
     # already at its pins and installs nothing.
     #
     # The key covers everything the switch is built from: the system OCaml
-    # devbox provides, and the pins. It is hashed from the committed files,
-    # before devbox has had a chance to rewrite its lock.
+    # devbox provides, and the pins. The namespace excludes switches built
+    # against the former apt LLVM. Hash the committed files before devbox
+    # has had a chance to rewrite its lock.
     - name: Restore the opam switch
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ~/.opam
           _opam
-        key: opam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/setup/bootstrap-toolchain') }}
+        key: opam-devbox-llvm-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/setup/bootstrap-toolchain') }}
 
     - name: Install devbox + Nix + devbox.json packages
       uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
@@ -31,13 +32,6 @@ runs:
     - name: Sanity check
       shell: bash
       run: devbox list
-
-    # Codegen builds its module through LLVM's OCaml bindings, which wrap
-    # LLVM 19 (dev/setup/bootstrap-toolchain). The runner's apt has it, and
-    # the bindings find it as `llvm-config-19` before any other.
-    - name: Install LLVM 19
-      shell: bash
-      run: sudo apt-get update && sudo apt-get install -y llvm-19-dev libzstd-dev
 
     # The init hook bootstraps the opam switch, but doing it as its own step
     # keeps a toolchain failure from being reported as a build failure.
@@ -66,4 +60,3 @@ runs:
         devbox run -- python3 -m venv .grammar-venv
         .grammar-venv/bin/python -m pip install -r tests/highlighting/requirements.txt
         echo "GRAMMAR_PYTHON=$PWD/.grammar-venv/bin/python" >> "$GITHUB_ENV"
-

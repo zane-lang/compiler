@@ -38,7 +38,7 @@ The bindings are LLVM's own, from `llvm/bindings/ocaml` in llvm-project,
 which opam builds from each LLVM release as its `llvm` package. They are
 tied to that release, and the compiler uses LLVM 19, the newest opam
 packages. `dev/setup/bootstrap-toolchain` pins it; devbox provides LLVM 19
-with its `llvm-config` and headers, and CI installs `llvm-19-dev`.
+with its `llvm-config`, headers and shared library in development and CI.
 
 The module's text is LLVM's to print and changes between releases, so the
 tests read the CGT and what a built program writes instead (§7).
