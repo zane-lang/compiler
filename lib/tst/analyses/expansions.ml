@@ -3,8 +3,10 @@
    type -- has no function of its own: each call to it is replaced by its
    body (docs/design/lowering.md L11). So such a verb cannot reach a call to
    itself through the bodies it is written out into, or writing it out would
-   never end. A call written in a lambda is not written out with the body
-   around it: the lambda is a function of its own. *)
+   never end. A declared subscript's body is written out where it is used
+   too, so a call reached through one counts as well. A call written in a
+   lambda is not written out with the body around it: the lambda is a
+   function of its own. *)
 
 module T = Nodes
 module S = Signature
@@ -38,13 +40,27 @@ let run (p : T.Program.t) =
           | _ -> ())
         pkg.T.Package.decls)
     p.T.Program.packages;
-  (* What each expanding verb's bodies call: its declaration's, or its
-     instances' when it is generic. Only calls to expanding verbs count. *)
+  (* The declared subscripts, which are written out where they are used and
+     so pass a call on. *)
+  let through = Hashtbl.create 16 in
+  List.iter
+    (fun (pkg : T.Package.t) ->
+      List.iter
+        (fun (d : T.Decl.t) ->
+          match d.T.Decl.node with
+          | T.Decl.Subscript _ -> Hashtbl.replace through d.T.Decl.id ()
+          | _ -> ())
+        pkg.T.Package.decls)
+    p.T.Program.packages;
+  let written_out id = Hashtbl.mem names id || Hashtbl.mem through id in
+  (* What each expanding verb's and subscript's bodies call: its
+     declaration's, or its instances' when it is generic. Only calls to those
+     count. *)
   let edges = Hashtbl.create 16 in
   let add id body =
-    if Hashtbl.mem names id then
+    if written_out id then
       List.iter
-        (fun (callee, e) -> if Hashtbl.mem names callee then Hashtbl.add edges id (callee, e))
+        (fun (callee, e) -> if written_out callee then Hashtbl.add edges id (callee, e))
         (calls body)
   in
   List.iter
@@ -53,6 +69,9 @@ let run (p : T.Program.t) =
         (fun (d : T.Decl.t) ->
           match d.T.Decl.node with
           | T.Decl.Verb { body = T.Decl.Checked { body; _ }; _ } -> add d.T.Decl.id body
+          | T.Decl.Subscript { value = Some v; _ } ->
+              let stat = { T.Stat.node = T.Stat.Expr v; span = v.T.Expr.span } in
+              add d.T.Decl.id { T.Block.stats = [ stat ]; span = v.T.Expr.span }
           | _ -> ())
         pkg.T.Package.decls)
     p.T.Program.packages;
