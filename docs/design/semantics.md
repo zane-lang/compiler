@@ -708,6 +708,22 @@ again. A mistake that only a generic body's own code makes, and that its
 signature does not show, is reported inside the instance, which names the
 call that required it.
 
+**Where `^` is written, beyond what the spec shows.**
+- An abort type follows the return rule: a reference-typed one is `^T` or
+  `&T`, never bare. [`syntax.md`](https://github.com/zane-lang/spec/blob/911d749/spec/syntax.md) §4.10 states the rule for a
+  return type; an abort hands its value to the caller's handler as a return
+  hands it to the caller ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.7), and a
+  bare one would hand back a borrow.
+- `x ^T Type` introduces `T` and takes an owner when `T` is filled with a
+  reference type, borrowing a value otherwise. [`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md)
+  §2.9 gives that meaning to "a type parameter written `^T`", and a generic
+  verb that stores its argument, such as a constructor whose field is `T`,
+  has no other way to take one, since `T` is introduced at its first marked
+  occurrence ([`generics.md`](https://github.com/zane-lang/spec/blob/911d749/spec/generics.md) §3.2).
+- A function type's `^T` result over a type parameter is filled by a value
+  type's result written bare: `ArrayRef.fill`'s lambda is `^T[Int]`, and an
+  `Int(n Int)` lambda fills it with `T` = `Int`.
+
 **`main`** is not required, since a library built on its own is also a root.
 When the root declares one, it takes no parameters, and it may return any
 type, whose value is discarded (`packages.md` §6.2).
