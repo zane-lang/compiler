@@ -14,11 +14,11 @@ let name_of (n : N.Name.t) = n.N.Name.text
 (* Pass 1                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
-let declaration pkg file (d : N.Decl.t) =
+let declaration env pkg file (d : N.Decl.t) =
   let make kind =
-    incr next_decl;
-    let decl = { id = !next_decl; package = pkg.name; file; span = d.N.Decl.span; kind } in
-    Hashtbl.replace decls decl.id decl;
+    incr env.next_decl;
+    let decl = { id = !(env.next_decl); package = pkg.name; file; span = d.N.Decl.span; kind } in
+    Hashtbl.replace env.decls decl.id decl;
     pkg.decls <- decl :: pkg.decls;
     Some decl
   in
@@ -37,9 +37,9 @@ let declaration pkg file (d : N.Decl.t) =
    constant and a function of the same name leave a plain name meaning two
    things with no call site to choose between them. Functions overload, and
    whether two of them may is pass 4's question. *)
-let file_under_names pkg (decl : decl) =
+let file_under_names env pkg (decl : decl) =
   let report_twice (first : decl) at what =
-    error at
+    error env at
       (Printf.sprintf "%s %s is already declared at %s" what
          (quote (decl_name decl)) (where first.span))
   in
@@ -86,9 +86,9 @@ let conflicts a b =
   | All_members, _ | _, All_members -> true
   | One_member x, One_member y -> String.equal x y
 
-let members_of pkg name = package_types pkg name @ package_values pkg name
+let members_of env pkg name = package_types env pkg name @ package_values env pkg name
 
-let import_file (file : file) (decls : N.Decl.t list) =
+let import_file env (file : file) (decls : N.Decl.t list) =
   let forms : (string, form * Span.t) Hashtbl.t = Hashtbl.create 8 in
   (* The one spelling rule: each new form of a package checked against the
      forms already written for it. *)
@@ -97,7 +97,7 @@ let import_file (file : file) (decls : N.Decl.t list) =
       List.find_opt (fun (f, _) -> conflicts f form) (Hashtbl.find_all forms pkg)
     with
     | Some (earlier, earlier_at) ->
-        error at
+        error env at
           (Printf.sprintf
              "%s gives the members of %s a second spelling, after `%s` at %s; a \
               member has one spelling per file"
@@ -112,40 +112,40 @@ let import_file (file : file) (decls : N.Decl.t list) =
   in
   (* The package an import's key names, reported where it names none. *)
   let imported (name : N.Name.t) =
-    match resolve_key file (name_of name) with
+    match resolve_key env file (name_of name) with
     | Found id -> Some id
     | Own ->
-        error name.N.Name.span
+        error env name.N.Name.span
           (Printf.sprintf
              "%s is this file's own package; its members are available without an \
               import"
              (quote (name_of name)));
         None
     | (Unknown | Ambiguous _) as key ->
-        Option.iter (error name.N.Name.span) (key_message (name_of name) key);
+        Option.iter (error env name.N.Name.span) (key_message (name_of name) key);
         None
   in
   let bring pkg (member : N.Import_member.t) (spelling : N.Import_member.t) at =
-    let found = members_of pkg member.N.Import_member.name in
+    let found = members_of env pkg member.N.Import_member.name in
     if found = [] then
-      if Hashtbl.mem (package pkg).method_names member.N.Import_member.name then
-        error member.N.Import_member.span
+      if Hashtbl.mem (package env pkg).method_names member.N.Import_member.name then
+        error env member.N.Import_member.span
           (Printf.sprintf
              "%s is a method, and a method is not importable: it is reached by \
               its subject, as `subject:%s$%s()`"
              (quote member.N.Import_member.name)
              pkg member.N.Import_member.name)
       else
-        error member.N.Import_member.span
+        error env member.N.Import_member.span
           (Printf.sprintf "the package %s has no member %s" (quote pkg)
              (quote member.N.Import_member.name))
     else if is_private member.N.Import_member.name then
-      error member.N.Import_member.span
+      error env member.N.Import_member.span
         (Printf.sprintf "%s is private to the package %s"
            (quote member.N.Import_member.name)
            (quote pkg))
     else if member.N.Import_member.is_type <> spelling.N.Import_member.is_type then
-      error spelling.N.Import_member.span
+      error env spelling.N.Import_member.span
         (Printf.sprintf
            "an alias keeps the initial case of the name it renames, so %s cannot \
             be spelled %s"
@@ -166,7 +166,7 @@ let import_file (file : file) (decls : N.Decl.t list) =
               | Some id ->
                 let spelling = Option.value ~default:p alias in
                 if Env.is_upper (name_of spelling) then
-                  error spelling.N.Name.span
+                  error env spelling.N.Name.span
                     (Printf.sprintf
                        "an alias keeps the initial case of the name it renames, so \
                         the package %s cannot be spelled %s"
@@ -175,7 +175,7 @@ let import_file (file : file) (decls : N.Decl.t list) =
                 else
                   match Hashtbl.find_opt file.qualifiers (name_of spelling) with
                   | Some (other, at) ->
-                      error spelling.N.Name.span
+                      error env spelling.N.Name.span
                         (Printf.sprintf "%s already names the package %s, at %s"
                            (quote (name_of spelling))
                            (quote other) (where at))
@@ -192,7 +192,7 @@ let import_file (file : file) (decls : N.Decl.t list) =
           | N.Import.All { package = p } -> (
               match imported p with
               | Some id when record id All_members span ->
-                let target = package id in
+                let target = package env id in
                 let names =
                   Hashtbl.fold (fun n _ acc -> n :: acc) target.types []
                   @ Hashtbl.fold (fun n _ acc -> n :: acc) target.values []
@@ -211,17 +211,17 @@ let import_file (file : file) (decls : N.Decl.t list) =
    else is reported at the import that brought the second meaning; an import
    never shadows. The function-against-function case needs signatures, and is
    [check_import_overloads]. *)
-let check_import_collisions (file : file) =
+let check_import_collisions env (file : file) =
   let names = Hashtbl.fold (fun n _ acc -> n :: acc) file.bare [] |> List.sort_uniq String.compare in
   List.iter
     (fun name ->
       let imports = List.rev (Hashtbl.find_all file.bare name) in
-      let own = members_of file.package name in
+      let own = members_of env file.package name in
       let seen = ref (List.map (fun d -> (d, None)) own) in
       List.iter
         (fun b ->
           let brought =
-            members_of b.from b.member |> List.filter (accessible ~from:file.package)
+            members_of env b.from b.member |> List.filter (accessible ~from:file.package)
           in
           List.iter
             (fun (d : decl) ->
@@ -238,7 +238,7 @@ let check_import_collisions (file : file) =
                     | None -> "is declared in this package, at " ^ where other.span
                     | Some at -> "is already imported at " ^ where at
                   in
-                  error b.at
+                  error env b.at
                     (Printf.sprintf
                        "this import brings %s from %s, but %s %s; an import never \
                         shadows"
@@ -251,18 +251,18 @@ let check_import_collisions (file : file) =
 
 (* The half of §3.8 that waits for signatures: functions of one bare name,
    from different packages, must differ in their parameter types. *)
-let check_import_overloads (file : file) =
+let check_import_overloads env (file : file) =
   let names = Hashtbl.fold (fun n _ acc -> n :: acc) file.bare [] |> List.sort_uniq String.compare in
   List.iter
     (fun name ->
       let own =
-        members_of file.package name |> List.filter is_function
+        members_of env file.package name |> List.filter is_function
         |> List.map (fun d -> (d, None))
       in
       let seen = ref own in
       List.iter
         (fun b ->
-          members_of b.from b.member
+          members_of env b.from b.member
           |> List.filter (fun d -> is_function d && accessible ~from:file.package d)
           |> List.iter (fun (d : decl) ->
                  let key d =
@@ -272,7 +272,7 @@ let check_import_overloads (file : file) =
                          (List.map
                             (fun (p : Signature.param) -> Ty.without_mut (Ty.strip_guest p.ty))
                             s.params))
-                     (Hashtbl.find_opt signatures d.id)
+                     (Hashtbl.find_opt env.signatures d.id)
                  in
                  (match
                     List.find_opt
@@ -282,7 +282,7 @@ let check_import_overloads (file : file) =
                       !seen
                   with
                  | Some (other, _) ->
-                     error b.at
+                     error env b.at
                        (Printf.sprintf
                           "this import brings %s from %s, which takes the same \
                            parameter types as the %s declared at %s; the two cannot \
@@ -301,7 +301,7 @@ let check_import_overloads (file : file) =
 (* The package dependency graph is acyclic (dependencies.md §10). Each import
    that closes a cycle is reported there, with the packages around the cycle
    in order. *)
-let check_import_cycles (loaded : (package * (file * Assembly.file) list) list) =
+let check_import_cycles env (loaded : (package * (file * Assembly.file) list) list) =
   let edges : (string, string * Span.t) Hashtbl.t = Hashtbl.create 16 in
   List.iter
     (fun ((pkg : package), files) ->
@@ -319,7 +319,7 @@ let check_import_cycles (loaded : (package * (file * Assembly.file) list) list) 
                     | N.Import.All { package = p } ->
                         name_of p
                   in
-                  match resolve_key file key with
+                  match resolve_key env file key with
                   | Found target -> Hashtbl.add edges pkg.name (target, span)
                   | Own | Unknown | Ambiguous _ -> ())
               | _ -> ())
@@ -337,7 +337,7 @@ let check_import_cycles (loaded : (package * (file * Assembly.file) list) list) 
               | [] -> []
             in
             let cycle = from (List.rev (name :: path)) @ [ target ] in
-            error span
+            error env span
               (Printf.sprintf
                  "this import closes a cycle of packages, %s; the packages of a \
                   build import one another without a cycle (dependencies.md §10)"
@@ -348,9 +348,9 @@ let check_import_cycles (loaded : (package * (file * Assembly.file) list) list) 
       Hashtbl.replace finished name ()
     end
   in
-  List.iter (visit []) !package_order
+  List.iter (visit []) !(env.package_order)
 
-let run (assembled : Assembly.package list) =
+let run env (assembled : Assembly.package list) =
   (* Every package is registered before any import is read, so an import may
      name a package given later on the command line. *)
   let loaded =
@@ -372,8 +372,8 @@ let run (assembled : Assembly.package list) =
             method_names = Hashtbl.create 16;
           }
         in
-        Hashtbl.replace packages p.id pkg;
-        package_order := !package_order @ [ p.id ];
+        Hashtbl.replace env.packages p.id pkg;
+        env.package_order := !(env.package_order) @ [ p.id ];
         (pkg, files))
       assembled
   in
@@ -382,18 +382,18 @@ let run (assembled : Assembly.package list) =
       List.iter
         (fun (file, (f : Assembly.file)) ->
           List.iter
-            (fun d -> ignore (declaration pkg file d))
+            (fun d -> ignore (declaration env pkg file d))
             f.sst.N.Package.decls)
         files;
       pkg.decls <- List.rev pkg.decls;
-      List.iter (file_under_names pkg) pkg.decls)
+      List.iter (file_under_names env pkg) pkg.decls)
     loaded;
   List.iter
     (fun (_, files) ->
       List.iter
         (fun (file, (f : Assembly.file)) ->
-          import_file file f.sst.N.Package.decls;
-          check_import_collisions file)
+          import_file env file f.sst.N.Package.decls;
+          check_import_collisions env file)
         files)
     loaded;
-  check_import_cycles loaded
+  check_import_cycles env loaded

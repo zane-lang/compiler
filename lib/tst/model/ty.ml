@@ -61,6 +61,8 @@ and verb = {
   is_mut : bool;
 }
 
+(* The intrinsic namespaces' own parameters, made once as [Intrinsics]
+   loads. A check numbers its own after these, through [Env.fresh_param]. *)
 let next_param = ref 0
 
 let fresh_param ~name ~kind =

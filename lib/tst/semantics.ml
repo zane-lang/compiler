@@ -7,28 +7,29 @@ type result = {
   diagnostics : Diagnostic.t list;
 }
 
+(* Every pass, over tables of this check's own. *)
 let check (packages : Assembly.package list) =
-  Env.reset ();
-  Collect.run packages;
-  Type_decls.run ();
-  Verb_signatures.run ();
-  let program = Program.run () in
+  let env = Env.create () in
+  Collect.run env packages;
+  Type_decls.run env;
+  Verb_signatures.run env;
+  let program = Program.run env in
   (* The analyses over the finished tree (D1). *)
-  Read_only.run program;
-  Guests.run program;
-  Moves.run program;
-  Owners.run program;
-  Exits.run program;
-  Expansions.run program;
-  Literal_ranges.run program;
-  Spawns.run program;
+  Read_only.run env program;
+  Guests.run env program;
+  Moves.run env program;
+  Owners.run env program;
+  Exits.run env program;
+  Expansions.run env program;
+  Literal_ranges.run env program;
+  Spawns.run env program;
   let diagnostics =
     List.sort_uniq
       (fun a b ->
         match compare (Diagnostic.position a) (Diagnostic.position b) with
         | 0 -> compare a.Diagnostic.message b.Diagnostic.message
         | c -> c)
-      !Env.diagnostics
+      !(env.Env.diagnostics)
   in
   { program; diagnostics }
 

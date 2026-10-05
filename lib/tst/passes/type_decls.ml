@@ -44,10 +44,10 @@ let is_integer_concept_type (te : N.Type_expr.t) =
 (* Kind                                                                   *)
 (* ---------------------------------------------------------------------- *)
 
-let rec is_reference ?(seen = []) (t : Ty.t) =
+let rec is_reference env ?(seen = []) (t : Ty.t) =
   match t with
   | Ty.Named (tid, args) -> (
-      match Hashtbl.find_opt type_infos_by_id tid with
+      match Hashtbl.find_opt env.type_infos_by_id tid with
       | None -> false
       | Some info -> (
           match info.reference with
@@ -55,7 +55,7 @@ let rec is_reference ?(seen = []) (t : Ty.t) =
           | None -> (
               match info.definition with
               | Some (Distinct rhs) when not (List.mem tid seen) ->
-                  is_reference ~seen:(tid :: seen) (Ty.instantiate info.params args rhs)
+                  is_reference env ~seen:(tid :: seen) (Ty.instantiate info.params args rhs)
               | _ -> false)))
   | Ty.Intrinsic { namespace; name; _ } -> (
       match Intrinsics.find_type namespace name with
@@ -64,7 +64,7 @@ let rec is_reference ?(seen = []) (t : Ty.t) =
   | Ty.Guest _ -> true
   | _ -> false
 
-let type_info_of_id tid = Hashtbl.find_opt type_infos_by_id tid
+let type_info_of_id env tid = Hashtbl.find_opt env.type_infos_by_id tid
 
 (* A concept type is never storage (syntax.md §2.8): not a field, not a
    local, not an element of a stored type. *)
@@ -87,25 +87,25 @@ let describe_concept (t : Ty.t) =
       Printf.sprintf "%s holds %s, a concept type" (quote (Ty.to_string t)) (quote (Ty.to_string c))
   | None -> quote (Ty.to_string t)
 
-let check_storage span what (t : Ty.t) =
+let check_storage env span what (t : Ty.t) =
   if mentions_concept t then
-    error span
+    error env span
       (Printf.sprintf "%s, which may type a parameter but is never storage, so it cannot be %s"
          (describe_concept t) what)
 
-let check_guest span (inner : Ty.t) =
-  if !ready then begin
+let check_guest env span (inner : Ty.t) =
+  if !(env.ready) then begin
     match inner with
     | Ty.Param _ | Ty.Error -> ()
     | _ ->
-        if not (is_reference inner) then
-          error span
+        if not (is_reference env inner) then
+          error env span
             (Printf.sprintf
                "%s is a value type, and `&` marks only a reference type (a `#` \
                 mould or a reference primitive)"
                (quote (Ty.to_string inner)))
   end
-  else deferred_guests := (inner, span) :: !deferred_guests
+  else env.deferred_guests := (inner, span) :: !(env.deferred_guests)
 
 (* ---------------------------------------------------------------------- *)
 (* Resolution                                                             *)
@@ -122,7 +122,7 @@ type head =
 
 let concept_names = [ "Int"; "Float"; "String"; "Array"; "Map"; "Block" ]
 
-let resolve_head scope (name : N.Name_type.t) : head =
+let resolve_head env scope (name : N.Name_type.t) : head =
   let span = name.N.Name_type.span in
   match name.N.Name_type.node with
   | N.Name_type.Ident id -> (
@@ -130,27 +130,27 @@ let resolve_head scope (name : N.Name_type.t) : head =
       match List.assoc_opt text scope.params with
       | Some arg -> Bound arg
       | None -> (
-          match lookup_types scope.file text with
+          match lookup_types env scope.file text with
           | d :: _ -> Declared d
           | [] ->
-              let hint = missing_import_hint scope.file text ~members:package_types in
-              error span (Printf.sprintf "no type named %s is in scope%s" (quote text) hint);
+              let hint = missing_import_hint env scope.file text ~members:(package_types env) in
+              error env span (Printf.sprintf "no type named %s is in scope%s" (quote text) hint);
               Unknown))
   | N.Name_type.Qualified { package = q; ident } -> (
-      match qualified scope.file q.N.Name.text ident.N.Name.text ~members:package_types with
+      match qualified env scope.file q.N.Name.text ident.N.Name.text ~members:(package_types env) with
       | Error message ->
-          error q.N.Name.span message;
+          error env q.N.Name.span message;
           Unknown
       | Ok (pkg, found, reachable) -> (
           match (found, reachable) with
           | _, d :: _ -> Declared d
           | _ :: _, [] ->
-              error span
+              error env span
                 (Printf.sprintf "%s is private to the package %s" (quote ident.N.Name.text)
                    (quote pkg));
               Unknown
           | [], _ ->
-              error span
+              error env span
                 (Printf.sprintf "the package %s has no type %s" (quote pkg)
                    (quote ident.N.Name.text));
               Unknown))
@@ -161,49 +161,49 @@ let resolve_head scope (name : N.Name_type.t) : head =
         match Intrinsics.find_type ns text with
         | Some t -> Intrinsic_type t
         | None ->
-            error span (Printf.sprintf "no intrinsic type %s" (quote ("@" ^ ns ^ "$" ^ text)));
+            error env span (Printf.sprintf "no intrinsic type %s" (quote ("@" ^ ns ^ "$" ^ text)));
             Unknown)
 
 (* An integer literal's value. A `'` only separates groups of digits. *)
 let integer_value text =
   int_of_string_opt (String.concat "" (String.split_on_char '\'' text))
 
-let parse_number span text =
+let parse_number env span text =
   match integer_value text with
   | Some n -> Ty.Known n
   | None ->
-      error span (Printf.sprintf "%s is not a number this compiler can represent" (quote text));
+      error env span (Printf.sprintf "%s is not a number this compiler can represent" (quote text));
       Ty.Known 0
 
-let rec resolve scope (te : N.Type_expr.t) : Ty.t =
+let rec resolve env scope (te : N.Type_expr.t) : Ty.t =
   let span = te.N.Type_expr.span in
   match te.N.Type_expr.node with
   | N.Type_expr.Guest inner ->
-      let t = resolve scope inner in
-      check_guest span t;
+      let t = resolve env scope inner in
+      check_guest env span t;
       Ty.Guest t
-  | N.Type_expr.Verb v -> Ty.Verb (verb_type scope v)
-  | N.Type_expr.Path { name; generics } -> apply scope span (resolve_head scope name) name generics
+  | N.Type_expr.Verb v -> Ty.Verb (verb_type env scope v)
+  | N.Type_expr.Path { name; generics } -> apply env scope span (resolve_head env scope name) name generics
 
-and generic_arg scope (a : N.Generic_arg.t) : Ty.arg =
+and generic_arg env scope (a : N.Generic_arg.t) : Ty.arg =
   let span = a.N.Generic_arg.span in
   match a.N.Generic_arg.node with
-  | N.Generic_arg.Type t -> Ty.Type (resolve scope t)
-  | N.Generic_arg.Number text -> Ty.Number (parse_number span text)
+  | N.Generic_arg.Type t -> Ty.Type (resolve env scope t)
+  | N.Generic_arg.Number text -> Ty.Number (parse_number env span text)
   | N.Generic_arg.NumberRef n -> (
       match List.assoc_opt n.N.Name.text scope.params with
       | Some (Ty.Number num) -> Ty.Number num
       | Some (Ty.Type _) ->
-          error span (Printf.sprintf "%s is a type parameter, not a number" (quote n.N.Name.text));
+          error env span (Printf.sprintf "%s is a type parameter, not a number" (quote n.N.Name.text));
           Ty.Number (Ty.Known 0)
       | None ->
-          error span
+          error env span
             (Printf.sprintf "no number parameter named %s is in scope" (quote n.N.Name.text));
           Ty.Number (Ty.Known 0))
   | N.Generic_arg.Inferred p -> (
       let name = p.N.Param.name.N.Name.text in
       if not scope.signature then begin
-        error span
+        error env span
           (Printf.sprintf
              "%s introduces a parameter, which only a verb signature may do; a \
               type lists its parameters in its `< >` header"
@@ -217,10 +217,10 @@ and generic_arg scope (a : N.Generic_arg.t) : Ty.arg =
 
 (* Arguments against the parameters they fill: one each, of the right kind
    (generics.md §4.2). *)
-and apply_args scope span what (kinds : Ty.kind list) generics =
-  let args = List.map (generic_arg scope) generics in
+and apply_args env scope span what (kinds : Ty.kind list) generics =
+  let args = List.map (generic_arg env scope) generics in
   if List.length args <> List.length kinds then begin
-    error span
+    error env span
       (Printf.sprintf "%s takes %d type argument%s, and %d %s written" what
          (List.length kinds)
          (if List.length kinds = 1 then "" else "s")
@@ -235,56 +235,56 @@ and apply_args scope span what (kinds : Ty.kind list) generics =
         match (kind, arg) with
         | Ty.Type_kind, Ty.Number _ ->
             ok := false;
-            error g.N.Generic_arg.span (Printf.sprintf "%s expects a type here, not a number" what)
+            error env g.N.Generic_arg.span (Printf.sprintf "%s expects a type here, not a number" what)
         | Ty.Number_kind, Ty.Type t when t <> Ty.Error ->
             ok := false;
-            error g.N.Generic_arg.span (Printf.sprintf "%s expects a number here, not a type" what)
+            error env g.N.Generic_arg.span (Printf.sprintf "%s expects a number here, not a type" what)
         | _ -> ())
       kinds
       (List.combine args generics);
     if !ok then Some args else None
   end
 
-and apply scope span head (name : N.Name_type.t) generics : Ty.t =
+and apply env scope span head (name : N.Name_type.t) generics : Ty.t =
   match head with
   | Unknown -> Ty.Error
   | Bound (Ty.Type t) ->
       if generics <> [] then
-        error span "a type parameter takes no type arguments";
+        error env span "a type parameter takes no type arguments";
       t
   | Bound (Ty.Number _) ->
-      error span "a number parameter is not a type";
+      error env span "a number parameter is not a type";
       Ty.Error
   | Intrinsic_type info -> (
-      match apply_args scope span (quote ("@" ^ info.namespace ^ "$" ^ info.name)) info.params generics with
+      match apply_args env scope span (quote ("@" ^ info.namespace ^ "$" ^ info.name)) info.params generics with
       | Some args -> Ty.Intrinsic { namespace = info.namespace; name = info.name; args }
       | None -> Ty.Error)
-  | Concept_type c -> concept scope span c generics
+  | Concept_type c -> concept env scope span c generics
   | Declared d -> (
-      match Hashtbl.find_opt type_infos d.id with
+      match Hashtbl.find_opt env.type_infos d.id with
       | Some info -> (
           let kinds = List.map (fun (p : Ty.param) -> p.kind) info.params in
-          match apply_args scope span (quote info.tid.name) kinds generics with
+          match apply_args env scope span (quote info.tid.name) kinds generics with
           | Some args -> Ty.Named (info.tid, args)
           | None -> Ty.Error)
       | None -> (
-          match Hashtbl.find_opt alias_infos d.id with
+          match Hashtbl.find_opt env.alias_infos d.id with
           | Some alias -> (
               let kinds = List.map (fun (p : Ty.param) -> p.kind) alias.alias_params in
-              match apply_args scope span (quote (decl_name d)) kinds generics with
+              match apply_args env scope span (quote (decl_name d)) kinds generics with
               | Some args ->
-                  let target = alias_target alias in
+                  let target = alias_target env alias in
                   Ty.instantiate alias.alias_params args target
               | None -> Ty.Error)
           | None ->
               ignore name;
               Ty.Error))
 
-and concept scope span c generics : Ty.t =
-  let args () = List.map (generic_arg scope) generics in
+and concept env scope span c generics : Ty.t =
+  let args () = List.map (generic_arg env scope) generics in
   let expect n =
     if List.length generics <> n then begin
-      error span
+      error env span
         (Printf.sprintf "%s takes %d argument%s" (quote ("@concepts$" ^ c)) n
            (if n = 1 then "" else "s"));
       false
@@ -299,7 +299,7 @@ and concept scope span c generics : Ty.t =
       match args () with
       | [] -> Ty.Concept Ty.Block
       | _ ->
-          error span
+          error env span
             "`@concepts$Block` takes no type argument: a block yields nothing \
              (docs/spec-divergences.md §12)";
           Ty.Error)
@@ -307,46 +307,46 @@ and concept scope span c generics : Ty.t =
       match args () with
       | [ Ty.Type t; Ty.Number n ] -> Ty.Concept (Ty.Array_lit (t, n))
       | _ ->
-          error span "`@concepts$Array` takes a type and a number";
+          error env span "`@concepts$Array` takes a type and a number";
           Ty.Error)
   | "Map" -> (
       match args () with
       | [ Ty.Type k; Ty.Type v ] -> Ty.Concept (Ty.Map_lit (k, v))
       | _ ->
-          error span "`@concepts$Map` takes two types";
+          error env span "`@concepts$Map` takes two types";
           Ty.Error)
   | _ -> Ty.Error
 
-and verb_type scope (v : N.Verb_type.t) : Ty.verb =
+and verb_type env scope (v : N.Verb_type.t) : Ty.verb =
   match v.N.Verb_type.node with
   | N.Verb_type.Func { params; ret_type } ->
-      let ret, abort = ret_type_of scope ret_type in
-      { Ty.this_ = None; params = List.map (param_type scope) params; ret; abort; is_mut = false }
+      let ret, abort = ret_type_of env scope ret_type in
+      { Ty.this_ = None; params = List.map (param_type env scope) params; ret; abort; is_mut = false }
   | N.Verb_type.Meth { this_type; params; ret_type; is_mut } ->
-      let ret, abort = ret_type_of scope ret_type in
+      let ret, abort = ret_type_of env scope ret_type in
       {
-        Ty.this_ = Some (resolve scope this_type);
-        params = List.map (param_type scope) params;
+        Ty.this_ = Some (resolve env scope this_type);
+        params = List.map (param_type env scope) params;
         ret;
         abort;
         is_mut;
       }
 
-and ret_type_of scope (r : N.Ret_type.t) =
+and ret_type_of env scope (r : N.Ret_type.t) =
   match r.N.Ret_type.node with
-  | N.Ret_type.Safe t -> (resolve scope t, None)
-  | N.Ret_type.Abort { ok; abort } -> (resolve scope ok, Some (resolve scope abort))
+  | N.Ret_type.Safe t -> (resolve env scope t, None)
+  | N.Ret_type.Abort { ok; abort } -> (resolve env scope ok, Some (resolve env scope abort))
 
-and param_type scope (p : N.Param_type.t) : Ty.t =
+and param_type env scope (p : N.Param_type.t) : Ty.t =
   match p.N.Param_type.node with
-  | N.Param_type.Concrete t -> resolve scope t
+  | N.Param_type.Concrete t -> resolve env scope t
   | N.Param_type.Concept { N.Concept.node = N.Concept.Type; _ } -> Ty.Concept Ty.Type_value
   (* Only a type's header entry is written this way, and the grammar builds
      one nowhere else. *)
   | N.Param_type.Concept { N.Concept.node = N.Concept.Named _; _ } -> Ty.Error
   | N.Param_type.InferredType { name; _ } -> (
       if not scope.signature then begin
-        error p.N.Param_type.span
+        error env p.N.Param_type.span
           (Printf.sprintf
              "%s introduces a parameter, and only a named verb may: a generic \
               function value is not specified (generics.md §9)"
@@ -360,12 +360,12 @@ and param_type scope (p : N.Param_type.t) : Ty.t =
 
 (* An alias is expanded where it is written (D5), so it has no identity of
    its own; resolving one that leads back to itself would never end. *)
-and alias_target (alias : alias_info) =
+and alias_target env (alias : alias_info) =
   match alias.target with
   | Some t -> t
   | None ->
       if alias.resolving then begin
-        error alias.alias_decl.span
+        error env alias.alias_decl.span
           (Printf.sprintf "the alias %s is defined in terms of itself"
              (quote (decl_name alias.alias_decl)));
         alias.target <- Some Ty.Error;
@@ -379,7 +379,7 @@ and alias_target (alias : alias_info) =
               let params =
                 List.map (fun (p : Ty.param) -> (p.name, param_arg p)) alias.alias_params
               in
-              resolve (scope ~params alias.alias_decl.file) te
+              resolve env (scope ~params alias.alias_decl.file) te
           | _ -> Ty.Error
         in
         alias.resolving <- false;
@@ -399,13 +399,13 @@ and param_arg (p : Ty.param) =
 (* Pass 3                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
-let header_params (params : N.Generic_param.t list) =
+let header_params env (params : N.Generic_param.t list) =
   let seen = Hashtbl.create 4 in
   List.filter_map
     (fun (g : N.Generic_param.t) ->
       let name = g.N.Generic_param.name.N.Name.text in
       if Hashtbl.mem seen name then begin
-        error g.N.Generic_param.span
+        error env g.N.Generic_param.span
           (Printf.sprintf "the parameter %s is declared twice" (quote name));
         None
       end
@@ -416,26 +416,26 @@ let header_params (params : N.Generic_param.t list) =
           | N.Concept.Type -> Ty.Type_kind
           | N.Concept.Named n ->
               if not (is_integer_concept n) then
-                error g.N.Generic_param.type_.N.Concept.span
+                error env g.N.Generic_param.type_.N.Concept.span
                   (Printf.sprintf
                      "a type's `< >` header holds `Type` and `@concepts$Int` \
                       parameters, and %s is neither (generics.md §3.3)"
                      (quote (name_type_text n)));
               Ty.Number_kind
         in
-        Some (Ty.fresh_param ~name ~kind)
+        Some (Env.fresh_param env ~name ~kind)
       end)
     params
 
-let register () =
+let register env () =
   List.iter
     (fun pkg_name ->
-      let pkg = package pkg_name in
+      let pkg = package env pkg_name in
       List.iter
         (fun (d : decl) ->
           match d.kind with
           | Type_decl { name; params; value; alias } -> (
-              let params = header_params params in
+              let params = header_params env params in
               let is_mould =
                 match value.N.Type_or_moulded.node with
                 | N.Type_or_moulded.Moulded _ -> true
@@ -443,7 +443,7 @@ let register () =
               in
               match (alias, is_mould) with
               | true, false ->
-                  Hashtbl.replace alias_infos d.id
+                  Hashtbl.replace env.alias_infos d.id
                     { alias_decl = d; alias_params = params; target = None; resolving = false }
               | _ ->
                   let info =
@@ -455,20 +455,20 @@ let register () =
                       reference = None;
                     }
                   in
-                  Hashtbl.replace type_infos d.id info;
-                  Hashtbl.replace type_infos_by_id info.tid info)
+                  Hashtbl.replace env.type_infos d.id info;
+                  Hashtbl.replace env.type_infos_by_id info.tid info)
           | _ -> ())
         pkg.decls)
-    !package_order
+    !(env.package_order)
 
-let members what (entries : N.Body_field.t list) resolve_field =
+let members env what (entries : N.Body_field.t list) resolve_field =
   let seen = Hashtbl.create 8 in
   List.filter_map
     (fun (f : N.Body_field.t) ->
       let name = f.N.Body_field.name.N.Name.text in
       match Hashtbl.find_opt seen name with
       | Some (first : Span.t) ->
-          error f.N.Body_field.name.N.Name.span
+          error env f.N.Body_field.name.N.Name.span
             (Printf.sprintf "the %s %s is already declared at %s" what (quote name) (where first));
           None
       | None ->
@@ -476,35 +476,35 @@ let members what (entries : N.Body_field.t list) resolve_field =
           Some (name, resolve_field f))
     entries
 
-let define (info : type_info) =
+let define env (info : type_info) =
   match info.decl.kind with
   | Type_decl { value; _ } ->
       let params = List.map (fun (p : Ty.param) -> (p.name, param_arg p)) info.params in
       let sc = scope ~params info.decl.file in
       let field (f : N.Body_field.t) =
-        let t = resolve sc f.N.Body_field.type_ in
-        check_storage f.N.Body_field.type_.N.Type_expr.span "a field" t;
+        let t = resolve env sc f.N.Body_field.type_ in
+        check_storage env f.N.Body_field.type_.N.Type_expr.span "a field" t;
         t
       in
       let definition, reference =
         match value.N.Type_or_moulded.node with
         | N.Type_or_moulded.Raw te ->
-            let t = resolve sc te in
-            check_storage te.N.Type_expr.span "the definition of a type" t;
+            let t = resolve env sc te in
+            check_storage env te.N.Type_expr.span "the definition of a type" t;
             (Distinct t, None)
         | N.Type_or_moulded.Moulded { N.Moulded.mould; axis; _ } ->
             let reference = axis.N.Type_axis.node = N.Type_axis.Reference in
             let definition =
               match mould.N.Mould.node with
-              | N.Mould.Struct fields -> Struct (members "field" fields field)
-              | N.Mould.Variant cases -> Variant (members "case" cases field)
+              | N.Mould.Struct fields -> Struct (members env "field" fields field)
+              | N.Mould.Variant cases -> Variant (members env "case" cases field)
               | N.Mould.Enum names ->
                   let seen = Hashtbl.create 8 in
                   Enum
                     (List.filter_map
                        (fun (n : N.Name.t) ->
                          if Hashtbl.mem seen n.N.Name.text then begin
-                           error n.N.Name.span
+                           error env n.N.Name.span
                              (Printf.sprintf "the member %s is listed twice" (quote n.N.Name.text));
                            None
                          end
@@ -524,11 +524,11 @@ let define (info : type_info) =
    through a mould has no layout at all: `type A = B` and `type B = A`. *)
 (* Declarations in source order, so what a whole-table check reports does not
    depend on how a hash table happens to iterate. *)
-let infos_in_order () =
-  Hashtbl.fold (fun _ info acc -> info :: acc) type_infos []
+let infos_in_order env () =
+  Hashtbl.fold (fun _ info acc -> info :: acc) env.type_infos []
   |> List.sort (fun (a : type_info) b -> compare a.decl.id b.decl.id)
 
-let check_distinct_cycles () =
+let check_distinct_cycles env () =
   List.iter
     (fun (info : type_info) ->
       let rec follow seen (t : Ty.t) =
@@ -536,24 +536,24 @@ let check_distinct_cycles () =
         | Ty.Named (tid, _) -> (
             if List.mem tid seen then true
             else
-              match type_info_of_id tid with
+              match type_info_of_id env tid with
               | Some { definition = Some (Distinct rhs); _ } -> follow (tid :: seen) rhs
               | _ -> false)
         | _ -> false
       in
       match info.definition with
       | Some (Distinct rhs) when follow [ info.tid ] rhs ->
-          error info.decl.span
+          error env info.decl.span
             (Printf.sprintf "the type %s is defined in terms of itself" (quote info.tid.name));
           info.definition <- Some (Distinct Ty.Error)
       | _ -> ())
-    (infos_in_order ())
+    (infos_in_order env ())
 
 (* A value type is transitively a value: no reference-type or `&` member,
    anywhere downstream (memory.md §2.10). Every member's own type obeys the
    same rule where it is declared, so checking one level is checking all of
    them. *)
-let check_value_downstream () =
+let check_value_downstream env () =
   List.iter
     (fun (info : type_info) ->
       if info.reference = Some false then
@@ -566,29 +566,29 @@ let check_value_downstream () =
           (fun (name, (t : Ty.t)) ->
             match t with
             | Ty.Guest _ ->
-                error info.decl.span
+                error env info.decl.span
                   (Printf.sprintf
                      "%s is a value type, so its member %s cannot be an `&`; only a \
                       `#` mould may hold one"
                      (quote info.tid.name) (quote name))
             | Ty.Param _ | Ty.Error -> ()
             | _ ->
-                if is_reference t then
-                  error info.decl.span
+                if is_reference env t then
+                  error env info.decl.span
                     (Printf.sprintf
                        "%s is a value type, so its member %s cannot hold %s, a \
                         reference type; a value type is a value all the way down"
                        (quote info.tid.name) (quote name) (quote (Ty.to_string t))))
           members)
-    (infos_in_order ())
+    (infos_in_order env ())
 
-let run () =
-  register ();
-  List.iter define (infos_in_order ());
-  let aliases = Hashtbl.fold (fun _ a acc -> a :: acc) alias_infos [] in
-  List.iter (fun a -> ignore (alias_target a)) (List.sort (fun a b -> compare a.alias_decl.id b.alias_decl.id) aliases);
-  check_distinct_cycles ();
-  ready := true;
-  List.iter (fun (t, span) -> check_guest span t) (List.rev !deferred_guests);
-  deferred_guests := [];
-  check_value_downstream ()
+let run env =
+  register env ();
+  List.iter (define env) (infos_in_order env ());
+  let aliases = Hashtbl.fold (fun _ a acc -> a :: acc) env.alias_infos [] in
+  List.iter (fun a -> ignore (alias_target env a)) (List.sort (fun a b -> compare a.alias_decl.id b.alias_decl.id) aliases);
+  check_distinct_cycles env ();
+  env.ready := true;
+  List.iter (fun (t, span) -> check_guest env span t) (List.rev !(env.deferred_guests));
+  env.deferred_guests := [];
+  check_value_downstream env ()

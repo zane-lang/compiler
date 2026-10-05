@@ -103,7 +103,7 @@ let actual ty =
   }
 
 let resolve candidates args =
-  Overloads.resolve candidates (fun s -> Overloads.positional (List.map actual args) s)
+  Overloads.resolve (Tst__Env.create ()) candidates (fun s -> Overloads.positional (List.map actual args) s)
 
 let name_of = function
   | Overloads.Resolved o -> o.Overloads.sig_.S.name
@@ -111,7 +111,6 @@ let name_of = function
   | Overloads.Ambiguous _ -> "ambiguous"
 
 let overloads () =
-  Tst__Env.reset ();
   let t = param "T" in
   let on_int = signature "onInt" [ ("x", int) ] int
   and on_float = signature "onFloat" [ ("x", float) ] int
@@ -275,6 +274,16 @@ let twice () =
       check "semantics run twice gives the same tree" (String.equal first second)
   | _ -> check "the fixture checked twice assembles and checks cleanly" false
 
+(* Each check has tables of its own, so two can run at once and give what
+   one gives alone. *)
+let at_once () =
+  let a = Domain.spawn tree and b = Domain.spawn tree in
+  match (tree (), Domain.join a, Domain.join b) with
+  | Some alone, Some first, Some second ->
+      check "two checks at once give what one gives alone"
+        (String.equal alone first && String.equal alone second)
+  | _ -> check "the fixture checked at once assembles and checks cleanly" false
+
 let () =
   ty ();
   signatures ();
@@ -282,6 +291,7 @@ let () =
   type_layout ();
   runtime_abi ();
   twice ();
+  at_once ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

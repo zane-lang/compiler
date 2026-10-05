@@ -1,13 +1,16 @@
 # Refactoring proposal
 
-Status: **being carried out**, in the four steps of §12. Step 1 is done: DC1,
+Status: **carried out**, in the four steps of §12 and a fifth for the rest of ST2. Step 1 is done: DC1,
 DC2, DC3, ST1, IF1's two deletions, IF2's five re-exports, SH1, TS2, IV1 to
 IV5, and T4. Step 2 is done: IV6, TS1, SZ1 and SZ2. IV6 found that of the 21
 "does not handle … yet" refusals only three can be reached by a program
 semantics accepts, and that lowering alone checked a third rule, a literal's
 range, which semantics now checks too. Step 3 has carried out SH3, DR1, DR2, ST2's first
 step, ST2's second step for the analyses, ST3, ST4, SH2, L1 and L2. Step 4
-is done: A1's remainder, SZ3, SZ4, H3, TS3, D3, P2, R13, H1 and Q1.
+is done: A1's remainder, SZ3, SZ4, H3, TS3, D3, P2, R13, H1 and Q1. ST2's
+second step for passes 1 to 5 followed as a fifth pull request: `Env.t` is
+made per check and passed to every pass, so the proposal is carried out in
+full.
 
 This is the second strict review of the repository. The first one,
 [`file-structure-proposal.md`](file-structure-proposal.md), was about where
@@ -223,7 +226,7 @@ Each one was checked against the tree. They are tracked here from now on.
 
 ## 12. Migration order
 
-The work lands in four pull requests, each a coherent refactor, each under
+The work lands in five pull requests, each a coherent refactor, each under
 the 100 files a review covers. Within a pull request, each item is its own
 commit. Golden files pass unchanged after every step, except where a step
 says otherwise.
@@ -245,6 +248,9 @@ says otherwise.
    `Env` per check; then L1 and L2, as IF1 and IF2 describe, bottom up.
 4. **Tools and the repository.** A1's remainder, SZ3, SZ4, H3, TS3, D3,
    P2, R13, H1 and Q1.
+5. **One `Env` per check.** ST2's second step for passes 1 to 5: `Env.t`
+   holds every table, `Semantics.check` makes one, and each pass takes it as
+   an argument, so two checks can run at once.
 
 ---
 
