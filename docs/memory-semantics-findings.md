@@ -217,7 +217,11 @@ A block argument of the same call does it with no `mut` subject at all
 })` and `readAfter(list[Int(1)], { list = @primitives$List(Engine); })`,
 where `readAfter` runs its block and then reads its borrow, both read freed
 blocks. A block captures the caller's frame (control-flow.md §2), so it can
-overwrite whatever the borrow points into.
+overwrite whatever the borrow points into. The subject is lent the same
+way: in `other[Int(1)]!setAfter({ other = @primitives$List(Engine);
+victims!push(…); })`, the block frees the element `this` names, a new list
+element takes its block, and `setAfter`'s `this.power = Int(7)` then writes
+into that unrelated live element.
 
 The compiler already rejects the closest relative, a borrow and a take of
 one owner in the same call ("a borrow lasts for the whole call"). The
