@@ -58,9 +58,9 @@ let prepare ?target ?(optimize = false) m =
   Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
       Llvm.set_target_triple triple m;
       shared_in_comdats triple m;
-      Llvm.set_data_layout
-        (Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm))
-        m;
+      let data_layout = Llvm_target.TargetMachine.data_layout tm in
+      Llvm.set_data_layout (Llvm_target.DataLayout.as_string data_layout) m;
+      Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
       if optimize then
         Llvm_passbuilder.run_passes m "default<O2>" tm
           (Llvm_passbuilder.create_passbuilder_options ())

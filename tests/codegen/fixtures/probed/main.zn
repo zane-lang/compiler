@@ -2,7 +2,8 @@
 /// docs/memory-semantics-findings.md) found broken, kept running: a
 /// reference stored as an element is read (memory.md §2.2), and a recursive
 /// value far deeper than the C stack allows recursion is built, copied,
-/// overwritten and destroyed (memory.md §2.3). Each check prints `yes` when it
+/// overwritten and destroyed (memory.md §2.3), and a fixed array of 512 KiB,
+/// more parts than LLVM moves as one value, is built and moved. Each check prints `yes` when it
 /// holds and `no` when it does not.
 package probed;
 
@@ -67,8 +68,15 @@ Unit deep() {
 	return Unit();
 }
 
+Unit large() {
+	a @primitives$ArrayRef<Int, 65536> = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
+	check(String("a 512 KiB array"), a[Int(65536)] == Int(65536));
+	return Unit();
+}
+
 Unit main() {
 	references();
 	deep();
+	large();
 	return Unit();
 }
