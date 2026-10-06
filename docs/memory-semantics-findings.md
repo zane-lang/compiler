@@ -22,11 +22,12 @@ To rerun them: `dune build bin/zanec/zanec.exe`, then
 
 The headline: the compile-time rules the spec states are implemented
 thoroughly — every rejection the probes expected was reported, and no
-legal program was refused except by findings 6 and 8 and the conservative
+legal program was refused except by findings 6 and 9 and the conservative
 block rules noted below — and the runtime does what they promise. But four routes let an accepted program read or write freed
 storage (findings 1–4), each a rule the checker does not yet have, and in
 three of them the spec does not state the rule either. A fifth bug crashes
-the runtime on deep recursive values (5).
+the runtime on deep recursive values (5), and the compiler itself crashes
+building any read of a reference stored as an element (7).
 
 Findings are numbered by severity and classified:
 
@@ -46,11 +47,12 @@ Findings are numbered by severity and classified:
 | 4 | Bug | `storeorder`, `subjectorder` | `list[i] = <grows list>` and `list[i]!m(<grows list>)` write into the list's freed block |
 | 5 | Bug | `deepvalue` | Overwriting a recursive value deeper than about 22,700 levels overflows the C stack and segfaults |
 | 6 | Bug | `reflist` | Nothing can be pushed into a `List<&T>` |
-| 7 | Bug | `aliasing` | A value parameter is passed by copy, which `v!setFrom(v)` observes; memory.md §2.9 makes it a borrow |
-| 8 | Gap | `genref` | `Box(r)` with `r &Port` infers `Box<Port>`; no way to make a `Box<&Port>` |
-| 9 | Gap | `modes` | Returning `&T` minted from a package constant is accepted; `lifetimes.md` §1.7 says only an `&T` parameter is a root |
-| 10 | Nit | `genref` | An error inside a generic instance names neither the instance nor the call that made it |
-| 11 | Nit | `downstream` | The transitive value-downstream error calls `&Engine` "a reference type" |
+| 7 | Bug | `refelems` | Building a read of an `&T` element of an `ArrayRef` or `List` overflows the compiler's stack |
+| 8 | Bug | `aliasing` | A value parameter is passed by copy, which `v!setFrom(v)` observes; memory.md §2.9 makes it a borrow |
+| 9 | Gap | `genref` | `Box(r)` with `r &Port` infers `Box<Port>`; no way to make a `Box<&Port>` |
+| 10 | Gap | `modes` | Returning `&T` minted from a package constant is accepted; `lifetimes.md` §1.7 says only an `&T` parameter is a root |
+| 11 | Nit | `genref` | An error inside a generic instance names neither the instance nor the call that made it |
+| 12 | Nit | `downstream` | The transitive value-downstream error calls `&Engine` "a reference type" |
 
 ## What holds
 
@@ -64,7 +66,7 @@ optimized build alike.
   parameter is read-only, so a `^T` parameter is never refilled or `!`-called;
   a spent symbol and a spent field are reported until refilled, and only in
   the declaring block; `&T` returns and aborts are rooted only in `&T`
-  parameters (but see 9).
+  parameters (but see 10).
 - **Value-downstream** (`downstream`; §2.10). Every reference type, `&`, `List`,
   `ArrayRef` and `Array` of either inside a value type is reported, through
   nested value fields and through a generic value type's instance; a
@@ -142,7 +144,7 @@ optimized build alike.
 - **One object reached twice by a call** (`aliasing`; memory.md §2.9).
   `keepAndRead(cup, cup)`, a borrow and a take of one owner, is reported. A
   reference-type `mut` subject and a borrow of the same object agree: the
-  borrow sees the subject's write. (But see 2 and 7.)
+  borrow sees the subject's write. (But see 2 and 8.)
 - **Resting places across packages** (`across`; lifetimes.md §1.11). A
   dependency's `wire`, its transitive `relay`, a result naming an argument,
   a result read through an `&` field of an `&T` parameter, and a field
@@ -181,6 +183,36 @@ Consequences of the spec worth knowing, all correctly implemented:
 - The runtime caps scopes nested at once at 32,768 (`ZANE_DEPTH`) and stops
   with "scopes nested too deep" past it, so a recursion deeper than that ends
   cleanly. The spec states no limit.
+
+## Cross-check: the audit suite
+
+An independent audit on branch
+[`test/memory-semantics-audit`](https://github.com/zane-lang/compiler/tree/test/memory-semantics-audit)
+(commit `ffac90b`, same compiler and spec baselines) tests the same model a
+different way: 56 standalone programs under `tests/memory/examples/`, run by
+`python3 -m unittest tests.memory.memory_test`. Each of the 31 rejected ones
+isolates one illegal line and must fail checking with a semantic error, not
+a parse error; each of the 25 accepted ones must check, then build and print
+`ok` in both builds. Their ground covers this doc's — string, struct and
+recursive-value copies and self-overlapping assignments, variant case
+changes, settled overwrites and repointed references, moves, partial moves,
+refills and relays, escapes through returns, aborts, matches and spawns,
+spawn writeback — and every rejection the audit expected is reported.
+
+Rerun at this doc's compiler commit, 23 of the 25 accepted programs pass.
+The other two are findings here: `arrayref_stored_references` is 7, which the
+audit found first, and `list_stored_references` is 6. The audit's open
+question whether `refs!push(&a)` behaves differently from `refs!push(a)` is
+settled: it is refused the same way (6).
+
+The audit also drives the C runtime directly (`tests/memory/runtime.c`,
+`unittest tests.memory.memory_test.Runtime`), built with `-O2` and again
+with address and undefined-behaviour sanitizers. All nine cases pass in both:
+68 allocation size and alignment combinations; recursive copies 0 to 64
+levels deep; nested list escapes; boxed overwrites keeping their address; 16
+seeds of 2,000 random operations against a model; and four that must stop
+the program — a scope drained out of order, a dynamic block outliving its
+owner, and a list and an array indexed out of range.
 
 ## Findings
 
@@ -269,7 +301,7 @@ list element or a variant payload, or anything reached through one. memory.md §
 non-escaping access to the caller's owner for the duration of the call" but
 states no such rule either, so the spec needs it too. (A borrow of a
 settled field is safe: a field is overwritten in place, and the borrow
-observes the replacement, as the reference-type case in finding 7 shows.)
+observes the replacement, as the reference-type case in finding 8 shows.)
 
 The rule exists already for spawned calls: lend `list[Int(1)]` to a
 `spawn` and then `list!push(…)` in the same block, and the compiler reports
@@ -376,11 +408,32 @@ the candidate is `@primitives$Unit push(this @primitives$List<T>, ^T) mut`
 Minting at the call (`refs!push(p)` with `p` settled) fails the same way. With
 `T = &Port`, `^T` should take an `&Port` — `memory.md` §2.9 says what `^T` is
 for a reference type and a value type, but not for `T` filled with an `&`, so
-the spec needs a sentence too. The `ArrayRef<&Port, 2>` built from `[r, r]`
-is accepted, so only the list's `push` is affected. As it stands a list of
-references can be declared but never filled.
+the spec needs a sentence too. An explicit `refs!push(&p)` is rejected with the same
+error. The `ArrayRef<&Port, 2>` built from `[r, r]` is accepted, so only the
+list's `push` is refused; reading an element of either crashes the compiler
+(7). As it stands a list of references can be declared but never filled.
 
-### 7. A value parameter is a copy, and a call can tell (bug)
+### 7. Reading an `&T` element crashes the compiler (bug)
+
+Probe `refelems`. A program that reads an element of an
+`ArrayRef<&Port, 2>` checks, and building it, plain or optimized, stops with
+`internal compiler error: the stack overflowed` (exit 3):
+
+```zane
+row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([&p, &q]);
+x &Port = row[Int(1)];          // legal; the build overflows here
+```
+
+Constructing the array and storing into an element (`row[Int(1)] = q`) build
+and run; any read, `row[Int(1)]` or `row[Int(1)].n`, crashes. Reading
+`refs[Int(1)]` from a `List<&Port>` crashes the same way, which 6 otherwise
+hides. The loop is in lowering (`lib/cgt/lower.ml`): `expr` lowers a
+subscript through `addr` (line 140), and `addr` lowers any expression whose
+type is an `&` back through `expr` (line 407), so for an element whose type
+is itself `&T` the two call each other on the same node until the stack runs
+out. Nothing is miscompiled, but no program can use a stored reference.
+
+### 8. A value parameter is a copy, and a call can tell (bug)
 
 Probe `aliasing`. memory.md §2.9: a value-type parameter "has one mode, the
 borrow", and "passing a value by borrow is the semantic model rather than an
@@ -408,7 +461,7 @@ or the spec forbids a call to lend one place as both its `mut` subject and
 another argument; the compiler already rejects the borrow-and-take form of
 the same alias.
 
-### 8. `Box(r)` infers `Box<Port>` from an `&Port` argument (gap)
+### 9. `Box(r)` infers `Box<Port>` from an `&Port` argument (gap)
 
 Probe `genref`. With `Box<T>(item T Type)` and `r &Port`, `Box(r)` infers
 `T = Port`, so `a Box<&Port> = Box(r)` is a type mismatch. A constructor call
@@ -420,7 +473,7 @@ Type)` over a `&T` field (generics.md §3.2), and that works; but
 generics.md never says whether inference from an `&X` argument binds `T` to
 `X` or to `&X`, and `List<&T>` shows the compiler does allow `T` to be an `&`.
 
-### 9. A reference to a package constant may be returned (gap)
+### 10. A reference to a package constant may be returned (gap)
 
 Probe `modes`. `&Engine constRef() => garage`, with `garage` a package
 constant, is accepted. `lifetimes.md` §1.7 says a returned `&T` must be
@@ -431,9 +484,9 @@ package constant outlives every caller, and memory.md §2.8 lists a package
 constant as a reference source. The compiler follows §1.1; §1.7 should say
 so or exclude it.
 
-### 10. An error inside a generic instance names nothing that made it (nit)
+### 11. An error inside a generic instance names nothing that made it (nit)
 
-Probe `genref`. The `Box<Port>` instance from 8 reports
+Probe `genref`. The `Box<Port>` instance from 9 reports
 
 ```text
 File "genref/main.zn", line 18 ...
@@ -446,7 +499,7 @@ whose call made the instance; delete line 26 and the error goes away.
 `design/semantics.md` §9 says such an error "is reported inside the
 instance, which names the call that required it".
 
-### 11. "`&Engine` is a reference type" (nit)
+### 12. "`&Engine` is a reference type" (nit)
 
 Probe `downstream`. The transitive form of the value-downstream error reads
 "`&downstream$Engine` is a reference type, and it reaches
