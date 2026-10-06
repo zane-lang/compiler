@@ -1,0 +1,28 @@
+/// lifetimes.md §1.11 records a resting place for a store "into a place
+/// reachable from `this`, from another `&T` parameter, or from the result".
+/// effects.md §4.1 makes every parameter but `this` read-only, so the middle
+/// root cannot be stored into. ILLEGAL marks what the spec rejects.
+package throughparam;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+type Leaf = #struct { n Int; }
+type Clip = #struct { leaf &Leaf; }
+type Stem = #struct { clip Clip; }
+
+Unit throughThis(this Stem, leaf &Leaf) mut {
+	this.clip.leaf = leaf;           // legal: rooted at the subject
+	return Unit();
+}
+Unit throughRef(this Stem, other &Clip, leaf &Leaf) mut {
+	other.leaf = leaf;               // ILLEGAL: `other` is read-only
+	return Unit();
+}
+Unit setLeaf(this Clip, leaf &Leaf) mut { this.leaf = leaf; return Unit(); }
+Unit throughCall(this Stem, other &Clip, leaf &Leaf) mut {
+	other!setLeaf(leaf);             // ILLEGAL: `other` is read-only
+	return Unit();
+}
+
+Unit main() { return Unit(); }

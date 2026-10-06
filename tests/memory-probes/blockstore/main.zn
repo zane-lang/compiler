@@ -1,0 +1,53 @@
+/// A `!` call is refused "when its subject reaches a read-only reference"
+/// (effects.md §4.4); the call that creates the reachability is not. The
+/// same call is accepted as a statement and refused in a block argument that
+/// runs at most once. ILLEGAL marks what the spec rejects.
+package blockstore;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias Bool = @primitives$Bool
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+type Port = #struct { n Int; }
+Port(n Int) => init{ n; }
+type Plug = #struct { port &Port; a &Port; b &Port; k Int; }
+
+Unit storeOnly(this Plug, port &Port) mut {
+	this.port = port;
+	return Unit();
+}
+Unit setA(this Plug, p &Port) mut { this.a = p; return Unit(); }
+Unit setB(this Plug, p &Port) mut { this.b = p; return Unit(); }
+Unit nudge(this Plug) mut { this.k = this.k + Int(1); return Unit(); }
+
+Unit statement(this Plug, port &Port) mut {
+	this!storeOnly(port);                              // legal
+	return Unit();
+}
+Unit inBranch(this Plug, port &Port) mut {
+	@controlflow$branch(true, { this!storeOnly(port); });  // legal: runs at most once
+	return Unit();
+}
+Unit inIf(this Plug, port &Port, verbose Bool) mut {
+	if(verbose, { this!storeOnly(port); });           // legal: the same through a verb
+	return Unit();
+}
+Unit three(this Plug, p &Port, q &Port) mut {
+	@controlflow$branch(true, {
+		this!nudge();                                  // legal
+		this!setA(p);                                  // legal
+		this!setB(q);                                  // ILLEGAL: `this` reaches `p`
+	});
+	return Unit();
+}
+Unit inRepeat(this Plug, port &Port) mut {
+	@controlflow$repeat(Int(2), { this!storeOnly(port); });  // ILLEGAL: the second run reaches `port`
+	return Unit();
+}
+
+Unit main() { return Unit(); }

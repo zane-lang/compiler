@@ -1,0 +1,8 @@
+== checks; building and running
+big list returned yes
+its first and last yes
+big string copied out of an inner block yes
+copy independent of the source yes
+list of 100000 strings yes
+big list overwritten 20 times yes
+== exit 0

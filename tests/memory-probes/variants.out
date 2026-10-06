@@ -1,0 +1,13 @@
+== checks; building and running
+payload read through a reference yes
+case change seen through the reference yes
+changed to empty yes
+refilled from a result yes
+binder writes the payload yes
+loop of case changes yes
+ArrayRef element overwrite seen yes
+write through element reference yes
+whole ArrayRef overwrite seen yes
+element ref after the ArrayRef is replaced from an inner block yes
+element ref after its owner is replaced from an inner block yes
+== exit 0

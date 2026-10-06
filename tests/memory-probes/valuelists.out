@@ -1,0 +1,8 @@
+== checks; building and running
+element copied out is independent yes
+element copied over another is independent yes
+element field overwritten from itself yes
+element overwritten from its own fields yes
+recursive element copied and grown yes
+list grown from its own elements yes
+== exit 0

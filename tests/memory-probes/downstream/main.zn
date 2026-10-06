@@ -1,0 +1,41 @@
+/// Value-downstream enforcement (memory.md §2.10): a value type holds only
+/// values, transitively; recursion through a boxed member is not barred.
+/// Every line marked ILLEGAL should be reported, and nothing else.
+package downstream;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias List<T Type> = @primitives$List<T>
+
+type Engine = #struct { power Int; }
+Engine(power Int) => init{ power; }
+
+type BadOwner = struct { engine Engine; }                    // ILLEGAL
+type BadRef = struct { target &Engine; }                     // ILLEGAL
+type BadList = struct { items List<Int>; }                   // ILLEGAL: List is a reference type
+type BadArrRef = struct { items @primitives$ArrayRef<Int, 2>; }  // ILLEGAL: ArrayRef too
+type Inner = struct { e &Engine; }                           // ILLEGAL
+type Outer = struct { inner Inner; }                         // ILLEGAL transitively
+type Deeper = struct { outer Outer; }                        // ILLEGAL transitively
+type BadVariant = variant { a Engine; b Int; }               // ILLEGAL
+type BadVariantRef = variant { a &Engine; b Int; }           // ILLEGAL
+type ArrOfRef = struct { arr @primitives$Array<Engine, 2>; }  // ILLEGAL: Array is a value type
+type ArrOfAmp = struct { arr @primitives$Array<&Engine, 2>; } // ILLEGAL
+type Caret = struct { e ^Engine; }                           // ILLEGAL (and ^ is no field type)
+type RCaret = #struct { e ^Engine; }                         // ILLEGAL: a field is never declared roaming (§2.8.1)
+type ListAmpInt = #struct { e List<&Int>; }                  // ILLEGAL: & over a value type (§2.4)
+
+type OkRec = variant { done Unit; more OkRec; }              // legal: a boxed member
+type OkVal = struct { a Int; b OkRec; }                      // legal
+type OkRef = #struct { e &Engine; owned Engine; items List<Engine>; refs List<&Engine>; }  // legal
+
+/// A generic value type filled with a reference type reaches the same ban.
+type Gen<T Type> = struct { item T; }
+Gen<T>(item T Type) => init{ item; }
+type UseGen = #struct { g Gen<Engine>; }                     // ILLEGAL
+type UseGenInt = #struct { g Gen<Int>; }                     // legal
+
+Unit main() {
+	g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
+	return Unit();
+}

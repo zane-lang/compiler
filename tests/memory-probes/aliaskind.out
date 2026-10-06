@@ -1,0 +1,5 @@
+File "aliaskind/main.zn", line 19, characters 27-35:
+19 | type Holder = #struct { b BadArray; }                  // ILLEGAL: reported here instead
+  |                           ^^^^^^^^
+Error: `aliaskind$Engine` is a reference type, and it reaches `aliaskind$BadArray`'s field `slots`, then the elements of `@primitives$Array<aliaskind$Engine, 2>`, a value type's slot; a value type holds only values, all the way down
+== rejected

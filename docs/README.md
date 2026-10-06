@@ -6,6 +6,9 @@ defines the language; these describe how this compiler implements it.
 - [`spec-divergences.md`](spec-divergences.md): where the compiler does
   something other than the spec says, or decides what the spec leaves open.
   Read it before relying on a spec section.
+- [`memory-semantics-findings.md`](memory-semantics-findings.md): the memory
+  model probed with example programs (`tests/memory-probes/`): what holds,
+  and the bugs and spec gaps found.
 - [`file-structure-proposal.md`](file-structure-proposal.md): the review the
   current repository layout came from, finding by finding.
 - [`refactoring-proposal.md`](refactoring-proposal.md): the review of the code

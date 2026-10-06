@@ -1,0 +1,6 @@
+== checks; building and running
+payload borrowed while a block argument changes the case NO
+element borrowed while a block argument replaces the list NO
+element subject freed by its own block NO
+victim untouched by a write through the freed subject NO
+== exit 0

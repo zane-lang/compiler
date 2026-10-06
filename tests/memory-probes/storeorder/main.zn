@@ -1,0 +1,69 @@
+/// An element store whose right-hand side grows the list (memory.md §2.3,
+/// §3.6): `list[1] = list!growAndGive(...)`. Something allocated after each
+/// list keeps its growth from happening in place. Run apart, each check
+/// prints NO; together, the first case's write into a freed block corrupts
+/// the allocator and the second segfaults in `zane_alloc`.
+package storeorder;
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+/// Prints the label and `yes` when the condition holds, `no` when not.
+Unit check(label String, ok Bool) {
+	say(label);
+	@controlflow$branch(ok, { say(String(" yes\n")); });
+	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	return Unit();
+}
+type Engine = #struct { power Int; label String; }
+Engine(power Int, label String) => init{ power; label; }
+
+Int growAndGive(this List<Int>, n Int) mut {
+	i Int(1);
+	i!to(n) { this!push(i); }
+	return Int(4242);
+}
+^Engine growAndMake(this List<Engine>, n Int) mut {
+	i Int(1);
+	i!to(n) { this!push(Engine(i, String("fill"))); }
+	return Engine(Int(4242), String("new"));
+}
+type Box = #struct { items List<Int>; }
+Box() => init{ items = @primitives$List(Int); }
+
+Unit main() {
+	ints List<Int> = @primitives$List(Int);
+	ints!push(Int(1));
+	pad List<Int> = @primitives$List(Int);
+	pad!push(Int(0));
+	ints[Int(1)] = ints!growAndGive(Int(1000));
+	check(String("value element store whose right side grows the list"), ints[Int(1)] == Int(4242));
+
+	engines List<Engine> = @primitives$List(Engine);
+	engines!push(Engine(Int(1), String("e")));
+	pad2 List<Engine> = @primitives$List(Engine);
+	pad2!push(Engine(Int(0), String("p")));
+	engines[Int(1)] = engines!growAndMake(Int(1000));
+	check(String("owner element store whose right side grows the list"), engines[Int(1)].power == Int(4242));
+	return Unit();
+}

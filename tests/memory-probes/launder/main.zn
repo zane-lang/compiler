@@ -1,0 +1,101 @@
+/// Attempts to store a reference above the scope of what it names
+/// (lifetimes.md §1.1, §1.10, §1.11), each by a different route. Every line
+/// marked ILLEGAL should be reported; lines marked legal should not.
+package launder;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias List<T Type> = @primitives$List<T>
+alias PortRef = &Port
+
+Unit inner(body @concepts$Block) {
+	@controlflow$branch(true, body);
+	return Unit();
+}
+
+type Port = #struct { n Int; }
+Port(n Int) => init{ n; }
+
+type Plug = #struct { port &Port; }
+Plug(port &Port) => init{ port; }
+
+type Frame = #struct { plug Plug; }
+Frame(plug ^Plug) => init{ plug; }
+
+type Rack = #struct { plugs List<Plug>; refs List<&Port>; slot &Port; }
+Rack(slot &Port) => init{ plugs = @primitives$List(Plug); refs = @primitives$List(PortRef); slot; }
+
+type Pin<T Type> = #struct { at &T; }
+Pin<T>(at &T Type) => init{ at; }
+
+Unit put(this Pin<T Type>, at &T) mut {
+	this.at = at;
+	return Unit();
+}
+
+Unit wire(this Plug, port &Port) mut {
+	this.port = port;
+	return Unit();
+}
+
+&Port pick(this Frame, port &Port) => port
+&Port pass(port &Port) => port
+&Port?Unit maybe(port &Port, fail Bool) {
+	@controlflow$branch(fail, { abort Unit(); });
+	return port;
+}
+
+/// Mutual recursion: the resting place must reach through both. (Never
+/// run: it does not terminate.)
+Unit ping(this Plug, port &Port, n Int) mut {
+	this!pong(port, n);
+	return Unit();
+}
+Unit pong(this Plug, port &Port, n Int) mut {
+	this!ping(port, n);
+	this.port = port;
+	return Unit();
+}
+
+Unit main() {
+	far Port(Int(1));
+	r &Port = far;
+	plug Plug(far);
+	frame Frame(Plug(far));
+	rack Rack(far);
+	pin Pin<Port> = Pin(far);
+	arr @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([r, r]);
+	plugs List<Plug> = @primitives$List(Plug);
+	plugs!push(Plug(far));
+	passer &Port(p &Port) => p;
+	inner({
+		near Port(Int(2));
+		tmp &Port = near;
+		r = tmp;                              // ILLEGAL: through a local
+		r = pass(near);                       // ILLEGAL: through a call result
+		r = frame:pick(near);                 // ILLEGAL: through a method result
+		r = passer(near);                     // ILLEGAL: through a function value's result
+		r = maybe(near, false) ?? far;        // ILLEGAL: through a handled result
+		r = maybe(far, false) ?? near;        // ILLEGAL: through the handler's value
+		plug.port = near;                     // ILLEGAL: into a field of an outer root
+		frame.plug.port = near;               // ILLEGAL: into a nested field
+		plug!wire(near);                      // ILLEGAL: resting place
+		plug!ping(near, Int(3));              // ILLEGAL: resting place through mutual recursion
+		rack.refs!push(tmp);                  // ILLEGAL: push into an outer list of references
+		rack.plugs!push(Plug(near));          // ILLEGAL: push a value carrying one
+		plugs[Int(1)] = Plug(near);           // ILLEGAL: element overwrite with a value carrying one
+		plugs[Int(1)].port = near;            // ILLEGAL: into an element's field
+		rack.slot = near;                     // ILLEGAL
+		arr[Int(1)] = near;                   // ILLEGAL: into an ArrayRef element
+		pin.at = near;                        // ILLEGAL: generic field
+		pin!put(near);                        // ILLEGAL: generic resting place
+		spare ^Plug = Plug(near);
+		frame.plug = spare;                   // ILLEGAL: moved value carries one
+		frame = Frame(Plug(near));            // ILLEGAL: nested construction carries one
+		ok &Port = far;                       // legal
+		plug.port = far;                      // legal
+		plug!wire(far);                       // legal
+	});
+	return Unit();
+}

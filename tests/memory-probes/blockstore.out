@@ -1,0 +1,29 @@
+File "blockstore/main.zn", line 33, characters 33-37:
+33 |     @controlflow$branch(true, { this!storeOnly(port); });  // legal: runs at most once
+  |                                 ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `port`, a read-only parameter
+File "blockstore/main.zn", line 37, characters 19-23:
+37 |     if(verbose, { this!storeOnly(port); });           // legal: the same through a verb
+  |                   ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `port`, a read-only parameter
+File "blockstore/main.zn", line 42, characters 9-13:
+42 |         this!nudge();                                  // legal
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `p` and `q`, read-only parameters
+File "blockstore/main.zn", line 43, characters 9-13:
+43 |         this!setA(p);                                  // legal
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `p` and `q`, read-only parameters
+File "blockstore/main.zn", line 44, characters 9-13:
+44 |         this!setB(q);                                  // ILLEGAL: `this` reaches `p`
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `p` and `q`, read-only parameters
+File "blockstore/main.zn", line 44, characters 9-13:
+44 |         this!setB(q);                                  // ILLEGAL: `this` reaches `p`
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `p`, a read-only parameter
+File "blockstore/main.zn", line 49, characters 35-39:
+49 |     @controlflow$repeat(Int(2), { this!storeOnly(port); });  // ILLEGAL: the second run reaches `port`
+  |                                   ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `port`, a read-only parameter
+== rejected

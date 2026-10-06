@@ -1,0 +1,38 @@
+/// What a payload and an `ArrayRef` element may not do (memory.md §2.8,
+/// §2.8.1, lifetimes.md §1.2). ILLEGAL marks what the spec rejects.
+package payloads;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+type Engine = #struct { power Int; }
+Engine(power Int) => init{ power; }
+
+type Slot = #variant { full Engine; empty Unit; }
+
+&Engine get(s &Slot) => s.full ?? s.full ?? s.full ?? Engine(Int(0))  // ILLEGAL: a payload is no reference source
+&Engine first(row &@primitives$ArrayRef<Engine, 2>) => row[Int(1)]       // legal: an element of an ArrayRef reached from an &T parameter
+
+Unit main() {
+	slot Slot = Slot.full(Engine(Int(1)));
+	n Int = match (slot) {
+		e full {
+			r &Engine = e;          // ILLEGAL: the binder is the payload
+			m Engine = e;           // ILLEGAL: a payload is no move-source
+			return e.power;
+		}
+		u empty => Int(0);
+	}
+	s2 Slot = slot;                 // ILLEGAL: slot is settled
+	roaming ^Slot = Slot.empty(Unit());
+	q &Slot = roaming;              // ILLEGAL: roaming
+	settledEngine Engine(Int(2));
+	s3 ^Slot = Slot.full(settledEngine);  // ILLEGAL: settledEngine is settled
+	row @primitives$ArrayRef<Engine, 2> = @primitives$ArrayRef([Engine(Int(1)), Engine(Int(2))]);
+	x Engine = row[Int(1)];         // ILLEGAL: an ArrayRef element is never moved out
+	loose ^@primitives$ArrayRef<Engine, 2> = @primitives$ArrayRef([Engine(Int(1)), Engine(Int(2))]);
+	y Engine = loose[Int(1)];       // ILLEGAL: not even under a roaming root
+	z &Engine = first(row);         // legal
+	w &Engine = row[Int(2)];        // legal
+	return Unit();
+}

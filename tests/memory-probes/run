@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Runs every memory-semantics probe program: each directory here is one
+# package, or a build of several. It is type-checked; if it checks, it is built and run. What the
+# compiler and the program printed goes to NAME.out beside the directory, so
+# a change in behaviour shows as a diff. A program is built unoptimized and
+# optimized, and the second's output is shown too when it differs. Usage: run [NAME...]
+set -u
+here=$(cd "$(dirname "$0")" && pwd)
+root=$(cd "$here/../.." && pwd)
+zanec="$root/_build/default/bin/zanec/zanec.exe"
+[ -x "$zanec" ] || { echo "build zanec first: dune build bin/zanec/zanec.exe" >&2; exit 1; }
+cd "$here"
+names=("$@")
+[ ${#names[@]} -eq 0 ] && names=($(ls -d */ | tr -d /))
+tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+for n in "${names[@]}"; do
+	# A directory of directories is a build of several packages, the first
+	# in name order being the root.
+	pkgs=()
+	for d in "$n"/*/; do [ -d "$d" ] && pkgs+=(--package "${d%/}"); done
+	[ ${#pkgs[@]} -eq 0 ] && pkgs=(--package "$n")
+	{
+		if "$zanec" --check "${pkgs[@]}" 2>&1; then
+			echo "== checks; building and running"
+			if "$zanec" --build "$tmp/$n.exe" "${pkgs[@]}" 2>&1 &&
+				"$zanec" --build "$tmp/$n.opt.exe" --optimize "${pkgs[@]}" 2>&1; then
+				"$tmp/$n.exe" > "$tmp/$n.plain" 2>&1; plain=$?
+				"$tmp/$n.opt.exe" > "$tmp/$n.opt" 2>&1; opt=$?
+				cat "$tmp/$n.plain"
+				if ! cmp -s "$tmp/$n.plain" "$tmp/$n.opt" || [ $plain != $opt ]; then
+					echo "== the optimized build differs (exit $opt):"
+					cat "$tmp/$n.opt"
+				fi
+				echo "== exit $plain"
+			else
+				echo "== build failed"
+			fi
+		else
+			echo "== rejected"
+		fi
+	} > "$n.out"
+	echo "$n: $(tail -1 "$n.out")"
+done

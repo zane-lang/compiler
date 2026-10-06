@@ -1,0 +1,29 @@
+File "settled/main.zn", line 19, characters 20-26:
+19 |     moved Engine = engine;            // ILLEGAL: a settled owner never moves
+  |                    ^^^^^^
+Error: `engine` is a settled owner, which may be referenced and so never moves; an owner that is to move is declared `^T`
+File "settled/main.zn", line 21, characters 9-13:
+21 |     bad &Int = n;                     // ILLEGAL: & over a value type
+  |         ^^^^
+Error: `@primitives$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
+File "settled/main.zn", line 23, characters 8-12:
+23 |     bv &Vec = v;                      // ILLEGAL
+  |        ^^^^
+Error: `settled$Vec` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
+File "settled/main.zn", line 24, characters 7-11:
+24 |     w ^Vec = Vec(Int(1), Int(2));     // ILLEGAL: ^ over a value type
+  |       ^^^^
+Error: `settled$Vec` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
+File "settled/main.zn", line 25, characters 8-12:
+25 |     wi ^Int = Int(4);                 // ILLEGAL
+  |        ^^^^
+Error: `@primitives$Int` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
+File "settled/main.zn", line 26, characters 21-26:
+26 |     again &Engine = spare;            // ILLEGAL: spare is spent (and roaming)
+  |                     ^^^^^
+Error: `spare` was moved on line 17, and is spent until a store refills it
+File "settled/main.zn", line 26, characters 21-26:
+26 |     again &Engine = spare;            // ILLEGAL: spare is spent (and roaming)
+  |                     ^^^^^
+Error: a new reference must come from a settled place, and this is a roaming owner, which may still move; settle it first by moving it into an owner declared without `^`
+== rejected

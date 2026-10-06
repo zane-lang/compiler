@@ -1,0 +1,8 @@
+== checks; building and running
+element borrowed while its list grows NO
+value subject and value borrow: borrow sees the write NO
+reference subject and reference borrow: borrow sees the write yes
+payload borrowed while its variant changes case NO
+element borrowed while its list is replaced NO
+element borrowed while the owner's list is replaced NO
+== exit 0

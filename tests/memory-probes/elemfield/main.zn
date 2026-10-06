@@ -1,0 +1,23 @@
+/// A list's element is roaming (memory.md §2.8.1), and so is a field of one;
+/// both are refused as reference sources, for the same reason.
+/// ILLEGAL marks what the spec rejects.
+package elemfield;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias List<T Type> = @primitives$List<T>
+
+type Bolt = #struct { n Int; }
+Bolt(n Int) => init{ n; }
+type Plate = #struct { bolt Bolt; }
+Plate(bolt ^Bolt) => init{ bolt; }
+
+Unit main() {
+	bolts List<Bolt> = @primitives$List(Bolt);
+	bolts!push(Bolt(Int(1)));
+	plates List<Plate> = @primitives$List(Plate);
+	plates!push(Plate(Bolt(Int(2))));
+	a &Bolt = bolts[Int(0)];             // ILLEGAL: a list's element
+	b &Bolt = plates[Int(0)].bolt;       // ILLEGAL: a field of a list's element
+	return Unit();
+}

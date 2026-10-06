@@ -1,0 +1,5 @@
+== checks; building and running
+binder after its scrutinee is overwritten (reference) NO
+binder after its scrutinee is overwritten (value) NO
+binder after a mut call on its scrutinee NO
+== exit 0
