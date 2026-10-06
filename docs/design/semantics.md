@@ -640,8 +640,8 @@ An explicit number and one inferred from another argument must agree, so
 `measured(values Array<Int, n>, n @concepts$Int)` called with a
 three-element array and `4` matches nothing.
 
-**Borrows** (`lib/tst/analyses/borrows.ml`, [`memory.md`](https://github.com/zane-lang/spec/blob/71ceffe/spec/memory.md) §2.9.1,
-[`adt.md`](https://github.com/zane-lang/spec/blob/82da937/spec/adt.md) §5.1). A call's borrows are its subject and each argument
+**Borrows** (`lib/tst/analyses/borrows.ml`, [`memory.md`](https://github.com/zane-lang/spec/blob/2a02e33/spec/memory.md) §2.9.1,
+[`adt.md`](https://github.com/zane-lang/spec/blob/2a02e33/spec/adt.md) §5.1). A call's borrows are its subject and each argument
 passed to a bare parameter, or to a `^T` filled with a value type; an `&T`
 argument is not one. A call is an error when a borrow overlaps a place
 written by its `mut` subject (for a borrow argument), by a block argument, or
@@ -714,7 +714,7 @@ only reject more, never let a write through.
 - `push` keeps its value in `this`; no other intrinsic keeps anything. A
   function type carries no summary, so a call through a function value that
   writes its subject is taken to keep every argument there
-  ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/82da937/spec/lifetimes.md) §1.11).
+  ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/2a02e33/spec/lifetimes.md) §1.11).
 
 **What moves, where the spec leaves it to the table.**
 - A subscript's body is a place (`functions.md` §2.9), so it moves nothing

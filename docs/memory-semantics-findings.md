@@ -68,7 +68,7 @@ Findings are numbered by severity and classified:
 
 Every finding is closed. Where the spec had to say something first, it now
 does, at spec commit
-[`82da937`](https://github.com/zane-lang/spec/tree/82da937); the compiler
+[`2a02e33`](https://github.com/zane-lang/spec/tree/2a02e33); the compiler
 follows it. The probe outputs in `tests/memory-probes/*.out` are rerun
 against the fixed compiler, so the sections below describe what the probes
 found at `5bc7684`, and the `.out` files show what they print now.
