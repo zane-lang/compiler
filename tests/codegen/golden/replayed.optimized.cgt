@@ -98,11 +98,14 @@
     │       │   ├── type: i64
     │       │   ├── fn: zane_set_threads
     │       │   └── args[0]: 0 : i64
-    │       ├── body[12] > eval > runtime:
+    │       ├── body[12] > assign:
+    │       │   ├── place: #24
+    │       │   └── value: 1 : i64
+    │       ├── body[13] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       └── body[13] > return: unit : void
+    │       └── body[14] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: replayed$say(%primitives$String)
     │   ├── params[0]: local #1 : handle

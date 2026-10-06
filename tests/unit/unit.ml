@@ -360,6 +360,38 @@ let stored_in_place () =
   check "a value read before the store keeps what it read"
     (before = Value.VRecord [| Value.VInt 1L; Value.VInt 2L; Value.VInt 3L |])
 
+(* A store made inside an expression that folds is kept, since code the
+   fold leaves in place may read the local. *)
+let kept_store () =
+  let local = e (C.Expr.Local 1) C.Ty.I64 in
+  let bump =
+    e
+      (C.Expr.Expand
+         {
+           label = 10;
+           body =
+             [
+               C.Stat.assign 1 (e (C.Expr.Binary { op = C.Expr.Add; left = local; right = i64 1L }) C.Ty.I64);
+               C.Stat.assign 11 local;
+             ];
+           result = Some 11;
+         })
+      C.Ty.I64
+  in
+  let body =
+    [
+      C.Stat.Let { id = 1; value = i64 5L };
+      C.Stat.Eval (e (C.Expr.Binary { op = C.Expr.Add; left = bump; right = i64 0L }) C.Ty.I64);
+      C.Stat.Eval (e (C.Expr.Call { fn = "opaque"; args = [ e (C.Expr.Address 1) C.Ty.Ptr ] }) C.Ty.Void);
+    ]
+  in
+  let f = Fold.func (program []) (Hashtbl.create 1) (func "f" [] body) in
+  let stored = ref false in
+  Fold.iter_stats f.C.Func.body ~expr:ignore ~stat:(function
+    | C.Stat.Assign { place = { local = 1; path = []; _ }; value = { C.Expr.node = C.Expr.Int 6L; _ } } -> stored := true
+    | _ -> ());
+  check "a store inside a folded expression is kept" !stored
+
 (* A loop over a known local leaves only what it wrote. *)
 let folded_function () =
   let local = e (C.Expr.Local 1) C.Ty.I64 in
@@ -416,6 +448,7 @@ let () =
   materialized ();
   evaluated ();
   stored_in_place ();
+  kept_store ();
   folded_function ();
   twice ();
   at_once ();

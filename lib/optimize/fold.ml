@@ -229,9 +229,16 @@ let replayed (e : Expr.t) =
   | _ -> false
 
 (* Whether an input of an expression is known: a constant, a local the walk
-   knows, or an address made from them. *)
+   knows, or an address made from them. A replacement that stores into a
+   local is not: the walk already counts the store as done, so evaluating
+   it again inside its parent would find nothing to store, and the parent's
+   replacement would leave the store out. *)
 let rec known_input (env : known) (e : Expr.t) =
-  Option.is_some (known_value e)
+  (match e.Expr.node with
+  | Expr.Expand { body; _ } ->
+      known_value e <> None
+      && List.for_all (function Stat.Eval _ -> true | _ -> false) (List.rev body |> List.tl)
+  | _ -> Materialize.literal e)
   ||
   match e.Expr.node with
   | Expr.Local i | Expr.Address i -> Hashtbl.mem env i
@@ -349,7 +356,6 @@ let candidate fn (env : known) (e : Expr.t) =
   &&
   match e.Expr.node with
   | Expr.Local i -> Hashtbl.mem env i
-  | Expr.Expand { body; _ } -> not (costly body)
   | Expr.Call _ -> (
       List.for_all (known_input env) (children e)
       && match call_key e with Some k -> not (Hashtbl.mem fn.failed k) | None -> true)
@@ -364,24 +370,33 @@ let candidate fn (env : known) (e : Expr.t) =
   | _ -> List.for_all (known_input env) (children e)
 
 let rec expr fn (env : known) (e : Expr.t) : Expr.t =
-  let e =
-    match e.Expr.node with
-    | Expr.Expand { label; body; result } -> (
-        let before = Hashtbl.copy env in
-        match if costly body then None else attempt fn before e with
+  match e.Expr.node with
+  | Expr.Expand { label; body; result } -> (
+      (* An expansion is tried as it was, and again once its body is folded,
+         both times against what was known before it ran: its body's folds
+         count its stores as done, and its replacement must still make
+         them. *)
+      let before = Hashtbl.copy env in
+      let tried e =
+        match attempt fn before e with
         | Some replaced ->
             Hashtbl.reset env;
             Hashtbl.iter (Hashtbl.replace env) before;
-            replaced
-        | None ->
-            let body = block fn env body in
-            (* A body that leaves early ends at more than one place, so what
-               it may have written is not known after it. *)
-            if leaves label body then forget env (writes ~escaped:fn.escaped body);
-            { e with Expr.node = Expr.Expand { label; body; result } })
-    | _ -> map_children fn env e
-  in
-  if candidate fn env e then Option.value ~default:e (attempt fn env e) else e
+            Some replaced
+        | None -> None
+      in
+      match if costly body then None else tried e with
+      | Some replaced -> replaced
+      | None -> (
+          let body = block fn env body in
+          (* A body that leaves early ends at more than one place, so what
+             it may have written is not known after it. *)
+          if leaves label body then forget env (writes ~escaped:fn.escaped body);
+          let e = { e with Expr.node = Expr.Expand { label; body; result } } in
+          match if costly body then None else tried e with Some replaced -> replaced | None -> e))
+  | _ ->
+      let e = map_children fn env e in
+      if candidate fn env e then Option.value ~default:e (attempt fn env e) else e
 
 (* The children folded in the order they run. *)
 and map_children fn env (e : Expr.t) =
