@@ -1,0 +1,99 @@
+name: Compiler distribution
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/compiler-dist.yml'
+      - '.github/workflows/release.yml'
+      - '.github/scripts/release-tag'
+      - '.github/scripts/install-zig'
+      - '.github/actions/setup-ci/**'
+      - 'dev/release/**'
+      - 'tests/release/**'
+      - 'dev/setup/bootstrap-toolchain'
+      - 'devbox.*'
+      - 'bin/**'
+      - 'lib/**'
+      - 'runtime/**'
+      - 'dune-project'
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      VERSION: ${{ inputs.version || 'v0.0' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test release safeguards
+        run: |
+          bash tests/release/tag.sh
+          python3 -m unittest discover -s tests/release -p '*_test.py' -v
+      - name: Set up compiler toolchain
+        uses: ./.github/actions/setup-ci
+      - name: Test compiler
+        run: devbox run -- just test-compiler
+      - name: Install verified Zig
+        run: .github/scripts/install-zig
+      - name: Package compiler and runtime libraries
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          devbox run -- dune build bin/zanec/zanec.exe
+          devbox run -- python3 dev/release/package-linux.py \
+            --binary _build/default/bin/zanec/zanec.exe --zig "$ZIG" \
+            --version "$VERSION" --commit "$SOURCE_SHA" --output dist
+      # Neither /nix nor the opam switch is mounted. This catches accidental
+      # dependencies on the build machine's loader, LLVM and C toolchain.
+      - name: Test extracted archive without the development environment
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-smoke"
+          docker run --rm --network none \
+            -v "$PWD:/source:ro" -v "$RUNNER_TEMP/release-smoke:/output" \
+            ubuntu:22.04 bash /source/dev/release/smoke-linux \
+            "/source/dist/zane-compiler-$VERSION-linux-x86_64.tar.gz" /output
+          mkdir -p windows-smoke
+          cp "$RUNNER_TEMP/release-smoke"/*.exe windows-smoke/
+          for name in plain optimized; do
+            cp tests/codegen/golden/hello.out "windows-smoke/hello-$name.out"
+            echo 0 > "windows-smoke/hello-$name.status"
+          done
+      - name: Keep distribution
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: compiler-linux-x86_64
+          path: dist/*.tar.gz
+          if-no-files-found: error
+      - name: Keep programs linked by the released toolchain
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: compiler-windows-smoke
+          path: windows-smoke
+          if-no-files-found: error
+
+  windows:
+    needs: linux
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: compiler-windows-smoke
+          path: windows-smoke
+      - name: Run cross-compiled programs on Windows
+        shell: bash
+        run: dev/bin/check-programs windows-smoke

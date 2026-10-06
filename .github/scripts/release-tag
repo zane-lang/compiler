@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Check a release tag, or create it after the builds pass. Never move an old tag.
+set -euo pipefail
+mode=${1:-check}
+case "$mode" in check|create) ;; *) echo 'usage: release-tag.sh [check|create]' >&2; exit 1 ;; esac
+if [[ ! "$VERSION" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+    echo '::error::Version must be vMAJOR.MINOR, without leading zeroes.' >&2
+    exit 1
+fi
+
+# Listing releases distinguishes an absent release from an API/authentication
+# failure. Publish repeats this with write access, which also exposes drafts.
+releases=$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[].tag_name')
+if grep -Fxq -- "$VERSION" <<< "$releases"; then
+    echo "::error::Release $VERSION already exists; finish its draft or choose a new version."
+    exit 1
+fi
+
+if refs=$(git ls-remote --exit-code --tags origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}"); then
+    # Annotated tags have a peeled commit; lightweight tags name it directly.
+    commit=$(printf '%s\n' "$refs" | awk '
+        $2 ~ /\^\{\}$/ { peeled = $1 }
+        !first { first = $1 }
+        END { print peeled ? peeled : first }')
+    if [[ "$commit" != "$SOURCE_SHA" ]]; then
+        echo "::error::Tag $VERSION points to another commit; choose a new version."
+        exit 1
+    fi
+    echo "Reusing $VERSION for the same commit; no release exists."
+else
+    status=$?
+    # git returns 2 for no matching tag; other errors must stop the release.
+    if [[ "$status" != 2 ]]; then exit "$status"; fi
+    if [[ "$mode" == create ]]; then
+        # Atomically refuse a tag created by someone else since the check.
+        gh api --method POST "repos/$GH_REPO/git/refs" --silent \
+            -f ref="refs/tags/$VERSION" -f sha="$SOURCE_SHA"
+    fi
+fi

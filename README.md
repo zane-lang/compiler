@@ -2,6 +2,65 @@
 
 This repository contains the Zane language compiler and CLI.
 
+## Released toolchain
+
+The **Release compiler** workflow publishes a Linux x86_64 toolchain archive
+with `zanec`, its LLVM/shared-library dependencies, and Zig 0.16.0. It builds
+Zane programs for Linux and Windows without installing OCaml, LLVM or a C
+compiler. Windows-native and macOS-native compiler archives are not yet
+provided; Windows program targets are tested on Windows in CI.
+
+Download the `.tar.gz` and `SHA256SUMS` from a
+[compiler release](https://github.com/zane-lang/compiler/releases), then verify
+and extract the archive. For example, once `v0.1` has been published:
+
+```sh
+version=v0.1
+archive="zane-compiler-$version-linux-x86_64.tar.gz"
+base="https://github.com/zane-lang/compiler/releases/download/$version"
+curl -fSLO "$base/$archive"
+curl -fSLO "$base/SHA256SUMS"
+sha256sum --check --strict SHA256SUMS
+mkdir -p "$HOME/.zane/toolchains/$version"
+tar -xzf "$archive" --strip-components=1 -C "$HOME/.zane/toolchains/$version"
+export PATH="$HOME/.zane/toolchains/$version/bin:$PATH"
+```
+
+Keep the whole extracted directory together: `bin/zanec` loads its bundled
+libraries and uses its bundled Zig to compile the C runtime and link programs.
+The archive includes `toolchain.coda`, so the `zane` CLI recognizes it under
+`~/.zane/toolchains/<version>/`. The CLI's automatic toolchain installation
+command is not yet implemented. A different extraction directory also works
+by setting `ZANE_COMPILER` to its `bin/zanec`.
+
+```sh
+zanec --target x86_64-linux-gnu --build hello --package path/to/hello
+zanec --target x86_64-windows-gnu --build hello.exe --package path/to/hello
+```
+
+Set `ZANE_CC` to use another C compiler wrapper, or `ZIG` to use another Zig
+executable. The compiler itself runs natively on Linux; Zig cross-compiles
+the generated Zane program's runtime and links its target executable.
+
+## Publishing a compiler release
+
+After merging, choose **Actions → Release compiler → Run workflow**, select
+the default branch, and enter a new `vMAJOR.MINOR` tag, such as `v0.1`.
+`v0.0` already exists and will not be overwritten. The two-component tag
+format matches the `zane` CLI's compiler-version resolver.
+
+The workflow tests the compiler, packages it, checks the relocated archive
+in a clean Ubuntu 22.04 container, and runs the Windows programs it produces
+on a Windows runner. Only after those checks pass does it create a tag at
+the tested commit and publish the archive and SHA-256 checksums. Build jobs
+have read-only repository access; only the publication job can write.
+
+If publication fails after tagging, use **Re-run failed jobs** on the same
+run: its original commit and artifacts are retained, and a tag at that commit
+is safe to reuse. If a draft release was already created, finish it manually
+or delete the draft before retrying (keep the tag). Existing releases and
+tags at another commit are always rejected.
+
 The concrete syntax and lexical rules live in [`grammar/`](grammar/README.md).
 `python3 -m tools.grammar` generates the compiler's Menhir grammar and Sedlex
 lexer, a Tree-sitter grammar for Neovim, and Sublime syntax highlighting for
