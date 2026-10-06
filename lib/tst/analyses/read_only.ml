@@ -345,7 +345,7 @@ and one w callee v =
 and store_or_place env (e : T.Expr.t) r = if carries env e.T.Expr.ty then r else Taint.empty
 
 and args_of env w (call : T.Expr.t) args =
-  let often = Repeats.often w.multi call in
+  let often = Repeats.often env w.multi call in
   List.mapi
     (fun i a -> arg env w ~often:(Option.value ~default:true (List.nth_opt often i)) a)
     args
@@ -587,5 +587,5 @@ let run env (p : T.Program.t) =
   (* Every body starts from nothing, so a callee not yet walked is not
      mistaken for one that has no body to walk. *)
   List.iter (fun (b : body) -> Fixpoint.start summaries b.decl) bodies;
-  let multi = Repeats.compute p in
+  let multi = Repeats.compute env p in
   Fixpoint.settle summaries (fun ~report -> List.iter (walk_body summaries multi ~report) bodies)

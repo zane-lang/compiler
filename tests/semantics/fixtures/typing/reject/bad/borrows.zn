@@ -212,3 +212,24 @@ Unit holdalls() {
 	holdall!store(ints[Int(1)]);
 	return Unit();
 }
+
+/// A field constructor is a call like any other: its entries run in written
+/// order, and an owner moved into a `^` field is written.
+type Coffer = struct { first Int; second Int; }
+type Bale = #struct { cargos List<Cargo>; }
+
+Coffer{ first Int; second Int; } => init{ first; second; }
+Bale{ cargos ^List<Cargo>; } => init{ cargos; }
+Bale(cargos ^List<Cargo>) => init{ cargos; }
+Int swell(this List<Int>) mut => Int(1)
+Int weighBale(cargo Cargo, bale Bale) => cargo.weight
+
+Unit coffers() {
+	ints List<Int> = @primitives$List(Int);
+	c Coffer{ first = ints[Int(1)]; second = ints!swell(); }
+	spare ^List<Cargo> = @primitives$List(Cargo);
+	n Int = weighBale(spare[Int(1)], Bale{ cargos = spare; });
+	other ^List<Cargo> = @primitives$List(Cargo);
+	m Int = weighBale(other[Int(1)], Bale(other));
+	return Unit();
+}

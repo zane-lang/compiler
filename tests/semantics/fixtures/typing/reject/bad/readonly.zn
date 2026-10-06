@@ -91,6 +91,25 @@ Unit bore(pen &Pen) {
 	return Unit();
 }
 
+/// A number given to an explicit number parameter picks the instance and
+/// takes none of its parameters, so the block after it is still found to
+/// run twice.
+Unit counted(n @concepts$Int, body @concepts$Block) {
+	measure Int(held Array<Int, n>) => Int(n);
+	@controlflow$repeat(Int(2), body);
+	return Unit();
+}
+
+Unit bored(pen &Pen) {
+	own Pen(Int(6));
+	desk Desk(own);
+	counted(3, {
+		desk!use();
+		desk!hold(pen);
+	});
+	return Unit();
+}
+
 /// A value copied out of a read-only parameter is the verb's own, and a field
 /// that holds no reference carries nothing.
 type Caddy = #struct { count Int; pen &Pen; }

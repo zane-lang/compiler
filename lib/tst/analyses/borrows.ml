@@ -322,6 +322,39 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
                 List.map snd pairs,
                 summary_of summaries callee )
         | None -> None)
+    | T.Expr.Construct_fields { ctor; fields; _ } -> (
+        match Env.signature_of env ctor with
+        | Some sg ->
+            (* The entries run in written order, each passed to the field it
+               names. A summary counts the parameters in declared order,
+               binding ones left out, so its pairs are renumbered to match. *)
+            let declared =
+              List.filter (fun (p : S.param) -> Option.is_none p.S.binds) sg.S.params
+            in
+            let rec index i name = function
+              | [] -> None
+              | (p : S.param) :: rest -> if p.S.name = name then Some (i, p) else index (i + 1) name rest
+            in
+            let entries =
+              List.filter_map
+                (fun (f : T.Field_value.t) ->
+                  Option.map (fun (i, p) -> (i, p, f.T.Field_value.value)) (index 0 f.T.Field_value.name declared))
+                fields
+            in
+            let at i = List.find_index (fun (j, _, _) -> j = i) entries in
+            let needs =
+              Needs.fold
+                (fun (x, y) acc ->
+                  match (at x, at y) with Some x, Some y -> Needs.add (x, y) acc | _ -> acc)
+                (summary_of summaries ctor) Needs.empty
+            in
+            Some
+              ( false,
+                false,
+                List.map (fun (_, (p : S.param), _) -> p.S.ty) entries,
+                List.map (fun (_, _, v) -> T.Arg.Value v) entries,
+                needs )
+        | None -> None)
     | T.Expr.Call_value { callee = { T.Expr.ty = Ty.Verb v; _ }; args; _ } ->
         (* A function type carries no summary, so a call through a value
            keeps every `&T` argument apart from the `mut` subject and every
@@ -394,7 +427,8 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
     in
     let acc =
       match (e.T.Expr.node, params_of e) with
-      | (T.Expr.Call _ | T.Expr.Construct _ | T.Expr.Call_value _), Some (_, _, tys, args, _)
+      | (T.Expr.Call _ | T.Expr.Construct _ | T.Expr.Construct_fields _ | T.Expr.Call_value _),
+          Some (_, _, tys, args, _)
         when List.length tys = List.length args ->
           List.fold_left2
             (fun acc ty a ->

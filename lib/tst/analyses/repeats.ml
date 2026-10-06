@@ -8,11 +8,21 @@ module T = Nodes
 module S = Signature
 
 (* The arguments a call passes, by position: a type written where a value
-   goes passes nothing (generics.md §5.3). *)
-let passed args =
-  List.filter
-    (function T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false | _ -> true)
-    args
+   goes, or a number given to an explicit number parameter, picks the
+   instance and passes nothing (generics.md §5.3), so the rest line up with
+   the instance's parameters. *)
+let passed env callee args =
+  let bound =
+    match Env.signature_of env callee with
+    | Some sg when List.length sg.S.params = List.length args ->
+        List.map (fun (p : S.param) -> Option.is_some p.S.binds) sg.S.params
+    | _ -> List.map (fun _ -> false) args
+  in
+  List.combine bound args
+  |> List.filter_map (fun (bound, arg) ->
+         match arg with
+         | T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> None
+         | _ -> if bound then None else Some arg)
 
 (* Whether the argument at [i] of a call to [r] is run more than once:
    `@controlflow$repeat`'s body, or a block parameter a verb runs so. *)
@@ -22,16 +32,16 @@ let runs_often multi (r : T.Verb_ref.t) i =
   | S.Declared id -> Hashtbl.mem multi (id, i)
   | S.Intrinsic _ -> false
 
-let call_parts (e : T.Expr.t) =
+let call_parts env (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } ->
-      Some (callee, passed args)
+      Some (callee, passed env callee args)
   | _ -> None
 
 (* One pass of the fixed point: a verb runs a block parameter more than once
    when it passes it where it runs more than once, or passes it anywhere from
    inside a block that does. *)
-let find_multi multi bodies =
+let find_multi env multi bodies =
   let changed = ref false in
   let mark id i =
     if not (Hashtbl.mem multi (id, i)) then begin
@@ -62,7 +72,7 @@ let find_multi multi bodies =
                 | _ -> ())
               args
         | _ -> ());
-        (match call_parts e with
+        (match call_parts env e with
         | Some (callee, args) ->
             List.iteri
               (fun i a ->
@@ -75,7 +85,7 @@ let find_multi multi bodies =
               args
         | None -> ());
         let blocks =
-          match call_parts e with
+          match call_parts env e with
           | Some (callee, args) ->
               List.concat
                 (List.mapi
@@ -122,10 +132,10 @@ let bodies (p : T.Program.t) =
 
 (* Each block parameter, by verb and index, that its verb runs more than
    once. *)
-let compute (p : T.Program.t) =
+let compute env (p : T.Program.t) =
   let multi : (int * int, unit) Hashtbl.t = Hashtbl.create 16 in
   let bodies = bodies p in
-  while find_multi multi bodies do
+  while find_multi env multi bodies do
     ()
   done;
   multi
@@ -133,19 +143,20 @@ let compute (p : T.Program.t) =
 (* For each of a call's arguments, whether it is a block run more than once.
    A call through a function value is not seen into, so its blocks are taken
    to be. *)
-let often multi (e : T.Expr.t) =
+let often env multi (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } ->
-      let i = ref (-1) in
+      let kept = passed env callee args in
       List.map
-        (function
-          | T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false
-          | T.Arg.Value _ ->
-              incr i;
-              false
-          | T.Arg.Block _ ->
-              incr i;
-              runs_often multi callee !i)
+        (fun a ->
+          match a with
+          | T.Arg.Block _ -> (
+              let rec index i = function
+                | [] -> None
+                | x :: rest -> if x == a then Some i else index (i + 1) rest
+              in
+              match index 0 kept with Some i -> runs_often multi callee i | None -> false)
+          | T.Arg.Value _ -> false)
         args
   | T.Expr.Call_value { args; _ } ->
       List.map (function T.Arg.Block _ -> true | T.Arg.Value _ -> false) args

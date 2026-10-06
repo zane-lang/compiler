@@ -134,6 +134,18 @@ File "fixtures/typing/reject/bad/borrows.zn", line 212, characters 19-31:
 212 |     holdall!store(ints[Int(1)]);
   |                   ^^^^^^^^^^^^
 Error: `ints[]` is borrowed by this call, and its `mut` subject `holdall` reaches, through a reference it holds, what may hold it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 229, characters 46-50:
+229 |     c Coffer{ first = ints[Int(1)]; second = ints!swell(); }
+  |                                              ^^^^
+Error: this writes `ints`, which overlaps `ints[]`, which an earlier argument of this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 231, characters 53-58:
+231 |     n Int = weighBale(spare[Int(1)], Bale{ cargos = spare; });
+  |                                                     ^^^^^
+Error: this writes `spare`, which overlaps `spare[]`, which an earlier argument of this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 233, characters 43-48:
+233 |     m Int = weighBale(other[Int(1)], Bale(other));
+  |                                           ^^^^^
+Error: this writes `other`, which overlaps `other[]`, which an earlier argument of this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 File "fixtures/typing/reject/bad/calls.zn", line 25, characters 13-33:
 25 |     a Int = pair(Int(1), Int(2));
   |             ^^^^^^^^^^^^^^^^^^^^
@@ -646,20 +658,28 @@ File "fixtures/typing/reject/bad/readonly.zn", line 89, characters 9-13:
 89 |         desk!hold(pen);
   |         ^^^^
 Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/readonly.zn", line 122, characters 5-6:
-122 |     a!fill();
-  |     ^
-Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/readonly.zn", line 123, characters 5-6:
-123 |     b!fill();
-  |     ^
-Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/readonly.zn", line 159, characters 9-13:
-159 |         desk!use();
+File "fixtures/typing/reject/bad/readonly.zn", line 107, characters 9-13:
+107 |         desk!use();
   |         ^^^^
 Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/readonly.zn", line 160, characters 9-13:
-160 |         desk!hold(pen);
+File "fixtures/typing/reject/bad/readonly.zn", line 108, characters 9-13:
+108 |         desk!hold(pen);
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 141, characters 5-6:
+141 |     a!fill();
+  |     ^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 142, characters 5-6:
+142 |     b!fill();
+  |     ^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 178, characters 9-13:
+178 |         desk!use();
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 179, characters 9-13:
+179 |         desk!hold(pen);
   |         ^^^^
 Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
 File "fixtures/typing/reject/bad/rests.zn", line 36, characters 15-20:

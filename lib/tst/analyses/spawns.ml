@@ -266,7 +266,7 @@ let walk_body env multi (body : T.Block.t) =
         | None -> List.iter (part frames) (parts e))
   and parts (e : T.Expr.t) =
     (* A block argument runs more than once when its callee runs it so. *)
-    match Repeats.call_parts e with
+    match Repeats.call_parts env e with
     | Some (callee, args) ->
         let often =
           List.concat
@@ -365,7 +365,7 @@ let walk_body env multi (body : T.Block.t) =
   block [] false body
 
 let run env (p : T.Program.t) =
-  let multi = Repeats.compute p in
+  let multi = Repeats.compute env p in
   List.iter
     (fun (pkg : T.Package.t) ->
       List.iter
