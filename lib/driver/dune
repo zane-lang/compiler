@@ -4,4 +4,4 @@
 ; inspection tools parse their arguments, call these, and print.
 (library
  (name driver)
- (libraries cgt codegen diagnostic source tst))
+ (libraries cgt codegen diagnostic optimize source tst))

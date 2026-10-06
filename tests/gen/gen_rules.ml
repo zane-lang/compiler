@@ -9,6 +9,7 @@
    which rules there are:
 
    - codegen: `golden/NAME.cgt` prints fixture NAME's code-generation tree,
+     `golden/NAME.optimized.cgt` the tree an optimized build makes of it,
      and `golden/NAME.out` builds it, unoptimized and optimized, and holds
      what both builds of the program wrote. A
      fixture whose `expected-status` file holds a status other than 0 is a
@@ -51,7 +52,9 @@ let status name =
 let codegen () =
   let goldens = sorted "golden" in
   let names suffix = List.filter_map (chop_suffix ~suffix) goldens in
-  let trees = names ".cgt" and outputs = names ".out" in
+  let optimized = names ".optimized.cgt" in
+  let trees = List.filter (fun n -> not (Filename.check_suffix n ".optimized")) (names ".cgt") in
+  let outputs = names ".out" in
   List.iter
     (fun name ->
       let package = "fixtures/" ^ name in
@@ -60,6 +63,12 @@ let codegen () =
           "(rule\n (deps (source_tree %s))\n (action\n  (with-stdout-to\n   %s.cgt.actual\n   (run %s --cgt --package %s))))\n\n"
           package name zanec package;
         diff (name ^ ".cgt") (name ^ ".cgt.actual")
+      end;
+      if List.mem name optimized then begin
+        Printf.printf
+          "(rule\n (deps (source_tree %s))\n (action\n  (with-stdout-to\n   %s.optimized.cgt.actual\n   (run %s --cgt --optimize --package %s))))\n\n"
+          package name zanec package;
+        diff (name ^ ".optimized.cgt") (name ^ ".optimized.cgt.actual")
       end;
       if List.mem name outputs then begin
         Printf.printf
@@ -84,7 +93,7 @@ let codegen () =
             diff (name ^ ".out") (exe ^ ".out.actual"))
           [ name; name ^ ".optimized" ]
       end)
-    (List.sort_uniq compare (trees @ outputs));
+    (List.sort_uniq compare (trees @ optimized @ outputs));
   List.iter
     (fun golden ->
       match String.split_on_char '.' golden with

@@ -35,8 +35,8 @@ type build = {
   kind : kind option;
   (* The LLVM target triple to compile for; the host's when absent. *)
   target : string option;
-  (* Whether `--ll`, `--build` and `--object` optimize. A program means the same either
-     way; an unoptimized build is the faster one to make. *)
+  (* Whether `--cgt`, `--ll`, `--build` and `--object` optimize. A program means the
+     same either way; an unoptimized build is the faster one to make. *)
   optimize : bool;
   packages : Tst.Assembly.request list;
   (* Stamps given by package name, the objects `--build` links with the
@@ -253,6 +253,7 @@ let ( let* ) = Result.bind
 let generate packages build program =
   let* cgt = Driver.lower ~kind:(Option.value build.kind ~default:Application) packages program in
   let target = build.target and optimize = build.optimize in
+  let cgt = Driver.optimize ~optimize cgt in
   match build.view with
   | Cgt ->
       print_string (Tree_graph.render (Cgt.to_node cgt));
