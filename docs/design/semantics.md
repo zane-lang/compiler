@@ -79,7 +79,8 @@ neither. That is a lowering, and it belongs to the lowering stage, which builds 
 Whether a call touches capability-backed state and whether it terminates
 ([`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §5.2) are not semantic checks either. No program is
 rejected for them: they decide only what may be evaluated at compile time or
-run in parallel, so optimization derives them.
+run in parallel, which is stage 5's to decide
+([`optimization.md`](optimization.md) O3).
 
 ---
 

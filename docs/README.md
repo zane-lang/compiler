@@ -25,6 +25,9 @@ One document per stage, in the order the compiler runs them.
   to `semantics.md` §4.
 - [`design/lowering.md`](design/lowering.md): stages 4 and 6, the
   code-generation tree, codegen and the runtime, and their decisions (L1…).
+- [`design/optimization.md`](design/optimization.md): stage 5, what an
+  optimized build evaluates at compile time and how, and its decisions
+  (O1…).
 - [`design/generics.md`](design/generics.md): which package a generic instance
   belongs to and what it is called. A follow-on to `semantics.md` D12 and
   `lowering.md` L4.

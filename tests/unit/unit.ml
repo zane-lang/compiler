@@ -314,6 +314,7 @@ let program funcs =
     globals = Hashtbl.create 1;
     constants = Hashtbl.create 1;
     memo = Hashtbl.create 8;
+    left = Eval.total;
   }
 
 let func symbol params body = { C.Func.symbol; linkage = C.Linkage.Local; params; ret = C.Ty.I64; body }

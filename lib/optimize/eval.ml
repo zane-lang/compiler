@@ -29,10 +29,15 @@ type program = {
   (* A call's result and what it output, by the function and its
      arguments (O6). *)
   memo : (string * const list, const * output list) Hashtbl.t;
+  (* The steps every fold of the program may take together, so that many
+     calls that each run out of budget cannot make a build slow. *)
+  mutable left : int;
 }
 
-(* The steps one fold may take, and how deep its calls may go (O6). *)
+(* The steps one fold may take, all the folds of a program, and how deep
+   calls may go (O6). *)
 let budget = 1_000_000
+let total = 50_000_000
 let max_depth = 2_000
 
 type run = {
@@ -72,7 +77,8 @@ let wrote_globals run =
 
 let tick run =
   run.steps <- run.steps - 1;
-  if run.steps <= 0 then stop "the step budget ran out"
+  run.prog.left <- run.prog.left - 1;
+  if run.steps <= 0 || run.prog.left <= 0 then stop "the step budget ran out"
 
 (* ---------------------------------------------------------------------- *)
 (* Places                                                                 *)

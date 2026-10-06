@@ -1,11 +1,14 @@
 # Codegen tests
 
-Stages 4 and 6: lowering and codegen (docs/design/lowering.md). Each directory
-under `fixtures/` is one package, lowered and printed as its code-generation
-tree when `golden/NAME.cgt` exists, and built into an executable and run when
-`golden/NAME.out` exists: the golden files hold the tree and what the program
-wrote. A fixture whose `expected-status` file holds a nonzero status stops
-with it, and its `.out` holds stdout and stderr together.
+Stages 4 to 6: lowering, optimization and codegen (docs/design/lowering.md,
+docs/design/optimization.md). Each directory under `fixtures/` is one package,
+lowered and printed as its code-generation tree when `golden/NAME.cgt` exists,
+printed as the tree an optimized build makes of it when
+`golden/NAME.optimized.cgt` exists, and built into an executable and run when
+`golden/NAME.out` exists, unoptimized and optimized: the golden files hold the
+trees and what both builds of the program wrote. A fixture whose
+`expected-status` file holds a nonzero status stops with it, and its `.out`
+holds stdout and stderr together.
 
 The rules are written by `tests/gen/gen_rules.ml` into `dune.inc`. To add a
 fixture, add its directory and an empty golden file, run `dune runtest`,
@@ -92,6 +95,19 @@ again, read the golden diff and promote that.
   on the C stack, a 512 KiB array, moved as memory, and an element store and
   a `!` call on an element whose value grows the list, which find the element
   only after it has moved.
+- `folding` is stage 5: what an optimized build computes at compile time.
+  Each scalar at its edges, strings, values, an abort, a list and a boxed
+  value built and measured inside a call, a list and a boxed value a call
+  gives and the program then changes, recursion, a `mut` call, a function
+  value and spawned calls. Every check prints `yes` when it holds, so the
+  unoptimized build, which folds nothing, shows the folded one is right.
+- `replayed` is what stage 5 keeps: output made while a value is computed,
+  replayed in order; calls past the step budget, the depth and the size cap,
+  left to run; and a slot read when the program runs, after a store made by
+  code that folded.
+
+`constants`, `counting` and `zero` also show the tree an optimized build
+makes of them.
 
 ## Rejects
 

@@ -24,7 +24,9 @@ binary
    syntax tree (TST).
 4. **lowering** — lowers the TST to the code-generation tree (CGT).
 5. **optimization** — rewrites the CGT into a faster CGT. Each pass maps a CGT
-   to a CGT, and an unoptimized build runs no passes.
+   to a CGT, and an unoptimized build runs no passes. Its one pass evaluates
+   at compile time what the program would compute the same way every run
+   ([`optimization.md`](optimization.md)).
 6. **codegen** — lowers the CGT to LLVM IR and produces the binary. How
    lowering and codegen are designed is in [`lowering.md`](lowering.md).
 
@@ -68,8 +70,9 @@ flow is not desugared anywhere — `if` and `guard` are ordinary calls, not synt
 its subject has already become an argument.
 
 Each stage's library under `lib/` is named after the tree it produces:
-`lib/cst/`, `lib/sst/`, `lib/tst/` and `lib/cgt/`. Codegen produces no tree,
-so its library is named after the stage, `lib/codegen/`.
+`lib/cst/`, `lib/sst/`, `lib/tst/` and `lib/cgt/`. Optimization and codegen
+produce no tree of their own, so their libraries are named after the stage,
+`lib/optimize/` and `lib/codegen/`.
 
 Every stage reports a problem with the program as a diagnostic, a
 `Diagnostic.t` that points at the source, a file or a directory, and `zanec`

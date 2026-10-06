@@ -313,7 +313,7 @@ The binary takes the same `--package` flags as the semantic views:
 
 | Flag | Does |
 |---|---|
-| `--cgt` | prints the code-generation tree |
+| `--cgt` | prints the code-generation tree, as stage 5 left it when `--optimize` is given |
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
 | `--object OUT` | writes the root package's object file `OUT`, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3) |
@@ -321,7 +321,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--import PACKAGE:KEY=PACKAGE` | the package the first imports by `KEY`, each named by its identity (C10) |
 | `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
 | `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it; LLVM gets the triple's normal form, and the C compiler the triple as written ([`platforms.md`](platforms.md)) |
-| `--optimize` | runs LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
+| `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
 
 `zanec --rewrite STAMP INPUT OUTPUT` takes no packages: it writes the
 library object `INPUT` to `OUTPUT` with its `!` placeholder turned into
@@ -337,18 +337,15 @@ rather than from `main`, and names them with the `!` placeholder
 ([`separate-compilation.md`](separate-compilation.md) C5), or with its own
 stamp when `--stamp` gives it one (C6).
 
-Without `--optimize` no optimization runs anywhere, which makes the build
-about three times faster; `zane run` builds that way and `zane build` does not.
-A program means the same either way, since the semantics leave nothing for an
-optimizer to decide, so `tests/codegen/` builds each fixture both ways and
-holds both to one golden file.
+Without `--optimize` no optimization runs anywhere, neither stage 5 nor
+LLVM's, which makes the build about three times faster; `zane run` builds that
+way and `zane build` does not. A program means the same either way, since the
+semantics leave nothing for an optimizer to decide, so `tests/codegen/` builds
+each fixture both ways and holds both to one golden file.
 
 `tests/codegen/` lowers and builds each fixture, runs it, and compares the
 tree and what the program wrote against golden files. `tests/runtime/` compiles
 the runtime with a C program of its own that calls it directly.
-
-The compiler has no optimization stage of its own yet (stage 5): `--optimize`
-is LLVM's, over the module codegen emits.
 
 ---
 

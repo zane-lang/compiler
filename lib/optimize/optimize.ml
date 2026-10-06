@@ -18,6 +18,7 @@ let run (p : Program.t) =
       globals = table (fun (g : Global.t) -> (g.Global.symbol, g)) p.Program.globals;
       constants = Hashtbl.create 16;
       memo = Hashtbl.create 64;
+      left = Eval.total;
     }
   in
   Constants.find prog p.Program.funcs;
