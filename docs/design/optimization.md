@@ -221,7 +221,7 @@ must agree on what its variables hold.
 
 ## 4. How it follows the spec
 
-[`effects.md`](https://github.com/zane-lang/spec/blob/01da08e/spec/effects.md)
+[`effects.md`](https://github.com/zane-lang/spec/blob/54b3566/spec/effects.md)
 §5.3 lets a compiler evaluate at compile time any computation that depends on
 no parameter of its verb and no read of capability-backed state, or leave it
 for run time, and requires that doing so change none of the program's side
