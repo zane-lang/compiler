@@ -1,4 +1,9 @@
-== checks; building and running
-borrowed payload freed by a later argument NO
-borrowed element moved by a later argument NO
-== exit 0
+File "argorder/main.zn", line 63, characters 68-72:
+63 |     a Int = readLater(slot.full ?? Engine(Int(0), String("none")), slot!clearAndGive());
+  |                                                                    ^^^^
+Error: this writes `slot`, which overlaps `slot.full`, which an earlier argument of this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "argorder/main.zn", line 69, characters 37-41:
+69 |     b Int = readLater(list[Int(1)], list!growAndGive(Int(1000)));
+  |                                     ^^^^
+Error: this writes `list`, which overlaps `list[]`, which an earlier argument of this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+== rejected
