@@ -2,9 +2,8 @@
 # Hold every hand-written source file to a size someone can still read whole.
 #
 # A file past 2,000 lines fails the check. One past 1,500 gets a warning, the
-# size one recursive walk was accepted at (docs/refactoring-proposal.md SZ4), so
-# a file that is growing is noticed in the pull request that grows it, well
-# before it fails.
+# size one recursive walk was accepted at, so a file that is growing is noticed
+# in the pull request that grows it, well before it fails.
 #
 # Generated files are not held to it: a file whose first line says it was
 # generated or written by a tool is skipped, and so are test fixtures and

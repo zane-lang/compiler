@@ -9,11 +9,6 @@ defines the language; these describe how this compiler implements it.
 - [`memory-semantics-findings.md`](memory-semantics-findings.md): the memory
   model probed with example programs (`tests/memory-probes/`): what holds,
   and the bugs and spec gaps found.
-- [`file-structure-proposal.md`](file-structure-proposal.md): the review the
-  current repository layout came from, finding by finding.
-- [`refactoring-proposal.md`](refactoring-proposal.md): the review of the code
-  inside the files (size, state, invariants, interfaces, tests), and the items
-  the file-structure proposal left open.
 
 ## Design
 
