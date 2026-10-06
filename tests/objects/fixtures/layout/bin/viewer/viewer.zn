@@ -1,0 +1,27 @@
+/// A program package that uses the project's library packages. It prints
+/// `yes` when the check holds and `no` when it does not.
+package viewer;
+
+import gui;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(~ok, {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	check(gui$draw() == Int(16));
+	return Unit();
+}

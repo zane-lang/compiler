@@ -14,11 +14,13 @@ val render : failure -> string list
     `main` to start from, and a library does not become an executable. *)
 type kind = Application | Library
 
-(** The packages of the build, the first the root. [stamps] gives a package
-    its stamp by name, and must name exactly one package each; [imports]
-    gives each package's import keys (docs/design/separate-compilation.md
-    C6, C10). *)
+(** The packages of the build, the first the root unless [root] is false,
+    as in a library build, which has none (packages.md §6.1). [stamps]
+    gives a package its stamp by path, and must name exactly one package
+    each; [imports] gives each package's import keys
+    (docs/design/separate-compilation.md C6, C10). *)
 val assemble :
+  ?root:bool ->
   ?imports:(string * string * string) list ->
   ?stamps:(string * string) list ->
   Tst.Assembly.request list ->

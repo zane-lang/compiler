@@ -1,0 +1,12 @@
+/// A library package that reaches for the program's console, which no
+/// library package may.
+package noisy;
+
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit shout() {
+	text String("hi\n");
+	@program$console!print(text);
+	return Unit();
+}

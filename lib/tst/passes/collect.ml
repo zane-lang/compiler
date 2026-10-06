@@ -121,7 +121,7 @@ let import_file env (file : file) (decls : N.Decl.t list) =
               import"
              (quote (name_of name)));
         None
-    | (Unknown | Ambiguous _) as key ->
+    | (Unknown | Not_given | Ambiguous _) as key ->
         Option.iter (error env name.N.Name.span) (key_message (name_of name) key);
         None
   in
@@ -321,7 +321,7 @@ let check_import_cycles env (loaded : (package * (file * Assembly.file) list) li
                   in
                   match resolve_key env file key with
                   | Found target -> Hashtbl.add edges pkg.name (target, span)
-                  | Own | Unknown | Ambiguous _ -> ())
+                  | Own | Unknown | Not_given | Ambiguous _ -> ())
               | _ -> ())
             f.sst.N.Package.decls)
         files)
@@ -364,6 +364,7 @@ let run env (assembled : Assembly.package list) =
             name = p.id;
             declared = p.name;
             imports = p.imports;
+            keyed = p.keyed;
             is_root = p.is_root;
             files = List.map fst files;
             decls = [];

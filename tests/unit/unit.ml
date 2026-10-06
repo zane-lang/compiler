@@ -138,7 +138,7 @@ let overloads () =
 (* ---------------------------------------------------------------------- *)
 
 let type_layout () =
-  let st = State.create ~library:None ~stamp:(fun _ -> "") ~stamped:(fun _ -> false) in
+  let st = State.create ~library:false ~exports:(fun _ -> false) ~stamp:(fun _ -> "") ~stamped:(fun _ -> false) in
   let t = param "T" in
   Hashtbl.replace st.State.types ("app", "Box")
     ([ t ], T.Decl.Struct [ ("item", Ty.Param t); ("count", int) ], false);

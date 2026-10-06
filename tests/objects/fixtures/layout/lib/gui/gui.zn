@@ -1,0 +1,9 @@
+/// A library package with a subpackage, which only it imports.
+package gui;
+
+import opengl;
+import math;
+
+alias Int = @primitives$Int
+
+Int draw() => opengl$frame() + math$double(Int(1))

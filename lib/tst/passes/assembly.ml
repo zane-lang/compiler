@@ -39,9 +39,12 @@ type package = {
   is_root : bool;
   files : file list;
   (* The packages its imports name, each by the key the package imports it
-     by and the package's [id], when the driver says. Empty when it does
-     not, and then an import names a package by its name. *)
+     by and the package's [id], when the driver says. *)
   imports : (string * string) list;
+  (* Whether the driver gave the build's imports at all. Then a package
+     imports through its keys alone, and one given none imports nothing;
+     otherwise an import names a package by its name. *)
+  keyed : bool;
 }
 
 (* What went wrong, with the text of the file it points into when there is
@@ -207,15 +210,23 @@ let package_name dir =
   in
   match components with [] -> "" | last :: _ -> last
 
-(* A package the build asks for: its directory, the name its manifest gives
-   it, if the driver passed one, and its stamp, if it is a version of a
-   published package. *)
+(* A package the build asks for: its directory, its path within its
+   project's `lib/` if the driver passed one, and its stamp, if it is a
+   version of a published package. *)
 type request = { manifest_name : string option; directory : string; stamp : string option }
 
-let name_of request =
-  match request.manifest_name with Some name -> name | None -> package_name request.directory
+(* Its path: `gui.opengl` for a subpackage (dependencies.md §6.1). *)
+let path_of request =
+  match request.manifest_name with Some path -> path | None -> package_name request.directory
 
-let id_of request = Option.value ~default:"" request.stamp ^ name_of request
+(* The name its files declare: the last part of its path (packages.md §2.2). *)
+let name_of request =
+  let path = path_of request in
+  match String.rindex_opt path '.' with
+  | Some i -> String.sub path (i + 1) (String.length path - i - 1)
+  | None -> path
+
+let id_of request = Option.value ~default:"" request.stamp ^ path_of request
 
 let load_package ~is_root request =
   let name = name_of request and id = id_of request and dir = request.directory in
@@ -237,7 +248,7 @@ let load_package ~is_root request =
            report per file, not one report per run (docs/design/semantics.md D4). *)
         List.map (load_file ~name ~given) paths
         |> all_or_problems
-        |> Result.map (fun files -> { id; name; dir; is_root; files; imports = [] })
+        |> Result.map (fun files -> { id; name; dir; is_root; files; imports = []; keyed = false })
 
 (* An identity names one package. Two directories with the same one would
    both be that package, and which of them a `name$member` meant would depend
@@ -278,6 +289,7 @@ let attach_imports packages imports =
            (fun p ->
              {
                p with
+               keyed = imports <> [];
                imports =
                  List.filter_map
                    (fun (from, key, target) ->
@@ -290,8 +302,10 @@ let attach_imports packages imports =
 (* Problems come out in the order the directories were given, and within a
    directory in file order, so a run reads top to bottom like the command
    that started it. [imports] gives each package's keys, as the importing
-   package's identity, the key and the imported package's identity. *)
-let assemble_requests ?(imports = []) requests =
+   package's identity, the key and the imported package's identity. The
+   first package is the root unless [root] is false, as in a library build,
+   which has none (packages.md §6.1). *)
+let assemble_requests ?(root = true) ?(imports = []) requests =
   let rec go earlier index = function
     | [] -> []
     | request :: rest ->
@@ -305,7 +319,7 @@ let assemble_requests ?(imports = []) requests =
                     (Printf.sprintf "the package `%s` is already the directory `%s`" (id_of request)
                        first.directory);
                 ]
-          | None -> load_package ~is_root:(index = 0) request
+          | None -> load_package ~is_root:(root && index = 0) request
         in
         (* Only a directory that got the name claims it, so a third
            duplicate is reported against the first, not the second. *)

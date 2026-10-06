@@ -1,0 +1,6 @@
+/// A top-level library package that two others share.
+package math;
+
+alias Int = @primitives$Int
+
+Int double(x Int) => x + x

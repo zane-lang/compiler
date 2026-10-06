@@ -1,5 +1,14 @@
 T !atlas$Tile(%primitives$Int)
 T !atlas$cover(!atlas$Tile)
-t geometry$_product(%primitives$Int, %primitives$Int)
-t geometry$area(%primitives$Int, %primitives$Int)
-t geometry$same<!atlas$Tile>(!atlas$Tile)
+T !geometry$Point(%primitives$Int, %primitives$Int)
+T !geometry$_product(%primitives$Int, %primitives$Int)
+T !geometry$area(%primitives$Int, %primitives$Int)
+T !geometry$double
+T !geometry$scaled(%primitives$Int)
+T !geometry$sum(this !geometry$Point)
+T !geometry$twice(%primitives$Int)
+V !geometry$unit.state
+V !geometry$unit.value
+W !geometry$same<!atlas$Tile>(!atlas$Tile)
+W !geometry$same<%primitives$Int>(%primitives$Int)
+W !geometry$unit

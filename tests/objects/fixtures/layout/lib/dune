@@ -1,0 +1,4 @@
+; _shaders is a library package private to its project (packages.md §4.4),
+; and dune leaves out a directory whose name starts with `_` unless told.
+
+(dirs :standard _shaders)

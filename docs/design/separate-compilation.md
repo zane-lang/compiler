@@ -19,14 +19,21 @@ against its dependencies' source, and generates code for that package alone.
 
 ## 1. What one compilation reads and writes
 
-**C1. A compilation generates code for its root package and its unstamped
-dependencies.** The first `--package` is the root, as it is today, and the
-others are its dependencies, direct and transitive. Every package is loaded
-and checked, since the root's types and calls name theirs. A dependency given
-a stamp (C6) arrives as prebuilt objects, so lowering and codegen emit nothing
-it declares: only what the root and the unstamped dependencies declare, plus
-the generic instances they need (C4). With no stamps at all, that is the
-whole program in one module, as every build is today.
+**C1. A compilation generates code for its first package and every package
+that shares its stamp.** The first `--package` comes first, and the others
+are its dependencies, direct and transitive. Every package is loaded and
+checked, since the first package's types and calls name theirs. The packages
+whose stamp is the first package's, or that are unstamped with it, are the
+project being compiled: its library packages and, in a program's build, the
+program package (`packages.md` §2.1). A package with another stamp (C6) is a
+dependency that arrives as prebuilt objects, so lowering and codegen emit
+nothing it declares: only what the project's own packages declare, plus the
+generic instances they need (C4). With no stamps at all, that is the whole
+program in one module.
+
+In a program's build the first package is the root, which alone reaches
+`@program$`. A library's build, `--kind library`, has no root at all
+(`packages.md` §6.1), so none of its packages reaches `@program$`.
 
 **C2. A dependency is read from source.** The compiler type-checks against a
 dependency's source, the same `.zn` files its objects were built from at the
@@ -35,14 +42,20 @@ source and the objects needs publishing, and nothing new needs versioning
 with the compiler. The cost is that every build parses and checks every
 package in the graph; caching that is left to measurement (§6).
 
-**C3. `--object OUT` writes the root package's object file.** It is the
-library's counterpart to `--build`: no runtime and no link, only the object.
+**C3. `--object OUT` writes the project's object file.** It holds every
+library package the project compiles (C1), subpackages and `_`-prefixed
+packages included (`dependencies.md` §3.1). It is the library's counterpart
+to `--build`: no runtime and no link, only the object.
 `--build OUT` keeps its meaning, a linked executable, and for a root with
 dependencies it compiles the root's object and links it with theirs (C7).
 
 **C10. A package is known by its identity, and imports through its own
-keys.** A package's identity is its name, after its stamp when it has one:
-`v1.0.1%3f9a1c02b7e4d6a8%math`. Two versions of one package have two
+keys.** A package's identity is its path within its project's `lib/`, after
+its stamp when it has one: `v1.0.1%3f9a1c02b7e4d6a8%math`, or
+`v1.0.1%3f9a1c02b7e4d6a8%gui.opengl` for a subpackage, whose directory names
+are joined by `.` (`dependencies.md` §6.1). The last part of the path is the
+name its files declare (`packages.md` §2.2), and a part may begin with `_`
+(§4.4). Two versions of one package have two
 stamps, and two packages of one name have two identity hashes, so each is a
 package of the build of its own, with types, verbs and symbols of its own
 (`dependencies.md` §11). The driver gives a package its stamp in its
@@ -52,21 +65,26 @@ package of the build of its own, with types, verbs and symbols of its own
 --package v1.0.1%3f9a1c02b7e4d6a8%math=DIR
 ```
 
-`--stamp NAME=STAMP` says the same for the one package named `NAME`.
+`--stamp PATH=STAMP` says the same for the one package whose path is
+`PATH`.
 
-Source imports a dependency by its manifest key (`dependencies.md` §8), so
-each package resolves its imports through its own keys, which the driver
-gives as the importing package, the key and the package it names:
+Source imports a package by its name (`dependencies.md` §8), and which
+packages a package may import depends on where it lies in its project
+(`packages.md` §4.3). So each package resolves its imports through keys the
+driver gives it, as the importing package, the key and the package it
+names:
 
 ```text
 --import app:geo=v2.0%0123456789abcdef%geometry
 --import v1.0%fedcba9876543210%atlas:geometry=v1.0%0123456789abcdef%geometry
 ```
 
-A package given keys imports through them alone. A package given none
-imports a package by its name, which then has to name one package of the
-build, as in the test fixtures; a name two packages share is an error at the
-import, naming both.
+Once the driver gives any `--import`, every package imports through its
+keys alone, and a package given none imports nothing: an import of a
+package it was not given is an error saying it may not import it. A build
+given no `--import` at all imports a package by its name, which then has to
+name one package of the build, as in the test fixtures; a name two packages
+share is an error at the import, naming both.
 
 ---
 
@@ -139,13 +157,13 @@ package's URL, and `%` (`dependencies.md` §6.1). A dependency given no
 `--stamp` is compiled into the same module as the root (C1). Instances of a
 dependency's generics (C4) carry that dependency's stamp too.
 
-The root's own stamp is `!` when it is a library. Fetching rewrites the root
-library's `!` placeholders and leaves the stamped names alone, which is what
+A library's own packages are named with the `!` placeholder when they have
+no stamp. Fetching rewrites the library's `!` placeholders and leaves the stamped names alone, which is what
 `dependencies.md` §6.3 asks: a library's references to its own dependencies
 are already versioned when it is built.
 
-A root library given a `--stamp` of its own is named with that stamp instead
-of the placeholder. That is a dependency compiled from source
+A library whose packages are given a stamp of their own is named with that
+stamp instead of the placeholder. That is a dependency compiled from source
 (`dependencies.md` §12.1): it is built for one version already known, so its
 object comes out the way a rewritten release's would, and no rewriting is
 needed.

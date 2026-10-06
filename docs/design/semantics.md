@@ -104,16 +104,17 @@ for stages 1 and 2, which never look past the file. It is not enough for stage
 given as a directory.** Fetching, versioning and the manifest
 ([`dependencies.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/dependencies.md))
 stay out of scope: they are `zane`'s, which reads the manifest and hands the
-compiler each package as `--package NAME=DIR`, repeatable, the first being the
-root (`packages.md` §6.1). Each file parses and lowers exactly as today; stage
+compiler each package as `--package PATH=DIR`, repeatable, the first being the
+root in a program's build (`packages.md` §6.1). Each file parses and lowers exactly as today; stage
 3 is the first stage that groups them. `lib/tst/passes/assembly.ml` does the
-grouping: a package is the `.zn` files directly in its directory (§2.3), named
-by the `NAME` its manifest gives it (§2.1), or for the directory when a bare
-`--package DIR` gives none, which is how the test fixtures name theirs. Each
-file must begin with a `package` line naming it (§2.2). A package given a
+grouping: a package is the `.zn` files directly in its directory (§2.5), named
+by the last part of the `PATH` the driver gives it (§2.2), or for the
+directory when a bare `--package DIR` gives none, which is how the test
+fixtures name theirs. Each file must begin with a `package` line naming it
+(§2.4). A package given a
 stamp is known by its stamped name, and no two packages may share that
 identity; a package's imports name packages through the keys the driver
-gives it, or by name when it gives none
+gives it, or by name when the build is given no keys at all
 ([`separate-compilation.md`](separate-compilation.md) C10). `--check` runs semantics and prints nothing, and
 `--kind application` makes a root without `main` an error (§6.2).
 

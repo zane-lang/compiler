@@ -1,0 +1,6 @@
+/// A library package private to its project.
+package _shaders;
+
+alias Int = @primitives$Int
+
+Int compiled() => Int(7)
