@@ -3,7 +3,8 @@
 The compiler is GPL-3.0-only; `LICENSE` contains its license. Its source is
 the commit in `toolchain.coda`, available from
 https://github.com/zane-lang/compiler. The committed Devbox lock and OCaml
-bootstrap pins describe how it was built.
+bootstrap pins describe how it was built. `devbox.lock`, the LLVM and OCaml
+license notices, LGPL-2.1, and the GCC runtime exception are included here.
 
 The archive also includes:
 

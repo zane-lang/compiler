@@ -35,11 +35,16 @@ int main(int argc, char **argv) {
             zig.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
             zig.chmod(0o755)
             (zig_dir / "LICENSE").write_text("test license")
+            (zig_dir / "lib").mkdir()
+            (zig_dir / "lib/marker").write_text("Zig library")
+            (zig_dir / "unrelated-binary").write_text("must not be packaged")
             commit = "a" * 40
             archive = packager.package(binary, zig, scratch / "dist", "v0.1", commit)
             extracted = scratch / "extract"
             with tarfile.open(archive) as tar:
-                tar.extractall(extracted, filter="data")
+                # This is the archive we just created, never a downloaded one.
+                options = {"filter": "data"} if hasattr(tarfile, "data_filter") else {}
+                tar.extractall(extracted, **options)
             root = extracted / "zane-compiler-v0.1-linux-x86_64"
             relocated = scratch / "toolchain with spaces"
             root.rename(relocated)
@@ -68,6 +73,18 @@ int main(int argc, char **argv) {
             self.assertEqual((relocated / "toolchain.coda").read_text(),
                 f"url https://github.com/zane-lang/compiler\ncommit {commit}\n")
             self.assertTrue((relocated / "zig/LICENSE").is_file())
+            self.assertTrue((relocated / "zig/lib/marker").is_file())
+            self.assertFalse((relocated / "zig/unrelated-binary").exists())
+
+    def test_non_distribution_zig_layout_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            binary = root / "compiler"
+            zig = root / "zig"
+            binary.touch()
+            zig.touch()
+            with self.assertRaisesRegex(ValueError, "standalone distribution"):
+                packager.package(binary, zig, root / "dist", "v0.1", "a" * 40)
 
     def test_invalid_version_or_commit_is_rejected_before_file_access(self):
         for version in ("../v0.1", "v01.0", "v0.1.0", "v0.1;echo bad", "v0.1\n"):

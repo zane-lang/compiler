@@ -10,6 +10,9 @@ on:
       - '.github/actions/setup-ci/**'
       - 'dev/release/**'
       - 'tests/release/**'
+      - 'tests/codegen/fixtures/hello/**'
+      - 'tests/codegen/golden/hello.out'
+      - 'dev/bin/check-programs'
       - 'dev/setup/bootstrap-toolchain'
       - 'devbox.*'
       - 'bin/**'
@@ -24,6 +27,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: compiler-dist-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   linux:

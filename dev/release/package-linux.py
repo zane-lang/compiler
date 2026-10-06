@@ -19,6 +19,10 @@ def package(binary, zig, output, version, commit):
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise ValueError("commit must be a full Git SHA")
     binary, zig = binary.resolve(strict=True), zig.resolve(strict=True)
+    # Releases use the verified standalone distribution from install-zig.
+    # Reject other layouts instead of copying a system bin directory.
+    if not (zig.parent / "lib").is_dir() or not (zig.parent / "LICENSE").is_file():
+        raise ValueError("Zig must be from its standalone distribution, with lib/ and LICENSE beside it")
     headers = command("readelf", "-l", str(binary))
     match = re.search(r"Requesting program interpreter: ([^\]]+)", headers)
     if not match:
@@ -40,10 +44,15 @@ def package(binary, zig, output, version, commit):
         for name, path in libraries:
             shutil.copy2(path, root / "lib" / name)
         # Keep Zig's libraries beside its executable; zig cc finds them there.
-        shutil.copytree(zig.parent, root / "zig")
+        (root / "zig").mkdir()
+        shutil.copy2(zig, root / "zig/zig")
+        shutil.copy2(zig.parent / "LICENSE", root / "zig/LICENSE")
+        shutil.copytree(zig.parent / "lib", root / "zig/lib")
         project = Path(__file__).resolve().parents[2]
         shutil.copy2(project / "LICENSE", root / "share/LICENSE")
         shutil.copy2(project / "dev/release/THIRD_PARTY.md", root / "share/THIRD_PARTY.md")
+        shutil.copytree(project / "dev/release/licenses", root / "share/licenses")
+        shutil.copy2(project / "devbox.lock", root / "share/devbox.lock")
         (root / "share/runtime-libraries.txt").write_text(listing)
         (root / "VERSION").write_text(version + "\n")
         (root / "toolchain.coda").write_text(
