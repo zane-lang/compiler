@@ -221,11 +221,12 @@ must agree on what its variables hold.
 
 ## 4. How it follows the spec
 
-[`effects.md`](https://github.com/zane-lang/spec/blob/31ad50a/spec/effects.md)
+[`effects.md`](https://github.com/zane-lang/spec/blob/01da08e/spec/effects.md)
 §5.3 lets a compiler evaluate at compile time any computation that depends on
 no parameter of its verb and no read of capability-backed state, or leave it
-for run time, and requires that doing so change nothing a program prints or
-computes. How is left to the compiler. Stage 5's answer is this document:
+for run time, and requires that doing so change none of the program's side
+effects and nothing it computes: each write still happens at run time, at the
+same point and in the same order. How is left to the compiler. Stage 5's answer is this document:
 
 - what reads capability-backed state is an input (O3), and stops a fold;
 - an output is replayed where it was made (O4), and a known local a
