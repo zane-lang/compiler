@@ -1,0 +1,42 @@
+└── program:
+    ├── entry: zero$main()
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── funcs[0] > func:
+    │   ├── symbol: zero$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %2
+    │       ├── body[0] > hold:
+    │       │   ├── local: #1
+    │       │   ├── scope: %2
+    │       │   ├── value: "before\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > hold:
+    │       │   ├── local: #3
+    │       │   ├── scope: %2
+    │       │   ├── value: "after\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[2] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "before\n" : handle
+    │       ├── body[3] > let:
+    │       │   ├── local: #4
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: /
+    │       │       ├── left: 1 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[4] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "after\n" : handle
+    │       └── body[5] > return: unit : void
+    └── funcs[1] > func:
+        ├── symbol: zero$zero()
+        ├── params:
+        ├── ret: i64
+        └── body[0] > return: 0 : i64

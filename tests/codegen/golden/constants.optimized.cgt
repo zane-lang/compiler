@@ -1,0 +1,466 @@
+└── program:
+    ├── entry: zane.start
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── layouts[1] > layout:
+    │   ├── type: %primitives$Int
+    │   └── positions:
+    ├── layouts[2] > layout:
+    │   ├── type: constants$Person
+    │   └── positions[0]: text @0
+    ├── layouts[3] > layout:
+    │   ├── type: constants$Point
+    │   └── positions:
+    ├── globals[0]: constants$limit.value : i64
+    ├── globals[1]: constants$limit.state : i64
+    ├── globals[2]: constants$doubled.value : i64
+    ├── globals[3]: constants$doubled.state : i64
+    ├── globals[4]: constants$early.value : i64
+    ├── globals[5]: constants$early.state : i64
+    ├── globals[6]: constants$later.value : i64
+    ├── globals[7]: constants$later.state : i64
+    ├── globals[8]: constants$greeting.value : handle
+    ├── globals[9]: constants$greeting.state : i64
+    ├── globals[10]: constants$ada.value : {handle, i64}
+    ├── globals[11]: constants$ada.state : i64
+    ├── globals[12]: constants$origin.value : {i64, i64}
+    ├── globals[13]: constants$origin.state : i64
+    ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   ├── body[0] > eval > call:
+    │   │   ├── type: ptr
+    │   │   ├── fn: constants$limit
+    │   │   └── args:
+    │   ├── body[1] > eval > call:
+    │   │   ├── type: ptr
+    │   │   ├── fn: constants$doubled
+    │   │   └── args:
+    │   ├── body[2] > eval > call:
+    │   │   ├── type: ptr
+    │   │   ├── fn: constants$early
+    │   │   └── args:
+    │   ├── body[3] > eval > call:
+    │   │   ├── type: ptr
+    │   │   ├── fn: constants$later
+    │   │   └── args:
+    │   ├── body[4] > eval > call:
+    │   │   ├── type: ptr
+    │   │   ├── fn: constants$greeting
+    │   │   └── args:
+    │   ├── body[5] > eval > call:
+    │   │   ├── type: ptr
+    │   │   ├── fn: constants$ada
+    │   │   └── args:
+    │   ├── body[6] > eval > call:
+    │   │   ├── type: ptr
+    │   │   ├── fn: constants$origin
+    │   │   └── args:
+    │   └── body[7] > eval > call:
+    │       ├── type: void
+    │       ├── fn: constants$main()
+    │       └── args:
+    ├── funcs[1] > func:
+    │   ├── symbol: constants$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %2
+    │       ├── body[0] > hold:
+    │       │   ├── local: #1
+    │       │   ├── scope: %2
+    │       │   ├── value: "main\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "main\n" : handle
+    │       ├── body[2] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[3] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: constants$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: constants$peek()
+    │       │       │   └── args:
+    │       │       └── right: 94 : i64
+    │       ├── body[4] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "hello\n" : handle
+    │       ├── body[5] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[6] > let:
+    │       │   ├── local: #6
+    │       │   └── value > call:
+    │       │       ├── type: ptr
+    │       │       ├── fn: constants$ada
+    │       │       └── args:
+    │       ├── body[7] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: constants$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > snapshot:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {handle, i64}
+    │       │       │       ├── path: 1
+    │       │       │       └── base: local #6 : ptr
+    │       │       └── right: 36 : i64
+    │       ├── body[8] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[9] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[10] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[11] > spawn:
+    │       │   ├── task: #11
+    │       │   ├── scope: %2
+    │       │   ├── thunk: zane.spawn.1
+    │       │   ├── frame: {i64}
+    │       │   ├── args:
+    │       │   ├── dest: #12
+    │       │   └── layout: %primitives$Int
+    │       ├── body[12] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: constants$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @13
+    │       │       │   ├── result: #14
+    │       │       │   ├── body[0]: join #11
+    │       │       │   └── body[1] > assign:
+    │       │       │       ├── place: #14
+    │       │       │       └── value > deref:
+    │       │       │           ├── type: i64
+    │       │       │           └── ptr: address of #12 : ptr
+    │       │       └── right: 94 : i64
+    │       └── body[13] > return: unit : void
+    ├── funcs[2] > func:
+    │   ├── symbol: constants$say(%primitives$String)
+    │   ├── params[0]: local #1 : handle
+    │   ├── ret: void
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: local #1 : handle
+    │   └── body[1] > return: unit : void
+    ├── funcs[3] > func:
+    │   ├── symbol: constants$check(%primitives$Bool)
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[2] > if:
+    │       │   ├── cond: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: "yes\n" : handle
+    │       ├── body[3] > if:
+    │       │   ├── cond > flip:
+    │       │   │   ├── type: i1
+    │       │   │   └── value: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: "no\n" : handle
+    │       └── body[4] > return: unit : void
+    ├── funcs[4] > func:
+    │   ├── symbol: constants$peek()
+    │   ├── params:
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left: 84 : i64
+    │       └── right > deref:
+    │           ├── type: i64
+    │           └── ptr > call:
+    │               ├── type: ptr
+    │               ├── fn: constants$early
+    │               └── args:
+    ├── funcs[5] > func:
+    │   ├── symbol: constants$age(&constants$Person)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > snapshot:
+    │       ├── type: i64
+    │       └── ptr > offset:
+    │           ├── within: {handle, i64}
+    │           ├── path: 1
+    │           └── base: local #1 : ptr
+    ├── funcs[6] > func:
+    │   ├── symbol: constants$limit
+    │   ├── params:
+    │   ├── ret: ptr
+    │   ├── body[0] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left > runtime:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── fn: zane_constant_begin
+    │   │   │   │   └── args[0]: global constants$limit.state
+    │   │   │   └── right: 1 : i64
+    │   │   ├── body[0] > store:
+    │   │   │   ├── address: global constants$limit.value
+    │   │   │   └── value: 42 : i64
+    │   │   └── body[1] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_constant_end
+    │   │       ├── args[0]: global constants$limit.state
+    │   │       ├── args[1]: global constants$limit.value
+    │   │       └── args[2]: layout %primitives$Int
+    │   └── body[1] > return: global constants$limit.value
+    ├── funcs[7] > func:
+    │   ├── symbol: constants$doubled
+    │   ├── params:
+    │   ├── ret: ptr
+    │   ├── body[0] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left > runtime:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── fn: zane_constant_begin
+    │   │   │   │   └── args[0]: global constants$doubled.state
+    │   │   │   └── right: 1 : i64
+    │   │   ├── body[0] > store:
+    │   │   │   ├── address: global constants$doubled.value
+    │   │   │   └── value: 84 : i64
+    │   │   └── body[1] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_constant_end
+    │   │       ├── args[0]: global constants$doubled.state
+    │   │       ├── args[1]: global constants$doubled.value
+    │   │       └── args[2]: layout %primitives$Int
+    │   └── body[1] > return: global constants$doubled.value
+    ├── funcs[8] > func:
+    │   ├── symbol: constants$early
+    │   ├── params:
+    │   ├── ret: ptr
+    │   ├── body[0] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left > runtime:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── fn: zane_constant_begin
+    │   │   │   │   └── args[0]: global constants$early.state
+    │   │   │   └── right: 1 : i64
+    │   │   ├── body[0] > store:
+    │   │   │   ├── address: global constants$early.value
+    │   │   │   └── value > binary:
+    │   │   │       ├── type: i64
+    │   │   │       ├── op: +
+    │   │   │       ├── left > deref:
+    │   │   │       │   ├── type: i64
+    │   │   │       │   └── ptr > call:
+    │   │   │       │       ├── type: ptr
+    │   │   │       │       ├── fn: constants$later
+    │   │   │       │       └── args:
+    │   │   │       └── right: 1 : i64
+    │   │   └── body[1] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_constant_end
+    │   │       ├── args[0]: global constants$early.state
+    │   │       ├── args[1]: global constants$early.value
+    │   │       └── args[2]: layout %primitives$Int
+    │   └── body[1] > return: global constants$early.value
+    ├── funcs[9] > func:
+    │   ├── symbol: constants$later
+    │   ├── params:
+    │   ├── ret: ptr
+    │   ├── body[0] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left > runtime:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── fn: zane_constant_begin
+    │   │   │   │   └── args[0]: global constants$later.state
+    │   │   │   └── right: 1 : i64
+    │   │   ├── body[0] > store:
+    │   │   │   ├── address: global constants$later.value
+    │   │   │   └── value > expand:
+    │   │   │       ├── type: i64
+    │   │   │       ├── label: @1
+    │   │   │       ├── result: #2
+    │   │   │       ├── body[0] > eval > runtime:
+    │   │   │       │   ├── type: void
+    │   │   │       │   ├── fn: zane_print
+    │   │   │       │   └── args[0]: "made\n" : handle
+    │   │   │       └── body[1] > assign:
+    │   │   │           ├── place: #2
+    │   │   │           └── value: 9 : i64
+    │   │   └── body[1] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_constant_end
+    │   │       ├── args[0]: global constants$later.state
+    │   │       ├── args[1]: global constants$later.value
+    │   │       └── args[2]: layout %primitives$Int
+    │   └── body[1] > return: global constants$later.value
+    ├── funcs[10] > func:
+    │   ├── symbol: constants$loud(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: "made\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "made\n" : handle
+    │       └── body[2] > return: local #1 : i64
+    ├── funcs[11] > func:
+    │   ├── symbol: constants$greeting
+    │   ├── params:
+    │   ├── ret: ptr
+    │   ├── body[0] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left > runtime:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── fn: zane_constant_begin
+    │   │   │   │   └── args[0]: global constants$greeting.state
+    │   │   │   └── right: 1 : i64
+    │   │   └── body[0] > scope:
+    │   │       ├── id: %4
+    │   │       ├── body[0] > store:
+    │   │       │   ├── address: global constants$greeting.value
+    │   │       │   └── value: "hello\n" : handle
+    │   │       └── body[1] > eval > runtime:
+    │   │           ├── type: void
+    │   │           ├── fn: zane_constant_end
+    │   │           ├── args[0]: global constants$greeting.state
+    │   │           ├── args[1]: global constants$greeting.value
+    │   │           └── args[2]: layout %primitives$String
+    │   └── body[1] > return: global constants$greeting.value
+    ├── funcs[12] > func:
+    │   ├── symbol: constants$ada
+    │   ├── params:
+    │   ├── ret: ptr
+    │   ├── body[0] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left > runtime:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── fn: zane_constant_begin
+    │   │   │   │   └── args[0]: global constants$ada.state
+    │   │   │   └── right: 1 : i64
+    │   │   └── body[0] > scope:
+    │   │       ├── id: %4
+    │   │       ├── body[0] > store:
+    │   │       │   ├── address: global constants$ada.value
+    │   │       │   └── value > record:
+    │   │       │       ├── type: {handle, i64}
+    │   │       │       ├── members[0] > member 0: "ada" : handle
+    │   │       │       └── members[1] > member 1: 36 : i64
+    │   │       └── body[1] > eval > runtime:
+    │   │           ├── type: void
+    │   │           ├── fn: zane_constant_end
+    │   │           ├── args[0]: global constants$ada.state
+    │   │           ├── args[1]: global constants$ada.value
+    │   │           └── args[2]: layout constants$Person
+    │   └── body[1] > return: global constants$ada.value
+    ├── funcs[13] > func:
+    │   ├── symbol: constants$Person{name %primitives$String; age %primitives$Int}
+    │   ├── params[0]: local #1 : handle
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {handle, i64}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {handle, i64}
+    │       │   ├── members[0] > member 0 > copy:
+    │       │   │   ├── type: handle
+    │       │   │   ├── value: local #1 : handle
+    │       │   │   └── layout: %primitives$String
+    │       │   └── members[1] > member 1: local #2 : i64
+    │       └── layout: constants$Person
+    ├── funcs[14] > func:
+    │   ├── symbol: constants$origin
+    │   ├── params:
+    │   ├── ret: ptr
+    │   ├── body[0] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left > runtime:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── fn: zane_constant_begin
+    │   │   │   │   └── args[0]: global constants$origin.state
+    │   │   │   └── right: 1 : i64
+    │   │   ├── body[0] > store:
+    │   │   │   ├── address: global constants$origin.value
+    │   │   │   └── value > record:
+    │   │   │       ├── type: {i64, i64}
+    │   │   │       ├── members[0] > member 0: 0 : i64
+    │   │   │       └── members[1] > member 1: 0 : i64
+    │   │   └── body[1] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_constant_end
+    │   │       ├── args[0]: global constants$origin.state
+    │   │       ├── args[1]: global constants$origin.value
+    │   │       └── args[2]: layout constants$Point
+    │   └── body[1] > return: global constants$origin.value
+    ├── funcs[15] > func:
+    │   ├── symbol: constants$Point(%primitives$Int, %primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {i64, i64}
+    │   └── body[0] > return > record:
+    │       ├── type: {i64, i64}
+    │       ├── members[0] > member 0: local #1 : i64
+    │       └── members[1] > member 1: local #2 : i64
+    └── funcs[16] > func:
+        ├── symbol: zane.spawn.1
+        ├── params[0]: local #10 : ptr
+        ├── ret: void
+        └── body[0] > store:
+            ├── address > offset:
+            │   ├── within: {i64}
+            │   ├── path: 0
+            │   └── base: local #10 : ptr
+            └── value > call:
+                ├── type: i64
+                ├── fn: constants$peek()
+                └── args:

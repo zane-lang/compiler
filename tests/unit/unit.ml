@@ -4,6 +4,11 @@ module T = Tst.Nodes
 module Overloads = Tst__Overloads
 module State = Cgt__State
 module Type_layout = Cgt__Type_layout
+module Value = Optimize__Value
+module Eval = Optimize__Eval
+module Fold = Optimize__Fold
+module Materialize = Optimize__Materialize
+module Intrinsics = Optimize__Intrinsics
 
 let failures = ref 0
 
@@ -255,6 +260,205 @@ let runtime_abi () =
     declared
 
 (* ---------------------------------------------------------------------- *)
+(* Stage 5                                                                *)
+(* ---------------------------------------------------------------------- *)
+
+module C = Cgt.Nodes
+
+let stops f = match f () with _ -> false | exception Value.Stop _ -> true
+
+(* The evaluator's arithmetic is codegen's (lib/codegen/emit.ml). *)
+let folded_arithmetic () =
+  let i32 n = Value.VInt (Value.int C.Ty.I32 n) and i64 n = Value.VInt n in
+  let bin op t l r = Eval.binary op t l r in
+  check "I32 wraps on +"
+    (bin C.Expr.Add C.Ty.I32 (i32 2147483647L) (i32 1L) = i32 (-2147483648L));
+  check "I32 wraps on *" (bin C.Expr.Mul C.Ty.I32 (i32 65536L) (i32 65536L) = i32 0L);
+  check "I32's most negative over -1 wraps"
+    (bin C.Expr.Div C.Ty.I32 (i32 (-2147483648L)) (i32 (-1L)) = i32 (-2147483648L));
+  check "I64's most negative over -1 wraps"
+    (bin C.Expr.Div C.Ty.I64 (i64 Int64.min_int) (i64 (-1L)) = i64 Int64.min_int);
+  check "integer division truncates" (bin C.Expr.Div C.Ty.I64 (i64 (-7L)) (i64 2L) = i64 (-3L));
+  check "a division by zero stops the fold"
+    (stops (fun () -> bin C.Expr.Div C.Ty.I64 (i64 1L) (i64 0L)));
+  let f x = Value.VFloat x in
+  check "NaN is not equal to itself" (bin C.Expr.Eq C.Ty.F64 (f Float.nan) (f Float.nan) = Value.VBool false);
+  check "NaN is not less than anything" (bin C.Expr.Less C.Ty.F64 (f Float.nan) (f 1.) = Value.VBool false);
+  check "negative zero equals zero" (bin C.Expr.Eq C.Ty.F64 (f (-0.)) (f 0.) = Value.VBool true);
+  check "Bool + is or" (bin C.Expr.Add C.Ty.I1 (Value.VBool true) (Value.VBool false) = Value.VBool true);
+  check "Bool * is and" (bin C.Expr.Mul C.Ty.I1 (Value.VBool true) (Value.VBool false) = Value.VBool false);
+  check "~ wraps the most negative I32" (Eval.flip C.Ty.I32 (i32 (-2147483648L)) = i32 (-2147483648L))
+
+(* Every runtime function is in a class, and the outputs are the three
+   docs/design/optimization.md O3 names. No runtime function is an input
+   yet. *)
+let intrinsic_classes () =
+  let outputs =
+    List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Output) Cgt.Runtime.all
+  in
+  check "print and the thread count are the outputs"
+    (List.sort compare outputs
+    = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
+  check "no runtime function is an input yet"
+    (not (List.exists (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all))
+
+let e node ty = { C.Expr.node; ty }
+let i64 n = e (C.Expr.Int n) C.Ty.I64
+
+let program funcs =
+  let funcs' = Hashtbl.create 8 in
+  List.iter (fun (f : C.Func.t) -> Hashtbl.replace funcs' f.C.Func.symbol f) funcs;
+  {
+    Eval.funcs = funcs';
+    layouts = Hashtbl.create 1;
+    globals = Hashtbl.create 1;
+    constants = Hashtbl.create 1;
+    memo = Value.Key.create 8;
+    left = Eval.total;
+  }
+
+let func symbol params body = { C.Func.symbol; linkage = C.Linkage.Local; params; ret = C.Ty.I64; body }
+
+(* A value made back into code, and read back, is the value it was. *)
+let materialized () =
+  let t = C.Ty.Sum [ C.Ty.Struct [ C.Ty.I64; C.Ty.Handle ]; C.Ty.Void ] in
+  let c = Value.Case (0, Value.Record [| Value.Int 3L; Value.Text "hi" |]) in
+  check "a variant of a struct is code and back"
+    (Option.bind (Materialize.expr t c) Materialize.const = Some c);
+  check "a string is no function's address" (Materialize.expr C.Ty.Ptr (Value.Text "x") = None)
+
+(* Calls run, outputs are kept in order, a call made again is remembered,
+   and a budget spent or a constant made where it is read stops the run. *)
+let evaluated () =
+  let print s = C.Stat.Eval (e (C.Expr.Runtime { fn = Cgt.Runtime.Print; args = [ e (C.Expr.Text s) C.Ty.Handle ] }) C.Ty.Void) in
+  let double =
+    func "double" [ (1, C.Ty.I64) ]
+      [ print "a"; print "b"; C.Stat.Return (e (C.Expr.Binary { op = C.Expr.Mul; left = e (C.Expr.Local 1) C.Ty.I64; right = i64 2L }) C.Ty.I64) ]
+  in
+  let prog = program [ double ] in
+  let run = Eval.start prog in
+  check "a call gives its result" (Eval.call run "double" [ Value.VInt 21L ] = Value.VInt 42L);
+  check "outputs are kept in the order made" (List.rev run.Eval.outputs = Eval.[ Print "a"; Print "b" ]);
+  check "a call is remembered by its arguments" (Value.Key.mem prog.Eval.memo ("double", [ Value.Int 21L ]));
+  let again = Eval.start prog in
+  ignore (Eval.call again "double" [ Value.VInt 21L ]);
+  check "a remembered call outputs again" (List.rev again.Eval.outputs = Eval.[ Print "a"; Print "b" ]);
+  let forever = C.Stat.Repeat { count = i64 Int64.max_int; body = [] } in
+  let fr = { Eval.locals = Hashtbl.create 1; outer = None } in
+  check "a spent budget stops the run" (stops (fun () -> Eval.stat (Eval.start prog) fr forever));
+  let state = e (C.Expr.Global "k.state") C.Ty.Ptr in
+  let begin_ = e (C.Expr.Runtime { fn = Cgt.Runtime.Constant_begin; args = [ state ] }) C.Ty.I64 in
+  check "where a constant is made stays" (stops (fun () -> Eval.expr (Eval.start prog) fr begin_))
+
+(* A store writes in place, and a value read before it keeps what it read,
+   as a copy at run time would. *)
+let stored_in_place () =
+  let c = Value.cell (C.Ty.Array (C.Ty.I64, 3)) (Value.VRecord [| Value.VInt 1L; Value.VInt 2L; Value.VInt 3L |]) in
+  let whole = { Value.cell = c; path = []; owned = false } in
+  let before = Value.load whole in
+  Value.store { whole with path = [ Value.Member 1 ] } C.Ty.I64 (Value.VInt 9L);
+  check "a store writes the element" (Value.load whole = Value.VRecord [| Value.VInt 1L; Value.VInt 9L; Value.VInt 3L |]);
+  check "a value read before the store keeps what it read"
+    (before = Value.VRecord [| Value.VInt 1L; Value.VInt 2L; Value.VInt 3L |])
+
+(* A store made inside an expression that folds is kept, since code the
+   fold leaves in place may read the local. *)
+let kept_store () =
+  let local = e (C.Expr.Local 1) C.Ty.I64 in
+  let bump =
+    e
+      (C.Expr.Expand
+         {
+           label = 10;
+           body =
+             [
+               C.Stat.assign 1 (e (C.Expr.Binary { op = C.Expr.Add; left = local; right = i64 1L }) C.Ty.I64);
+               C.Stat.assign 11 local;
+             ];
+           result = Some 11;
+         })
+      C.Ty.I64
+  in
+  let body =
+    [
+      C.Stat.Let { id = 1; value = i64 5L };
+      C.Stat.Eval (e (C.Expr.Binary { op = C.Expr.Add; left = bump; right = i64 0L }) C.Ty.I64);
+      C.Stat.Eval (e (C.Expr.Call { fn = "opaque"; args = [ e (C.Expr.Address 1) C.Ty.Ptr ] }) C.Ty.Void);
+    ]
+  in
+  let f = Fold.func (program []) (Value.Key.create 1) (func "f" [] body) in
+  let stored = ref false in
+  Fold.iter_stats f.C.Func.body ~expr:ignore ~stat:(function
+    | C.Stat.Assign { place = { local = 1; path = []; _ }; value = { C.Expr.node = C.Expr.Int 6L; _ } } -> stored := true
+    | _ -> ());
+  check "a store inside a folded expression is kept" !stored
+
+(* A loop over a known local leaves only what it wrote. *)
+let folded_function () =
+  let local = e (C.Expr.Local 1) C.Ty.I64 in
+  let body =
+    [
+      C.Stat.Let { id = 1; value = i64 2L };
+      C.Stat.Repeat
+        { count = i64 3L; body = [ C.Stat.assign 1 (e (C.Expr.Binary { op = C.Expr.Mul; left = local; right = i64 2L }) C.Ty.I64) ] };
+      C.Stat.Return local;
+    ]
+  in
+  let f = Fold.func (program []) (Value.Key.create 1) (func "f" [] body) in
+  check "a loop over a known local folds to what it wrote"
+    (f.C.Func.body = [ C.Stat.Let { id = 1; value = i64 2L }; C.Stat.assign 1 (i64 16L); C.Stat.Return (i64 16L) ])
+
+(* A call's value and its outputs together count against the size cap,
+   though each fits alone. *)
+let capped_replacement () =
+  let text = e (C.Expr.Text (String.make 40_000 'x')) C.Ty.Handle in
+  let loud =
+    { (func "loud" [] [ C.Stat.Eval (e (C.Expr.Runtime { fn = Cgt.Runtime.Print; args = [ text ] }) C.Ty.Void); C.Stat.Return text ])
+      with C.Func.ret = C.Ty.Handle }
+  in
+  let call = e (C.Expr.Call { fn = "loud"; args = [] }) C.Ty.Handle in
+  let f = Fold.func (program [ loud ]) (Value.Key.create 1) (func "f" [] [ C.Stat.Return call ]) in
+  check "a value and outputs past the size cap together stay a call" (f.C.Func.body = [ C.Stat.Return call ])
+
+(* A string that doubles costs steps by its size, so a few steps cannot
+   build one past what the budget allows, even in a function nothing
+   calls. *)
+let bounded_allocation () =
+  let s = e (C.Expr.Local 1) C.Ty.Handle in
+  let double = e (C.Expr.Runtime { fn = Cgt.Runtime.Text_join; args = [ s; s ] }) C.Ty.Handle in
+  let loop = C.Stat.Repeat { count = i64 40L; body = [ C.Stat.assign 1 double ] } in
+  let body = [ C.Stat.Let { id = 1; value = e (C.Expr.Text "x") C.Ty.Handle }; loop; C.Stat.Return s ] in
+  let f = Fold.func (program []) (Value.Key.create 1) (func "huge" [] body) in
+  check "a string doubled past the budget stays a loop" (List.mem loop f.C.Func.body)
+
+(* A run that writes a member of a program variable wrote it, though the
+   variable holds the same value it did, changed in place. *)
+let global_member () =
+  let prog = program [] in
+  Hashtbl.replace prog.Eval.globals "g"
+    { C.Global.symbol = "g"; linkage = C.Linkage.Local; ty = C.Ty.Struct [ C.Ty.I64; C.Ty.I64 ] };
+  let run = Eval.start prog in
+  let c = Eval.global run "g" in
+  Value.store { Value.cell = c; path = [ Value.Member 0 ]; owned = false } C.Ty.I64 (Value.VInt 1L);
+  check "a member of a program variable written is a write" (Eval.wrote_globals run)
+
+(* A call remembered for a zero is not the call for its negative, in
+   either order. *)
+let signed_zero () =
+  let inverse =
+    func "inverse" [ (1, C.Ty.F64) ]
+      [ C.Stat.Return (e (C.Expr.Binary { op = C.Expr.Div; left = e (C.Expr.Float 1.) C.Ty.F64; right = e (C.Expr.Local 1) C.Ty.F64 }) C.Ty.F64) ]
+  in
+  let calls order =
+    let prog = program [ inverse ] in
+    List.map (fun x -> Eval.call (Eval.start prog) "inverse" [ Value.VFloat x ]) order
+  in
+  check "a zero's call, then its negative's"
+    (calls [ 0.; -0. ] = [ Value.VFloat Float.infinity; Value.VFloat Float.neg_infinity ]);
+  check "a negative zero's call, then the zero's"
+    (calls [ -0.; 0. ] = [ Value.VFloat Float.neg_infinity; Value.VFloat Float.infinity ])
+
+(* ---------------------------------------------------------------------- *)
 (* Semantics twice                                                        *)
 (* ---------------------------------------------------------------------- *)
 
@@ -290,6 +494,17 @@ let () =
   overloads ();
   type_layout ();
   runtime_abi ();
+  folded_arithmetic ();
+  intrinsic_classes ();
+  materialized ();
+  evaluated ();
+  stored_in_place ();
+  kept_store ();
+  folded_function ();
+  capped_replacement ();
+  bounded_allocation ();
+  global_member ();
+  signed_zero ();
   twice ();
   at_once ();
   if !failures > 0 then begin

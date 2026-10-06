@@ -48,7 +48,7 @@ generator dependencies as described in [`grammar/README.md`](grammar/README.md).
 | Path | What it holds |
 |---|---|
 | `bin/zanec/` | The compiler binary, `zanec` |
-| `lib/` | One library per stage, `cst` → `sst` → `tst` → `cgt` → `codegen`, over `source`, `diagnostic` and `tree_graph`, and `driver`, which runs them in order |
+| `lib/` | One library per stage, `cst` → `sst` → `tst` → `cgt` → `optimize` → `codegen`, over `source`, `diagnostic` and `tree_graph`, and `driver`, which runs them in order |
 | `runtime/` | The C runtime every program links with |
 | `tests/` | One directory per thing tested: `parser`, `grammar`, `semantics`, `codegen`, `runtime`, `objects`, `unit`, `highlighting`, `ambiguity` |
 | `tools/` | Developer tools: the ambiguity engine and its front end, and `inspect` |
