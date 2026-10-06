@@ -1,0 +1,20 @@
+/// A list of references. A list's elements are owners, so its element type
+/// is never an `&` (generics.md §8.3); a fixed `ArrayRef` of references is
+/// the shape that holds them.
+package reflist;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias PortRef = &Port
+
+type Port = #struct { n Int; }
+Port(n Int) => init{ n; }
+
+Unit main() {
+	p Port(Int(1));
+	r &Port = p;
+	refs @primitives$List<&Port> = @primitives$List(PortRef);  // ILLEGAL: a list holds owners
+	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([r, r]);  // legal, and accepted
+	y &Port = row[Int(2)];                                    // legal
+	return Unit();
+}

@@ -1,0 +1,41 @@
+/// Stores whose destination steps through an `&` (lifetimes.md §1.1: such a
+/// path "may be read freely; it may not be the destination of a store"),
+/// against writes through a reference by a `!` call, which effects.md §4.3
+/// allows. ILLEGAL marks what the spec rejects; QUESTION what it leaves open.
+package throughref;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+type Engine = #struct { power Int; }
+Engine(power Int) => init{ power; }
+Unit tune(this Engine) mut {
+	this.power = this.power + Int(1);
+	return Unit();
+}
+type Car = #struct { engine Engine; peer &Engine; }
+Car(engine ^Engine, peer &Engine) => init{ engine; peer; }
+
+/// A type whose `&` field names its own type has no first instance: there
+/// is no null reference, and every symbol is directly initialized.
+type Loop = #struct { next &Loop; }
+Loop(next &Loop) => init{ next; }
+
+Unit main() {
+	base Engine(Int(0));
+	car Car(Engine(Int(1)), base);
+	first Loop(first);               // ILLEGAL: no Loop exists to name
+	r &Car = car;
+	r.engine!tune();                 // legal: a `!` call through a reference
+	r!tune2();                       // legal
+	r.engine = Engine(Int(2));       // ILLEGAL by §1.1's wording: `r` is an `&`
+	r.engine.power = Int(3);         // ILLEGAL by the same wording, though it names no owner
+	car.peer.power = Int(4);         // ILLEGAL: `peer` is an `&` mid-path, as in the spec's example
+	car.peer!tune();                 // legal
+	return Unit();
+}
+
+Unit tune2(this Car) mut {
+	this.engine!tune();
+	return Unit();
+}

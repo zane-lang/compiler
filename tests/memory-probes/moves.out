@@ -1,0 +1,15 @@
+== checks; building and running
+moved twice yes
+refilled after move yes
+relayed back yes
+relayed and written yes
+label travelled yes
+field moved out yes
+refilled root moves whole yes
+ignored results yes
+list holds 1000 yes
+element 500 yes
+element overwritten yes
+neighbour intact yes
+ref to the list's owner sees size yes
+== exit 0

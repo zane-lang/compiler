@@ -85,6 +85,13 @@ again, read the golden diff and promote that.
   `mut` subject; and a spawned call bound to a `mut` function type.
 - `references` is step 10's `&` written before a place, minting and copying
   guests, and `@program$console` passed where a guest is wanted.
+- `probed` keeps running what the memory-semantics probes
+  (`tests/memory-probes/`) found broken: an `&` element read from an
+  `ArrayRef`, and a recursive value 30,000 boxes deep built, copied,
+  overwritten and destroyed, which the runtime walks in a loop rather than
+  on the C stack, a 512 KiB array, moved as memory, and an element store and
+  a `!` call on an element whose value grows the list, which find the element
+  only after it has moved.
 
 ## Rejects
 

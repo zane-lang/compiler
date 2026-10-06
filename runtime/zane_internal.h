@@ -199,6 +199,30 @@ char *zane_alloc(zane_mark *region, int64_t size, int64_t align);
 void zane_free(char *block, int64_t size, int64_t align);
 
 /* block.c */
+
+/* What is still to be done to a value's blocks, kept on the heap rather than
+   the C stack, so a value nested many thousands of boxes deep is walked in a
+   loop (memory.md §2.3 sets no depth limit). A job names a place and its
+   layout; the rest is the walk's own: a block to return once the place's
+   own blocks are done, and the incoming value an overwrite copies. */
+typedef struct {
+	char *at;
+	const int64_t *layout;
+	char *incoming;
+	int64_t size;
+	zane_position block; /* kind 0: no block to return */
+	char *returned;
+} zane_job;
+
+typedef struct {
+	zane_job *jobs;
+	int64_t count, room;
+} zane_work;
+
+void zane_work_push(zane_work *w, zane_job job);
+int zane_work_pop(zane_work *w, zane_job *job);
+void zane_work_end(zane_work *w);
+
 int zane_next_position(const int64_t *layout, int64_t *cursor, int64_t *left,
                        zane_position *p);
 int zane_present(const char *base, const zane_position *p);

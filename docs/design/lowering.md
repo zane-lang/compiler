@@ -607,12 +607,21 @@ test passing.
   address of the caller's slot and L7 has a result written into a
   destination the caller names. Lowering passes and returns value types as
   LLVM aggregate values instead, which copies what L6 would lend; a value
-  parameter cannot be written, so nothing observes the difference. A
+  parameter cannot be written, and nothing else in the call may write what
+  it borrows (memory.md §2.9.1), so nothing observes the difference. A
   reference-type result, and a `^T` argument, are passed the same way, and
   arrive where the caller or the callee holds them, their blocks staying
   where they are unless the arrival is an escape. A `mut` subject, a
   reference-type subject and a borrowed reference-type argument are passed
   by address.
+- **Large aggregates as memory.** LLVM's code generator gives one value at
+  most 65,535 parts, and is slow well before that. Before the target machine
+  sees a module, `lib/codegen/big_moves.ml` turns each load of an aggregate of
+  4 KiB or more whose only uses are stores into a copy per store (a
+  `memmove` when it reads the source directly, since `xs[i] = xs[j]` may
+  name one element twice), and a
+  value still too large to move whole, passed or returned, is reported as a
+  limit rather than handed to LLVM.
 - **An outcome as a sum, for now.** L12 returns a tag and has the caller
   pass slots for the result and the abort value. Until results are written
   into destinations, a function that can abort or exit returns a

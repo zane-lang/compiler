@@ -1,0 +1,13 @@
+File "binders/main.zn", line 60, characters 13-17:
+60 |             slot = Slot.empty(Unit());  // ILLEGAL (adt.md §5.1)
+  |             ^^^^
+Error: this writes `slot`, which overlaps the scrutinee `slot` while `e` names its payload: an arm with a binder writes its scrutinee only through the binder (adt.md §5.1)
+File "binders/main.zn", line 71, characters 13-14:
+71 |             v = VSlot.empty(Unit());  // ILLEGAL (adt.md §5.1)
+  |             ^
+Error: this writes `v`, which overlaps the scrutinee `v` while `s` names its payload: an arm with a binder writes its scrutinee only through the binder (adt.md §5.1)
+File "binders/main.zn", line 82, characters 13-18:
+82 |             slot2!clear();  // ILLEGAL (adt.md §5.1)
+  |             ^^^^^
+Error: this writes `slot2`, which overlaps the scrutinee `slot2` while `e` names its payload: an arm with a binder writes its scrutinee only through the binder (adt.md §5.1)
+== rejected

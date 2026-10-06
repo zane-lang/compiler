@@ -45,91 +45,8 @@ let describe p =
   in
   "`" ^ p.local.T.Local.name ^ String.concat "" (List.map step p.path) ^ "`"
 
-(* The block parameters each verb runs more than once, by declaration and
-   position. *)
-
-(* The arguments a call passes, by position: a type written where a value
-   goes passes nothing (generics.md §5.3). *)
-let passed args =
-  List.filter
-    (function T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false | _ -> true)
-    args
-
-(* Whether the argument at [i] of a call to [r] is run more than once:
-   `@controlflow$repeat`'s body, or a block parameter a verb runs so. *)
-let runs_often multi (r : T.Verb_ref.t) i =
-  match r.T.Verb_ref.owner with
-  | S.Intrinsic "@controlflow$repeat" -> i = 1
-  | S.Declared id -> Hashtbl.mem multi (id, i)
-  | S.Intrinsic _ -> false
-
-let call_parts (e : T.Expr.t) =
-  match e.T.Expr.node with
-  | T.Expr.Call { callee; args; _ } -> Some (callee, passed args)
-  | _ -> None
-
-(* One pass of the fixed point: a verb runs a block parameter more than once
-   when it passes it where it runs more than once, or passes it anywhere from
-   inside a block that does. *)
-let find_multi multi bodies =
-  let changed = ref false in
-  let mark id i =
-    if not (Hashtbl.mem multi (id, i)) then begin
-      Hashtbl.replace multi (id, i) ();
-      changed := true
-    end
-  in
-  List.iter
-    (fun (id, (params : T.Local.t list), (body : T.Block.t)) ->
-      let param l =
-        let rec find i = function
-          | [] -> None
-          | (p : T.Local.t) :: rest -> if p.T.Local.id = l then Some i else find (i + 1) rest
-        in
-        find 0 params
-      in
-      let rec block often (b : T.Block.t) =
-        List.iter (fun s -> List.iter (expr often) (Exits.stat_exprs s)) b.T.Block.stats
-      and expr often (e : T.Expr.t) =
-        (match call_parts e with
-        | Some (callee, args) ->
-            List.iteri
-              (fun i a ->
-                match a with
-                | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
-                    match param l.T.Local.id with
-                    | Some p when often || runs_often multi callee i -> mark id p
-                    | _ -> ())
-                | _ -> ())
-              args
-        | None -> ());
-        let blocks =
-          match call_parts e with
-          | Some (callee, args) ->
-              List.concat
-                (List.mapi
-                   (fun i a ->
-                     match a with T.Arg.Block b -> [ (b, often || runs_often multi callee i) ] | _ -> [])
-                   args)
-          | None -> []
-        in
-        List.iter
-          (function
-            | Exits.Same x -> expr often x
-            | Exits.Block b -> (
-                match List.assq_opt b blocks with
-                | Some o -> block o b
-                | None -> block often b)
-            | Exits.Arm b | Exits.Handler b -> block often b
-            | Exits.Lambda _ -> ())
-          (Exits.parts e)
-      in
-      block false body)
-    bodies;
-  !changed
-
 (* The types a type holds by owning edges: its members, what it is distinct
-   from, a list's elements. A reference member holds none. *)
+   from, a list's or fixed array's elements. A reference member holds none. *)
 let members env (t : Ty.t) =
   match t with
   | Ty.Named (tid, args) -> (
@@ -142,6 +59,7 @@ let members env (t : Ty.t) =
           | _ -> [])
       | _ -> [])
   | Ty.Intrinsic { name = "List"; args = [ Ty.Type e ]; _ } -> [ e ]
+  | Ty.Intrinsic { name = "ArrayRef"; args = Ty.Type e :: _; _ } -> [ e ]
   | _ -> []
 
 (* Whether a value of type [outer] may hold one of type [inner]. *)
@@ -348,12 +266,15 @@ let walk_body env multi (body : T.Block.t) =
         | None -> List.iter (part frames) (parts e))
   and parts (e : T.Expr.t) =
     (* A block argument runs more than once when its callee runs it so. *)
-    match call_parts e with
+    match Repeats.call_parts env e with
     | Some (callee, args) ->
         let often =
           List.concat
             (List.mapi
-               (fun i a -> match a with T.Arg.Block b -> [ (b, runs_often multi callee i) ] | _ -> [])
+               (fun i a ->
+                 match a with
+                 | T.Arg.Block b -> [ (b, Repeats.runs_often multi callee i) ]
+                 | _ -> [])
                args)
         in
         List.map
@@ -444,25 +365,17 @@ let walk_body env multi (body : T.Block.t) =
   block [] false body
 
 let run env (p : T.Program.t) =
-  (* Each block parameter, by verb and index, that its verb runs more than
-     once. *)
-  let multi : (int * int, unit) Hashtbl.t = Hashtbl.create 16 in
-  let bodies =
-    List.concat_map
-      (fun (pkg : T.Package.t) ->
-        List.filter_map
-          (fun (d : T.Decl.t) ->
-            match d.T.Decl.node with
-            | T.Decl.Verb { body = T.Decl.Checked { params; body }; _ } ->
-                Some (d.T.Decl.id, params, body)
-            | _ -> None)
-          pkg.T.Package.decls)
-      p.T.Program.packages
-    @ List.map
-        (fun (i : T.Instance.t) -> (i.T.Instance.decl, i.T.Instance.params, i.T.Instance.body))
-        p.T.Program.instances
-  in
-  while find_multi multi bodies do
-    ()
-  done;
-  List.iter (fun (_, _, b) -> walk_body env multi b) bodies
+  let multi = Repeats.compute env p in
+  List.iter
+    (fun (pkg : T.Package.t) ->
+      List.iter
+        (fun (d : T.Decl.t) ->
+          match d.T.Decl.node with
+          | T.Decl.Verb { body = T.Decl.Checked { body; _ }; _ } -> walk_body env multi body
+          | _ -> ())
+        pkg.T.Package.decls)
+    p.T.Program.packages;
+  List.iter
+    (fun (i : T.Instance.t) ->
+      Env.in_instance env i (fun () -> walk_body env multi i.T.Instance.body))
+    p.T.Program.instances

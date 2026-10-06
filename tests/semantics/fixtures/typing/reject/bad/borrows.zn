@@ -1,0 +1,235 @@
+package bad;
+
+/// Nothing else in a call writes what the call borrows (memory.md §2.9.1):
+/// not its `mut` subject, not a block argument, not a later argument. A
+/// match arm with a binder writes its scrutinee only through the binder
+/// (adt.md §5.1).
+type Cargo = #struct { weight Int; }
+type Lot = #variant { held Cargo; none Int; }
+type Tally = struct { count Int; }
+
+Cargo(weight Int) => init{ weight; }
+Tally(count Int) => init{ count; }
+
+Unit setFrom(this Tally, other Tally) mut {
+	this.count = other.count;
+	return Unit();
+}
+
+Unit stack(this List<Cargo>, cargo Cargo) mut => Unit()
+Unit empty(this Lot) mut => Unit()
+Int lift(this Cargo) mut => this.weight
+Int weigh(cargo Cargo, body @concepts$Block) => cargo.weight
+Int compare(cargo Cargo, other Int) => cargo.weight
+Int grown(this List<Cargo>) mut => Int(1)
+
+Unit borrows() {
+	own List<Cargo> = @primitives$List(Cargo);
+	t Tally(Int(1));
+	t!setFrom(t);
+	own!stack(own[Int(1)]);
+	weigh(own[Int(1)], {
+		own = @primitives$List(Cargo);
+	});
+	compare(own[Int(1)], own!grown());
+	mine Lot = Lot.none(Int(0));
+	n Int = match (mine) {
+		c held {
+			c!lift();
+			mine = Lot.none(Int(1));
+			return Int(1);
+		}
+		u none {
+			mine!empty();
+			return u;
+		}
+	}
+	dirty Bool = true;
+	if(dirty) {
+		dirty = false;
+	}
+	tallies List<Tally> = @primitives$List(Tally);
+	front Tally = tallies[Int(1)];
+	tallies!push(front);
+	was Bool = dirty;
+	if(was) {
+		dirty = false;
+	}
+	return Unit();
+}
+
+/// A reference bound again anywhere in a body may name anything its type
+/// can: the binding runs before the loop body's next run, and inside a
+/// block argument before the block's later statements.
+Unit rebinds() {
+	heap List<Int> = @primitives$List(Int);
+	other List<Int> = @primitives$List(Int);
+	a &List<Int> = other;
+	b &List<Int> = heap;
+	@controlflow$repeat(Int(2), {
+		a!push(b[Int(1)]);
+		b = other;
+	});
+	own List<Cargo> = @primitives$List(Cargo);
+	spare List<Cargo> = @primitives$List(Cargo);
+	r &List<Cargo> = spare;
+	weigh(own[Int(1)], {
+		r = own;
+		r!stack(Cargo(Int(1)));
+	});
+	return Unit();
+}
+
+/// What locates an assignment's destination runs as part of the block too.
+Unit locates() {
+	own List<Cargo> = @primitives$List(Cargo);
+	counts List<Int> = @primitives$List(Int);
+	weigh(own[Int(1)], {
+		counts[own!grown()] = Int(1);
+	});
+	return Unit();
+}
+
+/// A lambda at package scope is checked like a verb body.
+stacks Unit() {
+	own List<Cargo> = @primitives$List(Cargo);
+	own!stack(own[Int(1)]);
+	return Unit();
+}
+
+/// An `&T` parameter is apart from the subject and from every block
+/// parameter while the body runs; each call keeps its arguments apart in
+/// turn, and a caller that passes its own `&T` parameter along keeps it
+/// apart for its own callers.
+Unit append(this List<Int>, from &List<Int>) mut {
+	this!push(from[Int(1)]);
+	return Unit();
+}
+
+Unit relay(this List<Int>, via &List<Int>) mut {
+	this!append(via);
+	return Unit();
+}
+
+Int readAfter(n Int, body @concepts$Block) {
+	@controlflow$branch(true, body);
+	return n;
+}
+
+Int glance(from &List<Int>, body @concepts$Block) => readAfter(from[Int(1)], body)
+
+Unit apart() {
+	ints List<Int> = @primitives$List(Int);
+	more List<Int> = @primitives$List(Int);
+	ints!append(more);
+	ints!append(ints);
+	ints!relay(more);
+	ints!relay(ints);
+	r &List<Int> = more;
+	ints!append(r);
+	s &List<Int> = more;
+	s = ints;
+	ints!append(s);
+	a Int = glance(more, { ints!push(Int(1)); });
+	b Int = glance(ints, { ints!push(Int(1)); });
+	return Unit();
+}
+
+/// Two `&` fields may name one object, and a `!` call writes what its
+/// subject reaches through its `&` fields too.
+type Twin = #struct { left &List<Int>; right &List<Int>; count Int; }
+
+Twin(left &List<Int>, right &List<Int>, count Int) => init{ left; right; count; }
+
+Unit grow(this Twin) mut {
+	this.left!push(this.right[Int(1)]);
+	return Unit();
+}
+
+Unit fill(this Twin, n Int) mut {
+	this.left!push(n);
+	return Unit();
+}
+
+Unit twins() {
+	ints List<Int> = @primitives$List(Int);
+	t Twin(ints, ints, Int(0));
+	n Int = Int(3);
+	t!fill(n);
+	t!fill(ints[Int(1)]);
+	return Unit();
+}
+
+/// A type passed to a binding parameter takes no place among the
+/// arguments a summary counts.
+type Meter<T Type> = #struct { n Int; }
+
+Meter<T>(T Type, from &List<Int>, body @concepts$Block) {
+	got Int = readAfter(from[Int(1)], body);
+	return init{ n = got; }
+}
+
+Unit meters() {
+	ints List<Int> = @primitives$List(Int);
+	more List<Int> = @primitives$List(Int);
+	a Meter<Int> = Meter(Int, more, { ints!push(Int(1)); });
+	b Meter<Int> = Meter(Int, ints, { ints!push(Int(1)); });
+	return Unit();
+}
+
+/// Repointing an `&` field writes the object that holds it.
+type Socket = #struct { to &Cargo; }
+
+Socket(to &Cargo) => init{ to; }
+
+Int holding(socket Socket, body @concepts$Block) => Int(1)
+
+Unit repoint() {
+	near Cargo(Int(1));
+	far Cargo(Int(2));
+	socket Socket(near);
+	n Int = holding(socket, { socket.to = far; });
+	return Unit();
+}
+
+/// A `!` call writes what its subject reaches through a reference element
+/// as much as through an `&` field.
+type Holdall = #struct { lists @primitives$ArrayRef<&List<Int>, 1>; }
+
+Holdall(lists ^@primitives$ArrayRef<&List<Int>, 1>) => init{ lists; }
+
+Unit store(this Holdall, n Int) mut {
+	this.lists[Int(1)]!push(n);
+	return Unit();
+}
+
+Unit holdalls() {
+	ints List<Int> = @primitives$List(Int);
+	ints!push(Int(1));
+	holdall Holdall(@primitives$ArrayRef([&ints]));
+	k Int = Int(2);
+	holdall!store(k);
+	holdall!store(ints[Int(1)]);
+	return Unit();
+}
+
+/// A field constructor is a call like any other: its entries run in written
+/// order, and an owner moved into a `^` field is written.
+type Coffer = struct { first Int; second Int; }
+type Bale = #struct { cargos List<Cargo>; }
+
+Coffer{ first Int; second Int; } => init{ first; second; }
+Bale{ cargos ^List<Cargo>; } => init{ cargos; }
+Bale(cargos ^List<Cargo>) => init{ cargos; }
+Int swell(this List<Int>) mut => Int(1)
+Int weighBale(cargo Cargo, bale Bale) => cargo.weight
+
+Unit coffers() {
+	ints List<Int> = @primitives$List(Int);
+	c Coffer{ first = ints[Int(1)]; second = ints!swell(); }
+	spare ^List<Cargo> = @primitives$List(Cargo);
+	n Int = weighBale(spare[Int(1)], Bale{ cargos = spare; });
+	other ^List<Cargo> = @primitives$List(Cargo);
+	m Int = weighBale(other[Int(1)], Bale(other));
+	return Unit();
+}

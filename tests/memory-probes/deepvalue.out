@@ -1,0 +1,8 @@
+== checks; building and running
+start
+built by recursion
+depth yes
+copied
+copy destroyed by overwrite
+a = a
+== exit 0

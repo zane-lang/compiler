@@ -73,7 +73,7 @@ let entry_type env (r : T.Verb_ref.t) (f : T.Field_value.t) =
 
 let mint env w (v : T.Expr.t) =
   let say = Env.error env v.T.Expr.span in
-  match (States.state w.states v, v.T.Expr.node) with
+  match States.described w.states v with
   | States.Settled, _ -> ()
   | States.Roaming, _ ->
       say
@@ -341,6 +341,7 @@ let run env (p : T.Program.t) =
     p.T.Program.packages;
   List.iter
     (fun (i : T.Instance.t) ->
-      verb env projections i.T.Instance.signature i.T.Instance.params (fun w ->
-          block env w i.T.Instance.body))
+      Env.in_instance env i (fun () ->
+          verb env projections i.T.Instance.signature i.T.Instance.params (fun w ->
+              block env w i.T.Instance.body)))
     p.T.Program.instances

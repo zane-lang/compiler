@@ -1,0 +1,29 @@
+/// A generic filled with a reference (generics.md §3.2, §3.6, memory.md
+/// §2.9). QUESTION marks what the spec does not settle.
+package genref;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias PortRef = &Port
+
+type Port = #struct { n Int; }
+Port(n Int) => init{ n; }
+
+/// The spec's idiom: the introduction carries the mode.
+type Pin<T Type> = #struct { at &T; }
+Pin<T>(at &T Type) => init{ at; }
+
+/// A plain generic holder.
+type Box<T Type> = #struct { item T; }
+Box<T>(item T Type) => init{ item; }
+
+Unit main() {
+	p Port(Int(1));
+	r &Port = p;
+	pin Pin<Port> = Pin(p);          // legal
+	pin2 Pin<Port> = Pin(r);         // legal
+	i Box<Int> = Box(Int(1));        // legal: a value is copied out of the borrow
+	a Box<&Port> = Box(r);           // QUESTION: does T bind to &Port or Port?
+	b Box<PortRef> = Box(r);         // QUESTION: same, through an alias
+	return Unit();
+}

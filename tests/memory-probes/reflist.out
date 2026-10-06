@@ -1,0 +1,9 @@
+File "reflist/main.zn", line 16, characters 27-32:
+16 |     refs @primitives$List<&Port> = @primitives$List(PortRef);  // ILLEGAL: a list holds owners
+  |                           ^^^^^
+Error: `&reflist$Port` is a reference, and it fills the elements of `@primitives$List<&reflist$Port>`; a list's elements are owners, never references
+File "reflist/main.zn", line 16, characters 53-60:
+16 |     refs @primitives$List<&Port> = @primitives$List(PortRef);  // ILLEGAL: a list holds owners
+  |                                                     ^^^^^^^
+Error: `&reflist$Port` is a reference, and it fills the elements of `@primitives$List<&reflist$Port>`; a list's elements are owners, never references
+== rejected

@@ -1,0 +1,21 @@
+/// Value-downstream (memory.md §2.10) through a generic value type written
+/// through an alias. generics.md §3.6 reports a rejected type "where the type
+/// enters"; written directly, every line below is reported there.
+/// ILLEGAL marks what the spec rejects.
+package aliaskind;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+
+type Engine = #struct { power Int; }
+type Gen<T Type> = struct { item T; }
+alias G<T Type> = Gen<T>
+
+type BadArray = struct { slots Array<Engine, 2>; }     // ILLEGAL
+Unit takesArray(slots Array<Engine, 2>) => Unit()      // ILLEGAL
+type BadGen = #struct { g G<Engine>; }                 // ILLEGAL
+Unit takesGen(g G<Engine>) => Unit()                   // ILLEGAL
+type Holder = #struct { b BadArray; }                  // ILLEGAL: reported here instead
+
+Unit main() { return Unit(); }

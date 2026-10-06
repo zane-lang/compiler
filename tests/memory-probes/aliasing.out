@@ -1,0 +1,25 @@
+File "aliasing/main.zn", line 133, characters 31-43:
+133 |     m Int = list!growThenRead(list[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
+  |                               ^^^^^^^^^^^^
+Error: `list[]` is borrowed by this call, and its `mut` subject `list` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "aliasing/main.zn", line 137, characters 15-16:
+137 |     v!setFrom(v);  // ILLEGAL (memory.md §2.9.1)
+  |               ^
+Error: `v` is borrowed by this call, and its `mut` subject `v` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "aliasing/main.zn", line 141, characters 18-21:
+141 |     car!swapFrom(car);  // ILLEGAL (memory.md §2.9.1)
+  |                  ^^^
+Error: `car` is borrowed by this call, and its `mut` subject `car` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "aliasing/main.zn", line 148, characters 32-75:
+148 |     a Int = slot!clearThenRead(slot.full ?? Engine(Int(0), String("none")));  // ILLEGAL (memory.md §2.9.1)
+  |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `slot.full` is borrowed by this call, and its `mut` subject `slot` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "aliasing/main.zn", line 153, characters 35-48:
+153 |     b Int = list2!replaceThenRead(list2[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
+  |                                   ^^^^^^^^^^^^^
+Error: `list2[]` is borrowed by this call, and its `mut` subject `list2` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "aliasing/main.zn", line 158, characters 29-44:
+158 |     c Int = g!resetThenRead(g.items[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
+  |                             ^^^^^^^^^^^^^^^
+Error: `g.items[]` is borrowed by this call, and its `mut` subject `g` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+== rejected

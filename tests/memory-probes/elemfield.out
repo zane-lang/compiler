@@ -1,0 +1,9 @@
+File "elemfield/main.zn", line 20, characters 15-28:
+20 |     a &Bolt = bolts[Int(0)];             // ILLEGAL: a list's element
+  |               ^^^^^^^^^^^^^
+Error: a new reference must come from a settled place, and a list's element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
+File "elemfield/main.zn", line 21, characters 15-34:
+21 |     b &Bolt = plates[Int(0)].bolt;       // ILLEGAL: a field of a list's element
+  |               ^^^^^^^^^^^^^^^^^^^
+Error: a new reference must come from a settled place, and a list's element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
+== rejected

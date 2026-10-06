@@ -1,0 +1,57 @@
+/// A recursive value 30,000 levels deep: built, measured, copied, overwritten.
+/// Nothing in the spec bounds a value's depth, but the runtime's overwrite
+/// recurses once per boxed level on the C stack. (What the program printed
+/// before the crash is lost with its buffered output.)
+package deepvalue;
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+/// Prints the label and `yes` when the condition holds, `no` when not.
+Unit check(label String, ok Bool) {
+	say(label);
+	@controlflow$branch(ok, { say(String(" yes\n")); });
+	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	return Unit();
+}
+type Count = variant { done Int; more Count; }
+Count make(n Int) {
+	if(n == Int(0)) {
+		return Count.done(Int(0));
+	}
+	return Count.more(make(n + ~Int(1)));
+}
+Int depth(c Count) => match (c) { n done => n; m more => depth(m) + Int(1); }
+Unit main() {
+	say(String("start\n"));
+	a Count = make(Int(30000));
+	say(String("built by recursion\n"));
+	check(String("depth"), depth(a) == Int(30000));
+	b Count = a;
+	say(String("copied\n"));
+	b = Count.done(Int(1));
+	say(String("copy destroyed by overwrite\n"));
+	a = a;
+	say(String("a = a\n"));
+	return Unit();
+}

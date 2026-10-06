@@ -1,0 +1,20 @@
+== checks; building and running
+string copy is independent yes
+copy got the write yes
+struct copy is independent yes
+field-to-field copy yes
+recursive copy has the same depth yes
+source unchanged after copy is overwritten yes
+s = s yes
+s = s + s yes
+c = c yes
+c = c.more yes
+tree total yes
+tr = tr.node.right yes
+earlier copy of the child intact yes
+f.left = f.right yes
+f.right = node(f) yes
+f.left untouched yes
+built 2000 deep yes
+copy of deep value survives yes
+== exit 0

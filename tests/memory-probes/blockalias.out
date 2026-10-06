@@ -1,0 +1,17 @@
+File "blockalias/main.zn", line 68, characters 9-13:
+68 |         slot = Slot.empty(Unit());  // ILLEGAL (memory.md §2.9.1)
+  |         ^^^^
+Error: this writes `slot`, which overlaps `slot.full`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "blockalias/main.zn", line 74, characters 9-13:
+74 |         list = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
+  |         ^^^^
+Error: this writes `list`, which overlaps `list[]`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "blockalias/main.zn", line 80, characters 9-14:
+80 |         list3 = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
+  |         ^^^^^
+Error: this writes `list3`, which overlaps `list3[]`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "blockalias/main.zn", line 88, characters 9-14:
+88 |         other = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
+  |         ^^^^^
+Error: this writes `other`, which overlaps `other[]`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+== rejected

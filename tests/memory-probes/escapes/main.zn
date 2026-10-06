@@ -1,0 +1,172 @@
+/// Escapes (memory.md §3.5): an owner or value whose dynamic blocks were
+/// allocated in a scope that drains before its destination does. Each must
+/// take its blocks out first, recursively; reading them afterwards must see
+/// intact data. The runtime stops a program whose drain finds a block out.
+package escapes;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+/// Prints the label and `yes` when the condition holds, `no` when not.
+Unit check(label String, ok Bool) {
+	say(label);
+	@controlflow$branch(ok, { say(String(" yes\n")); });
+	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	return Unit();
+}
+
+alias Block = @concepts$Block
+Unit inner(body Block) {
+	@controlflow$branch(true, body);
+	return Unit();
+}
+
+type Engine = #struct { power Int; label String; }
+Engine(power Int, label String) => init{ power; label; }
+
+type Chain = #variant { end String; link Link; }
+type Link = #struct { label String; next Chain; }
+Link(label String, next ^Chain) => init{ label; next; }
+
+type Count = variant { done String; more Count; }
+
+Int depth(c Count) => match (c) {
+	s done => Int(0);
+	m more => depth(m) + Int(1);
+}
+
+String tail(c Count) => match (c) {
+	s done => s;
+	m more => tail(m);
+}
+
+/// Walks a chain through a borrow, counting links whose label is intact.
+Int chainLength(c Chain) => match (c) {
+	s end => Int(0);
+	l link => chainLength(l.next) + (l.label == String("l!")):count();
+}
+
+Int count(this Bool) {
+	n Int(0);
+	if(this) { n = Int(1); }
+	return n;
+}
+
+/// A roaming chain cannot be grown in a loop: the loop body is a nested
+/// block, and a roaming owner moves only in its own (lifetimes.md §1.3). So
+/// it is built by recursion, each level allocating in its own scope.
+^Chain grow(n Int) {
+	if(n == Int(0)) {
+		return Chain.end(String("bot") + String("tom"));
+	}
+	label String = String("l") + String("!");
+	rest ^Chain = grow(n + ~Int(1));
+	return Chain.link(Link(label, rest));
+}
+
+/// Each level allocates in its own scope and returns through it.
+Count nest(n Int) {
+	if(n == Int(0)) {
+		return Count.done(String("deep") + String("est"));
+	}
+	inner({
+		pad String = String("padding") + String("padding");
+	});
+	return Count.more(nest(n + ~Int(1)));
+}
+
+String?String failing(n Int) {
+	made String = String("aborted-") + String("value");
+	if(n == Int(1)) {
+		abort made;
+	}
+	return made + String("-ok");
+}
+
+type Box = #struct { chain Chain; name String; }
+Box(chain ^Chain, name String) => init{ chain; name; }
+
+Unit main() {
+	// A value built in an inner block and assigned to an outer slot.
+	outer String("");
+	inner({
+		local String = String("built ") + String("inside");
+		outer = local;
+	});
+	check(String("value stored outward"), outer == String("built inside"));
+
+	// A value built in an inner block, copied out of a deeper one.
+	deep Count = Count.done(String("x"));
+	inner({
+		inner({
+			c Count = Count.more(Count.more(Count.done(String("inner") + String("most"))));
+			deep = c;
+		});
+	});
+	check(String("recursive value stored outward"), depth(deep) == Int(2));
+	check(String("its innermost string intact"), tail(deep) == String("innermost"));
+
+	// A settled owner's field overwritten from an inner block with a fresh
+	// reference-type value that owns blocks.
+	box Box(Chain.end(String("start")), String("box"));
+	view &Box = box;
+	inner({
+		local ^Chain = grow(Int(50));
+		box.chain = local;
+	});
+	check(String("roaming chain stored into an outer settled field"), chainLength(view.chain) == Int(50));
+	inner({
+		box = Box(grow(Int(20)), String("re") + String("placed"));
+	});
+	check(String("whole settled owner overwritten from inside"), view.name == String("replaced"));
+	check(String("its chain intact"), chainLength(box.chain) == Int(20));
+
+	// Returned through many scopes.
+	n Count = nest(Int(30));
+	check(String("returned through 30 scopes"), depth(n) == Int(30));
+	check(String("deepest string intact"), tail(n) == String("deepest"));
+
+	// Aborted values carry their blocks out.
+	a String = failing(Int(1)) ? why {
+		resolve why;
+	}
+	check(String("abort value intact"), a == String("aborted-value"));
+	b String = failing(Int(2)) ?? String("none");
+	check(String("normal result intact"), b == String("aborted-value-ok"));
+
+	// A match arm's value leaves the arm's scope.
+	m String = match (deep) {
+		s done => s;
+		r more {
+			made String = String("from ") + String("arm");
+			return made;
+		}
+	}
+	check(String("arm result intact"), m == String("from arm"));
+
+	// A roaming owner built in the callee, settled here.
+	built Chain = grow(Int(3));
+	check(String("built chain settled"), chainLength(built) == Int(3));
+	return Unit();
+}

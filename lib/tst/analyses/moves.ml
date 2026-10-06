@@ -84,7 +84,7 @@ let move env w (v : T.Expr.t) =
   if Ty.is_ref v.T.Expr.ty then
     say "a reference, which names an owner rather than being one,"
   else
-    match (States.state w.states v, v.T.Expr.node) with
+    match States.described w.states v with
     | States.Fresh, _ -> ()
     | States.Roaming, _ -> (
         match States.field_path v with
@@ -472,5 +472,6 @@ let run env (p : T.Program.t) =
     (fun (i : T.Instance.t) ->
       let sg = i.T.Instance.signature in
       let sg = if sg.S.kind = S.Subscript then { sg with S.ret = Ty.Error } else sg in
-      verb env projections blocks sg i.T.Instance.params i.T.Instance.body)
+      Env.in_instance env i (fun () ->
+          verb env projections blocks sg i.T.Instance.params i.T.Instance.body))
     p.T.Program.instances

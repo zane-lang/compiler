@@ -1,0 +1,14 @@
+/// A fixed array of 512 KiB or more (memory.md §2.3 copies it as one value).
+/// The program is legal and checks; one element fewer, 524,280 bytes, builds
+/// and runs, but its optimized build takes minutes, so it is not kept here.
+package bigarray;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit main() {
+	a @primitives$ArrayRef<Int, 65536> = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
+	@controlflow$branch(a[Int(3)] == Int(3), { @program$console!print(String("yes\n")); });
+	return Unit();
+}

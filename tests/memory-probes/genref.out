@@ -1,0 +1,13 @@
+File "genref/main.zn", line 18, characters 30-34:
+18 | Box<T>(item T Type) => init{ item; }
+  |                              ^^^^
+Error: `item` is a borrow: the caller lends it for the call, and a borrow is never moved, stored or returned; a parameter that takes its argument is declared `^T` (in `Box` with T = genref$Port, required at genref/main.zn:26)
+File "genref/main.zn", line 26, characters 20-26:
+26 |     a Box<&Port> = Box(r);           // QUESTION: does T bind to &Port or Port?
+  |                    ^^^^^^
+Error: `a` is declared `genref$Box<&genref$Port>`, and its value is `genref$Box<genref$Port>`; a declaration is not a coercion site, so a conversion is written out
+File "genref/main.zn", line 27, characters 22-28:
+27 |     b Box<PortRef> = Box(r);         // QUESTION: same, through an alias
+  |                      ^^^^^^
+Error: `b` is declared `genref$Box<&genref$Port>`, and its value is `genref$Box<genref$Port>`; a declaration is not a coercion site, so a conversion is written out
+== rejected

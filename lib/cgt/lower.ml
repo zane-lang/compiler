@@ -137,7 +137,10 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           { Expr.node = Expr.Member { value; index = 1 }; ty = Nodes.Ty.I64 }
       | _ -> Diagnostic.bug ~span "lowering: `size` with the wrong arguments")
   | T.Expr.Subscript _ -> (
-      match addr st ctx span e with
+      (* The element's own storage: for an `&` element, what it holds is the
+         reference, so this reads it rather than asking [addr] for the
+         reference, which would ask back here. *)
+      match storage st ctx span e with
       | Some p -> { Expr.node = Expr.Deref p; ty = ty st span e.T.Expr.ty }
       | None -> Diagnostic.bug ~span "lowering: a subscript with no address")
   | T.Expr.Op { op; impl = { owner; instance; _ }; left; right; swapped; handler } -> (
@@ -221,10 +224,20 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | None -> Diagnostic.bug ~span "lowering found no package constant here")
   | T.Expr.Call_value { callee; args; handler } -> (
       match Tty.strip_mode callee.T.Expr.ty with
-      | Tty.Verb fv ->
+      | Tty.Verb fv -> (
           let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
-          let fn = value_of st ctx callee in
-          invoke ~fn st ctx span v (arguments st ctx span v args) handler
+          let (fn : Expr.t) = value_of st ctx callee in
+          match args with
+          | T.Arg.Value subject :: rest
+            when fv.Tty.is_mut && Option.is_some fv.Tty.this_ && subscripted subject ->
+              (* The function value is read first, as it is written. *)
+              let id = fresh st in
+              let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
+              let lets, args = held_last st ctx span v subject rest in
+              held_in st
+                (Stat.Let { id; value = fn } :: lets)
+                (invoke ~fn:read st ctx span v (arguments st ctx span v args) handler)
+          | _ -> invoke ~fn st ctx span v (arguments st ctx span v args) handler)
       | _ -> Diagnostic.bug ~span "lowering expected a function value here")
   (* `&` written before a place: a reference to it, minted, or a reference it
      holds copied (memory.md §2.6). *)
@@ -827,8 +840,94 @@ and in_order st t first second combine =
 and call st ctx span verb args handler ret : Expr.t =
   match verb with
   | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
-  | Some v when expands v -> expand st ctx span v (passed v args) handler ret
-  | Some v -> invoke st ctx span v (arguments st ctx span v (passed v args)) handler
+  | Some v -> (
+      match passed v args with
+      | T.Arg.Value subject :: rest when v.signature.S.is_mut && subscripted subject ->
+          located_last st ctx span v subject rest handler ret
+      | args -> plain_call st ctx span v args handler ret)
+
+and plain_call st ctx span v args handler ret =
+  if expands v then expand st ctx span v args handler ret
+  else invoke st ctx span v (arguments st ctx span v args) handler
+
+(* A `!` call whose subject is reached through a subscript (memory.md §2.12):
+   the subject's operands run first, then the arguments, each held in a slot
+   of its own in written order, and only then is the subject located, so an
+   argument that moves the list the subject is an element of moves it before
+   the call finds where the element is. *)
+and located_last st ctx span v subject rest handler ret =
+  let lets, args = held_last st ctx span v subject rest in
+  held_in st lets (plain_call st ctx span v args handler ret)
+
+(* The subject's operands pinned and each argument held, as [located_last]
+   needs them, for any call form that runs a `!` call on a subscripted
+   subject: the statements, and the arguments to pass. *)
+and held_last st ctx span v subject rest =
+  let pins, subject = pinned st ctx span subject in
+  let held =
+    match v.params with
+    | _ :: params when List.length params = List.length rest ->
+        List.map2
+          (fun (p : T.Local.t) a ->
+            match (a, p.T.Local.ty) with
+            | T.Arg.Value e, Tty.Concept _ when expands v -> ([], T.Arg.Value e)
+            | T.Arg.Value e, _ ->
+                let value = argument st ctx span v p e in
+                let id = fresh st in
+                let l = { p with T.Local.id = -id } in
+                Hashtbl.replace ctx.env l.T.Local.id
+                  (if by_address st v p then Pointer id else Slot id);
+                let read = { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
+                ([ Stat.Let { id; value } ], T.Arg.Value read)
+            | (T.Arg.Block _ as b), _ -> ([], b))
+          params rest
+    | _ -> Diagnostic.bug ~span "lowering: a `!` call with the wrong arguments"
+  in
+  (pins @ List.concat_map fst held, T.Arg.Value subject :: List.map snd held)
+
+(* [lets], then [value], as one expression. *)
+and held_in st lets (value : Expr.t) =
+  let label = fresh st in
+  let body, result =
+    if value.Expr.ty = Nodes.Ty.Void then (lets @ [ Stat.Eval value ], None)
+    else
+      let result = fresh st in
+      (lets @ [ Stat.assign result value ], Some result)
+  in
+  { Expr.node = Expr.Expand { label; body; result }; ty = value.Expr.ty }
+
+(* Whether a place is reached through a subscript, whose element a list
+   that grows would move. *)
+and subscripted (e : T.Expr.t) =
+  match e.T.Expr.node with
+  | T.Expr.Subscript _ -> true
+  | T.Expr.Field { target; _ } | T.Expr.Case_read { target; _ } -> subscripted target
+  | _ -> false
+
+(* A place's operands, its subscripts' indices, run now into slots of their
+   own in written order, and the place rewritten to read them: what runs
+   after them no longer changes which element is meant, and where that
+   element is is found when the place is located. *)
+and pinned st ctx span (e : T.Expr.t) : Stat.t list * T.Expr.t =
+  match e.T.Expr.node with
+  | T.Expr.Field ({ target; _ } as f) ->
+      let pins, target = pinned st ctx span target in
+      (pins, { e with T.Expr.node = T.Expr.Field { f with target } })
+  | T.Expr.Subscript ({ target; args; _ } as s) ->
+      let pins, target = pinned st ctx span target in
+      let held =
+        List.map
+          (fun (a : T.Expr.t) ->
+            let id = fresh st in
+            let l = { T.Local.id = -id; name = "index"; ty = a.T.Expr.ty; span = a.T.Expr.span } in
+            Hashtbl.replace ctx.env l.T.Local.id (Slot id);
+            let read = { a with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
+            (Stat.Let { id; value = borrow st ctx span a }, read))
+          args
+      in
+      let args = List.map snd held in
+      (pins @ List.map fst held, { e with T.Expr.node = T.Expr.Subscript { s with target; args } })
+  | _ -> ([], e)
 
 (* types.md §3.3: a field-constructor call is a call to the constructor,
    with each entry's value in its slot and an entry left out given its
@@ -949,17 +1048,30 @@ and spawn st ctx span (e : T.Expr.t) =
       | Some v when expands v ->
           let v, args = specialized st ctx span v (passed v args) in
           spawn_call st ctx span v None ~writes:v.signature.S.is_mut args handler
-      | Some v ->
-          spawn_call st ctx span v None ~writes:v.signature.S.is_mut (passed v args) handler)
+      | Some v -> (
+          match passed v args with
+          | T.Arg.Value subject :: rest when v.signature.S.is_mut && subscripted subject ->
+              let lets, args = held_last st ctx span v subject rest in
+              let stats, future = spawn_call st ctx span v None ~writes:true args handler in
+              (lets @ stats, future)
+          | args -> spawn_call st ctx span v None ~writes:v.signature.S.is_mut args handler))
   | T.Expr.Call { callee = { owner = S.Intrinsic _; _ } as callee; args; handler } ->
       let v, args = wrapped st span callee args e.T.Expr.ty in
       spawn_call st ctx span v None ~writes:false args handler
   | T.Expr.Call_value { callee; args; handler } -> (
       match Tty.strip_mode callee.T.Expr.ty with
-      | Tty.Verb fv ->
+      | Tty.Verb fv -> (
           let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
-          let fn = value_of st ctx callee in
-          spawn_call st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler
+          let (fn : Expr.t) = value_of st ctx callee in
+          match args with
+          | T.Arg.Value subject :: rest
+            when fv.Tty.is_mut && Option.is_some fv.Tty.this_ && subscripted subject ->
+              let id = fresh st in
+              let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
+              let lets, args = held_last st ctx span v subject rest in
+              let stats, future = spawn_call st ctx span v (Some read) ~writes:true args handler in
+              ((Stat.Let { id; value = fn } :: lets) @ stats, future)
+          | _ -> spawn_call st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler)
       | _ -> Diagnostic.bug ~span "lowering expected a function value here")
   | _ -> Diagnostic.bug ~span "lowering: a spawn of something not a call"
 
@@ -1442,6 +1554,25 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       let id = fresh st in
       Hashtbl.replace ctx.env local.T.Local.id (Slot id);
       [ bind_local st ctx.scope local id value ]
+  | T.Stat.Assign { target; value } when subscripted target ->
+      (* The destination's operands, then the value, and only then is the
+         destination located (memory.md §2.12): a value that grows the list
+         the destination is an element of has moved it by then. *)
+      let pins, target = pinned st ctx span target in
+      let t = target.T.Expr.ty in
+      let id = fresh st in
+      let v = moved st ctx span t value in
+      let read = { Expr.node = Expr.Local id; ty = v.Expr.ty } in
+      let address =
+        match storage st ctx span target with
+        | Some a -> a
+        | None -> refuse span "lowering does not store into this place yet"
+      in
+      pins
+      @ [ Stat.Let { id; value = v } ]
+      @
+      if held st span t then [ Stat.Overwrite { address; value = read; layout = layout st span t } ]
+      else [ Stat.Store { address; value = read } ]
   | T.Stat.Assign { target; value } -> (
       let t = target.T.Expr.ty in
       let address () =

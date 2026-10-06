@@ -1,0 +1,21 @@
+File "aliaskind/main.zn", line 15, characters 38-44:
+15 | type BadArray = struct { slots Array<Engine, 2>; }     // ILLEGAL
+  |                                      ^^^^^^
+Error: `aliaskind$Engine` is a reference type, and it reaches the elements of `@primitives$Array<aliaskind$Engine, 2>`, a value type's slot; a value type holds only values, all the way down
+File "aliaskind/main.zn", line 16, characters 29-35:
+16 | Unit takesArray(slots Array<Engine, 2>) => Unit()      // ILLEGAL
+  |                             ^^^^^^
+Error: `aliaskind$Engine` is a reference type, and it reaches the elements of `@primitives$Array<aliaskind$Engine, 2>`, a value type's slot; a value type holds only values, all the way down
+File "aliaskind/main.zn", line 17, characters 29-35:
+17 | type BadGen = #struct { g G<Engine>; }                 // ILLEGAL
+  |                             ^^^^^^
+Error: `aliaskind$Engine` is a reference type, and it reaches `aliaskind$Gen<aliaskind$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
+File "aliaskind/main.zn", line 18, characters 19-25:
+18 | Unit takesGen(g G<Engine>) => Unit()                   // ILLEGAL
+  |                   ^^^^^^
+Error: `aliaskind$Engine` is a reference type, and it reaches `aliaskind$Gen<aliaskind$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
+File "aliaskind/main.zn", line 19, characters 27-35:
+19 | type Holder = #struct { b BadArray; }                  // ILLEGAL: reported here instead
+  |                           ^^^^^^^^
+Error: `aliaskind$Engine` is a reference type, and it reaches `aliaskind$BadArray`'s field `slots`, then the elements of `@primitives$Array<aliaskind$Engine, 2>`, a value type's slot; a value type holds only values, all the way down
+== rejected

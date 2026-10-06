@@ -1,0 +1,14 @@
+== checks; building and running
+value stored outward yes
+recursive value stored outward yes
+its innermost string intact yes
+roaming chain stored into an outer settled field yes
+whole settled owner overwritten from inside yes
+its chain intact yes
+returned through 30 scopes yes
+deepest string intact yes
+abort value intact yes
+normal result intact yes
+arm result intact yes
+built chain settled yes
+== exit 0

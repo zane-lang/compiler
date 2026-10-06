@@ -63,7 +63,7 @@ let check_kinds env (s : S.t) subst at (args : T.Arg.t option list) =
     List.find_map
       (fun (slot, top, raw, t) ->
         match Type_decls.filled_references env raw t with
-        | bad :: _ -> Some { Type_decls.path = [ slot ]; bad; slot = Type_decls.Under_reference }
+        | (bad, kind) :: _ -> Some { Type_decls.path = [ slot ]; bad; slot = kind }
         | [] -> (
             match Type_decls.bare_results env ~top raw t with
             | bad :: _ -> Some { Type_decls.path = [ slot ]; bad; slot = Type_decls.Bare_result }

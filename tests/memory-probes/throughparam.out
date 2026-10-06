@@ -1,0 +1,9 @@
+File "throughparam/main.zn", line 19, characters 5-15:
+19 |     other.leaf = leaf;               // ILLEGAL: `other` is read-only
+  |     ^^^^^^^^^^
+Error: `other` is a parameter, and a parameter is read-only
+File "throughparam/main.zn", line 24, characters 5-10:
+24 |     other!setLeaf(leaf);             // ILLEGAL: `other` is read-only
+  |     ^^^^^
+Error: a `!` call writes its subject, and `other` is a parameter, which is read-only
+== rejected

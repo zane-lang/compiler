@@ -60,7 +60,50 @@ Unit tidy(this Desk, pen &Pen) mut {
 Unit loop(pen &Pen) {
 	own Pen(Int(3));
 	desk Desk(own);
-	repeat({
+	@controlflow$repeat(Int(2), {
+		desk!use();
+		desk!hold(pen);
+	});
+	return Unit();
+}
+
+/// A verb that passes its block to a constructor running it more than once
+/// runs it more than once too.
+type Drill = #struct { turns Int; }
+
+Drill(turns Int, body @concepts$Block) {
+	@controlflow$repeat(turns, body);
+	return init{ turns; }
+}
+
+Unit twice(body @concepts$Block) {
+	drill Drill(Int(2), body);
+	return Unit();
+}
+
+Unit bore(pen &Pen) {
+	own Pen(Int(6));
+	desk Desk(own);
+	twice({
+		desk!use();
+		desk!hold(pen);
+	});
+	return Unit();
+}
+
+/// A number given to an explicit number parameter picks the instance and
+/// takes none of its parameters, so the block after it is still found to
+/// run twice.
+Unit counted(n @concepts$Int, body @concepts$Block) {
+	measure Int(held Array<Int, n>) => Int(n);
+	@controlflow$repeat(Int(2), body);
+	return Unit();
+}
+
+Unit bored(pen &Pen) {
+	own Pen(Int(6));
+	desk Desk(own);
+	counted(3, {
 		desk!use();
 		desk!hold(pen);
 	});
@@ -90,7 +133,7 @@ Unit rotate(pen &Pen) {
 	own Pen(Int(5));
 	a &Pen = own;
 	b &Pen = pen;
-	repeat({
+	@controlflow$repeat(Int(2), {
 		t &Pen = a;
 		a = b;
 		b = t;
@@ -111,5 +154,29 @@ Unit order(pen &Pen) {
 	own Pen(Int(6));
 	desk Desk = forward(pen, own);
 	desk!use();
+	return Unit();
+}
+
+/// A block run at most once sees nothing an earlier run stored: storing the
+/// reference into `this` is legal, and so is the call that does it.
+Unit once(this Desk, pen &Pen) mut {
+	@controlflow$branch(true, { this!hold(pen); });
+	return Unit();
+}
+
+/// A verb that passes its block to a function value runs it as often as the
+/// function value might, which may be more than once.
+Unit forward(body @concepts$Block, run Unit[@concepts$Block]) {
+	run(body);
+	return Unit();
+}
+
+Unit relayRun(pen &Pen, run Unit[@concepts$Block]) {
+	own Pen(Int(7));
+	desk Desk(own);
+	forward({
+		desk!use();
+		desk!hold(pen);
+	}, run);
 	return Unit();
 }

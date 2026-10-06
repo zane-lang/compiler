@@ -1,0 +1,7 @@
+== checks; building and running
+element read yes
+element field read yes
+a copied reference keeps its owner yes
+the element names its new owner yes
+the copy observes an overwrite yes
+== exit 0

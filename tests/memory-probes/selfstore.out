@@ -1,0 +1,13 @@
+== checks; building and running
+r = r keeps the car yes
+r = r keeps its string yes
+r = relay(r) yes
+r.engine = r.engine yes
+settled = rebuilt(settled) yes
+its strings yes
+field rebuilt from itself yes
+its string yes
+wired to its own part yes
+its part overwritten yes
+whole kit overwritten; new mount names the slot yes
+== exit 0

@@ -23,6 +23,7 @@ let check (packages : Assembly.package list) =
   Expansions.run env program;
   Literal_ranges.run env program;
   Spawns.run env program;
+  Borrows.run env program;
   let diagnostics =
     List.sort_uniq
       (fun a b ->

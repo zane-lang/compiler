@@ -210,6 +210,7 @@ let run env : T.Program.t =
                   args = binding_args p.p_sig p.p_subst;
                   params;
                   body;
+                  note = Some (describe_instance p.p_sig p.p_subst p.p_at);
                 }
                 :: !(env.instances)
           | None -> ()))
@@ -270,6 +271,7 @@ let run env : T.Program.t =
               args = binding_args s subst;
               params;
               body = { T.Block.stats = [ { T.Stat.node = T.Stat.Return v; span = v.T.Expr.span } ]; span = v.T.Expr.span };
+              note = None;
             }
             :: acc
         | _ -> acc)

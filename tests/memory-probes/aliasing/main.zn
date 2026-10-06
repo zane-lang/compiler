@@ -1,0 +1,161 @@
+/// One object reached twice by the same call (memory.md §2.9): as a borrow
+/// and as a take, as a `mut` subject and a borrow, and as a list that grows
+/// and a borrowed element of it. A borrow is "non-owning, non-escaping access
+/// to the caller's owner for the duration of the call", passed by borrow
+/// "as the semantic model rather than an optimization".
+package aliasing;
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+/// Prints the label and `yes` when the condition holds, `no` when not.
+Unit check(label String, ok Bool) {
+	say(label);
+	@controlflow$branch(ok, { say(String(" yes\n")); });
+	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	return Unit();
+}
+
+type Engine = #struct { power Int; label String; }
+Engine(power Int, label String) => init{ power; label; }
+
+type Cup = #struct { size Int; }
+Cup(size Int) => init{ size; }
+Unit drink(cup ^Cup) => Unit()
+Int keepAndRead(c Cup, d ^Cup) {
+	drink(d);
+	return c.size;
+}
+
+/// Pushes until the list's block moves, reuses the blocks it gave back, then
+/// reads the borrowed element.
+Int growThenRead(this List<Engine>, e Engine) mut {
+	i Int(1);
+	i!to(Int(1000)) {
+		this!push(Engine(i, String("filler")));
+	}
+	j Int(1);
+	j!to(Int(1000)) {
+		other List<Engine> = @primitives$List(Engine);
+		other!push(Engine(Int(999), String("reuse")));
+		other!push(Engine(Int(999), String("reuse")));
+	}
+	reuse List<Engine> = @primitives$List(Engine);
+	reuse!push(Engine(Int(999), String("reuse")));
+	reuse!push(Engine(Int(999), String("reuse")));
+	return e.power;
+}
+
+type V = struct { x Int; y Int; }
+V(x Int, y Int) => init{ x; y; }
+Unit setFrom(this V, other V) mut {
+	this.x = Int(100);
+	this.y = other.x;
+	return Unit();
+}
+
+type Car = #struct { engine Engine; }
+Car(engine ^Engine) => init{ engine; }
+Unit swapFrom(this Car, other Car) mut {
+	this.engine = Engine(Int(100), String("new"));
+	this.engine.label = other.engine.label;
+	return Unit();
+}
+
+/// A `mut` subject that destroys what another argument borrows: the variant
+/// changes case, the list is replaced. `churn` then reuses the freed blocks.
+type Slot = #variant { full Engine; empty Unit; }
+
+Unit churn() {
+	j Int(1);
+	j!to(Int(200)) {
+		l List<Engine> = @primitives$List(Engine);
+		l!push(Engine(Int(999), String("junk") + String("junk")));
+		s Slot = Slot.full(Engine(Int(999), String("junk") + String("junk")));
+	}
+	return Unit();
+}
+
+Int clearThenRead(this Slot, e Engine) mut {
+	this = Slot.empty(Unit());
+	churn();
+	keep Slot = Slot.full(Engine(Int(999), String("junk") + String("junk")));
+	return e.power;
+}
+
+Int replaceThenRead(this List<Engine>, e Engine) mut {
+	this = @primitives$List(Engine);
+	this!push(Engine(Int(999), String("junk") + String("junk")));
+	churn();
+	return e.power;
+}
+
+type Garage = #struct { items List<Engine>; }
+Garage() => init{ items = @primitives$List(Engine); }
+Int resetThenRead(this Garage, e Engine) mut {
+	this.items = @primitives$List(Engine);
+	this.items!push(Engine(Int(999), String("junk") + String("junk")));
+	churn();
+	return e.power;
+}
+
+Unit main() {
+	cup ^Cup = Cup(Int(7));
+	// ILLEGAL (reported): the take ends the owner the borrow still lends.
+	// n Int = keepAndRead(cup, cup);
+
+	list List<Engine> = @primitives$List(Engine);
+	list!push(Engine(Int(42), String("first")));
+	// Something allocated after the list's block, so that growing it cannot
+	// extend it in place at the frontier.
+	pad List<Engine> = @primitives$List(Engine);
+	pad!push(Engine(Int(0), String("pad")));
+	m Int = list!growThenRead(list[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
+	check(String("element borrowed while its list grows"), m == Int(42));
+
+	v V(Int(1), Int(2));
+	v!setFrom(v);  // ILLEGAL (memory.md §2.9.1)
+	check(String("value subject and value borrow: borrow sees the write"), v.y == Int(100));
+
+	car Car(Engine(Int(1), String("old")));
+	car!swapFrom(car);  // ILLEGAL (memory.md §2.9.1)
+	check(String("reference subject and reference borrow: borrow sees the write"), car.engine.label == String("new"));
+
+	// The subject destroys what the borrow names. Nothing in memory.md §2.9
+	// lets the callee end the caller's owner while it lends it; each read
+	// below goes to a freed and reused block.
+	slot Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
+	a Int = slot!clearThenRead(slot.full ?? Engine(Int(0), String("none")));  // ILLEGAL (memory.md §2.9.1)
+	check(String("payload borrowed while its variant changes case"), a == Int(42));
+
+	list2 List<Engine> = @primitives$List(Engine);
+	list2!push(Engine(Int(42), String("orig") + String("inal")));
+	b Int = list2!replaceThenRead(list2[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
+	check(String("element borrowed while its list is replaced"), b == Int(42));
+
+	g Garage();
+	g.items!push(Engine(Int(42), String("orig") + String("inal")));
+	c Int = g!resetThenRead(g.items[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
+	check(String("element borrowed while the owner's list is replaced"), c == Int(42));
+	return Unit();
+}

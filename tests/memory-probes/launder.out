@@ -1,0 +1,77 @@
+File "launder/main.zn", line 75, characters 13-16:
+75 |         r = tmp;                              // ILLEGAL: through a local
+  |             ^^^
+Error: this stores a reference to `near`, whose block ends before `r`'s does
+File "launder/main.zn", line 76, characters 13-23:
+76 |         r = pass(near);                       // ILLEGAL: through a call result
+  |             ^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `r`'s does
+File "launder/main.zn", line 77, characters 13-29:
+77 |         r = frame:pick(near);                 // ILLEGAL: through a method result
+  |             ^^^^^^^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `r`'s does
+File "launder/main.zn", line 78, characters 13-25:
+78 |         r = passer(near);                     // ILLEGAL: through a function value's result
+  |             ^^^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `r`'s does
+File "launder/main.zn", line 79, characters 13-31:
+79 |         r = maybe(near, false) ?? far;        // ILLEGAL: through a handled result
+  |             ^^^^^^^^^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `r`'s does
+File "launder/main.zn", line 80, characters 13-30:
+80 |         r = maybe(far, false) ?? near;        // ILLEGAL: through the handler's value
+  |             ^^^^^^^^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `r`'s does
+File "launder/main.zn", line 81, characters 21-25:
+81 |         plug.port = near;                     // ILLEGAL: into a field of an outer root
+  |                     ^^^^
+Error: this stores a reference to `near`, whose block ends before `plug`'s does
+File "launder/main.zn", line 82, characters 27-31:
+82 |         frame.plug.port = near;               // ILLEGAL: into a nested field
+  |                           ^^^^
+Error: this stores a reference to `near`, whose block ends before `frame`'s does
+File "launder/main.zn", line 83, characters 19-23:
+83 |         plug!wire(near);                      // ILLEGAL: resting place
+  |                   ^^^^
+Error: this stores a reference to `near`, whose block ends before `plug`'s does (`wire` keeps `port` in `this`)
+File "launder/main.zn", line 84, characters 19-23:
+84 |         plug!ping(near, Int(3));              // ILLEGAL: resting place through mutual recursion
+  |                   ^^^^
+Error: this stores a reference to `near`, whose block ends before `plug`'s does (`ping` keeps `port` in `this`)
+File "launder/main.zn", line 85, characters 25-35:
+85 |         rack.plugs!push(Plug(near));          // ILLEGAL: push a value carrying one
+  |                         ^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `rack`'s does (`push` keeps `value` in `this`)
+File "launder/main.zn", line 86, characters 25-35:
+86 |         plugs[Int(1)] = Plug(near);           // ILLEGAL: element overwrite with a value carrying one
+  |                         ^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `plugs`'s does
+File "launder/main.zn", line 87, characters 30-34:
+87 |         plugs[Int(1)].port = near;            // ILLEGAL: into an element's field
+  |                              ^^^^
+Error: this stores a reference to `near`, whose block ends before `plugs`'s does
+File "launder/main.zn", line 88, characters 21-25:
+88 |         rack.slot = near;                     // ILLEGAL
+  |                     ^^^^
+Error: this stores a reference to `near`, whose block ends before `rack`'s does
+File "launder/main.zn", line 89, characters 23-27:
+89 |         arr[Int(1)] = near;                   // ILLEGAL: into an ArrayRef element
+  |                       ^^^^
+Error: this stores a reference to `near`, whose block ends before `arr`'s does
+File "launder/main.zn", line 90, characters 18-22:
+90 |         pin.at = near;                        // ILLEGAL: generic field
+  |                  ^^^^
+Error: this stores a reference to `near`, whose block ends before `pin`'s does
+File "launder/main.zn", line 91, characters 17-21:
+91 |         pin!put(near);                        // ILLEGAL: generic resting place
+  |                 ^^^^
+Error: this stores a reference to `near`, whose block ends before `pin`'s does (`put` keeps `at` in `this`)
+File "launder/main.zn", line 93, characters 22-27:
+93 |         frame.plug = spare;                   // ILLEGAL: moved value carries one
+  |                      ^^^^^
+Error: this stores a reference to `near`, whose block ends before `frame`'s does
+File "launder/main.zn", line 94, characters 17-34:
+94 |         frame = Frame(Plug(near));            // ILLEGAL: nested construction carries one
+  |                 ^^^^^^^^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `frame`'s does
+== rejected

@@ -1,0 +1,28 @@
+/// Settled and roaming owners (memory.md §2.1), and `&`/`^` written over a
+/// value type (§2.4, §2.9). Lines marked ILLEGAL should be reported, and
+/// nothing else.
+package settled;
+
+alias Int = @primitives$Int
+alias Unit = @primitives$Unit
+
+type Engine = #struct { power Int; }
+type Vec = struct { x Int; y Int; }
+
+Engine(power Int) => init{ power; }
+Vec(x Int, y Int) => init{ x; y; }
+
+Unit main() {
+	spare ^Engine = Engine(Int(1));   // roaming
+	engine Engine = spare;            // settles here; spare is spent
+	view &Engine = engine;            // legal: engine is settled
+	moved Engine = engine;            // ILLEGAL: a settled owner never moves
+	n Int(3);
+	bad &Int = n;                     // ILLEGAL: & over a value type
+	v Vec(Int(1), Int(2));
+	bv &Vec = v;                      // ILLEGAL
+	w ^Vec = Vec(Int(1), Int(2));     // ILLEGAL: ^ over a value type
+	wi ^Int = Int(4);                 // ILLEGAL
+	again &Engine = spare;            // ILLEGAL: spare is spent (and roaming)
+	return Unit();
+}

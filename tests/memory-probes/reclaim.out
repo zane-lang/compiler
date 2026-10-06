@@ -1,0 +1,12 @@
+overwrite_settled | N=10000: 0 9976 ; N=1000000: 0 9924
+overwrite_string | N=10000: 0 9980 ; N=1000000: 0 10060
+string_copy | N=10000: 0 9932 ; N=1000000: 0 9960
+ignored_result | N=10000: 0 9956 ; N=1000000: 0 9916
+inner_owner | N=10000: 0 10060 ; N=1000000: 0 10060
+roaming_refill | N=10000: 0 9968 ; N=1000000: 0 9908
+aborted_owner | N=10000: 0 9948 ; N=1000000: 0 9892
+control_push_grows | N=10000: 0 9976 ; N=1000000: 0 73452
+deep_copy | N=10000: 0 9956 ; N=1000000: 0 9916
+list_elem_overwrite | N=10000: 0 10060 ; N=1000000: 0 9916
+string_concat_reset | N=10000: 0 9948 ; N=1000000: 0 9976
+value_list_rebuild | N=10000: 0 9944 ; N=1000000: 0 9924

@@ -36,9 +36,30 @@ void zane_unblock(const zane_position *p, void *block, int64_t room) {
 
 void *zane_at(char *base, const zane_position *p) { return base + p->offset; }
 
-/* The block the handle or boxed member at `p` owns is returned, once what
-   lives in it has died. */
-void zane_end_at(char *base, const zane_position *p) {
+void zane_work_push(zane_work *w, zane_job job) {
+	if (w->count == w->room) {
+		w->room = w->room ? 2 * w->room : 64;
+		w->jobs = realloc(w->jobs, (size_t)w->room * sizeof *w->jobs);
+		if (!w->jobs) zane_broken("out of memory for a value's blocks");
+	}
+	w->jobs[w->count++] = job;
+}
+
+int zane_work_pop(zane_work *w, zane_job *job) {
+	if (w->count == 0) return 0;
+	*job = w->jobs[--w->count];
+	return 1;
+}
+
+void zane_work_end(zane_work *w) {
+	free(w->jobs);
+	*w = (zane_work){ 0 };
+}
+
+/* One position of a dying value: a string's block is returned at once; a
+   list's elements and a box's payload die first, so their block is
+   returned by a job pushed beneath theirs, after them. */
+static void zane_end_position(zane_work *w, char *base, const zane_position *p) {
 	switch (p->kind) {
 	case ZANE_TEXT: {
 		zane_text *t = zane_at(base, p);
@@ -49,9 +70,11 @@ void zane_end_at(char *base, const zane_position *p) {
 	}
 	case ZANE_LIST: {
 		zane_list *l = zane_at(base, p);
+		if (l->room)
+			zane_work_push(w, (zane_job){ .block = *p, .returned = l->items, .size = l->room });
 		if (p->inner)
-			for (int64_t i = 0; i < l->count; i++) zane_end(l->items + i * p->extra, p->inner);
-		if (l->room) zane_unblock(p, l->items, l->room);
+			for (int64_t i = 0; i < l->count; i++)
+				zane_work_push(w, (zane_job){ .at = l->items + i * p->extra, .layout = p->inner });
 		l->items = NULL;
 		l->count = l->room = 0;
 		break;
@@ -59,21 +82,43 @@ void zane_end_at(char *base, const zane_position *p) {
 	case ZANE_BOX: {
 		char **box = zane_at(base, p);
 		if (!*box) break;
-		if (p->inner) zane_end(*box, p->inner);
-		zane_unblock(p, *box, 0);
+		zane_work_push(w, (zane_job){ .block = *p, .returned = *box });
+		if (p->inner) zane_work_push(w, (zane_job){ .at = *box, .layout = p->inner });
 		*box = NULL;
 		break;
 	}
 	}
 }
 
+static void zane_end_all(zane_work *w) {
+	zane_job job;
+	while (zane_work_pop(w, &job)) {
+		if (job.block.kind) {
+			zane_unblock(&job.block, job.returned, job.size);
+			continue;
+		}
+		zane_position p;
+		ZANE_EACH(job.layout, p) {
+			if (zane_present(job.at, &p)) zane_end_position(w, job.at, &p);
+		}
+	}
+	zane_work_end(w);
+}
+
+/* The block the handle or boxed member at `p` owns is returned, once what
+   lives in it has died. */
+void zane_end_at(char *base, const zane_position *p) {
+	zane_work w = { 0 };
+	zane_end_position(&w, base, p);
+	zane_end_all(&w);
+}
+
 /* The value at `base` dies: each block it owns is returned, down through
    the blocks inside them (lifetimes.md §2.1). */
 void zane_end(char *base, const int64_t *layout) {
-	zane_position p;
-	ZANE_EACH(layout, p) {
-		if (zane_present(base, &p)) zane_end_at(base, &p);
-	}
+	zane_work w = { 0 };
+	zane_work_push(&w, (zane_job){ .at = base, .layout = layout });
+	zane_end_all(&w);
 }
 
 /* The scope a value is made in is the innermost; where it arrives decides
@@ -84,40 +129,47 @@ static zane_mark *zane_here(void) { return zane_mark_at(zane_self, zane_self->de
    is still the original's, so it gets a copy of its own, down through the
    blocks inside it (memory.md §2.3). */
 void zane_copy(char *value, const int64_t *layout) {
-	zane_position p;
-	ZANE_EACH(layout, p) {
-		if (!zane_present(value, &p)) continue;
-		switch (p.kind) {
-		case ZANE_TEXT: {
-			zane_text *t = zane_at(value, &p);
-			if (!t->room) break;
-			char *bytes = zane_alloc(zane_here(), t->length, 8);
-			memcpy(bytes, t->bytes, (size_t)t->length);
-			t->bytes = bytes;
-			t->room = t->length;
-			break;
-		}
-		case ZANE_LIST: {
-			zane_list *l = zane_at(value, &p);
-			if (!l->room) break;
-			char *items = zane_alloc(zane_here(), l->room, ZANE_LINE);
-			memcpy(items, l->items, (size_t)(l->count * p.extra));
-			l->items = items;
-			if (p.inner)
-				for (int64_t i = 0; i < l->count; i++) zane_copy(items + i * p.extra, p.inner);
-			break;
-		}
-		case ZANE_BOX: {
-			char **box = zane_at(value, &p);
-			if (!*box) break;
-			char *payload = zane_alloc(zane_here(), p.extra, 8);
-			memcpy(payload, *box, (size_t)p.extra);
-			*box = payload;
-			if (p.inner) zane_copy(payload, p.inner);
-			break;
-		}
+	zane_work w = { 0 };
+	zane_work_push(&w, (zane_job){ .at = value, .layout = layout });
+	zane_job job;
+	while (zane_work_pop(&w, &job)) {
+		zane_position p;
+		ZANE_EACH(job.layout, p) {
+			if (!zane_present(job.at, &p)) continue;
+			switch (p.kind) {
+			case ZANE_TEXT: {
+				zane_text *t = zane_at(job.at, &p);
+				if (!t->room) break;
+				char *bytes = zane_alloc(zane_here(), t->length, 8);
+				memcpy(bytes, t->bytes, (size_t)t->length);
+				t->bytes = bytes;
+				t->room = t->length;
+				break;
+			}
+			case ZANE_LIST: {
+				zane_list *l = zane_at(job.at, &p);
+				if (!l->room) break;
+				char *items = zane_alloc(zane_here(), l->room, ZANE_LINE);
+				memcpy(items, l->items, (size_t)(l->count * p.extra));
+				l->items = items;
+				if (p.inner)
+					for (int64_t i = 0; i < l->count; i++)
+						zane_work_push(&w, (zane_job){ .at = items + i * p.extra, .layout = p.inner });
+				break;
+			}
+			case ZANE_BOX: {
+				char **box = zane_at(job.at, &p);
+				if (!*box) break;
+				char *payload = zane_alloc(zane_here(), p.extra, 8);
+				memcpy(payload, *box, (size_t)p.extra);
+				*box = payload;
+				if (p.inner) zane_work_push(&w, (zane_job){ .at = payload, .layout = p.inner });
+				break;
+			}
+			}
 		}
 	}
+	zane_work_end(&w);
 }
 
 /* A boxed member's block (memory.md §3.6): exactly one payload's size. */
@@ -137,13 +189,15 @@ void zane_text_join(zane_text *out, const zane_text *left, const zane_text *righ
 		return;
 	}
 	char *bytes = zane_alloc(zane_here(), length, 8);
-	memcpy(bytes, left->bytes, (size_t)left->length);
-	memcpy(bytes + left->length, right->bytes, (size_t)right->length);
+	/* A side with no bytes may have no block either, and memcpy is not
+	   given a null pointer even for zero bytes. */
+	if (left->length) memcpy(bytes, left->bytes, (size_t)left->length);
+	if (right->length) memcpy(bytes + left->length, right->bytes, (size_t)right->length);
 	*out = (zane_text){ bytes, length, length };
 }
 
 /* `==` on `@primitives$String`: the same bytes. */
 int64_t zane_text_equal(const zane_text *left, const zane_text *right) {
 	return left->length == right->length &&
-	       memcmp(left->bytes, right->bytes, (size_t)left->length) == 0;
+	       (left->length == 0 || memcmp(left->bytes, right->bytes, (size_t)left->length) == 0);
 }

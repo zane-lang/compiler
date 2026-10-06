@@ -579,6 +579,40 @@
   (diff golden/owners.out owners.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/probed))
+ (targets probed.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build probed.exe --package fixtures/probed)))
+
+(rule
+ (deps (source_tree fixtures/probed))
+ (targets probed.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build probed.optimized.exe --optimize --package fixtures/probed)))
+
+(rule
+ (action
+  (with-stdout-to
+   probed.out.actual
+   (run ./probed.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/probed.out probed.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   probed.optimized.out.actual
+   (run ./probed.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/probed.out probed.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/range))
  (targets range.exe)
  (action

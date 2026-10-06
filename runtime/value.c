@@ -25,10 +25,11 @@ static int zane_leaves(const void *block, zane_mark *region, int64_t from) {
 }
 
 /* The block that the handle or boxed member at `at` owns moves into
-   `region` when it must: an equal block there takes what lives in it, down
-   through the blocks it owns, and the old one is returned (memory.md
-   §3.5). */
-static void zane_move_at(char *at, const zane_position *p, zane_mark *region, int64_t from) {
+   `region` when it must: an equal block there takes what lives in it, and
+   the old one is returned (memory.md §3.5). What lives in it is then pushed
+   onto `w`, to move the blocks it owns in turn. */
+static void zane_move_at(zane_work *w, char *at, const zane_position *p, zane_mark *region,
+                         int64_t from) {
 	switch (p->kind) {
 	case ZANE_TEXT: {
 		zane_text *t = (zane_text *)at;
@@ -47,7 +48,8 @@ static void zane_move_at(char *at, const zane_position *p, zane_mark *region, in
 		zane_unblock(p, l->items, l->room);
 		l->items = items;
 		if (p->inner)
-			for (int64_t i = 0; i < l->count; i++) zane_move(items + i * p->extra, p->inner, region, from);
+			for (int64_t i = 0; i < l->count; i++)
+				zane_work_push(w, (zane_job){ .at = items + i * p->extra, .layout = p->inner });
 		break;
 	}
 	case ZANE_BOX: {
@@ -57,7 +59,7 @@ static void zane_move_at(char *at, const zane_position *p, zane_mark *region, in
 		memcpy(payload, *box, (size_t)p->extra);
 		zane_unblock(p, *box, 0);
 		*box = payload;
-		if (p->inner) zane_move(payload, p->inner, region, from);
+		if (p->inner) zane_work_push(w, (zane_job){ .at = payload, .layout = p->inner });
 		break;
 	}
 	}
@@ -66,10 +68,16 @@ static void zane_move_at(char *at, const zane_position *p, zane_mark *region, in
 /* The value at `value` is where it now lives: every block it owns that
    must move into `region` does, as `zane_leaves` decides. */
 void zane_move(char *value, const int64_t *layout, zane_mark *region, int64_t from) {
-	zane_position p;
-	ZANE_EACH(layout, p) {
-		if (zane_present(value, &p)) zane_move_at(zane_at(value, &p), &p, region, from);
+	zane_work w = { 0 };
+	zane_work_push(&w, (zane_job){ .at = value, .layout = layout });
+	zane_job job;
+	while (zane_work_pop(&w, &job)) {
+		zane_position p;
+		ZANE_EACH(job.layout, p) {
+			if (zane_present(job.at, &p)) zane_move_at(&w, zane_at(job.at, &p), &p, region, from);
+		}
 	}
+	zane_work_end(&w);
 }
 
 /* A value arrived at `slot`: the blocks it owns that the slot's region
@@ -117,30 +125,42 @@ void zane_vacate(char *slot, const int64_t *layout) {
    dies, and what the replacement brought arrives. `incoming` is complete
    before this runs, so a replacement made from the occupant is safe (§2.3). */
 void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *layout) {
-	int64_t positions = layout ? layout[0] : 0;
-	int64_t n = 0;
-	zane_position kept[positions + 1];
-	char *blocks[positions + 1];
-	zane_position p;
-	ZANE_EACH(layout, p) {
-		if (!zane_present(slot, &p)) continue;
-		char *old = p.kind == ZANE_BOX ? *(char **)zane_at(slot, &p) : NULL;
-		if (old && zane_present(incoming, &p) && *(char **)zane_at(incoming, &p)) {
-			kept[n] = p;
-			blocks[n++] = old;
-		} else {
-			zane_end_at(slot, &p);
+	zane_work w = { 0 };
+	/* Each place written, in the order written, to arrive deepest first. */
+	zane_work arrivals = { 0 };
+	zane_work_push(&w, (zane_job){ .at = slot, .layout = layout, .incoming = incoming, .size = size });
+	zane_job job;
+	while (zane_work_pop(&w, &job)) {
+		zane_work_push(&arrivals, (zane_job){ .at = job.at, .layout = job.layout });
+		int64_t positions = job.layout ? job.layout[0] : 0;
+		int64_t n = 0;
+		zane_position kept[positions + 1];
+		char *blocks[positions + 1];
+		zane_position p;
+		ZANE_EACH(job.layout, p) {
+			if (!zane_present(job.at, &p)) continue;
+			char *old = p.kind == ZANE_BOX ? *(char **)zane_at(job.at, &p) : NULL;
+			if (old && zane_present(job.incoming, &p) && *(char **)zane_at(job.incoming, &p)) {
+				kept[n] = p;
+				blocks[n++] = old;
+			} else {
+				zane_end_at(job.at, &p);
+			}
+		}
+		memcpy(job.at, job.incoming, (size_t)job.size);
+		/* The block that brought this payload is spent once it is copied. */
+		if (job.block.kind) zane_unblock(&job.block, job.incoming, 0);
+		for (int64_t i = 0; i < n; i++) {
+			char **at = zane_at(job.at, &kept[i]);
+			zane_work_push(&w, (zane_job){ .at = blocks[i], .layout = kept[i].inner, .incoming = *at,
+			                               .size = kept[i].extra, .block = kept[i] });
+			*at = blocks[i];
 		}
 	}
-	memcpy(slot, incoming, (size_t)size);
-	for (int64_t i = 0; i < n; i++) {
-		char **at = zane_at(slot, &kept[i]);
-		char *brought = *at;
-		zane_overwrite(blocks[i], brought, kept[i].extra, kept[i].inner);
-		zane_unblock(&kept[i], brought, 0);
-		*at = blocks[i];
-	}
-	zane_arrive(slot, layout);
+	zane_work_end(&w);
+	/* What each place brought arrives where that place's own block is. */
+	while (zane_work_pop(&arrivals, &job)) zane_arrive(job.at, job.layout);
+	zane_work_end(&arrivals);
 }
 
 /* ---------------------------------------------------------------------- */
