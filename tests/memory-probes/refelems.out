@@ -1,6 +1,5 @@
 == checks; building and running
 internal compiler error: the stack overflowed
-
 This is a bug in the compiler, not in the program. Please report it at
 https://github.com/zane-lang/compiler/issues
 == build failed
