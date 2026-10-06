@@ -18,7 +18,7 @@
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
-    │       ├── id: %8
+    │       ├── id: %12
     │       ├── body[0] > let:
     │       │   ├── local: #1
     │       │   └── value > record:
@@ -42,16 +42,22 @@
     │       │       │       ├── args[2]: 3 : i64
     │       │       │       └── args[3]: 8 : i64
     │       │       └── right: 1 : i64
-    │       ├── body[2] > store:
+    │       ├── body[2] > let:
+    │       │   ├── local: #2
+    │       │   └── value: 2 : i64
+    │       ├── body[3] > let:
+    │       │   ├── local: #3
+    │       │   └── value: 5 : i64
+    │       ├── body[4] > store:
     │       │   ├── address > runtime:
     │       │   │   ├── type: ptr
     │       │   │   ├── fn: zane_array_at
     │       │   │   ├── args[0]: address of #1 : ptr
-    │       │   │   ├── args[1]: 2 : i64
+    │       │   │   ├── args[1]: local #2 : i64
     │       │   │   ├── args[2]: 3 : i64
     │       │   │   └── args[3]: 8 : i64
-    │       │   └── value: 5 : i64
-    │       ├── body[3] > eval > call:
+    │       │   └── value: local #3 : i64
+    │       ├── body[5] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -67,7 +73,7 @@
     │       │       │       ├── args[2]: 3 : i64
     │       │       │       └── args[3]: 8 : i64
     │       │       └── right: 5 : i64
-    │       ├── body[4] > eval > call:
+    │       ├── body[6] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -78,7 +84,7 @@
     │       │       │   ├── fn: arrays$count<%primitives$Int, 3>(%primitives$Array<%primitives$Int, 3>)
     │       │       │   └── args[0]: local #1 : [3 x i64]
     │       │       └── right: 3 : i64
-    │       ├── body[5] > eval > call:
+    │       ├── body[7] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -89,19 +95,25 @@
     │       │       │   ├── fn: arrays$measured<3>(%primitives$Array<%primitives$Int, 3>, %concepts$Int)
     │       │       │   └── args[0]: local #1 : [3 x i64]
     │       │       └── right: 3 : i64
-    │       ├── body[6] > let:
-    │       │   ├── local: #2
+    │       ├── body[8] > let:
+    │       │   ├── local: #4
     │       │   └── value: local #1 : [3 x i64]
-    │       ├── body[7] > store:
+    │       ├── body[9] > let:
+    │       │   ├── local: #5
+    │       │   └── value: 3 : i64
+    │       ├── body[10] > let:
+    │       │   ├── local: #6
+    │       │   └── value: 0 : i64
+    │       ├── body[11] > store:
     │       │   ├── address > runtime:
     │       │   │   ├── type: ptr
     │       │   │   ├── fn: zane_array_at
-    │       │   │   ├── args[0]: address of #2 : ptr
-    │       │   │   ├── args[1]: 3 : i64
+    │       │   │   ├── args[0]: address of #4 : ptr
+    │       │   │   ├── args[1]: local #5 : i64
     │       │   │   ├── args[2]: 3 : i64
     │       │   │   └── args[3]: 8 : i64
-    │       │   └── value: 0 : i64
-    │       ├── body[8] > eval > call:
+    │       │   └── value: local #6 : i64
+    │       ├── body[12] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -117,7 +129,7 @@
     │       │       │       ├── args[2]: 3 : i64
     │       │       │       └── args[3]: 8 : i64
     │       │       └── right: 3 : i64
-    │       ├── body[9] > eval > call:
+    │       ├── body[13] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -130,23 +142,23 @@
     │       │       │       ├── fn: zane_array_at
     │       │       │       ├── args[0] > expand:
     │       │       │       │   ├── type: ptr
-    │       │       │       │   ├── label: @4
-    │       │       │       │   ├── result: #5
+    │       │       │       │   ├── label: @8
+    │       │       │       │   ├── result: #9
     │       │       │       │   ├── body[0] > let:
-    │       │       │       │   │   ├── local: #3
+    │       │       │       │   │   ├── local: #7
     │       │       │       │   │   └── value > call:
     │       │       │       │   │       ├── type: [3 x i64]
     │       │       │       │   │       ├── fn: arrays$three()
     │       │       │       │   │       └── args:
     │       │       │       │   └── body[1] > assign:
-    │       │       │       │       ├── place: #5
-    │       │       │       │       └── value: address of #3 : ptr
+    │       │       │       │       ├── place: #9
+    │       │       │       │       └── value: address of #7 : ptr
     │       │       │       ├── args[1]: 2 : i64
     │       │       │       ├── args[2]: 3 : i64
     │       │       │       └── args[3]: 8 : i64
     │       │       └── right: 8 : i64
-    │       ├── body[10] > let:
-    │       │   ├── local: #6
+    │       ├── body[14] > let:
+    │       │   ├── local: #10
     │       │   └── value > call:
     │       │       ├── type: {[4 x i64], i64}
     │       │       ├── fn: arrays$Grid(%primitives$Array<%primitives$Int, 4>, %primitives$Int)
@@ -157,13 +169,13 @@
     │       │       │   ├── members[2] > member 2: 3 : i64
     │       │       │   └── members[3] > member 3: 4 : i64
     │       │       └── args[1]: 2 : i64
-    │       ├── body[11] > eval > call:
+    │       ├── body[15] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$set(this arrays$Grid, %primitives$Int, %primitives$Int)
-    │       │   ├── args[0]: address of #6 : ptr
+    │       │   ├── args[0]: address of #10 : ptr
     │       │   ├── args[1]: 4 : i64
     │       │   └── args[2]: 40 : i64
-    │       ├── body[12] > eval > call:
+    │       ├── body[16] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -172,18 +184,24 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arrays$at(this arrays$Grid, %primitives$Int)
-    │       │       │   ├── args[0]: local #6 : {[4 x i64], i64}
+    │       │       │   ├── args[0]: local #10 : {[4 x i64], i64}
     │       │       │   └── args[1]: 4 : i64
     │       │       └── right: 40 : i64
-    │       ├── body[13] > hold:
-    │       │   ├── local: #7
-    │       │   ├── scope: %8
+    │       ├── body[17] > hold:
+    │       │   ├── local: #11
+    │       │   ├── scope: %12
     │       │   ├── value > call:
     │       │   │   ├── type: {{[4 x i64], i64}}
     │       │   │   ├── fn: arrays$Box(arrays$Grid)
-    │       │   │   └── args[0]: local #6 : {[4 x i64], i64}
+    │       │   │   └── args[0]: local #10 : {[4 x i64], i64}
     │       │   └── layout: arrays$Box
-    │       ├── body[14] > store:
+    │       ├── body[18] > let:
+    │       │   ├── local: #13
+    │       │   └── value: 1 : i64
+    │       ├── body[19] > let:
+    │       │   ├── local: #14
+    │       │   └── value: 10 : i64
+    │       ├── body[20] > store:
     │       │   ├── address > runtime:
     │       │   │   ├── type: ptr
     │       │   │   ├── fn: zane_array_at
@@ -193,12 +211,12 @@
     │       │   │   │   └── base > offset:
     │       │   │   │       ├── within: {{[4 x i64], i64}}
     │       │   │   │       ├── path: 0
-    │       │   │   │       └── base: address of #7 : ptr
-    │       │   │   ├── args[1]: 1 : i64
+    │       │   │   │       └── base: address of #11 : ptr
+    │       │   │   ├── args[1]: local #13 : i64
     │       │   │   ├── args[2]: 4 : i64
     │       │   │   └── args[3]: 8 : i64
-    │       │   └── value: 10 : i64
-    │       ├── body[15] > eval > call:
+    │       │   └── value: local #14 : i64
+    │       ├── body[21] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -218,7 +236,7 @@
     │       │       │   │       │   └── base > offset:
     │       │       │   │       │       ├── within: {{[4 x i64], i64}}
     │       │       │   │       │       ├── path: 0
-    │       │       │   │       │       └── base: address of #7 : ptr
+    │       │       │   │       │       └── base: address of #11 : ptr
     │       │       │   │       ├── args[1]: 1 : i64
     │       │       │   │       ├── args[2]: 4 : i64
     │       │       │   │       └── args[3]: 8 : i64
@@ -230,12 +248,12 @@
     │       │       │       │   └── ptr > offset:
     │       │       │       │       ├── within: {{[4 x i64], i64}}
     │       │       │       │       ├── path: 0
-    │       │       │       │       └── base: address of #7 : ptr
+    │       │       │       │       └── base: address of #11 : ptr
     │       │       │       └── args[1]: 4 : i64
     │       │       └── right: 50 : i64
-    │       ├── body[16] > hold:
-    │       │   ├── local: #9
-    │       │   ├── scope: %8
+    │       ├── body[22] > hold:
+    │       │   ├── local: #15
+    │       │   ├── scope: %12
     │       │   ├── value > case:
     │       │   │   ├── type: <i64 | ptr>
     │       │   │   ├── index: 1
@@ -263,7 +281,7 @@
     │       │   │       │           └── layout: %primitives$Array<arrays$Tree, 2>
     │       │   │       └── layout: %primitives$Array<arrays$Tree, 2>
     │       │   └── layout: arrays$Tree
-    │       ├── body[17] > eval > call:
+    │       ├── body[23] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -272,17 +290,17 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arrays$total(arrays$Tree)
-    │       │       │   └── args[0]: local #9 : <i64 | ptr>
+    │       │       │   └── args[0]: local #15 : <i64 | ptr>
     │       │       └── right: 6 : i64
-    │       ├── body[18] > hold:
-    │       │   ├── local: #10
-    │       │   ├── scope: %8
+    │       ├── body[24] > hold:
+    │       │   ├── local: #16
+    │       │   ├── scope: %12
     │       │   ├── value > copy:
     │       │   │   ├── type: <i64 | ptr>
-    │       │   │   ├── value: local #9 : <i64 | ptr>
+    │       │   │   ├── value: local #15 : <i64 | ptr>
     │       │   │   └── layout: arrays$Tree
     │       │   └── layout: arrays$Tree
-    │       ├── body[19] > eval > call:
+    │       ├── body[25] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -291,31 +309,31 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arrays$total(arrays$Tree)
-    │       │       │   └── args[0]: local #10 : <i64 | ptr>
+    │       │       │   └── args[0]: local #16 : <i64 | ptr>
     │       │       └── right: 6 : i64
-    │       ├── body[20] > let:
-    │       │   ├── local: #11
+    │       ├── body[26] > let:
+    │       │   ├── local: #17
     │       │   └── value: 3 : i32
-    │       ├── body[21] > let:
-    │       │   ├── local: #12
+    │       ├── body[27] > let:
+    │       │   ├── local: #18
     │       │   └── value > binary:
     │       │       ├── type: i32
     │       │       ├── op: +
-    │       │       ├── left: local #11 : i32
+    │       │       ├── left: local #17 : i32
     │       │       └── right > binary:
     │       │           ├── type: i32
     │       │           ├── op: *
     │       │           ├── left: 4 : i32
     │       │           └── right: 2 : i32
-    │       ├── body[22] > eval > call:
+    │       ├── body[28] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left: local #12 : i32
+    │       │       ├── left: local #18 : i32
     │       │       └── right: 11 : i32
-    │       ├── body[23] > eval > call:
+    │       ├── body[29] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -324,10 +342,10 @@
     │       │       ├── left > binary:
     │       │       │   ├── type: i32
     │       │       │   ├── op: /
-    │       │       │   ├── left: local #12 : i32
+    │       │       │   ├── left: local #18 : i32
     │       │       │   └── right: 2 : i32
     │       │       └── right: 5 : i32
-    │       ├── body[24] > eval > call:
+    │       ├── body[30] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -335,9 +353,9 @@
     │       │       ├── op: <
     │       │       ├── left > flip:
     │       │       │   ├── type: i32
-    │       │       │   └── value: local #12 : i32
+    │       │       │   └── value: local #18 : i32
     │       │       └── right: 0 : i32
-    │       ├── body[25] > eval > call:
+    │       ├── body[31] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -349,7 +367,7 @@
     │       │       │   ├── left: 2147483647 : i32
     │       │       │   └── right: 1 : i32
     │       │       └── right: 0 : i32
-    │       └── body[26] > return: unit : void
+    │       └── body[32] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: arrays$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
@@ -415,7 +433,13 @@
     │   ├── params[1]: local #2 : i64
     │   ├── params[2]: local #3 : i64
     │   ├── ret: void
-    │   ├── body[0] > store:
+    │   ├── body[0] > let:
+    │   │   ├── local: #4
+    │   │   └── value: local #2 : i64
+    │   ├── body[1] > let:
+    │   │   ├── local: #5
+    │   │   └── value: local #3 : i64
+    │   ├── body[2] > store:
     │   │   ├── address > runtime:
     │   │   │   ├── type: ptr
     │   │   │   ├── fn: zane_array_at
@@ -423,11 +447,11 @@
     │   │   │   │   ├── within: {[4 x i64], i64}
     │   │   │   │   ├── path: 0
     │   │   │   │   └── base: local #1 : ptr
-    │   │   │   ├── args[1]: local #2 : i64
+    │   │   │   ├── args[1]: local #4 : i64
     │   │   │   ├── args[2]: 4 : i64
     │   │   │   └── args[3]: 8 : i64
-    │   │   └── value: local #3 : i64
-    │   └── body[1] > return: unit : void
+    │   │   └── value: local #5 : i64
+    │   └── body[3] > return: unit : void
     ├── funcs[7] > func:
     │   ├── symbol: arrays$at(this arrays$Grid, %primitives$Int)
     │   ├── params[0]: local #1 : {[4 x i64], i64}

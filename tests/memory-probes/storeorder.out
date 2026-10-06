@@ -1,2 +1,4 @@
 == checks; building and running
-== exit 139
+value element store whose right side grows the list yes
+owner element store whose right side grows the list yes
+== exit 0

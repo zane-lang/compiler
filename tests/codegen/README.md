@@ -89,7 +89,9 @@ again, read the golden diff and promote that.
   (`tests/memory-probes/`) found broken: an `&` element read from an
   `ArrayRef`, and a recursive value 30,000 boxes deep built, copied,
   overwritten and destroyed, which the runtime walks in a loop rather than
-  on the C stack.
+  on the C stack, a 512 KiB array, moved as memory, and an element store and
+  a `!` call on an element whose value grows the list, which find the element
+  only after it has moved.
 
 ## Rejects
 
