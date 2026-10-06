@@ -166,9 +166,10 @@ let locate (t : Ty.t) (v : v) (p : Layout.position) =
     | Ty.Array (e, _) -> (
         let size, align = Ty.size_align e in
         let stride = (size + align - 1) / align * align in
-        let i = off / stride in
+        (* An element of no size holds no handle or box. *)
+        let i = if stride = 0 then -1 else off / stride in
         match v with
-        | VRecord a when i < Array.length a ->
+        | VRecord a when i >= 0 && i < Array.length a ->
             go e a.(i) (off - (i * stride)) (base + (i * stride)) (Member i :: path)
         | _ -> stop "an array that holds no such element")
     | Ty.Sum ts when off >= Ty.payload_offset -> (
@@ -208,6 +209,21 @@ let rec copy layouts layout t v =
       | _ -> v)
     (own v)
     (positions layouts layout t v)
+
+(* About how many bytes copying a value whole writes, which the step budget
+   charges before the copy is made. *)
+let rec weight = function
+  | VRecord a -> Array.fold_left (fun n v -> n + weight v) 0 a
+  | VCase (_, p) -> 8 + weight p
+  | VList l ->
+      let n = ref 24 in
+      for i = 0 to l.count - 1 do
+        n := !n + 24 + weight l.items.(i).value
+      done;
+      !n
+  | VPtr { cell = c; owned = true; _ } -> 8 + weight c.value
+  | VText _ -> 24
+  | _ -> 8
 
 (* What a move leaves in the place it moved out of (zane_vacate): no list,
    no string and no box. *)
@@ -295,6 +311,30 @@ let rec export = function
   | VPtr { cell = c; path = []; owned = true } ->
       Option.map (fun payload -> Box { ty = c.ty; layout = c.layout; payload }) (export c.value)
   | VPtr _ | VNull | VLayout _ -> None
+
+(* Whether two constants are the same in every bit: [=] takes a zero for
+   its negative, which a division tells apart. *)
+let rec same a b =
+  match (a, b) with
+  | Float x, Float y -> Int64.equal (Int64.bits_of_float x) (Int64.bits_of_float y)
+  | Record x, Record y -> Array.length x = Array.length y && Array.for_all2 same x y
+  | Case (i, x), Case (j, y) -> i = j && same x y
+  | List l, List m ->
+      l.stride = m.stride && l.element = m.element && l.layout = m.layout
+      && List.length l.items = List.length m.items
+      && List.for_all2 same l.items m.items
+  | Box x, Box y -> x.ty = y.ty && x.layout = y.layout && same x.payload y.payload
+  | (Float _ | Record _ | Case _ | List _ | Box _), _ -> false
+  | (Int _ | Bool _ | Unit | Text _ | Func _), _ -> a = b
+
+(* Constants as keys, compared with [same]. Equal floats hash alike, so
+   constants that are the same do too. *)
+module Key = Hashtbl.Make (struct
+  type t = string * const list
+
+  let equal (f, a) (g, b) = String.equal f g && List.length a = List.length b && List.for_all2 same a b
+  let hash = Hashtbl.hash
+end)
 
 (* How many bytes a constant takes where it is written, which the size cap
    (O6) counts. *)

@@ -26,7 +26,7 @@
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
-    │       ├── id: %5
+    │       ├── id: %6
     │       ├── body[0] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -49,7 +49,7 @@
     │       │   └── args[0]: "yes\n" : handle
     │       ├── body[5] > let:
     │       │   ├── local: #1
-    │       │   └── value: -nan : f64
+    │       │   └── value: nan : f64
     │       ├── body[6] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -74,22 +74,16 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[12] > eval > runtime:
+    │       ├── body[12] > let:
+    │       │   ├── local: #2
+    │       │   └── value: 0x0p+0 : f64
+    │       ├── body[13] > assign:
+    │       │   ├── place: #2
+    │       │   └── value: -0x0p+0 : f64
+    │       ├── body[14] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[13] > let:
-    │       │   ├── local: #24
-    │       │   └── value > record:
-    │       │       ├── type: {i64, i64}
-    │       │       ├── members[0] > member 0: 2 : i64
-    │       │       └── members[1] > member 1: 3 : i64
-    │       ├── body[14] > assign:
-    │       │   ├── place: #24
-    │       │   └── value > record:
-    │       │       ├── type: {i64, i64}
-    │       │       ├── members[0] > member 0: 20 : i64
-    │       │       └── members[1] > member 1: 30 : i64
     │       ├── body[15] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -102,14 +96,18 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[18] > eval > runtime:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[19] > eval > runtime:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[18] > let:
+    │       │   ├── local: #25
+    │       │   └── value > record:
+    │       │       ├── type: {i64, i64}
+    │       │       ├── members[0] > member 0: 2 : i64
+    │       │       └── members[1] > member 1: 3 : i64
+    │       ├── body[19] > assign:
+    │       │   ├── place: #25
+    │       │   └── value > record:
+    │       │       ├── type: {i64, i64}
+    │       │       ├── members[0] > member 0: 20 : i64
+    │       │       └── members[1] > member 1: 30 : i64
     │       ├── body[20] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -122,113 +120,37 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[23] > hold:
-    │       │   ├── local: #25
-    │       │   ├── scope: %5
-    │       │   ├── value > expand:
-    │       │   │   ├── type: handle
-    │       │   │   ├── label: @63
-    │       │   │   ├── result: #64
-    │       │   │   ├── body[0] > assign:
-    │       │   │   │   ├── place: #64
-    │       │   │   │   └── value > runtime:
-    │       │   │   │       ├── type: handle
-    │       │   │   │       ├── fn: zane_list_new
-    │       │   │   │       └── args:
-    │       │   │   ├── body[1] > let:
-    │       │   │   │   ├── local: #65
-    │       │   │   │   └── value > runtime:
-    │       │   │   │       ├── type: ptr
-    │       │   │   │       ├── fn: zane_list_push
-    │       │   │   │       ├── args[0]: address of #64 : ptr
-    │       │   │   │       └── args[1]: 8 : i64
-    │       │   │   ├── body[2] > place:
-    │       │   │   │   ├── address: local #65 : ptr
-    │       │   │   │   ├── value: 1 : i64
-    │       │   │   │   └── layout: %primitives$Int
-    │       │   │   ├── body[3] > let:
-    │       │   │   │   ├── local: #66
-    │       │   │   │   └── value > runtime:
-    │       │   │   │       ├── type: ptr
-    │       │   │   │       ├── fn: zane_list_push
-    │       │   │   │       ├── args[0]: address of #64 : ptr
-    │       │   │   │       └── args[1]: 8 : i64
-    │       │   │   ├── body[4] > place:
-    │       │   │   │   ├── address: local #66 : ptr
-    │       │   │   │   ├── value: 2 : i64
-    │       │   │   │   └── layout: %primitives$Int
-    │       │   │   ├── body[5] > let:
-    │       │   │   │   ├── local: #67
-    │       │   │   │   └── value > runtime:
-    │       │   │   │       ├── type: ptr
-    │       │   │   │       ├── fn: zane_list_push
-    │       │   │   │       ├── args[0]: address of #64 : ptr
-    │       │   │   │       └── args[1]: 8 : i64
-    │       │   │   ├── body[6] > place:
-    │       │   │   │   ├── address: local #67 : ptr
-    │       │   │   │   ├── value: 3 : i64
-    │       │   │   │   └── layout: %primitives$Int
-    │       │   │   ├── body[7] > let:
-    │       │   │   │   ├── local: #68
-    │       │   │   │   └── value > runtime:
-    │       │   │   │       ├── type: ptr
-    │       │   │   │       ├── fn: zane_list_push
-    │       │   │   │       ├── args[0]: address of #64 : ptr
-    │       │   │   │       └── args[1]: 8 : i64
-    │       │   │   └── body[8] > place:
-    │       │   │       ├── address: local #68 : ptr
-    │       │   │       ├── value: 4 : i64
-    │       │   │       └── layout: %primitives$Int
-    │       │   └── layout: %primitives$List<%primitives$Int>
+    │       ├── body[23] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
     │       ├── body[24] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[25] > eval > expand:
+    │       ├── body[25] > eval > runtime:
     │       │   ├── type: void
-    │       │   ├── label: @28
-    │       │   ├── body[0] > let:
-    │       │   │   ├── local: #26
-    │       │   │   └── value: 10 : i64
-    │       │   ├── body[1] > let:
-    │       │   │   ├── local: #27
-    │       │   │   └── value > runtime:
-    │       │   │       ├── type: ptr
-    │       │   │       ├── fn: zane_list_push
-    │       │   │       ├── args[0]: address of #25 : ptr
-    │       │   │       └── args[1]: 8 : i64
-    │       │   └── body[2] > place:
-    │       │       ├── address: local #27 : ptr
-    │       │       ├── value: 10 : i64
-    │       │       └── layout: %primitives$Int
-    │       ├── body[26] > let:
-    │       │   ├── local: #29
-    │       │   └── value: 1 : i64
-    │       ├── body[27] > let:
-    │       │   ├── local: #30
-    │       │   └── value: 7 : i64
-    │       ├── body[28] > store:
-    │       │   ├── address > runtime:
-    │       │   │   ├── type: ptr
-    │       │   │   ├── fn: zane_list_at
-    │       │   │   ├── args[0]: address of #25 : ptr
-    │       │   │   ├── args[1]: 1 : i64
-    │       │   │   └── args[2]: 8 : i64
-    │       │   └── value: 7 : i64
-    │       ├── body[29] > eval > call:
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[26] > eval > runtime:
     │       │   ├── type: void
-    │       │   ├── fn: folding$check(%primitives$Bool)
-    │       │   └── args[0] > binary:
-    │       │       ├── type: i1
-    │       │       ├── op: ==
-    │       │       ├── left > call:
-    │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$sum(&%primitives$List<%primitives$Int>)
-    │       │       │   └── args[0]: address of #25 : ptr
-    │       │       └── right: 26 : i64
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[27] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[28] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[29] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
     │       ├── body[30] > hold:
-    │       │   ├── local: #31
-    │       │   ├── scope: %5
+    │       │   ├── local: #26
+    │       │   ├── scope: %6
     │       │   ├── value > expand:
     │       │   │   ├── type: handle
     │       │   │   ├── label: @70
@@ -245,45 +167,149 @@
     │       │   │   │       ├── type: ptr
     │       │   │   │       ├── fn: zane_list_push
     │       │   │   │       ├── args[0]: address of #71 : ptr
-    │       │   │   │       └── args[1]: 24 : i64
+    │       │   │   │       └── args[1]: 8 : i64
     │       │   │   ├── body[2] > place:
     │       │   │   │   ├── address: local #72 : ptr
-    │       │   │   │   ├── value: "fold" : handle
-    │       │   │   │   └── layout: %primitives$String
+    │       │   │   │   ├── value: 1 : i64
+    │       │   │   │   └── layout: %primitives$Int
     │       │   │   ├── body[3] > let:
     │       │   │   │   ├── local: #73
     │       │   │   │   └── value > runtime:
     │       │   │   │       ├── type: ptr
     │       │   │   │       ├── fn: zane_list_push
     │       │   │   │       ├── args[0]: address of #71 : ptr
-    │       │   │   │       └── args[1]: 24 : i64
-    │       │   │   └── body[4] > place:
-    │       │   │       ├── address: local #73 : ptr
-    │       │   │       ├── value: "ed" : handle
-    │       │   │       └── layout: %primitives$String
-    │       │   └── layout: %primitives$List<%primitives$String>
+    │       │   │   │       └── args[1]: 8 : i64
+    │       │   │   ├── body[4] > place:
+    │       │   │   │   ├── address: local #73 : ptr
+    │       │   │   │   ├── value: 2 : i64
+    │       │   │   │   └── layout: %primitives$Int
+    │       │   │   ├── body[5] > let:
+    │       │   │   │   ├── local: #74
+    │       │   │   │   └── value > runtime:
+    │       │   │   │       ├── type: ptr
+    │       │   │   │       ├── fn: zane_list_push
+    │       │   │   │       ├── args[0]: address of #71 : ptr
+    │       │   │   │       └── args[1]: 8 : i64
+    │       │   │   ├── body[6] > place:
+    │       │   │   │   ├── address: local #74 : ptr
+    │       │   │   │   ├── value: 3 : i64
+    │       │   │   │   └── layout: %primitives$Int
+    │       │   │   ├── body[7] > let:
+    │       │   │   │   ├── local: #75
+    │       │   │   │   └── value > runtime:
+    │       │   │   │       ├── type: ptr
+    │       │   │   │       ├── fn: zane_list_push
+    │       │   │   │       ├── args[0]: address of #71 : ptr
+    │       │   │   │       └── args[1]: 8 : i64
+    │       │   │   └── body[8] > place:
+    │       │   │       ├── address: local #75 : ptr
+    │       │   │       ├── value: 4 : i64
+    │       │   │       └── layout: %primitives$Int
+    │       │   └── layout: %primitives$List<%primitives$Int>
     │       ├── body[31] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
     │       ├── body[32] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @40
+    │       │   ├── label: @29
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #38
-    │       │   │   └── value: "!" : handle
+    │       │   │   ├── local: #27
+    │       │   │   └── value: 10 : i64
     │       │   ├── body[1] > let:
-    │       │   │   ├── local: #39
+    │       │   │   ├── local: #28
     │       │   │   └── value > runtime:
     │       │   │       ├── type: ptr
     │       │   │       ├── fn: zane_list_push
-    │       │   │       ├── args[0]: address of #31 : ptr
+    │       │   │       ├── args[0]: address of #26 : ptr
+    │       │   │       └── args[1]: 8 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #28 : ptr
+    │       │       ├── value: 10 : i64
+    │       │       └── layout: %primitives$Int
+    │       ├── body[33] > let:
+    │       │   ├── local: #30
+    │       │   └── value: 1 : i64
+    │       ├── body[34] > let:
+    │       │   ├── local: #31
+    │       │   └── value: 7 : i64
+    │       ├── body[35] > store:
+    │       │   ├── address > runtime:
+    │       │   │   ├── type: ptr
+    │       │   │   ├── fn: zane_list_at
+    │       │   │   ├── args[0]: address of #26 : ptr
+    │       │   │   ├── args[1]: 1 : i64
+    │       │   │   └── args[2]: 8 : i64
+    │       │   └── value: 7 : i64
+    │       ├── body[36] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: folding$sum(&%primitives$List<%primitives$Int>)
+    │       │       │   └── args[0]: address of #26 : ptr
+    │       │       └── right: 26 : i64
+    │       ├── body[37] > hold:
+    │       │   ├── local: #32
+    │       │   ├── scope: %6
+    │       │   ├── value > expand:
+    │       │   │   ├── type: handle
+    │       │   │   ├── label: @77
+    │       │   │   ├── result: #78
+    │       │   │   ├── body[0] > assign:
+    │       │   │   │   ├── place: #78
+    │       │   │   │   └── value > runtime:
+    │       │   │   │       ├── type: handle
+    │       │   │   │       ├── fn: zane_list_new
+    │       │   │   │       └── args:
+    │       │   │   ├── body[1] > let:
+    │       │   │   │   ├── local: #79
+    │       │   │   │   └── value > runtime:
+    │       │   │   │       ├── type: ptr
+    │       │   │   │       ├── fn: zane_list_push
+    │       │   │   │       ├── args[0]: address of #78 : ptr
+    │       │   │   │       └── args[1]: 24 : i64
+    │       │   │   ├── body[2] > place:
+    │       │   │   │   ├── address: local #79 : ptr
+    │       │   │   │   ├── value: "fold" : handle
+    │       │   │   │   └── layout: %primitives$String
+    │       │   │   ├── body[3] > let:
+    │       │   │   │   ├── local: #80
+    │       │   │   │   └── value > runtime:
+    │       │   │   │       ├── type: ptr
+    │       │   │   │       ├── fn: zane_list_push
+    │       │   │   │       ├── args[0]: address of #78 : ptr
+    │       │   │   │       └── args[1]: 24 : i64
+    │       │   │   └── body[4] > place:
+    │       │   │       ├── address: local #80 : ptr
+    │       │   │       ├── value: "ed" : handle
+    │       │   │       └── layout: %primitives$String
+    │       │   └── layout: %primitives$List<%primitives$String>
+    │       ├── body[38] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[39] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @41
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #39
+    │       │   │   └── value: "!" : handle
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #40
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #32 : ptr
     │       │   │       └── args[1]: 24 : i64
     │       │   └── body[2] > place:
-    │       │       ├── address: local #39 : ptr
+    │       │       ├── address: local #40 : ptr
     │       │       ├── value: "!" : handle
     │       │       └── layout: %primitives$String
-    │       ├── body[33] > eval > call:
+    │       ├── body[40] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: folding$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -292,11 +318,11 @@
     │       │       ├── left > member:
     │       │       │   ├── type: i64
     │       │       │   ├── index: 1
-    │       │       │   └── value: local #31 : handle
+    │       │       │   └── value: local #32 : handle
     │       │       └── right: 3 : i64
-    │       ├── body[34] > hold:
-    │       │   ├── local: #41
-    │       │   ├── scope: %5
+    │       ├── body[41] > hold:
+    │       │   ├── local: #42
+    │       │   ├── scope: %6
     │       │   ├── value > case:
     │       │   │   ├── type: <void | ptr>
     │       │   │   ├── index: 1
@@ -317,12 +343,12 @@
     │       │   │       │       └── layout: folding$Countdown
     │       │   │       └── layout: folding$Countdown
     │       │   └── layout: folding$Countdown
-    │       ├── body[35] > eval > runtime:
+    │       ├── body[42] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[36] > overwrite:
-    │       │   ├── address: address of #41 : ptr
+    │       ├── body[43] > overwrite:
+    │       │   ├── address: address of #42 : ptr
     │       │   ├── value > case:
     │       │   │   ├── type: <void | ptr>
     │       │   │   ├── index: 1
@@ -348,19 +374,19 @@
     │       │   │       │       └── layout: folding$Countdown
     │       │   │       └── layout: folding$Countdown
     │       │   └── layout: folding$Countdown
-    │       ├── body[37] > eval > runtime:
+    │       ├── body[44] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[38] > eval > runtime:
+    │       ├── body[45] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[39] > eval > runtime:
+    │       ├── body[46] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       └── body[40] > return: unit : void
+    │       └── body[47] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: folding$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
@@ -393,6 +419,27 @@
     │       │       └── args[0]: "no\n" : handle
     │       └── body[4] > return: unit : void
     ├── funcs[2] > func:
+    │   ├── symbol: folding$inverse(%primitives$Float)
+    │   ├── params[0]: local #1 : f64
+    │   ├── ret: f64
+    │   └── body[0] > return > binary:
+    │       ├── type: f64
+    │       ├── op: /
+    │       ├── left: 0x1p+0 : f64
+    │       └── right: local #1 : f64
+    ├── funcs[3] > func:
+    │   ├── symbol: folding$negate(this %primitives$Float)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > assign:
+    │   │   ├── place: *#1
+    │   │   └── value > flip:
+    │   │       ├── type: f64
+    │   │       └── value > deref:
+    │   │           ├── type: f64
+    │   │           └── ptr: local #1 : ptr
+    │   └── body[1] > return: unit : void
+    ├── funcs[4] > func:
     │   ├── symbol: folding$repeated(%primitives$String, %primitives$Int)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
@@ -446,7 +493,7 @@
     │           │   ├── value: local #3 : handle
     │           │   └── layout: %primitives$String
     │           └── layout: %primitives$String
-    ├── funcs[3] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: folding$Vec(%primitives$Int, %primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -455,7 +502,7 @@
     │       ├── type: {i64, i64}
     │       ├── members[0] > member 0: local #1 : i64
     │       └── members[1] > member 1: local #2 : i64
-    ├── funcs[4] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: folding$scale(this folding$Vec, %primitives$Int)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -485,7 +532,7 @@
     │   │       │       └── ptr: local #1 : ptr
     │   │       └── right: local #2 : i64
     │   └── body[2] > return: unit : void
-    ├── funcs[5] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: folding$corners(folding$Shape)
     │   ├── params[0]: local #1 : <{i64, i64} | f64 | void>
     │   ├── ret: i64
@@ -544,7 +591,41 @@
     │           │   ├── place: #3
     │           │   └── value: -1 : i64
     │           └── cases[2] > case 2[2]: leave @2
-    ├── funcs[6] > func:
+    ├── funcs[8] > func:
+    │   ├── symbol: folding$copied()
+    │   ├── params:
+    │   ├── ret: i64
+    │   ├── body[0] > let:
+    │   │   ├── local: #1
+    │   │   └── value > record:
+    │   │       ├── type: {i64, i64}
+    │   │       ├── members[0] > member 0: 1 : i64
+    │   │       └── members[1] > member 1: 2 : i64
+    │   ├── body[1] > let:
+    │   │   ├── local: #2
+    │   │   └── value > record:
+    │   │       ├── type: {i64, i64}
+    │   │       ├── members[0] > member 0: 1 : i64
+    │   │       └── members[1] > member 1: 2 : i64
+    │   ├── body[2] > assign:
+    │   │   ├── place: #1.0
+    │   │   └── value: 9 : i64
+    │   └── body[3] > return: 1 : i64
+    ├── funcs[9] > func:
+    │   ├── symbol: folding$unchanged(folding$Vec)
+    │   ├── params[0]: local #1 : {i64, i64}
+    │   ├── ret: i64
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value: local #1 : {i64, i64}
+    │   ├── body[1] > assign:
+    │   │   ├── place: #2.0
+    │   │   └── value: 9 : i64
+    │   └── body[2] > return > member:
+    │       ├── type: i64
+    │       ├── index: 0
+    │       └── value: local #1 : {i64, i64}
+    ├── funcs[10] > func:
     │   ├── symbol: folding$rescued(%primitives$Int, %primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -583,7 +664,7 @@
     │   │               ├── left: local #6 : i64
     │   │               └── right: 100 : i64
     │   └── body[1] > return: local #7 : i64
-    ├── funcs[7] > func:
+    ├── funcs[11] > func:
     │   ├── symbol: folding$fib(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -624,7 +705,7 @@
     │               ├── op: +
     │               ├── left: local #1 : i64
     │               └── right: -2 : i64
-    ├── funcs[8] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: folding$squares(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -740,7 +821,7 @@
     │       │   │           └── right: 1 : i64
     │       │   └── body[2]: leave @15
     │       └── body[6] > return: local #12 : i64
-    ├── funcs[9] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: folding$boxed(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -797,7 +878,7 @@
     │           ├── type: i64
     │           ├── fn: folding$depth(folding$Countdown)
     │           └── args[0]: local #2 : <void | ptr>
-    ├── funcs[10] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: folding$upTo(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: handle
@@ -868,7 +949,7 @@
     │           │   ├── address: address of #2 : ptr
     │           │   └── layout: ^%primitives$List<%primitives$Int>
     │           └── layout: ^%primitives$List<%primitives$Int>
-    ├── funcs[11] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: folding$sum(&%primitives$List<%primitives$Int>)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -922,7 +1003,7 @@
     │   │   │           └── right: 1 : i64
     │   │   └── body[2]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[12] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: folding$words()
     │   ├── params:
     │   ├── ret: handle
@@ -983,7 +1064,7 @@
     │           │   ├── address: address of #1 : ptr
     │           │   └── layout: ^%primitives$List<%primitives$String>
     │           └── layout: ^%primitives$List<%primitives$String>
-    ├── funcs[13] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: folding$countdown(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <void | ptr>
@@ -1043,7 +1124,7 @@
     │           │   ├── value: local #2 : <void | ptr>
     │           │   └── layout: folding$Countdown
     │           └── layout: folding$Countdown
-    ├── funcs[14] > func:
+    ├── funcs[18] > func:
     │   ├── symbol: folding$depth(folding$Countdown)
     │   ├── params[0]: local #1 : <void | ptr>
     │   ├── ret: i64
@@ -1089,7 +1170,7 @@
     │           │               ├── type: <void | ptr>
     │           │               └── ptr: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
-    ├── funcs[15] > func:
+    ├── funcs[19] > func:
     │   ├── symbol: folding$main()$lambda1
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1098,7 +1179,7 @@
     │       ├── op: *
     │       ├── left: local #1 : i64
     │       └── right: 3 : i64
-    ├── funcs[16] > func:
+    ├── funcs[20] > func:
     │   ├── symbol: folding$twice(%primitives$Int[%primitives$Int], %primitives$Int)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -1110,7 +1191,7 @@
     │           ├── type: i64
     │           ├── fn: local #1 : ptr
     │           └── args[0]: local #2 : i64
-    ├── funcs[17] > func:
+    ├── funcs[21] > func:
     │   ├── symbol: folding$pair(%primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1159,7 +1240,7 @@
     │                   └── value > deref:
     │                       ├── type: i64
     │                       └── ptr: address of #8 : ptr
-    ├── funcs[18] > func:
+    ├── funcs[22] > func:
     │   ├── symbol: folding$divide(%primitives$Int, %primitives$Int)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -1193,7 +1274,7 @@
     │           ├── op: /
     │           ├── left: local #1 : i64
     │           └── right: local #2 : i64
-    ├── funcs[19] > func:
+    ├── funcs[23] > func:
     │   ├── symbol: zane.spawn.1
     │   ├── params[0]: local #2 : ptr
     │   ├── ret: void
@@ -1211,7 +1292,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #2 : ptr
-    └── funcs[20] > func:
+    └── funcs[24] > func:
         ├── symbol: zane.spawn.2
         ├── params[0]: local #6 : ptr
         ├── ret: void

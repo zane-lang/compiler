@@ -17,10 +17,10 @@ let run (p : Program.t) =
       layouts = table Fun.id p.Program.layouts;
       globals = table (fun (g : Global.t) -> (g.Global.symbol, g)) p.Program.globals;
       constants = Hashtbl.create 16;
-      memo = Hashtbl.create 64;
+      memo = Value.Key.create 64;
       left = Eval.total;
     }
   in
   Constants.find prog p.Program.funcs;
-  let failed = Hashtbl.create 64 in
+  let failed = Value.Key.create 64 in
   { p with Program.funcs = List.map (Fold.func prog failed) p.Program.funcs }

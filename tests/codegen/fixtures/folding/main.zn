@@ -1,6 +1,6 @@
 /// Folding (docs/design/optimization.md): what an optimized build computes
 /// at compile time, from the leaves up. Arithmetic at the edges of each
-/// scalar, strings, values, an abort, a list and a boxed value built and
+/// scalar and a zero's sign, strings, values and their copies, an abort, a list and a boxed value built and
 /// measured, a list and a boxed value a call gives and the program then
 /// changes, recursion, a `mut` call, a function value and a spawned call.
 /// Each check prints `yes` when it holds and `no` when it does not, so the
@@ -162,6 +162,28 @@ String repeated(word String, times Int) {
 	return out;
 }
 
+/// A struct copied is a value of its own: changing one copy leaves the
+/// other as it was.
+Int copied() {
+	a Vec = Vec(Int(1), Int(2));
+	b Vec = a;
+	a.x = Int(9);
+	return b.x;
+}
+
+Int unchanged(v Vec) {
+	w Vec = v;
+	w.x = Int(9);
+	return v.x;
+}
+
+Float inverse(x Float) => Float(1.0) / x
+
+Unit negate(this Float) mut {
+	this = ~this;
+	return Unit();
+}
+
 Int twice(f Int[Int], x Int) => f(f(x))
 
 Int pair(n Int) {
@@ -183,6 +205,11 @@ Unit main() {
 	check(~(nan < Float(1.0)) * ~(Float(1.0) < nan));
 	check(~Float(0.0) == Float(0.0));
 	check(Float(1.0) / ~Float(0.0) < Float(0.0));
+	check(Float(0.0) < inverse(Float(0.0)));
+	check(inverse(~Float(0.0)) < Float(0.0));
+	zero Float(0.0);
+	zero!negate();
+	check(Float(1.0) / zero < Float(0.0));
 	check((true + false) * ~(true * false));
 
 	// Strings, joined and compared.
@@ -195,6 +222,8 @@ Unit main() {
 	check(v.x + v.y == Int(50));
 	check(corners(Shape.dot(Vec(Int(4), Int(5)))) == Int(9));
 	check(corners(Shape.none(Unit())) == ~Int(1));
+	check(copied() == Int(1));
+	check(unchanged(Vec(Int(1), Int(2))) == Int(1));
 
 	// An abort is a value the handler gets.
 	check(rescued(Int(7), Int(0)) == Int(107));

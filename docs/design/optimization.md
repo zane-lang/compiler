@@ -115,7 +115,10 @@ writes an element in place without changing a value read before it.
 Arithmetic is codegen's: `I64` wraps, `I32` wraps at 32 bits, the most
 negative value divided by `-1` wraps (`lowering.md` §9), `F64` is IEEE with
 ordered comparisons, so a NaN is neither equal to nor less than anything, and
-`Bool` takes `+` as or and `*` as and.
+`Bool` takes `+` as or and `*` as and. Every NaN folds to the same positive
+quiet NaN: what sign and payload a NaN gets is the machine's, and no program
+can tell one NaN from another. Constants are compared bit for bit, so a zero
+and its negative, which a division tells apart, are two values.
 
 **O6. Each function is folded from the leaves up, within a budget.**
 `fold.ml` walks each function's body in the order it runs and keeps what it
@@ -135,7 +138,9 @@ function that never ends still folds.
 - Whatever does not fold stays as it was, and what it may write is not known
   after it: each local whose address it takes, every local it assigns, and,
   when it can write through an address, every local whose address was ever
-  taken in the function. A loop's body is folded knowing nothing it writes,
+  taken in the function. That holds inside an expression too: a call left
+  in place is not known past, by the operands and arguments after it or by
+  the body of a condition it is part of. A loop's body is folded knowing nothing it writes,
   since one pass changes what the next starts with, and a body that leaves
   an expansion early ends at more than one place, so nothing it writes is
   known after it.
@@ -144,22 +149,26 @@ function that never ends still folds.
 - A replacement that stores into a local is no parent's known input. The walk
   counts such a store as done once it is made, and evaluating the replacement
   again inside its parent would find nothing to store, so the parent's
-  replacement would leave the store out. An expansion is tried against what
-  was known before it ran, for the same reason.
+  replacement would leave the store out. An expansion, and a control
+  statement whose condition or count folded, is tried against what was
+  known before it ran, for the same reason.
 
 Evaluation stops, leaving the code as it was, when it reads an unknown
 value, reaches a division by zero or an index out of range (the program must
 still stop there when it runs, after what it wrote before), would write a
 variable of the program, gives a value that holds a lent address, or runs out
 of budget. Three limits bound it, each counted in steps, so that the same
-source folds the same way on any machine:
+source folds the same way on any machine. Work that grows with a value's
+size, joining strings, copying a list or a struct, growing a list, costs a
+step for each 64 bytes, charged before the work is done, so a few steps
+cannot build a value of any size:
 
 - one fold takes at most 1,000,000 steps;
 - all the folds of a program take at most 50,000,000;
 - calls nest at most 2,000 deep.
 
-A value whose code would be larger than 64 KiB, outputs included, does not
-fold either, which keeps a cheap call that builds a large value out of the
+A replacement whose code would be larger than 64 KiB, its value, its outputs
+and the locals it stores counted together, does not fold either, which keeps a cheap call that builds a large value out of the
 binary. A call's result and outputs are remembered by its function and its
 arguments, so a call made again with the same arguments costs a lookup, and
 a call with constant arguments that did not fold is not tried again.
@@ -237,19 +246,23 @@ both to one golden output, so every fixture checks that folding changes
 nothing a program does. `golden/NAME.optimized.cgt` holds the tree an
 optimized build makes, for the fixtures that show folding:
 
-- `folding` folds each scalar at its edges, strings, values, an abort, a list
+- `folding` folds each scalar at its edges and a zero's sign, strings, values
+  and their copies, an abort, a list
   and a box built and measured inside a call, a list and a box a call gives
   and the program then changes, recursion, a `mut` call, a function value and
   spawned calls;
 - `replayed` keeps output in order, leaves the calls past the budget, the
-  depth and the size cap to run, and reads a slot when the program runs after
-  a store that folded;
+  depth and the size cap to run, reads a slot when the program runs after a
+  store that folded, a count's included, and knows nothing past a call left
+  to run that writes a local;
 - `constants`, `counting` and `zero` show their optimized trees.
 
 `tests/unit/` checks the evaluator's arithmetic against codegen's, the
 intrinsic classes, a value written as code and read back, calls, outputs,
-memoization and the budget, stores in place, and two folds of handmade
-functions.
+memoization and the budget, stores in place, two folds of handmade
+functions, a replacement past the size cap only as a whole, a string that
+doubles past the budget, a member of a program variable written in place,
+and a call remembered for a zero and for its negative.
 
 ---
 

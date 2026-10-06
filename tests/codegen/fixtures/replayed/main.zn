@@ -3,7 +3,8 @@
 /// that runs out of the step budget, one that nests calls too deep, and one
 /// whose value is past the size cap stay runtime code, with the constant code
 /// inside them still folded; a store made inside an expression that folds is
-/// still made for a read that happens when the program runs. Each check
+/// still made for a read that happens when the program runs, and what code
+/// left to run writes is not known after it. Each check
 /// prints `yes` when it holds and `no` when it does not, and every line
 /// written shows the order held.
 package replayed;
@@ -97,6 +98,24 @@ Unit main() {
 	x Int(5);
 	check(double(x!bumped(Int(1))) == Int(12));
 	check(x!slowly() == Int(6));
+
+	// A value only the running program has, and code left to run that
+	// changes a local: what it wrote is not known after it, neither to the
+	// rest of the expression nor to the code after a condition.
+	one Int = spin(Int(3000000)) + ~Int(2999999);
+	y Int(5);
+	check(y!bumped(one) + y == Int(12));
+	z Int(5);
+	if(z!bumped(one) == Int(0)) {
+	}
+	check(z == Int(6));
+
+	// A count that folds stores what it wrote, for the slot the running
+	// program reads.
+	w Int(5);
+	@controlflow$repeat(w!bumped(Int(1)), {
+	});
+	check(w!bumped(one) == Int(7));
 
 	// Seventy thousand bytes: past the size cap.
 	long String = repeated(String("0123456789"), Int(7000));

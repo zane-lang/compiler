@@ -28,7 +28,7 @@ type program = {
   constants : (string, constant) Hashtbl.t;
   (* A call's result and what it output, by the function and its
      arguments (O6). *)
-  memo : (string * const list, const * output list) Hashtbl.t;
+  memo : (const * output list) Key.t;
   (* The steps every fold of the program may take together, so that many
      calls that each run out of budget cannot make a build slow. *)
   mutable left : int;
@@ -46,8 +46,9 @@ type run = {
   mutable depth : int;
   mutable outputs : output list;
   cells : (string, cell) Hashtbl.t;
-  (* What each variable held when the run first read it. *)
-  initial : (string, v) Hashtbl.t;
+  (* What each variable held when the run first read it, and that as a
+     constant: a store into a member writes the value in place. *)
+  initial : (string, v * const option) Hashtbl.t;
   (* The constant this run is making, when it is making one (Constants). *)
   making : string option;
 }
@@ -73,12 +74,31 @@ let start ?making prog =
 (* Whether the run wrote a variable of the program, which folding the code
    that did it would lose: only a run that makes a constant may. *)
 let wrote_globals run =
-  Hashtbl.fold (fun g (c : cell) w -> w || c.value != Hashtbl.find run.initial g) run.cells false
+  Hashtbl.fold
+    (fun g (c : cell) w ->
+      w
+      ||
+      let v, held = Hashtbl.find run.initial g in
+      c.value != v
+      ||
+      match (export c.value, held) with
+      | Some now, Some held -> not (same now held)
+      | None, None -> false
+      | _ -> true)
+    run.cells false
 
-let tick run =
-  run.steps <- run.steps - 1;
-  run.prog.left <- run.prog.left - 1;
+let spend run n =
+  run.steps <- run.steps - n;
+  run.prog.left <- run.prog.left - n;
   if run.steps <= 0 || run.prog.left <= 0 then stop "the step budget ran out"
+
+let tick run = spend run 1
+
+(* Work that grows with the size of what it makes or copies costs a step for
+   each 64 bytes, charged before the work is done, so a few steps cannot
+   build a value of any size. *)
+let bytes run n = if n >= 64 then spend run (n / 64)
+let sized run t = bytes run (fst (Ty.size_align t))
 
 (* ---------------------------------------------------------------------- *)
 (* Places                                                                 *)
@@ -120,7 +140,7 @@ let global run g =
       in
       let c = cell ~origin:(Global g) ty value in
       Hashtbl.replace run.cells g c;
-      Hashtbl.replace run.initial g value;
+      Hashtbl.replace run.initial g (value, export value);
       c
 
 let ptr_of = function VPtr p -> p | _ -> stop "an address that names nothing"
@@ -151,6 +171,11 @@ let offset (p : ptr) within path =
 (* Arithmetic, as emit.ml's [binary] and [divide]                         *)
 (* ---------------------------------------------------------------------- *)
 
+(* A NaN's sign and payload are the host's, and no program can tell one NaN
+   from another, so every NaN folds to the same one: the same source folds
+   the same way on any machine (O6). *)
+let canonical f = if Float.is_nan f then Int64.float_of_bits 0x7FF8_0000_0000_0000L else f
+
 let binary (op : Expr.binop) (t : Ty.t) l r =
   match (t, op, l, r) with
   | (Ty.I64 | Ty.I32), Expr.Add, VInt a, VInt b -> VInt (int t (Int64.add a b))
@@ -161,9 +186,9 @@ let binary (op : Expr.binop) (t : Ty.t) l r =
   | (Ty.I64 | Ty.I32), Expr.Div, VInt a, VInt b -> VInt (int t (Int64.div a b))
   | (Ty.I64 | Ty.I32), Expr.Eq, VInt a, VInt b -> VBool (Int64.equal a b)
   | (Ty.I64 | Ty.I32), Expr.Less, VInt a, VInt b -> VBool (Int64.compare a b < 0)
-  | Ty.F64, Expr.Add, VFloat a, VFloat b -> VFloat (a +. b)
-  | Ty.F64, Expr.Mul, VFloat a, VFloat b -> VFloat (a *. b)
-  | Ty.F64, Expr.Div, VFloat a, VFloat b -> VFloat (a /. b)
+  | Ty.F64, Expr.Add, VFloat a, VFloat b -> VFloat (canonical (a +. b))
+  | Ty.F64, Expr.Mul, VFloat a, VFloat b -> VFloat (canonical (a *. b))
+  | Ty.F64, Expr.Div, VFloat a, VFloat b -> VFloat (canonical (a /. b))
   (* Ordered comparisons: a NaN is neither equal to nor less than anything. *)
   | Ty.F64, Expr.Eq, VFloat a, VFloat b -> VBool (a = b)
   | Ty.F64, Expr.Less, VFloat a, VFloat b -> VBool (a < b)
@@ -175,7 +200,7 @@ let binary (op : Expr.binop) (t : Ty.t) l r =
 let flip (t : Ty.t) v =
   match (t, v) with
   | (Ty.I64 | Ty.I32), VInt a -> VInt (int t (Int64.neg a))
-  | Ty.F64, VFloat a -> VFloat (Float.neg a)
+  | Ty.F64, VFloat a -> VFloat (canonical (Float.neg a))
   | Ty.I1, VBool a -> VBool (not a)
   | _ -> stop "`~` on a value it does not flip"
 
@@ -191,7 +216,11 @@ let rec expr run fr (e : Expr.t) : v =
   | Expr.Bool b -> VBool b
   | Expr.Text s -> VText s
   | Expr.Unit -> VUnit
-  | Expr.Local id -> (local fr id).value
+  (* A read is a copy: the local keeps what it holds whatever is done with
+     what was read. *)
+  | Expr.Local id ->
+      sized run e.Expr.ty;
+      own (local fr id).value
   | Expr.Address id -> at (local fr id)
   | Expr.Deref p | Expr.Snapshot p -> (
       let p = expr run fr p in
@@ -200,7 +229,9 @@ let rec expr run fr (e : Expr.t) : v =
       (* An address read out of a place is lent, though the place may hold
          it as a box: what owns a box is the value the box is in. *)
       | Ty.Ptr -> ( match load (ptr_of p) with VPtr q -> VPtr { q with owned = false } | v -> v)
-      | _ -> load (ptr_of p))
+      | t ->
+          sized run t;
+          load (ptr_of p))
   | Expr.Call { fn; args } ->
       let args = List.map (expr run fr) args in
       call run fn args
@@ -218,10 +249,12 @@ let rec expr run fr (e : Expr.t) : v =
       binary op left.Expr.ty l r
   | Expr.Flip value -> flip value.Expr.ty (expr run fr value)
   | Expr.Expand { label; body; result } -> (
+      sized run e.Expr.ty;
       Option.iter (fun id -> bind fr id e.Expr.ty (zero e.Expr.ty)) result;
       (try stats run fr body with Left l when l = label -> ());
-      match result with Some id -> (local fr id).value | None -> VUnit)
+      match result with Some id -> own (local fr id).value | None -> VUnit)
   | Expr.Record members ->
+      sized run e.Expr.ty;
       let v =
         match zero e.Expr.ty with
         | VRecord a -> a
@@ -245,12 +278,17 @@ let rec expr run fr (e : Expr.t) : v =
       match e.Expr.ty with
       | Ty.Void -> VUnit
       | t ->
+          sized run t;
           let v = load p in
           store p t (vacate run.prog.layouts layout t v);
           v)
-  | Expr.Copy { value; layout } -> copy run.prog.layouts layout value.Expr.ty (expr run fr value)
+  | Expr.Copy { value; layout } ->
+      let v = expr run fr value in
+      bytes run (weight v);
+      copy run.prog.layouts layout value.Expr.ty v
   | Expr.Box { value; layout } ->
       let v = expr run fr value in
+      sized run value.Expr.ty;
       owner (cell ~layout value.Expr.ty v)
   | Expr.Layout l -> VLayout l
   | Expr.Function f -> VFunc f
@@ -262,7 +300,10 @@ and stats run fr body = List.iter (stat run fr) body
 and stat run fr (s : Stat.t) =
   tick run;
   match s with
-  | Stat.Let { id; value } | Stat.Hold { id; value; _ } -> bind fr id value.Expr.ty (expr run fr value)
+  | Stat.Let { id; value } | Stat.Hold { id; value; _ } ->
+      let v = expr run fr value in
+      sized run value.Expr.ty;
+      bind fr id value.Expr.ty v
   | Stat.Scope { body; _ } -> stats run fr body
   | Stat.Assign { value; _ } when value.Expr.ty = Ty.Void -> ignore (expr run fr value)
   | Stat.Assign { place; value } ->
@@ -279,6 +320,7 @@ and stat run fr (s : Stat.t) =
       in
       let base = if place.Expr.deref then ptr_of c.value else { cell = c; path = []; owned = false } in
       let at = offset base place.Expr.ty place.Expr.path in
+      sized run value.Expr.ty;
       store at value.Expr.ty v
   | Stat.Eval e -> ignore (expr run fr e)
   | Stat.Return e -> raise (Returned (expr run fr e))
@@ -302,16 +344,23 @@ and stat run fr (s : Stat.t) =
   | Stat.Leave label -> raise (Left label)
   | Stat.Store { address; value } ->
       let p = ptr_of (expr run fr address) in
-      store p value.Expr.ty (expr run fr value)
+      let v = expr run fr value in
+      sized run value.Expr.ty;
+      store p value.Expr.ty v
   | Stat.Place { address; value; layout } ->
       let p = ptr_of (expr run fr address) in
-      store p value.Expr.ty (expr run fr value);
+      let v = expr run fr value in
+      sized run value.Expr.ty;
+      store p value.Expr.ty v;
       if p.path = [] then p.cell.layout <- Some layout
   | Stat.Overwrite { address; value; layout } ->
       let p = ptr_of (expr run fr address) in
       let v = expr run fr value in
+      bytes run (2 * weight v);
       store p value.Expr.ty (overwrite run.prog.layouts layout value.Expr.ty (load p) v)
-  | Stat.Reserve { id; ty; _ } -> bind fr id ty (zero ty)
+  | Stat.Reserve { id; ty; _ } ->
+      sized run ty;
+      bind fr id ty (zero ty)
   | Stat.Spawn { task; thunk; frame; args; dest; _ } ->
       (* Run where it is spawned (O8): its arguments first, in order, then
          the call, whose result is home at once. *)
@@ -352,7 +401,7 @@ and call run fn args =
           Some (fn, List.map Option.get consts)
         else None
       in
-      match Option.bind key (Hashtbl.find_opt run.prog.memo) with
+      match Option.bind key (Key.find_opt run.prog.memo) with
       | Some (result, outputs) ->
           run.outputs <- List.rev_append outputs run.outputs;
           import result
@@ -371,7 +420,7 @@ and call run fn args =
               let rec since acc l =
                 if l == before then acc else match l with x :: r -> since (x :: acc) r | [] -> acc
               in
-              Hashtbl.replace run.prog.memo key (c, since [] run.outputs)
+              Key.replace run.prog.memo key (c, since [] run.outputs)
           | _ -> ());
           result)
 
@@ -388,17 +437,23 @@ and runtime run (fn : Cgt.Runtime.fn) args =
   | _, Cgt.Runtime.Set_threads_auto, [] ->
       run.outputs <- Set_threads_auto :: run.outputs;
       VUnit
-  | _, Cgt.Runtime.Text_join, [ l; r ] -> VText (text_of l ^ text_of r)
-  | _, Cgt.Runtime.Text_equal, [ l; r ] -> VInt (if text_of l = text_of r then 1L else 0L)
+  | _, Cgt.Runtime.Text_join, [ l; r ] ->
+      let l = text_of l and r = text_of r in
+      bytes run (String.length l + String.length r);
+      VText (l ^ r)
+  | _, Cgt.Runtime.Text_equal, [ l; r ] ->
+      let l = text_of l and r = text_of r in
+      bytes run (min (String.length l) (String.length r));
+      VInt (if String.equal l r then 1L else 0L)
   | _, Cgt.Runtime.List_new, [] -> empty ()
   | _, Cgt.Runtime.List_push, [ list; stride ] -> (
       match load (ptr_of list) with
       | VList l ->
           l.stride <- Int64.to_int (int_of stride);
           if l.count = Array.length l.items then begin
-            let grown = Array.make (max 4 (2 * l.count)) (cell Ty.Void VUnit) in
-            Array.blit l.items 0 grown 0 l.count;
-            l.items <- grown
+            bytes run (8 * l.count);
+            l.items <-
+              Array.init (max 4 (2 * l.count)) (fun i -> if i < l.count then l.items.(i) else cell Ty.Void VNull)
           end;
           let c = cell Ty.Void VNull in
           l.items.(l.count) <- c;

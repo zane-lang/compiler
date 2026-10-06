@@ -185,7 +185,7 @@ type fn = {
   prog : Eval.program;
   (* Calls with constant arguments that did not fold, which are not tried
      again. *)
-  failed : (string * V.const list, unit) Hashtbl.t;
+  failed : unit V.Key.t;
   mutable next : int;
   (* Locals bound by a plain [Let] of a type that owns nothing: an
      [Assign] can store a new value in them. *)
@@ -235,9 +235,12 @@ let replayed (e : Expr.t) =
    replacement would leave the store out. *)
 let rec known_input (env : known) (e : Expr.t) =
   (match e.Expr.node with
-  | Expr.Expand { body; _ } ->
+  | Expr.Expand { body; _ } -> (
       known_value e <> None
-      && List.for_all (function Stat.Eval _ -> true | _ -> false) (List.rev body |> List.tl)
+      &&
+      match List.rev body with
+      | _ :: before -> List.for_all (function Stat.Eval _ -> true | _ -> false) before
+      | [] -> true)
   | _ -> Materialize.literal e)
   ||
   match e.Expr.node with
@@ -268,8 +271,9 @@ let call_key (e : Expr.t) =
 (* What a run that finished did to the function being folded, as
    statements: its outputs, then each known local it wrote stored back. The
    locals it bound itself must not be named anywhere else, since the code
-   that bound them is gone. *)
-let effects fn (env : known) (run : Eval.run) (fr : Eval.frame) =
+   that bound them is gone. [value] is the size of the value the
+   replacement gives, which the size cap counts with the rest of it. *)
+let effects ?(value = 0) fn (env : known) (run : Eval.run) (fr : Eval.frame) =
   if Eval.wrote_globals run then V.stop "a variable of the program written";
   let assigns = ref [] in
   Hashtbl.iter
@@ -277,9 +281,8 @@ let effects fn (env : known) (run : Eval.run) (fr : Eval.frame) =
       match c.V.origin with
       | V.Outer _ -> (
           let before = Option.map fst (Hashtbl.find_opt env id) in
-          (* [compare], not [=], so that a NaN is the value it was. *)
           match V.export c.V.value with
-          | Some now when compare (Some now) before = 0 -> ()
+          | Some now when Option.fold ~none:false ~some:(V.same now) before -> ()
           | Some now when Hashtbl.mem fn.plain id -> (
               match Materialize.expr ~fresh:(fun () -> fresh fn) c.V.ty now with
               | Some value -> assigns := (id, now, c.V.ty, Stat.assign id value) :: !assigns
@@ -288,8 +291,11 @@ let effects fn (env : known) (run : Eval.run) (fr : Eval.frame) =
       | _ -> if Hashtbl.mem fn.wide id then V.stop "a local bound here and named elsewhere")
     fr.Eval.locals;
   let outputs = List.rev run.Eval.outputs in
-  let size = List.fold_left (fun n o -> n + Materialize.output_size o) 0 outputs in
-  if size > Materialize.max_size then V.stop "outputs larger than the size cap";
+  let size =
+    List.fold_left (fun n o -> n + Materialize.output_size o) value outputs
+    + List.fold_left (fun n (_, now, _, _) -> n + V.size now) 0 !assigns
+  in
+  if size > Materialize.max_size then V.stop "a replacement larger than the size cap";
   let assigns = List.sort compare !assigns in
   (List.map Materialize.output outputs, assigns)
 
@@ -307,7 +313,8 @@ let attempt fn (env : known) (e : Expr.t) : Expr.t option =
   match
     let v = Eval.expr run fr e in
     let c = match V.export v with Some c -> c | None -> V.stop "a value that lives somewhere" in
-    if V.size c > Materialize.max_size then V.stop "a value larger than the size cap";
+    let size = V.size c in
+    if size > Materialize.max_size then V.stop "a value larger than the size cap";
     (* A read is cheaper than a list or a box made again. *)
     (match e.Expr.node with
     | Expr.Local _ | Expr.Deref _ | Expr.Snapshot _ | Expr.Member _ | Expr.Payload _
@@ -319,7 +326,7 @@ let attempt fn (env : known) (e : Expr.t) : Expr.t option =
       | Some value -> value
       | None -> V.stop "a value that cannot be written as code"
     in
-    let outputs, assigns = effects fn env run fr in
+    let outputs, assigns = effects ~value:size fn env run fr in
     (value, outputs, assigns)
   with
   | value, [], [] -> Some value
@@ -334,7 +341,7 @@ let attempt fn (env : known) (e : Expr.t) : Expr.t option =
       in
       Some { Expr.node = Expr.Expand { label; body; result }; ty = e.Expr.ty }
   | exception (V.Stop _ | Eval.Left _ | Eval.Returned _) ->
-      Option.iter (fun k -> Hashtbl.replace fn.failed k ()) (call_key e);
+      Option.iter (fun k -> V.Key.replace fn.failed k ()) (call_key e);
       None
 
 (* A statement run where it is, and the statements that replace it. *)
@@ -358,7 +365,7 @@ let candidate fn (env : known) (e : Expr.t) =
   | Expr.Local i -> Hashtbl.mem env i
   | Expr.Call _ -> (
       List.for_all (known_input env) (children e)
-      && match call_key e with Some k -> not (Hashtbl.mem fn.failed k) | None -> true)
+      && match call_key e with Some k -> not (V.Key.mem fn.failed k) | None -> true)
   (* Where a constant is made, the check whether this is its first read
      stays (Eval). *)
   | Expr.Runtime { fn = Cgt.Runtime.(Constant_begin | Constant_end); _ } -> false
@@ -368,6 +375,21 @@ let candidate fn (env : known) (e : Expr.t) =
      of folds inside it. *)
   | Expr.Address _ | Expr.Global _ | Expr.Layout _ | Expr.Function _ | Expr.Escape _ -> false
   | _ -> List.for_all (known_input env) (children e)
+
+(* An expression left in the tree that calls or moves: what it writes is
+   not known after it, to the rest of the expression it is in or to what
+   runs next. An address taken writes nothing until something uses it, and
+   an expansion's body has already been walked statement by statement. *)
+let settle fn (env : known) (e : Expr.t) =
+  let acts = ref false in
+  iter_expr e ~stat:nothing ~expr:(fun e ->
+      match e.Expr.node with
+      | Expr.Call _ | Expr.Call_value _ | Expr.Runtime _ | Expr.Take _ -> acts := true
+      | _ -> ());
+  match e.Expr.node with
+  | Expr.Expand _ -> ()
+  | _ when (not !acts) || Materialize.literal e || known_value e <> None -> ()
+  | _ -> forget env (writes ~escaped:fn.escaped ~expr:e [])
 
 let rec expr fn (env : known) (e : Expr.t) : Expr.t =
   match e.Expr.node with
@@ -398,9 +420,14 @@ let rec expr fn (env : known) (e : Expr.t) : Expr.t =
       let e = map_children fn env e in
       if candidate fn env e then Option.value ~default:e (attempt fn env e) else e
 
-(* The children folded in the order they run. *)
+(* The children folded in the order they run, each one's writes forgotten
+   before the next is folded. *)
 and map_children fn env (e : Expr.t) =
-  let f = expr fn env in
+  let f x =
+    let x = expr fn env x in
+    settle fn env x;
+    x
+  in
   let node =
     match e.Expr.node with
     | Expr.Deref x -> Expr.Deref (f x)
@@ -430,7 +457,11 @@ and map_children fn env (e : Expr.t) =
 and block fn env stats = List.concat_map (stat fn env) stats
 
 and stat fn (env : known) (s : Stat.t) : Stat.t list =
-  let ex = expr fn env in
+  let ex e =
+    let e = expr fn env e in
+    settle fn env e;
+    e
+  in
   (* What a statement left in the tree may change is not known after it:
      each local whose address it takes, and through an address any local
      whose address was ever taken. *)
@@ -446,8 +477,16 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
   (* What a known value's expansion outputs, which must still happen where
      it was. *)
   let before (e : Expr.t) = if Materialize.literal e then [] else [ Stat.Eval e ] in
-  let control s fallback =
-    match attempt_stat fn env s with Some replaced -> replaced | None -> fallback ()
+  (* A control statement is run against what was known before its
+     condition or count was folded: that fold counts the stores it made as
+     done, and the statement's replacement must still make them. *)
+  let control before s fallback =
+    match attempt_stat fn before s with
+    | Some replaced ->
+        Hashtbl.reset env;
+        Hashtbl.iter (Hashtbl.replace env) before;
+        replaced
+    | None -> fallback ()
   in
   match s with
   | Stat.Let { id; value } -> (
@@ -504,21 +543,23 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
       | _ -> residual (Stat.Eval e))
   | Stat.Return e -> residual (Stat.Return (ex e))
   | Stat.If { cond; body } -> (
+      let start = Hashtbl.copy env in
       let cond = ex cond in
       match known_value cond with
       | Some (V.Bool true) -> before cond @ block fn env body
       | Some (V.Bool false) -> before cond
       | _ ->
-          control (Stat.If { cond; body }) (fun () ->
+          control start (Stat.If { cond; body }) (fun () ->
               let body = block fn (Hashtbl.copy env) body in
               forget env (writes ~escaped:fn.escaped body);
               [ Stat.If { cond; body } ]))
   | Stat.Repeat { count; body } -> (
+      let start = Hashtbl.copy env in
       let count = ex count in
       match known_value count with
       | Some (V.Int n) when Int64.compare n 1L < 0 -> before count
       | _ ->
-          control (Stat.Repeat { count; body }) (fun () ->
+          control start (Stat.Repeat { count; body }) (fun () ->
               (* What one pass writes is not known at the start of the
                  next. *)
               forget env (writes ~escaped:fn.escaped body);
@@ -526,12 +567,13 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
               forget env (writes ~escaped:fn.escaped body);
               [ Stat.Repeat { count; body } ]))
   | Stat.Switch { value; cases } -> (
+      let start = Hashtbl.copy env in
       let value = ex value in
       match known_value value with
       | Some (V.Case (tag, _)) when List.mem_assoc tag cases ->
           before value @ block fn env (List.assoc tag cases)
       | _ ->
-          control (Stat.Switch { value; cases }) (fun () ->
+          control start (Stat.Switch { value; cases }) (fun () ->
               let cases = List.map (fun (i, body) -> (i, block fn (Hashtbl.copy env) body)) cases in
               List.iter (fun (_, body) -> forget env (writes ~escaped:fn.escaped body)) cases;
               [ Stat.Switch { value; cases } ]))
