@@ -49,9 +49,33 @@ let clashes env a b =
       let a_ty = Ty.strip_mode a.ty and b_ty = Ty.strip_mode b.ty in
       Spawns.contains env a_ty b_ty || Spawns.contains env b_ty a_ty
 
-let walk_body env (body : T.Block.t) =
-  (* Where each reference local points, when the checker knows. *)
+(* The reference locals bound again anywhere in [start]. *)
+let rebound start =
+  let found = Hashtbl.create 8 in
+  let rec block (b : T.Block.t) = List.iter stat b.T.Block.stats
+  and stat (s : T.Stat.t) =
+    (match s.T.Stat.node with
+    | T.Stat.Assign { target = { T.Expr.ty = Ty.Reference _; node = T.Expr.Var (T.Name_ref.Local l); _ }; _ }
+      ->
+        Hashtbl.replace found l.T.Local.id ()
+    | _ -> ());
+    List.iter expr (Exits.stat_exprs s)
+  and expr (e : T.Expr.t) =
+    List.iter
+      (function
+        | Exits.Same x -> expr x
+        | Exits.Arm b | Exits.Handler b | Exits.Block b | Exits.Lambda b -> block b)
+      (Exits.parts e)
+  in
+  (match start with `Block b -> block b | `Expr e -> expr e);
+  found
+
+let walk env start =
+  (* Where each reference local points, when the checker knows: only one
+     never bound again, since a binding later in a loop body or a block
+     argument is seen by what runs before it on the next run. *)
   let origins : (int, place option) Hashtbl.t = Hashtbl.create 8 in
+  let rebound = rebound start in
   let resolve (p : place) =
     match p.Spawns.local.T.Local.ty with
     | Ty.Reference _ -> (
@@ -137,6 +161,8 @@ let walk_body env (body : T.Block.t) =
     match s.T.Stat.node with
     | T.Stat.Assign { target; value } -> (
         let acc = writes_expr acc value in
+        (* What locates the destination runs too: `xs[ys!grow()] = v`. *)
+        let acc = List.fold_left writes_part acc (Exits.parts target) in
         let acc = match target.T.Expr.ty with Ty.Reference _ -> acc | _ -> moved acc value in
         match (target.T.Expr.ty, target.T.Expr.node) with
         (* Binding a reference again writes no place it names. *)
@@ -265,12 +291,7 @@ let walk_body env (body : T.Block.t) =
     List.iter expr (Exits.stat_exprs s);
     match s.T.Stat.node with
     | T.Stat.Let { local = { T.Local.ty = Ty.Reference _; id; _ }; value } ->
-        Hashtbl.replace origins id (origin value)
-    | T.Stat.Assign { target = { T.Expr.ty = Ty.Reference _; node = T.Expr.Var (T.Name_ref.Local l); _ }; _ }
-      ->
-        (* A reference bound again may point anywhere the checker cannot
-           follow without knowing which path ran. *)
-        Hashtbl.replace origins l.T.Local.id None
+        Hashtbl.replace origins id (if Hashtbl.mem rebound id then None else origin value)
     | _ -> ()
   and expr (e : T.Expr.t) =
     check_call e;
@@ -283,7 +304,7 @@ let walk_body env (body : T.Block.t) =
         | Exits.Lambda b -> block b)
       (Exits.parts e)
   in
-  block body
+  match start with `Block b -> block b | `Expr e -> expr e
 
 let run env (p : T.Program.t) =
   List.iter
@@ -291,10 +312,13 @@ let run env (p : T.Program.t) =
       List.iter
         (fun (d : T.Decl.t) ->
           match d.T.Decl.node with
-          | T.Decl.Verb { body = T.Decl.Checked { body; _ }; _ } -> walk_body env body
+          | T.Decl.Verb { body = T.Decl.Checked { body; _ }; _ } -> walk env (`Block body)
+          | T.Decl.Subscript { value = Some v; _ } | T.Decl.Constant { value = v; _ } ->
+              walk env (`Expr v)
+          | T.Decl.Enum_map { entries; _ } -> List.iter (fun (_, v) -> walk env (`Expr v)) entries
           | _ -> ())
         pkg.T.Package.decls)
     p.T.Program.packages;
   List.iter
-    (fun (i : T.Instance.t) -> Env.in_instance env i (fun () -> walk_body env i.T.Instance.body))
+    (fun (i : T.Instance.t) -> Env.in_instance env i (fun () -> walk env (`Block i.T.Instance.body)))
     p.T.Program.instances

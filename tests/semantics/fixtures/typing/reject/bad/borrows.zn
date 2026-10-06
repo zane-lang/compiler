@@ -57,3 +57,42 @@ Unit borrows() {
 	}
 	return Unit();
 }
+
+/// A reference bound again anywhere in a body may name anything its type
+/// can: the binding runs before the loop body's next run, and inside a
+/// block argument before the block's later statements.
+Unit rebinds() {
+	heap List<Int> = @primitives$List(Int);
+	other List<Int> = @primitives$List(Int);
+	a &List<Int> = other;
+	b &List<Int> = heap;
+	@controlflow$repeat(Int(2), {
+		a!push(b[Int(1)]);
+		b = other;
+	});
+	own List<Cargo> = @primitives$List(Cargo);
+	spare List<Cargo> = @primitives$List(Cargo);
+	r &List<Cargo> = spare;
+	weigh(own[Int(1)], {
+		r = own;
+		r!stack(Cargo(Int(1)));
+	});
+	return Unit();
+}
+
+/// What locates an assignment's destination runs as part of the block too.
+Unit locates() {
+	own List<Cargo> = @primitives$List(Cargo);
+	counts List<Int> = @primitives$List(Int);
+	weigh(own[Int(1)], {
+		counts[own!grown()] = Int(1);
+	});
+	return Unit();
+}
+
+/// A lambda at package scope is checked like a verb body.
+stacks Unit() {
+	own List<Cargo> = @primitives$List(Cargo);
+	own!stack(own[Int(1)]);
+	return Unit();
+}

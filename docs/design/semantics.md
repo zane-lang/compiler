@@ -647,7 +647,11 @@ written by its `mut` subject (for a borrow argument), by a block argument, or
 by an argument written after it. A part writes a place it assigns, makes the
 subject of a `!` call, or moves an owner out of; a lambda in it writes
 nothing. Places overlap as for spawns, with a path through a reference
-unknown and judged by type. This holds for value-type arguments too: a value
+unknown and judged by type. A reference local bound once stands for the
+place it was minted from; one bound again anywhere in the body is unknown,
+since a loop body or block argument runs the binding before its earlier
+statements' next run. Constant, enum-map and subscript bodies are walked
+like verb bodies. This holds for value-type arguments too: a value
 parameter is a borrow, so `if(dirty) { dirty = false; }` is an error. While a
 `match` binder names its scrutinee's payload, the arm writes the scrutinee
 only through the binder.

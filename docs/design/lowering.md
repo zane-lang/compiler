@@ -617,7 +617,9 @@ test passing.
 - **Large aggregates as memory.** LLVM's code generator gives one value at
   most 65,535 parts, and is slow well before that. Before the target machine
   sees a module, `lib/codegen/big_moves.ml` turns each load of an aggregate of
-  4 KiB or more whose only uses are stores into a `memcpy` per store, and a
+  4 KiB or more whose only uses are stores into a copy per store (a
+  `memmove` when it reads the source directly, since `xs[i] = xs[j]` may
+  name one element twice), and a
   value still too large to move whole, passed or returned, is reported as a
   limit rather than handed to LLVM.
 - **An outcome as a sum, for now.** L12 returns a tag and has the caller

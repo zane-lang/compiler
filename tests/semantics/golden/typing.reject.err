@@ -82,6 +82,22 @@ File "fixtures/typing/reject/bad/borrows.zn", line 49, characters 9-14:
 49 |         dirty = false;
   |         ^^^^^
 Error: this writes `dirty`, which overlaps `dirty`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 70, characters 16-25:
+70 |         a!push(b[Int(1)]);
+  |                ^^^^^^^^^
+Error: `b[]` is borrowed by this call, and its `mut` subject `a` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 78, characters 9-10:
+78 |         r!stack(Cargo(Int(1)));
+  |         ^
+Error: this writes `r`, which overlaps `own[]`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 88, characters 16-19:
+88 |         counts[own!grown()] = Int(1);
+  |                ^^^
+Error: this writes `own`, which overlaps `own[]`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 96, characters 15-26:
+96 |     own!stack(own[Int(1)]);
+  |               ^^^^^^^^^^^
+Error: `own[]` is borrowed by this call, and its `mut` subject `own` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 File "fixtures/typing/reject/bad/calls.zn", line 25, characters 13-33:
 25 |     a Int = pair(Int(1), Int(2));
   |             ^^^^^^^^^^^^^^^^^^^^

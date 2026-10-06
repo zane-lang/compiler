@@ -55,12 +55,21 @@ let rewrite data_layout m =
       | Some f -> f
       | None -> Llvm.declare_function "llvm.memcpy.p0.p0.i64" memcpy_type m)
   in
-  let copy b dst src size =
+  (* The source and destination of a store may be the same storage, as in
+     `xs[i] = xs[j]` with `i = j`, which `memcpy` does not allow. *)
+  let memmove =
+    lazy
+      (match Llvm.lookup_function "llvm.memmove.p0.p0.i64" m with
+      | Some f -> f
+      | None -> Llvm.declare_function "llvm.memmove.p0.p0.i64" memcpy_type m)
+  in
+  let call fn b dst src size =
     ignore
-      (Llvm.build_call memcpy_type (Lazy.force memcpy)
+      (Llvm.build_call memcpy_type (Lazy.force fn)
          [| dst; src; Llvm.const_of_int64 i64 size false; Llvm.const_int (Llvm.i1_type ctx) 0 |]
          "" b)
   in
+  let copy = call memcpy and move = call memmove in
   let size t = Llvm_target.DataLayout.store_size t data_layout in
   let large_loads f =
     let found = ref [] in
@@ -99,7 +108,8 @@ let rewrite data_layout m =
               in
               List.iter
                 (fun store ->
-                  copy (Llvm.builder_before ctx store) (Llvm.operand store 1) from n;
+                  (if from == src then move else copy)
+                    (Llvm.builder_before ctx store) (Llvm.operand store 1) from n;
                   Llvm.delete_instruction store)
                 users;
               Llvm.delete_instruction load
