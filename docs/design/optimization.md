@@ -1,8 +1,8 @@
 # Optimization: folding at compile time
 
 > **Status: built.** Stage 5 runs one pass, compile-time evaluation, which
-> follows this design. Each decision is numbered (**O1**…). §4 says where the
-> pass does more than the spec asks, and §6 what is left to measurement.
+> follows this design. Each decision is numbered (**O1**…). §4 says how it
+> follows the spec's rule, and §6 what is left to measurement.
 
 Stage 5 rewrites the CGT into a faster CGT ([`stages.md`](stages.md)). Its
 pass evaluates, while the compiler runs, everything the program would compute
@@ -219,23 +219,24 @@ must agree on what its variables hold.
 
 ---
 
-## 4. Where it does more than the spec asks
+## 4. How it follows the spec
 
-[`concurrency.md`](https://github.com/zane-lang/spec/blob/f73cc01/spec/concurrency.md)
-§2.1 evaluates a call at compile time when it writes nothing its caller can
-see, touches no capability-backed state, and terminates, and §2.3 keeps a call
-that is not proven to terminate at runtime, using the facts
-[`effects.md`](https://github.com/zane-lang/spec/blob/f73cc01/spec/effects.md)
-§5.2 and §5.4 derive. Stage 5 folds more than that: a call that prints, since
-its output is replayed (O4); a `mut` call on a known local, whose new value
-is stored back; and a call that is
-not proven to terminate but finishes within the budget (O6). It also leaves
-some calls the spec would fold at runtime, when they pass the budget or the
-size cap.
+[`effects.md`](https://github.com/zane-lang/spec/blob/54b3566/spec/effects.md)
+§5.3 lets a compiler evaluate at compile time any computation that depends on
+no parameter of its verb and no read of capability-backed state, or leave it
+for run time, and requires that doing so change none of the program's side
+effects and nothing it computes: each write still happens at run time, at the
+same point and in the same order. How is left to the compiler. Stage 5's answer is this document:
 
-A running program can tell none of this apart, so it is not a divergence in
-the sense of [`spec-divergences.md`](../spec-divergences.md). The spec's
-rule is left as it is for now.
+- what reads capability-backed state is an input (O3), and stops a fold;
+- an output is replayed where it was made (O4), and a known local a
+  computation wrote is stored back (O6), which is what keeps folding
+  unobservable;
+- the bound on work is O6's: the step budgets, the depth and the size cap.
+
+Stage 5 leaves some such computations for run time, as §5.3 allows: a value
+holding a lent address, a changed list or box (only plain locals are stored
+back), and a package constant's first-read check (O9).
 
 ---
 
