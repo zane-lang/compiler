@@ -57,9 +57,7 @@ let find (prog : Eval.program) (funcs : Func.t list) =
     with
     | value, [] -> (
         match V.export value with
-        | Some c when V.size c <= Materialize.max_size ->
-            let ty = (Hashtbl.find prog.Eval.globals k.Eval.value).Global.ty in
-            if Materialize.expr ty c <> None then Some c else None
+        | Some c when V.size c <= Materialize.max_size -> Some c
         | _ -> None)
     | _, _ :: _ -> None
     | exception (V.Stop _ | Eval.Left _ | Eval.Returned _) -> None

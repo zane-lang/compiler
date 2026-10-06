@@ -186,10 +186,15 @@ let rec expr run fr (e : Expr.t) : v =
   | Expr.Text s -> VText s
   | Expr.Unit -> VUnit
   | Expr.Local id -> (local fr id).value
-  | Expr.Address id -> VPtr { cell = local fr id; path = [] }
-  | Expr.Deref p -> (
+  | Expr.Address id -> at (local fr id)
+  | Expr.Deref p | Expr.Snapshot p -> (
       let p = expr run fr p in
-      match e.Expr.ty with Ty.Void -> VUnit | _ -> load (ptr_of p))
+      match e.Expr.ty with
+      | Ty.Void -> VUnit
+      (* An address read out of a place is lent, though the place may hold
+         it as a box: what owns a box is the value the box is in. *)
+      | Ty.Ptr -> ( match load (ptr_of p) with VPtr q -> VPtr { q with owned = false } | v -> v)
+      | _ -> load (ptr_of p))
   | Expr.Call { fn; args } ->
       let args = List.map (expr run fr) args in
       call run fn args
@@ -238,15 +243,12 @@ let rec expr run fr (e : Expr.t) : v =
           store p t (vacate run.prog.layouts layout t v);
           v)
   | Expr.Copy { value; layout } -> copy run.prog.layouts layout value.Expr.ty (expr run fr value)
-  | Expr.Box { value; layout = _ } ->
+  | Expr.Box { value; layout } ->
       let v = expr run fr value in
-      VPtr { cell = cell value.Expr.ty v; path = [] }
+      owner (cell ~layout value.Expr.ty v)
   | Expr.Layout l -> VLayout l
   | Expr.Function f -> VFunc f
-  | Expr.Global g -> VPtr { cell = global run g; path = [] }
-  | Expr.Snapshot p -> (
-      let p = expr run fr p in
-      match e.Expr.ty with Ty.Void -> VUnit | _ -> load (ptr_of p))
+  | Expr.Global g -> at (global run g)
   | Expr.Escape { value; _ } -> expr run fr value
 
 and stats run fr body = List.iter (stat run fr) body
@@ -269,7 +271,7 @@ and stat run fr (s : Stat.t) =
             c
         | _ -> local fr place.Expr.local
       in
-      let base = if place.Expr.deref then ptr_of c.value else { cell = c; path = [] } in
+      let base = if place.Expr.deref then ptr_of c.value else { cell = c; path = []; owned = false } in
       let at = offset base place.Expr.ty place.Expr.path in
       store at value.Expr.ty v
   | Stat.Eval e -> ignore (expr run fr e)
@@ -292,9 +294,13 @@ and stat run fr (s : Stat.t) =
           | None -> stop "a switch with no case for its tag")
       | _ -> stop "a switch on something not a sum")
   | Stat.Leave label -> raise (Left label)
-  | Stat.Store { address; value } | Stat.Place { address; value; _ } ->
+  | Stat.Store { address; value } ->
       let p = ptr_of (expr run fr address) in
       store p value.Expr.ty (expr run fr value)
+  | Stat.Place { address; value; layout } ->
+      let p = ptr_of (expr run fr address) in
+      store p value.Expr.ty (expr run fr value);
+      if p.path = [] then p.cell.layout <- Some layout
   | Stat.Overwrite { address; value; layout } ->
       let p = ptr_of (expr run fr address) in
       let v = expr run fr value in
@@ -311,13 +317,13 @@ and stat run fr (s : Stat.t) =
             a
         | _ -> stop "a spawned call's frame that is not a struct"
       in
-      let at = cell frame (VRecord held) in
-      bind fr task Ty.Ptr (VPtr { cell = at; path = [] });
-      ignore (call run thunk [ VPtr { cell = at; path = [] } ]);
+      let frame_cell = cell frame (VRecord held) in
+      bind fr task Ty.Ptr (Value.at frame_cell);
+      ignore (call run thunk [ Value.at frame_cell ]);
       Option.iter
         (fun id ->
           let t = match frame with Ty.Struct (r :: _) -> r | _ -> Ty.Void in
-          bind fr id t (read_path at.value [ Member 0 ]))
+          bind fr id t (read_path frame_cell.value [ Member 0 ]))
         dest
   | Stat.Join _ -> ()
 
@@ -378,10 +384,11 @@ and runtime run (fn : Cgt.Runtime.fn) args =
       VUnit
   | _, Cgt.Runtime.Text_join, [ l; r ] -> VText (text_of l ^ text_of r)
   | _, Cgt.Runtime.Text_equal, [ l; r ] -> VInt (if text_of l = text_of r then 1L else 0L)
-  | _, Cgt.Runtime.List_new, [] -> VList { items = [||]; count = 0 }
-  | _, Cgt.Runtime.List_push, [ list; _stride ] -> (
+  | _, Cgt.Runtime.List_new, [] -> empty ()
+  | _, Cgt.Runtime.List_push, [ list; stride ] -> (
       match load (ptr_of list) with
       | VList l ->
+          l.stride <- Int64.to_int (int_of stride);
           if l.count = Array.length l.items then begin
             let grown = Array.make (max 4 (2 * l.count)) (cell Ty.Void VUnit) in
             Array.blit l.items 0 grown 0 l.count;
@@ -390,13 +397,13 @@ and runtime run (fn : Cgt.Runtime.fn) args =
           let c = cell Ty.Void VNull in
           l.items.(l.count) <- c;
           l.count <- l.count + 1;
-          VPtr { cell = c; path = [] }
+          at c
       | _ -> stop "a push onto something not a list")
   | _, Cgt.Runtime.List_at, [ list; index; _stride ] -> (
       let i = int_of index in
       match load (ptr_of list) with
       | VList l when Int64.compare i 1L >= 0 && Int64.compare i (Int64.of_int l.count) <= 0 ->
-          VPtr { cell = l.items.(Int64.to_int i - 1); path = [] }
+          at l.items.(Int64.to_int i - 1)
       | VList _ -> stop "an index out of range"
       | _ -> stop "an element of something not a list")
   | _, Cgt.Runtime.Array_at, [ array; index; count; _stride ] ->

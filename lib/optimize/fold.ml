@@ -203,14 +203,15 @@ let forget (env : known) ids = Hashtbl.iter (fun i () -> Hashtbl.remove env i) i
 (* The value an expression is known to have: a constant's, or that of an
    expansion the fold made, which outputs and then gives a constant. *)
 let known_value (e : Expr.t) =
-  match e.Expr.node with
-  | Expr.Expand { label; body; result = Some r } -> (
+  match (Materialize.const e, e.Expr.node) with
+  | Some c, _ -> Some c
+  | None, Expr.Expand { label; body; result = Some r } -> (
       match List.rev body with
       | Stat.Assign { place = { local; deref = false; path = []; _ }; value } :: _
         when local = r && not (leaves label body) ->
           Materialize.const value
       | _ -> None)
-  | _ -> Materialize.const e
+  | None, _ -> None
 
 (* Whether an expression is what [attempt] replaces code with: outputs and
    constants stored into locals, whose values the walk already knows. *)
@@ -273,7 +274,7 @@ let effects fn (env : known) (run : Eval.run) (fr : Eval.frame) =
           match V.export c.V.value with
           | Some now when compare (Some now) before = 0 -> ()
           | Some now when Hashtbl.mem fn.plain id -> (
-              match Materialize.expr c.V.ty now with
+              match Materialize.expr ~fresh:(fun () -> fresh fn) c.V.ty now with
               | Some value -> assigns := (id, now, c.V.ty, Stat.assign id value) :: !assigns
               | None -> V.stop "a written local whose value cannot be stored back")
           | _ -> V.stop "a written local that cannot be stored back")
@@ -300,8 +301,14 @@ let attempt fn (env : known) (e : Expr.t) : Expr.t option =
     let v = Eval.expr run fr e in
     let c = match V.export v with Some c -> c | None -> V.stop "a value that lives somewhere" in
     if V.size c > Materialize.max_size then V.stop "a value larger than the size cap";
+    (* A read is cheaper than a list or a box made again. *)
+    (match e.Expr.node with
+    | Expr.Local _ | Expr.Deref _ | Expr.Snapshot _ | Expr.Member _ | Expr.Payload _
+      when V.owns_block c ->
+        V.stop "a read of a value that owns a block"
+    | _ -> ());
     let value =
-      match Materialize.expr e.Expr.ty c with
+      match Materialize.expr ~fresh:(fun () -> fresh fn) e.Expr.ty c with
       | Some value -> value
       | None -> V.stop "a value that cannot be written as code"
     in
@@ -351,7 +358,9 @@ let candidate fn (env : known) (e : Expr.t) =
   | Expr.Runtime { fn = Cgt.Runtime.(Constant_begin | Constant_end); _ } -> false
   | Expr.Runtime { fn = f; _ } ->
       Intrinsics.classify f = Intrinsics.Computed && List.for_all (known_input env) (children e)
-  | Expr.Address _ | Expr.Global _ | Expr.Layout _ | Expr.Function _ -> false
+  (* A value on its way out of arenas keeps its way out: what it is made
+     of folds inside it. *)
+  | Expr.Address _ | Expr.Global _ | Expr.Layout _ | Expr.Function _ | Expr.Escape _ -> false
   | _ -> List.for_all (known_input env) (children e)
 
 let rec expr fn (env : known) (e : Expr.t) : Expr.t =
@@ -453,7 +462,7 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
           (* A member of a known local is stored into the value the walk
              knows. *)
           match
-            let base = { V.cell = V.cell ty (V.import old); path = [] } in
+            let base = { V.cell = V.cell ty (V.import old); path = []; owned = false } in
             let at = Eval.offset base ty place.Expr.path in
             V.store at value.Expr.ty (V.import c);
             V.export base.V.cell.V.value
@@ -515,9 +524,16 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
   | Stat.Store { address; value } ->
       let address = ex address in
       residual (Stat.Store { address; value = ex value })
-  | Stat.Overwrite o ->
+  | Stat.Overwrite o -> (
       let address = ex o.address in
-      residual (Stat.Overwrite { o with address; value = ex o.value })
+      let value = ex o.value in
+      let s = residual (Stat.Overwrite { o with address; value }) in
+      (* A whole local replaced holds the replacement. *)
+      match (address.Expr.node, known_value value) with
+      | Expr.Address id, Some c ->
+          Hashtbl.replace env id (c, value.Expr.ty);
+          s
+      | _ -> s)
   | Stat.Place p ->
       let address = ex p.address in
       residual (Stat.Place { p with address; value = ex p.value })

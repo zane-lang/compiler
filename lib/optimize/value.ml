@@ -20,6 +20,11 @@ type const =
   | Record of const array
   | Case of int * const
   | Func of string
+  (* A list's elements, made again by pushing each one [stride] bytes apart,
+     moved in as [layout] says when they own blocks of their own. *)
+  | List of { stride : int; element : Ty.t; layout : Layout.t option; items : const list }
+  (* A boxed member's payload, in a block of its own. *)
+  | Box of { ty : Ty.t; layout : Layout.t option; payload : const }
 
 type v =
   | VInt of int64
@@ -38,15 +43,19 @@ type v =
   | VFunc of string
   | VLayout of Layout.t
 
-and list_ = { mutable items : cell array; mutable count : int }
+and list_ = { mutable items : cell array; mutable count : int; mutable stride : int }
 
 (* [ty] is the type of what the cell holds, which the layouts it is walked
-   with are laid out over. [origin] says whose the cell is: one the
-   evaluation made, a local of the function being folded, or a variable of
-   the program. *)
-and cell = { mutable value : v; mutable ty : Ty.t; origin : origin }
+   with are laid out over, and [layout] the layout it was placed with, when
+   it was. [origin] says whose the cell is: one the evaluation made, a local
+   of the function being folded, or a variable of the program. *)
+and cell = { mutable value : v; mutable ty : Ty.t; mutable layout : Layout.t option; origin : origin }
+
 and origin = Made | Outer of int | Global of string
-and ptr = { cell : cell; path : step list }
+
+(* [owned] when the address is a boxed member's, which owns the cell it
+   names, rather than a reference or a place lent for a while. *)
+and ptr = { cell : cell; path : step list; owned : bool }
 
 (* A struct member or array element, or the payload of a sum's case. *)
 and step = Member of int | Payload of int
@@ -56,7 +65,12 @@ and step = Member of int | Payload of int
 exception Stop of string
 
 let stop why = raise (Stop why)
-let cell ?(origin = Made) ty value = { value; ty; origin }
+let cell ?(origin = Made) ?layout ty value = { value; ty; layout; origin }
+
+(* The address of a whole cell, lent, and a box's, which owns it. *)
+let at c = VPtr { cell = c; path = []; owned = false }
+let owner c = VPtr { cell = c; path = []; owned = true }
+let empty () = VList { items = [||]; count = 0; stride = 0 }
 
 (* What a slot holds before anything is stored in it: zeros, as the runtime
    gives a reserved slot. *)
@@ -173,13 +187,13 @@ let rec copy layouts layout t v =
     (fun v ((p : Layout.position), at) ->
       match (p.Layout.kind, read_path v at) with
       | Layout.List { elements; _ }, VList l ->
-          let item (c : cell) = cell c.ty (copy layouts elements c.ty c.value) in
+          let item (c : cell) = cell ?layout:c.layout c.ty (copy layouts elements c.ty c.value) in
           let items = Array.map item (Array.sub l.items 0 l.count) in
-          write_path v at (VList { items; count = l.count })
+          write_path v at (VList { items; count = l.count; stride = l.stride })
       | Layout.Box { payload; _ }, VPtr b ->
           let target = b.cell in
-          let made = cell target.ty (copy layouts payload target.ty (load b)) in
-          write_path v at (VPtr { cell = made; path = [] })
+          let made = cell ~layout:payload target.ty (copy layouts payload target.ty (load b)) in
+          write_path v at (owner made)
       | _ -> v)
     v
     (positions layouts layout t v)
@@ -191,7 +205,7 @@ let vacate layouts layout t v =
     (fun v ((p : Layout.position), at) ->
       match p.Layout.kind with
       | Layout.Text -> write_path v at (VText "")
-      | Layout.List _ -> write_path v at (VList { items = [||]; count = 0 })
+      | Layout.List _ -> write_path v at (empty ())
       | Layout.Box _ -> write_path v at VNull)
     v
     (positions layouts layout t v)
@@ -220,7 +234,7 @@ let rec overwrite layouts layout t old incoming =
       | VPtr b, VPtr n ->
           let inner = overwrite layouts payload b.cell.ty (load b) (load n) in
           store b n.cell.ty inner;
-          write_path v at (VPtr b)
+          write_path v at (VPtr { b with owned = true })
       | _ -> v)
     incoming kept
 
@@ -237,9 +251,14 @@ let rec import = function
   | Record a -> VRecord (Array.map import a)
   | Case (i, p) -> VCase (i, import p)
   | Func s -> VFunc s
+  | List { stride; element; layout; items } ->
+      let items = Array.of_list (List.map (fun c -> cell ?layout element (import c)) items) in
+      VList { items; count = Array.length items; stride }
+  | Box { ty; layout; payload } -> owner (cell ?layout ty (import payload))
 
 (* What a value is as a constant, when it holds nothing that lives
-   somewhere: a list, a box or an address does. *)
+   somewhere else: a reference or a lent address does. A list or a box the
+   value owns is part of it. *)
 let rec export = function
   | VInt i -> Some (Int i)
   | VFloat f -> Some (Float f)
@@ -252,7 +271,19 @@ let rec export = function
       else None
   | VCase (i, p) -> Option.map (fun p -> Case (i, p)) (export p)
   | VFunc s -> Some (Func s)
-  | VList _ | VPtr _ | VNull | VLayout _ -> None
+  | VList l ->
+      let items = List.map (fun (c : cell) -> export c.value) (Array.to_list (Array.sub l.items 0 l.count)) in
+      if List.for_all Option.is_some items then
+        let element, layout =
+          match Array.to_list (Array.sub l.items 0 l.count) with
+          | c :: _ -> (c.ty, c.layout)
+          | [] -> (Ty.Void, None)
+        in
+        Some (List { stride = l.stride; element; layout; items = List.map Option.get items })
+      else None
+  | VPtr { cell = c; path = []; owned = true } ->
+      Option.map (fun payload -> Box { ty = c.ty; layout = c.layout; payload }) (export c.value)
+  | VPtr _ | VNull | VLayout _ -> None
 
 (* How many bytes a constant takes where it is written, which the size cap
    (O6) counts. *)
@@ -262,3 +293,12 @@ let rec size = function
   | Text s -> 24 + String.length s
   | Record a -> Array.fold_left (fun n c -> n + size c) 0 a
   | Case (_, p) -> 8 + size p
+  | List { items; _ } -> List.fold_left (fun n c -> n + 24 + size c) 24 items
+  | Box { payload; _ } -> 8 + size payload
+
+(* Whether a constant owns a list or a box, which building costs a block. *)
+let rec owns_block = function
+  | List _ | Box _ -> true
+  | Record a -> Array.exists owns_block a
+  | Case (_, p) -> owns_block p
+  | Int _ | Float _ | Bool _ | Unit | Text _ | Func _ -> false
