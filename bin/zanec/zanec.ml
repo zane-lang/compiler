@@ -91,7 +91,9 @@ let read = function
    letter and then letters and digits, after a leading `_` when the package
    is private to its project (§4.2, packages.md §4.4). *)
 let is_package_name name =
-  let rest = if String.starts_with ~prefix:"_" name then String.sub name 1 (String.length name - 1) else name in
+  let rest =
+    if String.starts_with ~prefix:"_" name then String.sub name 1 (String.length name - 1) else name
+  in
   rest <> ""
   && (match rest.[0] with 'a' .. 'z' -> true | _ -> false)
   && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> true | _ -> false) rest
@@ -106,13 +108,15 @@ let package_id id =
   match String.rindex_opt id '%' with
   | None -> if is_package_path id then Some (None, id) else None
   | Some i ->
-      let stamp = String.sub id 0 (i + 1) and path = String.sub id (i + 1) (String.length id - i - 1) in
+      let stamp = String.sub id 0 (i + 1)
+      and path = String.sub id (i + 1) (String.length id - i - 1) in
       if Rewrite.is_stamp stamp && is_package_path path then Some (Some stamp, path) else None
 
 (* `PATH=DIR` names the package by its path, whose last part is the name
    its files declare (packages.md §2.2), and `STAMPPATH=DIR` gives it its
-   stamp as well; a bare `DIR` is named after the directory. A path that itself holds a `=` is still a path,
-   since what comes before the `=` then is no name. *)
+   stamp as well; a bare `DIR` is named after the directory. A path that
+   itself holds a `=` is still a path, since what comes before the `=` then
+   is no name. *)
 let package_request argument =
   let whole = { Tst.Assembly.manifest_name = None; directory = argument; stamp = None } in
   match String.index_opt argument '=' with
@@ -284,7 +288,9 @@ let needs_main build =
 let run_packages build =
   let* () = match build.view with Build _ -> Driver.buildable build.kind | _ -> Ok () in
   let root = Option.value build.kind ~default:Application = Application in
-  let* packages = Driver.assemble ~root ~imports:build.imports ~stamps:build.stamps build.packages in
+  let* packages =
+    Driver.assemble ~root ~imports:build.imports ~stamps:build.stamps build.packages
+  in
   match build.view with
   | Assembled ->
       print_string (Tree_graph.render (Tst.Assembly.to_node packages));

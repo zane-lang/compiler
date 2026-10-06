@@ -190,7 +190,9 @@ let library_roots st (root : T.Package.t) =
    with a stamp are named with it, as a dependency compiled from source
    is. *)
 let program ?(library = false) (p : T.Program.t) =
-  let stamp_of id = match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> "" in
+  let stamp_of id =
+    match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> ""
+  in
   let root = match p.T.Program.packages with r :: _ -> stamp_of r.T.Package.name | [] -> "" in
   let own p = String.equal (stamp_of p) root in
   let exports p = library && own p in
