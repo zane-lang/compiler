@@ -336,8 +336,8 @@ let key_message key = function
   | Not_given ->
       Some
         (Printf.sprintf
-           "this package may not import %s; the packages it may import are the keys \
-            the driver gives it with `--import`"
+           "this package may not import %s, which is not among the packages its place in \
+            its project lets it import (packages.md §4.3)"
            (quote key))
   | Found _ | Own -> None
 
