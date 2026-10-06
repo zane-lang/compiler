@@ -355,7 +355,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
     | T.Arg.Value ({ T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } as v) -> (
         match (l.T.Local.ty, role_of l) with
         | _, Block_param i -> Some { expr = v; at = Some []; ty = l.T.Local.ty; runs = Some i; behind = false }
-        | Ty.Concept Ty.Block, _ when not (is_param l) -> None
+        (* A lambda's block parameter: no summary names it. *)
         | Ty.Concept Ty.Block, _ -> Some { expr = v; at = Some []; ty = l.T.Local.ty; runs = Some (-1); behind = false }
         | _ -> None)
     | _ -> None
