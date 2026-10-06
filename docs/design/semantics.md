@@ -640,7 +640,7 @@ An explicit number and one inferred from another argument must agree, so
 `measured(values Array<Int, n>, n @concepts$Int)` called with a
 three-element array and `4` matches nothing.
 
-**Borrows** (`lib/tst/analyses/borrows.ml`, [`memory.md`](https://github.com/zane-lang/spec/blob/7430904/spec/memory.md) §2.9.1,
+**Borrows** (`lib/tst/analyses/borrows.ml`, [`memory.md`](https://github.com/zane-lang/spec/blob/71ceffe/spec/memory.md) §2.9.1,
 [`adt.md`](https://github.com/zane-lang/spec/blob/82da937/spec/adt.md) §5.1). A call's borrows are its subject and each argument
 passed to a bare parameter, or to a `^T` filled with a value type; an `&T`
 argument is not one. A call is an error when a borrow overlaps a place
