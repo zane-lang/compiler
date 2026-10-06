@@ -309,7 +309,7 @@ Error: no `measured` accepts (@primitives$Array<@primitives$Int, 3>, @concepts$I
 File "fixtures/typing/reject/bad/literals.zn", line 47, characters 18-31:
 47 |     mixed Unit = twice(2, 3.5);
   |                  ^^^^^^^^^^^^^
-Error: no `twice` accepts (@concepts$Int, @concepts$Float); the candidates are `@primitives$Unit twice(@concepts$Int, @concepts$Int)`; `@primitives$Unit twice(@concepts$Float, @concepts$Float)`
+Error: no `twice` accepts (@concepts$Int, @concepts$Float); the candidates are `@primitives$Unit twice(@concepts$Int, @concepts$Int)`; `@primitives$Unit twice(@concepts$Float, @concepts$Float)`; `@primitives$Unit twice(@concepts$Block)`
 File "fixtures/typing/reject/bad/literals.zn", line 52, characters 21-41:
 52 | Int tooBig() => Int(99999999999999999999)
   |                     ^^^^^^^^^^^^^^^^^^^^
@@ -586,12 +586,20 @@ File "fixtures/typing/reject/bad/readonly.zn", line 65, characters 9-13:
 65 |         desk!hold(pen);
   |         ^^^^
 Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/readonly.zn", line 98, characters 5-6:
-98 |     a!fill();
+File "fixtures/typing/reject/bad/readonly.zn", line 88, characters 9-13:
+88 |         desk!use();
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 89, characters 9-13:
+89 |         desk!hold(pen);
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 122, characters 5-6:
+122 |     a!fill();
   |     ^
 Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
-File "fixtures/typing/reject/bad/readonly.zn", line 99, characters 5-6:
-99 |     b!fill();
+File "fixtures/typing/reject/bad/readonly.zn", line 123, characters 5-6:
+123 |     b!fill();
   |     ^
 Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
 File "fixtures/typing/reject/bad/rests.zn", line 36, characters 15-20:

@@ -24,7 +24,8 @@ let runs_often multi (r : T.Verb_ref.t) i =
 
 let call_parts (e : T.Expr.t) =
   match e.T.Expr.node with
-  | T.Expr.Call { callee; args; _ } -> Some (callee, passed args)
+  | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } ->
+      Some (callee, passed args)
   | _ -> None
 
 (* One pass of the fixed point: a verb runs a block parameter more than once

@@ -20,19 +20,19 @@ To rerun them: `dune build bin/zanec/zanec.exe`, then
 `python3 tests/memory-probes/reclaim.py` for the memory measurements, and
 `git diff tests/memory-probes` to see what changed.
 
-The headline: the compile-time rules the spec states are implemented
-thoroughly — every rejection the probes expected was reported, if late in
-finding 11, and no legal program was refused except by findings 6, 10 and
-12 — and the runtime does what they promise. But four routes let an
-accepted program read or write freed storage (findings 1–4), each a rule
-the checker does not yet have, and in three of them the spec does not
-state the rule either. A fifth bug crashes
-the runtime on deep recursive values (5), and the compiler itself crashes
-building any read of a reference stored as an element (7) and any fixed
-array of 512 KiB or more (8).
+All seventeen findings are now closed; the **Outcome** section after the
+summary says how. The rest of this document records the state at
+`5bc7684`.
 
-All seventeen are now closed; the **Outcome** section after the summary
-says how.
+The headline at `5bc7684`: the compile-time rules the spec stated were
+implemented thoroughly — every rejection the probes expected was reported,
+if late in finding 11, and no legal program was refused except by findings
+6, 10 and 12 — and the runtime did what they promise. But four routes let
+an accepted program read or write freed storage (findings 1–4), each a rule
+the checker did not have, and in three of them the spec did not state the
+rule either. A fifth bug crashed the runtime on deep recursive values (5),
+and the compiler itself crashed building any read of a reference stored as
+an element (7) and any fixed array of 512 KiB or more (8).
 
 Findings are numbered by severity and classified:
 
@@ -94,8 +94,8 @@ found at `5bc7684`, and the `.out` files show what they print now.
 
 ## What holds
 
-Everything below behaves as the spec says, in the unoptimized and the
-optimized build alike.
+Everything below behaved as the spec says at `5bc7684`, in the unoptimized
+and the optimized build alike, and still does.
 
 - **Settled and roaming** (`settled`, `modes`; memory.md §2.1, §2.8,
   §2.9). A settled owner is never a move-source; a roaming one is never a
@@ -182,7 +182,7 @@ optimized build alike.
 - **One object reached twice by a call** (`aliasing`; memory.md §2.9).
   `keepAndRead(cup, cup)`, a borrow and a take of one owner, is reported. A
   reference-type `mut` subject and a borrow of the same object agree: the
-  borrow sees the subject's write. (But see 2 and 9.)
+  borrow sees the subject's write. (At `5bc7684`, but see 2 and 9.)
 - **Resting places across packages** (`across`; lifetimes.md §1.11). A
   dependency's `wire`, its transitive `relay`, a result naming an argument,
   a result read through an `&` field of an `&T` parameter, and a field
@@ -206,8 +206,8 @@ Consequences of the spec worth knowing, all correctly implemented:
   §1.3). It is built by recursion instead (`escapes`, `grow`).
 - After a `mut` method stores an `&T` parameter into `this`, `this` reaches a
   read-only reference, so no further `!` call on `this` is allowed in that
-  body (effects.md §4.4). (In a block argument the check over-reaches; see
-  10.)
+  body (effects.md §4.4). (At `5bc7684` the check over-reached in a block
+  argument; see 10.)
 - A `#struct` whose `&` field names its own type can never get a first
   instance: there is no null reference and every symbol is directly
   initialized (memory.md §2.11, lifetimes.md §2.4) (`throughref`, `Loop`).

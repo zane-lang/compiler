@@ -67,6 +67,30 @@ Unit loop(pen &Pen) {
 	return Unit();
 }
 
+/// A verb that passes its block to a constructor running it more than once
+/// runs it more than once too.
+type Drill = #struct { turns Int; }
+
+Drill(turns Int, body @concepts$Block) {
+	@controlflow$repeat(turns, body);
+	return init{ turns; }
+}
+
+Unit twice(body @concepts$Block) {
+	drill Drill(Int(2), body);
+	return Unit();
+}
+
+Unit bore(pen &Pen) {
+	own Pen(Int(6));
+	desk Desk(own);
+	twice({
+		desk!use();
+		desk!hold(pen);
+	});
+	return Unit();
+}
+
 /// A value copied out of a read-only parameter is the verb's own, and a field
 /// that holds no reference carries nothing.
 type Caddy = #struct { count Int; pen &Pen; }

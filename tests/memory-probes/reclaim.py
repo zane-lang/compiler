@@ -46,6 +46,6 @@ for name in only:
         exe=str(work/(pkg+".exe"))
         r=subprocess.run([Z,"--build",exe,"--package",str(d)],capture_output=True,text=True)
         if r.returncode: res.append("build failed: "+(r.stdout+r.stderr).replace(str(work)+"/","")); break
-        m=subprocess.run([sys.executable,"-c",f"import resource,subprocess;r=subprocess.run(['{exe}'],capture_output=True);print(r.returncode,resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,r.stderr.decode()[:200])"],capture_output=True,text=True)
+        m=subprocess.run([sys.executable,"-c","import resource,subprocess,sys;r=subprocess.run([sys.argv[1]],capture_output=True);print(r.returncode,resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,r.stderr.decode()[:200])",exe],capture_output=True,text=True)
         res.append(f"N={n}: {m.stdout.strip()}")
     print(name, "|", " ; ".join(res))
