@@ -60,7 +60,7 @@ Unit tidy(this Desk, pen &Pen) mut {
 Unit loop(pen &Pen) {
 	own Pen(Int(3));
 	desk Desk(own);
-	repeat({
+	@controlflow$repeat(Int(2), {
 		desk!use();
 		desk!hold(pen);
 	});
@@ -90,7 +90,7 @@ Unit rotate(pen &Pen) {
 	own Pen(Int(5));
 	a &Pen = own;
 	b &Pen = pen;
-	repeat({
+	@controlflow$repeat(Int(2), {
 		t &Pen = a;
 		a = b;
 		b = t;

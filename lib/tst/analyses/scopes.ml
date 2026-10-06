@@ -595,7 +595,7 @@ let bodies env (p : T.Program.t) =
             ( i.T.Instance.decl,
               (i.T.Instance.signature.S.ret, i.T.Instance.signature.S.abort),
               i.T.Instance.params,
-              fun w -> block env w i.T.Instance.body ))
+              fun w -> Env.in_instance env i (fun () -> block env w i.T.Instance.body) ))
       p.T.Program.instances
 
 (* Summaries first, to a fixed point, since verbs may call each other in a

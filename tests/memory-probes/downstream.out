@@ -21,11 +21,11 @@ Error: `Inner` is a value type, so its member `e` cannot be an `&`; only a `#` m
 File "downstream/main.zn", line 18, characters 29-34:
 18 | type Outer = struct { inner Inner; }                         // ILLEGAL transitively
   |                             ^^^^^
-Error: `&downstream$Engine` is a reference type, and it reaches `downstream$Inner`'s field `e`, a value type's slot; a value type holds only values, all the way down
+Error: `&downstream$Engine` is a reference, and it reaches `downstream$Inner`'s field `e`, a value type's slot; a value type holds only values, all the way down
 File "downstream/main.zn", line 19, characters 30-35:
 19 | type Deeper = struct { outer Outer; }                        // ILLEGAL transitively
   |                              ^^^^^
-Error: `&downstream$Engine` is a reference type, and it reaches `downstream$Outer`'s field `inner`, then `downstream$Inner`'s field `e`, a value type's slot; a value type holds only values, all the way down
+Error: `&downstream$Engine` is a reference, and it reaches `downstream$Outer`'s field `inner`, then `downstream$Inner`'s field `e`, a value type's slot; a value type holds only values, all the way down
 File "downstream/main.zn", line 20, characters 1-47:
 20 | type BadVariant = variant { a Engine; b Int; }               // ILLEGAL
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -41,7 +41,7 @@ Error: `downstream$Engine` is a reference type, and it reaches the elements of `
 File "downstream/main.zn", line 23, characters 48-55:
 23 | type ArrOfAmp = struct { arr @primitives$Array<&Engine, 2>; } // ILLEGAL
   |                                                ^^^^^^^
-Error: `&downstream$Engine` is a reference type, and it reaches the elements of `@primitives$Array<&downstream$Engine, 2>`, a value type's slot; a value type holds only values, all the way down
+Error: `&downstream$Engine` is a reference, and it reaches the elements of `@primitives$Array<&downstream$Engine, 2>`, a value type's slot; a value type holds only values, all the way down
 File "downstream/main.zn", line 24, characters 1-35:
 24 | type Caret = struct { e ^Engine; }                           // ILLEGAL (and ^ is no field type)
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -57,7 +57,15 @@ Error: `^downstream$Engine` is a roaming owner, and `^` is written only on a loc
 File "downstream/main.zn", line 26, characters 36-40:
 26 | type ListAmpInt = #struct { e List<&Int>; }                  // ILLEGAL: & over a value type (§2.4)
   |                                    ^^^^
+Error: `&@primitives$Int` is a reference, and it fills the elements of `@primitives$List<&@primitives$Int>`; a list's elements are owners, never references
+File "downstream/main.zn", line 26, characters 36-40:
+26 | type ListAmpInt = #struct { e List<&Int>; }                  // ILLEGAL: & over a value type (§2.4)
+  |                                    ^^^^
 Error: `@primitives$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
+File "downstream/main.zn", line 30, characters 79-86:
+30 | type OkRef = #struct { e &Engine; owned Engine; items List<Engine>; refs List<&Engine>; }  // legal
+  |                                                                               ^^^^^^^
+Error: `&downstream$Engine` is a reference, and it fills the elements of `@primitives$List<&downstream$Engine>`; a list's elements are owners, never references
 File "downstream/main.zn", line 35, characters 31-37:
 35 | type UseGen = #struct { g Gen<Engine>; }                     // ILLEGAL
   |                               ^^^^^^

@@ -270,6 +270,10 @@ let with_note env n f =
   env.note := Some n;
   Fun.protect ~finally:(fun () -> env.note := saved) f
 
+(* Runs [f] with an instance's note, if it has one. *)
+let in_instance env (i : Nodes.Instance.t) f =
+  match i.Nodes.Instance.note with Some n -> with_note env n f | None -> f ()
+
 let error env span message =
   let message =
     match !(env.note) with None -> message | Some n -> message ^ " (" ^ n ^ ")"

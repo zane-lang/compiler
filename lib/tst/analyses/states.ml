@@ -114,6 +114,20 @@ let rec state ?(inside = []) s (e : T.Expr.t) =
   | T.Expr.Case_read _ -> Contingent
   | _ -> if Ty.is_ref e.T.Expr.ty then Settled else Fresh
 
+(* The step a [Contingent] place is found through: a field of a list's
+   element or of a payload is contingent because of that element or
+   payload, which a message names. *)
+let rec contingent_step (e : T.Expr.t) =
+  match e.T.Expr.node with
+  | T.Expr.Field { target; _ } when not (Ty.is_ref target.T.Expr.ty) -> contingent_step target
+  | _ -> e
+
+(* A place's state, and the node a message describes it by. *)
+let described s (e : T.Expr.t) =
+  match state s e with
+  | Contingent -> (Contingent, (contingent_step e).T.Expr.node)
+  | st -> (st, e.T.Expr.node)
+
 (* The local a place is reached from, and the field steps from it to the
    place, outermost first: `car.engine.rotor` is `car` and
    [engine; rotor]. [None] when the path holds any other step. *)

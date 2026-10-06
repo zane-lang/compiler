@@ -295,4 +295,6 @@ let run env (p : T.Program.t) =
           | _ -> ())
         pkg.T.Package.decls)
     p.T.Program.packages;
-  List.iter (fun (i : T.Instance.t) -> walk_body env i.T.Instance.body) p.T.Program.instances
+  List.iter
+    (fun (i : T.Instance.t) -> Env.in_instance env i (fun () -> walk_body env i.T.Instance.body))
+    p.T.Program.instances

@@ -204,6 +204,9 @@ module Instance = struct
     args : (Ty.param * Ty.arg) list;
     params : Local.t list;
     body : Block.t;
+    (* What made the instance, for a diagnostic inside it: the generic, its
+       arguments, and the call that required it. *)
+    note : string option;
   }
 end
 

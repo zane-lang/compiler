@@ -154,8 +154,10 @@ type binding = { name : string; read_only : bool }
 
 type walk = {
   (* Report, or only gather summaries. *)
-  report : bool;
+  mutable report : bool;
   summaries : summary Fixpoint.t;
+  (* The block parameters each verb runs more than once. *)
+  multi : (int * int, unit) Hashtbl.t;
   taints : (int, Taint.t) Hashtbl.t;
   (* Every parameter an origin can name, in this body and its lambdas. *)
   origins : (int, binding) Hashtbl.t;
@@ -264,10 +266,10 @@ let rec expr env w (e : T.Expr.t) : Taint.t =
       in
       Taint.union arms (opt_handler env w m.T.Match.handler)
   | T.Expr.Call { callee; args; handler } ->
-      let r = call env w e callee (List.map (arg env w) args) args in
+      let r = call env w e callee (args_of env w e args) args in
       Taint.union r (opt_handler env w handler)
   | T.Expr.Construct { ctor; args; handler } ->
-      let r = call env w e ctor (List.map (arg env w) args) args in
+      let r = call env w e ctor (args_of env w e args) args in
       Taint.union r (opt_handler env w handler)
   | T.Expr.Construct_fields { ctor; fields; handler } ->
       let taints =
@@ -303,7 +305,7 @@ let rec expr env w (e : T.Expr.t) : Taint.t =
       store_or_place env e r
   | T.Expr.Call_value { callee; args; handler } ->
       let fn = expr env w callee in
-      let taints = List.map (arg env w) args in
+      let taints = args_of env w e args in
       let tys =
         match callee.T.Expr.ty with
         | Ty.Verb v -> Option.to_list v.Ty.this_ @ v.Ty.params
@@ -342,31 +344,46 @@ and one w callee v =
    stored: its taint stays whole unless the value is a copy. *)
 and store_or_place env (e : T.Expr.t) r = if carries env e.T.Expr.ty then r else Taint.empty
 
-and arg env w = function
+and args_of env w (call : T.Expr.t) args =
+  let often = Repeats.often w.multi call in
+  List.mapi
+    (fun i a -> arg env w ~often:(Option.value ~default:true (List.nth_opt often i)) a)
+    args
+
+and arg env w ~often = function
   | T.Arg.Value e -> expr env w e
+  | T.Arg.Block b when not often ->
+      block env w b;
+      Taint.empty
   | T.Arg.Block b ->
-      (* A block argument may run any number of times, each run seeing what
-         the last one stored, so it is walked until that stops growing. *)
+      (* A block argument run more than once sees what the last run stored,
+         so it is walked until that stops growing, silently, and then once
+         more to report. *)
       (* After the block a local holds what any run stored, so each run is
          joined into the one before, and the walk stops once a run adds
          nothing. A `let` or an assignment replaces what a run sees, which is
          why the join, and not the size of the table, decides. *)
-      let rec settle () =
+      let once () =
         let before = Hashtbl.copy w.taints in
         block env w b;
         Hashtbl.iter
           (fun id old -> Hashtbl.replace w.taints id (Taint.union old (taint_by_id w id)))
           before;
-        let grew =
-          Hashtbl.fold
-            (fun id now grew ->
-              grew
-              || not (Taint.subset now (Option.value ~default:Taint.empty (Hashtbl.find_opt before id))))
-            w.taints false
-        in
-        if grew then settle ()
+        Hashtbl.fold
+          (fun id now grew ->
+            grew
+            ||
+            let old = Option.value ~default:Taint.empty (Hashtbl.find_opt before id) in
+            not (Taint.subset now old))
+          w.taints false
       in
-      settle ();
+      let report = w.report in
+      w.report <- false;
+      while once () do
+        ()
+      done;
+      w.report <- report;
+      if report then ignore (once ());
       Taint.empty
 
 and call env w (e : T.Expr.t) (callee : T.Verb_ref.t) taints args =
@@ -498,11 +515,12 @@ and stat env w (s : T.Stat.t) =
 
 type body = { decl : int; signature : S.t; params : T.Local.t list; run : walk -> unit }
 
-let walk_body summaries ~report (b : body) =
+let walk_body summaries multi ~report (b : body) =
   let w =
     {
       report;
       summaries;
+      multi;
       taints = Hashtbl.create 32;
       origins = Hashtbl.create 8;
       returned = Taint.empty;
@@ -559,7 +577,7 @@ let bodies env (p : T.Program.t) =
           decl = i.T.Instance.decl;
           signature = i.T.Instance.signature;
           params = i.T.Instance.params;
-          run = (fun w -> block env w i.T.Instance.body);
+          run = (fun w -> Env.in_instance env i (fun () -> block env w i.T.Instance.body));
         })
       p.T.Program.instances
 
@@ -569,4 +587,5 @@ let run env (p : T.Program.t) =
   (* Every body starts from nothing, so a callee not yet walked is not
      mistaken for one that has no body to walk. *)
   List.iter (fun (b : body) -> Fixpoint.start summaries b.decl) bodies;
-  Fixpoint.settle summaries (fun ~report -> List.iter (walk_body summaries ~report) bodies)
+  let multi = Repeats.compute p in
+  Fixpoint.settle summaries (fun ~report -> List.iter (walk_body summaries multi ~report) bodies)

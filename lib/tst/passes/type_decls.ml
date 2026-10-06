@@ -291,8 +291,9 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
       | Some ({ definition = Some (Distinct u); _ } as info) ->
           wrong_kind env ~seen:(tid :: seen) (Ty.instantiate info.params args u)
       | _ -> None)
-  | Ty.Intrinsic { namespace = "primitives"; name = "List"; args = Ty.Type (Ty.Reference _ as e) :: _ }
-    ->
+  | Ty.Intrinsic
+      { namespace = "primitives"; name = "List"; args = Ty.Type (Ty.Reference x as e) :: _ }
+    when not (is_value env x) ->
       Some
         {
           path = [ Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) ];
@@ -309,6 +310,8 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
   | _ -> None
 
 let describe_wrong_kind { path; bad; slot } =
+  (* An `&` type is a reference, not a reference type (memory.md §2.4). *)
+  let what = match bad with Ty.Reference _ -> "a reference" | _ -> "a reference type" in
   match slot with
   | Under_reference ->
       Printf.sprintf
@@ -318,25 +321,24 @@ let describe_wrong_kind { path; bad; slot } =
         (if path = [] then "" else " at " ^ String.concat ", then " path)
   | Under_take ->
       Printf.sprintf
-        "%s is a reference type, and it fills a `^`%s; `^` takes an owner, and a reference has \
-         none to hand over"
+        "%s is a reference, and it fills a `^`%s; `^` takes an owner, and a reference has none \
+         to hand over"
         (quote (Ty.to_string bad))
         (if path = [] then "" else " at " ^ String.concat ", then " path)
   | List_element ->
       Printf.sprintf
-        "%s is a reference type, and it fills %s; a list's elements are owners, never \
-         references"
+        "%s is a reference, and it fills %s; a list's elements are owners, never references"
         (quote (Ty.to_string bad)) (String.concat ", then " path)
   | Bare_result ->
       Printf.sprintf
-        "%s is a reference type, and it fills %s, written bare; a borrow is never returned or \
-         aborted, so that position needs `^` or `&` to take this type"
-        (quote (Ty.to_string bad)) (String.concat ", then " path)
+        "%s is %s, and it fills %s, written bare; a borrow is never returned or aborted, so \
+         that position needs `^` or `&` to take this type"
+        (quote (Ty.to_string bad)) what (String.concat ", then " path)
   | Value_slot ->
       Printf.sprintf
-        "%s is a reference type, and it reaches %s, a value type's slot; a value type holds only \
-         values, all the way down"
-        (quote (Ty.to_string bad)) (String.concat ", then " path)
+        "%s is %s, and it reaches %s, a value type's slot; a value type holds only values, \
+         all the way down"
+        (quote (Ty.to_string bad)) what (String.concat ", then " path)
 
 (* Report a wrong-kind type once kinds are known: at the argument written
    explicitly that brought the rejected type in, or at [span]. *)
