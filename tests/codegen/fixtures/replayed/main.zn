@@ -1,0 +1,94 @@
+/// What folding keeps (docs/design/optimization.md O4, O6): output made
+/// while computing a value is replayed where the code was, in order; a call
+/// that runs out of the step budget, one that nests calls too deep, and one
+/// whose value is past the size cap stay runtime code, with the constant code
+/// inside them still folded. Each check prints `yes` when it holds and `no`
+/// when it does not, and every line written shows the order held.
+package replayed;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	@controlflow$branch(ok, { say(String("yes\n")); });
+	@controlflow$branch(~ok, { say(String("no\n")); });
+	return Unit();
+}
+
+/// Writes while it computes.
+Int loud(n Int) {
+	say(String("computing\n"));
+	return n * Int(2);
+}
+
+/// Three million steps: past the budget, so it runs when the program does.
+Int spin(n Int) {
+	total Int(0);
+	i Int(1);
+	i!to(n) {
+		total = total + Int(2) * Int(3) + ~Int(5);
+	}
+	return total;
+}
+
+/// Five thousand calls deep: past the depth a fold may go.
+Int down(n Int) {
+	if(n == Int(0)) {
+		return Int(0);
+	}
+	return Int(1) + down(n + ~Int(1));
+}
+
+String repeated(word String, times Int) {
+	out String("");
+	i Int(1);
+	i!to(times) {
+		out = out + word;
+	}
+	return out;
+}
+
+Unit main() {
+	say(String("first\n"));
+	check(loud(Int(21)) == Int(42));
+	say(String("between\n"));
+	check(spin(Int(3000000)) == Int(3000000));
+	check(down(Int(5000)) == Int(5000));
+	say(String("after\n"));
+
+	// Seventy thousand bytes: past the size cap.
+	long String = repeated(String("0123456789"), Int(7000));
+	check(long == repeated(String("0123456789"), Int(7000)));
+
+	// The pool resized, and a count it refuses, replayed as they were made.
+	@program$runtime!setThreads(Int(2)) ? u {
+		resolve Unit();
+	}
+	refused Int(0);
+	@program$runtime!setThreads(Int(0)) ? u {
+		refused = Int(1);
+		resolve Unit();
+	}
+	check(refused == Int(1));
+	return Unit();
+}

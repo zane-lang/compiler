@@ -269,8 +269,9 @@ let effects fn (env : known) (run : Eval.run) (fr : Eval.frame) =
       match c.V.origin with
       | V.Outer _ -> (
           let before = Option.map fst (Hashtbl.find_opt env id) in
+          (* [compare], not [=], so that a NaN is the value it was. *)
           match V.export c.V.value with
-          | Some now when Some now = before -> ()
+          | Some now when compare (Some now) before = 0 -> ()
           | Some now when Hashtbl.mem fn.plain id -> (
               match Materialize.expr c.V.ty now with
               | Some value -> assigns := (id, now, c.V.ty, Stat.assign id value) :: !assigns
@@ -318,9 +319,7 @@ let attempt fn (env : known) (e : Expr.t) : Expr.t option =
           (outputs @ stores @ [ Stat.assign r value ], Some r)
       in
       Some { Expr.node = Expr.Expand { label; body; result }; ty = e.Expr.ty }
-  | exception (V.Stop _ | Eval.Left _ | Eval.Returned _ as x) ->
-      if Sys.getenv_opt "ZANE_FOLD_DEBUG" <> None then
-        prerr_endline ((match x with V.Stop w -> w | Eval.Left l -> "left " ^ string_of_int l | _ -> "returned") ^ " :: " ^ Cgt.Nodes.Expr.kind e.Expr.node);
+  | exception (V.Stop _ | Eval.Left _ | Eval.Returned _) ->
       Option.iter (fun k -> Hashtbl.replace fn.failed k ()) (call_key e);
       None
 
@@ -347,6 +346,9 @@ let candidate fn (env : known) (e : Expr.t) =
   | Expr.Call _ -> (
       List.for_all (known_input env) (children e)
       && match call_key e with Some k -> not (Hashtbl.mem fn.failed k) | None -> true)
+  (* Where a constant is made, the check whether this is its first read
+     stays (Eval). *)
+  | Expr.Runtime { fn = Cgt.Runtime.(Constant_begin | Constant_end); _ } -> false
   | Expr.Runtime { fn = f; _ } ->
       Intrinsics.classify f = Intrinsics.Computed && List.for_all (known_input env) (children e)
   | Expr.Address _ | Expr.Global _ | Expr.Layout _ | Expr.Function _ -> false
@@ -472,6 +474,8 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
       let e = ex e in
       match e.Expr.node with
       | _ when Materialize.literal e -> []
+      (* Outputs with no value to give are statements of their own. *)
+      | Expr.Expand { body; result = None; _ } when replayed e -> body
       | _ when replayed e -> [ Stat.Eval e ]
       | _ -> residual (Stat.Eval e))
   | Stat.Return e -> residual (Stat.Return (ex e))

@@ -1,0 +1,1081 @@
+└── program:
+    ├── entry: folding$main()
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── layouts[1] > layout:
+    │   ├── type: %primitives$Int
+    │   └── positions:
+    ├── layouts[2] > layout:
+    │   ├── type: %primitives$List<%primitives$Int>
+    │   └── positions[0]: list @0 of %primitives$Int (8 bytes apart)
+    ├── layouts[3] > layout:
+    │   ├── type: folding$Countdown
+    │   └── positions[0]: box @8 of folding$Countdown (16 bytes) when [0]=1
+    ├── funcs[0] > func:
+    │   ├── symbol: folding$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: <
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: +
+    │       │       │   ├── left: 9223372036854775807 : i64
+    │       │       │   └── right: 1 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[1] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: <
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: +
+    │       │       │   ├── left > flip:
+    │       │       │   │   ├── type: i64
+    │       │       │   │   └── value: 9223372036854775807 : i64
+    │       │       │   └── right > binary:
+    │       │       │       ├── type: i64
+    │       │       │       ├── op: /
+    │       │       │       ├── left > flip:
+    │       │       │       │   ├── type: i64
+    │       │       │       │   └── value: 1 : i64
+    │       │       │       └── right > flip:
+    │       │       │           ├── type: i64
+    │       │       │           └── value: 1 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i32
+    │       │       │   ├── op: +
+    │       │       │   ├── left: 2147483647 : i32
+    │       │       │   └── right: 1 : i32
+    │       │       └── right > binary:
+    │       │           ├── type: i32
+    │       │           ├── op: +
+    │       │           ├── left > flip:
+    │       │           │   ├── type: i32
+    │       │           │   └── value: 2147483647 : i32
+    │       │           └── right > flip:
+    │       │               ├── type: i32
+    │       │               └── value: 1 : i32
+    │       ├── body[3] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i32
+    │       │       │   ├── op: *
+    │       │       │   ├── left: 65536 : i32
+    │       │       │   └── right: 65536 : i32
+    │       │       └── right: 0 : i32
+    │       ├── body[4] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i32
+    │       │       │   ├── op: /
+    │       │       │   ├── left: 7 : i32
+    │       │       │   └── right > flip:
+    │       │       │       ├── type: i32
+    │       │       │       └── value: 2 : i32
+    │       │       └── right > flip:
+    │       │           ├── type: i32
+    │       │           └── value: 3 : i32
+    │       ├── body[5] > let:
+    │       │   ├── local: #1
+    │       │   └── value > binary:
+    │       │       ├── type: f64
+    │       │       ├── op: /
+    │       │       ├── left: 0x0p+0 : f64
+    │       │       └── right: 0x0p+0 : f64
+    │       ├── body[6] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > flip:
+    │       │       ├── type: i1
+    │       │       └── value > binary:
+    │       │           ├── type: i1
+    │       │           ├── op: ==
+    │       │           ├── left: local #1 : f64
+    │       │           └── right: local #1 : f64
+    │       ├── body[7] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: *
+    │       │       ├── left > flip:
+    │       │       │   ├── type: i1
+    │       │       │   └── value > binary:
+    │       │       │       ├── type: i1
+    │       │       │       ├── op: <
+    │       │       │       ├── left: local #1 : f64
+    │       │       │       └── right: 0x1p+0 : f64
+    │       │       └── right > flip:
+    │       │           ├── type: i1
+    │       │           └── value > binary:
+    │       │               ├── type: i1
+    │       │               ├── op: <
+    │       │               ├── left: 0x1p+0 : f64
+    │       │               └── right: local #1 : f64
+    │       ├── body[8] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > flip:
+    │       │       │   ├── type: f64
+    │       │       │   └── value: 0x0p+0 : f64
+    │       │       └── right: 0x0p+0 : f64
+    │       ├── body[9] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: <
+    │       │       ├── left > binary:
+    │       │       │   ├── type: f64
+    │       │       │   ├── op: /
+    │       │       │   ├── left: 0x1p+0 : f64
+    │       │       │   └── right > flip:
+    │       │       │       ├── type: f64
+    │       │       │       └── value: 0x0p+0 : f64
+    │       │       └── right: 0x0p+0 : f64
+    │       ├── body[10] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: *
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i1
+    │       │       │   ├── op: +
+    │       │       │   ├── left: true : i1
+    │       │       │   └── right: false : i1
+    │       │       └── right > flip:
+    │       │           ├── type: i1
+    │       │           └── value > binary:
+    │       │               ├── type: i1
+    │       │               ├── op: *
+    │       │               ├── left: true : i1
+    │       │               └── right: false : i1
+    │       ├── body[11] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > expand:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── label: @7
+    │       │       │   │   ├── result: #8
+    │       │       │   │   ├── body[0] > hold:
+    │       │       │   │   │   ├── local: #6
+    │       │       │   │   │   ├── scope: %5
+    │       │       │   │   │   ├── value > call:
+    │       │       │   │   │   │   ├── type: handle
+    │       │       │   │   │   │   ├── fn: folding$repeated(%primitives$String, %primitives$Int)
+    │       │       │   │   │   │   ├── args[0] > expand:
+    │       │       │   │   │   │   │   ├── type: handle
+    │       │       │   │   │   │   │   ├── label: @3
+    │       │       │   │   │   │   │   ├── result: #4
+    │       │       │   │   │   │   │   ├── body[0] > hold:
+    │       │       │   │   │   │   │   │   ├── local: #2
+    │       │       │   │   │   │   │   │   ├── scope: %5
+    │       │       │   │   │   │   │   │   ├── value: "ab" : handle
+    │       │       │   │   │   │   │   │   └── layout: %primitives$String
+    │       │       │   │   │   │   │   └── body[1] > assign:
+    │       │       │   │   │   │   │       ├── place: #4
+    │       │       │   │   │   │   │       └── value: local #2 : handle
+    │       │       │   │   │   │   └── args[1]: 3 : i64
+    │       │       │   │   │   └── layout: %primitives$String
+    │       │       │   │   └── body[1] > assign:
+    │       │       │   │       ├── place: #8
+    │       │       │   │       └── value: local #6 : handle
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @10
+    │       │       │       ├── result: #11
+    │       │       │       ├── body[0] > hold:
+    │       │       │       │   ├── local: #9
+    │       │       │       │   ├── scope: %5
+    │       │       │       │   ├── value: "ababab" : handle
+    │       │       │       │   └── layout: %primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #11
+    │       │       │           └── value: local #9 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[12] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > flip:
+    │       │       ├── type: i1
+    │       │       └── value > binary:
+    │       │           ├── type: i1
+    │       │           ├── op: ==
+    │       │           ├── left > runtime:
+    │       │           │   ├── type: i64
+    │       │           │   ├── fn: zane_text_equal
+    │       │           │   ├── args[0] > expand:
+    │       │           │   │   ├── type: handle
+    │       │           │   │   ├── label: @19
+    │       │           │   │   ├── result: #20
+    │       │           │   │   ├── body[0] > hold:
+    │       │           │   │   │   ├── local: #18
+    │       │           │   │   │   ├── scope: %5
+    │       │           │   │   │   ├── value > runtime:
+    │       │           │   │   │   │   ├── type: handle
+    │       │           │   │   │   │   ├── fn: zane_text_join
+    │       │           │   │   │   │   ├── args[0] > expand:
+    │       │           │   │   │   │   │   ├── type: handle
+    │       │           │   │   │   │   │   ├── label: @13
+    │       │           │   │   │   │   │   ├── result: #14
+    │       │           │   │   │   │   │   ├── body[0] > hold:
+    │       │           │   │   │   │   │   │   ├── local: #12
+    │       │           │   │   │   │   │   │   ├── scope: %5
+    │       │           │   │   │   │   │   │   ├── value: "a" : handle
+    │       │           │   │   │   │   │   │   └── layout: %primitives$String
+    │       │           │   │   │   │   │   └── body[1] > assign:
+    │       │           │   │   │   │   │       ├── place: #14
+    │       │           │   │   │   │   │       └── value: local #12 : handle
+    │       │           │   │   │   │   └── args[1] > expand:
+    │       │           │   │   │   │       ├── type: handle
+    │       │           │   │   │   │       ├── label: @16
+    │       │           │   │   │   │       ├── result: #17
+    │       │           │   │   │   │       ├── body[0] > hold:
+    │       │           │   │   │   │       │   ├── local: #15
+    │       │           │   │   │   │       │   ├── scope: %5
+    │       │           │   │   │   │       │   ├── value: "b" : handle
+    │       │           │   │   │   │       │   └── layout: %primitives$String
+    │       │           │   │   │   │       └── body[1] > assign:
+    │       │           │   │   │   │           ├── place: #17
+    │       │           │   │   │   │           └── value: local #15 : handle
+    │       │           │   │   │   └── layout: %primitives$String
+    │       │           │   │   └── body[1] > assign:
+    │       │           │   │       ├── place: #20
+    │       │           │   │       └── value: local #18 : handle
+    │       │           │   └── args[1] > expand:
+    │       │           │       ├── type: handle
+    │       │           │       ├── label: @22
+    │       │           │       ├── result: #23
+    │       │           │       ├── body[0] > hold:
+    │       │           │       │   ├── local: #21
+    │       │           │       │   ├── scope: %5
+    │       │           │       │   ├── value: "ba" : handle
+    │       │           │       │   └── layout: %primitives$String
+    │       │           │       └── body[1] > assign:
+    │       │           │           ├── place: #23
+    │       │           │           └── value: local #21 : handle
+    │       │           └── right: 1 : i64
+    │       ├── body[13] > let:
+    │       │   ├── local: #24
+    │       │   └── value > call:
+    │       │       ├── type: {i64, i64}
+    │       │       ├── fn: folding$Vec(%primitives$Int, %primitives$Int)
+    │       │       ├── args[0]: 2 : i64
+    │       │       └── args[1]: 3 : i64
+    │       ├── body[14] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$scale(this folding$Vec, %primitives$Int)
+    │       │   ├── args[0]: address of #24 : ptr
+    │       │   └── args[1]: 10 : i64
+    │       ├── body[15] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: +
+    │       │       │   ├── left > member:
+    │       │       │   │   ├── type: i64
+    │       │       │   │   ├── index: 0
+    │       │       │   │   └── value: local #24 : {i64, i64}
+    │       │       │   └── right > member:
+    │       │       │       ├── type: i64
+    │       │       │       ├── index: 1
+    │       │       │       └── value: local #24 : {i64, i64}
+    │       │       └── right: 50 : i64
+    │       ├── body[16] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: folding$corners(folding$Shape)
+    │       │       │   └── args[0] > case:
+    │       │       │       ├── type: <{i64, i64} | f64 | void>
+    │       │       │       ├── index: 0
+    │       │       │       └── payload > call:
+    │       │       │           ├── type: {i64, i64}
+    │       │       │           ├── fn: folding$Vec(%primitives$Int, %primitives$Int)
+    │       │       │           ├── args[0]: 4 : i64
+    │       │       │           └── args[1]: 5 : i64
+    │       │       └── right: 9 : i64
+    │       ├── body[17] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: folding$corners(folding$Shape)
+    │       │       │   └── args[0] > case:
+    │       │       │       ├── type: <{i64, i64} | f64 | void>
+    │       │       │       ├── index: 2
+    │       │       │       └── payload: unit : void
+    │       │       └── right > flip:
+    │       │           ├── type: i64
+    │       │           └── value: 1 : i64
+    │       ├── body[18] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: folding$rescued(%primitives$Int, %primitives$Int)
+    │       │       │   ├── args[0]: 7 : i64
+    │       │       │   └── args[1]: 0 : i64
+    │       │       └── right: 107 : i64
+    │       ├── body[19] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: folding$rescued(%primitives$Int, %primitives$Int)
+    │       │       │   ├── args[0]: 8 : i64
+    │       │       │   └── args[1]: 2 : i64
+    │       │       └── right: 4 : i64
+    │       ├── body[20] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: folding$fib(%primitives$Int)
+    │       │       │   └── args[0]: 20 : i64
+    │       │       └── right: 6765 : i64
+    │       ├── body[21] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: folding$squares(%primitives$Int)
+    │       │       │   └── args[0]: 10 : i64
+    │       │       └── right: 385 : i64
+    │       ├── body[22] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: folding$boxed(%primitives$Int)
+    │       │       │   └── args[0]: 5 : i64
+    │       │       └── right: 5 : i64
+    │       ├── body[23] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: folding$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       │   ├── args[0]: function folding$main()$lambda1
+    │       │       │   └── args[1]: 2 : i64
+    │       │       └── right: 18 : i64
+    │       ├── body[24] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: folding$pair(%primitives$Int)
+    │       │       │   └── args[0]: 10 : i64
+    │       │       └── right: 89 : i64
+    │       └── body[25] > return: unit : void
+    ├── funcs[1] > func:
+    │   ├── symbol: folding$check(%primitives$Bool)
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[2] > if:
+    │       │   ├── cond: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #2 : handle
+    │       ├── body[3] > if:
+    │       │   ├── cond > flip:
+    │       │   │   ├── type: i1
+    │       │   │   └── value: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #4 : handle
+    │       └── body[4] > return: unit : void
+    ├── funcs[2] > func:
+    │   ├── symbol: folding$repeated(%primitives$String, %primitives$Int)
+    │   ├── params[0]: local #1 : handle
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: handle
+    │   └── body[0] > scope:
+    │       ├── id: %4
+    │       ├── body[0] > hold:
+    │       │   ├── local: #3
+    │       │   ├── scope: %4
+    │       │   ├── value: "" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > let:
+    │       │   ├── local: #5
+    │       │   └── value: 1 : i64
+    │       ├── body[2] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @7
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #6
+    │       │   │   └── value: local #2 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #6 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #5 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > overwrite:
+    │       │   │   │       ├── address: address of #3 : ptr
+    │       │   │   │       ├── value > runtime:
+    │       │   │   │       │   ├── type: handle
+    │       │   │   │       │   ├── fn: zane_text_join
+    │       │   │   │       │   ├── args[0]: local #3 : handle
+    │       │   │   │       │   └── args[1]: local #1 : handle
+    │       │   │   │       └── layout: %primitives$String
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #5
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #5 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @7
+    │       └── body[3] > return > escape:
+    │           ├── exit: function
+    │           ├── value > copy:
+    │           │   ├── type: handle
+    │           │   ├── value: local #3 : handle
+    │           │   └── layout: %primitives$String
+    │           └── layout: %primitives$String
+    ├── funcs[3] > func:
+    │   ├── symbol: folding$Vec(%primitives$Int, %primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {i64, i64}
+    │   └── body[0] > return > record:
+    │       ├── type: {i64, i64}
+    │       ├── members[0] > member 0: local #1 : i64
+    │       └── members[1] > member 1: local #2 : i64
+    ├── funcs[4] > func:
+    │   ├── symbol: folding$scale(this folding$Vec, %primitives$Int)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: void
+    │   ├── body[0] > assign:
+    │   │   ├── place: *#1.0
+    │   │   └── value > binary:
+    │   │       ├── type: i64
+    │   │       ├── op: *
+    │   │       ├── left > member:
+    │   │       │   ├── type: i64
+    │   │       │   ├── index: 0
+    │   │       │   └── value > deref:
+    │   │       │       ├── type: {i64, i64}
+    │   │       │       └── ptr: local #1 : ptr
+    │   │       └── right: local #2 : i64
+    │   ├── body[1] > assign:
+    │   │   ├── place: *#1.1
+    │   │   └── value > binary:
+    │   │       ├── type: i64
+    │   │       ├── op: *
+    │   │       ├── left > member:
+    │   │       │   ├── type: i64
+    │   │       │   ├── index: 1
+    │   │       │   └── value > deref:
+    │   │       │       ├── type: {i64, i64}
+    │   │       │       └── ptr: local #1 : ptr
+    │   │       └── right: local #2 : i64
+    │   └── body[2] > return: unit : void
+    ├── funcs[5] > func:
+    │   ├── symbol: folding$corners(folding$Shape)
+    │   ├── params[0]: local #1 : <{i64, i64} | f64 | void>
+    │   ├── ret: i64
+    │   └── body[0] > return > expand:
+    │       ├── type: i64
+    │       ├── label: @2
+    │       ├── result: #3
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value: address of #1 : ptr
+    │       └── body[1] > switch:
+    │           ├── value > deref:
+    │           │   ├── type: <{i64, i64} | f64 | void>
+    │           │   └── ptr: local #4 : ptr
+    │           ├── cases[0] > case 0[0] > let:
+    │           │   ├── local: #5
+    │           │   └── value > offset:
+    │           │       ├── within: <{i64, i64} | f64 | void>
+    │           │       ├── path: 0
+    │           │       └── base: local #4 : ptr
+    │           ├── cases[0] > case 0[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value > binary:
+    │           │       ├── type: i64
+    │           │       ├── op: +
+    │           │       ├── left > member:
+    │           │       │   ├── type: i64
+    │           │       │   ├── index: 0
+    │           │       │   └── value > deref:
+    │           │       │       ├── type: {i64, i64}
+    │           │       │       └── ptr: local #5 : ptr
+    │           │       └── right > member:
+    │           │           ├── type: i64
+    │           │           ├── index: 1
+    │           │           └── value > deref:
+    │           │               ├── type: {i64, i64}
+    │           │               └── ptr: local #5 : ptr
+    │           ├── cases[0] > case 0[2]: leave @2
+    │           ├── cases[1] > case 1[0] > let:
+    │           │   ├── local: #6
+    │           │   └── value > offset:
+    │           │       ├── within: <{i64, i64} | f64 | void>
+    │           │       ├── path: 1
+    │           │       └── base: local #4 : ptr
+    │           ├── cases[1] > case 1[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value: 0 : i64
+    │           ├── cases[1] > case 1[2]: leave @2
+    │           ├── cases[2] > case 2[0] > let:
+    │           │   ├── local: #7
+    │           │   └── value > offset:
+    │           │       ├── within: <{i64, i64} | f64 | void>
+    │           │       ├── path: 2
+    │           │       └── base: local #4 : ptr
+    │           ├── cases[2] > case 2[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value > flip:
+    │           │       ├── type: i64
+    │           │       └── value: 1 : i64
+    │           └── cases[2] > case 2[2]: leave @2
+    ├── funcs[6] > func:
+    │   ├── symbol: folding$rescued(%primitives$Int, %primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: i64
+    │   ├── body[0] > let:
+    │   │   ├── local: #7
+    │   │   └── value > expand:
+    │   │       ├── type: i64
+    │   │       ├── label: @3
+    │   │       ├── result: #4
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #5
+    │   │       │   └── value > call:
+    │   │       │       ├── type: <i64 | i64 | void>
+    │   │       │       ├── fn: folding$divide(%primitives$Int, %primitives$Int)
+    │   │       │       ├── args[0]: local #1 : i64
+    │   │       │       └── args[1]: local #2 : i64
+    │   │       └── body[1] > switch:
+    │   │           ├── value: local #5 : <i64 | i64 | void>
+    │   │           ├── cases[0] > case 0[0] > assign:
+    │   │           │   ├── place: #4
+    │   │           │   └── value > payload:
+    │   │           │       ├── type: i64
+    │   │           │       ├── index: 0
+    │   │           │       └── value: local #5 : <i64 | i64 | void>
+    │   │           ├── cases[0] > case 0[1]: leave @3
+    │   │           ├── cases[1] > case 1[0] > let:
+    │   │           │   ├── local: #6
+    │   │           │   └── value > payload:
+    │   │           │       ├── type: i64
+    │   │           │       ├── index: 1
+    │   │           │       └── value: local #5 : <i64 | i64 | void>
+    │   │           └── cases[1] > case 1[1] > return > binary:
+    │   │               ├── type: i64
+    │   │               ├── op: +
+    │   │               ├── left: local #6 : i64
+    │   │               └── right: 100 : i64
+    │   └── body[1] > return: local #7 : i64
+    ├── funcs[7] > func:
+    │   ├── symbol: folding$fib(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   ├── body[0] > eval > expand:
+    │   │   ├── type: i1
+    │   │   ├── label: @3
+    │   │   ├── result: #4
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #2
+    │   │   │   └── value > binary:
+    │   │   │       ├── type: i1
+    │   │   │       ├── op: <
+    │   │   │       ├── left: local #1 : i64
+    │   │   │       └── right: 2 : i64
+    │   │   ├── body[1] > if:
+    │   │   │   ├── cond: local #2 : i1
+    │   │   │   └── body[0] > return: local #1 : i64
+    │   │   ├── body[2] > assign:
+    │   │   │   ├── place: #4
+    │   │   │   └── value: local #2 : i1
+    │   │   └── body[3]: leave @3
+    │   └── body[1] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left > call:
+    │       │   ├── type: i64
+    │       │   ├── fn: folding$fib(%primitives$Int)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #1 : i64
+    │       │       └── right > flip:
+    │       │           ├── type: i64
+    │       │           └── value: 1 : i64
+    │       └── right > call:
+    │           ├── type: i64
+    │           ├── fn: folding$fib(%primitives$Int)
+    │           └── args[0] > binary:
+    │               ├── type: i64
+    │               ├── op: +
+    │               ├── left: local #1 : i64
+    │               └── right > flip:
+    │                   ├── type: i64
+    │                   └── value: 2 : i64
+    ├── funcs[8] > func:
+    │   ├── symbol: folding$squares(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: zane_list_new
+    │       │   │   └── args:
+    │       │   └── layout: %primitives$List<%primitives$Int>
+    │       ├── body[1] > let:
+    │       │   ├── local: #4
+    │       │   └── value: 1 : i64
+    │       ├── body[2] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @6
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #5
+    │       │   │   └── value: local #1 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #5 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #4 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > eval > expand:
+    │       │   │   │       ├── type: void
+    │       │   │   │       ├── label: @11
+    │       │   │   │       ├── body[0] > let:
+    │       │   │   │       │   ├── local: #9
+    │       │   │   │       │   └── value > binary:
+    │       │   │   │       │       ├── type: i64
+    │       │   │   │       │       ├── op: *
+    │       │   │   │       │       ├── left: local #4 : i64
+    │       │   │   │       │       └── right: local #4 : i64
+    │       │   │   │       ├── body[1] > let:
+    │       │   │   │       │   ├── local: #10
+    │       │   │   │       │   └── value > runtime:
+    │       │   │   │       │       ├── type: ptr
+    │       │   │   │       │       ├── fn: zane_list_push
+    │       │   │   │       │       ├── args[0]: address of #2 : ptr
+    │       │   │   │       │       └── args[1]: 8 : i64
+    │       │   │   │       └── body[2] > place:
+    │       │   │   │           ├── address: local #10 : ptr
+    │       │   │   │           ├── value: local #9 : i64
+    │       │   │   │           └── layout: %primitives$Int
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #4
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #4 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @6
+    │       ├── body[3] > let:
+    │       │   ├── local: #12
+    │       │   └── value: 0 : i64
+    │       ├── body[4] > let:
+    │       │   ├── local: #13
+    │       │   └── value: 1 : i64
+    │       ├── body[5] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @15
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #14
+    │       │   │   └── value > member:
+    │       │   │       ├── type: i64
+    │       │   │       ├── index: 1
+    │       │   │       └── value: local #2 : handle
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #14 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #13 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > assign:
+    │       │   │   │       ├── place: #12
+    │       │   │   │       └── value > binary:
+    │       │   │   │           ├── type: i64
+    │       │   │   │           ├── op: +
+    │       │   │   │           ├── left: local #12 : i64
+    │       │   │   │           └── right > snapshot:
+    │       │   │   │               ├── type: i64
+    │       │   │   │               └── ptr > runtime:
+    │       │   │   │                   ├── type: ptr
+    │       │   │   │                   ├── fn: zane_list_at
+    │       │   │   │                   ├── args[0]: address of #2 : ptr
+    │       │   │   │                   ├── args[1]: local #13 : i64
+    │       │   │   │                   └── args[2]: 8 : i64
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #13
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #13 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @15
+    │       └── body[6] > return: local #12 : i64
+    ├── funcs[9] > func:
+    │   ├── symbol: folding$boxed(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value > case:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── index: 0
+    │       │   │   └── payload: unit : void
+    │       │   └── layout: folding$Countdown
+    │       ├── body[1] > let:
+    │       │   ├── local: #4
+    │       │   └── value: 1 : i64
+    │       ├── body[2] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @6
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #5
+    │       │   │   └── value: local #1 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #5 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #4 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > overwrite:
+    │       │   │   │       ├── address: address of #2 : ptr
+    │       │   │   │       ├── value > case:
+    │       │   │   │       │   ├── type: <void | ptr>
+    │       │   │   │       │   ├── index: 1
+    │       │   │   │       │   └── payload > box:
+    │       │   │   │       │       ├── value > copy:
+    │       │   │   │       │       │   ├── type: <void | ptr>
+    │       │   │   │       │       │   ├── value: local #2 : <void | ptr>
+    │       │   │   │       │       │   └── layout: folding$Countdown
+    │       │   │   │       │       └── layout: folding$Countdown
+    │       │   │   │       └── layout: folding$Countdown
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #4
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #4 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @6
+    │       └── body[3] > return > call:
+    │           ├── type: i64
+    │           ├── fn: folding$depth(folding$Countdown)
+    │           └── args[0]: local #2 : <void | ptr>
+    ├── funcs[10] > func:
+    │   ├── symbol: folding$main()$lambda1
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: *
+    │       ├── left: local #1 : i64
+    │       └── right: 3 : i64
+    ├── funcs[11] > func:
+    │   ├── symbol: folding$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > call value:
+    │       ├── type: i64
+    │       ├── fn: local #1 : ptr
+    │       └── args[0] > call value:
+    │           ├── type: i64
+    │           ├── fn: local #1 : ptr
+    │           └── args[0]: local #2 : i64
+    ├── funcs[12] > func:
+    │   ├── symbol: folding$pair(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > spawn:
+    │       │   ├── task: #3
+    │       │   ├── scope: %5
+    │       │   ├── thunk: zane.spawn.1
+    │       │   ├── frame: {i64, i64}
+    │       │   ├── args[0]: local #1 : i64
+    │       │   ├── dest: #4
+    │       │   └── layout: %primitives$Int
+    │       ├── body[1] > spawn:
+    │       │   ├── task: #7
+    │       │   ├── scope: %5
+    │       │   ├── thunk: zane.spawn.2
+    │       │   ├── frame: {i64, i64}
+    │       │   ├── args[0] > binary:
+    │       │   │   ├── type: i64
+    │       │   │   ├── op: +
+    │       │   │   ├── left: local #1 : i64
+    │       │   │   └── right > flip:
+    │       │   │       ├── type: i64
+    │       │   │       └── value: 1 : i64
+    │       │   ├── dest: #8
+    │       │   └── layout: %primitives$Int
+    │       └── body[2] > return > binary:
+    │           ├── type: i64
+    │           ├── op: +
+    │           ├── left > expand:
+    │           │   ├── type: i64
+    │           │   ├── label: @9
+    │           │   ├── result: #10
+    │           │   ├── body[0]: join #3
+    │           │   └── body[1] > assign:
+    │           │       ├── place: #10
+    │           │       └── value > deref:
+    │           │           ├── type: i64
+    │           │           └── ptr: address of #4 : ptr
+    │           └── right > expand:
+    │               ├── type: i64
+    │               ├── label: @11
+    │               ├── result: #12
+    │               ├── body[0]: join #7
+    │               └── body[1] > assign:
+    │                   ├── place: #12
+    │                   └── value > deref:
+    │                       ├── type: i64
+    │                       └── ptr: address of #8 : ptr
+    ├── funcs[13] > func:
+    │   ├── symbol: folding$divide(%primitives$Int, %primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: <i64 | i64 | void>
+    │   ├── body[0] > eval > expand:
+    │   │   ├── type: i1
+    │   │   ├── label: @4
+    │   │   ├── result: #5
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #3
+    │   │   │   └── value > binary:
+    │   │   │       ├── type: i1
+    │   │   │       ├── op: ==
+    │   │   │       ├── left: local #2 : i64
+    │   │   │       └── right: 0 : i64
+    │   │   ├── body[1] > if:
+    │   │   │   ├── cond: local #3 : i1
+    │   │   │   └── body[0] > return > case:
+    │   │   │       ├── type: <i64 | i64 | void>
+    │   │   │       ├── index: 1
+    │   │   │       └── payload: local #1 : i64
+    │   │   ├── body[2] > assign:
+    │   │   │   ├── place: #5
+    │   │   │   └── value: local #3 : i1
+    │   │   └── body[3]: leave @4
+    │   └── body[1] > return > case:
+    │       ├── type: <i64 | i64 | void>
+    │       ├── index: 0
+    │       └── payload > binary:
+    │           ├── type: i64
+    │           ├── op: /
+    │           ├── left: local #1 : i64
+    │           └── right: local #2 : i64
+    ├── funcs[14] > func:
+    │   ├── symbol: folding$depth(folding$Countdown)
+    │   ├── params[0]: local #1 : <void | ptr>
+    │   ├── ret: i64
+    │   └── body[0] > return > expand:
+    │       ├── type: i64
+    │       ├── label: @2
+    │       ├── result: #3
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value: address of #1 : ptr
+    │       └── body[1] > switch:
+    │           ├── value > deref:
+    │           │   ├── type: <void | ptr>
+    │           │   └── ptr: local #4 : ptr
+    │           ├── cases[0] > case 0[0] > let:
+    │           │   ├── local: #5
+    │           │   └── value > offset:
+    │           │       ├── within: <void | ptr>
+    │           │       ├── path: 0
+    │           │       └── base: local #4 : ptr
+    │           ├── cases[0] > case 0[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value: 0 : i64
+    │           ├── cases[0] > case 0[2]: leave @2
+    │           ├── cases[1] > case 1[0] > let:
+    │           │   ├── local: #6
+    │           │   └── value > deref:
+    │           │       ├── type: ptr
+    │           │       └── ptr > offset:
+    │           │           ├── within: <void | ptr>
+    │           │           ├── path: 1
+    │           │           └── base: local #4 : ptr
+    │           ├── cases[1] > case 1[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value > binary:
+    │           │       ├── type: i64
+    │           │       ├── op: +
+    │           │       ├── left: 1 : i64
+    │           │       └── right > call:
+    │           │           ├── type: i64
+    │           │           ├── fn: folding$depth(folding$Countdown)
+    │           │           └── args[0] > deref:
+    │           │               ├── type: <void | ptr>
+    │           │               └── ptr: local #6 : ptr
+    │           └── cases[1] > case 1[2]: leave @2
+    ├── funcs[15] > func:
+    │   ├── symbol: zane.spawn.1
+    │   ├── params[0]: local #2 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {i64, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #2 : ptr
+    │       └── value > call:
+    │           ├── type: i64
+    │           ├── fn: folding$fib(%primitives$Int)
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {i64, i64}
+    │                   ├── path: 1
+    │                   └── base: local #2 : ptr
+    └── funcs[16] > func:
+        ├── symbol: zane.spawn.2
+        ├── params[0]: local #6 : ptr
+        ├── ret: void
+        └── body[0] > store:
+            ├── address > offset:
+            │   ├── within: {i64, i64}
+            │   ├── path: 0
+            │   └── base: local #6 : ptr
+            └── value > call:
+                ├── type: i64
+                ├── fn: folding$fib(%primitives$Int)
+                └── args[0] > deref:
+                    ├── type: i64
+                    └── ptr > offset:
+                        ├── within: {i64, i64}
+                        ├── path: 1
+                        └── base: local #6 : ptr

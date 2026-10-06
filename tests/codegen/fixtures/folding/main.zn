@@ -1,0 +1,175 @@
+/// Folding (docs/design/optimization.md): what an optimized build computes
+/// at compile time, from the leaves up. Arithmetic at the edges of each
+/// scalar, strings, values, an abort, a list and a boxed value built and
+/// measured, recursion, a `mut` call, a function value and a spawned call.
+/// Each check prints `yes` when it holds and `no` when it does not, so the
+/// unoptimized build, which folds nothing, shows the folded one is right.
+package folding;
+
+alias Int = @primitives$Int
+alias I32 = @primitives$I32
+alias Float = @primitives$Float
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(end + ~this + Int(1), {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(~ok, { @program$console!print(no); });
+	return Unit();
+}
+
+type Vec = struct {
+	x Int;
+	y Int;
+}
+
+Vec(x Int, y Int) => init{ x; y; }
+
+Unit scale(this Vec, by Int) mut {
+	this.x = this.x * by;
+	this.y = this.y * by;
+	return Unit();
+}
+
+type Shape = variant {
+	dot Vec;
+	circle Float;
+	none Unit;
+}
+
+Int corners(s Shape) => match (s) {
+	d dot => d.x + d.y;
+	c circle => Int(0);
+	n none => ~Int(1);
+}
+
+Int?Int divide(a Int, b Int) {
+	if(b == Int(0)) {
+		abort a;
+	}
+	return a / b;
+}
+
+Int rescued(a Int, b Int) {
+	q Int = divide(a, b) ? e {
+		return e + Int(100);
+	}
+	return q;
+}
+
+Int fib(n Int) {
+	if(n < Int(2)) {
+		return n;
+	}
+	return fib(n + ~Int(1)) + fib(n + ~Int(2));
+}
+
+/// A list built and read inside one call: only the sum leaves it.
+Int squares(n Int) {
+	values List<Int> = @primitives$List(Int);
+	i Int(1);
+	i!to(n) {
+		values!push(i * i);
+	}
+	total Int(0);
+	j Int(1);
+	j!to(values:size()) {
+		total = total + values[j];
+	}
+	return total;
+}
+
+type Countdown = variant {
+	done Unit;
+	more Countdown;
+}
+
+Int depth(c Countdown) => match (c) {
+	d done => Int(0);
+	m more => Int(1) + depth(m);
+}
+
+/// A boxed value built and taken apart inside one call.
+Int boxed(n Int) {
+	c Countdown = Countdown.done(Unit());
+	i Int(1);
+	i!to(n) {
+		c = Countdown.more(c);
+	}
+	return depth(c);
+}
+
+String repeated(word String, times Int) {
+	out String("");
+	i Int(1);
+	i!to(times) {
+		out = out + word;
+	}
+	return out;
+}
+
+Int twice(f Int[Int], x Int) => f(f(x))
+
+Int pair(n Int) {
+	a Int = spawn fib(n);
+	b Int = spawn fib(n + ~Int(1));
+	return a + b;
+}
+
+Unit main() {
+	// Each scalar at its edges: a wrap, the one quotient that wraps, a NaN
+	// and a negative zero.
+	check(Int(9223372036854775807) + Int(1) < Int(0));
+	check(~Int(9223372036854775807) + ~Int(1) / ~Int(1) < Int(0));
+	check(I32(2147483647) + I32(1) == ~I32(2147483647) + ~I32(1));
+	check(I32(65536) * I32(65536) == I32(0));
+	check(I32(7) / ~I32(2) == ~I32(3));
+	nan Float = Float(0.0) / Float(0.0);
+	check(~(nan == nan));
+	check(~(nan < Float(1.0)) * ~(Float(1.0) < nan));
+	check(~Float(0.0) == Float(0.0));
+	check(Float(1.0) / ~Float(0.0) < Float(0.0));
+	check((true + false) * ~(true * false));
+
+	// Strings, joined and compared.
+	check(repeated(String("ab"), Int(3)) == String("ababab"));
+	check(~(String("a") + String("b") == String("ba")));
+
+	// Values: a struct written by a `mut` call, and a variant matched.
+	v Vec = Vec(Int(2), Int(3));
+	v!scale(Int(10));
+	check(v.x + v.y == Int(50));
+	check(corners(Shape.dot(Vec(Int(4), Int(5)))) == Int(9));
+	check(corners(Shape.none(Unit())) == ~Int(1));
+
+	// An abort is a value the handler gets.
+	check(rescued(Int(7), Int(0)) == Int(107));
+	check(rescued(Int(8), Int(2)) == Int(4));
+
+	// Recursion, a list and a box, each inside a call that gives an Int.
+	check(fib(Int(20)) == Int(6765));
+	check(squares(Int(10)) == Int(385));
+	check(boxed(Int(5)) == Int(5));
+
+	// A function value, and calls spawned inside a call.
+	check(twice(Int(x Int) { return x * Int(3); }, Int(2)) == Int(18));
+	check(pair(Int(10)) == Int(89));
+	return Unit();
+}

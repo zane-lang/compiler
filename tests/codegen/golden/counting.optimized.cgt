@@ -1,0 +1,265 @@
+└── program:
+    ├── entry: counting$main()
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── funcs[0] > func:
+    │   ├── symbol: counting$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %2
+    │       ├── body[0] > hold:
+    │       │   ├── local: #1
+    │       │   ├── scope: %2
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > hold:
+    │       │   ├── local: #3
+    │       │   ├── scope: %2
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[2] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %2
+    │       │   ├── value: "." : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[3] > hold:
+    │       │   ├── local: #5
+    │       │   ├── scope: %2
+    │       │   ├── value: "\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[4] > let:
+    │       │   ├── local: #10
+    │       │   └── value > expand:
+    │       │       ├── type: i1
+    │       │       ├── label: @50
+    │       │       ├── result: #51
+    │       │       ├── body[0] > eval > runtime:
+    │       │       │   ├── type: void
+    │       │       │   ├── fn: zane_print
+    │       │       │   └── args[0]: "yes\n" : handle
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #51
+    │       │           └── value: true : i1
+    │       ├── body[5] > eval > expand:
+    │       │   ├── type: i1
+    │       │   ├── label: @52
+    │       │   ├── result: #53
+    │       │   ├── body[0] > eval > runtime:
+    │       │   │   ├── type: void
+    │       │   │   ├── fn: zane_print
+    │       │   │   └── args[0]: "yes\n" : handle
+    │       │   └── body[1] > assign:
+    │       │       ├── place: #53
+    │       │       └── value: true : i1
+    │       ├── body[6] > eval > expand:
+    │       │   ├── type: i1
+    │       │   ├── label: @56
+    │       │   ├── result: #57
+    │       │   ├── body[0] > eval > runtime:
+    │       │   │   ├── type: void
+    │       │   │   ├── fn: zane_print
+    │       │   │   └── args[0]: "yes\n" : handle
+    │       │   └── body[1] > assign:
+    │       │       ├── place: #57
+    │       │       └── value: true : i1
+    │       ├── body[7] > eval > expand:
+    │       │   ├── type: i1
+    │       │   ├── label: @60
+    │       │   ├── result: #61
+    │       │   ├── body[0] > eval > runtime:
+    │       │   │   ├── type: void
+    │       │   │   ├── fn: zane_print
+    │       │   │   └── args[0]: "yes\n" : handle
+    │       │   └── body[1] > assign:
+    │       │       ├── place: #61
+    │       │       └── value: true : i1
+    │       ├── body[8] > eval > expand:
+    │       │   ├── type: i1
+    │       │   ├── label: @64
+    │       │   ├── result: #65
+    │       │   ├── body[0] > eval > runtime:
+    │       │   │   ├── type: void
+    │       │   │   ├── fn: zane_print
+    │       │   │   └── args[0]: "yes\n" : handle
+    │       │   └── body[1] > assign:
+    │       │       ├── place: #65
+    │       │       └── value: true : i1
+    │       ├── body[9] > let:
+    │       │   ├── local: #33
+    │       │   └── value: false : i1
+    │       ├── body[10] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[11] > assign:
+    │       │   ├── place: #33
+    │       │   └── value: true : i1
+    │       ├── body[12] > let:
+    │       │   ├── local: #42
+    │       │   └── value: 1 : i64
+    │       ├── body[13] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[14] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[15] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[16] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[17] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[18] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[19] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[20] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[21] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[22] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[23] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[24] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[25] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[26] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "." : handle
+    │       ├── body[27] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[28] > assign:
+    │       │   ├── place: #42
+    │       │   └── value: 4 : i64
+    │       └── body[29] > return: unit : void
+    ├── funcs[1] > func:
+    │   ├── symbol: counting$triangle(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value: 0 : i64
+    │   ├── body[1] > let:
+    │   │   ├── local: #3
+    │   │   └── value: 1 : i64
+    │   ├── body[2] > eval > expand:
+    │   │   ├── type: void
+    │   │   ├── label: @5
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #4
+    │   │   │   └── value: local #1 : i64
+    │   │   ├── body[1] > repeat:
+    │   │   │   ├── count > binary:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── op: +
+    │   │   │   │   ├── left > binary:
+    │   │   │   │   │   ├── type: i64
+    │   │   │   │   │   ├── op: +
+    │   │   │   │   │   ├── left: local #4 : i64
+    │   │   │   │   │   └── right: -1 : i64
+    │   │   │   │   └── right: 1 : i64
+    │   │   │   ├── body[0] > assign:
+    │   │   │   │   ├── place: #2
+    │   │   │   │   └── value > binary:
+    │   │   │   │       ├── type: i64
+    │   │   │   │       ├── op: +
+    │   │   │   │       ├── left: local #2 : i64
+    │   │   │   │       └── right: local #3 : i64
+    │   │   │   └── body[1] > assign:
+    │   │   │       ├── place: #3
+    │   │   │       └── value > binary:
+    │   │   │           ├── type: i64
+    │   │   │           ├── op: +
+    │   │   │           ├── left: local #3 : i64
+    │   │   │           └── right: 1 : i64
+    │   │   └── body[2]: leave @5
+    │   └── body[3] > return: local #2 : i64
+    ├── funcs[2] > func:
+    │   ├── symbol: counting$factorial(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   ├── body[0] > eval > expand:
+    │   │   ├── type: i1
+    │   │   ├── label: @3
+    │   │   ├── result: #4
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #2
+    │   │   │   └── value > binary:
+    │   │   │       ├── type: i1
+    │   │   │       ├── op: <
+    │   │   │       ├── left: local #1 : i64
+    │   │   │       └── right: 2 : i64
+    │   │   ├── body[1] > if:
+    │   │   │   ├── cond: local #2 : i1
+    │   │   │   └── body[0] > return: 1 : i64
+    │   │   ├── body[2] > assign:
+    │   │   │   ├── place: #4
+    │   │   │   └── value: local #2 : i1
+    │   │   └── body[3]: leave @3
+    │   └── body[1] > return > binary:
+    │       ├── type: i64
+    │       ├── op: *
+    │       ├── left: local #1 : i64
+    │       └── right > call:
+    │           ├── type: i64
+    │           ├── fn: counting$factorial(%primitives$Int)
+    │           └── args[0] > binary:
+    │               ├── type: i64
+    │               ├── op: +
+    │               ├── left: local #1 : i64
+    │               └── right: -1 : i64
+    └── funcs[3] > func:
+        ├── symbol: counting$smallest(%primitives$Int, %primitives$Int)
+        ├── params[0]: local #1 : i64
+        ├── params[1]: local #2 : i64
+        ├── ret: i64
+        ├── body[0] > eval > expand:
+        │   ├── type: i1
+        │   ├── label: @4
+        │   ├── result: #5
+        │   ├── body[0] > let:
+        │   │   ├── local: #3
+        │   │   └── value > binary:
+        │   │       ├── type: i1
+        │   │       ├── op: <
+        │   │       ├── left: local #1 : i64
+        │   │       └── right: local #2 : i64
+        │   ├── body[1] > if:
+        │   │   ├── cond: local #3 : i1
+        │   │   └── body[0] > return: local #1 : i64
+        │   ├── body[2] > assign:
+        │   │   ├── place: #5
+        │   │   └── value: local #3 : i1
+        │   └── body[3]: leave @4
+        └── body[1] > return: local #2 : i64

@@ -4,6 +4,11 @@ module T = Tst.Nodes
 module Overloads = Tst__Overloads
 module State = Cgt__State
 module Type_layout = Cgt__Type_layout
+module Value = Optimize__Value
+module Eval = Optimize__Eval
+module Fold = Optimize__Fold
+module Materialize = Optimize__Materialize
+module Intrinsics = Optimize__Intrinsics
 
 let failures = ref 0
 
@@ -255,6 +260,111 @@ let runtime_abi () =
     declared
 
 (* ---------------------------------------------------------------------- *)
+(* Stage 5                                                                *)
+(* ---------------------------------------------------------------------- *)
+
+module C = Cgt.Nodes
+
+let stops f = match f () with _ -> false | exception Value.Stop _ -> true
+
+(* The evaluator's arithmetic is codegen's (lib/codegen/emit.ml). *)
+let folded_arithmetic () =
+  let i32 n = Value.VInt (Value.int C.Ty.I32 n) and i64 n = Value.VInt n in
+  let bin op t l r = Eval.binary op t l r in
+  check "I32 wraps on +"
+    (bin C.Expr.Add C.Ty.I32 (i32 2147483647L) (i32 1L) = i32 (-2147483648L));
+  check "I32 wraps on *" (bin C.Expr.Mul C.Ty.I32 (i32 65536L) (i32 65536L) = i32 0L);
+  check "I32's most negative over -1 wraps"
+    (bin C.Expr.Div C.Ty.I32 (i32 (-2147483648L)) (i32 (-1L)) = i32 (-2147483648L));
+  check "I64's most negative over -1 wraps"
+    (bin C.Expr.Div C.Ty.I64 (i64 Int64.min_int) (i64 (-1L)) = i64 Int64.min_int);
+  check "integer division truncates" (bin C.Expr.Div C.Ty.I64 (i64 (-7L)) (i64 2L) = i64 (-3L));
+  check "a division by zero stops the fold"
+    (stops (fun () -> bin C.Expr.Div C.Ty.I64 (i64 1L) (i64 0L)));
+  let f x = Value.VFloat x in
+  check "NaN is not equal to itself" (bin C.Expr.Eq C.Ty.F64 (f Float.nan) (f Float.nan) = Value.VBool false);
+  check "NaN is not less than anything" (bin C.Expr.Less C.Ty.F64 (f Float.nan) (f 1.) = Value.VBool false);
+  check "negative zero equals zero" (bin C.Expr.Eq C.Ty.F64 (f (-0.)) (f 0.) = Value.VBool true);
+  check "Bool + is or" (bin C.Expr.Add C.Ty.I1 (Value.VBool true) (Value.VBool false) = Value.VBool true);
+  check "Bool * is and" (bin C.Expr.Mul C.Ty.I1 (Value.VBool true) (Value.VBool false) = Value.VBool false);
+  check "~ wraps the most negative I32" (Eval.flip C.Ty.I32 (i32 (-2147483648L)) = i32 (-2147483648L))
+
+(* Every runtime function is in a class, and the outputs are the three
+   docs/design/optimization.md O3 names. No runtime function is an input
+   yet. *)
+let intrinsic_classes () =
+  let outputs =
+    List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Output) Cgt.Runtime.all
+  in
+  check "print and the thread count are the outputs"
+    (List.sort compare outputs
+    = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
+  check "no runtime function is an input yet"
+    (not (List.exists (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all))
+
+let e node ty = { C.Expr.node; ty }
+let i64 n = e (C.Expr.Int n) C.Ty.I64
+
+let program funcs =
+  let funcs' = Hashtbl.create 8 in
+  List.iter (fun (f : C.Func.t) -> Hashtbl.replace funcs' f.C.Func.symbol f) funcs;
+  {
+    Eval.funcs = funcs';
+    layouts = Hashtbl.create 1;
+    globals = Hashtbl.create 1;
+    constants = Hashtbl.create 1;
+    memo = Hashtbl.create 8;
+  }
+
+let func symbol params body = { C.Func.symbol; linkage = C.Linkage.Local; params; ret = C.Ty.I64; body }
+
+(* A value made back into code, and read back, is the value it was. *)
+let materialized () =
+  let t = C.Ty.Sum [ C.Ty.Struct [ C.Ty.I64; C.Ty.Handle ]; C.Ty.Void ] in
+  let c = Value.Case (0, Value.Record [| Value.Int 3L; Value.Text "hi" |]) in
+  check "a variant of a struct is code and back"
+    (Option.bind (Materialize.expr t c) Materialize.const = Some c);
+  check "a string is no function's address" (Materialize.expr C.Ty.Ptr (Value.Text "x") = None)
+
+(* Calls run, outputs are kept in order, a call made again is remembered,
+   and a budget spent or a constant made where it is read stops the run. *)
+let evaluated () =
+  let print s = C.Stat.Eval (e (C.Expr.Runtime { fn = Cgt.Runtime.Print; args = [ e (C.Expr.Text s) C.Ty.Handle ] }) C.Ty.Void) in
+  let double =
+    func "double" [ (1, C.Ty.I64) ]
+      [ print "a"; print "b"; C.Stat.Return (e (C.Expr.Binary { op = C.Expr.Mul; left = e (C.Expr.Local 1) C.Ty.I64; right = i64 2L }) C.Ty.I64) ]
+  in
+  let prog = program [ double ] in
+  let run = Eval.start prog in
+  check "a call gives its result" (Eval.call run "double" [ Value.VInt 21L ] = Value.VInt 42L);
+  check "outputs are kept in the order made" (List.rev run.Eval.outputs = Eval.[ Print "a"; Print "b" ]);
+  check "a call is remembered by its arguments" (Hashtbl.mem prog.Eval.memo ("double", [ Value.Int 21L ]));
+  let again = Eval.start prog in
+  ignore (Eval.call again "double" [ Value.VInt 21L ]);
+  check "a remembered call outputs again" (List.rev again.Eval.outputs = Eval.[ Print "a"; Print "b" ]);
+  let forever = C.Stat.Repeat { count = i64 Int64.max_int; body = [] } in
+  let fr = { Eval.locals = Hashtbl.create 1; outer = None } in
+  check "a spent budget stops the run" (stops (fun () -> Eval.stat (Eval.start prog) fr forever));
+  let state = e (C.Expr.Global "k.state") C.Ty.Ptr in
+  let begin_ = e (C.Expr.Runtime { fn = Cgt.Runtime.Constant_begin; args = [ state ] }) C.Ty.I64 in
+  check "where a constant is made stays" (stops (fun () -> Eval.expr (Eval.start prog) fr begin_))
+
+(* A loop over a known local leaves only what it wrote. *)
+let folded_function () =
+  let local = e (C.Expr.Local 1) C.Ty.I64 in
+  let body =
+    [
+      C.Stat.Let { id = 1; value = i64 2L };
+      C.Stat.Repeat
+        { count = i64 3L; body = [ C.Stat.assign 1 (e (C.Expr.Binary { op = C.Expr.Mul; left = local; right = i64 2L }) C.Ty.I64) ] };
+      C.Stat.Return local;
+    ]
+  in
+  let f = Fold.func (program []) (Hashtbl.create 1) (func "f" [] body) in
+  check "a loop over a known local folds to what it wrote"
+    (f.C.Func.body = [ C.Stat.Let { id = 1; value = i64 2L }; C.Stat.assign 1 (i64 16L); C.Stat.Return (i64 16L) ])
+
+(* ---------------------------------------------------------------------- *)
 (* Semantics twice                                                        *)
 (* ---------------------------------------------------------------------- *)
 
@@ -290,6 +400,11 @@ let () =
   overloads ();
   type_layout ();
   runtime_abi ();
+  folded_arithmetic ();
+  intrinsic_classes ();
+  materialized ();
+  evaluated ();
+  folded_function ();
   twice ();
   at_once ();
   if !failures > 0 then begin
