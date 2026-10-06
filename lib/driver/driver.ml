@@ -98,6 +98,10 @@ let lower ~kind packages program =
   | Ok cgt -> Ok cgt
   | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
 
+(* Stage 5 (docs/design/optimization.md), which only an optimized build
+   runs: an unoptimized one is the same pipeline with no passes. *)
+let optimize ~optimize cgt = if optimize then Optimize.run cgt else cgt
+
 (* Codegen's own failures -- an unknown target, a link that failed -- are
    about the build, not about any file of it. *)
 let built = function Ok v -> Ok v | Error message -> fail [ Diagnostic.about_invocation message ]

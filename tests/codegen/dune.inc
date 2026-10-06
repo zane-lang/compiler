@@ -190,6 +190,18 @@
 
 (rule
  (deps (source_tree fixtures/constants))
+ (action
+  (with-stdout-to
+   constants.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/constants))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/constants.optimized.cgt constants.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/constants))
  (targets constants.exe)
  (action
   (run %{exe:../../bin/zanec/zanec.exe} --build constants.exe --package fixtures/constants)))
@@ -233,6 +245,18 @@
  (alias runtest)
  (action
   (diff golden/counting.cgt counting.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/counting))
+ (action
+  (with-stdout-to
+   counting.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/counting))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/counting.optimized.cgt counting.optimized.cgt.actual)))
 
 (rule
  (deps (source_tree fixtures/counting))
@@ -313,6 +337,64 @@
  (alias runtest)
  (action
   (diff golden/defaults.out defaults.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/folding))
+ (action
+  (with-stdout-to
+   folding.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/folding))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.cgt folding.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/folding))
+ (action
+  (with-stdout-to
+   folding.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/folding))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.optimized.cgt folding.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/folding))
+ (targets folding.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build folding.exe --package fixtures/folding)))
+
+(rule
+ (deps (source_tree fixtures/folding))
+ (targets folding.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build folding.optimized.exe --optimize --package fixtures/folding)))
+
+(rule
+ (action
+  (with-stdout-to
+   folding.out.actual
+   (run ./folding.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.out folding.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   folding.optimized.out.actual
+   (run ./folding.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.out folding.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/hello))
@@ -731,6 +813,52 @@
   (diff golden/regions.out regions.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/replayed))
+ (action
+  (with-stdout-to
+   replayed.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/replayed))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/replayed.optimized.cgt replayed.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/replayed))
+ (targets replayed.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build replayed.exe --package fixtures/replayed)))
+
+(rule
+ (deps (source_tree fixtures/replayed))
+ (targets replayed.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build replayed.optimized.exe --optimize --package fixtures/replayed)))
+
+(rule
+ (action
+  (with-stdout-to
+   replayed.out.actual
+   (run ./replayed.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/replayed.out replayed.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   replayed.optimized.out.actual
+   (run ./replayed.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/replayed.out replayed.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/settled))
  (action
   (with-stdout-to
@@ -959,6 +1087,18 @@
  (alias runtest)
  (action
   (diff golden/texts.out texts.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/zero))
+ (action
+  (with-stdout-to
+   zero.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/zero))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/zero.optimized.cgt zero.optimized.cgt.actual)))
 
 (rule
  (deps (source_tree fixtures/zero))

@@ -1,16 +1,17 @@
 ; Direct tests of the helpers the stages share: types and their substitution,
-; signatures, overload ranking, and lowering's type layouts. The golden suites
+; signatures, overload ranking, lowering's type layouts, and what stage 5's
+; evaluator makes of the tree. The golden suites
 ; test the same code end to end; these say which helper broke, rather than
 ; where in a golden file the difference surfaced. They also check that
 ; semantics run twice in one process gives the same tree (it keeps no
 ; numbering from one check to the next).
 ;
-; Overloads, State and Type_layout are not re-exported by their libraries'
+; Overloads, State, Type_layout and stage 5's modules are not re-exported by their libraries'
 ; entry modules, so they are reached by the names dune gives them.
 
 (test
  (name unit)
- (libraries cgt diagnostic source tree_graph tst)
+ (libraries cgt diagnostic optimize source tree_graph tst)
  (deps
   ../../runtime/zane.h
   (source_tree ../codegen/fixtures/lambdas)))
