@@ -1,8 +1,8 @@
 # Optimization: folding at compile time
 
 > **Status: built.** Stage 5 runs one pass, compile-time evaluation, which
-> follows this design. Each decision is numbered (**O1**…). §4 says where the
-> pass does more than the spec asks, and §6 what is left to measurement.
+> follows this design. Each decision is numbered (**O1**…). §4 says how it
+> follows the spec's rule, and §6 what is left to measurement.
 
 Stage 5 rewrites the CGT into a faster CGT ([`stages.md`](stages.md)). Its
 pass evaluates, while the compiler runs, everything the program would compute
@@ -219,23 +219,23 @@ must agree on what its variables hold.
 
 ---
 
-## 4. Where it does more than the spec asks
+## 4. How it follows the spec
 
-[`concurrency.md`](https://github.com/zane-lang/spec/blob/f73cc01/spec/concurrency.md)
-§2.1 evaluates a call at compile time when it writes nothing its caller can
-see, touches no capability-backed state, and terminates, and §2.3 keeps a call
-that is not proven to terminate at runtime, using the facts
-[`effects.md`](https://github.com/zane-lang/spec/blob/f73cc01/spec/effects.md)
-§5.2 and §5.4 derive. Stage 5 folds more than that: a call that prints, since
-its output is replayed (O4); a `mut` call on a known local, whose new value
-is stored back; and a call that is
-not proven to terminate but finishes within the budget (O6). It also leaves
-some calls the spec would fold at runtime, when they pass the budget or the
-size cap.
+[`concurrency.md`](https://github.com/zane-lang/spec/blob/9f0b6a8/spec/concurrency.md)
+§2.1 lets the compiler evaluate any computation whose inputs it knows, from
+the leaves up, and replace it with what it produced: a value read from
+capability-backed state is unknown, and every write the computation made is
+still made, in order. §2.3 bounds reduction by work rather than by a proof
+of termination. Stage 5 is that rule, with its choices made:
 
-A running program can tell none of this apart, so it is not a divergence in
-the sense of [`spec-divergences.md`](../spec-divergences.md). The spec's
-rule is left as it is for now.
+- the bound is O6's: the step budgets, the depth and the size cap;
+- an input (O3) is what reads capability-backed state;
+- an output is replayed where it was made (O4), and a known local a
+  computation wrote is stored back (O6).
+
+The rule permits a compiler to reduce less, and Stage 5 does in places: a
+value holding a lent address, a changed list or box (only plain locals are
+stored back), and where a package constant is made (O9) stay runtime work.
 
 ---
 
