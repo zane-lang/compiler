@@ -639,19 +639,29 @@ An explicit number and one inferred from another argument must agree, so
 `measured(values Array<Int, n>, n @concepts$Int)` called with a
 three-element array and `4` matches nothing.
 
-**Borrows** (`lib/tst/analyses/borrows.ml`, [`memory.md`](https://github.com/zane-lang/spec/blob/82da937/spec/memory.md) §2.9.1,
+**Borrows** (`lib/tst/analyses/borrows.ml`, [`memory.md`](https://github.com/zane-lang/spec/blob/7430904/spec/memory.md) §2.9.1,
 [`adt.md`](https://github.com/zane-lang/spec/blob/82da937/spec/adt.md) §5.1). A call's borrows are its subject and each argument
 passed to a bare parameter, or to a `^T` filled with a value type; an `&T`
 argument is not one. A call is an error when a borrow overlaps a place
 written by its `mut` subject (for a borrow argument), by a block argument, or
 by an argument written after it. A part writes a place it assigns, makes the
 subject of a `!` call, or moves an owner out of; a lambda in it writes
-nothing. Places overlap as for spawns, with a path through a reference
-unknown and judged by type. A reference local bound once stands for the
-place it was minted from; one bound again anywhere in the body is unknown,
-since a loop body or block argument runs the binding before its earlier
-statements' next run. Constant, enum-map and subscript bodies are walked
-like verb bodies. This holds for value-type arguments too: a value
+nothing. A `!` call also writes what its subject reaches through `&`
+fields, and passing on a block parameter writes whatever the caller's block
+does. Places overlap as for spawns. A reference local stands for every place
+any of its bindings names, its declaration and every repointing anywhere in
+the body, since a loop body or block argument may repoint it before the
+next run of earlier statements. An `&T` parameter is a root of its own,
+apart from the subject and the block parameters; where the body relies on
+that, the verb's summary records the pair, and each call checks it against
+the arguments it passes, or records it in turn when it passes its own `&T`
+parameter along. Summaries are computed to a fixed point, as for scopes. A
+call through a function value, which carries no summary, keeps every `&T`
+argument apart from its `mut` subject and its block arguments. Any other
+path through a reference, an `&` field or a call's result, is unknown and
+judged by type; a place the body owns, the subject and a borrowed parameter
+are never inside one, since the caller keeps them apart. Constant, enum-map
+and subscript bodies are walked like verb bodies. This holds for value-type arguments too: a value
 parameter is a borrow, so `if(dirty) { dirty = false; }` is an error. While a
 `match` binder names its scrutinee's payload, the arm writes the scrutinee
 only through the binder.

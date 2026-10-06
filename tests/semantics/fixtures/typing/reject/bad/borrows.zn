@@ -96,3 +96,66 @@ stacks Unit() {
 	own!stack(own[Int(1)]);
 	return Unit();
 }
+
+/// An `&T` parameter is apart from the subject and from every block
+/// parameter while the body runs; each call keeps its arguments apart in
+/// turn, and a caller that passes its own `&T` parameter along keeps it
+/// apart for its own callers.
+Unit append(this List<Int>, from &List<Int>) mut {
+	this!push(from[Int(1)]);
+	return Unit();
+}
+
+Unit relay(this List<Int>, via &List<Int>) mut {
+	this!append(via);
+	return Unit();
+}
+
+Int readAfter(n Int, body @concepts$Block) {
+	@controlflow$branch(true, body);
+	return n;
+}
+
+Int glance(from &List<Int>, body @concepts$Block) => readAfter(from[Int(1)], body)
+
+Unit apart() {
+	ints List<Int> = @primitives$List(Int);
+	more List<Int> = @primitives$List(Int);
+	ints!append(more);
+	ints!append(ints);
+	ints!relay(more);
+	ints!relay(ints);
+	r &List<Int> = more;
+	ints!append(r);
+	s &List<Int> = more;
+	s = ints;
+	ints!append(s);
+	a Int = glance(more, { ints!push(Int(1)); });
+	b Int = glance(ints, { ints!push(Int(1)); });
+	return Unit();
+}
+
+/// Two `&` fields may name one object, and a `!` call writes what its
+/// subject reaches through its `&` fields too.
+type Twin = #struct { left &List<Int>; right &List<Int>; count Int; }
+
+Twin(left &List<Int>, right &List<Int>, count Int) => init{ left; right; count; }
+
+Unit grow(this Twin) mut {
+	this.left!push(this.right[Int(1)]);
+	return Unit();
+}
+
+Unit fill(this Twin, n Int) mut {
+	this.left!push(n);
+	return Unit();
+}
+
+Unit twins() {
+	ints List<Int> = @primitives$List(Int);
+	t Twin(ints, ints, Int(0));
+	n Int = Int(3);
+	t!fill(n);
+	t!fill(ints[Int(1)]);
+	return Unit();
+}

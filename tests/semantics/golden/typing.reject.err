@@ -85,11 +85,11 @@ Error: this writes `dirty`, which overlaps `dirty`, which this call borrows: not
 File "fixtures/typing/reject/bad/borrows.zn", line 70, characters 16-25:
 70 |         a!push(b[Int(1)]);
   |                ^^^^^^^^^
-Error: `b[]` is borrowed by this call, and its `mut` subject `a` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+Error: `b[]` is borrowed by this call, and its `mut` subject `a` may overlap it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 File "fixtures/typing/reject/bad/borrows.zn", line 78, characters 9-10:
 78 |         r!stack(Cargo(Int(1)));
   |         ^
-Error: this writes `r`, which overlaps `own[]`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+Error: this writes `r`, which may overlap `own[]`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 File "fixtures/typing/reject/bad/borrows.zn", line 88, characters 16-19:
 88 |         counts[own!grown()] = Int(1);
   |                ^^^
@@ -98,6 +98,30 @@ File "fixtures/typing/reject/bad/borrows.zn", line 96, characters 15-26:
 96 |     own!stack(own[Int(1)]);
   |               ^^^^^^^^^^^
 Error: `own[]` is borrowed by this call, and its `mut` subject `own` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 125, characters 17-21:
+125 |     ints!append(ints);
+  |                 ^^^^
+Error: `ints` is passed to an `&` parameter this call reads through while it writes its subject, and the two may overlap: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 127, characters 16-20:
+127 |     ints!relay(ints);
+  |                ^^^^
+Error: `ints` is passed to an `&` parameter this call reads through while it writes its subject, and the two may overlap: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 132, characters 17-18:
+132 |     ints!append(s);
+  |                 ^
+Error: `s` is passed to an `&` parameter this call reads through while it writes its subject, and the two may overlap: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 134, characters 20-24:
+134 |     b Int = glance(ints, { ints!push(Int(1)); });
+  |                    ^^^^
+Error: `ints` is passed to an `&` parameter this call reads through while it runs a block that writes it, and the two may overlap: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 145, characters 20-38:
+145 |     this.left!push(this.right[Int(1)]);
+  |                    ^^^^^^^^^^^^^^^^^^
+Error: `this.right[]` is borrowed by this call, and its `mut` subject `this.left` may overlap it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 159, characters 12-24:
+159 |     t!fill(ints[Int(1)]);
+  |            ^^^^^^^^^^^^
+Error: `ints[]` is borrowed by this call, and its `mut` subject `t` reaches, through an `&` field, what may hold it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 File "fixtures/typing/reject/bad/calls.zn", line 25, characters 13-33:
 25 |     a Int = pair(Int(1), Int(2));
   |             ^^^^^^^^^^^^^^^^^^^^
