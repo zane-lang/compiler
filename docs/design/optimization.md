@@ -235,7 +235,8 @@ of termination. Stage 5 is that rule, with its choices made:
 
 The rule permits a compiler to reduce less, and Stage 5 does in places: a
 value holding a lent address, a changed list or box (only plain locals are
-stored back), and where a package constant is made (O9) stay runtime work.
+stored back), and a package constant's first-read check (O9) stay runtime
+work.
 
 ---
 
