@@ -302,11 +302,24 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
     | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } -> (
         match Env.signature_of env callee with
         | Some sg ->
+            (* A type or number given to a binding parameter picks the
+               instance, which takes no parameter for it (generics.md §5.3),
+               so the rest line up with the instance's, as summaries count
+               them. *)
+            let pairs =
+              if List.length sg.S.params = List.length args then
+                List.filter
+                  (fun ((p : S.param), a) ->
+                    Option.is_none p.S.binds
+                    && match a with T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false | _ -> true)
+                  (List.combine sg.S.params args)
+              else []
+            in
             Some
               ( S.is_method sg,
                 sg.S.is_mut,
-                List.map (fun (p : S.param) -> p.S.ty) sg.S.params,
-                args,
+                List.map (fun ((p : S.param), _) -> p.S.ty) pairs,
+                List.map snd pairs,
                 summary_of summaries callee )
         | None -> None)
     | T.Expr.Call_value { callee = { T.Expr.ty = Ty.Verb v; _ }; args; _ } ->
@@ -408,6 +421,14 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
         match (target.T.Expr.ty, target.T.Expr.node) with
         (* Repointing a reference writes no place it names. *)
         | Ty.Reference _, T.Expr.Var _ -> acc
+        (* An `&` field repointed writes the field's own storage, inside
+           the object that holds it. *)
+        | Ty.Reference _, (T.Expr.Field { target = holder; _ } | T.Expr.Subscript { target = holder; _ }) -> (
+            match Spawns.place_of target with
+            | Some p ->
+                let at = if through_reference target then None else resolve p in
+                { expr = target; at; ty = holder.T.Expr.ty; runs = None; behind = false } :: acc
+            | None -> acc)
         | _ -> ( match claim target with Some c -> c :: acc | None -> acc))
     | T.Stat.Let { local = { T.Local.ty = Ty.Reference _; _ }; value } | T.Stat.Return value ->
         writes_expr acc value

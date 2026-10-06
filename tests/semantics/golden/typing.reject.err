@@ -122,6 +122,14 @@ File "fixtures/typing/reject/bad/borrows.zn", line 159, characters 12-24:
 159 |     t!fill(ints[Int(1)]);
   |            ^^^^^^^^^^^^
 Error: `ints[]` is borrowed by this call, and its `mut` subject `t` reaches, through an `&` field, what may hold it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 176, characters 31-35:
+176 |     b Meter<Int> = Meter(Int, ints, { ints!push(Int(1)); });
+  |                               ^^^^
+Error: `ints` is passed to an `&` parameter this call reads through while it runs a block that writes it, and the two may overlap: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 191, characters 31-40:
+191 |     n Int = holding(socket, { socket.to = far; });
+  |                               ^^^^^^^^^
+Error: this writes `socket.to`, which overlaps `socket`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 File "fixtures/typing/reject/bad/calls.zn", line 25, characters 13-33:
 25 |     a Int = pair(Int(1), Int(2));
   |             ^^^^^^^^^^^^^^^^^^^^
@@ -641,6 +649,14 @@ Error: a `!` call writes its subject, and it reaches a reference taken from `pen
 File "fixtures/typing/reject/bad/readonly.zn", line 123, characters 5-6:
 123 |     b!fill();
   |     ^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 159, characters 9-13:
+159 |         desk!use();
+  |         ^^^^
+Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
+File "fixtures/typing/reject/bad/readonly.zn", line 160, characters 9-13:
+160 |         desk!hold(pen);
+  |         ^^^^
 Error: a `!` call writes its subject, and it reaches a reference taken from `pen`, a read-only parameter
 File "fixtures/typing/reject/bad/rests.zn", line 36, characters 15-20:
 36 |     this!wire(local);

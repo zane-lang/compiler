@@ -302,9 +302,10 @@ overlap when either's type may hold the other's. A spawned subject's index,
 or its case read's handler, is read at the spawn like any other read.
 In a block that runs more than once, a spawn takes its subject from a local
 declared in that block or in a block inside it. A block runs more than once
-when it is `@controlflow$repeat`'s body, or a block argument at a position its
-verb runs more than once: one it passes on to such a position, or passes
-anywhere from inside a block that runs more than once, computed to a fixed
+when it is `@controlflow$repeat`'s body, a block argument to a function
+value, or a block argument at a position its verb runs more than once: one
+it passes on to such a position or to a function value, or passes anywhere
+from inside a block that runs more than once, computed to a fixed
 point over every body (`lib/tst/analyses/repeats.ml`, which the read-only
 analysis reads too).
 

@@ -159,3 +159,35 @@ Unit twins() {
 	t!fill(ints[Int(1)]);
 	return Unit();
 }
+
+/// A type passed to a binding parameter takes no place among the
+/// arguments a summary counts.
+type Meter<T Type> = #struct { n Int; }
+
+Meter<T>(T Type, from &List<Int>, body @concepts$Block) {
+	got Int = readAfter(from[Int(1)], body);
+	return init{ n = got; }
+}
+
+Unit meters() {
+	ints List<Int> = @primitives$List(Int);
+	more List<Int> = @primitives$List(Int);
+	a Meter<Int> = Meter(Int, more, { ints!push(Int(1)); });
+	b Meter<Int> = Meter(Int, ints, { ints!push(Int(1)); });
+	return Unit();
+}
+
+/// Repointing an `&` field writes the object that holds it.
+type Socket = #struct { to &Cargo; }
+
+Socket(to &Cargo) => init{ to; }
+
+Int holding(socket Socket, body @concepts$Block) => Int(1)
+
+Unit repoint() {
+	near Cargo(Int(1));
+	far Cargo(Int(2));
+	socket Socket(near);
+	n Int = holding(socket, { socket.to = far; });
+	return Unit();
+}

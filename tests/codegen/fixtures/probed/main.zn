@@ -106,6 +106,14 @@ Unit order() {
 	check(String("a store whose value grows the list"), ints[Int(1)] == Int(4242));
 	ints[Int(2)]!bump(ints!growAndGive(Int(1000)));
 	check(String("a `!` call whose argument grows the list"), ints[Int(2)] == Int(4244));
+	more List<Int> = @primitives$List(Int);
+	more!push(Int(3));
+	bumper Unit(this Int, by Int) mut {
+		this = this + by;
+		return Unit();
+	}
+	more[Int(1)]!bumper(more!growAndGive(Int(1000)));
+	check(String("the same through a function value"), more[Int(1)] == Int(4245));
 	return Unit();
 }
 

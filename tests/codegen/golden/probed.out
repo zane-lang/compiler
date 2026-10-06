@@ -9,3 +9,4 @@ the value overwritten in place yes
 a 512 KiB array yes
 a store whose value grows the list yes
 a `!` call whose argument grows the list yes
+the same through a function value yes

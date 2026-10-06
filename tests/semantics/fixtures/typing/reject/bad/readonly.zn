@@ -144,3 +144,20 @@ Unit once(this Desk, pen &Pen) mut {
 	@controlflow$branch(true, { this!hold(pen); });
 	return Unit();
 }
+
+/// A verb that passes its block to a function value runs it as often as the
+/// function value might, which may be more than once.
+Unit forward(body @concepts$Block, run Unit[@concepts$Block]) {
+	run(body);
+	return Unit();
+}
+
+Unit relayRun(pen &Pen, run Unit[@concepts$Block]) {
+	own Pen(Int(7));
+	desk Desk(own);
+	forward({
+		desk!use();
+		desk!hold(pen);
+	}, run);
+	return Unit();
+}

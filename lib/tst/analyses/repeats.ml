@@ -51,6 +51,17 @@ let find_multi multi bodies =
       let rec block often (b : T.Block.t) =
         List.iter (fun s -> List.iter (expr often) (Exits.stat_exprs s)) b.T.Block.stats
       and expr often (e : T.Expr.t) =
+        (* A function value is not seen into, so it may run a block it is
+           given any number of times. *)
+        (match e.T.Expr.node with
+        | T.Expr.Call_value { args; _ } ->
+            List.iter
+              (function
+                | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
+                    match param l.T.Local.id with Some p -> mark id p | None -> ())
+                | _ -> ())
+              args
+        | _ -> ());
         (match call_parts e with
         | Some (callee, args) ->
             List.iteri
@@ -71,7 +82,11 @@ let find_multi multi bodies =
                    (fun i a ->
                      match a with T.Arg.Block b -> [ (b, often || runs_often multi callee i) ] | _ -> [])
                    args)
-          | None -> []
+          | None -> (
+              match e.T.Expr.node with
+              | T.Expr.Call_value { args; _ } ->
+                  List.filter_map (function T.Arg.Block b -> Some (b, true) | _ -> None) args
+              | _ -> [])
         in
         List.iter
           (function
