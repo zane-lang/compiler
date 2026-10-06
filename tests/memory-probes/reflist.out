@@ -1,3 +1,11 @@
+File "reflist/main.zn", line 16, characters 27-32:
+16 |     refs @primitives$List<&Port> = @primitives$List(PortRef);  // legal, and accepted
+  |                           ^^^^^
+Error: `&reflist$Port` is a reference type, and it fills the elements of `@primitives$List<&reflist$Port>`; a list's elements are owners, never references
+File "reflist/main.zn", line 16, characters 53-60:
+16 |     refs @primitives$List<&Port> = @primitives$List(PortRef);  // legal, and accepted
+  |                                                     ^^^^^^^
+Error: `&reflist$Port` is a reference type, and it fills the elements of `@primitives$List<&reflist$Port>`; a list's elements are owners, never references
 File "reflist/main.zn", line 17, characters 5-17:
 17 |     refs!push(r);                                             // legal: copies an existing reference
   |     ^^^^^^^^^^^^

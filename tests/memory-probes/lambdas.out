@@ -1,5 +1,13 @@
-== checks; building and running
-victim untouched (lambda-variable) NO
-victim untouched (function parameter) NO
-victim untouched (carried, pushed) NO
-== exit 0
+File "lambdas/main.zn", line 71, characters 19-23:
+71 |         plug!wire(near);                // ILLEGAL: near's block ends before plug's
+  |                   ^^^^
+Error: this stores a reference to `near`, whose block ends before `plug`'s does (a call through a function value is taken to keep every argument in its subject)
+File "lambdas/main.zn", line 80, characters 26-30:
+80 |         plug!apply(wire, near);         // ILLEGAL: the same, through a function parameter
+  |                          ^^^^
+Error: this stores a reference to `near`, whose block ends before `plug`'s does (`apply` keeps `port` in `this`)
+File "lambdas/main.zn", line 97, characters 20-28:
+97 |         plugs!keep(arriving);           // ILLEGAL: arriving carries a reference to near
+  |                    ^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `plugs`'s does (a call through a function value is taken to keep every argument in its subject)
+== rejected

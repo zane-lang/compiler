@@ -14,7 +14,7 @@ Int weight(bell &Bell) => bell.tone
 /// from one, or from a reference, through struct fields (memory.md §2.8).
 /// A list's element, a payload and a temporary are not one; a value that is
 /// already a reference is copied, from wherever it is.
-Unit mint(rack &Rack, bells &List<Bell>, hooks &List<&Bell>, slot &Slot) {
+Unit mint(rack &Rack, bells &List<Bell>, hooks &@primitives$ArrayRef<&Bell, 2>, slot &Slot) {
 	a &Bell = rack.bell;
 	b &Bell = bells[Int(1)];
 	c &Bell = hooks[Int(1)];

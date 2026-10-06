@@ -166,7 +166,7 @@ let rec check_function_types env span (t : Ty.t) =
    themselves, which were checked where they were written. What it finds is
    the slot that rejects the type, as the path that reaches it, and the
    type. *)
-type slot = Value_slot | Under_reference | Bare_result
+type slot = Value_slot | Under_reference | Under_take | List_element | Bare_result
 
 type wrong_kind = { path : string list; bad : Ty.t; slot : slot }
 
@@ -176,11 +176,14 @@ let is_value env (t : Ty.t) =
   | Ty.Param _ | Ty.Error | Ty.Concept _ | Ty.Reference _ | Ty.Roaming _ -> false
   | t -> not (is_reference env t)
 
-(* The value types [inst] puts where [raw] writes `&` over a type parameter.
-   An `&` written over a concrete type was checked where it was written. *)
+(* The value types [inst] puts where [raw] writes `&` over a type parameter,
+   and the `&` types it puts where [raw] writes `^` over one, each with the
+   slot that rejects it. An `&` or `^` written over a concrete type was
+   checked where it was written. *)
 let rec filled_references env (raw : Ty.t) (inst : Ty.t) =
   match (raw, inst) with
-  | Ty.Reference (Ty.Param _), Ty.Reference x -> if is_value env x then [ x ] else []
+  | Ty.Reference (Ty.Param _), Ty.Reference x -> if is_value env x then [ (x, Under_reference) ] else []
+  | Ty.Roaming (Ty.Param _), Ty.Roaming (Ty.Reference _ as x) -> [ (x, Under_take) ]
   | (Ty.Reference r | Ty.Roaming r), (Ty.Reference i | Ty.Roaming i) -> filled_references env r i
   | Ty.Named (_, ra), Ty.Named (_, ia) | Ty.Intrinsic { args = ra; _ }, Ty.Intrinsic { args = ia; _ }
     when List.length ra = List.length ia ->
@@ -278,7 +281,7 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
               if value && bad ft then Some { path = [ step n ]; bad = ft; slot = Value_slot }
               else
                 match (filled_references env raw ft, bare_results env ~top:false raw ft) with
-                | x :: _, _ -> Some { path = [ step n ]; bad = x; slot = Under_reference }
+                | (x, slot) :: _, _ -> Some { path = [ step n ]; bad = x; slot }
                 | [], x :: _ -> Some { path = [ step n ]; bad = x; slot = Bare_result }
                 | [], [] ->
                     Option.map
@@ -288,6 +291,14 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
       | Some ({ definition = Some (Distinct u); _ } as info) ->
           wrong_kind env ~seen:(tid :: seen) (Ty.instantiate info.params args u)
       | _ -> None)
+  | Ty.Intrinsic { namespace = "primitives"; name = "List"; args = Ty.Type (Ty.Reference _ as e) :: _ }
+    ->
+      Some
+        {
+          path = [ Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) ];
+          bad = e;
+          slot = List_element;
+        }
   | Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = Ty.Type e :: _ } when bad e ->
       Some
         {
@@ -305,6 +316,17 @@ let describe_wrong_kind { path; bad; slot } =
          is never referenced, only copied"
         (quote (Ty.to_string bad))
         (if path = [] then "" else " at " ^ String.concat ", then " path)
+  | Under_take ->
+      Printf.sprintf
+        "%s is a reference type, and it fills a `^`%s; `^` takes an owner, and a reference has \
+         none to hand over"
+        (quote (Ty.to_string bad))
+        (if path = [] then "" else " at " ^ String.concat ", then " path)
+  | List_element ->
+      Printf.sprintf
+        "%s is a reference type, and it fills %s; a list's elements are owners, never \
+         references"
+        (quote (Ty.to_string bad)) (String.concat ", then " path)
   | Bare_result ->
       Printf.sprintf
         "%s is a reference type, and it fills %s, written bare; a borrow is never returned or \
@@ -527,8 +549,9 @@ and apply env scope span head (name : N.Name_type.t) generics : Ty.t =
               let kinds = List.map (fun (p : Ty.param) -> p.kind) alias.alias_params in
               match apply_args env scope span (quote (decl_name d)) kinds generics with
               | Some args ->
-                  let target = alias_target env alias in
-                  Ty.instantiate alias.alias_params args target
+                  let t = Ty.instantiate alias.alias_params args (alias_target env alias) in
+                  check_kinds env span t (arg_spans args generics);
+                  t
               | None -> Ty.Error)
           | None ->
               ignore name;

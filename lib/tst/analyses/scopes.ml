@@ -336,6 +336,7 @@ let rec expr env w (e : T.Expr.t) =
   | T.Expr.Call_value { callee; args; handler } ->
       expr env w callee;
       List.iter (arg env w e) args;
+      (match callee.T.Expr.ty with Ty.Verb v -> rest_value env w v args | _ -> ());
       opt_handler env w e handler
   | T.Expr.Subscript { target; args; _ } ->
       expr env w target;
@@ -379,14 +380,38 @@ and rest env w callee args =
   if not (Rests.is_empty rs) then begin
     let sg = Env.signature_of env callee in
     let method_ = match sg with Some sg -> S.is_method sg | None -> false in
-    let tys = Array.of_list (References.param_types env ~subject:true callee) in
-    let args = Array.of_list args in
+    let tys = References.param_types env ~subject:true callee in
     let name i =
       match sg with
       | Some sg -> (
           match List.nth_opt sg.S.params i with Some p -> Env.quote p.S.name | None -> "")
       | None -> ""
     in
+    let via i j =
+      match sg with
+      | Some sg -> Printf.sprintf " (%s keeps %s in %s)" (Env.quote sg.S.name) (name i) (name j)
+      | None -> ""
+    in
+    rests env w rs ~method_ tys via args
+  end
+
+(* A function type carries no summary, so a call through a function value
+   that may write its subject is taken to keep every argument there
+   (lifetimes.md §1.11). *)
+and rest_value env w (v : Ty.verb) args =
+  match v.Ty.this_ with
+  | Some this_ when v.Ty.is_mut ->
+      let rs = List.mapi (fun i _ -> (i + 1, 0)) v.Ty.params |> Rests.of_list in
+      rests env w rs ~method_:true (this_ :: v.Ty.params)
+        (fun _ _ ->
+          " (a call through a function value is taken to keep every argument in its subject)")
+        args
+  | _ -> ()
+
+and rests env w rs ~method_ tys via args =
+  begin
+    let tys = Array.of_list tys in
+    let args = Array.of_list args in
     Rests.iter
       (fun (i, j) ->
         if i < Array.length args && j < Array.length args && i < Array.length tys then
@@ -396,12 +421,7 @@ and rest env w callee args =
                 if method_ && i = 0 then if Ty.is_ref v.T.Expr.ty then names env w v else place env w v
                 else stored env w tys.(i) v
               in
-              let via =
-                match sg with
-                | Some sg ->
-                    Printf.sprintf " (%s keeps %s in %s)" (Env.quote sg.S.name) (name i) (name j)
-                | None -> ""
-              in
+              let via = via i j in
               Names.iter
                 (fun (o, root) ->
                   let what =
