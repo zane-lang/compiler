@@ -289,7 +289,7 @@ let signature_of env (r : Nodes.Verb_ref.t) =
       List.find_map
         (fun (_, (sg : Signature.t)) ->
           if sg.Signature.owner = Signature.Intrinsic spelling then Some sg else None)
-        Intrinsics.methods
+        (Intrinsics.methods @ List.map (fun ((_, n), sg) -> (n, sg)) Intrinsics.functions)
 
 let package env name = Hashtbl.find env.packages name
 
