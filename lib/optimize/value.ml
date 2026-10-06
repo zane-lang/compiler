@@ -102,16 +102,6 @@ let rec read_path v path =
   | Payload _ :: _, VCase _ -> stop "a payload read while another case is live"
   | _ -> stop "a path into something that does not hold it"
 
-let rec write_path v path x =
-  match (path, v) with
-  | [], _ -> x
-  | Member i :: rest, VRecord a when i < Array.length a ->
-      let a = Array.copy a in
-      a.(i) <- write_path a.(i) rest x;
-      VRecord a
-  | Payload i :: rest, VCase (tag, p) when tag = i -> VCase (tag, write_path p rest x)
-  | _ -> stop "a write into something that does not hold it"
-
 (* The type a path leads to. *)
 let rec ty_at (t : Ty.t) path =
   match (path, t) with
@@ -121,11 +111,32 @@ let rec ty_at (t : Ty.t) path =
   | Payload i :: rest, Ty.Sum ts when i < List.length ts -> ty_at (List.nth ts i) rest
   | _ -> stop "a path through a type that has no such part"
 
-let load (p : ptr) = read_path p.cell.value p.path
+(* A value's own structs, arrays and cases, so that what holds it can be
+   written in place without changing anything else that read it. Lists and
+   boxes are not copied: they are where they are, as at run time. *)
+let rec own = function
+  | VRecord a -> VRecord (Array.map own a)
+  | VCase (i, p) -> VCase (i, own p)
+  | v -> v
+
+(* [x] stored at [path] inside [v], which is changed in place where it can
+   be: a large array written element by element costs no more per element
+   than at run time. *)
+let rec set_path v path x =
+  match (path, v) with
+  | [], _ -> x
+  | Member i :: rest, VRecord a when i < Array.length a ->
+      a.(i) <- set_path a.(i) rest x;
+      v
+  | Payload i :: rest, VCase (tag, p) when tag = i -> VCase (tag, set_path p rest x)
+  | _ -> stop "a write into something that does not hold it"
+
+(* Every cell owns what it holds: it is copied in and copied out. *)
+let load (p : ptr) = own (read_path p.cell.value p.path)
 
 let store (p : ptr) ty x =
   if p.path = [] then p.cell.ty <- ty;
-  p.cell.value <- write_path p.cell.value p.path x
+  p.cell.value <- set_path p.cell.value p.path (own x)
 
 (* ---------------------------------------------------------------------- *)
 (* Layouts                                                                *)
@@ -189,13 +200,13 @@ let rec copy layouts layout t v =
       | Layout.List { elements; _ }, VList l ->
           let item (c : cell) = cell ?layout:c.layout c.ty (copy layouts elements c.ty c.value) in
           let items = Array.map item (Array.sub l.items 0 l.count) in
-          write_path v at (VList { items; count = l.count; stride = l.stride })
+          set_path v at (VList { items; count = l.count; stride = l.stride })
       | Layout.Box { payload; _ }, VPtr b ->
           let target = b.cell in
           let made = cell ~layout:payload target.ty (copy layouts payload target.ty (load b)) in
-          write_path v at (owner made)
+          set_path v at (owner made)
       | _ -> v)
-    v
+    (own v)
     (positions layouts layout t v)
 
 (* What a move leaves in the place it moved out of (zane_vacate): no list,
@@ -204,10 +215,10 @@ let vacate layouts layout t v =
   List.fold_left
     (fun v ((p : Layout.position), at) ->
       match p.Layout.kind with
-      | Layout.Text -> write_path v at (VText "")
-      | Layout.List _ -> write_path v at (empty ())
-      | Layout.Box _ -> write_path v at VNull)
-    v
+      | Layout.Text -> set_path v at (VText "")
+      | Layout.List _ -> set_path v at (empty ())
+      | Layout.Box _ -> set_path v at VNull)
+    (own v)
     (positions layouts layout t v)
 
 (* [incoming] replacing [old] in place (zane_overwrite): a box both hold
@@ -234,9 +245,9 @@ let rec overwrite layouts layout t old incoming =
       | VPtr b, VPtr n ->
           let inner = overwrite layouts payload b.cell.ty (load b) (load n) in
           store b n.cell.ty inner;
-          write_path v at (VPtr { b with owned = true })
+          set_path v at (VPtr { b with owned = true })
       | _ -> v)
-    incoming kept
+    (own incoming) kept
 
 (* ---------------------------------------------------------------------- *)
 (* Constants                                                              *)

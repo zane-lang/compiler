@@ -349,6 +349,17 @@ let evaluated () =
   let begin_ = e (C.Expr.Runtime { fn = Cgt.Runtime.Constant_begin; args = [ state ] }) C.Ty.I64 in
   check "where a constant is made stays" (stops (fun () -> Eval.expr (Eval.start prog) fr begin_))
 
+(* A store writes in place, and a value read before it keeps what it read,
+   as a copy at run time would. *)
+let stored_in_place () =
+  let c = Value.cell (C.Ty.Array (C.Ty.I64, 3)) (Value.VRecord [| Value.VInt 1L; Value.VInt 2L; Value.VInt 3L |]) in
+  let whole = { Value.cell = c; path = []; owned = false } in
+  let before = Value.load whole in
+  Value.store { whole with path = [ Value.Member 1 ] } C.Ty.I64 (Value.VInt 9L);
+  check "a store writes the element" (Value.load whole = Value.VRecord [| Value.VInt 1L; Value.VInt 9L; Value.VInt 3L |]);
+  check "a value read before the store keeps what it read"
+    (before = Value.VRecord [| Value.VInt 1L; Value.VInt 2L; Value.VInt 3L |])
+
 (* A loop over a known local leaves only what it wrote. *)
 let folded_function () =
   let local = e (C.Expr.Local 1) C.Ty.I64 in
@@ -404,6 +415,7 @@ let () =
   intrinsic_classes ();
   materialized ();
   evaluated ();
+  stored_in_place ();
   folded_function ();
   twice ();
   at_once ();
