@@ -647,9 +647,9 @@ argument is not one. A call is an error when a borrow overlaps a place
 written by its `mut` subject (for a borrow argument), by a block argument, or
 by an argument written after it. A part writes a place it assigns, makes the
 subject of a `!` call, or moves an owner out of; a lambda in it writes
-nothing. A `!` call also writes what its subject reaches through `&`
-fields, and passing on a block parameter writes whatever the caller's block
-does. Places overlap as for spawns. A reference local stands for every place
+nothing. A `!` call also writes what its subject reaches through a
+reference it holds, in a field or an element, and passing on a block
+parameter writes whatever the caller's block does. Places overlap as for spawns. A reference local stands for every place
 any of its bindings names, its declaration and every repointing anywhere in
 the body, since a loop body or block argument may repoint it before the
 next run of earlier statements. An `&T` parameter is a root of its own,

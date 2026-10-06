@@ -46,7 +46,7 @@ let describe p =
   "`" ^ p.local.T.Local.name ^ String.concat "" (List.map step p.path) ^ "`"
 
 (* The types a type holds by owning edges: its members, what it is distinct
-   from, a list's elements. A reference member holds none. *)
+   from, a list's or fixed array's elements. A reference member holds none. *)
 let members env (t : Ty.t) =
   match t with
   | Ty.Named (tid, args) -> (
@@ -59,6 +59,7 @@ let members env (t : Ty.t) =
           | _ -> [])
       | _ -> [])
   | Ty.Intrinsic { name = "List"; args = [ Ty.Type e ]; _ } -> [ e ]
+  | Ty.Intrinsic { name = "ArrayRef"; args = Ty.Type e :: _; _ } -> [ e ]
   | _ -> []
 
 (* Whether a value of type [outer] may hold one of type [inner]. *)

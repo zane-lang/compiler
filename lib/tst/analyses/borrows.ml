@@ -195,7 +195,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
   let named (e : T.Expr.t) = { expr = e; at = origin e; ty = e.T.Expr.ty; runs = None; behind = false } in
   let describe (c : claim) =
     match Spawns.place_of c.expr with
-    | Some p when c.behind -> "what " ^ Spawns.describe p ^ " reaches through an `&` field"
+    | Some p when c.behind -> "what " ^ Spawns.describe p ^ " reaches through a reference it holds"
     | Some p -> Spawns.describe p
     | None -> "this place"
   in
@@ -484,7 +484,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
                               §2.9.1)"
                              (describe b)
                              (describe { w with behind = false })
-                             (if w.behind then "reaches, through an `&` field, what may hold"
+                             (if w.behind then "reaches, through a reference it holds, what may hold"
                               else overlaps))))
                   ws)
               borrowed

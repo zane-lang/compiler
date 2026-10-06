@@ -191,3 +191,24 @@ Unit repoint() {
 	n Int = holding(socket, { socket.to = far; });
 	return Unit();
 }
+
+/// A `!` call writes what its subject reaches through a reference element
+/// as much as through an `&` field.
+type Holdall = #struct { lists @primitives$ArrayRef<&List<Int>, 1>; }
+
+Holdall(lists ^@primitives$ArrayRef<&List<Int>, 1>) => init{ lists; }
+
+Unit store(this Holdall, n Int) mut {
+	this.lists[Int(1)]!push(n);
+	return Unit();
+}
+
+Unit holdalls() {
+	ints List<Int> = @primitives$List(Int);
+	ints!push(Int(1));
+	holdall Holdall(@primitives$ArrayRef([&ints]));
+	k Int = Int(2);
+	holdall!store(k);
+	holdall!store(ints[Int(1)]);
+	return Unit();
+}
