@@ -1,0 +1,8 @@
+an `&` element is read yes
+through it yes
+a copied reference keeps its owner yes
+the element names its new owner yes
+a value 30,000 boxes deep yes
+its copy yes
+the copy overwritten yes
+the value overwritten in place yes

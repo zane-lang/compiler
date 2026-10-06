@@ -10,6 +10,11 @@ root=$(cd "$here/../.." && pwd)
 zanec="$root/_build/default/bin/zanec/zanec.exe"
 [ -x "$zanec" ] || { echo "build zanec first: dune build bin/zanec/zanec.exe" >&2; exit 1; }
 cd "$here"
+# Nix's C compiler wrapper (devbox) defines _FORTIFY_SOURCE, which warns at
+# -O0 on every unoptimized build; the warning is the environment's, not a
+# probe's, so it is kept out of NAME.out.
+[ -n "${NIX_HARDENING_ENABLE:-}" ] &&
+	export NIX_HARDENING_ENABLE=$(tr ' ' '\n' <<<"$NIX_HARDENING_ENABLE" | grep -v '^fortify' | tr '\n' ' ')
 names=("$@")
 [ ${#names[@]} -eq 0 ] && names=($(ls -d */ | tr -d /))
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT

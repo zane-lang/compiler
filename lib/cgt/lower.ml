@@ -137,7 +137,10 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           { Expr.node = Expr.Member { value; index = 1 }; ty = Nodes.Ty.I64 }
       | _ -> Diagnostic.bug ~span "lowering: `size` with the wrong arguments")
   | T.Expr.Subscript _ -> (
-      match addr st ctx span e with
+      (* The element's own storage: for an `&` element, what it holds is the
+         reference, so this reads it rather than asking [addr] for the
+         reference, which would ask back here. *)
+      match storage st ctx span e with
       | Some p -> { Expr.node = Expr.Deref p; ty = ty st span e.T.Expr.ty }
       | None -> Diagnostic.bug ~span "lowering: a subscript with no address")
   | T.Expr.Op { op; impl = { owner; instance; _ }; left; right; swapped; handler } -> (

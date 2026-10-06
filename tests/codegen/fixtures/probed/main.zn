@@ -1,0 +1,74 @@
+/// What the memory-semantics probes (tests/memory-probes/,
+/// docs/memory-semantics-findings.md) found broken, kept running: a
+/// reference stored as an element is read (memory.md §2.2), and a recursive
+/// value far deeper than the C stack allows recursion is built, copied,
+/// overwritten and destroyed (memory.md §2.3). Each check prints `yes` when it
+/// holds and `no` when it does not.
+package probed;
+
+alias Int = @primitives$Int
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+Unit check(label String, ok Bool) {
+	say(label);
+	@controlflow$branch(ok, { say(String(" yes\n")); });
+	@controlflow$branch(~ok, { say(String(" no\n")); });
+	return Unit();
+}
+
+type Port = #struct { n Int; }
+Port(n Int) => init{ n; }
+
+Unit references() {
+	p Port(Int(1));
+	q Port(Int(2));
+	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([&p, &q]);
+	x &Port = row[Int(1)];
+	check(String("an `&` element is read"), x.n == Int(1));
+	check(String("through it"), row[Int(2)].n == Int(2));
+	row[Int(1)] = q;
+	check(String("a copied reference keeps its owner"), x.n == Int(1));
+	check(String("the element names its new owner"), row[Int(1)].n == Int(2));
+	return Unit();
+}
+
+type Count = variant { done Int; more Count; }
+
+Count make(n Int) {
+	if(n == Int(0)) {
+		return Count.done(Int(0));
+	}
+	return Count.more(make(n + ~Int(1)));
+}
+
+Int depth(c Count) => match (c) { n done => n; m more => depth(m) + Int(1); }
+
+Unit deep() {
+	a Count = make(Int(30000));
+	check(String("a value 30,000 boxes deep"), depth(a) == Int(30000));
+	b Count = a;
+	check(String("its copy"), depth(b) == Int(30000));
+	b = Count.done(Int(1));
+	check(String("the copy overwritten"), depth(b) == Int(1));
+	a = make(Int(29999));
+	check(String("the value overwritten in place"), depth(a) == Int(29999));
+	return Unit();
+}
+
+Unit main() {
+	references();
+	deep();
+	return Unit();
+}
