@@ -57,7 +57,7 @@ Unit main() {
 	slot Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
 	n Int = match (slot) {
 		e full {
-			slot = Slot.empty(Unit());
+			slot = Slot.empty(Unit());  // ILLEGAL (adt.md §5.1)
 			churn();
 			return e.power;
 		}
@@ -68,7 +68,7 @@ Unit main() {
 	v VSlot = VSlot.full(String("orig") + String("inal"));
 	m String = match (v) {
 		s full {
-			v = VSlot.empty(Unit());
+			v = VSlot.empty(Unit());  // ILLEGAL (adt.md §5.1)
 			churn();
 			return s;
 		}
@@ -79,7 +79,7 @@ Unit main() {
 	slot2 Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
 	k Int = match (slot2) {
 		e full {
-			slot2!clear();
+			slot2!clear();  // ILLEGAL (adt.md §5.1)
 			churn();
 			return e.power;
 		}

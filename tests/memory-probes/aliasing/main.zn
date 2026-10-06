@@ -130,32 +130,32 @@ Unit main() {
 	// extend it in place at the frontier.
 	pad List<Engine> = @primitives$List(Engine);
 	pad!push(Engine(Int(0), String("pad")));
-	m Int = list!growThenRead(list[Int(1)]);
+	m Int = list!growThenRead(list[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
 	check(String("element borrowed while its list grows"), m == Int(42));
 
 	v V(Int(1), Int(2));
-	v!setFrom(v);
+	v!setFrom(v);  // ILLEGAL (memory.md §2.9.1)
 	check(String("value subject and value borrow: borrow sees the write"), v.y == Int(100));
 
 	car Car(Engine(Int(1), String("old")));
-	car!swapFrom(car);
+	car!swapFrom(car);  // ILLEGAL (memory.md §2.9.1)
 	check(String("reference subject and reference borrow: borrow sees the write"), car.engine.label == String("new"));
 
 	// The subject destroys what the borrow names. Nothing in memory.md §2.9
 	// lets the callee end the caller's owner while it lends it; each read
 	// below goes to a freed and reused block.
 	slot Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
-	a Int = slot!clearThenRead(slot.full ?? Engine(Int(0), String("none")));
+	a Int = slot!clearThenRead(slot.full ?? Engine(Int(0), String("none")));  // ILLEGAL (memory.md §2.9.1)
 	check(String("payload borrowed while its variant changes case"), a == Int(42));
 
 	list2 List<Engine> = @primitives$List(Engine);
 	list2!push(Engine(Int(42), String("orig") + String("inal")));
-	b Int = list2!replaceThenRead(list2[Int(1)]);
+	b Int = list2!replaceThenRead(list2[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
 	check(String("element borrowed while its list is replaced"), b == Int(42));
 
 	g Garage();
 	g.items!push(Engine(Int(42), String("orig") + String("inal")));
-	c Int = g!resetThenRead(g.items[Int(1)]);
+	c Int = g!resetThenRead(g.items[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
 	check(String("element borrowed while the owner's list is replaced"), c == Int(42));
 	return Unit();
 }

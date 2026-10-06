@@ -59,12 +59,12 @@ Unit main() {
 
 	counts List<Count> = @primitives$List(Count);
 	counts!push(Count.more(Count.more(Count.done(String("x")))));
-	counts!push(counts[Int(1)]);
+	counts!push(counts[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
 	counts[Int(2)] = Count.more(counts[Int(2)]);
 	check(String("recursive element copied and grown"), (depth(counts[Int(1)]) == Int(2)) * (depth(counts[Int(2)]) == Int(3)));
 	i Int(1);
 	i!to(Int(2000)) {
-		counts!push(counts[i]);
+		counts!push(counts[i]);  // ILLEGAL (memory.md §2.9.1)
 	}
 	check(String("list grown from its own elements"), depth(counts[Int(2001)]) == Int(2));
 	return Unit();

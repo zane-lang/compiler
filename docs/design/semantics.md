@@ -3,8 +3,7 @@
 > **Status: built.** Stage 3 — the passes that turn the SST into the typed
 > syntax tree — follows this design. Each decision is numbered (**D1**…). The
 > questions the first draft left open are answered in §8. Where the spec is
-> silent and the compiler had to choose, §9 says what it chose. §10 lists what
-> stage 3 does not do yet.
+> silent and the compiler had to choose, §9 says what it chose.
 
 The **TST** is the SST with every name resolved and every expression typed
 ([`stages.md`](stages.md)). Where the SST answers "what was written, said one
@@ -167,7 +166,9 @@ else.
    on a reference type, and `^` only on a local, a parameter or a return type
    ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.1, §2.4, [`syntax.md`](https://github.com/zane-lang/spec/blob/911d749/spec/syntax.md)
    §2.3); a type argument of the wrong kind, reported where it is written
-   ([`generics.md`](https://github.com/zane-lang/spec/blob/911d749/spec/generics.md) §3.6).
+   ([`generics.md`](https://github.com/zane-lang/spec/blob/911d749/spec/generics.md) §3.6),
+   including a `^` or a `List` element filled with an `&` type, and through
+   a generic alias as through the type it names.
 4. **Signatures.** Resolve every verb's parameter and return types, introducing
    inline generic parameters at their first marked occurrence (`generics.md`
    §3.2, §4.4). Check here:
@@ -304,7 +305,8 @@ declared in that block or in a block inside it. A block runs more than once
 when it is `@controlflow$repeat`'s body, or a block argument at a position its
 verb runs more than once: one it passes on to such a position, or passes
 anywhere from inside a block that runs more than once, computed to a fixed
-point over every body.
+point over every body (`lib/tst/analyses/repeats.ml`, which the read-only
+analysis reads too).
 
 The same spawn is lent every owner passed to it, directly or through a reference,
 until the same drain, and the block may not write one meanwhile
@@ -637,6 +639,19 @@ An explicit number and one inferred from another argument must agree, so
 `measured(values Array<Int, n>, n @concepts$Int)` called with a
 three-element array and `4` matches nothing.
 
+**Borrows** (`lib/tst/analyses/borrows.ml`, [`memory.md`](https://github.com/zane-lang/spec/blob/82da937/spec/memory.md) §2.9.1,
+[`adt.md`](https://github.com/zane-lang/spec/blob/82da937/spec/adt.md) §5.1). A call's borrows are its subject and each argument
+passed to a bare parameter, or to a `^T` filled with a value type; an `&T`
+argument is not one. A call is an error when a borrow overlaps a place
+written by its `mut` subject (for a borrow argument), by a block argument, or
+by an argument written after it. A part writes a place it assigns, makes the
+subject of a `!` call, or moves an owner out of; a lambda in it writes
+nothing. Places overlap as for spawns, with a path through a reference
+unknown and judged by type. This holds for value-type arguments too: a value
+parameter is a borrow, so `if(dirty) { dirty = false; }` is an error. While a
+`match` binder names its scrutinee's payload, the arm writes the scrutinee
+only through the binder.
+
 **Where constructors and enum maps are found.** A type's constructors are the
 ones declared in its home package and in the current package, the order
 `functions.md` §6.1 gives methods; an enum map is found the same way. An
@@ -660,10 +675,11 @@ only reject more, never let a write through.
   can hold a reference.
 - A path into a value is cut at four steps, since a recursive type would let
   one grow without end. A cut path names the place that contains the real one.
-- A block argument may run any number of times, so after it a local holds what
-  any run stored. It is walked again, each run joined into the last, until a
-  run adds nothing, and every run is checked against what the runs before it
-  stored.
+- A block argument that runs more than once (as for spawns, above) leaves a
+  local holding what any run stored. It is walked again, each run joined into
+  the last, until a run adds nothing, and then once more to report, so every
+  run is checked against what the runs before it stored. A block that runs at
+  most once is walked once.
 - A generic verb's summary is the union over its instances.
 
 **What the scope analysis assumes.** Each choice can only reject more.
@@ -680,8 +696,10 @@ only reject more, never let a write through.
 - A value read through a reference parameter, `other.port`, names that
   parameter's owner. A reference the owner carries outlives the owner (§1.1),
   so the owner is the shorter of the two.
-- `push` keeps its value in `this`; no other intrinsic keeps anything. A call
-  through a function value keeps nothing, since its type carries no summary.
+- `push` keeps its value in `this`; no other intrinsic keeps anything. A
+  function type carries no summary, so a call through a function value that
+  writes its subject is taken to keep every argument there
+  ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/82da937/spec/lifetimes.md) §1.11).
 
 **What moves, where the spec leaves it to the table.**
 - A subscript's body is a place (`functions.md` §2.9), so it moves nothing
@@ -706,7 +724,7 @@ when the instance's own signature puts it in a value mould's field; that
 instance is then not made, so nothing inside a forwarding verb reports it
 again. A mistake that only a generic body's own code makes, and that its
 signature does not show, is reported inside the instance, which names the
-call that required it.
+instance and the call that required it, from any analysis.
 
 **Where `^` is written, beyond what the spec shows.**
 - A function type's `^T` result over a type parameter is filled by a value
@@ -716,9 +734,3 @@ call that required it.
 **`main`** is not required, since a library built on its own is also a root.
 When the root declares one, it takes no parameters, and it may return any
 type, whose value is discarded (`packages.md` §6.2).
-
----
-
-## 10. Not done yet
-
-- Resting places for a function value, whose type would have to carry them.

@@ -31,6 +31,9 @@ the runtime on deep recursive values (5), and the compiler itself crashes
 building any read of a reference stored as an element (7) and any fixed
 array of 512 KiB or more (8).
 
+All seventeen are now closed; the **Outcome** section after the summary
+says how.
+
 Findings are numbered by severity and classified:
 
 - **Bug** — the compiler does something the spec says it must not.
@@ -60,6 +63,34 @@ Findings are numbered by severity and classified:
 | 15 | Nit | `genref` | An error inside a generic instance names neither the instance nor the call that made it |
 | 16 | Nit | `downstream` | The transitive value-downstream error calls `&Engine` "a reference type" |
 | 17 | Nit | `elemfield` | A field of a list element is refused as "part of a temporary value" |
+
+## Outcome
+
+Every finding is closed. Where the spec had to say something first, it now
+does, at spec commit
+[`82da937`](https://github.com/zane-lang/spec/tree/82da937); the compiler
+follows it. The probe outputs in `tests/memory-probes/*.out` are rerun
+against the fixed compiler, so the sections below describe what the probes
+found at `5bc7684`, and the `.out` files show what they print now.
+
+| # | How it closed |
+|---|---|
+| 1 | A call through a `mut` function value is taken to keep every argument in its subject (`lifetimes.md` §1.11), so all three `lambdas` cases are rejected |
+| 2, 9 | Nothing else in a call writes what the call borrows (`memory.md` §2.9.1): the `mut` subject, a block argument and a later argument are all checked, for value-type borrows too, so `v!setFrom(v)` no longer compiles and the copy question cannot be asked. `if(dirty) { dirty = false; }` is rejected by the same rule; the condition is copied into a local first |
+| 3 | While a binder names its payload, the arm writes the scrutinee only through it (`adt.md` §5.1) |
+| 4 | A destination, and a `!` call's subject, are located after the value and the arguments (`memory.md` §2.12) |
+| 5 | The runtime's copy, overwrite, move and end walk a heap stack instead of the C stack |
+| 6 | A `^T` is never filled with an `&` type, so `List<&T>` is ill-formed (`generics.md` §3.6, §8.3); an `ArrayRef` of references stays legal |
+| 7 | The `&` element read is built from the element's storage, not its address |
+| 8 | A load of an aggregate of 4 KiB or more that is only stored becomes a `memcpy` (`design/lowering.md` §9) |
+| 10 | A block run at most once is walked once by the read-only analysis, and one run more than once is settled silently before the walk that reports |
+| 11 | A type written through a generic alias is kind-checked like one written directly |
+| 12 | Inference from `&Port` binds `T` to `Port`, and the mode stays on the parameter; the spec needed no change, and the remaining confusion was the diagnostic, which is 15 |
+| 13 | `lifetimes.md` §1.7 names a package constant as a root for a returned `&T`, matching the compiler |
+| 14 | `lifetimes.md` §1.1 and §1.11 drop the `&T` parameter as a store root, so parameters stay read-only; the compiler already behaved this way |
+| 15 | An error from any analysis inside a generic instance names the instance and the call that required it |
+| 16 | An `&` type is called "a reference" in kind errors |
+| 17 | A field of a list element or payload is described by that element or payload |
 
 ## What holds
 

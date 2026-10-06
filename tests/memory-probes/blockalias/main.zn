@@ -65,19 +65,19 @@ Int readSelfAfter(this Engine, body @concepts$Block) {
 Unit main() {
 	slot Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
 	a Int = readAfter(slot.full ?? Engine(Int(0), String("none")), {
-		slot = Slot.empty(Unit());
+		slot = Slot.empty(Unit());  // ILLEGAL (memory.md §2.9.1)
 	});
 	check(String("payload borrowed while a block argument changes the case"), a == Int(42));
 	list List<Engine> = @primitives$List(Engine);
 	list!push(Engine(Int(42), String("x")));
 	b Int = readAfter(list[Int(1)], {
-		list = @primitives$List(Engine);
+		list = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
 	});
 	check(String("element borrowed while a block argument replaces the list"), b == Int(42));
 	list3 List<Engine> = @primitives$List(Engine);
 	list3!push(Engine(Int(42), String("x")));
 	n Int = list3[Int(1)]:readSelfAfter({
-		list3 = @primitives$List(Engine);
+		list3 = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
 	});
 	check(String("element subject freed by its own block"), n == Int(42));
 
@@ -85,7 +85,7 @@ Unit main() {
 	other List<Engine> = @primitives$List(Engine);
 	other!push(Engine(Int(1), String("y")));
 	other[Int(1)]!setAfter({
-		other = @primitives$List(Engine);
+		other = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
 		victims!push(Engine(Int(100), String("victim")));
 	});
 	check(String("victim untouched by a write through the freed subject"), victims[Int(1)].power == Int(100));

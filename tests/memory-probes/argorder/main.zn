@@ -60,13 +60,13 @@ Int readLater(e Engine, x Int) {
 }
 Unit main() {
 	slot Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
-	a Int = readLater(slot.full ?? Engine(Int(0), String("none")), slot!clearAndGive());
+	a Int = readLater(slot.full ?? Engine(Int(0), String("none")), slot!clearAndGive());  // ILLEGAL (memory.md §2.9.1)
 	check(String("borrowed payload freed by a later argument"), a == Int(42));
 	list List<Engine> = @primitives$List(Engine);
 	list!push(Engine(Int(42), String("x")));
 	pad List<Engine> = @primitives$List(Engine);
 	pad!push(Engine(Int(0), String("p")));
-	b Int = readLater(list[Int(1)], list!growAndGive(Int(1000)));
+	b Int = readLater(list[Int(1)], list!growAndGive(Int(1000)));  // ILLEGAL (memory.md §2.9.1)
 	check(String("borrowed element moved by a later argument"), b == Int(42));
 	return Unit();
 }

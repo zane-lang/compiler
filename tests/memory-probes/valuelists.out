@@ -1,9 +1,9 @@
 File "valuelists/main.zn", line 62, characters 17-31:
-62 |     counts!push(counts[Int(1)]);
+62 |     counts!push(counts[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
   |                 ^^^^^^^^^^^^^^
 Error: `counts[]` is borrowed by this call, and its `mut` subject `counts` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 File "valuelists/main.zn", line 67, characters 21-30:
-67 |         counts!push(counts[i]);
+67 |         counts!push(counts[i]);  // ILLEGAL (memory.md §2.9.1)
   |                     ^^^^^^^^^
 Error: `counts[]` is borrowed by this call, and its `mut` subject `counts` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 == rejected
