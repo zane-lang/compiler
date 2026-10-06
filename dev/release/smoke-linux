@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Run in a clean Linux container with only the extracted distribution mounted.
+set -euo pipefail
+archive=${1:?usage: smoke-linux ARCHIVE OUTPUT}
+out=${2:?usage: smoke-linux ARCHIVE OUTPUT}
+mkdir -p "$out"
+tar -xzf "$archive" -C "$out"
+root=$(find "$out" -mindepth 1 -maxdepth 1 -type d -name 'zane-compiler-*')
+test -n "$root"
+# Exercise relocation and spaces in the compiler path, not the build checkout.
+mv "$root" "$out/toolchain with spaces"
+root="$out/toolchain with spaces"
+cp -R /source/tests/codegen/fixtures/hello "$out/hello"
+for optimization in plain optimized; do
+    flags=()
+    [[ "$optimization" == plain ]] || flags+=(--optimize)
+    "$root/bin/zanec" "${flags[@]}" --target x86_64-linux-gnu \
+        --build "$out/hello-$optimization" --package "$out/hello"
+    "$out/hello-$optimization" > "$out/hello-$optimization.out"
+    cmp /source/tests/codegen/golden/hello.out "$out/hello-$optimization.out"
+    "$root/bin/zanec" "${flags[@]}" --target x86_64-windows-gnu \
+        --build "$out/hello-$optimization.exe" --package "$out/hello"
+done
+echo 'Relocated compiler built and ran Linux programs and linked Windows programs'
