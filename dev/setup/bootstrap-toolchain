@@ -64,14 +64,17 @@ if ((${#needed[@]} > 0)); then
 	opam install -y "${needed[@]}"
 fi
 
-# `--assume-depexts` because the LLVM the bindings link against is installed
-# outside opam, and opam would otherwise try to install it again itself.
+# `--no-depexts` because the LLVM the bindings link against is installed
+# outside opam, and the `llvm-config` check below is what confirms it. With
+# depexts on, opam asks the system package manager whether apt's `llvm-19-dev`
+# exists, and on a machine whose apt index is empty or stale it refuses the
+# package as unavailable even though devbox's LLVM is right there.
 # Without that LLVM the bindings are skipped rather than failed: the grammar
 # and ambiguity tools build without them, and only codegen needs them.
 if [[ "$(opam show --field=installed-version llvm 2>/dev/null)" != "$LLVM_VERSION-shared" ]]; then
 	if command -v "llvm-config-$LLVM_VERSION" >/dev/null 2>&1 ||
 		[[ "$(llvm-config --version 2>/dev/null)" == "$LLVM_VERSION".* ]]; then
-		opam install -y --assume-depexts "llvm.$LLVM_VERSION-shared"
+		opam install -y --no-depexts "llvm.$LLVM_VERSION-shared"
 	else
 		echo "bootstrap-toolchain: llvm-config-$LLVM_VERSION not found, so the LLVM bindings are not installed;" >&2
 		echo "  codegen needs them (apt install llvm-$LLVM_VERSION-dev libzstd-dev)" >&2
