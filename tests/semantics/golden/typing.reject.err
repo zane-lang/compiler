@@ -54,6 +54,34 @@ File "fixtures/typing/reject/bad/bodies.zn", line 35, characters 5-19:
 35 |     return Int(1);
   |     ^^^^^^^^^^^^^^
 Error: `return` leaves a verb, and this is not in one
+File "fixtures/typing/reject/bad/borrows.zn", line 29, characters 15-16:
+29 |     t!setFrom(t);
+  |               ^
+Error: `t` is borrowed by this call, and its `mut` subject `t` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 30, characters 15-26:
+30 |     own!stack(own[Int(1)]);
+  |               ^^^^^^^^^^^
+Error: `own[]` is borrowed by this call, and its `mut` subject `own` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 32, characters 9-12:
+32 |         own = @primitives$List(Cargo);
+  |         ^^^
+Error: this writes `own`, which overlaps `own[]`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 34, characters 26-29:
+34 |     compare(own[Int(1)], own!grown());
+  |                          ^^^
+Error: this writes `own`, which overlaps `own[]`, which an earlier argument of this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 39, characters 13-17:
+39 |             mine = Lot.none(Int(1));
+  |             ^^^^
+Error: this writes `mine`, which overlaps the scrutinee `mine` while `c` names its payload: an arm with a binder writes its scrutinee only through the binder (adt.md §5.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 43, characters 13-17:
+43 |             mine!empty();
+  |             ^^^^
+Error: this writes `mine`, which overlaps the scrutinee `mine` while `u` names its payload: an arm with a binder writes its scrutinee only through the binder (adt.md §5.1)
+File "fixtures/typing/reject/bad/borrows.zn", line 49, characters 9-14:
+49 |         dirty = false;
+  |         ^^^^^
+Error: this writes `dirty`, which overlaps `dirty`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 File "fixtures/typing/reject/bad/calls.zn", line 25, characters 13-33:
 25 |     a Int = pair(Int(1), Int(2));
   |             ^^^^^^^^^^^^^^^^^^^^
@@ -358,6 +386,10 @@ File "fixtures/typing/reject/bad/marks.zn", line 58, characters 9-14:
 58 |     tap(count);
   |         ^^^^^
 Error: `@primitives$Int` is a value type, and it fills an `&` at the parameter `at`; `&` marks only a reference type, since a value is never referenced, only copied
+File "fixtures/typing/reject/bad/marks.zn", line 67, characters 23-28:
+67 | alias KiteRefs = List<&Kite>
+  |                       ^^^^^
+Error: `&bad$Kite` is a reference, and it fills the elements of `@primitives$List<&bad$Kite>`; a list's elements are owners, never references
 File "fixtures/typing/reject/bad/matches.zn", line 6, characters 29-44:
 6 | Int answer(value Answer) => match (value) {
   |                             ^^^^^^^^^^^^^^^
@@ -586,6 +618,10 @@ File "fixtures/typing/reject/bad/rests.zn", line 66, characters 18-24:
 66 |         bay!dock(docked);
   |                  ^^^^^^
 Error: this stores a reference to `near`, whose block ends before `bay`'s does (`dock` keeps `plug` in `this`)
+File "fixtures/typing/reject/bad/rests.zn", line 82, characters 20-24:
+82 |         own!attach(near);
+  |                    ^^^^
+Error: this stores a reference to `near`, whose block ends before `own`'s does (a call through a function value is taken to keep every argument in its subject)
 File "fixtures/typing/reject/bad/scopes.zn", line 22, characters 13-23:
 22 |         r = inner.leaf;
   |             ^^^^^^^^^^

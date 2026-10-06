@@ -57,25 +57,21 @@ Error: `^downstream$Engine` is a roaming owner, and `^` is written only on a loc
 File "downstream/main.zn", line 26, characters 36-40:
 26 | type ListAmpInt = #struct { e List<&Int>; }                  // ILLEGAL: & over a value type (§2.4)
   |                                    ^^^^
-Error: `&@primitives$Int` is a reference, and it fills the elements of `@primitives$List<&@primitives$Int>`; a list's elements are owners, never references
-File "downstream/main.zn", line 26, characters 36-40:
-26 | type ListAmpInt = #struct { e List<&Int>; }                  // ILLEGAL: & over a value type (§2.4)
-  |                                    ^^^^
 Error: `@primitives$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
-File "downstream/main.zn", line 30, characters 79-86:
-30 | type OkRef = #struct { e &Engine; owned Engine; items List<Engine>; refs List<&Engine>; }  // legal
-  |                                                                               ^^^^^^^
+File "downstream/main.zn", line 31, characters 36-43:
+31 | type RefList = #struct { refs List<&Engine>; }              // ILLEGAL: a list holds owners (generics.md §8.3)
+  |                                    ^^^^^^^
 Error: `&downstream$Engine` is a reference, and it fills the elements of `@primitives$List<&downstream$Engine>`; a list's elements are owners, never references
-File "downstream/main.zn", line 35, characters 31-37:
-35 | type UseGen = #struct { g Gen<Engine>; }                     // ILLEGAL
+File "downstream/main.zn", line 36, characters 31-37:
+36 | type UseGen = #struct { g Gen<Engine>; }                     // ILLEGAL
   |                               ^^^^^^
 Error: `downstream$Engine` is a reference type, and it reaches `downstream$Gen<downstream$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
-File "downstream/main.zn", line 39, characters 11-17:
-39 |     g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
+File "downstream/main.zn", line 40, characters 11-17:
+40 |     g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
   |           ^^^^^^
 Error: `downstream$Engine` is a reference type, and it reaches `downstream$Gen<downstream$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
-File "downstream/main.zn", line 39, characters 25-39:
-39 |     g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
+File "downstream/main.zn", line 40, characters 25-39:
+40 |     g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
   |                         ^^^^^^^^^^^^^^
 Error: `downstream$Engine` is a reference type, and it reaches `downstream$Gen<downstream$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
 == rejected

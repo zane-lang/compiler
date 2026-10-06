@@ -67,3 +67,19 @@ Unit queue() {
 	});
 	return Unit();
 }
+
+/// A call through a function value that writes its subject is taken to keep
+/// every argument there, since a function type carries no summary.
+Unit throughValue() {
+	far Port(Int(1));
+	own Plug(far);
+	attach Unit(this Plug, port &Port) mut {
+		this.port = port;
+		return Unit();
+	}
+	nest({
+		near Port(Int(2));
+		own!attach(near);
+	});
+	return Unit();
+}

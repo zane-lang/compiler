@@ -27,7 +27,8 @@ type ListAmpInt = #struct { e List<&Int>; }                  // ILLEGAL: & over 
 
 type OkRec = variant { done Unit; more OkRec; }              // legal: a boxed member
 type OkVal = struct { a Int; b OkRec; }                      // legal
-type OkRef = #struct { e &Engine; owned Engine; items List<Engine>; refs List<&Engine>; }  // legal
+type OkRef = #struct { e &Engine; owned Engine; items List<Engine>; }  // legal
+type RefList = #struct { refs List<&Engine>; }              // ILLEGAL: a list holds owners (generics.md §8.3)
 
 /// A generic value type filled with a reference type reaches the same ban.
 type Gen<T Type> = struct { item T; }

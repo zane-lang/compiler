@@ -23,8 +23,8 @@ Plug(port &Port) => init{ port; }
 type Frame = #struct { plug Plug; }
 Frame(plug ^Plug) => init{ plug; }
 
-type Rack = #struct { plugs List<Plug>; refs List<&Port>; slot &Port; }
-Rack(slot &Port) => init{ plugs = @primitives$List(Plug); refs = @primitives$List(PortRef); slot; }
+type Rack = #struct { plugs List<Plug>; slot &Port; }
+Rack(slot &Port) => init{ plugs = @primitives$List(Plug); slot; }
 
 type Pin<T Type> = #struct { at &T; }
 Pin<T>(at &T Type) => init{ at; }
@@ -82,7 +82,6 @@ Unit main() {
 		frame.plug.port = near;               // ILLEGAL: into a nested field
 		plug!wire(near);                      // ILLEGAL: resting place
 		plug!ping(near, Int(3));              // ILLEGAL: resting place through mutual recursion
-		rack.refs!push(tmp);                  // ILLEGAL: push into an outer list of references
 		rack.plugs!push(Plug(near));          // ILLEGAL: push a value carrying one
 		plugs[Int(1)] = Plug(near);           // ILLEGAL: element overwrite with a value carrying one
 		plugs[Int(1)].port = near;            // ILLEGAL: into an element's field

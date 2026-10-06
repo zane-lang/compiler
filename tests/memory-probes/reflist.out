@@ -1,17 +1,9 @@
 File "reflist/main.zn", line 16, characters 27-32:
-16 |     refs @primitives$List<&Port> = @primitives$List(PortRef);  // legal, and accepted
+16 |     refs @primitives$List<&Port> = @primitives$List(PortRef);  // ILLEGAL: a list holds owners
   |                           ^^^^^
-Error: `&reflist$Port` is a reference type, and it fills the elements of `@primitives$List<&reflist$Port>`; a list's elements are owners, never references
+Error: `&reflist$Port` is a reference, and it fills the elements of `@primitives$List<&reflist$Port>`; a list's elements are owners, never references
 File "reflist/main.zn", line 16, characters 53-60:
-16 |     refs @primitives$List<&Port> = @primitives$List(PortRef);  // legal, and accepted
+16 |     refs @primitives$List<&Port> = @primitives$List(PortRef);  // ILLEGAL: a list holds owners
   |                                                     ^^^^^^^
-Error: `&reflist$Port` is a reference type, and it fills the elements of `@primitives$List<&reflist$Port>`; a list's elements are owners, never references
-File "reflist/main.zn", line 17, characters 5-17:
-17 |     refs!push(r);                                             // legal: copies an existing reference
-  |     ^^^^^^^^^^^^
-Error: no method `push` accepts (@primitives$List<&reflist$Port>, &reflist$Port); the candidate is `@primitives$Unit push(this @primitives$List<T>, ^T) mut`
-File "reflist/main.zn", line 18, characters 5-17:
-18 |     refs!push(p);                                             // legal: mints one from a settled symbol
-  |     ^^^^^^^^^^^^
-Error: no method `push` accepts (@primitives$List<&reflist$Port>, reflist$Port); the candidate is `@primitives$Unit push(this @primitives$List<T>, ^T) mut`
+Error: `&reflist$Port` is a reference, and it fills the elements of `@primitives$List<&reflist$Port>`; a list's elements are owners, never references
 == rejected

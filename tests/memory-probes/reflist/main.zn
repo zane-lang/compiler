@@ -1,6 +1,6 @@
-/// A list of references (memory.md §2.2: "an `&T` stored as an element
-/// value"; §2.8's `weapons List<&Weapon>`). The list can be declared and
-/// made, but nothing can be pushed into it.
+/// A list of references. A list's elements are owners, so its element type
+/// is never an `&` (generics.md §8.3); a fixed `ArrayRef` of references is
+/// the shape that holds them.
 package reflist;
 
 alias Int = @primitives$Int
@@ -13,10 +13,7 @@ Port(n Int) => init{ n; }
 Unit main() {
 	p Port(Int(1));
 	r &Port = p;
-	refs @primitives$List<&Port> = @primitives$List(PortRef);  // legal, and accepted
-	refs!push(r);                                             // legal: copies an existing reference
-	refs!push(p);                                             // legal: mints one from a settled symbol
-	x &Port = refs[Int(1)];                                   // legal: reads a stored reference
+	refs @primitives$List<&Port> = @primitives$List(PortRef);  // ILLEGAL: a list holds owners
 	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([r, r]);  // legal, and accepted
 	y &Port = row[Int(2)];                                    // legal
 	return Unit();
