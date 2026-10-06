@@ -2,8 +2,10 @@
 /// while computing a value is replayed where the code was, in order; a call
 /// that runs out of the step budget, one that nests calls too deep, and one
 /// whose value is past the size cap stay runtime code, with the constant code
-/// inside them still folded. Each check prints `yes` when it holds and `no`
-/// when it does not, and every line written shows the order held.
+/// inside them still folded; a store made inside an expression that folds is
+/// still made for a read that happens when the program runs. Each check
+/// prints `yes` when it holds and `no` when it does not, and every line
+/// written shows the order held.
 package replayed;
 
 alias Int = @primitives$Int
@@ -59,6 +61,20 @@ Int down(n Int) {
 	return Int(1) + down(n + ~Int(1));
 }
 
+Int bumped(this Int, by Int) mut {
+	this = this + by;
+	return this;
+}
+
+Int double(n Int) => n * Int(2)
+
+/// Reads its subject's own slot after three million steps, so the read
+/// happens when the program runs.
+Int slowly(this Int) mut {
+	waited Int = spin(Int(3000000));
+	return this + waited + ~Int(3000000);
+}
+
 String repeated(word String, times Int) {
 	out String("");
 	i Int(1);
@@ -75,6 +91,12 @@ Unit main() {
 	check(spin(Int(3000000)) == Int(3000000));
 	check(down(Int(5000)) == Int(5000));
 	say(String("after\n"));
+
+	// A store made inside an expression that folds is still made, for the
+	// read that happens when the program runs.
+	x Int(5);
+	check(double(x!bumped(Int(1))) == Int(12));
+	check(x!slowly() == Int(6));
 
 	// Seventy thousand bytes: past the size cap.
 	long String = repeated(String("0123456789"), Int(7000));

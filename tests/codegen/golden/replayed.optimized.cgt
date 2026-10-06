@@ -51,8 +51,42 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "after\n" : handle
-    │       ├── body[7] > hold:
-    │       │   ├── local: #14
+    │       ├── body[7] > let:
+    │       │   ├── local: #11
+    │       │   └── value: 5 : i64
+    │       ├── body[8] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: replayed$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: replayed$double(%primitives$Int)
+    │       │       │   └── args[0] > expand:
+    │       │       │       ├── type: i64
+    │       │       │       ├── label: @37
+    │       │       │       ├── result: #38
+    │       │       │       ├── body[0] > assign:
+    │       │       │       │   ├── place: #11
+    │       │       │       │   └── value: 6 : i64
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #38
+    │       │       │           └── value: 6 : i64
+    │       │       └── right: 12 : i64
+    │       ├── body[9] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: replayed$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: replayed$slowly(this %primitives$Int)
+    │       │       │   └── args[0]: address of #11 : ptr
+    │       │       └── right: 6 : i64
+    │       ├── body[10] > hold:
+    │       │   ├── local: #15
     │       │   ├── scope: %4
     │       │   ├── value > call:
     │       │   │   ├── type: handle
@@ -60,7 +94,7 @@
     │       │   │   ├── args[0]: "0123456789" : handle
     │       │   │   └── args[1]: 7000 : i64
     │       │   └── layout: %primitives$String
-    │       ├── body[8] > eval > call:
+    │       ├── body[11] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: replayed$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -69,13 +103,13 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0]: local #14 : handle
+    │       │       │   ├── args[0]: local #15 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @19
-    │       │       │       ├── result: #20
+    │       │       │       ├── label: @20
+    │       │       │       ├── result: #21
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #18
+    │       │       │       │   ├── local: #19
     │       │       │       │   ├── scope: %4
     │       │       │       │   ├── value > call:
     │       │       │       │   │   ├── type: handle
@@ -84,28 +118,28 @@
     │       │       │       │   │   └── args[1]: 7000 : i64
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #20
-    │       │       │           └── value: local #18 : handle
+    │       │       │           ├── place: #21
+    │       │       │           └── value: local #19 : handle
     │       │       └── right: 1 : i64
-    │       ├── body[9] > eval > runtime:
+    │       ├── body[12] > eval > runtime:
     │       │   ├── type: i64
     │       │   ├── fn: zane_set_threads
     │       │   └── args[0]: 2 : i64
-    │       ├── body[10] > let:
-    │       │   ├── local: #24
+    │       ├── body[13] > let:
+    │       │   ├── local: #25
     │       │   └── value: 0 : i64
-    │       ├── body[11] > eval > runtime:
+    │       ├── body[14] > eval > runtime:
     │       │   ├── type: i64
     │       │   ├── fn: zane_set_threads
     │       │   └── args[0]: 0 : i64
-    │       ├── body[12] > assign:
-    │       │   ├── place: #24
+    │       ├── body[15] > assign:
+    │       │   ├── place: #25
     │       │   └── value: 1 : i64
-    │       ├── body[13] > eval > runtime:
+    │       ├── body[16] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       └── body[14] > return: unit : void
+    │       └── body[17] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: replayed$say(%primitives$String)
     │   ├── params[0]: local #1 : handle
@@ -233,7 +267,54 @@
     │               ├── op: +
     │               ├── left: local #1 : i64
     │               └── right: -1 : i64
-    └── funcs[6] > func:
+    ├── funcs[6] > func:
+    │   ├── symbol: replayed$bumped(this %primitives$Int, %primitives$Int)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: i64
+    │   ├── body[0] > assign:
+    │   │   ├── place: *#1
+    │   │   └── value > binary:
+    │   │       ├── type: i64
+    │   │       ├── op: +
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: local #1 : ptr
+    │   │       └── right: local #2 : i64
+    │   └── body[1] > return > deref:
+    │       ├── type: i64
+    │       └── ptr: local #1 : ptr
+    ├── funcs[7] > func:
+    │   ├── symbol: replayed$double(%primitives$Int)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: *
+    │       ├── left: local #1 : i64
+    │       └── right: 2 : i64
+    ├── funcs[8] > func:
+    │   ├── symbol: replayed$slowly(this %primitives$Int)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: replayed$spin(%primitives$Int)
+    │   │       └── args[0]: 3000000 : i64
+    │   └── body[1] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left > binary:
+    │       │   ├── type: i64
+    │       │   ├── op: +
+    │       │   ├── left > deref:
+    │       │   │   ├── type: i64
+    │       │   │   └── ptr: local #1 : ptr
+    │       │   └── right: local #2 : i64
+    │       └── right: -3000000 : i64
+    └── funcs[9] > func:
         ├── symbol: replayed$repeated(%primitives$String, %primitives$Int)
         ├── params[0]: local #1 : handle
         ├── params[1]: local #2 : i64
