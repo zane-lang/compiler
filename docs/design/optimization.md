@@ -221,22 +221,21 @@ must agree on what its variables hold.
 
 ## 4. How it follows the spec
 
-[`concurrency.md`](https://github.com/zane-lang/spec/blob/9f0b6a8/spec/concurrency.md)
-§2.1 lets the compiler evaluate any computation whose inputs it knows, from
-the leaves up, and replace it with what it produced: a value read from
-capability-backed state is unknown, and every write the computation made is
-still made, in order. §2.3 bounds reduction by work rather than by a proof
-of termination. Stage 5 is that rule, with its choices made:
+[`effects.md`](https://github.com/zane-lang/spec/blob/31ad50a/spec/effects.md)
+§5.3 lets a compiler evaluate at compile time any computation that depends on
+no parameter of its verb and no read of capability-backed state, or leave it
+for run time, and requires that doing so change nothing a program prints or
+computes. How is left to the compiler. Stage 5's answer is this document:
 
-- the bound is O6's: the step budgets, the depth and the size cap;
-- an input (O3) is what reads capability-backed state;
+- what reads capability-backed state is an input (O3), and stops a fold;
 - an output is replayed where it was made (O4), and a known local a
-  computation wrote is stored back (O6).
+  computation wrote is stored back (O6), which is what keeps folding
+  unobservable;
+- the bound on work is O6's: the step budgets, the depth and the size cap.
 
-The rule permits a compiler to reduce less, and Stage 5 does in places: a
-value holding a lent address, a changed list or box (only plain locals are
-stored back), and a package constant's first-read check (O9) stay runtime
-work.
+Stage 5 leaves some such computations for run time, as §5.3 allows: a value
+holding a lent address, a changed list or box (only plain locals are stored
+back), and a package constant's first-read check (O9).
 
 ---
 

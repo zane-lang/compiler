@@ -77,7 +77,7 @@ Block-taking verbs expanded at the call site (`control-flow.md` §2.3) are
 neither. That is a lowering, and it belongs to the lowering stage, which builds the CGT.
 
 Whether a call touches capability-backed state
-([`effects.md`](https://github.com/zane-lang/spec/blob/9f0b6a8/spec/effects.md) §5.2) is not a semantic check either. No program is
+([`effects.md`](https://github.com/zane-lang/spec/blob/31ad50a/spec/effects.md) §5.2) is not a semantic check either. No program is
 rejected for it: it decides only what may be evaluated at compile time or
 run in parallel, which is stage 5's to decide
 ([`optimization.md`](optimization.md) O3).
