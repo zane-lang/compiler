@@ -49,8 +49,7 @@ and concept =
   | Text_lit
   | Array_lit of t * number
   | Map_lit of t * t
-  (* A block argument: statements that yield nothing (docs/spec-divergences.md
-     §11). *)
+  (* A block argument: statements that yield nothing (control-flow.md §2.4). *)
   | Block
   (* The type of a type written where a value goes: what a `T Type` value
      parameter accepts (generics.md §5.3). *)

@@ -270,7 +270,7 @@ there. A call in a body can store one parameter into another in turn, so the
 summaries are computed to a fixed point over every body before any reports.
 
 **Exits** (`lib/tst/analyses/exits.ml`, [`docs/spec-divergences.md`](../spec-divergences.md)
-§10). A verb exits when `@controlflow$exitFromCall` is in its own frame: its
+§9). A verb exits when `@controlflow$exitFromCall` is in its own frame: its
 body, or a block written there. A call to one ends the run of the block it is
 written in, so it is an error in no block. A lambda's own frame holds no
 `@controlflow$exitFromCall` at all
