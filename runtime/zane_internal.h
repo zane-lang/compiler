@@ -127,7 +127,8 @@ struct zane_context {
    position its kind, its offset, its size, a list's stride or a box's
    payload size, the layout of a list's elements or a box's payload, and
    the variant tags that must be live for it to be there, as a count and
-   then (tag offset, tag) pairs. */
+   then (tag offset, tag) pairs. An inner layout may be null or name a table
+   with zero positions; neither needs a walk. */
 enum { ZANE_TEXT = 1, ZANE_LIST = 2, ZANE_BOX = 3 };
 
 typedef struct {

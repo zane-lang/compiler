@@ -47,7 +47,7 @@ static void zane_move_at(zane_work *w, char *at, const zane_position *p, zane_ma
 		memcpy(items, l->items, (size_t)(l->count * p->extra));
 		zane_unblock(p, l->items, l->room);
 		l->items = items;
-		if (p->inner)
+		if (p->inner && p->inner[0] > 0)
 			for (int64_t i = 0; i < l->count; i++)
 				zane_work_push(w, (zane_job){ .at = items + i * p->extra, .layout = p->inner });
 		break;
@@ -59,7 +59,8 @@ static void zane_move_at(zane_work *w, char *at, const zane_position *p, zane_ma
 		memcpy(payload, *box, (size_t)p->extra);
 		zane_unblock(p, *box, 0);
 		*box = payload;
-		if (p->inner) zane_work_push(w, (zane_job){ .at = payload, .layout = p->inner });
+		if (p->inner && p->inner[0] > 0)
+			zane_work_push(w, (zane_job){ .at = payload, .layout = p->inner });
 		break;
 	}
 	}
