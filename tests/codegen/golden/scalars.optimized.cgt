@@ -233,7 +233,15 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       └── body[56] > return: unit : void
+    │       ├── body[56] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[57] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       └── body[58] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: scalars$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1

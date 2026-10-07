@@ -121,6 +121,9 @@ Unit main() {
 	check(@operators$equal(F32.round(i64(9007199254740993)), f32(9007199254740992.0)));
 	check(@operators$equal(F32.round(minI64()), @operators$negate(f32(9223372036854775808.0))));
 	check(@operators$equal(F64.round(i64(9007199254740993)), f64(9007199254740992.0)));
+	// A double rounded to a single keeps an infinity, and a NaN stays a NaN.
+	check(@operators$equal(F32.round(infinity()), @operators$divide(f32(1.0), f32(0.0))));
+	check(@operators$not(@operators$equal(F32.round(nan()), F32.round(nan()))));
 	// One rounding, not two: through a double first, this would round to
 	// 2^60 instead of the single above it.
 	check(@operators$equal(F32.round(i64(1152921573326323713)), f32(1152921642045800448.0)));
