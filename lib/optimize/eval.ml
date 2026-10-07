@@ -180,9 +180,26 @@ let canonical f = if Float.is_nan f then Int64.float_of_bits 0x7FF8_0000_0000_00
    which is the one rounding the machine's own single operation makes. *)
 let float (t : Ty.t) f = canonical (match t with Ty.F32 -> Scalar.single f | _ -> f)
 
-(* The shortest decimal spelling, up to the precision needed to round-trip
-   the scalar. The C runtime follows the same search with snprintf/strtof or
-   strtod, and special values have fixed spellings. *)
+(* Canonical scientific notation, as runtime/block.c's [zane_decimal_text]. *)
+let decimal_text text =
+  match String.index_opt text 'e' with
+  | None -> text
+  | Some exponent ->
+      let power =
+        int_of_string (String.sub text (exponent + 1) (String.length text - exponent - 1))
+      in
+      let rec trim at = if text.[at - 1] = '0' then trim (at - 1) else at in
+      let last =
+        if String.contains text '.' then
+          let at = trim exponent in
+          if text.[at - 1] = '.' then at - 1 else at
+        else exponent
+      in
+      Printf.sprintf "%se%d" (String.sub text 0 last) power
+
+(* Compare all round-tripping candidates, including scientific notation
+   where %g prefers a longer fixed spelling. Ties retain the first (least
+   precise) candidate. The runtime makes the same search in the C locale. *)
 let float_text (t : Ty.t) f =
   if Float.is_nan f then "nan"
   else if f = Float.infinity then "inf"
@@ -194,12 +211,18 @@ let float_text (t : Ty.t) f =
       | _ -> Int64.bits_of_float a = Int64.bits_of_float b
     in
     let limit = if t = Ty.F32 then 9 else 17 in
-    let rec shortest precision =
-      let text = Printf.sprintf "%.*g" precision f in
-      let round = float_of_string text in
-      if same f round || precision = limit then text else shortest (precision + 1)
-    in
-    shortest 1
+    let best = ref None in
+    for precision = 1 to limit do
+      List.iter
+        (fun text ->
+          let text = decimal_text text in
+          if same f (float_of_string text) then
+            match !best with
+            | Some held when String.length held <= String.length text -> ()
+            | _ -> best := Some text)
+        [ Printf.sprintf "%.*g" precision f; Printf.sprintf "%.*e" (precision - 1) f ]
+    done;
+    match !best with Some text -> text | None -> stop "formatting a float"
 
 let binary (op : Expr.binop) (t : Ty.t) l r =
   match (t, op, l, r) with

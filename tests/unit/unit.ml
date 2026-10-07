@@ -405,6 +405,15 @@ let formatted_scalars () =
     (format Cgt.Runtime.Text_f32 (Value.VFloat (C.Scalar.single 0.1)) = "0.1");
   check "F64 uses a shortest round-tripping decimal"
     (format Cgt.Runtime.Text_f64 (Value.VFloat (1. /. 3.)) = "0.3333333333333333");
+  List.iter
+    (fun fn -> check "10 uses shorter fixed notation" (format fn (Value.VFloat 10.) = "10"))
+    [ Cgt.Runtime.Text_f32; Cgt.Runtime.Text_f64 ];
+  check "scientific notation can beat %g's fixed spelling"
+    (format Cgt.Runtime.Text_f64 (Value.VFloat 0.0001) = "1e-4");
+  check "F32 subnormals round-trip"
+    (format Cgt.Runtime.Text_f32 (Value.VFloat (Int32.float_of_bits 1l)) = "1e-45");
+  check "F64 subnormals round-trip"
+    (format Cgt.Runtime.Text_f64 (Value.VFloat (Int64.float_of_bits 1L)) = "5e-324");
   check "negative zero keeps its sign"
     (format Cgt.Runtime.Text_f32 (Value.VFloat (-0.)) = "-0");
   check "float specials have fixed spellings"
