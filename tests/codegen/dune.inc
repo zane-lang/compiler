@@ -859,6 +859,40 @@
   (diff golden/replayed.out replayed.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/scalarTexts))
+ (targets scalarTexts.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build scalarTexts.exe --package fixtures/scalarTexts)))
+
+(rule
+ (deps (source_tree fixtures/scalarTexts))
+ (targets scalarTexts.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build scalarTexts.optimized.exe --optimize --package fixtures/scalarTexts)))
+
+(rule
+ (action
+  (with-stdout-to
+   scalarTexts.out.actual
+   (run ./scalarTexts.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalarTexts.out scalarTexts.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   scalarTexts.optimized.out.actual
+   (run ./scalarTexts.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalarTexts.out scalarTexts.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/scalars))
  (action
   (with-stdout-to

@@ -1,5 +1,9 @@
 #include "zane_internal.h"
 
+#include <inttypes.h>
+#include <locale.h>
+#include <math.h>
+
 /* ---------------------------------------------------------------------- */
 /* Dynamic blocks (memory.md §3.6, docs/design/lowering.md §9)                   */
 /* ---------------------------------------------------------------------- */
@@ -176,6 +180,143 @@ void zane_copy(char *value, const int64_t *layout) {
 
 /* A boxed member's block (memory.md §3.6): exactly one payload's size. */
 void *zane_box(int64_t size, int64_t align) { return zane_alloc(zane_here(), size, align); }
+
+/* A scalar's String constructor. Floats use compact decimal text that
+   parses back to the same scalar; special floats have fixed spellings. */
+static void zane_text_from_buffer(zane_text *out, const char *buffer, int length) {
+	if (length <= 0) {
+		*out = (zane_text){ "", 0, 0 };
+		return;
+	}
+	char *bytes = zane_alloc(zane_here(), length, 8);
+	memcpy(bytes, buffer, (size_t)length);
+	*out = (zane_text){ bytes, length, length };
+}
+
+static int zane_same_f32(float left, float right) {
+	uint32_t l, r;
+	memcpy(&l, &left, sizeof l);
+	memcpy(&r, &right, sizeof r);
+	return l == r;
+}
+
+static int zane_same_f64(double left, double right) {
+	uint64_t l, r;
+	memcpy(&l, &left, sizeof l);
+	memcpy(&r, &right, sizeof r);
+	return l == r;
+}
+
+/* One immutable C numeric locale, shared by all runtime threads. Formatting
+   must not change the host's process locale. POSIX selects it only on this
+   thread; Windows CRT calls take it explicitly. */
+static pthread_once_t zane_numeric_once = PTHREAD_ONCE_INIT;
+#ifdef _WIN32
+static _locale_t zane_numeric_locale;
+#else
+static locale_t zane_numeric_locale;
+#endif
+
+static void zane_numeric_init(void) {
+#ifdef _WIN32
+	zane_numeric_locale = _create_locale(LC_NUMERIC, "C");
+#else
+	zane_numeric_locale = newlocale(LC_NUMERIC_MASK, "C", (locale_t)0);
+#endif
+	if (!zane_numeric_locale) zane_broken("creating the numeric locale");
+}
+
+/* Canonical scientific notation: no redundant mantissa zeroes, exponent
+   plus sign or exponent padding (which differs between C libraries). */
+static int zane_decimal_text(char *buffer) {
+	char *exponent = strchr(buffer, 'e');
+	if (exponent) {
+		int power = (int)strtol(exponent + 1, NULL, 10);
+		char *end = exponent;
+		if (strchr(buffer, '.')) {
+			while (end[-1] == '0') end--;
+			if (end[-1] == '.') end--;
+		}
+		/* The normalized exponent cannot be longer than the original. */
+		sprintf(end, "e%d", power);
+	}
+	return (int)strlen(buffer);
+}
+
+static int zane_format_float(char *buffer, size_t room, double value, int single) {
+	if (isnan(value)) return snprintf(buffer, room, "nan");
+	if (isinf(value)) return snprintf(buffer, room, signbit(value) ? "-inf" : "inf");
+	if (pthread_once(&zane_numeric_once, zane_numeric_init))
+		zane_broken("initializing the numeric locale");
+#ifndef _WIN32
+	locale_t previous = uselocale(zane_numeric_locale);
+	if (!previous) zane_broken("selecting the numeric locale");
+#endif
+	int best = 0;
+	int limit = single ? 9 : 17;
+	for (int precision = 1; precision <= limit; precision++) {
+		/* %g can prefer fixed notation even when scientific text is shorter
+		   (0.0001), or scientific when fixed is shorter (10). Try both. */
+		for (int scientific = 0; scientific <= 1; scientific++) {
+			char candidate[64];
+			const char *format = scientific ? "%.*e" : "%.*g";
+#ifdef _WIN32
+			int length = _snprintf_l(candidate, sizeof candidate, format, zane_numeric_locale,
+			                         precision - scientific, value);
+#else
+			int length = snprintf(candidate, sizeof candidate, format, precision - scientific, value);
+#endif
+			if (length < 0 || (size_t)length >= sizeof candidate)
+				zane_broken("formatting a float");
+			length = zane_decimal_text(candidate);
+			char *end;
+#ifdef _WIN32
+			/* MinGW's MSVCRT lacks _strtof_l; rounding a parsed double
+			   also matches the compile-time evaluator's F32 check. */
+			int same = single
+			    ? zane_same_f32((float)value, (float)_strtod_l(candidate, &end, zane_numeric_locale))
+			    : zane_same_f64(value, _strtod_l(candidate, &end, zane_numeric_locale));
+#else
+			int same = single ? zane_same_f32((float)value, strtof(candidate, &end))
+			                  : zane_same_f64(value, strtod(candidate, &end));
+#endif
+			if (*end == '\0' && same && (!best || length < best)) {
+				if ((size_t)length >= room) zane_broken("formatting a float");
+				memcpy(buffer, candidate, (size_t)length + 1);
+				best = length;
+			}
+		}
+	}
+#ifndef _WIN32
+	if (!uselocale(previous)) zane_broken("restoring the numeric locale");
+#endif
+	if (!best) zane_broken("formatting a float");
+	return best;
+}
+
+void zane_text_i32(zane_text *out, int32_t value) {
+	char buffer[32];
+	int length = snprintf(buffer, sizeof buffer, "%" PRId32, value);
+	if (length < 0 || (size_t)length >= sizeof buffer) zane_broken("formatting an I32");
+	zane_text_from_buffer(out, buffer, length);
+}
+
+void zane_text_i64(zane_text *out, int64_t value) {
+	char buffer[32];
+	int length = snprintf(buffer, sizeof buffer, "%" PRId64, value);
+	if (length < 0 || (size_t)length >= sizeof buffer) zane_broken("formatting an I64");
+	zane_text_from_buffer(out, buffer, length);
+}
+
+void zane_text_f32(zane_text *out, float value) {
+	char buffer[64];
+	zane_text_from_buffer(out, buffer, zane_format_float(buffer, sizeof buffer, value, 1));
+}
+
+void zane_text_f64(zane_text *out, double value) {
+	char buffer[64];
+	zane_text_from_buffer(out, buffer, zane_format_float(buffer, sizeof buffer, value, 0));
+}
 
 /* `@runtime$Console`'s `print` (effects.md §6.6): exactly the string's
    length in bytes, with no terminator and nothing added. */

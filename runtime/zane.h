@@ -37,6 +37,10 @@ void *zane_box(int64_t size, int64_t align);
 void zane_print(const zane_text *text);
 void zane_text_join(zane_text *out, const zane_text *left, const zane_text *right);
 int64_t zane_text_equal(const zane_text *left, const zane_text *right);
+void zane_text_i32(zane_text *out, int32_t value);
+void zane_text_i64(zane_text *out, int64_t value);
+void zane_text_f32(zane_text *out, float value);
+void zane_text_f64(zane_text *out, double value);
 
 /* value.c */
 int64_t zane_constant_begin(int64_t *state);

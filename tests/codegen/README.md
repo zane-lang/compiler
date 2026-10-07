@@ -17,6 +17,9 @@ again, read the golden diff and promote that.
 
 ## Fixtures
 
+- `scalarTexts` exercises the four scalar String constructors end to end,
+  including I32 wrapping, compact float notation, negative zero and special
+  values. Optimized and unoptimized builds must print the same text.
 - `hello` prints a string literal through `@program$console`: the first program
   that ran (docs/design/lowering.md §8 step 2).
 - `counting` is step 2 of docs/design/lowering.md §8: scalar arithmetic, verbs

@@ -4,6 +4,9 @@
 
 #include "zane_internal.h"
 
+#include <math.h>
+#include <float.h>
+#include <locale.h>
 #include <stddef.h>
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
@@ -30,6 +33,71 @@ static const int64_t holder_layout[] = {
 
 void zane_main(void) {
 	zane_text ab = { "ab", 2, 0 }, cd = { "cd", 2, 0 }, empty = { "", 0, 0 };
+
+	/* Scalar constructors use decimal text that round-trips to the same
+	   primitive, and every result owns exactly its bytes. */
+	zane_text formatted;
+	zane_text_i32(&formatted, INT32_MIN);
+	check(holds(&formatted, "-2147483648") && formatted.room == formatted.length);
+	zane_end((char *)&formatted, text_layout);
+	zane_text_i64(&formatted, INT64_MIN);
+	check(holds(&formatted, "-9223372036854775808"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f32(&formatted, 0.1f);
+	check(holds(&formatted, "0.1"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, 1.0 / 3.0);
+	check(holds(&formatted, "0.3333333333333333"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f32(&formatted, -0.0f);
+	check(holds(&formatted, "-0"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, INFINITY);
+	check(holds(&formatted, "inf"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, -INFINITY);
+	check(holds(&formatted, "-inf"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, NAN);
+	check(holds(&formatted, "nan"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f32(&formatted, 10.0f);
+	check(holds(&formatted, "10"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, 10.0);
+	check(holds(&formatted, "10"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, 0.0001);
+	check(holds(&formatted, "1e-4"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f32(&formatted, FLT_TRUE_MIN);
+	check(holds(&formatted, "1e-45"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, DBL_TRUE_MIN);
+	check(holds(&formatted, "5e-324"));
+	zane_end((char *)&formatted, text_layout);
+
+	/* Exercise a comma decimal separator where available. Formatting keeps
+	   '.' and restores the host's locale; standard CI may have only C. */
+	int locale_ok = 1;
+	const char *locales[] = { "de_DE.UTF-8", "de_DE.utf8", "German_Germany.1252" };
+	for (size_t i = 0; i < sizeof locales / sizeof *locales; i++) {
+		if (!setlocale(LC_NUMERIC, locales[i])) continue;
+		char decimal[16];
+		snprintf(decimal, sizeof decimal, "%s", localeconv()->decimal_point);
+		zane_text_f32(&formatted, 0.1f);
+		locale_ok = locale_ok && holds(&formatted, "0.1");
+		zane_end((char *)&formatted, text_layout);
+		zane_text_f64(&formatted, 1.25);
+		locale_ok = locale_ok && holds(&formatted, "1.25")
+		            && strcmp(decimal, localeconv()->decimal_point) == 0;
+		zane_end((char *)&formatted, text_layout);
+		setlocale(LC_NUMERIC, "C");
+		break;
+	}
+
+	check(locale_ok);
+	check(zane_blocks == 0);
 
 	/* A join owns a block of its own; joining nothing owns none. */
 	zane_text abcd;
