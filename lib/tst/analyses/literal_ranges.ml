@@ -21,7 +21,7 @@ let fits name (literal : T.Expr.node) =
   | "I32", T.Expr.Var (T.Name_ref.Number_param { value = Ty.Known n; _ }) ->
       Int64.of_int n >= Int64.of_int32 Int32.min_int && Int64.of_int n <= Int64.of_int32 Int32.max_int
   | "F64", T.Expr.Decimal_lit s -> Float.is_finite (float_of_string (digits s))
-  | "F32", T.Expr.Decimal_lit s -> Float.is_finite (Int32.float_of_bits (Int32.bits_of_float (float_of_string (digits s))))
+  | "F32", T.Expr.Decimal_lit s -> Float.is_finite (Decimal.to_single (digits s))
   | _ -> true
 
 let text = function

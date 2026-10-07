@@ -8,6 +8,9 @@ module Ty = Ty
 module Signature = Signature
 module Nodes = Nodes
 
+(** A decimal literal's single, which lowering embeds as checked here. *)
+module Decimal = Decimal
+
 (** Which verbs can exit, which lowering asks of a verb's body. *)
 module Exits = Exits
 

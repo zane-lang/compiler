@@ -291,7 +291,11 @@ function of its own.
 [`types.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/types.md) §2.7).
 A storage primitive's constructor embeds its literal, which must fit it:
 `@primitives$I64` a 64-bit integer, `I32` a 32-bit one, `F64` a finite
-double and `F32` a finite single. A literal handed to a verb's literal parameter reaches its
+double and `F32` a finite single. An `F32` literal is the single nearest its
+decimal, rounded once (`Tst.Decimal`): going through the double nearest it
+would break a tie wrongly when that double is the midpoint of two singles,
+so that one case is settled by comparing the decimal against the midpoint
+exactly. A literal handed to a verb's literal parameter reaches its
 constructor only where the verb is written out, so lowering checks that one.
 
 **Spawns** (`lib/tst/analyses/spawns.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md) §4.2–§4.3). A

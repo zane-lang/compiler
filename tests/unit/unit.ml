@@ -268,6 +268,24 @@ module C = Cgt.Nodes
 let stops f = match f () with _ -> false | exception Value.Stop _ -> true
 
 (* The evaluator's arithmetic is codegen's (lib/codegen/emit.ml). *)
+(* An F32 literal rounds once, from the decimal straight to the single
+   (Tst.Decimal): where the double nearest the literal is the midpoint of two
+   singles, the literal's own side of it decides. *)
+let single_literals () =
+  let bits text = Int32.bits_of_float (Tst.Decimal.to_single text) in
+  check "a literal just above a midpoint rounds up"
+    (bits "1.0000000596046447753906250000000000000000000000000000000000000000000000000000000000000000000000000001"
+    = 0x3f800001l);
+  check "a literal just below a midpoint rounds down"
+    (bits "1.0000000596046447753906249999999999999999999999999999999999999999999999999999999999999999999999999999"
+    = 0x3f800000l);
+  check "a literal on a midpoint rounds to even" (bits "1.000000059604644775390625" = 0x3f800000l);
+  check "an ordinary literal is the nearest single" (bits "0.1" = Int32.bits_of_float 0.1);
+  check "a literal on the midpoint past the largest single overflows"
+    (Tst.Decimal.to_single "340282356779733661637539395458142568448.0" = Float.infinity);
+  check "a literal just below that midpoint is the largest single"
+    (bits "340282356779733661637539395458142568447.9" = 0x7f7fffffl)
+
 let folded_arithmetic () =
   let i32 n = Value.VInt (Value.int C.Ty.I32 n) and i64 n = Value.VInt n in
   let bin op t l r = Eval.binary op t l r in
@@ -499,6 +517,7 @@ let () =
   overloads ();
   type_layout ();
   runtime_abi ();
+  single_literals ();
   folded_arithmetic ();
   intrinsic_classes ();
   materialized ();

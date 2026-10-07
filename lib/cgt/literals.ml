@@ -65,8 +65,9 @@ let literal ctx span name (arg : T.Expr.t) : Expr.t =
       | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$I32`" s))
   | ("F64" | "F32"), T.Expr.Decimal_lit s ->
       let ty = if name = "F32" then Nodes.Ty.F32 else Nodes.Ty.F64 in
-      let value = float_of_string (digits s) in
-      let value = if ty = Nodes.Ty.F32 then Scalar.single value else value in
+      let value =
+        if ty = Nodes.Ty.F32 then Tst.Decimal.to_single (digits s) else float_of_string (digits s)
+      in
       if Float.is_finite value then { Expr.node = Expr.Float value; ty }
       else refuse span (Printf.sprintf "`%s` is out of range for `@primitives$%s`" s name)
   | "String", T.Expr.Text_lit s -> { Expr.node = Expr.Text (unescape s); ty = Nodes.Ty.Handle }
