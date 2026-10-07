@@ -72,7 +72,7 @@ static void zane_end_position(zane_work *w, char *base, const zane_position *p) 
 		zane_list *l = zane_at(base, p);
 		if (l->room)
 			zane_work_push(w, (zane_job){ .block = *p, .returned = l->items, .size = l->room });
-		if (p->inner)
+		if (p->inner && p->inner[0] > 0)
 			for (int64_t i = 0; i < l->count; i++)
 				zane_work_push(w, (zane_job){ .at = l->items + i * p->extra, .layout = p->inner });
 		l->items = NULL;
@@ -83,7 +83,8 @@ static void zane_end_position(zane_work *w, char *base, const zane_position *p) 
 		char **box = zane_at(base, p);
 		if (!*box) break;
 		zane_work_push(w, (zane_job){ .block = *p, .returned = *box });
-		if (p->inner) zane_work_push(w, (zane_job){ .at = *box, .layout = p->inner });
+		if (p->inner && p->inner[0] > 0)
+			zane_work_push(w, (zane_job){ .at = *box, .layout = p->inner });
 		*box = NULL;
 		break;
 	}
@@ -152,7 +153,7 @@ void zane_copy(char *value, const int64_t *layout) {
 				char *items = zane_alloc(zane_here(), l->room, ZANE_LINE);
 				memcpy(items, l->items, (size_t)(l->count * p.extra));
 				l->items = items;
-				if (p.inner)
+				if (p.inner && p.inner[0] > 0)
 					for (int64_t i = 0; i < l->count; i++)
 						zane_work_push(&w, (zane_job){ .at = items + i * p.extra, .layout = p.inner });
 				break;
@@ -163,7 +164,8 @@ void zane_copy(char *value, const int64_t *layout) {
 				char *payload = zane_alloc(zane_here(), p.extra, 8);
 				memcpy(payload, *box, (size_t)p.extra);
 				*box = payload;
-				if (p.inner) zane_work_push(&w, (zane_job){ .at = payload, .layout = p.inner });
+				if (p.inner && p.inner[0] > 0)
+					zane_work_push(&w, (zane_job){ .at = payload, .layout = p.inner });
 				break;
 			}
 			}

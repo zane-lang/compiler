@@ -37,6 +37,24 @@
   (diff golden/blocks.out blocks.out.actual)))
 
 (rule
+ (deps scalar_lists.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (targets scalar_lists.exe)
+ (action
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o scalar_lists.exe scalar_lists.c
+   ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)))
+
+(rule
+ (action
+  (with-stdout-to
+   scalar_lists.out.actual
+   (run ./scalar_lists.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalar_lists.out scalar_lists.out.actual)))
+
+(rule
  (deps spawns.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets spawns.exe)
  (action
