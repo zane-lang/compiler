@@ -551,7 +551,7 @@ test passing.
   retired values are kept, is left to measurement.
 - **An owner lent to a running spawn.** The spawning block may not write an
   owner it lent a spawn that may still be reading it; the checker rejects
-  that write ([`spec-divergences.md`](../spec-divergences.md) §12), so the
+  that write ([`spec-divergences.md`](../spec-divergences.md) §11), so the
   only writes that race a reader are spawned write-backs, which the
   snapshots above cover.
 - **Where a spawned call is waited for.** Only a spawned call bound by a
@@ -564,7 +564,7 @@ test passing.
   result's blocks under the done tag, the abort value's under the
   aborted one. The call settles once, on the spawning thread, where it is
   first read or where its block ends
-  ([`spec-divergences.md`](../spec-divergences.md) §11). A flag the spawn sets
+  ([`spec-divergences.md`](../spec-divergences.md) §10). A flag the spawn sets
   says whether it has. An abort takes the abort value out of the slot and
   runs the handler written at the spawn, lowered where it settles but in
   the context of the spawn, so its `abort`, `return` and exit go where they
@@ -642,7 +642,7 @@ test passing.
   CGT node, `Convert`, whose instruction the source and target types pick,
   and the optimizer folds by the same bounds.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
-  §5.2, [`spec-divergences.md`](../spec-divergences.md) §14). Until it says, the program stops:
+  §5.2, [`spec-divergences.md`](../spec-divergences.md) §13). Until it says, the program stops:
   what it wrote so far is kept, the runtime writes `index out of range` to
   stderr, and the status is 1, for a list and an array alike.
 - **A type argument passes nothing.** A generic verb is lowered once per

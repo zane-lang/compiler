@@ -17,7 +17,7 @@
    reference, and may read it until the same drain. The spec leaves the lending
    block free to write what it lent; here it may not, directly, through a `!`
    call, by moving it, or through a reference that may name it
-   (docs/spec-divergences.md §12). *)
+   (docs/spec-divergences.md §11). *)
 
 module T = Nodes
 module S = Signature
