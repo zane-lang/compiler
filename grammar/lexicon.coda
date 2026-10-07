@@ -292,11 +292,11 @@ literal_tokens [
   MINUS          -             operator                keyword.operator
   STAR           *             operator                keyword.operator
   SLASH          /             operator                keyword.operator
-  DOLLAR         $             operator                keyword.operator
+  DOLLAR         $             punctuation.delimiter   punctuation.separator
   HASH           "#"           operator                keyword.operator
   AMPERSAND      &             operator                keyword.operator
   CARET          ^             operator                keyword.operator
-  AT             @             operator                keyword.operator
+  AT             @             punctuation.delimiter   punctuation.separator
   EXCL           !             operator                keyword.operator
   QSTNMARK       ?             operator                keyword.operator
   QSTNQSTN       ??            operator                keyword.operator

@@ -139,6 +139,52 @@ class BackendTests(unittest.TestCase):
                 found = sorted((n.start_byte, source[n.start_byte:n.end_byte]) for n in captures.get('function', []))
                 self.assertEqual([name for _, name in found], names)
 
+    def assert_roles(self, source, **expected):
+        tree = self.parser.parse(source)
+        self.assertFalse(tree.root_node.has_error, source)
+        captures = QueryCursor(self.query).captures(tree.root_node)
+        for role in ('module', 'function.call', 'function.method.call', 'variable.member'):
+            nodes = sorted(captures.get(role, []), key=lambda n: n.start_byte)
+            self.assertEqual([source[n.start_byte:n.end_byte] for n in nodes], expected.get(role, []), (source, role))
+
+    def test_namespaces_are_distinct_from_calls_and_imported_members(self):
+        self.assert_roles(
+            b'package core; import lib; import lib as other; import lib$value as local; import lib$Thing as Alias; import lib$[value, Thing]; import lib$;',
+            module=[b'core', b'lib', b'lib', b'other', b'lib', b'lib', b'lib', b'lib'])
+        self.assert_roles(
+            b'type Wrapper = struct { value @primitives$I64; } alias Ref = &pkg$Thing',
+            module=[b'primitives', b'pkg'], **{'variable.member': [b'value']})
+        self.assert_roles(
+            b'Int add(a Int, b Int) => @operators$add(a, b)',
+            module=[b'operators'], **{'function.call': [b'add']})
+
+    def test_function_and_method_calls_with_and_without_trailing_blocks(self):
+        for tail in (b';', b' {}'):
+            source = b'Unit main() { f()' + tail + b' pkg$run()' + tail + b' @controlflow$repeat()' + tail + b' }'
+            self.assert_roles(source, module=[b'pkg', b'controlflow'], **{'function.call': [b'f', b'run', b'repeat']})
+            source = b'Unit main() { obj:pkg$method()' + tail + b' obj!@verbs$mutate()' + tail + b' obj.field()' + tail + b' }'
+            self.assert_roles(source, module=[b'pkg', b'verbs'], **{'function.method.call': [b'method', b'mutate', b'field'], 'variable.member': [b'field']})
+
+    def test_namespace_markers_are_delimiters(self):
+        source = b'alias Int = @primitives$I64'
+        tree = self.parser.parse(source)
+        self.assertFalse(tree.root_node.has_error)
+        captures = QueryCursor(self.query).captures(tree.root_node)
+        text = lambda role: [source[n.start_byte:n.end_byte] for n in sorted(captures.get(role, []), key=lambda n: n.start_byte)]
+        self.assertEqual(text('punctuation.delimiter'), [b'@', b'$'])
+        self.assertEqual(text('operator'), [b'='])
+
+    def test_members_in_declarations_initializers_and_accesses(self):
+        self.assert_roles(
+            b'type Vec = struct { x Int; y Int; } Vec(x Int, y Int) => init{x = x; y = y;}',
+            **{'variable.member': [b'x', b'y', b'x', b'y']})
+        self.assert_roles(
+            b'Vec zero() => Vec{x = 0; y = 0;} Int get(v Vec) => v.x',
+            **{'variable.member': [b'x', b'y', b'x']})
+        self.assert_roles(
+            b'Int get() => pkg$Enum.value',
+            module=[b'pkg'], **{'variable.member': [b'value']})
+
     @needs(SPAN_DUMP.exists(), 'requires span_dump.exe')
     def test_parameter_captures_are_the_compilers_parameters(self):
         # The compiler's CST says which names are parameters; the shared query

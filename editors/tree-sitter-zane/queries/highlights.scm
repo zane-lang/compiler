@@ -19,11 +19,11 @@
 "-" @operator
 "*" @operator
 "/" @operator
-"$" @operator
+"$" @punctuation.delimiter
 "#" @operator
 "&" @operator
 "^" @operator
-"@" @operator
+"@" @punctuation.delimiter
 "!" @operator
 "?" @operator
 "??" @operator
@@ -67,8 +67,18 @@
 "resolve" @keyword
 (doc_comment) @comment.documentation
 (comment) @comment
-(unbraced_verb_call (func_callee (primary (identifier) @function.call)))
+(name_expr (identifier) @module "$")
+(name_type (identifier) @module "$")
+(header_decl "package" (identifier) @module)
+(import_decl (identifier) @module)
 (func_callee "." (identifier) @variable.member)
+(app (name_type) "." (identifier) @variable.member)
+(body_field . (identifier) @variable.member)
+(field_arg . (identifier) @variable.member)
+(constructor_field_arg . (identifier) @variable.member)
+[(unbraced_verb_call (func_callee (primary (name_expr (identifier) @function.call .)))) (block_call (func_callee (primary (name_expr (identifier) @function.call .))))]
+[(unbraced_verb_call (primary (name_expr (identifier) @function.method.call .))) (block_call (primary (name_expr (identifier) @function.method.call .)))]
+[(unbraced_verb_call (func_callee "." (identifier) @function.method.call)) (block_call (func_callee "." (identifier) @function.method.call))]
 (block_decl (ret_type) . (identifier) @function . "(")
 (simple_decl (ret_type) . (identifier) @function . "(")
 (simple_decl_braced (ret_type) . (identifier) @function . "(")

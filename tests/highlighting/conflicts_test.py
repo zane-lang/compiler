@@ -99,8 +99,10 @@ class DiscoveryTests(unittest.TestCase):
     def test_zane_conflicts_are_recomputed_from_shared_source(self):
         result = outputs(ROOT / 'grammar', os.environ.get('MENHIR', 'menhir'))
         report = json.loads(result['editors/tree-sitter-zane/conflicts.json'])
-        self.assertEqual(len(report['conflicts']), 20)
-        self.assertEqual(len({tuple(c['rules']) for c in report['conflicts']}), 20)
+        # Keeping qualified names as nodes removes the type_expr /
+        # unbraced_verb_call conflict from the original flattened editor tree.
+        self.assertEqual(len(report['conflicts']), 19)
+        self.assertEqual(len({tuple(c['rules']) for c in report['conflicts']}), 19)
         # No generated file or authored conflict list is read by discovery.
         self.assertIn('conflicts: $ => [', result['editors/tree-sitter-zane/grammar.js'])
 
