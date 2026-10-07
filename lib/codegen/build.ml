@@ -109,7 +109,7 @@ let executable ?target ?(optimize = false) ?(link = []) m output =
       let windows =
         match target with
         | Some target -> List.mem "windows" (String.split_on_char '-' target)
-        | None -> false
+        | None -> Sys.win32
       in
       let link = if windows then link @ [ "-lshell32" ] else link in
       let command =
