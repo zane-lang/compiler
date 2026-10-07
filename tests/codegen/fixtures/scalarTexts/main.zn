@@ -1,0 +1,30 @@
+/// Scalar String constructors through typing, lowering, codegen and folding.
+package scalarTexts;
+
+alias I32 = @primitives$I32
+alias I64 = @primitives$I64
+alias F32 = @primitives$F32
+alias F64 = @primitives$F64
+alias String = @primitives$String
+alias Unit = @primitives$Unit
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String("\n"));
+	return Unit();
+}
+
+Unit main() {
+	show(String(I32.wrap(I64(2147483648))));
+	show(String(@operators$negate(I64(9223372036854775807))));
+	show(String(F32(0.1)));
+	show(String(@operators$divide(F64(1.0), F64(3.0))));
+	show(String(F32(10.0)));
+	show(String(F64(10.0)));
+	show(String(F64(0.0001)));
+	show(String(@operators$negate(F64(0.0))));
+	show(String(@operators$divide(F32(1.0), F32(0.0))));
+	show(String(@operators$divide(@operators$negate(F64(1.0)), F64(0.0))));
+	show(String(@operators$divide(F64(0.0), F64(0.0))));
+	return Unit();
+}

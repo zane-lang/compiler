@@ -64,6 +64,8 @@ let runtime env fn =
         | Cgt.Runtime.Void -> Llvm.void_type env.ctx
         | Cgt.Runtime.I32 -> Llvm.i32_type env.ctx
         | Cgt.Runtime.I64 -> env.i64
+        | Cgt.Runtime.F32 -> Llvm.float_type env.ctx
+        | Cgt.Runtime.F64 -> Llvm.double_type env.ctx
         | Cgt.Runtime.Ptr -> env.ptr
       in
       let ret, params = Cgt.Runtime.signature fn in

@@ -8,6 +8,10 @@ type fn =
   | Print
   | Text_join
   | Text_equal
+  | Text_i32
+  | Text_i64
+  | Text_f32
+  | Text_f64
   | Scope_enter
   | Slot
   | Promote
@@ -31,12 +35,16 @@ type fn =
   | Constant_end
   | Writeback
 
-let all = [ Print; Text_join; Text_equal; Scope_enter; Slot; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Slot; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback ]
 
 let name = function
   | Print -> "zane_print"
   | Text_join -> "zane_text_join"
   | Text_equal -> "zane_text_equal"
+  | Text_i32 -> "zane_text_i32"
+  | Text_i64 -> "zane_text_i64"
+  | Text_f32 -> "zane_text_f32"
+  | Text_f64 -> "zane_text_f64"
   | Scope_enter -> "zane_scope_enter"
   | Slot -> "zane_slot"
   | Promote -> "zane_promote"
@@ -62,13 +70,17 @@ let name = function
 
 (* A value as the C ABI passes it: [I32] a `uint32_t`, [I64] an `int64_t`,
    and [Ptr] any pointer, a function's included. *)
-type ty = Void | I32 | I64 | Ptr
+type ty = Void | I32 | I64 | F32 | F64 | Ptr
 
 (* The return type, then the parameters. *)
 let signature = function
   | Print -> (Void, [ Ptr ])
   | Text_join -> (Void, [ Ptr; Ptr; Ptr ])
   | Text_equal -> (I64, [ Ptr; Ptr ])
+  | Text_i32 -> (Void, [ Ptr; I32 ])
+  | Text_i64 -> (Void, [ Ptr; I64 ])
+  | Text_f32 -> (Void, [ Ptr; F32 ])
+  | Text_f64 -> (Void, [ Ptr; F64 ])
   | Scope_enter -> (I64, [  ])
   | Slot -> (Ptr, [ I64; I64; I64; Ptr ])
   | Promote -> (Void, [ Ptr; Ptr; I64 ])

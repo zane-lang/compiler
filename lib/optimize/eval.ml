@@ -180,6 +180,50 @@ let canonical f = if Float.is_nan f then Int64.float_of_bits 0x7FF8_0000_0000_00
    which is the one rounding the machine's own single operation makes. *)
 let float (t : Ty.t) f = canonical (match t with Ty.F32 -> Scalar.single f | _ -> f)
 
+(* Canonical scientific notation, as runtime/block.c's [zane_decimal_text]. *)
+let decimal_text text =
+  match String.index_opt text 'e' with
+  | None -> text
+  | Some exponent ->
+      let power =
+        int_of_string (String.sub text (exponent + 1) (String.length text - exponent - 1))
+      in
+      let rec trim at = if text.[at - 1] = '0' then trim (at - 1) else at in
+      let last =
+        if String.contains text '.' then
+          let at = trim exponent in
+          if text.[at - 1] = '.' then at - 1 else at
+        else exponent
+      in
+      Printf.sprintf "%se%d" (String.sub text 0 last) power
+
+(* Compare all round-tripping candidates, including scientific notation
+   where %g prefers a longer fixed spelling. Ties retain the first (least
+   precise) candidate. The runtime makes the same search in the C locale. *)
+let float_text (t : Ty.t) f =
+  if Float.is_nan f then "nan"
+  else if f = Float.infinity then "inf"
+  else if f = Float.neg_infinity then "-inf"
+  else
+    let same a b =
+      match t with
+      | Ty.F32 -> Int32.bits_of_float (Scalar.single a) = Int32.bits_of_float (Scalar.single b)
+      | _ -> Int64.bits_of_float a = Int64.bits_of_float b
+    in
+    let limit = if t = Ty.F32 then 9 else 17 in
+    let best = ref None in
+    for precision = 1 to limit do
+      List.iter
+        (fun text ->
+          let text = decimal_text text in
+          if same f (float_of_string text) then
+            match !best with
+            | Some held when String.length held <= String.length text -> ()
+            | _ -> best := Some text)
+        [ Printf.sprintf "%.*g" precision f; Printf.sprintf "%.*e" (precision - 1) f ]
+    done;
+    match !best with Some text -> text | None -> stop "formatting a float"
+
 let binary (op : Expr.binop) (t : Ty.t) l r =
   match (t, op, l, r) with
   | (Ty.I64 | Ty.I32), Expr.Add, VInt a, VInt b -> VInt (int t (Int64.add a b))
@@ -464,6 +508,19 @@ and runtime run (fn : Cgt.Runtime.fn) args =
       let l = text_of l and r = text_of r in
       bytes run (min (String.length l) (String.length r));
       VInt (if String.equal l r then 1L else 0L)
+  | _, Cgt.Runtime.Text_i32, [ VInt i ]
+  | _, Cgt.Runtime.Text_i64, [ VInt i ] ->
+      let text = Int64.to_string i in
+      bytes run (String.length text);
+      VText text
+  | _, Cgt.Runtime.Text_f32, [ VFloat f ] ->
+      let text = float_text Ty.F32 f in
+      bytes run (String.length text);
+      VText text
+  | _, Cgt.Runtime.Text_f64, [ VFloat f ] ->
+      let text = float_text Ty.F64 f in
+      bytes run (String.length text);
+      VText text
   | _, Cgt.Runtime.List_new, [] -> empty ()
   | _, Cgt.Runtime.List_push, [ list; stride ] -> (
       match load (ptr_of list) with
