@@ -1,0 +1,12 @@
+package bad;
+
+import lib$Thing;
+
+/// A `_` field is private to the package that declares its type, so neither a
+/// function nor a method on the type reaches it from here, and neither does an
+/// `init{ }`.
+Int peekThing(thing Thing) => thing._hidden
+
+Int peekSubject(this Thing) => this._hidden
+
+Thing.forged(value Int) => init{ value; _hidden = value; }

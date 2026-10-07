@@ -578,6 +578,34 @@ package shapes
       expr Text_lit | "bottom left"
     expr Construct @primitives$String | String("bottom right")
       expr Text_lit | "bottom right"
+  decl Type Meters | type Meters = struct { _value Float; }
+  decl Verb Meters | Meters(value Float) => init{ _value = value; }
+    param value | value Float
+    block | => init{ _value = value; }
+      stat Return | => init{ _value = value; }
+        expr Init | init{ _value = value; }
+          field _value | _value = value
+            expr Var value | value
+  decl Verb + | Meters +(left Meters, righ … eft._value, right._value))
+    param left | left Meters
+    param right | right Meters
+    block | => Meters(@operators$add(left._value, right._value))
+      stat Return | => Meters(@operators$add(left._value, right._value))
+        expr Construct Meters | Meters(@operators$add(left._value, right._value))
+          expr Call @operators$add | @operators$add(left._value, right._value)
+            expr Field _value | left._value
+              expr Var left | left
+            expr Field _value | right._value
+              expr Var right | right
+  decl Verb inFeet | Float inFeet(distance Mete … tance._value, Float(3.28))
+    param distance | distance Meters
+    block | => @operators$multiply(distance._value, Float(3.28))
+      stat Return | => @operators$multiply(distance._value, Float(3.28))
+        expr Call @operators$multiply | @operators$multiply(distance._value, Float(3.28))
+          expr Field _value | distance._value
+            expr Var distance | distance
+          expr Construct @primitives$F64 | Float(3.28)
+            expr Decimal_lit | 3.28
   decl Verb _half | Float _half(value Float) = … $divide(value, Float(2.0))
     param value | value Float
     block | => @operators$divide(value, Float(2.0))

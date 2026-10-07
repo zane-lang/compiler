@@ -236,12 +236,7 @@ and member env ~flow ctx span target (field : N.Name.t) handle =
                 error env field.N.Name.span
                   (Printf.sprintf "%s has no field %s" (quote tid.Ty.name) (quote f)))
           | Some (i, t) ->
-              if is_private f && not (private_access ctx tid) then
-                error env field.N.Name.span
-                  (Printf.sprintf
-                     "%s is private: only a method whose subject is %s may read it \
-                      (types.md §2.3)"
-                     (quote f) (quote tid.Ty.name));
+              private_field env ctx field.N.Name.span tid f;
               mk (T.Expr.Field { target; field = f; slot = i }) t span)
       | Some (tid, Variant cases) -> (
           match List.assoc_opt f cases with
@@ -274,10 +269,13 @@ and member env ~flow ctx span target (field : N.Name.t) handle =
             (Printf.sprintf "%s has no member %s" (quote (Ty.to_string ty)) (quote f));
           invalid span)
 
-and private_access ctx tid =
-  match Option.map Ty.strip_mode ctx.this_type with
-  | Some (Ty.Named (this_tid, _)) -> this_tid = tid
-  | _ -> false
+(* A `_` field is private to the package that declares its type, whatever
+   kind of verb names it (types.md §2.3). *)
+and private_field env ctx span (tid : Ty.type_id) f =
+  if is_private f && not (String.equal tid.Ty.package ctx.package) then
+    error env span
+      (Printf.sprintf "%s is private to the package %s (types.md §2.3)" (quote f)
+         (quote tid.Ty.package))
 
 (* An enum map is found where a method is: in the enum's home package, then
    in the current one. *)
@@ -332,7 +330,7 @@ and init env ctx span fields =
       invalid span
   | Some built -> (
       match definition env built with
-      | Some (_, Struct declared) ->
+      | Some (tid, Struct declared) ->
           let seen = Hashtbl.create 8 in
           let values =
             List.filter_map
@@ -349,6 +347,7 @@ and init env ctx span fields =
                       (Printf.sprintf "%s has no field %s" (quote (Ty.to_string built)) (quote name));
                     None
                 | Some (i, t) ->
+                    private_field env ctx f.N.Field_arg.name.N.Name.span tid name;
                     if Hashtbl.mem seen name then
                       error env f.N.Field_arg.name.N.Name.span
                         (Printf.sprintf "the field %s is already assigned" (quote name))
@@ -1170,7 +1169,6 @@ and lambda env ctx span ~this_type ~params ~ret_type ~is_mut ~body =
       scopes = [ inner_scope ];
       ret_target = To_verb { ret; abort };
       resolve_target = No_resolve;
-      this_type = Option.map fst this_;
       is_mut;
       building = None;
     }
@@ -1470,10 +1468,6 @@ and verb_context env (d : decl) (s : S.t) subst =
             Some local)
       s.params
   in
-  let this_type =
-    if S.is_method s then Option.map (fun (p : S.param) -> Ty.subst subst p.ty) (List.nth_opt s.params 0)
-    else None
-  in
   let ctx =
     {
       file = d.file;
@@ -1483,7 +1477,6 @@ and verb_context env (d : decl) (s : S.t) subst =
       scopes = [ scope ];
       ret_target = To_verb { ret = Ty.subst subst s.ret; abort = Option.map (Ty.subst subst) s.abort };
       resolve_target = No_resolve;
-      this_type;
       is_mut = s.is_mut;
       building = (match s.kind with S.Constructor _ -> Some (Ty.subst subst s.ret) | _ -> None);
     }

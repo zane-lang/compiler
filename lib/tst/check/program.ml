@@ -81,7 +81,6 @@ let package_context env (d : decl) =
     scopes = [ Hashtbl.create 1 ];
     ret_target = No_return;
     resolve_target = No_resolve;
-    this_type = None;
     is_mut = false;
     building = None;
   }

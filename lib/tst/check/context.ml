@@ -38,9 +38,6 @@ type ctx = {
   mutable scopes : (string, binding) Hashtbl.t list;
   ret_target : ret_target;
   resolve_target : resolve_target;
-  (* The subject type of the method being checked, which is what grants
-     access to `_` fields (types.md §2.3). *)
-  this_type : Ty.t option;
   is_mut : bool;
   (* In a constructor: what `init{ }` builds. *)
   building : Ty.t option;

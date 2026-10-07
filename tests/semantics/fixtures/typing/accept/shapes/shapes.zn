@@ -49,6 +49,16 @@ Corner.label String {
 	bottomRight = String("bottom right");
 }
 
+/// A `_` field is private to this package, and every verb here reaches it: a
+/// constructor, an operator and a plain function alike.
+type Meters = struct {
+	_value Float;
+}
+
+Meters(value Float) => init{ _value = value; }
+Meters +(left Meters, right Meters) => Meters(@operators$add(left._value, right._value))
+Float inFeet(distance Meters) => @operators$multiply(distance._value, Float(3.28))
+
 /// A private helper is invisible to every other package.
 Float _half(value Float) => @operators$divide(value, Float(2.0))
 
