@@ -7,7 +7,7 @@
 /// holds and `no` when it does not.
 package texts;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -15,9 +15,9 @@ alias String = @primitives$String
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -28,7 +28,7 @@ type Person = #struct {
 
 Person(name String) => init{ name; }
 
-String greeting(this Person) => String("hello, ") + this.name
+String greeting(this Person) => @operators$concat(String("hello, "), this.name)
 
 Unit rename(this Person, name String) mut {
 	this.name = name;
@@ -45,10 +45,10 @@ type Holder = #variant {
 	none Unit;
 }
 
-String twice(text String) => text + text
+String twice(text String) => @operators$concat(text, text)
 
 String?String refuse(text String) {
-	abort text + String("!");
+	abort @operators$concat(text, String("!"));
 }
 
 Unit check(ok Bool) {
@@ -57,7 +57,7 @@ Unit check(ok Bool) {
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
-	@controlflow$branch(~ok, {
+	@controlflow$branch(@operators$not(ok), {
 		@program$console!print(no);
 	});
 	return Unit();
@@ -66,59 +66,59 @@ Unit check(ok Bool) {
 Unit main() {
 	// Joined, compared and printed.
 	a String("ab");
-	b String = a + String("cd\n");
+	b String = @operators$concat(a, String("cd\n"));
 	@program$console!print(b);
-	check(a + String("cd\n") == b);
-	check(~(a == b));
-	check(twice(a) == String("abab"));
+	check(@operators$equal(@operators$concat(a, String("cd\n")), b));
+	check(@operators$not(@operators$equal(a, b)));
+	check(@operators$equal(twice(a), String("abab")));
 
 	// A copy owns bytes of its own, so overwriting the original leaves it
 	// as it was.
 	c String = b;
-	check(c == String("abcd\n"));
+	check(@operators$equal(c, String("abcd\n")));
 	b = String("again");
-	check(b == String("again"));
-	check(c == String("abcd\n"));
+	check(@operators$equal(b, String("again")));
+	check(@operators$equal(c, String("abcd\n")));
 
 	// An owner holding a string, read through a reference, and its string
 	// replaced; a copy of the field keeps the old bytes.
 	p Person(String("ada"));
 	g &Person = p;
-	check(g:greeting() == String("hello, ada"));
+	check(@operators$equal(g:greeting(), String("hello, ada")));
 	old String = p.name;
-	p.name = a + String("!");
-	check(g:greeting() == String("hello, ab!"));
-	check(old == String("ada"));
+	p.name = @operators$concat(a, String("!"));
+	check(@operators$equal(g:greeting(), String("hello, ab!")));
+	check(@operators$equal(old, String("ada")));
 
 	// A payload read through a binder, and a payload owner that dies with
 	// its case.
 	t Tagged = Tagged.named(String("abcd?"));
 	check(match (t) {
-		k named => k == String("abcd?");
+		k named => @operators$equal(k, String("abcd?"));
 		z anonymous => false;
 	});
 	t = Tagged.anonymous(Unit());
 	kept ^Person = Person(String("held"));
-	kept!rename(a + String("?"));
+	kept!rename(@operators$concat(a, String("?")));
 	holder Holder = Holder.some(kept);
 	check(match (holder) {
-		h some => h:greeting() == String("hello, ab?");
+		h some => @operators$equal(h:greeting(), String("hello, ab?"));
 		z none => false;
 	});
 	holder = Holder.none(Unit());
 
 	// A result nobody keeps, and a string aborted with.
 	twice(a);
-	check((refuse(String("no")) ? e { resolve e; }) == String("no!"));
+	check(@operators$equal(refuse(String("no")) ? e { resolve e; }, String("no!")));
 
 	// Many strings made and replaced: each pass returns what it replaced,
 	// and what it made itself.
 	s String("");
 	i Int(1);
 	i!to(Int(10000)) {
-		made String = a + String("y");
-		s = made + String("z");
+		made String = @operators$concat(a, String("y"));
+		s = @operators$concat(made, String("z"));
 	}
-	check(s == String("abyz"));
+	check(@operators$equal(s, String("abyz")));
 	return Unit();
 }

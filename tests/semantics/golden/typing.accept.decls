@@ -3,10 +3,10 @@
     │   ├── name: app
     │   ├── decls[0] > alias:
     │   │   ├── name: Int #1
-    │   │   └── target: @primitives$Int
+    │   │   └── target: @primitives$I64
     │   ├── decls[1] > alias:
     │   │   ├── name: Float #2
-    │   │   └── target: @primitives$Float
+    │   │   └── target: @primitives$F64
     │   ├── decls[2] > alias:
     │   │   ├── name: Bool #3
     │   │   └── target: @primitives$Bool
@@ -27,7 +27,7 @@
     │   ├── decls[8] > verb:
     │   │   └── signature: @primitives$Unit else(this @primitives$Bool, @concepts$Block) #9
     │   ├── decls[9] > verb:
-    │   │   └── signature: @primitives$Unit to(this @primitives$Int, @primitives$Int, @concepts$Block) mut #10
+    │   │   └── signature: @primitives$Unit to(this @primitives$I64, @primitives$I64, @concepts$Block) mut #10
     │   ├── decls[10] > verb:
     │   │   └── signature: @primitives$Unit say(@primitives$String) #11
     │   ├── decls[11] > verb:
@@ -43,21 +43,21 @@
     │   ├── decls[14] > verb:
     │   │   └── signature: T sum(app$Pair<T>) #15
     │   ├── decls[15] > verb:
-    │   │   └── signature: @primitives$Int count(@primitives$Array<T, n>) #16
+    │   │   └── signature: @primitives$I64 count(@primitives$Array<T, n>) #16
     │   ├── decls[16] > verb:
-    │   │   └── signature: @primitives$Int measured(@primitives$Array<@primitives$Int, n>, n @concepts$Int) #17
+    │   │   └── signature: @primitives$I64 measured(@primitives$Array<@primitives$I64, n>, n @concepts$Int) #17
     │   ├── decls[17] > verb:
-    │   │   └── signature: @primitives$Int relayed(@primitives$Array<@primitives$Int, 3>, n @concepts$Int) #18
+    │   │   └── signature: @primitives$I64 relayed(@primitives$Array<@primitives$I64, 3>, n @concepts$Int) #18
     │   ├── decls[18] > verb:
-    │   │   └── signature: @primitives$Int forwarded(@primitives$Array<@primitives$Int, 3>, count @concepts$Int) #19
+    │   │   └── signature: @primitives$I64 forwarded(@primitives$Array<@primitives$I64, 3>, count @concepts$Int) #19
     │   ├── decls[19] > verb:
-    │   │   └── signature: @primitives$Int sizedLike(@primitives$Array<@primitives$Int, 3>, n @concepts$Int) #20
+    │   │   └── signature: @primitives$I64 sizedLike(@primitives$Array<@primitives$I64, 3>, n @concepts$Int) #20
     │   ├── decls[20] > verb:
-    │   │   └── signature: app$Pair<@primitives$Int> pairOf(@concepts$Int, @concepts$Int) #21
+    │   │   └── signature: app$Pair<@primitives$I64> pairOf(@concepts$Int, @concepts$Int) #21
     │   ├── decls[21] > verb:
-    │   │   └── signature: app$Pair<@primitives$Float> pairOf(@concepts$Float, @concepts$Float) #22
+    │   │   └── signature: app$Pair<@primitives$F64> pairOf(@concepts$Float, @concepts$Float) #22
     │   ├── decls[22] > verb:
-    │   │   └── signature: @primitives$Float?@primitives$String safeDivide(@primitives$Float, @primitives$Float) #23
+    │   │   └── signature: @primitives$F64?@primitives$String safeDivide(@primitives$F64, @primitives$F64) #23
     │   ├── decls[23] > type:
     │   │   ├── name: Crew #24
     │   │   ├── kind: reference
@@ -79,7 +79,7 @@
         ├── name: shapes
         ├── decls[0] > alias:
         │   ├── name: Float #31
-        │   └── target: @primitives$Float
+        │   └── target: @primitives$F64
         ├── decls[1] > alias:
         │   ├── name: Unit #32
         │   └── target: @primitives$Unit
@@ -89,29 +89,29 @@
         ├── decls[3] > type:
         │   ├── name: Vec2 #34
         │   ├── kind: value
-        │   ├── struct[0]: x : @primitives$Float
-        │   └── struct[1]: y : @primitives$Float
+        │   ├── struct[0]: x : @primitives$F64
+        │   └── struct[1]: y : @primitives$F64
         ├── decls[4] > verb:
-        │   └── signature: Vec2(@primitives$Float, @primitives$Float) #35
+        │   └── signature: Vec2(@primitives$F64, @primitives$F64) #35
         ├── decls[5] > verb:
         │   └── signature: Vec2.zero() #36
         ├── decls[6] > verb:
-        │   └── signature: Vec2{x @primitives$Float; y @primitives$Float = ...} #37
+        │   └── signature: Vec2{x @primitives$F64; y @primitives$F64 = ...} #37
         ├── decls[7] > verb:
         │   └── signature: shapes$Vec2 +(shapes$Vec2, shapes$Vec2) #38
         ├── decls[8] > verb:
         │   └── signature: shapes$Vec2 ~(shapes$Vec2) #39
         ├── decls[9] > verb:
-        │   └── signature: @primitives$Float length(this shapes$Vec2) #40
+        │   └── signature: @primitives$F64 length(this shapes$Vec2) #40
         ├── decls[10] > verb:
-        │   └── signature: @primitives$Unit scale(this shapes$Vec2, @primitives$Float) mut #41
+        │   └── signature: @primitives$Unit scale(this shapes$Vec2, @primitives$F64) mut #41
         ├── decls[11] > verb:
         │   └── signature: implicit Vec2(@concepts$Float) #42
         ├── decls[12] > type:
         │   ├── name: Shape #43
         │   ├── kind: reference
-        │   ├── variant[0]: circle : @primitives$Float
-        │   ├── variant[1]: square : @primitives$Float
+        │   ├── variant[0]: circle : @primitives$F64
+        │   ├── variant[1]: square : @primitives$F64
         │   └── variant[2]: point : shapes$Vec2
         ├── decls[13] > type:
         │   ├── name: Corner #44
@@ -124,6 +124,6 @@
         │   ├── map: shapes$Corner.label #45
         │   └── type: @primitives$String
         ├── decls[15] > verb:
-        │   └── signature: @primitives$Float _half(@primitives$Float) #46
+        │   └── signature: @primitives$F64 _half(@primitives$F64) #46
         └── decls[16] > verb:
-            └── signature: @primitives$Float area(&shapes$Shape) #47
+            └── signature: @primitives$F64 area(&shapes$Shape) #47

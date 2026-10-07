@@ -3,7 +3,7 @@
 /// recurses once per boxed level on the C stack. (What the program printed
 /// before the crash is lost with its buffered output.)
 package deepvalue;
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -15,9 +15,9 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -31,22 +31,22 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
 	return Unit();
 }
 type Count = variant { done Int; more Count; }
 Count make(n Int) {
-	if(n == Int(0)) {
+	if(@operators$equal(n, Int(0))) {
 		return Count.done(Int(0));
 	}
-	return Count.more(make(n + ~Int(1)));
+	return Count.more(make(@operators$add(n, @operators$negate(Int(1)))));
 }
-Int depth(c Count) => match (c) { n done => n; m more => depth(m) + Int(1); }
+Int depth(c Count) => match (c) { n done => n; m more => @operators$add(depth(m), Int(1)); }
 Unit main() {
 	say(String("start\n"));
 	a Count = make(Int(30000));
 	say(String("built by recursion\n"));
-	check(String("depth"), depth(a) == Int(30000));
+	check(String("depth"), @operators$equal(depth(a), Int(30000)));
 	b Count = a;
 	say(String("copied\n"));
 	b = Count.done(Int(1));

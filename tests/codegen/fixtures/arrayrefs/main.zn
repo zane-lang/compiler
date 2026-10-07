@@ -8,7 +8,7 @@
 /// holds and `no` when it does not.
 package arrayrefs;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -16,9 +16,9 @@ alias String = @primitives$String
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -31,7 +31,7 @@ type Player = #struct {
 Player(score Int) => init{ score; name = String("p"); }
 
 Unit add(this Player, n Int) mut {
-	this.score = this.score + n;
+	this.score = @operators$add(this.score, n);
 	return Unit();
 }
 
@@ -57,7 +57,7 @@ Unit check(ok Bool) {
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
-	@controlflow$branch(~ok, {
+	@controlflow$branch(@operators$not(ok), {
 		@program$console!print(no);
 	});
 	return Unit();
@@ -66,49 +66,49 @@ Unit check(ok Bool) {
 Unit main() {
 	// Built from a literal, its elements moved in, read and written by index.
 	team @primitives$ArrayRef<Player, 3> = @primitives$ArrayRef([Player(Int(1)), Player(Int(2)), Player(Int(3))]);
-	check(team[Int(2)].score == Int(2));
+	check(@operators$equal(team[Int(2)].score, Int(2)));
 	team[Int(2)]!add(Int(10));
-	check(team[Int(2)].score == Int(12));
+	check(@operators$equal(team[Int(2)].score, Int(12)));
 
 	// An element of a settled `ArrayRef` is referenced, and observes an
 	// overwrite of the element in place.
 	second &Player = team[Int(2)];
 	team[Int(2)] = Player(Int(20));
-	check(second.score == Int(20));
-	check(scoreOf(team[Int(3)]) == Int(3));
+	check(@operators$equal(second.score, Int(20)));
+	check(@operators$equal(scoreOf(team[Int(3)]), Int(3)));
 	second!add(Int(1));
-	check(team[Int(2)].score == Int(21));
+	check(@operators$equal(team[Int(2)].score, Int(21)));
 
 	// The whole `ArrayRef` overwritten in place: the reference still names
 	// its second element.
 	team = @primitives$ArrayRef([Player(Int(7)), Player(Int(8)), Player(Int(9))]);
-	check(second.score == Int(8));
+	check(@operators$equal(second.score, Int(8)));
 
 	// Made by `fill`, element by element, in order.
-	grid @primitives$ArrayRef<Player, 100> = @primitives$ArrayRef.fill(100, ^Player(i Int) => Player(i * i));
-	check(grid[Int(10)].score == Int(100));
-	check(grid[Int(100)].score == Int(10000));
+	grid @primitives$ArrayRef<Player, 100> = @primitives$ArrayRef.fill(100, ^Player(i Int) => Player(@operators$multiply(i, i)));
+	check(@operators$equal(grid[Int(10)].score, Int(100)));
+	check(@operators$equal(grid[Int(100)].score, Int(10000)));
 
 	// A declared subscript whose projection ends at an `ArrayRef` element is
 	// a reference source.
 	squad Squad(@primitives$ArrayRef([Player(Int(5)), Player(Int(6)), Player(Int(7))]));
 	lead &Player = squad[Int(1)];
 	squad!replace(Int(1), Player(Int(50)));
-	check(lead.score == Int(50));
+	check(@operators$equal(lead.score, Int(50)));
 
 	// A roaming `ArrayRef` moves whole, and settles where it lands.
 	spare ^@primitives$ArrayRef<Player, 3> = @primitives$ArrayRef([Player(Int(4)), Player(Int(5)), Player(Int(6))]);
 	spare[Int(1)]!add(Int(1));
 	kept @primitives$ArrayRef<Player, 3> = spare;
-	check(kept[Int(1)].score == Int(5));
+	check(@operators$equal(kept[Int(1)].score, Int(5)));
 
 	// Many filled and dropped: each pass returns every block it made.
 	total Int(0);
 	j Int(1);
 	j!to(Int(1000)) {
 		row @primitives$ArrayRef<Player, 4> = @primitives$ArrayRef.fill(4, ^Player(i Int) => Player(i));
-		total = total + row[Int(4)].score;
+		total = @operators$add(total, row[Int(4)].score);
 	}
-	check(total == Int(4000));
+	check(@operators$equal(total, Int(4000)));
 	return Unit();
 }

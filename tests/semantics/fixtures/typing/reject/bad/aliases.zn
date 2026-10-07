@@ -1,8 +1,8 @@
 /// The primitive types, under the names the other files use.
 package bad;
 
-alias Int = @primitives$Int
-alias Float = @primitives$Float
+alias Int = @primitives$I64
+alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String

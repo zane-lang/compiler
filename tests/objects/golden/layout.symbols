@@ -1,4 +1,4 @@
 T !_shaders$compiled()
 T !gui$draw()
 T !gui.opengl$frame()
-T !math$double(%primitives$Int)
+T !math$double(%primitives$I64)

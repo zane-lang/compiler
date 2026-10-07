@@ -113,9 +113,14 @@ is copied in when it is stored and copied out when it is read, so a store
 writes an element in place without changing a value read before it.
 
 Arithmetic is codegen's: `I64` wraps, `I32` wraps at 32 bits, the most
-negative value divided by `-1` wraps (`lowering.md` §9), `F64` is IEEE with
-ordered comparisons, so a NaN is neither equal to nor less than anything, and
-`Bool` takes `+` as or and `*` as and. Every NaN folds to the same positive
+negative value divided by `-1` wraps and an integer divided by zero gives zero
+(`operators.md` §2.6), `F64` and `F32` are
+IEEE with ordered comparisons, so a NaN is neither equal to nor less than
+anything, an `F32` result is rounded to single precision once, and `Bool`
+takes `or` and `and` as the machine does. A conversion folds by the rules
+codegen emits (`Cgt.Nodes.Scalar`): an integer converted to an `F32` is rounded
+once, not through a double first, and a float truncated to an integer
+saturates, with a NaN giving zero. Every NaN folds to the same positive
 quiet NaN: what sign and payload a NaN gets is the machine's, and no program
 can tell one NaN from another. Constants are compared bit for bit, so a zero
 and its negative, which a division tells apart, are two values.
@@ -154,7 +159,7 @@ function that never ends still folds.
   known before it ran, for the same reason.
 
 Evaluation stops, leaving the code as it was, when it reads an unknown
-value, reaches a division by zero or an index out of range (the program must
+value, reaches an index out of range (the program must
 still stop there when it runs, after what it wrote before), would write a
 variable of the program, gives a value that holds a lent address, or runs out
 of budget. Three limits bound it, each counted in steps, so that the same

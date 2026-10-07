@@ -29,6 +29,7 @@ let rec lltype env (t : Ty.t) =
   | Ty.I1 -> Llvm.i1_type env.ctx
   | Ty.I32 -> Llvm.i32_type env.ctx
   | Ty.I64 -> env.i64
+  | Ty.F32 -> Llvm.float_type env.ctx
   | Ty.F64 -> Llvm.double_type env.ctx
   | Ty.Handle -> Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |]
   | Ty.Ptr -> env.ptr
@@ -189,37 +190,68 @@ let block env fr = Llvm.append_block env.ctx "" fr.fn
 (* Arithmetic                                                             *)
 (* ---------------------------------------------------------------------- *)
 
-(* Integer division by zero has no result, and neither has the one quotient
-   an integer cannot hold; LLVM leaves both undefined. The first stops the
-   program (docs/design/lowering.md §9), and the second wraps, as `+` and `*` do. *)
-let divide env fr b l r =
+(* LLVM leaves an integer division by zero undefined, and the one quotient an
+   integer cannot hold too. The first gives zero and the second wraps, as `+`
+   and `*` do (operators.md §2.6); the divisor is replaced in both, so the
+   [sdiv] itself never sees either. *)
+let divide b l r =
   let t = Llvm.type_of l in
   let zero = Llvm.const_int t 0 in
-  let minus_one = Llvm.const_int t (-1) in
-  let fails = block env fr and ok = block env fr in
-  ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Eq r zero "" b) fails ok b);
-  Llvm.position_at_end fails b;
-  let f, fty = runtime env Cgt.Runtime.Divide_by_zero in
-  ignore (Llvm.build_call fty f [||] "" b);
-  ignore (Llvm.build_unreachable b);
-  Llvm.position_at_end ok b;
-  let negating = Llvm.build_icmp Llvm.Icmp.Eq r minus_one "" b in
-  let divisor = Llvm.build_select negating (Llvm.const_int t 1) r "" b in
+  let by_zero = Llvm.build_icmp Llvm.Icmp.Eq r zero "" b in
+  let negating = Llvm.build_icmp Llvm.Icmp.Eq r (Llvm.const_int t (-1)) "" b in
+  let replaced = Llvm.build_or by_zero negating "" b in
+  let divisor = Llvm.build_select replaced (Llvm.const_int t 1) r "" b in
   let quotient = Llvm.build_sdiv l divisor "" b in
-  Llvm.build_select negating (Llvm.build_sub zero l "" b) quotient "" b
+  let quotient = Llvm.build_select negating (Llvm.build_sub zero l "" b) quotient "" b in
+  Llvm.build_select by_zero zero quotient "" b
 
-let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
+(* A scalar converted from [from] to [into] (Cgt.Nodes.Scalar). A float
+   truncated to an integer saturates (types.md §2.9): a NaN gives zero, and
+   one whose integer part the target cannot hold gives the target's nearest
+   end. [fptosi] is poison outside the bounds, and the selects never pick it
+   there. *)
+let convert env b (from : Ty.t) (into : Ty.t) v =
+  let target = lltype env into in
+  let is_float = function Ty.F32 | Ty.F64 -> true | _ -> false in
+  match (is_float from, is_float into) with
+  | false, false ->
+      if Scalar.bits from < Scalar.bits into then Llvm.build_sext v target "" b
+      else if Scalar.bits from > Scalar.bits into then Llvm.build_trunc v target "" b
+      else v
+  | false, true -> Llvm.build_sitofp v target "" b
+  | true, true -> (
+      match (from, into) with
+      | Ty.F32, Ty.F64 -> Llvm.build_fpext v target "" b
+      | Ty.F64, Ty.F32 -> Llvm.build_fptrunc v target "" b
+      | _ -> v)
+  | true, false ->
+      let source = Llvm.type_of v in
+      let lower, inclusive, upper = Scalar.truncation ~from into in
+      let above =
+        Llvm.build_fcmp
+          (if inclusive then Llvm.Fcmp.Oge else Llvm.Fcmp.Ogt)
+          v (Llvm.const_float source lower) "" b
+      in
+      let below = Llvm.build_fcmp Llvm.Fcmp.Olt v (Llvm.const_float source upper) "" b in
+      let nan = Llvm.build_fcmp Llvm.Fcmp.Uno v v "" b in
+      let least, most = Scalar.ends into in
+      let truncated = Llvm.build_fptosi v target "" b in
+      let high = Llvm.build_select below truncated (Llvm.const_of_int64 target most true) "" b in
+      let saturated = Llvm.build_select above high (Llvm.const_of_int64 target least true) "" b in
+      Llvm.build_select nan (Llvm.const_int target 0) saturated "" b
+
+let binary b (op : Expr.binop) (t : Ty.t) l r =
   match (t, op) with
   | (Ty.I64 | Ty.I32), Expr.Add -> Llvm.build_add l r "" b
   | (Ty.I64 | Ty.I32), Expr.Mul -> Llvm.build_mul l r "" b
-  | (Ty.I64 | Ty.I32), Expr.Div -> divide env fr b l r
+  | (Ty.I64 | Ty.I32), Expr.Div -> divide b l r
   | (Ty.I64 | Ty.I32 | Ty.I1), Expr.Eq -> Llvm.build_icmp Llvm.Icmp.Eq l r "" b
   | (Ty.I64 | Ty.I32), Expr.Less -> Llvm.build_icmp Llvm.Icmp.Slt l r "" b
-  | Ty.F64, Expr.Add -> Llvm.build_fadd l r "" b
-  | Ty.F64, Expr.Mul -> Llvm.build_fmul l r "" b
-  | Ty.F64, Expr.Div -> Llvm.build_fdiv l r "" b
-  | Ty.F64, Expr.Eq -> Llvm.build_fcmp Llvm.Fcmp.Oeq l r "" b
-  | Ty.F64, Expr.Less -> Llvm.build_fcmp Llvm.Fcmp.Olt l r "" b
+  | (Ty.F64 | Ty.F32), Expr.Add -> Llvm.build_fadd l r "" b
+  | (Ty.F64 | Ty.F32), Expr.Mul -> Llvm.build_fmul l r "" b
+  | (Ty.F64 | Ty.F32), Expr.Div -> Llvm.build_fdiv l r "" b
+  | (Ty.F64 | Ty.F32), Expr.Eq -> Llvm.build_fcmp Llvm.Fcmp.Oeq l r "" b
+  | (Ty.F64 | Ty.F32), Expr.Less -> Llvm.build_fcmp Llvm.Fcmp.Olt l r "" b
   | Ty.I1, Expr.Add -> Llvm.build_or l r "" b
   | Ty.I1, Expr.Mul -> Llvm.build_and l r "" b
   | _ ->
@@ -302,7 +334,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           ignore (call_runtime env b Cgt.Runtime.Promote [| p; layout env l; outermost |]);
           Some (Llvm.build_load (Llvm.type_of v) p "" b)
       | v, _ -> v)
-  | Expr.Float f -> Some (Llvm.const_float (Llvm.double_type env.ctx) f)
+  | Expr.Float f -> Some (Llvm.const_float (lltype env e.Expr.ty) f)
   | Expr.Bool v -> Some (Llvm.const_int (Llvm.i1_type env.ctx) (if v then 1 else 0))
   | Expr.Text s -> Some (text env s)
   | Expr.Unit -> None
@@ -382,14 +414,18 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       (* The left operand's instructions come first. *)
       let l = expr env fr b left in
       match (l, expr env fr b right) with
-      | Some l, Some r -> Some (binary env fr b op left.Expr.ty l r)
+      | Some l, Some r -> Some (binary b op left.Expr.ty l r)
       | _ -> Diagnostic.bug "codegen: an operand has no value")
   | Expr.Flip value -> (
       match (value.Expr.ty, expr env fr b value) with
       | (Ty.I64 | Ty.I32), Some v -> Some (Llvm.build_neg v "" b)
-      | Ty.F64, Some v -> Some (Llvm.build_fneg v "" b)
+      | (Ty.F64 | Ty.F32), Some v -> Some (Llvm.build_fneg v "" b)
       | Ty.I1, Some v -> Some (Llvm.build_not v "" b)
       | _ -> Diagnostic.bug "codegen: `~` on a value it does not flip")
+  | Expr.Convert value -> (
+      match expr env fr b value with
+      | Some v -> Some (convert env b value.Expr.ty e.Expr.ty v)
+      | None -> Diagnostic.bug "codegen: a conversion of no value")
   | Expr.Expand { label; body; result } ->
       Option.iter (fun id -> ignore (slot env fr id (lltype env e.Expr.ty))) result;
       let exit = block env fr in

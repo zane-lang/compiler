@@ -4,7 +4,7 @@
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── layouts[1] > layout:
-    │   ├── type: %primitives$Int
+    │   ├── type: %primitives$I64
     │   └── positions:
     ├── layouts[2] > layout:
     │   ├── type: constants$Person
@@ -241,7 +241,7 @@
     │       │   ├── frame: {i64}
     │       │   ├── args:
     │       │   ├── dest: #12
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
@@ -350,7 +350,7 @@
     │   │       ├── fn: zane_constant_end
     │   │       ├── args[0]: global constants$limit.state
     │   │       ├── args[1]: global constants$limit.value
-    │   │       └── args[2]: layout %primitives$Int
+    │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global constants$limit.value
     ├── funcs[7] > func:
     │   ├── symbol: constants$doubled
@@ -382,7 +382,7 @@
     │   │       ├── fn: zane_constant_end
     │   │       ├── args[0]: global constants$doubled.state
     │   │       ├── args[1]: global constants$doubled.value
-    │   │       └── args[2]: layout %primitives$Int
+    │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global constants$doubled.value
     ├── funcs[8] > func:
     │   ├── symbol: constants$early
@@ -414,7 +414,7 @@
     │   │       ├── fn: zane_constant_end
     │   │       ├── args[0]: global constants$early.state
     │   │       ├── args[1]: global constants$early.value
-    │   │       └── args[2]: layout %primitives$Int
+    │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global constants$early.value
     ├── funcs[9] > func:
     │   ├── symbol: constants$later
@@ -433,17 +433,17 @@
     │   │   │   ├── address: global constants$later.value
     │   │   │   └── value > call:
     │   │   │       ├── type: i64
-    │   │   │       ├── fn: constants$loud(%primitives$Int)
+    │   │   │       ├── fn: constants$loud(%primitives$I64)
     │   │   │       └── args[0]: 9 : i64
     │   │   └── body[1] > eval > runtime:
     │   │       ├── type: void
     │   │       ├── fn: zane_constant_end
     │   │       ├── args[0]: global constants$later.state
     │   │       ├── args[1]: global constants$later.value
-    │   │       └── args[2]: layout %primitives$Int
+    │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global constants$later.value
     ├── funcs[10] > func:
-    │   ├── symbol: constants$loud(%primitives$Int)
+    │   ├── symbol: constants$loud(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > scope:
@@ -528,7 +528,7 @@
     │   │       │   ├── address: global constants$ada.value
     │   │       │   └── value > call:
     │   │       │       ├── type: {handle, i64}
-    │   │       │       ├── fn: constants$Person{name %primitives$String; age %primitives$Int}
+    │   │       │       ├── fn: constants$Person{name %primitives$String; age %primitives$I64}
     │   │       │       ├── args[0] > expand:
     │   │       │       │   ├── type: handle
     │   │       │       │   ├── label: @2
@@ -550,7 +550,7 @@
     │   │           └── args[2]: layout constants$Person
     │   └── body[1] > return: global constants$ada.value
     ├── funcs[13] > func:
-    │   ├── symbol: constants$Person{name %primitives$String; age %primitives$Int}
+    │   ├── symbol: constants$Person{name %primitives$String; age %primitives$I64}
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {handle, i64}
@@ -581,7 +581,7 @@
     │   │   │   ├── address: global constants$origin.value
     │   │   │   └── value > call:
     │   │   │       ├── type: {i64, i64}
-    │   │   │       ├── fn: constants$Point(%primitives$Int, %primitives$Int)
+    │   │   │       ├── fn: constants$Point(%primitives$I64, %primitives$I64)
     │   │   │       ├── args[0]: 0 : i64
     │   │   │       └── args[1]: 0 : i64
     │   │   └── body[1] > eval > runtime:
@@ -592,7 +592,7 @@
     │   │       └── args[2]: layout constants$Point
     │   └── body[1] > return: global constants$origin.value
     ├── funcs[15] > func:
-    │   ├── symbol: constants$Point(%primitives$Int, %primitives$Int)
+    │   ├── symbol: constants$Point(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i64, i64}

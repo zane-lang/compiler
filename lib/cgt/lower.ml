@@ -50,6 +50,9 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       call st ctx span (verb_of st id instance) args handler e.T.Expr.ty
   | T.Expr.Coerce { ctor = { owner = S.Declared id; instance; _ }; value } ->
       call st ctx span (verb_of st id instance) [ T.Arg.Value value ] None e.T.Expr.ty
+  | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; args; handler = None }
+    when String.starts_with ~prefix:"@operators$" spelling ->
+      operation st ctx span spelling args e.T.Expr.ty
   | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$print"; _ }; args; handler = None }
     -> (
       (* The program has one console (effects.md §6.6), so the subject names
@@ -155,11 +158,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           apply l (r ())
       in
       match owner with
-      | S.Intrinsic _ ->
-          operands
-            (fun () -> borrow st ctx span left)
-            (fun () -> borrow st ctx span right)
-            (fun l r -> primitive_op span op t l r)
+      | S.Intrinsic _ -> Diagnostic.bug ~span "lowering: an operator no package declared"
       | S.Declared id -> (
           match verb_of st id instance with
           | Some ({ params = [ pl; pr ]; _ } as v) when not (expands v) ->
@@ -171,8 +170,6 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           | Some v when expands v ->
               refuse span "lowering does not handle an operator that takes a block or a literal yet"
           | _ -> Diagnostic.bug ~span "lowering: an operator with no verb to call"))
-  | T.Expr.Flip { impl = { owner = S.Intrinsic _; _ }; value; handler = None } ->
-      { Expr.node = Expr.Flip (expr st ctx value); ty = ty st span e.T.Expr.ty }
   | T.Expr.Flip { impl = { owner = S.Declared id; instance; _ }; value; handler } ->
       call st ctx span (verb_of st id instance) [ T.Arg.Value value ] handler e.T.Expr.ty
   | T.Expr.Field { target; slot; _ } ->
@@ -287,7 +284,37 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
             { value with Expr.node = Expr.Copy { value; layout = layout st span t } }
           else value)
       | _ -> Diagnostic.bug ~span "lowering expected an array literal of the array's length here")
+  (* A scalar from another scalar (types.md §2.7): the plain constructors
+     widen, and the named ones wrap, truncate or round. *)
+  | _, [ T.Arg.Value v ] when scalar v.T.Expr.ty ->
+      { Expr.node = Expr.Convert (expr st ctx v); ty = ty st span t }
   | _, [ T.Arg.Value v ] -> literal ctx span name v
+  | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
+
+(* An `@operators$` operation (syntax.md §2.7). Its operands run in the order
+   written, and are read where they are: an operation keeps none of them. *)
+and operation st ctx span spelling args (t : Tty.t) : Expr.t =
+  let t = ty st span t in
+  let value = function
+    | T.Arg.Value v -> borrow st ctx span v
+    | T.Arg.Block _ -> Diagnostic.bug ~span "lowering: a block passed to an operation"
+  in
+  let name = String.sub spelling 11 (String.length spelling - 11) in
+  match (name, args) with
+  | ("negate" | "not"), [ v ] -> { Expr.node = Expr.Flip (value v); ty = t }
+  | _, [ l; r ] -> (
+      let l = value l in
+      let r = value r in
+      let op : Sst.Nodes.Operator.node =
+        match name with
+        | "add" | "or" | "concat" -> Add
+        | "multiply" | "and" -> Mul
+        | "divide" -> Div
+        | "equal" -> Eq
+        | "lessThan" -> Less
+        | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: no operation `%s`" spelling)
+      in
+      primitive_op span op t l r)
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
 
 (* `ArrayRef.fill(n, make)` (generics.md §8.4): a slot this scope holds,
@@ -1036,7 +1063,7 @@ and arguments st ctx span v args =
 
    A call that can abort or exit settles on this thread, once, where it is
    first read, or where the block ends when nothing reads it first
-   (docs/spec-divergences.md §12). An abort runs the handler written at the
+   (docs/spec-divergences.md §11). An abort runs the handler written at the
    spawn (§3.3), or goes where an abort from here goes, and its `resolve`
    gives the result; an exit ends the run of the block the spawn is in. *)
 and spawn st ctx span (e : T.Expr.t) =
@@ -1512,7 +1539,7 @@ and block ?(enter = fun _ -> []) st ctx (b : T.Block.t) =
   match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ]
 
 (* A block argument's code, where it was written. An exit ends this run of
-   it (docs/spec-divergences.md §10). *)
+   it (docs/spec-divergences.md §9). *)
 and code st ctx span (arg : T.Arg.t) =
   let run ctx b =
     let label = fresh st in

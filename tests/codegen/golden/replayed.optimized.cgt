@@ -33,7 +33,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: replayed$spin(%primitives$Int)
+    │       │       │   ├── fn: replayed$spin(%primitives$I64)
     │       │       │   └── args[0]: 3000000 : i64
     │       │       └── right: 3000000 : i64
     │       ├── body[5] > eval > call:
@@ -44,7 +44,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: replayed$down(%primitives$Int)
+    │       │       │   ├── fn: replayed$down(%primitives$I64)
     │       │       │   └── args[0]: 5000 : i64
     │       │       └── right: 5000 : i64
     │       ├── body[6] > eval > runtime:
@@ -62,7 +62,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: replayed$double(%primitives$Int)
+    │       │       │   ├── fn: replayed$double(%primitives$I64)
     │       │       │   └── args[0] > expand:
     │       │       │       ├── type: i64
     │       │       │       ├── label: @46
@@ -82,7 +82,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: replayed$slowly(this %primitives$Int)
+    │       │       │   ├── fn: replayed$slowly(this %primitives$I64)
     │       │       │   └── args[0]: address of #11 : ptr
     │       │       └── right: 6 : i64
     │       ├── body[10] > let:
@@ -92,7 +92,7 @@
     │       │       ├── op: +
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: replayed$spin(%primitives$Int)
+    │       │       │   ├── fn: replayed$spin(%primitives$I64)
     │       │       │   └── args[0]: 3000000 : i64
     │       │       └── right: -2999999 : i64
     │       ├── body[11] > let:
@@ -109,7 +109,7 @@
     │       │       │   ├── op: +
     │       │       │   ├── left > call:
     │       │       │   │   ├── type: i64
-    │       │       │   │   ├── fn: replayed$bumped(this %primitives$Int, %primitives$Int)
+    │       │       │   │   ├── fn: replayed$bumped(this %primitives$I64, %primitives$I64)
     │       │       │   │   ├── args[0]: address of #13 : ptr
     │       │       │   │   └── args[1]: local #12 : i64
     │       │       │   └── right: local #13 : i64
@@ -128,7 +128,7 @@
     │       │   │       ├── op: ==
     │       │   │       ├── left > call:
     │       │   │       │   ├── type: i64
-    │       │   │       │   ├── fn: replayed$bumped(this %primitives$Int, %primitives$Int)
+    │       │   │       │   ├── fn: replayed$bumped(this %primitives$I64, %primitives$I64)
     │       │   │       │   ├── args[0]: address of #14 : ptr
     │       │   │       │   └── args[1]: local #12 : i64
     │       │   │       └── right: 0 : i64
@@ -161,7 +161,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: replayed$bumped(this %primitives$Int, %primitives$Int)
+    │       │       │   ├── fn: replayed$bumped(this %primitives$I64, %primitives$I64)
     │       │       │   ├── args[0]: address of #19 : ptr
     │       │       │   └── args[1]: local #12 : i64
     │       │       └── right: 7 : i64
@@ -170,7 +170,7 @@
     │       │   ├── scope: %4
     │       │   ├── value > call:
     │       │   │   ├── type: handle
-    │       │   │   ├── fn: replayed$repeated(%primitives$String, %primitives$Int)
+    │       │   │   ├── fn: replayed$repeated(%primitives$String, %primitives$I64)
     │       │   │   ├── args[0]: "0123456789" : handle
     │       │   │   └── args[1]: 7000 : i64
     │       │   └── layout: %primitives$String
@@ -193,7 +193,7 @@
     │       │       │       │   ├── scope: %4
     │       │       │       │   ├── value > call:
     │       │       │       │   │   ├── type: handle
-    │       │       │       │   │   ├── fn: replayed$repeated(%primitives$String, %primitives$Int)
+    │       │       │       │   │   ├── fn: replayed$repeated(%primitives$String, %primitives$I64)
     │       │       │       │   │   ├── args[0]: "0123456789" : handle
     │       │       │       │   │   └── args[1]: 7000 : i64
     │       │       │       │   └── layout: %primitives$String
@@ -230,7 +230,7 @@
     │   │   └── args[0]: local #1 : handle
     │   └── body[1] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: replayed$loud(%primitives$Int)
+    │   ├── symbol: replayed$loud(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > scope:
@@ -268,7 +268,7 @@
     │   │           └── args[0]: "no\n" : handle
     │   └── body[2] > return: unit : void
     ├── funcs[4] > func:
-    │   ├── symbol: replayed$spin(%primitives$Int)
+    │   ├── symbol: replayed$spin(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -314,7 +314,7 @@
     │   │   └── body[2]: leave @5
     │   └── body[3] > return: local #2 : i64
     ├── funcs[5] > func:
-    │   ├── symbol: replayed$down(%primitives$Int)
+    │   ├── symbol: replayed$down(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > eval > expand:
@@ -341,14 +341,14 @@
     │       ├── left: 1 : i64
     │       └── right > call:
     │           ├── type: i64
-    │           ├── fn: replayed$down(%primitives$Int)
+    │           ├── fn: replayed$down(%primitives$I64)
     │           └── args[0] > binary:
     │               ├── type: i64
     │               ├── op: +
     │               ├── left: local #1 : i64
     │               └── right: -1 : i64
     ├── funcs[6] > func:
-    │   ├── symbol: replayed$bumped(this %primitives$Int, %primitives$Int)
+    │   ├── symbol: replayed$bumped(this %primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64
@@ -365,7 +365,7 @@
     │       ├── type: i64
     │       └── ptr: local #1 : ptr
     ├── funcs[7] > func:
-    │   ├── symbol: replayed$double(%primitives$Int)
+    │   ├── symbol: replayed$double(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > return > binary:
@@ -374,14 +374,14 @@
     │       ├── left: local #1 : i64
     │       └── right: 2 : i64
     ├── funcs[8] > func:
-    │   ├── symbol: replayed$slowly(this %primitives$Int)
+    │   ├── symbol: replayed$slowly(this %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   ├── body[0] > let:
     │   │   ├── local: #2
     │   │   └── value > call:
     │   │       ├── type: i64
-    │   │       ├── fn: replayed$spin(%primitives$Int)
+    │   │       ├── fn: replayed$spin(%primitives$I64)
     │   │       └── args[0]: 3000000 : i64
     │   └── body[1] > return > binary:
     │       ├── type: i64
@@ -395,7 +395,7 @@
     │       │   └── right: local #2 : i64
     │       └── right: -3000000 : i64
     └── funcs[9] > func:
-        ├── symbol: replayed$repeated(%primitives$String, %primitives$Int)
+        ├── symbol: replayed$repeated(%primitives$String, %primitives$I64)
         ├── params[0]: local #1 : handle
         ├── params[1]: local #2 : i64
         ├── ret: handle

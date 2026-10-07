@@ -1,6 +1,6 @@
 /// A library: no `main`, which an application would need.
 package geometry;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 
-Int double(n Int) => n + n
+Int double(n Int) => @operators$add(n, n)

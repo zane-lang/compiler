@@ -1,7 +1,8 @@
 (* Literal ranges: an analysis over the finished TST (docs/design/semantics.md
    D1). A storage primitive's constructor embeds its literal (types.md §2.7),
-   so the literal must fit the primitive: `@primitives$Int` and `I64` hold a
-   64-bit integer, `I32` a 32-bit one, and `Float` a finite double. A literal
+   so the literal must fit the primitive: `@primitives$I64` holds a 64-bit
+   integer, `I32` a 32-bit one, `F64` a finite double and `F32` a finite
+   single. A literal
    that reaches a constructor through a verb's literal parameter is known only
    where the verb is written out, and lowering checks it there. *)
 
@@ -15,11 +16,12 @@ let digits s = String.concat "" (String.split_on_char '\'' s)
 (* Whether [text], written for the primitive [name], fits it. *)
 let fits name (literal : T.Expr.node) =
   match (name, literal) with
-  | ("Int" | "I64"), T.Expr.Integer_lit s -> Option.is_some (Int64.of_string_opt (digits s))
+  | "I64", T.Expr.Integer_lit s -> Option.is_some (Int64.of_string_opt (digits s))
   | "I32", T.Expr.Integer_lit s -> Option.is_some (Int32.of_string_opt (digits s))
   | "I32", T.Expr.Var (T.Name_ref.Number_param { value = Ty.Known n; _ }) ->
       Int64.of_int n >= Int64.of_int32 Int32.min_int && Int64.of_int n <= Int64.of_int32 Int32.max_int
-  | "Float", T.Expr.Decimal_lit s -> Float.is_finite (float_of_string (digits s))
+  | "F64", T.Expr.Decimal_lit s -> Float.is_finite (float_of_string (digits s))
+  | "F32", T.Expr.Decimal_lit s -> Float.is_finite (Decimal.to_single (digits s))
   | _ -> true
 
 let text = function

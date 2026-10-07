@@ -2,6 +2,7 @@ module Assembly = Assembly
 module Ty = Ty
 module Signature = Signature
 module Nodes = Nodes
+module Decimal = Decimal
 module Exits = Exits
 module Intrinsics = Intrinsics
 module Semantics = Semantics

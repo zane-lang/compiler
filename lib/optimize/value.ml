@@ -79,7 +79,7 @@ let rec zero (t : Ty.t) =
   | Ty.Void -> VUnit
   | Ty.I1 -> VBool false
   | Ty.I32 | Ty.I64 -> VInt 0L
-  | Ty.F64 -> VFloat 0.
+  | Ty.F32 | Ty.F64 -> VFloat 0.
   | Ty.Handle | Ty.Ptr -> VNull
   | Ty.Struct ts -> VRecord (Array.of_list (List.map zero ts))
   | Ty.Array (t, n) -> VRecord (Array.init n (fun _ -> zero t))

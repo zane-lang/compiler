@@ -17,7 +17,7 @@ Error: not every path through `noReturn` returns; a block-bodied verb returns ex
 File "fixtures/typing/reject/bad/bodies.zn", line 17, characters 13-15:
 17 |     x Int = 20;
   |             ^^
-Error: `x` is declared `@primitives$Int`, and its value is `@concepts$Int`; a declaration is not a coercion site, so a conversion is written out
+Error: `x` is declared `@primitives$I64`, and its value is `@concepts$Int`; a declaration is not a coercion site, so a conversion is written out
 File "fixtures/typing/reject/bad/bodies.zn", line 18, characters 5-10:
 18 |     value = Int(2);
   |     ^^^^^
@@ -45,7 +45,7 @@ Error: `_balance` is private: only a method whose subject is `Account` may read 
 File "fixtures/typing/reject/bad/bodies.zn", line 25, characters 12-18:
 25 |     return Int(4);
   |            ^^^^^^
-Error: this returns `@primitives$Int`, and the verb returns `@primitives$Unit`; `return` is not a coercion site, so a conversion is written out
+Error: this returns `@primitives$I64`, and the verb returns `@primitives$Unit`; `return` is not a coercion site, so a conversion is written out
 File "fixtures/typing/reject/bad/bodies.zn", line 29, characters 5-15:
 29 |     this.owner = Int(2);
   |     ^^^^^^^^^^
@@ -149,15 +149,15 @@ Error: this writes `other`, which overlaps `other[]`, which an earlier argument 
 File "fixtures/typing/reject/bad/calls.zn", line 25, characters 13-33:
 25 |     a Int = pair(Int(1), Int(2));
   |             ^^^^^^^^^^^^^^^^^^^^
-Error: no `pair` accepts (@primitives$Int, @primitives$Int); the candidates are `@primitives$Int pair(@primitives$Int, @primitives$Float)`; `@primitives$Int pair(@primitives$Float, @primitives$Int)`
+Error: no `pair` accepts (@primitives$I64, @primitives$I64); the candidates are `@primitives$I64 pair(@primitives$I64, @primitives$F64)`; `@primitives$I64 pair(@primitives$F64, @primitives$I64)`
 File "fixtures/typing/reject/bad/calls.zn", line 26, characters 13-23:
 26 |     b Int = pair(1, 2);
   |             ^^^^^^^^^^
-Error: no `pair` accepts (@concepts$Int, @concepts$Int); the candidates are `@primitives$Int pair(@primitives$Int, @primitives$Float)`; `@primitives$Int pair(@primitives$Float, @primitives$Int)`
+Error: no `pair` accepts (@concepts$Int, @concepts$Int); the candidates are `@primitives$I64 pair(@primitives$I64, @primitives$F64)`; `@primitives$I64 pair(@primitives$F64, @primitives$I64)`
 File "fixtures/typing/reject/bad/calls.zn", line 27, characters 13-24:
 27 |     k Int = tally(1, 2);
   |             ^^^^^^^^^^^
-Error: the call to `tally` is ambiguous: `@primitives$Int tally(bad$Score, bad$Count)`; `@primitives$Int tally(bad$Count, bad$Score)` both accept (@concepts$Int, @concepts$Int)
+Error: the call to `tally` is ambiguous: `@primitives$I64 tally(bad$Score, bad$Count)`; `@primitives$I64 tally(bad$Count, bad$Score)` both accept (@concepts$Int, @concepts$Int)
 File "fixtures/typing/reject/bad/calls.zn", line 28, characters 13-20:
 28 |     c Int = echo(4);
   |             ^^^^^^^
@@ -185,7 +185,7 @@ Error: `peek` is not a `mut` method, so it is called with `:`
 File "fixtures/typing/reject/bad/calls.zn", line 35, characters 13-24:
 35 |     g Int = n:missing();
   |             ^^^^^^^^^^^
-Error: no method named `missing` is declared in `@primitives`, the home of `@primitives$Int`, or in this package
+Error: no method named `missing` is declared in `@primitives`, the home of `@primitives$I64`, or in this package
 File "fixtures/typing/reject/bad/calls.zn", line 36, characters 11-32:
 36 |     spawn repeat({ n!bump(); });
   |           ^^^^^^^^^^^^^^^^^^^^^
@@ -209,11 +209,11 @@ Error: `resolve` finishes a handler, and this is in none: a block yields nothing
 File "fixtures/typing/reject/bad/conventions.zn", line 15, characters 7-63:
 15 |     c Courier(Int(p Parcel) => Int(1), Parcel(String("hint")));
   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: no `Courier` accepts (@primitives$Int[bad$Parcel], bad$Parcel); the candidate is `Courier(@primitives$Int[^T], T)`
+Error: no `Courier` accepts (@primitives$I64[bad$Parcel], bad$Parcel); the candidate is `Courier(@primitives$I64[^T], T)`
 File "fixtures/typing/reject/bad/conventions.zn", line 16, characters 7-39:
 16 |     d Pointer(Int(n Int) => n, Int(2));
   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: no `Pointer` accepts (@primitives$Int[@primitives$Int], @primitives$Int); the candidate is `Pointer(@primitives$Int[&T], T)`
+Error: no `Pointer` accepts (@primitives$I64[@primitives$I64], @primitives$I64); the candidate is `Pointer(@primitives$I64[&T], T)`
 File "fixtures/typing/reject/bad/conventions.zn", line 27, characters 16-17:
 27 |     observe(p, p);
   |                ^
@@ -253,7 +253,7 @@ Error: `guard` can exit, which ends the block its call is written in, and this c
 File "fixtures/typing/reject/bad/exits.zn", line 19, characters 23-44:
 19 | Bool lazily(condition @concepts$Block<Bool>) => true
   |                       ^^^^^^^^^^^^^^^^^^^^^
-Error: `@concepts$Block` takes no type argument: a block yields nothing (docs/spec-divergences.md §11)
+Error: `@concepts$Block` takes no type argument: a block yields nothing (docs/spec-divergences.md §10)
 File "fixtures/typing/reject/bad/exits.zn", line 23, characters 9-23:
 23 |         resolve ready;
   |         ^^^^^^^^^^^^^^
@@ -322,10 +322,10 @@ File "fixtures/typing/reject/bad/imports.zn", line 11, characters 1-16:
 11 | import lib$hook;
   | ^^^^^^^^^^^^^^^
 Error: this import brings `hook` from `lib`, which takes the same parameter types as the `hook` declared at fixtures/typing/reject/bad/twin.zn:8; the two cannot be told apart at a call
-File "fixtures/typing/reject/bad/instances.zn", line 5, characters 25-38:
-5 | T half(value T Type) => value / value
-  |                         ^^^^^^^^^^^^^
-Error: no operator `/` accepts (@primitives$String, @primitives$String); the candidates are `@primitives$Int /(@primitives$Int, @primitives$Int)`; `@primitives$I32 /(@primitives$I32, @primitives$I32)`; `@primitives$I64 /(@primitives$I64, @primitives$I64)`; `@primitives$Float /(@primitives$Float, @primitives$Float)` (in `half` with T = @primitives$String, required at fixtures/typing/reject/bad/instances.zn:9)
+File "fixtures/typing/reject/bad/instances.zn", line 5, characters 25-56:
+5 | T half(value T Type) => @operators$divide(value, value)
+  |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@operators$divide` accepts (@primitives$String, @primitives$String); the candidates are `@primitives$I32 @operators$divide(@primitives$I32, @primitives$I32)`; `@primitives$I64 @operators$divide(@primitives$I64, @primitives$I64)`; `@primitives$F32 @operators$divide(@primitives$F32, @primitives$F32)`; `@primitives$F64 @operators$divide(@primitives$F64, @primitives$F64)` (in `half` with T = @primitives$String, required at fixtures/typing/reject/bad/instances.zn:9)
 File "fixtures/typing/reject/bad/lambdas.zn", line 5, characters 20-25:
 5 |     reads Int() => outer;
   |                    ^^^^^
@@ -349,27 +349,27 @@ Error: `n` introduces a parameter, which takes `Type` or `@concepts$Int` (generi
 File "fixtures/typing/reject/bad/literals.zn", line 14, characters 55-74:
 14 | Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n)
   |                                                       ^^^^^^^^^^^^^^^^^^^
-Error: no `measured` accepts (@primitives$Array<@primitives$Int, 3>, @concepts$Int); the candidate is `@primitives$Int measured(@primitives$Array<@primitives$Int, n>, n @concepts$Int)` (in `relayed` with n = 4, required at fixtures/typing/reject/bad/literals.zn:44)
+Error: no `measured` accepts (@primitives$Array<@primitives$I64, 3>, @concepts$Int); the candidate is `@primitives$I64 measured(@primitives$Array<@primitives$I64, n>, n @concepts$Int)` (in `relayed` with n = 4, required at fixtures/typing/reject/bad/literals.zn:44)
 File "fixtures/typing/reject/bad/literals.zn", line 18, characters 12-27:
 18 |     return measure(values);
   |            ^^^^^^^^^^^^^^^
-Error: no `measure` accepts (@primitives$Array<@primitives$Int, 3>); the candidate is `@primitives$Int measure(@primitives$Array<@primitives$Int, 4>)` (in `sizedLike` with n = 4, required at fixtures/typing/reject/bad/literals.zn:39)
+Error: no `measure` accepts (@primitives$Array<@primitives$I64, 3>); the candidate is `@primitives$I64 measure(@primitives$Array<@primitives$I64, 4>)` (in `sizedLike` with n = 4, required at fixtures/typing/reject/bad/literals.zn:39)
 File "fixtures/typing/reject/bad/literals.zn", line 29, characters 17-25:
 29 |     whole Int = Int(2.5);
   |                 ^^^^^^^^
-Error: no `@primitives$Int` accepts (@concepts$Float); the candidates are `@primitives$Int(@concepts$Int)`; `implicit @primitives$Int(bad$Engine)`
+Error: no `@primitives$I64` accepts (@concepts$Float); the candidates are `@primitives$I64(@concepts$Int)`; `@primitives$I64(@primitives$I32)`; `implicit @primitives$I64(bad$Engine)`
 File "fixtures/typing/reject/bad/literals.zn", line 30, characters 22-30:
 30 |     fraction Float = Float(2);
   |                      ^^^^^^^^
-Error: no `@primitives$Float` accepts (@concepts$Int); the candidates are `@primitives$Float(@concepts$Float)`; `implicit @primitives$Float(@primitives$Bool)`
-File "fixtures/typing/reject/bad/literals.zn", line 31, characters 15-27:
-31 |     sum Int = Int(1) + 2.5;
-  |               ^^^^^^^^^^^^
-Error: no operator `+` accepts (@primitives$Int, @concepts$Float); the candidates are `@primitives$Int +(@primitives$Int, @primitives$Int)`; `@primitives$I32 +(@primitives$I32, @primitives$I32)`; `@primitives$I64 +(@primitives$I64, @primitives$I64)`; `@primitives$Float +(@primitives$Float, @primitives$Float)`; ...
+Error: no `@primitives$F64` accepts (@concepts$Int); the candidates are `@primitives$F64(@concepts$Float)`; `@primitives$F64(@primitives$F32)`; `@primitives$F64(@primitives$I32)`; `implicit @primitives$F64(@primitives$Bool)`
+File "fixtures/typing/reject/bad/literals.zn", line 31, characters 15-42:
+31 |     sum Int = @operators$add(Int(1), 2.5);
+  |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@operators$add` accepts (@primitives$I64, @concepts$Float); the candidates are `@primitives$I32 @operators$add(@primitives$I32, @primitives$I32)`; `@primitives$I64 @operators$add(@primitives$I64, @primitives$I64)`; `@primitives$F32 @operators$add(@primitives$F32, @primitives$F32)`; `@primitives$F64 @operators$add(@primitives$F64, @primitives$F64)`
 File "fixtures/typing/reject/bad/literals.zn", line 34, characters 17-37:
 34 |     sized Int = measured(numbers, 4);
   |                 ^^^^^^^^^^^^^^^^^^^^
-Error: no `measured` accepts (@primitives$Array<@primitives$Int, 3>, @concepts$Int); the candidate is `@primitives$Int measured(@primitives$Array<@primitives$Int, n>, n @concepts$Int)`
+Error: no `measured` accepts (@primitives$Array<@primitives$I64, 3>, @concepts$Int); the candidate is `@primitives$I64 measured(@primitives$Array<@primitives$I64, n>, n @concepts$Int)`
 File "fixtures/typing/reject/bad/literals.zn", line 47, characters 18-31:
 47 |     mixed Unit = twice(2, 3.5);
   |                  ^^^^^^^^^^^^^
@@ -377,7 +377,7 @@ Error: no `twice` accepts (@concepts$Int, @concepts$Float); the candidates are `
 File "fixtures/typing/reject/bad/literals.zn", line 52, characters 21-41:
 52 | Int tooBig() => Int(99999999999999999999)
   |                     ^^^^^^^^^^^^^^^^^^^^
-Error: `99999999999999999999` is out of range for `@primitives$Int`
+Error: `99999999999999999999` is out of range for `@primitives$I64`
 File "fixtures/typing/reject/bad/literals.zn", line 53, characters 46-56:
 53 | @primitives$I32 tooWide() => @primitives$I32(4294967296)
   |                                              ^^^^^^^^^^
@@ -385,11 +385,11 @@ Error: `4294967296` is out of range for `@primitives$I32`
 File "fixtures/typing/reject/bad/literals.zn", line 54, characters 25-428:
 54 | Float tooFar() => Float(10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0)
   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: `10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0` is out of range for `@primitives$Float`
+Error: `10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0` is out of range for `@primitives$F64`
 File "fixtures/typing/reject/bad/literals.zn", line 61, characters 16-36:
 61 | Bin{ count Int(99999999999999999999); } => init{ count; }
   |                ^^^^^^^^^^^^^^^^^^^^
-Error: `99999999999999999999` is out of range for `@primitives$Int`
+Error: `99999999999999999999` is out of range for `@primitives$I64`
 File "fixtures/typing/reject/bad/marks.zn", line 8, characters 30-35:
 8 | type Tether = #struct { kite ^Kite; }
   |                              ^^^^^
@@ -401,7 +401,7 @@ Error: `^bad$Kite` is a roaming owner, and `^` is written only on a local, a par
 File "fixtures/typing/reject/bad/marks.zn", line 12, characters 15-19:
 12 | Unit fly(span ^Int) => Unit()
   |               ^^^^
-Error: `@primitives$Int` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
+Error: `@primitives$I64` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
 File "fixtures/typing/reject/bad/marks.zn", line 14, characters 1-31:
 14 | Unit tug(this ^Kite) => Unit()
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -441,15 +441,15 @@ Error: `bad$Kite` is a reference type, and it reaches the elements of `@primitiv
 File "fixtures/typing/reject/bad/marks.zn", line 53, characters 20-23:
 53 | alias Pegged = Peg<Int>
   |                    ^^^
-Error: `@primitives$Int` is a value type, and it fills an `&` at `bad$Peg<@primitives$Int>`'s field `at`; `&` marks only a reference type, since a value is never referenced, only copied
+Error: `@primitives$I64` is a value type, and it fills an `&` at `bad$Peg<@primitives$I64>`'s field `at`; `&` marks only a reference type, since a value is never referenced, only copied
 File "fixtures/typing/reject/bad/marks.zn", line 57, characters 11-16:
 57 |     e Peg(count);
   |           ^^^^^
-Error: `@primitives$Int` is a value type, and it fills an `&` at `bad$Peg<@primitives$Int>`'s field `at`; `&` marks only a reference type, since a value is never referenced, only copied
+Error: `@primitives$I64` is a value type, and it fills an `&` at `bad$Peg<@primitives$I64>`'s field `at`; `&` marks only a reference type, since a value is never referenced, only copied
 File "fixtures/typing/reject/bad/marks.zn", line 58, characters 9-14:
 58 |     tap(count);
   |         ^^^^^
-Error: `@primitives$Int` is a value type, and it fills an `&` at the parameter `at`; `&` marks only a reference type, since a value is never referenced, only copied
+Error: `@primitives$I64` is a value type, and it fills an `&` at the parameter `at`; `&` marks only a reference type, since a value is never referenced, only copied
 File "fixtures/typing/reject/bad/marks.zn", line 67, characters 23-28:
 67 | alias KiteRefs = List<&Kite>
   |                       ^^^^^
@@ -473,11 +473,11 @@ Error: `red` is an enum member and carries no payload to bind
 File "fixtures/typing/reject/bad/matches.zn", line 14, characters 14-18:
 14 |     green => true;
   |              ^^^^
-Error: every arm of a match yields one type: this yields `@primitives$Bool`, and the first arm yields `@primitives$Int`; an arm is not a coercion site
+Error: every arm of a match yields one type: this yields `@primitives$Bool`, and the first arm yields `@primitives$I64`; an arm is not a coercion site
 File "fixtures/typing/reject/bad/matches.zn", line 17, characters 32-37:
 17 | Int plain(value Int) => match (value) {
   |                                ^^^^^
-Error: a match dispatches on a variant or an enum, and `@primitives$Int` is neither
+Error: a match dispatches on a variant or an enum, and `@primitives$I64` is neither
 File "fixtures/typing/reject/bad/moves.zn", line 21, characters 13-23:
 21 |     b Cup = saucer.cup;
   |             ^^^^^^^^^^
@@ -585,7 +585,7 @@ Error: illegal overload set: this function differs from the one at fixtures/typi
 File "fixtures/typing/reject/bad/overloads.zn", line 16, characters 1-36:
 16 | Int +(left Int, right Bool) => left
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: the operator `+` on `@primitives$Int` and `@primitives$Bool` may be declared only in the home package of an operand type, and `bad` is not one
+Error: the operator `+` on `@primitives$I64` and `@primitives$Bool` may be declared only in the home package of an operand type, and `bad` is not one
 File "fixtures/typing/reject/bad/overloads.zn", line 19, characters 1-38:
 19 | implicit Int(engine Engine) => Int(1)
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -593,7 +593,7 @@ Error: the source of an implicit constructor must be a value type or a concept t
 File "fixtures/typing/reject/bad/overloads.zn", line 22, characters 1-41:
 22 | implicit Float(value Bool) => Float(0.0)
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: an implicit constructor from `@primitives$Bool` to `@primitives$Float` may be declared only in the home package of one of them, and `bad` is neither
+Error: an implicit constructor from `@primitives$Bool` to `@primitives$F64` may be declared only in the home package of one of them, and `bad` is neither
 File "fixtures/typing/reject/bad/overloads.zn", line 26, characters 1-19:
 26 | Level.weight Int {
   | ^^^^^^^^^^^^^^^^^^
@@ -863,7 +863,7 @@ File "fixtures/typing/reject/bad/spawns.zn", line 133, characters 9-13:
   |         ^^^^
 Error: `view` is borrowed by a spawned `mut` call on `gauges[]`, which holds it until its block drains
 File "fixtures/typing/reject/bad/temporary.zn", line 12, characters 10-34:
-12 |     hear(Note(@primitives$Int(1)));
+12 |     hear(Note(@primitives$I64(1)));
   |          ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: a new reference names a place, and this is a temporary value
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
@@ -873,7 +873,7 @@ Error: `Holder` is a value type, so its member `guest` cannot be an `&`; only a 
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
 5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^
-Error: `Holder` is a value type, so its member `list` cannot hold `@primitives$List<@primitives$Int>`, a reference type; a value type is a value all the way down
+Error: `Holder` is a value type, so its member `list` cannot hold `@primitives$List<@primitives$I64>`, a reference type; a value type is a value all the way down
 File "fixtures/typing/reject/bad/types.zn", line 6, characters 10-23:
 6 |     many Box<Int, Int>;
   |          ^^^^^^^^^^^^^
@@ -885,7 +885,7 @@ Error: `Array` expects a number here, not a type
 File "fixtures/typing/reject/bad/types.zn", line 9, characters 11-15:
 9 |     guest &Int;
   |           ^^^^
-Error: `@primitives$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
+Error: `@primitives$I64` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
 File "fixtures/typing/reject/bad/types.zn", line 10, characters 13-26:
 10 |     literal @concepts$Int;
   |             ^^^^^^^^^^^^^
@@ -902,18 +902,18 @@ File "fixtures/typing/reject/bad/types.zn", line 15, characters 1-19:
 15 | type Round = Robin
   | ^^^^^^^^^^^^^^^^^^
 Error: the type `Round` is defined in terms of itself
-File "fixtures/typing/reject/bad/uncalled.zn", line 7, characters 17-37:
-7 |     total Int = Int(1) + String("a");
-  |                 ^^^^^^^^^^^^^^^^^^^^
-Error: no operator `+` accepts (@primitives$Int, @primitives$String); the candidates are `@primitives$Int +(@primitives$Int, @primitives$Int)`; `@primitives$I32 +(@primitives$I32, @primitives$I32)`; `@primitives$I64 +(@primitives$I64, @primitives$I64)`; `@primitives$Float +(@primitives$Float, @primitives$Float)`; ... (in `neverCalled`, which nothing instantiates)
+File "fixtures/typing/reject/bad/uncalled.zn", line 7, characters 17-52:
+7 |     total Int = @operators$add(Int(1), String("a"));
+  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@operators$add` accepts (@primitives$I64, @primitives$String); the candidates are `@primitives$I32 @operators$add(@primitives$I32, @primitives$I32)`; `@primitives$I64 @operators$add(@primitives$I64, @primitives$I64)`; `@primitives$F32 @operators$add(@primitives$F32, @primitives$F32)`; `@primitives$F64 @operators$add(@primitives$F64, @primitives$F64)` (in `neverCalled`, which nothing instantiates)
 File "fixtures/typing/reject/bad/uncalled.zn", line 8, characters 19-26:
 8 |     missing Int = nowhere;
   |                   ^^^^^^^
 Error: no name `nowhere` is in scope (in `neverCalled`, which nothing instantiates)
-File "fixtures/typing/reject/bad/uncalled.zn", line 12, characters 58-70:
-12 | Int neverSized(values Array<T Type, n @concepts$Int>) => Int(n) + 2.5
-  |                                                          ^^^^^^^^^^^^
-Error: no operator `+` accepts (@primitives$Int, @concepts$Float); the candidates are `@primitives$Int +(@primitives$Int, @primitives$Int)`; `@primitives$I32 +(@primitives$I32, @primitives$I32)`; `@primitives$I64 +(@primitives$I64, @primitives$I64)`; `@primitives$Float +(@primitives$Float, @primitives$Float)`; ... (in `neverSized`, which nothing instantiates)
+File "fixtures/typing/reject/bad/uncalled.zn", line 12, characters 58-85:
+12 | Int neverSized(values Array<T Type, n @concepts$Int>) => @operators$add(Int(n), 2.5)
+  |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@operators$add` accepts (@primitives$I64, @concepts$Float); the candidates are `@primitives$I32 @operators$add(@primitives$I32, @primitives$I32)`; `@primitives$I64 @operators$add(@primitives$I64, @primitives$I64)`; `@primitives$F32 @operators$add(@primitives$F32, @primitives$F32)`; `@primitives$F64 @operators$add(@primitives$F64, @primitives$F64)` (in `neverSized`, which nothing instantiates)
 File "fixtures/typing/reject/bad/uncalled.zn", line 17, characters 41-48:
 17 | (this Shelf<T Type>)[index Int] => this.shelves[index]
   |                                         ^^^^^^^

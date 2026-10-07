@@ -28,7 +28,7 @@ Unit literals() {
 	/// (types.md §2.6), so neither takes the other's.
 	whole Int = Int(2.5);
 	fraction Float = Float(2);
-	sum Int = Int(1) + 2.5;
+	sum Int = @operators$add(Int(1), 2.5);
 
 	/// The explicit number disagrees with the one the array carries.
 	sized Int = measured(numbers, 4);

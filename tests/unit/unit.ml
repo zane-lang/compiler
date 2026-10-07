@@ -23,8 +23,8 @@ let raises_bug name f =
 
 let span = Source.Span.of_loc (Lexing.dummy_pos, Lexing.dummy_pos)
 let prim name = Ty.Intrinsic { namespace = "primitives"; name; args = [] }
-let int = prim "Int"
-let float = prim "Float"
+let int = prim "I64"
+let float = prim "F64"
 let named ?(args = []) name = Ty.Named ({ Ty.package = "app"; name }, args)
 let param name = Ty.fresh_param ~name ~kind:Ty.Type_kind
 
@@ -89,9 +89,9 @@ let signature ?(kind = S.Function) ?(generics = []) name params ret =
 let signatures () =
   let f = signature "f" [ ("x", int) ] float in
   check "a function prints as it is declared"
-    (S.to_string f = "@primitives$Float f(@primitives$Int)");
+    (S.to_string f = "@primitives$F64 f(@primitives$I64)");
   let m = signature ~kind:S.Method "size" [ ("this", named "Bag"); ("n", int) ] int in
-  check "a method prints its subject" (S.to_string m = "@primitives$Int size(this app$Bag, @primitives$Int)");
+  check "a method prints its subject" (S.to_string m = "@primitives$I64 size(this app$Bag, @primitives$I64)");
   check "is_method" (S.is_method m && not (S.is_method f));
   check "has_block_param" (S.has_block_param (signature "g" [ ("b", Ty.Concept Ty.Block) ] int))
 
@@ -268,6 +268,24 @@ module C = Cgt.Nodes
 let stops f = match f () with _ -> false | exception Value.Stop _ -> true
 
 (* The evaluator's arithmetic is codegen's (lib/codegen/emit.ml). *)
+(* An F32 literal rounds once, from the decimal straight to the single
+   (Tst.Decimal): where the double nearest the literal is the midpoint of two
+   singles, the literal's own side of it decides. *)
+let single_literals () =
+  let bits text = Int32.bits_of_float (Tst.Decimal.to_single text) in
+  check "a literal just above a midpoint rounds up"
+    (bits "1.0000000596046447753906250000000000000000000000000000000000000000000000000000000000000000000000000001"
+    = 0x3f800001l);
+  check "a literal just below a midpoint rounds down"
+    (bits "1.0000000596046447753906249999999999999999999999999999999999999999999999999999999999999999999999999999"
+    = 0x3f800000l);
+  check "a literal on a midpoint rounds to even" (bits "1.000000059604644775390625" = 0x3f800000l);
+  check "an ordinary literal is the nearest single" (bits "0.1" = Int32.bits_of_float 0.1);
+  check "a literal on the midpoint past the largest single overflows"
+    (Tst.Decimal.to_single "340282356779733661637539395458142568448.0" = Float.infinity);
+  check "a literal just below that midpoint is the largest single"
+    (bits "340282356779733661637539395458142568447.9" = 0x7f7fffffl)
+
 let folded_arithmetic () =
   let i32 n = Value.VInt (Value.int C.Ty.I32 n) and i64 n = Value.VInt n in
   let bin op t l r = Eval.binary op t l r in
@@ -279,8 +297,13 @@ let folded_arithmetic () =
   check "I64's most negative over -1 wraps"
     (bin C.Expr.Div C.Ty.I64 (i64 Int64.min_int) (i64 (-1L)) = i64 Int64.min_int);
   check "integer division truncates" (bin C.Expr.Div C.Ty.I64 (i64 (-7L)) (i64 2L) = i64 (-3L));
-  check "a division by zero stops the fold"
-    (stops (fun () -> bin C.Expr.Div C.Ty.I64 (i64 1L) (i64 0L)));
+  check "an integer division by zero gives zero" (bin C.Expr.Div C.Ty.I64 (i64 1L) (i64 0L) = i64 0L);
+  let conv from into v = Eval.convert from into v in
+  check "a NaN truncates to zero" (conv C.Ty.F64 C.Ty.I32 (Value.VFloat Float.nan) = i32 0L);
+  check "a truncation above an I32 saturates"
+    (conv C.Ty.F64 C.Ty.I32 (Value.VFloat 2147483648.) = i32 2147483647L);
+  check "a truncation below an I64 saturates"
+    (conv C.Ty.F32 C.Ty.I64 (Value.VFloat Float.neg_infinity) = i64 Int64.min_int);
   let f x = Value.VFloat x in
   check "NaN is not equal to itself" (bin C.Expr.Eq C.Ty.F64 (f Float.nan) (f Float.nan) = Value.VBool false);
   check "NaN is not less than anything" (bin C.Expr.Less C.Ty.F64 (f Float.nan) (f 1.) = Value.VBool false);
@@ -494,6 +517,7 @@ let () =
   overloads ();
   type_layout ();
   runtime_abi ();
+  single_literals ();
   folded_arithmetic ();
   intrinsic_classes ();
   materialized ();

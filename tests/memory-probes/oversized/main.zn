@@ -2,7 +2,7 @@
 /// a string doubled past it, both copied or moved out of the scope that
 /// made them, and a list of strings whose growth relocates owned blocks.
 package oversized;
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -14,9 +14,9 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -30,7 +30,7 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
 	return Unit();
 }
 alias Block = @concepts$Block
@@ -55,7 +55,7 @@ String doubled(times Int) {
 	s String("0123456789abcdef");
 	i Int(1);
 	i!to(times) {
-		s = s + s;
+		s = @operators$concat(s, s);
 	}
 	return s;
 }
@@ -63,8 +63,8 @@ String doubled(times Int) {
 Unit main() {
 	// 400,000 Ints is 3.2 MB of elements: an oversized span.
 	bag Bag = filled(Int(400000));
-	check(String("big list returned"), bag.items:size() == Int(400000));
-	check(String("its first and last"), (bag.items[Int(1)] == Int(1)) * (bag.items[Int(400000)] == Int(400000)));
+	check(String("big list returned"), @operators$equal(bag.items:size(), Int(400000)));
+	check(String("its first and last"), @operators$and(@operators$equal(bag.items[Int(1)], Int(1)), @operators$equal(bag.items[Int(400000)], Int(400000))));
 
 	// 16 bytes doubled 17 times is 2 MiB.
 	big String("");
@@ -73,23 +73,23 @@ Unit main() {
 		big = local;
 	});
 	copy String = big;
-	check(String("big string copied out of an inner block"), copy == big);
-	big = big + String("!");
-	check(String("copy independent of the source"), ~(copy == big));
+	check(String("big string copied out of an inner block"), @operators$equal(copy, big));
+	big = @operators$concat(big, String("!"));
+	check(String("copy independent of the source"), @operators$not(@operators$equal(copy, big)));
 
 	// A list of strings growing: each element's block stays its own.
 	words List<String> = @primitives$List(String);
 	j Int(1);
 	j!to(Int(100000)) {
-		words!push(String("w") + String("ord"));
+		words!push(@operators$concat(String("w"), String("ord")));
 	}
-	check(String("list of 100000 strings"), (words:size() == Int(100000)) * (words[Int(77777)] == String("word")));
+	check(String("list of 100000 strings"), @operators$and(@operators$equal(words:size(), Int(100000)), @operators$equal(words[Int(77777)], String("word"))));
 
 	// A big list overwritten in place many times.
 	k Int(1);
 	k!to(Int(20)) {
 		bag = filled(Int(200000));
 	}
-	check(String("big list overwritten 20 times"), bag.items[Int(200000)] == Int(200000));
+	check(String("big list overwritten 20 times"), @operators$equal(bag.items[Int(200000)], Int(200000)));
 	return Unit();
 }

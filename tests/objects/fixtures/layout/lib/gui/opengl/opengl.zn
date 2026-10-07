@@ -4,6 +4,6 @@ package opengl;
 import math;
 import _shaders;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 
 Int frame() => math$double(_shaders$compiled())

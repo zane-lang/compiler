@@ -2,7 +2,7 @@
 /// as an element value"; §2.8). Everything here is legal.
 package refelems;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -16,7 +16,7 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
 	return Unit();
 }
 
@@ -28,12 +28,12 @@ Unit main() {
 	q Port(Int(2));
 	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([&p, &q]);
 	x &Port = row[Int(1)];
-	check(String("element read"), x.n == Int(1));
-	check(String("element field read"), row[Int(2)].n == Int(2));
+	check(String("element read"), @operators$equal(x.n, Int(1)));
+	check(String("element field read"), @operators$equal(row[Int(2)].n, Int(2)));
 	row[Int(1)] = q;
-	check(String("a copied reference keeps its owner"), x.n == Int(1));
-	check(String("the element names its new owner"), row[Int(1)].n == Int(2));
+	check(String("a copied reference keeps its owner"), @operators$equal(x.n, Int(1)));
+	check(String("the element names its new owner"), @operators$equal(row[Int(1)].n, Int(2)));
 	p = Port(Int(3));
-	check(String("the copy observes an overwrite"), x.n == Int(3));
+	check(String("the copy observes an overwrite"), @operators$equal(x.n, Int(3)));
 	return Unit();
 }

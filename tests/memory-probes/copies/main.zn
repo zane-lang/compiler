@@ -3,7 +3,7 @@
 /// `x = x.child` and `s = s + s` are safe.
 package copies;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -15,9 +15,9 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -31,7 +31,7 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
 	return Unit();
 }
 
@@ -48,7 +48,7 @@ type Count = variant { done Int; more Count; }
 
 Int depth(c Count) => match (c) {
 	n done => n;
-	m more => depth(m) + Int(1);
+	m more => @operators$add(depth(m), Int(1));
 }
 
 type Tree = variant { leaf Int; node Fork; }
@@ -57,11 +57,11 @@ Fork(left Tree, right Tree) => init{ left; right; }
 
 Int total(t Tree) => match (t) {
 	n leaf => n;
-	f node => total(f.left) + total(f.right);
+	f node => @operators$add(total(f.left), total(f.right));
 }
 
 Unit appendBang(this String) mut {
-	this = this + String("!");
+	this = @operators$concat(this, String("!"));
 	return Unit();
 }
 
@@ -69,45 +69,45 @@ Unit main() {
 	s String("abc");
 	t String = s;
 	t!appendBang();
-	check(String("string copy is independent"), s == String("abc"));
-	check(String("copy got the write"), t == String("abc!"));
+	check(String("string copy is independent"), @operators$equal(s, String("abc")));
+	check(String("copy got the write"), @operators$equal(t, String("abc!")));
 
 	p Pair(String("x"), String("y"));
 	q Pair = p;
 	q!setA(String("z"));
-	check(String("struct copy is independent"), p.a == String("x"));
+	check(String("struct copy is independent"), @operators$equal(p.a, String("x")));
 	q.b = q.a;
-	check(String("field-to-field copy"), q.b == String("z"));
+	check(String("field-to-field copy"), @operators$equal(q.b, String("z")));
 
 	c Count = Count.more(Count.more(Count.done(Int(5))));
 	d Count = c;
-	check(String("recursive copy has the same depth"), depth(d) == Int(7));
+	check(String("recursive copy has the same depth"), @operators$equal(depth(d), Int(7)));
 	d = Count.done(Int(0));
-	check(String("source unchanged after copy is overwritten"), depth(c) == Int(7));
+	check(String("source unchanged after copy is overwritten"), @operators$equal(depth(c), Int(7)));
 
 	// Overlapping overwrites.
 	s = s;
-	check(String("s = s"), s == String("abc"));
-	s = s + s;
-	check(String("s = s + s"), s == String("abcabc"));
+	check(String("s = s"), @operators$equal(s, String("abc")));
+	s = @operators$concat(s, s);
+	check(String("s = s + s"), @operators$equal(s, String("abcabc")));
 	c = c;
-	check(String("c = c"), depth(c) == Int(7));
+	check(String("c = c"), @operators$equal(depth(c), Int(7)));
 	c = c.more ?? Count.done(Int(100));
-	check(String("c = c.more"), depth(c) == Int(6));
+	check(String("c = c.more"), @operators$equal(depth(c), Int(6)));
 
 	tr Tree = Tree.node(Fork(Tree.leaf(Int(1)), Tree.node(Fork(Tree.leaf(Int(2)), Tree.leaf(Int(3))))));
-	check(String("tree total"), total(tr) == Int(6));
+	check(String("tree total"), @operators$equal(total(tr), Int(6)));
 	sub Tree = (tr.node ?? Fork(Tree.leaf(Int(0)), Tree.leaf(Int(0)))).right;
 	tr = (tr.node ?? Fork(Tree.leaf(Int(0)), Tree.leaf(Int(0)))).right;
-	check(String("tr = tr.node.right"), total(tr) == Int(5));
-	check(String("earlier copy of the child intact"), total(sub) == Int(5));
+	check(String("tr = tr.node.right"), @operators$equal(total(tr), Int(5)));
+	check(String("earlier copy of the child intact"), @operators$equal(total(sub), Int(5)));
 
 	f Fork(Tree.leaf(Int(4)), Tree.leaf(Int(5)));
 	f.left = f.right;
-	check(String("f.left = f.right"), total(f.left) + total(f.right) == Int(10));
+	check(String("f.left = f.right"), @operators$equal(@operators$add(total(f.left), total(f.right)), Int(10)));
 	f.right = Tree.node(f);
-	check(String("f.right = node(f)"), total(f.right) == Int(10));
-	check(String("f.left untouched"), total(f.left) == Int(5));
+	check(String("f.right = node(f)"), @operators$equal(total(f.right), Int(10)));
+	check(String("f.left untouched"), @operators$equal(total(f.left), Int(5)));
 
 	// Copies in a loop: each copy is returned when overwritten.
 	acc Count = Count.done(Int(0));
@@ -115,9 +115,9 @@ Unit main() {
 	i!to(Int(2000)) {
 		acc = Count.more(acc);
 	}
-	check(String("built 2000 deep"), depth(acc) == Int(2000));
+	check(String("built 2000 deep"), @operators$equal(depth(acc), Int(2000)));
 	keep Count = acc;
 	acc = Count.done(Int(0));
-	check(String("copy of deep value survives"), depth(keep) == Int(2000));
+	check(String("copy of deep value survives"), @operators$equal(depth(keep), Int(2000)));
 	return Unit();
 }

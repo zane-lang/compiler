@@ -4,7 +4,7 @@
 /// runs at most once. ILLEGAL marks what the spec rejects.
 package blockstore;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 alias Bool = @primitives$Bool
 
@@ -23,7 +23,7 @@ Unit storeOnly(this Plug, port &Port) mut {
 }
 Unit setA(this Plug, p &Port) mut { this.a = p; return Unit(); }
 Unit setB(this Plug, p &Port) mut { this.b = p; return Unit(); }
-Unit nudge(this Plug) mut { this.k = this.k + Int(1); return Unit(); }
+Unit nudge(this Plug) mut { this.k = @operators$add(this.k, Int(1)); return Unit(); }
 
 Unit statement(this Plug, port &Port) mut {
 	this!storeOnly(port);                              // legal

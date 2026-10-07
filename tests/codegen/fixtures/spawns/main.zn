@@ -7,7 +7,7 @@
 /// prints `yes` when it holds and `no` when it does not.
 package spawns;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -16,9 +16,9 @@ alias List<T Type> = @primitives$List<T>
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -30,7 +30,7 @@ type Tally = struct {
 Tally(total Int) => init{ total; }
 
 Unit add(this Tally, n Int) mut {
-	this.total = this.total + n;
+	this.total = @operators$add(this.total, n);
 	return Unit();
 }
 
@@ -42,7 +42,7 @@ type Countdown = variant {
 
 Int depth(c Countdown) => match (c) {
 	d done => Int(0);
-	m more => Int(1) + depth(m);
+	m more => @operators$add(Int(1), depth(m));
 }
 
 /// Adds `n` levels, one whole copy at a time.
@@ -70,11 +70,11 @@ Int watch(h &Holder, n Int, whole Int) {
 	i!to(n) {
 		c Countdown = h.count;
 		d Int = depth(c);
-		@controlflow$branch(d == Int(0), {
-			seen = seen + Int(1);
+		@controlflow$branch(@operators$equal(d, Int(0)), {
+			seen = @operators$add(seen, Int(1));
 		});
-		@controlflow$branch(d == whole, {
-			seen = seen + Int(1);
+		@controlflow$branch(@operators$equal(d, whole), {
+			seen = @operators$add(seen, Int(1));
 		});
 	}
 	return seen;
@@ -93,43 +93,43 @@ Unit check(ok Bool) {
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
-	@controlflow$branch(~ok, {
+	@controlflow$branch(@operators$not(ok), {
 		@program$console!print(no);
 	});
 	return Unit();
 }
 
 Int fib(n Int) {
-	@controlflow$branch(n < Int(2), {
+	@controlflow$branch(@operators$lessThan(n, Int(2)), {
 		return n;
 	});
-	return fib(n + ~Int(1)) + fib(n + ~Int(2));
+	return @operators$add(fib(@operators$add(n, @operators$negate(Int(1)))), fib(@operators$add(n, @operators$negate(Int(2)))));
 }
 
 /// Spawns two calls of its own and waits for both.
 Int pair(n Int) {
 	a Int = spawn fib(n);
-	b Int = spawn fib(n + ~Int(1));
-	return a + b;
+	b Int = spawn fib(@operators$add(n, @operators$negate(Int(1))));
+	return @operators$add(a, b);
 }
 
 String greet(name String) {
-	return String("hi ") + name;
+	return @operators$concat(String("hi "), name);
 }
 
 String nameOf(p &Person) {
-	return p.name + String("!");
+	return @operators$concat(p.name, String("!"));
 }
 
 ^Person born(name String, age Int) {
-	return Person(name + String(" lovelace"), age);
+	return Person(@operators$concat(name, String(" lovelace")), age);
 }
 
 ^List<String> words(n Int) {
 	all ^List<String> = @primitives$List(String);
 	i Int(1);
 	i!to(n) {
-		all!push(String("w") + String("!"));
+		all!push(@operators$concat(String("w"), String("!")));
 	}
 	return all;
 }
@@ -140,23 +140,23 @@ Unit nothing() {
 
 /// Aborts with a string made on its own thread when `b` is zero.
 Int?String divide(a Int, b Int) {
-	@controlflow$branch(b == Int(0), {
-		abort String("by ") + String("zero");
+	@controlflow$branch(@operators$equal(b, Int(0)), {
+		abort @operators$concat(String("by "), String("zero"));
 	});
-	return a / b;
+	return @operators$divide(a, b);
 }
 
 /// A spawned call's abort passed on from its handler, changed.
 Int?String relay(a Int, b Int) {
 	q Int = spawn divide(a, b) ? e {
-		abort e + String("!");
+		abort @operators$concat(e, String("!"));
 	}
-	return q + Int(1);
+	return @operators$add(q, Int(1));
 }
 
 /// Exits when `n` is 2, which ends the run of the caller's block.
 Int pick(n Int) {
-	@controlflow$branch(n == Int(2), {
+	@controlflow$branch(@operators$equal(n, Int(2)), {
 		@controlflow$exitFromCall();
 	});
 	return n;
@@ -174,48 +174,48 @@ Unit main() {
 		refused = Int(1);
 		resolve Unit();
 	}
-	check(refused == Int(1));
+	check(@operators$equal(refused, Int(1)));
 
 	// A number, read after the caller goes on.
 	a Int = spawn fib(Int(20));
-	check(a == Int(6765));
+	check(@operators$equal(a, Int(6765)));
 
 	// A string made on another thread comes home with its bytes, and the
 	// value lent to the call lives until it returns.
 	who String("ada");
 	s String = spawn greet(who);
-	check(s == String("hi ada"));
+	check(@operators$equal(s, String("hi ada")));
 
 	// A reference passed to a spawned call.
 	p Person(String("grace"), Int(85));
 	g &Person = p;
 	n String = spawn nameOf(g);
-	check(n == String("grace!"));
+	check(@operators$equal(n, String("grace!")));
 
 	// An owner lent to a spawned call by a borrow may be borrowed again
 	// while the call reads it.
 	lent ^Person = Person(String("ada"), Int(36));
 	read Int = spawn ageOf(lent);
-	check(ageOf(lent) == Int(36));
-	check(read == Int(36));
+	check(@operators$equal(ageOf(lent), Int(36)));
+	check(@operators$equal(read, Int(36)));
 
 	// An owner returned: it settles where it comes home, and a reference
 	// names it there.
 	q Person = spawn born(String("ada"), Int(36));
 	h &Person = q;
-	check(h.name == String("ada lovelace"));
-	check(h.age == Int(36));
+	check(@operators$equal(h.name, String("ada lovelace")));
+	check(@operators$equal(h.age, Int(36)));
 
 	// A list built on another thread.
 	w List<String> = spawn words(Int(50));
-	check(w:size() == Int(50));
+	check(@operators$equal(w:size(), Int(50)));
 
 	// A mutating call on a value, waited for when its block drains.
 	t Tally(Int(0));
 	@controlflow$branch(true, {
 		spawn t!add(Int(5));
 	});
-	check(t.total == Int(5));
+	check(@operators$equal(t.total, Int(5)));
 
 	// Mutating calls on values that own blocks, all at once: each returns
 	// and takes blocks in the caller's region while the others do.
@@ -227,7 +227,7 @@ Unit main() {
 		spawn c2!deepen(Int(300));
 		spawn c3!deepen(Int(400));
 	});
-	check(depth(c1) + depth(c2) + depth(c3) == Int(900));
+	check(@operators$equal(@operators$add(@operators$add(depth(c1), depth(c2)), depth(c3)), Int(900)));
 
 	// A value in an owner written by a spawned call while another reads it:
 	// the writer works on a copy it writes back, and each read is a
@@ -238,25 +238,25 @@ Unit main() {
 		watched Int = spawn watch(seer, Int(300), Int(250));
 		spawn holder.count!deepen(Int(250));
 		spawn holder.tally!add(Int(3));
-		check(watched == Int(300));
+		check(@operators$equal(watched, Int(300)));
 	});
-	check(depth(holder.count) == Int(250));
-	check(holder.tally.total == Int(3));
+	check(@operators$equal(depth(holder.count), Int(250)));
+	check(@operators$equal(holder.tally.total, Int(3)));
 
 	// Calls that spawn calls of their own, all at once.
 	x Int = spawn pair(Int(18));
 	y Int = spawn pair(Int(17));
 	z Int = spawn fib(Int(20));
-	check(x + y == z);
+	check(@operators$equal(@operators$add(x, y), z));
 
 	// One spawn per pass of a loop, each waited for as its pass drains.
 	sum Int(0);
 	i Int(1);
 	i!to(Int(10)) {
 		f Int = spawn fib(i);
-		sum = sum + f;
+		sum = @operators$add(sum, f);
 	}
-	check(sum == Int(143));
+	check(@operators$equal(sum, Int(143)));
 
 	// A result never read, and one dropped: both come home at the drain,
 	// which returns their blocks.
@@ -285,60 +285,60 @@ Unit main() {
 	// once, on this thread, and what it resolves is the result.
 	runs Int(0);
 	q1 Int = spawn divide(Int(9), Int(3)) ? e {
-		runs = runs + Int(1);
+		runs = @operators$add(runs, Int(1));
 		resolve Int(0);
 	}
 	q2 Int = spawn divide(Int(9), Int(0)) ? e {
-		check(e == String("by zero"));
-		runs = runs + Int(1);
+		check(@operators$equal(e, String("by zero")));
+		runs = @operators$add(runs, Int(1));
 		resolve Int(7);
 	}
-	check(q1 == Int(3));
-	check(q2 + q2 == Int(14));
-	check(runs == Int(1));
+	check(@operators$equal(q1, Int(3)));
+	check(@operators$equal(@operators$add(q2, q2), Int(14)));
+	check(@operators$equal(runs, Int(1)));
 	q3 Int = spawn divide(Int(1), Int(0)) ?? Int(4);
-	check(q3 == Int(4));
-	check((relay(Int(8), Int(2)) ?? Int(0)) == Int(5));
-	check((relay(Int(8), Int(0)) ? e { resolve Int(100); }) == Int(100));
+	check(@operators$equal(q3, Int(4)));
+	check(@operators$equal(relay(Int(8), Int(2)) ?? Int(0), Int(5)));
+	check(@operators$equal(relay(Int(8), Int(0)) ? e { resolve Int(100); }, Int(100)));
 	relayed String = String("");
 	relay(Int(8), Int(0)) ? e {
 		relayed = e;
 		resolve Int(0);
 	}
-	check(relayed == String("by zero!"));
+	check(@operators$equal(relayed, String("by zero!")));
 
 	// Calls nothing reads settle where their block ends.
 	ran Int(0);
 	@controlflow$branch(true, {
 		unread Int = spawn divide(Int(1), Int(0)) ? e {
-			ran = ran + Int(1);
+			ran = @operators$add(ran, Int(1));
 			resolve Int(0);
 		}
 		spawn divide(Int(2), Int(0)) ? e {
-			ran = ran + Int(10);
+			ran = @operators$add(ran, Int(10));
 			resolve Int(0);
 		}
 		spawn divide(Int(2), Int(1)) ? e {
-			ran = ran + Int(100);
+			ran = @operators$add(ran, Int(100));
 			resolve Int(0);
 		}
 	});
-	check(ran == Int(11));
+	check(@operators$equal(ran, Int(11)));
 
 	// A call that exits ends the run of its block where it is read.
 	passes Int(0);
 	j Int(1);
 	j!to(Int(4)) {
 		k Int = spawn pick(j);
-		passes = passes + k;
+		passes = @operators$add(passes, k);
 	}
-	check(passes == Int(8));
+	check(@operators$equal(passes, Int(8)));
 
 	// A spawned call read where it is written, and a local written after
 	// its call is spawned.
-	check(spawn fib(Int(10)) == Int(55));
+	check(@operators$equal(spawn fib(Int(10)), Int(55)));
 	r Int = spawn fib(Int(12));
-	r = r + Int(1);
-	check(r == Int(145));
+	r = @operators$add(r, Int(1));
+	check(@operators$equal(r, Int(145)));
 	return Unit();
 }

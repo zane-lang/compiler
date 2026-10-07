@@ -5,7 +5,7 @@
 /// ILLEGAL). The program then reads and writes through the dangling
 /// reference: each check prints NO where a sound program would print yes.
 package lambdas;
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -17,9 +17,9 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -33,7 +33,7 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
 	return Unit();
 }
 
@@ -73,7 +73,7 @@ Unit main() {
 	inner({
 		victim Port(Int(100));
 		plug.port!set(Int(999));        // writes into victim's slot
-		check(String("victim untouched (lambda-variable)"), victim.n == Int(100));
+		check(String("victim untouched (lambda-variable)"), @operators$equal(victim.n, Int(100)));
 	});
 	inner({
 		near Port(Int(3));
@@ -82,7 +82,7 @@ Unit main() {
 	inner({
 		victim Port(Int(100));
 		plug.port!set(Int(999));
-		check(String("victim untouched (function parameter)"), victim.n == Int(100));
+		check(String("victim untouched (function parameter)"), @operators$equal(victim.n, Int(100)));
 	});
 
 	// A value carrying a reference, pushed by a lambda into an outer list.
@@ -99,7 +99,7 @@ Unit main() {
 	inner({
 		victim Port(Int(100));
 		plugs[Int(1)].port!set(Int(999));
-		check(String("victim untouched (carried, pushed)"), victim.n == Int(100));
+		check(String("victim untouched (carried, pushed)"), @operators$equal(victim.n, Int(100)));
 	});
 
 	return Unit();

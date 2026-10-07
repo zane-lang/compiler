@@ -9,7 +9,7 @@
 /// not.
 package owners;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -23,9 +23,9 @@ Bool if(condition Bool, body @concepts$Block) {
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -44,7 +44,7 @@ type Account = #struct {
 Account(owner Int) => init{ owner; balance = Int(0); }
 
 Unit deposit(this Account, amount Int) mut {
-	this.balance = this.balance + amount;
+	this.balance = @operators$add(this.balance, amount);
 	return Unit();
 }
 
@@ -80,8 +80,8 @@ type Slot = #variant {
 Int richest(limit Int) {
 	i Int(1);
 	i!to(limit) {
-		a Account = opened(i, i * Int(10));
-		if(Int(30) < a.balance) {
+		a Account = opened(i, @operators$multiply(i, Int(10)));
+		if(@operators$lessThan(Int(30), a.balance)) {
 			return a.owner;
 		}
 	}
@@ -91,7 +91,7 @@ Int richest(limit Int) {
 /// Aborts from inside a block that holds a local.
 Int?Int overdrawn(amount Int) {
 	a Account = opened(Int(9), Int(5));
-	if(a.balance < amount) {
+	if(@operators$lessThan(a.balance, amount)) {
 		b Account = opened(Int(8), amount);
 		abort b.balance;
 	}
@@ -100,7 +100,7 @@ Int?Int overdrawn(amount Int) {
 
 /// Aborts with a roaming owner, which the handler's binder holds.
 Int?^Account refused(owner Int) {
-	if(owner == Int(0)) {
+	if(@operators$equal(owner, Int(0))) {
 		abort opened(Int(7), Int(70));
 	}
 	return owner;
@@ -116,7 +116,7 @@ type Choice = variant {
 Int chosen(c Choice) => match (c) {
 	n pick {
 		a ^Account = opened(n, n);
-		if(a.balance == Int(0)) {
+		if(@operators$equal(a.balance, Int(0))) {
 			abort a;
 		}
 		return a.balance;
@@ -125,7 +125,7 @@ Int chosen(c Choice) => match (c) {
 		abort Account(Int(6));
 	}
 } ? e {
-	resolve e.owner * Int(100);
+	resolve @operators$multiply(e.owner, Int(100));
 }
 
 /// Sums balances, skipping one pass with `guard` after holding a local.
@@ -134,8 +134,8 @@ Int total(skipped Int) {
 	i Int(1);
 	i!to(Int(5)) {
 		a Account = opened(i, i);
-		guard(i == skipped);
-		sum = sum + a.balance;
+		guard(@operators$equal(i, skipped));
+		sum = @operators$add(sum, a.balance);
 	}
 	return sum;
 }
@@ -146,7 +146,7 @@ Unit check(ok Bool) {
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
-	@controlflow$branch(~ok, {
+	@controlflow$branch(@operators$not(ok), {
 		@program$console!print(no);
 	});
 	return Unit();
@@ -157,39 +157,39 @@ Unit main() {
 	// another.
 	a ^Account = opened(Int(1), Int(5));
 	a!deposit(Int(10));
-	check(a:funds() == Int(15));
+	check(@operators$equal(a:funds(), Int(15)));
 
 	// A move that settles, a refilled roaming owner, a borrow, a take, and a
 	// relay.
 	b Account = a;
-	check(b.balance == Int(15));
+	check(@operators$equal(b.balance, Int(15)));
 	a = Account(Int(2));
-	check(a.owner == Int(2));
-	check(balanceOf(b) == Int(15));
-	check(balanceOf(a) == Int(0));
-	check(closed(a) == Int(0));
+	check(@operators$equal(a.owner, Int(2)));
+	check(@operators$equal(balanceOf(b), Int(15)));
+	check(@operators$equal(balanceOf(a), Int(0)));
+	check(@operators$equal(closed(a), Int(0)));
 	c ^Account = opened(Int(3), Int(7));
 	c = relayed(c);
-	check(c.balance == Int(8));
-	check(closed(Account(Int(4))) == Int(0));
+	check(@operators$equal(c.balance, Int(8)));
+	check(@operators$equal(closed(Account(Int(4))), Int(0)));
 
 	// A variant holding a struct.
 	s Slot = Slot.held(Account(Int(3)));
 	check(match (s) {
 		e empty => false;
-		h held => h.owner == Int(3);
+		h held => @operators$equal(h.owner, Int(3));
 	});
 
 	// Each way out of a hosting block.
-	check(richest(Int(9)) == Int(4));
-	check((overdrawn(Int(1)) ?? Int(0)) == Int(5));
-	check((overdrawn(Int(7)) ? e { resolve e + Int(1); }) == Int(8));
-	check(total(Int(3)) == Int(12));
-	check((refused(Int(0)) ? e { resolve e.balance; }) == Int(70));
-	check((refused(Int(4)) ? e { resolve e.balance; }) == Int(4));
-	check(chosen(Choice.pick(Int(5))) == Int(5));
-	check(chosen(Choice.pick(Int(0))) == Int(0));
-	check(chosen(Choice.skip(Unit())) == Int(600));
+	check(@operators$equal(richest(Int(9)), Int(4)));
+	check(@operators$equal(overdrawn(Int(1)) ?? Int(0), Int(5)));
+	check(@operators$equal(overdrawn(Int(7)) ? e { resolve @operators$add(e, Int(1)); }, Int(8)));
+	check(@operators$equal(total(Int(3)), Int(12)));
+	check(@operators$equal(refused(Int(0)) ? e { resolve e.balance; }, Int(70)));
+	check(@operators$equal(refused(Int(4)) ? e { resolve e.balance; }, Int(4)));
+	check(@operators$equal(chosen(Choice.pick(Int(5))), Int(5)));
+	check(@operators$equal(chosen(Choice.pick(Int(0))), Int(0)));
+	check(@operators$equal(chosen(Choice.skip(Unit())), Int(600)));
 
 	// A hundred thousand passes, each holding two owners and draining them,
 	// and each taking one into a call that drops it.
@@ -198,9 +198,9 @@ Unit main() {
 	i!to(Int(100000)) {
 		e ^Account = opened(i, Int(1));
 		d Account = e;
-		count = count + d.balance;
-		count = count + closed(opened(i, Int(0)));
+		count = @operators$add(count, d.balance);
+		count = @operators$add(count, closed(opened(i, Int(0))));
 	}
-	check(count == Int(100000));
+	check(@operators$equal(count, Int(100000)));
 	return Unit();
 }

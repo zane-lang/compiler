@@ -7,7 +7,7 @@
 /// when it does not.
 package lists;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -17,9 +17,9 @@ alias Row = @primitives$List<Int>
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -52,7 +52,7 @@ Int sum(values &List<Int>) {
 	total Int(0);
 	i Int(1);
 	i!to(values:size()) {
-		total = total + values[i];
+		total = @operators$add(total, values[i]);
 	}
 	return total;
 }
@@ -63,7 +63,7 @@ Unit check(ok Bool) {
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
-	@controlflow$branch(~ok, {
+	@controlflow$branch(@operators$not(ok), {
 		@program$console!print(no);
 	});
 	return Unit();
@@ -72,24 +72,24 @@ Unit check(ok Bool) {
 Unit main() {
 	// Scalars: pushed, counted, read and written.
 	numbers List<Int> = @primitives$List(Int);
-	check(numbers:size() == Int(0));
+	check(@operators$equal(numbers:size(), Int(0)));
 	i Int(1);
 	i!to(Int(100)) {
 		numbers!push(i);
 	}
-	check(count(numbers) == Int(100));
-	check(numbers[Int(1)] + numbers[Int(100)] == Int(101));
+	check(@operators$equal(count(numbers), Int(100)));
+	check(@operators$equal(@operators$add(numbers[Int(1)], numbers[Int(100)]), Int(101)));
 	numbers[Int(50)] = Int(0);
-	check(sum(numbers) == Int(5000));
+	check(@operators$equal(sum(numbers), Int(5000)));
 
 	// Strings, moved in and read where they are.
 	words List<String> = @primitives$List(String);
 	words!push(String("to"));
 	late String("be");
 	words!push(late);
-	check(words[Int(1)] + words[Int(2)] == String("tobe"));
+	check(@operators$equal(@operators$concat(words[Int(1)], words[Int(2)]), String("tobe")));
 	words[Int(1)] = String("or");
-	check(words[Int(1)] == String("or"));
+	check(@operators$equal(words[Int(1)], String("or")));
 
 	// Owners: a roaming one moves into the list, which keeps its elements
 	// through every block it grows into.
@@ -100,13 +100,13 @@ Unit main() {
 	j!to(Int(1000)) {
 		people!push(Person(String("x"), j));
 	}
-	check(people[Int(1)].name == String("ada"));
-	check(people[Int(1001)].age == Int(1000));
+	check(@operators$equal(people[Int(1)].name, String("ada")));
+	check(@operators$equal(people[Int(1001)].age, Int(1000)));
 
 	// An element replaced at its index: the old one dies with its block.
 	people[Int(1)] = Person(String("grace"), Int(45));
-	check(people[Int(1)].name == String("grace"));
-	check(people:size() == Int(1001));
+	check(@operators$equal(people[Int(1)].name, String("grace")));
+	check(@operators$equal(people:size(), Int(1001)));
 
 	// A list of lists.
 	rows List<Row> = @primitives$List(Row);
@@ -114,16 +114,16 @@ Unit main() {
 	k!to(Int(3)) {
 		row ^Row = @primitives$List(Int);
 		row!push(k);
-		row!push(k * Int(10));
+		row!push(@operators$multiply(k, Int(10)));
 		rows!push(row);
 	}
-	check(rows[Int(3)][Int(2)] == Int(30));
+	check(@operators$equal(rows[Int(3)][Int(2)], Int(30)));
 
 	// A generic type, and its declared subscript.
 	stack Stack<String> = Stack(String);
 	stack!add(String("first"));
 	stack!add(String("second"));
-	check(stack[Int(2)] == String("second"));
-	check(count(stack.items) == Int(2));
+	check(@operators$equal(stack[Int(2)], String("second")));
+	check(@operators$equal(count(stack.items), Int(2)));
 	return Unit();
 }

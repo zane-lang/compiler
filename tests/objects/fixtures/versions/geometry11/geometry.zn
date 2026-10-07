@@ -2,7 +2,7 @@
 /// first, so atlas's references to the first can be moved onto it.
 package geometry;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 
 type Point = struct {
 	x Int;
@@ -11,7 +11,7 @@ type Point = struct {
 
 Point(x Int, y Int) => init{ x; y; }
 
-Int size(this Point) => this.x + this.y
+Int size(this Point) => @operators$add(this.x, this.y)
 
 Int version() => Int(11)
 

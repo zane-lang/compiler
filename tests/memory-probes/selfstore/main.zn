@@ -4,7 +4,7 @@
 /// contents (memory.md §2.2, §2.3, §3.5), and an object wired to its own
 /// parts after it settles (§2.8.1).
 package selfstore;
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -16,9 +16,9 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -32,7 +32,7 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
 	return Unit();
 }
 
@@ -54,7 +54,7 @@ type Kit = #struct { engine Engine; spare Engine; mount Mount; }
 Kit(engine ^Engine, spare ^Engine, mount ^Mount) => init{ engine; spare; mount; }
 
 /// Builds a fresh car from what a borrowed one holds.
-^Car rebuilt(car Car) => Car(Engine(car.engine.power + Int(1), car.engine.label + String("+")), car.name + String("+"))
+^Car rebuilt(car Car) => Car(Engine(@operators$add(car.engine.power, Int(1)), @operators$concat(car.engine.label, String("+"))), @operators$concat(car.name, String("+")))
 
 ^Car relay(car ^Car) {
 	kept ^Car = car;
@@ -64,30 +64,30 @@ Kit(engine ^Engine, spare ^Engine, mount ^Mount) => init{ engine; spare; mount; 
 Unit main() {
 	r ^Car = Car(Engine(Int(1), String("e")), String("r"));
 	r = r;
-	check(String("r = r keeps the car"), r.engine.power == Int(1));
-	check(String("r = r keeps its string"), r.name == String("r"));
+	check(String("r = r keeps the car"), @operators$equal(r.engine.power, Int(1)));
+	check(String("r = r keeps its string"), @operators$equal(r.name, String("r")));
 	r = relay(r);
-	check(String("r = relay(r)"), r.engine.label == String("e"));
+	check(String("r = relay(r)"), @operators$equal(r.engine.label, String("e")));
 	r.engine = r.engine;
-	check(String("r.engine = r.engine"), r.engine.label == String("e"));
+	check(String("r.engine = r.engine"), @operators$equal(r.engine.label, String("e")));
 
 	settled Car(Engine(Int(5), String("s")), String("c"));
 	view &Engine = settled.engine;
 	settled = rebuilt(settled);
-	check(String("settled = rebuilt(settled)"), view.power == Int(6));
-	check(String("its strings"), (view.label == String("s+")) * (settled.name == String("c+")));
-	settled.engine = Engine(settled.engine.power * Int(10), settled.engine.label + settled.name);
-	check(String("field rebuilt from itself"), view.power == Int(60));
-	check(String("its string"), view.label == String("s+c+"));
+	check(String("settled = rebuilt(settled)"), @operators$equal(view.power, Int(6)));
+	check(String("its strings"), @operators$and(@operators$equal(view.label, String("s+")), @operators$equal(settled.name, String("c+"))));
+	settled.engine = Engine(@operators$multiply(settled.engine.power, Int(10)), @operators$concat(settled.engine.label, settled.name));
+	check(String("field rebuilt from itself"), @operators$equal(view.power, Int(60)));
+	check(String("its string"), @operators$equal(view.label, String("s+c+")));
 
 	far Engine(Int(0), String("far"));
 	kit Kit(Engine(Int(1), String("one")), Engine(Int(2), String("two")), Mount(far));
 	kit.mount!attach(kit.engine);
-	check(String("wired to its own part"), kit.mount.at.power == Int(1));
+	check(String("wired to its own part"), @operators$equal(kit.mount.at.power, Int(1)));
 	kit.engine = Engine(Int(10), String("ten"));
-	check(String("its part overwritten"), kit.mount.at.label == String("ten"));
+	check(String("its part overwritten"), @operators$equal(kit.mount.at.label, String("ten")));
 	kit.mount!attach(kit.spare);
 	kit = Kit(Engine(Int(20), String("a")), Engine(Int(30), String("b")), Mount(kit.engine));
-	check(String("whole kit overwritten; new mount names the slot"), kit.mount.at.power == Int(20));
+	check(String("whole kit overwritten; new mount names the slot"), @operators$equal(kit.mount.at.power, Int(20)));
 	return Unit();
 }

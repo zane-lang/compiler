@@ -55,17 +55,20 @@ let digits s = String.concat "" (String.split_on_char '\'' s)
 (* A storage primitive's constructor embeds its literal (types.md §2.7). *)
 let literal ctx span name (arg : T.Expr.t) : Expr.t =
   match (name, (literal_of ctx arg).T.Expr.node) with
-  | "Int", T.Expr.Integer_lit s | "I64", T.Expr.Integer_lit s -> (
+  | "I64", T.Expr.Integer_lit s -> (
       match Int64.of_string_opt (digits s) with
       | Some i -> { Expr.node = Expr.Int i; ty = Nodes.Ty.I64 }
-      | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$%s`" s name))
+      | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$I64`" s))
   | "I32", T.Expr.Integer_lit s -> (
       match Int32.of_string_opt (digits s) with
       | Some i -> { Expr.node = Expr.Int (Int64.of_int32 i); ty = Nodes.Ty.I32 }
       | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$I32`" s))
-  | "Float", T.Expr.Decimal_lit s ->
-      let value = float_of_string (digits s) in
-      if Float.is_finite value then { Expr.node = Expr.Float value; ty = Nodes.Ty.F64 }
-      else refuse span (Printf.sprintf "`%s` is out of range for `@primitives$Float`" s)
+  | ("F64" | "F32"), T.Expr.Decimal_lit s ->
+      let ty = if name = "F32" then Nodes.Ty.F32 else Nodes.Ty.F64 in
+      let value =
+        if ty = Nodes.Ty.F32 then Tst.Decimal.to_single (digits s) else float_of_string (digits s)
+      in
+      if Float.is_finite value then { Expr.node = Expr.Float value; ty }
+      else refuse span (Printf.sprintf "`%s` is out of range for `@primitives$%s`" s name)
   | "String", T.Expr.Text_lit s -> { Expr.node = Expr.Text (unescape s); ty = Nodes.Ty.Handle }
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `@primitives$%s` of something not its literal" name)

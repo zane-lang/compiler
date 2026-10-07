@@ -3,7 +3,7 @@
 /// it can overwrite the variant or list the borrow points into. `churn`
 /// then reuses the freed blocks.
 package blockalias;
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -15,9 +15,9 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -31,7 +31,7 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
 	return Unit();
 }
 type Engine = #struct { power Int; label String; }
@@ -40,7 +40,7 @@ type Slot = #variant { full Engine; empty Unit; }
 Unit churn() {
 	j Int(1);
 	j!to(Int(200)) {
-		s Slot = Slot.full(Engine(Int(999), String("junk") + String("junk")));
+		s Slot = Slot.full(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
 		l List<Engine> = @primitives$List(Engine);
 		l!push(Engine(Int(999), String("junk")));
 	}
@@ -63,23 +63,23 @@ Int readSelfAfter(this Engine, body @concepts$Block) {
 	return this.power;
 }
 Unit main() {
-	slot Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
+	slot Slot = Slot.full(Engine(Int(42), @operators$concat(String("orig"), String("inal"))));
 	a Int = readAfter(slot.full ?? Engine(Int(0), String("none")), {
 		slot = Slot.empty(Unit());  // ILLEGAL (memory.md §2.9.1)
 	});
-	check(String("payload borrowed while a block argument changes the case"), a == Int(42));
+	check(String("payload borrowed while a block argument changes the case"), @operators$equal(a, Int(42)));
 	list List<Engine> = @primitives$List(Engine);
 	list!push(Engine(Int(42), String("x")));
 	b Int = readAfter(list[Int(1)], {
 		list = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
 	});
-	check(String("element borrowed while a block argument replaces the list"), b == Int(42));
+	check(String("element borrowed while a block argument replaces the list"), @operators$equal(b, Int(42)));
 	list3 List<Engine> = @primitives$List(Engine);
 	list3!push(Engine(Int(42), String("x")));
 	n Int = list3[Int(1)]:readSelfAfter({
 		list3 = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
 	});
-	check(String("element subject freed by its own block"), n == Int(42));
+	check(String("element subject freed by its own block"), @operators$equal(n, Int(42)));
 
 	victims List<Engine> = @primitives$List(Engine);
 	other List<Engine> = @primitives$List(Engine);
@@ -88,6 +88,6 @@ Unit main() {
 		other = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
 		victims!push(Engine(Int(100), String("victim")));
 	});
-	check(String("victim untouched by a write through the freed subject"), victims[Int(1)].power == Int(100));
+	check(String("victim untouched by a write through the freed subject"), @operators$equal(victims[Int(1)].power, Int(100)));
 	return Unit();
 }

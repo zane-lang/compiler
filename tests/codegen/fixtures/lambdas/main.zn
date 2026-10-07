@@ -5,7 +5,7 @@
 /// holds and `no` when it does not.
 package lambdas;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -18,7 +18,7 @@ Bool if(condition Bool, body @concepts$Block) {
 
 /// A lambda-variable declared at package scope.
 square Int(x Int) {
-	return x * x;
+	return @operators$multiply(x, x);
 }
 
 Int twice(f Int[Int], x Int) => f(f(x))
@@ -28,7 +28,7 @@ Int[Int] pick(squaring Bool) {
 	if(squaring) {
 		return square;
 	}
-	return Int(x Int) { return x + Int(1); }
+	return Int(x Int) { return @operators$add(x, Int(1)); }
 }
 
 type Step = struct {
@@ -71,8 +71,8 @@ Tally(total Int) => init{ total; }
 type Op = enum [ twice, thrice ]
 
 Op.apply Int[Int] {
-	twice = Int(x Int) { return x + x; };
-	thrice = Int(x Int) { return x * Int(3); };
+	twice = Int(x Int) { return @operators$add(x, x); };
+	thrice = Int(x Int) { return @operators$multiply(x, Int(3)); };
 }
 
 /// An owner whose member spawned calls through function values write and read.
@@ -88,7 +88,7 @@ Unit check(ok Bool) {
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
-	@controlflow$branch(~ok, {
+	@controlflow$branch(@operators$not(ok), {
 		@program$console!print(no);
 	});
 	return Unit();
@@ -96,72 +96,72 @@ Unit check(ok Bool) {
 
 Unit main() {
 	// A lambda-variable in a body, and the package's, passed and called.
-	double Int(x Int) { return x + x; }
-	check(double(Int(3)) == Int(6));
-	check(twice(double, Int(3)) == Int(12));
-	check(twice(square, Int(3)) == Int(81));
+	double Int(x Int) { return @operators$add(x, x); }
+	check(@operators$equal(double(Int(3)), Int(6)));
+	check(@operators$equal(twice(double, Int(3)), Int(12)));
+	check(@operators$equal(twice(square, Int(3)), Int(81)));
 
 	// A lambda written where it is passed.
-	check(twice(Int(x Int) { return x + Int(10); }, Int(1)) == Int(21));
+	check(@operators$equal(twice(Int(x Int) { return @operators$add(x, Int(10)); }, Int(1)), Int(21)));
 
 	// Returned, then called.
-	check(pick(true)(Int(5)) == Int(25));
+	check(@operators$equal(pick(true)(Int(5)), Int(25)));
 	inc Int[Int] = pick(false);
-	check(inc(Int(5)) == Int(6));
+	check(@operators$equal(inc(Int(5)), Int(6)));
 
 	// Stored in a member, and replaced.
 	step Step(double, Int(3));
-	check(run(step, Int(1)) == Int(8));
+	check(@operators$equal(run(step, Int(1)), Int(8)));
 	step.apply = square;
-	check(run(step, Int(2)) == Int(256));
+	check(@operators$equal(run(step, Int(2)), Int(256)));
 
 	// A call through a function value that can abort.
 	safe Int?Int(x Int) {
-		if(x == Int(0)) {
+		if(@operators$equal(x, Int(0))) {
 			abort Int(7);
 		}
-		return Int(100) / x;
+		return @operators$divide(Int(100), x);
 	}
-	check((safe(Int(4)) ?? Int(0)) == Int(25));
-	check((safe(Int(0)) ? e { resolve e + Int(1); }) == Int(8));
+	check(@operators$equal(safe(Int(4)) ?? Int(0), Int(25)));
+	check(@operators$equal(safe(Int(0)) ? e { resolve @operators$add(e, Int(1)); }, Int(8)));
 
 	// A subject, written through a `mut` lambda and read by one that is not.
 	c Counter(Int(1));
 	add Unit(this Counter, n Int) mut {
-		this.count = this.count + n;
+		this.count = @operators$add(this.count, n);
 		return Unit();
 	}
 	c!bump(Int(4), add);
-	check(c.count == Int(5));
+	check(@operators$equal(c.count, Int(5)));
 	c!bump(Int(4), Unit(this Counter, n Int) { return Unit(); });
 	still Unit(this Counter, n Int) { return Unit(); }
 	c!bump(Int(4), still);
-	check(c.count == Int(5));
+	check(@operators$equal(c.count, Int(5)));
 
 	// A string passed and returned, an owner lent, and a reference read through.
-	shout String(text String) { return text + String("!"); }
-	check(shout(String("hey")) == String("hey!"));
-	echo String(text String) { return text + text; }
+	shout String(text String) { return @operators$concat(text, String("!")); }
+	check(@operators$equal(shout(String("hey")), String("hey!")));
+	echo String(text String) { return @operators$concat(text, text); }
 	word String("ab");
-	check(echo(word) == String("abab"));
+	check(@operators$equal(echo(word), String("abab")));
 	tally Tally(Int(2));
 	grow Unit(this Tally, n Int) mut {
-		this.total = this.total * n;
+		this.total = @operators$multiply(this.total, n);
 		return Unit();
 	}
 	grow(tally, Int(3));
 	peek Int(t &Tally) { return t.total; }
-	check(peek(tally) == Int(6));
+	check(@operators$equal(peek(tally), Int(6)));
 
 	// Spawned calls through function values: the value runs where the spawn
 	// is written, its result comes home when read, and an abort settles here.
 	early Int = spawn double(Int(21));
 	later Int = spawn pick(true)(Int(4));
-	check(early == Int(42));
-	check(later == Int(16));
-	check((spawn safe(Int(0)) ? e { resolve e; }) == Int(7));
+	check(@operators$equal(early, Int(42)));
+	check(@operators$equal(later, Int(16)));
+	check(@operators$equal(spawn safe(Int(0)) ? e { resolve e; }, Int(7)));
 	loud String = spawn shout(String("go"));
-	check(loud == String("go!"));
+	check(@operators$equal(loud, String("go!")));
 
 	// A spawned call through a function value with a subject: a `mut` one
 	// writes it, and one that is not reads it as it was at the spawn.
@@ -169,24 +169,24 @@ Unit main() {
 	if(true) {
 		spawn add(c, Int(2));
 	}
-	check(c.count == Int(7));
+	check(@operators$equal(c.count, Int(7)));
 	seen Int = spawn get(c);
-	check(seen == Int(7));
+	check(@operators$equal(seen, Int(7)));
 
 	// The same, with the subject reached through an owner.
 	shelf Shelf(Counter(Int(10)));
 	if(true) {
 		spawn add(shelf.counter, Int(5));
 	}
-	check(shelf.counter.count == Int(15));
+	check(@operators$equal(shelf.counter.count, Int(15)));
 	held Int = spawn get(shelf.counter);
-	check(held == Int(15));
+	check(@operators$equal(held, Int(15)));
 
 	// Function values read from an enum map.
 	op Op = Op.thrice;
 	scale Int[Int] = op.apply;
-	check(scale(Int(5)) == Int(15));
-	check(twice(Op.twice.apply, Int(3)) == Int(12));
+	check(@operators$equal(scale(Int(5)), Int(15)));
+	check(@operators$equal(twice(Op.twice.apply, Int(3)), Int(12)));
 
 	// A `Unit` function value.
 	say Unit(text String) {

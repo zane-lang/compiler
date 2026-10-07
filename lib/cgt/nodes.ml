@@ -17,7 +17,8 @@
    enum's cases: a tag and room for the widest payload. [Ptr] is the address
    of a place, which is how a `mut` subject and a borrow are passed (L6),
    and what a reference holds: the address of the settled owner it names
-   (memory.md §4.1). [I32] is `@primitives$I32`. A boxed member is a [Ptr]
+   (memory.md §4.1). [I32] is `@primitives$I32`, [I64] `I64`, [F32] `F32`
+   and [F64] `F64`. A boxed member is a [Ptr]
    to its payload's block (adt.md §4). *)
 module Ty = struct
   type t =
@@ -25,6 +26,7 @@ module Ty = struct
     | I1
     | I32
     | I64
+    | F32
     | F64
     | Handle
     | Ptr
@@ -38,7 +40,7 @@ module Ty = struct
   let rec size_align = function
     | Void -> (0, 1)
     | I1 -> (1, 1)
-    | I32 -> (4, 4)
+    | I32 | F32 -> (4, 4)
     | I64 | F64 | Ptr -> (8, 8)
     | Handle -> (24, 8)
     | Struct ts ->
@@ -79,12 +81,61 @@ module Ty = struct
     | I1 -> "i1"
     | I32 -> "i32"
     | I64 -> "i64"
+    | F32 -> "f32"
     | F64 -> "f64"
     | Handle -> "handle"
     | Ptr -> "ptr"
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"
     | Sum ts -> "<" ^ String.concat " | " (List.map to_string ts) ^ ">"
     | Array (t, n) -> Printf.sprintf "[%d x %s]" n (to_string t)
+end
+
+(* What a scalar conversion means (types.md §2.9), which codegen emits and
+   the optimizer folds, so the two cannot disagree. A float is held as a
+   double either way; an [F32] is one that [single] has rounded. *)
+module Scalar = struct
+  let single f = Int32.float_of_bits (Int32.bits_of_float f)
+
+  (* The bits of an integer type. *)
+  let bits = function Ty.I32 -> 32 | _ -> 64
+
+  (* The floats of type [from] that truncate toward zero into the integer
+     type [t]: those above [lower], or at it when [inclusive], and below
+     [upper]. Each bound is exact in [from]. The first float below -2^31
+     that truncates out of an [I32] is -2^31 - 1 when a double holds it;
+     an [F32] holds nothing between -2^31 and the next float below, and
+     neither holds anything between -2^63 and the next below it. *)
+  let truncation ~from t =
+    let half = Float.pow 2. (float_of_int (bits t - 1)) in
+    if bits t = 32 && from = Ty.F64 then (Float.neg half -. 1., false, half)
+    else (Float.neg half, true, half)
+
+  (* The least and the greatest value of the integer type [t]. *)
+  let ends t =
+    if bits t = 32 then (Int64.of_int32 Int32.min_int, Int64.of_int32 Int32.max_int)
+    else (Int64.min_int, Int64.max_int)
+
+  let truncates_into ~from t f =
+    let lower, inclusive, upper = truncation ~from t in
+    (if inclusive then f >= lower else f > lower) && f < upper
+
+  (* An integer to the nearest float of [t], rounded once. A double holds
+     every [I64] up to 2^53 exactly, and above that one rounded to odd first
+     keeps a later rounding to an [F32] from being rounded twice. *)
+  let to_float t (i : int64) =
+    match t with
+    | Ty.F32 ->
+        let limit = Int64.shift_left 1L 53 in
+        if Int64.compare i (Int64.neg limit) > 0 && Int64.compare i limit < 0 then
+          single (Int64.to_float i)
+        else if Int64.equal i Int64.min_int then single (Int64.to_float i)
+        else
+          let m = Int64.abs i in
+          let kept = Int64.logand m (Int64.lognot 0x7FFL) in
+          let odd = if Int64.equal kept m then kept else Int64.logor kept 0x800L in
+          let f = single (Int64.to_float odd) in
+          if Int64.compare i 0L < 0 then Float.neg f else f
+    | _ -> Int64.to_float i
 end
 
 (* Where a type's owned blocks are (memory.md §3.6): every handle and boxed
@@ -126,12 +177,18 @@ module Expr = struct
     (* A call into the C runtime (L17), by the runtime's symbol. A string
        goes to it, and comes back from it, through the address of a copy. *)
     | Runtime of { fn : Runtime.fn; args : t list }
-    (* A scalar primitive's operator, on two operands of one type: [I64],
-       [I32] and [F64] add, multiply, divide, compare; [I1] adds as `or`,
-       multiplies as `and` and compares (operators.md §2.4). *)
+    (* An `@operators$` operation on two operands of one type: an integer or
+       a float adds, multiplies, divides and compares; an [I1] adds as `or`,
+       multiplies as `and` and compares. *)
     | Binary of { op : binop; left : t; right : t }
-    (* `~`: an [I64], [I32] or [F64] negated, an [I1] inverted. *)
+    (* An integer or a float negated, an [I1] inverted. *)
     | Flip of t
+    (* A scalar converted to the node's type, the instruction picked by the
+       two types (types.md §2.9): an integer widened by its sign or wrapped
+       to its low bits, a float widened or rounded, an integer rounded to the
+       nearest float, and a float truncated toward zero to an integer, which
+       saturates when the result does not fit and gives zero for a NaN. *)
+    | Convert of t
     (* A verb expanded where it is called (L11): its body runs here, and a
        `return` in it stores [result] and leaves [label]. The expression's
        value is [result] once the body is left. *)
@@ -244,6 +301,7 @@ module Expr = struct
     | Runtime _ -> "Runtime"
     | Binary _ -> "Binary"
     | Flip _ -> "Flip"
+    | Convert _ -> "Convert"
     | Expand _ -> "Expand"
     | Record _ -> "Record"
     | Member _ -> "Member"

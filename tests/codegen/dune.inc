@@ -859,6 +859,52 @@
   (diff golden/replayed.out replayed.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/scalars))
+ (action
+  (with-stdout-to
+   scalars.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/scalars))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalars.optimized.cgt scalars.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/scalars))
+ (targets scalars.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build scalars.exe --package fixtures/scalars)))
+
+(rule
+ (deps (source_tree fixtures/scalars))
+ (targets scalars.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build scalars.optimized.exe --optimize --package fixtures/scalars)))
+
+(rule
+ (action
+  (with-stdout-to
+   scalars.out.actual
+   (run ./scalars.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalars.out scalars.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   scalars.optimized.out.actual
+   (run ./scalars.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalars.out scalars.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/settled))
  (action
   (with-stdout-to
@@ -1087,56 +1133,6 @@
  (alias runtest)
  (action
   (diff golden/texts.out texts.optimized.out.actual)))
-
-(rule
- (deps (source_tree fixtures/zero))
- (action
-  (with-stdout-to
-   zero.optimized.cgt.actual
-   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/zero))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/zero.optimized.cgt zero.optimized.cgt.actual)))
-
-(rule
- (deps (source_tree fixtures/zero))
- (targets zero.exe)
- (action
-  (run %{exe:../../bin/zanec/zanec.exe} --build zero.exe --package fixtures/zero)))
-
-(rule
- (deps (source_tree fixtures/zero))
- (targets zero.optimized.exe)
- (action
-  (run %{exe:../../bin/zanec/zanec.exe} --build zero.optimized.exe --optimize --package fixtures/zero)))
-
-(rule
- (action
-  (with-outputs-to
-   zero.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./zero.exe)))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/zero.out zero.out.actual)))
-
-(rule
- (action
-  (with-outputs-to
-   zero.optimized.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./zero.optimized.exe)))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/zero.out zero.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/literalOperator))

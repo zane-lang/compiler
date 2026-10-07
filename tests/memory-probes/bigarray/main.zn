@@ -3,12 +3,12 @@
 /// and runs, but its optimized build takes minutes, so it is not kept here.
 package bigarray;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 alias String = @primitives$String
 
 Unit main() {
 	a @primitives$ArrayRef<Int, 65536> = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
-	@controlflow$branch(a[Int(3)] == Int(3), { @program$console!print(String("yes\n")); });
+	@controlflow$branch(@operators$equal(a[Int(3)], Int(3)), { @program$console!print(String("yes\n")); });
 	return Unit();
 }

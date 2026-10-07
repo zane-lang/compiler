@@ -5,7 +5,7 @@ Error: `engine` is a settled owner, which may be referenced and so never moves; 
 File "settled/main.zn", line 21, characters 9-13:
 21 |     bad &Int = n;                     // ILLEGAL: & over a value type
   |         ^^^^
-Error: `@primitives$Int` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
+Error: `@primitives$I64` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
 File "settled/main.zn", line 23, characters 8-12:
 23 |     bv &Vec = v;                      // ILLEGAL
   |        ^^^^
@@ -17,7 +17,7 @@ Error: `settled$Vec` is a value type, and `^` marks only a roaming owner of a re
 File "settled/main.zn", line 25, characters 8-12:
 25 |     wi ^Int = Int(4);                 // ILLEGAL
   |        ^^^^
-Error: `@primitives$Int` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
+Error: `@primitives$I64` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
 File "settled/main.zn", line 26, characters 21-26:
 26 |     again &Engine = spare;            // ILLEGAL: spare is spent (and roaming)
   |                     ^^^^^

@@ -4,7 +4,7 @@ package viewer;
 
 import gui;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -15,13 +15,13 @@ Unit check(ok Bool) {
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
-	@controlflow$branch(~ok, {
+	@controlflow$branch(@operators$not(ok), {
 		@program$console!print(no);
 	});
 	return Unit();
 }
 
 Unit main() {
-	check(gui$draw() == Int(16));
+	check(@operators$equal(gui$draw(), Int(16)));
 	return Unit();
 }

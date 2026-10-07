@@ -27,7 +27,6 @@ typedef struct {
 void zane_main(void);
 
 /* main.c */
-void zane_divide_by_zero(void);
 
 /* arena.c */
 int64_t zane_scope_enter(void);

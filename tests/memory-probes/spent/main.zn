@@ -4,7 +4,7 @@
 /// marks what the spec rejects.
 package spent;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 
 type Cup = #struct { size Int; }
