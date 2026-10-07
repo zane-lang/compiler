@@ -219,6 +219,7 @@ let linkage (f : Func.t) =
   | Linkage.Exported -> [ ("linkage", Leaf "exported") ]
   | Linkage.Shared -> [ ("linkage", Leaf "shared") ]
   | Linkage.Imported -> [ ("linkage", Leaf "imported") ]
+  | Linkage.Available -> [ ("linkage", Leaf "available") ]
 
 let global (g : Global.t) =
   let linkage =
@@ -227,6 +228,7 @@ let global (g : Global.t) =
     | Linkage.Exported -> ", exported"
     | Linkage.Shared -> ", shared"
     | Linkage.Imported -> ", imported"
+    | Linkage.Available -> ", available"
   in
   Leaf (Printf.sprintf "%s : %s%s" g.Global.symbol (Ty.to_string g.Global.ty) linkage)
 

@@ -129,6 +129,9 @@ type state = {
      package's name in a symbol, and whether a package is a stamped
      dependency, which arrives as objects of its own (C1, C6). *)
   library : bool;
+  (* Retain reachable stamped dependency bodies for optimization. They are
+     never emitted as ordinary definitions in this object's code. *)
+  import_bodies : bool;
   exports : string -> bool;
   stamp : string -> string;
   stamped : string -> bool;
@@ -139,7 +142,7 @@ type state = {
 }
 
 (* A state that has reached nothing yet. *)
-let create ~library ~exports ~stamp ~stamped =
+let create ~import_bodies ~library ~exports ~stamp ~stamped =
   {
     verbs = Hashtbl.create 64;
     types = Hashtbl.create 64;
@@ -161,6 +164,7 @@ let create ~library ~exports ~stamp ~stamped =
     aborts = Tty.Error;
     spawned = [];
     library;
+    import_bodies;
     exports;
     stamp;
     stamped;

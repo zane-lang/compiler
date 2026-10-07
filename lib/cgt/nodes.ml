@@ -363,7 +363,9 @@ end
    function is a stamped dependency's, defined in that dependency's objects,
    so this object declares it and has no body for it (C1). *)
 module Linkage = struct
-  type t = Local | Exported | Shared | Imported
+  (* [Available] retains a dependency's body for optimization, but emits no
+     definition in this object. Residual calls use the dependency's object. *)
+  type t = Local | Exported | Shared | Imported | Available
 end
 
 (* A variable of the program, zeroed until it is stored to: a package

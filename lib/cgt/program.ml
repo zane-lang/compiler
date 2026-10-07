@@ -60,6 +60,9 @@ let func st (v : verb) : Func.t =
         else if Hashtbl.mem st.imported v.key then Linkage.Imported
         else Linkage.Local
   in
+  let linkage =
+    if linkage = Linkage.Imported && st.import_bodies then Linkage.Available else linkage
+  in
   if linkage = Linkage.Imported then
     { Func.symbol = symbol st v; linkage; params; ret = returned o; body = [] }
   else begin
@@ -190,7 +193,7 @@ let library_roots st (root : T.Package.t) =
    library's own packages without a stamp are named with the `!`
    placeholder, and ones with a stamp are named with it, as a dependency
    compiled from source is. *)
-let program ?(library = false) (p : T.Program.t) =
+let program ?(library = false) ?(import_bodies = false) (p : T.Program.t) =
   let stamp_of id =
     match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> ""
   in
@@ -199,7 +202,7 @@ let program ?(library = false) (p : T.Program.t) =
   let exports p = library && own p in
   let stamp p = if library && own p && root = "" then "!" else "" in
   let stamped p = (not (own p)) && stamp_of p <> "" in
-  let st = create ~library ~exports ~stamp ~stamped in
+  let st = create ~import_bodies ~library ~exports ~stamp ~stamped in
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };

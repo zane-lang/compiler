@@ -28,7 +28,9 @@ project being compiled: its library packages and, in a program's build, the
 program package (`packages.md` §2.1). A package with another stamp (C6) is a
 dependency that arrives as prebuilt objects, so lowering and codegen emit
 nothing it declares: only what the project's own packages declare, plus the
-generic instances they need (C4). With no stamps at all, that is the whole
+generic instances they need (C4). An optimized build also retains reachable
+dependency bodies for optimization alone (C12); their ordinary definitions
+still belong to the dependency objects. With no stamps at all, that is the whole
 program in one module.
 
 In a program's build the first package is the root, which alone reaches
@@ -217,6 +219,24 @@ package. A stamp counts only where it starts a package's name, so `v1.0%…%`
 inside `xv1.0%…%` is left alone. It renames the symbol table the way C9
 does, and an instance the object made at a displaced version's types is
 renamed with it, so it merges with the chosen version's copies (C4).
+
+**C12. Optimized callers can see a dependency's body without defining it.**
+The checked source C2 already loads contains the bodies at the pinned commit.
+With `--optimize`, lowering retains each reachable ordinary dependency
+function as `Available`, and follows what it calls, including private
+helpers and other stamped dependencies. Stage 5 evaluates calls with known
+inputs. Codegen gives LLVM these definitions with `available_externally`
+linkage, which permits inlining and analysis but emits no function definition
+in the caller's object. A call LLVM leaves behind uses the original stamped
+symbol, and the dependency object resolves it as before. Named
+lambda-variables use the same optimization-only linkage; generic instances
+and package constants retain C4's shared definitions. The original object
+may be optimized or unoptimized. Symbols still contain their full package
+identity, so different versions' bodies cannot replace one another.
+
+No bitcode or LTO plugin is needed: both optimizers use the already checked
+source. Unoptimized builds keep declarations only. The compiler and source
+pins in §4 are also the contract that makes these body imports sound.
 
 ---
 

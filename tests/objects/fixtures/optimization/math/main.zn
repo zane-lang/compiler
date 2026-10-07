@@ -1,0 +1,38 @@
+package math;
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+
+offset Int(3)
+Int _add(a Int, b Int) => @operators$add(a, b)
+Int add(a Int, b Int) => _add(a, b)
+Int shifted(x Int) => add(x, offset)
+Int squared(x Int) => @operators$multiply(x, x)
+Int sum(n Int) {
+    result Int(0);
+    @controlflow$repeat(n, { result = add(result, n); });
+    return result;
+}
+Unit bump(this Int) mut {
+    this = add(this, Int(1));
+    return Unit();
+}
+Int?Int divide(a Int, b Int) {
+    @controlflow$branch(@operators$equal(b, Int(0)), { abort a; });
+    return @operators$divide(a, b);
+}
+Int down(n Int) {
+    @controlflow$branch(@operators$lessThan(n, Int(1)), { return Int(0); });
+    return add(n, down(add(n, @operators$negate(Int(1)))));
+}
+// A package-level lambda variable, deliberately using name-first syntax.
+double Int(x Int) => add(x, x)
+
+Int fib(n Int) {
+    @controlflow$branch(@operators$lessThan(n, Int(2)), { return n; });
+    return add(fib(add(n, @operators$negate(Int(1)))), fib(add(n, @operators$negate(Int(2)))));
+}
+
+Int loud(this @runtime$Console, n Int) mut {
+    this!print(@primitives$String("library\n"));
+    return add(n, n);
+}

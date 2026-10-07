@@ -8,8 +8,10 @@ module Runtime = Runtime
 
 (** The program, from the root package's `main`, or from every function of
     the root when it is a [library]. A construct lowering does not handle
-    yet is refused with a diagnostic at it. *)
-val lower : ?library:bool -> Tst.Nodes.Program.t -> (Nodes.Program.t, Diagnostic.t) result
+    yet is refused with a diagnostic at it. [import_bodies] retains reachable
+    stamped dependencies' functions with optimization-only linkage. *)
+val lower :
+  ?library:bool -> ?import_bodies:bool -> Tst.Nodes.Program.t -> (Nodes.Program.t, Diagnostic.t) result
 
 (** The tree as `zanec --cgt` prints it. *)
 val to_node : Nodes.Program.t -> Tree_graph.node

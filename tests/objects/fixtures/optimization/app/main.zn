@@ -1,0 +1,31 @@
+package app;
+import math;
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Unit print(n Int) {
+    @program$console!print(@operators$concat(String(n), String("\n")));
+    return Unit();
+}
+Unit main() {
+    // Outputs from a folded dependency call must stay before its result.
+    print(@program$console!math$loud(Int(21)));
+    // The constant loop must fold across the dependency boundary.
+    print(math$sum(Int(10)));
+    // A runtime-dependent input cannot fold; LLVM must inline the wrappers.
+    args List<String> = @program$runtime:arguments();
+    n Int = args[Int(1)]:parseI64() ?? Int(0);
+    print(math$add(n, Int(2)));
+    print(math$shifted(n));
+    print(math$squared(n));
+    n!math$bump();
+    print(n);
+    print(math$divide(n, Int(0)) ?? Int(99));
+    print(math$divide(n, Int(2)) ?? Int(99));
+    print(math$down(n));
+    print(math$double(n));
+    print(math$fib(n));
+    return Unit();
+}

@@ -93,8 +93,8 @@ let require_main (program : Tst.Nodes.Program.t) =
 (* Lowering refuses what it cannot handle yet with a diagnostic rather than
    lowering it wrongly (docs/design/lowering.md). A library lowers from every
    function it declares. *)
-let lower ~kind packages program =
-  match Cgt.lower ~library:(kind = Library) program with
+let lower ?(optimize = false) ~kind packages program =
+  match Cgt.lower ~library:(kind = Library) ~import_bodies:optimize program with
   | Ok cgt -> Ok cgt
   | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
 

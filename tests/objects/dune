@@ -578,3 +578,12 @@
  (alias runtest)
  (action
   (diff golden/atlas.stamped-root.symbols atlas.stamped-root.symbols.actual)))
+
+; Optimization sees stamped dependencies' bodies, without defining their
+; ordinary functions in the caller's object. Exercise folding and LLVM
+; inlining as well as mutation, aborts, lambdas, constants and versioned ABI.
+(rule
+ (alias runtest)
+ (deps optimization_test.py (source_tree fixtures) (glob_files golden/*.out))
+ (action
+  (run python3 %{dep:optimization_test.py} %{exe:../../bin/zanec/zanec.exe})))
