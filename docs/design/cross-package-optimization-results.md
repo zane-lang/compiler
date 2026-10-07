@@ -29,6 +29,10 @@ compiled, optimized `core` object.
 | ntree | 10 | 4.856 s | 4.471 s | 1.09× |
 | treecopy | 18 | 1.354 s | 1.375 s | 0.99× |
 
+The binarytrees row above uses the original recursive value types at the
+pinned spec commit. The reference-node correction is measured separately
+below, so the compiler and representation changes can be distinguished.
+
 The arithmetic-heavy Mandelbrot workload benefits most. Trial division,
 Fannkuch, entity scanning and list growth also improve. Binary trees and
 deep copying remain essentially unchanged: removing package call overhead
@@ -42,6 +46,43 @@ Its single measured build took approximately 0.52 s before and 1.06 s after;
 that is a build-time cost, not a runtime win. The other single measured
 builds were approximately 0.4–0.7 s in both versions. These compile timings
 are observations from one build each, not statistically established results.
+
+## Binary-tree representation correction
+
+The benchmark now uses owning reference nodes, matching the pointer-based
+trees in its C++ and Rust implementations. `Tree` is a reference variant,
+`Pair` is a reference struct, and the parent constructor takes ownership of
+its two children. Tree checking continues to borrow its argument.
+The optimized CGT now uses `take` for each child in the constructor, replacing
+the original `copy` operations on completed subtrees. `treecopy` retains its
+deliberate value-copy workload.
+
+The corrected source is spec commit
+[`a79a5ea6c8f379d831ca3d4822290e9d562f1a94`](https://github.com/zane-lang/spec/commit/a79a5ea6c8f379d831ca3d4822290e9d562f1a94).
+On the same host and toolchain as above, a separate three-round alternating
+timing pass at depth 16 produced these medians:
+
+| Representation and compiler | Runtime |
+|---|---:|
+| Original values, changed compiler | 13.138 s |
+| Owning references, baseline compiler | 2.998 s |
+| Owning references, changed compiler | 2.902 s |
+| C++ `unique_ptr`, Clang 19.1.1 `-std=c++20 -O2` | 0.317 s |
+
+Changing the representation improves the changed compiler's runtime by
+4.53×. Cross-package optimization alone improves the reference version by
+about 1.03×, a small difference relative to the run variation. Zane still
+takes about 9.15× as long as this C++ implementation; allocation and
+scope-escape relocation remain possible optimization targets. Removing
+subtree copies does not eliminate all tree-construction overhead.
+
+Every variant matched the expected output at depths 0, 6 and 10, and every
+timed run matched at depth 16. Both Zane compiler versions linked the exact
+same separately compiled core object. Raw samples are in
+[`binarytrees-reference-results.json`](binarytrees-reference-results.json).
+The spec's pinned multi-language results remain historical results from the
+old value-based source; its README, explanations and generated page identify
+that distinction rather than combining timings from different runs.
 
 ## Environment and source pins
 
