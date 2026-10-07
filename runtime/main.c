@@ -33,6 +33,7 @@ static void zane_keep_arguments(int argc, char **argv) {
 		zane_argv[i - 1] = text;
 	}
 	zane_argc = count > 0 ? count - 1 : 0;
+	zane_argv[zane_argc] = NULL;
 	LocalFree(wide);
 }
 #else
