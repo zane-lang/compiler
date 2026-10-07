@@ -177,6 +177,10 @@ No LSP or `nvim-treesitter` registration is needed. Use `:Inspect` and
 `:InspectTree` to inspect captures and tree structure. Other platforms can use
 the parser artifact appropriate to their platform on Neovim's runtime path.
 
+When updating the grammar or highlight queries, rebuild and copy the parser
+and both query files together, then restart Neovim. Queries can name new editor
+nodes that an older `zane.so` does not provide.
+
 ## Validation
 
 Every CI build checks generated-file drift. When a change touches the grammar,
@@ -219,7 +223,7 @@ since Tree-sitter forbids empty non-start rules.
 Tree-sitter conflicts are discovered on every regeneration, including `--check`.
 The generator starts with no declarations, runs `tree-sitter generate --json`,
 adds only the diagnostic's `AddConflict` rule group, and repeats until generation
-succeeds. It currently discovers 20 groups. No generated report or previously
+succeeds. It currently discovers 19 groups. No generated report or previously
 declared conflict is used as input. It stops on other errors, duplicate groups,
 or more than 128 groups, and computes all outputs before replacing any file.
 The committed report makes changes reviewable without requiring manual upkeep.
@@ -245,8 +249,10 @@ hidden. `%inline` rules leave no node of their own, so the overlay's
 `kept_inline_rules` names those the editor tree keeps as rules, such as `param`.
 Only the Tree-sitter translation sees that change; the compiler grammar still
 inlines them, and the backend suite checks that `@variable.parameter` captures
-exactly the parameters the compiler's CST records. Highlighting includes
-lexical roles plus contextual function, member and parameter captures. The
+exactly the parameters the compiler's CST records. Qualified names, imported
+members, struct fields and initializer fields also retain editor nodes so the
+queries can distinguish namespaces, callees and members. Highlighting includes
+lexical roles plus contextual namespace, function, member and parameter captures. The
 shared query marks a parameter where it is declared. Neovim's extension query
 also marks each use, through `zane-bound?`, which looks for a parameter of that
 name in an enclosing verb or lambda. That needs no further name resolution

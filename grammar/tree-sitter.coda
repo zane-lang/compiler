@@ -36,11 +36,17 @@ public_rules [
   stat
 ]
 # %inline rules the editor tree keeps as nodes of their own, so queries can
-# name a parameter rather than guess it from its neighbours. The compiler
-# grammar still inlines them.
+# name parameters, qualified names and fields rather than guess them from
+# their neighbours. The compiler grammar still inlines them.
 kept_inline_rules [
   param
   constructor_field
+  name_expr
+  name_type
+  import_member
+  body_field
+  field_arg
+  constructor_field_arg
 ]
 # Rules whose first named child binds a name. The Neovim predicate zane-bound?
 # (tools/grammar/neovim.lua) marks a reference bound when one of its ancestors
@@ -53,8 +59,18 @@ binders [
 # before `(`: anchors skip anonymous tokens, so without the `(` an operator's or
 # a lambda's first parameter would be taken for the name.
 highlights [
-  "(unbraced_verb_call (func_callee (primary (identifier) @function.call)))"
+  "(name_expr (identifier) @module \"$\")"
+  "(name_type (identifier) @module \"$\")"
+  "(header_decl \"package\" (identifier) @module)"
+  "(import_decl (identifier) @module)"
   "(func_callee \".\" (identifier) @variable.member)"
+  "(app (name_type) \".\" (identifier) @variable.member)"
+  "(body_field . (identifier) @variable.member)"
+  "(field_arg . (identifier) @variable.member)"
+  "(constructor_field_arg . (identifier) @variable.member)"
+  "[(unbraced_verb_call (func_callee (primary (name_expr (identifier) @function.call .)))) (block_call (func_callee (primary (name_expr (identifier) @function.call .))))]"
+  "[(unbraced_verb_call (primary (name_expr (identifier) @function.method.call .))) (block_call (primary (name_expr (identifier) @function.method.call .)))]"
+  "[(unbraced_verb_call (func_callee \".\" (identifier) @function.method.call)) (block_call (func_callee \".\" (identifier) @function.method.call))]"
   "(block_decl (ret_type) . (identifier) @function . \"(\")"
   "(simple_decl (ret_type) . (identifier) @function . \"(\")"
   "(simple_decl_braced (ret_type) . (identifier) @function . \"(\")"
@@ -66,6 +82,6 @@ highlights [
 # which only the generated zane.lua defines; a consumer that skipped the
 # predicate would take every reference for a parameter.
 neovim_highlights [
-  "((primary . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter))"
-  "((primary_braced \"init\" (identifier) @variable.parameter . \";\") (#zane-bound? @variable.parameter))"
+  "((name_expr . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter))"
+  "((field_arg . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter))"
 ]

@@ -55,3 +55,42 @@ for row, line in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
   end
 end
 assert(checked >= 6, 'too few annotated lines checked')
+
+-- Check the captures Neovim actually loads, including its parameter extension.
+-- A qualified name must not become a parameter just because its namespace or
+-- member has the same spelling as one, nor may an explicit init key do so.
+local role_cases = {
+  {
+    source = 'Int f(operators Int) => @operators$add(operators, 1)',
+    roles = { { '@operators', 'module', 1 }, { 'add', 'function.call' } },
+  },
+  {
+    source = 'Int f(x Int) => pkg$x(x)',
+    roles = { { 'pkg', 'module' }, { '$x', 'function.call', 1 } },
+  },
+  {
+    source = 'Unit main() { @controlflow$repeat() {} obj:pkg$method() {} }',
+    roles = { { 'controlflow', 'module' }, { 'repeat', 'function.call' }, { 'pkg', 'module' }, { 'method', 'function.method.call' } },
+  },
+  {
+    source = 'type Vec = struct { x Int; } Vec(x Int) => init{x = x;}',
+    roles = { { 'x Int;', 'variable.member' }, { 'x =', 'variable.member' } },
+  },
+}
+for _, case in ipairs(role_cases) do
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { case.source })
+  local tree = assert(vim.treesitter.get_parser(buf, 'zane'):parse()[1])
+  assert(not tree:root():has_error(), case.source)
+  for _, role in ipairs(case.roles) do
+    local col = assert(case.source:find(role[1], 1, true)) - 1 + (role[3] or 0)
+    local found = false
+    for _, capture in ipairs(vim.treesitter.get_captures_at_pos(buf, 0, col)) do
+      if capture.capture == role[2] then
+        found = true
+      elseif capture.capture ~= 'variable' then
+        error(('unexpected %s for %s in %s'):format(capture.capture, role[1], case.source))
+      end
+    end
+    assert(found, ('missing %s for %s'):format(role[2], role[1]))
+  end
+end

@@ -21,3 +21,10 @@ Int scaled(factor Int, value Int) {
 }
 
 Int apply(f Int[Int], value Int) => f(value) // params: f value f value
+
+// Qualified names must not resolve to a same-named parameter.
+Int intrinsic(operators Int) => @operators$add(operators, 1) // params: operators operators
+Int qualified(x Int) => pkg$x(x) // params: x x
+
+// An explicit initializer key is a member even when it names a parameter.
+Vec(x Int) => init{x = x; y = x;} // params: x x x

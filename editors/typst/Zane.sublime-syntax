@@ -115,7 +115,7 @@ contexts:
     - match: "/"
       scope: keyword.operator.zane
     - match: "\\$"
-      scope: keyword.operator.zane
+      scope: punctuation.separator.zane
     - match: "#"
       scope: keyword.operator.zane
     - match: "\\&"
@@ -123,7 +123,7 @@ contexts:
     - match: "\\^"
       scope: keyword.operator.zane
     - match: "@"
-      scope: keyword.operator.zane
+      scope: punctuation.separator.zane
     - match: "!"
       scope: keyword.operator.zane
     - match: "\\?"
