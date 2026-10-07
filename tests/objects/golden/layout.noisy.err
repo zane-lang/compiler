@@ -1,0 +1,4 @@
+File "fixtures/layout/lib/noisy/noisy.zn", line 10, characters 5-21:
+10 |     @program$console!print(text);
+  |     ^^^^^^^^^^^^^^^^
+Error: only the root package reaches `@program$`; `noisy` receives the console and runtime from it as an argument

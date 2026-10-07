@@ -448,3 +448,133 @@
  (alias runtest)
  (action
   (diff golden/remap.mismatch remap.mismatch.actual)))
+
+; A project laid out in lib/ and bin/ (packages.md §2): math, which gui and
+; its subpackage gui.opengl share; _shaders, private to the project; and
+; the program viewer. Every library package is built into one object, each
+; exported under the `!` placeholder by its path, and the program built
+; from source and against that object stamped prints `yes`.
+
+(rule
+ (deps (source_tree fixtures/layout))
+ (targets layout.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object layout.o --package math=fixtures/layout/lib/math --package _shaders=fixtures/layout/lib/_shaders --package gui=fixtures/layout/lib/gui --package gui.opengl=fixtures/layout/lib/gui/opengl --import gui:opengl=gui.opengl --import gui:math=math --import gui.opengl:math=math --import gui.opengl:_shaders=_shaders)))
+
+(rule
+ (action
+  (with-stdout-to
+   layout.symbols.actual
+   (system "nm --defined-only %{dep:layout.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/layout.symbols layout.symbols.actual)))
+
+(rule
+ (deps (source_tree fixtures/layout))
+ (targets layout.stamped.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object layout.stamped.o --package v2.0%0123456789abcdef%math=fixtures/layout/lib/math --package v2.0%0123456789abcdef%_shaders=fixtures/layout/lib/_shaders --package v2.0%0123456789abcdef%gui=fixtures/layout/lib/gui --package v2.0%0123456789abcdef%gui.opengl=fixtures/layout/lib/gui/opengl --import v2.0%0123456789abcdef%gui:opengl=v2.0%0123456789abcdef%gui.opengl --import v2.0%0123456789abcdef%gui:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:_shaders=v2.0%0123456789abcdef%_shaders)))
+
+(rule
+ (action
+  (with-stdout-to
+   layout.stamped.symbols.actual
+   (system "nm --defined-only %{dep:layout.stamped.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/layout.stamped.symbols layout.stamped.symbols.actual)))
+
+(rule
+ (deps (source_tree fixtures/layout))
+ (targets viewer.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build viewer.exe --package viewer=fixtures/layout/bin/viewer --package math=fixtures/layout/lib/math --package _shaders=fixtures/layout/lib/_shaders --package gui=fixtures/layout/lib/gui --package gui.opengl=fixtures/layout/lib/gui/opengl --import gui:opengl=gui.opengl --import gui:math=math --import gui.opengl:math=math --import gui.opengl:_shaders=_shaders --import viewer:gui=gui)))
+
+(rule
+ (action
+  (with-stdout-to
+   viewer.out.actual
+   (run ./viewer.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/viewer.out viewer.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/layout))
+ (targets viewer.stamped.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --link %{dep:layout.stamped.o} --build viewer.stamped.exe --package viewer=fixtures/layout/bin/viewer --package v2.0%0123456789abcdef%math=fixtures/layout/lib/math --package v2.0%0123456789abcdef%_shaders=fixtures/layout/lib/_shaders --package v2.0%0123456789abcdef%gui=fixtures/layout/lib/gui --package v2.0%0123456789abcdef%gui.opengl=fixtures/layout/lib/gui/opengl --import v2.0%0123456789abcdef%gui:opengl=v2.0%0123456789abcdef%gui.opengl --import v2.0%0123456789abcdef%gui:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:_shaders=v2.0%0123456789abcdef%_shaders --import viewer:gui=v2.0%0123456789abcdef%gui)))
+
+(rule
+ (action
+  (with-stdout-to
+   viewer.stamped.out
+   (run ./viewer.stamped.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/viewer.out viewer.stamped.out)))
+
+; A library build has no root, so no library package reaches the program's
+; console (packages.md §6.1).
+
+(rule
+ (deps (source_tree fixtures/layout))
+ (action
+  (with-outputs-to
+   layout.noisy.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --kind library --check --package noisy=fixtures/layout/lib/noisy)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/layout.noisy.err layout.noisy.err.actual)))
+
+; Once the driver gives the build's imports, a package given no keys
+; imports nothing: gui.opengl may not reach math by its name
+; (packages.md §4.3).
+
+(rule
+ (deps (source_tree fixtures/layout))
+ (action
+  (with-outputs-to
+   layout.not-given.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --kind library --check --package math=fixtures/layout/lib/math --package _shaders=fixtures/layout/lib/_shaders --package gui=fixtures/layout/lib/gui --package gui.opengl=fixtures/layout/lib/gui/opengl --import gui:opengl=gui.opengl --import gui:math=math)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/layout.not-given.err layout.not-given.err.actual)))
+
+; atlas built with a stamp, and geometry with none: an unstamped dependency
+; is compiled into the stamped package's module, not left for an object of
+; its own (docs/design/separate-compilation.md C6).
+
+(rule
+ (deps (source_tree fixtures/atlas) (source_tree fixtures/geometry))
+ (targets atlas.stamped-root.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --kind library --stamp atlas=v1.0%fedcba9876543210% --object atlas.stamped-root.o --package fixtures/atlas --package fixtures/geometry)))
+
+(rule
+ (action
+  (with-stdout-to
+   atlas.stamped-root.symbols.actual
+   (system "nm --defined-only %{dep:atlas.stamped-root.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/atlas.stamped-root.symbols atlas.stamped-root.symbols.actual)))

@@ -316,8 +316,8 @@ The binary takes the same `--package` flags as the semantic views:
 | `--cgt` | prints the code-generation tree, as stage 5 left it when `--optimize` is given |
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
-| `--object OUT` | writes the root package's object file `OUT`, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3) |
-| `--stamp NAME=STAMP` | names package `NAME`'s symbols with `STAMP`, as `--package STAMPNAME=DIR` does; a dependency given one arrives as objects of its own, so its verbs are declared rather than lowered (C1, C6, C10) |
+| `--object OUT` | writes the object file `OUT` of the project's own packages, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3) |
+| `--stamp PATH=STAMP` | names the symbols of the package at `PATH` with `STAMP`, as `--package STAMPPATH=DIR` does; a dependency given one arrives as objects of its own, so its verbs are declared rather than lowered (C1, C6, C10) |
 | `--import PACKAGE:KEY=PACKAGE` | the package the first imports by `KEY`, each named by its identity (C10) |
 | `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
 | `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it; LLVM gets the triple's normal form, and the C compiler the triple as written ([`platforms.md`](platforms.md)) |
@@ -331,11 +331,11 @@ reference to the package version stamped `FROM` moved to the version stamped
 `TO`, as remapping does (C11).
 
 `--kind library` refuses `--build`, since a library is not an executable.
-With it, lowering starts from every verb the root package declares that is
-not generic and has a function of its own, and from its lambda-variables,
-rather than from `main`, and names them with the `!` placeholder
-([`separate-compilation.md`](separate-compilation.md) C5), or with its own
-stamp when `--stamp` gives it one (C6).
+With it, lowering starts from every verb each of the project's own packages
+declares that is not generic and has a function of its own, and from their
+lambda-variables, rather than from `main`, and names them with the `!`
+placeholder ([`separate-compilation.md`](separate-compilation.md) C1, C5),
+or with their stamp when they have one (C6).
 
 Without `--optimize` no optimization runs anywhere, neither stage 5 nor
 LLVM's, which makes the build about three times faster; `zane run` builds that

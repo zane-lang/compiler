@@ -27,7 +27,7 @@ let with_stamps stamps requests =
     List.fold_left
       (fun requests (name, stamp) ->
         let named (r : Assembly.request) =
-          r.Assembly.stamp = None && String.equal (Assembly.name_of r) name
+          r.Assembly.stamp = None && String.equal (Assembly.path_of r) name
         in
         match List.filter named requests with
         | [ _ ] -> List.map (fun r -> if named r then { r with Assembly.stamp = Some stamp } else r) requests
@@ -50,12 +50,12 @@ let with_stamps stamps requests =
   match !problems with [] -> Ok requests | problems -> fail (List.rev problems)
 
 (* The packages of the build, read from their directories, the first the
-   root. *)
-let assemble ?(imports = []) ?(stamps = []) requests =
+   root when [root]: a library build has no root (packages.md §6.1). *)
+let assemble ?(root = true) ?(imports = []) ?(stamps = []) requests =
   match with_stamps stamps requests with
   | Error _ as e -> e
   | Ok requests -> (
-      match Assembly.assemble_requests ~imports requests with
+      match Assembly.assemble_requests ~root ~imports requests with
       | Ok packages -> Ok packages
       | Error { Assembly.diagnostics; sources } -> fail ~sources diagnostics)
 

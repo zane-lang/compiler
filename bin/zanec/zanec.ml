@@ -75,9 +75,9 @@ let print_usage () =
     "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT|--object OUT]";
   prerr_endline "             [--kind application|library]";
   prerr_endline
-    "             [--target TRIPLE] [--optimize] [--stamp NAME=STAMP ...] [--link FILE ...]";
+    "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...]";
   prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
-  prerr_endline "             --package [[STAMP]NAME=]DIR [--package [[STAMP]NAME=]DIR ...]";
+  prerr_endline "             --package [[STAMP]PATH=]DIR [--package [[STAMP]PATH=]DIR ...]";
   prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
   prerr_endline "       zanec --remap FROM TO INPUT OUTPUT"
 
@@ -88,25 +88,35 @@ let read = function
   | path -> (path, read_file path)
 
 (* A package name as lexical.md §3 spells one: camelCase, so a lowercase
-   letter and then letters and digits. *)
+   letter and then letters and digits, after a leading `_` when the package
+   is private to its project (§4.2, packages.md §4.4). *)
 let is_package_name name =
-  name <> ""
-  && (match name.[0] with 'a' .. 'z' -> true | _ -> false)
-  && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> true | _ -> false) name
+  let rest =
+    if String.starts_with ~prefix:"_" name then String.sub name 1 (String.length name - 1) else name
+  in
+  rest <> ""
+  && (match rest.[0] with 'a' .. 'z' -> true | _ -> false)
+  && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> true | _ -> false) rest
 
-(* A package as `--package` and `--import` name it: a package name, after
-   its stamp when it has one, as `v1.0.1%3f9a1c02b7e4d6a8%math`. *)
+(* A package's path within its project's `lib/`: its directory names joined
+   by `.`, as `gui.opengl` for a subpackage (dependencies.md §6.1). *)
+let is_package_path path = List.for_all is_package_name (String.split_on_char '.' path)
+
+(* A package as `--package` and `--import` name it: its path, after its
+   stamp when it has one, as `v1.0.1%3f9a1c02b7e4d6a8%gui.opengl`. *)
 let package_id id =
   match String.rindex_opt id '%' with
-  | None -> if is_package_name id then Some (None, id) else None
+  | None -> if is_package_path id then Some (None, id) else None
   | Some i ->
-      let stamp = String.sub id 0 (i + 1) and name = String.sub id (i + 1) (String.length id - i - 1) in
-      if Rewrite.is_stamp stamp && is_package_name name then Some (Some stamp, name) else None
+      let stamp = String.sub id 0 (i + 1)
+      and path = String.sub id (i + 1) (String.length id - i - 1) in
+      if Rewrite.is_stamp stamp && is_package_path path then Some (Some stamp, path) else None
 
-(* `NAME=DIR` names the package, as its manifest does (packages.md §2.1),
-   and `STAMPNAME=DIR` gives it its stamp as well; a bare `DIR` is named
-   after the directory. A path that itself holds a `=` is still a path,
-   since what comes before the `=` then is no name. *)
+(* `PATH=DIR` names the package by its path, whose last part is the name
+   its files declare (packages.md §2.2), and `STAMPPATH=DIR` gives it its
+   stamp as well; a bare `DIR` is named after the directory. A path that
+   itself holds a `=` is still a path, since what comes before the `=` then
+   is no name. *)
 let package_request argument =
   let whole = { Tst.Assembly.manifest_name = None; directory = argument; stamp = None } in
   match String.index_opt argument '=' with
@@ -190,7 +200,7 @@ let arguments () =
         match String.index_opt stamp '=' with
         | Some i when i + 1 < String.length stamp ->
             let name = String.sub stamp 0 i in
-            if is_package_name name && not (List.mem_assoc name build.stamps) then
+            if is_package_path name && not (List.mem_assoc name build.stamps) then
               let value = String.sub stamp (i + 1) (String.length stamp - i - 1) in
               packages view { build with stamps = (name, value) :: build.stamps } rest
             else usage ()
@@ -277,7 +287,10 @@ let needs_main build =
    in it is not what either view promises. *)
 let run_packages build =
   let* () = match build.view with Build _ -> Driver.buildable build.kind | _ -> Ok () in
-  let* packages = Driver.assemble ~imports:build.imports ~stamps:build.stamps build.packages in
+  let root = Option.value build.kind ~default:Application = Application in
+  let* packages =
+    Driver.assemble ~root ~imports:build.imports ~stamps:build.stamps build.packages
+  in
   match build.view with
   | Assembled ->
       print_string (Tree_graph.render (Tst.Assembly.to_node packages));

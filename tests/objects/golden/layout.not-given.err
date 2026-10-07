@@ -1,0 +1,16 @@
+File "fixtures/layout/lib/gui/opengl/opengl.zn", line 4, characters 8-12:
+4 | import math;
+  |        ^^^^
+Error: this package may not import `math`, which is not among the packages its place in its project lets it import (packages.md §4.3)
+File "fixtures/layout/lib/gui/opengl/opengl.zn", line 5, characters 8-16:
+5 | import _shaders;
+  |        ^^^^^^^^
+Error: this package may not import `_shaders`, which is not among the packages its place in its project lets it import (packages.md §4.3)
+File "fixtures/layout/lib/gui/opengl/opengl.zn", line 9, characters 16-20:
+9 | Int frame() => math$double(_shaders$compiled())
+  |                ^^^^
+Error: no import in this file spells a package `math`
+File "fixtures/layout/lib/gui/opengl/opengl.zn", line 9, characters 28-36:
+9 | Int frame() => math$double(_shaders$compiled())
+  |                            ^^^^^^^^
+Error: no import in this file spells a package `_shaders`

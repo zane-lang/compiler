@@ -67,8 +67,12 @@ type package = {
   (* The name its files declare and its manifest gives it. *)
   declared : string;
   (* The package each of its import keys names, by identity, when the driver
-     gave them; empty when an import names a package by its name. *)
+     gave them. *)
   imports : (string * string) list;
+  (* Whether it imports through those keys alone, which it does whenever the
+     driver gave the build's imports; otherwise an import names a package by
+     its name. *)
+  keyed : bool;
   is_root : bool;
   files : file list;
   mutable decls : decl list;
@@ -298,20 +302,21 @@ let signature_of env (r : Nodes.Verb_ref.t) =
 let package env name = Hashtbl.find env.packages name
 
 (* What a key in an import, or a qualifier, names from a file
-   (dependencies.md §8). A package the driver gave keys imports through those
-   keys alone; any other imports a package by its declared name, which then
-   has to name one package of the build. *)
-type key = Found of string | Own | Unknown | Ambiguous of string list
+   (dependencies.md §8). When the driver gave the build's imports, a package
+   imports through its keys alone, and one given none imports nothing
+   (packages.md §4.3); otherwise it imports a package by its declared name,
+   which then has to name one package of the build. *)
+type key = Found of string | Own | Unknown | Not_given | Ambiguous of string list
 
 let resolve_key env (file : file) key =
   let own = package env file.package in
-  match own.imports with
-  | _ :: _ -> (
+  match own.keyed with
+  | true -> (
       match List.assoc_opt key own.imports with
       | Some id when String.equal id own.name -> Own
       | Some id -> Found id
-      | None -> if String.equal key own.declared then Own else Unknown)
-  | [] -> (
+      | None -> if String.equal key own.declared then Own else Not_given)
+  | false -> (
       if String.equal key own.declared then Own
       else
         match List.filter (fun id -> String.equal (package env id).declared key) !(env.package_order) with
@@ -328,6 +333,12 @@ let key_message key = function
            (quote key)
            (String.concat " or " (List.map quote ids)))
   | Unknown -> Some (Printf.sprintf "no package named %s is part of this build" (quote key))
+  | Not_given ->
+      Some
+        (Printf.sprintf
+           "this package may not import %s, which is not among the packages its place in \
+            its project lets it import (packages.md §4.3)"
+           (quote key))
   | Found _ | Own -> None
 
 (* ---------------------------------------------------------------------- *)

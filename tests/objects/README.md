@@ -16,9 +16,15 @@ program linked from several objects wrote.
   generic verb that it uses is shared, as are the function and variables of
   the package constant one of its verbs reads. Its other generic verb has no instance,
   so the object holds nothing for it.
-- `atlas` is a library that uses `geometry`, built with it into one object.
-  What atlas declares is exported, and what it reaches in geometry is local,
-  an instance of geometry's generic at atlas's own type included.
+- `atlas` is a library package that uses `geometry` as another library
+  package of the same project, built with it into one object. What both
+  declare is exported under the `!` placeholder, an instance of geometry's
+  generic at atlas's own type included.
+
+  atlas is also built with a stamp of its own while geometry has none, so
+  geometry is compiled into atlas's object rather than left to one of its
+  own: `golden/atlas.stamped-root.symbols` shows what atlas reaches in
+  geometry local to the object.
 - `survey` is a program that uses `geometry` from an object geometry was
   built into on its own, with its stamp. Survey's object declares geometry's
   verbs and makes the instance of geometry's generic at survey's own type,
@@ -47,3 +53,13 @@ program linked from several objects wrote.
   and `remapped` a program that uses it and atlas. atlas's object is
   remapped from the first version onto `geometry11`, keeps no reference to
   the first, and links with `geometry11` alone.
+- `layout` is a project laid out in `lib/` and `bin/`: `math`, which `gui`
+  and its subpackage `gui.opengl` share, `_shaders`, private to the project,
+  and the program `viewer`. Every library package is built into one object,
+  each exported by its path, as `!gui.opengl$frame()`, and once more with a
+  stamp, as a dependency compiled from source is. `viewer` is built from
+  source and against the stamped object, and prints `yes` both times.
+  `golden/layout.noisy.err` is the error for a library package that reaches
+  `@program$`, which no package of a library's build may, and
+  `golden/layout.not-given.err` the errors for `gui.opengl` importing
+  packages the driver gave it no keys for.

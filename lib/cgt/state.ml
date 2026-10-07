@@ -123,12 +123,13 @@ type state = {
   mutable aborts : Tty.t;
   (* The function each spawned call runs through, latest first. *)
   mutable spawned : Func.t list;
-  (* The root package when it is a library built into an object, whose
-     symbols other objects link against (docs/design/separate-compilation.md
-     C5), what goes before each package's name in a symbol, and whether a
-     package is a stamped dependency, which arrives as objects of its own
-     (C1, C6). *)
-  library : string option;
+  (* Whether the build is a library's object, whether a package's verbs are
+     exported from it for other objects to link against
+     (docs/design/separate-compilation.md C5), what goes before each
+     package's name in a symbol, and whether a package is a stamped
+     dependency, which arrives as objects of its own (C1, C6). *)
+  library : bool;
+  exports : string -> bool;
   stamp : string -> string;
   stamped : string -> bool;
   (* The lambda-variables other objects link against, and those a stamped
@@ -138,7 +139,7 @@ type state = {
 }
 
 (* A state that has reached nothing yet. *)
-let create ~library ~stamp ~stamped =
+let create ~library ~exports ~stamp ~stamped =
   {
     verbs = Hashtbl.create 64;
     types = Hashtbl.create 64;
@@ -160,6 +161,7 @@ let create ~library ~stamp ~stamped =
     aborts = Tty.Error;
     spawned = [];
     library;
+    exports;
     stamp;
     stamped;
     exported = Hashtbl.create 8;

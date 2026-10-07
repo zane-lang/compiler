@@ -1,0 +1,9 @@
+/// A subpackage of gui, which imports the project's top-level packages.
+package opengl;
+
+import math;
+import _shaders;
+
+alias Int = @primitives$Int
+
+Int frame() => math$double(_shaders$compiled())

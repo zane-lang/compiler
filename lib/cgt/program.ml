@@ -50,10 +50,10 @@ let func st (v : verb) : Func.t =
   List.iter (fun (id, lit) -> Hashtbl.replace env id (Literal lit)) v.literals;
   let o = outcome st span v in
   let linkage =
-    match (st.library, v.signature.S.home) with
-    | Some root, S.Package p when p = root ->
+    match v.signature.S.home with
+    | S.Package p when st.exports p ->
         if v.instance = [] then Linkage.Exported else Linkage.Shared
-    | _, S.Package p when st.stamped p ->
+    | S.Package p when st.stamped p ->
         if v.instance = [] then Linkage.Imported else Linkage.Shared
     | _ ->
         if Hashtbl.mem st.exported v.key then Linkage.Exported
@@ -101,7 +101,7 @@ let made st decl : Func.t =
   let span = c.value.T.Expr.span in
   st.next <- 0;
   let linkage =
-    if st.library = None && not (st.stamped c.package) then Linkage.Local else Linkage.Shared
+    if (not st.library) && not (st.stamped c.package) then Linkage.Local else Linkage.Shared
   in
   let lowered = ty st span c.ty in
   let value = c.symbol ^ ".value" and state = c.symbol ^ ".state" in
@@ -156,7 +156,7 @@ let name_lambdas st owner (b : T.Block.t) =
   block b
 
 (* The functions a library's object holds, besides what they call: every
-   verb of the root package that is not generic and has a function of its
+   verb of each of its own packages that is not generic and has a function of its
    own (L11), and every lambda-variable, which other objects call by name
    (docs/design/separate-compilation.md C5). *)
 let library_roots st (root : T.Package.t) =
@@ -177,21 +177,29 @@ let library_roots st (root : T.Package.t) =
     root.T.Package.decls
 
 (* A program lowers from its root package's `main`; a [library] from every
-   function its root package declares, into an object with no entry.
+   function its own packages declare, into an object with no entry.
 
    A package given a stamp is named by it already: its identity is its
    stamped name (docs/design/separate-compilation.md C6, C10), which a `%`
-   in it gives away, since no package name holds one. A dependency with a
-   stamp arrives as objects of its own, and a root library with one is
-   named with it instead of the `!` placeholder, as a dependency compiled
-   from source is. *)
+   in it gives away, since no package name holds one. The packages that
+   share the first package's stamp, or are unstamped with it, are the
+   project being compiled: its library packages, which a library's object
+   holds every one of (dependencies.md §3.1). Any other stamp is a
+   dependency, which arrives as objects of its own, and an unstamped
+   dependency of a stamped package is compiled into its module (C6). A
+   library's own packages without a stamp are named with the `!`
+   placeholder, and ones with a stamp are named with it, as a dependency
+   compiled from source is. *)
 let program ?(library = false) (p : T.Program.t) =
-  let root = match p.T.Program.packages with r :: _ -> Some r.T.Package.name | [] -> None in
-  let library = if library then root else None in
-  let has_stamp p = String.contains p '%' in
-  let stamp p = if Some p = library && not (has_stamp p) then "!" else "" in
-  let stamped p = Some p <> root && has_stamp p in
-  let st = create ~library ~stamp ~stamped in
+  let stamp_of id =
+    match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> ""
+  in
+  let root = match p.T.Program.packages with r :: _ -> stamp_of r.T.Package.name | [] -> "" in
+  let own p = String.equal (stamp_of p) root in
+  let exports p = library && own p in
+  let stamp p = if library && own p && root = "" then "!" else "" in
+  let stamped p = (not (own p)) && stamp_of p <> "" in
+  let st = create ~library ~exports ~stamp ~stamped in
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };
@@ -271,8 +279,10 @@ let program ?(library = false) (p : T.Program.t) =
       let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
       Ok { Program.funcs; entry; layouts; globals = List.rev st.globals }
     in
-    if library <> None then begin
-      library_roots st root;
+    if library then begin
+      List.iter
+        (fun (pkg : T.Package.t) -> if own pkg.T.Package.name then library_roots st pkg)
+        p.T.Program.packages;
       finish None
     end
     else
