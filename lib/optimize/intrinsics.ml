@@ -14,8 +14,8 @@ type t = Computed | Output | Input
 
 let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
-  | Text_join | Text_equal | List_new | List_push | List_at | Array_at | Constant_begin
-  | Constant_end | Writeback ->
+  | Text_join | Text_equal | Text_i32 | Text_i64 | Text_f32 | Text_f64
+  | List_new | List_push | List_at | Array_at | Constant_begin | Constant_end | Writeback ->
       Computed
   (* Codegen calls these for nodes of the tree rather than the tree naming
      them: a scope, a slot, a copy, a box, a spawn. The evaluator gives each

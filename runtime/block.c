@@ -1,5 +1,8 @@
 #include "zane_internal.h"
 
+#include <inttypes.h>
+#include <math.h>
+
 /* ---------------------------------------------------------------------- */
 /* Dynamic blocks (memory.md §3.6, docs/design/lowering.md §9)                   */
 /* ---------------------------------------------------------------------- */
@@ -176,6 +179,84 @@ void zane_copy(char *value, const int64_t *layout) {
 
 /* A boxed member's block (memory.md §3.6): exactly one payload's size. */
 void *zane_box(int64_t size, int64_t align) { return zane_alloc(zane_here(), size, align); }
+
+/* A scalar's String constructor. The spelling is the shortest decimal that
+   parses back to the same scalar; special floats have fixed spellings. */
+static void zane_text_from_buffer(zane_text *out, const char *buffer, int length) {
+	if (length <= 0) {
+		*out = (zane_text){ "", 0, 0 };
+		return;
+	}
+	char *bytes = zane_alloc(zane_here(), length, 8);
+	memcpy(bytes, buffer, (size_t)length);
+	*out = (zane_text){ bytes, length, length };
+}
+
+static int zane_same_f32(float left, float right) {
+	uint32_t l, r;
+	memcpy(&l, &left, sizeof l);
+	memcpy(&r, &right, sizeof r);
+	return l == r;
+}
+
+static int zane_same_f64(double left, double right) {
+	uint64_t l, r;
+	memcpy(&l, &left, sizeof l);
+	memcpy(&r, &right, sizeof r);
+	return l == r;
+}
+
+static int zane_format_f32(char *buffer, size_t room, float value) {
+	if (isnan(value)) return snprintf(buffer, room, "nan");
+	if (isinf(value)) return snprintf(buffer, room, signbit(value) ? "-inf" : "inf");
+	for (int precision = 1; precision <= 9; precision++) {
+		int length = snprintf(buffer, room, "%.*g", precision, (double)value);
+		if (length < 0 || (size_t)length >= room) zane_broken("formatting an F32");
+		char *end;
+		float round = strtof(buffer, &end);
+		if (*end == '\0' && zane_same_f32(value, round)) return length;
+	}
+	zane_broken("formatting an F32");
+	return 0;
+}
+
+static int zane_format_f64(char *buffer, size_t room, double value) {
+	if (isnan(value)) return snprintf(buffer, room, "nan");
+	if (isinf(value)) return snprintf(buffer, room, signbit(value) ? "-inf" : "inf");
+	for (int precision = 1; precision <= 17; precision++) {
+		int length = snprintf(buffer, room, "%.*g", precision, value);
+		if (length < 0 || (size_t)length >= room) zane_broken("formatting an F64");
+		char *end;
+		double round = strtod(buffer, &end);
+		if (*end == '\0' && zane_same_f64(value, round)) return length;
+	}
+	zane_broken("formatting an F64");
+	return 0;
+}
+
+void zane_text_i32(zane_text *out, int32_t value) {
+	char buffer[32];
+	int length = snprintf(buffer, sizeof buffer, "%" PRId32, value);
+	if (length < 0 || (size_t)length >= sizeof buffer) zane_broken("formatting an I32");
+	zane_text_from_buffer(out, buffer, length);
+}
+
+void zane_text_i64(zane_text *out, int64_t value) {
+	char buffer[32];
+	int length = snprintf(buffer, sizeof buffer, "%" PRId64, value);
+	if (length < 0 || (size_t)length >= sizeof buffer) zane_broken("formatting an I64");
+	zane_text_from_buffer(out, buffer, length);
+}
+
+void zane_text_f32(zane_text *out, float value) {
+	char buffer[64];
+	zane_text_from_buffer(out, buffer, zane_format_f32(buffer, sizeof buffer, value));
+}
+
+void zane_text_f64(zane_text *out, double value) {
+	char buffer[64];
+	zane_text_from_buffer(out, buffer, zane_format_f64(buffer, sizeof buffer, value));
+}
 
 /* `@runtime$Console`'s `print` (effects.md §6.6): exactly the string's
    length in bytes, with no terminator and nothing added. */

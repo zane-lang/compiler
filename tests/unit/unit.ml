@@ -9,6 +9,7 @@ module Eval = Optimize__Eval
 module Fold = Optimize__Fold
 module Materialize = Optimize__Materialize
 module Intrinsics = Optimize__Intrinsics
+module TIntrinsics = Tst.Intrinsics
 
 let failures = ref 0
 
@@ -133,6 +134,22 @@ let overloads () =
   check "all_some" (Overloads.all_some [ Some 1; Some 2 ] = Some [ 1; 2 ]);
   check "all_some with one missing" (Overloads.all_some [ Some 1; None ] = None)
 
+let string_constructors () =
+  let params =
+    List.filter_map
+      (fun ((namespace, name), (signature : S.t)) ->
+        if namespace = "primitives" && name = "String" then
+          match signature.S.params with [ p ] -> Some p.S.ty | _ -> None
+        else None)
+      TIntrinsics.constructors
+  in
+  List.iter
+    (fun (name, scalar) ->
+      check
+        ("String has a constructor from " ^ name)
+        (List.exists (Ty.equal scalar) params))
+    [ ("I32", prim "I32"); ("I64", prim "I64"); ("F32", prim "F32"); ("F64", prim "F64") ]
+
 (* ---------------------------------------------------------------------- *)
 (* Type layout                                                            *)
 (* ---------------------------------------------------------------------- *)
@@ -233,6 +250,8 @@ let abi c =
     | [ "void" ] -> Some R.Void
     | ("int64_t" :: _) -> Some R.I64
     | (("uint32_t" | "int32_t") :: _) -> Some R.I32
+    | ("float" :: _) -> Some R.F32
+    | ("double" :: _) -> Some R.F64
     | _ -> None
 
 let runtime_abi () =
@@ -372,6 +391,26 @@ let evaluated () =
   let state = e (C.Expr.Global "k.state") C.Ty.Ptr in
   let begin_ = e (C.Expr.Runtime { fn = Cgt.Runtime.Constant_begin; args = [ state ] }) C.Ty.I64 in
   check "where a constant is made stays" (stops (fun () -> Eval.expr (Eval.start prog) fr begin_))
+
+let formatted_scalars () =
+  let run = Eval.start (program []) in
+  let format fn value =
+    match Eval.runtime run fn [ value ] with Value.VText text -> text | _ -> ""
+  in
+  check "I32 formats as decimal"
+    (format Cgt.Runtime.Text_i32 (Value.VInt (-2147483648L)) = "-2147483648");
+  check "I64 formats as decimal"
+    (format Cgt.Runtime.Text_i64 (Value.VInt Int64.min_int) = "-9223372036854775808");
+  check "F32 uses a shortest round-tripping decimal"
+    (format Cgt.Runtime.Text_f32 (Value.VFloat (C.Scalar.single 0.1)) = "0.1");
+  check "F64 uses a shortest round-tripping decimal"
+    (format Cgt.Runtime.Text_f64 (Value.VFloat (1. /. 3.)) = "0.3333333333333333");
+  check "negative zero keeps its sign"
+    (format Cgt.Runtime.Text_f32 (Value.VFloat (-0.)) = "-0");
+  check "float specials have fixed spellings"
+    (format Cgt.Runtime.Text_f64 (Value.VFloat Float.infinity) = "inf"
+    && format Cgt.Runtime.Text_f64 (Value.VFloat Float.neg_infinity) = "-inf"
+    && format Cgt.Runtime.Text_f64 (Value.VFloat Float.nan) = "nan")
 
 (* A store writes in place, and a value read before it keeps what it read,
    as a copy at run time would. *)
@@ -515,6 +554,7 @@ let () =
   ty ();
   signatures ();
   overloads ();
+  string_constructors ();
   type_layout ();
   runtime_abi ();
   single_literals ();
@@ -522,6 +562,7 @@ let () =
   intrinsic_classes ();
   materialized ();
   evaluated ();
+  formatted_scalars ();
   stored_in_place ();
   kept_store ();
   folded_function ();

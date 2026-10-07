@@ -284,6 +284,19 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
             { value with Expr.node = Expr.Copy { value; layout = layout st span t } }
           else value)
       | _ -> Diagnostic.bug ~span "lowering expected an array literal of the array's length here")
+  (* A scalar formatted as text. The runtime returns a String handle that
+     owns the bytes it formats. *)
+  | "String", [ T.Arg.Value v ] when scalar v.T.Expr.ty ->
+      let value = expr st ctx v in
+      let fn =
+        match value.Expr.ty with
+        | Nodes.Ty.I32 -> Runtime.Text_i32
+        | Nodes.Ty.I64 -> Runtime.Text_i64
+        | Nodes.Ty.F32 -> Runtime.Text_f32
+        | Nodes.Ty.F64 -> Runtime.Text_f64
+        | _ -> Diagnostic.bug ~span "lowering: a non-scalar reached String's scalar constructor"
+      in
+      { Expr.node = Expr.Runtime { fn; args = [ value ] }; ty = Nodes.Ty.Handle }
   (* A scalar from another scalar (types.md §2.7): the plain constructors
      widen, and the named ones wrap, truncate or round. *)
   | _, [ T.Arg.Value v ] when scalar v.T.Expr.ty ->

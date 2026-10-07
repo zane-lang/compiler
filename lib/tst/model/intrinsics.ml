@@ -178,6 +178,9 @@ let constructors =
   @ List.map
       (fun (target, member, source) -> ctor ?member target [ param "value" (prim source) ] (prim target))
       conversions
+  @ List.map
+      (fun scalar -> ctor "String" [ param "value" (prim scalar) ] (prim "String"))
+      scalars
   @ [
       ctor "String" [ param "value" (Ty.Concept Ty.Text_lit) ] (prim "String");
       ctor "Unit" [] (prim "Unit");

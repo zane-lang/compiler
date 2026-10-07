@@ -4,6 +4,7 @@
 
 #include "zane_internal.h"
 
+#include <math.h>
 #include <stddef.h>
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
@@ -30,6 +31,35 @@ static const int64_t holder_layout[] = {
 
 void zane_main(void) {
 	zane_text ab = { "ab", 2, 0 }, cd = { "cd", 2, 0 }, empty = { "", 0, 0 };
+
+	/* Scalar constructors use decimal text that round-trips to the same
+	   primitive, and every result owns exactly its bytes. */
+	zane_text formatted;
+	zane_text_i32(&formatted, INT32_MIN);
+	check(holds(&formatted, "-2147483648") && formatted.room == formatted.length);
+	zane_end((char *)&formatted, text_layout);
+	zane_text_i64(&formatted, INT64_MIN);
+	check(holds(&formatted, "-9223372036854775808"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f32(&formatted, 0.1f);
+	check(holds(&formatted, "0.1"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, 1.0 / 3.0);
+	check(holds(&formatted, "0.3333333333333333"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f32(&formatted, -0.0f);
+	check(holds(&formatted, "-0"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, INFINITY);
+	check(holds(&formatted, "inf"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, -INFINITY);
+	check(holds(&formatted, "-inf"));
+	zane_end((char *)&formatted, text_layout);
+	zane_text_f64(&formatted, NAN);
+	check(holds(&formatted, "nan"));
+	zane_end((char *)&formatted, text_layout);
+	check(zane_blocks == 0);
 
 	/* A join owns a block of its own; joining nothing owns none. */
 	zane_text abcd;

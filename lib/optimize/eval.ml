@@ -180,6 +180,27 @@ let canonical f = if Float.is_nan f then Int64.float_of_bits 0x7FF8_0000_0000_00
    which is the one rounding the machine's own single operation makes. *)
 let float (t : Ty.t) f = canonical (match t with Ty.F32 -> Scalar.single f | _ -> f)
 
+(* The shortest decimal spelling, up to the precision needed to round-trip
+   the scalar. The C runtime follows the same search with snprintf/strtof or
+   strtod, and special values have fixed spellings. *)
+let float_text (t : Ty.t) f =
+  if Float.is_nan f then "nan"
+  else if f = Float.infinity then "inf"
+  else if f = Float.neg_infinity then "-inf"
+  else
+    let same a b =
+      match t with
+      | Ty.F32 -> Int32.bits_of_float (Scalar.single a) = Int32.bits_of_float (Scalar.single b)
+      | _ -> Int64.bits_of_float a = Int64.bits_of_float b
+    in
+    let limit = if t = Ty.F32 then 9 else 17 in
+    let rec shortest precision =
+      let text = Printf.sprintf "%.*g" precision f in
+      let round = float_of_string text in
+      if same f round || precision = limit then text else shortest (precision + 1)
+    in
+    shortest 1
+
 let binary (op : Expr.binop) (t : Ty.t) l r =
   match (t, op, l, r) with
   | (Ty.I64 | Ty.I32), Expr.Add, VInt a, VInt b -> VInt (int t (Int64.add a b))
@@ -464,6 +485,19 @@ and runtime run (fn : Cgt.Runtime.fn) args =
       let l = text_of l and r = text_of r in
       bytes run (min (String.length l) (String.length r));
       VInt (if String.equal l r then 1L else 0L)
+  | _, Cgt.Runtime.Text_i32, [ VInt i ]
+  | _, Cgt.Runtime.Text_i64, [ VInt i ] ->
+      let text = Int64.to_string i in
+      bytes run (String.length text);
+      VText text
+  | _, Cgt.Runtime.Text_f32, [ VFloat f ] ->
+      let text = float_text Ty.F32 f in
+      bytes run (String.length text);
+      VText text
+  | _, Cgt.Runtime.Text_f64, [ VFloat f ] ->
+      let text = float_text Ty.F64 f in
+      bytes run (String.length text);
+      VText text
   | _, Cgt.Runtime.List_new, [] -> empty ()
   | _, Cgt.Runtime.List_push, [ list; stride ] -> (
       match load (ptr_of list) with
