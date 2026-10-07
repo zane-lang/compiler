@@ -12,7 +12,7 @@ STAMP = "v1.0%0123456789abcdef%"
 
 
 def run(*args):
-    result = subprocess.run([str(a) for a in args], capture_output=True, text=True)
+    result = subprocess.run([str(a) for a in args], capture_output=True, text=True, timeout=60)
     if result.returncode:
         raise AssertionError(f"{args}\n{result.stdout}{result.stderr}")
     return result.stdout
@@ -56,6 +56,7 @@ class OptimizationTests(unittest.TestCase):
         run(ZANEC, "--object", obj, "--optimize", *self.flags())
         definitions = run("llvm-nm", "--defined-only", obj)
         self.assertNotRegex(definitions, r' [TW] .*math\$(?:add|_add|down|fib|bump|divide)\(')
+        self.assertRegex(run("llvm-nm", obj), r' U .*math\$fib\(')
 
     def test_cross_target_objects(self):
         for target in ["x86_64-pc-windows-msvc", "aarch64-apple-macosx11.0.0"]:
