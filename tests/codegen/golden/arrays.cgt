@@ -81,7 +81,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: arrays$count<%primitives$Int, 3>(%primitives$Array<%primitives$Int, 3>)
+    │       │       │   ├── fn: arrays$count<%primitives$I64, 3>(%primitives$Array<%primitives$I64, 3>)
     │       │       │   └── args[0]: local #1 : [3 x i64]
     │       │       └── right: 3 : i64
     │       ├── body[7] > eval > call:
@@ -92,7 +92,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: arrays$measured<3>(%primitives$Array<%primitives$Int, 3>, %concepts$Int)
+    │       │       │   ├── fn: arrays$measured<3>(%primitives$Array<%primitives$I64, 3>, %concepts$Int)
     │       │       │   └── args[0]: local #1 : [3 x i64]
     │       │       └── right: 3 : i64
     │       ├── body[8] > let:
@@ -161,7 +161,7 @@
     │       │   ├── local: #10
     │       │   └── value > call:
     │       │       ├── type: {[4 x i64], i64}
-    │       │       ├── fn: arrays$Grid(%primitives$Array<%primitives$Int, 4>, %primitives$Int)
+    │       │       ├── fn: arrays$Grid(%primitives$Array<%primitives$I64, 4>, %primitives$I64)
     │       │       ├── args[0] > record:
     │       │       │   ├── type: [4 x i64]
     │       │       │   ├── members[0] > member 0: 1 : i64
@@ -171,7 +171,7 @@
     │       │       └── args[1]: 2 : i64
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: arrays$set(this arrays$Grid, %primitives$Int, %primitives$Int)
+    │       │   ├── fn: arrays$set(this arrays$Grid, %primitives$I64, %primitives$I64)
     │       │   ├── args[0]: address of #10 : ptr
     │       │   ├── args[1]: 4 : i64
     │       │   └── args[2]: 40 : i64
@@ -183,7 +183,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: arrays$at(this arrays$Grid, %primitives$Int)
+    │       │       │   ├── fn: arrays$at(this arrays$Grid, %primitives$I64)
     │       │       │   ├── args[0]: local #10 : {[4 x i64], i64}
     │       │       │   └── args[1]: 4 : i64
     │       │       └── right: 40 : i64
@@ -242,7 +242,7 @@
     │       │       │   │       └── args[3]: 8 : i64
     │       │       │   └── right > call:
     │       │       │       ├── type: i64
-    │       │       │       ├── fn: arrays$at(this arrays$Grid, %primitives$Int)
+    │       │       │       ├── fn: arrays$at(this arrays$Grid, %primitives$I64)
     │       │       │       ├── args[0] > snapshot:
     │       │       │       │   ├── type: {[4 x i64], i64}
     │       │       │       │   └── ptr > offset:
@@ -400,12 +400,12 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: arrays$count<%primitives$Int, 3>(%primitives$Array<%primitives$Int, 3>)
+    │   ├── symbol: arrays$count<%primitives$I64, 3>(%primitives$Array<%primitives$I64, 3>)
     │   ├── params[0]: local #1 : [3 x i64]
     │   ├── ret: i64
     │   └── body[0] > return: 3 : i64
     ├── funcs[3] > func:
-    │   ├── symbol: arrays$measured<3>(%primitives$Array<%primitives$Int, 3>, %concepts$Int)
+    │   ├── symbol: arrays$measured<3>(%primitives$Array<%primitives$I64, 3>, %concepts$Int)
     │   ├── params[0]: local #1 : [3 x i64]
     │   ├── ret: i64
     │   └── body[0] > return: 3 : i64
@@ -419,7 +419,7 @@
     │       ├── members[1] > member 1: 8 : i64
     │       └── members[2] > member 2: 9 : i64
     ├── funcs[5] > func:
-    │   ├── symbol: arrays$Grid(%primitives$Array<%primitives$Int, 4>, %primitives$Int)
+    │   ├── symbol: arrays$Grid(%primitives$Array<%primitives$I64, 4>, %primitives$I64)
     │   ├── params[0]: local #1 : [4 x i64]
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {[4 x i64], i64}
@@ -428,7 +428,7 @@
     │       ├── members[0] > member 0: local #1 : [4 x i64]
     │       └── members[1] > member 1: local #2 : i64
     ├── funcs[6] > func:
-    │   ├── symbol: arrays$set(this arrays$Grid, %primitives$Int, %primitives$Int)
+    │   ├── symbol: arrays$set(this arrays$Grid, %primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── params[2]: local #3 : i64
@@ -453,7 +453,7 @@
     │   │   └── value: local #5 : i64
     │   └── body[3] > return: unit : void
     ├── funcs[7] > func:
-    │   ├── symbol: arrays$at(this arrays$Grid, %primitives$Int)
+    │   ├── symbol: arrays$at(this arrays$Grid, %primitives$I64)
     │   ├── params[0]: local #1 : {[4 x i64], i64}
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64

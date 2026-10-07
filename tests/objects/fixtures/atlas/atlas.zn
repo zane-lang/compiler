@@ -6,7 +6,7 @@ package atlas;
 
 import geometry;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 
 type Tile = struct {
 	size Int;

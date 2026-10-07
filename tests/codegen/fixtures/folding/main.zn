@@ -7,9 +7,9 @@
 /// unoptimized build, which folds nothing, shows the folded one is right.
 package folding;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias I32 = @primitives$I32
-alias Float = @primitives$Float
+alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -21,9 +21,9 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -32,7 +32,7 @@ Unit check(ok Bool) {
 	yes String("yes\n");
 	no String("no\n");
 	@controlflow$branch(ok, { @program$console!print(yes); });
-	@controlflow$branch(~ok, { @program$console!print(no); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
 	return Unit();
 }
 
@@ -44,8 +44,8 @@ type Vec = struct {
 Vec(x Int, y Int) => init{ x; y; }
 
 Unit scale(this Vec, by Int) mut {
-	this.x = this.x * by;
-	this.y = this.y * by;
+	this.x = @operators$multiply(this.x, by);
+	this.y = @operators$multiply(this.y, by);
 	return Unit();
 }
 
@@ -56,30 +56,30 @@ type Shape = variant {
 }
 
 Int corners(s Shape) => match (s) {
-	d dot => d.x + d.y;
+	d dot => @operators$add(d.x, d.y);
 	c circle => Int(0);
-	n none => ~Int(1);
+	n none => @operators$negate(Int(1));
 }
 
 Int?Int divide(a Int, b Int) {
-	if(b == Int(0)) {
+	if(@operators$equal(b, Int(0))) {
 		abort a;
 	}
-	return a / b;
+	return @operators$divide(a, b);
 }
 
 Int rescued(a Int, b Int) {
 	q Int = divide(a, b) ? e {
-		return e + Int(100);
+		return @operators$add(e, Int(100));
 	}
 	return q;
 }
 
 Int fib(n Int) {
-	if(n < Int(2)) {
+	if(@operators$lessThan(n, Int(2))) {
 		return n;
 	}
-	return fib(n + ~Int(1)) + fib(n + ~Int(2));
+	return @operators$add(fib(@operators$add(n, @operators$negate(Int(1)))), fib(@operators$add(n, @operators$negate(Int(2)))));
 }
 
 /// A list built and read inside one call: only the sum leaves it.
@@ -87,12 +87,12 @@ Int squares(n Int) {
 	values List<Int> = @primitives$List(Int);
 	i Int(1);
 	i!to(n) {
-		values!push(i * i);
+		values!push(@operators$multiply(i, i));
 	}
 	total Int(0);
 	j Int(1);
 	j!to(values:size()) {
-		total = total + values[j];
+		total = @operators$add(total, values[j]);
 	}
 	return total;
 }
@@ -104,7 +104,7 @@ type Countdown = variant {
 
 Int depth(c Countdown) => match (c) {
 	d done => Int(0);
-	m more => Int(1) + depth(m);
+	m more => @operators$add(Int(1), depth(m));
 }
 
 /// A boxed value built and taken apart inside one call.
@@ -138,7 +138,7 @@ Int sum(values &List<Int>) {
 	total Int(0);
 	i Int(1);
 	i!to(values:size()) {
-		total = total + values[i];
+		total = @operators$add(total, values[i]);
 	}
 	return total;
 }
@@ -157,7 +157,7 @@ String repeated(word String, times Int) {
 	out String("");
 	i Int(1);
 	i!to(times) {
-		out = out + word;
+		out = @operators$concat(out, word);
 	}
 	return out;
 }
@@ -177,10 +177,10 @@ Int unchanged(v Vec) {
 	return v.x;
 }
 
-Float inverse(x Float) => Float(1.0) / x
+Float inverse(x Float) => @operators$divide(Float(1.0), x)
 
 Unit negate(this Float) mut {
-	this = ~this;
+	this = @operators$negate(this);
 	return Unit();
 }
 
@@ -188,69 +188,69 @@ Int twice(f Int[Int], x Int) => f(f(x))
 
 Int pair(n Int) {
 	a Int = spawn fib(n);
-	b Int = spawn fib(n + ~Int(1));
-	return a + b;
+	b Int = spawn fib(@operators$add(n, @operators$negate(Int(1))));
+	return @operators$add(a, b);
 }
 
 Unit main() {
 	// Each scalar at its edges: a wrap, the one quotient that wraps, a NaN
 	// and a negative zero.
-	check(Int(9223372036854775807) + Int(1) < Int(0));
-	check(~Int(9223372036854775807) + ~Int(1) / ~Int(1) < Int(0));
-	check(I32(2147483647) + I32(1) == ~I32(2147483647) + ~I32(1));
-	check(I32(65536) * I32(65536) == I32(0));
-	check(I32(7) / ~I32(2) == ~I32(3));
-	nan Float = Float(0.0) / Float(0.0);
-	check(~(nan == nan));
-	check(~(nan < Float(1.0)) * ~(Float(1.0) < nan));
-	check(~Float(0.0) == Float(0.0));
-	check(Float(1.0) / ~Float(0.0) < Float(0.0));
-	check(Float(0.0) < inverse(Float(0.0)));
-	check(inverse(~Float(0.0)) < Float(0.0));
+	check(@operators$lessThan(@operators$add(Int(9223372036854775807), Int(1)), Int(0)));
+	check(@operators$lessThan(@operators$add(@operators$negate(Int(9223372036854775807)), @operators$divide(@operators$negate(Int(1)), @operators$negate(Int(1)))), Int(0)));
+	check(@operators$equal(@operators$add(I32(2147483647), I32(1)), @operators$add(@operators$negate(I32(2147483647)), @operators$negate(I32(1)))));
+	check(@operators$equal(@operators$multiply(I32(65536), I32(65536)), I32(0)));
+	check(@operators$equal(@operators$divide(I32(7), @operators$negate(I32(2))), @operators$negate(I32(3))));
+	nan Float = @operators$divide(Float(0.0), Float(0.0));
+	check(@operators$not(@operators$equal(nan, nan)));
+	check(@operators$and(@operators$not(@operators$lessThan(nan, Float(1.0))), @operators$not(@operators$lessThan(Float(1.0), nan))));
+	check(@operators$equal(@operators$negate(Float(0.0)), Float(0.0)));
+	check(@operators$lessThan(@operators$divide(Float(1.0), @operators$negate(Float(0.0))), Float(0.0)));
+	check(@operators$lessThan(Float(0.0), inverse(Float(0.0))));
+	check(@operators$lessThan(inverse(@operators$negate(Float(0.0))), Float(0.0)));
 	zero Float(0.0);
 	zero!negate();
-	check(Float(1.0) / zero < Float(0.0));
-	check((true + false) * ~(true * false));
+	check(@operators$lessThan(@operators$divide(Float(1.0), zero), Float(0.0)));
+	check(@operators$and(@operators$or(true, false), @operators$not(@operators$and(true, false))));
 
 	// Strings, joined and compared.
-	check(repeated(String("ab"), Int(3)) == String("ababab"));
-	check(~(String("a") + String("b") == String("ba")));
+	check(@operators$equal(repeated(String("ab"), Int(3)), String("ababab")));
+	check(@operators$not(@operators$equal(@operators$concat(String("a"), String("b")), String("ba"))));
 
 	// Values: a struct written by a `mut` call, and a variant matched.
 	v Vec = Vec(Int(2), Int(3));
 	v!scale(Int(10));
-	check(v.x + v.y == Int(50));
-	check(corners(Shape.dot(Vec(Int(4), Int(5)))) == Int(9));
-	check(corners(Shape.none(Unit())) == ~Int(1));
-	check(copied() == Int(1));
-	check(unchanged(Vec(Int(1), Int(2))) == Int(1));
+	check(@operators$equal(@operators$add(v.x, v.y), Int(50)));
+	check(@operators$equal(corners(Shape.dot(Vec(Int(4), Int(5)))), Int(9)));
+	check(@operators$equal(corners(Shape.none(Unit())), @operators$negate(Int(1))));
+	check(@operators$equal(copied(), Int(1)));
+	check(@operators$equal(unchanged(Vec(Int(1), Int(2))), Int(1)));
 
 	// An abort is a value the handler gets.
-	check(rescued(Int(7), Int(0)) == Int(107));
-	check(rescued(Int(8), Int(2)) == Int(4));
+	check(@operators$equal(rescued(Int(7), Int(0)), Int(107)));
+	check(@operators$equal(rescued(Int(8), Int(2)), Int(4)));
 
 	// Recursion, a list and a box, each inside a call that gives an Int.
-	check(fib(Int(20)) == Int(6765));
-	check(squares(Int(10)) == Int(385));
-	check(boxed(Int(5)) == Int(5));
+	check(@operators$equal(fib(Int(20)), Int(6765)));
+	check(@operators$equal(squares(Int(10)), Int(385)));
+	check(@operators$equal(boxed(Int(5)), Int(5)));
 
 	// A list and a box made by a call, then changed where the program runs.
 	made List<Int> = upTo(Int(4));
-	check(sum(made) == Int(10));
+	check(@operators$equal(sum(made), Int(10)));
 	made!push(Int(10));
 	made[Int(1)] = Int(7);
-	check(sum(made) == Int(26));
+	check(@operators$equal(sum(made), Int(26)));
 	text List<String> = words();
-	check(text[Int(1)] + text[Int(2)] == String("folded"));
+	check(@operators$equal(@operators$concat(text[Int(1)], text[Int(2)]), String("folded")));
 	text!push(String("!"));
-	check(text:size() == Int(3));
+	check(@operators$equal(text:size(), Int(3)));
 	built Countdown = countdown(Int(3));
-	check(depth(built) == Int(3));
+	check(@operators$equal(depth(built), Int(3)));
 	built = Countdown.more(built);
-	check(depth(built) == Int(4));
+	check(@operators$equal(depth(built), Int(4)));
 
 	// A function value, and calls spawned inside a call.
-	check(twice(Int(x Int) { return x * Int(3); }, Int(2)) == Int(18));
-	check(pair(Int(10)) == Int(89));
+	check(@operators$equal(twice(Int(x Int) { return @operators$multiply(x, Int(3)); }, Int(2)), Int(18)));
+	check(@operators$equal(pair(Int(10)), Int(89)));
 	return Unit();
 }

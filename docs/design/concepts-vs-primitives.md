@@ -19,13 +19,16 @@ reaches the CGT.
 
 ## Primitives: what the machine stores
 
-`@primitives$` names storage: `Int`, `I32`, `I64`, `Float`, `Bool`, `Unit`,
+`@primitives$` names storage: `I32`, `I64`, `F32`, `F64`, `Bool`, `Unit`,
 `String`, `Array<T, n>`, `List<T>`. Packages build types on them — an `Int`
-can be a struct around an `@primitives$Int`, as [`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6 describes
-`core`'s — or write them directly, under an alias if they like.
+can be a struct around an `@primitives$I64`, as [`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6 describes
+`core`'s — or write them directly, under an alias if they like. A primitive
+has no operators; the `@operators$` functions are what a package's own
+operators are written over.
 
 Lowering gives each primitive its machine layout ([`lowering.md`](lowering.md)
-L5): `@primitives$Int` is an `i64`, `Bool` an `i1`, `Float` a `double`, and
+L5): `@primitives$I64` is an `i64`, `I32` an `i32`, `F64` a `double`, `F32` a
+`float`, `Bool` an `i1`, and
 `String` and `List` are handles whose payload lives in the dynamic region.
 A struct around one primitive has that primitive's layout, so such an `Int`
 costs what an `i64` costs.

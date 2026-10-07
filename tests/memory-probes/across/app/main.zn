@@ -3,7 +3,7 @@ package app;
 
 import wires$[Port, Plug, pass, through];
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 
 Unit inner(body @concepts$Block) {

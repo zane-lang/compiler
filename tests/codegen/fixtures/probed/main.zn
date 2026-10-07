@@ -9,7 +9,7 @@
 /// holds and `no` when it does not.
 package probed;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -28,7 +28,7 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" no\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" no\n")); });
 	return Unit();
 }
 
@@ -40,47 +40,47 @@ Unit references() {
 	q Port(Int(2));
 	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([&p, &q]);
 	x &Port = row[Int(1)];
-	check(String("an `&` element is read"), x.n == Int(1));
-	check(String("through it"), row[Int(2)].n == Int(2));
+	check(String("an `&` element is read"), @operators$equal(x.n, Int(1)));
+	check(String("through it"), @operators$equal(row[Int(2)].n, Int(2)));
 	row[Int(1)] = q;
-	check(String("a copied reference keeps its owner"), x.n == Int(1));
-	check(String("the element names its new owner"), row[Int(1)].n == Int(2));
+	check(String("a copied reference keeps its owner"), @operators$equal(x.n, Int(1)));
+	check(String("the element names its new owner"), @operators$equal(row[Int(1)].n, Int(2)));
 	return Unit();
 }
 
 type Count = variant { done Int; more Count; }
 
 Count make(n Int) {
-	if(n == Int(0)) {
+	if(@operators$equal(n, Int(0))) {
 		return Count.done(Int(0));
 	}
-	return Count.more(make(n + ~Int(1)));
+	return Count.more(make(@operators$add(n, @operators$negate(Int(1)))));
 }
 
-Int depth(c Count) => match (c) { n done => n; m more => depth(m) + Int(1); }
+Int depth(c Count) => match (c) { n done => n; m more => @operators$add(depth(m), Int(1)); }
 
 Unit deep() {
 	a Count = make(Int(30000));
-	check(String("a value 30,000 boxes deep"), depth(a) == Int(30000));
+	check(String("a value 30,000 boxes deep"), @operators$equal(depth(a), Int(30000)));
 	b Count = a;
-	check(String("its copy"), depth(b) == Int(30000));
+	check(String("its copy"), @operators$equal(depth(b), Int(30000)));
 	b = Count.done(Int(1));
-	check(String("the copy overwritten"), depth(b) == Int(1));
+	check(String("the copy overwritten"), @operators$equal(depth(b), Int(1)));
 	a = make(Int(29999));
-	check(String("the value overwritten in place"), depth(a) == Int(29999));
+	check(String("the value overwritten in place"), @operators$equal(depth(a), Int(29999)));
 	return Unit();
 }
 
 Unit large() {
 	a @primitives$ArrayRef<Int, 65536> = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
-	check(String("a 512 KiB array"), a[Int(65536)] == Int(65536));
+	check(String("a 512 KiB array"), @operators$equal(a[Int(65536)], Int(65536)));
 	return Unit();
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -92,7 +92,7 @@ Int growAndGive(this List<Int>, n Int) mut {
 }
 
 Unit bump(this Int, by Int) mut {
-	this = this + by;
+	this = @operators$add(this, by);
 	return Unit();
 }
 
@@ -103,17 +103,17 @@ Unit order() {
 	pad List<Int> = @primitives$List(Int);
 	pad!push(Int(0));
 	ints[Int(1)] = ints!growAndGive(Int(1000));
-	check(String("a store whose value grows the list"), ints[Int(1)] == Int(4242));
+	check(String("a store whose value grows the list"), @operators$equal(ints[Int(1)], Int(4242)));
 	ints[Int(2)]!bump(ints!growAndGive(Int(1000)));
-	check(String("a `!` call whose argument grows the list"), ints[Int(2)] == Int(4244));
+	check(String("a `!` call whose argument grows the list"), @operators$equal(ints[Int(2)], Int(4244)));
 	more List<Int> = @primitives$List(Int);
 	more!push(Int(3));
 	bumper Unit(this Int, by Int) mut {
-		this = this + by;
+		this = @operators$add(this, by);
 		return Unit();
 	}
 	more[Int(1)]!bumper(more!growAndGive(Int(1000)));
-	check(String("the same through a function value"), more[Int(1)] == Int(4245));
+	check(String("the same through a function value"), @operators$equal(more[Int(1)], Int(4245)));
 	return Unit();
 }
 

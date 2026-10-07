@@ -4,7 +4,7 @@
 /// second generic it never uses.
 package geometry;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 
 type Point = struct {
 	x Int;
@@ -13,22 +13,22 @@ type Point = struct {
 
 Point(x Int, y Int) => init{ x; y; }
 
-Int sum(this Point) => this.x + this.y
+Int sum(this Point) => @operators$add(this.x, this.y)
 
 Int area(width Int, height Int) => _product(width, height)
 
-Int _product(a Int, b Int) => a * b
+Int _product(a Int, b Int) => @operators$multiply(a, b)
 
 T same(value T Type) => value
 
-Int twice(x Int) => same(x) + same(x)
+Int twice(x Int) => @operators$add(same(x), same(x))
 
 T unused(value T Type) => value
 
 double Int(x Int) {
-	return x + x;
+	return @operators$add(x, x);
 }
 
 unit Int(10)
 
-Int scaled(x Int) => x * unit
+Int scaled(x Int) => @operators$multiply(x, unit)

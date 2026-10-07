@@ -3,7 +3,7 @@
 /// what the spec rejects; QUESTION marks a case the spec does not settle.
 package modes;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 
 type Engine = #struct { power Int; }
@@ -12,7 +12,7 @@ Engine(power Int) => init{ power; }
 Car(engine &Engine, spare ^Engine) => init{ engine; spare; }
 
 Unit tune(this Engine) mut {
-	this.power = this.power + Int(1);
+	this.power = @operators$add(this.power, Int(1));
 	return Unit();
 }
 

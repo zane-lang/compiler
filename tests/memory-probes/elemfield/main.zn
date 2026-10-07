@@ -3,7 +3,7 @@
 /// ILLEGAL marks what the spec rejects.
 package elemfield;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 alias List<T Type> = @primitives$List<T>
 

@@ -26,7 +26,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   ├── fn: settled$Node(%primitives$I64)
     │       │   │   └── args[0]: 1 : i64
     │       │   └── layout: settled$Node
     │       ├── body[1] > let:
@@ -103,7 +103,7 @@
     │       │   ├── address: address of #1 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   ├── fn: settled$Node(%primitives$I64)
     │       │   │   └── args[0]: 7 : i64
     │       │   └── layout: settled$Node
     │       ├── body[9] > eval > call:
@@ -124,7 +124,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   ├── fn: settled$Node(%primitives$I64)
     │       │   │   └── args[0]: 20 : i64
     │       │   └── layout: ^settled$Node
     │       ├── body[11] > eval > call:
@@ -159,7 +159,7 @@
     │       │   ├── address: address of #5 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   ├── fn: settled$Node(%primitives$I64)
     │       │   │   └── args[0]: 100 : i64
     │       │   └── layout: settled$Node
     │       ├── body[16] > eval > call:
@@ -217,7 +217,7 @@
     │       │   │   ├── args[0]: address of #1 : ptr
     │       │   │   └── args[1] > call:
     │       │   │       ├── type: {i64}
-    │       │   │       ├── fn: settled$Node(%primitives$Int)
+    │       │   │       ├── fn: settled$Node(%primitives$I64)
     │       │   │       └── args[0]: 5 : i64
     │       │   └── layout: settled$Car
     │       ├── body[21] > eval > call:
@@ -273,7 +273,7 @@
     │       │   │   └── base: address of #7 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   ├── fn: settled$Node(%primitives$I64)
     │       │   │   └── args[0]: 50 : i64
     │       │   └── layout: settled$Node
     │       ├── body[27] > eval > call:
@@ -297,7 +297,7 @@
     │       │   │   ├── args[0]: address of #5 : ptr
     │       │   │   └── args[1] > call:
     │       │   │       ├── type: {i64}
-    │       │   │       ├── fn: settled$Node(%primitives$Int)
+    │       │   │       ├── fn: settled$Node(%primitives$I64)
     │       │   │       └── args[0]: 60 : i64
     │       │   └── layout: settled$Car
     │       ├── body[29] > eval > call:
@@ -337,7 +337,7 @@
     │       │   │   ├── index: 0
     │       │   │   └── payload > call:
     │       │   │       ├── type: {i64}
-    │       │   │       ├── fn: settled$Node(%primitives$Int)
+    │       │   │       ├── fn: settled$Node(%primitives$I64)
     │       │   │       └── args[0]: 30 : i64
     │       │   └── layout: settled$Holder
     │       ├── body[32] > eval > call:
@@ -445,7 +445,7 @@
     │       │       │   │   ├── index: 0
     │       │       │   │   └── payload > call:
     │       │       │   │       ├── type: {i64}
-    │       │       │   │       ├── fn: settled$Node(%primitives$Int)
+    │       │       │   │       ├── fn: settled$Node(%primitives$I64)
     │       │       │   │       └── args[0]: 40 : i64
     │       │       │   └── layout: settled$Holder
     │       │       ├── body[1] > let:
@@ -521,7 +521,7 @@
     │       │   │   │       │   ├── scope: %33
     │       │   │   │       │   ├── value > call:
     │       │   │   │       │   │   ├── type: {i64}
-    │       │   │   │       │   │   ├── fn: settled$Node(%primitives$Int)
+    │       │   │   │       │   │   ├── fn: settled$Node(%primitives$I64)
     │       │   │   │       │   │   └── args[0]: local #27 : i64
     │       │   │   │       │   └── layout: settled$Node
     │       │   │   │       ├── body[1] > let:
@@ -556,7 +556,7 @@
     │       │       └── right: 5000050000 : i64
     │       └── body[39] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: settled$Node(%primitives$Int)
+    │   ├── symbol: settled$Node(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i64}
     │   └── body[0] > return > escape:

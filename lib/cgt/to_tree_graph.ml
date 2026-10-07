@@ -125,6 +125,8 @@ let rec expr (e : Expr.t) =
            ])
   | Expr.Flip value ->
       group "flip" (fields [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("value", expr value) ])
+  | Expr.Convert value ->
+      group "convert" (fields [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("value", expr value) ])
   | Expr.Expand { label; body; result } ->
       group "expand"
         (fields

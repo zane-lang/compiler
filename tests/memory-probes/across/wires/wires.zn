@@ -3,7 +3,7 @@
 /// with the signature, so a call can be checked without the body in hand").
 package wires;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 
 type Port = #struct { n Int; }

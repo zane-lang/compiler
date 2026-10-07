@@ -252,13 +252,7 @@ let rec expr env ?(into = Ty.Error) w (e : T.Expr.t) =
       pass env w (References.param_types env impl) (List.map (fun a -> T.Arg.Value a) args)
   | T.Expr.Op { left; right; impl; swapped; handler; _ } ->
       let args = if swapped then [ right; left ] else [ left; right ] in
-      let tys =
-        match Env.signature_of env impl with
-        (* An intrinsic operator reads its operands (docs/design/semantics.md §9). *)
-        | Some { S.owner = S.Intrinsic _; _ } | None -> []
-        | Some _ -> References.param_types env ~subject:true impl
-      in
-      pass env w tys (List.map (fun a -> T.Arg.Value a) args);
+      pass env w (References.param_types env ~subject:true impl) (List.map (fun a -> T.Arg.Value a) args);
       opt_handler env w into handler
   | T.Expr.Flip { impl; value; handler } ->
       pass env w (read_by env impl) [ T.Arg.Value value ];
@@ -266,7 +260,7 @@ let rec expr env ?(into = Ty.Error) w (e : T.Expr.t) =
   | T.Expr.Coerce { ctor; value } -> pass env w (read_by env ctor) [ T.Arg.Value value ]
   | T.Expr.Lambda l -> lambda env w e l
 
-(* An intrinsic operator or constructor reads what it is given. *)
+(* An intrinsic constructor reads what it is given (docs/design/semantics.md §9). *)
 and read_by env (r : T.Verb_ref.t) =
   match r.T.Verb_ref.owner with S.Intrinsic _ -> [] | S.Declared _ -> References.param_types env r
 

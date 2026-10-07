@@ -4,7 +4,7 @@
 /// ILLEGAL marks what the spec rejects.
 package aliaskind;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
 

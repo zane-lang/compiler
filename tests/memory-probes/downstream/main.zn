@@ -3,7 +3,7 @@
 /// Every line marked ILLEGAL should be reported, and nothing else.
 package downstream;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 alias List<T Type> = @primitives$List<T>
 

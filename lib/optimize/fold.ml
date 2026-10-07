@@ -21,7 +21,7 @@ let children (e : Expr.t) : Expr.t list =
   | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Text _ | Expr.Unit | Expr.Local _
   | Expr.Address _ | Expr.Layout _ | Expr.Function _ | Expr.Global _ ->
       []
-  | Expr.Deref e | Expr.Flip e | Expr.Snapshot e -> [ e ]
+  | Expr.Deref e | Expr.Flip e | Expr.Convert e | Expr.Snapshot e -> [ e ]
   | Expr.Call { args; _ } | Expr.Runtime { args; _ } -> args
   | Expr.Call_value { fn; args } -> fn :: args
   | Expr.Binary { left; right; _ } -> [ left; right ]
@@ -432,6 +432,7 @@ and map_children fn env (e : Expr.t) =
     match e.Expr.node with
     | Expr.Deref x -> Expr.Deref (f x)
     | Expr.Flip x -> Expr.Flip (f x)
+    | Expr.Convert x -> Expr.Convert (f x)
     | Expr.Snapshot x -> Expr.Snapshot (f x)
     | Expr.Call { fn = callee; args } -> Expr.Call { fn = callee; args = List.map f args }
     | Expr.Runtime { fn = r; args } -> Expr.Runtime { fn = r; args = List.map f args }

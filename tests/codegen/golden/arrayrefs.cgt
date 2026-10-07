@@ -145,15 +145,15 @@
     │       │   │   ├── type: [3 x {i64, handle}]
     │       │   │   ├── members[0] > member 0 > call:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │   │   └── args[0]: 1 : i64
     │       │   │   ├── members[1] > member 1 > call:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │   │   └── args[0]: 2 : i64
     │       │   │   └── members[2] > member 2 > call:
     │       │   │       ├── type: {i64, handle}
-    │       │   │       ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │       ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │       └── args[0]: 3 : i64
     │       │   └── layout: %primitives$ArrayRef<arrayrefs$Player, 3>
     │       ├── body[1] > eval > call:
@@ -186,7 +186,7 @@
     │       │   │   └── value: 10 : i64
     │       │   └── body[2] > eval > call:
     │       │       ├── type: void
-    │       │       ├── fn: arrayrefs$add(this arrayrefs$Player, %primitives$Int)
+    │       │       ├── fn: arrayrefs$add(this arrayrefs$Player, %primitives$I64)
     │       │       ├── args[0] > runtime:
     │       │       │   ├── type: ptr
     │       │       │   ├── fn: zane_array_at
@@ -230,7 +230,7 @@
     │       │   ├── local: #8
     │       │   └── value > call:
     │       │       ├── type: {i64, handle}
-    │       │       ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │       ├── fn: arrayrefs$Player(%primitives$I64)
     │       │       └── args[0]: 20 : i64
     │       ├── body[7] > overwrite:
     │       │   ├── address > runtime:
@@ -274,7 +274,7 @@
     │       │       └── right: 3 : i64
     │       ├── body[10] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: arrayrefs$add(this arrayrefs$Player, %primitives$Int)
+    │       │   ├── fn: arrayrefs$add(this arrayrefs$Player, %primitives$I64)
     │       │   ├── args[0]: local #6 : ptr
     │       │   └── args[1]: 1 : i64
     │       ├── body[11] > eval > call:
@@ -302,15 +302,15 @@
     │       │   │   ├── type: [3 x {i64, handle}]
     │       │   │   ├── members[0] > member 0 > call:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │   │   └── args[0]: 7 : i64
     │       │   │   ├── members[1] > member 1 > call:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │   │   └── args[0]: 8 : i64
     │       │   │   └── members[2] > member 2 > call:
     │       │   │       ├── type: {i64, handle}
-    │       │   │       ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │       ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │       └── args[0]: 9 : i64
     │       │   └── layout: %primitives$ArrayRef<arrayrefs$Player, 3>
     │       ├── body[13] > eval > call:
@@ -424,15 +424,15 @@
     │       │   │       ├── type: [3 x {i64, handle}]
     │       │   │       ├── members[0] > member 0 > call:
     │       │   │       │   ├── type: {i64, handle}
-    │       │   │       │   ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │       │   ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │       │   └── args[0]: 5 : i64
     │       │   │       ├── members[1] > member 1 > call:
     │       │   │       │   ├── type: {i64, handle}
-    │       │   │       │   ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │       │   ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │       │   └── args[0]: 6 : i64
     │       │   │       └── members[2] > member 2 > call:
     │       │   │           ├── type: {i64, handle}
-    │       │   │           ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │           ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │           └── args[0]: 7 : i64
     │       │   └── layout: arrayrefs$Squad
     │       ├── body[18] > let:
@@ -461,12 +461,12 @@
     │       │               └── args[3]: 32 : i64
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: arrayrefs$replace(this arrayrefs$Squad, %primitives$Int, ^arrayrefs$Player)
+    │       │   ├── fn: arrayrefs$replace(this arrayrefs$Squad, %primitives$I64, ^arrayrefs$Player)
     │       │   ├── args[0]: address of #16 : ptr
     │       │   ├── args[1]: 1 : i64
     │       │   └── args[2] > call:
     │       │       ├── type: {i64, handle}
-    │       │       ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │       ├── fn: arrayrefs$Player(%primitives$I64)
     │       │       └── args[0]: 50 : i64
     │       ├── body[20] > eval > call:
     │       │   ├── type: void
@@ -488,15 +488,15 @@
     │       │   │   ├── type: [3 x {i64, handle}]
     │       │   │   ├── members[0] > member 0 > call:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │   │   └── args[0]: 4 : i64
     │       │   │   ├── members[1] > member 1 > call:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │   │   └── args[0]: 5 : i64
     │       │   │   └── members[2] > member 2 > call:
     │       │   │       ├── type: {i64, handle}
-    │       │   │       ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   │       ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   │       └── args[0]: 6 : i64
     │       │   └── layout: ^%primitives$ArrayRef<arrayrefs$Player, 3>
     │       ├── body[22] > eval > expand:
@@ -510,7 +510,7 @@
     │       │   │   └── value: 1 : i64
     │       │   └── body[2] > eval > call:
     │       │       ├── type: void
-    │       │       ├── fn: arrayrefs$add(this arrayrefs$Player, %primitives$Int)
+    │       │       ├── fn: arrayrefs$add(this arrayrefs$Player, %primitives$I64)
     │       │       ├── args[0] > runtime:
     │       │       │   ├── type: ptr
     │       │       │   ├── fn: zane_array_at
@@ -661,7 +661,7 @@
     │       │       └── right: 4000 : i64
     │       └── body[29] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: arrayrefs$Player(%primitives$Int)
+    │   ├── symbol: arrayrefs$Player(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i64, handle}
     │   └── body[0] > return > escape:
@@ -703,7 +703,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: arrayrefs$add(this arrayrefs$Player, %primitives$Int)
+    │   ├── symbol: arrayrefs$add(this arrayrefs$Player, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
@@ -738,7 +738,7 @@
     │       ├── exit: function
     │       ├── value > call:
     │       │   ├── type: {i64, handle}
-    │       │   ├── fn: arrayrefs$Player(%primitives$Int)
+    │       │   ├── fn: arrayrefs$Player(%primitives$I64)
     │       │   └── args[0] > binary:
     │       │       ├── type: i64
     │       │       ├── op: *
@@ -766,7 +766,7 @@
     │           │       └── layout: %primitives$ArrayRef<arrayrefs$Player, 3>
     │           └── layout: arrayrefs$Squad
     ├── funcs[7] > func:
-    │   ├── symbol: arrayrefs$replace(this arrayrefs$Squad, %primitives$Int, ^arrayrefs$Player)
+    │   ├── symbol: arrayrefs$replace(this arrayrefs$Squad, %primitives$I64, ^arrayrefs$Player)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── params[2]: local #3 : {i64, handle}
@@ -809,6 +809,6 @@
             ├── exit: function
             ├── value > call:
             │   ├── type: {i64, handle}
-            │   ├── fn: arrayrefs$Player(%primitives$Int)
+            │   ├── fn: arrayrefs$Player(%primitives$I64)
             │   └── args[0]: local #1 : i64
             └── layout: ^arrayrefs$Player

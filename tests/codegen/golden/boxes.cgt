@@ -598,7 +598,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i64, ptr}
-    │       │   │   ├── fn: boxes$Tower(%primitives$Int, ^boxes$Storey)
+    │       │   │   ├── fn: boxes$Tower(%primitives$I64, ^boxes$Storey)
     │       │   │   ├── args[0]: 1 : i64
     │       │   │   └── args[1] > case:
     │       │   │       ├── type: <void | ptr>
@@ -606,7 +606,7 @@
     │       │   │       └── payload > box:
     │       │   │           ├── value > call:
     │       │   │           │   ├── type: {i64, ptr}
-    │       │   │           │   ├── fn: boxes$Tower(%primitives$Int, ^boxes$Storey)
+    │       │   │           │   ├── fn: boxes$Tower(%primitives$I64, ^boxes$Storey)
     │       │   │           │   ├── args[0]: 2 : i64
     │       │   │           │   └── args[1] > case:
     │       │   │           │       ├── type: <void | ptr>
@@ -637,7 +637,7 @@
     │       │   ├── address: address of #63 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i64, ptr}
-    │       │   │   ├── fn: boxes$Tower(%primitives$Int, ^boxes$Storey)
+    │       │   │   ├── fn: boxes$Tower(%primitives$I64, ^boxes$Storey)
     │       │   │   ├── args[0]: 5 : i64
     │       │   │   └── args[1] > case:
     │       │   │       ├── type: <void | ptr>
@@ -645,7 +645,7 @@
     │       │   │       └── payload > box:
     │       │   │           ├── value > call:
     │       │   │           │   ├── type: {i64, ptr}
-    │       │   │           │   ├── fn: boxes$Tower(%primitives$Int, ^boxes$Storey)
+    │       │   │           │   ├── fn: boxes$Tower(%primitives$I64, ^boxes$Storey)
     │       │   │           │   ├── args[0]: 6 : i64
     │       │   │           │   └── args[1] > case:
     │       │   │           │       ├── type: <void | ptr>
@@ -653,7 +653,7 @@
     │       │   │           │       └── payload > box:
     │       │   │           │           ├── value > call:
     │       │   │           │           │   ├── type: {i64, ptr}
-    │       │   │           │           │   ├── fn: boxes$Tower(%primitives$Int, ^boxes$Storey)
+    │       │   │           │           │   ├── fn: boxes$Tower(%primitives$I64, ^boxes$Storey)
     │       │   │           │           │   ├── args[0]: 7 : i64
     │       │   │           │           │   └── args[1] > case:
     │       │   │           │           │       ├── type: <void | ptr>
@@ -993,7 +993,7 @@
     │           │                   └── base: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
     ├── funcs[7] > func:
-    │   ├── symbol: boxes$Tower(%primitives$Int, ^boxes$Storey)
+    │   ├── symbol: boxes$Tower(%primitives$I64, ^boxes$Storey)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : <void | ptr>
     │   ├── ret: {i64, ptr}

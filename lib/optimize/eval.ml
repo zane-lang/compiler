@@ -176,6 +176,10 @@ let offset (p : ptr) within path =
    the same way on any machine (O6). *)
 let canonical f = if Float.is_nan f then Int64.float_of_bits 0x7FF8_0000_0000_0000L else f
 
+(* A float as its type holds it: an [F32]'s result is rounded to a single,
+   which is the one rounding the machine's own single operation makes. *)
+let float (t : Ty.t) f = canonical (match t with Ty.F32 -> Scalar.single f | _ -> f)
+
 let binary (op : Expr.binop) (t : Ty.t) l r =
   match (t, op, l, r) with
   | (Ty.I64 | Ty.I32), Expr.Add, VInt a, VInt b -> VInt (int t (Int64.add a b))
@@ -186,12 +190,12 @@ let binary (op : Expr.binop) (t : Ty.t) l r =
   | (Ty.I64 | Ty.I32), Expr.Div, VInt a, VInt b -> VInt (int t (Int64.div a b))
   | (Ty.I64 | Ty.I32), Expr.Eq, VInt a, VInt b -> VBool (Int64.equal a b)
   | (Ty.I64 | Ty.I32), Expr.Less, VInt a, VInt b -> VBool (Int64.compare a b < 0)
-  | Ty.F64, Expr.Add, VFloat a, VFloat b -> VFloat (canonical (a +. b))
-  | Ty.F64, Expr.Mul, VFloat a, VFloat b -> VFloat (canonical (a *. b))
-  | Ty.F64, Expr.Div, VFloat a, VFloat b -> VFloat (canonical (a /. b))
+  | (Ty.F64 | Ty.F32), Expr.Add, VFloat a, VFloat b -> VFloat (float t (a +. b))
+  | (Ty.F64 | Ty.F32), Expr.Mul, VFloat a, VFloat b -> VFloat (float t (a *. b))
+  | (Ty.F64 | Ty.F32), Expr.Div, VFloat a, VFloat b -> VFloat (float t (a /. b))
   (* Ordered comparisons: a NaN is neither equal to nor less than anything. *)
-  | Ty.F64, Expr.Eq, VFloat a, VFloat b -> VBool (a = b)
-  | Ty.F64, Expr.Less, VFloat a, VFloat b -> VBool (a < b)
+  | (Ty.F64 | Ty.F32), Expr.Eq, VFloat a, VFloat b -> VBool (a = b)
+  | (Ty.F64 | Ty.F32), Expr.Less, VFloat a, VFloat b -> VBool (a < b)
   | Ty.I1, Expr.Add, VBool a, VBool b -> VBool (a || b)
   | Ty.I1, Expr.Mul, VBool a, VBool b -> VBool (a && b)
   | Ty.I1, Expr.Eq, VBool a, VBool b -> VBool (a = b)
@@ -200,9 +204,20 @@ let binary (op : Expr.binop) (t : Ty.t) l r =
 let flip (t : Ty.t) v =
   match (t, v) with
   | (Ty.I64 | Ty.I32), VInt a -> VInt (int t (Int64.neg a))
-  | Ty.F64, VFloat a -> VFloat (canonical (Float.neg a))
+  | (Ty.F64 | Ty.F32), VFloat a -> VFloat (canonical (Float.neg a))
   | Ty.I1, VBool a -> VBool (not a)
   | _ -> stop "`~` on a value it does not flip"
+
+(* A scalar converted from [from] to [into], as emit.ml's [convert]. *)
+let convert (from : Ty.t) (into : Ty.t) v =
+  match (from, into, v) with
+  | (Ty.I32 | Ty.I64), (Ty.I32 | Ty.I64), VInt a -> VInt (int into a)
+  | (Ty.I32 | Ty.I64), (Ty.F32 | Ty.F64), VInt a -> VFloat (Scalar.to_float into a)
+  | (Ty.F32 | Ty.F64), (Ty.F32 | Ty.F64), VFloat a -> VFloat (float into a)
+  | (Ty.F32 | Ty.F64), (Ty.I32 | Ty.I64), VFloat a ->
+      if Scalar.truncates_into ~from into a then VInt (Int64.of_float (Float.trunc a))
+      else stop "a conversion out of range"
+  | _ -> stop "a conversion of a value it does not convert"
 
 (* ---------------------------------------------------------------------- *)
 (* Expressions and statements                                             *)
@@ -248,6 +263,7 @@ let rec expr run fr (e : Expr.t) : v =
       let r = expr run fr right in
       binary op left.Expr.ty l r
   | Expr.Flip value -> flip value.Expr.ty (expr run fr value)
+  | Expr.Convert value -> convert value.Expr.ty e.Expr.ty (expr run fr value)
   | Expr.Expand { label; body; result } -> (
       sized run e.Expr.ty;
       Option.iter (fun id -> bind fr id e.Expr.ty (zero e.Expr.ty)) result;

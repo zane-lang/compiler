@@ -6,7 +6,7 @@
 /// prints `yes` when it holds and `no` when it does not.
 package arrays;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias I32 = @primitives$I32
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
@@ -17,7 +17,7 @@ Unit check(ok Bool) {
 	yes String("yes\n");
 	no String("no\n");
 	@controlflow$branch(ok, { @program$console!print(yes); });
-	@controlflow$branch(~ok, { @program$console!print(no); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
 	return Unit();
 }
 
@@ -51,41 +51,41 @@ type Tree = variant {
 
 Int total(t Tree) => match (t) {
 	n leaf => n;
-	k node => total(k[Int(1)]) + total(k[Int(2)]);
+	k node => @operators$add(total(k[Int(1)]), total(k[Int(2)]));
 }
 
 Array<Int, 3> three() => @primitives$Array([Int(7), Int(8), Int(9)])
 
 Unit main() {
 	numbers Array<Int, 3> = @primitives$Array([Int(1), Int(2), Int(3)]);
-	check(numbers[Int(1)] == Int(1));
+	check(@operators$equal(numbers[Int(1)], Int(1)));
 	numbers[Int(2)] = Int(5);
-	check(numbers[Int(2)] == Int(5));
-	check(count(numbers) == Int(3));
-	check(measured(numbers, 3) == Int(3));
+	check(@operators$equal(numbers[Int(2)], Int(5)));
+	check(@operators$equal(count(numbers), Int(3)));
+	check(@operators$equal(measured(numbers, 3), Int(3)));
 	copy Array<Int, 3> = numbers;
 	copy[Int(3)] = Int(0);
-	check(numbers[Int(3)] == Int(3));
-	check(three()[Int(2)] == Int(8));
+	check(@operators$equal(numbers[Int(3)], Int(3)));
+	check(@operators$equal(three()[Int(2)], Int(8)));
 
 	g Grid(@primitives$Array([Int(1), Int(2), Int(3), Int(4)]), Int(2));
 	g!set(Int(4), Int(40));
-	check(g:at(Int(4)) == Int(40));
+	check(@operators$equal(g:at(Int(4)), Int(40)));
 
 	b Box(g);
 	b.grid.cells[Int(1)] = Int(10);
-	check(b.grid.cells[Int(1)] + b.grid:at(Int(4)) == Int(50));
+	check(@operators$equal(@operators$add(b.grid.cells[Int(1)], b.grid:at(Int(4))), Int(50)));
 
 	t Tree = Tree.node(@primitives$Array([Tree.leaf(Int(1)), Tree.node(@primitives$Array([Tree.leaf(Int(2)), Tree.leaf(Int(3))]))]));
-	check(total(t) == Int(6));
+	check(@operators$equal(total(t), Int(6)));
 	u Tree = t;
-	check(total(u) == Int(6));
+	check(@operators$equal(total(u), Int(6)));
 
 	three32 I32 = I32(3);
-	eleven I32 = three32 + I32(4) * I32(2);
-	check(eleven == I32(11));
-	check(eleven / I32(2) == I32(5));
-	check(~eleven < I32(0));
-	check(I32(2147483647) + I32(1) < I32(0));
+	eleven I32 = @operators$add(three32, @operators$multiply(I32(4), I32(2)));
+	check(@operators$equal(eleven, I32(11)));
+	check(@operators$equal(@operators$divide(eleven, I32(2)), I32(5)));
+	check(@operators$lessThan(@operators$negate(eleven), I32(0)));
+	check(@operators$lessThan(@operators$add(I32(2147483647), I32(1)), I32(0)));
 	return Unit();
 }

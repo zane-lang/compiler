@@ -2,13 +2,13 @@
          U zane_constant_end
 00000000 B v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.state
 00000000 B v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.value
-00000000 T v1.0.1%3f9a1c02b7e4d6a8%geometry$Point(%primitives$Int, %primitives$Int)
-00000000 T v1.0.1%3f9a1c02b7e4d6a8%geometry$same<%primitives$Int>(%primitives$Int)
+00000000 T v1.0.1%3f9a1c02b7e4d6a8%geometry$Point(%primitives$I64, %primitives$I64)
+00000000 T v1.0.1%3f9a1c02b7e4d6a8%geometry$same<%primitives$I64>(%primitives$I64)
 00000000 T v1.0.1%3f9a1c02b7e4d6a8%geometry$unit
 00000000 a @feat.00
 00000020 T v1.0.1%3f9a1c02b7e4d6a8%geometry$sum(this v1.0.1%3f9a1c02b7e4d6a8%geometry$Point)
-00000040 T v1.0.1%3f9a1c02b7e4d6a8%geometry$area(%primitives$Int, %primitives$Int)
-00000070 T v1.0.1%3f9a1c02b7e4d6a8%geometry$_product(%primitives$Int, %primitives$Int)
-00000090 T v1.0.1%3f9a1c02b7e4d6a8%geometry$twice(%primitives$Int)
+00000040 T v1.0.1%3f9a1c02b7e4d6a8%geometry$area(%primitives$I64, %primitives$I64)
+00000070 T v1.0.1%3f9a1c02b7e4d6a8%geometry$_product(%primitives$I64, %primitives$I64)
+00000090 T v1.0.1%3f9a1c02b7e4d6a8%geometry$twice(%primitives$I64)
 000000d0 T v1.0.1%3f9a1c02b7e4d6a8%geometry$double
-000000e0 T v1.0.1%3f9a1c02b7e4d6a8%geometry$scaled(%primitives$Int)
+000000e0 T v1.0.1%3f9a1c02b7e4d6a8%geometry$scaled(%primitives$I64)

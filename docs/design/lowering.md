@@ -83,10 +83,10 @@ one of:
 
 `Unit` has no storage, and a verb that returns it returns nothing. A value
 struct of one member has that member's layout, so a struct around one
-`@primitives$Int` is an `i64`, and an empty one has none. A distinct
+`@primitives$I64` is an `i64`, and an empty one has none. A distinct
 type is its underlying type. A concept literal (`Integer_lit`, `Text_lit`) is
 already gone, because the TST put an implicit constructor around every one
-([`semantics.md`](semantics.md) D9); lowering turns `@primitives$Int(3)` into the constant `i64 3`.
+([`semantics.md`](semantics.md) D9); lowering turns `@primitives$I64(3)` into the constant `i64 3`.
 
 Which members are boxed is lowering's decision too: every member on a cycle
 of owning edges, and none other to start with ([`adt.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/adt.md) §4).
@@ -635,6 +635,13 @@ test passing.
   program stops: what it wrote so far is kept, the runtime writes `division by
   zero` to stderr, and the status is 1. The one other quotient an integer
   cannot hold, the most negative value over `-1`, wraps, as `+` and `*` do.
+- **A float truncated out of range.** `types.md` §2.7 stops the program when
+  `truncate` leaves a NaN, or an integer part the target cannot hold. It stops
+  as it does at a division by zero: what it wrote so far is kept, the runtime
+  writes `conversion out of range` to stderr, and the status is 1. A
+  conversion is one CGT node, `Convert`, whose instruction the source and
+  target types pick, and the bounds it checks are `Scalar.truncation`'s, which
+  the optimizer folds by too.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
   §5.2, [`spec-divergences.md`](../spec-divergences.md) §15). Until it says, the program stops as it does at a division by zero:
   what it wrote so far is kept, the runtime writes `index out of range` to

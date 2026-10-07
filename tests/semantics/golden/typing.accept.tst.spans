@@ -1,6 +1,6 @@
 package app
-  decl Alias Int | alias Int = @primitives$Int
-  decl Alias Float | alias Float = @primitives$Float
+  decl Alias Int | alias Int = @primitives$I64
+  decl Alias Float | alias Float = @primitives$F64
   decl Alias Bool | alias Bool = @primitives$Bool
   decl Alias Unit | alias Unit = @primitives$Unit
   decl Alias String | alias String = @primitives$String
@@ -15,60 +15,60 @@ package app
           expr Var body | body
       stat Return | return condition;
         expr Var condition | condition
-  decl Verb elif | Unit elif(this Bool, condi … ondition; return Unit(); }
+  decl Verb elif | Unit elif(this Bool, condi … ndition); return Unit(); }
     param this | Bool
     param condition | condition Bool
     param body | body @concepts$Block
-    block | { @controlflow$branch(~thi … ondition; return Unit(); }
-      stat Expr | @controlflow$branch(~this * condition, body);
-        expr Call @controlflow$branch | @controlflow$branch(~this * condition, body)
-          expr Op * | ~this * condition
-            expr Flip | ~this
+    block | { @controlflow$branch(@ope … ndition); return Unit(); }
+      stat Expr | @controlflow$branch(@opera … (this), condition), body);
+        expr Call @controlflow$branch | @controlflow$branch(@opera … t(this), condition), body)
+          expr Call @operators$and | @operators$and(@operators$not(this), condition)
+            expr Call @operators$not | @operators$not(this)
               expr Var this | this
             expr Var condition | condition
           expr Var body | body
-      stat Assign | this = this + condition;
+      stat Assign | this = @operators$or(this, condition);
         expr Var this | this
-        expr Op + | this + condition
+        expr Call @operators$or | @operators$or(this, condition)
           expr Var this | this
           expr Var condition | condition
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
-  decl Verb else | Unit else(this Bool, body  … s, body); return Unit(); }
+  decl Verb else | Unit else(this Bool, body  … ), body); return Unit(); }
     param this | Bool
     param body | body @concepts$Block
-    block | { @controlflow$branch(~this, body); return Unit(); }
-      stat Expr | @controlflow$branch(~this, body);
-        expr Call @controlflow$branch | @controlflow$branch(~this, body)
-          expr Flip | ~this
+    block | { @controlflow$branch(@ope … ), body); return Unit(); }
+      stat Expr | @controlflow$branch(@operators$not(this), body);
+        expr Call @controlflow$branch | @controlflow$branch(@operators$not(this), body)
+          expr Call @operators$not | @operators$not(this)
             expr Var this | this
           expr Var body | body
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
-  decl Verb to | Unit to(this Int, end Int, … t(1); }); return Unit(); }
+  decl Verb to | Unit to(this Int, end Int, … (1)); }); return Unit(); }
     param this | Int
     param end | end Int
     param body | body @concepts$Block
-    block | { @controlflow$repeat(end  … t(1); }); return Unit(); }
-      stat Expr | @controlflow$repeat(end +  …  this = this + Int(1); });
-        expr Call @controlflow$repeat | @controlflow$repeat(end +  … ; this = this + Int(1); })
-          expr Op + | end + ~this + Int(1)
-            expr Op + | end + ~this
+    block | { @controlflow$repeat(@ope … (1)); }); return Unit(); }
+      stat Expr | @controlflow$repeat(@opera … ors$add(this, Int(1)); });
+        expr Call @controlflow$repeat | @controlflow$repeat(@opera … tors$add(this, Int(1)); })
+          expr Call @operators$add | @operators$add(@operators$ … ors$negate(this)), Int(1))
+            expr Call @operators$add | @operators$add(end, @operators$negate(this))
               expr Var end | end
-              expr Flip | ~this
+              expr Call @operators$negate | @operators$negate(this)
                 expr Var this | this
-            expr Construct @primitives$Int | Int(1)
+            expr Construct @primitives$I64 | Int(1)
               expr Integer_lit | 1
-          block | { @controlflow$branch(true … ); this = this + Int(1); }
+          block | { @controlflow$branch(true … ators$add(this, Int(1)); }
             stat Expr | @controlflow$branch(true, body);
               expr Call @controlflow$branch | @controlflow$branch(true, body)
                 expr Bool_lit | true
                 expr Var body | body
-            stat Assign | this = this + Int(1);
+            stat Assign | this = @operators$add(this, Int(1));
               expr Var this | this
-              expr Op + | this + Int(1)
+              expr Call @operators$add | @operators$add(this, Int(1))
                 expr Var this | this
-                expr Construct @primitives$Int | Int(1)
+                expr Construct @primitives$I64 | Int(1)
                   expr Integer_lit | 1
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
@@ -84,7 +84,7 @@ package app
   decl Verb pick | T pick(first T Type, secon …  first; } return chosen; }
   decl Type Pair | type Pair<T Type> = struct { left T; right T; }
   decl Verb Pair | Pair<T>(left T Type, right T) => init{ left; right; }
-  decl Verb sum | T sum(pair Pair<T Type>) => pair.left + pair.right
+  decl Verb sum | T sum(pair Pair<T Type>) = … add(pair.left, pair.right)
   decl Verb count | Int count(values Array<T T …  @concepts$Int>) => Int(n)
   decl Verb measured | Int measured(values Array< … n @concepts$Int) => Int(n)
   decl Verb relayed | Int relayed(values Array<I … nt) => measured(values, n)
@@ -96,9 +96,9 @@ package app
     block | => Pair(Int(x), Int(y))
       stat Return | => Pair(Int(x), Int(y))
         expr Construct Pair | Pair(Int(x), Int(y))
-          expr Construct @primitives$Int | Int(x)
+          expr Construct @primitives$I64 | Int(x)
             expr Var x | x
-          expr Construct @primitives$Int | Int(y)
+          expr Construct @primitives$I64 | Int(y)
             expr Var y | y
   decl Verb pairOf | Pair<Float> pairOf(x @conc … > Pair(Float(x), Float(y))
     param x | x @concepts$Float
@@ -106,36 +106,36 @@ package app
     block | => Pair(Float(x), Float(y))
       stat Return | => Pair(Float(x), Float(y))
         expr Construct Pair | Pair(Float(x), Float(y))
-          expr Construct @primitives$Float | Float(x)
+          expr Construct @primitives$F64 | Float(x)
             expr Var x | x
-          expr Construct @primitives$Float | Float(y)
+          expr Construct @primitives$F64 | Float(y)
             expr Var y | y
-  decl Verb safeDivide | Float?String safeDivide(nu … numerator / denominator; }
+  decl Verb safeDivide | Float?String safeDivide(nu … numerator, denominator); }
     param numerator | numerator Float
     param denominator | denominator Float
-    block | { if(denominator == Float( … numerator / denominator; }
-      stat Expr | if(denominator == Float(0.0)) { abort String("zero"); }
-        expr Call if | if(denominator == Float(0.0)) { abort String("zero"); }
-          expr Op == | denominator == Float(0.0)
+    block | { if(@operators$equal(deno … numerator, denominator); }
+      stat Expr | if(@operators$equal(denomi …  { abort String("zero"); }
+        expr Call if | if(@operators$equal(denomi …  { abort String("zero"); }
+          expr Call @operators$equal | @operators$equal(denominator, Float(0.0))
             expr Var denominator | denominator
-            expr Construct @primitives$Float | Float(0.0)
+            expr Construct @primitives$F64 | Float(0.0)
               expr Decimal_lit | 0.0
           block | { abort String("zero"); }
             stat Abort | abort String("zero");
               expr Construct @primitives$String | String("zero")
                 expr Text_lit | "zero"
-      stat Expr | if(denominator < Float(0.0 … bort String("negative"); }
-        expr Call if | if(denominator < Float(0.0 … bort String("negative"); }
-          expr Op < | denominator < Float(0.0)
+      stat Expr | if(@operators$lessThan(den … bort String("negative"); }
+        expr Call if | if(@operators$lessThan(den … bort String("negative"); }
+          expr Call @operators$lessThan | @operators$lessThan(denominator, Float(0.0))
             expr Var denominator | denominator
-            expr Construct @primitives$Float | Float(0.0)
+            expr Construct @primitives$F64 | Float(0.0)
               expr Decimal_lit | 0.0
           block | { abort String("negative"); }
             stat Abort | abort String("negative");
               expr Construct @primitives$String | String("negative")
                 expr Text_lit | "negative"
-      stat Return | return numerator / denominator;
-        expr Op / | numerator / denominator
+      stat Return | return @operators$divide(numerator, denominator);
+        expr Call @operators$divide | @operators$divide(numerator, denominator)
           expr Var numerator | numerator
           expr Var denominator | denominator
   decl Type Crew | type Crew = #struct { lead Shape; backup &Shape; }
@@ -211,13 +211,13 @@ package app
       stat Expr | moved!scale(Float(2.0));
         expr Call scale | moved!scale(Float(2.0))
           expr Var moved | moved
-          expr Construct @primitives$Float | Float(2.0)
+          expr Construct @primitives$F64 | Float(2.0)
             expr Decimal_lit | 2.0
       stat Let | flat Vec2{ x = Float(1.0); }
         local flat | flat
         expr Construct_fields Vec2 | Vec2{ x = Float(1.0); }
           field x | x = Float(1.0)
-            expr Construct @primitives$Float | Float(1.0)
+            expr Construct @primitives$F64 | Float(1.0)
               expr Decimal_lit | 1.0
       stat Let | size Float = moved:length();
         local size | size
@@ -226,7 +226,7 @@ package app
       stat Let | shape Shape = Shape.circle(Float(2.0));
         local shape | shape
         expr Case circle | Shape.circle(Float(2.0))
-          expr Construct @primitives$Float | Float(2.0)
+          expr Construct @primitives$F64 | Float(2.0)
             expr Decimal_lit | 2.0
       stat Let | covered Float = area(shape);
         local covered | covered
@@ -239,13 +239,13 @@ package app
           handler | ?? Float(0.0)
             block | ?? Float(0.0)
               stat Resolve | ?? Float(0.0)
-                expr Construct @primitives$Float | Float(0.0)
+                expr Construct @primitives$F64 | Float(0.0)
                   expr Decimal_lit | 0.0
       stat Let | half Float = safeDivide(co … on); resolve Float(0.0); }
         local half | half
         expr Call safeDivide | safeDivide(covered, Float(2.0))
           expr Var covered | covered
-          expr Construct @primitives$Float | Float(2.0)
+          expr Construct @primitives$F64 | Float(2.0)
             expr Decimal_lit | 2.0
           handler | ? reason { say(reason); resolve Float(0.0); }
             binder reason | reason
@@ -254,30 +254,30 @@ package app
                 expr Call say | say(reason)
                   expr Var reason | reason
               stat Resolve | resolve Float(0.0);
-                expr Construct @primitives$Float | Float(0.0)
+                expr Construct @primitives$F64 | Float(0.0)
                   expr Decimal_lit | 0.0
       stat Let | picked Int = pick(Int(1), Int(2), true);
         local picked | picked
         expr Call pick | pick(Int(1), Int(2), true)
-          expr Construct @primitives$Int | Int(1)
+          expr Construct @primitives$I64 | Int(1)
             expr Integer_lit | 1
-          expr Construct @primitives$Int | Int(2)
+          expr Construct @primitives$I64 | Int(2)
             expr Integer_lit | 2
           expr Bool_lit | true
       stat Let | chance Float = pick(Float(0.5), Float(1.5), false);
         local chance | chance
         expr Call pick | pick(Float(0.5), Float(1.5), false)
-          expr Construct @primitives$Float | Float(0.5)
+          expr Construct @primitives$F64 | Float(0.5)
             expr Decimal_lit | 0.5
-          expr Construct @primitives$Float | Float(1.5)
+          expr Construct @primitives$F64 | Float(1.5)
             expr Decimal_lit | 1.5
           expr Bool_lit | false
       stat Let | pair Pair(Int(3), Int(4));
         local pair | pair
         expr Construct Pair | Pair(Int(3), Int(4))
-          expr Construct @primitives$Int | Int(3)
+          expr Construct @primitives$I64 | Int(3)
             expr Integer_lit | 3
-          expr Construct @primitives$Int | Int(4)
+          expr Construct @primitives$I64 | Int(4)
             expr Integer_lit | 4
       stat Let | total Int = sum(pair);
         local total | total
@@ -286,9 +286,9 @@ package app
       stat Let | floats Pair(Float(1.0), Float(2.0));
         local floats | floats
         expr Construct Pair | Pair(Float(1.0), Float(2.0))
-          expr Construct @primitives$Float | Float(1.0)
+          expr Construct @primitives$F64 | Float(1.0)
             expr Decimal_lit | 1.0
-          expr Construct @primitives$Float | Float(2.0)
+          expr Construct @primitives$F64 | Float(2.0)
             expr Decimal_lit | 2.0
       stat Let | both Float = sum(floats);
         local both | both
@@ -297,7 +297,7 @@ package app
       stat Let | spare ^Shape = Shape.circle(Float(1.0));
         local spare | spare
         expr Case circle | Shape.circle(Float(1.0))
-          expr Construct @primitives$Float | Float(1.0)
+          expr Construct @primitives$F64 | Float(1.0)
             expr Decimal_lit | 1.0
       stat Assign | spare = grown(spare);
         expr Var spare | spare
@@ -317,43 +317,43 @@ package app
         expr Construct @primitives$ArrayRef | @primitives$ArrayRef([Shap … Shape.circle(Float(4.0))])
           expr Array_lit | [Shape.circle(Float(3.0)), Shape.circle(Float(4.0))]
             expr Case circle | Shape.circle(Float(3.0))
-              expr Construct @primitives$Float | Float(3.0)
+              expr Construct @primitives$F64 | Float(3.0)
                 expr Decimal_lit | 3.0
             expr Case circle | Shape.circle(Float(4.0))
-              expr Construct @primitives$Float | Float(4.0)
+              expr Construct @primitives$F64 | Float(4.0)
                 expr Decimal_lit | 4.0
       stat Let | second &Shape = shapes[Int(2)];
         local second | second
         expr Subscript | shapes[Int(2)]
           expr Var shapes | shapes
-          expr Construct @primitives$Int | Int(2)
+          expr Construct @primitives$I64 | Int(2)
             expr Integer_lit | 2
-      stat Let | tiles @primitives$ArrayRef … l(4, Int(n Int) => n * n);
+      stat Let | tiles @primitives$ArrayRef … operators$multiply(n, n));
         local tiles | tiles
-        expr Construct @primitives$ArrayRef.fill | @primitives$ArrayRef.fill(4, Int(n Int) => n * n)
+        expr Construct @primitives$ArrayRef.fill | @primitives$ArrayRef.fill( … @operators$multiply(n, n))
           expr Integer_lit | 4
-          expr Lambda | Int(n Int) => n * n
+          expr Lambda | Int(n Int) => @operators$multiply(n, n)
             param n | n Int
-            block | => n * n
-              stat Return | => n * n
-                expr Op * | n * n
+            block | => @operators$multiply(n, n)
+              stat Return | => @operators$multiply(n, n)
+                expr Call @operators$multiply | @operators$multiply(n, n)
                   expr Var n | n
                   expr Var n | n
       stat Let | numbers Array<Int, 3> = @p … [Int(1), Int(2), Int(3)]);
         local numbers | numbers
         expr Construct @primitives$Array | @primitives$Array([Int(1), Int(2), Int(3)])
           expr Array_lit | [Int(1), Int(2), Int(3)]
-            expr Construct @primitives$Int | Int(1)
+            expr Construct @primitives$I64 | Int(1)
               expr Integer_lit | 1
-            expr Construct @primitives$Int | Int(2)
+            expr Construct @primitives$I64 | Int(2)
               expr Integer_lit | 2
-            expr Construct @primitives$Int | Int(3)
+            expr Construct @primitives$I64 | Int(3)
               expr Integer_lit | 3
       stat Let | first Int = numbers[Int(1)];
         local first | first
         expr Subscript | numbers[Int(1)]
           expr Var numbers | numbers
-          expr Construct @primitives$Int | Int(1)
+          expr Construct @primitives$I64 | Int(1)
             expr Integer_lit | 1
       stat Let | length Int = count(numbers);
         local length | length
@@ -397,51 +397,51 @@ package app
           expr Var side | side
       stat Let | i Int = Int(1);
         local i | i
-        expr Construct @primitives$Int | Int(1)
+        expr Construct @primitives$I64 | Int(1)
           expr Integer_lit | 1
       stat Expr | i!to(Int(3)) { say(describe(Corner.topLeft)); }
         expr Call to | i!to(Int(3)) { say(describe(Corner.topLeft)); }
           expr Var i | i
-          expr Construct @primitives$Int | Int(3)
+          expr Construct @primitives$I64 | Int(3)
             expr Integer_lit | 3
           block | { say(describe(Corner.topLeft)); }
             stat Expr | say(describe(Corner.topLeft));
               expr Call say | say(describe(Corner.topLeft))
                 expr Call describe | describe(Corner.topLeft)
                   expr Enum_member topLeft | Corner.topLeft
-      stat Let | double Float(value Float) => value * Float(2.0);
+      stat Let | double Float(value Float)  … ltiply(value, Float(2.0));
         local double | double
-        expr Lambda | Float(value Float) => value * Float(2.0)
+        expr Lambda | Float(value Float) => @ope … ultiply(value, Float(2.0))
           param value | value Float
-          block | => value * Float(2.0)
-            stat Return | => value * Float(2.0)
-              expr Op * | value * Float(2.0)
+          block | => @operators$multiply(value, Float(2.0))
+            stat Return | => @operators$multiply(value, Float(2.0))
+              expr Call @operators$multiply | @operators$multiply(value, Float(2.0))
                 expr Var value | value
-                expr Construct @primitives$Float | Float(2.0)
+                expr Construct @primitives$F64 | Float(2.0)
                   expr Decimal_lit | 2.0
       stat Let | doubled Float = double(half);
         local doubled | doubled
         expr Call_value | double(half)
           expr Var double | double
           expr Var half | half
-      stat Let | chain Bool = if(total < In …  { say(String("small")); }
+      stat Let | chain Bool = if(@operators …  { say(String("small")); }
         local chain | chain
-        expr Call if | if(total < Int(5)) { say(String("small")); }
-          expr Op < | total < Int(5)
+        expr Call if | if(@operators$lessThan(tot …  { say(String("small")); }
+          expr Call @operators$lessThan | @operators$lessThan(total, Int(5))
             expr Var total | total
-            expr Construct @primitives$Int | Int(5)
+            expr Construct @primitives$I64 | Int(5)
               expr Integer_lit | 5
           block | { say(String("small")); }
             stat Expr | say(String("small"));
               expr Call say | say(String("small"))
                 expr Construct @primitives$String | String("small")
                   expr Text_lit | "small"
-      stat Expr | chain!elif(total == Int(7)) { say(String("seven")); }
-        expr Call elif | chain!elif(total == Int(7)) { say(String("seven")); }
+      stat Expr | chain!elif(@operators$equa …  { say(String("seven")); }
+        expr Call elif | chain!elif(@operators$equa …  { say(String("seven")); }
           expr Var chain | chain
-          expr Op == | total == Int(7)
+          expr Call @operators$equal | @operators$equal(total, Int(7))
             expr Var total | total
-            expr Construct @primitives$Int | Int(7)
+            expr Construct @primitives$I64 | Int(7)
               expr Integer_lit | 7
           block | { say(String("seven")); }
             stat Expr | say(String("seven"));
@@ -460,7 +460,7 @@ package app
         expr Construct @primitives$Unit | Unit()
   decl Verb twice | T twice(value T Type) => value + value
 package shapes
-  decl Alias Float | alias Float = @primitives$Float
+  decl Alias Float | alias Float = @primitives$F64
   decl Alias Unit | alias Unit = @primitives$Unit
   decl Alias String | alias String = @primitives$String
   decl Type Vec2 | type Vec2 = struct { x Float; y Float; }
@@ -479,10 +479,10 @@ package shapes
       stat Return | => init{ x = Float(0.0); y = Float(0.0); }
         expr Init | init{ x = Float(0.0); y = Float(0.0); }
           field x | x = Float(0.0)
-            expr Construct @primitives$Float | Float(0.0)
+            expr Construct @primitives$F64 | Float(0.0)
               expr Decimal_lit | 0.0
           field y | y = Float(0.0)
-            expr Construct @primitives$Float | Float(0.0)
+            expr Construct @primitives$F64 | Float(0.0)
               expr Decimal_lit | 0.0
   decl Verb Vec2 | Vec2{ x Float; y Float = Float(0.0); } => init{ x; y; }
     param x | x Float
@@ -494,63 +494,63 @@ package shapes
             expr Var x | x
           field y | y
             expr Var y | y
-  decl Verb + | Vec2 +(left Vec2, right Ve … right.x, left.y + right.y)
+  decl Verb + | Vec2 +(left Vec2, right Ve … tors$add(left.y, right.y))
     param left | left Vec2
     param right | right Vec2
-    block | => Vec2(left.x + right.x, left.y + right.y)
-      stat Return | => Vec2(left.x + right.x, left.y + right.y)
-        expr Construct Vec2 | Vec2(left.x + right.x, left.y + right.y)
-          expr Op + | left.x + right.x
+    block | => Vec2(@operators$add(lef … tors$add(left.y, right.y))
+      stat Return | => Vec2(@operators$add(lef … tors$add(left.y, right.y))
+        expr Construct Vec2 | Vec2(@operators$add(left.x … tors$add(left.y, right.y))
+          expr Call @operators$add | @operators$add(left.x, right.x)
             expr Field x | left.x
               expr Var left | left
             expr Field x | right.x
               expr Var right | right
-          expr Op + | left.y + right.y
+          expr Call @operators$add | @operators$add(left.y, right.y)
             expr Field y | left.y
               expr Var left | left
             expr Field y | right.y
               expr Var right | right
-  decl Verb ~ | Vec2 ~(value Vec2) => Vec2(~value.x, ~value.y)
+  decl Verb ~ | Vec2 ~(value Vec2) => Vec2 … operators$negate(value.y))
     param value | value Vec2
-    block | => Vec2(~value.x, ~value.y)
-      stat Return | => Vec2(~value.x, ~value.y)
-        expr Construct Vec2 | Vec2(~value.x, ~value.y)
-          expr Flip | ~value.x
+    block | => Vec2(@operators$negate( … operators$negate(value.y))
+      stat Return | => Vec2(@operators$negate( … operators$negate(value.y))
+        expr Construct Vec2 | Vec2(@operators$negate(val … operators$negate(value.y))
+          expr Call @operators$negate | @operators$negate(value.x)
             expr Field x | value.x
               expr Var value | value
-          expr Flip | ~value.y
+          expr Call @operators$negate | @operators$negate(value.y)
             expr Field y | value.y
               expr Var value | value
-  decl Verb length | Float length(this Vec2) => … * this.x + this.y * this.y
+  decl Verb length | Float length(this Vec2) => … $multiply(this.y, this.y))
     param this | Vec2
-    block | => this.x * this.x + this.y * this.y
-      stat Return | => this.x * this.x + this.y * this.y
-        expr Op + | this.x * this.x + this.y * this.y
-          expr Op * | this.x * this.x
+    block | => @operators$add(@operato … $multiply(this.y, this.y))
+      stat Return | => @operators$add(@operato … $multiply(this.y, this.y))
+        expr Call @operators$add | @operators$add(@operators$ … $multiply(this.y, this.y))
+          expr Call @operators$multiply | @operators$multiply(this.x, this.x)
             expr Field x | this.x
               expr Var this | this
             expr Field x | this.x
               expr Var this | this
-          expr Op * | this.y * this.y
+          expr Call @operators$multiply | @operators$multiply(this.y, this.y)
             expr Field y | this.y
               expr Var this | this
             expr Field y | this.y
               expr Var this | this
-  decl Verb scale | Unit scale(this Vec2, by F … s.y * by; return Unit(); }
+  decl Verb scale | Unit scale(this Vec2, by F … s.y, by); return Unit(); }
     param this | Vec2
     param by | by Float
-    block | { this.x = this.x * by; th … s.y * by; return Unit(); }
-      stat Assign | this.x = this.x * by;
+    block | { this.x = @operators$mult … s.y, by); return Unit(); }
+      stat Assign | this.x = @operators$multiply(this.x, by);
         expr Field x | this.x
           expr Var this | this
-        expr Op * | this.x * by
+        expr Call @operators$multiply | @operators$multiply(this.x, by)
           expr Field x | this.x
             expr Var this | this
           expr Var by | by
-      stat Assign | this.y = this.y * by;
+      stat Assign | this.y = @operators$multiply(this.y, by);
         expr Field y | this.y
           expr Var this | this
-        expr Op * | this.y * by
+        expr Call @operators$multiply | @operators$multiply(this.y, by)
           expr Field y | this.y
             expr Var this | this
           expr Var by | by
@@ -562,10 +562,10 @@ package shapes
       stat Return | => init{ x = Float(value); y = Float(value); }
         expr Init | init{ x = Float(value); y = Float(value); }
           field x | x = Float(value)
-            expr Construct @primitives$Float | Float(value)
+            expr Construct @primitives$F64 | Float(value)
               expr Var value | value
           field y | y = Float(value)
-            expr Construct @primitives$Float | Float(value)
+            expr Construct @primitives$F64 | Float(value)
               expr Var value | value
   decl Type Shape | type Shape = #variant { ci … quare Float; point Vec2; }
   decl Type Corner | type Corner = enum [ topLe …  bottomLeft, bottomRight ]
@@ -578,45 +578,45 @@ package shapes
       expr Text_lit | "bottom left"
     expr Construct @primitives$String | String("bottom right")
       expr Text_lit | "bottom right"
-  decl Verb _half | Float _half(value Float) => value / Float(2.0)
+  decl Verb _half | Float _half(value Float) = … $divide(value, Float(2.0))
     param value | value Float
-    block | => value / Float(2.0)
-      stat Return | => value / Float(2.0)
-        expr Op / | value / Float(2.0)
+    block | => @operators$divide(value, Float(2.0))
+      stat Return | => @operators$divide(value, Float(2.0))
+        expr Call @operators$divide | @operators$divide(value, Float(2.0))
           expr Var value | value
-          expr Construct @primitives$Float | Float(2.0)
+          expr Construct @primitives$F64 | Float(2.0)
             expr Decimal_lit | 2.0
-  decl Verb area | Float area(shape &Shape) = … s); point => Float(0.0); }
+  decl Verb area | Float area(shape &Shape) = … )); point => Float(0.0); }
     param shape | shape &Shape
-    block | => match (shape) { r circl … s); point => Float(0.0); }
-      stat Return | => match (shape) { r circl … s); point => Float(0.0); }
-        expr Match | match (shape) { r circle = … s); point => Float(0.0); }
+    block | => match (shape) { r circl … )); point => Float(0.0); }
+      stat Return | => match (shape) { r circl … )); point => Float(0.0); }
+        expr Match | match (shape) { r circle = … )); point => Float(0.0); }
           expr Var shape | shape
-          arm | r circle => r * r;
+          arm | r circle => @operators$multiply(r, r);
             pattern circle | r circle
               binder r | r
-            block | => r * r
-              stat Return | => r * r
-                expr Op * | r * r
+            block | => @operators$multiply(r, r)
+              stat Return | => @operators$multiply(r, r)
+                expr Call @operators$multiply | @operators$multiply(r, r)
                   expr Var r | r
                   expr Var r | r
-          arm | s square => _half(s + s);
+          arm | s square => _half(@operators$add(s, s));
             pattern square | s square
               binder s | s
-            block | => _half(s + s)
-              stat Return | => _half(s + s)
-                expr Call _half | _half(s + s)
-                  expr Op + | s + s
+            block | => _half(@operators$add(s, s))
+              stat Return | => _half(@operators$add(s, s))
+                expr Call _half | _half(@operators$add(s, s))
+                  expr Call @operators$add | @operators$add(s, s)
                     expr Var s | s
                     expr Var s | s
           arm | point => Float(0.0);
             pattern point | point
             block | => Float(0.0)
               stat Return | => Float(0.0)
-                expr Construct @primitives$Float | Float(0.0)
+                expr Construct @primitives$F64 | Float(0.0)
                   expr Decimal_lit | 0.0
 instances
-  instance pick with T = @primitives$Float | T pick(first T Type, secon …  first; } return chosen; }
+  instance pick with T = @primitives$F64 | T pick(first T Type, secon …  first; } return chosen; }
     param first | first T Type
     param second | second T
     param takeFirst | takeFirst Bool
@@ -634,7 +634,7 @@ instances
               expr Var first | first
       stat Return | return chosen;
         expr Var chosen | chosen
-  instance pick with T = @primitives$Int | T pick(first T Type, secon …  first; } return chosen; }
+  instance pick with T = @primitives$I64 | T pick(first T Type, secon …  first; } return chosen; }
     param first | first T Type
     param second | second T
     param takeFirst | takeFirst Bool
@@ -652,7 +652,7 @@ instances
               expr Var first | first
       stat Return | return chosen;
         expr Var chosen | chosen
-  instance Pair with T = @primitives$Float | Pair<T>(left T Type, right T) => init{ left; right; }
+  instance Pair with T = @primitives$F64 | Pair<T>(left T Type, right T) => init{ left; right; }
     param left | left T Type
     param right | right T
     block | => init{ left; right; }
@@ -662,7 +662,7 @@ instances
             expr Var left | left
           field right | right
             expr Var right | right
-  instance Pair with T = @primitives$Int | Pair<T>(left T Type, right T) => init{ left; right; }
+  instance Pair with T = @primitives$I64 | Pair<T>(left T Type, right T) => init{ left; right; }
     param left | left T Type
     param right | right T
     block | => init{ left; right; }
@@ -672,35 +672,35 @@ instances
             expr Var left | left
           field right | right
             expr Var right | right
-  instance sum with T = @primitives$Float | T sum(pair Pair<T Type>) => pair.left + pair.right
+  instance sum with T = @primitives$F64 | T sum(pair Pair<T Type>) = … add(pair.left, pair.right)
     param pair | pair Pair<T Type>
-    block | => pair.left + pair.right
-      stat Return | => pair.left + pair.right
-        expr Op + | pair.left + pair.right
+    block | => @operators$add(pair.left, pair.right)
+      stat Return | => @operators$add(pair.left, pair.right)
+        expr Call @operators$add | @operators$add(pair.left, pair.right)
           expr Field left | pair.left
             expr Var pair | pair
           expr Field right | pair.right
             expr Var pair | pair
-  instance sum with T = @primitives$Int | T sum(pair Pair<T Type>) => pair.left + pair.right
+  instance sum with T = @primitives$I64 | T sum(pair Pair<T Type>) = … add(pair.left, pair.right)
     param pair | pair Pair<T Type>
-    block | => pair.left + pair.right
-      stat Return | => pair.left + pair.right
-        expr Op + | pair.left + pair.right
+    block | => @operators$add(pair.left, pair.right)
+      stat Return | => @operators$add(pair.left, pair.right)
+        expr Call @operators$add | @operators$add(pair.left, pair.right)
           expr Field left | pair.left
             expr Var pair | pair
           expr Field right | pair.right
             expr Var pair | pair
-  instance count with T = @primitives$Int, n = 3 | Int count(values Array<T T …  @concepts$Int>) => Int(n)
+  instance count with T = @primitives$I64, n = 3 | Int count(values Array<T T …  @concepts$Int>) => Int(n)
     param values | values Array<T Type, n @concepts$Int>
     block | => Int(n)
       stat Return | => Int(n)
-        expr Construct @primitives$Int | Int(n)
+        expr Construct @primitives$I64 | Int(n)
           expr Var n | n
   instance measured with n = 3 | Int measured(values Array< … n @concepts$Int) => Int(n)
     param values | values Array<Int, n>
     block | => Int(n)
       stat Return | => Int(n)
-        expr Construct @primitives$Int | Int(n)
+        expr Construct @primitives$I64 | Int(n)
           expr Var n | n
   instance relayed with n = 3 | Int relayed(values Array<I … nt) => measured(values, n)
     param values | values Array<Int, 3>
@@ -725,7 +725,7 @@ instances
           param held | held Array<Int, n>
           block | => Int(n)
             stat Return | => Int(n)
-              expr Construct @primitives$Int | Int(n)
+              expr Construct @primitives$I64 | Int(n)
                 expr Var n | n
       stat Return | return measure(values);
         expr Call_value | measure(values)

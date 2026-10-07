@@ -19,7 +19,7 @@ Dial(reading Gauge) => init{ reading; }
 Int glance(d &Dial) => d.reading.level
 
 Unit nudge(this Gauge) mut {
-	this.level = this.level + Int(1);
+	this.level = @operators$add(this.level, Int(1));
 	return Unit();
 }
 

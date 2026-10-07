@@ -3,7 +3,7 @@
 /// marked ILLEGAL should be reported; lines marked legal should not.
 package launder;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias List<T Type> = @primitives$List<T>

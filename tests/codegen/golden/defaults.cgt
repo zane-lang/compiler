@@ -16,7 +16,7 @@
     │       │   ├── local: #1
     │       │   └── value > call:
     │       │       ├── type: {i64, i64}
-    │       │       ├── fn: defaults$Weapon{rate %primitives$Int; damage %primitives$Int}
+    │       │       ├── fn: defaults$Weapon{rate %primitives$I64; damage %primitives$I64}
     │       │       ├── args[0]: 2 : i64
     │       │       └── args[1]: 10 : i64
     │       ├── body[1] > eval > call:
@@ -53,7 +53,7 @@
     │       │       │   ├── local: #6
     │       │       │   └── value > call:
     │       │       │       ├── type: i64
-    │       │       │       ├── fn: defaults$noisy(%primitives$String, %primitives$Int)
+    │       │       │       ├── fn: defaults$noisy(%primitives$String, %primitives$I64)
     │       │       │       ├── args[0] > expand:
     │       │       │       │   ├── type: handle
     │       │       │       │   ├── label: @3
@@ -71,7 +71,7 @@
     │       │       │   ├── local: #10
     │       │       │   └── value > call:
     │       │       │       ├── type: i64
-    │       │       │       ├── fn: defaults$noisy(%primitives$String, %primitives$Int)
+    │       │       │       ├── fn: defaults$noisy(%primitives$String, %primitives$I64)
     │       │       │       ├── args[0] > expand:
     │       │       │       │   ├── type: handle
     │       │       │       │   ├── label: @8
@@ -89,7 +89,7 @@
     │       │           ├── place: #12
     │       │           └── value > call:
     │       │               ├── type: {i64, i64}
-    │       │               ├── fn: defaults$Weapon{rate %primitives$Int; damage %primitives$Int}
+    │       │               ├── fn: defaults$Weapon{rate %primitives$I64; damage %primitives$I64}
     │       │               ├── args[0]: local #10 : i64
     │       │               └── args[1]: local #6 : i64
     │       ├── body[3] > eval > call:
@@ -138,7 +138,7 @@
     │       │   │       ├── place: #20
     │       │   │       └── value > call:
     │       │   │           ├── type: {handle, i64}
-    │       │   │           ├── fn: defaults$Person{name %primitives$String; age %primitives$Int}
+    │       │   │           ├── fn: defaults$Person{name %primitives$String; age %primitives$I64}
     │       │   │           ├── args[0]: local #18 : handle
     │       │   │           └── args[1]: local #14 : i64
     │       │   └── layout: defaults$Person
@@ -147,7 +147,7 @@
     │       │   ├── scope: %5
     │       │   ├── value > call:
     │       │   │   ├── type: {handle, i64}
-    │       │   │   ├── fn: defaults$Person{name %primitives$String; age %primitives$Int}
+    │       │   │   ├── fn: defaults$Person{name %primitives$String; age %primitives$I64}
     │       │   │   ├── args[0] > expand:
     │       │   │   │   ├── type: handle
     │       │   │   │   ├── label: @23
@@ -188,7 +188,7 @@
     │       │   ├── local: #26
     │       │   └── value > call:
     │       │       ├── type: {i1, i64}
-    │       │       ├── fn: defaults$Tagged<%primitives$Bool>{value %primitives$Bool; count %primitives$Int}
+    │       │       ├── fn: defaults$Tagged<%primitives$Bool>{value %primitives$Bool; count %primitives$I64}
     │       │       ├── args[0]: true : i1
     │       │       └── args[1]: 5 : i64
     │       ├── body[8] > eval > call:
@@ -225,7 +225,7 @@
     │       │           ├── place: #30
     │       │           └── value > call:
     │       │               ├── type: {i64, i64}
-    │       │               ├── fn: defaults$Tagged<%primitives$Int>{value %primitives$Int; count %primitives$Int}
+    │       │               ├── fn: defaults$Tagged<%primitives$I64>{value %primitives$I64; count %primitives$I64}
     │       │               ├── args[0]: local #28 : i64
     │       │               └── args[1]: local #27 : i64
     │       ├── body[10] > eval > call:
@@ -256,7 +256,7 @@
     │       │       │   ├── local: #35
     │       │       │   └── value > call:
     │       │       │       ├── type: i64
-    │       │       │       ├── fn: defaults$noisy(%primitives$String, %primitives$Int)
+    │       │       │       ├── fn: defaults$noisy(%primitives$String, %primitives$I64)
     │       │       │       ├── args[0] > expand:
     │       │       │       │   ├── type: handle
     │       │       │       │   ├── label: @33
@@ -320,7 +320,7 @@
     │       │       └── right: 9 : i64
     │       └── body[13] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: defaults$Weapon{rate %primitives$Int; damage %primitives$Int}
+    │   ├── symbol: defaults$Weapon{rate %primitives$I64; damage %primitives$I64}
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i64, i64}
@@ -360,7 +360,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: defaults$noisy(%primitives$String, %primitives$Int)
+    │   ├── symbol: defaults$noisy(%primitives$String, %primitives$I64)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64
@@ -370,7 +370,7 @@
     │   │   └── args[0]: local #1 : handle
     │   └── body[1] > return: local #2 : i64
     ├── funcs[4] > func:
-    │   ├── symbol: defaults$Person{name %primitives$String; age %primitives$Int}
+    │   ├── symbol: defaults$Person{name %primitives$String; age %primitives$I64}
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {handle, i64}
@@ -409,7 +409,7 @@
     │           │   └── members[1] > member 1: local #2 : i64
     │           └── layout: defaults$Person
     ├── funcs[5] > func:
-    │   ├── symbol: defaults$Tagged<%primitives$Bool>{value %primitives$Bool; count %primitives$Int}
+    │   ├── symbol: defaults$Tagged<%primitives$Bool>{value %primitives$Bool; count %primitives$I64}
     │   ├── params[0]: local #1 : i1
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i1, i64}
@@ -418,7 +418,7 @@
     │       ├── members[0] > member 0: local #1 : i1
     │       └── members[1] > member 1: local #2 : i64
     ├── funcs[6] > func:
-    │   ├── symbol: defaults$Tagged<%primitives$Int>{value %primitives$Int; count %primitives$Int}
+    │   ├── symbol: defaults$Tagged<%primitives$I64>{value %primitives$I64; count %primitives$I64}
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i64, i64}

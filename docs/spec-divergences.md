@@ -385,8 +385,8 @@ adopting the separator or the lexer dropping it.
 
 **Spec** — silent. [`operators.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/operators.md)
 §4.3 says division is declared rather than derived, and nothing says what
-`@primitives$Int`'s `/` does when the divisor is zero, or when the quotient
-does not fit.
+`@operators$divide` does on an integer when the divisor is zero, or when the
+quotient does not fit.
 
 **Compiler** — the program stops: what it wrote so far is flushed, the
 runtime writes `division by zero` to stderr, and the status is 1. The one
@@ -395,7 +395,7 @@ quotient an `i64` cannot hold, the most negative value over `-1`, wraps, as
 `docs/design/lowering.md` §9 the decision.
 
 ```zane
-quotient Int = Int(1) / zero();   // stops here, status 1
+quotient Int = @operators$divide(Int(1), zero());   // stops here, status 1
 ```
 
 Reconciling means the spec stating an outcome, or making `/` abortable, now

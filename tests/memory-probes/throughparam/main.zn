@@ -4,7 +4,7 @@
 /// root cannot be stored into. ILLEGAL marks what the spec rejects.
 package throughparam;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 
 type Leaf = #struct { n Int; }

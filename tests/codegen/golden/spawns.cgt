@@ -1,7 +1,7 @@
 └── program:
     ├── entry: spawns$main()
     ├── layouts[0] > layout:
-    │   ├── type: %primitives$Int
+    │   ├── type: %primitives$I64
     │   └── positions:
     ├── layouts[1] > layout:
     │   ├── type: %primitives$String
@@ -28,10 +28,10 @@
     │   ├── type: spawns$Tally
     │   └── positions:
     ├── layouts[9] > layout:
-    │   ├── type: outcome of %primitives$Int ? %primitives$String
+    │   ├── type: outcome of %primitives$I64 ? %primitives$String
     │   └── positions[0]: text @8 when [0]=1
     ├── layouts[10] > layout:
-    │   ├── type: outcome of %primitives$Int
+    │   ├── type: outcome of %primitives$I64
     │   └── positions:
     ├── funcs[0] > func:
     │   ├── symbol: spawns$main()
@@ -100,7 +100,7 @@
     │       │   ├── frame: {i64, i64}
     │       │   ├── args[0]: 20 : i64
     │       │   ├── dest: #10
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawns$check(%primitives$Bool)
@@ -168,7 +168,7 @@
     │       │   ├── scope: %11
     │       │   ├── value > call:
     │       │   │   ├── type: {handle, i64}
-    │       │   │   ├── fn: spawns$Person(%primitives$String, %primitives$Int)
+    │       │   │   ├── fn: spawns$Person(%primitives$String, %primitives$I64)
     │       │   │   ├── args[0] > expand:
     │       │   │   │   ├── type: handle
     │       │   │   │   ├── label: @24
@@ -231,7 +231,7 @@
     │       │   ├── scope: %11
     │       │   ├── value > call:
     │       │   │   ├── type: {handle, i64}
-    │       │   │   ├── fn: spawns$Person(%primitives$String, %primitives$Int)
+    │       │   │   ├── fn: spawns$Person(%primitives$String, %primitives$I64)
     │       │   │   ├── args[0] > expand:
     │       │   │   │   ├── type: handle
     │       │   │   │   ├── label: @37
@@ -253,7 +253,7 @@
     │       │   ├── frame: {i64, ptr}
     │       │   ├── args[0]: address of #39 : ptr
     │       │   ├── dest: #42
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawns$check(%primitives$Bool)
@@ -385,7 +385,7 @@
     │       │   ├── local: #62
     │       │   └── value > call:
     │       │       ├── type: i64
-    │       │       ├── fn: spawns$Tally(%primitives$Int)
+    │       │       ├── fn: spawns$Tally(%primitives$I64)
     │       │       └── args[0]: 0 : i64
     │       ├── body[24] > if:
     │       │   ├── cond: true : i1
@@ -518,7 +518,7 @@
     │       │       │   ├── args[1]: 300 : i64
     │       │       │   ├── args[2]: 250 : i64
     │       │       │   ├── dest: #86
-    │       │       │   └── layout: %primitives$Int
+    │       │       │   └── layout: %primitives$I64
     │       │       ├── body[1] > let:
     │       │       │   ├── local: #88
     │       │       │   └── value > offset:
@@ -607,7 +607,7 @@
     │       │   ├── frame: {i64, i64}
     │       │   ├── args[0]: 18 : i64
     │       │   ├── dest: #98
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[37] > spawn:
     │       │   ├── task: #100
     │       │   ├── scope: %11
@@ -615,7 +615,7 @@
     │       │   ├── frame: {i64, i64}
     │       │   ├── args[0]: 17 : i64
     │       │   ├── dest: #101
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[38] > spawn:
     │       │   ├── task: #103
     │       │   ├── scope: %11
@@ -623,7 +623,7 @@
     │       │   ├── frame: {i64, i64}
     │       │   ├── args[0]: 20 : i64
     │       │   ├── dest: #104
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[39] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawns$check(%primitives$Bool)
@@ -698,7 +698,7 @@
     │       │   │   │       │   ├── frame: {i64, i64}
     │       │   │   │       │   ├── args[0]: local #112 : i64
     │       │   │   │       │   ├── dest: #119
-    │       │   │   │       │   └── layout: %primitives$Int
+    │       │   │   │       │   └── layout: %primitives$I64
     │       │   │   │       └── body[1] > assign:
     │       │   │   │           ├── place: #111
     │       │   │   │           └── value > binary:
@@ -866,7 +866,7 @@
     │       │   ├── args[0]: 9 : i64
     │       │   ├── args[1]: 3 : i64
     │       │   ├── dest: #159
-    │       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       ├── body[51] > let:
     │       │   ├── local: #164
     │       │   └── value: true : i1
@@ -878,7 +878,7 @@
     │       │   ├── args[0]: 9 : i64
     │       │   ├── args[1]: 0 : i64
     │       │   ├── dest: #163
-    │       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       ├── body[53] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawns$check(%primitives$Bool)
@@ -929,7 +929,7 @@
     │       │       │   │               │   │   ├── type: <i64 | handle | void>
     │       │       │   │               │   │   ├── index: 0
     │       │       │   │               │   │   └── payload: 0 : i64
-    │       │       │   │               │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │       │   │               │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │       │   │               └── body[3]: leave @165
     │       │       │   └── body[1] > assign:
     │       │       │       ├── place: #169
@@ -1018,7 +1018,7 @@
     │       │       │   │   │                   │   │   ├── type: <i64 | handle | void>
     │       │       │   │   │                   │   │   ├── index: 0
     │       │       │   │   │                   │   │   └── payload: 7 : i64
-    │       │       │   │   │                   │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │       │   │   │                   │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │       │   │   │                   └── body[3]: leave @170
     │       │       │   │   └── body[1] > assign:
     │       │       │   │       ├── place: #178
@@ -1097,7 +1097,7 @@
     │       │       │       │                   │   │   ├── type: <i64 | handle | void>
     │       │       │       │                   │   │   ├── index: 0
     │       │       │       │                   │   │   └── payload: 7 : i64
-    │       │       │       │                   │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │       │       │                   │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │       │       │                   └── body[3]: leave @179
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #187
@@ -1127,7 +1127,7 @@
     │       │   ├── args[0]: 1 : i64
     │       │   ├── args[1]: 0 : i64
     │       │   ├── dest: #190
-    │       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       ├── body[58] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawns$check(%primitives$Bool)
@@ -1171,7 +1171,7 @@
     │       │       │   │               │   │   ├── type: <i64 | handle | void>
     │       │       │   │               │   │   ├── index: 0
     │       │       │   │               │   │   └── payload: 4 : i64
-    │       │       │   │               │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │       │   │               │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │       │   │               └── body[2]: leave @192
     │       │       │   └── body[1] > assign:
     │       │       │       ├── place: #196
@@ -1196,7 +1196,7 @@
     │       │       │   │   ├── local: #199
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | handle | void>
-    │       │       │   │       ├── fn: spawns$relay(%primitives$Int, %primitives$Int)
+    │       │       │   │       ├── fn: spawns$relay(%primitives$I64, %primitives$I64)
     │       │       │   │       ├── args[0]: 8 : i64
     │       │       │   │       └── args[1]: 2 : i64
     │       │       │   └── body[1] > switch:
@@ -1237,7 +1237,7 @@
     │       │       │   │   ├── local: #204
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | handle | void>
-    │       │       │   │       ├── fn: spawns$relay(%primitives$Int, %primitives$Int)
+    │       │       │   │       ├── fn: spawns$relay(%primitives$I64, %primitives$I64)
     │       │       │   │       ├── args[0]: 8 : i64
     │       │       │   │       └── args[1]: 0 : i64
     │       │       │   └── body[1] > switch:
@@ -1277,7 +1277,7 @@
     │       │   │   ├── local: #210
     │       │   │   └── value > call:
     │       │   │       ├── type: <i64 | handle | void>
-    │       │   │       ├── fn: spawns$relay(%primitives$Int, %primitives$Int)
+    │       │   │       ├── fn: spawns$relay(%primitives$I64, %primitives$I64)
     │       │   │       ├── args[0]: 8 : i64
     │       │   │       └── args[1]: 0 : i64
     │       │   └── body[1] > switch:
@@ -1351,7 +1351,7 @@
     │       │       │   ├── args[0]: 1 : i64
     │       │       │   ├── args[1]: 0 : i64
     │       │       │   ├── dest: #220
-    │       │       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │       ├── body[2] > let:
     │       │       │   ├── local: #226
     │       │       │   └── value: true : i1
@@ -1363,7 +1363,7 @@
     │       │       │   ├── args[0]: 2 : i64
     │       │       │   ├── args[1]: 0 : i64
     │       │       │   ├── dest: #225
-    │       │       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │       ├── body[4] > let:
     │       │       │   ├── local: #230
     │       │       │   └── value: true : i1
@@ -1375,7 +1375,7 @@
     │       │       │   ├── args[0]: 2 : i64
     │       │       │   ├── args[1]: 1 : i64
     │       │       │   ├── dest: #229
-    │       │       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │       ├── body[6] > eval > expand:
     │       │       │   ├── type: void
     │       │       │   ├── label: @231
@@ -1416,7 +1416,7 @@
     │       │       │               │   │   ├── type: <i64 | handle | void>
     │       │       │               │   │   ├── index: 0
     │       │       │               │   │   └── payload: 0 : i64
-    │       │       │               │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │       │               │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │       │               └── body[3]: leave @231
     │       │       ├── body[7] > eval > expand:
     │       │       │   ├── type: void
@@ -1458,7 +1458,7 @@
     │       │       │               │   │   ├── type: <i64 | handle | void>
     │       │       │               │   │   ├── index: 0
     │       │       │               │   │   └── payload: 0 : i64
-    │       │       │               │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │       │               │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │       │               └── body[3]: leave @234
     │       │       └── body[8] > eval > expand:
     │       │           ├── type: void
@@ -1500,7 +1500,7 @@
     │       │                       │   │   ├── type: <i64 | handle | void>
     │       │                       │   │   ├── index: 0
     │       │                       │   │   └── payload: 0 : i64
-    │       │                       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │                       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │                       └── body[3]: leave @237
     │       ├── body[66] > eval > call:
     │       │   ├── type: void
@@ -1551,7 +1551,7 @@
     │       │   │   │           │   ├── frame: {<i64 | void | void>, i64}
     │       │   │   │           │   ├── args[0]: local #241 : i64
     │       │   │   │           │   ├── dest: #248
-    │       │   │   │           │   └── layout: outcome of %primitives$Int
+    │       │   │   │           │   └── layout: outcome of %primitives$I64
     │       │   │   │           ├── body[2] > assign:
     │       │   │   │           │   ├── place: #240
     │       │   │   │           │   └── value > binary:
@@ -1625,7 +1625,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: spawns$fib(%primitives$Int)
+    │       │       │   ├── fn: spawns$fib(%primitives$I64)
     │       │       │   └── args[0]: 10 : i64
     │       │       └── right: 55 : i64
     │       ├── body[72] > spawn:
@@ -1635,7 +1635,7 @@
     │       │   ├── frame: {i64, i64}
     │       │   ├── args[0]: 12 : i64
     │       │   ├── dest: #257
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[73] > store:
     │       │   ├── address > expand:
     │       │   │   ├── type: ptr
@@ -1717,7 +1717,7 @@
     │       │               │   │   ├── type: <i64 | handle | void>
     │       │               │   │   ├── index: 0
     │       │               │   │   └── payload: 0 : i64
-    │       │               │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │               │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │               └── body[3]: leave @264
     │       ├── body[77] > eval > expand:
     │       │   ├── type: void
@@ -1784,7 +1784,7 @@
     │       │                   │   │   ├── type: <i64 | handle | void>
     │       │                   │   │   ├── index: 0
     │       │                   │   │   └── payload: 7 : i64
-    │       │                   │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │                   │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │                   └── body[3]: leave @267
     │       └── body[78] > eval > expand:
     │           ├── type: void
@@ -1819,7 +1819,7 @@
     │                       │   │   ├── type: <i64 | handle | void>
     │                       │   │   ├── index: 0
     │                       │   │   └── payload: 4 : i64
-    │                       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │                       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │                       └── body[2]: leave @274
     ├── funcs[1] > func:
     │   ├── symbol: spawns$check(%primitives$Bool)
@@ -1853,7 +1853,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: spawns$fib(%primitives$Int)
+    │   ├── symbol: spawns$fib(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > if:
@@ -1868,7 +1868,7 @@
     │       ├── op: +
     │       ├── left > call:
     │       │   ├── type: i64
-    │       │   ├── fn: spawns$fib(%primitives$Int)
+    │       │   ├── fn: spawns$fib(%primitives$I64)
     │       │   └── args[0] > binary:
     │       │       ├── type: i64
     │       │       ├── op: +
@@ -1878,7 +1878,7 @@
     │       │           └── value: 1 : i64
     │       └── right > call:
     │           ├── type: i64
-    │           ├── fn: spawns$fib(%primitives$Int)
+    │           ├── fn: spawns$fib(%primitives$I64)
     │           └── args[0] > binary:
     │               ├── type: i64
     │               ├── op: +
@@ -1912,7 +1912,7 @@
     │           │   └── args[1]: local #1 : handle
     │           └── layout: %primitives$String
     ├── funcs[4] > func:
-    │   ├── symbol: spawns$Person(%primitives$String, %primitives$Int)
+    │   ├── symbol: spawns$Person(%primitives$String, %primitives$I64)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {handle, i64}
@@ -1967,7 +1967,7 @@
     │           ├── path: 1
     │           └── base: local #1 : ptr
     ├── funcs[7] > func:
-    │   ├── symbol: spawns$born(%primitives$String, %primitives$Int)
+    │   ├── symbol: spawns$born(%primitives$String, %primitives$I64)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {handle, i64}
@@ -1977,7 +1977,7 @@
     │           ├── exit: function
     │           ├── value > call:
     │           │   ├── type: {handle, i64}
-    │           │   ├── fn: spawns$Person(%primitives$String, %primitives$Int)
+    │           │   ├── fn: spawns$Person(%primitives$String, %primitives$I64)
     │           │   ├── args[0] > expand:
     │           │   │   ├── type: handle
     │           │   │   ├── label: @8
@@ -2008,7 +2008,7 @@
     │           │   └── args[1]: local #2 : i64
     │           └── layout: ^spawns$Person
     ├── funcs[8] > func:
-    │   ├── symbol: spawns$words(%primitives$Int)
+    │   ├── symbol: spawns$words(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: handle
     │   └── body[0] > scope:
@@ -2106,12 +2106,12 @@
     │           │   └── layout: ^%primitives$List<%primitives$String>
     │           └── layout: ^%primitives$List<%primitives$String>
     ├── funcs[9] > func:
-    │   ├── symbol: spawns$Tally(%primitives$Int)
+    │   ├── symbol: spawns$Tally(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > return: local #1 : i64
     ├── funcs[10] > func:
-    │   ├── symbol: spawns$add(this spawns$Tally, %primitives$Int)
+    │   ├── symbol: spawns$add(this spawns$Tally, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
@@ -2126,7 +2126,7 @@
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
     ├── funcs[11] > func:
-    │   ├── symbol: spawns$deepen(this spawns$Countdown, %primitives$Int)
+    │   ├── symbol: spawns$deepen(this spawns$Countdown, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
@@ -2237,11 +2237,11 @@
     │       │   │   └── layout: spawns$Countdown
     │       │   └── members[1] > member 1 > call:
     │       │       ├── type: i64
-    │       │       ├── fn: spawns$Tally(%primitives$Int)
+    │       │       ├── fn: spawns$Tally(%primitives$I64)
     │       │       └── args[0]: 0 : i64
     │       └── layout: spawns$Holder
     ├── funcs[14] > func:
-    │   ├── symbol: spawns$watch(&spawns$Holder, %primitives$Int, %primitives$Int)
+    │   ├── symbol: spawns$watch(&spawns$Holder, %primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── params[2]: local #3 : i64
@@ -2330,7 +2330,7 @@
     │   │   └── body[3]: leave @7
     │   └── body[3] > return: local #4 : i64
     ├── funcs[15] > func:
-    │   ├── symbol: spawns$pair(%primitives$Int)
+    │   ├── symbol: spawns$pair(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > scope:
@@ -2342,7 +2342,7 @@
     │       │   ├── frame: {i64, i64}
     │       │   ├── args[0]: local #1 : i64
     │       │   ├── dest: #4
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[1] > spawn:
     │       │   ├── task: #7
     │       │   ├── scope: %5
@@ -2356,7 +2356,7 @@
     │       │   │       ├── type: i64
     │       │   │       └── value: 1 : i64
     │       │   ├── dest: #8
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       └── body[2] > return > binary:
     │           ├── type: i64
     │           ├── op: +
@@ -2386,7 +2386,7 @@
     │   ├── ret: void
     │   └── body[0] > return: unit : void
     ├── funcs[17] > func:
-    │   ├── symbol: spawns$divide(%primitives$Int, %primitives$Int)
+    │   ├── symbol: spawns$divide(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: <i64 | handle | void>
@@ -2443,7 +2443,7 @@
     │           ├── left: local #1 : i64
     │           └── right: local #2 : i64
     ├── funcs[18] > func:
-    │   ├── symbol: spawns$relay(%primitives$Int, %primitives$Int)
+    │   ├── symbol: spawns$relay(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: <i64 | handle | void>
@@ -2460,7 +2460,7 @@
     │       │   ├── args[0]: local #1 : i64
     │       │   ├── args[1]: local #2 : i64
     │       │   ├── dest: #5
-    │       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       ├── body[2] > return > case:
     │       │   ├── type: <i64 | handle | void>
     │       │   ├── index: 0
@@ -2589,7 +2589,7 @@
     │                                   │   └── layout: %primitives$String
     │                                   └── layout: %primitives$String
     ├── funcs[19] > func:
-    │   ├── symbol: spawns$pick(%primitives$Int)
+    │   ├── symbol: spawns$pick(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | void | void>
     │   ├── body[0] > if:
@@ -2617,7 +2617,7 @@
     │       │   └── base: local #8 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: spawns$fib(%primitives$Int)
+    │           ├── fn: spawns$fib(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2689,7 +2689,7 @@
     │       │   └── base: local #48 : ptr
     │       └── value > call:
     │           ├── type: {handle, i64}
-    │           ├── fn: spawns$born(%primitives$String, %primitives$Int)
+    │           ├── fn: spawns$born(%primitives$String, %primitives$I64)
     │           ├── args[0] > deref:
     │           │   ├── type: handle
     │           │   └── ptr > offset:
@@ -2713,7 +2713,7 @@
     │       │   └── base: local #57 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: spawns$words(%primitives$Int)
+    │           ├── fn: spawns$words(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2726,7 +2726,7 @@
     │   ├── ret: void
     │   └── body[0] > eval > call:
     │       ├── type: void
-    │       ├── fn: spawns$add(this spawns$Tally, %primitives$Int)
+    │       ├── fn: spawns$add(this spawns$Tally, %primitives$I64)
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
@@ -2745,7 +2745,7 @@
     │   ├── ret: void
     │   └── body[0] > eval > call:
     │       ├── type: void
-    │       ├── fn: spawns$deepen(this spawns$Countdown, %primitives$Int)
+    │       ├── fn: spawns$deepen(this spawns$Countdown, %primitives$I64)
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
@@ -2764,7 +2764,7 @@
     │   ├── ret: void
     │   └── body[0] > eval > call:
     │       ├── type: void
-    │       ├── fn: spawns$deepen(this spawns$Countdown, %primitives$Int)
+    │       ├── fn: spawns$deepen(this spawns$Countdown, %primitives$I64)
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
@@ -2783,7 +2783,7 @@
     │   ├── ret: void
     │   └── body[0] > eval > call:
     │       ├── type: void
-    │       ├── fn: spawns$deepen(this spawns$Countdown, %primitives$Int)
+    │       ├── fn: spawns$deepen(this spawns$Countdown, %primitives$I64)
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
@@ -2807,7 +2807,7 @@
     │       │   └── base: local #84 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: spawns$watch(&spawns$Holder, %primitives$Int, %primitives$Int)
+    │           ├── fn: spawns$watch(&spawns$Holder, %primitives$I64, %primitives$I64)
     │           ├── args[0] > deref:
     │           │   ├── type: ptr
     │           │   └── ptr > offset:
@@ -2832,7 +2832,7 @@
     │   ├── ret: void
     │   ├── body[0] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: spawns$deepen(this spawns$Countdown, %primitives$Int)
+    │   │   ├── fn: spawns$deepen(this spawns$Countdown, %primitives$I64)
     │   │   ├── args[0] > offset:
     │   │   │   ├── within: {void, ptr, i64, <void | ptr>}
     │   │   │   ├── path: 3
@@ -2864,7 +2864,7 @@
     │   ├── ret: void
     │   ├── body[0] > eval > call:
     │   │   ├── type: void
-    │   │   ├── fn: spawns$add(this spawns$Tally, %primitives$Int)
+    │   │   ├── fn: spawns$add(this spawns$Tally, %primitives$I64)
     │   │   ├── args[0] > offset:
     │   │   │   ├── within: {void, ptr, i64, i64}
     │   │   │   ├── path: 3
@@ -2901,7 +2901,7 @@
     │       │   └── base: local #96 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: spawns$pair(%primitives$Int)
+    │           ├── fn: spawns$pair(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2919,7 +2919,7 @@
     │       │   └── base: local #99 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: spawns$pair(%primitives$Int)
+    │           ├── fn: spawns$pair(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2937,7 +2937,7 @@
     │       │   └── base: local #102 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: spawns$fib(%primitives$Int)
+    │           ├── fn: spawns$fib(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -2955,7 +2955,7 @@
     │       │   └── base: local #117 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: spawns$fib(%primitives$Int)
+    │           ├── fn: spawns$fib(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3009,7 +3009,7 @@
     │       │   └── base: local #137 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: spawns$words(%primitives$Int)
+    │           ├── fn: spawns$words(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3035,7 +3035,7 @@
     │       │   └── base: local #146 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: spawns$words(%primitives$Int)
+    │           ├── fn: spawns$words(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3053,7 +3053,7 @@
     │       │   └── base: local #153 : ptr
     │       └── value > call:
     │           ├── type: handle
-    │           ├── fn: spawns$words(%primitives$Int)
+    │           ├── fn: spawns$words(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3071,7 +3071,7 @@
     │       │   └── base: local #157 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: spawns$divide(%primitives$Int, %primitives$Int)
+    │           ├── fn: spawns$divide(%primitives$I64, %primitives$I64)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3095,7 +3095,7 @@
     │       │   └── base: local #161 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: spawns$divide(%primitives$Int, %primitives$Int)
+    │           ├── fn: spawns$divide(%primitives$I64, %primitives$I64)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3119,7 +3119,7 @@
     │       │   └── base: local #188 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: spawns$divide(%primitives$Int, %primitives$Int)
+    │           ├── fn: spawns$divide(%primitives$I64, %primitives$I64)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3143,7 +3143,7 @@
     │       │   └── base: local #218 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: spawns$divide(%primitives$Int, %primitives$Int)
+    │           ├── fn: spawns$divide(%primitives$I64, %primitives$I64)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3167,7 +3167,7 @@
     │       │   └── base: local #223 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: spawns$divide(%primitives$Int, %primitives$Int)
+    │           ├── fn: spawns$divide(%primitives$I64, %primitives$I64)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3191,7 +3191,7 @@
     │       │   └── base: local #227 : ptr
     │       └── value > call:
     │           ├── type: <i64 | handle | void>
-    │           ├── fn: spawns$divide(%primitives$Int, %primitives$Int)
+    │           ├── fn: spawns$divide(%primitives$I64, %primitives$I64)
     │           ├── args[0] > deref:
     │           │   ├── type: i64
     │           │   └── ptr > offset:
@@ -3215,7 +3215,7 @@
     │       │   └── base: local #246 : ptr
     │       └── value > call:
     │           ├── type: <i64 | void | void>
-    │           ├── fn: spawns$pick(%primitives$Int)
+    │           ├── fn: spawns$pick(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3233,7 +3233,7 @@
     │       │   └── base: local #255 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: spawns$fib(%primitives$Int)
+    │           ├── fn: spawns$fib(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3251,7 +3251,7 @@
     │       │   └── base: local #2 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: spawns$fib(%primitives$Int)
+    │           ├── fn: spawns$fib(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3269,7 +3269,7 @@
     │       │   └── base: local #6 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: spawns$fib(%primitives$Int)
+    │           ├── fn: spawns$fib(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -3287,7 +3287,7 @@
             │   └── base: local #3 : ptr
             └── value > call:
                 ├── type: <i64 | handle | void>
-                ├── fn: spawns$divide(%primitives$Int, %primitives$Int)
+                ├── fn: spawns$divide(%primitives$I64, %primitives$I64)
                 ├── args[0] > deref:
                 │   ├── type: i64
                 │   └── ptr > offset:

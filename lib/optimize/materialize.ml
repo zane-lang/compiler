@@ -18,7 +18,7 @@ let rec expr ?fresh (t : Ty.t) (c : V.const) : Expr.t option =
   let made node = Some { Expr.node; ty = t } in
   match (t, c) with
   | (Ty.I64 | Ty.I32), V.Int i -> made (Expr.Int i)
-  | Ty.F64, V.Float f -> made (Expr.Float f)
+  | (Ty.F64 | Ty.F32), V.Float f -> made (Expr.Float f)
   | Ty.I1, V.Bool b -> made (Expr.Bool b)
   | Ty.Void, V.Unit -> made Expr.Unit
   | Ty.Handle, V.Text s -> made (Expr.Text s)

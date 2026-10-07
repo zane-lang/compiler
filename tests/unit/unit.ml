@@ -23,8 +23,8 @@ let raises_bug name f =
 
 let span = Source.Span.of_loc (Lexing.dummy_pos, Lexing.dummy_pos)
 let prim name = Ty.Intrinsic { namespace = "primitives"; name; args = [] }
-let int = prim "Int"
-let float = prim "Float"
+let int = prim "I64"
+let float = prim "F64"
 let named ?(args = []) name = Ty.Named ({ Ty.package = "app"; name }, args)
 let param name = Ty.fresh_param ~name ~kind:Ty.Type_kind
 
@@ -89,9 +89,9 @@ let signature ?(kind = S.Function) ?(generics = []) name params ret =
 let signatures () =
   let f = signature "f" [ ("x", int) ] float in
   check "a function prints as it is declared"
-    (S.to_string f = "@primitives$Float f(@primitives$Int)");
+    (S.to_string f = "@primitives$F64 f(@primitives$I64)");
   let m = signature ~kind:S.Method "size" [ ("this", named "Bag"); ("n", int) ] int in
-  check "a method prints its subject" (S.to_string m = "@primitives$Int size(this app$Bag, @primitives$Int)");
+  check "a method prints its subject" (S.to_string m = "@primitives$I64 size(this app$Bag, @primitives$I64)");
   check "is_method" (S.is_method m && not (S.is_method f));
   check "has_block_param" (S.has_block_param (signature "g" [ ("b", Ty.Concept Ty.Block) ] int))
 

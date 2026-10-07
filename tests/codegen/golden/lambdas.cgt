@@ -7,7 +7,7 @@
     │   ├── type: lambdas$Tally
     │   └── positions:
     ├── layouts[2] > layout:
-    │   ├── type: %primitives$Int
+    │   ├── type: %primitives$I64
     │   └── positions:
     ├── layouts[3] > layout:
     │   ├── type: %primitives$Unit
@@ -46,7 +46,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: lambdas$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       │   ├── fn: lambdas$twice(%primitives$I64[%primitives$I64], %primitives$I64)
     │       │       │   ├── args[0]: local #1 : ptr
     │       │       │   └── args[1]: 3 : i64
     │       │       └── right: 12 : i64
@@ -58,7 +58,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: lambdas$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       │   ├── fn: lambdas$twice(%primitives$I64[%primitives$I64], %primitives$I64)
     │       │       │   ├── args[0]: function lambdas$square
     │       │       │   └── args[1]: 3 : i64
     │       │       └── right: 81 : i64
@@ -70,7 +70,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: lambdas$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       │   ├── fn: lambdas$twice(%primitives$I64[%primitives$I64], %primitives$I64)
     │       │       │   ├── args[0]: function lambdas$main()$lambda2
     │       │       │   └── args[1]: 1 : i64
     │       │       └── right: 21 : i64
@@ -109,7 +109,7 @@
     │       │   ├── local: #3
     │       │   └── value > call:
     │       │       ├── type: {ptr, i64}
-    │       │       ├── fn: lambdas$Step(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       ├── fn: lambdas$Step(%primitives$I64[%primitives$I64], %primitives$I64)
     │       │       ├── args[0]: local #1 : ptr
     │       │       └── args[1]: 3 : i64
     │       ├── body[9] > eval > call:
@@ -120,7 +120,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: lambdas$run(lambdas$Step, %primitives$Int)
+    │       │       │   ├── fn: lambdas$run(lambdas$Step, %primitives$I64)
     │       │       │   ├── args[0]: local #3 : {ptr, i64}
     │       │       │   └── args[1]: 1 : i64
     │       │       └── right: 8 : i64
@@ -135,7 +135,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: lambdas$run(lambdas$Step, %primitives$Int)
+    │       │       │   ├── fn: lambdas$run(lambdas$Step, %primitives$I64)
     │       │       │   ├── args[0]: local #3 : {ptr, i64}
     │       │       │   └── args[1]: 2 : i64
     │       │       └── right: 256 : i64
@@ -220,14 +220,14 @@
     │       │   ├── local: #12
     │       │   └── value > call:
     │       │       ├── type: i64
-    │       │       ├── fn: lambdas$Counter(%primitives$Int)
+    │       │       ├── fn: lambdas$Counter(%primitives$I64)
     │       │       └── args[0]: 1 : i64
     │       ├── body[16] > let:
     │       │   ├── local: #13
     │       │   └── value: function lambdas$main()$lambda4
     │       ├── body[17] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: lambdas$bump(this lambdas$Counter, %primitives$Int, %primitives$Unit[this lambdas$Counter, %primitives$Int] mut)
+    │       │   ├── fn: lambdas$bump(this lambdas$Counter, %primitives$I64, %primitives$Unit[this lambdas$Counter, %primitives$I64] mut)
     │       │   ├── args[0]: address of #12 : ptr
     │       │   ├── args[1]: 4 : i64
     │       │   └── args[2]: local #13 : ptr
@@ -241,7 +241,7 @@
     │       │       └── right: 5 : i64
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: lambdas$bump(this lambdas$Counter, %primitives$Int, %primitives$Unit[this lambdas$Counter, %primitives$Int] mut)
+    │       │   ├── fn: lambdas$bump(this lambdas$Counter, %primitives$I64, %primitives$Unit[this lambdas$Counter, %primitives$I64] mut)
     │       │   ├── args[0]: address of #12 : ptr
     │       │   ├── args[1]: 4 : i64
     │       │   └── args[2]: function lambdas$main()$lambda5
@@ -250,7 +250,7 @@
     │       │   └── value: function lambdas$main()$lambda6
     │       ├── body[21] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: lambdas$bump(this lambdas$Counter, %primitives$Int, %primitives$Unit[this lambdas$Counter, %primitives$Int] mut)
+    │       │   ├── fn: lambdas$bump(this lambdas$Counter, %primitives$I64, %primitives$Unit[this lambdas$Counter, %primitives$I64] mut)
     │       │   ├── args[0]: address of #12 : ptr
     │       │   ├── args[1]: 4 : i64
     │       │   └── args[2]: local #14 : ptr
@@ -363,7 +363,7 @@
     │       │   ├── scope: %19
     │       │   ├── value > call:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: lambdas$Tally(%primitives$Int)
+    │       │   │   ├── fn: lambdas$Tally(%primitives$I64)
     │       │   │   └── args[0]: 2 : i64
     │       │   └── layout: lambdas$Tally
     │       ├── body[29] > let:
@@ -396,7 +396,7 @@
     │       │   ├── args[0]: local #1 : ptr
     │       │   ├── args[1]: 21 : i64
     │       │   ├── dest: #39
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[34] > spawn:
     │       │   ├── task: #41
     │       │   ├── scope: %19
@@ -408,7 +408,7 @@
     │       │   │   └── args[0]: true : i1
     │       │   ├── args[1]: 4 : i64
     │       │   ├── dest: #42
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[35] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
@@ -579,7 +579,7 @@
     │       │   │   ├── type: i64
     │       │   │   └── ptr: local #70 : ptr
     │       │   ├── dest: #73
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[45] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
@@ -605,7 +605,7 @@
     │       │   │   ├── fn: lambdas$Shelf(lambdas$Counter)
     │       │   │   └── args[0] > call:
     │       │   │       ├── type: i64
-    │       │   │       ├── fn: lambdas$Counter(%primitives$Int)
+    │       │   │       ├── fn: lambdas$Counter(%primitives$I64)
     │       │   │       └── args[0]: 10 : i64
     │       │   └── layout: lambdas$Shelf
     │       ├── body[47] > eval > expand:
@@ -670,7 +670,7 @@
     │       │   │   ├── type: i64
     │       │   │   └── ptr: local #85 : ptr
     │       │   ├── dest: #88
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[51] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lambdas$check(%primitives$Bool)
@@ -732,7 +732,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: lambdas$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       │   ├── fn: lambdas$twice(%primitives$I64[%primitives$I64], %primitives$I64)
     │       │       │   ├── args[0] > expand:
     │       │       │   │   ├── type: ptr
     │       │       │   │   ├── label: @96
@@ -815,7 +815,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: lambdas$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │   ├── symbol: lambdas$twice(%primitives$I64[%primitives$I64], %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64
@@ -864,7 +864,7 @@
     │   │   └── body[3]: leave @3
     │   └── body[1] > return: function lambdas$pick(%primitives$Bool)$lambda1
     ├── funcs[7] > func:
-    │   ├── symbol: lambdas$Step(%primitives$Int[%primitives$Int], %primitives$Int)
+    │   ├── symbol: lambdas$Step(%primitives$I64[%primitives$I64], %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {ptr, i64}
@@ -873,7 +873,7 @@
     │       ├── members[0] > member 0: local #1 : ptr
     │       └── members[1] > member 1: local #2 : i64
     ├── funcs[8] > func:
-    │   ├── symbol: lambdas$run(lambdas$Step, %primitives$Int)
+    │   ├── symbol: lambdas$run(lambdas$Step, %primitives$I64)
     │   ├── params[0]: local #1 : {ptr, i64}
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64
@@ -929,7 +929,7 @@
     │           ├── left: 100 : i64
     │           └── right: local #1 : i64
     ├── funcs[10] > func:
-    │   ├── symbol: lambdas$Counter(%primitives$Int)
+    │   ├── symbol: lambdas$Counter(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > return: local #1 : i64
@@ -949,7 +949,7 @@
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
     ├── funcs[12] > func:
-    │   ├── symbol: lambdas$bump(this lambdas$Counter, %primitives$Int, %primitives$Unit[this lambdas$Counter, %primitives$Int] mut)
+    │   ├── symbol: lambdas$bump(this lambdas$Counter, %primitives$I64, %primitives$Unit[this lambdas$Counter, %primitives$I64] mut)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── params[2]: local #3 : ptr
@@ -1010,7 +1010,7 @@
     │       │   └── args[1]: local #1 : handle
     │       └── layout: %primitives$String
     ├── funcs[17] > func:
-    │   ├── symbol: lambdas$Tally(%primitives$Int)
+    │   ├── symbol: lambdas$Tally(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i64}
     │   └── body[0] > return > escape:

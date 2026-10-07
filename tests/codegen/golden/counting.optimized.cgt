@@ -164,7 +164,7 @@
     │       │   └── value: 4 : i64
     │       └── body[29] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: counting$triangle(%primitives$Int)
+    │   ├── symbol: counting$triangle(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -206,7 +206,7 @@
     │   │   └── body[2]: leave @5
     │   └── body[3] > return: local #2 : i64
     ├── funcs[2] > func:
-    │   ├── symbol: counting$factorial(%primitives$Int)
+    │   ├── symbol: counting$factorial(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > eval > expand:
@@ -233,14 +233,14 @@
     │       ├── left: local #1 : i64
     │       └── right > call:
     │           ├── type: i64
-    │           ├── fn: counting$factorial(%primitives$Int)
+    │           ├── fn: counting$factorial(%primitives$I64)
     │           └── args[0] > binary:
     │               ├── type: i64
     │               ├── op: +
     │               ├── left: local #1 : i64
     │               └── right: -1 : i64
     └── funcs[3] > func:
-        ├── symbol: counting$smallest(%primitives$Int, %primitives$Int)
+        ├── symbol: counting$smallest(%primitives$I64, %primitives$I64)
         ├── params[0]: local #1 : i64
         ├── params[1]: local #2 : i64
         ├── ret: i64

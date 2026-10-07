@@ -27,7 +27,7 @@ Arguments are separated by `, `. A reference is written `&` before its type,
 and a roaming owner `^`.
 
 An intrinsic namespace is written with `%` where the source writes `@`:
-`%primitives$Int` is `@primitives$Int`. A linker reads `@` in an exported
+`%primitives$I64` is `@primitives$I64`. A linker reads `@` in an exported
 symbol as the start of a symbol version (`name@VERSION`), so a name holding
 one could not be exported from a shared library. `%` has no meaning to a
 linker, and no package name starts with it.

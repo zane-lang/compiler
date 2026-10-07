@@ -1,11 +1,11 @@
 └── program:
     ├── layouts[0] > layout:
-    │   ├── type: %primitives$Int
+    │   ├── type: %primitives$I64
     │   └── positions:
     ├── globals[0]: !geometry$unit.value : i64, shared
     ├── globals[1]: !geometry$unit.state : i64, shared
     ├── funcs[0] > func:
-    │   ├── symbol: !geometry$Point(%primitives$Int, %primitives$Int)
+    │   ├── symbol: !geometry$Point(%primitives$I64, %primitives$I64)
     │   ├── linkage: exported
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -31,18 +31,18 @@
     │           ├── index: 1
     │           └── value: local #1 : {i64, i64}
     ├── funcs[2] > func:
-    │   ├── symbol: !geometry$area(%primitives$Int, %primitives$Int)
+    │   ├── symbol: !geometry$area(%primitives$I64, %primitives$I64)
     │   ├── linkage: exported
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64
     │   └── body[0] > return > call:
     │       ├── type: i64
-    │       ├── fn: !geometry$_product(%primitives$Int, %primitives$Int)
+    │       ├── fn: !geometry$_product(%primitives$I64, %primitives$I64)
     │       ├── args[0]: local #1 : i64
     │       └── args[1]: local #2 : i64
     ├── funcs[3] > func:
-    │   ├── symbol: !geometry$_product(%primitives$Int, %primitives$Int)
+    │   ├── symbol: !geometry$_product(%primitives$I64, %primitives$I64)
     │   ├── linkage: exported
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -53,7 +53,7 @@
     │       ├── left: local #1 : i64
     │       └── right: local #2 : i64
     ├── funcs[4] > func:
-    │   ├── symbol: !geometry$twice(%primitives$Int)
+    │   ├── symbol: !geometry$twice(%primitives$I64)
     │   ├── linkage: exported
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -62,11 +62,11 @@
     │       ├── op: +
     │       ├── left > call:
     │       │   ├── type: i64
-    │       │   ├── fn: !geometry$same<%primitives$Int>(%primitives$Int)
+    │       │   ├── fn: !geometry$same<%primitives$I64>(%primitives$I64)
     │       │   └── args[0]: local #1 : i64
     │       └── right > call:
     │           ├── type: i64
-    │           ├── fn: !geometry$same<%primitives$Int>(%primitives$Int)
+    │           ├── fn: !geometry$same<%primitives$I64>(%primitives$I64)
     │           └── args[0]: local #1 : i64
     ├── funcs[5] > func:
     │   ├── symbol: !geometry$double
@@ -79,7 +79,7 @@
     │       ├── left: local #1 : i64
     │       └── right: local #1 : i64
     ├── funcs[6] > func:
-    │   ├── symbol: !geometry$scaled(%primitives$Int)
+    │   ├── symbol: !geometry$scaled(%primitives$I64)
     │   ├── linkage: exported
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -94,7 +94,7 @@
     │               ├── fn: !geometry$unit
     │               └── args:
     ├── funcs[7] > func:
-    │   ├── symbol: !geometry$same<%primitives$Int>(%primitives$Int)
+    │   ├── symbol: !geometry$same<%primitives$I64>(%primitives$I64)
     │   ├── linkage: shared
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -121,5 +121,5 @@
         │       ├── fn: zane_constant_end
         │       ├── args[0]: global !geometry$unit.state
         │       ├── args[1]: global !geometry$unit.value
-        │       └── args[2]: layout %primitives$Int
+        │       └── args[2]: layout %primitives$I64
         └── body[1] > return: global !geometry$unit.value

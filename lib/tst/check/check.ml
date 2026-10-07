@@ -178,7 +178,7 @@ and name_value env ctx (n : N.Name_expr.t) =
         match Intrinsics.find_value ns text with
         | Some ty -> mk (T.Expr.Var (T.Name_ref.Intrinsic spelling)) ty span
         | None ->
-            if List.mem_assoc (ns, text) Intrinsics.functions then
+            if Intrinsics.find_functions ns text <> [] then
               error env span
                 (Printf.sprintf "%s is an intrinsic operation, and has no value form" (quote spelling))
             else error env span (Printf.sprintf "no intrinsic named %s" (quote spelling));
@@ -516,23 +516,24 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
           | fns -> call_decls ~name fns))
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Intrinsic { package = ns; ident }; span = at } -> (
       let ns = ns.N.Name.text and text = ident.N.Name.text in
-      match List.assoc_opt (ns, text) Intrinsics.functions with
-      | None ->
+      match Intrinsics.find_functions ns text with
+      | [] ->
           error env at (Printf.sprintf "no intrinsic operation named %s" (quote ("@" ^ ns ^ "$" ^ text)));
           skip_handler env ctx handle;
           (invalid span, None)
-      | Some s -> (
+      | cands -> (
+          let name = "@" ^ ns ^ "$" ^ text in
           if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
           else
             match
-              report_resolution env ~span ~what:(quote s.S.name) ~args:(describe_args actuals)
-                (resolve env [ s ] (positional actuals)) [ s ]
+              report_resolution env ~span ~what:(quote name) ~args:(describe_args actuals)
+                (resolve env cands (positional actuals)) cands
             with
             | None ->
                 skip_handler env ctx handle;
                 (invalid span, None)
             | Some o ->
-                finish_call env ~flow ctx ~span ~what:(quote s.S.name) o handle (fun callee args handler ->
+                finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
                     T.Expr.Call { callee; args; handler })))
   | _ -> value_call (expr env ctx callee)
 

@@ -1,13 +1,14 @@
-/// The derived operators of operators.md §2.3, on intrinsic and declared
-/// operators: each gives its value, and its operands run in the order they
-/// were written, whichever way round the desugaring passes them. Then a `'`
-/// between digits, which separates them and changes nothing
-/// (docs/spec-divergences.md §8). Every check prints `yes` when it holds and
-/// `no` when it does not.
+/// The derived operators of operators.md §2.3, on declared operators: each
+/// gives its value, and its operands run in the order they were written,
+/// whichever way round the desugaring passes them. A primitive has no
+/// operators of its own, so `Num` and `Truth` declare theirs over
+/// `@operators$`. Then a `'` between digits, which separates them and changes
+/// nothing (docs/spec-divergences.md §8). Every check prints `yes` when it
+/// holds and `no` when it does not.
 package operators;
 
-alias Int = @primitives$Int
-alias Float = @primitives$Float
+alias Int = @primitives$I64
+alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -18,14 +19,39 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit else(this Bool, body @concepts$Block) {
-	@controlflow$branch(~this, body);
+	@controlflow$branch(@operators$not(this), body);
 	return Unit();
 }
 
-Unit check(holds Bool) {
+/// A truth value with the complement and conjunction the derived forms and
+/// the checks below need.
+type Truth = struct { holds Bool; }
+
+Truth(holds Bool) => init{ holds; }
+
+Truth ~(value Truth) => Truth(@operators$not(value.holds))
+
+Truth *(left Truth, right Truth) => Truth(@operators$and(left.holds, right.holds))
+
+/// A number with the four primitive operators the derived forms rest on.
+type Num = struct { value Int; }
+
+Num(value @concepts$Int) => init{ value = Int(value); }
+
+Num(value Int) => init{ value; }
+
+Num +(left Num, right Num) => Num(@operators$add(left.value, right.value))
+
+Num ~(value Num) => Num(@operators$negate(value.value))
+
+Truth ==(left Num, right Num) => Truth(@operators$equal(left.value, right.value))
+
+Truth <(left Num, right Num) => Truth(@operators$lessThan(left.value, right.value))
+
+Unit check(holds Truth) {
 	yes String("yes\n");
 	no String("no\n");
-	ran Bool = if(holds) {
+	ran Bool = if(holds.holds) {
 		@program$console!print(yes);
 	}
 	ran:else() {
@@ -35,19 +61,19 @@ Unit check(holds Bool) {
 }
 
 /// A value that says when it is read.
-Int say(value Int, name String) {
+Num say(value Num, name String) {
 	@program$console!print(name);
 	return value;
 }
 
 /// A type whose only comparison is the `<` it declares.
-type Weight = struct { grams Int; }
+type Weight = struct { grams Num; }
 
-Weight(grams Int) => init{ grams; }
+Weight(grams Num) => init{ grams; }
 
-Bool <(left Weight, right Weight) => left.grams < right.grams
+Truth <(left Weight, right Weight) => left.grams < right.grams
 
-Weight heavy(grams Int, name String) {
+Weight heavy(grams Num, name String) {
 	@program$console!print(name);
 	return Weight(grams);
 }
@@ -57,39 +83,41 @@ Unit main() {
 	b String("b ");
 	line String("\n");
 
-	// The intrinsic comparisons, each way round.
-	check(Int(9) > Int(5));
-	check(~(Int(5) > Int(9)));
-	check(Int(5) <= Int(9));
-	check(Int(9) <= Int(9));
-	check(~(Int(9) <= Int(5)));
-	check(Int(9) >= Int(5));
-	check(~(Int(5) >= Int(9)));
-	check(Float(2.5) > Float(1.5));
-	check(Int(9) - Int(5) == Int(4));
+	// The derived comparisons, each way round, and subtraction.
+	check(Num(9) > Num(5));
+	check(~(Num(5) > Num(9)));
+	check(Num(5) <= Num(9));
+	check(Num(9) <= Num(9));
+	check(~(Num(9) <= Num(5)));
+	check(Num(9) >= Num(5));
+	check(~(Num(5) >= Num(9)));
+	check(Num(9) ~= Num(5));
+	check(~(Num(9) ~= Num(9)));
+	check(Num(9) - Num(5) == Num(4));
 
 	// Written order, printed: every line reads `a b`.
-	greater Bool = say(Int(1), a) > say(Int(2), b);
+	greater Truth = say(Num(1), a) > say(Num(2), b);
 	@program$console!print(line);
-	atMost Bool = say(Int(1), a) <= say(Int(2), b);
+	atMost Truth = say(Num(1), a) <= say(Num(2), b);
 	@program$console!print(line);
-	atLeast Bool = say(Int(1), a) >= say(Int(2), b);
+	atLeast Truth = say(Num(1), a) >= say(Num(2), b);
 	@program$console!print(line);
 	check(~greater * atMost * ~atLeast);
 
-	// A declared `<`, reached through the derived forms.
-	check(Weight(Int(9)) > Weight(Int(5)));
-	check(~(Weight(Int(5)) > Weight(Int(9))));
-	check(Weight(Int(5)) <= Weight(Int(9)));
-	check(~(Weight(Int(9)) <= Weight(Int(5))));
-	lighter Bool = heavy(Int(1), a) > heavy(Int(2), b);
+	// A `<` declared over another declared `<`, reached through the derived
+	// forms.
+	check(Weight(Num(9)) > Weight(Num(5)));
+	check(~(Weight(Num(5)) > Weight(Num(9))));
+	check(Weight(Num(5)) <= Weight(Num(9)));
+	check(~(Weight(Num(9)) <= Weight(Num(5))));
+	lighter Truth = heavy(Num(1), a) > heavy(Num(2), b);
 	@program$console!print(line);
 	check(~lighter);
 
 	// Separated digits.
 	million Int(1'000'000);
-	check(million == Int(1000000));
+	check(Truth(@operators$equal(million, Int(1000000))));
 	ratio Float(1'000.25);
-	check(ratio == Float(1000.25));
+	check(Truth(@operators$equal(ratio, Float(1000.25))));
 	return Unit();
 }

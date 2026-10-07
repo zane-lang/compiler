@@ -2,7 +2,7 @@
 /// §2.8.1, lifetimes.md §1.2). ILLEGAL marks what the spec rejects.
 package payloads;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 
 type Engine = #struct { power Int; }

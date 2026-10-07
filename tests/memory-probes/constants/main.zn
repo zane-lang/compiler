@@ -4,14 +4,14 @@
 /// immutable constants and verbs').
 package constants;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 alias String = @primitives$String
 
 type Engine = #struct { power Int; }
 Engine(power Int) => init{ power; }
 Unit tune(this Engine) mut {
-	this.power = this.power + Int(1);
+	this.power = @operators$add(this.power, Int(1));
 	return Unit();
 }
 type Car = #struct { engine &Engine; }

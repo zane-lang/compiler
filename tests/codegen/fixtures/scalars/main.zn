@@ -1,0 +1,100 @@
+/// The four scalar primitives and what `@operators$` does with them
+/// (syntax.md §2.7): each operation on each type, `Bool`'s three and
+/// `String`'s join, then every conversion between two scalars (types.md
+/// §2.7) -- the exact ones as plain constructors, the rest named for how
+/// they lose a value. Every check prints `yes` when it holds and `no` when
+/// it does not.
+package scalars;
+
+alias I32 = @primitives$I32
+alias I64 = @primitives$I64
+alias F32 = @primitives$F32
+alias F64 = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit check(holds Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(holds, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(holds), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+/// Values the optimizer cannot see through unless it folds the call.
+I32 i32(value @concepts$Int) => I32(value)
+I64 i64(value @concepts$Int) => I64(value)
+F32 f32(value @concepts$Float) => F32(value)
+F64 f64(value @concepts$Float) => F64(value)
+
+/// The least of each integer type, which no literal writes.
+I32 minI32() => @operators$add(@operators$negate(I32(2147483647)), @operators$negate(I32(1)))
+I64 minI64() => @operators$add(@operators$negate(I64(9223372036854775807)), @operators$negate(I64(1)))
+
+Unit main() {
+	// Each operation, on each type. There is no subtraction: `a + ~b`.
+	check(@operators$equal(@operators$add(i32(7), @operators$negate(i32(9))), @operators$negate(i32(2))));
+	check(@operators$equal(@operators$multiply(i32(6), i32(7)), i32(42)));
+	check(@operators$equal(@operators$divide(@operators$negate(i32(7)), i32(2)), @operators$negate(i32(3))));
+	check(@operators$lessThan(@operators$negate(i32(1)), i32(0)));
+	check(@operators$equal(@operators$add(i64(4000000000), i64(4000000000)), i64(8000000000)));
+	check(@operators$equal(@operators$multiply(i64(3), @operators$negate(i64(5))), @operators$negate(i64(15))));
+	check(@operators$equal(@operators$divide(i64(9), i64(4)), i64(2)));
+	check(@operators$lessThan(i64(2), i64(3)));
+	check(@operators$equal(@operators$add(f64(0.5), f64(0.25)), f64(0.75)));
+	check(@operators$equal(@operators$multiply(f64(1.5), f64(4.0)), f64(6.0)));
+	check(@operators$equal(@operators$divide(f64(1.0), f64(4.0)), f64(0.25)));
+	check(@operators$lessThan(@operators$negate(f64(0.1)), f64(0.0)));
+	check(@operators$equal(@operators$add(f32(0.5), f32(0.25)), f32(0.75)));
+	check(@operators$equal(@operators$divide(f32(1.0), f32(8.0)), f32(0.125)));
+	check(@operators$lessThan(f32(1.5), f32(2.5)));
+
+	// An `I32` wraps at 32 bits.
+	check(@operators$equal(@operators$add(i32(2147483647), i32(1)), minI32()));
+
+	// An `F32` rounds every result to single precision: a tenth plus two
+	// tenths is the single nearest three tenths, which is not the double's.
+	check(@operators$equal(@operators$add(f32(0.1), f32(0.2)), f32(0.3)));
+	check(@operators$not(@operators$equal(@operators$add(f64(0.1), f64(0.2)), f64(0.3))));
+
+	// `Bool` and `String`.
+	check(@operators$and(true, @operators$not(false)));
+	check(@operators$not(@operators$and(true, false)));
+	check(@operators$or(false, true));
+	check(@operators$not(@operators$or(false, false)));
+	check(@operators$equal(true, true));
+	check(@operators$equal(@operators$concat(String("ab"), String("cd")), String("abcd")));
+	check(@operators$not(@operators$equal(String("ab"), String("abc"))));
+
+	// The exact conversions.
+	check(@operators$equal(I64(@operators$negate(i32(5))), @operators$negate(i64(5))));
+	check(@operators$equal(F64(f32(0.1)), F64(F32(0.1))));
+	check(@operators$equal(F64(i32(2147483647)), f64(2147483647.0)));
+
+	// An integer narrowed keeps its low bits.
+	check(@operators$equal(I32.wrap(i64(4294967298)), i32(2)));
+	check(@operators$equal(I32.wrap(i64(2147483648)), minI32()));
+
+	// A float truncated drops its fraction, toward zero.
+	check(@operators$equal(I32.truncate(f32(2.75)), i32(2)));
+	check(@operators$equal(I32.truncate(@operators$negate(f64(2.75))), @operators$negate(i32(2))));
+	check(@operators$equal(I32.truncate(@operators$negate(f64(2147483648.5))), minI32()));
+	check(@operators$equal(I64.truncate(f32(16777216.0)), i64(16777216)));
+	check(@operators$equal(I64.truncate(@operators$negate(f64(9223372036854775808.0))), minI64()));
+
+	// A conversion that can lose precision rounds to the nearest.
+	check(@operators$equal(F32.round(f64(0.1)), f32(0.1)));
+	check(@operators$equal(F32.round(i32(16777217)), f32(16777216.0)));
+	check(@operators$equal(F32.round(i64(9007199254740993)), f32(9007199254740992.0)));
+	check(@operators$equal(F32.round(minI64()), @operators$negate(f32(9223372036854775808.0))));
+	check(@operators$equal(F64.round(i64(9007199254740993)), f64(9007199254740992.0)));
+	// One rounding, not two: through a double first, this would round to
+	// 2^60 instead of the single above it.
+	check(@operators$equal(F32.round(i64(1152921573326323713)), f32(1152921642045800448.0)));
+	return Unit();
+}

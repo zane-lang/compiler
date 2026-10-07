@@ -27,7 +27,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: references$Person(%primitives$Int)
+    │       │   │   ├── fn: references$Person(%primitives$I64)
     │       │   │   └── args[0]: 3 : i64
     │       │   └── layout: references$Person
     │       ├── body[1] > let:
@@ -60,7 +60,7 @@
     │       │   ├── address: address of #1 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: references$Person(%primitives$Int)
+    │       │   │   ├── fn: references$Person(%primitives$I64)
     │       │   │   └── args[0]: 4 : i64
     │       │   └── layout: references$Person
     │       ├── body[5] > eval > call:
@@ -88,7 +88,7 @@
     │       │   ├── address: address of #1 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: references$Person(%primitives$Int)
+    │       │   │   ├── fn: references$Person(%primitives$I64)
     │       │   │   └── args[0]: 5 : i64
     │       │   └── layout: references$Person
     │       ├── body[8] > eval > call:
@@ -127,7 +127,7 @@
     │       │   │   ├── fn: references$Wrap(^references$Person)
     │       │   │   └── args[0] > call:
     │       │   │       ├── type: {i64}
-    │       │   │       ├── fn: references$Person(%primitives$Int)
+    │       │   │       ├── fn: references$Person(%primitives$I64)
     │       │   │       └── args[0]: 9 : i64
     │       │   └── layout: references$Wrap
     │       ├── body[11] > let:
@@ -184,7 +184,7 @@
     │       │   └── args[0]: global zane.value.@program$console
     │       └── body[15] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: references$Person(%primitives$Int)
+    │   ├── symbol: references$Person(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i64}
     │   └── body[0] > return > escape:

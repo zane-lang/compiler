@@ -4,13 +4,13 @@
 /// allows. ILLEGAL marks what the spec rejects; QUESTION what it leaves open.
 package throughref;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 
 type Engine = #struct { power Int; }
 Engine(power Int) => init{ power; }
 Unit tune(this Engine) mut {
-	this.power = this.power + Int(1);
+	this.power = @operators$add(this.power, Int(1));
 	return Unit();
 }
 type Car = #struct { engine Engine; peer &Engine; }

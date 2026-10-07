@@ -24,10 +24,17 @@ again, read the golden diff and promote that.
   where they are called. Every check it makes prints `yes` when it holds.
 - `zero` divides by zero: the program stops with status 1 after what it wrote
   so far, and says why on stderr.
-- `operators` is the derived operators of operators.md §2.3 on intrinsic and
-  declared `<`: each gives its value, and a `a b` line shows its operands ran
-  in written order however the desugaring passes them. Then numeric literals
-  whose digits a `'` separates. Every check prints `yes` when it holds.
+- `operators` is the derived operators of operators.md §2.3 on declared
+  operators, written over `@operators$`: each gives its value, and a `a b`
+  line shows its operands ran in written order however the desugaring passes
+  them. Then numeric literals whose digits a `'` separates. Every check prints
+  `yes` when it holds.
+- `scalars` is every `@operators$` function on each type it takes, `F32`
+  rounding, and every conversion between two scalars (types.md §2.7), each
+  checked in a build that folds it and one that does not. Every check prints
+  `yes` when it holds.
+- `truncation` truncates a float an `I32` cannot hold: the program stops with
+  status 1 after what it wrote so far, and says why on stderr.
 - `shapes` is step 3: value structs of several members, variants and enums,
   copies, member reads and stores, `mut` subjects, `match` and enum maps. Every
   check it makes prints `yes` when it holds and `no` when it does not.

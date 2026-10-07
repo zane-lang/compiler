@@ -23,13 +23,13 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i64, i64}
-    │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │       │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
     │       │   │   ├── args[0]: 1 : i64
     │       │   │   └── args[1]: 5 : i64
     │       │   └── layout: ^owners$Account
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$Int)
+    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$I64)
     │       │   ├── args[0]: address of #1 : ptr
     │       │   └── args[1]: 10 : i64
     │       ├── body[2] > eval > call:
@@ -68,7 +68,7 @@
     │       │   ├── address: address of #1 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i64, i64}
-    │       │   │   ├── fn: owners$Account(%primitives$Int)
+    │       │   │   ├── fn: owners$Account(%primitives$I64)
     │       │   │   └── args[0]: 2 : i64
     │       │   └── layout: owners$Account
     │       ├── body[6] > eval > call:
@@ -125,7 +125,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i64, i64}
-    │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │       │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
     │       │   │   ├── args[0]: 3 : i64
     │       │   │   └── args[1]: 7 : i64
     │       │   └── layout: ^owners$Account
@@ -163,7 +163,7 @@
     │       │       │   ├── fn: owners$closed(^owners$Account)
     │       │       │   └── args[0] > call:
     │       │       │       ├── type: {i64, i64}
-    │       │       │       ├── fn: owners$Account(%primitives$Int)
+    │       │       │       ├── fn: owners$Account(%primitives$I64)
     │       │       │       └── args[0]: 4 : i64
     │       │       └── right: 0 : i64
     │       ├── body[14] > hold:
@@ -174,7 +174,7 @@
     │       │   │   ├── index: 1
     │       │   │   └── payload > call:
     │       │   │       ├── type: {i64, i64}
-    │       │   │       ├── fn: owners$Account(%primitives$Int)
+    │       │   │       ├── fn: owners$Account(%primitives$I64)
     │       │   │       └── args[0]: 3 : i64
     │       │   └── layout: owners$Slot
     │       ├── body[15] > eval > call:
@@ -228,7 +228,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$richest(%primitives$Int)
+    │       │       │   ├── fn: owners$richest(%primitives$I64)
     │       │       │   └── args[0]: 9 : i64
     │       │       └── right: 4 : i64
     │       ├── body[17] > eval > call:
@@ -245,7 +245,7 @@
     │       │       │   │   ├── local: #13
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | i64 | void>
-    │       │       │   │       ├── fn: owners$overdrawn(%primitives$Int)
+    │       │       │   │       ├── fn: owners$overdrawn(%primitives$I64)
     │       │       │   │       └── args[0]: 1 : i64
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value: local #13 : <i64 | i64 | void>
@@ -279,7 +279,7 @@
     │       │       │   │   ├── local: #16
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | i64 | void>
-    │       │       │   │       ├── fn: owners$overdrawn(%primitives$Int)
+    │       │       │   │       ├── fn: owners$overdrawn(%primitives$I64)
     │       │       │   │       └── args[0]: 7 : i64
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value: local #16 : <i64 | i64 | void>
@@ -313,7 +313,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$total(%primitives$Int)
+    │       │       │   ├── fn: owners$total(%primitives$I64)
     │       │       │   └── args[0]: 3 : i64
     │       │       └── right: 12 : i64
     │       ├── body[20] > eval > call:
@@ -330,7 +330,7 @@
     │       │       │   │   ├── local: #20
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | {i64, i64} | void>
-    │       │       │   │       ├── fn: owners$refused(%primitives$Int)
+    │       │       │   │       ├── fn: owners$refused(%primitives$I64)
     │       │       │   │       └── args[0]: 0 : i64
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value: local #20 : <i64 | {i64, i64} | void>
@@ -375,7 +375,7 @@
     │       │       │   │   ├── local: #25
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | {i64, i64} | void>
-    │       │       │   │       ├── fn: owners$refused(%primitives$Int)
+    │       │       │   │       ├── fn: owners$refused(%primitives$I64)
     │       │       │   │       └── args[0]: 4 : i64
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value: local #25 : <i64 | {i64, i64} | void>
@@ -481,7 +481,7 @@
     │       │   │   │       │   ├── scope: %35
     │       │   │   │       │   ├── value > call:
     │       │   │   │       │   │   ├── type: {i64, i64}
-    │       │   │   │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │       │   │   │       │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
     │       │   │   │       │   │   ├── args[0]: local #29 : i64
     │       │   │   │       │   │   └── args[1]: 1 : i64
     │       │   │   │       │   └── layout: ^owners$Account
@@ -516,7 +516,7 @@
     │       │   │   │                   ├── fn: owners$closed(^owners$Account)
     │       │   │   │                   └── args[0] > call:
     │       │   │   │                       ├── type: {i64, i64}
-    │       │   │   │                       ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │       │   │   │                       ├── fn: owners$opened(%primitives$I64, %primitives$I64)
     │       │   │   │                       ├── args[0]: local #29 : i64
     │       │   │   │                       └── args[1]: 0 : i64
     │       │   │   └── body[1] > assign:
@@ -538,7 +538,7 @@
     │       │       └── right: 100000 : i64
     │       └── body[29] > return: unit : void
     ├── funcs[1] > func:
-    │   ├── symbol: owners$opened(%primitives$Int, %primitives$Int)
+    │   ├── symbol: owners$opened(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i64, i64}
@@ -549,12 +549,12 @@
     │       │   ├── scope: %4
     │       │   ├── value > call:
     │       │   │   ├── type: {i64, i64}
-    │       │   │   ├── fn: owners$Account(%primitives$Int)
+    │       │   │   ├── fn: owners$Account(%primitives$I64)
     │       │   │   └── args[0]: local #1 : i64
     │       │   └── layout: ^owners$Account
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$Int)
+    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$I64)
     │       │   ├── args[0]: address of #3 : ptr
     │       │   └── args[1]: local #2 : i64
     │       └── body[2] > return > escape:
@@ -565,7 +565,7 @@
     │           │   └── layout: ^owners$Account
     │           └── layout: ^owners$Account
     ├── funcs[2] > func:
-    │   ├── symbol: owners$deposit(this owners$Account, %primitives$Int)
+    │   ├── symbol: owners$deposit(this owners$Account, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
@@ -624,7 +624,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[5] > func:
-    │   ├── symbol: owners$Account(%primitives$Int)
+    │   ├── symbol: owners$Account(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i64, i64}
     │   └── body[0] > return > escape:
@@ -682,7 +682,7 @@
     │       │   └── layout: ^owners$Account
     │       ├── body[2] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$Int)
+    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$I64)
     │       │   ├── args[0]: address of #4 : ptr
     │       │   └── args[1]: 1 : i64
     │       └── body[3] > return > escape:
@@ -693,7 +693,7 @@
     │           │   └── layout: ^owners$Account
     │           └── layout: ^owners$Account
     ├── funcs[9] > func:
-    │   ├── symbol: owners$richest(%primitives$Int)
+    │   ├── symbol: owners$richest(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -726,7 +726,7 @@
     │   │   │   │       │   ├── scope: %8
     │   │   │   │       │   ├── value > call:
     │   │   │   │       │   │   ├── type: {i64, i64}
-    │   │   │   │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │   │   │   │       │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
     │   │   │   │       │   │   ├── args[0]: local #2 : i64
     │   │   │   │       │   │   └── args[1] > binary:
     │   │   │   │       │   │       ├── type: i64
@@ -773,7 +773,7 @@
     │   │   └── body[3]: leave @4
     │   └── body[2] > return: 0 : i64
     ├── funcs[10] > func:
-    │   ├── symbol: owners$overdrawn(%primitives$Int)
+    │   ├── symbol: owners$overdrawn(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | i64 | void>
     │   └── body[0] > scope:
@@ -783,7 +783,7 @@
     │       │   ├── scope: %3
     │       │   ├── value > call:
     │       │   │   ├── type: {i64, i64}
-    │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │       │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
     │       │   │   ├── args[0]: 9 : i64
     │       │   │   └── args[1]: 5 : i64
     │       │   └── layout: owners$Account
@@ -812,7 +812,7 @@
     │       │   │       │   ├── scope: %9
     │       │   │       │   ├── value > call:
     │       │   │       │   │   ├── type: {i64, i64}
-    │       │   │       │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │       │   │       │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
     │       │   │       │   │   ├── args[0]: 8 : i64
     │       │   │       │   │   └── args[1]: local #1 : i64
     │       │   │       │   └── layout: owners$Account
@@ -839,7 +839,7 @@
     │                   ├── path: 1
     │                   └── base: address of #2 : ptr
     ├── funcs[11] > func:
-    │   ├── symbol: owners$total(%primitives$Int)
+    │   ├── symbol: owners$total(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -878,7 +878,7 @@
     │   │   │   │           │   ├── scope: %9
     │   │   │   │           │   ├── value > call:
     │   │   │   │           │   │   ├── type: {i64, i64}
-    │   │   │   │           │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │   │   │   │           │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
     │   │   │   │           │   │   ├── args[0]: local #3 : i64
     │   │   │   │           │   │   └── args[1]: local #3 : i64
     │   │   │   │           │   └── layout: owners$Account
@@ -922,7 +922,7 @@
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
     ├── funcs[12] > func:
-    │   ├── symbol: owners$refused(%primitives$Int)
+    │   ├── symbol: owners$refused(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | {i64, i64} | void>
     │   ├── body[0] > eval > expand:
@@ -947,7 +947,7 @@
     │   │   │           │   ├── exit: function
     │   │   │           │   ├── value > call:
     │   │   │           │   │   ├── type: {i64, i64}
-    │   │   │           │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │   │   │           │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
     │   │   │           │   │   ├── args[0]: 7 : i64
     │   │   │           │   │   └── args[1]: 70 : i64
     │   │   │           │   └── layout: ^owners$Account
@@ -988,7 +988,7 @@
     │           │   │   ├── scope: %7
     │           │   │   ├── value > call:
     │           │   │   │   ├── type: {i64, i64}
-    │           │   │   │   ├── fn: owners$opened(%primitives$Int, %primitives$Int)
+    │           │   │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
     │           │   │   │   ├── args[0] > deref:
     │           │   │   │   │   ├── type: i64
     │           │   │   │   │   └── ptr: local #5 : ptr
@@ -1060,7 +1060,7 @@
     │               │   ├── scope: %16
     │               │   ├── value > call:
     │               │   │   ├── type: {i64, i64}
-    │               │   │   ├── fn: owners$Account(%primitives$Int)
+    │               │   │   ├── fn: owners$Account(%primitives$I64)
     │               │   │   └── args[0]: 6 : i64
     │               │   └── layout: owners$Account
     │               ├── body[1] > assign:

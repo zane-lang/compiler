@@ -2,7 +2,7 @@
 /// after what it wrote so far (docs/design/lowering.md §9).
 package zero;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 
 Int zero() => Int(0)
 
@@ -10,7 +10,7 @@ Int zero() => Int(0)
 	before @primitives$String("before\n");
 	after @primitives$String("after\n");
 	@program$console!print(before);
-	quotient Int = Int(1) / zero();
+	quotient Int = @operators$divide(Int(1), zero());
 	@program$console!print(after);
 	return @primitives$Unit();
 }

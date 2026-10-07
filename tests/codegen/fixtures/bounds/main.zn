@@ -2,7 +2,7 @@
 /// what it wrote so far (docs/design/lowering.md §9).
 package bounds;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias String = @primitives$String
 
 @primitives$Unit main() {

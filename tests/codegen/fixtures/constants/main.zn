@@ -5,7 +5,7 @@
 /// prints `yes` when it holds and `no` when it does not.
 package constants;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -19,7 +19,7 @@ Unit check(ok Bool) {
 	yes String("yes\n");
 	no String("no\n");
 	@controlflow$branch(ok, { say(yes); });
-	@controlflow$branch(~ok, { say(no); });
+	@controlflow$branch(@operators$not(ok), { say(no); });
 	return Unit();
 }
 
@@ -44,30 +44,30 @@ type Point = struct {
 Point(x Int, y Int) => init{ x; y; }
 
 limit Int(42)
-doubled Int = limit * Int(2)
-early Int = later + Int(1)
+doubled Int = @operators$multiply(limit, Int(2))
+early Int = @operators$add(later, Int(1))
 later Int = loud(Int(9))
-greeting String = String("hel") + String("lo\n")
+greeting String = @operators$concat(String("hel"), String("lo\n"))
 ada Person{ name = String("ada"); age = Int(36); }
 origin Point(Int(0), Int(0))
 
-Int peek() => doubled + early
+Int peek() => @operators$add(doubled, early)
 
 Int age(p &Person) => p.age
 
 Unit main() {
 	start String("main\n");
 	say(start);
-	check(limit + Int(1) == Int(43));
-	check(peek() == Int(94));
+	check(@operators$equal(@operators$add(limit, Int(1)), Int(43)));
+	check(@operators$equal(peek(), Int(94)));
 	say(greeting);
-	check(greeting == String("hello\n"));
+	check(@operators$equal(greeting, String("hello\n")));
 	g &Person = ada;
-	check(g.age == Int(36));
-	check(age(ada) == Int(36));
-	check(ada.name == String("ada"));
-	check(origin.x + origin.y == Int(0));
+	check(@operators$equal(g.age, Int(36)));
+	check(@operators$equal(age(ada), Int(36)));
+	check(@operators$equal(ada.name, String("ada")));
+	check(@operators$equal(@operators$add(origin.x, origin.y), Int(0)));
 	n Int = spawn peek();
-	check(n == Int(94));
+	check(@operators$equal(n, Int(94)));
 	return Unit();
 }

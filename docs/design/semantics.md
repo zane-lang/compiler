@@ -98,7 +98,7 @@ for stages 1 and 2, which never look past the file. It is not enough for stage
 - `Int` is not built in. [`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6 makes it a declaration in `core`, "an
   ordinary package", and a file that writes it imports `core` like any other
   dependency. Without one, a program writes the storage primitives
-  (`@primitives$Int`) directly or declares its own types over them.
+  (`@primitives$I64`) directly or declares its own types over them.
 
 **D2. Semantics takes a set of packages: the root plus its dependencies, each
 given as a directory.** Fetching, versioning and the manifest
@@ -121,25 +121,30 @@ gives it, or by name when the build is given no keys at all
 **D3. The compiler never names `core`.** `core` is an ordinary package
 ([`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6), so the compiler reads it as source and checks it by the
 same rules as every other package, and names none of its members. Whether
-`Int` is a distinct type over `@primitives$Int` or a struct wrapping one is
+`Int` is a distinct type over `@primitives$I64` or a struct wrapping one is
 `core`'s own choice, and the compiler does not care which it makes, just as it
 does not care how any other package writes its types.
 
 The repository has no `core` yet. Each test fixture writes the storage
 primitives directly, usually under aliases of its own
-(`alias Int = @primitives$Int`), and declares what its test is about: a type
+(`alias Int = @primitives$I64`), and declares what its test is about: a type
 with implicit constructors from the literal concepts, or the control-flow
-verbs of [`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §3 over `@controlflow$`.
+verbs of [`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §3 over `@controlflow$`. A primitive
+has no operators (`operators.md` §2.2), so a fixture computes on one with the
+`@operators$` functions, or declares a type of its own whose operators are
+written over them.
 
-The intrinsic namespaces (`@primitives$`, `@concepts$`, `@controlflow$`,
-`@runtime$`, `@program$`) are not packages. They are an OCaml table in
-`lib/tst/model/intrinsics.ml`. Each intrinsic operation has exactly one signature
-([`syntax.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/syntax.md)
-§2.7), so the table is a plain map, with no overload sets. Operators and
-methods are the exception §2.7 itself makes: they are found by their operands'
-or subject's home, which for an intrinsic type is the namespace that holds it
-(`functions.md` §6.1). What the table holds beyond what the spec names is in
-§9.
+The intrinsic namespaces (`@primitives$`, `@concepts$`, `@operators$`,
+`@controlflow$`, `@runtime$`, `@program$`) are not packages. They are an OCaml
+table in `lib/tst/model/intrinsics.ml`. Most intrinsic operations have one
+signature, and the overloads `syntax.md` §2.7 states are sets in the table,
+resolved like any other overload set (`functions.md` §5): an `@operators$`
+function has one per operand type, a scalar's constructors take its concept
+and each scalar that converts into it exactly (`types.md` §2.7), and methods
+that share a name are told apart by the subject, found by its home, which for
+an intrinsic type is the namespace that holds it (`functions.md` §6.1). No
+intrinsic is an operator. What the table holds beyond what the spec names is
+in §9.
 
 ---
 
@@ -285,8 +290,8 @@ function of its own.
 **Literal ranges** (`lib/tst/analyses/literal_ranges.ml`,
 [`types.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/types.md) §2.7).
 A storage primitive's constructor embeds its literal, which must fit it:
-`@primitives$Int` and `I64` a 64-bit integer, `I32` a 32-bit one, and `Float`
-a finite double. A literal handed to a verb's literal parameter reaches its
+`@primitives$I64` a 64-bit integer, `I32` a 32-bit one, `F64` a finite
+double and `F32` a finite single. A literal handed to a verb's literal parameter reaches its
 constructor only where the verb is written out, so lowering checks that one.
 
 **Spawns** (`lib/tst/analyses/spawns.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md) §4.2–§4.3). A
@@ -340,7 +345,7 @@ type t =
   | Named of { id : Type_id.t; args : arg list }  (* a declared type, applied *)
   | Reference of t                                (* &T *)
   | Roaming of t                                  (* ^T *)
-  | Primitive of Primitive.t                      (* @primitives$Int, ... *)
+  | Primitive of Primitive.t                      (* @primitives$I64, ... *)
   | Concept of concept                            (* literals, blocks *)
   | Verb of verb                                  (* a function type *)
   | Param of Param_id.t                           (* inside a generic declaration *)
@@ -583,16 +588,14 @@ names concept types only for numeric and text literals (`syntax.md` §2.8).
 A package's implicit constructor from `@primitives$Bool` is what makes them
 its own boolean type at a coercion site.
 
-**The intrinsic table.** Beyond what the spec names, `intrinsics.ml` holds
-what a `core` needs to be written at all: the machine arithmetic and comparisons
-on `@primitives$Int`, `I32`, `I64` and `Float`, the Boolean operators on
-`@primitives$Bool`, concatenation and equality on the opaque
-`@primitives$String`, the constructors, none of them implicit
-(`types.md` §2.7), that build an `@primitives$Int`, `I32` or `I64` from an
-`@concepts$Int`, an `@primitives$Float` from an `@concepts$Float` -- the
-split `types.md` §2.6 makes for `core`'s `Int` and `Float` -- and an
-`@primitives$String` from an `@concepts$String`, element access on `@primitives$Array` and
-`@primitives$List`, and `push` and `size` on `@primitives$List`.
+**The intrinsic table.** The spec names the scalar primitives, the
+`@operators$` functions over them and the conversions between them
+(`syntax.md` §2.7, `types.md` §2.7). Beyond those, `intrinsics.ml` holds what
+a `core` needs to be written at all: the constructors, none of them implicit,
+that build an `@primitives$String` from an `@concepts$String` and a container
+primitive from its literal, element access on `@primitives$Array` and
+`@primitives$List`, and `push` and `size` on `@primitives$List`. An index, a
+size and a count are each an `@primitives$I64`.
 
 **A `match` arm is where its `return` goes.** `=> expr` is `{ return expr }`
 (`adt.md` §5.1), so a `return` in an arm gives the arm's value, not the verb's.
@@ -723,8 +726,8 @@ only reject more, never let a write through.
   out; reading `list[i]` into an owner is what the move rule then rejects.
 - A case read and what its handler resolves are a place too: the store the
   whole expression feeds decides whether it moves.
-- An intrinsic operator or constructor reads its operands, and `push` takes
-  its value as `^T`.
+- An `@operators$` function or an intrinsic constructor reads its arguments,
+  and `push` takes its value as `^T`.
 - `^T` describes a place, not a value, so no expression's type carries it: a
   `^T` local read, and a call returning `^T`, are values of type `T`. What a
   place holds is read from the local's or the signature's declared type.

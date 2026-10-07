@@ -4,7 +4,7 @@
 /// to the caller's owner for the duration of the call", passed by borrow
 /// "as the semantic model rather than an optimization".
 package aliasing;
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -16,9 +16,9 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -32,7 +32,7 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
 	return Unit();
 }
 
@@ -90,8 +90,8 @@ Unit churn() {
 	j Int(1);
 	j!to(Int(200)) {
 		l List<Engine> = @primitives$List(Engine);
-		l!push(Engine(Int(999), String("junk") + String("junk")));
-		s Slot = Slot.full(Engine(Int(999), String("junk") + String("junk")));
+		l!push(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
+		s Slot = Slot.full(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
 	}
 	return Unit();
 }
@@ -99,13 +99,13 @@ Unit churn() {
 Int clearThenRead(this Slot, e Engine) mut {
 	this = Slot.empty(Unit());
 	churn();
-	keep Slot = Slot.full(Engine(Int(999), String("junk") + String("junk")));
+	keep Slot = Slot.full(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
 	return e.power;
 }
 
 Int replaceThenRead(this List<Engine>, e Engine) mut {
 	this = @primitives$List(Engine);
-	this!push(Engine(Int(999), String("junk") + String("junk")));
+	this!push(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
 	churn();
 	return e.power;
 }
@@ -114,7 +114,7 @@ type Garage = #struct { items List<Engine>; }
 Garage() => init{ items = @primitives$List(Engine); }
 Int resetThenRead(this Garage, e Engine) mut {
 	this.items = @primitives$List(Engine);
-	this.items!push(Engine(Int(999), String("junk") + String("junk")));
+	this.items!push(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
 	churn();
 	return e.power;
 }
@@ -131,31 +131,31 @@ Unit main() {
 	pad List<Engine> = @primitives$List(Engine);
 	pad!push(Engine(Int(0), String("pad")));
 	m Int = list!growThenRead(list[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
-	check(String("element borrowed while its list grows"), m == Int(42));
+	check(String("element borrowed while its list grows"), @operators$equal(m, Int(42)));
 
 	v V(Int(1), Int(2));
 	v!setFrom(v);  // ILLEGAL (memory.md §2.9.1)
-	check(String("value subject and value borrow: borrow sees the write"), v.y == Int(100));
+	check(String("value subject and value borrow: borrow sees the write"), @operators$equal(v.y, Int(100)));
 
 	car Car(Engine(Int(1), String("old")));
 	car!swapFrom(car);  // ILLEGAL (memory.md §2.9.1)
-	check(String("reference subject and reference borrow: borrow sees the write"), car.engine.label == String("new"));
+	check(String("reference subject and reference borrow: borrow sees the write"), @operators$equal(car.engine.label, String("new")));
 
 	// The subject destroys what the borrow names. Nothing in memory.md §2.9
 	// lets the callee end the caller's owner while it lends it; each read
 	// below goes to a freed and reused block.
-	slot Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
+	slot Slot = Slot.full(Engine(Int(42), @operators$concat(String("orig"), String("inal"))));
 	a Int = slot!clearThenRead(slot.full ?? Engine(Int(0), String("none")));  // ILLEGAL (memory.md §2.9.1)
-	check(String("payload borrowed while its variant changes case"), a == Int(42));
+	check(String("payload borrowed while its variant changes case"), @operators$equal(a, Int(42)));
 
 	list2 List<Engine> = @primitives$List(Engine);
-	list2!push(Engine(Int(42), String("orig") + String("inal")));
+	list2!push(Engine(Int(42), @operators$concat(String("orig"), String("inal"))));
 	b Int = list2!replaceThenRead(list2[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
-	check(String("element borrowed while its list is replaced"), b == Int(42));
+	check(String("element borrowed while its list is replaced"), @operators$equal(b, Int(42)));
 
 	g Garage();
-	g.items!push(Engine(Int(42), String("orig") + String("inal")));
+	g.items!push(Engine(Int(42), @operators$concat(String("orig"), String("inal"))));
 	c Int = g!resetThenRead(g.items[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
-	check(String("element borrowed while the owner's list is replaced"), c == Int(42));
+	check(String("element borrowed while the owner's list is replaced"), @operators$equal(c, Int(42)));
 	return Unit();
 }

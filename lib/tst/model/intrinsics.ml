@@ -1,21 +1,21 @@
 (* The intrinsic namespaces (syntax.md §2.7): what `@primitives$`,
-   `@concepts$`, `@controlflow$`, `@runtime$` and `@program$` hold.
+   `@concepts$`, `@operators$`, `@controlflow$`, `@runtime$` and `@program$`
+   hold.
 
-   They are not packages, so they are not read from source. Each intrinsic
-   operation has exactly one signature, which makes this a plain table: no
-   intrinsic function shares its name with another. Operators and methods are
-   the exception the spec states -- a method's subject is one of its
-   parameters, so methods that share a name on different types are overloads
-   told apart by the subject -- and an operator is found the same way, by its
-   operands' home, which for an intrinsic type is the namespace that holds it
-   (functions.md §6.1, operators.md §2.2).
+   They are not packages, so they are not read from source. Most intrinsic
+   operations have exactly one signature. The overloads the spec states are
+   the exceptions: methods that share a name on different subjects, the
+   machine operations of `@operators$`, one per operand type, and a scalar's
+   constructors, which take its concept and each scalar that converts into
+   it exactly (syntax.md §2.7, types.md §2.7). No intrinsic is an operator:
+   a primitive has no home package, so an operator over one is declared
+   nowhere (operators.md §2.2).
 
    The spec names the intrinsics its examples need and leaves the rest of each
    namespace open. What is here beyond those is this compiler's choice, made
-   so that `core` can be written over it: the machine arithmetic and
-   comparisons on the scalar primitives, the conversions that carry a literal
-   into one, and the element access on the container primitives. Nothing in
-   the checker names any of it; it is data. *)
+   so that `core` can be written over it: the element access on the
+   container primitives and the runtime types' methods. Nothing in the
+   checker names any of it; it is data. *)
 
 module S = Signature
 
@@ -31,10 +31,10 @@ let types =
     { namespace; name; params; reference }
   in
   [
-    t "primitives" "Int";
     t "primitives" "I32";
     t "primitives" "I64";
-    t "primitives" "Float";
+    t "primitives" "F32";
+    t "primitives" "F64";
     t "primitives" "Bool";
     t "primitives" "Unit";
     (* The storage behind `core`'s `String`: a value type whose handle owns
@@ -79,13 +79,15 @@ let verb ?(generics = []) ?(abort = None) ?(is_mut = false) ~namespace ~kind
     is_mut;
   }
 
-let scalars = [ "Int"; "I32"; "I64"; "Float" ]
+let integers = [ "I32"; "I64" ]
+let floats = [ "F32"; "F64" ]
+let scalars = integers @ floats
 
-(* The literal each scalar converts from, the way `core`'s own `Int` and
-   `Float` do (types.md §2.6): an integer literal into an integer, a decimal
-   literal into a `Float`. *)
-let literal = function "Float" -> Ty.Decimal_lit | _ -> Ty.Integer_lit
+(* The concept each scalar is built from (types.md §2.7): an integer from
+   `@concepts$Int`, a float from `@concepts$Float`. *)
+let concept s = if List.mem s floats then Ty.Decimal_lit else Ty.Integer_lit
 
+(* An operator's token, which a diagnostic and a declaration's name use. *)
 let operator_token : Sst.Nodes.Operator.node -> string = function
   | Add -> "+"
   | Mul -> "*"
@@ -93,46 +95,66 @@ let operator_token : Sst.Nodes.Operator.node -> string = function
   | Eq -> "=="
   | Less -> "<"
 
-(* The operators each scalar implements over itself, and `Bool`'s. *)
-let operators =
-  let binary scalar (op : Sst.Nodes.Operator.node) ret =
-    let token = operator_token op in
-    ( op,
-      verb ~namespace:"primitives" ~kind:S.Operator ~name:token
-        ~spelling:("@primitives$" ^ token)
-        [ param "left" (prim scalar); param "right" (prim scalar) ]
-        ret )
+(* `@operators$` (syntax.md §2.7): the machine operations the primitive
+   operators of operators.md §2.1 are written over, one overload per operand
+   type, both operands of that one type. There is no subtraction, since
+   `a - b` is `a + ~b` (operators.md §4.2). `Bool` has its own three, named
+   for what they are rather than for the operators `core` spells them with,
+   and `String` its join; equality is one operation on every type. *)
+let operator_functions =
+  let f name params ret =
+    ( ("operators", name),
+      verb ~namespace:"operators" ~kind:S.Function ~name:("@operators$" ^ name)
+        ~spelling:("@operators$" ^ name) params ret )
   in
+  let binary name operand ret = f name [ param "left" (prim operand); param "right" (prim operand) ] ret in
   List.concat_map
     (fun s ->
       [
-        binary s Add (prim s);
-        binary s Mul (prim s);
-        binary s Div (prim s);
-        binary s Eq (prim "Bool");
-        binary s Less (prim "Bool");
+        binary "add" s (prim s);
+        binary "multiply" s (prim s);
+        binary "divide" s (prim s);
+        binary "equal" s (prim "Bool");
+        binary "lessThan" s (prim "Bool");
+        f "negate" [ param "value" (prim s) ] (prim s);
       ])
     scalars
   @ [
-      binary "Bool" Add (prim "Bool");
-      binary "Bool" Mul (prim "Bool");
-      binary "Bool" Eq (prim "Bool");
-      binary "String" Add (prim "String");
-      binary "String" Eq (prim "Bool");
+      binary "and" "Bool" (prim "Bool");
+      binary "or" "Bool" (prim "Bool");
+      f "not" [ param "value" (prim "Bool") ] (prim "Bool");
+      binary "equal" "Bool" (prim "Bool");
+      binary "concat" "String" (prim "String");
+      binary "equal" "String" (prim "Bool");
     ]
 
-let flips =
-  List.map
-    (fun s ->
-      verb ~namespace:"primitives" ~kind:S.Flip ~name:"~" ~spelling:"@primitives$~"
-        [ param "value" (prim s) ]
-        (prim s))
-    (scalars @ [ "Bool" ])
+(* The conversions between scalars (types.md §2.7), as the target, the name
+   of the constructor that converts, and the source. One that is exact for
+   every value is a plain constructor; one that can lose a value is named
+   for how it does: `wrap` keeps an integer's low bits, `truncate` drops a
+   float's fraction and stops the program when what is left does not fit,
+   and `round` takes the nearest value the target holds. *)
+let conversions =
+  [
+    ("I64", None, "I32");
+    ("F64", None, "F32");
+    ("F64", None, "I32");
+    ("I32", Some "wrap", "I64");
+    ("I32", Some "truncate", "F32");
+    ("I32", Some "truncate", "F64");
+    ("I64", Some "truncate", "F32");
+    ("I64", Some "truncate", "F64");
+    ("F32", Some "round", "F64");
+    ("F32", Some "round", "I32");
+    ("F32", Some "round", "I64");
+    ("F64", Some "round", "I64");
+  ]
 
-(* Constructors, keyed by the type they build. A storage primitive has one
-   constructor from its literal's concept, and it is not implicit (types.md
-   §2.7): a literal becomes a primitive only where it is written, or inside a
-   type's own implicit conversion. *)
+(* Constructors, keyed by the type they build. A storage primitive has a
+   constructor from its concept, and a scalar one from each scalar it
+   converts from (types.md §2.7). None is implicit: a concept becomes a
+   primitive only where it is written, or inside a type's own implicit
+   conversion. *)
 let constructors =
   let ctor ?(implicit = false) ?(generics = []) ?member name params ret =
     let spelling =
@@ -152,9 +174,10 @@ let constructors =
   let ref_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
   let fill_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let fill_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
-  List.map
-    (fun s -> ctor s [ param "value" (Ty.Concept (literal s)) ] (prim s))
-    scalars
+  List.map (fun s -> ctor s [ param "value" (Ty.Concept (concept s)) ] (prim s)) scalars
+  @ List.map
+      (fun (target, member, source) -> ctor ?member target [ param "value" (prim source) ] (prim target))
+      conversions
   @ [
       ctor "String" [ param "value" (Ty.Concept Ty.Text_lit) ] (prim "String");
       ctor "Unit" [] (prim "Unit");
@@ -174,7 +197,7 @@ let constructors =
             (Ty.Verb
                {
                  Ty.this_ = None;
-                 params = [ prim "Int" ];
+                 params = [ prim "I64" ];
                  ret = Ty.Roaming (Ty.Param fill_element);
                  abort = None;
                  is_mut = false;
@@ -195,7 +218,7 @@ let subscripts =
   let subscript generics subject element =
     verb ~generics ~namespace:"primitives" ~kind:S.Subscript ~name:"[]"
       ~spelling:"@primitives$[]"
-      [ param "this" subject; param "index" (prim "Int") ]
+      [ param "this" subject; param "index" (prim "I64") ]
       element
   in
   [
@@ -226,18 +249,17 @@ let methods =
       [ param "this" (runtime "Console"); param "text" (prim "String") ]
       (prim "Unit");
     meth ~abort:(Some (prim "Unit")) ~is_mut:true "runtime" "setThreads"
-      [ param "this" (runtime "Runtime"); param "count" (prim "Int") ]
+      [ param "this" (runtime "Runtime"); param "count" (prim "I64") ]
       (prim "Unit");
     meth ~is_mut:true "runtime" "setThreadsAuto" [ param "this" (runtime "Runtime") ] (prim "Unit");
     meth ~generics:[ list_element ] ~is_mut:true "primitives" "push"
       [ param "this" list; param "value" (Ty.Roaming (Ty.Param list_element)) ]
       (prim "Unit");
-    meth ~generics:[ list_element ] "primitives" "size" [ param "this" list ] (prim "Int");
+    meth ~generics:[ list_element ] "primitives" "size" [ param "this" list ] (prim "I64");
   ]
 
-(* The control-flow intrinsics (syntax.md §5.1), the only intrinsic functions
-   called by plain name. *)
-let functions =
+(* The control-flow intrinsics (syntax.md §5.1). *)
+let control_functions =
   let f name params =
     ( ("controlflow", name),
       verb ~namespace:"controlflow" ~kind:S.Function ~name:("@controlflow$" ^ name)
@@ -245,8 +267,15 @@ let functions =
   in
   [
     f "branch" [ param "condition" (prim "Bool"); param "body" (Ty.Concept Ty.Block) ];
-    f "repeat" [ param "count" (prim "Int"); param "body" (Ty.Concept Ty.Block) ];
+    f "repeat" [ param "count" (prim "I64"); param "body" (Ty.Concept Ty.Block) ];
     f "exitFromCall" [];
   ]
 
-let namespaces = [ "primitives"; "concepts"; "controlflow"; "runtime"; "program" ]
+(* Every intrinsic function, keyed by namespace and name. A key the
+   operators share holds one entry per overload. *)
+let functions = control_functions @ operator_functions
+
+let find_functions namespace name =
+  List.filter_map (fun (key, s) -> if key = (namespace, name) then Some s else None) functions
+
+let namespaces = [ "primitives"; "concepts"; "operators"; "controlflow"; "runtime"; "program" ]

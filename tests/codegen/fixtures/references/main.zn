@@ -6,7 +6,7 @@
 /// `yes` when it holds and `no` when it does not.
 package references;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -15,7 +15,7 @@ Unit check(ok Bool) {
 	yes String("yes\n");
 	no String("no\n");
 	@controlflow$branch(ok, { @program$console!print(yes); });
-	@controlflow$branch(~ok, { @program$console!print(no); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
 	return Unit();
 }
 
@@ -52,19 +52,19 @@ Unit pass(c &@runtime$Console) {
 Unit main() {
 	a Person(Int(3));
 	g &Person = &a;
-	check(age(&a) + g.age == Int(6));
+	check(@operators$equal(@operators$add(age(&a), g.age), Int(6)));
 	h &Person = &g;
 	a = Person(Int(4));
-	check(h.age == Int(4));
+	check(@operators$equal(h.age, Int(4)));
 	pin Pin(a);
 	a = Person(Int(5));
-	check(pin.at.age == Int(5));
-	check(ageOf(a, a) == Int(5));
+	check(@operators$equal(pin.at.age, Int(5)));
+	check(@operators$equal(ageOf(a, a), Int(5)));
 	w Wrap(Person(Int(9)));
 	n Int = refuse(w) ? e {
 		resolve e.age;
 	}
-	check(n == Int(9));
+	check(@operators$equal(n, Int(9)));
 	pass(@program$console);
 	pass(@program$console);
 	return Unit();

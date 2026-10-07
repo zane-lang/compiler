@@ -8,6 +8,14 @@ void zane_divide_by_zero(void) {
 	exit(1);
 }
 
+/* A float truncated to an integer that cannot hold what is left, or a NaN
+   (types.md §2.7): stopped the way a division by zero is. */
+void zane_conversion_out_of_range(void) {
+	fflush(stdout);
+	fputs("conversion out of range\n", stderr);
+	exit(1);
+}
+
 /* A mistake of the compiler's, not the program's: the program stops. */
 void zane_broken(const char *what) {
 	fflush(stdout);

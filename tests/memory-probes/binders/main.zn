@@ -3,7 +3,7 @@
 /// overwrites the scrutinee destroys that payload while the binder still
 /// names it; `churn` then reuses the freed blocks.
 package binders;
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -15,9 +15,9 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -31,7 +31,7 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
 	return Unit();
 }
 type Engine = #struct { power Int; label String; }
@@ -47,14 +47,14 @@ Unit clear(this Slot) mut {
 Unit churn() {
 	j Int(1);
 	j!to(Int(200)) {
-		s Slot = Slot.full(Engine(Int(999), String("junk") + String("junk")));
-		t String = String("junkjunkjunk") + String("junkjunkjunk");
+		s Slot = Slot.full(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
+		t String = @operators$concat(String("junkjunkjunk"), String("junkjunkjunk"));
 	}
 	return Unit();
 }
 
 Unit main() {
-	slot Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
+	slot Slot = Slot.full(Engine(Int(42), @operators$concat(String("orig"), String("inal"))));
 	n Int = match (slot) {
 		e full {
 			slot = Slot.empty(Unit());  // ILLEGAL (adt.md §5.1)
@@ -63,9 +63,9 @@ Unit main() {
 		}
 		u empty => Int(0);
 	}
-	check(String("binder after its scrutinee is overwritten (reference)"), n == Int(42));
+	check(String("binder after its scrutinee is overwritten (reference)"), @operators$equal(n, Int(42)));
 
-	v VSlot = VSlot.full(String("orig") + String("inal"));
+	v VSlot = VSlot.full(@operators$concat(String("orig"), String("inal")));
 	m String = match (v) {
 		s full {
 			v = VSlot.empty(Unit());  // ILLEGAL (adt.md §5.1)
@@ -74,9 +74,9 @@ Unit main() {
 		}
 		u empty => String("");
 	}
-	check(String("binder after its scrutinee is overwritten (value)"), m == String("original"));
+	check(String("binder after its scrutinee is overwritten (value)"), @operators$equal(m, String("original")));
 
-	slot2 Slot = Slot.full(Engine(Int(42), String("orig") + String("inal")));
+	slot2 Slot = Slot.full(Engine(Int(42), @operators$concat(String("orig"), String("inal"))));
 	k Int = match (slot2) {
 		e full {
 			slot2!clear();  // ILLEGAL (adt.md §5.1)
@@ -85,6 +85,6 @@ Unit main() {
 		}
 		u empty => Int(0);
 	}
-	check(String("binder after a mut call on its scrutinee"), k == Int(42));
+	check(String("binder after a mut call on its scrutinee"), @operators$equal(k, Int(42)));
 	return Unit();
 }

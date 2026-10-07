@@ -4,11 +4,11 @@
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── layouts[1] > layout:
-    │   ├── type: %primitives$Int
+    │   ├── type: %primitives$I64
     │   └── positions:
     ├── layouts[2] > layout:
-    │   ├── type: %primitives$List<%primitives$Int>
-    │   └── positions[0]: list @0 of %primitives$Int (8 bytes apart)
+    │   ├── type: %primitives$List<%primitives$I64>
+    │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
     ├── layouts[3] > layout:
     │   ├── type: %primitives$List<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
@@ -16,8 +16,8 @@
     │   ├── type: folding$Countdown
     │   └── positions[0]: box @8 of folding$Countdown (16 bytes) when [0]=1
     ├── layouts[5] > layout:
-    │   ├── type: ^%primitives$List<%primitives$Int>
-    │   └── positions[0]: list @0 of %primitives$Int (8 bytes apart)
+    │   ├── type: ^%primitives$List<%primitives$I64>
+    │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
     ├── layouts[6] > layout:
     │   ├── type: ^%primitives$List<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
@@ -179,7 +179,7 @@
     │       │       ├── left: 0x0p+0 : f64
     │       │       └── right > call:
     │       │           ├── type: f64
-    │       │           ├── fn: folding$inverse(%primitives$Float)
+    │       │           ├── fn: folding$inverse(%primitives$F64)
     │       │           └── args[0]: 0x0p+0 : f64
     │       ├── body[11] > eval > call:
     │       │   ├── type: void
@@ -189,7 +189,7 @@
     │       │       ├── op: <
     │       │       ├── left > call:
     │       │       │   ├── type: f64
-    │       │       │   ├── fn: folding$inverse(%primitives$Float)
+    │       │       │   ├── fn: folding$inverse(%primitives$F64)
     │       │       │   └── args[0] > flip:
     │       │       │       ├── type: f64
     │       │       │       └── value: 0x0p+0 : f64
@@ -199,7 +199,7 @@
     │       │   └── value: 0x0p+0 : f64
     │       ├── body[13] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: folding$negate(this %primitives$Float)
+    │       │   ├── fn: folding$negate(this %primitives$F64)
     │       │   └── args[0]: address of #2 : ptr
     │       ├── body[14] > eval > call:
     │       │   ├── type: void
@@ -249,7 +249,7 @@
     │       │       │   │   │   ├── scope: %6
     │       │       │   │   │   ├── value > call:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── fn: folding$repeated(%primitives$String, %primitives$Int)
+    │       │       │   │   │   │   ├── fn: folding$repeated(%primitives$String, %primitives$I64)
     │       │       │   │   │   │   ├── args[0] > expand:
     │       │       │   │   │   │   │   ├── type: handle
     │       │       │   │   │   │   │   ├── label: @4
@@ -346,12 +346,12 @@
     │       │   ├── local: #25
     │       │   └── value > call:
     │       │       ├── type: {i64, i64}
-    │       │       ├── fn: folding$Vec(%primitives$Int, %primitives$Int)
+    │       │       ├── fn: folding$Vec(%primitives$I64, %primitives$I64)
     │       │       ├── args[0]: 2 : i64
     │       │       └── args[1]: 3 : i64
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: folding$scale(this folding$Vec, %primitives$Int)
+    │       │   ├── fn: folding$scale(this folding$Vec, %primitives$I64)
     │       │   ├── args[0]: address of #25 : ptr
     │       │   └── args[1]: 10 : i64
     │       ├── body[20] > eval > call:
@@ -386,7 +386,7 @@
     │       │       │       ├── index: 0
     │       │       │       └── payload > call:
     │       │       │           ├── type: {i64, i64}
-    │       │       │           ├── fn: folding$Vec(%primitives$Int, %primitives$Int)
+    │       │       │           ├── fn: folding$Vec(%primitives$I64, %primitives$I64)
     │       │       │           ├── args[0]: 4 : i64
     │       │       │           └── args[1]: 5 : i64
     │       │       └── right: 9 : i64
@@ -428,7 +428,7 @@
     │       │       │   ├── fn: folding$unchanged(folding$Vec)
     │       │       │   └── args[0] > call:
     │       │       │       ├── type: {i64, i64}
-    │       │       │       ├── fn: folding$Vec(%primitives$Int, %primitives$Int)
+    │       │       │       ├── fn: folding$Vec(%primitives$I64, %primitives$I64)
     │       │       │       ├── args[0]: 1 : i64
     │       │       │       └── args[1]: 2 : i64
     │       │       └── right: 1 : i64
@@ -440,7 +440,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$rescued(%primitives$Int, %primitives$Int)
+    │       │       │   ├── fn: folding$rescued(%primitives$I64, %primitives$I64)
     │       │       │   ├── args[0]: 7 : i64
     │       │       │   └── args[1]: 0 : i64
     │       │       └── right: 107 : i64
@@ -452,7 +452,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$rescued(%primitives$Int, %primitives$Int)
+    │       │       │   ├── fn: folding$rescued(%primitives$I64, %primitives$I64)
     │       │       │   ├── args[0]: 8 : i64
     │       │       │   └── args[1]: 2 : i64
     │       │       └── right: 4 : i64
@@ -464,7 +464,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$fib(%primitives$Int)
+    │       │       │   ├── fn: folding$fib(%primitives$I64)
     │       │       │   └── args[0]: 20 : i64
     │       │       └── right: 6765 : i64
     │       ├── body[28] > eval > call:
@@ -475,7 +475,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$squares(%primitives$Int)
+    │       │       │   ├── fn: folding$squares(%primitives$I64)
     │       │       │   └── args[0]: 10 : i64
     │       │       └── right: 385 : i64
     │       ├── body[29] > eval > call:
@@ -486,7 +486,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$boxed(%primitives$Int)
+    │       │       │   ├── fn: folding$boxed(%primitives$I64)
     │       │       │   └── args[0]: 5 : i64
     │       │       └── right: 5 : i64
     │       ├── body[30] > hold:
@@ -494,9 +494,9 @@
     │       │   ├── scope: %6
     │       │   ├── value > call:
     │       │   │   ├── type: handle
-    │       │   │   ├── fn: folding$upTo(%primitives$Int)
+    │       │   │   ├── fn: folding$upTo(%primitives$I64)
     │       │   │   └── args[0]: 4 : i64
-    │       │   └── layout: %primitives$List<%primitives$Int>
+    │       │   └── layout: %primitives$List<%primitives$I64>
     │       ├── body[31] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: folding$check(%primitives$Bool)
@@ -505,7 +505,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$sum(&%primitives$List<%primitives$Int>)
+    │       │       │   ├── fn: folding$sum(&%primitives$List<%primitives$I64>)
     │       │       │   └── args[0]: address of #26 : ptr
     │       │       └── right: 10 : i64
     │       ├── body[32] > eval > expand:
@@ -524,7 +524,7 @@
     │       │   └── body[2] > place:
     │       │       ├── address: local #28 : ptr
     │       │       ├── value: local #27 : i64
-    │       │       └── layout: %primitives$Int
+    │       │       └── layout: %primitives$I64
     │       ├── body[33] > let:
     │       │   ├── local: #30
     │       │   └── value: 1 : i64
@@ -547,7 +547,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$sum(&%primitives$List<%primitives$Int>)
+    │       │       │   ├── fn: folding$sum(&%primitives$List<%primitives$I64>)
     │       │       │   └── args[0]: address of #26 : ptr
     │       │       └── right: 26 : i64
     │       ├── body[37] > hold:
@@ -643,7 +643,7 @@
     │       │   ├── scope: %6
     │       │   ├── value > call:
     │       │   │   ├── type: <void | ptr>
-    │       │   │   ├── fn: folding$countdown(%primitives$Int)
+    │       │   │   ├── fn: folding$countdown(%primitives$I64)
     │       │   │   └── args[0]: 3 : i64
     │       │   └── layout: folding$Countdown
     │       ├── body[42] > eval > call:
@@ -688,7 +688,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │       │       │   ├── fn: folding$twice(%primitives$I64[%primitives$I64], %primitives$I64)
     │       │       │   ├── args[0]: function folding$main()$lambda1
     │       │       │   └── args[1]: 2 : i64
     │       │       └── right: 18 : i64
@@ -700,7 +700,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$pair(%primitives$Int)
+    │       │       │   ├── fn: folding$pair(%primitives$I64)
     │       │       │   └── args[0]: 10 : i64
     │       │       └── right: 89 : i64
     │       └── body[47] > return: unit : void
@@ -736,7 +736,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: folding$inverse(%primitives$Float)
+    │   ├── symbol: folding$inverse(%primitives$F64)
     │   ├── params[0]: local #1 : f64
     │   ├── ret: f64
     │   └── body[0] > return > binary:
@@ -745,7 +745,7 @@
     │       ├── left: 0x1p+0 : f64
     │       └── right: local #1 : f64
     ├── funcs[3] > func:
-    │   ├── symbol: folding$negate(this %primitives$Float)
+    │   ├── symbol: folding$negate(this %primitives$F64)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: void
     │   ├── body[0] > assign:
@@ -757,7 +757,7 @@
     │   │           └── ptr: local #1 : ptr
     │   └── body[1] > return: unit : void
     ├── funcs[4] > func:
-    │   ├── symbol: folding$repeated(%primitives$String, %primitives$Int)
+    │   ├── symbol: folding$repeated(%primitives$String, %primitives$I64)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
     │   ├── ret: handle
@@ -816,7 +816,7 @@
     │           │   └── layout: %primitives$String
     │           └── layout: %primitives$String
     ├── funcs[5] > func:
-    │   ├── symbol: folding$Vec(%primitives$Int, %primitives$Int)
+    │   ├── symbol: folding$Vec(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i64, i64}
@@ -825,7 +825,7 @@
     │       ├── members[0] > member 0: local #1 : i64
     │       └── members[1] > member 1: local #2 : i64
     ├── funcs[6] > func:
-    │   ├── symbol: folding$scale(this folding$Vec, %primitives$Int)
+    │   ├── symbol: folding$scale(this folding$Vec, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: void
@@ -923,7 +923,7 @@
     │   │   ├── local: #1
     │   │   └── value > call:
     │   │       ├── type: {i64, i64}
-    │   │       ├── fn: folding$Vec(%primitives$Int, %primitives$Int)
+    │   │       ├── fn: folding$Vec(%primitives$I64, %primitives$I64)
     │   │       ├── args[0]: 1 : i64
     │   │       └── args[1]: 2 : i64
     │   ├── body[1] > let:
@@ -951,7 +951,7 @@
     │       ├── index: 0
     │       └── value: local #1 : {i64, i64}
     ├── funcs[10] > func:
-    │   ├── symbol: folding$rescued(%primitives$Int, %primitives$Int)
+    │   ├── symbol: folding$rescued(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64
@@ -965,7 +965,7 @@
     │   │       │   ├── local: #5
     │   │       │   └── value > call:
     │   │       │       ├── type: <i64 | i64 | void>
-    │   │       │       ├── fn: folding$divide(%primitives$Int, %primitives$Int)
+    │   │       │       ├── fn: folding$divide(%primitives$I64, %primitives$I64)
     │   │       │       ├── args[0]: local #1 : i64
     │   │       │       └── args[1]: local #2 : i64
     │   │       └── body[1] > switch:
@@ -990,7 +990,7 @@
     │   │               └── right: 100 : i64
     │   └── body[1] > return: local #7 : i64
     ├── funcs[11] > func:
-    │   ├── symbol: folding$fib(%primitives$Int)
+    │   ├── symbol: folding$fib(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   ├── body[0] > eval > expand:
@@ -1016,7 +1016,7 @@
     │       ├── op: +
     │       ├── left > call:
     │       │   ├── type: i64
-    │       │   ├── fn: folding$fib(%primitives$Int)
+    │       │   ├── fn: folding$fib(%primitives$I64)
     │       │   └── args[0] > binary:
     │       │       ├── type: i64
     │       │       ├── op: +
@@ -1026,7 +1026,7 @@
     │       │           └── value: 1 : i64
     │       └── right > call:
     │           ├── type: i64
-    │           ├── fn: folding$fib(%primitives$Int)
+    │           ├── fn: folding$fib(%primitives$I64)
     │           └── args[0] > binary:
     │               ├── type: i64
     │               ├── op: +
@@ -1035,7 +1035,7 @@
     │                   ├── type: i64
     │                   └── value: 2 : i64
     ├── funcs[12] > func:
-    │   ├── symbol: folding$squares(%primitives$Int)
+    │   ├── symbol: folding$squares(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > scope:
@@ -1047,7 +1047,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
-    │       │   └── layout: %primitives$List<%primitives$Int>
+    │       │   └── layout: %primitives$List<%primitives$I64>
     │       ├── body[1] > let:
     │       │   ├── local: #4
     │       │   └── value: 1 : i64
@@ -1091,7 +1091,7 @@
     │       │   │   │       └── body[2] > place:
     │       │   │   │           ├── address: local #10 : ptr
     │       │   │   │           ├── value: local #9 : i64
-    │       │   │   │           └── layout: %primitives$Int
+    │       │   │   │           └── layout: %primitives$I64
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #4
     │       │   │       └── value > binary:
@@ -1155,7 +1155,7 @@
     │       │   └── body[3]: leave @15
     │       └── body[6] > return: local #12 : i64
     ├── funcs[13] > func:
-    │   ├── symbol: folding$boxed(%primitives$Int)
+    │   ├── symbol: folding$boxed(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > scope:
@@ -1217,7 +1217,7 @@
     │           ├── fn: folding$depth(folding$Countdown)
     │           └── args[0]: local #2 : <void | ptr>
     ├── funcs[14] > func:
-    │   ├── symbol: folding$upTo(%primitives$Int)
+    │   ├── symbol: folding$upTo(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: handle
     │   └── body[0] > scope:
@@ -1229,7 +1229,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
-    │       │   └── layout: ^%primitives$List<%primitives$Int>
+    │       │   └── layout: ^%primitives$List<%primitives$I64>
     │       ├── body[1] > let:
     │       │   ├── local: #4
     │       │   └── value: 1 : i64
@@ -1269,7 +1269,7 @@
     │       │   │   │       └── body[2] > place:
     │       │   │   │           ├── address: local #10 : ptr
     │       │   │   │           ├── value: local #9 : i64
-    │       │   │   │           └── layout: %primitives$Int
+    │       │   │   │           └── layout: %primitives$I64
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #4
     │       │   │       └── value > binary:
@@ -1284,10 +1284,10 @@
     │           ├── value > take:
     │           │   ├── type: handle
     │           │   ├── address: address of #2 : ptr
-    │           │   └── layout: ^%primitives$List<%primitives$Int>
-    │           └── layout: ^%primitives$List<%primitives$Int>
+    │           │   └── layout: ^%primitives$List<%primitives$I64>
+    │           └── layout: ^%primitives$List<%primitives$I64>
     ├── funcs[15] > func:
-    │   ├── symbol: folding$sum(&%primitives$List<%primitives$Int>)
+    │   ├── symbol: folding$sum(&%primitives$List<%primitives$I64>)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -1401,7 +1401,7 @@
     │           │   └── layout: ^%primitives$List<%primitives$String>
     │           └── layout: ^%primitives$List<%primitives$String>
     ├── funcs[17] > func:
-    │   ├── symbol: folding$countdown(%primitives$Int)
+    │   ├── symbol: folding$countdown(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <void | ptr>
     │   └── body[0] > scope:
@@ -1521,7 +1521,7 @@
     │       ├── left: local #1 : i64
     │       └── right: 3 : i64
     ├── funcs[20] > func:
-    │   ├── symbol: folding$twice(%primitives$Int[%primitives$Int], %primitives$Int)
+    │   ├── symbol: folding$twice(%primitives$I64[%primitives$I64], %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64
@@ -1533,7 +1533,7 @@
     │           ├── fn: local #1 : ptr
     │           └── args[0]: local #2 : i64
     ├── funcs[21] > func:
-    │   ├── symbol: folding$pair(%primitives$Int)
+    │   ├── symbol: folding$pair(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > scope:
@@ -1545,7 +1545,7 @@
     │       │   ├── frame: {i64, i64}
     │       │   ├── args[0]: local #1 : i64
     │       │   ├── dest: #4
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[1] > spawn:
     │       │   ├── task: #7
     │       │   ├── scope: %5
@@ -1559,7 +1559,7 @@
     │       │   │       ├── type: i64
     │       │   │       └── value: 1 : i64
     │       │   ├── dest: #8
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       └── body[2] > return > binary:
     │           ├── type: i64
     │           ├── op: +
@@ -1584,7 +1584,7 @@
     │                       ├── type: i64
     │                       └── ptr: address of #8 : ptr
     ├── funcs[22] > func:
-    │   ├── symbol: folding$divide(%primitives$Int, %primitives$Int)
+    │   ├── symbol: folding$divide(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: <i64 | i64 | void>
@@ -1628,7 +1628,7 @@
     │       │   └── base: local #2 : ptr
     │       └── value > call:
     │           ├── type: i64
-    │           ├── fn: folding$fib(%primitives$Int)
+    │           ├── fn: folding$fib(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
@@ -1646,7 +1646,7 @@
             │   └── base: local #6 : ptr
             └── value > call:
                 ├── type: i64
-                ├── fn: folding$fib(%primitives$Int)
+                ├── fn: folding$fib(%primitives$I64)
                 └── args[0] > deref:
                     ├── type: i64
                     └── ptr > offset:

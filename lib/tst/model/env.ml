@@ -240,7 +240,7 @@ let create () =
       constructors = Hashtbl.create 64;
       methods = Hashtbl.create 64;
       operators = Hashtbl.create 32;
-      flips = ref Intrinsics.flips;
+      flips = ref [];
       subscripts = ref Intrinsics.subscripts;
       enum_maps = Hashtbl.create 16;
       promoted = Hashtbl.create 64;
@@ -260,7 +260,6 @@ let create () =
     (fun (key, s) -> Hashtbl.add env.constructors (Intrinsic_type (fst key, snd key)) s)
     Intrinsics.constructors;
   List.iter (fun (name, s) -> Hashtbl.add env.methods name s) Intrinsics.methods;
-  List.iter (fun (op, s) -> Hashtbl.add env.operators op s) Intrinsics.operators;
   env
 
 (* ---------------------------------------------------------------------- *)
@@ -289,7 +288,10 @@ let fresh_param env ~name ~kind =
   incr env.next_param;
   { Ty.id = !(env.next_param); name; kind }
 
-(* The signature a call names: a declared verb's, or an intrinsic method's. *)
+(* The signature a call names: a declared verb's, or an intrinsic method's
+   or function's. The overloads of one `@operators$` spelling differ only in
+   the primitive they take, which no analysis asking this reads: every
+   parameter is a value, and none is a subject. *)
 let signature_of env (r : Nodes.Verb_ref.t) =
   match r.Nodes.Verb_ref.owner with
   | Signature.Declared id -> Hashtbl.find_opt env.signatures id

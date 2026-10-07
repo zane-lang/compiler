@@ -35,7 +35,7 @@ type param = {
 
 type t = {
   owner : owner;
-  (* How a diagnostic names it: `first`, `+`, `Span.point`, `@primitives$Int`. *)
+  (* How a diagnostic names it: `first`, `+`, `Span.point`, `@primitives$I64`. *)
   name : string;
   home : home;
   kind : kind;

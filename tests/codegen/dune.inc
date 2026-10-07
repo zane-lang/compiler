@@ -859,6 +859,52 @@
   (diff golden/replayed.out replayed.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/scalars))
+ (action
+  (with-stdout-to
+   scalars.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/scalars))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalars.optimized.cgt scalars.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/scalars))
+ (targets scalars.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build scalars.exe --package fixtures/scalars)))
+
+(rule
+ (deps (source_tree fixtures/scalars))
+ (targets scalars.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build scalars.optimized.exe --optimize --package fixtures/scalars)))
+
+(rule
+ (action
+  (with-stdout-to
+   scalars.out.actual
+   (run ./scalars.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalars.out scalars.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   scalars.optimized.out.actual
+   (run ./scalars.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalars.out scalars.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/settled))
  (action
   (with-stdout-to
@@ -1087,6 +1133,56 @@
  (alias runtest)
  (action
   (diff golden/texts.out texts.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/truncation))
+ (action
+  (with-stdout-to
+   truncation.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/truncation))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/truncation.optimized.cgt truncation.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/truncation))
+ (targets truncation.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build truncation.exe --package fixtures/truncation)))
+
+(rule
+ (deps (source_tree fixtures/truncation))
+ (targets truncation.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build truncation.optimized.exe --optimize --package fixtures/truncation)))
+
+(rule
+ (action
+  (with-outputs-to
+   truncation.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./truncation.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/truncation.out truncation.out.actual)))
+
+(rule
+ (action
+  (with-outputs-to
+   truncation.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./truncation.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/truncation.out truncation.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/zero))

@@ -6,7 +6,7 @@ package lib;
 /// §10).
 import bad;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 alias String = @primitives$String
 

@@ -2,7 +2,7 @@
 /// block or a literal where it is called, and does not yet for an operator.
 package literalOperator;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 
 type Meters = struct {
@@ -11,7 +11,7 @@ type Meters = struct {
 
 Meters(value Int) => init{ value; }
 
-Meters +(left Meters, right @concepts$Int) => Meters(left.value + Int(right))
+Meters +(left Meters, right @concepts$Int) => Meters(@operators$add(left.value, Int(right)))
 
 Unit main() {
 	longer Meters = Meters(Int(1)) + 2;

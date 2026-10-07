@@ -1,5 +1,5 @@
-T v1.0%fedcba9876543210%atlas$Tile(%primitives$Int)
+T v1.0%fedcba9876543210%atlas$Tile(%primitives$I64)
 T v1.0%fedcba9876543210%atlas$cover(v1.0%fedcba9876543210%atlas$Tile)
-t geometry$_product(%primitives$Int, %primitives$Int)
-t geometry$area(%primitives$Int, %primitives$Int)
+t geometry$_product(%primitives$I64, %primitives$I64)
+t geometry$area(%primitives$I64, %primitives$I64)
 t geometry$same<v1.0%fedcba9876543210%atlas$Tile>(v1.0%fedcba9876543210%atlas$Tile)

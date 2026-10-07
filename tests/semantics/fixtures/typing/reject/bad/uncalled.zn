@@ -4,12 +4,12 @@ package bad;
 /// its type parameter unknown. What depends on `T` waits for an instance;
 /// what does not is wrong in every instance, and is reported here.
 T neverCalled(value T Type) {
-	total Int = Int(1) + String("a");
+	total Int = @operators$add(Int(1), String("a"));
 	missing Int = nowhere;
 	return value + value;
 }
 
-Int neverSized(values Array<T Type, n @concepts$Int>) => Int(n) + 2.5
+Int neverSized(values Array<T Type, n @concepts$Int>) => @operators$add(Int(n), 2.5)
 
 type Shelf<T Type> = #struct { items List<T>; }
 

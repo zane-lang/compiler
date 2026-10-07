@@ -7,19 +7,19 @@
     │   ├── type: %primitives$List<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
     ├── layouts[2] > layout:
-    │   ├── type: %primitives$Int
+    │   ├── type: %primitives$I64
     │   └── positions:
     ├── layouts[3] > layout:
-    │   ├── type: %primitives$Float
+    │   ├── type: %primitives$F64
     │   └── positions:
     ├── layouts[4] > layout:
-    │   ├── type: outcome of %primitives$Int ? %primitives$String
+    │   ├── type: outcome of %primitives$I64 ? %primitives$String
     │   └── positions[0]: text @8 when [0]=1
     ├── layouts[5] > layout:
     │   ├── type: %primitives$Unit
     │   └── positions:
     ├── layouts[6] > layout:
-    │   ├── type: %primitives$Int[this spawned$Counter, %primitives$Int]
+    │   ├── type: %primitives$I64[this spawned$Counter, %primitives$I64]
     │   └── positions:
     ├── funcs[0] > func:
     │   ├── symbol: spawned$main()
@@ -76,7 +76,7 @@
     │       │   ├── frame: {i64, ptr}
     │       │   ├── args[0]: address of #1 : ptr
     │       │   ├── dest: #11
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawned$check(%primitives$Bool)
@@ -101,7 +101,7 @@
     │       │   ├── frame: {i64, i64}
     │       │   ├── args[0]: 2 : i64
     │       │   ├── dest: #16
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[6] > spawn:
     │       │   ├── task: #18
     │       │   ├── scope: %2
@@ -109,7 +109,7 @@
     │       │   ├── frame: {i64, i64}
     │       │   ├── args[0]: 5 : i64
     │       │   ├── dest: #19
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[7] > spawn:
     │       │   ├── task: #21
     │       │   ├── scope: %2
@@ -117,7 +117,7 @@
     │       │   ├── frame: {i64, i64}
     │       │   ├── args[0]: 5 : i64
     │       │   ├── dest: #22
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[8] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawned$check(%primitives$Bool)
@@ -168,7 +168,7 @@
     │       │   ├── frame: {f64}
     │       │   ├── args:
     │       │   ├── dest: #31
-    │       │   └── layout: %primitives$Float
+    │       │   └── layout: %primitives$F64
     │       ├── body[10] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawned$check(%primitives$Bool)
@@ -240,7 +240,7 @@
     │       │   │   ├── members[1] > member 1: local #42 : i64
     │       │   │   └── members[2] > member 2: 3 : i64
     │       │   ├── dest: #45
-    │       │   └── layout: %primitives$Int
+    │       │   └── layout: %primitives$I64
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawned$check(%primitives$Bool)
@@ -332,7 +332,7 @@
     │       │   ├── frame: {<i64 | handle | void>, i64}
     │       │   ├── args[0]: 7 : i64
     │       │   ├── dest: #56
-    │       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawned$check(%primitives$Bool)
@@ -376,7 +376,7 @@
     │       │       │   │               │   │   ├── type: <i64 | handle | void>
     │       │       │   │               │   │   ├── index: 0
     │       │       │   │               │   │   └── payload: 0 : i64
-    │       │       │   │               │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │       │       │   │               │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │       │       │   │               └── body[2]: leave @58
     │       │       │   └── body[1] > assign:
     │       │       │       ├── place: #62
@@ -391,7 +391,7 @@
     │       │   ├── local: #63
     │       │   └── value > call:
     │       │       ├── type: i64
-    │       │       ├── fn: spawned$Counter(%primitives$Int)
+    │       │       ├── fn: spawned$Counter(%primitives$I64)
     │       │       └── args[0]: 1 : i64
     │       ├── body[21] > if:
     │       │   ├── cond: true : i1
@@ -418,7 +418,7 @@
     │       │   ├── frame: {ptr}
     │       │   ├── args:
     │       │   ├── dest: #70
-    │       │   └── layout: %primitives$Int[this spawned$Counter, %primitives$Int]
+    │       │   └── layout: %primitives$I64[this spawned$Counter, %primitives$I64]
     │       ├── body[24] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawned$check(%primitives$Bool)
@@ -474,7 +474,7 @@
     │                       │   │   ├── type: <i64 | handle | void>
     │                       │   │   ├── index: 0
     │                       │   │   └── payload: 0 : i64
-    │                       │   └── layout: outcome of %primitives$Int ? %primitives$String
+    │                       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │                       └── body[2]: leave @73
     ├── funcs[1] > func:
     │   ├── symbol: zane.intrinsic.1
@@ -652,7 +652,7 @@
     │       ├── index: 0
     │       └── payload: local #1 : i64
     ├── funcs[9] > func:
-    │   ├── symbol: spawned$Counter(%primitives$Int)
+    │   ├── symbol: spawned$Counter(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > return: local #1 : i64

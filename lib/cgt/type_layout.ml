@@ -33,6 +33,12 @@ let is_text = function
   | Tty.Intrinsic { namespace = "primitives"; name = "String"; args = [] } -> true
   | _ -> false
 
+(* `@primitives$I32`, `I64`, `F32` or `F64`. *)
+let scalar t =
+  match Tty.strip_mode t with
+  | Tty.Intrinsic { namespace = "primitives"; name; args = [] } -> List.mem name Tst.Intrinsics.scalars
+  | _ -> false
+
 let element = function
   | Tty.Intrinsic { namespace = "primitives"; name = "List"; args = [ Tty.Type e ] } -> Some e
   | _ -> None
@@ -113,9 +119,10 @@ let rec ty st span (t : Tty.t) : Nodes.Ty.t =
       match name with
       | "Unit" -> Nodes.Ty.Void
       | "Bool" -> Nodes.Ty.I1
-      | "Int" | "I64" -> Nodes.Ty.I64
+      | "I64" -> Nodes.Ty.I64
       | "I32" -> Nodes.Ty.I32
-      | "Float" -> Nodes.Ty.F64
+      | "F64" -> Nodes.Ty.F64
+      | "F32" -> Nodes.Ty.F32
       | _ -> unhandled span t)
   | Tty.Reference _ -> Nodes.Ty.Ptr
   | Tty.Verb _ -> Nodes.Ty.Ptr

@@ -4,7 +4,7 @@
 /// pushed into and overwritten in a list.
 package moves;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -16,9 +16,9 @@ Bool if(condition Bool, body @concepts$Block) {
 }
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(end + ~this + Int(1), {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
 		@controlflow$branch(true, body);
-		this = this + Int(1);
+		this = @operators$add(this, Int(1));
 	});
 	return Unit();
 }
@@ -32,7 +32,7 @@ Unit say(text String) {
 Unit check(label String, ok Bool) {
 	say(label);
 	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(~ok, { say(String(" NO\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
 	return Unit();
 }
 
@@ -54,7 +54,7 @@ Car(engine ^Engine) => init{ engine; }
 
 ^Engine boost(e ^Engine) {
 	kept ^Engine = e;
-	kept.power = kept.power + Int(100);
+	kept.power = @operators$add(kept.power, Int(100));
 	return kept;
 }
 
@@ -74,23 +74,23 @@ Unit main() {
 	a ^Engine = Engine(Int(1), String("a"));
 	b ^Engine = a;
 	c ^Engine = b;
-	check(String("moved twice"), c.power == Int(1));
+	check(String("moved twice"), @operators$equal(c.power, Int(1)));
 	a = Engine(Int(2), String("a2"));
-	check(String("refilled after move"), a.power == Int(2));
+	check(String("refilled after move"), @operators$equal(a.power, Int(2)));
 
 	d ^Engine = relay(c);
-	check(String("relayed back"), d.power == Int(1));
+	check(String("relayed back"), @operators$equal(d.power, Int(1)));
 	c = boost(d);
-	check(String("relayed and written"), c.power == Int(101));
-	check(String("label travelled"), c.label == String("a"));
+	check(String("relayed and written"), @operators$equal(c.power, Int(101)));
+	check(String("label travelled"), @operators$equal(c.label, String("a")));
 
 	// A field moved out of a roaming root, and refilled.
 	car ^Car = Car(make(Int(7)));
 	out Engine = car.engine;
-	check(String("field moved out"), out.power == Int(7));
+	check(String("field moved out"), @operators$equal(out.power, Int(7)));
 	car.engine = Engine(Int(8), String("refill"));
 	whole Car = car;
-	check(String("refilled root moves whole"), whole.engine.power == Int(8));
+	check(String("refilled root moves whole"), @operators$equal(whole.engine.power, Int(8)));
 
 	// Ignored `^T` results are destroyed at the statement (§1.9).
 	i Int(1);
@@ -108,12 +108,12 @@ Unit main() {
 		incoming ^Car = Car(make(j));
 		garage!park(incoming);
 	}
-	check(String("list holds 1000"), garage.cars:size() == Int(1000));
-	check(String("element 500"), garage.cars[Int(500)].engine.power == Int(500));
+	check(String("list holds 1000"), @operators$equal(garage.cars:size(), Int(1000)));
+	check(String("element 500"), @operators$equal(garage.cars[Int(500)].engine.power, Int(500)));
 	garage.cars[Int(500)] = Car(make(Int(0)));
-	check(String("element overwritten"), garage.cars[Int(500)].engine.power == Int(0));
-	check(String("neighbour intact"), powerOf(garage.cars[Int(501)].engine) == Int(501));
+	check(String("element overwritten"), @operators$equal(garage.cars[Int(500)].engine.power, Int(0)));
+	check(String("neighbour intact"), @operators$equal(powerOf(garage.cars[Int(501)].engine), Int(501)));
 	r &Garage = garage;
-	check(String("ref to the list's owner sees size"), r.cars:size() == Int(1000));
+	check(String("ref to the list's owner sees size"), @operators$equal(r.cars:size(), Int(1000)));
 	return Unit();
 }

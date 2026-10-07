@@ -1,14 +1,14 @@
 package bad;
 
-type Note = #struct { pitch @primitives$Int; }
+type Note = #struct { pitch @primitives$I64; }
 
-Note(pitch @primitives$Int) => init{ pitch; }
+Note(pitch @primitives$I64) => init{ pitch; }
 
 @primitives$Unit hear(note &Note) => @primitives$Unit()
 
 /// A reference names a place: a value built in the argument is a temporary,
 /// so it is stored first (memory.md §2.8).
 @primitives$Unit greet() {
-	hear(Note(@primitives$Int(1)));
+	hear(Note(@primitives$I64(1)));
 	return @primitives$Unit();
 }

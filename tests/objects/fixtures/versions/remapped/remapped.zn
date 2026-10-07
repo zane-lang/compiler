@@ -7,7 +7,7 @@ package remapped;
 import geometry;
 import atlas;
 
-alias Int = @primitives$Int
+alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
@@ -18,16 +18,16 @@ Unit check(ok Bool) {
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
-	@controlflow$branch(~ok, {
+	@controlflow$branch(@operators$not(ok), {
 		@program$console!print(no);
 	});
 	return Unit();
 }
 
 Unit main() {
-	check(geometry$version() == Int(11));
-	check(atlas$legacy() == Int(11));
-	check(atlas$measure() == Int(3));
-	check(atlas$echo(Int(5)) == Int(5));
+	check(@operators$equal(geometry$version(), Int(11)));
+	check(@operators$equal(atlas$legacy(), Int(11)));
+	check(@operators$equal(atlas$measure(), Int(3)));
+	check(@operators$equal(atlas$echo(Int(5)), Int(5)));
 	return Unit();
 }

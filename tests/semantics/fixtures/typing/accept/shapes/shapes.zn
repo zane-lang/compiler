@@ -2,7 +2,7 @@
 /// constructors with them, and an importer reaches them without naming them.
 package shapes;
 
-alias Float = @primitives$Float
+alias Float = @primitives$F64
 alias Unit = @primitives$Unit
 alias String = @primitives$String
 
@@ -20,14 +20,14 @@ Vec2.zero() => init{ x = Float(0.0); y = Float(0.0); }
 Vec2{ x Float; y Float = Float(0.0); } => init{ x; y; }
 
 /// Found through `Vec2`'s home, whatever the caller imports.
-Vec2 +(left Vec2, right Vec2) => Vec2(left.x + right.x, left.y + right.y)
-Vec2 ~(value Vec2) => Vec2(~value.x, ~value.y)
+Vec2 +(left Vec2, right Vec2) => Vec2(@operators$add(left.x, right.x), @operators$add(left.y, right.y))
+Vec2 ~(value Vec2) => Vec2(@operators$negate(value.x), @operators$negate(value.y))
 
-Float length(this Vec2) => this.x * this.x + this.y * this.y
+Float length(this Vec2) => @operators$add(@operators$multiply(this.x, this.x), @operators$multiply(this.y, this.y))
 
 Unit scale(this Vec2, by Float) mut {
-	this.x = this.x * by;
-	this.y = this.y * by;
+	this.x = @operators$multiply(this.x, by);
+	this.y = @operators$multiply(this.y, by);
 	return Unit();
 }
 
@@ -50,10 +50,10 @@ Corner.label String {
 }
 
 /// A private helper is invisible to every other package.
-Float _half(value Float) => value / Float(2.0)
+Float _half(value Float) => @operators$divide(value, Float(2.0))
 
 Float area(shape &Shape) => match (shape) {
-	r circle => r * r;
-	s square => _half(s + s);
+	r circle => @operators$multiply(r, r);
+	s square => _half(@operators$add(s, s));
 	point => Float(0.0);
 }
