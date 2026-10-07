@@ -318,7 +318,7 @@ analysis reads too).
 
 The same spawn is lent every owner passed to it, directly or through a reference,
 until the same drain, and the block may not write one meanwhile
-([`spec-divergences.md`](../spec-divergences.md) §13): not by assignment, not as
+([`spec-divergences.md`](../spec-divergences.md) §12): not by assignment, not as
 a `!` call's subject, not by moving it out. A spawned `mut` call on part of it
 is allowed, since it writes back (docs/design/lowering.md §9). Where a write goes
 through a reference, the checker follows the reference to the place it was
@@ -415,7 +415,7 @@ Where the typing rules need care:
 | Operator | Candidates from the operand types' home packages only; imports add none (`operators.md` §2.2). A swapped `Op` is resolved as the primitive with operands in passed order (see D8). |
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
-| Block argument | Typed `@concepts$Block`: a block yields nothing ([`spec-divergences.md`](../spec-divergences.md) §11). |
+| Block argument | Typed `@concepts$Block`: a block yields nothing ([`spec-divergences.md`](../spec-divergences.md) §10). |
 | Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). |
 
 ---

@@ -428,7 +428,7 @@ and actual_of env ctx (a : N.Call_arg.t) =
 
 (* A block argument captures the scope it is written in (control-flow.md
    §2.2) and yields nothing: a `return`, `resolve` or `abort` in it acts on
-   what encloses the call (docs/spec-divergences.md §11). *)
+   what encloses the call (docs/spec-divergences.md §10). *)
 and block_argument env ctx (b : N.Block.t) = (block_in env (push ctx) b, Ty.Concept Ty.Block)
 
 and verb_call env ~flow ctx (vc : N.Verb_call.t) : T.Expr.t * S.t option =

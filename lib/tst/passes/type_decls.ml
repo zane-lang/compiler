@@ -583,7 +583,7 @@ and concept env scope span c generics : Ty.t =
       | _ ->
           error env span
             "`@concepts$Block` takes no type argument: a block yields nothing \
-             (docs/spec-divergences.md §11)";
+             (docs/spec-divergences.md §10)";
           Ty.Error)
   | "Array" -> (
       match args () with

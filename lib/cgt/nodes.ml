@@ -90,7 +90,7 @@ module Ty = struct
     | Array (t, n) -> Printf.sprintf "[%d x %s]" n (to_string t)
 end
 
-(* What a scalar conversion means (types.md §2.7), which codegen emits and
+(* What a scalar conversion means (types.md §2.9), which codegen emits and
    the optimizer folds, so the two cannot disagree. A float is held as a
    double either way; an [F32] is one that [single] has rounded. *)
 module Scalar = struct
@@ -109,6 +109,11 @@ module Scalar = struct
     let half = Float.pow 2. (float_of_int (bits t - 1)) in
     if bits t = 32 && from = Ty.F64 then (Float.neg half -. 1., false, half)
     else (Float.neg half, true, half)
+
+  (* The least and the greatest value of the integer type [t]. *)
+  let ends t =
+    if bits t = 32 then (Int64.of_int32 Int32.min_int, Int64.of_int32 Int32.max_int)
+    else (Int64.min_int, Int64.max_int)
 
   let truncates_into ~from t f =
     let lower, inclusive, upper = truncation ~from t in
@@ -179,10 +184,10 @@ module Expr = struct
     (* An integer or a float negated, an [I1] inverted. *)
     | Flip of t
     (* A scalar converted to the node's type, the instruction picked by the
-       two types (types.md §2.7): an integer widened by its sign or wrapped
+       two types (types.md §2.9): an integer widened by its sign or wrapped
        to its low bits, a float widened or rounded, an integer rounded to the
        nearest float, and a float truncated toward zero to an integer, which
-       stops the program when the result does not fit. *)
+       saturates when the result does not fit and gives zero for a NaN. *)
     | Convert of t
     (* A verb expanded where it is called (L11): its body runs here, and a
        `return` in it stores [result] and leaves [label]. The expression's

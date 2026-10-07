@@ -184,8 +184,9 @@ let binary (op : Expr.binop) (t : Ty.t) l r =
   match (t, op, l, r) with
   | (Ty.I64 | Ty.I32), Expr.Add, VInt a, VInt b -> VInt (int t (Int64.add a b))
   | (Ty.I64 | Ty.I32), Expr.Mul, VInt a, VInt b -> VInt (int t (Int64.mul a b))
-  | (Ty.I64 | Ty.I32), Expr.Div, VInt _, VInt 0L -> stop "a division by zero"
-  (* The one quotient an integer cannot hold wraps, as [+] and [*] do. *)
+  (* A division by zero gives zero, and the one quotient an integer cannot
+     hold wraps, as [+] and [*] do. *)
+  | (Ty.I64 | Ty.I32), Expr.Div, VInt _, VInt 0L -> VInt 0L
   | (Ty.I64 | Ty.I32), Expr.Div, VInt a, VInt -1L -> VInt (int t (Int64.neg a))
   | (Ty.I64 | Ty.I32), Expr.Div, VInt a, VInt b -> VInt (int t (Int64.div a b))
   | (Ty.I64 | Ty.I32), Expr.Eq, VInt a, VInt b -> VBool (Int64.equal a b)
@@ -215,8 +216,10 @@ let convert (from : Ty.t) (into : Ty.t) v =
   | (Ty.I32 | Ty.I64), (Ty.F32 | Ty.F64), VInt a -> VFloat (Scalar.to_float into a)
   | (Ty.F32 | Ty.F64), (Ty.F32 | Ty.F64), VFloat a -> VFloat (float into a)
   | (Ty.F32 | Ty.F64), (Ty.I32 | Ty.I64), VFloat a ->
-      if Scalar.truncates_into ~from into a then VInt (Int64.of_float (Float.trunc a))
-      else stop "a conversion out of range"
+      let least, most = Scalar.ends into in
+      if Float.is_nan a then VInt 0L
+      else if Scalar.truncates_into ~from into a then VInt (Int64.of_float (Float.trunc a))
+      else VInt (if a < 0. then least else most)
   | _ -> stop "a conversion of a value it does not convert"
 
 (* ---------------------------------------------------------------------- *)

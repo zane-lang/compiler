@@ -1063,7 +1063,7 @@ and arguments st ctx span v args =
 
    A call that can abort or exit settles on this thread, once, where it is
    first read, or where the block ends when nothing reads it first
-   (docs/spec-divergences.md §12). An abort runs the handler written at the
+   (docs/spec-divergences.md §11). An abort runs the handler written at the
    spawn (§3.3), or goes where an abort from here goes, and its `resolve`
    gives the result; an exit ends the run of the block the spawn is in. *)
 and spawn st ctx span (e : T.Expr.t) =
@@ -1539,7 +1539,7 @@ and block ?(enter = fun _ -> []) st ctx (b : T.Block.t) =
   match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ]
 
 (* A block argument's code, where it was written. An exit ends this run of
-   it (docs/spec-divergences.md §10). *)
+   it (docs/spec-divergences.md §9). *)
 and code st ctx span (arg : T.Arg.t) =
   let run ctx b =
     let label = fresh st in

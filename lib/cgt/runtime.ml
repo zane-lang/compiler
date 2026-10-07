@@ -8,8 +8,6 @@ type fn =
   | Print
   | Text_join
   | Text_equal
-  | Divide_by_zero
-  | Conversion_out_of_range
   | Scope_enter
   | Slot
   | Promote
@@ -33,14 +31,12 @@ type fn =
   | Constant_end
   | Writeback
 
-let all = [ Print; Text_join; Text_equal; Divide_by_zero; Conversion_out_of_range; Scope_enter; Slot; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback ]
+let all = [ Print; Text_join; Text_equal; Scope_enter; Slot; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback ]
 
 let name = function
   | Print -> "zane_print"
   | Text_join -> "zane_text_join"
   | Text_equal -> "zane_text_equal"
-  | Divide_by_zero -> "zane_divide_by_zero"
-  | Conversion_out_of_range -> "zane_conversion_out_of_range"
   | Scope_enter -> "zane_scope_enter"
   | Slot -> "zane_slot"
   | Promote -> "zane_promote"
@@ -73,8 +69,6 @@ let signature = function
   | Print -> (Void, [ Ptr ])
   | Text_join -> (Void, [ Ptr; Ptr; Ptr ])
   | Text_equal -> (I64, [ Ptr; Ptr ])
-  | Divide_by_zero -> (Void, [  ])
-  | Conversion_out_of_range -> (Void, [  ])
   | Scope_enter -> (I64, [  ])
   | Slot -> (Ptr, [ I64; I64; I64; Ptr ])
   | Promote -> (Void, [ Ptr; Ptr; I64 ])

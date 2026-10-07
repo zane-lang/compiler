@@ -20,7 +20,7 @@ let binop : Sst.Nodes.Operator.node -> Expr.binop = function
   | Eq -> Expr.Eq
   | Less -> Expr.Less
 
-(* An exit ends the run of a block (docs/spec-divergences.md §10). Semantics
+(* An exit ends the run of a block (docs/spec-divergences.md §9). Semantics
    rejects one anywhere else, so this is not reached. *)
 let no_block span = Diagnostic.bug ~span "lowering: an exit ends the block its call is written in, and this is in none"
 

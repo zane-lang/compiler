@@ -253,7 +253,7 @@ Error: `guard` can exit, which ends the block its call is written in, and this c
 File "fixtures/typing/reject/bad/exits.zn", line 19, characters 23-44:
 19 | Bool lazily(condition @concepts$Block<Bool>) => true
   |                       ^^^^^^^^^^^^^^^^^^^^^
-Error: `@concepts$Block` takes no type argument: a block yields nothing (docs/spec-divergences.md §11)
+Error: `@concepts$Block` takes no type argument: a block yields nothing (docs/spec-divergences.md §10)
 File "fixtures/typing/reject/bad/exits.zn", line 23, characters 9-23:
 23 |         resolve ready;
   |         ^^^^^^^^^^^^^^

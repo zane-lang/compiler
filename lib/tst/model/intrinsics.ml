@@ -128,7 +128,7 @@ let operator_functions =
       binary "equal" "String" (prim "Bool");
     ]
 
-(* The conversions between scalars (types.md §2.7), as the target, the name
+(* The conversions between scalars (types.md §2.9), as the target, the name
    of the constructor that converts, and the source. One that is exact for
    every value is a plain constructor; one that can lose a value is named
    for how it does: `wrap` keeps an integer's low bits, `truncate` drops a
@@ -152,7 +152,7 @@ let conversions =
 
 (* Constructors, keyed by the type they build. A storage primitive has a
    constructor from its concept, and a scalar one from each scalar it
-   converts from (types.md §2.7). None is implicit: a concept becomes a
+   converts from (types.md §2.9). None is implicit: a concept becomes a
    primitive only where it is written, or inside a type's own implicit
    conversion. *)
 let constructors =

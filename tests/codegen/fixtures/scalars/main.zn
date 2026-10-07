@@ -1,7 +1,7 @@
 /// The four scalar primitives and what `@operators$` does with them
 /// (syntax.md §2.7): each operation on each type, `Bool`'s three and
 /// `String`'s join, then every conversion between two scalars (types.md
-/// §2.7) -- the exact ones as plain constructors, the rest named for how
+/// §2.9) -- the exact ones as plain constructors, the rest named for how
 /// they lose a value. Every check prints `yes` when it holds and `no` when
 /// it does not.
 package scalars;
@@ -32,6 +32,10 @@ I64 i64(value @concepts$Int) => I64(value)
 F32 f32(value @concepts$Float) => F32(value)
 F64 f64(value @concepts$Float) => F64(value)
 
+/// One over zero, and zero over zero.
+F64 infinity() => @operators$divide(f64(1.0), f64(0.0))
+F64 nan() => @operators$divide(f64(0.0), f64(0.0))
+
 /// The least of each integer type, which no literal writes.
 I32 minI32() => @operators$add(@operators$negate(I32(2147483647)), @operators$negate(I32(1)))
 I64 minI64() => @operators$add(@operators$negate(I64(9223372036854775807)), @operators$negate(I64(1)))
@@ -56,6 +60,19 @@ Unit main() {
 
 	// An `I32` wraps at 32 bits.
 	check(@operators$equal(@operators$add(i32(2147483647), i32(1)), minI32()));
+
+	// An integer division by zero gives zero, and the one quotient an integer
+	// cannot hold wraps (operators.md §2.6).
+	check(@operators$equal(@operators$divide(i32(7), i32(0)), i32(0)));
+	check(@operators$equal(@operators$divide(@operators$negate(i64(7)), i64(0)), i64(0)));
+	check(@operators$equal(@operators$divide(minI64(), @operators$negate(i64(1))), minI64()));
+	check(@operators$equal(@operators$divide(minI32(), @operators$negate(i32(1))), minI32()));
+
+	// A float division by zero is an infinity, which doubling leaves as it
+	// is, or a NaN for zero over zero, which equals nothing, itself included.
+	check(@operators$equal(@operators$multiply(infinity(), f64(2.0)), infinity()));
+	check(@operators$lessThan(f64(0.0), infinity()));
+	check(@operators$not(@operators$equal(nan(), nan())));
 
 	// An `F32` rounds every result to single precision: a tenth plus two
 	// tenths is the single nearest three tenths, which is not the double's.
@@ -86,6 +103,17 @@ Unit main() {
 	check(@operators$equal(I32.truncate(@operators$negate(f64(2147483648.5))), minI32()));
 	check(@operators$equal(I64.truncate(f32(16777216.0)), i64(16777216)));
 	check(@operators$equal(I64.truncate(@operators$negate(f64(9223372036854775808.0))), minI64()));
+
+	// One whose integer part the target cannot hold saturates, and a NaN
+	// truncates to zero.
+	check(@operators$equal(I32.truncate(f64(2147483648.0)), i32(2147483647)));
+	check(@operators$equal(I32.truncate(@operators$negate(f64(2147483649.0))), minI32()));
+	check(@operators$equal(I32.truncate(f32(10000000000.0)), i32(2147483647)));
+	check(@operators$equal(I64.truncate(f64(1000000000000000000000000000000.0)), i64(9223372036854775807)));
+	check(@operators$equal(I64.truncate(@operators$negate(f32(1000000000000000000000000000000.0))), minI64()));
+	check(@operators$equal(I64.truncate(infinity()), i64(9223372036854775807)));
+	check(@operators$equal(I32.truncate(nan()), i32(0)));
+	check(@operators$equal(I64.truncate(F32.round(nan())), i64(0)));
 
 	// A conversion that can lose precision rounds to the nearest.
 	check(@operators$equal(F32.round(f64(0.1)), f32(0.1)));

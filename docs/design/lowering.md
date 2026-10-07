@@ -551,7 +551,7 @@ test passing.
   retired values are kept, is left to measurement.
 - **An owner lent to a running spawn.** The spawning block may not write an
   owner it lent a spawn that may still be reading it; the checker rejects
-  that write ([`spec-divergences.md`](../spec-divergences.md) §13), so the
+  that write ([`spec-divergences.md`](../spec-divergences.md) §12), so the
   only writes that race a reader are spawned write-backs, which the
   snapshots above cover.
 - **Where a spawned call is waited for.** Only a spawned call bound by a
@@ -564,7 +564,7 @@ test passing.
   result's blocks under the done tag, the abort value's under the
   aborted one. The call settles once, on the spawning thread, where it is
   first read or where its block ends
-  ([`spec-divergences.md`](../spec-divergences.md) §12). A flag the spawn sets
+  ([`spec-divergences.md`](../spec-divergences.md) §11). A flag the spawn sets
   says whether it has. An abort takes the abort value out of the slot and
   runs the handler written at the spawn, lowered where it settles but in
   the context of the spawn, so its `abort`, `return` and exit go where they
@@ -625,25 +625,24 @@ test passing.
   sum of three cases instead: done with its result, aborted with its abort
   value, and exited. A function that can only finish returns its result as
   before. An exit ends the run of the block the call is written in
-  ([`spec-divergences.md`](../spec-divergences.md) §10), so each run of a block
+  ([`spec-divergences.md`](../spec-divergences.md) §9), so each run of a block
   argument has a label to leave.
 - **A 64-bit target.** Codegen sizes a sum's payload room assuming 8-byte
   pointers and C struct layout, which holds for x86-64 and AArch64. Another
   target reads the sizes from LLVM's data layout.
-- **Integer division by zero.** The spec leaves it open
-  ([`spec-divergences.md`](../spec-divergences.md) §9). Until it says, the
-  program stops: what it wrote so far is kept, the runtime writes `division by
-  zero` to stderr, and the status is 1. The one other quotient an integer
-  cannot hold, the most negative value over `-1`, wraps, as `+` and `*` do.
-- **A float truncated out of range.** `types.md` §2.7 stops the program when
-  `truncate` leaves a NaN, or an integer part the target cannot hold. It stops
-  as it does at a division by zero: what it wrote so far is kept, the runtime
-  writes `conversion out of range` to stderr, and the status is 1. A
-  conversion is one CGT node, `Convert`, whose instruction the source and
-  target types pick, and the bounds it checks are `Scalar.truncation`'s, which
-  the optimizer folds by too.
+- **Integer division by zero, and a float truncated out of range.**
+  `operators.md` §2.6 gives a division by zero the result zero, and
+  `types.md` §2.9 saturates a `truncate` whose integer part the target cannot
+  hold and gives zero for a NaN. Neither instruction LLVM has means that by
+  itself, since `sdiv` by zero and `fptosi` out of range are undefined, so
+  codegen guards each with selects: the divisor is replaced before the
+  `sdiv`, and the bounds `Scalar.truncation` gives pick the target's ends
+  over `fptosi`'s result. The one other quotient an integer cannot hold, the
+  most negative value over `-1`, wraps, as `+` and `*` do. A conversion is one
+  CGT node, `Convert`, whose instruction the source and target types pick,
+  and the optimizer folds by the same bounds.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
-  §5.2, [`spec-divergences.md`](../spec-divergences.md) §15). Until it says, the program stops as it does at a division by zero:
+  §5.2, [`spec-divergences.md`](../spec-divergences.md) §14). Until it says, the program stops:
   what it wrote so far is kept, the runtime writes `index out of range` to
   stderr, and the status is 1, for a list and an array alike.
 - **A type argument passes nothing.** A generic verb is lowered once per

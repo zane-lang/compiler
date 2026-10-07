@@ -17,7 +17,7 @@ settles, in one pass rather than section by section. Until then:
   the claim can be rechecked rather than taken on trust.
 
 A choice the spec leaves open is recorded here when a running program can
-observe it, as §9 and §12 are. The rest sit beside the design they belong
+observe it, as §11 and §14 are. The rest sit beside the design they belong
 to: what the type checker decides is in
 [`design/semantics.md`](design/semantics.md) §9, with D12 and D14, and how
 lowering and the runtime place and represent things is in
@@ -381,27 +381,7 @@ mention one. It needs a digit on each side, and none of the loose operators of
 (`docs/ambiguity/proof-obligations.md`). Reconciling means either the spec
 adopting the separator or the lexer dropping it.
 
-## 9. An integer division by zero stops the program
-
-**Spec** — silent. [`operators.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/operators.md)
-§4.3 says division is declared rather than derived, and nothing says what
-`@operators$divide` does on an integer when the divisor is zero, or when the
-quotient does not fit.
-
-**Compiler** — the program stops: what it wrote so far is flushed, the
-runtime writes `division by zero` to stderr, and the status is 1. The one
-quotient an `i64` cannot hold, the most negative value over `-1`, wraps, as
-`+` and `*` do. `tests/codegen/fixtures/zero` is the case, and
-`docs/design/lowering.md` §9 the decision.
-
-```zane
-quotient Int = @operators$divide(Int(1), zero());   // stops here, status 1
-```
-
-Reconciling means the spec stating an outcome, or making `/` abortable, now
-that aborts lower (step 4 of `docs/design/lowering.md` §8).
-
-## 10. An exit ends the run of a block
+## 9. An exit ends the run of a block
 
 **Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §2.3 and §4.2: `@controlflow$exitFromCall` ends the invocation that called
@@ -413,7 +393,7 @@ the verb containing it, and blocks are transparent to it, so a `guard` inside
 written in, and a call to an exiting verb is legal only inside a block. A
 verb's body must end in an explicit `return`, `Unit()` included
 ([`error-handling.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/error-handling.md)
-§8), while a block yields nothing (§11 below), so it has nothing to give and
+§8), while a block yields nothing (§10 below), so it has nothing to give and
 is the one thing an exit can end.
 
 ```zane
@@ -433,7 +413,7 @@ written there. `lib/tst/analyses/exits.ml` checks the calls, and
 `tests/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
 Reconciling means the spec adopting this reading.
 
-## 11. A block yields nothing
+## 10. A block yields nothing
 
 **Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §2.1 and §2.4: a block's type is `@concepts$Block`, or `@concepts$Block<T>`
@@ -461,7 +441,7 @@ done Bool = if(ready) {
 condition of §3.3 has no form here. Reconciling means the spec dropping
 `Block<T>`, or the compiler taking it back.
 
-## 12. A spawned call's handler runs where the call settles
+## 11. A spawned call's handler runs where the call settles
 
 **Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
 §3.3: an abortable spawned call attaches `?` or `??` directly to the
@@ -473,7 +453,7 @@ or what happens when nothing reads the symbol.
 its local is first read, or where the block it is spawned in ends, when
 nothing has read it by then. Settling waits for the call. An abort runs the
 handler there, and an exit ends the run of the block the spawn is written in
-(§10), from there. A block left before it ends -- by a `return`, an exit or
+(§9), from there. A block left before it ends -- by a `return`, an exit or
 an `abort` -- still waits for the call as it drains, but runs no handler, and
 the outcome dies with the block.
 
@@ -489,7 +469,7 @@ check(q == Int(7));         // settled already: the handler does not run again
 `tests/codegen/fixtures/spawns` has these cases. Reconciling means the spec
 saying where the handler runs.
 
-## 13. A block does not write an owner it lent a running spawn
+## 12. A block does not write an owner it lent a running spawn
 
 **Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
 §4.2 lets spawned work read the reference-type object graph without writing
@@ -518,7 +498,7 @@ spawn dial.reading!nudge();      // accepted: written back (§4.4)
 Reconciling means the spec stating a rule for this write, this one or
 another.
 
-## 14. A case is not a type
+## 13. A case is not a type
 
 **Spec** — [`adt.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/adt.md)
 §3: "A member projected as a type is written `Expr.intLit`", and §5.2: "if the
@@ -540,15 +520,15 @@ projected case type would still be the whole variant (§3.2), and the
 narrowing it enables is an optimization the tag jump already gives. Reconciling
 means adding the type form and its narrowing, or the spec dropping it.
 
-## 15. An index out of range stops the program
+## 14. An index out of range stops the program
 
 **Spec** — silent. [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §5.2 fixes the ordinal base and leaves "the language-level behavior for
 out-of-range element access" as a separate question.
 
-**Compiler** — the program stops as it does at a division by zero (§9): what
-it wrote so far is flushed, the runtime writes `index out of range` to stderr,
-and the status is 1, for a list and an array alike.
+**Compiler** — the program stops: what it wrote so far is flushed, the
+runtime writes `index out of range` to stderr, and the status is 1, for a list
+and an array alike.
 `tests/codegen/fixtures/range` and `tests/codegen/fixtures/bounds` are the
 cases, and [`design/lowering.md`](design/lowering.md) §9 the decision.
 
@@ -564,8 +544,9 @@ purpose, and by what. The first three closed at the `034f11a` re-pin, when the
 spec moved to `;`-terminated statements and a brace that ends one. The next
 closed from the other side, when the compiler adopted a spec rule it had been
 standing in for, the next when the compiler followed the spec in removing a
-form, and the last when the spec's memory model made the compiler's departure
-unnecessary.
+form, the next when the spec's memory model made the compiler's departure
+unnecessary, and the last when the spec settled a question the compiler had
+answered differently.
 
 - **Statements are terminated, not separated.** The spec separated statements
   by newline and called it "the one place a newline is structural"; the
@@ -661,3 +642,11 @@ unnecessary.
   reference-type parameter a borrow too, so the spec's own signature reads the
   text without taking it. The compiler now declares `print` exactly as the
   spec does, and a string built in the argument is passed as it is.
+
+- **An integer division by zero stopped the program.** The spec said nothing
+  about it, and the compiler stopped with status 1 after writing `division by
+  zero` to stderr. Spec [#222](https://github.com/zane-lang/spec/pull/222)
+  gives it a result, zero (`operators.md` §2.6), and makes `truncate` total
+  too: it saturates a float its target
+  cannot hold and gives zero for a NaN (`types.md` §2.9). The compiler follows, and the runtime functions that stopped the
+  program at either are gone; `tests/codegen/fixtures/scalars` checks both.

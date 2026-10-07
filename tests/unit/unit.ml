@@ -279,8 +279,13 @@ let folded_arithmetic () =
   check "I64's most negative over -1 wraps"
     (bin C.Expr.Div C.Ty.I64 (i64 Int64.min_int) (i64 (-1L)) = i64 Int64.min_int);
   check "integer division truncates" (bin C.Expr.Div C.Ty.I64 (i64 (-7L)) (i64 2L) = i64 (-3L));
-  check "a division by zero stops the fold"
-    (stops (fun () -> bin C.Expr.Div C.Ty.I64 (i64 1L) (i64 0L)));
+  check "an integer division by zero gives zero" (bin C.Expr.Div C.Ty.I64 (i64 1L) (i64 0L) = i64 0L);
+  let conv from into v = Eval.convert from into v in
+  check "a NaN truncates to zero" (conv C.Ty.F64 C.Ty.I32 (Value.VFloat Float.nan) = i32 0L);
+  check "a truncation above an I32 saturates"
+    (conv C.Ty.F64 C.Ty.I32 (Value.VFloat 2147483648.) = i32 2147483647L);
+  check "a truncation below an I64 saturates"
+    (conv C.Ty.F32 C.Ty.I64 (Value.VFloat Float.neg_infinity) = i64 Int64.min_int);
   let f x = Value.VFloat x in
   check "NaN is not equal to itself" (bin C.Expr.Eq C.Ty.F64 (f Float.nan) (f Float.nan) = Value.VBool false);
   check "NaN is not less than anything" (bin C.Expr.Less C.Ty.F64 (f Float.nan) (f 1.) = Value.VBool false);

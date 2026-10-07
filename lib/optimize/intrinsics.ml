@@ -18,8 +18,8 @@ let classify : Cgt.Runtime.fn -> t = function
   | Constant_end | Writeback ->
       Computed
   (* Codegen calls these for nodes of the tree rather than the tree naming
-     them: a division, a conversion, a scope, a slot, a copy, a box, a spawn. The
-     evaluator gives each node its meaning directly. *)
-  | Divide_by_zero | Conversion_out_of_range | Scope_enter | Scope_drain | Slot | Promote | Arrive | Vacate | Copy
+     them: a scope, a slot, a copy, a box, a spawn. The evaluator gives each
+     node its meaning directly. *)
+  | Scope_enter | Scope_drain | Slot | Promote | Arrive | Vacate | Copy
   | Overwrite | Box | Frame | Spawn | Join | Snapshot ->
       Computed

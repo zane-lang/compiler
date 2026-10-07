@@ -8,7 +8,7 @@
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
-    │       ├── id: %102
+    │       ├── id: %122
     │       ├── body[0] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -173,7 +173,67 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       └── body[41] > return: unit : void
+    │       ├── body[41] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[42] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[43] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[44] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[45] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[46] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[47] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[48] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[49] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[50] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[51] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[52] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[53] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[54] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[55] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       └── body[56] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: scalars$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
@@ -210,8 +270,18 @@
     │   ├── params:
     │   ├── ret: i32
     │   └── body[0] > return: -2147483648 : i32
-    └── funcs[3] > func:
-        ├── symbol: scalars$minI64()
+    ├── funcs[3] > func:
+    │   ├── symbol: scalars$minI64()
+    │   ├── params:
+    │   ├── ret: i64
+    │   └── body[0] > return: -9223372036854775808 : i64
+    ├── funcs[4] > func:
+    │   ├── symbol: scalars$infinity()
+    │   ├── params:
+    │   ├── ret: f64
+    │   └── body[0] > return: infinity : f64
+    └── funcs[5] > func:
+        ├── symbol: scalars$nan()
         ├── params:
-        ├── ret: i64
-        └── body[0] > return: -9223372036854775808 : i64
+        ├── ret: f64
+        └── body[0] > return: nan : f64
