@@ -1,6 +1,7 @@
 """Cross-package folding, inlining and separate-object ABI regressions."""
 
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -55,15 +56,21 @@ class OptimizationTests(unittest.TestCase):
         obj = self.out / "caller.o"
         run(ZANEC, "--object", obj, "--optimize", *self.flags())
         definitions = run("llvm-nm", "--defined-only", obj)
+        # LLVM can inline app$main into the externally visible entry point.
+        self.assertRegex(definitions, r'(?m) [TW] zane_main$')
         self.assertNotRegex(definitions, r' [TW] .*math\$(?:add|_add|down|fib|bump|divide)\(')
-        self.assertRegex(run("llvm-nm", obj), r' U .*math\$fib\(')
+        self.assertRegex(run("llvm-nm", obj),
+                         rf' U .*{re.escape(STAMP)}math\$fib\(')
 
     def test_cross_target_objects(self):
         for target in ["x86_64-pc-windows-msvc", "aarch64-apple-macosx11.0.0"]:
             obj = self.out / f"{target}.o"
             run(ZANEC, "--object", obj, "--optimize", "--target", target, *self.flags())
             definitions = run("llvm-nm", "--defined-only", obj)
+            self.assertRegex(definitions, r'(?m) [TW] _?zane_main$')
             self.assertNotRegex(definitions, r' [TW] _?.*math\$(?:add|_add|fib|bump)\(')
+            self.assertRegex(run("llvm-nm", obj),
+                             rf' U _?.*{re.escape(STAMP)}math\$fib\(')
 
     def test_runtime_results(self):
         expected = "library\n42\n100\n9\n10\n49\n8\n99\n4\n36\n16\n21\n"

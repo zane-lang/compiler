@@ -24,6 +24,7 @@ Int down(n Int) {
     @controlflow$branch(@operators$lessThan(n, Int(1)), { return Int(0); });
     return add(n, down(add(n, @operators$negate(Int(1)))));
 }
+// A package-level lambda variable, deliberately using name-first syntax.
 double Int(x Int) => add(x, x)
 
 Int fib(n Int) {
