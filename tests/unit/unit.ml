@@ -332,8 +332,8 @@ let folded_arithmetic () =
   check "~ wraps the most negative I32" (Eval.flip C.Ty.I32 (i32 (-2147483648L)) = i32 (-2147483648L))
 
 (* Every runtime function is in a class, and the outputs are the three
-   docs/design/optimization.md O3 names. No runtime function is an input
-   yet. *)
+   docs/design/optimization.md O3 names. The program's arguments are the one
+   input. *)
 let intrinsic_classes () =
   let outputs =
     List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Output) Cgt.Runtime.all
@@ -341,8 +341,34 @@ let intrinsic_classes () =
   check "print and the thread count are the outputs"
     (List.sort compare outputs
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
-  check "no runtime function is an input yet"
-    (not (List.exists (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all))
+  check "the program's arguments are the one input"
+    (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
+    = Cgt.Runtime.[ Arguments ])
+
+(* What `parseI64` and `parseF64` read (types.md §2.10), as the evaluator
+   folds them; runtime/block.c reads the same text the same way. *)
+let parsed_numbers () =
+  check "an integer's digits" (Eval.parse_i64 "42" = Some 42L);
+  check "a leading -" (Eval.parse_i64 "-7" = Some (-7L));
+  check "leading zeros" (Eval.parse_i64 "007" = Some 7L);
+  check "the largest I64" (Eval.parse_i64 "9223372036854775807" = Some Int64.max_int);
+  check "the smallest I64" (Eval.parse_i64 "-9223372036854775808" = Some Int64.min_int);
+  check "past the largest I64" (Eval.parse_i64 "9223372036854775808" = None);
+  check "no text" (Eval.parse_i64 "" = None);
+  check "a - alone" (Eval.parse_i64 "-" = None);
+  check "no +" (Eval.parse_i64 "+5" = None);
+  check "no whitespace" (Eval.parse_i64 " 5" = None && Eval.parse_i64 "5 " = None);
+  check "no separators" (Eval.parse_i64 "1_000" = None);
+  check "no hex" (Eval.parse_i64 "0x10" = None);
+  check "no fraction for an integer" (Eval.parse_i64 "3.25" = None);
+  check "a float's digits" (Eval.parse_f64 "3.25" = Some 3.25);
+  check "an integer as a float" (Eval.parse_f64 "-7" = Some (-7.));
+  check "a negative zero" (Eval.parse_f64 "-0.0" = Some (-0.));
+  check "nearest, half to even" (Eval.parse_f64 "9007199254740993" = Some 9007199254740992.);
+  check "a digit on each side of the ." (Eval.parse_f64 "3." = None && Eval.parse_f64 ".5" = None);
+  check "no exponent" (Eval.parse_f64 "1e5" = None);
+  check "no nan or inf" (Eval.parse_f64 "nan" = None && Eval.parse_f64 "inf" = None);
+  check "too large to be finite" (Eval.parse_f64 ("1" ^ String.make 400 '0') = None)
 
 let e node ty = { C.Expr.node; ty }
 let i64 n = e (C.Expr.Int n) C.Ty.I64
@@ -569,6 +595,7 @@ let () =
   single_literals ();
   folded_arithmetic ();
   intrinsic_classes ();
+  parsed_numbers ();
   materialized ();
   evaluated ();
   formatted_scalars ();

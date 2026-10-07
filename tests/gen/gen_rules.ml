@@ -14,6 +14,8 @@
      what both builds of the program wrote. A
      fixture whose `expected-status` file holds a status other than 0 is a
      program that stops: its golden file holds stdout and stderr together.
+     A fixture's `arguments` file, one argument per line, is what both
+     builds are run with.
      `golden/reject.NAME.err` is what lowering reports for the package
      `fixtures/reject/NAME`, a program semantics accepts and lowering refuses.
    - parser: `golden/NAME.STAGE.spans` is `span_dump --STAGE`, and
@@ -48,6 +50,16 @@ let status name =
   if Sys.file_exists file then
     int_of_string (String.trim (In_channel.with_open_text file In_channel.input_all))
   else 0
+
+(* What a fixture's program is run with: its `arguments` file, one per
+   line, each quoted for dune. *)
+let arguments name =
+  let file = Filename.concat (Filename.concat "fixtures" name) "arguments" in
+  if Sys.file_exists file then
+    In_channel.with_open_text file In_channel.input_lines
+    |> List.map (fun a -> " " ^ Printf.sprintf "%S" a)
+    |> String.concat ""
+  else ""
 
 let codegen () =
   let goldens = sorted "golden" in
@@ -84,12 +96,12 @@ let codegen () =
             (match status name with
             | 0 ->
                 Printf.printf
-                  "(rule\n (action\n  (with-stdout-to\n   %s.out.actual\n   (run ./%s.exe))))\n\n" exe
-                  exe
+                  "(rule\n (action\n  (with-stdout-to\n   %s.out.actual\n   (run ./%s.exe%s))))\n\n" exe
+                  exe (arguments name)
             | n ->
                 Printf.printf
-                  "(rule\n (action\n  (with-outputs-to\n   %s.out.actual\n   (with-accepted-exit-codes\n    %d\n    (run ./%s.exe)))))\n\n"
-                  exe n exe);
+                  "(rule\n (action\n  (with-outputs-to\n   %s.out.actual\n   (with-accepted-exit-codes\n    %d\n    (run ./%s.exe%s)))))\n\n"
+                  exe n exe (arguments name));
             diff (name ^ ".out") (exe ^ ".out.actual"))
           [ name; name ^ ".optimized" ]
       end)

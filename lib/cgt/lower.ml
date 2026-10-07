@@ -96,6 +96,56 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
         handler = None;
       } ->
       { Expr.node = Expr.Runtime { fn = Runtime.Set_threads_auto; args = [] }; ty = Nodes.Ty.Void }
+  (* A new list of the program's arguments, each a string that owns its
+     bytes (effects.md §6.6). The program has one runtime, so the subject
+     names nothing the runtime needs. *)
+  | T.Expr.Call
+      { callee = { owner = S.Intrinsic "@runtime$arguments"; _ }; args = [ _ ]; handler = None } ->
+      { Expr.node = Expr.Runtime { fn = Runtime.Arguments; args = [] }; ty = Nodes.Ty.Handle }
+  (* A number read from a string's text (types.md §2.10). The runtime writes
+     it to [value]'s slot and says whether the text spelled one that fits;
+     when it did not, the call aborts with `Unit`. *)
+  | T.Expr.Call
+      {
+        callee =
+          {
+            owner = S.Intrinsic (("@primitives$parseI64" | "@primitives$parseF64") as spelling);
+            _;
+          };
+        args;
+        handler;
+      } -> (
+      match args with
+      | [ T.Arg.Value text ] ->
+          let fn, t, zero =
+            if spelling = "@primitives$parseI64" then (Runtime.Parse_i64, Nodes.Ty.I64, Expr.Int 0L)
+            else (Runtime.Parse_f64, Nodes.Ty.F64, Expr.Float 0.)
+          in
+          let text = borrow st ctx span text in
+          let label = fresh st in
+          let value = fresh st in
+          let parsed = fresh st in
+          let result = fresh st in
+          let read = Expr.Runtime { fn; args = [ text; ptr (Expr.Address value) ] } in
+          let i64 node = { Expr.node; ty = Nodes.Ty.I64 } in
+          let failed =
+            Expr.Binary { op = Expr.Eq; left = i64 (Expr.Local parsed); right = i64 (Expr.Int 0L) }
+          in
+          let on_abort =
+            match handler with Some h -> handle st ctx h label (Some result) | None -> ctx.abort
+          in
+          let body =
+            [
+              Stat.Let { id = value; value = { Expr.node = zero; ty = t } };
+              Stat.Let { id = parsed; value = i64 read };
+              Stat.If
+                { cond = { Expr.node = failed; ty = Nodes.Ty.I1 }; body = on_abort span unit_ };
+              Stat.assign result { Expr.node = Expr.Local value; ty = t };
+            ]
+          in
+          { Expr.node = Expr.Expand { label; body; result = Some result }; ty = t }
+      | _ ->
+          Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$push"; _ }; args; handler = None }
     -> (
       (* The value is taken first, then the list makes room for it, which may

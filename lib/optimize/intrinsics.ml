@@ -7,15 +7,16 @@
 
    [Computed] runs at compile time. [Output] runs too, and what it did is
    replayed where the folded code was. [Input] gives a value only the
-   running program has, such as a line read from the console or the time,
-   and stops a fold. No runtime function is an input yet. *)
+   running program has, such as its arguments, and stops a fold. *)
 
 type t = Computed | Output | Input
 
 let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
+  | Arguments -> Input
   | Text_join | Text_equal | Text_i32 | Text_i64 | Text_f32 | Text_f64
-  | List_new | List_push | List_at | Array_at | Constant_begin | Constant_end | Writeback ->
+  | List_new | List_push | List_at | Array_at | Constant_begin | Constant_end | Writeback
+  | Parse_i64 | Parse_f64 ->
       Computed
   (* Codegen calls these for nodes of the tree rather than the tree naming
      them: a scope, a slot, a copy, a box, a spawn. The evaluator gives each

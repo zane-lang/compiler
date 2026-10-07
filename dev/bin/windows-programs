@@ -9,8 +9,9 @@ set -euo pipefail
 # geometry's objects, both the one built from source with geometry's stamp
 # and geometry's placeholder object rewritten with it
 # (docs/design/separate-compilation.md C7, C9). Each program NAME.exe has
-# NAME.out, the output it must write, and NAME.status, the status it must
-# exit with; a program expected to fail is held to what it writes on both
+# NAME.out, the output it must write, NAME.status, the status it must
+# exit with, and NAME.args when the fixture is run with arguments, one per
+# line; a program expected to fail is held to what it writes on both
 # streams, as tests/codegen/ holds it.
 #
 # The programs link with `zig cc`, which carries Windows' C library and
@@ -20,7 +21,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT="$(mkdir -p "${1:?usage: windows-programs DIR}" && cd "$1" && pwd)"
 # What an earlier build left here is not this build's, and would be checked
 # as if it were.
-rm -f "$OUT"/*.exe "$OUT"/*.out "$OUT"/*.status
+rm -f "$OUT"/*.exe "$OUT"/*.out "$OUT"/*.status "$OUT"/*.args
 TARGET=x86_64-windows-gnu
 STAMP='v1.0.1%3f9a1c02b7e4d6a8%'
 
@@ -43,6 +44,10 @@ for golden in tests/codegen/golden/*.out; do
 	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" --package "$fixture"
 	expect "$name" "$golden" "$status"
 	expect "$name.optimized" "$golden" "$status"
+	if [[ -f "$fixture/arguments" ]]; then
+		cp "$fixture/arguments" "$OUT/$name.args"
+		cp "$fixture/arguments" "$OUT/$name.optimized.args"
+	fi
 done
 
 objects="$(mktemp -d)"

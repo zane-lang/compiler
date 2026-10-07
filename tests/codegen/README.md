@@ -8,7 +8,8 @@ printed as the tree an optimized build makes of it when
 `golden/NAME.out` exists, unoptimized and optimized: the golden files hold the
 trees and what both builds of the program wrote. A fixture whose
 `expected-status` file holds a nonzero status stops with it, and its `.out`
-holds stdout and stderr together.
+holds stdout and stderr together. A fixture's `arguments` file, one argument
+per line, is what both builds of its program run with.
 
 The rules are written by `tests/gen/gen_rules.ml` into `dune.inc`. To add a
 fixture, add its directory and an empty golden file, run `dune runtest`,
@@ -20,6 +21,11 @@ again, read the golden diff and promote that.
 - `scalarTexts` exercises the four scalar String constructors end to end,
   including I32 wrapping, compact float notation, negative zero and special
   values. Optimized and unoptimized builds must print the same text.
+- `arguments` is the program's arguments, read from the runtime, and numbers
+  read from text with `parseI64` and `parseF64`, each held to what it accepts
+  and when it aborts. Both builds run with the `arguments` file's lines.
+  `arguments.optimized.cgt` shows what folds before the read and that the
+  read itself stays. Every check prints `yes` when it holds.
 - `hello` prints a string literal through `@program$console`: the first program
   that ran (docs/design/lowering.md §8 step 2).
 - `counting` is step 2 of docs/design/lowering.md §8: scalar arithmetic, verbs

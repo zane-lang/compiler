@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# Run every NAME.exe in DIR and hold it to NAME.out and NAME.status, as
+# Run every NAME.exe in DIR, with the arguments NAME.args holds a line each
+# when it is there, and hold it to NAME.out and NAME.status, as
 # `windows-programs` wrote them. A program expected to exit 0 is held to its
 # stdout; one expected to fail is held to everything it wrote, as
 # tests/codegen/ holds it. RUNNER, when set, runs each program, so the same
@@ -19,11 +20,13 @@ for program in "$DIR"/*.exe; do
 	[[ -f "$program" ]] || continue
 	name="$(basename "$program" .exe)"
 	expected="$(tr -d '[:space:]' <"$DIR/$name.status")"
+	args=()
+	[[ -f "$DIR/$name.args" ]] && mapfile -t args <"$DIR/$name.args"
 	actual_out="$(mktemp)"
 	if [[ "$expected" == 0 ]]; then
-		"${runner[@]}" "$program" >"$actual_out"
+		"${runner[@]}" "$program" "${args[@]}" >"$actual_out"
 	else
-		"${runner[@]}" "$program" >"$actual_out" 2>&1
+		"${runner[@]}" "$program" "${args[@]}" >"$actual_out" 2>&1
 	fi
 	status=$?
 	count=$((count + 1))

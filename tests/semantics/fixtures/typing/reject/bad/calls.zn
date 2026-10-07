@@ -38,6 +38,9 @@ Unit calls() {
 	h Int = choice.yes;
 	count Count = Count(3);
 	i Int = count.raw ?? count.raw;
+	digits @primitives$String("7");
+	m @primitives$I64 = digits:parseI64();
+	args @primitives$List<@primitives$String> = @program$runtime!arguments();
 	j Int = parse(String("2")) ? err {
 		console Int = Int(0);
 	}
