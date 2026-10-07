@@ -1,5 +1,6 @@
 #include "zane_internal.h"
 
+#include <errno.h>
 #include <inttypes.h>
 #include <locale.h>
 #include <math.h>
@@ -343,4 +344,92 @@ void zane_text_join(zane_text *out, const zane_text *left, const zane_text *righ
 int64_t zane_text_equal(const zane_text *left, const zane_text *right) {
 	return left->length == right->length &&
 	       (left->length == 0 || memcmp(left->bytes, right->bytes, (size_t)left->length) == 0);
+}
+
+/* Whether a string spells a number as `parseI64` and `parseF64` read one
+   (types.md §2.10): a literal's digits with an optional `-` first and, when
+   `fraction` is set, an optional `.` with digits on both sides. */
+static int zane_numeric_text(const zane_text *text, int fraction) {
+	int64_t n = text->length, i = 0;
+	const char *b = text->bytes;
+	if (n > 0 && b[0] == '-') i++;
+	int64_t start = i;
+	while (i < n && b[i] >= '0' && b[i] <= '9') i++;
+	if (i == start) return 0;
+	if (i == n) return 1;
+	if (!fraction || b[i] != '.') return 0;
+	int64_t point = ++i;
+	while (i < n && b[i] >= '0' && b[i] <= '9') i++;
+	return i > point && i == n;
+}
+
+/* The text with a terminator, for the C library to read. */
+static char *zane_terminated(const zane_text *text) {
+	char *s = malloc((size_t)text->length + 1);
+	if (!s) zane_broken("out of memory for a number's text");
+	memcpy(s, text->bytes, (size_t)text->length);
+	s[text->length] = '\0';
+	return s;
+}
+
+/* `parseI64` on `@primitives$String`: 1 with the value at `out`, or 0 when
+   the text spells no integer or one outside an I64's range. */
+int64_t zane_parse_i64(const zane_text *text, int64_t *out) {
+	if (!zane_numeric_text(text, 0)) return 0;
+	char *s = zane_terminated(text);
+	errno = 0;
+	long long value = strtoll(s, NULL, 10);
+	int fits = errno != ERANGE;
+	free(s);
+	if (!fits) return 0;
+	*out = (int64_t)value;
+	return 1;
+}
+
+/* `parseF64` on `@primitives$String`: 1 with the nearest double at `out`,
+   rounding half to even, or 0 when the text spells no number or one too
+   large to round to a finite double. Read in the C numeric locale, as
+   floats are formatted. */
+int64_t zane_parse_f64(const zane_text *text, double *out) {
+	if (!zane_numeric_text(text, 1)) return 0;
+	if (pthread_once(&zane_numeric_once, zane_numeric_init))
+		zane_broken("initializing the numeric locale");
+	char *s = zane_terminated(text);
+#ifdef _WIN32
+	double value = _strtod_l(s, NULL, zane_numeric_locale);
+#else
+	locale_t previous = uselocale(zane_numeric_locale);
+	if (!previous) zane_broken("selecting the numeric locale");
+	double value = strtod(s, NULL);
+	if (!uselocale(previous)) zane_broken("restoring the numeric locale");
+#endif
+	free(s);
+	if (!isfinite(value)) return 0;
+	*out = value;
+	return 1;
+}
+
+/* `@runtime$Runtime`'s `arguments` (effects.md §6.6): a new list of the
+   program's arguments, each a string that owns a copy of its bytes. The
+   list's block is as big as `zane_list_push` would have grown it to, and
+   it and the strings' bytes are in the current scope's region, where the
+   list then arrives in its place as any made value does. */
+void zane_arguments(zane_list *out) {
+	*out = (zane_list){ NULL, 0, 0 };
+	if (zane_argc == 0) return;
+	int64_t stride = (int64_t)sizeof(zane_text);
+	int64_t room = 128;
+	while (room < zane_argc * stride) room *= 2;
+	zane_text *items = (zane_text *)zane_alloc(zane_here(), room, ZANE_LINE);
+	for (int i = 0; i < zane_argc; i++) {
+		int64_t length = (int64_t)strlen(zane_argv[i]);
+		if (length == 0) {
+			items[i] = (zane_text){ "", 0, 0 };
+			continue;
+		}
+		char *bytes = zane_alloc(zane_here(), length, 8);
+		memcpy(bytes, zane_argv[i], (size_t)length);
+		items[i] = (zane_text){ bytes, length, length };
+	}
+	*out = (zane_list){ (char *)items, zane_argc, room };
 }

@@ -10,8 +10,8 @@ the same way every time it runs, and writes the results into the tree in
 place of the code that computed them. Evaluation starts at the leaves of the
 tree and works up: an expression whose inputs are all known is replaced by its
 value, and its parent is tried next with that value as an input. It stops
-where a value depends on something only the running program has, such as a
-line read from the console or the time.
+where a value depends on something only the running program has, such as
+the arguments it was started with.
 
 ---
 
@@ -56,6 +56,7 @@ until it is classified:
 |---|---|---|
 | scalar `+ * / == < ~`, `Bool` `+ * ==` | `Binary`, `Flip` | computed |
 | `String` `+ ==`, `String(…)` | `Text_join`, `Text_equal`, `Text` | computed |
+| `parseI64`, `parseF64` | `Parse_i64`, `Parse_f64` | computed |
 | `List(T)`, `push`, `size`, `[]` | `List_new`, `List_push`, `Member`, `List_at` | computed |
 | `Array`, `ArrayRef`, `fill`, `[]` | `Record`, a counted loop, `Array_at` | computed |
 | `@controlflow$branch`, `repeat` | `If`, `Repeat` | computed |
@@ -64,12 +65,13 @@ until it is classified:
 | package constants | `Constant_begin`, `Constant_end` | computed (O9) |
 | `@runtime$print` | `Print` | output (O4) |
 | `@runtime$setThreads`, `setThreadsAuto` | `Set_threads`, `Set_threads_auto` | output (O4) |
-| input: a console read, the time, a random number | none | input |
+| `@runtime$arguments` | `Arguments` | input |
 
-No intrinsic reads input, so the input class has no member. `setThreadsAuto`
-reads the processor count, but gives nothing back, so no value of the program
-depends on it. The first intrinsic that does read input belongs in the input
-class, which stops a fold where it is reached.
+`arguments` is the one intrinsic that reads input (effects.md §6.6), so a
+fold stops where it is reached, and everything computed before it still
+folds. `setThreadsAuto` reads the processor count, but gives nothing back, so
+no value of the program depends on it. An intrinsic added later that reads
+input, a console read or the time, joins `arguments` in the input class.
 
 Besides an input, a value is unknown when it is a parameter of the function
 being folded, or what a function with no body in this object gives: a stamped

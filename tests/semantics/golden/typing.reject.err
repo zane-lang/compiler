@@ -194,12 +194,20 @@ File "fixtures/typing/reject/bad/calls.zn", line 40, characters 23-35:
 40 |     i Int = count.raw ?? count.raw;
   |                       ^^^^^^^^^^^^
 Error: reading `raw` cannot fail, so it takes no handler
-File "fixtures/typing/reject/bad/calls.zn", line 41, characters 32-39:
-41 |     j Int = parse(String("2")) ? err {
+File "fixtures/typing/reject/bad/calls.zn", line 42, characters 25-42:
+42 |     m @primitives$I64 = digits:parseI64();
+  |                         ^^^^^^^^^^^^^^^^^
+Error: `parseI64` can abort with `@primitives$Unit`, so the call needs a `?` or `??` handler
+File "fixtures/typing/reject/bad/calls.zn", line 43, characters 49-77:
+43 |     args @primitives$List<@primitives$String> = @program$runtime!arguments();
+  |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `arguments` is not a `mut` method, so it is called with `:`
+File "fixtures/typing/reject/bad/calls.zn", line 44, characters 32-39:
+44 |     j Int = parse(String("2")) ? err {
   |                                ^^^^^^^
 Error: every path through a handler ends in `resolve`, `return` or `abort`; this one can fall through (error-handling.md §3.2)
-File "fixtures/typing/reject/bad/calls.zn", line 44, characters 5-20:
-44 |     resolve Int(1);
+File "fixtures/typing/reject/bad/calls.zn", line 47, characters 5-20:
+47 |     resolve Int(1);
   |     ^^^^^^^^^^^^^^^
 Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it is not one
 File "fixtures/typing/reject/bad/conventions.zn", line 15, characters 7-63:

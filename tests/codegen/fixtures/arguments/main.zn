@@ -1,0 +1,92 @@
+/// The program's arguments (effects.md §6.6), and numbers read from text
+/// (types.md §2.10). Both builds run with the `arguments` file beside this
+/// one, a line each. What only the source decides folds in the optimized
+/// build, and what depends on the arguments, a read of the runtime, is left
+/// for the program. Each check prints `yes` when it holds and `no` when it
+/// does not.
+package arguments;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+/// The sum of the first ten squares: computed before the arguments are
+/// read, so an optimized build computes it while it compiles.
+Int squares() {
+	total Int(0);
+	i Int(1);
+	i!to(Int(10)) {
+		total = @operators$add(total, @operators$multiply(i, i));
+	}
+	return total;
+}
+
+/// The integer an argument spells, or `fallback` when it spells none that
+/// fits.
+Int integer(text String, fallback Int) => text:parseI64() ? e {
+	resolve fallback;
+}
+
+Unit main() {
+	check(@operators$equal(squares(), Int(385)));
+
+	// Text the source fixes is read while the program compiles.
+	check(@operators$equal(String("123"):parseI64() ?? Int(0), Int(123)));
+	check(@operators$equal(String("0.5"):parseF64() ?? Float(0.0), Float(0.5)));
+
+	// Every argument, in order, without the program's own name.
+	args List<String> = @program$runtime:arguments();
+	check(@operators$equal(args:size(), Int(10)));
+	k Int(1);
+	k!to(args:size()) {
+		@program$console!print(@operators$concat(args[k], String("|\n")));
+	}
+
+	// Integers: a literal's digits with an optional `-`, within an I64.
+	check(@operators$equal(integer(args[Int(1)], Int(0)), Int(42)));
+	check(@operators$equal(integer(args[Int(2)], Int(0)), @operators$negate(Int(7))));
+	check(@operators$equal(integer(args[Int(3)], Int(1)), Int(1)));
+	check(@operators$equal(integer(args[Int(4)], Int(1)), Int(1)));
+	check(@operators$equal(integer(args[Int(5)], Int(1)), Int(1)));
+	check(@operators$equal(integer(args[Int(6)], Int(1)), Int(1)));
+	check(@operators$equal(integer(args[Int(7)], Int(0)), Int(9223372036854775807)));
+	check(@operators$equal(
+		integer(args[Int(8)], Int(0)),
+		@operators$add(@operators$negate(Int(9223372036854775807)), @operators$negate(Int(1)))));
+	check(@operators$equal(integer(args[Int(9)], Int(1)), Int(1)));
+	check(@operators$equal(integer(args[Int(10)], Int(1)), Int(1)));
+
+	// Floats: an integer or a float literal with an optional `-`, finite.
+	check(@operators$equal(args[Int(3)]:parseF64() ?? Float(0.0), Float(3.25)));
+	check(@operators$equal(args[Int(2)]:parseF64() ?? Float(0.0), @operators$negate(Float(7.0))));
+	check(@operators$equal(args[Int(6)]:parseF64() ?? Float(0.0), Float(100000000000000000000.0)));
+	check(@operators$equal(args[Int(4)]:parseF64() ?? Float(1.0), Float(1.0)));
+	check(@operators$equal(args[Int(5)]:parseF64() ?? Float(1.0), Float(1.0)));
+	check(@operators$equal(args[Int(9)]:parseF64() ?? Float(1.0), Float(1.0)));
+	return Unit();
+}

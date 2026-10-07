@@ -193,6 +193,10 @@ void zane_unlock(zane_context *c);
 zane_context *zane_context_new(void);
 void *zane_bump(int64_t size, int64_t align);
 zane_mark *zane_region_at(const void *at);
+
+/* The program's arguments after its own name, kept by `main`. */
+extern int zane_argc;
+extern char **zane_argv;
 void zane_unmap(zane_mark *region);
 zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align);
 extern _Atomic int64_t zane_blocks;

@@ -21,7 +21,8 @@ and a problem there may wait.
     plain and optimized, and a program linked against a dependency's
     prebuilt objects are built for `x86_64-windows-gnu` on Linux, linked by
     `zig cc`, and run on Windows itself in CI, each held to the output its
-    test expects. `just test-windows` runs the same programs under Wine.
+    test expects, and run with the arguments its fixture lists.
+    `just test-windows` runs the same programs under Wine.
 - **macOS** is the lower tier. Its objects are built, rewritten and tested
   as Windows ones are.
 
@@ -41,13 +42,16 @@ built on a Mac by those who want it.
 
 A Windows program links with MinGW's C library and its POSIX threads,
 winpthreads, both of which `zig cc` carries; `ZANE_CC=dev/bin/zig-cc` links
-with it ([`lowering.md`](lowering.md) §7). The runtime differs there in four
+with it ([`lowering.md`](lowering.md) §7). The runtime differs there in five
 places, each marked `_WIN32`: a chunk comes from `_aligned_malloc` and goes
-back through `_aligned_free`, winpthreads counts the processors, and stdout
+back through `_aligned_free`, winpthreads counts the processors, stdout
 and stderr are set to binary mode, so a program writes `\n` and not `\r\n`,
-as it does everywhere else. Scalar float formatting also uses explicit C
-numeric-locale CRT calls; POSIX temporarily selects that locale on the calling
-thread. Both leave the host's locale intact.
+as it does everywhere else, and the program's arguments are read from
+`GetCommandLineW` through `CommandLineToArgvW` and converted from UTF-16 to
+UTF-8 (effects.md §6.6), which links the program with shell32. Scalar float
+formatting and `parseF64` also use explicit C numeric-locale CRT calls; POSIX
+temporarily selects that locale on the calling thread. Both leave the host's
+locale intact.
 
 A target is spelled as `zig cc` reads it, such as `x86_64-windows-gnu`. The
 compiler hands LLVM that triple's normal form, `x86_64-unknown-windows-gnu`,

@@ -41,6 +41,9 @@ void zane_text_i32(zane_text *out, int32_t value);
 void zane_text_i64(zane_text *out, int64_t value);
 void zane_text_f32(zane_text *out, float value);
 void zane_text_f64(zane_text *out, double value);
+int64_t zane_parse_i64(const zane_text *text, int64_t *out);
+int64_t zane_parse_f64(const zane_text *text, double *out);
+void zane_arguments(zane_list *out);
 
 /* value.c */
 int64_t zane_constant_begin(int64_t *state);

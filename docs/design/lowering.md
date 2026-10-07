@@ -263,7 +263,8 @@ in every object that reads it, shared as a generic instance is
 **L17. The runtime is written in C and linked with every program.** It owns
 the chunk directory, the scope arenas and their size stacks, the thread pool,
 and the few primitives a program cannot state in the
-language: printing, `List` growth, `String` storage. Its interface is a small
+language: printing, the program's arguments, reading a number from text,
+`List` growth, `String` storage. Its interface is a small
 set of C functions that CGT storage operations (L9) and intrinsic calls lower
 to, so a change to how an arena works changes the runtime and nothing in the
 compiler. It lives in `runtime/`, is built by `clang`, which already links

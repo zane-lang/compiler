@@ -104,6 +104,14 @@ let executable ?target ?(optimize = false) ?(link = []) m output =
       (* The C compiler links for the target as it was written: `zig cc`
          reads its own short triples, and not every normal form. *)
       let target_flag = match target with Some target -> [ "--target=" ^ target ] | None -> [] in
+      (* The runtime reads a Windows program's arguments through
+         `CommandLineToArgvW`, which shell32 holds. *)
+      let windows =
+        match target with
+        | Some target -> List.mem "windows" (String.split_on_char '-' target)
+        | None -> false
+      in
+      let link = if windows then link @ [ "-lshell32" ] else link in
       let command =
         String.concat " "
           (List.map Filename.quote

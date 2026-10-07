@@ -255,6 +255,17 @@ let methods =
       [ param "this" (runtime "Runtime"); param "count" (prim "I64") ]
       (prim "Unit");
     meth ~is_mut:true "runtime" "setThreadsAuto" [ param "this" (runtime "Runtime") ] (prim "Unit");
+    (* The program's arguments, a read of the runtime (effects.md §6.6). *)
+    meth "runtime" "arguments"
+      [ param "this" (runtime "Runtime") ]
+      (Ty.Roaming (prim "List" ~args:[ Ty.Type (prim "String") ]));
+    (* A number read from a string's text (types.md §2.10). *)
+    meth ~abort:(Some (prim "Unit")) "primitives" "parseI64"
+      [ param "this" (prim "String") ]
+      (prim "I64");
+    meth ~abort:(Some (prim "Unit")) "primitives" "parseF64"
+      [ param "this" (prim "String") ]
+      (prim "F64");
     meth ~generics:[ list_element ] ~is_mut:true "primitives" "push"
       [ param "this" list; param "value" (Ty.Roaming (Ty.Param list_element)) ]
       (prim "Unit");

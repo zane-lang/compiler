@@ -34,8 +34,11 @@ type fn =
   | Constant_begin
   | Constant_end
   | Writeback
+  | Arguments
+  | Parse_i64
+  | Parse_f64
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Slot; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Slot; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64 ]
 
 let name = function
   | Print -> "zane_print"
@@ -67,6 +70,9 @@ let name = function
   | Constant_begin -> "zane_constant_begin"
   | Constant_end -> "zane_constant_end"
   | Writeback -> "zane_writeback"
+  | Arguments -> "zane_arguments"
+  | Parse_i64 -> "zane_parse_i64"
+  | Parse_f64 -> "zane_parse_f64"
 
 (* A value as the C ABI passes it: [I32] a `uint32_t`, [I64] an `int64_t`,
    and [Ptr] any pointer, a function's included. *)
@@ -103,3 +109,6 @@ let signature = function
   | Constant_begin -> (I64, [ Ptr ])
   | Constant_end -> (Void, [ Ptr; Ptr; Ptr ])
   | Writeback -> (Void, [ Ptr; Ptr; I64; Ptr ])
+  | Arguments -> (Void, [ Ptr ])
+  | Parse_i64 -> (I64, [ Ptr; Ptr ])
+  | Parse_f64 -> (I64, [ Ptr; Ptr ])

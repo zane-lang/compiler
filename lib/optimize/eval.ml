@@ -224,6 +224,35 @@ let float_text (t : Ty.t) f =
     done;
     match !best with Some text -> text | None -> stop "formatting a float"
 
+(* A number read from text as the runtime reads it (types.md §2.10): a
+   literal's digits, with an optional `-` first and, for a float, an
+   optional `.` with digits on both sides. The text is checked here, so
+   [Int64.of_string] and [float_of_string] see only that form, and read it
+   as the runtime's `strtoll` and `strtod` do. *)
+let numeric_text ~fraction text =
+  let n = String.length text in
+  let digits from =
+    let rec go i = if i < n && text.[i] >= '0' && text.[i] <= '9' then go (i + 1) else i in
+    go from
+  in
+  let start = if n > 0 && text.[0] = '-' then 1 else 0 in
+  let whole = digits start in
+  if whole = start then false
+  else if whole = n then true
+  else if fraction && text.[whole] = '.' then
+    let frac = digits (whole + 1) in
+    frac > whole + 1 && frac = n
+  else false
+
+let parse_i64 text =
+  if numeric_text ~fraction:false text then Int64.of_string_opt text else None
+
+let parse_f64 text =
+  if numeric_text ~fraction:true text then
+    let f = float_of_string text in
+    if Float.is_finite f then Some f else None
+  else None
+
 let binary (op : Expr.binop) (t : Ty.t) l r =
   match (t, op, l, r) with
   | (Ty.I64 | Ty.I32), Expr.Add, VInt a, VInt b -> VInt (int t (Int64.add a b))
@@ -521,6 +550,22 @@ and runtime run (fn : Cgt.Runtime.fn) args =
       let text = float_text Ty.F64 f in
       bytes run (String.length text);
       VText text
+  | _, Cgt.Runtime.Parse_i64, [ text; out ] -> (
+      let text = text_of text in
+      bytes run (String.length text);
+      match parse_i64 text with
+      | Some n ->
+          store (ptr_of out) Ty.I64 (VInt n);
+          VInt 1L
+      | None -> VInt 0L)
+  | _, Cgt.Runtime.Parse_f64, [ text; out ] -> (
+      let text = text_of text in
+      bytes run (String.length text);
+      match parse_f64 text with
+      | Some f ->
+          store (ptr_of out) Ty.F64 (VFloat f);
+          VInt 1L
+      | None -> VInt 0L)
   | _, Cgt.Runtime.List_new, [] -> empty ()
   | _, Cgt.Runtime.List_push, [ list; stride ] -> (
       match load (ptr_of list) with

@@ -1,6 +1,52 @@
 ; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.
 
 (rule
+ (deps (source_tree fixtures/arguments))
+ (action
+  (with-stdout-to
+   arguments.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/arguments))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arguments.optimized.cgt arguments.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/arguments))
+ (targets arguments.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build arguments.exe --package fixtures/arguments)))
+
+(rule
+ (deps (source_tree fixtures/arguments))
+ (targets arguments.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build arguments.optimized.exe --optimize --package fixtures/arguments)))
+
+(rule
+ (action
+  (with-stdout-to
+   arguments.out.actual
+   (run ./arguments.exe "42" "-7" "3.25" "12x" "" "99999999999999999999" "9223372036854775807" "-9223372036854775808" "+5" " 5"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arguments.out arguments.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   arguments.optimized.out.actual
+   (run ./arguments.optimized.exe "42" "-7" "3.25" "12x" "" "99999999999999999999" "9223372036854775807" "-9223372036854775808" "+5" " 5"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arguments.out arguments.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/arrayrefs))
  (action
   (with-stdout-to

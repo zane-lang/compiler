@@ -12,6 +12,12 @@ an overwrite must preserve a box's address while updating its payload.
 The existing `blocks.c` fixture covers nonempty layouts, including lists
 of owned strings and recursively boxed values.
 
+`numbers.c` holds `zane_parse_i64` and `zane_parse_f64` to the cases
+`tests/unit/` holds the compile-time evaluator's reads to, so a number reads
+the same whether the program or the compiler reads it, and checks that
+`zane_arguments` copies each argument into a string of its own and that the
+list returns every block when its scope drains.
+
 On Linux the scalar-list fixture caps its address space at 128 MiB. Its
 two-million-element lists and copies fit, while the old per-element work
 queue grows to 192 MiB and fails. Other platforms run the same ownership
