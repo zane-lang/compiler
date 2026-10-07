@@ -15,9 +15,11 @@ of owned strings and recursively boxed values.
 On Linux the scalar-list fixture caps its address space at 128 MiB. Its
 two-million-element lists and copies fit, while the old per-element work
 queue grows to 192 MiB and fails. Other platforms run the same ownership
-checks without that platform-specific budget. AddressSanitizer's large
-virtual address reservation is incompatible with this fixture's budget;
-the fixture can be checked with UndefinedBehaviorSanitizer instead.
+checks without that platform-specific budget. AddressSanitizer builds are
+detected through GCC's or Clang's sanitizer macros and skip only the
+address-space budget, since ASan reserves a large shadow address space.
+They still run every ownership check against the same golden output.
+Ordinary and UndefinedBehaviorSanitizer builds retain the budget on Linux.
 
 ## Performance experiment
 

@@ -5,7 +5,17 @@
 
 #include "zane_internal.h"
 
-#ifdef __linux__
+/* ASan reserves shadow address space; retain the ownership checks but
+   apply the memory budget only to builds without that reservation. */
+#if defined(__SANITIZE_ADDRESS__)
+#define ZANE_TEST_ASAN 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define ZANE_TEST_ASAN 1
+#endif
+#endif
+
+#if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 #include <sys/resource.h>
 #endif
 
@@ -22,6 +32,7 @@ static int64_t box_layout[] = {
 	ZANE_BOX, 0, sizeof(char *), sizeof(int64_t), 0, 0,
 };
 
+/* Hold the list in the requested scope so its backing blocks drain with it. */
 static zane_list *make_list(int64_t scope) {
 	zane_list *list = zane_slot(scope, sizeof *list, 8, list_layout);
 	zane_list_new(list);
@@ -30,6 +41,7 @@ static zane_list *make_list(int64_t scope) {
 	return list;
 }
 
+/* Check every element after relocation, rather than only the endpoints. */
 static int intact(const zane_list *list) {
 	if (list->count != ELEMENTS) return 0;
 	for (int64_t i = 0; i < ELEMENTS; i++)
@@ -37,6 +49,7 @@ static int intact(const zane_list *list) {
 	return 1;
 }
 
+/* Verify ownership through cleanup, independent copying, and scope escape. */
 static void exercise_lists(void) {
 	int64_t scope = zane_scope_enter();
 	zane_list *list = make_list(scope);
@@ -71,6 +84,7 @@ static void exercise_lists(void) {
 	check(zane_blocks == 0);
 }
 
+/* An empty ownership layout still requires copying and overwriting payload bytes. */
 static void exercise_boxes(void) {
 	int64_t scope = zane_scope_enter();
 	char **box = zane_slot(scope, sizeof *box, 8, box_layout);
@@ -101,8 +115,9 @@ static void exercise_boxes(void) {
 	check(zane_blocks == 0);
 }
 
+/* Repeat the checks for both ABI representations of an empty inner layout. */
 void zane_main(void) {
-#ifdef __linux__
+#if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 	/* Two million 96-byte jobs grow the queue to 192 MiB. The lists and
 	   their copies fit within 128 MiB. Keep an already stricter limit. */
 	struct rlimit limit;
