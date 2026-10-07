@@ -63,3 +63,12 @@ program linked from several objects wrote.
   `@program$`, which no package of a library's build may, and
   `golden/layout.not-given.err` the errors for `gui.opengl` importing
   packages the driver gave it no keys for.
+
+`optimization_test.py` checks optimized consumers of stamped objects. Its
+`optimization` fixture exercises a folded loop, runtime arithmetic and
+private helpers, a package constant, mutation, aborts, recursion and a named
+lambda. It checks LLVM inlining and that imported ordinary functions have no
+definitions in the caller's object, then compares optimized and unoptimized
+program output while linking the same unoptimized dependency. It also runs
+`survey` optimized and builds the two-version, transitive `versions` graph
+with optimization enabled.

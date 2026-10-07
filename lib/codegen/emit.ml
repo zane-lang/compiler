@@ -614,7 +614,8 @@ let func env (f : Func.t) =
 (* The program's module. Its entry is named `zane_main` whatever its symbol,
    since that is the name the runtime calls (L16). A function other objects
    link against keeps its symbol in theirs too, and one a stamped
-   dependency's objects define is only declared
+   dependency's objects define is only declared, or has an
+   [available_externally] body that LLVM can inline but never emits
    (docs/design/separate-compilation.md); the rest are local to this one. *)
 let program (p : Program.t) =
   let ctx = Llvm.create_context () in
@@ -637,7 +638,8 @@ let program (p : Program.t) =
       (match g.Global.linkage with
       | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal v
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr v
-      | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ());
+      | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ()
+      | Cgt.Nodes.Linkage.Available -> Diagnostic.bug "an optimization-only global");
       Hashtbl.replace env.globals g.Global.symbol v)
     p.Program.globals;
   List.iter
@@ -654,6 +656,7 @@ let program (p : Program.t) =
       | _ when entry -> ()
       | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal fn
       | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ()
+      | Cgt.Nodes.Linkage.Available -> Llvm.set_linkage Llvm.Linkage.Available_externally fn
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr fn);
       Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
     p.Program.funcs;

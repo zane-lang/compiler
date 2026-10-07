@@ -41,6 +41,18 @@ pipeline, and an unoptimized build skips it. `zane run` builds unoptimized, so
 it stays as fast to build as before. `zanec --cgt --optimize` prints the tree
 stage 5 made, which is how the tests see what folded (§5).
 
+**O10. Package boundaries do not block optimization.** When `--optimize` is
+given, lowering follows calls into stamped dependencies and retains their
+bodies with `Available` linkage. Stage 5 can evaluate these calls, including
+transitive calls, private helpers and named lambdas. LLVM receives their
+bodies with `available_externally` linkage: its ordinary `-O2` pipeline can
+inline arithmetic and other wrappers even when their arguments are runtime
+inputs. The bodies themselves define no symbols in the caller's object; any
+call left after optimization links against the dependency's original object.
+Unoptimized builds retain declarations alone and skip this additional
+lowering. Generic instances and package constants keep their existing shared
+linkage. No new artifact, linker option or package flag is required.
+
 ---
 
 ## 2. What folds
@@ -74,9 +86,10 @@ no value of the program depends on it. An intrinsic added later that reads
 input, a console read or the time, joins `arguments` in the input class.
 
 Besides an input, a value is unknown when it is a parameter of the function
-being folded, or what a function with no body in this object gives: a stamped
-dependency's (`separate-compilation.md` C1). Everything computed only from
-known values is known. Whether a function terminates is never analyzed: the
+being folded, or what a function with no body available gives. Optimized
+builds retain reachable stamped dependencies' bodies from the checked source
+(`separate-compilation.md` C12), so their calls fold under the same rules as
+local calls. Everything computed only from known values is known. Whether a function terminates is never analyzed: the
 budget (O6) decides how far evaluation goes.
 
 **O4. An output is replayed where it was made.** A call that prints while it

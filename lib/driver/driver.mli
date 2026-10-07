@@ -37,7 +37,7 @@ val require_main : Tst.Nodes.Program.t -> (unit, failure) result
 val buildable : kind option -> (unit, failure) result
 
 val lower :
-  kind:kind -> Tst.Assembly.package list -> Tst.Nodes.Program.t -> (Cgt.Nodes.Program.t, failure) result
+  ?optimize:bool -> kind:kind -> Tst.Assembly.package list -> Tst.Nodes.Program.t -> (Cgt.Nodes.Program.t, failure) result
 
 (** Stage 5 when [optimize], and the tree as it is otherwise. *)
 val optimize : optimize:bool -> Cgt.Nodes.Program.t -> Cgt.Nodes.Program.t
