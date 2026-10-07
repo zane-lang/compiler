@@ -13,6 +13,7 @@ alias String = @primitives$String
 
 type Thing = struct {
 	value Int;
+	_hidden Int;
 }
 
 Int helper(value Int) => value

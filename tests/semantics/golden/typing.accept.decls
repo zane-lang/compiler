@@ -123,7 +123,17 @@
         ├── decls[14] > enum_map:
         │   ├── map: shapes$Corner.label #45
         │   └── type: @primitives$String
-        ├── decls[15] > verb:
-        │   └── signature: @primitives$F64 _half(@primitives$F64) #46
-        └── decls[16] > verb:
-            └── signature: @primitives$F64 area(&shapes$Shape) #47
+        ├── decls[15] > type:
+        │   ├── name: Meters #46
+        │   ├── kind: value
+        │   └── struct[0]: _value : @primitives$F64
+        ├── decls[16] > verb:
+        │   └── signature: Meters(@primitives$F64) #47
+        ├── decls[17] > verb:
+        │   └── signature: shapes$Meters +(shapes$Meters, shapes$Meters) #48
+        ├── decls[18] > verb:
+        │   └── signature: @primitives$F64 inFeet(shapes$Meters) #49
+        ├── decls[19] > verb:
+        │   └── signature: @primitives$F64 _half(@primitives$F64) #50
+        └── decls[20] > verb:
+            └── signature: @primitives$F64 area(&shapes$Shape) #51
