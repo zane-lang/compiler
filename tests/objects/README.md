@@ -20,6 +20,11 @@ program linked from several objects wrote.
   package of the same project, built with it into one object. What both
   declare is exported under the `!` placeholder, an instance of geometry's
   generic at atlas's own type included.
+
+  atlas is also built with a stamp of its own while geometry has none, so
+  geometry is compiled into atlas's object rather than left to one of its
+  own: `golden/atlas.stamped-root.symbols` shows what atlas reaches in
+  geometry local to the object.
 - `survey` is a program that uses `geometry` from an object geometry was
   built into on its own, with its stamp. Survey's object declares geometry's
   verbs and makes the instance of geometry's generic at survey's own type,

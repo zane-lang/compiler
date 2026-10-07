@@ -557,3 +557,24 @@
  (alias runtest)
  (action
   (diff golden/layout.not-given.err layout.not-given.err.actual)))
+
+; atlas built with a stamp, and geometry with none: an unstamped dependency
+; is compiled into the stamped package's module, not left for an object of
+; its own (docs/design/separate-compilation.md C6).
+
+(rule
+ (deps (source_tree fixtures/atlas) (source_tree fixtures/geometry))
+ (targets atlas.stamped-root.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --kind library --stamp atlas=v1.0%fedcba9876543210% --object atlas.stamped-root.o --package fixtures/atlas --package fixtures/geometry)))
+
+(rule
+ (action
+  (with-stdout-to
+   atlas.stamped-root.symbols.actual
+   (system "nm --defined-only %{dep:atlas.stamped-root.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/atlas.stamped-root.symbols atlas.stamped-root.symbols.actual)))

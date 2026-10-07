@@ -185,10 +185,11 @@ let library_roots st (root : T.Package.t) =
    share the first package's stamp, or are unstamped with it, are the
    project being compiled: its library packages, which a library's object
    holds every one of (dependencies.md §3.1). Any other stamp is a
-   dependency, which arrives as objects of its own. A library's own
-   packages without a stamp are named with the `!` placeholder, and ones
-   with a stamp are named with it, as a dependency compiled from source
-   is. *)
+   dependency, which arrives as objects of its own, and an unstamped
+   dependency of a stamped package is compiled into its module (C6). A
+   library's own packages without a stamp are named with the `!`
+   placeholder, and ones with a stamp are named with it, as a dependency
+   compiled from source is. *)
 let program ?(library = false) (p : T.Program.t) =
   let stamp_of id =
     match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> ""
@@ -197,7 +198,7 @@ let program ?(library = false) (p : T.Program.t) =
   let own p = String.equal (stamp_of p) root in
   let exports p = library && own p in
   let stamp p = if library && own p && root = "" then "!" else "" in
-  let stamped p = not (own p) in
+  let stamped p = (not (own p)) && stamp_of p <> "" in
   let st = create ~library ~exports ~stamp ~stamped in
   let add decl instance signature params body =
     let key = key decl instance in
