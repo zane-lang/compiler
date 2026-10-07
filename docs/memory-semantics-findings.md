@@ -363,7 +363,7 @@ observes the replacement, as the reference-type case in finding 9 shows.)
 The rule exists already for spawned calls: lend `list[Int(1)]` to a
 `spawn` and then `list!push(…)` in the same block, and the compiler reports
 "this writes `list`, which may be part of an owner lent through `list[]` to
-a spawned call" (`spec-divergences.md` §12). A synchronous call lends for a
+a spawned call" (`spec-divergences.md` §11). A synchronous call lends for a
 shorter time but to a callee that can write through its subject, so the
 same reasoning applies within the call.
 

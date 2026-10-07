@@ -17,7 +17,7 @@ settles, in one pass rather than section by section. Until then:
   the claim can be rechecked rather than taken on trust.
 
 A choice the spec leaves open is recorded here when a running program can
-observe it, as §11 and §14 are. The rest sit beside the design they belong
+observe it, as §10 and §13 are. The rest sit beside the design they belong
 to: what the type checker decides is in
 [`design/semantics.md`](design/semantics.md) §9, with D12 and D14, and how
 lowering and the runtime place and represent things is in
@@ -393,7 +393,9 @@ the verb containing it, and blocks are transparent to it, so a `guard` inside
 written in, and a call to an exiting verb is legal only inside a block. A
 verb's body must end in an explicit `return`, `Unit()` included
 ([`error-handling.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/error-handling.md)
-§8), while a block yields nothing (§10 below), so it has nothing to give and
+§8), while a block yields nothing
+([`control-flow.md`](https://github.com/zane-lang/spec/blob/7159260/spec/control-flow.md)
+§2.4), so it has nothing to give and
 is the one thing an exit can end.
 
 ```zane
@@ -413,35 +415,7 @@ written there. `lib/tst/analyses/exits.ml` checks the calls, and
 `tests/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
 Reconciling means the spec adopting this reading.
 
-## 10. A block yields nothing
-
-**Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
-§2.1 and §2.4: a block's type is `@concepts$Block`, or `@concepts$Block<T>`
-when it yields a `T`, and each yielding path ends in `resolve`. §3.3 uses one
-for a condition that is computed only when reached:
-`ran!elif({ resolve expensiveCheck() }) { … }`.
-
-**Compiler** — a block is a body of statements that yields nothing and is
-never stored. `@concepts$Block` takes no type argument. A `return`, `resolve`
-or `abort` in a block acts on what encloses the call, as §2.3 has it for
-`return` and `abort`: a `resolve` finishes the handler the block is written
-in, and is an error where there is none. A verb reads a block
-parameter only to pass it on; reading it does not run it. What runs it is a
-`@controlflow$` intrinsic, which does what that intrinsic says: `branch` runs
-it once when its condition holds, `repeat` a counted number of times.
-
-```zane
-Bool lazily(condition @concepts$Block<Bool>) => …   // rejected: no type argument
-done Bool = if(ready) {
-	resolve ready;                                  // rejected: no handler around it
-}
-```
-
-`tests/semantics/fixtures/typing/reject/bad/exits.zn` has both. The deferred
-condition of §3.3 has no form here. Reconciling means the spec dropping
-`Block<T>`, or the compiler taking it back.
-
-## 11. A spawned call's handler runs where the call settles
+## 10. A spawned call's handler runs where the call settles
 
 **Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
 §3.3: an abortable spawned call attaches `?` or `??` directly to the
@@ -469,7 +443,7 @@ check(q == Int(7));         // settled already: the handler does not run again
 `tests/codegen/fixtures/spawns` has these cases. Reconciling means the spec
 saying where the handler runs.
 
-## 12. A block does not write an owner it lent a running spawn
+## 11. A block does not write an owner it lent a running spawn
 
 **Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
 §4.2 lets spawned work read the reference-type object graph without writing
@@ -498,7 +472,7 @@ spawn dial.reading!nudge();      // accepted: written back (§4.4)
 Reconciling means the spec stating a rule for this write, this one or
 another.
 
-## 13. A case is not a type
+## 12. A case is not a type
 
 **Spec** — [`adt.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/adt.md)
 §3: "A member projected as a type is written `Expr.intLit`", and §5.2: "if the
@@ -520,7 +494,7 @@ projected case type would still be the whole variant (§3.2), and the
 narrowing it enables is an optimization the tag jump already gives. Reconciling
 means adding the type form and its narrowing, or the spec dropping it.
 
-## 14. An index out of range stops the program
+## 13. An index out of range stops the program
 
 **Spec** — silent. [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §5.2 fixes the ordinal base and leaves "the language-level behavior for
@@ -545,8 +519,9 @@ spec moved to `;`-terminated statements and a brace that ends one. The next
 closed from the other side, when the compiler adopted a spec rule it had been
 standing in for, the next when the compiler followed the spec in removing a
 form, the next when the spec's memory model made the compiler's departure
-unnecessary, and the last when the spec settled a question the compiler had
-answered differently.
+unnecessary, the next when the spec settled a question the compiler had
+answered differently, and the last when the spec dropped a form the compiler
+never had.
 
 - **Statements are terminated, not separated.** The spec separated statements
   by newline and called it "the one place a newline is structural"; the
@@ -650,3 +625,16 @@ answered differently.
   too: it saturates a float its target
   cannot hold and gives zero for a NaN (`types.md` §2.9). The compiler follows, and the runtime functions that stopped the
   program at either are gone; `tests/codegen/fixtures/scalars` checks both.
+
+- **A block yielded a value.** The spec typed a block `@concepts$Block<T>`
+  when it yielded a `T`, ending each yielding path with `resolve`, and used
+  one for a condition computed only when reached:
+  `ran!elif({ resolve expensiveCheck() }) { … }`. The compiler never accepted
+  a type argument on `@concepts$Block`, since no `@controlflow$` intrinsic
+  hands a block's value back to the verb that received it. Spec
+  [#225](https://github.com/zane-lang/spec/pull/225) dropped the form: a
+  block yields nothing, `resolve` in one finishes the handler around the call
+  and is an error with no handler, and a condition that must run only when
+  reached is nested in the chain's `else` (`control-flow.md` §2.4 and §3.3).
+  That is the compiler's rule, and the rejection in
+  `tests/semantics/fixtures/typing/reject/bad/exits.zn` now cites the spec.
