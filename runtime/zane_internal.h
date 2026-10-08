@@ -205,9 +205,9 @@ void zane_free(char *block, int64_t size, int64_t align);
 
 /* block.c */
 
-/* What is still to be done to a value's blocks, kept on the heap rather than
-   the C stack, so a value nested many thousands of boxes deep is walked in a
-   loop (memory.md §2.3 sets no depth limit). A job names a place and its
+/* What is still to be done to a value's blocks, kept off the C stack, so a
+   value nested many thousands of boxes deep is walked in a loop (memory.md
+   §2.3 sets no depth limit). A job names a place and its
    layout; the rest is the walk's own: a block to return once the place's
    own blocks are done, and the incoming value an overwrite copies. */
 typedef struct {
@@ -219,11 +219,20 @@ typedef struct {
 	char *returned;
 } zane_job;
 
+/* Most walks never hold more than a few jobs at once, so the first few live
+   in the work itself and only a longer walk takes a heap buffer. A work
+   points into itself from its start, so it stays where it was declared.
+   `zane_work_start` sets only its header, since zeroing the jobs would cost
+   what they save; a work zeroed whole starts at its first push instead. */
+#define ZANE_LOCAL_JOBS 4
+
 typedef struct {
 	zane_job *jobs;
 	int64_t count, room;
+	zane_job local[ZANE_LOCAL_JOBS];
 } zane_work;
 
+void zane_work_start(zane_work *w);
 void zane_work_push(zane_work *w, zane_job job);
 int zane_work_pop(zane_work *w, zane_job *job);
 void zane_work_end(zane_work *w);
