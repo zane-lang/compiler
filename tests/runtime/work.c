@@ -128,4 +128,14 @@ void zane_main(void) {
 	check(depth(twin) == 100000 && zane_blocks == 100000);
 	zane_scope_drain(scope);
 	check(zane_blocks == 0);
+
+	/* A work zeroed whole, rather than started, starts at its first push,
+	   and gives its jobs back last first past the ones it keeps in itself. */
+	zane_work zeroed = { 0 };
+	for (int64_t i = 0; i < 10; i++) zane_work_push(&zeroed, (zane_job){ .size = i });
+	int64_t expected = 9, ordered = 1;
+	zane_job job;
+	while (zane_work_pop(&zeroed, &job)) ordered &= job.size == expected--;
+	zane_work_end(&zeroed);
+	check(ordered && expected == -1);
 }

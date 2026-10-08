@@ -221,8 +221,9 @@ typedef struct {
 
 /* Most walks never hold more than a few jobs at once, so the first few live
    in the work itself and only a longer walk takes a heap buffer. A work
-   points into itself from its start, so it stays where it was declared; only
-   its header is set, since zeroing the jobs would cost what they save. */
+   points into itself from its start, so it stays where it was declared.
+   `zane_work_start` sets only its header, since zeroing the jobs would cost
+   what they save; a work zeroed whole starts at its first push instead. */
 #define ZANE_LOCAL_JOBS 4
 
 typedef struct {

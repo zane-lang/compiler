@@ -49,13 +49,17 @@ void zane_work_start(zane_work *w) {
 
 void zane_work_push(zane_work *w, zane_job job) {
 	if (w->count == w->room) {
-		int64_t room = 2 * w->room;
-		zane_job *jobs = w->jobs == w->local ? malloc((size_t)room * sizeof *jobs)
-		                                     : realloc(w->jobs, (size_t)room * sizeof *jobs);
-		if (!jobs) zane_broken("out of memory for a value's blocks");
-		if (w->jobs == w->local) memcpy(jobs, w->local, sizeof w->local);
-		w->jobs = jobs;
-		w->room = room;
+		if (w->room == 0) {
+			zane_work_start(w);
+		} else {
+			int64_t room = 2 * w->room;
+			zane_job *jobs = w->jobs == w->local ? malloc((size_t)room * sizeof *jobs)
+			                                     : realloc(w->jobs, (size_t)room * sizeof *jobs);
+			if (!jobs) zane_broken("out of memory for a value's blocks");
+			if (w->jobs == w->local) memcpy(jobs, w->local, sizeof w->local);
+			w->jobs = jobs;
+			w->room = room;
+		}
 	}
 	w->jobs[w->count++] = job;
 }
