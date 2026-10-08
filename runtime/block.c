@@ -41,11 +41,21 @@ void zane_unblock(const zane_position *p, void *block, int64_t room) {
 
 void *zane_at(char *base, const zane_position *p) { return base + p->offset; }
 
+void zane_work_start(zane_work *w) {
+	w->jobs = w->local;
+	w->count = 0;
+	w->room = ZANE_LOCAL_JOBS;
+}
+
 void zane_work_push(zane_work *w, zane_job job) {
 	if (w->count == w->room) {
-		w->room = w->room ? 2 * w->room : 64;
-		w->jobs = realloc(w->jobs, (size_t)w->room * sizeof *w->jobs);
-		if (!w->jobs) zane_broken("out of memory for a value's blocks");
+		int64_t room = 2 * w->room;
+		zane_job *jobs = w->jobs == w->local ? malloc((size_t)room * sizeof *jobs)
+		                                     : realloc(w->jobs, (size_t)room * sizeof *jobs);
+		if (!jobs) zane_broken("out of memory for a value's blocks");
+		if (w->jobs == w->local) memcpy(jobs, w->local, sizeof w->local);
+		w->jobs = jobs;
+		w->room = room;
 	}
 	w->jobs[w->count++] = job;
 }
@@ -57,8 +67,8 @@ int zane_work_pop(zane_work *w, zane_job *job) {
 }
 
 void zane_work_end(zane_work *w) {
-	free(w->jobs);
-	*w = (zane_work){ 0 };
+	if (w->jobs != w->local) free(w->jobs);
+	zane_work_start(w);
 }
 
 /* One position of a dying value: a string's block is returned at once; a
@@ -114,7 +124,8 @@ static void zane_end_all(zane_work *w) {
 /* The block the handle or boxed member at `p` owns is returned, once what
    lives in it has died. */
 void zane_end_at(char *base, const zane_position *p) {
-	zane_work w = { 0 };
+	zane_work w;
+	zane_work_start(&w);
 	zane_end_position(&w, base, p);
 	zane_end_all(&w);
 }
@@ -122,7 +133,8 @@ void zane_end_at(char *base, const zane_position *p) {
 /* The value at `base` dies: each block it owns is returned, down through
    the blocks inside them (lifetimes.md §2.1). */
 void zane_end(char *base, const int64_t *layout) {
-	zane_work w = { 0 };
+	zane_work w;
+	zane_work_start(&w);
 	zane_work_push(&w, (zane_job){ .at = base, .layout = layout });
 	zane_end_all(&w);
 }
@@ -135,7 +147,8 @@ static zane_mark *zane_here(void) { return zane_mark_at(zane_self, zane_self->de
    is still the original's, so it gets a copy of its own, down through the
    blocks inside it (memory.md §2.3). */
 void zane_copy(char *value, const int64_t *layout) {
-	zane_work w = { 0 };
+	zane_work w;
+	zane_work_start(&w);
 	zane_work_push(&w, (zane_job){ .at = value, .layout = layout });
 	zane_job job;
 	while (zane_work_pop(&w, &job)) {

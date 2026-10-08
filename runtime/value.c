@@ -69,7 +69,8 @@ static void zane_move_at(zane_work *w, char *at, const zane_position *p, zane_ma
 /* The value at `value` is where it now lives: every block it owns that
    must move into `region` does, as `zane_leaves` decides. */
 void zane_move(char *value, const int64_t *layout, zane_mark *region, int64_t from) {
-	zane_work w = { 0 };
+	zane_work w;
+	zane_work_start(&w);
 	zane_work_push(&w, (zane_job){ .at = value, .layout = layout });
 	zane_job job;
 	while (zane_work_pop(&w, &job)) {
@@ -126,9 +127,11 @@ void zane_vacate(char *slot, const int64_t *layout) {
    dies, and what the replacement brought arrives. `incoming` is complete
    before this runs, so a replacement made from the occupant is safe (§2.3). */
 void zane_overwrite(char *slot, char *incoming, int64_t size, const int64_t *layout) {
-	zane_work w = { 0 };
+	zane_work w;
+	zane_work_start(&w);
 	/* Each place written, in the order written, to arrive deepest first. */
-	zane_work arrivals = { 0 };
+	zane_work arrivals;
+	zane_work_start(&arrivals);
 	zane_work_push(&w, (zane_job){ .at = slot, .layout = layout, .incoming = incoming, .size = size });
 	zane_job job;
 	while (zane_work_pop(&w, &job)) {

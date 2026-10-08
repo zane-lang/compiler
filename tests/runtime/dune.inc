@@ -108,3 +108,21 @@
  (action
   (diff golden/texts.out texts.out.actual)))
 
+(rule
+ (deps work.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (targets work.exe)
+ (action
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o work.exe work.c
+   ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)))
+
+(rule
+ (action
+  (with-stdout-to
+   work.out.actual
+   (run ./work.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/work.out work.out.actual)))
+
