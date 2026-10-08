@@ -550,11 +550,14 @@ test passing.
   checks: none of §4.4's bounds on a walk are needed, and no attempt
   allocates anything it has to give back. A `match` or a case read on such a
   place reads it where it is. A value of 1, 2, 4 or 8 bytes, aligned to its
-  size, is read in one `unordered` atomic load that codegen emits: a
-  write-back changes it in a single store, so the load sees all of the old
-  value or all of the new one, which is the snapshot, and LLVM may move and
-  combine such loads as it does plain ones. A wider value is a call into
-  the runtime, which checks the two counts. The load makes trialdiv,
+  size, is read in one atomic load that codegen emits: a write-back changes
+  it in a single store, so the load sees all of the old value or all of the
+  new one, which is the snapshot. The load is `unordered`, which LLVM may
+  move and combine as it does plain loads, unless the value holds an
+  address, such as a box's: that one is an acquire load, so what the address
+  names, written before the write-back's release fence, is seen with it on a
+  processor that reorders loads. A wider value is a call into the runtime,
+  which checks the two counts and fences the same way. The load makes trialdiv,
   fannkuch and entities 1.8 to 4.6 times faster than the call, and a
   diagnostic build with plain loads in its place is no faster
   ([#203](https://github.com/zane-lang/compiler/issues/203#issuecomment-6062273902)).

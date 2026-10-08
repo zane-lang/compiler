@@ -4,7 +4,7 @@
 
 open Cgt.Nodes
 
-external set_unordered : Llvm.llvalue -> unit = "zane_set_unordered"
+external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
 
 type env = {
   ctx : Llvm.llcontext;
@@ -196,6 +196,26 @@ let has_terminator b =
 
 let block env fr = Llvm.append_block env.ctx "" fr.fn
 
+(* How a snapshot of a value of type [t] is read (§9). One naturally aligned
+   access of 1, 2, 4 or 8 bytes is never torn by a write-back
+   (runtime/snapshot.c), so it is the snapshot. A value that holds an address,
+   such as a box's, is read with acquire ordering, so what the address names,
+   written before the write-back's release fence published it, is seen with
+   it; one that holds none needs only `unordered`, which LLVM moves and
+   merges like a plain load. A wider value is read by the runtime,
+   which retries a torn read and fences the same way. *)
+let snapshot_read t =
+  let rec names_block = function
+    | Ty.Ptr | Ty.Handle -> true
+    | Ty.Struct ts | Ty.Sum ts -> List.exists names_block ts
+    | Ty.Array (t, _) -> names_block t
+    | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
+  in
+  let size, align = size_align t in
+  if not (List.mem size [ 1; 2; 4; 8 ] && align >= size) then `Runtime
+  else if names_block t then `Acquire
+  else `Unordered
+
 (* The address of a list's or an array's element, counted from 1, checked
    against its count here rather than in the runtime, so LLVM sees the count,
    the index and the address the way it sees any arithmetic. Only an index
@@ -357,21 +377,17 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | t ->
           let lt = lltype env t in
           let out = alloca env fr lt in
-          let size, align = size_align t in
-          (* A value one naturally aligned access can hold is read in that
-             one access, which a write-back never tears (runtime/snapshot.c),
-             so it is already coherent (§9). LLVM sees it as a load it may
-             move and merge like any other, short of tearing it. A wider
-             value is read by the runtime, which retries a torn read. *)
-          (if List.mem size [ 1; 2; 4; 8 ] && align >= size then (
-             let word = Llvm.build_load (Llvm.integer_type env.ctx (8 * size)) p "" b in
-             Llvm.set_alignment size word;
-             set_unordered word;
-             ignore (Llvm.build_store word out b))
-           else
-             ignore
-               (call_runtime env b Cgt.Runtime.Snapshot
-                  [| out; p; Llvm.const_int env.i64 size |]));
+          let size = fst (size_align t) in
+          (match snapshot_read t with
+          | (`Unordered | `Acquire) as order ->
+              let word = Llvm.build_load (Llvm.integer_type env.ctx (8 * size)) p "" b in
+              Llvm.set_alignment size word;
+              set_ordering word (order = `Acquire);
+              ignore (Llvm.build_store word out b)
+          | `Runtime ->
+              ignore
+                (call_runtime env b Cgt.Runtime.Snapshot
+                   [| out; p; Llvm.const_int env.i64 size |]));
           Some (Llvm.build_load lt out "" b))
   | Expr.Escape { value; layout = l; exit } -> (
       (* The arenas the exit drains are the innermost ones: all of the

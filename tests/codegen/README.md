@@ -64,7 +64,9 @@ again, read the golden diff and promote that.
   declared subscript. Guests follow hosts into a list and through its growth.
 - `boxes` is step 7's boxed members: value types that contain themselves,
   copied whole, a reference chain whose guests hold while it moves, and case
-  reads of boxed payloads.
+  reads of boxed payloads. `Solo`, a struct whose one member is boxed, is a
+  single address, so reading one out of a list takes the snapshot's acquire
+  load.
 - `range` indexes past a list's end: the program stops with status 1 after what
   it wrote so far, and says why on stderr. `rangeZero` does the same with
   index 0, below a list's first element.

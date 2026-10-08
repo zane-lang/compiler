@@ -30,6 +30,15 @@
     │   ├── type: boxes$Tower
     │   └── positions[0]: box @8 of boxes$Storey (16 bytes)
     ├── layouts[9] > layout:
+    │   ├── type: boxes$Knot
+    │   └── positions[0]: box @8 of boxes$Solo (8 bytes) when [0]=1
+    ├── layouts[10] > layout:
+    │   ├── type: boxes$Solo
+    │   └── positions[0]: box @0 of boxes$Knot (16 bytes)
+    ├── layouts[11] > layout:
+    │   ├── type: %primitives$List<boxes$Solo>
+    │   └── positions[0]: list @0 of boxes$Solo (8 bytes apart)
+    ├── layouts[12] > layout:
     │   ├── type: ^boxes$Storey
     │   └── positions[0]: box @8 of boxes$Tower (16 bytes) when [0]=1
     ├── funcs[0] > func:
@@ -686,14 +695,177 @@
     │       │       │       ├── path: 0
     │       │       │       └── base: address of #63 : ptr
     │       │       └── right: 5 : i64
-    │       ├── body[27] > let:
+    │       ├── body[27] > hold:
     │       │   ├── local: #65
-    │       │   └── value: 1 : i64
+    │       │   ├── scope: %2
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: zane_list_new
+    │       │   │   └── args:
+    │       │   └── layout: %primitives$List<boxes$Solo>
     │       ├── body[28] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @67
+    │       │   ├── label: @77
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #66
+    │       │   │   ├── local: #75
+    │       │   │   └── value > call:
+    │       │   │       ├── type: {ptr}
+    │       │   │       ├── fn: boxes$Solo(boxes$Knot)
+    │       │   │       └── args[0] > expand:
+    │       │   │           ├── type: <void | ptr>
+    │       │   │           ├── label: @73
+    │       │   │           ├── result: #74
+    │       │   │           ├── body[0] > hold:
+    │       │   │           │   ├── local: #72
+    │       │   │           │   ├── scope: %2
+    │       │   │           │   ├── value > case:
+    │       │   │           │   │   ├── type: <void | ptr>
+    │       │   │           │   │   ├── index: 1
+    │       │   │           │   │   └── payload > box:
+    │       │   │           │   │       ├── value > call:
+    │       │   │           │   │       │   ├── type: {ptr}
+    │       │   │           │   │       │   ├── fn: boxes$Solo(boxes$Knot)
+    │       │   │           │   │       │   └── args[0] > expand:
+    │       │   │           │   │       │       ├── type: <void | ptr>
+    │       │   │           │   │       │       ├── label: @70
+    │       │   │           │   │       │       ├── result: #71
+    │       │   │           │   │       │       ├── body[0] > hold:
+    │       │   │           │   │       │       │   ├── local: #69
+    │       │   │           │   │       │       │   ├── scope: %2
+    │       │   │           │   │       │       │   ├── value > case:
+    │       │   │           │   │       │       │   │   ├── type: <void | ptr>
+    │       │   │           │   │       │       │   │   ├── index: 1
+    │       │   │           │   │       │       │   │   └── payload > box:
+    │       │   │           │   │       │       │   │       ├── value > call:
+    │       │   │           │   │       │       │   │       │   ├── type: {ptr}
+    │       │   │           │   │       │       │   │       │   ├── fn: boxes$Solo(boxes$Knot)
+    │       │   │           │   │       │       │   │       │   └── args[0] > expand:
+    │       │   │           │   │       │       │   │       │       ├── type: <void | ptr>
+    │       │   │           │   │       │       │   │       │       ├── label: @67
+    │       │   │           │   │       │       │   │       │       ├── result: #68
+    │       │   │           │   │       │       │   │       │       ├── body[0] > hold:
+    │       │   │           │   │       │       │   │       │       │   ├── local: #66
+    │       │   │           │   │       │       │   │       │       │   ├── scope: %2
+    │       │   │           │   │       │       │   │       │       │   ├── value > case:
+    │       │   │           │   │       │       │   │       │       │   │   ├── type: <void | ptr>
+    │       │   │           │   │       │       │   │       │       │   │   ├── index: 0
+    │       │   │           │   │       │       │   │       │       │   │   └── payload: unit : void
+    │       │   │           │   │       │       │   │       │       │   └── layout: boxes$Knot
+    │       │   │           │   │       │       │   │       │       └── body[1] > assign:
+    │       │   │           │   │       │       │   │       │           ├── place: #68
+    │       │   │           │   │       │       │   │       │           └── value: local #66 : <void | ptr>
+    │       │   │           │   │       │       │   │       └── layout: boxes$Solo
+    │       │   │           │   │       │       │   └── layout: boxes$Knot
+    │       │   │           │   │       │       └── body[1] > assign:
+    │       │   │           │   │       │           ├── place: #71
+    │       │   │           │   │       │           └── value: local #69 : <void | ptr>
+    │       │   │           │   │       └── layout: boxes$Solo
+    │       │   │           │   └── layout: boxes$Knot
+    │       │   │           └── body[1] > assign:
+    │       │   │               ├── place: #74
+    │       │   │               └── value: local #72 : <void | ptr>
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #76
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #65 : ptr
+    │       │   │       └── args[1]: 8 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #76 : ptr
+    │       │       ├── value: local #75 : {ptr}
+    │       │       └── layout: boxes$Solo
+    │       ├── body[29] > hold:
+    │       │   ├── local: #78
+    │       │   ├── scope: %2
+    │       │   ├── value > copy:
+    │       │   │   ├── type: {ptr}
+    │       │   │   ├── value > snapshot:
+    │       │   │   │   ├── type: {ptr}
+    │       │   │   │   └── ptr > runtime:
+    │       │   │   │       ├── type: ptr
+    │       │   │   │       ├── fn: zane_list_at
+    │       │   │   │       ├── args[0]: address of #65 : ptr
+    │       │   │   │       ├── args[1]: 1 : i64
+    │       │   │   │       └── args[2]: 8 : i64
+    │       │   │   └── layout: boxes$Solo
+    │       │   └── layout: boxes$Solo
+    │       ├── body[30] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: boxes$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: boxes$knots(boxes$Knot)
+    │       │       │   └── args[0] > deref:
+    │       │       │       ├── type: <void | ptr>
+    │       │       │       └── ptr > deref:
+    │       │       │           ├── type: ptr
+    │       │       │           └── ptr > offset:
+    │       │       │               ├── within: {ptr}
+    │       │       │               ├── path: 0
+    │       │       │               └── base: address of #78 : ptr
+    │       │       └── right: 2 : i64
+    │       ├── body[31] > let:
+    │       │   ├── local: #79
+    │       │   └── value: 1 : i64
+    │       ├── body[32] > let:
+    │       │   ├── local: #80
+    │       │   └── value > call:
+    │       │       ├── type: {ptr}
+    │       │       ├── fn: boxes$Solo(boxes$Knot)
+    │       │       └── args[0] > expand:
+    │       │           ├── type: <void | ptr>
+    │       │           ├── label: @82
+    │       │           ├── result: #83
+    │       │           ├── body[0] > hold:
+    │       │           │   ├── local: #81
+    │       │           │   ├── scope: %2
+    │       │           │   ├── value > case:
+    │       │           │   │   ├── type: <void | ptr>
+    │       │           │   │   ├── index: 0
+    │       │           │   │   └── payload: unit : void
+    │       │           │   └── layout: boxes$Knot
+    │       │           └── body[1] > assign:
+    │       │               ├── place: #83
+    │       │               └── value: local #81 : <void | ptr>
+    │       ├── body[33] > overwrite:
+    │       │   ├── address > runtime:
+    │       │   │   ├── type: ptr
+    │       │   │   ├── fn: zane_list_at
+    │       │   │   ├── args[0]: address of #65 : ptr
+    │       │   │   ├── args[1]: local #79 : i64
+    │       │   │   └── args[2]: 8 : i64
+    │       │   ├── value: local #80 : {ptr}
+    │       │   └── layout: boxes$Solo
+    │       ├── body[34] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: boxes$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: boxes$knots(boxes$Knot)
+    │       │       │   └── args[0] > deref:
+    │       │       │       ├── type: <void | ptr>
+    │       │       │       └── ptr > deref:
+    │       │       │           ├── type: ptr
+    │       │       │           └── ptr > offset:
+    │       │       │               ├── within: {ptr}
+    │       │       │               ├── path: 0
+    │       │       │               └── base: address of #78 : ptr
+    │       │       └── right: 2 : i64
+    │       ├── body[35] > let:
+    │       │   ├── local: #84
+    │       │   └── value: 1 : i64
+    │       ├── body[36] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @86
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #85
     │       │   │   └── value: 1000 : i64
     │       │   ├── body[1] > repeat:
     │       │   │   ├── count > binary:
@@ -702,18 +874,18 @@
     │       │   │   │   ├── left > binary:
     │       │   │   │   │   ├── type: i64
     │       │   │   │   │   ├── op: +
-    │       │   │   │   │   ├── left: local #66 : i64
+    │       │   │   │   │   ├── left: local #85 : i64
     │       │   │   │   │   └── right > flip:
     │       │   │   │   │       ├── type: i64
-    │       │   │   │   │       └── value: local #65 : i64
+    │       │   │   │   │       └── value: local #84 : i64
     │       │   │   │   └── right: 1 : i64
     │       │   │   ├── body[0] > if:
     │       │   │   │   ├── cond: true : i1
     │       │   │   │   └── body[0] > scope:
-    │       │   │   │       ├── id: %71
+    │       │   │   │       ├── id: %90
     │       │   │   │       ├── body[0] > hold:
-    │       │   │   │       │   ├── local: #70
-    │       │   │   │       │   ├── scope: %71
+    │       │   │   │       │   ├── local: #89
+    │       │   │   │       │   ├── scope: %90
     │       │   │   │       │   ├── value > case:
     │       │   │   │       │   │   ├── type: <void | ptr>
     │       │   │   │       │   │   ├── index: 1
@@ -730,30 +902,30 @@
     │       │   │   │       │   │       └── layout: boxes$Countdown
     │       │   │   │       │   └── layout: boxes$Countdown
     │       │   │   │       ├── body[1] > hold:
-    │       │   │   │       │   ├── local: #72
-    │       │   │   │       │   ├── scope: %71
+    │       │   │   │       │   ├── local: #91
+    │       │   │   │       │   ├── scope: %90
     │       │   │   │       │   ├── value > copy:
     │       │   │   │       │   │   ├── type: <void | ptr>
-    │       │   │   │       │   │   ├── value: local #70 : <void | ptr>
+    │       │   │   │       │   │   ├── value: local #89 : <void | ptr>
     │       │   │   │       │   │   └── layout: boxes$Countdown
     │       │   │   │       │   └── layout: boxes$Countdown
     │       │   │   │       └── body[2] > overwrite:
-    │       │   │   │           ├── address: address of #70 : ptr
+    │       │   │   │           ├── address: address of #89 : ptr
     │       │   │   │           ├── value > copy:
     │       │   │   │           │   ├── type: <void | ptr>
-    │       │   │   │           │   ├── value: local #72 : <void | ptr>
+    │       │   │   │           │   ├── value: local #91 : <void | ptr>
     │       │   │   │           │   └── layout: boxes$Countdown
     │       │   │   │           └── layout: boxes$Countdown
     │       │   │   └── body[1] > assign:
-    │       │   │       ├── place: #65
+    │       │   │       ├── place: #84
     │       │   │       └── value > binary:
     │       │   │           ├── type: i64
     │       │   │           ├── op: +
-    │       │   │           ├── left: local #65 : i64
+    │       │   │           ├── left: local #84 : i64
     │       │   │           └── right: 1 : i64
     │       │   ├── body[2] > eval: unit : void
-    │       │   └── body[3]: leave @67
-    │       └── body[29] > return: unit : void
+    │       │   └── body[3]: leave @86
+    │       └── body[37] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: boxes$depth(boxes$Countdown)
     │   ├── params[0]: local #1 : <void | ptr>
@@ -1016,9 +1188,73 @@
     │           │       │   └── layout: boxes$Storey
     │           │       └── layout: boxes$Storey
     │           └── layout: boxes$Tower
-    └── funcs[8] > func:
-        ├── symbol: boxes$levels(this boxes$Storey)
-        ├── params[0]: local #1 : ptr
+    ├── funcs[8] > func:
+    │   ├── symbol: boxes$levels(this boxes$Storey)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > expand:
+    │       ├── type: i64
+    │       ├── label: @2
+    │       ├── result: #3
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value: local #1 : ptr
+    │       └── body[1] > switch:
+    │           ├── value > deref:
+    │           │   ├── type: <void | ptr>
+    │           │   └── ptr: local #4 : ptr
+    │           ├── cases[0] > case 0[0] > let:
+    │           │   ├── local: #5
+    │           │   └── value > offset:
+    │           │       ├── within: <void | ptr>
+    │           │       ├── path: 0
+    │           │       └── base: local #4 : ptr
+    │           ├── cases[0] > case 0[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value: 0 : i64
+    │           ├── cases[0] > case 0[2]: leave @2
+    │           ├── cases[1] > case 1[0] > let:
+    │           │   ├── local: #6
+    │           │   └── value > deref:
+    │           │       ├── type: ptr
+    │           │       └── ptr > offset:
+    │           │           ├── within: <void | ptr>
+    │           │           ├── path: 1
+    │           │           └── base: local #4 : ptr
+    │           ├── cases[1] > case 1[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value > binary:
+    │           │       ├── type: i64
+    │           │       ├── op: +
+    │           │       ├── left: 1 : i64
+    │           │       └── right > call:
+    │           │           ├── type: i64
+    │           │           ├── fn: boxes$levels(this boxes$Storey)
+    │           │           └── args[0] > deref:
+    │           │               ├── type: ptr
+    │           │               └── ptr > offset:
+    │           │                   ├── within: {i64, ptr}
+    │           │                   ├── path: 1
+    │           │                   └── base: local #6 : ptr
+    │           └── cases[1] > case 1[2]: leave @2
+    ├── funcs[9] > func:
+    │   ├── symbol: boxes$Solo(boxes$Knot)
+    │   ├── params[0]: local #1 : <void | ptr>
+    │   ├── ret: {ptr}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {ptr}
+    │       │   └── members[0] > member 0 > box:
+    │       │       ├── value > copy:
+    │       │       │   ├── type: <void | ptr>
+    │       │       │   ├── value: local #1 : <void | ptr>
+    │       │       │   └── layout: boxes$Knot
+    │       │       └── layout: boxes$Knot
+    │       └── layout: boxes$Solo
+    └── funcs[10] > func:
+        ├── symbol: boxes$knots(boxes$Knot)
+        ├── params[0]: local #1 : <void | ptr>
         ├── ret: i64
         └── body[0] > return > expand:
             ├── type: i64
@@ -1026,7 +1262,7 @@
             ├── result: #3
             ├── body[0] > let:
             │   ├── local: #4
-            │   └── value: local #1 : ptr
+            │   └── value: address of #1 : ptr
             └── body[1] > switch:
                 ├── value > deref:
                 │   ├── type: <void | ptr>
@@ -1057,11 +1293,13 @@
                 │       ├── left: 1 : i64
                 │       └── right > call:
                 │           ├── type: i64
-                │           ├── fn: boxes$levels(this boxes$Storey)
+                │           ├── fn: boxes$knots(boxes$Knot)
                 │           └── args[0] > deref:
-                │               ├── type: ptr
-                │               └── ptr > offset:
-                │                   ├── within: {i64, ptr}
-                │                   ├── path: 1
-                │                   └── base: local #6 : ptr
+                │               ├── type: <void | ptr>
+                │               └── ptr > deref:
+                │                   ├── type: ptr
+                │                   └── ptr > offset:
+                │                       ├── within: {ptr}
+                │                       ├── path: 0
+                │                       └── base: local #6 : ptr
                 └── cases[1] > case 1[2]: leave @2

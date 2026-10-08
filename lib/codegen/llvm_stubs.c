@@ -37,10 +37,12 @@ value zane_normalize_triple(value triple) {
   CAMLreturn(normal);
 }
 
-/* LLVMAtomicOrderingUnordered: the access is never torn, and promises no
-   order beyond that. */
-value zane_set_unordered(value access) {
-  CAMLparam1(access);
-  LLVMSetOrdering((LLVMValueRef)from_val(access), 1);
+/* An access made atomic: LLVMAtomicOrderingUnordered (1), never torn and
+   promising no order beyond that, or LLVMAtomicOrderingAcquire (4), which
+   also sees every write made before the release that published what it
+   reads. */
+value zane_set_ordering(value access, value acquire) {
+  CAMLparam2(access, acquire);
+  LLVMSetOrdering((LLVMValueRef)from_val(access), Bool_val(acquire) ? 4 : 1);
   CAMLreturn(Val_unit);
 }
