@@ -3,6 +3,20 @@
 
 external normalize_triple : string -> string = "zane_normalize_triple"
 
+(* The processor code is tuned for on *triple*, as clang tunes it: on x86-64
+   the baseline `x86-64`, on `x86_64h` the Haswell processor that
+   architecture names, and LLVM's own default elsewhere. Each allows only the
+   instructions every processor of the architecture has, so a program runs
+   anywhere its target does; tuning for LLVM's bare `generic` x86 instead
+   leaves out choices clang makes, among them dividing by a 32-bit divide
+   when both 64-bit operands fit, which makes trialdiv 1.4 times slower
+   (#203). *)
+let cpu triple =
+  match String.split_on_char '-' triple with
+  | "x86_64" :: _ | "amd64" :: _ -> "x86-64"
+  | "x86_64h" :: _ -> "core-avx2"
+  | _ -> ""
+
 (* The machine for *target*, an LLVM triple, or for the host when it is
    absent. The triple is taken in LLVM's normal form, which reads a short
    spelling such as `x86_64-windows-gnu` as the Windows triple it is, where
@@ -20,8 +34,8 @@ let target_machine ?target ~optimize () =
   | target ->
       Ok
         ( triple,
-          Llvm_target.TargetMachine.create ~triple ~level ~reloc_mode:Llvm_target.RelocMode.PIC
-            target )
+          Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~level
+            ~reloc_mode:Llvm_target.RelocMode.PIC target )
   | exception Llvm_target.Error message ->
       Error (Printf.sprintf "cannot compile for the target `%s`: %s" triple message)
 

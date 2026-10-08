@@ -604,6 +604,17 @@ let snapshot_reads () =
   check "a handle is read by the runtime" (read T.Handle = `Runtime);
   check "two I64s are read by the runtime" (read (T.Struct [ T.I64; T.I64 ]) = `Runtime)
 
+(* Code for x86-64 is tuned as clang tunes it, for the baseline `x86-64`
+   processor whatever spelling the triple has, and for Haswell on `x86_64h`;
+   other targets keep LLVM's default. *)
+let target_cpus () =
+  let cpu target = Codegen.target_cpu ~target () in
+  check "an x86-64 Linux target is tuned for x86-64" (cpu "x86_64-unknown-linux-gnu" = Ok "x86-64");
+  check "a short x86-64 Windows triple is tuned for x86-64" (cpu "x86_64-windows-gnu" = Ok "x86-64");
+  check "an amd64 triple is tuned for x86-64" (cpu "amd64-unknown-freebsd" = Ok "x86-64");
+  check "an x86_64h target is tuned for Haswell" (cpu "x86_64h-apple-darwin" = Ok "core-avx2");
+  check "an AArch64 target keeps LLVM's default" (cpu "aarch64-unknown-linux-gnu" = Ok "")
+
 let () =
   ty ();
   signatures ();
@@ -628,6 +639,7 @@ let () =
   twice ();
   at_once ();
   snapshot_reads ();
+  target_cpus ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

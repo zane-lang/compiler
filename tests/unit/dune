@@ -1,10 +1,10 @@
 ; Direct tests of the helpers the stages share: types and their substitution,
 ; signatures, overload ranking, lowering's type layouts, what stage 5's
-; evaluator makes of the tree, and how codegen reads a snapshot. The golden suites
-; test the same code end to end; these say which helper broke, rather than
-; where in a golden file the difference surfaced. They also check that
-; semantics run twice in one process gives the same tree (it keeps no
-; numbering from one check to the next).
+; evaluator makes of the tree, how codegen reads a snapshot, and the processor
+; codegen tunes for. The golden suites test the same code end to end; these
+; say which helper broke, rather than where in a golden file the difference
+; surfaced. They also check that semantics run twice in one process gives the
+; same tree (it keeps no numbering from one check to the next).
 ;
 ; Overloads, State, Type_layout, Emit and stage 5's modules are not re-exported by their libraries'
 ; entry modules, so they are reached by the names dune gives them.

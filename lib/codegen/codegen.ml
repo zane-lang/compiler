@@ -3,6 +3,11 @@
 let emit = Emit.program
 let ir m = Llvm.string_of_llmodule m
 
+let target_cpu ?target () =
+  Result.map
+    (fun (_, tm) -> Llvm_target.TargetMachine.cpu tm)
+    (Build.target_machine ?target ~optimize:true ())
+
 let executable ?target ?optimize ?link m output =
   Build.executable ?target ?optimize ?link m output
 let object_file ?target ?optimize m output = Build.object_file ?target ?optimize m output

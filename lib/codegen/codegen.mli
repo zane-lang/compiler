@@ -5,6 +5,11 @@
 
 val emit : Cgt.Nodes.Program.t -> Llvm.llmodule
 
+(** The processor [prepare] tunes code for on [target], the host when it is
+    absent: [x86-64] on any x86-64 target, [core-avx2] on [x86_64h], else
+    LLVM's default, [""]. *)
+val target_cpu : ?target:string -> unit -> (string, string) result
+
 (** The module's text, once [prepare] has set its target. *)
 val ir : Llvm.llmodule -> string
 
