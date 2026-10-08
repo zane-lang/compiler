@@ -32,9 +32,9 @@ one as it is made: a wrong operand type fails at the line that built it, not
 in a tool that reads a file later. The same bindings verify the module, run
 LLVM's own passes, and write the object file through the target machine, so
 no text is written and read back. The target machine tunes code for the
-processor clang would pick: `x86-64` on any x86-64 target, LLVM's default
-elsewhere. Both allow only the instructions every processor of the
-architecture has. Linking that object with the runtime (§6) is the one step
+processor clang would pick: `x86-64` on any x86-64 target, `core-avx2` on
+`x86_64h`, the Haswell architecture, and LLVM's default elsewhere. Each
+allows only the instructions every processor of the architecture has. Linking that object with the runtime (§6) is the one step
 left to a system linker, which `clang` drives.
 
 The bindings are LLVM's own, from `llvm/bindings/ocaml` in llvm-project,

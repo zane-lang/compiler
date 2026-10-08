@@ -3,15 +3,19 @@
 
 external normalize_triple : string -> string = "zane_normalize_triple"
 
-(* The processor code is tuned for on *triple*: on x86-64 the baseline
-   `x86-64`, which clang also picks, and LLVM's own default elsewhere. Both
-   allow only the instructions every processor of the architecture has, so a
-   program runs anywhere its target does; tuning for LLVM's bare `generic`
-   x86 instead leaves out choices clang makes, among them dividing by a
-   32-bit divide when both 64-bit operands fit, which makes trialdiv 1.4
-   times slower (#203). *)
+(* The processor code is tuned for on *triple*, as clang tunes it: on x86-64
+   the baseline `x86-64`, on `x86_64h` the Haswell processor that
+   architecture names, and LLVM's own default elsewhere. Each allows only the
+   instructions every processor of the architecture has, so a program runs
+   anywhere its target does; tuning for LLVM's bare `generic` x86 instead
+   leaves out choices clang makes, among them dividing by a 32-bit divide
+   when both 64-bit operands fit, which makes trialdiv 1.4 times slower
+   (#203). *)
 let cpu triple =
-  match String.split_on_char '-' triple with "x86_64" :: _ | "amd64" :: _ -> "x86-64" | _ -> ""
+  match String.split_on_char '-' triple with
+  | "x86_64" :: _ | "amd64" :: _ -> "x86-64"
+  | "x86_64h" :: _ -> "core-avx2"
+  | _ -> ""
 
 (* The machine for *target*, an LLVM triple, or for the host when it is
    absent. The triple is taken in LLVM's normal form, which reads a short
