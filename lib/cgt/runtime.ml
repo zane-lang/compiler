@@ -24,6 +24,7 @@ type fn =
   | List_push
   | List_at
   | Array_at
+  | Out_of_range
   | Scope_drain
   | Frame
   | Spawn
@@ -38,7 +39,7 @@ type fn =
   | Parse_i64
   | Parse_f64
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Slot; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64 ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Slot; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Out_of_range; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64 ]
 
 let name = function
   | Print -> "zane_print"
@@ -60,6 +61,7 @@ let name = function
   | List_push -> "zane_list_push"
   | List_at -> "zane_list_at"
   | Array_at -> "zane_array_at"
+  | Out_of_range -> "zane_out_of_range"
   | Scope_drain -> "zane_scope_drain"
   | Frame -> "zane_frame"
   | Spawn -> "zane_spawn"
@@ -99,6 +101,7 @@ let signature = function
   | List_push -> (Ptr, [ Ptr; I64 ])
   | List_at -> (Ptr, [ Ptr; I64; I64 ])
   | Array_at -> (Ptr, [ Ptr; I64; I64; I64 ])
+  | Out_of_range -> (Void, [  ])
   | Scope_drain -> (Void, [ I64 ])
   | Frame -> (Ptr, [ I64; I64; I64 ])
   | Spawn -> (Void, [ Ptr; Ptr; Ptr; Ptr; I64 ])

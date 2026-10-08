@@ -645,7 +645,13 @@ test passing.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
   §5.2, [`spec-divergences.md`](../spec-divergences.md) §13). Until it says, the program stops:
   what it wrote so far is kept, the runtime writes `index out of range` to
-  stderr, and the status is 1, for a list and an array alike.
+  stderr, and the status is 1, for a list and an array alike. The CGT names
+  the element's address as `List_at` or `Array_at`, and codegen checks the
+  index where the address is made: one unsigned compare of the index less one
+  against the count covers both ends, and only an index outside calls
+  `zane_out_of_range`, which is cold and does not return. LLVM so sees the
+  count, the index and the address as ordinary arithmetic, and can hoist or
+  drop a check it proves redundant.
 - **A type argument passes nothing.** A generic verb is lowered once per
   instance the TST checked ([`semantics.md`](semantics.md) D12), with a
   symbol of its own, and a type written where a value goes, or a number

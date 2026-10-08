@@ -71,6 +71,12 @@ let runtime env fn =
       let ret, params = Cgt.Runtime.signature fn in
       let fty = Llvm.function_type (abi ret) (Array.of_list (List.map abi params)) in
       let f = Llvm.declare_function name fty env.m in
+      (* An index out of range stops the program, so the path to it is cold
+         and nothing follows it. *)
+      if fn = Cgt.Runtime.Out_of_range then
+        List.iter
+          (fun a -> Llvm.add_function_attr f (Llvm.create_enum_attr env.ctx a 0L) Llvm.AttrIndex.Function)
+          [ "noreturn"; "cold"; "nounwind" ];
       Hashtbl.replace env.funcs name (f, fty);
       (f, fty)
 
@@ -187,6 +193,33 @@ let has_terminator b =
   match Llvm.block_terminator (Llvm.insertion_block b) with Some _ -> true | None -> false
 
 let block env fr = Llvm.append_block env.ctx "" fr.fn
+
+(* The address of a list's or an array's element, counted from 1, checked
+   against its count here rather than in the runtime, so LLVM sees the count,
+   the index and the address the way it sees any arithmetic. Only an index
+   outside calls the runtime, which stops the program (§9). One unsigned
+   compare of the index less one covers both ends. *)
+let element env fr b fn args =
+  let base, index, count, stride =
+    match (fn, args) with
+    | Cgt.Runtime.List_at, [ list; index; stride ] ->
+        let header = Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |] in
+        let field i t = Llvm.build_load t (Llvm.build_struct_gep header list i "" b) "" b in
+        (field 0 env.ptr, index, field 1 env.i64, stride)
+    | Cgt.Runtime.Array_at, [ array; index; count; stride ] -> (array, index, count, stride)
+    | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
+  in
+  let offset = Llvm.build_sub index (Llvm.const_int env.i64 1) "" b in
+  let outside = Llvm.build_icmp Llvm.Icmp.Uge offset count "" b in
+  let stop = block env fr and inside = block env fr in
+  ignore (Llvm.build_cond_br outside stop inside b);
+  Llvm.position_at_end stop b;
+  let f, fty = runtime env Cgt.Runtime.Out_of_range in
+  ignore (Llvm.build_call fty f [||] "" b);
+  ignore (Llvm.build_unreachable b);
+  Llvm.position_at_end inside b;
+  let bytes = Llvm.build_nsw_mul offset stride "" b in
+  Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| bytes |] "" b
 
 (* ---------------------------------------------------------------------- *)
 (* Arithmetic                                                             *)
@@ -392,6 +425,8 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       let args = Array.of_list (List.filter_map (expr env fr b) args) in
       let v = Llvm.build_call fty f args "" b in
       if e.Expr.ty = Ty.Void then None else Some v
+  | Expr.Runtime { fn = (Cgt.Runtime.List_at | Cgt.Runtime.Array_at) as fn; args } ->
+      Some (element env fr b fn (List.filter_map (expr env fr b) args))
   | Expr.Runtime { fn; args } -> (
       let f, fty = runtime env fn in
       let args =

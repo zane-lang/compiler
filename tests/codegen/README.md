@@ -66,7 +66,8 @@ again, read the golden diff and promote that.
   copied whole, a reference chain whose guests hold while it moves, and case
   reads of boxed payloads.
 - `range` indexes past a list's end: the program stops with status 1 after what
-  it wrote so far, and says why on stderr.
+  it wrote so far, and says why on stderr. `rangeZero` does the same with
+  index 0, below a list's first element.
 - `regions` is each scope's dynamic region: a value that leaves a scope --
   returned, left from an arm, aborted with, stored or pushed from an inner
   block -- takes its blocks out before the scope drains, and a drain that finds
@@ -86,7 +87,8 @@ again, read the golden diff and promote that.
   and `@primitives$I32` arithmetic, which wraps at its own width. Every check
   prints `yes` when it holds and `no` when it does not.
 - `bounds` indexes past an array's end: the program stops with status 1 after
-  what it wrote so far, and says why on stderr.
+  what it wrote so far, and says why on stderr. `boundsNegative` does the same
+  with a negative index.
 - `defaults` is step 10's field constructors: called as verbs whose bodies
   run, with an entry left out given its default, the entries run in the
   order written, a generic constructor's defaults per instance, and a

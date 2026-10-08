@@ -1,0 +1,16 @@
+/// A negative index is outside an array: the program stops with a failing
+/// status, after what it wrote so far (docs/design/lowering.md §9).
+package boundsNegative;
+
+alias Int = @primitives$I64
+alias String = @primitives$String
+
+@primitives$Unit main() {
+	before String("before\n");
+	after String("after\n");
+	numbers @primitives$Array<Int, 2> = @primitives$Array([Int(1), Int(2)]);
+	@program$console!print(before);
+	missing Int = numbers[@operators$negate(Int(1))];
+	@program$console!print(after);
+	return @primitives$Unit();
+}

@@ -58,6 +58,7 @@ void zane_list_new(zane_list *out);
 void *zane_list_push(zane_list *list, int64_t stride);
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride);
 void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride);
+void zane_out_of_range(void);
 
 /* slot.c */
 void *zane_slot(int64_t scope, int64_t size, int64_t align, const int64_t *layout);
