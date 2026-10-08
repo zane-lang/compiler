@@ -126,3 +126,21 @@
  (action
   (diff golden/work.out work.out.actual)))
 
+(rule
+ (deps writeback.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (targets writeback.exe)
+ (action
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o writeback.exe writeback.c
+   ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)))
+
+(rule
+ (action
+  (with-stdout-to
+   writeback.out.actual
+   (run ./writeback.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/writeback.out writeback.out.actual)))
+

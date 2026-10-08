@@ -4,6 +4,8 @@
 
 open Cgt.Nodes
 
+external set_unordered : Llvm.llvalue -> unit = "zane_set_unordered"
+
 type env = {
   ctx : Llvm.llcontext;
   m : Llvm.llmodule;
@@ -355,8 +357,21 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | t ->
           let lt = lltype env t in
           let out = alloca env fr lt in
-          let size = Llvm.const_int env.i64 (fst (size_align t)) in
-          ignore (call_runtime env b Cgt.Runtime.Snapshot [| out; p; size |]);
+          let size, align = size_align t in
+          (* A value one naturally aligned access can hold is read in that
+             one access, which a write-back never tears (runtime/snapshot.c),
+             so it is already coherent (§9). LLVM sees it as a load it may
+             move and merge like any other, short of tearing it. A wider
+             value is read by the runtime, which retries a torn read. *)
+          (if List.mem size [ 1; 2; 4; 8 ] && align >= size then (
+             let word = Llvm.build_load (Llvm.integer_type env.ctx (8 * size)) p "" b in
+             Llvm.set_alignment size word;
+             set_unordered word;
+             ignore (Llvm.build_store word out b))
+           else
+             ignore
+               (call_runtime env b Cgt.Runtime.Snapshot
+                  [| out; p; Llvm.const_int env.i64 size |]));
           Some (Llvm.build_load lt out "" b))
   | Expr.Escape { value; layout = l; exit } -> (
       (* The arenas the exit drains are the innermost ones: all of the
