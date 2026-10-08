@@ -537,10 +537,10 @@ test passing.
   bytes are replaced while one global count of write-backs begun is ahead of
   the count done. Each piece is stored in one atomic access of the widest
   width, up to 8 bytes, that its address is aligned to, so every naturally
-  aligned 1, 2, 4 or 8 bytes of the subject changes in a single store. A subject reached any other way is
-  written where it is, since no other thread can reach it (§4.3). Other
-  threads see the call's writes all at once, when it returns, which is one
-  of the orders §3.7 already allows.
+  aligned 1, 2, 4 or 8 bytes of the subject changes in a single store. A
+  subject reached any other way is written where it is, since no other
+  thread can reach it (§4.3). Other threads see the call's writes all at
+  once, when it returns, which is one of the orders §3.7 already allows.
 - **Snapshots.** A value read through an owner into a fresh binding -- a
   local, an argument, an operand -- is read as a snapshot (§4.4): its bytes
   are taken when every write-back begun is done, and taken again if one
@@ -549,10 +549,14 @@ test passing.
   that owns blocks is then copied whole from the snapshot with no further
   checks: none of §4.4's bounds on a walk are needed, and no attempt
   allocates anything it has to give back. A `match` or a case read on such a
-  place reads it where it is. A value of 1, 2, 4 or 8 bytes, aligned to its
-  size, is read in one atomic load that codegen emits: a write-back changes
-  it in a single store, so the load sees all of the old value or all of the
-  new one, which is the snapshot. The load is `unordered`, which LLVM may
+  place reads it where it is. A value of 8 bytes aligned to 8 is read in one
+  atomic load that codegen emits: a write-back changes exactly those 8 bytes
+  in a single store, since its pieces are aligned blocks of at most 8 bytes
+  and such a value holds no smaller place a write-back could target, so the
+  load sees all of the old value or all of the new one, which is the
+  snapshot. A narrower value can sit inside a wider piece that one store
+  writes, which LLVM does not make atomic with a narrower load, so it stays
+  a call. The load is `unordered`, which LLVM may
   move and combine as it does plain loads, unless the value holds an
   address, such as a box's: that one is an acquire load, so what the address
   names, written before the write-back's release fence, is seen with it on a

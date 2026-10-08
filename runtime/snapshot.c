@@ -7,9 +7,8 @@
 /* A spawned `mut` call whose subject is reached through an owner works on a
    copy of its own, and writes it back when it returns. A write-back counts
    itself begun, replaces the bytes, and counts itself done. A value reached
-   through an owner that one naturally aligned access of up to 8 bytes holds
-   is read in that access, which the write-back never tears. A wider one is
-   read here: its bytes are taken when every write-back begun is done, and
+   through an owner that is 8 bytes aligned to 8 is read in one access,
+   which the write-back never tears. Any other is read here: its bytes are taken when every write-back begun is done, and
    kept when none began while they were read. */
 static uint64_t zane_begun, zane_done;
 
@@ -30,7 +29,8 @@ static void zane_racy_load(char *to, const char *from, int64_t size) {
    aligned pieces of power-of-two widths either nest or do not meet, so every
    naturally aligned 1, 2, 4 or 8 bytes of the value is written by a single
    store, and a reader that loads it in one access is never torn. Emitted
-   code reads such a value that way, without the version check. */
+   code reads an 8-byte value aligned to 8 that way, without the version
+   check: it is exactly one piece, whatever value around it is written back. */
 static void zane_racy_store(char *to, const char *from, int64_t size) {
 	for (int64_t i = 0; i < size;) {
 		uintptr_t at = (uintptr_t)(to + i);

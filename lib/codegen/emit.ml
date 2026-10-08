@@ -196,9 +196,14 @@ let has_terminator b =
 
 let block env fr = Llvm.append_block env.ctx "" fr.fn
 
-(* How a snapshot of a value of type [t] is read (§9). One naturally aligned
-   access of 1, 2, 4 or 8 bytes is never torn by a write-back
-   (runtime/snapshot.c), so it is the snapshot. A value that holds an address,
+(* How a snapshot of a value of type [t] is read (§9). An 8-byte value
+   aligned to 8 is one load: a write-back stores those 8 bytes in a single
+   store of the same 8 bytes (runtime/snapshot.c), since its pieces are
+   aligned blocks of at most 8 and no smaller place lies inside such a value
+   for a write-back to target, so the load is the snapshot. A narrower value
+   can sit inside a wider piece a write-back stores whole, an access of
+   another size that LLVM gives no atomicity with it, so it is read by the
+   runtime. A value that holds an address,
    such as a box's, is read with acquire ordering, so what the address names,
    written before the write-back's release fence published it, is seen with
    it; one that holds none needs only `unordered`, which LLVM moves and
@@ -211,8 +216,7 @@ let snapshot_read t =
     | Ty.Array (t, _) -> names_block t
     | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
   in
-  let size, align = size_align t in
-  if not (List.mem size [ 1; 2; 4; 8 ] && align >= size) then `Runtime
+  if size_align t <> (8, 8) then `Runtime
   else if names_block t then `Acquire
   else `Unordered
 

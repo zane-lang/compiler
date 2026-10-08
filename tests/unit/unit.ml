@@ -585,16 +585,18 @@ let at_once () =
         (String.equal alone first && String.equal alone second)
   | _ -> check "the fixture checked at once assembles and checks cleanly" false
 
-(* A snapshot of one naturally aligned word is a single load: acquire when
+(* A snapshot of an 8-byte value aligned to 8 is a single load: acquire when
    it holds an address, so what the address names is seen with it, and
-   unordered otherwise. Anything wider, or aligned below its size, is read
-   by the runtime. *)
+   unordered otherwise. Anything narrower, wider, or aligned below its size,
+   is read by the runtime. *)
 let snapshot_reads () =
   let module T = Cgt.Nodes.Ty in
   let read = Codegen__Emit.snapshot_read in
   check "an I64 is one unordered load" (read T.I64 = `Unordered);
   check "an F64 is one unordered load" (read T.F64 = `Unordered);
-  check "a Bool is one unordered load" (read T.I1 = `Unordered);
+  check "a Bool is read by the runtime" (read T.I1 = `Runtime);
+  check "an I32 is read by the runtime" (read T.I32 = `Runtime);
+  check "an F32 is read by the runtime" (read T.F32 = `Runtime);
   check "an address is one acquire load" (read T.Ptr = `Acquire);
   check "a struct holding only a box is one acquire load" (read (T.Struct [ T.Ptr ]) = `Acquire);
   check "two I32s, aligned below their size, are read by the runtime"
