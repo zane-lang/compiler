@@ -4,6 +4,8 @@
 
 open Cgt.Nodes
 
+external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
+
 type env = {
   ctx : Llvm.llcontext;
   m : Llvm.llmodule;
@@ -194,6 +196,30 @@ let has_terminator b =
 
 let block env fr = Llvm.append_block env.ctx "" fr.fn
 
+(* How a snapshot of a value of type [t] is read (§9). An 8-byte value
+   aligned to 8 is one load: a write-back stores those 8 bytes in a single
+   store of the same 8 bytes (runtime/snapshot.c), since its pieces are
+   aligned blocks of at most 8 and no smaller place lies inside such a value
+   for a write-back to target, so the load is the snapshot. A narrower value
+   can sit inside a wider piece a write-back stores whole, an access of
+   another size that LLVM gives no atomicity with it, so it is read by the
+   runtime. A value that holds an address,
+   such as a box's, is read with acquire ordering, so what the address names,
+   written before the write-back's release fence published it, is seen with
+   it; one that holds none needs only `unordered`, which LLVM moves and
+   merges like a plain load. A wider value is read by the runtime,
+   which retries a torn read and fences the same way. *)
+let snapshot_read t =
+  let rec names_block = function
+    | Ty.Ptr | Ty.Handle -> true
+    | Ty.Struct ts | Ty.Sum ts -> List.exists names_block ts
+    | Ty.Array (t, _) -> names_block t
+    | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
+  in
+  if size_align t <> (8, 8) then `Runtime
+  else if names_block t then `Acquire
+  else `Unordered
+
 (* The address of a list's or an array's element, counted from 1, checked
    against its count here rather than in the runtime, so LLVM sees the count,
    the index and the address the way it sees any arithmetic. Only an index
@@ -355,8 +381,17 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | t ->
           let lt = lltype env t in
           let out = alloca env fr lt in
-          let size = Llvm.const_int env.i64 (fst (size_align t)) in
-          ignore (call_runtime env b Cgt.Runtime.Snapshot [| out; p; size |]);
+          let size = fst (size_align t) in
+          (match snapshot_read t with
+          | (`Unordered | `Acquire) as order ->
+              let word = Llvm.build_load (Llvm.integer_type env.ctx (8 * size)) p "" b in
+              Llvm.set_alignment size word;
+              set_ordering word (order = `Acquire);
+              ignore (Llvm.build_store word out b)
+          | `Runtime ->
+              ignore
+                (call_runtime env b Cgt.Runtime.Snapshot
+                   [| out; p; Llvm.const_int env.i64 size |]));
           Some (Llvm.build_load lt out "" b))
   | Expr.Escape { value; layout = l; exit } -> (
       (* The arenas the exit drains are the innermost ones: all of the

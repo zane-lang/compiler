@@ -6,24 +6,54 @@
 
 /* A spawned `mut` call whose subject is reached through an owner works on a
    copy of its own, and writes it back when it returns. A write-back counts
-   itself begun, replaces the bytes, and counts itself done; a reader of a
-   value reached through an owner takes its bytes when every write-back begun
-   is done, and keeps them when none began while it read. The bytes move a
-   word at a time, as atomics, so a read is torn only where it is retried. */
+   itself begun, replaces the bytes, and counts itself done. A value reached
+   through an owner that is 8 bytes aligned to 8 is read in one access,
+   which the write-back never tears. Any other is read here: its bytes are taken when every write-back begun is done, and
+   kept when none began while they were read. */
 static uint64_t zane_begun, zane_done;
 
-static void zane_racy_copy(char *to, const char *from, int64_t size, int store) {
+/* A read of `size` bytes that tolerates a write-back mid-way: a word at a
+   time where both ends allow it, as atomics, so the copy is torn only where
+   the version check retries it. */
+static void zane_racy_load(char *to, const char *from, int64_t size) {
 	int64_t i = 0;
 	if (((uintptr_t)to | (uintptr_t)from) % 8 == 0)
-		for (; i + 8 <= size; i += 8) {
-			uint64_t *word = (uint64_t *)(to + i);
-			const uint64_t *source = (const uint64_t *)(from + i);
-			if (store) __atomic_store_n(word, *source, __ATOMIC_RELAXED);
-			else *word = __atomic_load_n(source, __ATOMIC_RELAXED);
+		for (; i + 8 <= size; i += 8)
+			*(uint64_t *)(to + i) = __atomic_load_n((const uint64_t *)(from + i), __ATOMIC_RELAXED);
+	for (; i < size; i++) to[i] = __atomic_load_n(from + i, __ATOMIC_RELAXED);
+}
+
+/* A write-back's bytes, each piece stored in one atomic access of the
+   widest width, up to 8, that its address is aligned to and the rest of the
+   value holds; the source is the spawned call's own copy, read plainly. Two
+   aligned pieces of power-of-two widths either nest or do not meet, so every
+   naturally aligned 1, 2, 4 or 8 bytes of the value is written by a single
+   store, and a reader that loads it in one access is never torn. Emitted
+   code reads an 8-byte value aligned to 8 that way, without the version
+   check: it is exactly one piece, whatever value around it is written back. */
+static void zane_racy_store(char *to, const char *from, int64_t size) {
+	for (int64_t i = 0; i < size;) {
+		uintptr_t at = (uintptr_t)(to + i);
+		int64_t left = size - i;
+		if (at % 8 == 0 && left >= 8) {
+			uint64_t w;
+			memcpy(&w, from + i, 8);
+			__atomic_store_n((uint64_t *)(to + i), w, __ATOMIC_RELAXED);
+			i += 8;
+		} else if (at % 4 == 0 && left >= 4) {
+			uint32_t w;
+			memcpy(&w, from + i, 4);
+			__atomic_store_n((uint32_t *)(to + i), w, __ATOMIC_RELAXED);
+			i += 4;
+		} else if (at % 2 == 0 && left >= 2) {
+			uint16_t w;
+			memcpy(&w, from + i, 2);
+			__atomic_store_n((uint16_t *)(to + i), w, __ATOMIC_RELAXED);
+			i += 2;
+		} else {
+			__atomic_store_n(to + i, from[i], __ATOMIC_RELAXED);
+			i += 1;
 		}
-	for (; i < size; i++) {
-		if (store) __atomic_store_n(to + i, from[i], __ATOMIC_RELAXED);
-		else to[i] = __atomic_load_n(from + i, __ATOMIC_RELAXED);
 	}
 }
 
@@ -38,7 +68,7 @@ void zane_snapshot(char *out, const char *from, int64_t size) {
 			sched_yield();
 			continue;
 		}
-		zane_racy_copy(out, from, size, 0);
+		zane_racy_load(out, from, size);
 		__atomic_thread_fence(__ATOMIC_ACQUIRE);
 		if (__atomic_load_n(&zane_begun, __ATOMIC_RELAXED) == begun) return;
 	}
@@ -62,7 +92,7 @@ void zane_writeback(char *at, char *copy, int64_t size, const int64_t *layout) {
 	}
 	__atomic_fetch_add(&zane_begun, 1, __ATOMIC_RELAXED);
 	__atomic_thread_fence(__ATOMIC_RELEASE);
-	zane_racy_copy(at, copy, size, 1);
+	zane_racy_store(at, copy, size);
 	__atomic_fetch_add(&zane_done, 1, __ATOMIC_RELEASE);
 }
 

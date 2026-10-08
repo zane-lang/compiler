@@ -1,7 +1,7 @@
 /* What LLVM's C API offers and its OCaml bindings do not: a function or a
    variable placed in a COMDAT of its own name
-   (docs/design/separate-compilation.md C4), and a target triple in LLVM's
-   normal form. The bindings carry an LLVM pointer
+   (docs/design/separate-compilation.md C4), a target triple in LLVM's
+   normal form, and a load made atomic. The bindings carry an LLVM pointer
    with its low bit set; their `from_val` undoes that. The C API is declared
    here rather than included, so the build needs no LLVM headers beyond the
    bindings it already links. */
@@ -19,6 +19,7 @@ extern LLVMComdatRef LLVMGetOrInsertComdat(LLVMModuleRef M, const char *Name);
 extern void LLVMSetComdat(LLVMValueRef V, LLVMComdatRef C);
 extern char *LLVMNormalizeTargetTriple(const char *triple);
 extern void LLVMDisposeMessage(char *message);
+extern void LLVMSetOrdering(LLVMValueRef access, int ordering);
 
 value zane_set_own_comdat(value m, value f, value name) {
   CAMLparam3(m, f, name);
@@ -34,4 +35,14 @@ value zane_normalize_triple(value triple) {
   normal = caml_copy_string(text);
   LLVMDisposeMessage(text);
   CAMLreturn(normal);
+}
+
+/* An access made atomic: LLVMAtomicOrderingUnordered (1), never torn and
+   promising no order beyond that, or LLVMAtomicOrderingAcquire (4), which
+   also sees every write made before the release that published what it
+   reads. */
+value zane_set_ordering(value access, value acquire) {
+  CAMLparam2(access, acquire);
+  LLVMSetOrdering((LLVMValueRef)from_val(access), Bool_val(acquire) ? 4 : 1);
+  CAMLreturn(Val_unit);
 }

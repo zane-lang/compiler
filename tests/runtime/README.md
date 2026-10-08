@@ -18,6 +18,14 @@ the same whether the program or the compiler reads it, and checks that
 `zane_arguments` copies each argument into a string of its own and that the
 list returns every block when its scope drains.
 
+`writeback.c` holds a write-back to the atomicity a snapshot load relies on:
+a second thread reads each naturally aligned word of a subject at an address
+aligned to 4 and not 8 while the main thread writes back all-zero and
+all-one copies that sit at odd addresses, and no word it reads may mix the
+two. A write-back that stored such a subject a byte at a time failed it on
+every run. It then writes back every size from 1 to 19 bytes at each offset
+from 0 to 7 and checks the bytes arrived.
+
 `work.c` covers the walks that copy, move, overwrite and end a value
 once they hold more jobs than a walk keeps in itself
 (`ZANE_LOCAL_JOBS` in `zane_internal.h`) and move to a heap buffer: a

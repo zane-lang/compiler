@@ -51,6 +51,23 @@ Int total(tree Tree) => match (tree) {
 	p node => @operators$add(total(p.left), total(p.right));
 }
 
+/// A cycle whose struct has one member, so a Solo is a single address.
+type Knot = variant {
+	stop Unit;
+	go Solo;
+}
+
+type Solo = struct {
+	next Knot;
+}
+
+Solo(next Knot) => init{ next; }
+
+Int knots(k Knot) => match (k) {
+	s stop => Int(0);
+	g go => @operators$add(Int(1), knots(g.next));
+}
+
 /// A reference type that owns its children.
 type Chain = #variant {
 	end Unit;
@@ -140,6 +157,15 @@ Unit main() {
 	tower = Tower(Int(5), Storey.more(Tower(Int(6), Storey.more(Tower(Int(7), Storey.top(Unit()))))));
 	check(@operators$equal(upper:levels(), Int(2)));
 	check(@operators$equal(tower.height, Int(5)));
+
+	// A value that is a single address, read out of a list, is one snapshot
+	// load; the copy made from it owns blocks of its own.
+	solos @primitives$List<Solo> = @primitives$List(Solo);
+	solos!push(Solo(Knot.go(Solo(Knot.go(Solo(Knot.stop(Unit())))))));
+	read Solo = solos[Int(1)];
+	check(@operators$equal(knots(read.next), Int(2)));
+	solos[Int(1)] = Solo(Knot.stop(Unit()));
+	check(@operators$equal(knots(read.next), Int(2)));
 
 	// Many built and dropped: each pass returns every block it made.
 	i Int(1);
