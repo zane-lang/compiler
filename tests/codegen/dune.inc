@@ -177,6 +177,44 @@
   (diff golden/bounds.out bounds.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/boundsNegative))
+ (targets boundsNegative.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build boundsNegative.exe --package fixtures/boundsNegative)))
+
+(rule
+ (deps (source_tree fixtures/boundsNegative))
+ (targets boundsNegative.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build boundsNegative.optimized.exe --optimize --package fixtures/boundsNegative)))
+
+(rule
+ (action
+  (with-outputs-to
+   boundsNegative.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./boundsNegative.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boundsNegative.out boundsNegative.out.actual)))
+
+(rule
+ (action
+  (with-outputs-to
+   boundsNegative.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./boundsNegative.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boundsNegative.out boundsNegative.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/boxes))
  (action
   (with-stdout-to
@@ -777,6 +815,44 @@
  (alias runtest)
  (action
   (diff golden/range.out range.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/rangeZero))
+ (targets rangeZero.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build rangeZero.exe --package fixtures/rangeZero)))
+
+(rule
+ (deps (source_tree fixtures/rangeZero))
+ (targets rangeZero.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build rangeZero.optimized.exe --optimize --package fixtures/rangeZero)))
+
+(rule
+ (action
+  (with-outputs-to
+   rangeZero.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./rangeZero.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/rangeZero.out rangeZero.out.actual)))
+
+(rule
+ (action
+  (with-outputs-to
+   rangeZero.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./rangeZero.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/rangeZero.out rangeZero.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/references))

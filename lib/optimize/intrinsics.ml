@@ -22,5 +22,5 @@ let classify : Cgt.Runtime.fn -> t = function
      them: a scope, a slot, a copy, a box, a spawn. The evaluator gives each
      node its meaning directly. *)
   | Scope_enter | Scope_drain | Slot | Promote | Arrive | Vacate | Copy
-  | Overwrite | Box | Frame | Spawn | Join | Snapshot ->
+  | Overwrite | Box | Frame | Spawn | Join | Snapshot | Out_of_range ->
       Computed

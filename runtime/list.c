@@ -5,8 +5,9 @@
 /* ---------------------------------------------------------------------- */
 
 /* An index outside a list or an array (docs/design/lowering.md §9): what the program wrote so
-   far is kept, and it stops with a failing status. */
-static void zane_out_of_range(void) {
+   far is kept, and it stops with a failing status. Emitted code checks an
+   index itself and calls this only when the index is outside. */
+void zane_out_of_range(void) {
 	fflush(stdout);
 	fputs("index out of range\n", stderr);
 	exit(1);
