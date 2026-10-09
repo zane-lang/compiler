@@ -136,7 +136,7 @@ and the optimized build alike, and still does.
   copies and concatenation, ignored `^T` results, block-local owners, refilled
   roaming owners, deep copies, rebuilt lists, owners resolved out of a
   handler — keep the same peak RSS (about
-  10 MB) at 10,000 and at 1,000,000 iterations. The control, which keeps one
+  11 MB) at 10,000 and at 1,000,000 iterations. The control, which keeps one
   owner per iteration in a list, grows to 73 MB, so the measurement can see
   growth.
 - **The store rule** (`launder`; lifetimes.md §1.1, §1.10, §1.11). Twenty
