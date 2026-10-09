@@ -15,15 +15,15 @@ Engine(power Int, label String) => init{ power; label; }
 type Car = #struct { engine Engine; }
 Car(engine ^Engine) => init{ engine; }
 type Count = variant { done Int; more Count; }
-^Engine make(power Int) => Engine(power, String("made") + String("!"))
+^Engine make(power Int) => Engine(power, @operators$concat(String("made"), String("!")))
 ^Engine?^Engine risky(power Int) {
-	abort Engine(power, String("aborted") + String("!"));
+	abort Engine(power, @operators$concat(String("aborted"), String("!")));
 }
-Int depth(c Count) => match (c) { n done => n; m more => depth(m) + Int(1); }
+Int depth(c Count) => match (c) { n done => n; m more => @operators$add(depth(m), Int(1)); }
 '''
 cases={
 "overwrite_settled": ("car Car(make(Int(0)));", "car = Car(make(i));"),
-"overwrite_string": ("s String(\"x\");", "s = String(\"abc\") + String(\"def\");"),
+"overwrite_string": ("s String(\"x\");", "s = @operators$concat(String(\"abc\"), String(\"def\"));"),
 "string_copy": ("s String(\"abcdefgh\") ; t String(\"\");", "t = s;"),
 "ignored_result": ("", "make(i);"),
 "inner_owner": ("", "e Engine = make(i);"),
@@ -32,7 +32,7 @@ cases={
 "control_push_grows": ("l List<Car> = @primitives$List(Car);", "l!push(Car(make(i)));"),
 "deep_copy": ("c Count = Count.more(Count.more(Count.more(Count.done(Int(1))))); d Count = c;", "d = c;"),
 "list_elem_overwrite": ("l List<Car> = @primitives$List(Car); l!push(Car(make(Int(0))));", "l[Int(1)] = Car(make(i));"),
-"string_concat_reset": ("s String(\"\"); k Int(0);", "s = s + String(\"a\"); k = k + Int(1); if(k == Int(64)) { s = String(\"\"); k = Int(0); }"),
+"string_concat_reset": ("s String(\"\"); k Int(0);", "s = @operators$concat(s, String(\"a\")); k = @operators$add(k, Int(1)); if(@operators$equal(k, Int(64))) { s = String(\"\"); k = Int(0); }"),
 "value_list_rebuild": ("l List<Int> = @primitives$List(Int);", "l = @primitives$List(Int); l!push(i); l!push(i);"),
 }
 only=sys.argv[1:] or list(cases)
