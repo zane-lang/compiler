@@ -180,3 +180,21 @@ A dash marks a change whose ranges overlap. Under callgrind, binarytrees 16
 ran 3.09 billion instructions before and 0.99 billion after, and treecopy
 16 ran 211 million before and 193 million after. Peak memory and every
 program's output were the same with both builds.
+
+## Inline pushes
+
+Issue [#209](https://github.com/zane-lang/compiler/issues/209) found that
+clang 19 stopped inlining `zane_work_push` once its growth path grew, so
+each job a walk handed on cost a second call that copied the job by value.
+The push and pop are now inline in `zane_internal.h`, with growth in a cold
+function of their own. Emitted walks hand jobs on only past their depth, so
+the langbench programs run the same instructions with both builds; the
+`work` fixture, whose countdown is a hundred thousand boxes deep, does
+reach them. Built with `-O2` as its rule builds it, under callgrind:
+
+| Clang | Calls to the push, before → after | `zane_defer`, before → after |
+| --- | ---: | ---: |
+| 18.1.3 | 10 → 0 | 3.26 M → 2.35 M instructions |
+| 21.1.8 | 10 → 0 | 3.88 M → 3.67 M instructions |
+
+The fixture printed the same output with every build.
