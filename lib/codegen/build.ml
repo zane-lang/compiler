@@ -119,13 +119,16 @@ let executable ?target ?(optimize = false) ?(link = []) m output =
          reads its own short triples, and not every normal form. *)
       let target_flag = match target with Some target -> [ "--target=" ^ target ] | None -> [] in
       (* The runtime reads a Windows program's arguments through
-         `CommandLineToArgvW`, which shell32 holds. *)
+         `CommandLineToArgvW`, which shell32 holds. A Windows program's
+         main thread gets the 8 MiB of machine stack it has on Linux and
+         macOS, where the linker would give it 1 MiB
+         (docs/design/platforms.md). *)
       let windows =
         match target with
         | Some target -> List.mem "windows" (String.split_on_char '-' target)
         | None -> Sys.win32
       in
-      let link = if windows then link @ [ "-lshell32" ] else link in
+      let link = if windows then link @ [ "-lshell32"; "-Wl,--stack,8388608" ] else link in
       let command =
         String.concat " "
           (List.map Filename.quote

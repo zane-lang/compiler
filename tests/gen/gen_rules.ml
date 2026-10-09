@@ -15,7 +15,8 @@
      fixture whose `expected-status` file holds a status other than 0 is a
      program that stops: its golden file holds stdout and stderr together.
      A fixture's `arguments` file, one argument per line, is what both
-     builds are run with.
+     builds are run with, and its `flags` file, one per line, what both
+     are built with besides.
      `golden/reject.NAME.err` is what lowering reports for the package
      `fixtures/reject/NAME`, a program semantics accepts and lowering refuses.
    - parser: `golden/NAME.STAGE.spans` is `span_dump --STAGE`, and
@@ -51,15 +52,18 @@ let status name =
     int_of_string (String.trim (In_channel.with_open_text file In_channel.input_all))
   else 0
 
-(* What a fixture's program is run with: its `arguments` file, one per
-   line, each quoted for dune. *)
-let arguments name =
-  let file = Filename.concat (Filename.concat "fixtures" name) "arguments" in
+(* What a fixture's program is run with, its `arguments` file, or built
+   with, its `flags` file: one per line, each quoted for dune. *)
+let lines file name =
+  let file = Filename.concat (Filename.concat "fixtures" name) file in
   if Sys.file_exists file then
     In_channel.with_open_text file In_channel.input_lines
     |> List.map (fun a -> " " ^ Printf.sprintf "%S" a)
     |> String.concat ""
   else ""
+
+let arguments = lines "arguments"
+let flags = lines "flags"
 
 let codegen () =
   let goldens = sorted "golden" in
@@ -84,11 +88,11 @@ let codegen () =
       end;
       if List.mem name outputs then begin
         Printf.printf
-          "(rule\n (deps (source_tree %s))\n (targets %s.exe)\n (action\n  (run %s --build %s.exe --package %s)))\n\n"
-          package name zanec name package;
+          "(rule\n (deps (source_tree %s))\n (targets %s.exe)\n (action\n  (run %s --build %s.exe%s --package %s)))\n\n"
+          package name zanec name (flags name) package;
         Printf.printf
-          "(rule\n (deps (source_tree %s))\n (targets %s.optimized.exe)\n (action\n  (run %s --build %s.optimized.exe --optimize --package %s)))\n\n"
-          package name zanec name package;
+          "(rule\n (deps (source_tree %s))\n (targets %s.optimized.exe)\n (action\n  (run %s --build %s.optimized.exe --optimize%s --package %s)))\n\n"
+          package name zanec name (flags name) package;
         (* The optimized build is held to the same golden file: optimizing
            never changes what a program does. *)
         List.iter

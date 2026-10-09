@@ -7,8 +7,9 @@
 #define ZANE_INTERNAL_H
 
 #define _POSIX_C_SOURCE 200809L
-/* `mmap`'s anonymous, unreserved mappings (region.c) are not POSIX. */
-#define _DEFAULT_SOURCE
+/* `mmap`'s anonymous, unreserved mappings and a thread's stack bounds
+   (region.c) are not POSIX. */
+#define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 
 #include <pthread.h>
@@ -299,6 +300,7 @@ void zane_end(char *base, const zane_type *type);
 
 /* region.c */
 void zane_regions_start(void);
+void zane_thread_start(void);
 void zane_reserve(zane_context *c, int64_t size);
 _Noreturn void zane_too_deep_in(zane_context *c);
 

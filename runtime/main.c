@@ -62,6 +62,7 @@ int main(int argc, char **argv) {
 	_setmode(_fileno(stderr), _O_BINARY);
 #endif
 	zane_regions_start();
+	zane_thread_start();
 	zane_self = zane_context_new();
 	zane_program = zane_scope_enter(0);
 	zane_main();

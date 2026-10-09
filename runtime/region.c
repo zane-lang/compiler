@@ -18,8 +18,13 @@
    frame no larger than the guard always starts below the range's end, so
    one that runs past it faults in the guard, and the handler stops the
    program with an error that names the manifest field that sets the
-   range's size. A fault anywhere else is passed on as if the handler were
-   not there. */
+   range's size.
+
+   The program's calls nest on the machine stack as well, and for most
+   programs that stack, a few MiB that the system sizes, fills long before
+   the range does. The handler stops a program that overflows it with an
+   error too, rather than letting it crash. Any other fault is passed on as
+   if the handler were not there. */
 
 #ifdef _WIN32
 #include <windows.h>
@@ -83,15 +88,35 @@ static int zane_commit(zane_context *c, char *at) {
 	return 1;
 }
 
-/* The program's scopes nest deeper than its range holds: the error says
-   which range is full and the manifest field that sets its size, and the
-   program stops with status 1, as an index out of range does. It may run
-   in the fault handler, so it formats by hand and writes with one call. */
+/* The program stops with an error, and status 1, as it does for an index
+   out of range: the error is the program's, not the compiler's. It may run
+   in the fault handler, so the error is formatted by hand and written with
+   one call. */
 static char *zane_append(char *at, const char *text) {
 	while (*text) *at++ = *text++;
 	return at;
 }
 
+_Noreturn static void zane_stop(const char *text, char *end) {
+	fflush(stdout);
+#ifdef _WIN32
+	_write(2, text, (unsigned)(end - text));
+	ExitProcess(1);
+#else
+	ssize_t written = write(2, text, (size_t)(end - text));
+	(void)written;
+	_exit(1);
+#endif
+}
+
+/* The program's calls nest deeper than its thread's machine stack holds. */
+_Noreturn static void zane_stack_full(void) {
+	char text[64], *at = zane_append(text, "recursion too deep: the machine stack is full\n");
+	zane_stop(text, at);
+}
+
+/* The program's scopes nest deeper than its range holds: the error says
+   which range is full and the manifest field that sets its size. */
 _Noreturn void zane_too_deep_in(zane_context *c) {
 	char text[256], digits[24], *at = text;
 	int main_context = c->id == 0;
@@ -105,15 +130,7 @@ _Noreturn void zane_too_deep_in(zane_context *c) {
 	at = zane_append(at, " MiB is full; raise `");
 	at = zane_append(at, main_context ? "fixed-region" : "spawned-fixed-region");
 	at = zane_append(at, "` in zane.coda\n");
-	fflush(stdout);
-#ifdef _WIN32
-	_write(2, text, (unsigned)(at - text));
-	ExitProcess(1);
-#else
-	ssize_t written = write(2, text, (size_t)(at - text));
-	(void)written;
-	_exit(1);
-#endif
+	zane_stop(text, at);
 }
 
 /* A frame larger than the guard, which emitted code checks before it
@@ -135,7 +152,15 @@ static int zane_fault_at(char *at) {
 
 #ifdef _WIN32
 
+/* Windows raises its own exception for a full machine stack, and leaves the
+   handler the room each thread asks for here to run in. */
+void zane_thread_start(void) {
+	ULONG room = 64 * 1024;
+	SetThreadStackGuarantee(&room);
+}
+
 static LONG CALLBACK zane_fault(EXCEPTION_POINTERS *e) {
+	if (e->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW) zane_stack_full();
 	if (e->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION ||
 	    e->ExceptionRecord->NumberParameters < 2)
 		return EXCEPTION_CONTINUE_SEARCH;
@@ -149,6 +174,38 @@ void zane_regions_start(void) {
 
 #else
 
+/* The lowest address of this thread's machine stack, and the stack the
+   handler runs on, since a fault from a full machine stack leaves none to
+   run on. Each thread that runs the program's code sets both before it
+   does. */
+static _Thread_local char *zane_stack_low;
+
+enum { ZANE_SIGNAL_STACK = 64 * 1024 };
+
+void zane_thread_start(void) {
+	stack_t alternate = { .ss_sp = malloc(ZANE_SIGNAL_STACK), .ss_size = ZANE_SIGNAL_STACK, .ss_flags = 0 };
+	if (!alternate.ss_sp || sigaltstack(&alternate, NULL) != 0) zane_broken("no stack for the fault handler");
+#ifdef __APPLE__
+	pthread_t self = pthread_self();
+	zane_stack_low = (char *)pthread_get_stackaddr_np(self) - pthread_get_stacksize_np(self);
+#else
+	pthread_attr_t attributes;
+	void *low;
+	size_t size;
+	if (pthread_getattr_np(pthread_self(), &attributes) == 0) {
+		if (pthread_attr_getstack(&attributes, &low, &size) == 0) zane_stack_low = low;
+		pthread_attr_destroy(&attributes);
+	}
+#endif
+}
+
+/* Whether a fault at `at` is past the end of this thread's machine stack:
+   in the guard below it, or the last few pages above. */
+static int zane_stack_fault(char *at) {
+	char *low = zane_stack_low;
+	return low && at < low + 64 * 1024 && at + ZANE_CHUNK >= low;
+}
+
 /* The handlers that were there before, for the faults that are not the
    runtime's. A protection fault is SIGSEGV on Linux, and SIGBUS on some
    systems, macOS among them. */
@@ -156,6 +213,7 @@ static struct sigaction zane_before[2];
 
 static void zane_fault(int signal, siginfo_t *info, void *context) {
 	if (zane_fault_at(info->si_addr)) return;
+	if (zane_stack_fault(info->si_addr)) zane_stack_full();
 	struct sigaction *before = &zane_before[signal == SIGBUS];
 	if ((before->sa_flags & SA_SIGINFO) && before->sa_sigaction) {
 		before->sa_sigaction(signal, info, context);
@@ -173,7 +231,7 @@ static void zane_fault(int signal, siginfo_t *info, void *context) {
 void zane_regions_start(void) {
 	struct sigaction handler = { 0 };
 	handler.sa_sigaction = zane_fault;
-	handler.sa_flags = SA_SIGINFO;
+	handler.sa_flags = SA_SIGINFO | SA_ONSTACK;
 	sigemptyset(&handler.sa_mask);
 	if (sigaction(SIGSEGV, &handler, &zane_before[0]) != 0 || sigaction(SIGBUS, &handler, &zane_before[1]) != 0)
 		zane_broken("no handler for faults");

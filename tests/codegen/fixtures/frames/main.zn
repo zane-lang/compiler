@@ -1,0 +1,55 @@
+/// A scope's frame (docs/design/lowering.md §9): one larger than the guard
+/// after a context's range, which the runtime once refused as a slot larger
+/// than a chunk, and frames of either size a few deep, all within the default
+/// range. Every check prints `yes` when it holds.
+package frames;
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+alias Wide = @primitives$ArrayRef<Int, 65536>
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+/// A frame of 512 KiB, `n` deep, smaller than the guard after a range.
+Int sink(n Int) {
+	a Wide = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
+	if(@operators$equal(n, Int(0))) {
+		return a[Int(1)];
+	}
+	return @operators$add(sink(@operators$add(n, @operators$negate(Int(1)))), a[Int(1)]);
+}
+
+/// A frame of 1.5 MiB, `n` deep, larger than the guard.
+Int sinkWide(n Int) {
+	a Wide = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
+	b Wide = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
+	c Wide = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
+	if(@operators$equal(n, Int(0))) {
+		return @operators$add(@operators$add(a[Int(1)], b[Int(65536)]), c[Int(65536)]);
+	}
+	return @operators$add(sinkWide(@operators$add(n, @operators$negate(Int(1)))), a[Int(1)]);
+}
+
+Unit check(label String, ok Bool) {
+	say(label);
+	@controlflow$branch(ok, { say(String(" yes\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String(" no\n")); });
+	return Unit();
+}
+
+Unit main() {
+	check(String("a frame of 1.5 MiB"), @operators$equal(sinkWide(Int(0)), Int(131073)));
+	check(String("frames of 512 KiB five deep"), @operators$equal(sink(Int(4)), Int(5)));
+	check(String("frames of 1.5 MiB three deep"), @operators$equal(sinkWide(Int(2)), Int(131075)));
+	return Unit();
+}

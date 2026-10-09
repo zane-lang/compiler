@@ -92,6 +92,7 @@ static int64_t zane_keep(void) {
 
 static void *zane_worker(void *deque) {
 	zane_mine = (int64_t)(intptr_t)deque;
+	zane_thread_start();
 	for (;;) {
 		zane_task *t = zane_find();
 		if (t) {
@@ -122,15 +123,21 @@ int64_t zane_processors(void) {
 }
 
 /* Threads started until the pool has as many as it wants, and those over
-   it woken to leave; the pool's lock is held. */
+   it woken to leave; the pool's lock is held. Each has 8 MiB of machine
+   stack, what the program's own thread has, where systems give a thread
+   they start anything from 512 KiB to 8 MiB (docs/design/platforms.md). */
 static void zane_fill(void) {
+	pthread_attr_t attributes;
+	pthread_attr_init(&attributes);
+	pthread_attr_setstacksize(&attributes, (size_t)8 << 20);
 	for (; zane_threads < zane_wanted; zane_threads++) {
 		pthread_t thread;
 		void *deque = (void *)(intptr_t)zane_keep();
-		if (pthread_create(&thread, NULL, zane_worker, deque) != 0)
+		if (pthread_create(&thread, &attributes, zane_worker, deque) != 0)
 			zane_broken("no thread for the pool");
 		pthread_detach(thread);
 	}
+	pthread_attr_destroy(&attributes);
 	pthread_cond_broadcast(&zane_waiting);
 }
 

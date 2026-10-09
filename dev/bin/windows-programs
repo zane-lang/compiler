@@ -11,7 +11,8 @@ set -euo pipefail
 # (docs/design/separate-compilation.md C7, C9). Each program NAME.exe has
 # NAME.out, the output it must write, NAME.status, the status it must
 # exit with, and NAME.args when the fixture is run with arguments, one per
-# line; a program expected to fail is held to what it writes on both
+# line; a fixture's `flags` file, one per line, is what both builds are made
+# with besides; a program expected to fail is held to what it writes on both
 # streams, as tests/codegen/ holds it.
 #
 # The programs link with `zig cc`, which carries Windows' C library and
@@ -40,8 +41,10 @@ for golden in tests/codegen/golden/*.out; do
 	fixture="tests/codegen/fixtures/$name"
 	status=0
 	[[ -f "$fixture/expected-status" ]] && status="$(tr -d '[:space:]' <"$fixture/expected-status")"
-	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" --package "$fixture"
-	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" --package "$fixture"
+	flags=()
+	[[ -f "$fixture/flags" ]] && mapfile -t flags <"$fixture/flags"
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" "${flags[@]}" --package "$fixture"
+	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" "${flags[@]}" --package "$fixture"
 	expect "$name" "$golden" "$status"
 	expect "$name.optimized" "$golden" "$status"
 	if [[ -f "$fixture/arguments" ]]; then
