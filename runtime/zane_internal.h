@@ -301,6 +301,7 @@ void zane_end(char *base, const zane_type *type);
 /* region.c */
 void zane_regions_start(void);
 void zane_thread_start(void);
+void zane_thread_stop(void);
 void zane_reserve(zane_context *c, int64_t size);
 _Noreturn void zane_too_deep_in(zane_context *c);
 

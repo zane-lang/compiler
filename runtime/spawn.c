@@ -106,6 +106,7 @@ static void *zane_worker(void *deque) {
 			zane_threads--;
 			zane_deques[zane_mine].kept = 0;
 			pthread_mutex_unlock(&zane_pool);
+			zane_thread_stop();
 			return NULL;
 		}
 		pthread_mutex_unlock(&zane_pool);

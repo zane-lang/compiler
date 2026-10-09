@@ -186,10 +186,12 @@ let enter env fr b size =
   Llvm.position_at_end inline b;
   let c = field env b ptr outer record_context in
   let m = field env b ptr c context_frontier in
-  let past = byte_at env b m size in
   if size > Frames.guard then begin
+    (* The room left is compared, not the frame's end, which would be an
+       address past the range when the frame does not fit. *)
     let limit = field env b ptr c context_limit in
-    let over = Llvm.build_icmp Llvm.Icmp.Ugt past limit "" b in
+    let room = Llvm.build_sub (Llvm.build_ptrtoint limit i64 "" b) (Llvm.build_ptrtoint m i64 "" b) "" b in
+    let over = Llvm.build_icmp Llvm.Icmp.Ult room (Llvm.const_int i64 size) "" b in
     let stop = block env fr and fits = block env fr in
     unlikely env (Llvm.build_cond_br over stop fits b);
     Llvm.position_at_end stop b;
@@ -197,7 +199,7 @@ let enter env fr b size =
     ignore (Llvm.build_unreachable b);
     Llvm.position_at_end fits b
   end;
-  set_field env b past c context_frontier;
+  set_field env b (byte_at env b m size) c context_frontier;
   zero env b m Frames.record;
   set_field env b c m record_context;
   let depth = field env b i64 outer record_depth in

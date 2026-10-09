@@ -168,6 +168,8 @@ static LONG CALLBACK zane_fault(EXCEPTION_POINTERS *e) {
 	return zane_fault_at(at) ? EXCEPTION_CONTINUE_EXECUTION : EXCEPTION_CONTINUE_SEARCH;
 }
 
+void zane_thread_stop(void) {}
+
 void zane_regions_start(void) {
 	if (!AddVectoredExceptionHandler(1, zane_fault)) zane_broken("no handler for faults");
 }
@@ -179,12 +181,14 @@ void zane_regions_start(void) {
    run on. Each thread that runs the program's code sets both before it
    does. */
 static _Thread_local char *zane_stack_low;
+static _Thread_local void *zane_signal_stack;
 
 enum { ZANE_SIGNAL_STACK = 64 * 1024 };
 
 void zane_thread_start(void) {
 	stack_t alternate = { .ss_sp = malloc(ZANE_SIGNAL_STACK), .ss_size = ZANE_SIGNAL_STACK, .ss_flags = 0 };
 	if (!alternate.ss_sp || sigaltstack(&alternate, NULL) != 0) zane_broken("no stack for the fault handler");
+	zane_signal_stack = alternate.ss_sp;
 #ifdef __APPLE__
 	pthread_t self = pthread_self();
 	zane_stack_low = (char *)pthread_get_stackaddr_np(self) - pthread_get_stacksize_np(self);
@@ -197,6 +201,15 @@ void zane_thread_start(void) {
 		pthread_attr_destroy(&attributes);
 	}
 #endif
+}
+
+/* A thread that stops running the program's code, a pool worker the pool
+   no longer wants, gives back the handler's stack. */
+void zane_thread_stop(void) {
+	stack_t off = { .ss_sp = NULL, .ss_size = 0, .ss_flags = SS_DISABLE };
+	sigaltstack(&off, NULL);
+	free(zane_signal_stack);
+	zane_signal_stack = NULL;
 }
 
 /* Whether a fault at `at` is past the end of this thread's machine stack:
