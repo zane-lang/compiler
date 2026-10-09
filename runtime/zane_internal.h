@@ -41,7 +41,16 @@
    fixed chunk stays mapped once made, and the next scope that reaches it
    reuses it. Its dynamic region is where the blocks its values own are: a
    chain of chunks of its own, with a bump frontier and a stack of returned
-   blocks for each size and alignment (§3.2), all given back at the drain.
+   blocks for each size and alignment (§3.2), all given back at the drain
+   with no walk of what its values own. A value may own blocks in an outer
+   region, which a move into a deeper owner leaves where they are (§3.5);
+   when the value dies with this scope they are dead space there, given back
+   when that region drains in turn.
+
+   A program run with `ZANE_CHECK` set checks every drain instead: the
+   scope's values return their blocks one by one, as they die, and a block
+   still out in the region after that is one that should have moved out
+   with a value that left, which stops the program.
 
    The program's `main` runs in one context, and each spawned call in one of
    its own (concurrency.md §3): its own nest of scopes, and its own chain of
@@ -51,8 +60,11 @@ enum { ZANE_DEPTH = 1 << 15, ZANE_SEGMENT = 64, ZANE_CONTEXTS = (1 << 16) - 1 };
 
 enum { ZANE_PAGES = 1 << 14 };
 
+/* Whether drains are checked: `ZANE_CHECK` is set, and not to 0. */
+extern int zane_checking;
+
 /* A slot held in a scope because what it holds owns blocks, with the
-   layout that says where they are, so the scope's drain can return them.
+   layout that says where they are, so a checked drain can return them.
    It lives in the scope's own arena. */
 typedef struct zane_held {
 	struct zane_held *next;
@@ -77,9 +89,8 @@ typedef struct zane_mapping {
 typedef struct zane_task zane_task;
 typedef struct zane_context zane_context;
 
-/* What a value owned before a spawned call wrote it back (§4.4): kept, as
-   it was, until its region drains, since a reader may still be following
-   it. */
+/* What a value owned before a spawned call wrote it back (§4.4), kept as it
+   was for a checked drain to return. */
 typedef struct zane_retired {
 	struct zane_retired *next;
 	const int64_t *layout;
@@ -87,9 +98,10 @@ typedef struct zane_retired {
 } zane_retired;
 
 /* Each open scope of a context, innermost last: where its slots began,
-   what it holds, the calls it spawned, and its dynamic region with the
-   number of blocks out in it. The first of the program's is the program's
-   own, open until it ends. */
+   the calls it spawned, and its dynamic region with the number of blocks
+   handed out there and not returned; when drains are checked, also what it
+   holds and what write-backs retired there. The first of the program's is
+   the program's own, open until it ends. */
 typedef struct {
 	zane_context *context;
 	int64_t depth;
@@ -119,6 +131,7 @@ struct zane_context {
 	char **directory;
 	uint32_t chunks;  /* fixed chunks in use: the current one is the last */
 	size_t frontier;  /* the next free byte in the current fixed chunk */
+	zane_mapping *spare; /* dynamic chunks its drained regions gave back */
 	zane_context *next;
 };
 
@@ -198,8 +211,9 @@ zane_mark *zane_region_at(const void *at);
 extern int zane_argc;
 extern char **zane_argv;
 void zane_unmap(zane_mark *region);
+void zane_give_spares(zane_context *c);
 zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align);
-extern _Atomic int64_t zane_blocks;
+int64_t zane_blocks(void);
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align);
 void zane_free(char *block, int64_t size, int64_t align);
 

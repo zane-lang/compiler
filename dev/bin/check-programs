@@ -11,6 +11,9 @@ set -uo pipefail
 # Every program runs, and each mismatch is reported, before the check fails.
 
 DIR="${1:?usage: check-programs DIR}"
+# Each drain is checked, as tests/codegen/ checks it: a block still out in a
+# region when its scope drains stops the program.
+export ZANE_CHECK=1
 read -r -a runner <<<"${RUNNER:-}"
 failed=0
 count=0

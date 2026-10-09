@@ -130,9 +130,9 @@ tracks what is live.
 that owns storage opens its scope's arena on entry and drains it on every way
 out: falling off the end, `return`, `abort`, or an exit (§4). Draining first
 waits for the scope's spawned work (the water tower, [`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md)
-§4.1). Then it returns the blocks its values still own, and releases the
-scope's fixed-size and dynamic chunks together ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §3.2).
-There is no other per-object pass at a drain; an object that dies earlier —
+§4.1). Then it releases the scope's fixed-size and dynamic chunks together,
+with every value still in them ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §3.2).
+There is no per-object pass at a drain; an object that dies earlier —
 overwritten, or its container gone — is destroyed there, by its own
 `destroy` (L9). Lowering
 may fold nested scopes into one arena when nothing observes the difference
@@ -391,8 +391,8 @@ test passing.
    whole gets copies of its own. A
    subscript is a place, generic types and verbs lower per instance, and the
    anchors of hosts in a list follow them when its block grows. The runtime
-   is tested in C on its own, and stops a program that ends with a block
-   still out.
+   is tested in C on its own, and a checked drain stops a program that
+   ends with a block still out.
 8. **`spawn`.** The thread pool, futures, and the water tower. A spawned
    call's arguments are read where it is written, into a frame in its
    block's arena, and it runs on a thread of the pool in a context of its
@@ -488,18 +488,31 @@ test passing.
     caller's innermost, and the value moves again if the caller places it
     further out.
   - The runtime finds a block's region from a map of every chunk it made,
-    and a slot's from where each open scope's slots began, rather than from
-    a segmented offset (§3.1). A dynamic chunk begins with a cache line of
+    and a slot's from where each open scope's slots began, trying the
+    innermost scope first, rather than from a segmented offset (§3.1). A dynamic chunk begins with a cache line of
     its own bookkeeping, and an oversized block's chunks are one mapping.
   - Every block is at least a word, and aligned to one; a list's is aligned
     to a cache line. A chunk a region gives back is kept for the next
-    region rather than unmapped.
+    region of the same context rather than unmapped, and a context whose
+    call is over gives its kept chunks to any context that has none.
   - A value that owns a block is held in its scope's arena like an owner,
     and so is a fresh owner or value that nothing keeps, such as a result
-    that is dropped or an operand, so the drain returns its blocks. Having
-    returned them, a drain finds no block out in its region, and the
-    runtime stops a program where it does, since that block's owner is
-    somewhere the scope cannot reach.
+    that is dropped or an operand, so its blocks are in a region that
+    drains with it.
+  - A drain walks none of its values. Nothing that outlives the scope owns
+    a block in its region, since an escape moves its blocks out first, so
+    every block still there dies with it. A value of the scope may own
+    blocks in an outer region, which a move into a deeper owner, such as a
+    `^T` parameter, leaves where they are (§3.5). They are dead space there
+    until that region drains. They cannot pile up, because the move spends
+    its source, and a spent symbol is refilled only in the block where it
+    is declared ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.6),
+    which drains no later than that region.
+  - A program run with `ZANE_CHECK` set checks every drain instead. The
+    scope's values and the values write-backs retired there return their
+    blocks one at a time, and a block still out in the region after that is
+    one whose owner is somewhere the scope cannot reach, which stops the
+    program. The codegen and object tests run this way.
 
   Nothing a program does can tell these apart.
 - **Each spawned call has a context of its own.** A spawned call runs with

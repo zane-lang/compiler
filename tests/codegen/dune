@@ -6,6 +6,13 @@
 ; tests/gen/gen_rules.ml, into dune.inc. A fixture added without its rules
 ; fails the diff below; `dune promote` then writes them.
 
+; Every program here runs with its drains checked: a block still out in a
+; region when its scope drains stops the program (runtime/zane_internal.h).
+(env
+ (_
+  (env-vars
+   (ZANE_CHECK 1))))
+
 (include dune.inc)
 
 (rule

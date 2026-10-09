@@ -3,7 +3,7 @@
 /// that escapes a scope takes its blocks out first: a roaming owner
 /// returned, a list built in a loop, a result left from a `match` arm, a
 /// string aborted with, and values stored or pushed from an inner block into
-/// an outer one, which a reference then names. The runtime stops the program if a drain finds a
+/// an outer one, which a reference then names. A checked drain stops the program if it finds a
 /// block still out, so a run that ends cleanly moved every one. Each check
 /// prints `yes` when it holds and `no` when it does not.
 package regions;

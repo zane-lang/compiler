@@ -55,7 +55,7 @@ static void exercise_lists(void) {
 	zane_list *list = make_list(scope);
 	check(intact(list));
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* A copy owns a separate block, including when its elements own none. */
 	scope = zane_scope_enter();
@@ -65,7 +65,7 @@ static void exercise_lists(void) {
 	zane_copy((char *)copy, list_layout);
 	check(copy->items != list->items && intact(copy) && intact(list));
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* The block must still move when it escapes its allocating scope. */
 	scope = zane_scope_enter();
@@ -81,7 +81,7 @@ static void exercise_lists(void) {
 	zane_arrive((char *)kept, list_layout);
 	check(intact(kept));
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 }
 
 /* An empty ownership layout still requires copying and overwriting payload bytes. */
@@ -112,7 +112,7 @@ static void exercise_boxes(void) {
 	*promoted = moved;
 	check(zane_region_at(moved)->depth == scope && *(int64_t *)moved == 11);
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 }
 
 /* Repeat the checks for both ABI representations of an empty inner layout. */

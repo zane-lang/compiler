@@ -241,7 +241,7 @@ let rec through_owner st (e : T.Expr.t) =
 let owns st span t = (not (Tty.is_ref t)) && positions st span t 0 [] <> []
 
 (* Whether a local of this type is held in its scope's arena: an owner, or a
-   value that owns a block, which the scope's drain returns (L8). *)
+   value that owns a block, whose blocks go when the scope drains (L8). *)
 let held st span t = owned st t || owns st span t
 
 (* The sum inside a variant or enum. *)
