@@ -12,6 +12,15 @@ moves and overwrites it runs with walks like a program's. The emitted walks
 themselves are tested by the programs in `tests/codegen/`, which run with
 checked drains.
 
+`scopes.h` defines the sizes of each context's range of frames, which a
+program's own module defines, and places slots by growing the innermost
+scope's frame, since a test has no layout from codegen. `arenas.c` holds the
+range to what lowering relies on: it starts at a 1 MiB boundary and is
+listed in the chunk map, a scope's frame starts with its record where the
+frame around it ended, several MiB of slots become usable as they are
+touched, and an address is found in the scope whose frame holds it at any
+depth, 100,000 scopes deep among them.
+
 `scalar_lists.c` covers issue [#191](https://github.com/zane-lang/compiler/issues/191):
 a list whose elements own no blocks, and a box whose payload owns none,
 have walks for their own block alone. List backing blocks and scalar box

@@ -219,9 +219,11 @@ Consequences of the spec worth knowing, all correctly implemented:
 - A value copied from a place it then overwrites, `acc = Count.more(acc)`,
   is a deep copy each time (memory.md §2.3), so growing a recursive value in
   a loop costs time quadratic in its depth.
-- The runtime caps scopes nested at once at 32,768 (`ZANE_DEPTH`) and stops
-  with "scopes nested too deep" past it, so a recursion deeper than that ends
-  cleanly. The spec states no limit.
+- The runtime caps no number of scopes nested at once. A recursion that
+  fills the machine stack stops with "recursion too deep", and one whose
+  frames fill the context's range with "scopes nested too deep", which
+  names the manifest field that sets the range's size (memory.md §3.1,
+  docs/design/lowering.md §9). Either ends cleanly, with status 1.
 
 ## Cross-check: two other suites
 
