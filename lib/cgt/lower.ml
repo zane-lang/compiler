@@ -280,11 +280,11 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
               (* The function value is read first, as it is written. *)
               let id = fresh st in
               let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
-              let lets, args = held_last st ctx span v subject rest in
+              let lets, args = held_last ~direct:false st ctx span v subject rest in
               held_in st
                 (Stat.Let { id; value = fn } :: lets)
-                (invoke ~fn:read st ctx span v (arguments st ctx span v args) handler)
-          | _ -> invoke ~fn st ctx span v (arguments st ctx span v args) handler)
+                (invoke ~fn:read st ctx span v (arguments ~direct:false st ctx span v args) handler)
+          | _ -> invoke ~fn st ctx span v (arguments ~direct:false st ctx span v args) handler)
       | _ -> Diagnostic.bug ~span "lowering expected a function value here")
   (* `&` written before a place: a reference to it, minted, or a reference it
      holds copied (memory.md §2.6). *)
@@ -752,7 +752,7 @@ and map_read st ctx span target map ret =
    is held in the handler's arena, which is innermost wherever the handler
    runs. *)
 and handle ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value : Expr.t) =
-  let scope = { arena = None; settles = [] } in
+  let scope = { arena = None; settles = []; wants = [] } in
   let bind =
     match (h.T.Handler.binder, dropped) with
     | Some l, _ ->
@@ -771,7 +771,7 @@ and handle ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value :
   in
   let inner = { ctx with resolve = Some resolve; scope } in
   let body = bind @ block st inner h.T.Handler.body in
-  match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ]
+  close st scope body
 
 (* A case read is its payload when the case is live, and runs its handler
    when another is (adt.md §5.2). The other cases fall through to it. *)
@@ -952,7 +952,7 @@ and located_last st ctx span v subject rest handler ret =
 (* The subject's operands pinned and each argument held, as [located_last]
    needs them, for any call form that runs a `!` call on a subscripted
    subject: the statements, and the arguments to pass. *)
-and held_last st ctx span v subject rest =
+and held_last ?direct st ctx span v subject rest =
   let pins, subject = pinned st ctx span subject in
   let held =
     match v.params with
@@ -962,7 +962,7 @@ and held_last st ctx span v subject rest =
             match (a, p.T.Local.ty) with
             | T.Arg.Value e, Tty.Concept _ when expands v -> ([], T.Arg.Value e)
             | T.Arg.Value e, _ ->
-                let value = argument st ctx span v p e in
+                let value = argument ?direct st ctx span v p e in
                 let id = fresh st in
                 let l = { p with T.Local.id = -id } in
                 Hashtbl.replace ctx.env l.T.Local.id
@@ -1105,11 +1105,11 @@ and passed (v : verb) args =
          | T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> None
          | _ -> if bound then None else Some arg)
 
-and arguments st ctx span v args =
+and arguments ?direct st ctx span v args =
   List.map2
     (fun (p : T.Local.t) arg ->
       match arg with
-      | T.Arg.Value a -> argument st ctx span v p a
+      | T.Arg.Value a -> argument ?direct st ctx span v p a
       | T.Arg.Block _ -> Diagnostic.bug ~span "lowering: a block argument to a verb it does not expand")
     v.params args
 
@@ -1158,7 +1158,7 @@ and spawn st ctx span (e : T.Expr.t) =
             when fv.Tty.is_mut && Option.is_some fv.Tty.this_ && subscripted subject ->
               let id = fresh st in
               let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
-              let lets, args = held_last st ctx span v subject rest in
+              let lets, args = held_last ~direct:false st ctx span v subject rest in
               let stats, future = spawn_call st ctx span v (Some read) ~writes:true args handler in
               ((Stat.Let { id; value = fn } :: lets) @ stats, future)
           | _ -> spawn_call st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler)
@@ -1270,7 +1270,7 @@ and wrapped st span (callee : T.Verb_ref.t) args ret =
 and spawn_call st ctx span v fn ~writes passed handler =
   let o = outcome st span v in
   let whole = returned o in
-  let args = arguments st ctx span v passed in
+  let args = arguments ~direct:(Option.is_none fn) st ctx span v passed in
   (* A `mut` subject reached through an owner is copied into the frame,
      and the call works on the copy, which it writes back when it
      returns (§4.4). A function value's subject is lent by its address
@@ -1418,11 +1418,29 @@ and spawn_call st ctx span v fn ~writes passed handler =
 
 (* An argument as the callee takes it (L6): a place it may write, or a
    borrowed owner, is lent by its address, a reference is minted or copied,
-   a `^T` argument is moved, and a value is borrowed. *)
-and argument st ctx span v (p : T.Local.t) a =
+   a `^T` argument is moved, and a value is borrowed.
+
+   A fresh owner moved into a `^T` parameter is made in this block's
+   region. A callee that drops it leaves its blocks there (memory.md §3.5),
+   so they go when this block drains, as they would in the block's own
+   scope, rather than piling up in an enclosing one for as long as a loop
+   runs. The block keeps an arena for that only when the callee can drop
+   the owner, which Regions decides; a call through a function value, and a
+   verb expanded here, which has no function of its own, can always. *)
+and argument ?(direct = true) st ctx span v (p : T.Local.t) a =
   if by_address st v p then lend st ctx span a
   else if Tty.is_ref p.T.Local.ty then reference_to st ctx span a
-  else if roaming st p.T.Local.ty then moved st ctx span p.T.Local.ty a
+  else if roaming st p.T.Local.ty then begin
+    (if held st span p.T.Local.ty && not (is_place a) then
+       if (not direct) || expands v then
+         (* A callee Regions cannot see may drop it, so the arena stays. *)
+         ctx.scope.wants <- (dropping, -1) :: ctx.scope.wants
+       else
+         let same (q : T.Local.t) = q.T.Local.id = p.T.Local.id in
+         let index = Option.value ~default:(-1) (List.find_index same v.params) in
+         ctx.scope.wants <- (symbol st v, index) :: ctx.scope.wants);
+    moved st ctx span p.T.Local.ty a
+  end
   else borrow st ctx span a
 
 (* L12. A call that can end more than one way is switched on how it ended:
@@ -1593,13 +1611,13 @@ and expand st ctx span v args handler ret =
    [enter] runs first, in the block's scope: a function's `^T` parameters
    are held there, so the body's drain ends any it did not move on. *)
 and block ?(enter = fun _ -> []) st ctx (b : T.Block.t) =
-  let scope = { arena = None; settles = [] } in
+  let scope = { arena = None; settles = []; wants = [] } in
   let entered = enter scope in
   let body = entered @ List.concat_map (stat st { ctx with scope }) b.T.Block.stats in
   (* A spawned call that can abort or exit, and that nothing has read,
      settles where the block ends. *)
   let body = body @ List.concat_map (fun settle -> settle ()) (List.rev scope.settles) in
-  match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ]
+  close st scope body
 
 (* A block argument's code, where it was written. An exit ends this run of
    it (docs/spec-divergences.md §9). *)

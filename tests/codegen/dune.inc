@@ -527,6 +527,52 @@
   (diff golden/hello.out hello.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/keeping))
+ (action
+  (with-stdout-to
+   keeping.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/keeping))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keeping.cgt keeping.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/keeping))
+ (targets keeping.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build keeping.exe --package fixtures/keeping)))
+
+(rule
+ (deps (source_tree fixtures/keeping))
+ (targets keeping.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build keeping.optimized.exe --optimize --package fixtures/keeping)))
+
+(rule
+ (action
+  (with-stdout-to
+   keeping.out.actual
+   (run ./keeping.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keeping.out keeping.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   keeping.optimized.out.actual
+   (run ./keeping.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keeping.out keeping.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/lambdas))
  (action
   (with-stdout-to

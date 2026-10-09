@@ -386,20 +386,18 @@
     │   │   │   │   ├── fn: zane_constant_begin
     │   │   │   │   └── args[0]: global constants$ada.state
     │   │   │   └── right: 1 : i64
-    │   │   └── body[0] > scope:
-    │   │       ├── id: %4
-    │   │       ├── body[0] > store:
-    │   │       │   ├── address: global constants$ada.value
-    │   │       │   └── value > record:
-    │   │       │       ├── type: {handle, i64}
-    │   │       │       ├── members[0] > member 0: "ada" : handle
-    │   │       │       └── members[1] > member 1: 36 : i64
-    │   │       └── body[1] > eval > runtime:
-    │   │           ├── type: void
-    │   │           ├── fn: zane_constant_end
-    │   │           ├── args[0]: global constants$ada.state
-    │   │           ├── args[1]: global constants$ada.value
-    │   │           └── args[2]: layout constants$Person
+    │   │   ├── body[0] > store:
+    │   │   │   ├── address: global constants$ada.value
+    │   │   │   └── value > record:
+    │   │   │       ├── type: {handle, i64}
+    │   │   │       ├── members[0] > member 0: "ada" : handle
+    │   │   │       └── members[1] > member 1: 36 : i64
+    │   │   └── body[1] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_constant_end
+    │   │       ├── args[0]: global constants$ada.state
+    │   │       ├── args[1]: global constants$ada.value
+    │   │       └── args[2]: layout constants$Person
     │   └── body[1] > return: global constants$ada.value
     ├── funcs[13] > func:
     │   ├── symbol: constants$Person{name %primitives$String; age %primitives$I64}
@@ -410,10 +408,7 @@
     │       ├── exit: function
     │       ├── value > record:
     │       │   ├── type: {handle, i64}
-    │       │   ├── members[0] > member 0 > copy:
-    │       │   │   ├── type: handle
-    │       │   │   ├── value: local #1 : handle
-    │       │   │   └── layout: %primitives$String
+    │       │   ├── members[0] > member 0: local #1 : handle
     │       │   └── members[1] > member 1: local #2 : i64
     │       └── layout: constants$Person
     ├── funcs[14] > func:

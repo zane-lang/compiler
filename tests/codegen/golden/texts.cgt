@@ -226,18 +226,7 @@
     │       │   ├── value > call:
     │       │   │   ├── type: {handle}
     │       │   │   ├── fn: texts$Person(%primitives$String)
-    │       │   │   └── args[0] > expand:
-    │       │   │       ├── type: handle
-    │       │   │       ├── label: @30
-    │       │   │       ├── result: #31
-    │       │   │       ├── body[0] > hold:
-    │       │   │       │   ├── local: #29
-    │       │   │       │   ├── scope: %2
-    │       │   │       │   ├── value: "ada" : handle
-    │       │   │       │   └── layout: %primitives$String
-    │       │   │       └── body[1] > assign:
-    │       │   │           ├── place: #31
-    │       │   │           └── value: local #29 : handle
+    │       │   │   └── args[0]: "ada" : handle
     │       │   └── layout: texts$Person
     │       ├── body[12] > let:
     │       │   ├── local: #33
@@ -452,50 +441,28 @@
     │       │   ├── value > call:
     │       │   │   ├── type: {handle}
     │       │   │   ├── fn: texts$Person(%primitives$String)
-    │       │   │   └── args[0] > expand:
-    │       │   │       ├── type: handle
-    │       │   │       ├── label: @64
-    │       │   │       ├── result: #65
-    │       │   │       ├── body[0] > hold:
-    │       │   │       │   ├── local: #63
-    │       │   │       │   ├── scope: %2
-    │       │   │       │   ├── value: "held" : handle
-    │       │   │       │   └── layout: %primitives$String
-    │       │   │       └── body[1] > assign:
-    │       │   │           ├── place: #65
-    │       │   │           └── value: local #63 : handle
+    │       │   │   └── args[0]: "held" : handle
     │       │   └── layout: ^texts$Person
     │       ├── body[22] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: texts$rename(this texts$Person, %primitives$String)
     │       │   ├── args[0]: address of #66 : ptr
-    │       │   └── args[1] > expand:
+    │       │   └── args[1] > runtime:
     │       │       ├── type: handle
-    │       │       ├── label: @71
-    │       │       ├── result: #72
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #70
-    │       │       │   ├── scope: %2
-    │       │       │   ├── value > runtime:
-    │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_join
-    │       │       │   │   ├── args[0]: local #1 : handle
-    │       │       │   │   └── args[1] > expand:
-    │       │       │   │       ├── type: handle
-    │       │       │   │       ├── label: @68
-    │       │       │   │       ├── result: #69
-    │       │       │   │       ├── body[0] > hold:
-    │       │       │   │       │   ├── local: #67
-    │       │       │   │       │   ├── scope: %2
-    │       │       │   │       │   ├── value: "?" : handle
-    │       │       │   │       │   └── layout: %primitives$String
-    │       │       │   │       └── body[1] > assign:
-    │       │       │   │           ├── place: #69
-    │       │       │   │           └── value: local #67 : handle
-    │       │       │   └── layout: %primitives$String
-    │       │       └── body[1] > assign:
-    │       │           ├── place: #72
-    │       │           └── value: local #70 : handle
+    │       │       ├── fn: zane_text_join
+    │       │       ├── args[0]: local #1 : handle
+    │       │       └── args[1] > expand:
+    │       │           ├── type: handle
+    │       │           ├── label: @68
+    │       │           ├── result: #69
+    │       │           ├── body[0] > hold:
+    │       │           │   ├── local: #67
+    │       │           │   ├── scope: %2
+    │       │           │   ├── value: "?" : handle
+    │       │           │   └── layout: %primitives$String
+    │       │           └── body[1] > assign:
+    │       │               ├── place: #69
+    │       │               └── value: local #67 : handle
     │       ├── body[23] > hold:
     │       │   ├── local: #73
     │       │   ├── scope: %2
@@ -827,10 +794,7 @@
     │       ├── exit: function
     │       ├── value > record:
     │       │   ├── type: {handle}
-    │       │   └── members[0] > member 0 > copy:
-    │       │       ├── type: handle
-    │       │       ├── value: local #1 : handle
-    │       │       └── layout: %primitives$String
+    │       │   └── members[0] > member 0: local #1 : handle
     │       └── layout: texts$Person
     ├── funcs[4] > func:
     │   ├── symbol: texts$greeting(this texts$Person)
@@ -872,10 +836,7 @@
     │   │   │   ├── within: {handle}
     │   │   │   ├── path: 0
     │   │   │   └── base: local #1 : ptr
-    │   │   ├── value > copy:
-    │   │   │   ├── type: handle
-    │   │   │   ├── value: local #2 : handle
-    │   │   │   └── layout: %primitives$String
+    │   │   ├── value: local #2 : handle
     │   │   └── layout: %primitives$String
     │   └── body[1] > return: unit : void
     └── funcs[6] > func:

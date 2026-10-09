@@ -35,7 +35,7 @@ let constant_ctx () =
     resolve = None;
     finish = nowhere;
     exit_call = nowhere;
-    scope = { arena = None; settles = [] };
+    scope = { arena = None; settles = []; wants = [] };
   }
 
 (* A block's arena, made the first time it is needed. *)
@@ -46,6 +46,18 @@ let arena st scope =
       let a = fresh st in
       scope.arena <- Some a;
       a
+
+(* A block's statements in its arena, when it has one: one it holds
+   something in, or one kept for the fresh owners it moves into callees
+   that may drop them, which Regions decides once every function is
+   lowered. *)
+let close st scope body =
+  match (scope.arena, scope.wants) with
+  | None, [] -> body
+  | arena, wants ->
+      let id = match arena with Some id -> id | None -> fresh st in
+      if wants <> [] then Hashtbl.replace st.wants (st.current, id) wants;
+      [ Stat.Scope { id; body } ]
 
 (* A new local: held in the block's arena when it is an owner or owns a
    block. *)

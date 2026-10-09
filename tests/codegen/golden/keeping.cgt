@@ -1,0 +1,1408 @@
+└── program:
+    ├── entry: keeping$main()
+    ├── layouts[0] > layout:
+    │   ├── type: keeping$Pair
+    │   ├── positions[0]: box @0 of keeping$Tree (16 bytes)
+    │   └── positions[1]: box @8 of keeping$Tree (16 bytes)
+    ├── layouts[1] > layout:
+    │   ├── type: keeping$Tree
+    │   └── positions[0]: box @8 of keeping$Pair (16 bytes) when [0]=1
+    ├── layouts[2] > layout:
+    │   ├── type: ^keeping$Tree
+    │   └── positions[0]: box @8 of keeping$Pair (16 bytes) when [0]=1
+    ├── layouts[3] > layout:
+    │   ├── type: keeping$Node
+    │   └── positions[0]: list @0 of keeping$Node (24 bytes apart)
+    ├── layouts[4] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── layouts[5] > layout:
+    │   ├── type: %primitives$I64
+    │   └── positions:
+    ├── layouts[6] > layout:
+    │   ├── type: keeping$Item
+    │   ├── positions[0]: text @0
+    │   └── positions[1]: list @24 of %primitives$String (24 bytes apart)
+    ├── layouts[7] > layout:
+    │   ├── type: keeping$Label
+    │   └── positions[0]: text @0
+    ├── layouts[8] > layout:
+    │   ├── type: ^keeping$Node
+    │   └── positions[0]: list @0 of keeping$Node (24 bytes apart)
+    ├── layouts[9] > layout:
+    │   ├── type: ^keeping$Item
+    │   ├── positions[0]: text @0
+    │   └── positions[1]: list @24 of %primitives$String (24 bytes apart)
+    ├── layouts[10] > layout:
+    │   ├── type: ^keeping$Shelf
+    │   └── positions[0]: list @0 of keeping$Item (48 bytes apart)
+    ├── layouts[11] > layout:
+    │   ├── type: keeping$Shelf
+    │   └── positions[0]: list @0 of keeping$Item (48 bytes apart)
+    ├── funcs[0] > func:
+    │   ├── symbol: keeping$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %4
+    │       ├── body[0] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: keeping$nodes(keeping$Tree)
+    │       │       │   └── args[0] > expand:
+    │       │       │       ├── type: ptr
+    │       │       │       ├── label: @2
+    │       │       │       ├── result: #3
+    │       │       │       ├── body[0] > hold:
+    │       │       │       │   ├── local: #1
+    │       │       │       │   ├── scope: %4
+    │       │       │       │   ├── value > call:
+    │       │       │       │   │   ├── type: <void | ptr>
+    │       │       │       │   │   ├── fn: keeping$make(%primitives$I64)
+    │       │       │       │   │   └── args[0]: 4 : i64
+    │       │       │       │   └── layout: keeping$Tree
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #3
+    │       │       │           └── value: address of #1 : ptr
+    │       │       └── right: 31 : i64
+    │       ├── body[1] > let:
+    │       │   ├── local: #5
+    │       │   └── value: 0 : i64
+    │       ├── body[2] > let:
+    │       │   ├── local: #6
+    │       │   └── value: 1 : i64
+    │       ├── body[3] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @8
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #7
+    │       │   │   └── value: 100 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #7 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #6 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > scope:
+    │       │   │   │       ├── id: %14
+    │       │   │   │       └── body[0] > assign:
+    │       │   │   │           ├── place: #5
+    │       │   │   │           └── value > binary:
+    │       │   │   │               ├── type: i64
+    │       │   │   │               ├── op: +
+    │       │   │   │               ├── left: local #5 : i64
+    │       │   │   │               └── right > call:
+    │       │   │   │                   ├── type: i64
+    │       │   │   │                   ├── fn: keeping$nodes(keeping$Tree)
+    │       │   │   │                   └── args[0] > expand:
+    │       │   │   │                       ├── type: ptr
+    │       │   │   │                       ├── label: @12
+    │       │   │   │                       ├── result: #13
+    │       │   │   │                       ├── body[0] > hold:
+    │       │   │   │                       │   ├── local: #11
+    │       │   │   │                       │   ├── scope: %14
+    │       │   │   │                       │   ├── value > call:
+    │       │   │   │                       │   │   ├── type: <void | ptr>
+    │       │   │   │                       │   │   ├── fn: keeping$make(%primitives$I64)
+    │       │   │   │                       │   │   └── args[0]: 3 : i64
+    │       │   │   │                       │   └── layout: keeping$Tree
+    │       │   │   │                       └── body[1] > assign:
+    │       │   │   │                           ├── place: #13
+    │       │   │   │                           └── value: address of #11 : ptr
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #6
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #6 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @8
+    │       ├── body[4] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #5 : i64
+    │       │       └── right: 1500 : i64
+    │       ├── body[5] > hold:
+    │       │   ├── local: #15
+    │       │   ├── scope: %4
+    │       │   ├── value > call:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── fn: keeping$make(%primitives$I64)
+    │       │   │   └── args[0]: 5 : i64
+    │       │   └── layout: keeping$Tree
+    │       ├── body[6] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: keeping$nodes(keeping$Tree)
+    │       │       │   └── args[0]: address of #15 : ptr
+    │       │       └── right: 63 : i64
+    │       ├── body[7] > spawn:
+    │       │   ├── task: #17
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.1
+    │       │   ├── frame: {<void | ptr>, <void | ptr>, <void | ptr>}
+    │       │   ├── args[0] > call:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── fn: keeping$make(%primitives$I64)
+    │       │   │   └── args[0]: 2 : i64
+    │       │   ├── args[1] > call:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── fn: keeping$make(%primitives$I64)
+    │       │   │   └── args[0]: 3 : i64
+    │       │   ├── dest: #18
+    │       │   └── layout: ^keeping$Tree
+    │       ├── body[8] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: keeping$nodes(keeping$Tree)
+    │       │       │   └── args[0] > expand:
+    │       │       │       ├── type: ptr
+    │       │       │       ├── label: @19
+    │       │       │       ├── result: #20
+    │       │       │       ├── body[0]: join #17
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #20
+    │       │       │           └── value: address of #18 : ptr
+    │       │       └── right: 23 : i64
+    │       ├── body[9] > hold:
+    │       │   ├── local: #21
+    │       │   ├── scope: %4
+    │       │   ├── value > call:
+    │       │   │   ├── type: {handle}
+    │       │   │   ├── fn: keeping$grow(%primitives$I64)
+    │       │   │   └── args[0]: 3 : i64
+    │       │   └── layout: keeping$Node
+    │       ├── body[10] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: keeping$members(keeping$Node)
+    │       │       │   └── args[0]: address of #21 : ptr
+    │       │       └── right: 40 : i64
+    │       ├── body[11] > let:
+    │       │   ├── local: #22
+    │       │   └── value: 0 : i64
+    │       ├── body[12] > let:
+    │       │   ├── local: #23
+    │       │   └── value: 1 : i64
+    │       ├── body[13] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @25
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #24
+    │       │   │   └── value: 1000 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #24 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #23 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > scope:
+    │       │   │   │       ├── id: %31
+    │       │   │   │       └── body[0] > assign:
+    │       │   │   │           ├── place: #22
+    │       │   │   │           └── value > binary:
+    │       │   │   │               ├── type: i64
+    │       │   │   │               ├── op: +
+    │       │   │   │               ├── left: local #22 : i64
+    │       │   │   │               └── right > call:
+    │       │   │   │                   ├── type: i64
+    │       │   │   │                   ├── fn: keeping$weigh(^keeping$Item)
+    │       │   │   │                   └── args[0] > call:
+    │       │   │   │                       ├── type: {handle, handle}
+    │       │   │   │                       ├── fn: keeping$Item(%primitives$String)
+    │       │   │   │                       └── args[0]: "x" : handle
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #23
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #23 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @25
+    │       ├── body[14] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #22 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[15] > let:
+    │       │   ├── local: #32
+    │       │   └── value: 0 : i64
+    │       ├── body[16] > let:
+    │       │   ├── local: #33
+    │       │   └── value: 1 : i64
+    │       ├── body[17] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @35
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #34
+    │       │   │   └── value: 1000 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #34 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #33 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > scope:
+    │       │   │   │       ├── id: %41
+    │       │   │   │       └── body[0] > assign:
+    │       │   │   │           ├── place: #32
+    │       │   │   │           └── value > binary:
+    │       │   │   │               ├── type: i64
+    │       │   │   │               ├── op: +
+    │       │   │   │               ├── left: local #32 : i64
+    │       │   │   │               └── right > call:
+    │       │   │   │                   ├── type: i64
+    │       │   │   │                   ├── fn: keeping$stash(^keeping$Item)
+    │       │   │   │                   └── args[0] > call:
+    │       │   │   │                       ├── type: {handle, handle}
+    │       │   │   │                       ├── fn: keeping$Item(%primitives$String)
+    │       │   │   │                       └── args[0]: "y" : handle
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #33
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #33 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @35
+    │       ├── body[18] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #32 : i64
+    │       │       └── right: 1000 : i64
+    │       ├── body[19] > hold:
+    │       │   ├── local: #42
+    │       │   ├── scope: %4
+    │       │   ├── value: "ada" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[20] > let:
+    │       │   ├── local: #43
+    │       │   └── value: 0 : i64
+    │       ├── body[21] > let:
+    │       │   ├── local: #44
+    │       │   └── value: 1 : i64
+    │       ├── body[22] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @46
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #45
+    │       │   │   └── value: 1000 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #45 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #44 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > scope:
+    │       │   │   │       ├── id: %49
+    │       │   │   │       └── body[0] > assign:
+    │       │   │   │           ├── place: #43
+    │       │   │   │           └── value > binary:
+    │       │   │   │               ├── type: i64
+    │       │   │   │               ├── op: +
+    │       │   │   │               ├── left: local #43 : i64
+    │       │   │   │               └── right > call value:
+    │       │   │   │                   ├── type: i64
+    │       │   │   │                   ├── fn: function keeping$weighing
+    │       │   │   │                   └── args[0] > call:
+    │       │   │   │                       ├── type: {handle, handle}
+    │       │   │   │                       ├── fn: keeping$Item(%primitives$String)
+    │       │   │   │                       └── args[0] > copy:
+    │       │   │   │                           ├── type: handle
+    │       │   │   │                           ├── value: local #42 : handle
+    │       │   │   │                           └── layout: %primitives$String
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #44
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #44 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @46
+    │       ├── body[23] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #43 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[24] > spawn:
+    │       │   ├── task: #51
+    │       │   ├── scope: %4
+    │       │   ├── thunk: zane.spawn.2
+    │       │   ├── frame: {i64, ptr, {handle, handle}}
+    │       │   ├── args[0]: function keeping$weighing
+    │       │   ├── args[1] > call:
+    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── fn: keeping$Item(%primitives$String)
+    │       │   │   └── args[0] > copy:
+    │       │   │       ├── type: handle
+    │       │   │       ├── value: local #42 : handle
+    │       │   │       └── layout: %primitives$String
+    │       │   ├── dest: #52
+    │       │   └── layout: %primitives$I64
+    │       ├── body[25] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @53
+    │       │       │   ├── result: #54
+    │       │       │   ├── body[0]: join #51
+    │       │       │   └── body[1] > assign:
+    │       │       │       ├── place: #54
+    │       │       │       └── value > deref:
+    │       │       │           ├── type: i64
+    │       │       │           └── ptr: address of #52 : ptr
+    │       │       └── right: 0 : i64
+    │       ├── body[26] > let:
+    │       │   ├── local: #55
+    │       │   └── value: 0 : i64
+    │       ├── body[27] > let:
+    │       │   ├── local: #56
+    │       │   └── value: 1 : i64
+    │       ├── body[28] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @58
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #57
+    │       │   │   └── value: 1000 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #57 : i64
+    │       │   │   │   │   └── right > flip:
+    │       │   │   │   │       ├── type: i64
+    │       │   │   │   │       └── value: local #56 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > if:
+    │       │   │   │   ├── cond: true : i1
+    │       │   │   │   └── body[0] > scope:
+    │       │   │   │       ├── id: %62
+    │       │   │   │       ├── body[0] > hold:
+    │       │   │   │       │   ├── local: #61
+    │       │   │   │       │   ├── scope: %62
+    │       │   │   │       │   ├── value > call:
+    │       │   │   │       │   │   ├── type: {handle, handle}
+    │       │   │   │       │   │   ├── fn: keeping$swap()
+    │       │   │   │       │   │   └── args:
+    │       │   │   │       │   └── layout: keeping$Item
+    │       │   │   │       └── body[1] > assign:
+    │       │   │   │           ├── place: #55
+    │       │   │   │           └── value > binary:
+    │       │   │   │               ├── type: i64
+    │       │   │   │               ├── op: +
+    │       │   │   │               ├── left: local #55 : i64
+    │       │   │   │               └── right > member:
+    │       │   │   │                   ├── type: i64
+    │       │   │   │                   ├── index: 1
+    │       │   │   │                   └── value > member:
+    │       │   │   │                       ├── type: handle
+    │       │   │   │                       ├── index: 1
+    │       │   │   │                       └── value: local #61 : {handle, handle}
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #56
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #56 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   ├── body[2] > eval: unit : void
+    │       │   └── body[3]: leave @58
+    │       ├── body[29] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #55 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[30] > hold:
+    │       │   ├── local: #69
+    │       │   ├── scope: %4
+    │       │   ├── value > call:
+    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── fn: keeping$latter(^keeping$Item, ^keeping$Item)
+    │       │   │   ├── args[0] > call:
+    │       │   │   │   ├── type: {handle, handle}
+    │       │   │   │   ├── fn: keeping$Item(%primitives$String)
+    │       │   │   │   └── args[0]: "ada" : handle
+    │       │   │   └── args[1] > call:
+    │       │   │       ├── type: {handle, handle}
+    │       │   │       ├── fn: keeping$Item(%primitives$String)
+    │       │   │       └── args[0]: "grace" : handle
+    │       │   └── layout: keeping$Item
+    │       ├── body[31] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > snapshot:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   └── ptr > offset:
+    │       │       │   │       ├── within: {handle, handle}
+    │       │       │   │       ├── path: 0
+    │       │       │   │       └── base: address of #69 : ptr
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @71
+    │       │       │       ├── result: #72
+    │       │       │       ├── body[0] > hold:
+    │       │       │       │   ├── local: #70
+    │       │       │       │   ├── scope: %4
+    │       │       │       │   ├── value: "grace" : handle
+    │       │       │       │   └── layout: %primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #72
+    │       │       │           └── value: local #70 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[32] > hold:
+    │       │   ├── local: #82
+    │       │   ├── scope: %4
+    │       │   ├── value > call:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: keeping$Label(%primitives$String)
+    │       │   │   └── args[0] > runtime:
+    │       │   │       ├── type: handle
+    │       │   │       ├── fn: zane_text_join
+    │       │   │       ├── args[0] > expand:
+    │       │   │       │   ├── type: handle
+    │       │   │       │   ├── label: @74
+    │       │   │       │   ├── result: #75
+    │       │   │       │   ├── body[0] > hold:
+    │       │   │       │   │   ├── local: #73
+    │       │   │       │   │   ├── scope: %4
+    │       │   │       │   │   ├── value: "ada" : handle
+    │       │   │       │   │   └── layout: %primitives$String
+    │       │   │       │   └── body[1] > assign:
+    │       │   │       │       ├── place: #75
+    │       │   │       │       └── value: local #73 : handle
+    │       │   │       └── args[1] > expand:
+    │       │   │           ├── type: handle
+    │       │   │           ├── label: @77
+    │       │   │           ├── result: #78
+    │       │   │           ├── body[0] > hold:
+    │       │   │           │   ├── local: #76
+    │       │   │           │   ├── scope: %4
+    │       │   │           │   ├── value: " lovelace" : handle
+    │       │   │           │   └── layout: %primitives$String
+    │       │   │           └── body[1] > assign:
+    │       │   │               ├── place: #78
+    │       │   │               └── value: local #76 : handle
+    │       │   └── layout: keeping$Label
+    │       ├── body[33] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0]: local #82 : handle
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @84
+    │       │       │       ├── result: #85
+    │       │       │       ├── body[0] > hold:
+    │       │       │       │   ├── local: #83
+    │       │       │       │   ├── scope: %4
+    │       │       │       │   ├── value: "ada lovelace" : handle
+    │       │       │       │   └── layout: %primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #85
+    │       │       │           └── value: local #83 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[34] > hold:
+    │       │   ├── local: #92
+    │       │   ├── scope: %4
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: zane_text_join
+    │       │   │   ├── args[0] > expand:
+    │       │   │   │   ├── type: handle
+    │       │   │   │   ├── label: @87
+    │       │   │   │   ├── result: #88
+    │       │   │   │   ├── body[0] > hold:
+    │       │   │   │   │   ├── local: #86
+    │       │   │   │   │   ├── scope: %4
+    │       │   │   │   │   ├── value: "charles" : handle
+    │       │   │   │   │   └── layout: %primitives$String
+    │       │   │   │   └── body[1] > assign:
+    │       │   │   │       ├── place: #88
+    │       │   │   │       └── value: local #86 : handle
+    │       │   │   └── args[1] > expand:
+    │       │   │       ├── type: handle
+    │       │   │       ├── label: @90
+    │       │   │       ├── result: #91
+    │       │   │       ├── body[0] > hold:
+    │       │   │       │   ├── local: #89
+    │       │   │       │   ├── scope: %4
+    │       │   │       │   ├── value: " babbage" : handle
+    │       │   │       │   └── layout: %primitives$String
+    │       │   │       └── body[1] > assign:
+    │       │   │           ├── place: #91
+    │       │   │           └── value: local #89 : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[35] > hold:
+    │       │   ├── local: #93
+    │       │   ├── scope: %4
+    │       │   ├── value > call:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: keeping$Label(%primitives$String)
+    │       │   │   └── args[0] > copy:
+    │       │   │       ├── type: handle
+    │       │   │       ├── value: local #92 : handle
+    │       │   │       └── layout: %primitives$String
+    │       │   └── layout: keeping$Label
+    │       ├── body[36] > overwrite:
+    │       │   ├── address: address of #92 : ptr
+    │       │   ├── value: "x" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[37] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0]: local #93 : handle
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @95
+    │       │       │       ├── result: #96
+    │       │       │       ├── body[0] > hold:
+    │       │       │       │   ├── local: #94
+    │       │       │       │   ├── scope: %4
+    │       │       │       │   ├── value: "charles babbage" : handle
+    │       │       │       │   └── layout: %primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #96
+    │       │       │           └── value: local #94 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[38] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0]: local #92 : handle
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @98
+    │       │       │       ├── result: #99
+    │       │       │       ├── body[0] > hold:
+    │       │       │       │   ├── local: #97
+    │       │       │       │   ├── scope: %4
+    │       │       │       │   ├── value: "x" : handle
+    │       │       │       │   └── layout: %primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #99
+    │       │       │           └── value: local #97 : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[39] > hold:
+    │       │   ├── local: #100
+    │       │   ├── scope: %4
+    │       │   ├── value > call:
+    │       │   │   ├── type: {handle}
+    │       │   │   ├── fn: keeping$lent()
+    │       │   │   └── args:
+    │       │   └── layout: keeping$Node
+    │       ├── body[40] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > member:
+    │       │       │   ├── type: i64
+    │       │       │   ├── index: 1
+    │       │       │   └── value > member:
+    │       │       │       ├── type: handle
+    │       │       │       ├── index: 0
+    │       │       │       └── value: local #100 : {handle}
+    │       │       └── right: 2 : i64
+    │       └── body[41] > return: unit : void
+    ├── funcs[1] > func:
+    │   ├── symbol: keeping$make(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: <void | ptr>
+    │   ├── body[0] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left: local #1 : i64
+    │   │   │   └── right: 0 : i64
+    │   │   └── body[0] > return > escape:
+    │   │       ├── exit: function
+    │   │       ├── value > case:
+    │   │       │   ├── type: <void | ptr>
+    │   │       │   ├── index: 0
+    │   │       │   └── payload: unit : void
+    │   │       └── layout: ^keeping$Tree
+    │   └── body[1] > return > escape:
+    │       ├── exit: function
+    │       ├── value > case:
+    │       │   ├── type: <void | ptr>
+    │       │   ├── index: 1
+    │       │   └── payload > box:
+    │       │       ├── value > call:
+    │       │       │   ├── type: {ptr, ptr}
+    │       │       │   ├── fn: keeping$Pair(^keeping$Tree, ^keeping$Tree)
+    │       │       │   ├── args[0] > call:
+    │       │       │   │   ├── type: <void | ptr>
+    │       │       │   │   ├── fn: keeping$make(%primitives$I64)
+    │       │       │   │   └── args[0] > binary:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── op: +
+    │       │       │   │       ├── left: local #1 : i64
+    │       │       │   │       └── right > flip:
+    │       │       │   │           ├── type: i64
+    │       │       │   │           └── value: 1 : i64
+    │       │       │   └── args[1] > call:
+    │       │       │       ├── type: <void | ptr>
+    │       │       │       ├── fn: keeping$make(%primitives$I64)
+    │       │       │       └── args[0] > binary:
+    │       │       │           ├── type: i64
+    │       │       │           ├── op: +
+    │       │       │           ├── left: local #1 : i64
+    │       │       │           └── right > flip:
+    │       │       │               ├── type: i64
+    │       │       │               └── value: 1 : i64
+    │       │       └── layout: keeping$Pair
+    │       └── layout: ^keeping$Tree
+    ├── funcs[2] > func:
+    │   ├── symbol: keeping$nodes(keeping$Tree)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > expand:
+    │       ├── type: i64
+    │       ├── label: @2
+    │       ├── result: #3
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value: local #1 : ptr
+    │       └── body[1] > switch:
+    │           ├── value > deref:
+    │           │   ├── type: <void | ptr>
+    │           │   └── ptr: local #4 : ptr
+    │           ├── cases[0] > case 0[0] > let:
+    │           │   ├── local: #5
+    │           │   └── value > offset:
+    │           │       ├── within: <void | ptr>
+    │           │       ├── path: 0
+    │           │       └── base: local #4 : ptr
+    │           ├── cases[0] > case 0[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value: 1 : i64
+    │           ├── cases[0] > case 0[2]: leave @2
+    │           ├── cases[1] > case 1[0] > let:
+    │           │   ├── local: #6
+    │           │   └── value > deref:
+    │           │       ├── type: ptr
+    │           │       └── ptr > offset:
+    │           │           ├── within: <void | ptr>
+    │           │           ├── path: 1
+    │           │           └── base: local #4 : ptr
+    │           ├── cases[1] > case 1[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value > binary:
+    │           │       ├── type: i64
+    │           │       ├── op: +
+    │           │       ├── left: 1 : i64
+    │           │       └── right > binary:
+    │           │           ├── type: i64
+    │           │           ├── op: +
+    │           │           ├── left > call:
+    │           │           │   ├── type: i64
+    │           │           │   ├── fn: keeping$nodes(keeping$Tree)
+    │           │           │   └── args[0] > deref:
+    │           │           │       ├── type: ptr
+    │           │           │       └── ptr > offset:
+    │           │           │           ├── within: {ptr, ptr}
+    │           │           │           ├── path: 0
+    │           │           │           └── base: local #6 : ptr
+    │           │           └── right > call:
+    │           │               ├── type: i64
+    │           │               ├── fn: keeping$nodes(keeping$Tree)
+    │           │               └── args[0] > deref:
+    │           │                   ├── type: ptr
+    │           │                   └── ptr > offset:
+    │           │                       ├── within: {ptr, ptr}
+    │           │                       ├── path: 1
+    │           │                       └── base: local #6 : ptr
+    │           └── cases[1] > case 1[2]: leave @2
+    ├── funcs[3] > func:
+    │   ├── symbol: keeping$check(%primitives$Bool)
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[2] > if:
+    │       │   ├── cond: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #2 : handle
+    │       ├── body[3] > if:
+    │       │   ├── cond > flip:
+    │       │   │   ├── type: i1
+    │       │   │   └── value: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #4 : handle
+    │       └── body[4] > return: unit : void
+    ├── funcs[4] > func:
+    │   ├── symbol: keeping$joined(^keeping$Tree, ^keeping$Tree)
+    │   ├── params[0]: local #1 : <void | ptr>
+    │   ├── params[1]: local #2 : <void | ptr>
+    │   ├── ret: <void | ptr>
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value: local #1 : <void | ptr>
+    │   ├── body[1] > let:
+    │   │   ├── local: #5
+    │   │   └── value: local #2 : <void | ptr>
+    │   └── body[2] > return > escape:
+    │       ├── exit: function
+    │       ├── value > case:
+    │       │   ├── type: <void | ptr>
+    │       │   ├── index: 1
+    │       │   └── payload > box:
+    │       │       ├── value > call:
+    │       │       │   ├── type: {ptr, ptr}
+    │       │       │   ├── fn: keeping$Pair(^keeping$Tree, ^keeping$Tree)
+    │       │       │   ├── args[0]: local #3 : <void | ptr>
+    │       │       │   └── args[1]: local #5 : <void | ptr>
+    │       │       └── layout: keeping$Pair
+    │       └── layout: ^keeping$Tree
+    ├── funcs[5] > func:
+    │   ├── symbol: keeping$grow(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: {handle}
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > call:
+    │   │       ├── type: {handle}
+    │   │       ├── fn: keeping$Node()
+    │   │       └── args:
+    │   ├── body[1] > let:
+    │   │   ├── local: #4
+    │   │   └── value: 1 : i64
+    │   ├── body[2] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: <
+    │   │   │   ├── left: 0 : i64
+    │   │   │   └── right: local #1 : i64
+    │   │   └── body[0] > eval > expand:
+    │   │       ├── type: void
+    │   │       ├── label: @7
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #6
+    │   │       │   └── value: 3 : i64
+    │   │       ├── body[1] > repeat:
+    │   │       │   ├── count > binary:
+    │   │       │   │   ├── type: i64
+    │   │       │   │   ├── op: +
+    │   │       │   │   ├── left > binary:
+    │   │       │   │   │   ├── type: i64
+    │   │       │   │   │   ├── op: +
+    │   │       │   │   │   ├── left: local #6 : i64
+    │   │       │   │   │   └── right > flip:
+    │   │       │   │   │       ├── type: i64
+    │   │       │   │   │       └── value: local #4 : i64
+    │   │       │   │   └── right: 1 : i64
+    │   │       │   ├── body[0] > if:
+    │   │       │   │   ├── cond: true : i1
+    │   │       │   │   └── body[0] > eval > call:
+    │   │       │   │       ├── type: void
+    │   │       │   │       ├── fn: keeping$adopt(this keeping$Node, ^keeping$Node)
+    │   │       │   │       ├── args[0]: address of #2 : ptr
+    │   │       │   │       └── args[1] > call:
+    │   │       │   │           ├── type: {handle}
+    │   │       │   │           ├── fn: keeping$grow(%primitives$I64)
+    │   │       │   │           └── args[0] > binary:
+    │   │       │   │               ├── type: i64
+    │   │       │   │               ├── op: +
+    │   │       │   │               ├── left: local #1 : i64
+    │   │       │   │               └── right > flip:
+    │   │       │   │                   ├── type: i64
+    │   │       │   │                   └── value: 1 : i64
+    │   │       │   └── body[1] > assign:
+    │   │       │       ├── place: #4
+    │   │       │       └── value > binary:
+    │   │       │           ├── type: i64
+    │   │       │           ├── op: +
+    │   │       │           ├── left: local #4 : i64
+    │   │       │           └── right: 1 : i64
+    │   │       ├── body[2] > eval: unit : void
+    │   │       └── body[3]: leave @7
+    │   └── body[3] > return > escape:
+    │       ├── exit: function
+    │       ├── value: local #2 : {handle}
+    │       └── layout: ^keeping$Node
+    ├── funcs[6] > func:
+    │   ├── symbol: keeping$members(keeping$Node)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value: 1 : i64
+    │   ├── body[1] > let:
+    │   │   ├── local: #3
+    │   │   └── value: 1 : i64
+    │   ├── body[2] > eval > expand:
+    │   │   ├── type: void
+    │   │   ├── label: @5
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #4
+    │   │   │   └── value > member:
+    │   │   │       ├── type: i64
+    │   │   │       ├── index: 1
+    │   │   │       └── value > member:
+    │   │   │           ├── type: handle
+    │   │   │           ├── index: 0
+    │   │   │           └── value > deref:
+    │   │   │               ├── type: {handle}
+    │   │   │               └── ptr: local #1 : ptr
+    │   │   ├── body[1] > repeat:
+    │   │   │   ├── count > binary:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── op: +
+    │   │   │   │   ├── left > binary:
+    │   │   │   │   │   ├── type: i64
+    │   │   │   │   │   ├── op: +
+    │   │   │   │   │   ├── left: local #4 : i64
+    │   │   │   │   │   └── right > flip:
+    │   │   │   │   │       ├── type: i64
+    │   │   │   │   │       └── value: local #3 : i64
+    │   │   │   │   └── right: 1 : i64
+    │   │   │   ├── body[0] > if:
+    │   │   │   │   ├── cond: true : i1
+    │   │   │   │   └── body[0] > assign:
+    │   │   │   │       ├── place: #2
+    │   │   │   │       └── value > binary:
+    │   │   │   │           ├── type: i64
+    │   │   │   │           ├── op: +
+    │   │   │   │           ├── left: local #2 : i64
+    │   │   │   │           └── right > call:
+    │   │   │   │               ├── type: i64
+    │   │   │   │               ├── fn: keeping$members(keeping$Node)
+    │   │   │   │               └── args[0] > runtime:
+    │   │   │   │                   ├── type: ptr
+    │   │   │   │                   ├── fn: zane_list_at
+    │   │   │   │                   ├── args[0] > offset:
+    │   │   │   │                   │   ├── within: {handle}
+    │   │   │   │                   │   ├── path: 0
+    │   │   │   │                   │   └── base: local #1 : ptr
+    │   │   │   │                   ├── args[1]: local #3 : i64
+    │   │   │   │                   └── args[2]: 24 : i64
+    │   │   │   └── body[1] > assign:
+    │   │   │       ├── place: #3
+    │   │   │       └── value > binary:
+    │   │   │           ├── type: i64
+    │   │   │           ├── op: +
+    │   │   │           ├── left: local #3 : i64
+    │   │   │           └── right: 1 : i64
+    │   │   ├── body[2] > eval: unit : void
+    │   │   └── body[3]: leave @5
+    │   └── body[3] > return: local #2 : i64
+    ├── funcs[7] > func:
+    │   ├── symbol: keeping$weigh(^keeping$Item)
+    │   ├── params[0]: local #1 : {handle, handle}
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: local #1 : {handle, handle}
+    │       │   └── layout: ^keeping$Item
+    │       └── body[1] > return > member:
+    │           ├── type: i64
+    │           ├── index: 1
+    │           └── value > member:
+    │               ├── type: handle
+    │               ├── index: 1
+    │               └── value: local #2 : {handle, handle}
+    ├── funcs[8] > func:
+    │   ├── symbol: keeping$Item(%primitives$String)
+    │   ├── params[0]: local #1 : handle
+    │   ├── ret: {handle, handle}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {handle, handle}
+    │       │   ├── members[0] > member 0: local #1 : handle
+    │       │   └── members[1] > member 1 > runtime:
+    │       │       ├── type: handle
+    │       │       ├── fn: zane_list_new
+    │       │       └── args:
+    │       └── layout: keeping$Item
+    ├── funcs[9] > func:
+    │   ├── symbol: keeping$stash(^keeping$Item)
+    │   ├── params[0]: local #1 : {handle, handle}
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: local #1 : {handle, handle}
+    │       │   └── layout: ^keeping$Item
+    │       ├── body[1] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value > call:
+    │       │   │   ├── type: {handle}
+    │       │   │   ├── fn: keeping$Shelf()
+    │       │   │   └── args:
+    │       │   └── layout: ^keeping$Shelf
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$put(this keeping$Shelf, ^keeping$Item)
+    │       │   ├── args[0]: address of #4 : ptr
+    │       │   └── args[1] > take:
+    │       │       ├── type: {handle, handle}
+    │       │       ├── address: address of #2 : ptr
+    │       │       └── layout: ^keeping$Item
+    │       └── body[3] > return > member:
+    │           ├── type: i64
+    │           ├── index: 1
+    │           └── value > member:
+    │               ├── type: handle
+    │               ├── index: 0
+    │               └── value: local #4 : {handle}
+    ├── funcs[10] > func:
+    │   ├── symbol: keeping$weighing
+    │   ├── params[0]: local #1 : {handle, handle}
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: local #1 : {handle, handle}
+    │       │   └── layout: ^keeping$Item
+    │       └── body[1] > return > member:
+    │           ├── type: i64
+    │           ├── index: 1
+    │           └── value > member:
+    │               ├── type: handle
+    │               ├── index: 1
+    │               └── value: local #2 : {handle, handle}
+    ├── funcs[11] > func:
+    │   ├── symbol: keeping$swap()
+    │   ├── params:
+    │   ├── ret: {handle, handle}
+    │   └── body[0] > scope:
+    │       ├── id: %4
+    │       ├── body[0] > hold:
+    │       │   ├── local: #5
+    │       │   ├── scope: %4
+    │       │   ├── value > call:
+    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── fn: keeping$Item(%primitives$String)
+    │       │   │   └── args[0]: "a" : handle
+    │       │   └── layout: ^keeping$Item
+    │       ├── body[1] > hold:
+    │       │   ├── local: #6
+    │       │   ├── scope: %4
+    │       │   ├── value > take:
+    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── address: address of #5 : ptr
+    │       │   │   └── layout: ^keeping$Item
+    │       │   └── layout: ^keeping$Item
+    │       ├── body[2] > overwrite:
+    │       │   ├── address: address of #5 : ptr
+    │       │   ├── value > call:
+    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── fn: keeping$Item(%primitives$String)
+    │       │   │   └── args[0]: "c" : handle
+    │       │   └── layout: keeping$Item
+    │       └── body[3] > return > escape:
+    │           ├── exit: function
+    │           ├── value > take:
+    │           │   ├── type: {handle, handle}
+    │           │   ├── address: address of #6 : ptr
+    │           │   └── layout: ^keeping$Item
+    │           └── layout: ^keeping$Item
+    ├── funcs[12] > func:
+    │   ├── symbol: keeping$latter(^keeping$Item, ^keeping$Item)
+    │   ├── params[0]: local #1 : {handle, handle}
+    │   ├── params[1]: local #2 : {handle, handle}
+    │   ├── ret: {handle, handle}
+    │   └── body[0] > scope:
+    │       ├── id: %4
+    │       ├── body[0] > hold:
+    │       │   ├── local: #3
+    │       │   ├── scope: %4
+    │       │   ├── value: local #1 : {handle, handle}
+    │       │   └── layout: ^keeping$Item
+    │       ├── body[1] > hold:
+    │       │   ├── local: #5
+    │       │   ├── scope: %4
+    │       │   ├── value: local #2 : {handle, handle}
+    │       │   └── layout: ^keeping$Item
+    │       └── body[2] > return > escape:
+    │           ├── exit: function
+    │           ├── value > take:
+    │           │   ├── type: {handle, handle}
+    │           │   ├── address: address of #5 : ptr
+    │           │   └── layout: ^keeping$Item
+    │           └── layout: ^keeping$Item
+    ├── funcs[13] > func:
+    │   ├── symbol: keeping$Label(%primitives$String)
+    │   ├── params[0]: local #1 : handle
+    │   ├── ret: handle
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value: local #1 : handle
+    │       └── layout: keeping$Label
+    ├── funcs[14] > func:
+    │   ├── symbol: keeping$lent()
+    │   ├── params:
+    │   ├── ret: {handle}
+    │   └── body[0] > scope:
+    │       ├── id: %2
+    │       ├── body[0] > hold:
+    │       │   ├── local: #1
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: {handle}
+    │       │   │   ├── fn: keeping$Node()
+    │       │   │   └── args:
+    │       │   └── layout: ^keeping$Node
+    │       ├── body[1] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$twice(this keeping$Node)
+    │       │   └── args[0]: address of #1 : ptr
+    │       └── body[2] > return > escape:
+    │           ├── exit: function
+    │           ├── value > take:
+    │           │   ├── type: {handle}
+    │           │   ├── address: address of #1 : ptr
+    │           │   └── layout: ^keeping$Node
+    │           └── layout: ^keeping$Node
+    ├── funcs[15] > func:
+    │   ├── symbol: keeping$Pair(^keeping$Tree, ^keeping$Tree)
+    │   ├── params[0]: local #1 : <void | ptr>
+    │   ├── params[1]: local #2 : <void | ptr>
+    │   ├── ret: {ptr, ptr}
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value: local #1 : <void | ptr>
+    │   ├── body[1] > let:
+    │   │   ├── local: #5
+    │   │   └── value: local #2 : <void | ptr>
+    │   └── body[2] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {ptr, ptr}
+    │       │   ├── members[0] > member 0 > box:
+    │       │   │   ├── value: local #3 : <void | ptr>
+    │       │   │   └── layout: keeping$Tree
+    │       │   └── members[1] > member 1 > box:
+    │       │       ├── value: local #5 : <void | ptr>
+    │       │       └── layout: keeping$Tree
+    │       └── layout: keeping$Pair
+    ├── funcs[16] > func:
+    │   ├── symbol: keeping$Node()
+    │   ├── params:
+    │   ├── ret: {handle}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {handle}
+    │       │   └── members[0] > member 0 > runtime:
+    │       │       ├── type: handle
+    │       │       ├── fn: zane_list_new
+    │       │       └── args:
+    │       └── layout: keeping$Node
+    ├── funcs[17] > func:
+    │   ├── symbol: keeping$adopt(this keeping$Node, ^keeping$Node)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : {handle}
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value: local #2 : {handle}
+    │   ├── body[1] > eval > expand:
+    │   │   ├── type: void
+    │   │   ├── label: @7
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #5
+    │   │   │   └── value: local #3 : {handle}
+    │   │   ├── body[1] > let:
+    │   │   │   ├── local: #6
+    │   │   │   └── value > runtime:
+    │   │   │       ├── type: ptr
+    │   │   │       ├── fn: zane_list_push
+    │   │   │       ├── args[0] > offset:
+    │   │   │       │   ├── within: {handle}
+    │   │   │       │   ├── path: 0
+    │   │   │       │   └── base: local #1 : ptr
+    │   │   │       └── args[1]: 24 : i64
+    │   │   └── body[2] > place:
+    │   │       ├── address: local #6 : ptr
+    │   │       ├── value: local #5 : {handle}
+    │   │       └── layout: keeping$Node
+    │   └── body[2] > return: unit : void
+    ├── funcs[18] > func:
+    │   ├── symbol: keeping$Shelf()
+    │   ├── params:
+    │   ├── ret: {handle}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {handle}
+    │       │   └── members[0] > member 0 > runtime:
+    │       │       ├── type: handle
+    │       │       ├── fn: zane_list_new
+    │       │       └── args:
+    │       └── layout: keeping$Shelf
+    ├── funcs[19] > func:
+    │   ├── symbol: keeping$put(this keeping$Shelf, ^keeping$Item)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : {handle, handle}
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value: local #2 : {handle, handle}
+    │   ├── body[1] > eval > expand:
+    │   │   ├── type: void
+    │   │   ├── label: @7
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #5
+    │   │   │   └── value: local #3 : {handle, handle}
+    │   │   ├── body[1] > let:
+    │   │   │   ├── local: #6
+    │   │   │   └── value > runtime:
+    │   │   │       ├── type: ptr
+    │   │   │       ├── fn: zane_list_push
+    │   │   │       ├── args[0] > offset:
+    │   │   │       │   ├── within: {handle}
+    │   │   │       │   ├── path: 0
+    │   │   │       │   └── base: local #1 : ptr
+    │   │   │       └── args[1]: 48 : i64
+    │   │   └── body[2] > place:
+    │   │       ├── address: local #6 : ptr
+    │   │       ├── value: local #5 : {handle, handle}
+    │   │       └── layout: keeping$Item
+    │   └── body[2] > return: unit : void
+    ├── funcs[20] > func:
+    │   ├── symbol: keeping$twice(this keeping$Node)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > hold:
+    │       │   ├── local: #6
+    │       │   ├── scope: %5
+    │       │   ├── value > call:
+    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── fn: keeping$Item(%primitives$String)
+    │       │   │   └── args[0]: "scratch" : handle
+    │       │   └── layout: keeping$Item
+    │       ├── body[1] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @9
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #7
+    │       │   │   └── value > call:
+    │       │   │       ├── type: {handle}
+    │       │   │       ├── fn: keeping$Node()
+    │       │   │       └── args:
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #8
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0] > offset:
+    │       │   │       │   ├── within: {handle}
+    │       │   │       │   ├── path: 0
+    │       │   │       │   └── base: local #1 : ptr
+    │       │   │       └── args[1]: 24 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #8 : ptr
+    │       │       ├── value: local #7 : {handle}
+    │       │       └── layout: keeping$Node
+    │       ├── body[2] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @12
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #10
+    │       │   │   └── value > call:
+    │       │   │       ├── type: {handle}
+    │       │   │       ├── fn: keeping$Node()
+    │       │   │       └── args:
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #11
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0] > offset:
+    │       │   │       │   ├── within: {handle}
+    │       │   │       │   ├── path: 0
+    │       │   │       │   └── base: local #1 : ptr
+    │       │   │       └── args[1]: 24 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #11 : ptr
+    │       │       ├── value: local #10 : {handle}
+    │       │       └── layout: keeping$Node
+    │       ├── body[3] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: keeping$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > member:
+    │       │       │   ├── type: i64
+    │       │       │   ├── index: 1
+    │       │       │   └── value > member:
+    │       │       │       ├── type: handle
+    │       │       │       ├── index: 1
+    │       │       │       └── value: local #6 : {handle, handle}
+    │       │       └── right: 0 : i64
+    │       └── body[4] > return: unit : void
+    ├── funcs[21] > func:
+    │   ├── symbol: zane.spawn.1
+    │   ├── params[0]: local #16 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {<void | ptr>, <void | ptr>, <void | ptr>}
+    │       │   ├── path: 0
+    │       │   └── base: local #16 : ptr
+    │       └── value > call:
+    │           ├── type: <void | ptr>
+    │           ├── fn: keeping$joined(^keeping$Tree, ^keeping$Tree)
+    │           ├── args[0] > deref:
+    │           │   ├── type: <void | ptr>
+    │           │   └── ptr > offset:
+    │           │       ├── within: {<void | ptr>, <void | ptr>, <void | ptr>}
+    │           │       ├── path: 1
+    │           │       └── base: local #16 : ptr
+    │           └── args[1] > deref:
+    │               ├── type: <void | ptr>
+    │               └── ptr > offset:
+    │                   ├── within: {<void | ptr>, <void | ptr>, <void | ptr>}
+    │                   ├── path: 2
+    │                   └── base: local #16 : ptr
+    └── funcs[22] > func:
+        ├── symbol: zane.spawn.2
+        ├── params[0]: local #50 : ptr
+        ├── ret: void
+        └── body[0] > store:
+            ├── address > offset:
+            │   ├── within: {i64, ptr, {handle, handle}}
+            │   ├── path: 0
+            │   └── base: local #50 : ptr
+            └── value > call value:
+                ├── type: i64
+                ├── fn > deref:
+                │   ├── type: ptr
+                │   └── ptr > offset:
+                │       ├── within: {i64, ptr, {handle, handle}}
+                │       ├── path: 1
+                │       └── base: local #50 : ptr
+                └── args[0] > deref:
+                    ├── type: {handle, handle}
+                    └── ptr > offset:
+                        ├── within: {i64, ptr, {handle, handle}}
+                        ├── path: 2
+                        └── base: local #50 : ptr

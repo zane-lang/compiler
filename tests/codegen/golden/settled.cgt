@@ -676,20 +676,13 @@
         ├── params[0]: local #1 : ptr
         ├── params[1]: local #2 : {i64}
         ├── ret: {ptr, {i64}}
-        └── body[0] > scope:
-            ├── id: %4
-            ├── body[0] > hold:
-            │   ├── local: #3
-            │   ├── scope: %4
-            │   ├── value: local #2 : {i64}
-            │   └── layout: ^settled$Node
-            └── body[1] > return > escape:
-                ├── exit: function
-                ├── value > record:
-                │   ├── type: {ptr, {i64}}
-                │   ├── members[0] > member 0: local #1 : ptr
-                │   └── members[1] > member 1 > take:
-                │       ├── type: {i64}
-                │       ├── address: address of #3 : ptr
-                │       └── layout: settled$Node
-                └── layout: settled$Car
+        ├── body[0] > let:
+        │   ├── local: #3
+        │   └── value: local #2 : {i64}
+        └── body[1] > return > escape:
+            ├── exit: function
+            ├── value > record:
+            │   ├── type: {ptr, {i64}}
+            │   ├── members[0] > member 0: local #1 : ptr
+            │   └── members[1] > member 1: local #3 : {i64}
+            └── layout: settled$Car

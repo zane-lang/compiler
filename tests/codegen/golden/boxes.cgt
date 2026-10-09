@@ -236,70 +236,26 @@
     │       │   │       ├── value > call:
     │       │   │       │   ├── type: {ptr, ptr}
     │       │   │       │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
-    │       │   │       │   ├── args[0] > expand:
+    │       │   │       │   ├── args[0] > case:
     │       │   │       │   │   ├── type: <i64 | ptr>
-    │       │   │       │   │   ├── label: @14
-    │       │   │       │   │   ├── result: #15
-    │       │   │       │   │   ├── body[0] > hold:
-    │       │   │       │   │   │   ├── local: #13
-    │       │   │       │   │   │   ├── scope: %2
-    │       │   │       │   │   │   ├── value > case:
-    │       │   │       │   │   │   │   ├── type: <i64 | ptr>
-    │       │   │       │   │   │   │   ├── index: 0
-    │       │   │       │   │   │   │   └── payload: 1 : i64
-    │       │   │       │   │   │   └── layout: boxes$Tree
-    │       │   │       │   │   └── body[1] > assign:
-    │       │   │       │   │       ├── place: #15
-    │       │   │       │   │       └── value: local #13 : <i64 | ptr>
-    │       │   │       │   └── args[1] > expand:
+    │       │   │       │   │   ├── index: 0
+    │       │   │       │   │   └── payload: 1 : i64
+    │       │   │       │   └── args[1] > case:
     │       │   │       │       ├── type: <i64 | ptr>
-    │       │   │       │       ├── label: @23
-    │       │   │       │       ├── result: #24
-    │       │   │       │       ├── body[0] > hold:
-    │       │   │       │       │   ├── local: #22
-    │       │   │       │       │   ├── scope: %2
-    │       │   │       │       │   ├── value > case:
-    │       │   │       │       │   │   ├── type: <i64 | ptr>
-    │       │   │       │       │   │   ├── index: 1
-    │       │   │       │       │   │   └── payload > box:
-    │       │   │       │       │   │       ├── value > call:
-    │       │   │       │       │   │       │   ├── type: {ptr, ptr}
-    │       │   │       │       │   │       │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
-    │       │   │       │       │   │       │   ├── args[0] > expand:
-    │       │   │       │       │   │       │   │   ├── type: <i64 | ptr>
-    │       │   │       │       │   │       │   │   ├── label: @17
-    │       │   │       │       │   │       │   │   ├── result: #18
-    │       │   │       │       │   │       │   │   ├── body[0] > hold:
-    │       │   │       │       │   │       │   │   │   ├── local: #16
-    │       │   │       │       │   │       │   │   │   ├── scope: %2
-    │       │   │       │       │   │       │   │   │   ├── value > case:
-    │       │   │       │       │   │       │   │   │   │   ├── type: <i64 | ptr>
-    │       │   │       │       │   │       │   │   │   │   ├── index: 0
-    │       │   │       │       │   │       │   │   │   │   └── payload: 2 : i64
-    │       │   │       │       │   │       │   │   │   └── layout: boxes$Tree
-    │       │   │       │       │   │       │   │   └── body[1] > assign:
-    │       │   │       │       │   │       │   │       ├── place: #18
-    │       │   │       │       │   │       │   │       └── value: local #16 : <i64 | ptr>
-    │       │   │       │       │   │       │   └── args[1] > expand:
-    │       │   │       │       │   │       │       ├── type: <i64 | ptr>
-    │       │   │       │       │   │       │       ├── label: @20
-    │       │   │       │       │   │       │       ├── result: #21
-    │       │   │       │       │   │       │       ├── body[0] > hold:
-    │       │   │       │       │   │       │       │   ├── local: #19
-    │       │   │       │       │   │       │       │   ├── scope: %2
-    │       │   │       │       │   │       │       │   ├── value > case:
-    │       │   │       │       │   │       │       │   │   ├── type: <i64 | ptr>
-    │       │   │       │       │   │       │       │   │   ├── index: 0
-    │       │   │       │       │   │       │       │   │   └── payload: 3 : i64
-    │       │   │       │       │   │       │       │   └── layout: boxes$Tree
-    │       │   │       │       │   │       │       └── body[1] > assign:
-    │       │   │       │       │   │       │           ├── place: #21
-    │       │   │       │       │   │       │           └── value: local #19 : <i64 | ptr>
-    │       │   │       │       │   │       └── layout: boxes$Pair
-    │       │   │       │       │   └── layout: boxes$Tree
-    │       │   │       │       └── body[1] > assign:
-    │       │   │       │           ├── place: #24
-    │       │   │       │           └── value: local #22 : <i64 | ptr>
+    │       │   │       │       ├── index: 1
+    │       │   │       │       └── payload > box:
+    │       │   │       │           ├── value > call:
+    │       │   │       │           │   ├── type: {ptr, ptr}
+    │       │   │       │           │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
+    │       │   │       │           │   ├── args[0] > case:
+    │       │   │       │           │   │   ├── type: <i64 | ptr>
+    │       │   │       │           │   │   ├── index: 0
+    │       │   │       │           │   │   └── payload: 2 : i64
+    │       │   │       │           │   └── args[1] > case:
+    │       │   │       │           │       ├── type: <i64 | ptr>
+    │       │   │       │           │       ├── index: 0
+    │       │   │       │           │       └── payload: 3 : i64
+    │       │   │       │           └── layout: boxes$Pair
     │       │   │       └── layout: boxes$Pair
     │       │   └── layout: boxes$Tree
     │       ├── body[10] > hold:
@@ -349,18 +305,7 @@
     │       │   │       ├── value > call:
     │       │   │       │   ├── type: {handle, ptr}
     │       │   │       │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
-    │       │   │       │   ├── args[0] > expand:
-    │       │   │       │   │   ├── type: handle
-    │       │   │       │   │   ├── label: @28
-    │       │   │       │   │   ├── result: #29
-    │       │   │       │   │   ├── body[0] > hold:
-    │       │   │       │   │   │   ├── local: #27
-    │       │   │       │   │   │   ├── scope: %2
-    │       │   │       │   │   │   ├── value: "a" : handle
-    │       │   │       │   │   │   └── layout: %primitives$String
-    │       │   │       │   │   └── body[1] > assign:
-    │       │   │       │   │       ├── place: #29
-    │       │   │       │   │       └── value: local #27 : handle
+    │       │   │       │   ├── args[0]: "a" : handle
     │       │   │       │   └── args[1] > case:
     │       │   │       │       ├── type: <void | ptr>
     │       │   │       │       ├── index: 1
@@ -368,18 +313,7 @@
     │       │   │       │           ├── value > call:
     │       │   │       │           │   ├── type: {handle, ptr}
     │       │   │       │           │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
-    │       │   │       │           │   ├── args[0] > expand:
-    │       │   │       │           │   │   ├── type: handle
-    │       │   │       │           │   │   ├── label: @31
-    │       │   │       │           │   │   ├── result: #32
-    │       │   │       │           │   │   ├── body[0] > hold:
-    │       │   │       │           │   │   │   ├── local: #30
-    │       │   │       │           │   │   │   ├── scope: %2
-    │       │   │       │           │   │   │   ├── value: "b" : handle
-    │       │   │       │           │   │   │   └── layout: %primitives$String
-    │       │   │       │           │   │   └── body[1] > assign:
-    │       │   │       │           │   │       ├── place: #32
-    │       │   │       │           │   │       └── value: local #30 : handle
+    │       │   │       │           │   ├── args[0]: "b" : handle
     │       │   │       │           │   └── args[1] > case:
     │       │   │       │           │       ├── type: <void | ptr>
     │       │   │       │           │       ├── index: 0
@@ -463,34 +397,21 @@
     │       │       │   │           ├── body[3] > let:
     │       │       │   │           │   ├── local: #40
     │       │       │   │           │   └── value: unit : void
-    │       │       │   │           └── body[4] > scope:
-    │       │       │   │               ├── id: %44
-    │       │       │   │               ├── body[0] > place:
-    │       │       │   │               │   ├── address: address of #39 : ptr
-    │       │       │   │               │   ├── value > call:
-    │       │       │   │               │   │   ├── type: {handle, ptr}
-    │       │       │   │               │   │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
-    │       │       │   │               │   │   ├── args[0] > expand:
-    │       │       │   │               │   │   │   ├── type: handle
-    │       │       │   │               │   │   │   ├── label: @42
-    │       │       │   │               │   │   │   ├── result: #43
-    │       │       │   │               │   │   │   ├── body[0] > hold:
-    │       │       │   │               │   │   │   │   ├── local: #41
-    │       │       │   │               │   │   │   │   ├── scope: %44
-    │       │       │   │               │   │   │   │   ├── value: "none" : handle
-    │       │       │   │               │   │   │   │   └── layout: %primitives$String
-    │       │       │   │               │   │   │   └── body[1] > assign:
-    │       │       │   │               │   │   │       ├── place: #43
-    │       │       │   │               │   │   │       └── value: local #41 : handle
-    │       │       │   │               │   │   └── args[1] > case:
-    │       │       │   │               │   │       ├── type: <void | ptr>
-    │       │       │   │               │   │       ├── index: 0
-    │       │       │   │               │   │       └── payload: unit : void
-    │       │       │   │               │   └── layout: boxes$Link
-    │       │       │   │               ├── body[1] > assign:
-    │       │       │   │               │   ├── place: #37
-    │       │       │   │               │   └── value: address of #39 : ptr
-    │       │       │   │               └── body[2]: leave @36
+    │       │       │   │           ├── body[4] > place:
+    │       │       │   │           │   ├── address: address of #39 : ptr
+    │       │       │   │           │   ├── value > call:
+    │       │       │   │           │   │   ├── type: {handle, ptr}
+    │       │       │   │           │   │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
+    │       │       │   │           │   │   ├── args[0]: "none" : handle
+    │       │       │   │           │   │   └── args[1] > case:
+    │       │       │   │           │   │       ├── type: <void | ptr>
+    │       │       │   │           │   │       ├── index: 0
+    │       │       │   │           │   │       └── payload: unit : void
+    │       │       │   │           │   └── layout: boxes$Link
+    │       │       │   │           ├── body[5] > assign:
+    │       │       │   │           │   ├── place: #37
+    │       │       │   │           │   └── value: address of #39 : ptr
+    │       │       │   │           └── body[6]: leave @36
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
     │       │       │       ├── label: @46
@@ -561,34 +482,21 @@
     │       │       │   │           ├── body[3] > let:
     │       │       │   │           │   ├── local: #52
     │       │       │   │           │   └── value: unit : void
-    │       │       │   │           └── body[4] > scope:
-    │       │       │   │               ├── id: %56
-    │       │       │   │               ├── body[0] > place:
-    │       │       │   │               │   ├── address: address of #51 : ptr
-    │       │       │   │               │   ├── value > call:
-    │       │       │   │               │   │   ├── type: {handle, ptr}
-    │       │       │   │               │   │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
-    │       │       │   │               │   │   ├── args[0] > expand:
-    │       │       │   │               │   │   │   ├── type: handle
-    │       │       │   │               │   │   │   ├── label: @54
-    │       │       │   │               │   │   │   ├── result: #55
-    │       │       │   │               │   │   │   ├── body[0] > hold:
-    │       │       │   │               │   │   │   │   ├── local: #53
-    │       │       │   │               │   │   │   │   ├── scope: %56
-    │       │       │   │               │   │   │   │   ├── value: "none" : handle
-    │       │       │   │               │   │   │   │   └── layout: %primitives$String
-    │       │       │   │               │   │   │   └── body[1] > assign:
-    │       │       │   │               │   │   │       ├── place: #55
-    │       │       │   │               │   │   │       └── value: local #53 : handle
-    │       │       │   │               │   │   └── args[1] > case:
-    │       │       │   │               │   │       ├── type: <void | ptr>
-    │       │       │   │               │   │       ├── index: 0
-    │       │       │   │               │   │       └── payload: unit : void
-    │       │       │   │               │   └── layout: boxes$Link
-    │       │       │   │               ├── body[1] > assign:
-    │       │       │   │               │   ├── place: #49
-    │       │       │   │               │   └── value: address of #51 : ptr
-    │       │       │   │               └── body[2]: leave @48
+    │       │       │   │           ├── body[4] > place:
+    │       │       │   │           │   ├── address: address of #51 : ptr
+    │       │       │   │           │   ├── value > call:
+    │       │       │   │           │   │   ├── type: {handle, ptr}
+    │       │       │   │           │   │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
+    │       │       │   │           │   │   ├── args[0]: "none" : handle
+    │       │       │   │           │   │   └── args[1] > case:
+    │       │       │   │           │   │       ├── type: <void | ptr>
+    │       │       │   │           │   │       ├── index: 0
+    │       │       │   │           │   │       └── payload: unit : void
+    │       │       │   │           │   └── layout: boxes$Link
+    │       │       │   │           ├── body[5] > assign:
+    │       │       │   │           │   ├── place: #49
+    │       │       │   │           │   └── value: address of #51 : ptr
+    │       │       │   │           └── body[6]: leave @48
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
     │       │       │       ├── label: @61
@@ -711,59 +619,26 @@
     │       │   │   └── value > call:
     │       │   │       ├── type: {ptr}
     │       │   │       ├── fn: boxes$Solo(boxes$Knot)
-    │       │   │       └── args[0] > expand:
+    │       │   │       └── args[0] > case:
     │       │   │           ├── type: <void | ptr>
-    │       │   │           ├── label: @73
-    │       │   │           ├── result: #74
-    │       │   │           ├── body[0] > hold:
-    │       │   │           │   ├── local: #72
-    │       │   │           │   ├── scope: %2
-    │       │   │           │   ├── value > case:
-    │       │   │           │   │   ├── type: <void | ptr>
-    │       │   │           │   │   ├── index: 1
-    │       │   │           │   │   └── payload > box:
-    │       │   │           │   │       ├── value > call:
-    │       │   │           │   │       │   ├── type: {ptr}
-    │       │   │           │   │       │   ├── fn: boxes$Solo(boxes$Knot)
-    │       │   │           │   │       │   └── args[0] > expand:
-    │       │   │           │   │       │       ├── type: <void | ptr>
-    │       │   │           │   │       │       ├── label: @70
-    │       │   │           │   │       │       ├── result: #71
-    │       │   │           │   │       │       ├── body[0] > hold:
-    │       │   │           │   │       │       │   ├── local: #69
-    │       │   │           │   │       │       │   ├── scope: %2
-    │       │   │           │   │       │       │   ├── value > case:
-    │       │   │           │   │       │       │   │   ├── type: <void | ptr>
-    │       │   │           │   │       │       │   │   ├── index: 1
-    │       │   │           │   │       │       │   │   └── payload > box:
-    │       │   │           │   │       │       │   │       ├── value > call:
-    │       │   │           │   │       │       │   │       │   ├── type: {ptr}
-    │       │   │           │   │       │       │   │       │   ├── fn: boxes$Solo(boxes$Knot)
-    │       │   │           │   │       │       │   │       │   └── args[0] > expand:
-    │       │   │           │   │       │       │   │       │       ├── type: <void | ptr>
-    │       │   │           │   │       │       │   │       │       ├── label: @67
-    │       │   │           │   │       │       │   │       │       ├── result: #68
-    │       │   │           │   │       │       │   │       │       ├── body[0] > hold:
-    │       │   │           │   │       │       │   │       │       │   ├── local: #66
-    │       │   │           │   │       │       │   │       │       │   ├── scope: %2
-    │       │   │           │   │       │       │   │       │       │   ├── value > case:
-    │       │   │           │   │       │       │   │       │       │   │   ├── type: <void | ptr>
-    │       │   │           │   │       │       │   │       │       │   │   ├── index: 0
-    │       │   │           │   │       │       │   │       │       │   │   └── payload: unit : void
-    │       │   │           │   │       │       │   │       │       │   └── layout: boxes$Knot
-    │       │   │           │   │       │       │   │       │       └── body[1] > assign:
-    │       │   │           │   │       │       │   │       │           ├── place: #68
-    │       │   │           │   │       │       │   │       │           └── value: local #66 : <void | ptr>
-    │       │   │           │   │       │       │   │       └── layout: boxes$Solo
-    │       │   │           │   │       │       │   └── layout: boxes$Knot
-    │       │   │           │   │       │       └── body[1] > assign:
-    │       │   │           │   │       │           ├── place: #71
-    │       │   │           │   │       │           └── value: local #69 : <void | ptr>
-    │       │   │           │   │       └── layout: boxes$Solo
-    │       │   │           │   └── layout: boxes$Knot
-    │       │   │           └── body[1] > assign:
-    │       │   │               ├── place: #74
-    │       │   │               └── value: local #72 : <void | ptr>
+    │       │   │           ├── index: 1
+    │       │   │           └── payload > box:
+    │       │   │               ├── value > call:
+    │       │   │               │   ├── type: {ptr}
+    │       │   │               │   ├── fn: boxes$Solo(boxes$Knot)
+    │       │   │               │   └── args[0] > case:
+    │       │   │               │       ├── type: <void | ptr>
+    │       │   │               │       ├── index: 1
+    │       │   │               │       └── payload > box:
+    │       │   │               │           ├── value > call:
+    │       │   │               │           │   ├── type: {ptr}
+    │       │   │               │           │   ├── fn: boxes$Solo(boxes$Knot)
+    │       │   │               │           │   └── args[0] > case:
+    │       │   │               │           │       ├── type: <void | ptr>
+    │       │   │               │           │       ├── index: 0
+    │       │   │               │           │       └── payload: unit : void
+    │       │   │               │           └── layout: boxes$Solo
+    │       │   │               └── layout: boxes$Solo
     │       │   ├── body[1] > let:
     │       │   │   ├── local: #76
     │       │   │   └── value > runtime:
@@ -816,21 +691,10 @@
     │       │   └── value > call:
     │       │       ├── type: {ptr}
     │       │       ├── fn: boxes$Solo(boxes$Knot)
-    │       │       └── args[0] > expand:
+    │       │       └── args[0] > case:
     │       │           ├── type: <void | ptr>
-    │       │           ├── label: @82
-    │       │           ├── result: #83
-    │       │           ├── body[0] > hold:
-    │       │           │   ├── local: #81
-    │       │           │   ├── scope: %2
-    │       │           │   ├── value > case:
-    │       │           │   │   ├── type: <void | ptr>
-    │       │           │   │   ├── index: 0
-    │       │           │   │   └── payload: unit : void
-    │       │           │   └── layout: boxes$Knot
-    │       │           └── body[1] > assign:
-    │       │               ├── place: #83
-    │       │               └── value: local #81 : <void | ptr>
+    │       │           ├── index: 0
+    │       │           └── payload: unit : void
     │       ├── body[33] > overwrite:
     │       │   ├── address > runtime:
     │       │   │   ├── type: ptr
@@ -1013,16 +877,10 @@
     │       ├── value > record:
     │       │   ├── type: {ptr, ptr}
     │       │   ├── members[0] > member 0 > box:
-    │       │   │   ├── value > copy:
-    │       │   │   │   ├── type: <i64 | ptr>
-    │       │   │   │   ├── value: local #1 : <i64 | ptr>
-    │       │   │   │   └── layout: boxes$Tree
+    │       │   │   ├── value: local #1 : <i64 | ptr>
     │       │   │   └── layout: boxes$Tree
     │       │   └── members[1] > member 1 > box:
-    │       │       ├── value > copy:
-    │       │       │   ├── type: <i64 | ptr>
-    │       │       │   ├── value: local #2 : <i64 | ptr>
-    │       │       │   └── layout: boxes$Tree
+    │       │       ├── value: local #2 : <i64 | ptr>
     │       │       └── layout: boxes$Tree
     │       └── layout: boxes$Pair
     ├── funcs[4] > func:
@@ -1093,28 +951,18 @@
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : <void | ptr>
     │   ├── ret: {handle, ptr}
-    │   └── body[0] > scope:
-    │       ├── id: %4
-    │       ├── body[0] > hold:
-    │       │   ├── local: #3
-    │       │   ├── scope: %4
-    │       │   ├── value: local #2 : <void | ptr>
-    │       │   └── layout: ^boxes$Chain
-    │       └── body[1] > return > escape:
-    │           ├── exit: function
-    │           ├── value > record:
-    │           │   ├── type: {handle, ptr}
-    │           │   ├── members[0] > member 0 > copy:
-    │           │   │   ├── type: handle
-    │           │   │   ├── value: local #1 : handle
-    │           │   │   └── layout: %primitives$String
-    │           │   └── members[1] > member 1 > box:
-    │           │       ├── value > take:
-    │           │       │   ├── type: <void | ptr>
-    │           │       │   ├── address: address of #3 : ptr
-    │           │       │   └── layout: boxes$Chain
-    │           │       └── layout: boxes$Chain
-    │           └── layout: boxes$Link
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value: local #2 : <void | ptr>
+    │   └── body[1] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {handle, ptr}
+    │       │   ├── members[0] > member 0: local #1 : handle
+    │       │   └── members[1] > member 1 > box:
+    │       │       ├── value: local #3 : <void | ptr>
+    │       │       └── layout: boxes$Chain
+    │       └── layout: boxes$Link
     ├── funcs[6] > func:
     │   ├── symbol: boxes$length(this boxes$Chain)
     │   ├── params[0]: local #1 : ptr
@@ -1169,25 +1017,18 @@
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : <void | ptr>
     │   ├── ret: {i64, ptr}
-    │   └── body[0] > scope:
-    │       ├── id: %4
-    │       ├── body[0] > hold:
-    │       │   ├── local: #3
-    │       │   ├── scope: %4
-    │       │   ├── value: local #2 : <void | ptr>
-    │       │   └── layout: ^boxes$Storey
-    │       └── body[1] > return > escape:
-    │           ├── exit: function
-    │           ├── value > record:
-    │           │   ├── type: {i64, ptr}
-    │           │   ├── members[0] > member 0: local #1 : i64
-    │           │   └── members[1] > member 1 > box:
-    │           │       ├── value > take:
-    │           │       │   ├── type: <void | ptr>
-    │           │       │   ├── address: address of #3 : ptr
-    │           │       │   └── layout: boxes$Storey
-    │           │       └── layout: boxes$Storey
-    │           └── layout: boxes$Tower
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value: local #2 : <void | ptr>
+    │   └── body[1] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {i64, ptr}
+    │       │   ├── members[0] > member 0: local #1 : i64
+    │       │   └── members[1] > member 1 > box:
+    │       │       ├── value: local #3 : <void | ptr>
+    │       │       └── layout: boxes$Storey
+    │       └── layout: boxes$Tower
     ├── funcs[8] > func:
     │   ├── symbol: boxes$levels(this boxes$Storey)
     │   ├── params[0]: local #1 : ptr
@@ -1246,10 +1087,7 @@
     │       ├── value > record:
     │       │   ├── type: {ptr}
     │       │   └── members[0] > member 0 > box:
-    │       │       ├── value > copy:
-    │       │       │   ├── type: <void | ptr>
-    │       │       │   ├── value: local #1 : <void | ptr>
-    │       │       │   └── layout: boxes$Knot
+    │       │       ├── value: local #1 : <void | ptr>
     │       │       └── layout: boxes$Knot
     │       └── layout: boxes$Solo
     └── funcs[10] > func:

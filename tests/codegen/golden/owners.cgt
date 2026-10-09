@@ -322,6 +322,17 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: owners$dropped(%primitives$I64)
+    │       │       │   └── args[0]: 4 : i64
+    │       │       └── right: 10 : i64
+    │       ├── body[21] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: owners$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
     │       │       │   ├── label: @18
@@ -361,7 +372,7 @@
     │       │       │           │           └── base: address of #21 : ptr
     │       │       │           └── body[2]: leave @18
     │       │       └── right: 70 : i64
-    │       ├── body[21] > eval > call:
+    │       ├── body[22] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -406,7 +417,7 @@
     │       │       │           │           └── base: address of #26 : ptr
     │       │       │           └── body[2]: leave @23
     │       │       └── right: 4 : i64
-    │       ├── body[22] > eval > call:
+    │       ├── body[23] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -420,7 +431,7 @@
     │       │       │       ├── index: 0
     │       │       │       └── payload: 5 : i64
     │       │       └── right: 5 : i64
-    │       ├── body[23] > eval > call:
+    │       ├── body[24] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -434,7 +445,7 @@
     │       │       │       ├── index: 0
     │       │       │       └── payload: 0 : i64
     │       │       └── right: 0 : i64
-    │       ├── body[24] > eval > call:
+    │       ├── body[25] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -448,13 +459,13 @@
     │       │       │       ├── index: 1
     │       │       │       └── payload: unit : void
     │       │       └── right: 600 : i64
-    │       ├── body[25] > let:
+    │       ├── body[26] > let:
     │       │   ├── local: #28
     │       │   └── value: 0 : i64
-    │       ├── body[26] > let:
+    │       ├── body[27] > let:
     │       │   ├── local: #29
     │       │   └── value: 1 : i64
-    │       ├── body[27] > eval > expand:
+    │       ├── body[28] > eval > expand:
     │       │   ├── type: void
     │       │   ├── label: @31
     │       │   ├── body[0] > let:
@@ -528,7 +539,7 @@
     │       │   │           └── right: 1 : i64
     │       │   ├── body[2] > eval: unit : void
     │       │   └── body[3]: leave @31
-    │       ├── body[28] > eval > call:
+    │       ├── body[29] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -536,34 +547,27 @@
     │       │       ├── op: ==
     │       │       ├── left: local #28 : i64
     │       │       └── right: 100000 : i64
-    │       └── body[29] > return: unit : void
+    │       └── body[30] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: owners$opened(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i64, i64}
-    │   └── body[0] > scope:
-    │       ├── id: %4
-    │       ├── body[0] > hold:
-    │       │   ├── local: #3
-    │       │   ├── scope: %4
-    │       │   ├── value > call:
-    │       │   │   ├── type: {i64, i64}
-    │       │   │   ├── fn: owners$Account(%primitives$I64)
-    │       │   │   └── args[0]: local #1 : i64
-    │       │   └── layout: ^owners$Account
-    │       ├── body[1] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$I64)
-    │       │   ├── args[0]: address of #3 : ptr
-    │       │   └── args[1]: local #2 : i64
-    │       └── body[2] > return > escape:
-    │           ├── exit: function
-    │           ├── value > take:
-    │           │   ├── type: {i64, i64}
-    │           │   ├── address: address of #3 : ptr
-    │           │   └── layout: ^owners$Account
-    │           └── layout: ^owners$Account
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > call:
+    │   │       ├── type: {i64, i64}
+    │   │       ├── fn: owners$Account(%primitives$I64)
+    │   │       └── args[0]: local #1 : i64
+    │   ├── body[1] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: owners$deposit(this owners$Account, %primitives$I64)
+    │   │   ├── args[0]: address of #3 : ptr
+    │   │   └── args[1]: local #2 : i64
+    │   └── body[2] > return > escape:
+    │       ├── exit: function
+    │       ├── value: local #3 : {i64, i64}
+    │       └── layout: ^owners$Account
     ├── funcs[2] > func:
     │   ├── symbol: owners$deposit(this owners$Account, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
@@ -665,33 +669,21 @@
     │   ├── symbol: owners$relayed(^owners$Account)
     │   ├── params[0]: local #1 : {i64, i64}
     │   ├── ret: {i64, i64}
-    │   └── body[0] > scope:
-    │       ├── id: %3
-    │       ├── body[0] > hold:
-    │       │   ├── local: #2
-    │       │   ├── scope: %3
-    │       │   ├── value: local #1 : {i64, i64}
-    │       │   └── layout: ^owners$Account
-    │       ├── body[1] > hold:
-    │       │   ├── local: #4
-    │       │   ├── scope: %3
-    │       │   ├── value > take:
-    │       │   │   ├── type: {i64, i64}
-    │       │   │   ├── address: address of #2 : ptr
-    │       │   │   └── layout: ^owners$Account
-    │       │   └── layout: ^owners$Account
-    │       ├── body[2] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: owners$deposit(this owners$Account, %primitives$I64)
-    │       │   ├── args[0]: address of #4 : ptr
-    │       │   └── args[1]: 1 : i64
-    │       └── body[3] > return > escape:
-    │           ├── exit: function
-    │           ├── value > take:
-    │           │   ├── type: {i64, i64}
-    │           │   ├── address: address of #4 : ptr
-    │           │   └── layout: ^owners$Account
-    │           └── layout: ^owners$Account
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value: local #1 : {i64, i64}
+    │   ├── body[1] > let:
+    │   │   ├── local: #4
+    │   │   └── value: local #2 : {i64, i64}
+    │   ├── body[2] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: owners$deposit(this owners$Account, %primitives$I64)
+    │   │   ├── args[0]: address of #4 : ptr
+    │   │   └── args[1]: 1 : i64
+    │   └── body[3] > return > escape:
+    │       ├── exit: function
+    │       ├── value: local #4 : {i64, i64}
+    │       └── layout: ^owners$Account
     ├── funcs[9] > func:
     │   ├── symbol: owners$richest(%primitives$I64)
     │   ├── params[0]: local #1 : i64
@@ -922,6 +914,62 @@
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
     ├── funcs[12] > func:
+    │   ├── symbol: owners$dropped(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value: 0 : i64
+    │   ├── body[1] > let:
+    │   │   ├── local: #3
+    │   │   └── value: 1 : i64
+    │   ├── body[2] > eval > expand:
+    │   │   ├── type: void
+    │   │   ├── label: @5
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #4
+    │   │   │   └── value: local #1 : i64
+    │   │   ├── body[1] > repeat:
+    │   │   │   ├── count > binary:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── op: +
+    │   │   │   │   ├── left > binary:
+    │   │   │   │   │   ├── type: i64
+    │   │   │   │   │   ├── op: +
+    │   │   │   │   │   ├── left: local #4 : i64
+    │   │   │   │   │   └── right > flip:
+    │   │   │   │   │       ├── type: i64
+    │   │   │   │   │       └── value: local #3 : i64
+    │   │   │   │   └── right: 1 : i64
+    │   │   │   ├── body[0] > if:
+    │   │   │   │   ├── cond: true : i1
+    │   │   │   │   └── body[0] > scope:
+    │   │   │   │       ├── id: %8
+    │   │   │   │       └── body[0] > assign:
+    │   │   │   │           ├── place: #2
+    │   │   │   │           └── value > binary:
+    │   │   │   │               ├── type: i64
+    │   │   │   │               ├── op: +
+    │   │   │   │               ├── left: local #2 : i64
+    │   │   │   │               └── right > call:
+    │   │   │   │                   ├── type: i64
+    │   │   │   │                   ├── fn: owners$closed(^owners$Account)
+    │   │   │   │                   └── args[0] > call:
+    │   │   │   │                       ├── type: {i64, i64}
+    │   │   │   │                       ├── fn: owners$opened(%primitives$I64, %primitives$I64)
+    │   │   │   │                       ├── args[0]: local #3 : i64
+    │   │   │   │                       └── args[1]: local #3 : i64
+    │   │   │   └── body[1] > assign:
+    │   │   │       ├── place: #3
+    │   │   │       └── value > binary:
+    │   │   │           ├── type: i64
+    │   │   │           ├── op: +
+    │   │   │           ├── left: local #3 : i64
+    │   │   │           └── right: 1 : i64
+    │   │   ├── body[2] > eval: unit : void
+    │   │   └── body[3]: leave @5
+    │   └── body[3] > return: local #2 : i64
+    ├── funcs[13] > func:
     │   ├── symbol: owners$refused(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | {i64, i64} | void>
@@ -960,7 +1008,7 @@
     │       ├── type: <i64 | {i64, i64} | void>
     │       ├── index: 0
     │       └── payload: local #1 : i64
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: owners$chosen(owners$Choice)
     │   ├── params[0]: local #1 : <i64 | void>
     │   ├── ret: i64
@@ -1076,7 +1124,7 @@
     │               │       │       └── base: address of #15 : ptr
     │               │       └── right: 100 : i64
     │               └── body[2]: leave @2
-    └── funcs[14] > func:
+    └── funcs[15] > func:
         ├── symbol: owners$guard(%primitives$Bool)
         ├── params[0]: local #1 : i1
         ├── ret: <void | void | void>

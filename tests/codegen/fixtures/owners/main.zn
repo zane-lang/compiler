@@ -140,6 +140,18 @@ Int total(skipped Int) {
 	return sum;
 }
 
+/// Takes a fresh owner into a call that drops it on every pass, holding
+/// nothing of its own: each pass opens its arena, so the owner's blocks go
+/// when the pass drains rather than when the call does.
+Int dropped(n Int) {
+	sum Int(0);
+	i Int(1);
+	i!to(n) {
+		sum = @operators$add(sum, closed(opened(i, i)));
+	}
+	return sum;
+}
+
 Unit check(ok Bool) {
 	yes String("yes\n");
 	no String("no\n");
@@ -185,6 +197,7 @@ Unit main() {
 	check(@operators$equal(overdrawn(Int(1)) ?? Int(0), Int(5)));
 	check(@operators$equal(overdrawn(Int(7)) ? e { resolve @operators$add(e, Int(1)); }, Int(8)));
 	check(@operators$equal(total(Int(3)), Int(12)));
+	check(@operators$equal(dropped(Int(4)), Int(10)));
 	check(@operators$equal(refused(Int(0)) ? e { resolve e.balance; }, Int(70)));
 	check(@operators$equal(refused(Int(4)) ? e { resolve e.balance; }, Int(4)));
 	check(@operators$equal(chosen(Choice.pick(Int(5))), Int(5)));
