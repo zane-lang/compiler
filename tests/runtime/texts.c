@@ -33,6 +33,9 @@ static const int64_t holder_layout[] = {
 
 void zane_main(void) {
 	zane_text ab = { "ab", 2, 0 }, cd = { "cd", 2, 0 }, empty = { "", 0, 0 };
+	/* Drains are unchecked until the case that checks them, whatever
+	   `ZANE_CHECK` says. */
+	zane_checking = 0;
 
 	/* Scalar constructors use decimal text that round-trips to the same
 	   primitive, and every result owns exactly its bytes. */
