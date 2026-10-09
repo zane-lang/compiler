@@ -327,18 +327,7 @@
     │       │   ├── value > call:
     │       │   │   ├── type: {handle, i64}
     │       │   │   ├── fn: lists$Person(%primitives$String, %primitives$I64)
-    │       │   │   ├── args[0] > expand:
-    │       │   │   │   ├── type: handle
-    │       │   │   │   ├── label: @34
-    │       │   │   │   ├── result: #35
-    │       │   │   │   ├── body[0] > hold:
-    │       │   │   │   │   ├── local: #33
-    │       │   │   │   │   ├── scope: %2
-    │       │   │   │   │   ├── value: "ada" : handle
-    │       │   │   │   │   └── layout: %primitives$String
-    │       │   │   │   └── body[1] > assign:
-    │       │   │   │       ├── place: #35
-    │       │   │   │       └── value: local #33 : handle
+    │       │   │   ├── args[0]: "ada" : handle
     │       │   │   └── args[1]: 36 : i64
     │       │   └── layout: ^lists$Person
     │       ├── body[21] > eval > expand:
@@ -384,40 +373,27 @@
     │       │   │   │   └── right: 1 : i64
     │       │   │   ├── body[0] > if:
     │       │   │   │   ├── cond: true : i1
-    │       │   │   │   └── body[0] > scope:
-    │       │   │   │       ├── id: %48
-    │       │   │   │       └── body[0] > eval > expand:
-    │       │   │   │           ├── type: void
-    │       │   │   │           ├── label: @51
-    │       │   │   │           ├── body[0] > let:
-    │       │   │   │           │   ├── local: #49
-    │       │   │   │           │   └── value > call:
-    │       │   │   │           │       ├── type: {handle, i64}
-    │       │   │   │           │       ├── fn: lists$Person(%primitives$String, %primitives$I64)
-    │       │   │   │           │       ├── args[0] > expand:
-    │       │   │   │           │       │   ├── type: handle
-    │       │   │   │           │       │   ├── label: @46
-    │       │   │   │           │       │   ├── result: #47
-    │       │   │   │           │       │   ├── body[0] > hold:
-    │       │   │   │           │       │   │   ├── local: #45
-    │       │   │   │           │       │   │   ├── scope: %48
-    │       │   │   │           │       │   │   ├── value: "x" : handle
-    │       │   │   │           │       │   │   └── layout: %primitives$String
-    │       │   │   │           │       │   └── body[1] > assign:
-    │       │   │   │           │       │       ├── place: #47
-    │       │   │   │           │       │       └── value: local #45 : handle
-    │       │   │   │           │       └── args[1]: local #40 : i64
-    │       │   │   │           ├── body[1] > let:
-    │       │   │   │           │   ├── local: #50
-    │       │   │   │           │   └── value > runtime:
-    │       │   │   │           │       ├── type: ptr
-    │       │   │   │           │       ├── fn: zane_list_push
-    │       │   │   │           │       ├── args[0]: address of #32 : ptr
-    │       │   │   │           │       └── args[1]: 32 : i64
-    │       │   │   │           └── body[2] > place:
-    │       │   │   │               ├── address: local #50 : ptr
-    │       │   │   │               ├── value: local #49 : {handle, i64}
-    │       │   │   │               └── layout: lists$Person
+    │       │   │   │   └── body[0] > eval > expand:
+    │       │   │   │       ├── type: void
+    │       │   │   │       ├── label: @51
+    │       │   │   │       ├── body[0] > let:
+    │       │   │   │       │   ├── local: #49
+    │       │   │   │       │   └── value > call:
+    │       │   │   │       │       ├── type: {handle, i64}
+    │       │   │   │       │       ├── fn: lists$Person(%primitives$String, %primitives$I64)
+    │       │   │   │       │       ├── args[0]: "x" : handle
+    │       │   │   │       │       └── args[1]: local #40 : i64
+    │       │   │   │       ├── body[1] > let:
+    │       │   │   │       │   ├── local: #50
+    │       │   │   │       │   └── value > runtime:
+    │       │   │   │       │       ├── type: ptr
+    │       │   │   │       │       ├── fn: zane_list_push
+    │       │   │   │       │       ├── args[0]: address of #32 : ptr
+    │       │   │   │       │       └── args[1]: 32 : i64
+    │       │   │   │       └── body[2] > place:
+    │       │   │   │           ├── address: local #50 : ptr
+    │       │   │   │           ├── value: local #49 : {handle, i64}
+    │       │   │   │           └── layout: lists$Person
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #40
     │       │   │       └── value > binary:
@@ -486,18 +462,7 @@
     │       │   └── value > call:
     │       │       ├── type: {handle, i64}
     │       │       ├── fn: lists$Person(%primitives$String, %primitives$I64)
-    │       │       ├── args[0] > expand:
-    │       │       │   ├── type: handle
-    │       │       │   ├── label: @58
-    │       │       │   ├── result: #59
-    │       │       │   ├── body[0] > hold:
-    │       │       │   │   ├── local: #57
-    │       │       │   │   ├── scope: %2
-    │       │       │   │   ├── value: "grace" : handle
-    │       │       │   │   └── layout: %primitives$String
-    │       │       │   └── body[1] > assign:
-    │       │       │       ├── place: #59
-    │       │       │       └── value: local #57 : handle
+    │       │       ├── args[0]: "grace" : handle
     │       │       └── args[1]: 45 : i64
     │       ├── body[28] > overwrite:
     │       │   ├── address > runtime:
@@ -692,34 +657,12 @@
     │       │   ├── type: void
     │       │   ├── fn: lists$add<%primitives$String>(this lists$Stack<%primitives$String>, %primitives$String)
     │       │   ├── args[0]: address of #80 : ptr
-    │       │   └── args[1] > expand:
-    │       │       ├── type: handle
-    │       │       ├── label: @82
-    │       │       ├── result: #83
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #81
-    │       │       │   ├── scope: %2
-    │       │       │   ├── value: "first" : handle
-    │       │       │   └── layout: %primitives$String
-    │       │       └── body[1] > assign:
-    │       │           ├── place: #83
-    │       │           └── value: local #81 : handle
+    │       │   └── args[1]: "first" : handle
     │       ├── body[37] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lists$add<%primitives$String>(this lists$Stack<%primitives$String>, %primitives$String)
     │       │   ├── args[0]: address of #80 : ptr
-    │       │   └── args[1] > expand:
-    │       │       ├── type: handle
-    │       │       ├── label: @85
-    │       │       ├── result: #86
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #84
-    │       │       │   ├── scope: %2
-    │       │       │   ├── value: "second" : handle
-    │       │       │   └── layout: %primitives$String
-    │       │       └── body[1] > assign:
-    │       │           ├── place: #86
-    │       │           └── value: local #84 : handle
+    │       │   └── args[1]: "second" : handle
     │       ├── body[38] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lists$check(%primitives$Bool)
@@ -889,10 +832,7 @@
     │       ├── exit: function
     │       ├── value > record:
     │       │   ├── type: {handle, i64}
-    │       │   ├── members[0] > member 0 > copy:
-    │       │   │   ├── type: handle
-    │       │   │   ├── value: local #1 : handle
-    │       │   │   └── layout: %primitives$String
+    │       │   ├── members[0] > member 0: local #1 : handle
     │       │   └── members[1] > member 1: local #2 : i64
     │       └── layout: lists$Person
     ├── funcs[5] > func:
@@ -918,10 +858,7 @@
     │   │   ├── label: @5
     │   │   ├── body[0] > let:
     │   │   │   ├── local: #3
-    │   │   │   └── value > copy:
-    │   │   │       ├── type: handle
-    │   │   │       ├── value: local #2 : handle
-    │   │   │       └── layout: %primitives$String
+    │   │   │   └── value: local #2 : handle
     │   │   ├── body[1] > let:
     │   │   │   ├── local: #4
     │   │   │   └── value > runtime:

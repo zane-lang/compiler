@@ -69,8 +69,14 @@ and ctx = {
 
 (* A block's arena, made the first time the block holds something, and what
    settles each call spawned in it that can abort or exit, in case nothing
-   reads it first. *)
-and scope = { mutable arena : int option; mutable settles : (unit -> Stat.t list) list }
+   reads it first. [wants] is each callee and `^T` parameter this block
+   moves a fresh owner into: the block keeps an arena for them only if one
+   of those callees can drop what it is given (Regions). *)
+and scope = {
+  mutable arena : int option;
+  mutable settles : (unit -> Stat.t list) list;
+  mutable wants : (string * int) list;
+}
 
 (* A `return` from an expansion stores into [result], which has the TST type
    [ret]: a value moves there, or a reference is minted, as into any storage. *)
@@ -123,6 +129,11 @@ type state = {
   mutable aborts : Tty.t;
   (* The function each spawned call runs through, latest first. *)
   mutable spawned : Func.t list;
+  (* The symbol of the function being lowered, and each arena that is kept
+     only if a callee can drop a fresh owner moved into it: by function and
+     arena, the callees and `^T` parameters it is for (Regions). *)
+  mutable current : string;
+  wants : (string * int, (string * int) list) Hashtbl.t;
   (* Whether the build is a library's object, whether a package's verbs are
      exported from it for other objects to link against
      (docs/design/separate-compilation.md C5), what goes before each
@@ -163,6 +174,8 @@ let create ~import_bodies ~library ~exports ~stamp ~stamped =
     ret = Tty.Error;
     aborts = Tty.Error;
     spawned = [];
+    current = "";
+    wants = Hashtbl.create 16;
     library;
     import_bodies;
     exports;

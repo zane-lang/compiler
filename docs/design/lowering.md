@@ -101,9 +101,9 @@ flip forms are gone. What each argument passes follows its parameter's mode
 
 | Parameter | Passed as |
 |---|---|
-| value type (a borrow) | the address of the caller's slot, or the value itself when it is a scalar |
+| value type (a borrow) | the address of the caller's slot, or the value itself when it is a scalar; one the body copies once into what it keeps takes the value instead, a fresh argument moved in and a place copied where the call is (§9) |
 | `T`, a reference type (a borrow) | the address of the caller's slot, which keeps the owner |
-| `^T` (a take) | the moved value itself, which the callee holds in its body's arena, so the body's drain ends it unless the body moves it on ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.5) |
+| `^T` (a take) | the moved value itself, which the callee holds in its body's arena, so the body's drain ends it unless the body moves it on ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.5), or in a slot of its own when every way out moves it on (§9) |
 | `&T` (a reference) | the address of the settled owner it names |
 | `this` | the address of the subject's place, taken once at the call |
 
@@ -426,18 +426,48 @@ test passing.
     loop over its lambda. `@primitives$String` is a value type. The runtime
     is tested in C on its own: an overwrite keeps a boxed member's address,
     and arrival leaves blocks that outlive their destination where they are.
+12. **Where blocks are made.** Once every function is lowered, a pass over
+    the whole tree (`lib/cgt/regions.ml`) works out which callees keep the
+    `^T` arguments they are given. A function whose arena holds only owners
+    that every way out moves on opens none, so what it makes is made where
+    its result goes and nothing relocates it, and a value parameter copied
+    once into what the callee keeps takes a fresh argument as it is. A block
+    that moves a fresh owner into a callee that can drop it keeps an arena,
+    so the owner goes with the block. Issue
+    [#210](https://github.com/zane-lang/compiler/issues/210).
 
 ---
 
 ## 9. Open questions
 
 - **How many scopes get an arena.** L8 gives every block that declares a local
-  its own. For now only a block that holds a reference-type local opens one,
-  and a value-type local stays an LLVM stack slot, since nothing tells the
-  two placements apart until a value owns dynamic storage, which it does
-  only through a boxed member; such a value is held in the arena too.
-  Folding arenas is allowed and saves the most in loops; which ones to fold
-  is left to measurement.
+  its own. Lowering opens one only for a block that holds a reference-type
+  local, and a value-type local stays an LLVM stack slot, since nothing
+  tells the two placements apart until a value owns dynamic storage, which
+  it does only through a boxed member; such a value is held in the arena
+  too. Once every function is lowered, `lib/cgt/regions.ml` folds more of
+  them away ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §3.1), from what it works out about every function at
+  once:
+  - A `^T` parameter is **kept** when every way out of its function has
+    moved it on: into the result, into a place the caller lent, or into a
+    callee that keeps it in turn. A callee another object defines, or one
+    called through a function value, is taken to drop what it is given.
+  - A function whose whole body is one arena, holding only owners that
+    every way out moves on, opens none. It holds them in slots of its own,
+    and what it makes is made in its caller's innermost region, which is
+    where its result goes, so nothing relocates it (§3.5). A function with
+    a spawn, a reserved slot, an arena nested in its body, or a callee lent
+    one of its slots that opens an arena keeps its own, since the runtime
+    takes a slot outside every arena to be in the innermost one's region.
+  - A value parameter the body only reads to copy it once into what it
+    keeps takes its argument: a fresh one is moved in rather than held by
+    the caller and copied, and a place is copied where the call is. Only a
+    function no other object calls, and none calls through its address,
+    is changed this way.
+  - A block that moves a fresh owner into a callee's `^T` parameter keeps
+    an arena when the callee can drop it, so the owner's blocks go when the
+    block drains (below); for one that keeps it, the block opens none for
+    it, and an arena left holding nothing goes.
 - **Slots share one chain of chunks.** Scopes nest last-in-first-out, so the
   runtime keeps one chain of 1 MiB chunks for every scope's fixed-size
   region: a scope bumps from where the scope around it stopped, and draining
@@ -480,7 +510,9 @@ test passing.
     (§2.3); here a value built for an older scope's place is moved there
     once. A region of another context, such as a spawned call's, is taken
     as shorter-lived, so a result coming home always moves its blocks. A
-    list's growth goes to the region that holds the list.
+    list's growth goes to the region that holds the list. A box and a hold
+    are made in the innermost region, which every block of what they take
+    already outlives, so nothing arrives at either.
   - A value leaving scopes that drain -- a `return`, a `resolve`, an
     `abort`, a `return` from a block argument or an arm -- moves every block
     it owns in them into the scope the exit returns to, before the drain
@@ -504,10 +536,12 @@ test passing.
     every block still there dies with it. A value of the scope may own
     blocks in an outer region, which a move into a deeper owner, such as a
     `^T` parameter, leaves where they are (§3.5). They are dead space there
-    until that region drains. They cannot pile up, because the move spends
-    its source, and a spent symbol is refilled only in the block where it
-    is declared ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.6),
-    which drains no later than that region.
+    until that region drains. They cannot pile up. A symbol moved there is
+    spent, and is refilled only in the block where it is declared
+    ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.6),
+    which drains no later than that region. A fresh owner moved into a
+    callee that can drop it was made in an arena the block that made it
+    keeps for it (above), which drains on every pass of a loop.
   - A program run with `ZANE_CHECK` set checks every drain instead. The
     scope's values and the values write-backs retired there return their
     blocks one at a time, and a block still out in the region after that is

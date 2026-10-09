@@ -80,6 +80,17 @@ again, read the golden diff and promote that.
   returned, left from an arm, aborted with, stored or pushed from an inner
   block -- takes its blocks out before the scope drains, and a checked drain
   that finds one still out stops the program.
+- `keeping` is step 12: which callees keep what they are given
+  (docs/design/lowering.md §9). A constructor that moves its `^T`
+  parameters into its result, a function that builds a roaming result, and
+  one that pushes into a list its caller lent open no arena, and `keeping.cgt`
+  shows their owners held in slots of their own. A callee that drops a
+  parameter keeps its arena, and so does a loop that moves fresh owners into
+  it, on every pass; a value parameter copied once into the result takes a
+  fresh argument and copies a place where the call is; a function that lends
+  a slot to a callee with an arena keeps its own; and a spawned call builds
+  its result over the spawning context's blocks. Every check prints `yes`
+  when it holds, and a checked drain stops a program with a block still out.
 - `spawns` is step 8: calls started with `spawn` run on the pool's threads.
   Their results come home when read or when their block drains, which waits for
   every call spawned in it, and a checked drain stops a program that ends

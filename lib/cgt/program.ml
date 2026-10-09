@@ -17,6 +17,7 @@ open Lower
 let func st (v : verb) : Func.t =
   let span = v.body.T.Block.span in
   st.next <- 0;
+  st.current <- symbol st v;
   let env = Hashtbl.create 16 in
   let params =
     List.map
@@ -85,7 +86,7 @@ let func st (v : verb) : Func.t =
         resolve = None;
         finish = no_block;
         exit_call = (fun _ -> [ Stat.Return (outcome_case o exited unit_) ]);
-        scope = { arena = None; settles = [] };
+        scope = { arena = None; settles = []; wants = [] };
       }
     in
     { Func.symbol = symbol st v; linkage; params; ret = returned o; body = block ~enter st ctx v.body }
@@ -103,6 +104,7 @@ let made st decl : Func.t =
   let c = Hashtbl.find st.constants decl in
   let span = c.value.T.Expr.span in
   st.next <- 0;
+  st.current <- c.symbol;
   let linkage =
     if (not st.library) && not (st.stamped c.package) then Linkage.Local else Linkage.Shared
   in
@@ -113,7 +115,7 @@ let made st decl : Func.t =
     :: { Global.symbol = value; linkage; ty = lowered }
     :: st.globals;
   let global g = ptr (Expr.Global g) in
-  let scope = { arena = None; settles = [] } in
+  let scope = { arena = None; settles = []; wants = [] } in
   let ctx = { (constant_ctx ()) with scope } in
   let stored = Stat.Store { address = global value; value = moved st ctx span c.ty c.value } in
   let settled = List.concat_map (fun settle -> settle ()) (List.rev scope.settles) in
@@ -125,7 +127,7 @@ let made st decl : Func.t =
       }
   in
   let body = (stored :: settled) @ [ Stat.Eval { Expr.node = finish; ty = Nodes.Ty.Void } ] in
-  let body = match scope.arena with None -> body | Some id -> [ Stat.Scope { id; body } ] in
+  let body = close st scope body in
   let begin_ = Expr.Runtime { fn = Runtime.Constant_begin; args = [ global state ] } in
   let begin_ = { Expr.node = begin_; ty = Nodes.Ty.I64 } in
   let one = { Expr.node = Expr.Int 1L; ty = Nodes.Ty.I64 } in
@@ -280,7 +282,7 @@ let program ?(library = false) ?(import_bodies = false) (p : T.Program.t) =
       let funcs = drain [] in
       let funcs = start @ funcs @ List.rev st.spawned in
       let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
-      Ok { Program.funcs; entry; layouts; globals = List.rev st.globals }
+      Ok (Regions.run ~wants:st.wants { Program.funcs; entry; layouts; globals = List.rev st.globals })
     in
     if library then begin
       List.iter

@@ -5,7 +5,6 @@ U v1.0.1%3f9a1c02b7e4d6a8%geometry$double
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$scaled(%primitives$I64)
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$sum(this v1.0.1%3f9a1c02b7e4d6a8%geometry$Point)
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$twice(%primitives$I64)
-U zane_arrive
 U zane_constant_begin
 U zane_constant_end
 U zane_print

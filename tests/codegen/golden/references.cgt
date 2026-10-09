@@ -259,22 +259,15 @@
     │   ├── symbol: references$Wrap(^references$Person)
     │   ├── params[0]: local #1 : {i64}
     │   ├── ret: {{i64}}
-    │   └── body[0] > scope:
-    │       ├── id: %3
-    │       ├── body[0] > hold:
-    │       │   ├── local: #2
-    │       │   ├── scope: %3
-    │       │   ├── value: local #1 : {i64}
-    │       │   └── layout: ^references$Person
-    │       └── body[1] > return > escape:
-    │           ├── exit: function
-    │           ├── value > record:
-    │           │   ├── type: {{i64}}
-    │           │   └── members[0] > member 0 > take:
-    │           │       ├── type: {i64}
-    │           │       ├── address: address of #2 : ptr
-    │           │       └── layout: references$Person
-    │           └── layout: references$Wrap
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value: local #1 : {i64}
+    │   └── body[1] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {{i64}}
+    │       │   └── members[0] > member 0: local #2 : {i64}
+    │       └── layout: references$Wrap
     ├── funcs[7] > func:
     │   ├── symbol: references$refuse(&references$Wrap)
     │   ├── params[0]: local #1 : ptr

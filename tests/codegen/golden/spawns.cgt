@@ -169,18 +169,7 @@
     │       │   ├── value > call:
     │       │   │   ├── type: {handle, i64}
     │       │   │   ├── fn: spawns$Person(%primitives$String, %primitives$I64)
-    │       │   │   ├── args[0] > expand:
-    │       │   │   │   ├── type: handle
-    │       │   │   │   ├── label: @24
-    │       │   │   │   ├── result: #25
-    │       │   │   │   ├── body[0] > hold:
-    │       │   │   │   │   ├── local: #23
-    │       │   │   │   │   ├── scope: %11
-    │       │   │   │   │   ├── value: "grace" : handle
-    │       │   │   │   │   └── layout: %primitives$String
-    │       │   │   │   └── body[1] > assign:
-    │       │   │   │       ├── place: #25
-    │       │   │   │       └── value: local #23 : handle
+    │       │   │   ├── args[0]: "grace" : handle
     │       │   │   └── args[1]: 85 : i64
     │       │   └── layout: spawns$Person
     │       ├── body[10] > let:
@@ -232,18 +221,7 @@
     │       │   ├── value > call:
     │       │   │   ├── type: {handle, i64}
     │       │   │   ├── fn: spawns$Person(%primitives$String, %primitives$I64)
-    │       │   │   ├── args[0] > expand:
-    │       │   │   │   ├── type: handle
-    │       │   │   │   ├── label: @37
-    │       │   │   │   ├── result: #38
-    │       │   │   │   ├── body[0] > hold:
-    │       │   │   │   │   ├── local: #36
-    │       │   │   │   │   ├── scope: %11
-    │       │   │   │   │   ├── value: "ada" : handle
-    │       │   │   │   │   └── layout: %primitives$String
-    │       │   │   │   └── body[1] > assign:
-    │       │   │   │       ├── place: #38
-    │       │   │   │       └── value: local #36 : handle
+    │       │   │   ├── args[0]: "ada" : handle
     │       │   │   └── args[1]: 36 : i64
     │       │   └── layout: ^spawns$Person
     │       ├── body[14] > spawn:
@@ -486,21 +464,10 @@
     │       │   ├── value > call:
     │       │   │   ├── type: {<void | ptr>, i64}
     │       │   │   ├── fn: spawns$Holder(spawns$Countdown)
-    │       │   │   └── args[0] > expand:
+    │       │   │   └── args[0] > case:
     │       │   │       ├── type: <void | ptr>
-    │       │   │       ├── label: @79
-    │       │   │       ├── result: #80
-    │       │   │       ├── body[0] > hold:
-    │       │   │       │   ├── local: #78
-    │       │   │       │   ├── scope: %11
-    │       │   │       │   ├── value > case:
-    │       │   │       │   │   ├── type: <void | ptr>
-    │       │   │       │   │   ├── index: 0
-    │       │   │       │   │   └── payload: unit : void
-    │       │   │       │   └── layout: spawns$Countdown
-    │       │   │       └── body[1] > assign:
-    │       │   │           ├── place: #80
-    │       │   │           └── value: local #78 : <void | ptr>
+    │       │   │       ├── index: 0
+    │       │   │       └── payload: unit : void
     │       │   └── layout: spawns$Holder
     │       ├── body[32] > let:
     │       │   ├── local: #82
@@ -1920,10 +1887,7 @@
     │       ├── exit: function
     │       ├── value > record:
     │       │   ├── type: {handle, i64}
-    │       │   ├── members[0] > member 0 > copy:
-    │       │   │   ├── type: handle
-    │       │   │   ├── value: local #1 : handle
-    │       │   │   └── layout: %primitives$String
+    │       │   ├── members[0] > member 0: local #1 : handle
     │       │   └── members[1] > member 1: local #2 : i64
     │       └── layout: spawns$Person
     ├── funcs[5] > func:
@@ -1978,33 +1942,22 @@
     │           ├── value > call:
     │           │   ├── type: {handle, i64}
     │           │   ├── fn: spawns$Person(%primitives$String, %primitives$I64)
-    │           │   ├── args[0] > expand:
+    │           │   ├── args[0] > runtime:
     │           │   │   ├── type: handle
-    │           │   │   ├── label: @8
-    │           │   │   ├── result: #9
-    │           │   │   ├── body[0] > hold:
-    │           │   │   │   ├── local: #7
-    │           │   │   │   ├── scope: %6
-    │           │   │   │   ├── value > runtime:
-    │           │   │   │   │   ├── type: handle
-    │           │   │   │   │   ├── fn: zane_text_join
-    │           │   │   │   │   ├── args[0]: local #1 : handle
-    │           │   │   │   │   └── args[1] > expand:
-    │           │   │   │   │       ├── type: handle
-    │           │   │   │   │       ├── label: @4
-    │           │   │   │   │       ├── result: #5
-    │           │   │   │   │       ├── body[0] > hold:
-    │           │   │   │   │       │   ├── local: #3
-    │           │   │   │   │       │   ├── scope: %6
-    │           │   │   │   │       │   ├── value: " lovelace" : handle
-    │           │   │   │   │       │   └── layout: %primitives$String
-    │           │   │   │   │       └── body[1] > assign:
-    │           │   │   │   │           ├── place: #5
-    │           │   │   │   │           └── value: local #3 : handle
-    │           │   │   │   └── layout: %primitives$String
-    │           │   │   └── body[1] > assign:
-    │           │   │       ├── place: #9
-    │           │   │       └── value: local #7 : handle
+    │           │   │   ├── fn: zane_text_join
+    │           │   │   ├── args[0]: local #1 : handle
+    │           │   │   └── args[1] > expand:
+    │           │   │       ├── type: handle
+    │           │   │       ├── label: @4
+    │           │   │       ├── result: #5
+    │           │   │       ├── body[0] > hold:
+    │           │   │       │   ├── local: #3
+    │           │   │       │   ├── scope: %6
+    │           │   │       │   ├── value: " lovelace" : handle
+    │           │   │       │   └── layout: %primitives$String
+    │           │   │       └── body[1] > assign:
+    │           │   │           ├── place: #5
+    │           │   │           └── value: local #3 : handle
     │           │   └── args[1]: local #2 : i64
     │           └── layout: ^spawns$Person
     ├── funcs[8] > func:
@@ -2231,10 +2184,7 @@
     │       ├── exit: function
     │       ├── value > record:
     │       │   ├── type: {<void | ptr>, i64}
-    │       │   ├── members[0] > member 0 > copy:
-    │       │   │   ├── type: <void | ptr>
-    │       │   │   ├── value: local #1 : <void | ptr>
-    │       │   │   └── layout: spawns$Countdown
+    │       │   ├── members[0] > member 0: local #1 : <void | ptr>
     │       │   └── members[1] > member 1 > call:
     │       │       ├── type: i64
     │       │       ├── fn: spawns$Tally(%primitives$I64)

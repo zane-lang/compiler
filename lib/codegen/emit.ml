@@ -365,11 +365,15 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           if listed env l then ignore (call_runtime env b Cgt.Runtime.Copy [| p; layout env l |]);
           Llvm.build_load (Llvm.type_of v) p "" b)
         (expr env fr b value)
-  | Expr.Box { value; layout = l } ->
+  (* A box and a hold are made in the innermost region, which every block
+     the value they take owns already outlives: it was made in this scope or
+     an enclosing one, or lent by the call that spawned this context, which
+     waits for it. So nothing arrives (memory.md §3.5). *)
+  | Expr.Box { value; _ } ->
       let size, align = size_align value.Expr.ty in
       let n x = Llvm.const_int env.i64 x in
       let block = call_runtime env b Cgt.Runtime.Box [| n size; n align |] in
-      Option.iter (fun v -> place env b block v l) (expr env fr b value);
+      Option.iter (fun v -> ignore (Llvm.build_store v block b)) (expr env fr b value);
       Some block
   | Expr.Layout l -> Some (layout env l)
   | Expr.Function fn -> Some (fst (Hashtbl.find env.funcs fn))
@@ -569,7 +573,7 @@ and stat env fr b (s : Stat.t) =
           let n x = Llvm.const_int env.i64 x in
           let arena = Hashtbl.find fr.arenas scope in
           let slot = call_runtime env b Cgt.Runtime.Slot [| arena; n size; n align; layout env l |] in
-          place env b slot v l;
+          ignore (Llvm.build_store v slot b);
           Hashtbl.replace fr.locals id (slot, Llvm.type_of v))
   | Stat.Reserve { id; scope; ty = t; layout = l } ->
       let size, align = size_align t in

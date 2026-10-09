@@ -1,0 +1,212 @@
+/// Which callees keep what they are given, and where blocks go for it
+/// (docs/design/lowering.md §9). A constructor that moves its `^T`
+/// parameters into its result, a function that builds a roaming result,
+/// and one that pushes what it is given into a list its caller lent all
+/// hold their owners in slots of their own and open no arena, so what they
+/// make is made where the result goes. A callee that drops what it is given,
+/// on any way out, keeps its arena, as does one that keeps it in a local
+/// it then drops, and so does a block that moves a fresh
+/// owner into it, so the owner goes when that block drains. A value
+/// parameter the body copies once into its result takes a fresh argument as
+/// it is, and a place is copied for it where the call is. A function that
+/// lends one of its slots to a callee with an arena of its own keeps its
+/// arena. A spawned call that keeps what it is given makes its result over
+/// the spawning context's blocks. A checked drain stops the program if a block outlived its owner.
+/// Each check prints `yes` when it holds and `no` when it does not.
+package keeping;
+
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+type Tree = #variant {
+	leaf Unit;
+	node Pair;
+}
+
+type Pair = #struct {
+	left Tree;
+	right Tree;
+}
+
+/// Keeps both parameters, in its result.
+Pair(left ^Tree, right ^Tree) => init{ left; right; }
+
+/// A perfect tree, each node made from the two its calls return.
+^Tree make(depth Int) {
+	@controlflow$branch(@operators$equal(depth, Int(0)), {
+		return Tree.leaf(Unit());
+	});
+	return Tree.node(Pair(make(@operators$add(depth, @operators$negate(Int(1)))), make(@operators$add(depth, @operators$negate(Int(1))))));
+}
+
+/// A node over two trees it is given; spawned, it boxes owners another
+/// context made, and its result comes home to that context.
+^Tree joined(left ^Tree, right ^Tree) => Tree.node(Pair(left, right))
+
+Int nodes(tree Tree) => match (tree) {
+	l leaf => Int(1);
+	p node => @operators$add(Int(1), @operators$add(nodes(p.left), nodes(p.right)));
+}
+
+type Node = #struct {
+	children List<Node>;
+}
+
+Node() => init{ children = @primitives$List(Node); }
+
+/// Keeps the child, in a list its caller lent.
+Unit adopt(this Node, child ^Node) mut {
+	this.children!push(child);
+	return Unit();
+}
+
+/// A complete three-way tree, each node's children pushed into it.
+^Node grow(depth Int) {
+	n ^Node = Node();
+	k Int(1);
+	@controlflow$branch(@operators$lessThan(Int(0), depth), {
+		k!to(Int(3)) {
+			n!adopt(grow(@operators$add(depth, @operators$negate(Int(1)))));
+		}
+	});
+	return n;
+}
+
+Int members(node Node) {
+	total Int(1);
+	k Int(1);
+	k!to(node.children:size()) {
+		total = @operators$add(total, members(node.children[k]));
+	}
+	return total;
+}
+
+type Item = #struct {
+	name String;
+	tags List<String>;
+}
+
+Item(name String) => init{ name; tags = @primitives$List(String); }
+
+/// Drops what it is given.
+Int weigh(item ^Item) => item.tags:size()
+
+/// Keeps the second of the two, and drops the first.
+^Item latter(first ^Item, second ^Item) => second
+
+type Shelf = #struct {
+	items List<Item>;
+}
+
+Shelf() => init{ items = @primitives$List(Item); }
+
+/// Keeps the item, in a shelf its caller lent.
+Unit put(this Shelf, item ^Item) mut {
+	this.items!push(item);
+	return Unit();
+}
+
+/// Drops the item: it keeps it in a shelf of its own, which it drops.
+Int stash(item ^Item) {
+	shelf ^Shelf = Shelf();
+	shelf!put(item);
+	return shelf.items:size();
+}
+
+type Label = struct {
+	text String;
+}
+
+/// Copies its parameter once, into its result.
+Label(text String) => init{ text; }
+
+/// Lends its slot to a method that holds an owner of its own.
+^Node lent() {
+	n ^Node = Node();
+	n!twice();
+	return n;
+}
+
+Unit twice(this Node) mut {
+	scratch Item = Item(String("scratch"));
+	this.children!push(Node());
+	this.children!push(Node());
+	check(@operators$equal(scratch.tags:size(), Int(0)));
+	return Unit();
+}
+
+Unit main() {
+	// A result built where it goes, once and in a loop.
+	check(@operators$equal(nodes(make(Int(4))), Int(31)));
+	total Int(0);
+	i Int(1);
+	i!to(Int(100)) {
+		total = @operators$add(total, nodes(make(Int(3))));
+	}
+	check(@operators$equal(total, Int(1500)));
+	kept Tree = make(Int(5));
+	check(@operators$equal(nodes(kept), Int(63)));
+	home Tree = spawn joined(make(Int(2)), make(Int(3)));
+	check(@operators$equal(nodes(home), Int(23)));
+
+	// Children pushed into a list the caller lent.
+	grown Node = grow(Int(3));
+	check(@operators$equal(members(grown), Int(40)));
+
+	// Fresh owners dropped by the callee, one per pass.
+	weight Int(0);
+	j Int(1);
+	j!to(Int(1000)) {
+		weight = @operators$add(weight, weigh(Item(String("x"))));
+	}
+	check(@operators$equal(weight, Int(0)));
+	stored Int(0);
+	k Int(1);
+	k!to(Int(1000)) {
+		stored = @operators$add(stored, stash(Item(String("y"))));
+	}
+	check(@operators$equal(stored, Int(1000)));
+
+	// One owner kept and the other dropped.
+	chosen Item = latter(Item(String("ada")), Item(String("grace")));
+	check(@operators$equal(chosen.name, String("grace")));
+
+	// A value parameter taken fresh, and a place copied for it.
+	fresh Label = Label(@operators$concat(String("ada"), String(" lovelace")));
+	check(@operators$equal(fresh.text, String("ada lovelace")));
+	s String = @operators$concat(String("charles"), String(" babbage"));
+	copied Label = Label(s);
+	s = String("x");
+	check(@operators$equal(copied.text, String("charles babbage")));
+	check(@operators$equal(s, String("x")));
+
+	// A slot lent to a callee with an arena of its own.
+	l Node = lent();
+	check(@operators$equal(l.children:size(), Int(2)));
+	return Unit();
+}
