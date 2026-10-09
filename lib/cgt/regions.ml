@@ -175,6 +175,15 @@ let carry id = function
 
 let carried id = function Live l -> List.mem id l.carriers | Dead -> false
 
+(* A place written whole with a new owner, which is followed from here on.
+   The owner it had must have gone on already: one still in the place is
+   dropped by the write, and one in a carrier would be a second owner to
+   follow at once. *)
+let refill = function
+  | Live { started = true; consumed = false; _ } -> raise Unknown
+  | Live _ -> Live { started = true; consumed = false; carriers = [] }
+  | Dead -> Dead
+
 let drop id = function
   | Live l -> Live { l with carriers = List.filter (( <> ) id) l.carriers }
   | Dead -> Dead
@@ -334,16 +343,15 @@ and stat a st (s : Stat.t) =
           Hashtbl.replace a.exits l (merge prior st);
           Dead
       | Stat.Scope { body; _ } -> run a st body
-      | Stat.Store { address; value } | Stat.Place { address; value; _ } -> (
-          let st = read st address in
-          let st, f = move st value in
-          match st with
-          | Live l when a.refills address -> Live { l with consumed = false }
-          | _ -> if not f then st else if lent_place a address then consume st else raise Unknown)
+      | Stat.Store { address; value }
+      | Stat.Place { address; value; _ }
       | Stat.Overwrite { address; value; _ } ->
           let st = read st address in
           let st, f = move st value in
-          if not f then st else if lent_place a address then consume st else raise Unknown
+          if a.refills address then if f then raise Unknown else refill st
+          else if not f then st
+          else if lent_place a address then consume st
+          else raise Unknown
       | Stat.Reserve _ | Stat.Join _ -> st
       | Stat.Spawn { args; _ } ->
           List.fold_left

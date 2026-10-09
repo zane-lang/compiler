@@ -280,7 +280,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
               (* The function value is read first, as it is written. *)
               let id = fresh st in
               let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
-              let lets, args = held_last st ctx span v subject rest in
+              let lets, args = held_last ~direct:false st ctx span v subject rest in
               held_in st
                 (Stat.Let { id; value = fn } :: lets)
                 (invoke ~fn:read st ctx span v (arguments ~direct:false st ctx span v args) handler)
@@ -952,7 +952,7 @@ and located_last st ctx span v subject rest handler ret =
 (* The subject's operands pinned and each argument held, as [located_last]
    needs them, for any call form that runs a `!` call on a subscripted
    subject: the statements, and the arguments to pass. *)
-and held_last st ctx span v subject rest =
+and held_last ?direct st ctx span v subject rest =
   let pins, subject = pinned st ctx span subject in
   let held =
     match v.params with
@@ -962,7 +962,7 @@ and held_last st ctx span v subject rest =
             match (a, p.T.Local.ty) with
             | T.Arg.Value e, Tty.Concept _ when expands v -> ([], T.Arg.Value e)
             | T.Arg.Value e, _ ->
-                let value = argument st ctx span v p e in
+                let value = argument ?direct st ctx span v p e in
                 let id = fresh st in
                 let l = { p with T.Local.id = -id } in
                 Hashtbl.replace ctx.env l.T.Local.id
@@ -1158,7 +1158,7 @@ and spawn st ctx span (e : T.Expr.t) =
             when fv.Tty.is_mut && Option.is_some fv.Tty.this_ && subscripted subject ->
               let id = fresh st in
               let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
-              let lets, args = held_last st ctx span v subject rest in
+              let lets, args = held_last ~direct:false st ctx span v subject rest in
               let stats, future = spawn_call st ctx span v (Some read) ~writes:true args handler in
               ((Stat.Let { id; value = fn } :: lets) @ stats, future)
           | _ -> spawn_call st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler)
@@ -1270,7 +1270,7 @@ and wrapped st span (callee : T.Verb_ref.t) args ret =
 and spawn_call st ctx span v fn ~writes passed handler =
   let o = outcome st span v in
   let whole = returned o in
-  let args = arguments st ctx span v passed in
+  let args = arguments ~direct:(Option.is_none fn) st ctx span v passed in
   (* A `mut` subject reached through an owner is copied into the frame,
      and the call works on the copy, which it writes back when it
      returns (§4.4). A function value's subject is lent by its address
@@ -1432,7 +1432,9 @@ and argument ?(direct = true) st ctx span v (p : T.Local.t) a =
   else if Tty.is_ref p.T.Local.ty then reference_to st ctx span a
   else if roaming st p.T.Local.ty then begin
     (if held st span p.T.Local.ty && not (is_place a) then
-       if (not direct) || expands v then ignore (arena st ctx.scope)
+       if (not direct) || expands v then
+         (* A callee Regions cannot see may drop it, so the arena stays. *)
+         ctx.scope.wants <- (dropping, -1) :: ctx.scope.wants
        else
          let same (q : T.Local.t) = q.T.Local.id = p.T.Local.id in
          let index = Option.value ~default:(-1) (List.find_index same v.params) in

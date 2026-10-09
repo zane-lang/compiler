@@ -450,8 +450,12 @@ test passing.
   once:
   - A `^T` parameter is **kept** when every way out of its function has
     moved it on: into the result, into a place the caller lent, or into a
-    callee that keeps it in turn. A callee another object defines, or one
-    called through a function value, is taken to drop what it is given.
+    callee that keeps it in turn. A callee another object defines, one
+    called through a function value, and a verb expanded where it is
+    called are taken to drop what they are given.
+  - A slot written with a new owner holds a second owner, which every way
+    out must move on too. The first must have gone on before the write,
+    since writing over an owner drops it.
   - A function whose whole body is one arena, holding only owners that
     every way out moves on, opens none. It holds them in slots of its own,
     and what it makes is made in its caller's innermost region, which is

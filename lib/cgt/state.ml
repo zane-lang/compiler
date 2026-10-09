@@ -82,6 +82,11 @@ and scope = {
    [ret]: a value moves there, or a reference is minted, as into any storage. *)
 and exit = Function | Leave of { label : int; result : int option; ret : Tty.t }
 
+(* The callee a want names when the call has no function Regions can see,
+   a function value's or a verb expanded where it is called: no symbol is
+   empty, so Regions finds no parameter of it kept, and the arena stays. *)
+let dropping = ""
+
 (* A package constant: its symbol, its package, its declared type and its
    value. *)
 type constant = { symbol : string; package : string; ty : Tty.t; value : T.Expr.t }
