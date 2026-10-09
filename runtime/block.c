@@ -15,27 +15,21 @@ void zane_work_start(zane_work *w) {
 	w->room = ZANE_LOCAL_JOBS;
 }
 
-void zane_work_push(zane_work *w, zane_job job) {
-	if (w->count == w->room) {
-		if (w->room == 0) {
-			zane_work_start(w);
-		} else {
-			int64_t room = 2 * w->room;
-			zane_job *jobs = w->jobs == w->local ? malloc((size_t)room * sizeof *jobs)
-			                                     : realloc(w->jobs, (size_t)room * sizeof *jobs);
-			if (!jobs) zane_broken("out of memory for a value's blocks");
-			if (w->jobs == w->local) memcpy(jobs, w->local, sizeof w->local);
-			w->jobs = jobs;
-			w->room = room;
-		}
+/* A work out of room: one zeroed whole starts, and one full moves to a heap
+   buffer twice the size. Kept out of line, so the push stays small enough
+   that every clang inlines it. */
+void zane_work_grow(zane_work *w) {
+	if (w->room == 0) {
+		zane_work_start(w);
+		return;
 	}
-	w->jobs[w->count++] = job;
-}
-
-int zane_work_pop(zane_work *w, zane_job *job) {
-	if (w->count == 0) return 0;
-	*job = w->jobs[--w->count];
-	return 1;
+	int64_t room = 2 * w->room;
+	zane_job *jobs = w->jobs == w->local ? malloc((size_t)room * sizeof *jobs)
+	                                     : realloc(w->jobs, (size_t)room * sizeof *jobs);
+	if (!jobs) zane_broken("out of memory for a value's blocks");
+	if (w->jobs == w->local) memcpy(jobs, w->local, sizeof w->local);
+	w->jobs = jobs;
+	w->room = room;
 }
 
 void zane_work_end(zane_work *w) {
