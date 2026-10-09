@@ -7,7 +7,9 @@
    with the replacement as an input. A control statement whose reads are all
    known is run as a whole, so a loop over known values leaves only what it
    wrote. Whatever does not fold stays as it was, and what it may write is
-   no longer known after it. *)
+   no longer known after it. A run of statements that makes a list or a box,
+   changes it and is done with it, which no statement of it leaves known, is
+   evaluated whole and replaced by what it left. *)
 
 open Cgt.Nodes
 module V = Value
@@ -355,6 +357,180 @@ let attempt_stat fn (env : known) (s : Stat.t) : Stat.t list option =
   | outputs, assigns -> Some (outputs @ commit env assigns)
   | exception (V.Stop _ | Eval.Left _ | Eval.Returned _) -> None
 
+(* ---------------------------------------------------------------------- *)
+(* A run of statements                                                    *)
+(* ---------------------------------------------------------------------- *)
+
+(* The last statement of a run that names each local, binding it, reading
+   it, storing into it or taking its address, by the statement's index. *)
+let last_named stats =
+  let last = Hashtbl.create 32 in
+  Array.iteri
+    (fun i s ->
+      let see id = Hashtbl.replace last id i in
+      iter_stat s
+        ~expr:(fun e ->
+          match e.Expr.node with
+          | Expr.Local id | Expr.Address id -> see id
+          | Expr.Expand { result = Some r; _ } -> see r
+          | _ -> ())
+        ~stat:(function
+          | Stat.Let { id; _ } | Stat.Hold { id; _ } | Stat.Reserve { id; _ } | Stat.Join id ->
+              see id
+          | Stat.Assign { place; _ } -> see place.Expr.local
+          | Stat.Spawn { task; dest; _ } ->
+              see task;
+              Option.iter see dest
+          | _ -> ()))
+    stats;
+  last
+
+(* Whether a type holds a handle or an address anywhere: a value of it
+   lives in part somewhere a constant written as a [Let] does not say. *)
+let rec holds_ref (t : Ty.t) =
+  match t with
+  | Ty.Handle | Ty.Ptr -> true
+  | Ty.Struct ts | Ty.Sum ts -> List.exists holds_ref ts
+  | Ty.Array (t, _) -> holds_ref t
+  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
+
+(* Whether a run of statements binds a local of such a type. *)
+let binds_ref stats =
+  let found = ref false in
+  let see (t : Ty.t) = if holds_ref t then found := true in
+  iter_stats stats
+    ~expr:(fun e ->
+      match e.Expr.node with Expr.Expand { result = Some _; _ } -> see e.Expr.ty | _ -> ())
+    ~stat:(function
+      | Stat.Let { value; _ } | Stat.Hold { value; _ } -> see value.Expr.ty
+      | Stat.Reserve { ty; _ } -> see ty
+      | _ -> ());
+  !found
+
+(* Whether a value owns a list or a box. *)
+let rec holds_block (v : V.v) =
+  match v with
+  | V.VList _ | V.VPtr { owned = true; _ } -> true
+  | V.VRecord a -> Array.exists holds_block a
+  | V.VCase (_, p) -> holds_block p
+  | _ -> false
+
+(* Where a run of statements could end: how many statements it has, what it
+   output, each known local it wrote, and each local it bound that a later
+   statement names, with the value it holds there. *)
+type mark = {
+  length : int;
+  outputs : Eval.output list;
+  stores : (int * V.const * Ty.t) list;
+  lets : (int * V.const * Ty.t) list;
+}
+
+(* The mark after the first [length] statements of a run, or [None] where
+   the run cannot end. It ends only where the code it replaces dropped a
+   list or a box it made: a run that does not is folded as well statement
+   by statement. Each local the run bound that a later statement names must
+   hold a value a [Let] can give, since the code that bound it is gone. *)
+let mark fn (env : known) (run : Eval.run) (fr : Eval.frame) ~last ~length ~outputs_size =
+  if Eval.wrote_globals run then None
+  else
+    match
+      let stores = ref [] and lets = ref [] and drops = ref false in
+      let named_after id =
+        match Hashtbl.find_opt last id with Some i -> i >= length | None -> false
+      in
+      Hashtbl.iter
+        (fun id (c : V.cell) ->
+          match c.V.origin with
+          | V.Outer _ -> (
+              Eval.bytes run (V.weight c.V.value);
+              let before = Option.map fst (Hashtbl.find_opt env id) in
+              match V.export c.V.value with
+              | Some now when Option.fold ~none:false ~some:(V.same now) before -> ()
+              | Some now when Hashtbl.mem fn.plain id -> stores := (id, now, c.V.ty) :: !stores
+              | _ -> V.stop "a written local that cannot be stored back")
+          | _ when Hashtbl.mem fn.wide id -> V.stop "a local bound here and named elsewhere"
+          | _ when named_after id -> (
+              if holds_ref c.V.ty then V.stop "a local named after the run that lives elsewhere";
+              match V.export c.V.value with
+              | Some now -> lets := (id, now, c.V.ty) :: !lets
+              | None -> V.stop "a local named after the run with no constant value")
+          | _ -> if holds_block c.V.value then drops := true)
+        fr.Eval.locals;
+      let size =
+        List.fold_left (fun n (_, now, _) -> n + V.size now) outputs_size (!stores @ !lets)
+      in
+      if size > Materialize.max_size then V.stop "a replacement larger than the size cap";
+      if not !drops then V.stop "a run that drops no list or box";
+      let stores = List.sort compare !stores and lets = List.sort compare !lets in
+      { length; outputs = run.Eval.outputs; stores; lets }
+    with
+    | m -> Some m
+    | exception V.Stop _ -> None
+
+(* Whether a statement can end somewhere other than after itself: it
+   returns, or leaves an expansion it is not inside. A run stops before
+   such a statement rather than evaluating it, since it cannot end after
+   it. *)
+let exits s =
+  let inside = Hashtbl.create 8 and out = ref false in
+  iter_stat s
+    ~expr:(fun e ->
+      match e.Expr.node with Expr.Expand { label; _ } -> Hashtbl.replace inside label () | _ -> ())
+    ~stat:nothing;
+  iter_stat s ~expr:nothing ~stat:(function
+    | Stat.Return _ -> out := true
+    | Stat.Leave l when not (Hashtbl.mem inside l) -> out := true
+    | _ -> ());
+  !out
+
+(* A run of statements evaluated from the first, as far as it goes, with a
+   mark after each statement that finished. Gives the marks, longest first,
+   and the index of the statement the run stopped in, or the run's length
+   when it finished. *)
+let evaluate_run fn (env : known) stats =
+  let last = last_named stats in
+  let run = Eval.start fn.prog in
+  let fr = frame env in
+  let marks = ref [] in
+  let seen = ref [] and outputs_size = ref 0 in
+  let rec go i =
+    if i = Array.length stats || exits stats.(i) then i
+    else
+      match Eval.stat run fr stats.(i) with
+      | () ->
+          (* The outputs made since the last mark, which are the newest. *)
+          let rec added n l =
+            if l == !seen then n
+            else match l with o :: r -> added (n + Materialize.output_size o) r | [] -> n
+          in
+          outputs_size := added !outputs_size run.Eval.outputs;
+          seen := run.Eval.outputs;
+          Option.iter
+            (fun m -> marks := m :: !marks)
+            (mark fn env run fr ~last ~length:(i + 1) ~outputs_size:!outputs_size);
+          go (i + 1)
+      | exception (V.Stop _ | Eval.Left _ | Eval.Returned _) -> i
+  in
+  let stopped = go 0 in
+  (!marks, stopped)
+
+(* The statements that replace the first [m.length] of a run: its outputs,
+   then each known local it wrote stored back, then each local it bound
+   that a later statement names bound to its value. *)
+let replace_run fn (env : known) m =
+  let written make (id, c, ty) =
+    Option.map
+      (fun value -> (id, c, ty, make id value))
+      (Materialize.expr ~fresh:(fun () -> fresh fn) ty c)
+  in
+  let stores = List.map (written Stat.assign) m.stores
+  and lets = List.map (written (fun id value -> Stat.Let { id; value })) m.lets in
+  if List.exists Option.is_none (stores @ lets) then None
+  else
+    let outputs = List.rev_map Materialize.output m.outputs in
+    let stores = commit env (List.filter_map Fun.id stores) in
+    Some (outputs @ stores @ commit env (List.filter_map Fun.id lets))
+
 (* Whether evaluating an expression is worth trying: it is not a constant
    already, and every input it has is known. *)
 let candidate fn (env : known) (e : Expr.t) =
@@ -455,7 +631,34 @@ and map_children fn env (e : Expr.t) =
   in
   { e with Expr.node }
 
-and block fn env stats = List.concat_map (stat fn env) stats
+(* A run of statements, each folded in turn, except where a run of them
+   evaluated whole ends at a mark: the run is replaced by what it left. A
+   run that stopped in a statement is not started again at any statement
+   it went through, which would stop in the same place. *)
+and block fn env stats =
+  (* Whether a run starting at each statement binds a local that can hold
+     a list or a box, which a run must drop to end anywhere. *)
+  let worth = Array.of_list (List.map (fun s -> binds_ref [ s ]) stats) in
+  for i = Array.length worth - 2 downto 0 do
+    worth.(i) <- worth.(i) || worth.(i + 1)
+  done;
+  run_from fn env worth 0 0 stats
+
+and run_from fn env worth at through stats =
+  match stats with
+  | [] -> []
+  | s :: rest when through > 0 || not worth.(at) ->
+      let s = stat fn env s in
+      s @ run_from fn env worth (at + 1) (through - 1) rest
+  | s :: rest -> (
+      let marks, stopped = evaluate_run fn env (Array.of_list stats) in
+      match List.find_map (fun m -> Option.map (fun r -> (m, r)) (replace_run fn env m)) marks with
+      | Some (m, replaced) ->
+          let rest = List.filteri (fun i _ -> i >= m.length) stats in
+          replaced @ run_from fn env worth (at + m.length) (stopped - m.length) rest
+      | None ->
+          let s = stat fn env s in
+          s @ run_from fn env worth (at + 1) (stopped - 1) rest)
 
 and stat fn (env : known) (s : Stat.t) : Stat.t list =
   let ex e =

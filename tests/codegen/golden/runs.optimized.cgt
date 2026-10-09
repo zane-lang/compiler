@@ -1,0 +1,136 @@
+└── program:
+    ├── entry: runs$main()
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$Bool
+    │   └── positions:
+    ├── layouts[1] > layout:
+    │   ├── type: %primitives$List<%primitives$Bool>
+    │   └── positions[0]: list @0 of %primitives$Bool (1 bytes apart)
+    ├── layouts[2] > layout:
+    │   ├── type: %primitives$I64
+    │   └── positions:
+    ├── layouts[3] > layout:
+    │   ├── type: %primitives$List<%primitives$I64>
+    │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
+    ├── layouts[4] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── layouts[5] > layout:
+    │   ├── type: %primitives$List<%primitives$String>
+    │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
+    ├── funcs[0] > func:
+    │   ├── symbol: runs$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[1] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[2] > hold:
+    │       │   ├── local: #29
+    │       │   ├── scope: %3
+    │       │   ├── value > expand:
+    │       │   │   ├── type: handle
+    │       │   │   ├── label: @37
+    │       │   │   ├── result: #38
+    │       │   │   └── body[0] > assign:
+    │       │   │       ├── place: #38
+    │       │   │       └── value > runtime:
+    │       │   │           ├── type: handle
+    │       │   │           ├── fn: zane_list_new
+    │       │   │           └── args:
+    │       │   └── layout: %primitives$List<%primitives$I64>
+    │       ├── body[3] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @32
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #30
+    │       │   │   └── value: 1 : i64
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #31
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #29 : ptr
+    │       │   │       └── args[1]: 8 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #31 : ptr
+    │       │       ├── value: 1 : i64
+    │       │       └── layout: %primitives$I64
+    │       ├── body[4] > hold:
+    │       │   ├── local: #33
+    │       │   ├── scope: %3
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: zane_arguments
+    │       │   │   └── args:
+    │       │   └── layout: %primitives$List<%primitives$String>
+    │       ├── body[5] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @36
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #34
+    │       │   │   └── value > member:
+    │       │   │       ├── type: i64
+    │       │   │       ├── index: 1
+    │       │   │       └── value: local #33 : handle
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #35
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #29 : ptr
+    │       │   │       └── args[1]: 8 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #35 : ptr
+    │       │       ├── value: local #34 : i64
+    │       │       └── layout: %primitives$I64
+    │       ├── body[6] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: runs$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > member:
+    │       │       │   ├── type: i64
+    │       │       │   ├── index: 1
+    │       │       │   └── value: local #29 : handle
+    │       │       └── right: 2 : i64
+    │       └── body[7] > return: unit : void
+    └── funcs[1] > func:
+        ├── symbol: runs$check(%primitives$Bool)
+        ├── params[0]: local #1 : i1
+        ├── ret: void
+        └── body[0] > scope:
+            ├── id: %3
+            ├── body[0] > hold:
+            │   ├── local: #2
+            │   ├── scope: %3
+            │   ├── value: "yes\n" : handle
+            │   └── layout: %primitives$String
+            ├── body[1] > hold:
+            │   ├── local: #4
+            │   ├── scope: %3
+            │   ├── value: "no\n" : handle
+            │   └── layout: %primitives$String
+            ├── body[2] > if:
+            │   ├── cond: local #1 : i1
+            │   └── body[0] > eval > runtime:
+            │       ├── type: void
+            │       ├── fn: zane_print
+            │       └── args[0]: "yes\n" : handle
+            ├── body[3] > if:
+            │   ├── cond > flip:
+            │   │   ├── type: i1
+            │   │   └── value: local #1 : i1
+            │   └── body[0] > eval > runtime:
+            │       ├── type: void
+            │       ├── fn: zane_print
+            │       └── args[0]: "no\n" : handle
+            └── body[4] > return: unit : void
