@@ -5,7 +5,8 @@
 /* ---------------------------------------------------------------------- */
 
 /* What threads share and change -- the chunk map's levels, the spare
-   chunks, and the contexts -- changes under this lock. */
+   chunks idle contexts gave back, and the contexts -- changes under this
+   lock. */
 pthread_mutex_t zane_memory = PTHREAD_MUTEX_INITIALIZER;
 
 /* Which region every chunk belongs to, by its address over 1 MiB: 0 for
@@ -109,10 +110,17 @@ void *zane_bump(int64_t size, int64_t align) {
 	return c->directory[c->chunks - 1] + start;
 }
 
+/* Where a scope's slots begin in its context's fixed chain, counted from
+   the chain's start. */
+static int64_t zane_begins(const zane_mark *m) {
+	return m->chunks ? (int64_t)(m->chunks - 1) * ZANE_CHUNK + (int64_t)m->frontier : 0;
+}
+
 /* The region that holds `at`: the one whose dynamic chunk it is in, or the
    innermost scope of the context whose fixed chain it is in that began at
    or before it. Anything else, such as a value on the machine stack, is the
-   innermost scope's here. */
+   innermost scope's here. Most slots asked about are the innermost scope's
+   own, so that one is tried before the search. */
 zane_mark *zane_region_at(const void *at) {
 	int32_t *page = zane_page(at, 0);
 	int32_t entry = page ? *page : 0;
@@ -124,11 +132,10 @@ zane_mark *zane_region_at(const void *at) {
 	zane_lock(c);
 	int64_t position = n * ZANE_CHUNK + ((const char *)at - c->directory[n]);
 	int64_t lo = 0, hi = c->depth - 1;
+	if (hi > 0 && zane_begins(zane_mark_at(c, hi)) <= position) lo = hi;
 	while (lo < hi) {
 		int64_t mid = (lo + hi + 1) / 2;
-		zane_mark *m = zane_mark_at(c, mid);
-		int64_t start = m->chunks ? (int64_t)(m->chunks - 1) * ZANE_CHUNK + (int64_t)m->frontier : 0;
-		if (start <= position) lo = mid;
+		if (zane_begins(zane_mark_at(c, mid)) <= position) lo = mid;
 		else hi = mid - 1;
 	}
 	zane_unlock(c);
@@ -138,18 +145,38 @@ zane_mark *zane_region_at(const void *at) {
 /* Every block is at least a word, and aligned to one. */
 static int64_t zane_word(int64_t n) { return n < 8 ? 8 : (n + 7) / 8 * 8; }
 
-/* Dynamic chunks a drained region gave back, ready for the next. */
+/* Dynamic chunks that contexts gave back when their calls were over,
+   ready for any context that has no spare of its own. */
 static zane_mapping *zane_spare;
 
+/* A context going idle gives its spare chunks to every context, so an idle
+   one never keeps the peak its last call reached. */
+void zane_give_spares(zane_context *c) {
+	if (!c->spare) return;
+	zane_mapping *last = c->spare;
+	while (last->next) last = last->next;
+	pthread_mutex_lock(&zane_memory);
+	last->next = zane_spare;
+	zane_spare = c->spare;
+	pthread_mutex_unlock(&zane_memory);
+	c->spare = NULL;
+}
+
 /* Chunks of its own for one region: `size` bytes in all, a whole number of
-   chunks, listed in the chunk map as the region's. Its context's lock is
-   held. */
+   chunks, listed in the chunk map as the region's. A whole chunk is one of
+   its context's spares when there is one, else one an idle context gave
+   back. Its context's lock is held. */
 static zane_mapping *zane_map(zane_mark *region, size_t size) {
+	zane_context *c = region->context;
 	zane_mapping *m = NULL;
 	if (size == ZANE_CHUNK) {
-		pthread_mutex_lock(&zane_memory);
-		if ((m = zane_spare)) zane_spare = m->next;
-		pthread_mutex_unlock(&zane_memory);
+		if ((m = c->spare)) {
+			c->spare = m->next;
+		} else {
+			pthread_mutex_lock(&zane_memory);
+			if ((m = zane_spare)) zane_spare = m->next;
+			pthread_mutex_unlock(&zane_memory);
+		}
 	}
 	if (!m && !(m = zane_chunk_alloc(size)))
 		zane_broken("out of memory for a dynamic chunk");
@@ -161,18 +188,18 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 	return m;
 }
 
-/* A region's chunks given back: each leaves the chunk map, and a whole
-   chunk is kept for the next region that needs one. */
+/* A region's chunks given back, whatever is still in them (memory.md
+   §3.2): each leaves the chunk map, and a whole chunk is kept for the next
+   region of the same context that needs one. Its context's lock is held. */
 void zane_unmap(zane_mark *region) {
+	zane_context *c = region->context;
 	while (region->mappings) {
 		zane_mapping *next = region->mappings->next;
 		for (size_t at = 0; at < region->mappings->size; at += ZANE_CHUNK)
 			*zane_page((char *)region->mappings + at, 0) = 0;
 		if (region->mappings->size == ZANE_CHUNK) {
-			pthread_mutex_lock(&zane_memory);
-			region->mappings->next = zane_spare;
-			zane_spare = region->mappings;
-			pthread_mutex_unlock(&zane_memory);
+			region->mappings->next = c->spare;
+			c->spare = region->mappings;
 		} else {
 			zane_chunk_free(region->mappings);
 		}
@@ -181,6 +208,7 @@ void zane_unmap(zane_mark *region) {
 	region->chunk = NULL;
 	region->bumped = 0;
 	region->stacks = NULL;
+	region->live = 0;
 }
 
 /* Bytes from a region's frontier, which moves to a fresh chunk when the
@@ -218,9 +246,6 @@ static zane_stack *zane_stack_of(zane_mark *m, int64_t size, int64_t align) {
 	return s;
 }
 
-/* How many blocks are out, in every open region. */
-_Atomic int64_t zane_blocks;
-
 /* A block in a region: one returned there of the same size and alignment,
    or else new bytes from its frontier (§3.2). */
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align) {
@@ -233,7 +258,6 @@ char *zane_alloc(zane_mark *region, int64_t size, int64_t align) {
 	else block = zane_frontier_of(region, size, align);
 	region->live++;
 	zane_unlock(region->context);
-	zane_blocks++;
 	return block;
 }
 
@@ -248,5 +272,15 @@ void zane_free(char *block, int64_t size, int64_t align) {
 	s->top = block;
 	region->live--;
 	zane_unlock(region->context);
-	zane_blocks--;
+}
+
+/* How many blocks are out in every open region, for the runtime's own
+   tests: each is counted until it is returned or its region drains. Only
+   a test asks, between calls it has joined. */
+int64_t zane_blocks(void) {
+	int64_t n = 0;
+	for (int32_t i = 0; i < zane_context_count; i++)
+		for (int64_t d = 0; d < zane_contexts[i]->depth; d++)
+			n += zane_mark_at(zane_contexts[i], d)->live;
+	return n;
 }

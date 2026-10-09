@@ -111,11 +111,11 @@ void zane_main(void) {
 	check(zane_self->shared == 1);
 	zane_join((char *)f);
 	check(holds(home, "abcd") && zane_region_at(home->bytes) == zane_mark_at(zane_self, scope));
-	check(zane_self->shared == 0 && zane_blocks == 1);
+	check(zane_self->shared == 0 && zane_blocks() == 1);
 	zane_join((char *)f);
-	check(zane_blocks == 1);
+	check(zane_blocks() == 1);
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* A result never read comes home at the drain, which then returns
 	   its blocks. */
@@ -126,7 +126,7 @@ void zane_main(void) {
 	f->right = &ab;
 	zane_spawn((char *)f, join_texts, (char *)home, text_layout, sizeof(zane_text));
 	zane_scope_drain(scope);
-	check(zane_blocks == 0 && zane_self->shared == 0);
+	check(zane_blocks() == 0 && zane_self->shared == 0);
 
 	/* Many calls at once, each in scopes of its own, and calls that spawn
 	   calls: every result is right, and contexts are reused. */
@@ -146,7 +146,7 @@ void zane_main(void) {
 		int64_t n = 100 + i, once = n * (n + 1) / 2, twice = 2 * n * (2 * n + 1) / 2;
 		right &= *sums[i] == (i % 2 ? once : once + twice);
 	}
-	check(right && zane_blocks == 0);
+	check(right && zane_blocks() == 0);
 	int32_t made = zane_context_count;
 	for (int round = 0; round < 100; round++) {
 		scope = zane_scope_enter();

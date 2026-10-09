@@ -11,6 +11,12 @@ trees and what both builds of the program wrote. A fixture whose
 holds stdout and stderr together. A fixture's `arguments` file, one argument
 per line, is what both builds of its program run with.
 
+Every program runs with `ZANE_CHECK` set, which `dune` sets for this
+directory: each drain then returns its values' blocks one at a time, and a
+block still out in the region afterwards stops the program
+(docs/design/lowering.md §9). A program built for use releases a region in
+bulk and checks nothing.
+
 The rules are written by `tests/gen/gen_rules.ml` into `dune.inc`. To add a
 fixture, add its directory and an empty golden file, run `dune runtest`,
 check the new rules in the `dune.inc` diff and `dune promote`, then run it
@@ -57,8 +63,8 @@ again, read the golden diff and promote that.
   variant payload's float.
 - `texts` is step 7's strings: `@primitives$String` handles that own their
   bytes, joined, compared, printed, hosted, moved, guested, overwritten,
-  floated, returned, discarded and aborted with. The runtime stops a program
-  that ends with a block still out.
+  floated, returned, discarded and aborted with. A checked drain stops a
+  program that ends with a block still out.
 - `lists` is step 7's lists: pushed to, measured, indexed and written at an
   index, of scalars, strings, hosts and lists, under a generic type with a
   declared subscript. Guests follow hosts into a list and through its growth.
@@ -72,12 +78,12 @@ again, read the golden diff and promote that.
   index 0, below a list's first element.
 - `regions` is each scope's dynamic region: a value that leaves a scope --
   returned, left from an arm, aborted with, stored or pushed from an inner
-  block -- takes its blocks out before the scope drains, and a drain that finds
-  one still out stops the program.
+  block -- takes its blocks out before the scope drains, and a checked drain
+  that finds one still out stops the program.
 - `spawns` is step 8: calls started with `spawn` run on the pool's threads.
   Their results come home when read or when their block drains, which waits for
-  every call spawned in it, and the runtime stops a program that ends with a
-  block still out.
+  every call spawned in it, and a checked drain stops a program that ends
+  with a block still out.
 - `lambdas` is step 9: lambdas lifted to functions, held by lambda-variables
   in a body and at package scope, passed, returned, stored in a member and an
   enum map, called through and spawned, with an abort, a subject, a string, a

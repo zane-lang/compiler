@@ -2,8 +2,8 @@
 /// caller goes on (concurrency.md §3). A local bound to one waits for it
 /// where it is read, and a block waits for every call spawned in it before
 /// it drains (§4.1). Results come home with their blocks: numbers, strings,
-/// lists and owners, read, left unread, or dropped. The
-/// runtime stops the program if a drain finds a block still out. Each check
+/// lists and owners, read, left unread, or dropped. A checked
+/// drain stops the program if it finds a block still out. Each check
 /// prints `yes` when it holds and `no` when it does not.
 package spawns;
 
