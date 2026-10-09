@@ -1,0 +1,58 @@
+/// A reference to a settled list follows it as its block grows (memory.md
+/// §3.6, §4.2): the reference names the list's handle, which stays in its
+/// slot while the elements relocate into each doubled block, past 1 MiB
+/// into an oversized span. The same holds for a list held in a field of a
+/// settled owner, through a whole overwrite of that owner (§2.2).
+package listref;
+
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Unit check(label String, ok Bool) {
+	@program$console!print(label);
+	@controlflow$branch(ok, { @program$console!print(String(" yes\n")); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(String(" NO\n")); });
+	return Unit();
+}
+
+type Bag = #struct { items List<Int>; tag Int; }
+Bag(tag Int) => init{ items = @primitives$List(Int); tag; }
+
+Unit main() {
+	numbers List<Int> = @primitives$List(Int);
+	numbers!push(Int(7));
+	r &List<Int> = numbers;
+	i Int(1);
+	i!to(Int(300000)) { numbers!push(i); }
+	check(String("ref to settled list sees growth past 1 MiB"), @operators$equal(r:size(), Int(300001)));
+	check(String("ref reads first element"), @operators$equal(r[Int(1)], Int(7)));
+	check(String("ref reads last element"), @operators$equal(r[Int(300001)], Int(300000)));
+
+	r!push(Int(42));
+	check(String("push through ref seen by owner"), @operators$equal(numbers[Int(300002)], Int(42)));
+
+	bag Bag(Int(1));
+	f &List<Int> = bag.items;
+	j Int(1);
+	j!to(Int(200000)) { f!push(j); }
+	check(String("field-list ref grown through ref"), @operators$equal(bag.items:size(), Int(200000)));
+	bag.items!push(Int(5));
+	check(String("field-list ref sees owner push"), @operators$equal(f[Int(200001)], Int(5)));
+	bag = Bag(Int(2));
+	check(String("field-list ref sees whole overwrite"), @operators$equal(f:size(), Int(0)));
+	k Int(1);
+	k!to(Int(1000)) { f!push(k); }
+	check(String("refilled field list grows through ref"), @operators$equal(bag.items[Int(1000)], Int(1000)));
+	return Unit();
+}
