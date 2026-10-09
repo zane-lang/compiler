@@ -28,3 +28,7 @@ Unit main() {
 	print(describe(Shape.round));
 	return Unit();
 }
+
+Unit?String stop() {
+	abort "stopped";
+}
