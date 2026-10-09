@@ -504,7 +504,9 @@ test passing.
     1 MiB. The first touch of each further MiB faults, and the fault handler
     makes it usable and lets the access run again (`mprotect` on POSIX,
     `VirtualAlloc(MEM_COMMIT)` on Windows), so a system with strict
-    overcommit charges only what is used. A frame of up to 1 MiB that does
+    overcommit charges only what is used. If the system cannot commit a
+    step, the program reports "out of memory: cannot commit a context's
+    fixed-size region" and exits with status 1. A frame of up to 1 MiB that does
     not fit faults in the guard; a larger one is checked against the
     range's end before it is placed, on a branch marked unlikely. Either way
     the program stops with "scopes nested too deep", the range's size, and
@@ -523,7 +525,9 @@ test passing.
     context whose range it is in, so it caps no depth either.
   - **The machine stack.** A program's calls also nest on the machine
     stack, which for most programs fills long before the range does. Every
-    thread has 8 MiB of it, emitted functions probe it page by page as they
+    worker has 8 MiB of it; the main thread's size is set by its launch
+    environment on POSIX and to 8 MiB by the linker on Windows
+    ([`platforms.md`](platforms.md)). Emitted functions probe it page by page as they
     grow it, and the fault handler runs on a stack of its own, so a full
     machine stack stops the program with "recursion too deep" and status 1
     rather than a crash.

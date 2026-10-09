@@ -97,8 +97,8 @@ static char *zane_append(char *at, const char *text) {
 	return at;
 }
 
-_Noreturn static void zane_stop(const char *text, char *end) {
-	fflush(stdout);
+_Noreturn static void zane_stop(const char *text, char *end, int flush_stdout) {
+	if (flush_stdout) fflush(stdout);
 #ifdef _WIN32
 	_write(2, text, (unsigned)(end - text));
 	ExitProcess(1);
@@ -109,10 +109,18 @@ _Noreturn static void zane_stop(const char *text, char *end) {
 #endif
 }
 
+/* The address is in a reserved range, but the system cannot back the
+   touched step. Raising the range's bound would not make memory available. */
+_Noreturn static void zane_commit_failed(void) {
+	char text[96], *at = zane_append(text, "out of memory: cannot commit a context's fixed-size region\n");
+	/* A commit can fail while stdio holds its lock: do not flush here. */
+	zane_stop(text, at, 0);
+}
+
 /* The program's calls nest deeper than its thread's machine stack holds. */
 _Noreturn static void zane_stack_full(void) {
 	char text[64], *at = zane_append(text, "recursion too deep: the machine stack is full\n");
-	zane_stop(text, at);
+	zane_stop(text, at, 1);
 }
 
 /* The program's scopes nest deeper than its range holds: the error says
@@ -130,7 +138,7 @@ _Noreturn void zane_too_deep_in(zane_context *c) {
 	at = zane_append(at, " MiB is full; raise `");
 	at = zane_append(at, main_context ? "fixed-region" : "spawned-fixed-region");
 	at = zane_append(at, "` in zane.coda\n");
-	zane_stop(text, at);
+	zane_stop(text, at, 1);
 }
 
 /* A frame larger than the guard, which emitted code checks before it
@@ -147,7 +155,8 @@ static int zane_fault_at(char *at) {
 	zane_context *c = (zane_context *)(entry & ~(uintptr_t)1);
 	if (at < c->base || at >= c->limit + ZANE_GUARD) return 0;
 	if (at >= c->limit) zane_too_deep_in(c);
-	return zane_commit(c, at);
+	if (!zane_commit(c, at)) zane_commit_failed();
+	return 1;
 }
 
 #ifdef _WIN32

@@ -7,6 +7,51 @@
 
 #include <string.h>
 
+#ifdef __linux__
+#include <errno.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
+#include <sys/wait.h>
+
+/* Fail the system's commit in a child only, without depending on the
+   machine's memory budget or overcommit policy. */
+static int fail_commit;
+int mprotect(void *at, size_t size, int protection) {
+	if (fail_commit) { errno = ENOMEM; return -1; }
+	return (int)syscall(SYS_mprotect, at, size, protection);
+}
+
+static int commit_failure(int spawned) {
+	int output[2];
+	if (pipe(output) != 0) return 0;
+	fflush(stdout);
+	pid_t child = fork();
+	if (child == 0) {
+		close(output[0]);
+		if (dup2(output[1], STDERR_FILENO) < 0) _exit(2);
+		close(output[1]);
+		if (spawned) zane_self = zane_context_new();
+		char *touch = zane_self->committed;
+		fail_commit = 1;
+		(void)zane_scope_enter(touch - zane_self->frontier + ZANE_CHUNK);
+		*(volatile char *)touch = 42;
+		_exit(2);
+	}
+	close(output[1]);
+	char text[128];
+	size_t used = 0;
+	ssize_t n;
+	while (used < sizeof text - 1 && (n = read(output[0], text + used, sizeof text - 1 - used)) > 0)
+		used += (size_t)n;
+	text[used] = 0;
+	close(output[0]);
+	int status;
+	return child > 0 && waitpid(child, &status, 0) == child &&
+	       WIFEXITED(status) && WEXITSTATUS(status) == 1 &&
+	       strcmp(text, "out of memory: cannot commit a context's fixed-size region\n") == 0;
+}
+#endif
+
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
 /* `depth` scopes nested inside the innermost, each with a slot, whose
@@ -87,4 +132,10 @@ void zane_main(void) {
 	unnest(records, DEEP);
 	check(found && self->top == outer);
 	zane_scope_drain(outer);
+
+#ifdef __linux__
+	check(commit_failure(0) && commit_failure(1));
+#else
+	check(1);
+#endif
 }

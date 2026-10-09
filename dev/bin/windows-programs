@@ -42,9 +42,11 @@ for golden in tests/codegen/golden/*.out; do
 	status=0
 	[[ -f "$fixture/expected-status" ]] && status="$(tr -d '[:space:]' <"$fixture/expected-status")"
 	flags=()
-	[[ -f "$fixture/flags" ]] && mapfile -t flags <"$fixture/flags"
-	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" "${flags[@]}" --package "$fixture"
-	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" "${flags[@]}" --package "$fixture"
+	if [[ -f "$fixture/flags" ]]; then
+		while IFS= read -r flag || [[ -n "$flag" ]]; do flags+=("$flag"); done <"$fixture/flags"
+	fi
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" ${flags[@]+"${flags[@]}"} --package "$fixture"
+	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" ${flags[@]+"${flags[@]}"} --package "$fixture"
 	expect "$name" "$golden" "$status"
 	expect "$name.optimized" "$golden" "$status"
 	if [[ -f "$fixture/arguments" ]]; then

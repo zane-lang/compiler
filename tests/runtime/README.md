@@ -21,6 +21,12 @@ frame around it ended, several MiB of slots become usable as they are
 touched, and an address is found in the scope whose frame holds it at any
 depth, 100,000 scopes deep among them.
 
+On Linux it also forces `mprotect` to fail in child processes for both a
+main context and a spawned context. Each must exit with status 1 and the
+commit-failure diagnostic, rather than passing its fault on as a raw
+segmentation fault. This check needs no particular memory budget or
+overcommit setting; other platforms run the placement checks alone.
+
 `scalar_lists.c` covers issue [#191](https://github.com/zane-lang/compiler/issues/191):
 a list whose elements own no blocks, and a box whose payload owns none,
 have walks for their own block alone. List backing blocks and scalar box
