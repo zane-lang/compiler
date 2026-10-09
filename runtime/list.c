@@ -32,11 +32,11 @@ void *zane_list_push(zane_list *list, int64_t stride) {
 		zane_mark *region = zane_region_at(list->room ? (void *)list->items : (void *)list);
 		zane_lock(region->context);
 		zane_stack *s = zane_find_stack(region, room, ZANE_LINE);
-		int grows = !(s && s->top) && list->room &&
-		            list->items + list->room == region->chunk + region->bumped &&
-		            region->bumped + (size_t)(room - list->room) <= ZANE_CHUNK;
+		zane_heap *h = &region->heap;
+		int grows = !(s && s->top) && list->room && list->items + list->room == h->bump &&
+		            room - list->room <= h->end - h->bump;
 		/* The block grows where it is, so nothing in it moves. */
-		if (grows) region->bumped += (size_t)(room - list->room);
+		if (grows) h->bump += room - list->room;
 		zane_unlock(region->context);
 		if (grows) {
 			list->room = room;

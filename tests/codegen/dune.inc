@@ -1383,6 +1383,40 @@
   (diff golden/texts.out texts.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/walks))
+ (targets walks.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build walks.exe --package fixtures/walks)))
+
+(rule
+ (deps (source_tree fixtures/walks))
+ (targets walks.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build walks.optimized.exe --optimize --package fixtures/walks)))
+
+(rule
+ (action
+  (with-stdout-to
+   walks.out.actual
+   (run ./walks.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/walks.out walks.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   walks.optimized.out.actual
+   (run ./walks.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/walks.out walks.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/literalOperator))
  (action
   (with-stderr-to

@@ -13,9 +13,8 @@ type env = {
   i64 : Llvm.lltype;
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
   globals : (string, Llvm.llvalue) Hashtbl.t;
-  (* Each layout the program names, as one constant table, and whether it
-     lists any position. *)
-  layouts : (Layout.t, Llvm.llvalue * bool) Hashtbl.t;
+  (* The walks of each layout the program names that lists a position. *)
+  mutable walks : Walks.known option;
 }
 
 (* ---------------------------------------------------------------------- *)
@@ -82,51 +81,11 @@ let runtime env fn =
       Hashtbl.replace env.funcs name (f, fty);
       (f, fty)
 
-(* The program's layouts as the runtime reads them: a count, then per
-   position its kind, its offset, its size, a list's stride or a box's
-   payload size, the table of its elements' or payload's layout, and its tag
-   conditions as a count and (offset, tag) pairs. Each table is named for the
-   type it describes (docs/design/generics.md). Every table is made before
-   any is filled, since a layout may name another, or itself. *)
-let layouts env (named : (Layout.t * Layout.position list) list) =
-  let words (p : Layout.position) = 6 + (2 * List.length p.tags) in
-  List.iter
-    (fun (name, ps) ->
-      let n = 1 + List.fold_left (fun n p -> n + words p) 0 ps in
-      let zeros = Llvm.const_null (Llvm.array_type env.i64 n) in
-      let g = Llvm.define_global name zeros env.m in
-      Llvm.set_linkage Llvm.Linkage.Private g;
-      Llvm.set_global_constant true g;
-      Hashtbl.replace env.layouts name (g, ps <> []))
-    named;
-  let int = Llvm.const_int env.i64 in
-  let table name = Llvm.const_ptrtoint (fst (Hashtbl.find env.layouts name)) env.i64 in
-  List.iter
-    (fun (name, ps) ->
-      let position (p : Layout.position) =
-        let kind, extra, inner =
-          match p.kind with
-          | Layout.Text -> (1, 0, int 0)
-          | Layout.List { stride; elements } -> (2, stride, table elements)
-          | Layout.Box { size; payload } -> (3, size, table payload)
-        in
-        [ int kind; int p.offset; int p.size; int extra; inner; int (List.length p.tags) ]
-        @ List.concat_map (fun (o, t) -> [ int o; int t ]) p.tags
-      in
-      let words = int (List.length ps) :: List.concat_map position ps in
-      Llvm.set_initializer
-        (Llvm.const_array env.i64 (Array.of_list words))
-        (fst (Hashtbl.find env.layouts name)))
-    named
+let walks env = Option.get env.walks
 
-(* A layout's table, or no table when it lists nothing. *)
-let layout env (l : Layout.t) =
-  match Hashtbl.find_opt env.layouts l with
-  | Some (g, true) -> g
-  | _ -> Llvm.const_null env.ptr
-
-let listed env (l : Layout.t) =
-  match Hashtbl.find_opt env.layouts l with Some (_, listed) -> listed | None -> false
+(* A layout's table of walks, or none when it lists nothing. *)
+let layout env (l : Layout.t) = Walks.table (walks env) l
+let listed env (l : Layout.t) = Walks.listed (walks env) l
 
 (* A string literal is constant bytes the module owns, with no terminator,
    and owns no block. *)
@@ -356,7 +315,13 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | Ty.Void -> None
       | t ->
           let v = Llvm.build_load (lltype env t) p "" b in
-          ignore (call_runtime env b Cgt.Runtime.Vacate [| p; layout env l |]);
+          Option.iter
+            (fun f ->
+              ignore
+                (Llvm.build_call
+                   (Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr |])
+                   f [| p |] "" b))
+            (Walks.vacater (walks env) l);
           Some v)
   | Expr.Copy { value; layout = l } ->
       Option.map
@@ -702,10 +667,14 @@ let program (p : Program.t) =
       i64 = Llvm.i64_type ctx;
       funcs = Hashtbl.create 32;
       globals = Hashtbl.create 8;
-      layouts = Hashtbl.create 8;
+      walks = None;
     }
   in
-  layouts env p.Program.layouts;
+  env.walks <-
+    Some
+      (Walks.create
+         { Walks.ctx; m; ptr = env.ptr; i64 = env.i64; runtime = runtime env }
+         p.Program.layouts);
   List.iter
     (fun (g : Global.t) ->
       let v = Llvm.define_global g.Global.symbol (Llvm.const_null (stored env g.Global.ty)) m in
@@ -737,6 +706,7 @@ let program (p : Program.t) =
   List.iter
     (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
     p.Program.funcs;
+  Walks.finish (walks env);
   (match Llvm_analysis.verify_module m with
   | Some problem -> Diagnostic.bug ("codegen built an invalid module: " ^ problem)
   | None -> ());

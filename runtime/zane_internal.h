@@ -10,6 +10,7 @@
 
 #include <pthread.h>
 #include <sched.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,15 +65,16 @@ enum { ZANE_PAGES = 1 << 14 };
 extern int zane_checking;
 
 /* A slot held in a scope because what it holds owns blocks, with the
-   layout that says where they are, so a checked drain can return them.
-   It lives in the scope's own arena. */
+   type whose walks reach them, so a checked drain can return them. It
+   lives in the scope's own arena. */
 typedef struct zane_held {
 	struct zane_held *next;
 	char *slot;
-	const int64_t *layout;
+	const zane_type *type;
 } zane_held;
 
-/* The returned blocks of one size and alignment, each naming the next. */
+/* The returned blocks of one size and alignment, each naming the next, for
+   the blocks no size class holds. */
 typedef struct zane_stack {
 	struct zane_stack *next;
 	int64_t size, align;
@@ -93,16 +95,35 @@ typedef struct zane_context zane_context;
    was for a checked drain to return. */
 typedef struct zane_retired {
 	struct zane_retired *next;
-	const int64_t *layout;
+	const zane_type *type;
 	int64_t size;
 } zane_retired;
 
-/* Each open scope of a context, innermost last: where its slots began,
-   the calls it spawned, and its dynamic region with the number of blocks
-   handed out there and not returned; when drains are checked, also what it
-   holds and what write-backs retired there. The first of the program's is
-   the program's own, open until it ends. */
+/* Where a region hands out its blocks, kept at the start of its mark so
+   emitted code finds every field at a fixed offset (docs/design/lowering.md
+   §9). A block of up to ZANE_CLASSES words aligned to a word comes from its
+   size class's stack of returned blocks, each naming the next, or else from
+   `bump`, the region's frontier in its current chunk, which ends at `end`.
+   The frontier stays aligned to a word, since every block is a whole number
+   of words and a wider alignment only rounds it up, so a block of a size
+   class takes its bytes from there as they are. `live` counts the blocks
+   handed out and not returned. A region with no chunk yet has both ends
+   null. */
+enum { ZANE_CLASSES = 16 };
+
 typedef struct {
+	char *classes[ZANE_CLASSES];
+	char *bump, *end;
+	int64_t live;
+} zane_heap;
+
+/* Each open scope of a context, innermost last: its dynamic region's heap,
+   where its slots began, the calls it spawned, and the rest of its dynamic
+   region; when drains are checked, also what it holds and what write-backs
+   retired there. The first of the program's is the program's own, open
+   until it ends. */
+struct zane_mark {
+	zane_heap heap;
 	zane_context *context;
 	int64_t depth;
 	uint32_t chunks;
@@ -110,12 +131,15 @@ typedef struct {
 	zane_held *held;
 	zane_task *tasks;
 	zane_mapping *mappings;
-	char *chunk;
-	size_t bumped;
 	zane_stack *stacks;
 	zane_retired *retired;
-	int64_t live;
-} zane_mark;
+};
+
+/* The offsets emitted code reads a heap at (lib/codegen/walks.ml). */
+_Static_assert(offsetof(zane_mark, heap) == 0, "a mark starts with its heap");
+_Static_assert(offsetof(zane_heap, bump) == 8 * ZANE_CLASSES, "the frontier follows the classes");
+_Static_assert(offsetof(zane_heap, end) == 8 * ZANE_CLASSES + 8, "its end follows it");
+_Static_assert(offsetof(zane_heap, live) == 8 * ZANE_CLASSES + 16, "the count follows that");
 
 /* A context's scopes are kept in segments, so a scope's mark stays where it
    is while others open. `shared` counts the calls it spawned that are still
@@ -135,40 +159,18 @@ struct zane_context {
 	zane_context *next;
 };
 
-/* A string's or a list's handle, and a boxed member's pointer, name the
-   block it owns. A layout lists where they are: a count, then for each
-   position its kind, its offset, its size, a list's stride or a box's
-   payload size, the layout of a list's elements or a box's payload, and
-   the variant tags that must be live for it to be there, as a count and
-   then (tag offset, tag) pairs. An inner layout may be null or name a table
-   with zero positions; neither needs a walk. */
-enum { ZANE_TEXT = 1, ZANE_LIST = 2, ZANE_BOX = 3 };
-
-typedef struct {
-	int64_t kind, offset, size, extra;
-	const int64_t *inner;
-	int64_t conditions;
-	const int64_t *tags;
-} zane_position;
-
-/* A layout with no positions may be no table at all. */
-#define ZANE_EACH(layout, p)                                                        \
-	for (int64_t zane_cursor = 1, zane_left = (layout) ? (layout)[0] : 0;           \
-	     zane_next_position((layout), &zane_cursor, &zane_left, &(p));)
-
-
 /* A spawned call. Its frame -- room for its result, then its arguments --
    follows this header in the fixed region of the scope that spawned it,
    which waits for it before it drains (§4.1). The call runs in a context of
    its own, which it keeps until its result comes home: copied to `dest`,
-   `size` bytes laid out as `layout` says, where its blocks move into the
-   destination's region. */
+   `size` bytes of `type`, whose blocks move into the destination's
+   region. */
 struct zane_task {
 	zane_task *next;           /* the next the same scope spawned */
 	zane_task *before, *after; /* in its deque, while queued */
 	void (*run)(char *frame);
 	char *frame, *dest;
-	const int64_t *layout;
+	const zane_type *type;
 	int64_t size, deque;
 	zane_context *owner, *context;
 	int state;
@@ -205,7 +207,6 @@ void zane_lock(zane_context *c);
 void zane_unlock(zane_context *c);
 zane_context *zane_context_new(void);
 void *zane_bump(int64_t size, int64_t align);
-zane_mark *zane_region_at(const void *at);
 
 /* The program's arguments after its own name, kept by `main`. */
 extern int zane_argc;
@@ -214,53 +215,41 @@ void zane_unmap(zane_mark *region);
 void zane_give_spares(zane_context *c);
 zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align);
 int64_t zane_blocks(void);
-char *zane_alloc(zane_mark *region, int64_t size, int64_t align);
-void zane_free(char *block, int64_t size, int64_t align);
 
 /* block.c */
 
-/* What is still to be done to a value's blocks, kept off the C stack, so a
-   value nested many thousands of boxes deep is walked in a loop (memory.md
-   §2.3 sets no depth limit). A job names a place and its
-   layout; the rest is the walk's own: a block to return once the place's
-   own blocks are done, and the incoming value an overwrite copies. */
+/* What is still to be done to a value's blocks, kept off the machine stack
+   (memory.md §2.3 sets no depth limit). A job is a walk to run at depth 0,
+   with its place and what it works with, or, with no walk, a block of
+   `extra` bytes aligned to `align` to return. */
 typedef struct {
-	char *at;
-	const int64_t *layout;
-	char *incoming;
-	int64_t size;
-	zane_position block; /* kind 0: no block to return */
-	char *returned;
+	zane_walk walk;
+	char *at, *with;
+	int64_t extra, align;
 } zane_job;
 
-/* Most walks never hold more than a few jobs at once, so the first few live
-   in the work itself and only a longer walk takes a heap buffer. A work
-   points into itself from its start, so it stays where it was declared.
+/* Most walks never hand on more than a few jobs at once, so the first few
+   live in the work itself and only a longer walk takes a heap buffer. A
+   work points into itself from its start, so it stays where it was declared.
    `zane_work_start` sets only its header, since zeroing the jobs would cost
    what they save; a work zeroed whole starts at its first push instead. */
 #define ZANE_LOCAL_JOBS 4
 
-typedef struct {
+struct zane_work {
 	zane_job *jobs;
 	int64_t count, room;
 	zane_job local[ZANE_LOCAL_JOBS];
-} zane_work;
+};
 
 void zane_work_start(zane_work *w);
 void zane_work_push(zane_work *w, zane_job job);
 int zane_work_pop(zane_work *w, zane_job *job);
 void zane_work_end(zane_work *w);
-
-int zane_next_position(const int64_t *layout, int64_t *cursor, int64_t *left,
-                       zane_position *p);
-int zane_present(const char *base, const zane_position *p);
-void zane_unblock(const zane_position *p, void *block, int64_t room);
-void *zane_at(char *base, const zane_position *p);
-void zane_end_at(char *base, const zane_position *p);
-void zane_end(char *base, const int64_t *layout);
+void zane_work_run(zane_work *w);
+void zane_end(char *base, const zane_type *type);
 
 /* value.c */
-void zane_move(char *value, const int64_t *layout, zane_mark *region, int64_t from);
+void zane_move(char *value, const zane_type *type, zane_mark *region, int64_t from);
 
 /* spawn.c */
 int zane_state(zane_task *t);

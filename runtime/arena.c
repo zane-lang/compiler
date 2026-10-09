@@ -85,7 +85,7 @@ int64_t zane_scope_enter(void) {
 	if (!*segment && !(*segment = malloc(ZANE_SEGMENT * sizeof **segment)))
 		zane_broken("out of memory for scopes");
 	*zane_mark_at(c, c->depth) =
-		(zane_mark){ c, c->depth, c->chunks, c->frontier, NULL, NULL, NULL, NULL, 0, NULL, NULL, 0 };
+		(zane_mark){ .context = c, .depth = c->depth, .chunks = c->chunks, .frontier = c->frontier };
 	int64_t depth = c->depth++;
 	zane_unlock(c);
 	return depth;
@@ -205,10 +205,8 @@ void zane_unmap(zane_mark *region) {
 		}
 		region->mappings = next;
 	}
-	region->chunk = NULL;
-	region->bumped = 0;
+	region->heap = (zane_heap){ 0 };
 	region->stacks = NULL;
-	region->live = 0;
 }
 
 /* Bytes from a region's frontier, which moves to a fresh chunk when the
@@ -219,13 +217,21 @@ static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
 		size_t chunks = ((size_t)size + ZANE_LINE + ZANE_CHUNK - 1) / ZANE_CHUNK;
 		return (char *)zane_map(m, chunks * ZANE_CHUNK) + ZANE_LINE;
 	}
-	size_t start = (m->bumped + (size_t)align - 1) / (size_t)align * (size_t)align;
-	if (!m->chunk || start + (size_t)size > ZANE_CHUNK) {
-		m->chunk = (char *)zane_map(m, ZANE_CHUNK);
-		start = ZANE_LINE;
+	zane_heap *h = &m->heap;
+	uintptr_t start = ((uintptr_t)h->bump + (uintptr_t)align - 1) / (uintptr_t)align * (uintptr_t)align;
+	if (!h->bump || start + (uintptr_t)size > (uintptr_t)h->end) {
+		char *chunk = (char *)zane_map(m, ZANE_CHUNK);
+		start = (uintptr_t)chunk + ZANE_LINE;
+		h->end = chunk + ZANE_CHUNK;
 	}
-	m->bumped = start + (size_t)size;
-	return m->chunk + start;
+	h->bump = (char *)(start + (uintptr_t)size);
+	return (char *)start;
+}
+
+/* The size class of a block of `size` bytes aligned to `align`, both
+   already rounded to words, or -1 when no class holds it. */
+static int64_t zane_class(int64_t size, int64_t align) {
+	return align == 8 && size <= 8 * ZANE_CLASSES ? size / 8 - 1 : -1;
 }
 
 /* A region's stack of returned blocks of one size and alignment, if any
@@ -247,16 +253,31 @@ static zane_stack *zane_stack_of(zane_mark *m, int64_t size, int64_t align) {
 }
 
 /* A block in a region: one returned there of the same size and alignment,
-   or else new bytes from its frontier (§3.2). */
-char *zane_alloc(zane_mark *region, int64_t size, int64_t align) {
+   or else new bytes from its frontier (§3.2). The caller holds the region's
+   context's lock, or needs none: emitted code calls this when its own
+   inline path finds neither (docs/design/lowering.md §9). */
+char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align) {
 	size = zane_word(size);
 	if (align < 8) align = 8;
+	zane_heap *h = &region->heap;
+	int64_t class = zane_class(size, align);
+	char *block;
+	if (class >= 0) {
+		block = h->classes[class];
+		if (block) h->classes[class] = *(char **)block;
+	} else {
+		zane_stack *s = zane_find_stack(region, size, align);
+		block = s ? s->top : NULL;
+		if (block) s->top = *(char **)block;
+	}
+	if (!block) block = zane_frontier_of(region, size, align);
+	h->live++;
+	return block;
+}
+
+char *zane_alloc(zane_mark *region, int64_t size, int64_t align) {
 	zane_lock(region->context);
-	zane_stack *s = zane_find_stack(region, size, align);
-	char *block = s ? s->top : NULL;
-	if (block) s->top = *(char **)block;
-	else block = zane_frontier_of(region, size, align);
-	region->live++;
+	char *block = zane_alloc_held(region, size, align);
 	zane_unlock(region->context);
 	return block;
 }
@@ -267,10 +288,11 @@ void zane_free(char *block, int64_t size, int64_t align) {
 	size = zane_word(size);
 	if (align < 8) align = 8;
 	zane_lock(region->context);
-	zane_stack *s = zane_stack_of(region, size, align);
-	*(char **)block = s->top;
-	s->top = block;
-	region->live--;
+	int64_t class = zane_class(size, align);
+	char **top = class >= 0 ? &region->heap.classes[class] : &zane_stack_of(region, size, align)->top;
+	*(char **)block = *top;
+	*top = block;
+	region->heap.live--;
 	zane_unlock(region->context);
 }
 
@@ -281,6 +303,6 @@ int64_t zane_blocks(void) {
 	int64_t n = 0;
 	for (int32_t i = 0; i < zane_context_count; i++)
 		for (int64_t d = 0; d < zane_contexts[i]->depth; d++)
-			n += zane_mark_at(zane_contexts[i], d)->live;
+			n += zane_mark_at(zane_contexts[i], d)->heap.live;
 	return n;
 }

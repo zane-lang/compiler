@@ -1,27 +1,19 @@
 /* The runtime's lists, arrays, boxes, dynamic regions and package
    constants, tested in C on their own (docs/design/lowering.md L17), over
-   hand-written layouts. Each check prints `yes` when it holds and `no` when
+   hand-written walks. Each check prints `yes` when it holds and `no` when
    it does not. */
 
-#include "zane_internal.h"
-
-#include <stddef.h>
+#include "walks.h"
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
 /* The scope whose region holds `at`. */
 static int64_t zane_region_of(const void *at) { return zane_region_at(at)->depth; }
 
-/* An owner of one `Int`, a list of them, a list of strings, and a value
-   that boxes itself: `variant { done Unit; more Countdown; }`. */
+/* An owner of one `Int`. */
 typedef struct {
 	int64_t value;
 } node;
-
-typedef struct {
-	int32_t tag;
-	char *more;
-} countdown;
 
 /* A struct that boxes a node: `#struct { id Int; inner Box; }`, where the
    box holds `#struct { value Int; name String; }`. */
@@ -35,36 +27,56 @@ typedef struct {
 	char *inner;
 } outer_t;
 
-static const int64_t text_layout[] = {
-	1,
-	ZANE_TEXT, 0, sizeof(zane_text), 0, 0, 0,
-};
-static int64_t texts_layout[] = {
-	1,
-	ZANE_LIST, 0, sizeof(zane_list), sizeof(zane_text), 0, 0,
-};
-static int64_t countdown_layout[] = {
-	1,
-	ZANE_BOX, offsetof(countdown, more), sizeof(char *), sizeof(countdown), 0, 1,
-	offsetof(countdown, tag), 1,
-};
-static const int64_t named_layout[] = {
-	1,
-	ZANE_TEXT, offsetof(named, name), sizeof(zane_text), 0, 0, 0,
-};
-static int64_t outer_layout[] = {
-	1,
-	ZANE_BOX, offsetof(outer_t, inner), sizeof(char *), sizeof(named), 0, 0,
-};
+static void named_copy(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
+	text_copy_walk(at + offsetof(named, name), with, extra, w, depth);
+}
+
+static void named_end(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
+	text_end_walk(at + offsetof(named, name), with, extra, w, depth);
+}
+
+static void named_move(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
+	text_move_walk(at + offsetof(named, name), with, extra, w, depth);
+}
+
+static void named_overwrite(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
+	(void)depth;
+	arrival(named_move, at, w);
+	text_end(&((named *)at)->name);
+	memcpy(at, with, (size_t)extra);
+}
+
+static const zane_type named_type = { named_copy, named_end, named_move, named_overwrite };
+
+static void outer_copy(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
+	(void)extra;
+	box_copy(&((outer_t *)at)->inner, (zane_mark *)with, sizeof(named), &named_type, w, depth);
+}
+
+static void outer_end(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
+	(void)with, (void)extra;
+	box_end(&((outer_t *)at)->inner, sizeof(named), &named_type, w, depth);
+}
+
+static void outer_move(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
+	box_move(&((outer_t *)at)->inner, (zane_mark *)with, extra, sizeof(named), &named_type, w, depth);
+}
+
+static void outer_overwrite(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
+	outer_t *o = (outer_t *)at, *in = (outer_t *)with;
+	arrival(outer_move, at, w);
+	char *kept = NULL;
+	if (o->inner && in->inner) kept = o->inner;
+	else box_end(&o->inner, sizeof(named), &named_type, w, depth);
+	memcpy(at, with, (size_t)extra);
+	if (kept) box_keep(&o->inner, kept, sizeof(named), &named_type, w, depth);
+}
+
+static const zane_type outer_type = { outer_copy, outer_end, outer_move, outer_overwrite };
 
 static int depth(const countdown *c) { return c->tag == 1 ? 1 + depth((countdown *)c->more) : 0; }
 
 void zane_main(void) {
-	/* A position's fifth word is the layout of what its block holds, an
-	   address known only at run time. */
-	texts_layout[1 + 4] = (int64_t)(intptr_t)text_layout;
-	countdown_layout[1 + 4] = (int64_t)(intptr_t)countdown_layout;
-	outer_layout[1 + 4] = (int64_t)(intptr_t)named_layout;
 	int64_t scope = zane_scope_enter();
 
 	/* An element's bytes move with every block the list grows into, and
@@ -84,7 +96,7 @@ void zane_main(void) {
 	*list = (zane_list){ NULL, 0, 0 };
 
 	/* A list of strings returns every block it owns at the drain. */
-	zane_list *words = zane_slot(scope, sizeof(zane_list), 8, texts_layout);
+	zane_list *words = zane_slot(scope, sizeof(zane_list), 8, &texts_type);
 	zane_list_new(words);
 	zane_text ab = { "ab", 2, 0 };
 	for (int i = 0; i < 3; i++) zane_text_join(zane_list_push(words, sizeof(zane_text)), &ab, &ab);
@@ -95,17 +107,17 @@ void zane_main(void) {
 	/* A copy of a boxed value owns blocks of its own, and each is returned
 	   once. */
 	scope = zane_scope_enter();
-	countdown *a = zane_slot(scope, sizeof(countdown), 8, countdown_layout);
+	countdown *a = zane_slot(scope, sizeof(countdown), 8, &countdown_type);
 	countdown *inner = zane_box(sizeof(countdown), 8);
 	*inner = (countdown){ 0, NULL };
 	*a = (countdown){ 1, zane_box(sizeof(countdown), 8) };
 	*(countdown *)a->more = (countdown){ 1, (char *)inner };
-	countdown *b = zane_slot(scope, sizeof(countdown), 8, countdown_layout);
+	countdown *b = zane_slot(scope, sizeof(countdown), 8, &countdown_type);
 	*b = *a;
-	zane_copy((char *)b, countdown_layout);
+	zane_copy((char *)b, &countdown_type);
 	check(depth(a) == 2 && depth(b) == 2 && b->more != a->more && zane_blocks() == 4);
 	countdown done = { 0, NULL };
-	zane_overwrite((char *)a, (char *)&done, sizeof(countdown), countdown_layout);
+	zane_overwrite((char *)a, (char *)&done, sizeof(countdown), &countdown_type);
 	check(depth(a) == 0 && depth(b) == 2 && zane_blocks() == 2);
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0);
@@ -115,7 +127,7 @@ void zane_main(void) {
 	   the replacement; the replacement's own block and the bytes the old
 	   member owned are returned. */
 	scope = zane_scope_enter();
-	outer_t *o = zane_slot(scope, sizeof(outer_t), 8, outer_layout);
+	outer_t *o = zane_slot(scope, sizeof(outer_t), 8, &outer_type);
 	named *kept_box = zane_box(sizeof(named), 8);
 	*kept_box = (named){ 1, { NULL, 0, 0 } };
 	zane_text_join(&kept_box->name, &ab, &ab);
@@ -125,7 +137,7 @@ void zane_main(void) {
 	*(named *)incoming.inner = (named){ 2, { NULL, 0, 0 } };
 	zane_text_join(&((named *)incoming.inner)->name, &ab, &(zane_text){ "cd", 2, 0 });
 	check(zane_blocks() == 4);
-	zane_overwrite((char *)o, (char *)&incoming, sizeof(outer_t), outer_layout);
+	zane_overwrite((char *)o, (char *)&incoming, sizeof(outer_t), &outer_type);
 	check(o->id == 20 && o->inner == (char *)kept_box && seen->value == 2 &&
 	      memcmp(seen->name.bytes, "abcd", 4) == 0 && zane_blocks() == 2);
 	zane_scope_drain(scope);
@@ -138,19 +150,19 @@ void zane_main(void) {
 	zane_text made;
 	zane_text_join(&made, &ab, &ab);
 	int64_t nested = zane_scope_enter();
-	zane_text *down = zane_slot(nested, sizeof(zane_text), 8, text_layout);
+	zane_text *down = zane_slot(nested, sizeof(zane_text), 8, &text_type);
 	*down = made;
-	zane_arrive((char *)down, text_layout);
+	zane_arrive((char *)down, &text_type);
 	check(zane_region_of(down->bytes) == enclosing);
 	zane_text young;
 	zane_text_join(&young, &ab, &ab);
-	zane_promote((char *)&young, text_layout, nested);
-	zane_vacate((char *)down, text_layout);
+	zane_promote((char *)&young, &text_type, nested);
+	*down = (zane_text){ NULL, 0, 0 };
 	zane_scope_drain(nested);
 	check(zane_region_of(young.bytes) == enclosing);
-	zane_text *up = zane_slot(enclosing, sizeof(zane_text), 8, text_layout);
+	zane_text *up = zane_slot(enclosing, sizeof(zane_text), 8, &text_type);
 	*up = young;
-	zane_text *other_up = zane_slot(enclosing, sizeof(zane_text), 8, text_layout);
+	zane_text *other_up = zane_slot(enclosing, sizeof(zane_text), 8, &text_type);
 	*other_up = made;
 	zane_scope_drain(enclosing);
 	check(zane_blocks() == 0);
@@ -185,18 +197,18 @@ void zane_main(void) {
 	zane_text left;
 	zane_text_join(&left, &(zane_text){ "ab", 2, 0 }, &(zane_text){ "cd", 2, 0 });
 	check(zane_region_of(left.bytes) == inner_scope);
-	zane_promote((char *)&left, text_layout, inner_scope);
+	zane_promote((char *)&left, &text_type, inner_scope);
 	zane_scope_drain(inner_scope);
 	check(zane_region_of(third->items) == outer && zane_region_of(left.bytes) == outer &&
 	      memcmp(left.bytes, "abcd", 4) == 0);
-	zane_text *kept = zane_slot(outer, sizeof(zane_text), 8, text_layout);
+	zane_text *kept = zane_slot(outer, sizeof(zane_text), 8, &text_type);
 	*kept = left;
-	zane_arrive((char *)kept, text_layout);
+	zane_arrive((char *)kept, &text_type);
 	zane_list *lists[] = { ints, other, third };
 	for (int i = 0; i < 3; i++) {
 		zane_list emptied = { NULL, 0, 0 };
 		zane_list *l = lists[i];
-		/* These lists were placed with no layout, so return their blocks
+		/* These lists were placed with no type, so return their blocks
 		   by hand. */
 		zane_free(l->items, l->room, ZANE_LINE);
 		*l = emptied;
@@ -204,13 +216,12 @@ void zane_main(void) {
 	zane_scope_drain(outer);
 	check(zane_blocks() == 0);
 
-	/* A layout that lists nothing may be no table at all. */
+	/* A type that owns no blocks has no walks, and is passed as none. */
 	int64_t plain = 1, replacing_plain = 2;
 	zane_arrive((char *)&plain, NULL);
 	zane_promote((char *)&plain, NULL, 1);
 	zane_copy((char *)&plain, NULL);
 	zane_overwrite((char *)&plain, (char *)&replacing_plain, 8, NULL);
-	zane_vacate((char *)&plain, NULL);
 	check(plain == 2);
 
 	/* An array's element, counted from 1, is its stride apart from the one
@@ -227,7 +238,7 @@ void zane_main(void) {
 	int64_t making = zane_scope_enter();
 	check(zane_constant_begin(&state) == 1);
 	zane_text_join(&constant, &(zane_text){ "ab", 2, 0 }, &(zane_text){ "cd", 2, 0 });
-	zane_constant_end(&state, (char *)&constant, text_layout);
+	zane_constant_end(&state, (char *)&constant, &text_type);
 	zane_scope_drain(making);
 	check(zane_region_at(constant.bytes) == zane_program && memcmp(constant.bytes, "abcd", 4) == 0);
 	check(zane_constant_begin(&state) == 0);

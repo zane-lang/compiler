@@ -1,7 +1,7 @@
 ; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.
 
 (rule
- (deps arenas.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (deps arenas.c walks.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets arenas.exe)
  (action
   (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o arenas.exe arenas.c
@@ -19,7 +19,7 @@
   (diff golden/arenas.out arenas.out.actual)))
 
 (rule
- (deps blocks.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (deps blocks.c walks.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets blocks.exe)
  (action
   (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o blocks.exe blocks.c
@@ -37,7 +37,7 @@
   (diff golden/blocks.out blocks.out.actual)))
 
 (rule
- (deps numbers.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (deps numbers.c walks.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets numbers.exe)
  (action
   (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o numbers.exe numbers.c
@@ -55,7 +55,7 @@
   (diff golden/numbers.out numbers.out.actual)))
 
 (rule
- (deps scalar_lists.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (deps scalar_lists.c walks.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets scalar_lists.exe)
  (action
   (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o scalar_lists.exe scalar_lists.c
@@ -73,7 +73,7 @@
   (diff golden/scalar_lists.out scalar_lists.out.actual)))
 
 (rule
- (deps spawns.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (deps spawns.c walks.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets spawns.exe)
  (action
   (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o spawns.exe spawns.c
@@ -91,7 +91,7 @@
   (diff golden/spawns.out spawns.out.actual)))
 
 (rule
- (deps texts.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (deps texts.c walks.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets texts.exe)
  (action
   (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o texts.exe texts.c
@@ -109,7 +109,7 @@
   (diff golden/texts.out texts.out.actual)))
 
 (rule
- (deps work.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (deps work.c walks.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets work.exe)
  (action
   (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o work.exe work.c
@@ -127,7 +127,7 @@
   (diff golden/work.out work.out.actual)))
 
 (rule
- (deps writeback.c ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (deps writeback.c walks.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets writeback.exe)
  (action
   (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o writeback.exe writeback.c

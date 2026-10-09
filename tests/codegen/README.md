@@ -143,6 +143,14 @@ again, read the golden diff and promote that.
   replayed in order; calls past the step budget, the depth and the size cap,
   left to run; and a slot read when the program runs, after a store made by
   code that folded.
+- `walks` is values nested deeper than an emitted walk calls itself
+  (docs/design/lowering.md §9): a countdown a thousand boxes deep made,
+  copied and overwritten by deeper and shallower ones, a variant whose
+  cases own a string or a deep countdown, a list of deep values, a deep
+  chain of owners each naming a string, and a spawned call's deep result.
+  Past the depth each walk hands the rest on to the runtime, and the
+  checked drains stop the program if a block is missed or returned twice.
+  Every check prints `yes` when it holds and `no` when it does not.
 
 `constants`, `counting` and `zero` also show the tree an optimized build
 makes of them.

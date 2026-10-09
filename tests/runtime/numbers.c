@@ -4,7 +4,7 @@
    arguments as a list of strings (effects.md §6.6). Each check prints `yes`
    when it holds and `no` when it does not. */
 
-#include "zane_internal.h"
+#include "walks.h"
 
 #include <math.h>
 
@@ -34,18 +34,7 @@ static int f64_fails(const char *text) {
 	return zane_parse_f64(&t, &value) == 0 && value == 5;
 }
 
-static const int64_t text_layout[] = {
-	1,
-	ZANE_TEXT, 0, sizeof(zane_text), 0, 0, 0,
-};
-static int64_t texts_layout[] = {
-	1,
-	ZANE_LIST, 0, sizeof(zane_list), sizeof(zane_text), 0, 0,
-};
-
 void zane_main(void) {
-	texts_layout[1 + 4] = (int64_t)(intptr_t)text_layout;
-
 	check(i64_is("42", 42));
 	check(i64_is("-7", -7));
 	check(i64_is("007", 7));
@@ -81,14 +70,14 @@ void zane_main(void) {
 	zane_argc = 3;
 	zane_argv = given;
 	int64_t scope = zane_scope_enter();
-	zane_list *args = zane_slot(scope, sizeof(zane_list), 8, texts_layout);
+	zane_list *args = zane_slot(scope, sizeof(zane_list), 8, &texts_type);
 	zane_arguments(args);
 	zane_text *items = (zane_text *)args->items;
 	check(args->count == 3);
 	check(items[0].length == 3 && memcmp(items[0].bytes, "one", 3) == 0 && items[0].bytes != given[0]);
 	check(items[1].length == 0);
 	check(items[2].length == 5 && memcmp(items[2].bytes, "three", 5) == 0);
-	zane_arrive((char *)args, texts_layout);
+	zane_arrive((char *)args, &texts_type);
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0);
 

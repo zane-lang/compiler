@@ -2,7 +2,8 @@
    L17), as runtime/zane.h declares them. A call names one by this variant,
    so a misspelled function is a compile error, and the unit tests check
    every [signature] against the prototype in zane.h, so the two
-   declarations cannot drift apart. *)
+   declarations cannot drift apart. The last seven are called only by the
+   walks codegen emits for each type (lib/codegen/walks.ml). *)
 
 type fn =
   | Print
@@ -16,7 +17,6 @@ type fn =
   | Slot
   | Promote
   | Arrive
-  | Vacate
   | Copy
   | Overwrite
   | Box
@@ -38,8 +38,15 @@ type fn =
   | Arguments
   | Parse_i64
   | Parse_f64
+  | Region_at
+  | Alloc
+  | Alloc_held
+  | Free
+  | Leaves
+  | Defer
+  | Defer_return
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Slot; Promote; Arrive; Vacate; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Out_of_range; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64 ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Slot; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Out_of_range; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return ]
 
 let name = function
   | Print -> "zane_print"
@@ -53,7 +60,6 @@ let name = function
   | Slot -> "zane_slot"
   | Promote -> "zane_promote"
   | Arrive -> "zane_arrive"
-  | Vacate -> "zane_vacate"
   | Copy -> "zane_copy"
   | Overwrite -> "zane_overwrite"
   | Box -> "zane_box"
@@ -75,6 +81,13 @@ let name = function
   | Arguments -> "zane_arguments"
   | Parse_i64 -> "zane_parse_i64"
   | Parse_f64 -> "zane_parse_f64"
+  | Region_at -> "zane_region_at"
+  | Alloc -> "zane_alloc"
+  | Alloc_held -> "zane_alloc_held"
+  | Free -> "zane_free"
+  | Leaves -> "zane_leaves"
+  | Defer -> "zane_defer"
+  | Defer_return -> "zane_defer_return"
 
 (* A value as the C ABI passes it: [I32] a `uint32_t`, [I64] an `int64_t`,
    and [Ptr] any pointer, a function's included. *)
@@ -93,7 +106,6 @@ let signature = function
   | Slot -> (Ptr, [ I64; I64; I64; Ptr ])
   | Promote -> (Void, [ Ptr; Ptr; I64 ])
   | Arrive -> (Void, [ Ptr; Ptr ])
-  | Vacate -> (Void, [ Ptr; Ptr ])
   | Copy -> (Void, [ Ptr; Ptr ])
   | Overwrite -> (Void, [ Ptr; Ptr; I64; Ptr ])
   | Box -> (Ptr, [ I64; I64 ])
@@ -115,3 +127,10 @@ let signature = function
   | Arguments -> (Void, [ Ptr ])
   | Parse_i64 -> (I64, [ Ptr; Ptr ])
   | Parse_f64 -> (I64, [ Ptr; Ptr ])
+  | Region_at -> (Ptr, [ Ptr ])
+  | Alloc -> (Ptr, [ Ptr; I64; I64 ])
+  | Alloc_held -> (Ptr, [ Ptr; I64; I64 ])
+  | Free -> (Void, [ Ptr; I64; I64 ])
+  | Leaves -> (I64, [ Ptr; Ptr; I64 ])
+  | Defer -> (Void, [ Ptr; Ptr; Ptr; Ptr; I64 ])
+  | Defer_return -> (Void, [ Ptr; Ptr; I64; I64 ])

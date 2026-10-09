@@ -97,12 +97,14 @@ which is called by its enum and its property:
 pkg$Op.apply$lambda1
 ```
 
-## Layout tables
+## Walk tables
 
-The table the runtime reads to find the blocks a type's values own
-([`lowering.md`](lowering.md) L9) is called by the type's name. An outcome's
-table is called `outcome of T`, with ` ? A` added when the verb can abort
-with `A`.
+The table of walks over the blocks a type's values own, which the runtime is
+handed ([`lowering.md`](lowering.md) §9), is called by the type's name. An
+outcome's table is called `outcome of T`, with ` ? A` added when the verb can
+abort with `A`. Each walk is called by the table's name and what it does:
+`.copy`, `.end`, `.move` and `.overwrite`, and `.vacate` for the one that
+emitted code calls itself.
 
 ## Names that stay C identifiers
 
@@ -124,7 +126,7 @@ program value such as `@program$console` holds (`zane.value.@program$console`).
 
 ## What the compiler does today
 
-- Verbs, types and layout tables are named as above, by `Symbol.verb` and
+- Verbs, types and walk tables are named as above, by `Symbol.verb` and
   `Symbol.ty`.
 - Lambdas are named as above. A lambda that expands into more than one
   place keeps its one name, and is lifted once.
@@ -134,8 +136,9 @@ program value such as `@program$console` holds (`zane.value.@program$console`).
   ([`separate-compilation.md`](separate-compilation.md) C4).
 - A program builds into one module ([`lowering.md`](lowering.md) L15), so
   every verb but `zane_main` is local to it: its symbol is in the binary, for
-  a debugger or a profiler, but no other object links against it. A layout
-  table is private and has no symbol in the binary at all.
+  a debugger or a profiler, but no other object links against it. A walk
+  table is private and has no symbol in the binary at all, and its walks are
+  local.
 - A library built into an object of its own carries the `!` placeholder
   before its package's name, in its verbs' names and in its types' names
   wherever a symbol names one: `!geometry$sum(this !geometry$Point)`. Its

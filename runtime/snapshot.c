@@ -79,14 +79,14 @@ void zane_snapshot(char *out, const char *from, int64_t size) {
    is never returned, since a reader may still be following it: it stays
    where it is until its region drains, and is retired there when drains
    are checked. */
-void zane_writeback(char *at, char *copy, int64_t size, const int64_t *layout) {
-	if (layout && layout[0] > 0) {
+void zane_writeback(char *at, char *copy, int64_t size, const zane_type *type) {
+	if (type) {
 		zane_mark *region = zane_region_at(at);
-		zane_move(copy, layout, region, 0);
+		zane_move(copy, type, region, 0);
 		if (zane_checking) {
 			zane_retired *r = (zane_retired *)zane_alloc(region, (int64_t)sizeof *r + size, 8);
 			memcpy(r + 1, at, (size_t)size);
-			r->layout = layout;
+			r->type = type;
 			r->size = size;
 			zane_lock(region->context);
 			r->next = region->retired;
@@ -104,14 +104,14 @@ void zane_writeback(char *at, char *copy, int64_t size, const int64_t *layout) {
    returned, block by block, and by then no block is out in the region,
    since every one has an owner in the scope or has moved out with it. */
 static void zane_check(zane_mark *m) {
-	for (zane_held *h = m->held; h; h = h->next) zane_end(h->slot, h->layout);
+	for (zane_held *h = m->held; h; h = h->next) zane_end(h->slot, h->type);
 	while (m->retired) {
 		zane_retired *r = m->retired;
 		m->retired = r->next;
-		zane_end((char *)(r + 1), r->layout);
+		zane_end((char *)(r + 1), r->type);
 		zane_free((char *)r, (int64_t)sizeof *r + r->size, 8);
 	}
-	if (m->live != 0) zane_broken("a dynamic block outlived its owner");
+	if (m->heap.live != 0) zane_broken("a dynamic block outlived its owner");
 }
 
 /* A context whose call is over, back in the pool: the result took its
@@ -152,7 +152,7 @@ static void zane_join_task(zane_task *t) {
 	pthread_mutex_unlock(&zane_pool);
 	if (t->size) {
 		memcpy(t->dest, t->frame, (size_t)t->size);
-		zane_arrive(t->dest, t->layout);
+		zane_arrive(t->dest, t->type);
 	}
 	zane_release(t->context);
 	t->owner->shared--;
