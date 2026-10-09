@@ -178,7 +178,7 @@ let runtime () =
   List.iter
     (fun name ->
       Printf.printf
-        "(rule\n (deps %s.c ../../runtime/zane.h ../../runtime/zane_internal.h %s)\n (targets %s.exe)\n (action\n  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o %s.exe %s.c\n   %s)))\n\n"
+        "(rule\n (deps %s.c walks.h ../../runtime/zane.h ../../runtime/zane_internal.h %s)\n (targets %s.exe)\n (action\n  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o %s.exe %s.c\n   %s)))\n\n"
         name sources name name name sources;
       Printf.printf "(rule\n (action\n  (with-stdout-to\n   %s.out.actual\n   (run ./%s.exe))))\n\n" name
         name;

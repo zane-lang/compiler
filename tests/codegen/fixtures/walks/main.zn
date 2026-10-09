@@ -1,0 +1,140 @@
+/// Values nested deeper than a walk calls itself (docs/design/lowering.md
+/// §9): past that depth each type's copy, end, move and overwrite hand the
+/// rest on to the runtime's work, so values thousands of boxes deep are
+/// copied, moved, overwritten and ended with no depth limit. The program
+/// runs with checked drains, so a block a walk misses, or returns twice,
+/// stops it. Each check prints `yes` when it holds and `no` when it does
+/// not.
+package walks;
+
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Int less(n Int) => @operators$add(n, @operators$negate(Int(1)))
+
+type Countdown = variant {
+	done Unit;
+	more Countdown;
+}
+
+/// A countdown `n` boxes deep. Each box is made in the call's own scope,
+/// so the countdown it returns moves out of it.
+Countdown countdown(n Int) {
+	@controlflow$branch(@operators$equal(n, Int(0)), {
+		return Countdown.done(Unit());
+	});
+	return Countdown.more(countdown(less(n)));
+}
+
+Int depth(c Countdown) => match (c) {
+	d done => Int(0);
+	m more => @operators$add(Int(1), depth(m));
+}
+
+/// A value whose cases own different blocks: a string, or a countdown.
+type Shape = variant {
+	named String;
+	deep Countdown;
+	empty Unit;
+}
+
+Int size(s Shape) => match (s) {
+	n named => @operators$negate(Int(1));
+	d deep => depth(d);
+	e empty => Int(0);
+}
+
+/// A reference type that owns its children, each named by a string of its
+/// own.
+type Chain = #variant {
+	end Unit;
+	link Link;
+}
+
+type Link = #struct {
+	name String;
+	rest Chain;
+}
+
+Link(name String, rest ^Chain) => init{ name; rest; }
+
+Int length(this Chain) => match (this) {
+	e end => Int(0);
+	l link => @operators$add(Int(1), l.rest:length());
+}
+
+/// A chain `n` links deep.
+^Chain chain(n Int) {
+	@controlflow$branch(@operators$equal(n, Int(0)), {
+		return Chain.end(Unit());
+	});
+	return Chain.link(Link(@operators$concat(String("lin"), String("k")), chain(less(n))));
+}
+
+Unit main() {
+	// Made deep and moved out of each call that made it.
+	a Countdown = countdown(Int(1000));
+	check(@operators$equal(depth(a), Int(1000)));
+
+	// Copied whole: the copy owns blocks of its own.
+	b Countdown = a;
+	check(@operators$equal(depth(b), Int(1000)));
+
+	// Overwritten by a deeper one: every box present in both keeps its
+	// block, and the rest arrive.
+	a = countdown(Int(1200));
+	check(@operators$equal(depth(a), Int(1200)));
+	check(@operators$equal(depth(b), Int(1000)));
+
+	// Overwritten by a shallower one: what is left over ends.
+	a = countdown(Int(3));
+	check(@operators$equal(depth(a), Int(3)));
+
+	// A case that owns a string, then one that owns a deep countdown, then
+	// one that owns nothing: each overwrite ends what the case it replaces
+	// owned.
+	s Shape = Shape.named(@operators$concat(String("a"), String("b")));
+	check(@operators$equal(size(s), @operators$negate(Int(1))));
+	s = Shape.deep(countdown(Int(700)));
+	check(@operators$equal(size(s), Int(700)));
+	s = Shape.deep(countdown(Int(900)));
+	check(@operators$equal(size(s), Int(900)));
+	t Shape = s;
+	s = Shape.empty(Unit());
+	check(@operators$equal(size(s), Int(0)));
+	check(@operators$equal(size(t), Int(900)));
+
+	// A list of deep values: read out as a copy, and ended with the list.
+	values List<Countdown> = @primitives$List(Countdown);
+	values!push(countdown(Int(600)));
+	values!push(countdown(Int(300)));
+	read Countdown = values[Int(1)];
+	check(@operators$equal(@operators$add(depth(read), depth(values[Int(2)])), Int(900)));
+
+	// A deep chain of owners, each naming a string of its own, made in the
+	// calls that return it.
+	links ^Chain = chain(Int(800));
+	check(@operators$equal(links:length(), Int(800)));
+	kept Chain = links;
+	check(@operators$equal(kept:length(), Int(800)));
+
+	// A spawned call's deep result comes home to this context.
+	spawned Countdown = spawn countdown(Int(500));
+	check(@operators$equal(depth(spawned), Int(500)));
+	return Unit();
+}

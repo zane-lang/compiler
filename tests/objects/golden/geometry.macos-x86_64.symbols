@@ -9,6 +9,5 @@
 00000000000000e0 (__TEXT,__text) external _v1.0.1%3f9a1c02b7e4d6a8%geometry$scaled(%primitives$I64)
 0000000000000110 (__TEXT,__text) weak external _v1.0.1%3f9a1c02b7e4d6a8%geometry$same<%primitives$I64>(%primitives$I64)
 0000000000000120 (__TEXT,__text) weak external _v1.0.1%3f9a1c02b7e4d6a8%geometry$unit
-0000000000000168 (__TEXT,__const) non-external l_%primitives$I64
-0000000000000170 (__DATA,__data) weak external _v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.value
-0000000000000178 (__DATA,__data) weak external _v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.state
+0000000000000168 (__DATA,__data) weak external _v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.value
+0000000000000170 (__DATA,__data) weak external _v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.state

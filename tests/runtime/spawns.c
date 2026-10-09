@@ -3,14 +3,9 @@
    frames of the shape lowering makes. Each check prints `yes` when it holds
    and `no` when it does not. */
 
-#include "zane_internal.h"
+#include "walks.h"
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
-
-static const int64_t text_layout[] = {
-	1,
-	ZANE_TEXT, 0, sizeof(zane_text), 0, 0, 0,
-};
 
 /* A frame: room for the result, then the arguments. */
 typedef struct {
@@ -104,10 +99,10 @@ void zane_main(void) {
 	   back in the pool. */
 	int64_t scope = zane_scope_enter();
 	joining *f = zane_frame(scope, sizeof *f, 8);
-	zane_text *home = zane_slot(scope, sizeof(zane_text), 8, text_layout);
+	zane_text *home = zane_slot(scope, sizeof(zane_text), 8, &text_type);
 	f->left = &ab;
 	f->right = &cd;
-	zane_spawn((char *)f, join_texts, (char *)home, text_layout, sizeof(zane_text));
+	zane_spawn((char *)f, join_texts, (char *)home, &text_type, sizeof(zane_text));
 	check(zane_self->shared == 1);
 	zane_join((char *)f);
 	check(holds(home, "abcd") && zane_region_at(home->bytes) == zane_mark_at(zane_self, scope));
@@ -121,10 +116,10 @@ void zane_main(void) {
 	   its blocks. */
 	scope = zane_scope_enter();
 	f = zane_frame(scope, sizeof *f, 8);
-	home = zane_slot(scope, sizeof(zane_text), 8, text_layout);
+	home = zane_slot(scope, sizeof(zane_text), 8, &text_type);
 	f->left = &cd;
 	f->right = &ab;
-	zane_spawn((char *)f, join_texts, (char *)home, text_layout, sizeof(zane_text));
+	zane_spawn((char *)f, join_texts, (char *)home, &text_type, sizeof(zane_text));
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0 && zane_self->shared == 0);
 

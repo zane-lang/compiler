@@ -181,11 +181,12 @@ runtime, as it links the runtime today. The program's entry stays
 `zane_main` ([`lowering.md`](lowering.md) L16), so only the root may
 declare it.
 
-**C8. Layout tables stay private to each object.** A layout table is read
-only by the runtime, through the pointer its object passes
-([`symbols.md`](symbols.md)). Each object that needs a type's table makes its
-own, and nothing compares two tables' addresses, so private copies cost a few
-bytes and need no shared name.
+**C8. Walk tables stay private to each object.** A type's walk table is read
+only by the runtime, through the pointer its object passes, and its walks are
+called only by that table and that object's code ([`symbols.md`](symbols.md)).
+Each object that needs a type's walks makes its own, and nothing compares two
+tables' addresses, so private copies cost a little code and need no shared
+name.
 
 **C9. `zanec --rewrite STAMP INPUT OUTPUT` turns a library's placeholder into
 its stamp.** Fetching runs it on each object a release archive carries

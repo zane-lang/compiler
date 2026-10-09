@@ -1,13 +1,20 @@
 T zane_main
+U memcpy
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$Point(%primitives$I64, %primitives$I64)
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$area(%primitives$I64, %primitives$I64)
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$double
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$scaled(%primitives$I64)
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$sum(this v1.0.1%3f9a1c02b7e4d6a8%geometry$Point)
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$twice(%primitives$I64)
+U zane_alloc
+U zane_alloc_held
 U zane_constant_begin
 U zane_constant_end
+U zane_defer
+U zane_free
+U zane_leaves
 U zane_print
+U zane_region_at
 U zane_scope_drain
 U zane_scope_enter
 U zane_slot
@@ -15,6 +22,10 @@ V v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.state
 V v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.value
 W v1.0.1%3f9a1c02b7e4d6a8%geometry$same<survey$Plot>(survey$Plot)
 W v1.0.1%3f9a1c02b7e4d6a8%geometry$unit
+t %primitives$String.copy
+t %primitives$String.end
+t %primitives$String.move
+t %primitives$String.overwrite
 t survey$Plot(%primitives$I64)
 t survey$check(%primitives$Bool)
 t survey$main()

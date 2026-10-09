@@ -4,13 +4,21 @@
 and compares its output with `golden/`. The build uses Clang, `-O2`, and
 warnings as errors.
 
+The compiler emits the walks over a type's blocks for each type
+(docs/design/lowering.md §9); `walks.h` writes the same walks by hand for
+the types the fixtures hold, in the shape `lib/codegen/walks.ml` emits, so
+the fixtures test the runtime's regions, its work and the copies, ends,
+moves and overwrites it runs with walks like a program's. The emitted walks
+themselves are tested by the programs in `tests/codegen/`, which run with
+checked drains.
+
 `scalar_lists.c` covers issue [#191](https://github.com/zane-lang/compiler/issues/191):
-cleanup, copying, and promotion must skip empty nested layouts, whether
-represented by null or by a table with zero positions. List backing blocks
-and scalar box payloads must still be copied, promoted, and returned, and
-an overwrite must preserve a box's address while updating its payload.
-The existing `blocks.c` fixture covers nonempty layouts, including lists
-of owned strings and recursively boxed values.
+a list whose elements own no blocks, and a box whose payload owns none,
+have walks for their own block alone. List backing blocks and scalar box
+payloads must still be copied, promoted, and returned, and an overwrite
+must preserve a box's address while updating its payload. The `blocks.c`
+fixture covers values that own more, including lists of owned strings and
+recursively boxed values.
 
 `numbers.c` holds `zane_parse_i64` and `zane_parse_f64` to the cases
 `tests/unit/` holds the compile-time evaluator's reads to, so a number reads
@@ -26,19 +34,19 @@ two. A write-back that stored such a subject a byte at a time failed it on
 every run. It then writes back every size from 1 to 19 bytes at each offset
 from 0 to 7 and checks the bytes arrived.
 
-`work.c` covers the walks that copy, move, overwrite and end a value
-once they hold more jobs than a walk keeps in itself
-(`ZANE_LOCAL_JOBS` in `zane_internal.h`) and move to a heap buffer: a
-list of twenty strings copied, ended and promoted, an overwrite whose
-arrivals outgrow the inline jobs, and a countdown a hundred thousand
-boxes deep copied and ended. Dropping the inline jobs when the walk
-moves to the heap leaves blocks unreturned, which this fixture alone
-catches.
+`work.c` covers the copies, moves, overwrites and ends whose walks hand
+on more jobs than a work keeps in itself (`ZANE_LOCAL_JOBS` in
+`zane_internal.h`), so the work moves to a heap buffer: a list of twenty
+strings copied, ended and promoted, an overwrite whose arrivals outgrow
+the inline jobs, and a countdown a hundred thousand boxes deep copied,
+overwritten, promoted and ended, its walks handed on past their depth.
+Dropping the inline jobs when the work moves to the heap leaves blocks
+unreturned, which this fixture alone catches.
 
 On Linux the scalar-list fixture caps its address space at 128 MiB. Its
-two-million-element lists and copies fit, while the old per-element work
-queue grows to 192 MiB and fails. Other platforms run the same ownership
-checks without that platform-specific budget. AddressSanitizer builds are
+two-million-element lists and copies fit, while a work queue per element,
+which the walks once built, grew to 192 MiB and failed. Other platforms
+run the same ownership checks without that platform-specific budget. AddressSanitizer builds are
 detected through GCC's or Clang's sanitizer macros and skip only the
 address-space budget, since ASan reserves a large shadow address space.
 They still run every ownership check against the same golden output.
@@ -117,3 +125,31 @@ A dash marks a change whose ranges overlap. Peak memory was the same in
 both builds: 15 MB for binarytrees, 88 MB for ntree, 45 MB for treecopy and
 126 MB for listgrowth. Every program printed the same output with both
 builds.
+
+## Emitted walks
+
+Issue [#212](https://github.com/zane-lang/compiler/issues/212) found that
+copying, ending and moving a value cost about 90 instructions per block to
+decode the type's layout table at run time, and allocating one about 75
+more, none of which LLVM could see into. The compiler now emits each type's
+walks, which read each block where it is, and a copy takes a boxed
+payload's block inline from its region's size class or frontier
+(docs/design/lowering.md §9). Built with `zanec --optimize` from the
+langbench programs at spec `a92d7cf`, core `97beb74`, against `514c486`, on
+a 4-core x86_64 container, one warmup and seven alternating fresh-process
+runs per build gave these medians (ranges in brackets):
+
+| Program | Before, s | After, s | Change |
+| --- | ---: | ---: | ---: |
+| treecopy 18 | 0.450 [0.373–0.580] | 0.176 [0.151–0.192] | −61.0% |
+| binarytrees 16 | 0.237 [0.192–0.321] | 0.215 [0.180–0.238] | — |
+| ntree 10 | 0.445 [0.378–0.501] | 0.388 [0.339–0.447] | — |
+| listgrowth 2000000 | 1.415 [1.163–1.609] | 1.411 [1.251–1.528] | — |
+| entities 3000000 | 0.614 [0.536–0.709] | 0.604 [0.483–0.885] | — |
+| fannkuch 10 | 0.257 [0.192–0.303] | 0.247 [0.192–0.256] | — |
+
+A dash marks a change whose ranges overlap. The C treecopy built with
+`clang -O2` took 0.339 s in the same container. Peak memory was the same in
+both builds: 30 MB for treecopy, 13 MB for binarytrees, 44 MB for ntree,
+126 MB for listgrowth, 220 MB for entities and 9 MB for fannkuch. Every
+program printed the same output with both builds.

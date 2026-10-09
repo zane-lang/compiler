@@ -170,14 +170,14 @@ void *zane_frame(int64_t scope, int64_t size, int64_t align) {
 
 /* The call whose frame is filled starts (§3.6): the innermost scope waits
    for it, and from now its context is shared. */
-void zane_spawn(char *frame, void (*run)(char *), char *dest, const int64_t *layout,
+void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *type,
                 int64_t size) {
 	zane_task *t = (zane_task *)frame - 1;
 	zane_context *c = zane_self;
 	zane_mark *m = zane_mark_at(c, c->depth - 1);
 	t->run = run;
 	t->dest = dest;
-	t->layout = layout;
+	t->type = type;
 	t->size = size;
 	t->owner = c;
 	t->next = m->tasks;

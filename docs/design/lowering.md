@@ -270,8 +270,11 @@ language: printing, the program's arguments, reading a number from text,
 `List` growth, `String` storage. Its interface is a small
 set of C functions that CGT storage operations (L9) and intrinsic calls lower
 to, so a change to how an arena works changes the runtime and nothing in the
-compiler. It lives in `runtime/`, is built by `clang`, which already links
-every program, and is tested in C on its own.
+compiler. What walks a type's blocks -- to copy, end, move or overwrite a
+value of it -- is the one part the compiler emits instead, for each type
+(§9); the runtime runs the walks it is handed. It lives in `runtime/`, is
+built by `clang`, which already links every program, and is tested in C on
+its own.
 
 C because it adds no toolchain beside the LLVM the compiler already uses, and
 because an arena is exactly the kind of code C states without ceremony.
@@ -501,7 +504,11 @@ test passing.
 - **Each scope's dynamic region.** A scope's blocks are in a region of its
   own, as [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1–3.2 has it: chunks of its own, a bump frontier, and
   a stack of returned blocks per size and alignment, all given back at its
-  drain. A list's block doubles from 128 bytes (§3.6): into a returned block
+  drain. A block of up to 16 words aligned to a word is in a size class,
+  whose stack is one of a fixed array at the start of the region's mark,
+  beside its frontier, its frontier's end and its count of blocks out, so
+  emitted code reads each at a fixed offset (below); any other size has a
+  stack found by a search. A list's block doubles from 128 bytes (§3.6): into a returned block
   of that size, in place when it is last at the frontier, or else into new
   bytes. Where the runtime departs from the spec:
   - A block is placed where its value is made, which is the innermost
@@ -553,6 +560,33 @@ test passing.
     program. The codegen and object tests run this way.
 
   Nothing a program does can tell these apart.
+- **Each type's walks.** Copying, ending, moving and overwriting a value
+  each walk the blocks it owns, down through the blocks inside them. Codegen
+  emits the four walks for each type whose layout lists a block, the first
+  time the program walks a value of it, and a table of them, named for the type, which is what the runtime is handed
+  wherever it is to walk a value of the type: a copy, a slot whose value a
+  checked drain ends, an arrival, a promotion, an overwrite, a spawned
+  call's result, a write-back and a constant. A type that owns no blocks has
+  no walks, and is handed as none. A walk knows its type's positions, the
+  offset of each and the variant tags each lies under, so it reads each
+  handle and box where it is, and calls the walk of what a box or a list's
+  elements hold directly, one level deeper. Past 256 levels it hands that
+  walk to the runtime's work instead, which runs it from the top once the
+  walk handing it on returns, so a value nested any number of boxes deep is
+  walked without the machine stack growing with it ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md)
+  §2.3 sets no depth limit). An end hands on the return of a block before
+  the walks of what lives in it, so the block is returned after them, and
+  an overwrite hands on its own arrival before it writes anything below it,
+  so the deepest places arrive first. Codegen emits the vacating of a value
+  of the type too, which the runtime never needs. A copy takes all its
+  blocks in the innermost region and holds that region's lock for the whole
+  walk, so it takes a boxed payload's block inline: the top of its size
+  class's stack, or else the next bytes at the frontier, and calls the
+  runtime only when neither has one. A move, an end and an overwrite return
+  blocks to other regions, so they call the runtime for each block. Walking
+  a table instead decoded each position from it at run time, for each block;
+  the emitted walks make treecopy, which copies a tree whole, 2.6 times
+  faster (`tests/runtime/README.md`).
 - **Each spawned call has a context of its own.** A spawned call runs with
   its own nest of scopes and its own chain of fixed chunks, so a thread bumps
   only its own; a thread that runs one while waiting for it switches to that
