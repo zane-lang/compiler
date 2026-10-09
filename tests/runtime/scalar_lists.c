@@ -25,8 +25,8 @@ static void check(int ok) { puts(ok ? "yes" : "no"); }
 enum { ELEMENTS = 2000000 };
 
 /* Hold the list in the requested scope so its backing blocks drain with it. */
-static zane_list *make_list(int64_t scope) {
-	zane_list *list = zane_slot(scope, sizeof *list, 8, &ints_type);
+static zane_list *make_list(zane_mark *scope) {
+	zane_list *list = test_slot(scope, sizeof *list, 8, &ints_type);
 	zane_list_new(list);
 	for (int64_t i = 1; i <= ELEMENTS; i++)
 		*(int64_t *)zane_list_push(list, sizeof(int64_t)) = i;
@@ -43,16 +43,16 @@ static int intact(const zane_list *list) {
 
 /* Verify ownership through cleanup, independent copying, and scope escape. */
 static void exercise_lists(void) {
-	int64_t scope = zane_scope_enter();
+	zane_mark *scope = zane_scope_enter(0);
 	zane_list *list = make_list(scope);
 	check(intact(list));
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0);
 
 	/* A copy owns a separate block, including when its elements own none. */
-	scope = zane_scope_enter();
+	scope = zane_scope_enter(0);
 	list = make_list(scope);
-	zane_list *copy = zane_slot(scope, sizeof *copy, 8, &ints_type);
+	zane_list *copy = test_slot(scope, sizeof *copy, 8, &ints_type);
 	*copy = *list;
 	zane_copy((char *)copy, &ints_type);
 	check(copy->items != list->items && intact(copy) && intact(list));
@@ -60,15 +60,15 @@ static void exercise_lists(void) {
 	check(zane_blocks() == 0);
 
 	/* The block must still move when it escapes its allocating scope. */
-	scope = zane_scope_enter();
-	int64_t inner = zane_scope_enter();
+	scope = zane_scope_enter(0);
+	zane_mark *inner = zane_scope_enter(0);
 	list = make_list(inner);
 	zane_list moved = *list;
 	zane_promote((char *)&moved, &ints_type, inner);
-	check(moved.items != list->items && zane_region_at(moved.items)->depth == scope);
+	check(moved.items != list->items && zane_region_at(moved.items) == scope);
 	*list = (zane_list){ NULL, 0, 0 };
 	zane_scope_drain(inner);
-	zane_list *kept = zane_slot(scope, sizeof *kept, 8, &ints_type);
+	zane_list *kept = test_slot(scope, sizeof *kept, 8, &ints_type);
 	*kept = moved;
 	zane_arrive((char *)kept, &ints_type);
 	check(intact(kept));
@@ -78,11 +78,11 @@ static void exercise_lists(void) {
 
 /* A payload that owns no blocks still has its bytes copied and overwritten. */
 static void exercise_boxes(void) {
-	int64_t scope = zane_scope_enter();
-	char **box = zane_slot(scope, sizeof *box, 8, &boxed_int_type);
+	zane_mark *scope = zane_scope_enter(0);
+	char **box = test_slot(scope, sizeof *box, 8, &boxed_int_type);
 	*box = zane_box(sizeof(int64_t), 8);
 	*(int64_t *)*box = 7;
-	char **copy = zane_slot(scope, sizeof *copy, 8, &boxed_int_type);
+	char **copy = test_slot(scope, sizeof *copy, 8, &boxed_int_type);
 	*copy = *box;
 	zane_copy((char *)copy, &boxed_int_type);
 	check(*copy != *box && *(int64_t *)*copy == 7);
@@ -95,14 +95,14 @@ static void exercise_boxes(void) {
 	zane_overwrite((char *)box, (char *)&incoming, sizeof *box, &boxed_int_type);
 	check(*box == kept && *(int64_t *)*box == 9 && *(int64_t *)*copy == 7);
 
-	int64_t inner = zane_scope_enter();
+	zane_mark *inner = zane_scope_enter(0);
 	char *moved = zane_box(sizeof(int64_t), 8);
 	*(int64_t *)moved = 11;
 	zane_promote((char *)&moved, &boxed_int_type, inner);
 	zane_scope_drain(inner);
-	char **promoted = zane_slot(scope, sizeof *promoted, 8, &boxed_int_type);
+	char **promoted = test_slot(scope, sizeof *promoted, 8, &boxed_int_type);
 	*promoted = moved;
-	check(zane_region_at(moved)->depth == scope && *(int64_t *)moved == 11);
+	check(zane_region_at(moved) == scope && *(int64_t *)moved == 11);
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0);
 }
@@ -110,11 +110,13 @@ static void exercise_boxes(void) {
 void zane_main(void) {
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 	/* The lists and their copies fit within 128 MiB, and so does nothing
-	   that also walks each of their two million elements. Keep an already
-	   stricter limit. */
+	   that also walks each of their two million elements. The limit counts
+	   addresses, so it is 128 MiB beyond the range the main context
+	   reserved for its frames, whose untouched pages take no memory. Keep
+	   an already stricter limit. */
 	struct rlimit limit;
 	if (getrlimit(RLIMIT_AS, &limit) != 0) zane_broken("cannot read the test memory budget");
-	rlim_t budget = 128 * 1024 * 1024;
+	rlim_t budget = (rlim_t)128 * 1024 * 1024 + (rlim_t)(zane_self->limit + ZANE_GUARD - zane_self->base);
 	if (limit.rlim_cur > budget) limit.rlim_cur = budget;
 	if (setrlimit(RLIMIT_AS, &limit) != 0) zane_broken("cannot set the test memory budget");
 #endif

@@ -106,15 +106,22 @@ let optimize ~optimize cgt = if optimize then Optimize.run cgt else cgt
    about the build, not about any file of it. *)
 let built = function Ok v -> Ok v | Error message -> fail [ Diagnostic.about_invocation message ]
 
-let ir ?target ~optimize cgt =
-  let m = Codegen.emit cgt in
+(* The sizes of each context's range of frames, from `--fixed-region` and
+   `--spawned-fixed-region`; codegen's defaults when absent. *)
+type regions = { fixed : int option; spawned : int option }
+
+let no_regions = { fixed = None; spawned = None }
+let emit regions cgt = Codegen.emit ?fixed_region:regions.fixed ?spawned_fixed_region:regions.spawned cgt
+
+let ir ?target ?(regions = no_regions) ~optimize cgt =
+  let m = emit regions cgt in
   built (Result.map (fun () -> Codegen.ir m) (Codegen.prepare ?target ~optimize m))
 
-let executable ?target ~optimize ~link cgt output =
-  built (Codegen.executable ?target ~optimize ~link (Codegen.emit cgt) output)
+let executable ?target ?(regions = no_regions) ~optimize ~link cgt output =
+  built (Codegen.executable ?target ~optimize ~link (emit regions cgt) output)
 
-let object_file ?target ~optimize cgt output =
-  built (Codegen.object_file ?target ~optimize (Codegen.emit cgt) output)
+let object_file ?target ?(regions = no_regions) ~optimize cgt output =
+  built (Codegen.object_file ?target ~optimize (emit regions cgt) output)
 
 (* A library is checked and built into an object, never into an
    executable. *)

@@ -8,7 +8,7 @@
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
 /* The scope whose region holds `at`. */
-static int64_t zane_region_of(const void *at) { return zane_region_at(at)->depth; }
+static zane_mark *zane_region_of(const void *at) { return zane_region_at(at); }
 
 /* An owner of one `Int`. */
 typedef struct {
@@ -77,11 +77,11 @@ static const zane_type outer_type = { outer_copy, outer_end, outer_move, outer_o
 static int depth(const countdown *c) { return c->tag == 1 ? 1 + depth((countdown *)c->more) : 0; }
 
 void zane_main(void) {
-	int64_t scope = zane_scope_enter();
+	zane_mark *scope = zane_scope_enter(0);
 
 	/* An element's bytes move with every block the list grows into, and
 	   the list owns one block at a time. */
-	zane_list *list = zane_slot(scope, sizeof(zane_list), 8, NULL);
+	zane_list *list = test_slot(scope, sizeof(zane_list), 8, NULL);
 	zane_list_new(list);
 	node *first = zane_list_push(list, sizeof(node));
 	*first = (node){ 7 };
@@ -96,7 +96,7 @@ void zane_main(void) {
 	*list = (zane_list){ NULL, 0, 0 };
 
 	/* A list of strings returns every block it owns at the drain. */
-	zane_list *words = zane_slot(scope, sizeof(zane_list), 8, &texts_type);
+	zane_list *words = test_slot(scope, sizeof(zane_list), 8, &texts_type);
 	zane_list_new(words);
 	zane_text ab = { "ab", 2, 0 };
 	for (int i = 0; i < 3; i++) zane_text_join(zane_list_push(words, sizeof(zane_text)), &ab, &ab);
@@ -106,13 +106,13 @@ void zane_main(void) {
 
 	/* A copy of a boxed value owns blocks of its own, and each is returned
 	   once. */
-	scope = zane_scope_enter();
-	countdown *a = zane_slot(scope, sizeof(countdown), 8, &countdown_type);
+	scope = zane_scope_enter(0);
+	countdown *a = test_slot(scope, sizeof(countdown), 8, &countdown_type);
 	countdown *inner = zane_box(sizeof(countdown), 8);
 	*inner = (countdown){ 0, NULL };
 	*a = (countdown){ 1, zane_box(sizeof(countdown), 8) };
 	*(countdown *)a->more = (countdown){ 1, (char *)inner };
-	countdown *b = zane_slot(scope, sizeof(countdown), 8, &countdown_type);
+	countdown *b = test_slot(scope, sizeof(countdown), 8, &countdown_type);
 	*b = *a;
 	zane_copy((char *)b, &countdown_type);
 	check(depth(a) == 2 && depth(b) == 2 && b->more != a->more && zane_blocks() == 4);
@@ -126,8 +126,8 @@ void zane_main(void) {
 	   block, so an address into it still names the member, which now holds
 	   the replacement; the replacement's own block and the bytes the old
 	   member owned are returned. */
-	scope = zane_scope_enter();
-	outer_t *o = zane_slot(scope, sizeof(outer_t), 8, &outer_type);
+	scope = zane_scope_enter(0);
+	outer_t *o = test_slot(scope, sizeof(outer_t), 8, &outer_type);
 	named *kept_box = zane_box(sizeof(named), 8);
 	*kept_box = (named){ 1, { NULL, 0, 0 } };
 	zane_text_join(&kept_box->name, &ab, &ab);
@@ -146,11 +146,11 @@ void zane_main(void) {
 	/* Arriving in an inner scope leaves blocks in an enclosing one where
 	   they are, since that one outlives the destination; arriving in an
 	   enclosing scope moves them out first, which is an escape (§3.5). */
-	int64_t enclosing = zane_scope_enter();
+	zane_mark *enclosing = zane_scope_enter(0);
 	zane_text made;
 	zane_text_join(&made, &ab, &ab);
-	int64_t nested = zane_scope_enter();
-	zane_text *down = zane_slot(nested, sizeof(zane_text), 8, &text_type);
+	zane_mark *nested = zane_scope_enter(0);
+	zane_text *down = test_slot(nested, sizeof(zane_text), 8, &text_type);
 	*down = made;
 	zane_arrive((char *)down, &text_type);
 	check(zane_region_of(down->bytes) == enclosing);
@@ -160,9 +160,9 @@ void zane_main(void) {
 	*down = (zane_text){ NULL, 0, 0 };
 	zane_scope_drain(nested);
 	check(zane_region_of(young.bytes) == enclosing);
-	zane_text *up = zane_slot(enclosing, sizeof(zane_text), 8, &text_type);
+	zane_text *up = test_slot(enclosing, sizeof(zane_text), 8, &text_type);
 	*up = young;
-	zane_text *other_up = zane_slot(enclosing, sizeof(zane_text), 8, &text_type);
+	zane_text *other_up = test_slot(enclosing, sizeof(zane_text), 8, &text_type);
 	*other_up = made;
 	zane_scope_drain(enclosing);
 	check(zane_blocks() == 0);
@@ -170,21 +170,21 @@ void zane_main(void) {
 	/* A list's block grows where it is while it is the last thing at its
 	   region's frontier, and a block it gives back serves the next of its
 	   size. */
-	int64_t outer = zane_scope_enter();
-	zane_list *ints = zane_slot(outer, sizeof(zane_list), 8, NULL);
+	zane_mark *outer = zane_scope_enter(0);
+	zane_list *ints = test_slot(outer, sizeof(zane_list), 8, NULL);
 	zane_list_new(ints);
 	for (int64_t i = 0; i < 16; i++) *(int64_t *)zane_list_push(ints, 8) = i;
 	char *before = ints->items;
 	*(int64_t *)zane_list_push(ints, 8) = 16;
 	check(ints->items == before && ints->room == 256 && zane_blocks() == 1);
-	zane_list *other = zane_slot(outer, sizeof(zane_list), 8, NULL);
+	zane_list *other = test_slot(outer, sizeof(zane_list), 8, NULL);
 	zane_list_new(other);
 	zane_list_push(other, 8);
 	char *first_block = other->items;
 	after = zane_box(8, 8);
 	for (int64_t i = 0; i < 16; i++) zane_list_push(other, 8);
 	zane_free(after, 8, 8);
-	zane_list *third = zane_slot(outer, sizeof(zane_list), 8, NULL);
+	zane_list *third = test_slot(outer, sizeof(zane_list), 8, NULL);
 	zane_list_new(third);
 	zane_list_push(third, 8);
 	check(other->items != first_block && third->items == first_block);
@@ -192,7 +192,7 @@ void zane_main(void) {
 	/* A list pushed to from an inner scope keeps its block in the scope
 	   that holds it, and a string leaving an inner scope moves its bytes
 	   out before the drain. */
-	int64_t inner_scope = zane_scope_enter();
+	zane_mark *inner_scope = zane_scope_enter(0);
 	for (int64_t i = 0; i < 100; i++) zane_list_push(third, 8);
 	zane_text left;
 	zane_text_join(&left, &(zane_text){ "ab", 2, 0 }, &(zane_text){ "cd", 2, 0 });
@@ -201,7 +201,7 @@ void zane_main(void) {
 	zane_scope_drain(inner_scope);
 	check(zane_region_of(third->items) == outer && zane_region_of(left.bytes) == outer &&
 	      memcmp(left.bytes, "abcd", 4) == 0);
-	zane_text *kept = zane_slot(outer, sizeof(zane_text), 8, &text_type);
+	zane_text *kept = test_slot(outer, sizeof(zane_text), 8, &text_type);
 	*kept = left;
 	zane_arrive((char *)kept, &text_type);
 	zane_list *lists[] = { ints, other, third };
@@ -219,7 +219,7 @@ void zane_main(void) {
 	/* A type that owns no blocks has no walks, and is passed as none. */
 	int64_t plain = 1, replacing_plain = 2;
 	zane_arrive((char *)&plain, NULL);
-	zane_promote((char *)&plain, NULL, 1);
+	zane_promote((char *)&plain, NULL, zane_self->top);
 	zane_copy((char *)&plain, NULL);
 	zane_overwrite((char *)&plain, (char *)&replacing_plain, 8, NULL);
 	check(plain == 2);
@@ -235,7 +235,7 @@ void zane_main(void) {
 	   scope it was made in. */
 	static int64_t state;
 	static zane_text constant;
-	int64_t making = zane_scope_enter();
+	zane_mark *making = zane_scope_enter(0);
 	check(zane_constant_begin(&state) == 1);
 	zane_text_join(&constant, &(zane_text){ "ab", 2, 0 }, &(zane_text){ "cd", 2, 0 });
 	zane_constant_end(&state, (char *)&constant, &text_type);

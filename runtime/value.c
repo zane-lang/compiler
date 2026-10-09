@@ -43,11 +43,12 @@ void zane_arrive(char *slot, const zane_type *type) {
 	if (type) zane_move(slot, type, zane_region_at(slot), 0);
 }
 
-/* A value leaves the scopes from `depth` in, which drain before it arrives
+/* A value leaves the scopes from `scope` in, which drain before it arrives
    anywhere: every block it owns in them moves into the scope around them
    first (§3.1). */
-void zane_promote(char *value, const zane_type *type, int64_t depth) {
-	zane_move(value, type, zane_mark_at(zane_self, depth - 1), depth);
+void zane_promote(char *value, const zane_type *type, zane_mark *scope) {
+	if (!type) return;
+	zane_move(value, type, scope->outer, scope->depth);
 }
 
 /* `incoming` replaces what `slot` holds, in place (memory.md §2.2): the

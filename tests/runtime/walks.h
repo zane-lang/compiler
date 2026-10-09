@@ -8,7 +8,7 @@
 #ifndef ZANE_TEST_WALKS_H
 #define ZANE_TEST_WALKS_H
 
-#include "zane_internal.h"
+#include "scopes.h"
 
 /* How many walks deep a walk calls the next itself. */
 #define DEEPEST 256

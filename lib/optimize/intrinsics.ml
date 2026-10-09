@@ -19,9 +19,9 @@ let classify : Cgt.Runtime.fn -> t = function
   | Parse_i64 | Parse_f64 ->
       Computed
   (* Codegen calls these for nodes of the tree rather than the tree naming
-     them: a scope, a slot, a copy, a box, a spawn, and the walks it emits
+     them: a scope, a held slot, a copy, a box, a spawn, and the walks it emits
      for each type. The evaluator gives each node its meaning directly. *)
-  | Scope_enter | Scope_drain | Slot | Promote | Arrive | Copy
-  | Overwrite | Box | Frame | Spawn | Join | Snapshot | Out_of_range
+  | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
+  | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range
   | Region_at | Alloc | Alloc_held | Free | Leaves | Defer | Defer_return ->
       Computed

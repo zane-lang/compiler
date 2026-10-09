@@ -42,11 +42,17 @@ val lower :
 (** Stage 5 when [optimize], and the tree as it is otherwise. *)
 val optimize : optimize:bool -> Cgt.Nodes.Program.t -> Cgt.Nodes.Program.t
 
+(** The size in bytes of the range each context reserves for its frames:
+    the main context's, from `--fixed-region`, and each spawned call's, from
+    `--spawned-fixed-region`. [None] takes codegen's default. *)
+type regions = { fixed : int option; spawned : int option }
+
 (** The LLVM module's text. *)
-val ir : ?target:string -> optimize:bool -> Cgt.Nodes.Program.t -> (string, failure) result
+val ir : ?target:string -> ?regions:regions -> optimize:bool -> Cgt.Nodes.Program.t -> (string, failure) result
 
 val executable :
   ?target:string ->
+  ?regions:regions ->
   optimize:bool ->
   link:string list ->
   Cgt.Nodes.Program.t ->
@@ -54,4 +60,9 @@ val executable :
   (unit, failure) result
 
 val object_file :
-  ?target:string -> optimize:bool -> Cgt.Nodes.Program.t -> string -> (unit, failure) result
+  ?target:string ->
+  ?regions:regions ->
+  optimize:bool ->
+  Cgt.Nodes.Program.t ->
+  string ->
+  (unit, failure) result

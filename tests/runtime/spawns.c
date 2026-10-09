@@ -29,8 +29,8 @@ static void count(char *frame) {
 	counting *f = (counting *)frame;
 	int64_t sum = 0;
 	for (int64_t i = 1; i <= f->n; i++) {
-		int64_t scope = zane_scope_enter();
-		int64_t *at = zane_slot(scope, sizeof *at, 8, NULL);
+		zane_mark *scope = zane_scope_enter(0);
+		int64_t *at = test_slot(scope, sizeof *at, 8, NULL);
 		*at = i;
 		sum += *at;
 		zane_free(zane_box(8, 8), 8, 8);
@@ -42,9 +42,9 @@ static void count(char *frame) {
 /* A call that spawns two of its own and adds what they return. */
 static void halves(char *frame) {
 	counting *f = (counting *)frame;
-	int64_t scope = zane_scope_enter();
-	counting *a = zane_frame(scope, sizeof *a, 8), *b = zane_frame(scope, sizeof *b, 8);
-	int64_t *ra = zane_slot(scope, 8, 8, NULL), *rb = zane_slot(scope, 8, 8, NULL);
+	zane_mark *scope = zane_scope_enter(0);
+	counting *a = test_frame(scope, sizeof *a), *b = test_frame(scope, sizeof *b);
+	int64_t *ra = test_slot(scope, 8, 8, NULL), *rb = test_slot(scope, 8, 8, NULL);
 	a->n = f->n;
 	b->n = f->n * 2;
 	zane_spawn((char *)a, count, (char *)ra, NULL, 8);
@@ -97,12 +97,12 @@ void zane_main(void) {
 	/* A result comes home when it is read: its bytes move into the
 	   region of the scope that holds the slot, and the call's context is
 	   back in the pool. */
-	int64_t scope = zane_scope_enter();
-	joining *f = zane_frame(scope, sizeof *f, 8);
-	zane_text *home = zane_slot(scope, sizeof(zane_text), 8, &text_type);
+	zane_mark *scope = zane_scope_enter(0);
+	joining *f = test_frame(scope, sizeof *f);
+	zane_text *home = test_slot(scope, sizeof(zane_text), 8, &text_type);
 	f->left = &ab;
 	f->right = &cd;
-	check(zane_open == zane_mark_at(zane_self, scope));
+	check(zane_open == scope);
 	zane_spawn((char *)f, join_texts, (char *)home, &text_type, sizeof(zane_text));
 	check(zane_self->shared == 1);
 
@@ -111,19 +111,19 @@ void zane_main(void) {
 	   again, and a drain opens the one around it. */
 	check(zane_open == NULL);
 	zane_join((char *)f);
-	check(holds(home, "abcd") && zane_region_at(home->bytes) == zane_mark_at(zane_self, scope));
+	check(holds(home, "abcd") && zane_region_at(home->bytes) == scope);
 	check(zane_self->shared == 0 && zane_blocks() == 1);
-	check(zane_open == zane_mark_at(zane_self, scope));
+	check(zane_open == scope);
 	zane_join((char *)f);
 	check(zane_blocks() == 1);
 	zane_scope_drain(scope);
-	check(zane_blocks() == 0 && zane_open == zane_mark_at(zane_self, scope - 1));
+	check(zane_blocks() == 0 && zane_open == scope->outer);
 
 	/* A result never read comes home at the drain, which then returns
 	   its blocks. */
-	scope = zane_scope_enter();
-	f = zane_frame(scope, sizeof *f, 8);
-	home = zane_slot(scope, sizeof(zane_text), 8, &text_type);
+	scope = zane_scope_enter(0);
+	f = test_frame(scope, sizeof *f);
+	home = test_slot(scope, sizeof(zane_text), 8, &text_type);
 	f->left = &cd;
 	f->right = &ab;
 	zane_spawn((char *)f, join_texts, (char *)home, &text_type, sizeof(zane_text));
@@ -133,12 +133,12 @@ void zane_main(void) {
 	/* Many calls at once, each in scopes of its own, and calls that spawn
 	   calls: every result is right, and contexts are reused. */
 	enum { CALLS = 64 };
-	scope = zane_scope_enter();
+	scope = zane_scope_enter(0);
 	counting *calls[CALLS];
 	int64_t *sums[CALLS];
 	for (int i = 0; i < CALLS; i++) {
-		calls[i] = zane_frame(scope, sizeof *calls[i], 8);
-		sums[i] = zane_slot(scope, 8, 8, NULL);
+		calls[i] = test_frame(scope, sizeof *calls[i]);
+		sums[i] = test_slot(scope, 8, 8, NULL);
 		calls[i]->n = 100 + i;
 		zane_spawn((char *)calls[i], i % 2 ? count : halves, (char *)sums[i], NULL, 8);
 	}
@@ -151,9 +151,9 @@ void zane_main(void) {
 	check(right && zane_blocks() == 0);
 	int32_t made = zane_context_count;
 	for (int round = 0; round < 100; round++) {
-		scope = zane_scope_enter();
-		counting *c = zane_frame(scope, sizeof *c, 8);
-		int64_t *sum = zane_slot(scope, 8, 8, NULL);
+		scope = zane_scope_enter(0);
+		counting *c = test_frame(scope, sizeof *c);
+		int64_t *sum = test_slot(scope, 8, 8, NULL);
 		c->n = 3;
 		zane_spawn((char *)c, count, (char *)sum, NULL, 8);
 		zane_join((char *)c);
@@ -167,10 +167,10 @@ void zane_main(void) {
 	check(zane_set_threads(0) == 0 && zane_wanted == zane_processors());
 	for (int64_t threads = 1; threads <= 8; threads *= 8) {
 		check(zane_set_threads(threads) == 1);
-		scope = zane_scope_enter();
+		scope = zane_scope_enter(0);
 		for (int i = 0; i < CALLS; i++) {
-			calls[i] = zane_frame(scope, sizeof *calls[i], 8);
-			sums[i] = zane_slot(scope, 8, 8, NULL);
+			calls[i] = test_frame(scope, sizeof *calls[i]);
+			sums[i] = test_slot(scope, 8, 8, NULL);
 			calls[i]->n = i;
 			zane_spawn((char *)calls[i], halves, (char *)sums[i], NULL, 8);
 		}
@@ -183,11 +183,11 @@ void zane_main(void) {
 
 	/* A reader never sees a write-back half done. */
 	zane_set_threads(2);
-	scope = zane_scope_enter();
-	pair *shared = zane_slot(scope, sizeof *shared, 8, NULL);
-	watching *writer = zane_frame(scope, sizeof *writer, 8);
-	watching *reader = zane_frame(scope, sizeof *reader, 8);
-	int64_t *torn = zane_slot(scope, 8, 8, NULL);
+	scope = zane_scope_enter(0);
+	pair *shared = test_slot(scope, sizeof *shared, 8, NULL);
+	watching *writer = test_frame(scope, sizeof *writer);
+	watching *reader = test_frame(scope, sizeof *reader);
+	int64_t *torn = test_slot(scope, 8, 8, NULL);
 	writer->at = reader->at = shared;
 	zane_spawn((char *)writer, write_pairs, (char *)writer, NULL, 0);
 	zane_spawn((char *)reader, read_pairs, (char *)torn, NULL, 8);

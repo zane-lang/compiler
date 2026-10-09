@@ -3,7 +3,7 @@
    subject and the spawned call's copy sit. Each check prints `yes` when it
    holds and `no` when it does not. */
 
-#include "zane_internal.h"
+#include "scopes.h"
 
 #include <pthread.h>
 
@@ -29,8 +29,8 @@ static void *reader(void *unused) {
 }
 
 void zane_main(void) {
-	int64_t scope = zane_scope_enter();
-	char *slot = zane_slot(scope, 32, 8, NULL);
+	zane_mark *scope = zane_scope_enter(0);
+	char *slot = test_slot(scope, 32, 8, NULL);
 	subject = slot + 4;
 	memset(subject, 0, 16);
 	/* The copies sit one byte past an aligned address, as no word of the

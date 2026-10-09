@@ -46,6 +46,9 @@ type build = {
   stamps : (string * string) list;
   link : string list;
   imports : (string * string * string) list;
+  (* The size of each context's range of frames, which `zane` takes from the
+     root manifest (memory.md §3.1, dependencies.md §2.1). *)
+  regions : Driver.regions;
 }
 
 (* `--rewrite STAMP INPUT OUTPUT` is fetching's step, not a build's: a
@@ -76,6 +79,7 @@ let print_usage () =
   prerr_endline "             [--kind application|library]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...]";
+  prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES]";
   prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
   prerr_endline "             --package [[STAMP]PATH=]DIR [--package [[STAMP]PATH=]DIR ...]";
   prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
@@ -97,6 +101,15 @@ let is_package_name name =
   rest <> ""
   && (match rest.[0] with 'a' .. 'z' -> true | _ -> false)
   && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> true | _ -> false) rest
+
+(* A range of frames is a whole number of MiB, at least one, since the
+   runtime makes it usable a MiB at a time. *)
+let region_size bytes =
+  match int_of_string_opt bytes with
+  | Some n when String.for_all (function '0' .. '9' -> true | _ -> false) bytes
+                && n >= 1 lsl 20 && n mod (1 lsl 20) = 0 ->
+      n
+  | _ -> usage ()
 
 (* A package's path within its project's `lib/`: its directory names joined
    by `.`, as `gui.opengl` for a subpackage (dependencies.md §6.1). *)
@@ -207,6 +220,12 @@ let arguments () =
         | _ -> usage ())
     | "--link" :: file :: rest when is_value file ->
         packages view { build with link = file :: build.link } rest
+    | "--fixed-region" :: bytes :: rest when build.regions.fixed = None ->
+        packages view { build with regions = { build.regions with fixed = Some (region_size bytes) } } rest
+    | "--spawned-fixed-region" :: bytes :: rest when build.regions.spawned = None ->
+        packages view
+          { build with regions = { build.regions with spawned = Some (region_size bytes) } }
+          rest
     | "--import" :: import :: rest when is_value import -> (
         match import_request import with
         | Some i -> packages view { build with imports = i :: build.imports } rest
@@ -231,6 +250,7 @@ let arguments () =
       stamps = [];
       link = [];
       imports = [];
+      regions = { Driver.fixed = None; spawned = None };
     }
   in
   match List.tl (Array.to_list Sys.argv) with
@@ -240,7 +260,7 @@ let arguments () =
     when List.for_all is_value [ from; to_; input; output ] ->
       Remap { from; to_; input; output }
   | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
-    | "--link" | "--import" | "--check" | "--decls" | "--tst" | "--cgt" | "--ll" )
+    | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--check" | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
       packages None empty rest
   | rest -> go Cst rest
@@ -269,11 +289,11 @@ let generate packages build program =
       print_string (Tree_graph.render (Cgt.to_node cgt));
       Ok ()
   | Ir ->
-      let* ir = Driver.ir ?target ~optimize cgt in
+      let* ir = Driver.ir ?target ~regions:build.regions ~optimize cgt in
       print_string ir;
       Ok ()
-  | Build output -> Driver.executable ?target ~optimize ~link:build.link cgt output
-  | Object output -> Driver.object_file ?target ~optimize cgt output
+  | Build output -> Driver.executable ?target ~regions:build.regions ~optimize ~link:build.link cgt output
+  | Object output -> Driver.object_file ?target ~regions:build.regions ~optimize cgt output
   | Assembled | Check | Declarations | Typed -> Ok ()
 
 (* Without `--kind`, a root is an application once it is lowered, since

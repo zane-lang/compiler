@@ -204,6 +204,18 @@ let take c region size =
     Llvm.build_phi [ (top, pop); (at, fits); (found, slow_end) ] "" c.b
   end
 
+(* The runtime's `zane_open`, the innermost scope's record while no other
+   thread can reach this thread's context, else null (runtime/arena.c). The
+   program and the runtime are linked into one executable, so it is read at
+   a fixed offset from the thread's pointer rather than through a call. *)
+let zane_open m ptr =
+  match Llvm.lookup_global "zane_open" m with
+  | Some g -> g
+  | None ->
+      let g = Llvm.declare_global ptr "zane_open" m in
+      Llvm.set_thread_local_mode Llvm.ThreadLocalMode.InitialExec g;
+      g
+
 (* A box's block (memory.md §3.6), in the innermost region. Emitted code
    takes it itself, as [take] does, while that region is the runtime's
    [zane_open], which no other thread can reach then; otherwise, and for a
@@ -220,14 +232,7 @@ let box env f b size align =
       let none = Llvm.const_null env.ptr in
       { env; f; b; at = none; with_ = none; extra = n 0; work = none; depth = n 0 }
     in
-    let open_ =
-      match Llvm.lookup_global "zane_open" env.m with
-      | Some g -> g
-      | None ->
-          let g = Llvm.declare_global env.ptr "zane_open" env.m in
-          Llvm.set_thread_local true g;
-          g
-    in
+    let open_ = zane_open env.m env.ptr in
     let region = load c env.ptr open_ in
     let inline = block c and shared = block c and done_ = block c in
     ignore (Llvm.build_cond_br (nonzero c region) inline shared b);

@@ -1,7 +1,7 @@
 #include "zane_internal.h"
 
 /* ---------------------------------------------------------------------- */
-/* Scope arenas (memory.md §3.1–3.2, docs/design/lowering.md L8)                 */
+/* Scope arenas (memory.md §3.1–3.2, docs/design/lowering.md L8)          */
 /* ---------------------------------------------------------------------- */
 
 /* What threads share and change -- the chunk map's levels, the spare
@@ -9,20 +9,22 @@
    lock. */
 pthread_mutex_t zane_memory = PTHREAD_MUTEX_INITIALIZER;
 
-/* Which region every chunk belongs to, by its address over 1 MiB: 0 for
-   none, a fixed chunk's entry, or minus a dynamic chunk's. Each entry names
-   the context and, within it, the fixed chunk's index or the dynamic
-   chunk's scope. An oversized block's chunks are each listed. */
-static int32_t *zane_pages[ZANE_PAGES];
+/* What every 1 MiB of the address space belongs to, by its address over
+   1 MiB: 0 for nothing of the runtime's, a dynamic chunk's region record,
+   or a context with its lowest bit set, for each MiB of the range it
+   reserved for its frames, guard included. An oversized block's chunks are
+   each listed. The fault handler reads it too (region.c), so a level, once
+   made, stays, and every entry is read and written whole. */
+static uintptr_t *zane_pages[ZANE_PAGES];
 
-static int32_t *zane_page(const void *at, int make) {
+uintptr_t *zane_page(const void *at, int make) {
 	uintptr_t page = (uintptr_t)at >> 20;
 	if (page / ZANE_PAGES >= ZANE_PAGES) {
 		if (make) zane_broken("memory beyond a 48-bit address");
 		return NULL;
 	}
-	int32_t **level = &zane_pages[page / ZANE_PAGES];
-	int32_t *entries = __atomic_load_n(level, __ATOMIC_ACQUIRE);
+	uintptr_t **level = &zane_pages[page / ZANE_PAGES];
+	uintptr_t *entries = __atomic_load_n(level, __ATOMIC_ACQUIRE);
 	if (!entries) {
 		if (!make) return NULL;
 		pthread_mutex_lock(&zane_memory);
@@ -37,7 +39,13 @@ static int32_t *zane_page(const void *at, int make) {
 	return entries + page % ZANE_PAGES;
 }
 
-/* Every context made, by its id, and those free for the next spawned call. */
+static void zane_set_page(const void *at, uintptr_t entry) {
+	__atomic_store_n(zane_page(at, 1), entry, __ATOMIC_RELEASE);
+}
+
+/* Every context made, by its id, and those free for the next spawned call.
+   A context takes its id under the lock, and is listed once its range is
+   reserved. */
 static zane_context *zane_contexts[ZANE_CONTEXTS];
 int32_t zane_context_count;
 zane_context *zane_idle;
@@ -48,111 +56,102 @@ zane_mark *zane_program;
 
 /* The innermost region of the context running on this thread while no call
    it spawned is out, so that nothing else can reach it, and otherwise null.
-   Emitted code takes a box's block there itself (docs/design/lowering.md
-   §9). Whatever changes the context, its depth or whether it is shared sets
-   it again. */
+   Emitted code takes a box's block there itself, and opens and drains a
+   scope there itself (docs/design/lowering.md §9). Whatever changes the
+   context, its innermost scope or whether it is shared sets it again. */
 _Thread_local zane_mark *zane_open;
 
 void zane_reopen(void) {
 	zane_context *c = zane_self;
-	zane_open = c && c->depth > 0 && c->shared == 0 ? zane_mark_at(c, c->depth - 1) : NULL;
-}
-
-zane_mark *zane_mark_at(zane_context *c, int64_t depth) {
-	return &c->segments[depth / ZANE_SEGMENT][depth % ZANE_SEGMENT];
+	zane_open = c && c->top && c->shared == 0 ? c->top : NULL;
 }
 
 static int zane_guarded(zane_context *c) { return c != zane_self || c->shared > 0; }
 void zane_lock(zane_context *c) { if (zane_guarded(c)) pthread_mutex_lock(&c->lock); }
 void zane_unlock(zane_context *c) { if (zane_guarded(c)) pthread_mutex_unlock(&c->lock); }
 
+/* A context for the program's `main`, the first one made, or for a
+   spawned call, with the range its frames go in. A context a call is over
+   with keeps its range for the next. */
 zane_context *zane_context_new(void) {
 	pthread_mutex_lock(&zane_memory);
 	zane_context *c = zane_idle;
 	if (c) {
 		zane_idle = c->next;
-	} else {
-		if (zane_context_count == ZANE_CONTEXTS) zane_broken("too many spawned calls out at once");
-		c = calloc(1, sizeof *c);
-		if (!c || !(c->directory = calloc(ZANE_CHUNKS, sizeof *c->directory)))
-			zane_broken("out of memory for a context");
-		pthread_mutex_init(&c->lock, NULL);
-		c->id = zane_context_count;
-		zane_contexts[zane_context_count++] = c;
+		pthread_mutex_unlock(&zane_memory);
+		return c;
 	}
+	if (zane_context_count == ZANE_CONTEXTS) zane_broken("too many spawned calls out at once");
+	c = calloc(1, sizeof *c);
+	if (!c) zane_broken("out of memory for a context");
+	pthread_mutex_init(&c->lock, NULL);
+	c->id = zane_context_count++;
 	pthread_mutex_unlock(&zane_memory);
+	zane_reserve(c, c->id == 0 ? zane_fixed_region : zane_spawned_fixed_region);
+	for (char *at = c->base; at < c->limit + ZANE_GUARD; at += ZANE_CHUNK)
+		zane_set_page(at, (uintptr_t)c | 1);
+	__atomic_store_n(&zane_contexts[c->id], c, __ATOMIC_RELEASE);
 	return c;
 }
 
-/* A chunk-map entry: a context's fixed chunk, or its scope's dynamic one. */
-static int32_t zane_entry(const zane_context *c, int64_t n) {
-	return (int32_t)(((int64_t)c->id << 15 | n) + 1);
+/* The scope a new one skips to (`zane_mark`): the scope around it, or that
+   scope's skip's skip when the two spans below it are equal. */
+static zane_mark *zane_skip_of(zane_mark *outer) {
+	zane_mark *a = outer->skip, *b = a->skip;
+	return outer->depth - a->depth == a->depth - b->depth ? b : outer;
 }
 
-int64_t zane_scope_enter(void) {
+/* A scope opens with a frame of `size` bytes, its record first, and the
+   record's address names it from now. Emitted code does the same inline
+   while the context is its thread's alone, and calls this otherwise. A
+   frame past the range's end stops the program here, as one past its guard
+   would. */
+zane_mark *zane_scope_enter(int64_t size) {
 	zane_context *c = zane_self;
-	if (c->depth == ZANE_DEPTH) zane_broken("scopes nested too deep");
+	if (size < (int64_t)sizeof(zane_mark)) size = (int64_t)sizeof(zane_mark);
+	size = (size + 15) / 16 * 16;
 	zane_lock(c);
-	zane_mark **segment = &c->segments[c->depth / ZANE_SEGMENT];
-	if (!*segment && !(*segment = malloc(ZANE_SEGMENT * sizeof **segment)))
-		zane_broken("out of memory for scopes");
-	*zane_mark_at(c, c->depth) =
-		(zane_mark){ .context = c, .depth = c->depth, .chunks = c->chunks, .frontier = c->frontier };
-	int64_t depth = c->depth++;
+	zane_mark *m = (zane_mark *)c->frontier;
+	if (size > c->limit - c->frontier) {
+		zane_unlock(c);
+		zane_too_deep_in(c);
+	}
+	c->frontier += size;
+	zane_mark *outer = c->top;
+	*m = (zane_mark){ .context = c, .depth = outer ? outer->depth + 1 : 0, .outer = outer };
+	m->skip = outer ? zane_skip_of(outer) : m;
+	c->top = m;
 	zane_unlock(c);
 	zane_reopen();
-	return depth;
+	return m;
 }
 
-/* Bytes from this context's fixed chain; its caller holds the lock. */
-void *zane_bump(int64_t size, int64_t align) {
-	zane_context *c = zane_self;
-	if (size > ZANE_CHUNK) zane_broken("a slot larger than a chunk");
-	size_t start = (c->frontier + (size_t)align - 1) / (size_t)align * (size_t)align;
-	if (c->chunks == 0 || start + (size_t)size > ZANE_CHUNK) {
-		if (c->chunks == ZANE_CHUNKS) zane_broken("out of chunks");
-		if (!c->directory[c->chunks]) {
-			c->directory[c->chunks] = zane_chunk_alloc(ZANE_CHUNK);
-			if (!c->directory[c->chunks]) zane_broken("out of memory for a chunk");
-			*zane_page(c->directory[c->chunks], 1) = zane_entry(c, c->chunks);
-		}
-		c->chunks++;
-		start = 0;
-	}
-	c->frontier = start + (size_t)size;
-	return c->directory[c->chunks - 1] + start;
-}
-
-/* Where a scope's slots begin in its context's fixed chain, counted from
-   the chain's start. */
-static int64_t zane_begins(const zane_mark *m) {
-	return m->chunks ? (int64_t)(m->chunks - 1) * ZANE_CHUNK + (int64_t)m->frontier : 0;
+/* The scope of context `c` whose frame holds `at`: the innermost whose
+   record is at or below it. Every frame starts with its record and lies
+   above the frames around it, so a record above `at` and every record
+   between it and its skip are above it too. */
+static zane_mark *zane_scope_holding(zane_context *c, const char *at) {
+	zane_mark *m = c->top;
+	while (m && (const char *)m > at) m = (const char *)m->skip > at ? m->skip : m->outer;
+	return m;
 }
 
 /* The region that holds `at`: the one whose dynamic chunk it is in, or the
-   innermost scope of the context whose fixed chain it is in that began at
-   or before it. Anything else, such as a value on the machine stack, is the
-   innermost scope's here. Most slots asked about are the innermost scope's
-   own, so that one is tried before the search. */
+   scope of the context whose range it is in whose frame holds it. Anything
+   else, such as a value on the machine stack, is the innermost scope's
+   here. Most slots asked about are the innermost scope's own, so the
+   search tries that one first. */
 zane_mark *zane_region_at(const void *at) {
-	int32_t *page = zane_page(at, 0);
-	int32_t entry = page ? *page : 0;
-	if (entry == 0) return zane_mark_at(zane_self, zane_self->depth - 1);
-	int64_t n = (entry < 0 ? -(int64_t)entry : (int64_t)entry) - 1;
-	zane_context *c = zane_contexts[n >> 15];
-	n &= ZANE_DEPTH - 1;
-	if (entry < 0) return zane_mark_at(c, n);
+	uintptr_t *page = zane_page(at, 0);
+	uintptr_t entry = page ? __atomic_load_n(page, __ATOMIC_ACQUIRE) : 0;
+	if (entry == 0) return zane_self->top;
+	if (!(entry & 1)) return (zane_mark *)entry;
+	zane_context *c = (zane_context *)(entry & ~(uintptr_t)1);
 	zane_lock(c);
-	int64_t position = n * ZANE_CHUNK + ((const char *)at - c->directory[n]);
-	int64_t lo = 0, hi = c->depth - 1;
-	if (hi > 0 && zane_begins(zane_mark_at(c, hi)) <= position) lo = hi;
-	while (lo < hi) {
-		int64_t mid = (lo + hi + 1) / 2;
-		if (zane_begins(zane_mark_at(c, mid)) <= position) lo = mid;
-		else hi = mid - 1;
-	}
+	zane_mark *m = zane_scope_holding(c, at);
 	zane_unlock(c);
-	return zane_mark_at(c, lo);
+	if (!m) zane_broken("an address in a context's range below its first scope");
+	return m;
 }
 
 /* Every block is at least a word, and aligned to one. */
@@ -193,8 +192,7 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 	}
 	if (!m && !(m = zane_chunk_alloc(size)))
 		zane_broken("out of memory for a dynamic chunk");
-	for (size_t at = 0; at < size; at += ZANE_CHUNK)
-		*zane_page((char *)m + at, 1) = -zane_entry(region->context, region->depth);
+	for (size_t at = 0; at < size; at += ZANE_CHUNK) zane_set_page((char *)m + at, (uintptr_t)region);
 	m->size = size;
 	m->next = region->mappings;
 	region->mappings = m;
@@ -209,7 +207,7 @@ void zane_unmap(zane_mark *region) {
 	while (region->mappings) {
 		zane_mapping *next = region->mappings->next;
 		for (size_t at = 0; at < region->mappings->size; at += ZANE_CHUNK)
-			*zane_page((char *)region->mappings + at, 0) = 0;
+			zane_set_page((char *)region->mappings + at, 0);
 		if (region->mappings->size == ZANE_CHUNK) {
 			region->mappings->next = c->spare;
 			c->spare = region->mappings;
@@ -314,8 +312,10 @@ void zane_free(char *block, int64_t size, int64_t align) {
    a test asks, between calls it has joined. */
 int64_t zane_blocks(void) {
 	int64_t n = 0;
-	for (int32_t i = 0; i < zane_context_count; i++)
-		for (int64_t d = 0; d < zane_contexts[i]->depth; d++)
-			n += zane_mark_at(zane_contexts[i], d)->heap.live;
+	for (int32_t i = 0; i < zane_context_count; i++) {
+		zane_context *c = __atomic_load_n(&zane_contexts[i], __ATOMIC_ACQUIRE);
+		if (c)
+			for (zane_mark *m = c->top; m; m = m->outer) n += m->heap.live;
+	}
 	return n;
 }

@@ -171,14 +171,14 @@ let semantics () =
 
 (* runtime *)
 
-let parts = [ "main"; "arena"; "block"; "value"; "list"; "slot"; "spawn"; "snapshot" ]
+let parts = [ "main"; "arena"; "region"; "block"; "value"; "list"; "slot"; "spawn"; "snapshot" ]
 
 let runtime () =
   let sources = String.concat " " (List.map (Printf.sprintf "../../runtime/%s.c") parts) in
   List.iter
     (fun name ->
       Printf.printf
-        "(rule\n (deps %s.c walks.h ../../runtime/zane.h ../../runtime/zane_internal.h %s)\n (targets %s.exe)\n (action\n  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o %s.exe %s.c\n   %s)))\n\n"
+        "(rule\n (deps %s.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_internal.h %s)\n (targets %s.exe)\n (action\n  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o %s.exe %s.c\n   %s)))\n\n"
         name sources name name name sources;
       Printf.printf "(rule\n (action\n  (with-stdout-to\n   %s.out.actual\n   (run ./%s.exe))))\n\n" name
         name;

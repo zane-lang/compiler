@@ -104,7 +104,12 @@ void zane_writeback(char *at, char *copy, int64_t size, const zane_type *type) {
    returned, block by block, and by then no block is out in the region,
    since every one has an owner in the scope or has moved out with it. */
 static void zane_check(zane_mark *m) {
-	for (zane_held *h = m->held; h; h = h->next) zane_end(h->slot, h->type);
+	while (m->held) {
+		zane_held *h = m->held;
+		m->held = h->next;
+		zane_end(h->slot, h->type);
+		free(h);
+	}
 	while (m->retired) {
 		zane_retired *r = m->retired;
 		m->retired = r->next;
@@ -117,13 +122,13 @@ static void zane_check(zane_mark *m) {
 /* A context whose call is over, back in the pool: the result took its
    blocks home, and its first scope's region goes as any scope's does. */
 static void zane_release(zane_context *c) {
-	zane_mark *m = zane_mark_at(c, 0);
+	zane_mark *m = c->top;
+	if (!m || m->outer) zane_broken("a spawned call ended with a scope open");
 	if (zane_checking) zane_check(m);
 	zane_lock(c);
 	zane_unmap(m);
-	c->depth = 0;
-	c->chunks = 0;
-	c->frontier = 0;
+	c->top = NULL;
+	c->frontier = c->base;
 	zane_give_spares(c);
 	zane_unlock(c);
 	pthread_mutex_lock(&zane_memory);
@@ -167,18 +172,19 @@ void zane_join(char *frame) { zane_join_task((zane_task *)frame - 1); }
    released together, in bulk (memory.md §3.2). Nothing that outlives the
    scope owns a block in them, since an escape moves its blocks out first
    (§3.5), so every block still there dies with the scope, and none is
-   walked or returned on its own, unless drains are checked. */
-void zane_scope_drain(int64_t scope) {
+   walked or returned on its own, unless drains are checked. Its frame goes
+   with it: the next frame starts at its record. Emitted code does all of
+   this inline for a scope that spawned nothing and has no dynamic chunk,
+   while the context is its thread's alone and drains are not checked. */
+void zane_scope_drain(zane_mark *m) {
 	zane_context *c = zane_self;
-	if (scope != c->depth - 1 || scope == 0) zane_broken("a scope drained out of order");
-	zane_mark *m = zane_mark_at(c, scope);
+	if (m != c->top || !m->outer) zane_broken("a scope drained out of order");
 	for (zane_task *t = m->tasks; t; t = t->next) zane_join_task(t);
 	if (zane_checking) zane_check(m);
 	zane_lock(c);
 	zane_unmap(m);
-	c->depth--;
-	c->chunks = m->chunks;
-	c->frontier = m->frontier;
+	c->top = m->outer;
+	c->frontier = (char *)m;
 	zane_unlock(c);
 	zane_reopen();
 }

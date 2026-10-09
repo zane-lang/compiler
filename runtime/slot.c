@@ -1,25 +1,18 @@
 #include "zane_internal.h"
 
 /* ---------------------------------------------------------------------- */
-/* Slots and drains (memory.md §3.2, docs/design/lowering.md L8)                 */
+/* Slots held for checked drains (memory.md §3.2, docs/design/lowering.md L8) */
 /* ---------------------------------------------------------------------- */
 
-/* A zeroed slot in the innermost scope's arena, which is the only one a
-   program ever places a slot in. When drains are checked, a slot whose
-   value may own blocks is listed, with its type, so the drain can return
-   them; one filled later holds nothing until then. */
-void *zane_slot(int64_t scope, int64_t size, int64_t align, const zane_type *type) {
-	zane_context *c = zane_self;
-	if (scope != c->depth - 1) zane_broken("a slot placed in a scope that is not innermost");
-	zane_mark *m = zane_mark_at(c, scope);
-	zane_lock(c);
-	char *slot = zane_bump(size, align);
-	memset(slot, 0, (size_t)size);
-	if (zane_checking && type) {
-		zane_held *h = zane_bump(sizeof *h, 8);
-		*h = (zane_held){ m->held, slot, type };
-		m->held = h;
-	}
-	zane_unlock(c);
-	return slot;
+/* A slot is a place in its scope's frame that lowering fixed, so placing
+   one costs nothing at run time. When drains are checked, a slot whose
+   value may own blocks is listed, with its type, as its value arrives, so
+   the drain can return them; the list's nodes are the checking's own, and
+   go with the drain. Only the innermost scope ever places a slot. */
+void zane_hold(char *slot, const zane_type *type) {
+	zane_mark *m = zane_self->top;
+	zane_held *h = malloc(sizeof *h);
+	if (!h) zane_broken("out of memory for a held slot");
+	*h = (zane_held){ m->held, slot, type };
+	m->held = h;
 }
