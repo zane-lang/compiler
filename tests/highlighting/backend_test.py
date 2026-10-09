@@ -115,10 +115,10 @@ class BackendTests(unittest.TestCase):
         tree = self.parser.parse(source)
         self.assertFalse(tree.root_node.has_error)
         captures = QueryCursor(self.query).captures(tree.root_node)
-        for capture in ('comment.documentation', 'type', 'function', 'function.call', 'number.float', 'string', 'keyword'):
+        for capture in ('comment.documentation', 'type', 'function', 'function.call', 'number.float', 'string', 'keyword.return'):
             self.assertIn(capture, captures)
         self.assertEqual([source[n.start_byte:n.end_byte] for n in captures['number.float']], [b'3.14'])
-        self.assertNotIn(b'type', [source[n.start_byte:n.end_byte] for n in captures['keyword']])
+        self.assertEqual([source[n.start_byte:n.end_byte] for n in captures['keyword.return']], [b'return'])
 
     def test_only_declared_verb_names_are_functions(self):
         # Anchors skip anonymous tokens, so an operator's or a lambda's first

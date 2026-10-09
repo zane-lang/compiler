@@ -61,6 +61,10 @@ assert(checked >= 6, 'too few annotated lines checked')
 -- member has the same spelling as one, nor may an explicit init key do so.
 local role_cases = {
   {
+    source = 'Unit main() { return Unit(); } Unit stop() { abort "stopped"; }',
+    roles = { { 'return', 'keyword.return' }, { 'abort', 'keyword.return' } },
+  },
+  {
     source = 'Int f(operators Int) => @operators$add(operators, 1)',
     roles = { { '@operators', 'module', 1 }, { 'add', 'function.call' } },
   },

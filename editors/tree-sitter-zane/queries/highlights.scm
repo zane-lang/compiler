@@ -62,8 +62,8 @@
 "false" @boolean
 "this" @variable.builtin
 "mut" @keyword
-"abort" @keyword
-"return" @keyword
+"abort" @keyword.return
+"return" @keyword.return
 "resolve" @keyword
 (doc_comment) @comment.documentation
 (comment) @comment

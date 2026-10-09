@@ -23,7 +23,7 @@ class LexicalTests(unittest.TestCase):
         self.assertIn('giveback', lexical.sublime(self.spec))
         grammar, query = treesitter.generate(self.spec, 'main', {'main': [menhir.Production(('RETURN', 'EOF'))]}, {}, {})
         self.assertIn('"giveback"', grammar)
-        self.assertIn('"giveback" @keyword', query)
+        self.assertIn('"giveback" @keyword.return', query)
 
     def test_punctuation_spelling_is_not_duplicated_in_productions(self):
         token = next(t for t in self.spec['tokens'] if t['name'] == 'PLUS')
