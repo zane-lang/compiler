@@ -1,0 +1,10 @@
+== checks; building and running
+ref to settled list sees growth past 1 MiB yes
+ref reads first element yes
+ref reads last element yes
+push through ref seen by owner yes
+field-list ref grown through ref yes
+field-list ref sees owner push yes
+field-list ref sees whole overwrite yes
+refilled field list grows through ref yes
+== exit 0
