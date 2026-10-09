@@ -25,43 +25,53 @@ open Nodes
 (* Walking and rewriting the tree                                         *)
 (* ---------------------------------------------------------------------- *)
 
-(* Every expression and statement, outermost first. *)
-let rec walk_expr ve vs (e : Expr.t) =
-  ve e;
-  let we = walk_expr ve vs and ws = walk_stats ve vs in
+(* What an expression or a statement is made of: the expressions directly
+   in it, and the statement lists directly in it. *)
+let expr_parts (e : Expr.t) : Expr.t list * Stat.t list list =
   match e.Expr.node with
   | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Text _ | Expr.Unit | Expr.Local _
   | Expr.Address _ | Expr.Layout _ | Expr.Function _ | Expr.Global _ ->
-      ()
-  | Expr.Deref x | Expr.Flip x | Expr.Convert x | Expr.Snapshot x -> we x
-  | Expr.Call { args; _ } | Expr.Runtime { args; _ } -> List.iter we args
-  | Expr.Call_value { fn; args } -> we fn; List.iter we args
-  | Expr.Binary { left; right; _ } -> we left; we right
-  | Expr.Expand { body; _ } -> ws body
-  | Expr.Record ms -> List.iter (fun (_, x) -> we x) ms
+      ([], [])
+  | Expr.Deref x | Expr.Flip x | Expr.Convert x | Expr.Snapshot x -> ([ x ], [])
+  | Expr.Call { args; _ } | Expr.Runtime { args; _ } -> (args, [])
+  | Expr.Call_value { fn; args } -> (fn :: args, [])
+  | Expr.Binary { left; right; _ } -> ([ left; right ], [])
+  | Expr.Expand { body; _ } -> ([], [ body ])
+  | Expr.Record ms -> (List.map snd ms, [])
   | Expr.Member { value; _ } | Expr.Payload { value; _ } | Expr.Case { payload = value; _ }
   | Expr.Copy { value; _ } | Expr.Box { value; _ } | Expr.Escape { value; _ } ->
-      we value
-  | Expr.Offset { base; _ } -> we base
-  | Expr.Take { address; _ } -> we address
+      ([ value ], [])
+  | Expr.Offset { base; _ } -> ([ base ], [])
+  | Expr.Take { address; _ } -> ([ address ], [])
+
+let stat_parts (s : Stat.t) : Expr.t list * Stat.t list list =
+  match s with
+  | Stat.Let { value; _ } | Stat.Hold { value; _ } | Stat.Assign { value; _ } -> ([ value ], [])
+  | Stat.Eval e | Stat.Return e -> ([ e ], [])
+  | Stat.Scope { body; _ } -> ([], [ body ])
+  | Stat.If { cond; body } -> ([ cond ], [ body ])
+  | Stat.Repeat { count; body } -> ([ count ], [ body ])
+  | Stat.Switch { value; cases } -> ([ value ], List.map snd cases)
+  | Stat.Store { address; value } | Stat.Overwrite { address; value; _ }
+  | Stat.Place { address; value; _ } ->
+      ([ address; value ], [])
+  | Stat.Spawn { args; _ } -> (args, [])
+  | Stat.Leave _ | Stat.Reserve _ | Stat.Join _ -> ([], [])
+
+(* Every expression and statement, outermost first. *)
+let rec walk_expr ve vs (e : Expr.t) =
+  ve e;
+  let es, bodies = expr_parts e in
+  List.iter (walk_expr ve vs) es;
+  List.iter (walk_stats ve vs) bodies
 
 and walk_stats ve vs ss = List.iter (walk_stat ve vs) ss
 
 and walk_stat ve vs (s : Stat.t) =
   vs s;
-  let we = walk_expr ve vs and ws = walk_stats ve vs in
-  match s with
-  | Stat.Let { value; _ } | Stat.Hold { value; _ } | Stat.Assign { value; _ } -> we value
-  | Stat.Eval e | Stat.Return e -> we e
-  | Stat.Scope { body; _ } -> ws body
-  | Stat.If { cond; body } -> we cond; ws body
-  | Stat.Repeat { count; body } -> we count; ws body
-  | Stat.Switch { value; cases } -> we value; List.iter (fun (_, b) -> ws b) cases
-  | Stat.Store { address; value } | Stat.Overwrite { address; value; _ }
-  | Stat.Place { address; value; _ } ->
-      we address; we value
-  | Stat.Spawn { args; _ } -> List.iter we args
-  | Stat.Leave _ | Stat.Reserve _ | Stat.Join _ -> ()
+  let es, bodies = stat_parts s in
+  List.iter (walk_expr ve vs) es;
+  List.iter (walk_stats ve vs) bodies
 
 let exists_in stats ~expr ~stat =
   let found = ref false in
@@ -573,22 +583,17 @@ let foldable ~wants ~keeps ~arenaless (f : Func.t) =
          that hold such an address, and whether a callee is lent one. A
          slot's value moved out is not its address. *)
       let slots = ref holds and pointers = ref [] in
-      let names (e : Expr.t) =
-        let found = ref false in
-        ignore
-          (map_expr
-             (fun (x : Expr.t) ->
-               match x.Expr.node with
-               | Expr.Take _ -> Some x
-               | Expr.Address v when List.mem v !slots || List.mem v !pointers ->
-                   found := true;
-                   Some x
-               | Expr.Local v when List.mem v !pointers ->
-                   found := true;
-                   Some x
-               | _ -> None)
-             (fun _ -> None) e);
-        !found
+      let rec names (e : Expr.t) =
+        match e.Expr.node with
+        | Expr.Take _ -> false
+        | Expr.Address v -> List.mem v !slots || List.mem v !pointers
+        | Expr.Local v -> List.mem v !pointers
+        | _ ->
+            let es, bodies = expr_parts e in
+            List.exists names es || List.exists (List.exists stat_names) bodies
+      and stat_names s =
+        let es, bodies = stat_parts s in
+        List.exists names es || List.exists (List.exists stat_names) bodies
       in
       walk_stats
         (fun _ -> ())
@@ -635,8 +640,6 @@ let fold (f : Func.t) =
    greatest such answer, so that functions calling one another and opening
    none are arenaless together. *)
 let arenaless_of funcs =
-  let by = Hashtbl.create 64 in
-  List.iter (fun (f : Func.t) -> Hashtbl.replace by f.Func.symbol f) funcs;
   let table = Hashtbl.create 64 in
   List.iter
     (fun (f : Func.t) ->
@@ -676,29 +679,14 @@ let checked (f : Func.t) =
         Diagnostic.bug
           (Printf.sprintf "regions: `%s` uses arena %%%d outside it" f.Func.symbol scope)
     | _ -> ());
-    let e = expr opened and b = List.iter (stat opened) in
-    match s with
-    | Stat.Scope { id; body } -> List.iter (stat (id :: opened)) body
-    | Stat.Let { value; _ } | Stat.Hold { value; _ } | Stat.Assign { value; _ } -> e value
-    | Stat.Eval x | Stat.Return x -> e x
-    | Stat.If { cond; body } -> e cond; b body
-    | Stat.Repeat { count; body } -> e count; b body
-    | Stat.Switch { value; cases } -> e value; List.iter (fun (_, c) -> b c) cases
-    | Stat.Store { address; value } | Stat.Overwrite { address; value; _ }
-    | Stat.Place { address; value; _ } ->
-        e address; e value
-    | Stat.Spawn { args; _ } -> List.iter e args
-    | Stat.Leave _ | Stat.Reserve _ | Stat.Join _ -> ()
-  and expr opened (x : Expr.t) =
-    ignore
-      (map_expr
-         (fun (y : Expr.t) ->
-           match y.Expr.node with
-           | Expr.Expand { body; _ } ->
-               List.iter (stat opened) body;
-               Some y
-           | _ -> None)
-         (fun _ -> None) x)
+    let opened = match s with Stat.Scope { id; _ } -> id :: opened | _ -> opened in
+    let es, bodies = stat_parts s in
+    List.iter (expr opened) es;
+    List.iter (List.iter (stat opened)) bodies
+  and expr opened (e : Expr.t) =
+    let es, bodies = expr_parts e in
+    List.iter (expr opened) es;
+    List.iter (List.iter (stat opened)) bodies
   in
   List.iter (stat []) f.Func.body;
   f
