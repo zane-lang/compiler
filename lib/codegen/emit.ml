@@ -882,14 +882,6 @@ let program ?(fixed_region = default_fixed_region) ?(spawned_fixed_region = defa
         Llvm.set_global_constant true g)
       [ ("zane_fixed_region", fixed_region); ("zane_spawned_fixed_region", spawned_fixed_region) ];
   Walks.finish (walks env);
-  (* A function whose locals take more than a page of machine stack touches
-     each page in turn as it takes them, so a stack that runs out faults in
-     the page that guards it, which the runtime reports, rather than past
-     it in whatever lies below. *)
-  let probe = Llvm.create_string_attr ctx "probe-stack" "inline-asm" in
-  Llvm.iter_functions
-    (fun f -> if not (Llvm.is_declaration f) then Llvm.add_function_attr f probe Llvm.AttrIndex.Function)
-    m;
   (match Llvm_analysis.verify_module m with
   | Some problem -> Diagnostic.bug ("codegen built an invalid module: " ^ problem)
   | None -> ());
