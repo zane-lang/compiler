@@ -118,6 +118,10 @@ again, read the golden diff and promote that.
   gives and the program then changes, recursion, a `mut` call, a function
   value and spawned calls. Every check prints `yes` when it holds, so the
   unoptimized build, which folds nothing, shows the folded one is right.
+- `runs` is a run of statements folded whole: a sieve makes a list, marks it
+  in place and reads it, and the optimized build keeps only what it printed.
+  A list still named after the arguments are read stays for the program.
+  Every check prints `yes` when it holds.
 - `replayed` is what stage 5 keeps: output made while a value is computed,
   replayed in order; calls past the step budget, the depth and the size cap,
   left to run; and a slot read when the program runs, after a store made by

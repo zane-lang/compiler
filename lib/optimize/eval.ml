@@ -36,7 +36,7 @@ type program = {
 
 (* The steps one fold may take, all the folds of a program, and how deep
    calls may go (O6). *)
-let budget = 1_000_000
+let budget = 5_000_000
 let total = 50_000_000
 let max_depth = 2_000
 
@@ -472,7 +472,9 @@ and stat run fr (s : Stat.t) =
           let t = match frame with Ty.Struct (r :: _) -> r | _ -> Ty.Void in
           bind fr id t (read_path frame_cell.value [ Member 0 ]))
         dest
-  | Stat.Join _ -> ()
+  (* A task spawned before the code being folded is still running: its
+     join stays. *)
+  | Stat.Join task -> ignore (local fr task)
 
 (* ---------------------------------------------------------------------- *)
 (* Calls and the runtime                                                  *)

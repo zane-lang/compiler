@@ -234,7 +234,8 @@ Unit main() {
 	check(@operators$equal(squares(Int(10)), Int(385)));
 	check(@operators$equal(boxed(Int(5)), Int(5)));
 
-	// A list and a box made by a call, then changed where the program runs.
+	// A list and a box made by a call, then changed: the statements that
+	// make, change and read them fold as one run.
 	made List<Int> = upTo(Int(4));
 	check(@operators$equal(sum(made), Int(10)));
 	made!push(Int(10));

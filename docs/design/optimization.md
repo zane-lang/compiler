@@ -172,10 +172,22 @@ function that never ends still folds.
   replacement would leave the store out. An expansion, and a control
   statement whose condition or count folded, is tried against what was
   known before it ran, for the same reason.
+- A run of statements in one block is also evaluated as a whole, from its
+  first statement as far as it goes. It is replaced where it ends having
+  dropped a list or a box it made, which no single statement leaves known:
+  a list made, changed in place and read by the statements after it. The
+  replacement is the run's outputs, each known local it wrote stored back,
+  and each local it bound that a later statement names bound to the value it
+  holds there, which must be a constant holding no handle or address. The
+  longest run that can end is taken. A run stops before a statement that
+  returns or leaves an expansion it is not inside, and is not started again
+  at a statement an earlier run went through, which would stop in the same
+  place.
 
 Evaluation stops, leaving the code as it was, when it reads an unknown
 value, reaches an index out of range (the program must
-still stop there when it runs, after what it wrote before), would write a
+still stop there when it runs, after what it wrote before), reaches the join
+of a call spawned before the code being folded, would write a
 variable of the program, gives a value that holds a lent address, or runs out
 of budget. Three limits bound it, each counted in steps, so that the same
 source folds the same way on any machine. Work that grows with a value's
@@ -183,7 +195,7 @@ size, joining strings, copying a list or a struct, growing a list, costs a
 step for each 64 bytes, charged before the work is done, so a few steps
 cannot build a value of any size:
 
-- one fold takes at most 1,000,000 steps;
+- one fold takes at most 5,000,000 steps;
 - all the folds of a program take at most 50,000,000;
 - calls nest at most 2,000 deep.
 
@@ -255,8 +267,9 @@ same point and in the same order. How is left to the compiler. Stage 5's answer 
 - the bound on work is O6's: the step budgets, the depth and the size cap.
 
 Stage 5 leaves some such computations for run time, as §5.3 allows: a value
-holding a lent address, a changed list or box (only plain locals are stored
-back), and a package constant's first-read check (O9).
+holding a lent address, a list or box changed by code that does not fold
+with every statement that names it (only plain locals are stored back),
+and a package constant's first-read check (O9).
 
 ---
 
@@ -276,6 +289,8 @@ optimized build makes, for the fixtures that show folding:
   depth and the size cap to run, reads a slot when the program runs after a
   store that folded, a count's included, and knows nothing past a call left
   to run that writes a local;
+- `runs` folds a sieve as one run of statements, and keeps a list that is
+  still named after the program's arguments are read;
 - `constants`, `counting` and `zero` show their optimized trees.
 
 `tests/unit/` checks the evaluator's arithmetic against codegen's, the

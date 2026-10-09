@@ -1,0 +1,66 @@
+/// Runs of statements folded whole (docs/design/optimization.md O6). A sieve
+/// makes a list, changes it in place and reads it, and nothing after it names
+/// the list, so the optimized build computes the whole run while it compiles
+/// and keeps only what it printed. A list still named after the program's
+/// arguments are read is left for the program, with the push before the
+/// read. Each check prints `yes` when it holds and `no` when it does not.
+package runs;
+
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+Unit main() {
+	// The primes below 100, counted and summed.
+	bound Int(100);
+	composite List<Bool> = @primitives$List(Bool);
+	i Int(1);
+	i!to(bound) {
+		composite!push(false);
+	}
+	count Int(0);
+	sum Int(0);
+	p Int(2);
+	p!to(@operators$add(bound, @operators$negate(Int(1)))) {
+		@controlflow$branch(@operators$not(composite[p]), {
+			count = @operators$add(count, Int(1));
+			sum = @operators$add(sum, p);
+			start Int = @operators$multiply(p, p);
+			@controlflow$branch(@operators$lessThan(start, bound), {
+				j Int(0);
+				j!to(@operators$divide(@operators$add(@operators$add(bound, @operators$negate(Int(1))), @operators$negate(start)), p)) {
+					composite[@operators$add(start, @operators$multiply(j, p))] = true;
+				}
+			});
+		});
+	}
+	check(@operators$equal(count, Int(25)));
+	check(@operators$equal(sum, Int(1060)));
+
+	// A list read after the arguments: it is made and pushed to where the
+	// program runs.
+	kept List<Int> = @primitives$List(Int);
+	kept!push(Int(1));
+	args List<String> = @program$runtime:arguments();
+	kept!push(args:size());
+	check(@operators$equal(kept:size(), Int(2)));
+	return Unit();
+}
