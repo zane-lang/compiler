@@ -243,8 +243,19 @@ struct zane_work {
 };
 
 void zane_work_start(zane_work *w);
-void zane_work_push(zane_work *w, zane_job job);
-int zane_work_pop(zane_work *w, zane_job *job);
+void zane_work_grow(zane_work *w) __attribute__((cold, noinline));
+
+static inline void zane_work_push(zane_work *w, zane_job job) {
+	if (__builtin_expect(w->count == w->room, 0)) zane_work_grow(w);
+	w->jobs[w->count++] = job;
+}
+
+static inline int zane_work_pop(zane_work *w, zane_job *job) {
+	if (w->count == 0) return 0;
+	*job = w->jobs[--w->count];
+	return 1;
+}
+
 void zane_work_end(zane_work *w);
 void zane_work_run(zane_work *w);
 void zane_end(char *base, const zane_type *type);
