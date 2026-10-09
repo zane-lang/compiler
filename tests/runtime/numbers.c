@@ -69,8 +69,8 @@ void zane_main(void) {
 	char *given[] = { "one", "", "three" };
 	zane_argc = 3;
 	zane_argv = given;
-	int64_t scope = zane_scope_enter();
-	zane_list *args = zane_slot(scope, sizeof(zane_list), 8, &texts_type);
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *args = test_slot(scope, sizeof(zane_list), 8, &texts_type);
 	zane_arguments(args);
 	zane_text *items = (zane_text *)args->items;
 	check(args->count == 3);

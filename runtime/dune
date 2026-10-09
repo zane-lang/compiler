@@ -12,13 +12,14 @@
 
 (rule
  (target zane.c)
- (deps main.c arena.c block.c value.c list.c slot.c spawn.c snapshot.c)
+ (deps main.c arena.c region.c block.c value.c list.c slot.c spawn.c snapshot.c)
  (action
   (with-stdout-to
    %{target}
    (progn
     (cat main.c)
     (cat arena.c)
+    (cat region.c)
     (cat block.c)
     (cat value.c)
     (cat list.c)

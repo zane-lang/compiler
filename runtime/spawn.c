@@ -65,7 +65,7 @@ static zane_task *zane_find(void) {
 void zane_run(zane_task *t) {
 	zane_context *outer = zane_self;
 	zane_self = t->context = zane_context_new();
-	zane_scope_enter();
+	zane_scope_enter(0);
 	t->run(t->frame);
 	zane_self = outer;
 	zane_reopen();
@@ -92,6 +92,7 @@ static int64_t zane_keep(void) {
 
 static void *zane_worker(void *deque) {
 	zane_mine = (int64_t)(intptr_t)deque;
+	zane_thread_start();
 	for (;;) {
 		zane_task *t = zane_find();
 		if (t) {
@@ -105,6 +106,7 @@ static void *zane_worker(void *deque) {
 			zane_threads--;
 			zane_deques[zane_mine].kept = 0;
 			pthread_mutex_unlock(&zane_pool);
+			zane_thread_stop();
 			return NULL;
 		}
 		pthread_mutex_unlock(&zane_pool);
@@ -122,15 +124,21 @@ int64_t zane_processors(void) {
 }
 
 /* Threads started until the pool has as many as it wants, and those over
-   it woken to leave; the pool's lock is held. */
+   it woken to leave; the pool's lock is held. Each has 8 MiB of machine
+   stack, what the program's own thread has, where systems give a thread
+   they start anything from 512 KiB to 8 MiB (docs/design/platforms.md). */
 static void zane_fill(void) {
+	pthread_attr_t attributes;
+	pthread_attr_init(&attributes);
+	pthread_attr_setstacksize(&attributes, (size_t)8 << 20);
 	for (; zane_threads < zane_wanted; zane_threads++) {
 		pthread_t thread;
 		void *deque = (void *)(intptr_t)zane_keep();
-		if (pthread_create(&thread, NULL, zane_worker, deque) != 0)
+		if (pthread_create(&thread, &attributes, zane_worker, deque) != 0)
 			zane_broken("no thread for the pool");
 		pthread_detach(thread);
 	}
+	pthread_attr_destroy(&attributes);
 	pthread_cond_broadcast(&zane_waiting);
 }
 
@@ -156,26 +164,15 @@ int64_t zane_set_threads(int64_t count) {
 
 void zane_set_threads_auto(void) { zane_set_threads(zane_processors()); }
 
-/* A new call's frame, `size` bytes, in the innermost scope's fixed region. */
-void *zane_frame(int64_t scope, int64_t size, int64_t align) {
-	zane_context *c = zane_self;
-	if (scope != c->depth - 1) zane_broken("a call spawned from a scope that is not innermost");
-	if (align > 8) zane_broken("a spawned call's frame aligned past a word");
-	zane_lock(c);
-	zane_task *t = zane_bump((int64_t)sizeof *t + size, 8);
-	zane_unlock(c);
-	memset(t, 0, sizeof *t);
-	t->frame = (char *)(t + 1);
-	return t->frame;
-}
-
 /* The call whose frame is filled starts (§3.6): the innermost scope waits
-   for it, and from now its context is shared. */
+   for it, and from now its context is shared. Its frame is in that scope's
+   own, after a zeroed `zane_task` that lowering left room for. */
 void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *type,
                 int64_t size) {
 	zane_task *t = (zane_task *)frame - 1;
 	zane_context *c = zane_self;
-	zane_mark *m = zane_mark_at(c, c->depth - 1);
+	zane_mark *m = c->top;
+	t->frame = frame;
 	t->run = run;
 	t->dest = dest;
 	t->type = type;

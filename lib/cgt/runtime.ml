@@ -14,7 +14,8 @@ type fn =
   | Text_f32
   | Text_f64
   | Scope_enter
-  | Slot
+  | Hold
+  | Too_deep
   | Promote
   | Arrive
   | Copy
@@ -26,7 +27,6 @@ type fn =
   | Array_at
   | Out_of_range
   | Scope_drain
-  | Frame
   | Spawn
   | Join
   | Set_threads
@@ -46,7 +46,7 @@ type fn =
   | Defer
   | Defer_return
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Slot; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Out_of_range; Scope_drain; Frame; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_at; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return ]
 
 let name = function
   | Print -> "zane_print"
@@ -57,7 +57,8 @@ let name = function
   | Text_f32 -> "zane_text_f32"
   | Text_f64 -> "zane_text_f64"
   | Scope_enter -> "zane_scope_enter"
-  | Slot -> "zane_slot"
+  | Hold -> "zane_hold"
+  | Too_deep -> "zane_too_deep"
   | Promote -> "zane_promote"
   | Arrive -> "zane_arrive"
   | Copy -> "zane_copy"
@@ -69,7 +70,6 @@ let name = function
   | Array_at -> "zane_array_at"
   | Out_of_range -> "zane_out_of_range"
   | Scope_drain -> "zane_scope_drain"
-  | Frame -> "zane_frame"
   | Spawn -> "zane_spawn"
   | Join -> "zane_join"
   | Set_threads -> "zane_set_threads"
@@ -102,9 +102,10 @@ let signature = function
   | Text_i64 -> (Void, [ Ptr; I64 ])
   | Text_f32 -> (Void, [ Ptr; F32 ])
   | Text_f64 -> (Void, [ Ptr; F64 ])
-  | Scope_enter -> (I64, [  ])
-  | Slot -> (Ptr, [ I64; I64; I64; Ptr ])
-  | Promote -> (Void, [ Ptr; Ptr; I64 ])
+  | Scope_enter -> (Ptr, [ I64 ])
+  | Hold -> (Void, [ Ptr; Ptr ])
+  | Too_deep -> (Void, [  ])
+  | Promote -> (Void, [ Ptr; Ptr; Ptr ])
   | Arrive -> (Void, [ Ptr; Ptr ])
   | Copy -> (Void, [ Ptr; Ptr ])
   | Overwrite -> (Void, [ Ptr; Ptr; I64; Ptr ])
@@ -114,8 +115,7 @@ let signature = function
   | List_at -> (Ptr, [ Ptr; I64; I64 ])
   | Array_at -> (Ptr, [ Ptr; I64; I64; I64 ])
   | Out_of_range -> (Void, [  ])
-  | Scope_drain -> (Void, [ I64 ])
-  | Frame -> (Ptr, [ I64; I64; I64 ])
+  | Scope_drain -> (Void, [ Ptr ])
   | Spawn -> (Void, [ Ptr; Ptr; Ptr; Ptr; I64 ])
   | Join -> (Void, [ Ptr ])
   | Set_threads -> (I64, [ I64 ])

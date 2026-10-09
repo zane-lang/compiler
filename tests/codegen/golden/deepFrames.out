@@ -1,0 +1,2 @@
+start
+scopes nested too deep: the main context's fixed-size region of 2 MiB is full; raise `fixed-region` in zane.coda

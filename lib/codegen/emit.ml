@@ -102,15 +102,18 @@ let text env s =
 (* Frames and slots                                                       *)
 (* ---------------------------------------------------------------------- *)
 
-(* What a function being built keeps: its slots, the exit block of each
-   expansion it is inside with how many arenas were open when it began, and
-   the arenas open where it is building, innermost first (L8). *)
+(* What a function being built keeps: its symbol, its slots, the exit
+   block of each expansion it is inside with how many arenas were open when
+   it began, each open arena's record, the arenas open where it is building,
+   innermost first (L8), and where in its arena's frame each slot is. *)
 type frame = {
   fn : Llvm.llvalue;
+  symbol : string;
   locals : (int, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
   labels : (int, Llvm.llbasicblock * int) Hashtbl.t;
   arenas : (int, Llvm.llvalue) Hashtbl.t;
   mutable open_ : Llvm.llvalue list;
+  offsets : (int, int) Hashtbl.t;
   ret : Ty.t;
 }
 
@@ -118,14 +121,173 @@ let call_runtime env b name args =
   let f, fty = runtime env name in
   Llvm.build_call fty f args "" b
 
+let block env fr = Llvm.append_block env.ctx "" fr.fn
+
+let open_scope env = Walks.zane_open env.m env.ptr
+
+(* Whether drains are checked (runtime/main.c). *)
+let checking env =
+  match Llvm.lookup_global "zane_checking" env.m with
+  | Some g -> g
+  | None -> Llvm.declare_global (Llvm.i32_type env.ctx) "zane_checking" env.m
+
+let byte_at env b p offset =
+  if offset = 0 then p
+  else Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) p [| Llvm.const_int env.i64 offset |] "" b
+
+let field env b t p offset = Llvm.build_load t (byte_at env b p offset) "" b
+let set_field env b v p offset = ignore (Llvm.build_store v (byte_at env b p offset) b)
+
+let zero env b p size =
+  if size > 0 then begin
+    let name = "llvm.memset.p0.i64" in
+    let i1 = Llvm.i1_type env.ctx and i8 = Llvm.i8_type env.ctx in
+    let t = Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; i8; env.i64; i1 |] in
+    let f = match Llvm.lookup_function name env.m with Some f -> f | None -> Llvm.declare_function name t env.m in
+    ignore
+      (Llvm.build_call t f [| p; Llvm.const_int i8 0; Llvm.const_int env.i64 size; Llvm.const_int i1 0 |] "" b)
+  end
+
+(* A branch that is almost never taken, as LLVM's branch weights say it, so
+   its code is laid out away from the path that is. *)
+let unlikely env br =
+  let i32 = Llvm.i32_type env.ctx in
+  let weights =
+    Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "branch_weights"; Llvm.const_int i32 1; Llvm.const_int i32 2000 |]
+  in
+  Llvm.set_metadata br (Llvm.mdkind_id env.ctx "prof") weights
+
+(* Offsets into a scope's record and a context, as runtime/zane_internal.h
+   asserts them. *)
+let record_context = 152
+and record_depth = 160
+and record_outer = 168
+and record_skip = 176
+and record_tasks = 184
+and record_mappings = 192
+and context_frontier = 0
+and context_top = 8
+and context_limit = 16
+
+(* A scope opens with a frame of [size] bytes (Frames), and its record's
+   address names it. While no call this thread's context spawned is out,
+   nothing else can reach the context, so the code places the frame itself:
+   the record goes at the frontier, which moves past the frame, and links to
+   the scope around it and to the one it skips to (runtime/zane_internal.h).
+   A frame larger than the guard after the range is checked against the
+   range's end first; a smaller one that does not fit faults in the guard.
+   Otherwise the runtime places it under the context's lock. *)
+let enter env fr b size =
+  let ptr = env.ptr and i64 = env.i64 in
+  let outer = Llvm.build_load ptr (open_scope env) "" b in
+  let inline = block env fr and shared = block env fr and opened = block env fr in
+  ignore
+    (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Ne outer (Llvm.const_null ptr) "" b) inline shared b);
+  Llvm.position_at_end inline b;
+  let c = field env b ptr outer record_context in
+  let m = field env b ptr c context_frontier in
+  if size > Frames.guard then begin
+    (* The room left is compared, not the frame's end, which would be an
+       address past the range when the frame does not fit. *)
+    let limit = field env b ptr c context_limit in
+    let room = Llvm.build_sub (Llvm.build_ptrtoint limit i64 "" b) (Llvm.build_ptrtoint m i64 "" b) "" b in
+    let over = Llvm.build_icmp Llvm.Icmp.Ult room (Llvm.const_int i64 size) "" b in
+    let stop = block env fr and fits = block env fr in
+    unlikely env (Llvm.build_cond_br over stop fits b);
+    Llvm.position_at_end stop b;
+    ignore (call_runtime env b Cgt.Runtime.Too_deep [||]);
+    ignore (Llvm.build_unreachable b);
+    Llvm.position_at_end fits b
+  end;
+  set_field env b (byte_at env b m size) c context_frontier;
+  zero env b m Frames.record;
+  set_field env b c m record_context;
+  let depth = field env b i64 outer record_depth in
+  set_field env b (Llvm.build_add depth (Llvm.const_int i64 1) "" b) m record_depth;
+  set_field env b outer m record_outer;
+  let a = field env b ptr outer record_skip in
+  let a_depth = field env b i64 a record_depth in
+  let b_ = field env b ptr a record_skip in
+  let b_depth = field env b i64 b_ record_depth in
+  let equal =
+    Llvm.build_icmp Llvm.Icmp.Eq
+      (Llvm.build_sub depth a_depth "" b)
+      (Llvm.build_sub a_depth b_depth "" b)
+      "" b
+  in
+  set_field env b (Llvm.build_select equal b_ outer "" b) m record_skip;
+  set_field env b m c context_top;
+  ignore (Llvm.build_store m (open_scope env) b);
+  let inline_end = Llvm.insertion_block b in
+  ignore (Llvm.build_br opened b);
+  Llvm.position_at_end shared b;
+  let placed = call_runtime env b Cgt.Runtime.Scope_enter [| Llvm.const_int i64 size |] in
+  ignore (Llvm.build_br opened b);
+  Llvm.position_at_end opened b;
+  Llvm.build_phi [ (m, inline_end); (placed, shared) ] "" b
+
+(* A scope drains (L8). One that spawned nothing and has no dynamic chunk,
+   while its context is this thread's alone and drains are not checked, has
+   nothing to wait for or give back but its frame, so the code moves the
+   frontier back to its record itself. Otherwise the runtime drains it. *)
+let drain_scope env fr b m =
+  let ptr = env.ptr in
+  let null = Llvm.const_null ptr in
+  let innermost = Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_load ptr (open_scope env) "" b) m "" b in
+  let look = block env fr and inline = block env fr and runtime_ = block env fr and drained = block env fr in
+  ignore (Llvm.build_cond_br innermost look runtime_ b);
+  Llvm.position_at_end look b;
+  let empty p = Llvm.build_icmp Llvm.Icmp.Eq p null "" b in
+  let unchecked =
+    Llvm.build_icmp Llvm.Icmp.Eq
+      (Llvm.build_load (Llvm.i32_type env.ctx) (checking env) "" b)
+      (Llvm.const_int (Llvm.i32_type env.ctx) 0)
+      "" b
+  in
+  let plain =
+    Llvm.build_and
+      (Llvm.build_and (empty (field env b ptr m record_tasks)) (empty (field env b ptr m record_mappings)) "" b)
+      unchecked "" b
+  in
+  ignore (Llvm.build_cond_br plain inline runtime_ b);
+  Llvm.position_at_end inline b;
+  let c = field env b ptr m record_context in
+  set_field env b m c context_frontier;
+  let outer = field env b ptr m record_outer in
+  set_field env b outer c context_top;
+  ignore (Llvm.build_store outer (open_scope env) b);
+  ignore (Llvm.build_br drained b);
+  Llvm.position_at_end runtime_ b;
+  ignore (call_runtime env b Cgt.Runtime.Scope_drain [| m |]);
+  ignore (Llvm.build_br drained b);
+  Llvm.position_at_end drained b
+
 (* Drain the arenas opened since [depth] were open, innermost first: what a
    way out of them does before it jumps. *)
 let drain env fr b depth =
-  List.iteri
-    (fun i arena ->
-      if i < List.length fr.open_ - depth then
-        ignore (call_runtime env b Cgt.Runtime.Scope_drain [| arena |]))
-    fr.open_
+  List.iteri (fun i arena -> if i < List.length fr.open_ - depth then drain_scope env fr b arena) fr.open_
+
+(* A slot in its scope's frame, where Frames put it. *)
+let frame_slot env fr b scope id =
+  byte_at env b (Hashtbl.find fr.arenas scope) (Hashtbl.find fr.offsets id)
+
+(* With checked drains, a slot whose value may own blocks is listed as its
+   value arrives, so the drain can return them (runtime/slot.c). *)
+let hold env fr b slot l =
+  if listed env l then begin
+    let on =
+      Llvm.build_icmp Llvm.Icmp.Ne
+        (Llvm.build_load (Llvm.i32_type env.ctx) (checking env) "" b)
+        (Llvm.const_int (Llvm.i32_type env.ctx) 0)
+        "" b
+    in
+    let listing = block env fr and after = block env fr in
+    ignore (Llvm.build_cond_br on listing after b);
+    Llvm.position_at_end listing b;
+    ignore (call_runtime env b Cgt.Runtime.Hold [| slot; layout env l |]);
+    ignore (Llvm.build_br after b);
+    Llvm.position_at_end after b
+  end
 
 (* Every local is a stack slot in the entry block (L3); LLVM's `mem2reg`
    promotes the ones that can live in registers. *)
@@ -152,8 +314,6 @@ let spill env fr b v =
 
 let has_terminator b =
   match Llvm.block_terminator (Llvm.insertion_block b) with Some _ -> true | None -> false
-
-let block env fr = Llvm.append_block env.ctx "" fr.fn
 
 (* How a snapshot of a value of type [t] is read (§9). An 8-byte value
    aligned to 8 is one load: a write-back stores those 8 bytes in a single
@@ -523,27 +683,26 @@ and stat env fr b (s : Stat.t) =
       | Some v when fr.ret <> Ty.Void -> ignore (Llvm.build_ret v b)
       | _ -> ignore (Llvm.build_ret_void b))
   | Stat.Scope { id; body } ->
-      let arena = call_runtime env b Cgt.Runtime.Scope_enter [||] in
+      let frame = Frames.layout fr.symbol id body in
+      Hashtbl.iter (Hashtbl.replace fr.offsets) frame.Frames.offsets;
+      let arena = enter env fr b frame.Frames.size in
       Hashtbl.replace fr.arenas id arena;
       fr.open_ <- arena :: fr.open_;
       stats env fr b body;
-      if not (has_terminator b) then ignore (call_runtime env b Cgt.Runtime.Scope_drain [| arena |]);
+      if not (has_terminator b) then drain_scope env fr b arena;
       fr.open_ <- List.tl fr.open_
   | Stat.Hold { id; scope; value; layout = l } -> (
       match expr env fr b value with
       | None -> ()
       | Some v ->
-          let size, align = size_align value.Expr.ty in
-          let n x = Llvm.const_int env.i64 x in
-          let arena = Hashtbl.find fr.arenas scope in
-          let slot = call_runtime env b Cgt.Runtime.Slot [| arena; n size; n align; layout env l |] in
+          let slot = frame_slot env fr b scope id in
           ignore (Llvm.build_store v slot b);
+          hold env fr b slot l;
           Hashtbl.replace fr.locals id (slot, Llvm.type_of v))
   | Stat.Reserve { id; scope; ty = t; layout = l } ->
-      let size, align = size_align t in
-      let n x = Llvm.const_int env.i64 x in
-      let arena = Hashtbl.find fr.arenas scope in
-      let slot = call_runtime env b Cgt.Runtime.Slot [| arena; n size; n align; layout env l |] in
+      let slot = frame_slot env fr b scope id in
+      zero env b slot (fst (size_align t));
+      hold env fr b slot l;
       Hashtbl.replace fr.locals id (slot, lltype env t)
   | Stat.Place { address; value; layout = l } -> (
       let p = value_of env fr b address in
@@ -595,9 +754,9 @@ and stat env fr b (s : Stat.t) =
          and handed to the pool with where its result goes. *)
       let values = List.map (expr env fr b) args in
       let n x = Llvm.const_int env.i64 x in
-      let arena = Hashtbl.find fr.arenas scope in
-      let size, align = size_align frame in
-      let at = call_runtime env b Cgt.Runtime.Frame [| arena; n size; n align |] in
+      let header = frame_slot env fr b scope task in
+      zero env b header Frames.task;
+      let at = byte_at env b header Frames.task in
       let t = lltype env frame in
       List.iteri
         (fun i v ->
@@ -610,8 +769,10 @@ and stat env fr b (s : Stat.t) =
       let home, bytes =
         match dest with
         | Some id ->
-            let size, align = size_align result in
-            let s = call_runtime env b Cgt.Runtime.Slot [| arena; n size; n align; layout env l |] in
+            let size = fst (size_align result) in
+            let s = frame_slot env fr b scope id in
+            zero env b s size;
+            hold env fr b s l;
             Hashtbl.replace fr.locals id (s, lltype env result);
             (s, size)
         | None -> (at, 0)
@@ -633,10 +794,12 @@ let func env (f : Func.t) =
   let fr =
     {
       fn;
+      symbol = f.Func.symbol;
       locals = Hashtbl.create 8;
       labels = Hashtbl.create 8;
       arenas = Hashtbl.create 4;
       open_ = [];
+      offsets = Hashtbl.create 8;
       ret = f.Func.ret;
     }
   in
@@ -655,7 +818,14 @@ let func env (f : Func.t) =
    dependency's objects define is only declared, or has an
    [available_externally] body that LLVM can inline but never emits
    (docs/design/separate-compilation.md); the rest are local to this one. *)
-let program (p : Program.t) =
+(* The size of the range each context reserves for its frames, the main
+   context's and each spawned call's, when the root manifest gives none
+   (memory.md §3.1, dependencies.md §2.1). *)
+let default_fixed_region = 256 lsl 20
+let default_spawned_fixed_region = 8 lsl 20
+
+let program ?(fixed_region = default_fixed_region) ?(spawned_fixed_region = default_spawned_fixed_region)
+    (p : Program.t) =
   let ctx = Llvm.create_context () in
   let m = Llvm.create_module ctx "zane" in
   let env =
@@ -705,6 +875,14 @@ let program (p : Program.t) =
   List.iter
     (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
     p.Program.funcs;
+  (* The module with the program's entry also says how large each context's
+     range is, which the runtime reads when it makes one. *)
+  if Option.is_some p.Program.entry then
+    List.iter
+      (fun (name, size) ->
+        let g = Llvm.define_global name (Llvm.const_int env.i64 size) m in
+        Llvm.set_global_constant true g)
+      [ ("zane_fixed_region", fixed_region); ("zane_spawned_fixed_region", spawned_fixed_region) ];
   Walks.finish (walks env);
   (match Llvm_analysis.verify_module m with
   | Some problem -> Diagnostic.bug ("codegen built an invalid module: " ^ problem)

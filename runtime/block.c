@@ -71,7 +71,7 @@ void zane_end(char *base, const zane_type *type) {
 
 /* The scope a value is made in is the innermost; where it arrives decides
    where its blocks end up. */
-static zane_mark *zane_here(void) { return zane_mark_at(zane_self, zane_self->depth - 1); }
+static zane_mark *zane_here(void) { return zane_self->top; }
 
 /* The value at `value` was copied from another place: each block it names
    is still the original's, so it gets a copy of its own, down through the

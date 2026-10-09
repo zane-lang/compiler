@@ -1,0 +1,2 @@
+start
+scopes nested too deep: a spawned call's fixed-size region of 2 MiB is full; raise `spawned-fixed-region` in zane.coda

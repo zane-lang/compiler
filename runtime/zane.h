@@ -43,14 +43,18 @@ typedef struct {
 	zane_walk copy, end, move, overwrite;
 } zane_type;
 
-/* What the program defines. */
+/* What the program defines: its entry, and the size of the range each
+   context reserves for its frames, the main context's and each spawned
+   call's (memory.md §3.1, dependencies.md §2.1). */
 void zane_main(void);
+extern const int64_t zane_fixed_region, zane_spawned_fixed_region;
 
 /* main.c */
+extern int zane_checking;
 
 /* arena.c */
 extern _Thread_local zane_mark *zane_open;
-int64_t zane_scope_enter(void);
+zane_mark *zane_scope_enter(int64_t size);
 zane_mark *zane_region_at(const void *at);
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align);
 char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align);
@@ -78,7 +82,7 @@ int64_t zane_constant_begin(int64_t *state);
 void zane_constant_end(int64_t *state, char *value, const zane_type *type);
 int64_t zane_leaves(const char *block, zane_mark *region, int64_t from);
 void zane_arrive(char *slot, const zane_type *type);
-void zane_promote(char *value, const zane_type *type, int64_t depth);
+void zane_promote(char *value, const zane_type *type, zane_mark *scope);
 void zane_overwrite(char *slot, char *incoming, int64_t size, const zane_type *type);
 
 /* list.c */
@@ -89,12 +93,14 @@ void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride);
 void zane_out_of_range(void);
 
 /* slot.c */
-void *zane_slot(int64_t scope, int64_t size, int64_t align, const zane_type *type);
+void zane_hold(char *slot, const zane_type *type);
+
+/* region.c */
+void zane_too_deep(void);
 
 /* spawn.c */
 int64_t zane_set_threads(int64_t count);
 void zane_set_threads_auto(void);
-void *zane_frame(int64_t scope, int64_t size, int64_t align);
 void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *type,
                 int64_t size);
 
@@ -102,6 +108,6 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 void zane_snapshot(char *out, const char *from, int64_t size);
 void zane_writeback(char *at, char *copy, int64_t size, const zane_type *type);
 void zane_join(char *frame);
-void zane_scope_drain(int64_t scope);
+void zane_scope_drain(zane_mark *scope);
 
 #endif

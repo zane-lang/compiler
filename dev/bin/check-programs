@@ -24,12 +24,14 @@ for program in "$DIR"/*.exe; do
 	name="$(basename "$program" .exe)"
 	expected="$(tr -d '[:space:]' <"$DIR/$name.status")"
 	args=()
-	[[ -f "$DIR/$name.args" ]] && mapfile -t args <"$DIR/$name.args"
+	if [[ -f "$DIR/$name.args" ]]; then
+		while IFS= read -r arg || [[ -n "$arg" ]]; do args+=("$arg"); done <"$DIR/$name.args"
+	fi
 	actual_out="$(mktemp)"
 	if [[ "$expected" == 0 ]]; then
-		"${runner[@]}" "$program" "${args[@]}" >"$actual_out"
+		${runner[@]+"${runner[@]}"} "$program" ${args[@]+"${args[@]}"} >"$actual_out"
 	else
-		"${runner[@]}" "$program" "${args[@]}" >"$actual_out" 2>&1
+		${runner[@]+"${runner[@]}"} "$program" ${args[@]+"${args[@]}"} >"$actual_out" 2>&1
 	fi
 	status=$?
 	count=$((count + 1))

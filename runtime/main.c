@@ -61,10 +61,11 @@ int main(int argc, char **argv) {
 	_setmode(_fileno(stdout), _O_BINARY);
 	_setmode(_fileno(stderr), _O_BINARY);
 #endif
+	zane_regions_start();
+	zane_thread_start();
 	zane_self = zane_context_new();
-	zane_scope_enter();
-	zane_program = zane_mark_at(zane_self, 0);
+	zane_program = zane_scope_enter(0);
 	zane_main();
-	if (zane_self->depth != 1) zane_broken("a scope was left without draining");
+	if (zane_self->top != zane_program) zane_broken("a scope was left without draining");
 	return fflush(stdout) == 0 && !ferror(stdout) ? 0 : 1;
 }

@@ -127,22 +127,22 @@ void zane_main(void) {
 
 	/* A drain releases the blocks its scope's strings own with its region,
 	   and leaves a literal's bytes alone. */
-	int64_t scope = zane_scope_enter();
-	zane_text *s = zane_slot(scope, sizeof(zane_text), 8, &text_type);
+	zane_mark *scope = zane_scope_enter(0);
+	zane_text *s = test_slot(scope, sizeof(zane_text), 8, &text_type);
 	zane_text_join(s, &ab, &cd);
-	zane_text *literal = zane_slot(scope, sizeof(zane_text), 8, &text_type);
+	zane_text *literal = test_slot(scope, sizeof(zane_text), 8, &text_type);
 	*literal = ab;
 	check(zane_blocks() == 1);
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0 && holds(&ab, "ab"));
 
 	/* A move takes the block along, and the spent slot returns nothing. */
-	scope = zane_scope_enter();
-	s = zane_slot(scope, sizeof(zane_text), 8, &text_type);
+	scope = zane_scope_enter(0);
+	s = test_slot(scope, sizeof(zane_text), 8, &text_type);
 	zane_text_join(s, &ab, &ab);
 	zane_text moving = *s;
 	*s = (zane_text){ NULL, 0, 0 };
-	zane_text *t = zane_slot(scope, sizeof(zane_text), 8, &text_type);
+	zane_text *t = test_slot(scope, sizeof(zane_text), 8, &text_type);
 	*t = moving;
 	zane_arrive((char *)t, &text_type);
 	check(s->room == 0 && holds(t, "abab") && zane_blocks() == 1);
@@ -157,8 +157,8 @@ void zane_main(void) {
 
 	/* A payload that disappears when the variant changes case dies with
 	   its block: nothing references a payload (memory.md §2.8.1). */
-	scope = zane_scope_enter();
-	holder *h = zane_slot(scope, sizeof(holder), 8, &holder_type);
+	scope = zane_scope_enter(0);
+	holder *h = test_slot(scope, sizeof(holder), 8, &holder_type);
 	h->tag = 0;
 	zane_text_join(&h->held, &ab, &cd);
 	holder emptied = { 1, { 0 } };
@@ -174,17 +174,17 @@ void zane_main(void) {
 	/* A move into a deeper owner leaves the block where it is (memory.md
 	   §3.5). The deeper scope's drain leaves it there too, dead, and it goes
 	   with the region it is in. */
-	int64_t outer = zane_scope_enter();
-	zane_text *made = zane_slot(outer, sizeof(zane_text), 8, &text_type);
+	zane_mark *outer = zane_scope_enter(0);
+	zane_text *made = test_slot(outer, sizeof(zane_text), 8, &text_type);
 	zane_text_join(made, &ab, &cd);
 	const char *bytes = made->bytes;
 	zane_text moved = *made;
 	*made = (zane_text){ NULL, 0, 0 };
-	int64_t inner = zane_scope_enter();
-	zane_text *deeper = zane_slot(inner, sizeof(zane_text), 8, &text_type);
+	zane_mark *inner = zane_scope_enter(0);
+	zane_text *deeper = test_slot(inner, sizeof(zane_text), 8, &text_type);
 	*deeper = moved;
 	zane_arrive((char *)deeper, &text_type);
-	check(deeper->bytes == bytes && zane_region_at(bytes) == zane_mark_at(zane_self, outer));
+	check(deeper->bytes == bytes && zane_region_at(bytes) == outer);
 	zane_scope_drain(inner);
 	check(zane_blocks() == 1);
 	zane_scope_drain(outer);
@@ -193,13 +193,13 @@ void zane_main(void) {
 	/* A checked drain returns it from the deeper scope instead, and finds
 	   no block still out in either region. */
 	zane_checking = 1;
-	outer = zane_scope_enter();
-	made = zane_slot(outer, sizeof(zane_text), 8, &text_type);
+	outer = zane_scope_enter(0);
+	made = test_slot(outer, sizeof(zane_text), 8, &text_type);
 	zane_text_join(made, &ab, &cd);
 	moved = *made;
 	*made = (zane_text){ NULL, 0, 0 };
-	inner = zane_scope_enter();
-	deeper = zane_slot(inner, sizeof(zane_text), 8, &text_type);
+	inner = zane_scope_enter(0);
+	deeper = test_slot(inner, sizeof(zane_text), 8, &text_type);
 	*deeper = moved;
 	zane_arrive((char *)deeper, &text_type);
 	zane_scope_drain(inner);

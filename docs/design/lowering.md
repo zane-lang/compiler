@@ -143,7 +143,8 @@ declares a local its own.
 instructions.** The set lowering writes, with the sections of [`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md)
 that define each:
 
-- `slot` — a fixed-size slot in a scope's arena;
+- `slot` — a fixed-size slot in a scope's arena, at an offset in the
+  scope's frame that codegen fixes (§9);
 - `copy` — a value-type copy, recursive through its boxed payloads (§2.3);
 - `move` — a roaming owner's inline bytes copied into a destination of the
   same type, its source spent; its dynamic blocks stay where they are unless
@@ -288,8 +289,8 @@ Lowering lives in `lib/cgt/`, beside `lib/tst/`: `nodes.ml` for the tree,
 whole program built with it, and `to_tree_graph.ml` to render it. Codegen
 lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,
 and `build.ml` writes the object file and links it with the runtime. The
-runtime is written as eight parts in `runtime/` (`main.c`, `arena.c`,
-`block.c` and so on), with `zane.h` as the ABI that emitted code calls and
+runtime is written as nine parts in `runtime/` (`main.c`, `arena.c`,
+`region.c`, `block.c` and so on), with `zane.h` as the ABI that emitted code calls and
 `zane_internal.h` as what the parts share. `runtime/dune` joins the parts in
 a fixed order into one generated `zane.c` and embeds it, with both headers,
 into the compiler as strings, so a build needs nothing beside the compiler
@@ -329,6 +330,8 @@ The binary takes the same `--package` flags as the semantic views:
 | `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
 | `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it; LLVM gets the triple's normal form, and the C compiler the triple as written ([`platforms.md`](platforms.md)) |
 | `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
+| `--fixed-region BYTES` | the size of the main context's range of frames, a whole number of MiB, 256 MiB when absent (§9) |
+| `--spawned-fixed-region BYTES` | the size of each spawned call's range of frames, a whole number of MiB, 8 MiB when absent (§9) |
 
 `zanec --rewrite STAMP INPUT OUTPUT` takes no packages: it writes the
 library object `INPUT` to `OUTPUT` with its `!` placeholder turned into
@@ -475,13 +478,59 @@ test passing.
     an arena when the callee can drop it, so the owner's blocks go when the
     block drains (below); for one that keeps it, the block opens none for
     it, and an arena left holding nothing goes.
-- **Slots share one chain of chunks.** Scopes nest last-in-first-out, so the
-  runtime keeps one chain of 1 MiB chunks for every scope's fixed-size
-  region: a scope bumps from where the scope around it stopped, and draining
-  it restores that point. A chunk stays mapped once made and is reused by the
-  next scope that reaches it, where [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1 unmaps a scope's chunks at its drain. The spec leaves
-  arena granularity to the implementation and fixes only that a scope's
-  memory is released together, which this does.
+- **A scope's slots are one frame, in one range per context.** Every slot a
+  scope places has a size known at compile time, so `lib/codegen/frames.ml`
+  lays the scope out as one frame: the runtime's record of the scope at
+  offset 0, then each slot and each spawned call's header and frame at a
+  constant offset. Scopes nest last-in-first-out, so each context reserves
+  one contiguous range of addresses for its frames: a scope's frame starts
+  where the frame around it ended, and draining it moves that point back.
+  Where [`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.1 gives each scope 1 MiB chunks of its own,
+  this places the frames back to back. The spec leaves arena granularity to
+  the implementation and fixes only that a scope's memory is released
+  together, which this does.
+  - **Entry and drain are inline.** While no call the context spawned is
+    out, nothing else reaches it, so emitted code opens a scope itself: it
+    takes the frontier as the frame's start, moves it past the frame, zeroes
+    the record and links it to the scope around it. A slot is the frame's
+    start plus its offset. A drain that has no spawned call to wait for, no
+    dynamic chunk to give back and no check to run moves the frontier back
+    to the record. Otherwise both call the runtime, which does the same
+    under the context's lock. A reserved slot and a spawned call's header
+    and result slot are zeroed where they are placed; a held slot is written
+    at once.
+  - **The range is reserved, and becomes usable as it is touched.**
+    `runtime/region.c` reserves the range with no access, then a guard of
+    1 MiB. The first touch of each further MiB faults, and the fault handler
+    makes it usable and lets the access run again (`mprotect` on POSIX,
+    `VirtualAlloc(MEM_COMMIT)` on Windows), so a system with strict
+    overcommit charges only what is used. If the system cannot commit a
+    step, the program reports "out of memory: cannot commit a context's
+    fixed-size region" and exits with status 1. A frame of up to 1 MiB that does
+    not fit faults in the guard; a larger one is checked against the
+    range's end before it is placed, on a branch marked unlikely. Either way
+    the program stops with "scopes nested too deep", the range's size, and
+    the manifest field that sets it, and exits with status 1.
+  - **The sizes come from the root manifest.** The main context reserves
+    `--fixed-region` bytes, 256 MiB by default, and each spawned call's
+    context `--spawned-fixed-region`, 8 MiB by default. `zane` passes them
+    from the root manifest's `fixed-region` and `spawned-fixed-region`
+    ([`dependencies.md`](https://github.com/zane-lang/spec/blob/main/spec/dependencies.md#21-manifest-zanecoda) §2.1), and
+    the module that defines `zane_main` defines them for the runtime.
+  - **No cap on nesting.** A scope's record links to the scope around it
+    and to one it skips to (Myers' skew-binary jump pointers), so finding
+    the scope whose frame holds an address takes steps logarithmic in the
+    depth, and nothing keeps an array of scopes by depth. The chunk map
+    holds a pointer for each MiB, to a dynamic chunk's scope or to the
+    context whose range it is in, so it caps no depth either.
+  - **The machine stack.** A program's calls also nest on the machine
+    stack, which for most programs fills long before the range does. Every
+    worker has 8 MiB of it; the main thread's size is set by its launch
+    environment on POSIX and to 8 MiB by the linker on Windows
+    ([`platforms.md`](platforms.md)). Emitted functions probe it page by page as they
+    grow it, and the fault handler runs on a stack of its own, so a full
+    machine stack stops the program with "recursion too deep" and status 1
+    rather than a crash.
 - **A reference is an address.** [`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §4.1 stores a
   reference as the `u32` segmented offset of the settled owner it names. The
   runtime addresses everything else with native pointers rather than
@@ -594,15 +643,16 @@ test passing.
   the emitted walks make treecopy, which copies a tree whole, 2.6 times
   faster (`tests/runtime/README.md`).
 - **Each spawned call has a context of its own.** A spawned call runs with
-  its own nest of scopes and its own chain of fixed chunks, so a thread bumps
-  only its own; a thread that runs one while waiting for it switches to that
+  its own nest of scopes and its own range of frames, so a thread places
+  frames only in its own; a thread that runs one while waiting for it switches to that
   context for the call. The call's result is kept in its frame, with its
   blocks in the first scope of the call's context, until it comes home: at a
   read of the local it is bound to, or at its block's drain. There it is
   copied into a slot the block reserved, and its blocks move into the
   block's region, as any value's do where it arrives from another context.
-  The context then goes back to a pool for the next call. The chunk map names
-  each chunk's context along with its index or scope.
+  The context then goes back to a pool for the next call, and keeps its
+  range for it. The chunk map names the context each MiB of a range belongs
+  to, and the scope each dynamic chunk does.
 
   A context is its own thread's alone until it spawns. While a call it
   spawned is out, that call can reach its storage: a `mut` subject that owns

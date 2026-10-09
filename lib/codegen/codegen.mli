@@ -3,7 +3,10 @@
     failures are about the build -- a target LLVM does not know, a link that
     failed -- and are messages, not diagnostics. *)
 
-val emit : Cgt.Nodes.Program.t -> Llvm.llmodule
+(** The module with the program's entry also defines the size in bytes of
+    each context's range of frames, the main context's and each spawned
+    call's; each takes its default when absent. *)
+val emit : ?fixed_region:int -> ?spawned_fixed_region:int -> Cgt.Nodes.Program.t -> Llvm.llmodule
 
 (** The processor [prepare] tunes code for on [target], the host when it is
     absent: [x86-64] on any x86-64 target, [core-avx2] on [x86_64h], else

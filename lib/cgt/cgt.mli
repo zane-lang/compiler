@@ -13,5 +13,11 @@ module Runtime = Runtime
 val lower :
   ?library:bool -> ?import_bodies:bool -> Tst.Nodes.Program.t -> (Nodes.Program.t, Diagnostic.t) result
 
+(** What an expression or a statement is made of: the expressions directly
+    in it, and the statement lists directly in it. *)
+val expr_parts : Nodes.Expr.t -> Nodes.Expr.t list * Nodes.Stat.t list list
+
+val stat_parts : Nodes.Stat.t -> Nodes.Expr.t list * Nodes.Stat.t list list
+
 (** The tree as `zanec --cgt` prints it. *)
 val to_node : Nodes.Program.t -> Tree_graph.node

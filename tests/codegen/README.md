@@ -9,7 +9,8 @@ printed as the tree an optimized build makes of it when
 trees and what both builds of the program wrote. A fixture whose
 `expected-status` file holds a nonzero status stops with it, and its `.out`
 holds stdout and stderr together. A fixture's `arguments` file, one argument
-per line, is what both builds of its program run with.
+per line, is what both builds of its program run with, and its `flags` file,
+one per line, what both are built with besides.
 
 Every program runs with `ZANE_CHECK` set, which `dune` sets for this
 directory: each drain then returns its values' blocks one at a time, and a
@@ -154,6 +155,17 @@ again, read the golden diff and promote that.
 
 `constants`, `counting` and `zero` also show the tree an optimized build
 makes of them.
+
+- `frames` is a scope's frame (docs/design/lowering.md §9): one of 1.5 MiB,
+  larger than the guard after a context's range, and frames of 512 KiB and
+  1.5 MiB a few deep, within the default range. Every check prints `yes`.
+- `deepFrames`, `wideFrames` and `spawnedFrames` nest frames past a range
+  their `flags` make 2 MiB: frames of 512 KiB that fault in the guard,
+  frames of 1.5 MiB that the check before placing them stops, and frames in
+  a spawned call's context. Each stops with status 1 and an error naming
+  the range and its manifest field.
+- `recursion` nests calls without end, and stops with status 1 when the
+  machine stack is full, rather than crashing.
 
 ## Rejects
 

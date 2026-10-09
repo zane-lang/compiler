@@ -35,13 +35,13 @@ void zane_main(void) {
 		
 	/* A copy of a list of twenty strings gives every string a block of its
 	   own. */
-	int64_t scope = zane_scope_enter();
-	zane_list *words = zane_slot(scope, sizeof(zane_list), 8, &texts_type);
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *words = test_slot(scope, sizeof(zane_list), 8, &texts_type);
 	zane_list_new(words);
 	zane_text ab = { "ab", 2, 0 };
 	for (int i = 0; i < 20; i++) zane_text_join(zane_list_push(words, sizeof(zane_text)), &ab, &ab);
 	check(zane_blocks() == 21);
-	zane_list *copied = zane_slot(scope, sizeof(zane_list), 8, &texts_type);
+	zane_list *copied = test_slot(scope, sizeof(zane_list), 8, &texts_type);
 	*copied = *words;
 	zane_copy((char *)copied, &texts_type);
 	int same = 0, equal = 1;
@@ -59,7 +59,7 @@ void zane_main(void) {
 	check(zane_blocks() == 21);
 
 	/* Moving it out of an inner scope takes each string's block along. */
-	int64_t inner = zane_scope_enter();
+	zane_mark *inner = zane_scope_enter(0);
 	zane_list young;
 	zane_list_new(&young);
 	for (int i = 0; i < 20; i++) zane_text_join(zane_list_push(&young, sizeof(zane_text)), &ab, &ab);
@@ -67,9 +67,9 @@ void zane_main(void) {
 	zane_scope_drain(inner);
 	int moved = 1;
 	for (int64_t i = 1; i <= 20; i++)
-		moved &= zane_region_at(((zane_text *)zane_list_at(&young, i, sizeof(zane_text)))->bytes)->depth == scope;
-	check(moved && zane_region_at(young.items)->depth == scope);
-	zane_list *kept = zane_slot(scope, sizeof(zane_list), 8, &texts_type);
+		moved &= zane_region_at(((zane_text *)zane_list_at(&young, i, sizeof(zane_text)))->bytes) == scope;
+	check(moved && zane_region_at(young.items) == scope);
+	zane_list *kept = test_slot(scope, sizeof(zane_list), 8, &texts_type);
 	*kept = young;
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0);
@@ -77,8 +77,8 @@ void zane_main(void) {
 	/* An overwrite of one countdown by another keeps every box of the
 	   occupant where it is, and hands on more arrivals than a work keeps in
 	   itself. */
-	scope = zane_scope_enter();
-	countdown *a = zane_slot(scope, sizeof(countdown), 8, &countdown_type);
+	scope = zane_scope_enter(0);
+	countdown *a = test_slot(scope, sizeof(countdown), 8, &countdown_type);
 	*a = chain(10);
 	countdown *second = (countdown *)a->more;
 	countdown incoming = chain(12);
@@ -91,10 +91,10 @@ void zane_main(void) {
 	/* A countdown a hundred thousand boxes deep is copied, compared,
 	   overwritten, moved and ended, its walks handed on past their depth,
 	   with no depth limit. */
-	scope = zane_scope_enter();
-	countdown *deep = zane_slot(scope, sizeof(countdown), 8, &countdown_type);
+	scope = zane_scope_enter(0);
+	countdown *deep = test_slot(scope, sizeof(countdown), 8, &countdown_type);
 	*deep = chain(100000);
-	countdown *twin = zane_slot(scope, sizeof(countdown), 8, &countdown_type);
+	countdown *twin = test_slot(scope, sizeof(countdown), 8, &countdown_type);
 	*twin = *deep;
 	zane_copy((char *)twin, &countdown_type);
 	check(depth(twin) == 100000 && apart(deep, twin) && zane_blocks() == 200000);
@@ -102,13 +102,13 @@ void zane_main(void) {
 	countdown longer = chain(100001);
 	zane_overwrite((char *)twin, (char *)&longer, sizeof(countdown), &countdown_type);
 	check(depth(twin) == 100001 && (countdown *)twin->more == second_box && zane_blocks() == 200001);
-	int64_t within = zane_scope_enter();
+	zane_mark *within = zane_scope_enter(0);
 	countdown rising = chain(100000);
 	zane_promote((char *)&rising, &countdown_type, within);
 	zane_scope_drain(within);
 	int out = 1;
 	for (countdown *c = &rising; c->tag == 1; c = (countdown *)c->more)
-		out &= zane_region_at(c->more)->depth == scope;
+		out &= zane_region_at(c->more) == scope;
 	check(out && depth(&rising) == 100000 && zane_blocks() == 300001);
 	zane_end((char *)&rising, &countdown_type);
 	zane_end((char *)deep, &countdown_type);

@@ -377,6 +377,44 @@
   (diff golden/counting.out counting.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/deepFrames))
+ (targets deepFrames.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build deepFrames.exe "--fixed-region" "2097152" --package fixtures/deepFrames)))
+
+(rule
+ (deps (source_tree fixtures/deepFrames))
+ (targets deepFrames.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build deepFrames.optimized.exe --optimize "--fixed-region" "2097152" --package fixtures/deepFrames)))
+
+(rule
+ (action
+  (with-outputs-to
+   deepFrames.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./deepFrames.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/deepFrames.out deepFrames.out.actual)))
+
+(rule
+ (action
+  (with-outputs-to
+   deepFrames.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./deepFrames.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/deepFrames.out deepFrames.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/defaults))
  (action
   (with-stdout-to
@@ -479,6 +517,40 @@
  (alias runtest)
  (action
   (diff golden/folding.out folding.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/frames))
+ (targets frames.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build frames.exe --package fixtures/frames)))
+
+(rule
+ (deps (source_tree fixtures/frames))
+ (targets frames.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build frames.optimized.exe --optimize --package fixtures/frames)))
+
+(rule
+ (action
+  (with-stdout-to
+   frames.out.actual
+   (run ./frames.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/frames.out frames.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   frames.optimized.out.actual
+   (run ./frames.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/frames.out frames.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/hello))
@@ -901,6 +973,44 @@
   (diff golden/rangeZero.out rangeZero.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/recursion))
+ (targets recursion.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build recursion.exe --package fixtures/recursion)))
+
+(rule
+ (deps (source_tree fixtures/recursion))
+ (targets recursion.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build recursion.optimized.exe --optimize --package fixtures/recursion)))
+
+(rule
+ (action
+  (with-outputs-to
+   recursion.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./recursion.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/recursion.out recursion.out.actual)))
+
+(rule
+ (action
+  (with-outputs-to
+   recursion.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./recursion.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/recursion.out recursion.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/references))
  (action
   (with-stdout-to
@@ -1291,6 +1401,44 @@
   (diff golden/spawned.out spawned.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/spawnedFrames))
+ (targets spawnedFrames.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build spawnedFrames.exe "--spawned-fixed-region" "2097152" --package fixtures/spawnedFrames)))
+
+(rule
+ (deps (source_tree fixtures/spawnedFrames))
+ (targets spawnedFrames.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build spawnedFrames.optimized.exe --optimize "--spawned-fixed-region" "2097152" --package fixtures/spawnedFrames)))
+
+(rule
+ (action
+  (with-outputs-to
+   spawnedFrames.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./spawnedFrames.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnedFrames.out spawnedFrames.out.actual)))
+
+(rule
+ (action
+  (with-outputs-to
+   spawnedFrames.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./spawnedFrames.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnedFrames.out spawnedFrames.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/spawns))
  (action
   (with-stdout-to
@@ -1415,6 +1563,44 @@
  (alias runtest)
  (action
   (diff golden/walks.out walks.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/wideFrames))
+ (targets wideFrames.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build wideFrames.exe "--fixed-region" "2097152" --package fixtures/wideFrames)))
+
+(rule
+ (deps (source_tree fixtures/wideFrames))
+ (targets wideFrames.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build wideFrames.optimized.exe --optimize "--fixed-region" "2097152" --package fixtures/wideFrames)))
+
+(rule
+ (action
+  (with-outputs-to
+   wideFrames.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./wideFrames.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/wideFrames.out wideFrames.out.actual)))
+
+(rule
+ (action
+  (with-outputs-to
+   wideFrames.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./wideFrames.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/wideFrames.out wideFrames.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/literalOperator))

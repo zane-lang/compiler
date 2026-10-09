@@ -64,6 +64,20 @@ let shared_in_comdats triple m =
     Llvm.iter_globals own m
   end
 
+(* A function whose locals take more than a page of machine stack touches
+   each page in turn as it takes them, so a stack that runs out faults in
+   the page that guards it, which the runtime reports, rather than past it
+   in whatever lies below. Windows code does so already, through the
+   `__chkstk` its C library supplies, and LLVM reads the attribute there as
+   the name of a function to call in its place. *)
+let probe_stack triple m =
+  if not (List.mem "windows" (String.split_on_char '-' triple)) then begin
+    let probe = Llvm.create_string_attr (Llvm.module_context m) "probe-stack" "inline-asm" in
+    Llvm.iter_functions
+      (fun f -> if not (Llvm.is_declaration f) then Llvm.add_function_attr f probe Llvm.AttrIndex.Function)
+      m
+  end
+
 (* The module made ready for *target*: its triple and data layout set and,
    when *optimize*, LLVM's standard `-O2` pipeline run over it. Without it no
    pass runs, which is what makes an unoptimized build fast. A program means
@@ -72,6 +86,7 @@ let prepare ?target ?(optimize = false) m =
   Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
       Llvm.set_target_triple triple m;
       shared_in_comdats triple m;
+      probe_stack triple m;
       let data_layout = Llvm_target.TargetMachine.data_layout tm in
       Llvm.set_data_layout (Llvm_target.DataLayout.as_string data_layout) m;
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
@@ -119,13 +134,16 @@ let executable ?target ?(optimize = false) ?(link = []) m output =
          reads its own short triples, and not every normal form. *)
       let target_flag = match target with Some target -> [ "--target=" ^ target ] | None -> [] in
       (* The runtime reads a Windows program's arguments through
-         `CommandLineToArgvW`, which shell32 holds. *)
+         `CommandLineToArgvW`, which shell32 holds. A Windows program's
+         main thread gets the 8 MiB of machine stack it has on Linux and
+         macOS, where the linker would give it 1 MiB
+         (docs/design/platforms.md). *)
       let windows =
         match target with
         | Some target -> List.mem "windows" (String.split_on_char '-' target)
         | None -> Sys.win32
       in
-      let link = if windows then link @ [ "-lshell32" ] else link in
+      let link = if windows then link @ [ "-lshell32"; "-Wl,--stack,8388608" ] else link in
       let command =
         String.concat " "
           (List.map Filename.quote
