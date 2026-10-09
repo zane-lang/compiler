@@ -335,7 +335,7 @@ literal_tokens [
   FALSE          false         boolean                 constant.language.boolean
   THIS           this          variable.builtin        variable.language
   MUT            mut           keyword                 keyword.control
-  ABORT          abort         keyword                 keyword.control
-  RETURN         return        keyword                 keyword.control
+  ABORT          abort         keyword.return          keyword.control
+  RETURN         return        keyword.return          keyword.control
   RESOLVE        resolve       keyword                 keyword.control
 ]
