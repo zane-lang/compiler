@@ -198,6 +198,11 @@ and the optimized build alike, and still does.
 - **Oversized blocks** (`oversized`; memory.md §3.1, §3.6). A 3.2 MB list
   returned out of its scope, a 2 MiB string copied out of an inner block, a
   list of 100,000 strings, and a big list overwritten 20 times.
+- **References to growing lists** (`listref`; memory.md §3.6, §4.2). Added
+  after the findings were closed. A reference to a settled list, and one to
+  a list in a field of a settled owner, read and push through 300,000
+  elements of growth past 1 MiB, and the second still names the field after
+  the whole owner is overwritten.
 
 Consequences of the spec worth knowing, all correctly implemented:
 
