@@ -203,6 +203,7 @@ extern zane_context *zane_idle;
 extern _Thread_local zane_context *zane_self;
 extern zane_mark *zane_program;
 zane_mark *zane_mark_at(zane_context *c, int64_t depth);
+void zane_reopen(void);
 void zane_lock(zane_context *c);
 void zane_unlock(zane_context *c);
 zane_context *zane_context_new(void);

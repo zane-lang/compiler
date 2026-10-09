@@ -582,7 +582,13 @@ test passing.
   blocks in the innermost region and holds that region's lock for the whole
   walk, so it takes a boxed payload's block inline: the top of its size
   class's stack, or else the next bytes at the frontier, and calls the
-  runtime only when neither has one. A move, an end and an overwrite return
+  runtime only when neither has one. A box takes its block the same way,
+  in the region the runtime names `zane_open`: the innermost one of the
+  context running on the thread, while no call it spawned is out, so that
+  no other thread can reach it, and otherwise null. A payload larger than
+  the largest size class, or a null `zane_open`, is left to the runtime.
+  This makes binarytrees, which boxes every node, use a third of the
+  instructions it did. A move, an end and an overwrite return
   blocks to other regions, so they call the runtime for each block. Walking
   a table instead decoded each position from it at run time, for each block;
   the emitted walks make treecopy, which copies a tree whole, 2.6 times

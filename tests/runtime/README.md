@@ -153,3 +153,30 @@ A dash marks a change whose ranges overlap. The C treecopy built with
 both builds: 30 MB for treecopy, 13 MB for binarytrees, 44 MB for ntree,
 126 MB for listgrowth, 220 MB for entities and 9 MB for fannkuch. Every
 program printed the same output with both builds.
+
+## Inline boxes
+
+The profile of binarytrees in
+[#203](https://github.com/zane-lang/compiler/issues/203) showed that it
+spent 78% of its instructions in `zane_box`: finding the innermost region
+through the thread's context, checking whether to lock it, and taking a
+block in `zane_alloc_held`. The runtime now keeps `zane_open`, the region
+emitted code takes a box's block in itself, while no other thread can reach
+it (docs/design/lowering.md §9). Built with `zanec --optimize` from the
+langbench programs at spec `a92d7cf`, core `97beb74`, against `d49dc26`, on
+a 4-core x86_64 container, one warmup and seven alternating fresh-process
+runs per build gave these medians (ranges in brackets):
+
+| Program | Before, s | After, s | Change |
+| --- | ---: | ---: | ---: |
+| binarytrees 16 | 0.230 [0.170–0.271] | 0.139 [0.124–0.154] | −39.4% |
+| treecopy 18 | 0.192 [0.152–0.207] | 0.162 [0.156–0.183] | — |
+| ntree 10 | 0.355 [0.317–0.375] | 0.368 [0.339–0.407] | — |
+| listgrowth 2000000 | 1.435 [1.388–1.557] | 1.406 [1.295–1.509] | — |
+| entities 3000000 | 0.573 [0.490–0.589] | 0.570 [0.546–0.595] | — |
+| fannkuch 10 | 0.240 [0.188–0.250] | 0.250 [0.206–0.271] | — |
+
+A dash marks a change whose ranges overlap. Under callgrind, binarytrees 16
+ran 3.09 billion instructions before and 0.99 billion after, and treecopy
+16 ran 211 million before and 193 million after. Peak memory and every
+program's output were the same with both builds.

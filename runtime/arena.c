@@ -46,6 +46,18 @@ zane_context *zane_idle;
 _Thread_local zane_context *zane_self;
 zane_mark *zane_program;
 
+/* The innermost region of the context running on this thread while no call
+   it spawned is out, so that nothing else can reach it, and otherwise null.
+   Emitted code takes a box's block there itself (docs/design/lowering.md
+   §9). Whatever changes the context, its depth or whether it is shared sets
+   it again. */
+_Thread_local zane_mark *zane_open;
+
+void zane_reopen(void) {
+	zane_context *c = zane_self;
+	zane_open = c && c->depth > 0 && c->shared == 0 ? zane_mark_at(c, c->depth - 1) : NULL;
+}
+
 zane_mark *zane_mark_at(zane_context *c, int64_t depth) {
 	return &c->segments[depth / ZANE_SEGMENT][depth % ZANE_SEGMENT];
 }
@@ -88,6 +100,7 @@ int64_t zane_scope_enter(void) {
 		(zane_mark){ .context = c, .depth = c->depth, .chunks = c->chunks, .frontier = c->frontier };
 	int64_t depth = c->depth++;
 	zane_unlock(c);
+	zane_reopen();
 	return depth;
 }
 

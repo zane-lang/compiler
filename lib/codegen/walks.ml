@@ -204,6 +204,44 @@ let take c region size =
     Llvm.build_phi [ (top, pop); (at, fits); (found, slow_end) ] "" c.b
   end
 
+(* A box's block (memory.md §3.6), in the innermost region. Emitted code
+   takes it itself, as [take] does, while that region is the runtime's
+   [zane_open], which no other thread can reach then; otherwise, and for a
+   payload no size class holds, the runtime finds it. *)
+let box env f b size align =
+  let n = int env in
+  let slow () =
+    let f, t = env.runtime Cgt.Runtime.Box in
+    Llvm.build_call t f [| n size; n align |] "" b
+  in
+  if align > 8 || (size + 7) / 8 > classes then slow ()
+  else begin
+    let c =
+      let none = Llvm.const_null env.ptr in
+      { env; f; b; at = none; with_ = none; extra = n 0; work = none; depth = n 0 }
+    in
+    let open_ =
+      match Llvm.lookup_global "zane_open" env.m with
+      | Some g -> g
+      | None ->
+          let g = Llvm.declare_global env.ptr "zane_open" env.m in
+          Llvm.set_thread_local true g;
+          g
+    in
+    let region = load c env.ptr open_ in
+    let inline = block c and shared = block c and done_ = block c in
+    ignore (Llvm.build_cond_br (nonzero c region) inline shared b);
+    Llvm.position_at_end inline b;
+    let taken = take c region size in
+    let inline_end = Llvm.insertion_block b in
+    ignore (Llvm.build_br done_ b);
+    Llvm.position_at_end shared b;
+    let found = slow () in
+    ignore (Llvm.build_br done_ b);
+    Llvm.position_at_end done_ b;
+    Llvm.build_phi [ (taken, inline_end); (found, shared) ] "" b
+  end
+
 let zero_handle c h =
   store c (Llvm.const_null c.env.ptr) h;
   store c (int c.env 0) (offset c h length);

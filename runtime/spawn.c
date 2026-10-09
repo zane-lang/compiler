@@ -68,6 +68,7 @@ void zane_run(zane_task *t) {
 	zane_scope_enter();
 	t->run(t->frame);
 	zane_self = outer;
+	zane_reopen();
 	pthread_mutex_lock(&zane_pool);
 	zane_set_state(t, ZANE_DONE);
 	pthread_cond_broadcast(&zane_finished);
@@ -183,6 +184,7 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 	t->next = m->tasks;
 	m->tasks = t;
 	c->shared++;
+	zane_open = NULL;
 	pthread_mutex_lock(&zane_pool);
 	if (!zane_started) zane_start();
 	zane_queued++;
