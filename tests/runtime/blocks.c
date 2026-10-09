@@ -79,7 +79,7 @@ void zane_main(void) {
 	zane_free(after, 8, 8);
 	node *now = zane_list_at(list, 1, sizeof(node));
 	check(now->value == 7 && now != first);
-	check(list->count == 101 && list->room == 1024 && zane_blocks == 1);
+	check(list->count == 101 && list->room == 1024 && zane_blocks() == 1);
 	zane_free(list->items, list->room, ZANE_LINE);
 	*list = (zane_list){ NULL, 0, 0 };
 
@@ -88,9 +88,9 @@ void zane_main(void) {
 	zane_list_new(words);
 	zane_text ab = { "ab", 2, 0 };
 	for (int i = 0; i < 3; i++) zane_text_join(zane_list_push(words, sizeof(zane_text)), &ab, &ab);
-	check(zane_blocks == 4);
+	check(zane_blocks() == 4);
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* A copy of a boxed value owns blocks of its own, and each is returned
 	   once. */
@@ -103,12 +103,12 @@ void zane_main(void) {
 	countdown *b = zane_slot(scope, sizeof(countdown), 8, countdown_layout);
 	*b = *a;
 	zane_copy((char *)b, countdown_layout);
-	check(depth(a) == 2 && depth(b) == 2 && b->more != a->more && zane_blocks == 4);
+	check(depth(a) == 2 && depth(b) == 2 && b->more != a->more && zane_blocks() == 4);
 	countdown done = { 0, NULL };
 	zane_overwrite((char *)a, (char *)&done, sizeof(countdown), countdown_layout);
-	check(depth(a) == 0 && depth(b) == 2 && zane_blocks == 2);
+	check(depth(a) == 0 && depth(b) == 2 && zane_blocks() == 2);
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* An overwrite is in place (memory.md §2.2): a boxed member keeps its
 	   block, so an address into it still names the member, which now holds
@@ -124,12 +124,12 @@ void zane_main(void) {
 	outer_t incoming = { 20, zane_box(sizeof(named), 8) };
 	*(named *)incoming.inner = (named){ 2, { NULL, 0, 0 } };
 	zane_text_join(&((named *)incoming.inner)->name, &ab, &(zane_text){ "cd", 2, 0 });
-	check(zane_blocks == 4);
+	check(zane_blocks() == 4);
 	zane_overwrite((char *)o, (char *)&incoming, sizeof(outer_t), outer_layout);
 	check(o->id == 20 && o->inner == (char *)kept_box && seen->value == 2 &&
-	      memcmp(seen->name.bytes, "abcd", 4) == 0 && zane_blocks == 2);
+	      memcmp(seen->name.bytes, "abcd", 4) == 0 && zane_blocks() == 2);
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* Arriving in an inner scope leaves blocks in an enclosing one where
 	   they are, since that one outlives the destination; arriving in an
@@ -153,7 +153,7 @@ void zane_main(void) {
 	zane_text *other_up = zane_slot(enclosing, sizeof(zane_text), 8, text_layout);
 	*other_up = made;
 	zane_scope_drain(enclosing);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* A list's block grows where it is while it is the last thing at its
 	   region's frontier, and a block it gives back serves the next of its
@@ -164,7 +164,7 @@ void zane_main(void) {
 	for (int64_t i = 0; i < 16; i++) *(int64_t *)zane_list_push(ints, 8) = i;
 	char *before = ints->items;
 	*(int64_t *)zane_list_push(ints, 8) = 16;
-	check(ints->items == before && ints->room == 256 && zane_blocks == 1);
+	check(ints->items == before && ints->room == 256 && zane_blocks() == 1);
 	zane_list *other = zane_slot(outer, sizeof(zane_list), 8, NULL);
 	zane_list_new(other);
 	zane_list_push(other, 8);
@@ -202,7 +202,7 @@ void zane_main(void) {
 		*l = emptied;
 	}
 	zane_scope_drain(outer);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* A layout that lists nothing may be no table at all. */
 	int64_t plain = 1, replacing_plain = 2;

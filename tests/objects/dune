@@ -3,6 +3,13 @@
 ; for. A library's code-generation tree shows each function's linkage, and
 ; its object's defined symbols are listed by `nm`, without their addresses.
 
+; Every program here runs with its drains checked: a block still out in a
+; region when its scope drains stops the program (runtime/zane_internal.h).
+(env
+ (_
+  (env-vars
+   (ZANE_CHECK 1))))
+
 (rule
  (deps (source_tree fixtures/geometry))
  (action

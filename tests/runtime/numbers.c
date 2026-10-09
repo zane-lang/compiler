@@ -90,7 +90,7 @@ void zane_main(void) {
 	check(items[2].length == 5 && memcmp(items[2].bytes, "three", 5) == 0);
 	zane_arrive((char *)args, texts_layout);
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	zane_argc = 0;
 	zane_list none;

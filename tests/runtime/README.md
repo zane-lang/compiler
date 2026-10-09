@@ -82,3 +82,37 @@ whose ranges overlap. Every program printed
 its expected output at its check and benchmark sizes with both builds.
 The container's absolute times do not compare with the pinned langbench
 run.
+
+## Bulk drains
+
+Issue [#211](https://github.com/zane-lang/compiler/issues/211) found that a
+drain spent much of binarytrees and treecopy walking its values to return
+their blocks one at a time, just before it released their chunks anyway. A
+drain now releases its region in bulk and walks nothing; a program run with
+`ZANE_CHECK` set walks and checks every drain as before. `texts.c` checks
+both ways for a block moved into a deeper owner: an unchecked drain leaves
+it, dead, in the outer region it is in, and a checked one returns it. The
+other fixtures run unchecked; `zane_blocks()` counts the blocks out in the
+open regions, so a check after a drain still sees the region's go. The same
+change looks up the innermost scope first when it finds a slot's region,
+keeps a context's spare chunks with the context instead of under the global
+lock, and drops the global atomic block count.
+
+Built with `zanec --optimize` from the langbench programs at spec `c34dc70`,
+core `97beb743`, on a 4-core x86_64 container, one warmup and five
+alternating fresh-process runs per build gave these medians (ranges in
+brackets):
+
+| Program | Before, s | After, s | Change |
+| --- | ---: | ---: | ---: |
+| binarytrees 16 | 2.769 [2.654–2.838] | 1.515 [1.439–1.976] | −45.3% |
+| ntree 10 | 4.660 [4.374–5.028] | 3.667 [3.290–3.891] | −21.3% |
+| treecopy 18 | 1.943 [1.867–2.002] | 0.876 [0.676–0.932] | −54.9% |
+| listgrowth 2000000 | 1.473 [1.353–1.549] | 1.377 [1.369–1.444] | — |
+| entities 3000000 | 0.600 [0.531–0.612] | 0.591 [0.576–0.598] | — |
+| fannkuch 10 | 0.261 [0.253–0.299] | 0.254 [0.244–0.298] | — |
+
+A dash marks a change whose ranges overlap. Peak memory was the same in
+both builds: 15 MB for binarytrees, 88 MB for ntree, 45 MB for treecopy and
+126 MB for listgrowth. Every program printed the same output with both
+builds.

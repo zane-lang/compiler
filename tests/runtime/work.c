@@ -66,7 +66,7 @@ void zane_main(void) {
 	zane_list_new(words);
 	zane_text ab = { "ab", 2, 0 };
 	for (int i = 0; i < 20; i++) zane_text_join(zane_list_push(words, sizeof(zane_text)), &ab, &ab);
-	check(zane_blocks == 21);
+	check(zane_blocks() == 21);
 	zane_list *copied = zane_slot(scope, sizeof(zane_list), 8, texts_layout);
 	*copied = *words;
 	zane_copy((char *)copied, texts_layout);
@@ -77,12 +77,12 @@ void zane_main(void) {
 		same += w->bytes == c->bytes;
 		equal &= c->length == 4 && memcmp(c->bytes, "abab", 4) == 0;
 	}
-	check(same == 0 && equal && zane_blocks == 42);
+	check(same == 0 && equal && zane_blocks() == 42);
 
 	/* Ending it returns all twenty-one blocks, the list's last. */
 	zane_end((char *)words, texts_layout);
 	*words = (zane_list){ NULL, 0, 0 };
-	check(zane_blocks == 21);
+	check(zane_blocks() == 21);
 
 	/* Moving it out of an inner scope takes each string's block along. */
 	int64_t inner = zane_scope_enter();
@@ -98,7 +98,7 @@ void zane_main(void) {
 	zane_list *kept = zane_slot(scope, sizeof(zane_list), 8, texts_layout);
 	*kept = young;
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* An overwrite of one countdown by another keeps every box of the
 	   occupant where it is, and records more places to arrive than a walk
@@ -108,11 +108,11 @@ void zane_main(void) {
 	*a = chain(10);
 	countdown *second = (countdown *)a->more;
 	countdown incoming = chain(12);
-	check(zane_blocks == 22);
+	check(zane_blocks() == 22);
 	zane_overwrite((char *)a, (char *)&incoming, sizeof(countdown), countdown_layout);
-	check(depth(a) == 12 && (countdown *)a->more == second && zane_blocks == 12);
+	check(depth(a) == 12 && (countdown *)a->more == second && zane_blocks() == 12);
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* A countdown a hundred thousand boxes deep is copied, compared and
 	   ended in loops, with no depth limit. */
@@ -122,12 +122,12 @@ void zane_main(void) {
 	countdown *twin = zane_slot(scope, sizeof(countdown), 8, countdown_layout);
 	*twin = *deep;
 	zane_copy((char *)twin, countdown_layout);
-	check(depth(twin) == 100000 && apart(deep, twin) && zane_blocks == 200000);
+	check(depth(twin) == 100000 && apart(deep, twin) && zane_blocks() == 200000);
 	zane_end((char *)deep, countdown_layout);
 	*deep = (countdown){ 0, NULL };
-	check(depth(twin) == 100000 && zane_blocks == 100000);
+	check(depth(twin) == 100000 && zane_blocks() == 100000);
 	zane_scope_drain(scope);
-	check(zane_blocks == 0);
+	check(zane_blocks() == 0);
 
 	/* A work zeroed whole, rather than started, starts at its first push,
 	   and gives its jobs back last first past the ones it keeps in itself. */

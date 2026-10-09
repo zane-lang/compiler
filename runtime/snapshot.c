@@ -75,20 +75,24 @@ void zane_snapshot(char *out, const char *from, int64_t size) {
 }
 
 /* The copy a spawned call worked on replaces its subject at `at`. What the
-   copy owns moves into the subject's region first, and what the subject
-   owned is retired there, whole, until the region drains. */
+   copy owns moves into the subject's region first. What the subject owned
+   is never returned, since a reader may still be following it: it stays
+   where it is until its region drains, and is retired there when drains
+   are checked. */
 void zane_writeback(char *at, char *copy, int64_t size, const int64_t *layout) {
-	zane_mark *region = zane_region_at(at);
 	if (layout && layout[0] > 0) {
+		zane_mark *region = zane_region_at(at);
 		zane_move(copy, layout, region, 0);
-		zane_retired *r = (zane_retired *)zane_alloc(region, (int64_t)sizeof *r + size, 8);
-		memcpy(r + 1, at, (size_t)size);
-		r->layout = layout;
-		r->size = size;
-		zane_lock(region->context);
-		r->next = region->retired;
-		region->retired = r;
-		zane_unlock(region->context);
+		if (zane_checking) {
+			zane_retired *r = (zane_retired *)zane_alloc(region, (int64_t)sizeof *r + size, 8);
+			memcpy(r + 1, at, (size_t)size);
+			r->layout = layout;
+			r->size = size;
+			zane_lock(region->context);
+			r->next = region->retired;
+			region->retired = r;
+			zane_unlock(region->context);
+		}
 	}
 	__atomic_fetch_add(&zane_begun, 1, __ATOMIC_RELAXED);
 	__atomic_thread_fence(__ATOMIC_RELEASE);
@@ -96,24 +100,26 @@ void zane_writeback(char *at, char *copy, int64_t size, const int64_t *layout) {
 	__atomic_fetch_add(&zane_done, 1, __ATOMIC_RELEASE);
 }
 
-/* A draining region's retired values end, and their records go back. */
-static void zane_forget(zane_mark *m) {
+/* A checked drain: what the region's values and retired values own is
+   returned, block by block, and by then no block is out in the region,
+   since every one has an owner in the scope or has moved out with it. */
+static void zane_check(zane_mark *m) {
+	for (zane_held *h = m->held; h; h = h->next) zane_end(h->slot, h->layout);
 	while (m->retired) {
 		zane_retired *r = m->retired;
 		m->retired = r->next;
 		zane_end((char *)(r + 1), r->layout);
 		zane_free((char *)r, (int64_t)sizeof *r + r->size, 8);
 	}
+	if (m->live != 0) zane_broken("a dynamic block outlived its owner");
 }
 
-/* A context whose call is over, back in the pool: by now its first scope
-   holds nothing, since the result took its blocks home. */
+/* A context whose call is over, back in the pool: the result took its
+   blocks home, and its first scope's region goes as any scope's does. */
 static void zane_release(zane_context *c) {
 	zane_mark *m = zane_mark_at(c, 0);
-	for (zane_held *h = m->held; h; h = h->next) zane_end(h->slot, h->layout);
-	zane_forget(m);
+	if (zane_checking) zane_check(m);
 	zane_lock(c);
-	if (m->live != 0) zane_broken("a dynamic block outlived its owner");
 	zane_unmap(m);
 	c->depth = 0;
 	c->chunks = 0;
@@ -154,19 +160,19 @@ static void zane_join_task(zane_task *t) {
 /* A read of what a spawned call returns. */
 void zane_join(char *frame) { zane_join_task((zane_task *)frame - 1); }
 
-/* The blocks the scope's values still own are returned, and by then no block is out in its region, since every one has
-   an owner in the scope or has moved out with it. Then both regions are
-   released together. First, as the water tower has it (§4.1), the scope
-   waits for every call it spawned, and each result comes home. */
+/* A scope ends: as the water tower has it (§4.1), it waits for every call
+   it spawned, and each result comes home. Then both its regions are
+   released together, in bulk (memory.md §3.2). Nothing that outlives the
+   scope owns a block in them, since an escape moves its blocks out first
+   (§3.5), so every block still there dies with the scope, and none is
+   walked or returned on its own, unless drains are checked. */
 void zane_scope_drain(int64_t scope) {
 	zane_context *c = zane_self;
 	if (scope != c->depth - 1 || scope == 0) zane_broken("a scope drained out of order");
 	zane_mark *m = zane_mark_at(c, scope);
 	for (zane_task *t = m->tasks; t; t = t->next) zane_join_task(t);
-	for (zane_held *h = m->held; h; h = h->next) zane_end(h->slot, h->layout);
-	zane_forget(m);
+	if (zane_checking) zane_check(m);
 	zane_lock(c);
-	if (m->live != 0) zane_broken("a dynamic block outlived its owner");
 	zane_unmap(m);
 	c->depth--;
 	c->chunks = m->chunks;

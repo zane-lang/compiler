@@ -13,6 +13,8 @@ void zane_broken(const char *what) {
 int zane_argc;
 char **zane_argv;
 
+int zane_checking;
+
 #ifdef _WIN32
 #include <windows.h>
 #include <shellapi.h>
@@ -53,6 +55,8 @@ static void zane_keep_arguments(int argc, char **argv) {
    bytes it says, as it does everywhere else. */
 int main(int argc, char **argv) {
 	zane_keep_arguments(argc, argv);
+	const char *check = getenv("ZANE_CHECK");
+	zane_checking = check && *check && strcmp(check, "0") != 0;
 #ifdef _WIN32
 	_setmode(_fileno(stdout), _O_BINARY);
 	_setmode(_fileno(stderr), _O_BINARY);
