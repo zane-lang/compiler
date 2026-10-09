@@ -49,6 +49,7 @@ void zane_main(void);
 /* main.c */
 
 /* arena.c */
+extern _Thread_local zane_mark *zane_open;
 int64_t zane_scope_enter(void);
 zane_mark *zane_region_at(const void *at);
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align);

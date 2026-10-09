@@ -102,15 +102,22 @@ void zane_main(void) {
 	zane_text *home = zane_slot(scope, sizeof(zane_text), 8, &text_type);
 	f->left = &ab;
 	f->right = &cd;
+	check(zane_open == zane_mark_at(zane_self, scope));
 	zane_spawn((char *)f, join_texts, (char *)home, &text_type, sizeof(zane_text));
 	check(zane_self->shared == 1);
+
+	/* While a call is out it can reach this context, so emitted code takes
+	   no block here itself; once it is home the innermost region is open
+	   again, and a drain opens the one around it. */
+	check(zane_open == NULL);
 	zane_join((char *)f);
 	check(holds(home, "abcd") && zane_region_at(home->bytes) == zane_mark_at(zane_self, scope));
 	check(zane_self->shared == 0 && zane_blocks() == 1);
+	check(zane_open == zane_mark_at(zane_self, scope));
 	zane_join((char *)f);
 	check(zane_blocks() == 1);
 	zane_scope_drain(scope);
-	check(zane_blocks() == 0);
+	check(zane_blocks() == 0 && zane_open == zane_mark_at(zane_self, scope - 1));
 
 	/* A result never read comes home at the drain, which then returns
 	   its blocks. */

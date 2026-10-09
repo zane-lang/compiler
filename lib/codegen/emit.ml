@@ -336,8 +336,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
      waits for it. So nothing arrives (memory.md §3.5). *)
   | Expr.Box { value; _ } ->
       let size, align = size_align value.Expr.ty in
-      let n x = Llvm.const_int env.i64 x in
-      let block = call_runtime env b Cgt.Runtime.Box [| n size; n align |] in
+      let block = Walks.box (walks env).Walks.emitting fr.fn b size align in
       Option.iter (fun v -> ignore (Llvm.build_store v block b)) (expr env fr b value);
       Some block
   | Expr.Layout l -> Some (layout env l)

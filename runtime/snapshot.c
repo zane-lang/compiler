@@ -156,6 +156,7 @@ static void zane_join_task(zane_task *t) {
 	}
 	zane_release(t->context);
 	t->owner->shared--;
+	zane_reopen();
 }
 
 /* A read of what a spawned call returns. */
@@ -179,4 +180,5 @@ void zane_scope_drain(int64_t scope) {
 	c->chunks = m->chunks;
 	c->frontier = m->frontier;
 	zane_unlock(c);
+	zane_reopen();
 }
