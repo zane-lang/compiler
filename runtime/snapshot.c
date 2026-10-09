@@ -124,6 +124,7 @@ static void zane_release(zane_context *c) {
 	c->depth = 0;
 	c->chunks = 0;
 	c->frontier = 0;
+	zane_give_spares(c);
 	zane_unlock(c);
 	pthread_mutex_lock(&zane_memory);
 	c->next = zane_idle;

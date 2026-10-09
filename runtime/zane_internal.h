@@ -211,6 +211,7 @@ zane_mark *zane_region_at(const void *at);
 extern int zane_argc;
 extern char **zane_argv;
 void zane_unmap(zane_mark *region);
+void zane_give_spares(zane_context *c);
 zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align);
 int64_t zane_blocks(void);
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align);

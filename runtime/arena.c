@@ -4,8 +4,9 @@
 /* Scope arenas (memory.md §3.1–3.2, docs/design/lowering.md L8)                 */
 /* ---------------------------------------------------------------------- */
 
-/* What threads share and change -- the chunk map's levels and the
-   contexts -- changes under this lock. */
+/* What threads share and change -- the chunk map's levels, the spare
+   chunks idle contexts gave back, and the contexts -- changes under this
+   lock. */
 pthread_mutex_t zane_memory = PTHREAD_MUTEX_INITIALIZER;
 
 /* Which region every chunk belongs to, by its address over 1 MiB: 0 for
@@ -131,7 +132,7 @@ zane_mark *zane_region_at(const void *at) {
 	zane_lock(c);
 	int64_t position = n * ZANE_CHUNK + ((const char *)at - c->directory[n]);
 	int64_t lo = 0, hi = c->depth - 1;
-	if (zane_begins(zane_mark_at(c, hi)) <= position) lo = hi;
+	if (hi > 0 && zane_begins(zane_mark_at(c, hi)) <= position) lo = hi;
 	while (lo < hi) {
 		int64_t mid = (lo + hi + 1) / 2;
 		if (zane_begins(zane_mark_at(c, mid)) <= position) lo = mid;
@@ -144,13 +145,39 @@ zane_mark *zane_region_at(const void *at) {
 /* Every block is at least a word, and aligned to one. */
 static int64_t zane_word(int64_t n) { return n < 8 ? 8 : (n + 7) / 8 * 8; }
 
+/* Dynamic chunks that contexts gave back when their calls were over,
+   ready for any context that has no spare of its own. */
+static zane_mapping *zane_spare;
+
+/* A context going idle gives its spare chunks to every context, so an idle
+   one never keeps the peak its last call reached. */
+void zane_give_spares(zane_context *c) {
+	if (!c->spare) return;
+	zane_mapping *last = c->spare;
+	while (last->next) last = last->next;
+	pthread_mutex_lock(&zane_memory);
+	last->next = zane_spare;
+	zane_spare = c->spare;
+	pthread_mutex_unlock(&zane_memory);
+	c->spare = NULL;
+}
+
 /* Chunks of its own for one region: `size` bytes in all, a whole number of
-   chunks, listed in the chunk map as the region's. A whole chunk comes from
-   its context's spares when there is one. Its context's lock is held. */
+   chunks, listed in the chunk map as the region's. A whole chunk is one of
+   its context's spares when there is one, else one an idle context gave
+   back. Its context's lock is held. */
 static zane_mapping *zane_map(zane_mark *region, size_t size) {
 	zane_context *c = region->context;
 	zane_mapping *m = NULL;
-	if (size == ZANE_CHUNK && (m = c->spare)) c->spare = m->next;
+	if (size == ZANE_CHUNK) {
+		if ((m = c->spare)) {
+			c->spare = m->next;
+		} else {
+			pthread_mutex_lock(&zane_memory);
+			if ((m = zane_spare)) zane_spare = m->next;
+			pthread_mutex_unlock(&zane_memory);
+		}
+	}
 	if (!m && !(m = zane_chunk_alloc(size)))
 		zane_broken("out of memory for a dynamic chunk");
 	for (size_t at = 0; at < size; at += ZANE_CHUNK)

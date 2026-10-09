@@ -493,7 +493,8 @@ test passing.
     its own bookkeeping, and an oversized block's chunks are one mapping.
   - Every block is at least a word, and aligned to one; a list's is aligned
     to a cache line. A chunk a region gives back is kept for the next
-    region of the same context rather than unmapped.
+    region of the same context rather than unmapped, and a context whose
+    call is over gives its kept chunks to any context that has none.
   - A value that owns a block is held in its scope's arena like an owner,
     and so is a fresh owner or value that nothing keeps, such as a result
     that is dropped or an operand, so its blocks are in a region that

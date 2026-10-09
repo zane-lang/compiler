@@ -95,8 +95,9 @@ it, dead, in the outer region it is in, and a checked one returns it. The
 other fixtures run unchecked; `zane_blocks()` counts the blocks out in the
 open regions, so a check after a drain still sees the region's go. The same
 change looks up the innermost scope first when it finds a slot's region,
-keeps a context's spare chunks with the context instead of under the global
-lock, and drops the global atomic block count.
+keeps a context's spare chunks with the context, taking the global lock
+only when it has none or goes idle and gives them back, and drops the
+global atomic block count.
 
 Built with `zanec --optimize` from the langbench programs at spec `c34dc70`,
 core `97beb743`, on a 4-core x86_64 container, one warmup and five
