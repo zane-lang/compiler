@@ -49,18 +49,6 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
           mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span)
   | N.Expr.DotAccess { target; field; abort_handle } -> member env ~flow ctx span target field abort_handle
   | N.Expr.Subscript { target; args } -> subscript env ctx span target args
-  | N.Expr.Ref inner ->
-      let v = expr env ctx inner in
-      (match v.T.Expr.ty with
-      | Ty.Error | Ty.Param _ -> ()
-      | Ty.Reference _ -> ()
-      | t ->
-          if not (Type_decls.is_reference env t) then
-            error env span
-              (Printf.sprintf
-                 "`&` takes a reference to a reference type, and %s is a value type"
-                 (quote (Ty.to_string t))));
-      mk (T.Expr.Ref v) (Ty.Reference (Ty.strip_mode v.T.Expr.ty)) span
   | N.Expr.Init fields -> init env ctx span fields
   | N.Expr.Spawn call -> spawn env ctx call
   | N.Expr.Match m -> match_ env ~flow ctx m

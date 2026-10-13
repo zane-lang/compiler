@@ -36,7 +36,6 @@ let rec expr_ends_in_brace (value : Nodes.Expr.t) =
       verb_call_ends_in_brace call
   | Nodes.Expr.FuncLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.MethLambda { body; _ } -> body_ends_in_brace body
-  | Nodes.Expr.Ref value -> expr_ends_in_brace value
   | Nodes.Expr.DotAccess { abort_handle = Some handle; _ } ->
       abort_handle_ends_in_brace handle
   (* Closed by `)`, `]`, or the name itself. *)
@@ -129,7 +128,6 @@ let rec ends_in_trailing_call (value : Nodes.Expr.t) =
       | Nodes.Verb_call.Flip { value; abort_handle = None } ->
           ends_in_trailing_call value
       | _ -> false)
-  | Nodes.Expr.Ref value -> ends_in_trailing_call value
   | _ -> false
 
 (* Is a trailing argument's `}` written anywhere an operand continues past it?
@@ -162,8 +160,7 @@ let rec continues_past_trailing (value : Nodes.Expr.t) =
       || handler_continues_past_trailing abort_handle
   | Nodes.Expr.FuncLambda { body; _ } | Nodes.Expr.MethLambda { body; _ } ->
       body_continues_past_trailing body
-  | Nodes.Expr.Ref value | Nodes.Expr.Parenthized value ->
-      continues_past_trailing value
+  | Nodes.Expr.Parenthized value -> continues_past_trailing value
   | Nodes.Expr.DotAccess { target; abort_handle; _ } ->
       continues_past_trailing target
       || handler_continues_past_trailing abort_handle

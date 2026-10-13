@@ -75,7 +75,6 @@ module rec Expr : sig
     | Case_read of { target : t; case : string; handler : Handler.t }
     | Map_read of { target : t; map : int; property : string }
     | Subscript of { target : t; impl : Verb_ref.t; args : t list }
-    | Ref of t
     | Init of Field_value.t list
     | Spawn of t
     | Match of Match.t

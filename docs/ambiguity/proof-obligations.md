@@ -59,8 +59,8 @@ numbers in a proof report refer to.
 
 | Automaton | Conflict states | with shift/reduce | with reduce/reduce |
 | --------- | --------------: | ----------------: | -----------------: |
-| `--GLR`, the parser that ships | 62 | 61 | 1 |
-| stock | 55 | 54 | 1 |
+| `--GLR`, the parser that ships | 52 | 51 | 1 |
+| stock | 45 | 44 | 1 |
 
 Menhir explains each conflict state once, so the explanations file holds one
 block per state; a state with both kinds of conflict counts in both of Menhir's
@@ -94,15 +94,21 @@ are not independent problems:
 
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
-| `(`             | 15 | `loption_generics_ ->` | before a call or a lambda, including standalone constructor type arguments |
+| `(`             | 12 | `loption_generics_ ->` | before a call or a lambda, including standalone constructor type arguments |
 | `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
-| `(` `<`         | 3 | `loption_generics_ ->` | a named type opening a call or a generic list |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
-| `(`             | 6 | `app -> ... DOT LIDENT` | a type member ending a package-scope declaration, against a named constructor call |
-| `(`             | 2 | `app -> func_callee` | a package-scope declaration's value, against a call |
+| `(`             | 3 | `app -> ... DOT LIDENT` | a type member ending a package-scope declaration, against a named constructor call |
+| `(`             | 1 | `app -> func_callee` | a package-scope declaration's value, against a call |
 | `?` `??`        | 4 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `func_callee -> unbraced_verb_call`, `app_braced -> braced_verb_call` | a spawned call against what follows it |
 | `(`             | 1 | `expr -> SPAWN unbraced_verb_call`, `func_callee -> unbraced_verb_call` | *(reduce/reduce)* the same, before a call |
+
+`&` begins no expression: a reference is minted by storing a place into an
+`&` slot, so `&` only ever marks a type. Every fork that read a leading `&` as
+either a type or a reference to the expression after it went away with the prefix
+form, ten states in each automaton: the three `(` / `<` states of a named type
+opening a constructor argument, and the same name, qualified name, type member
+and callee after `= &` that the `(` rows above still count without one.
 
 Restricting standalone type values to whole constructor arguments removed the
 three stock `expr -> ... UIDENT` forks and the three mixed operator/type
@@ -125,8 +131,9 @@ list: after a name type, `Foo<Int> …` and `Foo <(a Int) { }` open with the sam
 two tokens. Six of the eighteen are the same fork after an abort type,
 `Int?Foo<Int>` against `Int?Foo <(a Int) { }`. Each fork comes three times,
 once for each way a return type may name its type: bare, `&Foo` and `^Foo`,
-the roaming owner a reference-typed return is written as. The `^` forms add
-six states and nothing else, since `^` begins no expression. Dropping `<` and `>` from the
+the roaming owner a reference-typed return is written as. The `&` and `^`
+forms add six states each and nothing else, since neither begins an
+expression. Dropping `<` and `>` from the
 operators a declaration may name removes all eighteen and nothing else, which is what identifies the family; it is a
 language change rather than a restructuring, so it is a measurement here and
 not a proposal.
@@ -146,7 +153,7 @@ right spine of `expr` with the tail restricted to a form that closes on `}`,
 since `a + match (e) { … }` ends in a brace because its right operand does;
 every left operand is still a plain `expr`, so the precedence table decides the
 same groupings it decides everywhere else. `simple_decl_braced`,
-`body_braced`, `abort_handle_braced` and `ref_target_braced` carry the same
+`body_braced` and `abort_handle_braced` carry the same
 restriction through the forms that reach an expression.
 
 This was the ledger's largest open obligation, and it was a bug. The terminator
@@ -313,7 +320,7 @@ spellings.
 **A constructor call may trail its last argument, unless that would leave the
 `( )` empty.** The call and the instantiation shorthand that writes a name in
 front of it both reach the trailing form, and a named constructor's `.member`
-opens it as well as a field access; that last is three of the six
+opens it as well as a field access; that last is the three
 `app -> ... DOT LIDENT` states in the table. Under GLR both readings are
 explored and one survives, measured on every case in
 [`tests/grammar/ambiguity_test.py`](../../tests/grammar/ambiguity_test.py) and

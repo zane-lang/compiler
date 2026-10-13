@@ -251,7 +251,6 @@ module rec Expr : sig
         abort_handle : Abort_handle.t option;
       }
     | Subscript of { target : t; args : t list }
-    | Ref of t
     | Parenthized of t
     | Init of Field_arg.t list
     (* A `{ }` body of `;`-terminated `key, value` entries. Never empty: an

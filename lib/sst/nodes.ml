@@ -122,7 +122,6 @@ module rec Expr : sig
         abort_handle : Abort_handle.t option;
       }
     | Subscript of { target : t; args : t list }
-    | Ref of t
     (* No [Parenthized]. Parentheses "group an inner expression explicitly"
        (syntax.md §4.7) and the grouping is the tree, so the node had nothing
        left to say. The inner expression keeps its own span, which covers what

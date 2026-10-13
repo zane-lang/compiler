@@ -238,7 +238,7 @@ let rec expr env w (e : T.Expr.t) : Taint.t =
   | T.Expr.Case_read { target; case; handler } ->
       let t = navigate (expr env w target) [ Case case ] in
       Taint.union t (handler_value env w handler)
-  | T.Expr.Ref inner | T.Expr.Spawn inner -> expr env w inner
+  | T.Expr.Spawn inner -> expr env w inner
   | T.Expr.Init fields ->
       List.fold_left
         (fun acc (f : T.Field_value.t) ->

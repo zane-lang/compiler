@@ -26,7 +26,9 @@ Port(n Int) => init{ n; }
 Unit main() {
 	p Port(Int(1));
 	q Port(Int(2));
-	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([&p, &q]);
+	first &Port = p;
+	second &Port = q;
+	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([first, second]);
 	x &Port = row[Int(1)];
 	check(String("element read"), @operators$equal(x.n, Int(1)));
 	check(String("element field read"), @operators$equal(row[Int(2)].n, Int(2)));

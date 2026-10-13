@@ -27,11 +27,9 @@ public_rules [
   func_callee
   app
   expr
-  ref_target
   abort_handle
   expr_braced
   app_braced
-  ref_target_braced
   abort_handle_braced
   stat
 ]

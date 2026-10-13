@@ -204,8 +204,6 @@ and expr_to_node (x: Nodes.Expr.t) = match x.Nodes.Expr.node with
         ("target", expr_to_node target);
         ("args", map_seq expr_to_node args);
       ])
-  | Ref x ->
-      group "ref" (expr_to_node x)
   | Parenthized x ->
       group "parenthized" (expr_to_node x)
   | Init fields_ ->

@@ -161,12 +161,20 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "lambda(bool)",
         )
 
-    def test_parentheses_allow_referencing_the_lambda(self) -> None:
-        self.assert_grouping(
+    def test_an_expression_takes_no_leading_reference(self) -> None:
+        # `&` marks a type; storing a place into an `&` slot mints the
+        # reference, so no expression is prefixed with one.
+        self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT AMPERSAND LPAREN "
             "UIDENT LPAREN RPAREN THICK_ARROW FALSE RPAREN SEMICOLON RCURLY EOF",
             "Int length() { abort &(Int () => false); }",
-            "ref(paren(lambda(bool)))",
+            0,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN AMPERSAND "
+            "LIDENT RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { register(&node); }",
+            0,
         )
 
     def test_a_trailing_block_joins_the_outer_call(self) -> None:

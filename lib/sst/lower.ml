@@ -166,7 +166,6 @@ and expression (x : C.Expr.t) : S.Expr.t =
         | C.Expr.Subscript { target; args } ->
             S.Expr.Subscript
               { target = expression target; args = List.map expression args }
-        | C.Expr.Ref inner -> S.Expr.Ref (expression inner)
         | C.Expr.Init fields -> S.Expr.Init (List.map field_arg fields)
         | C.Expr.MapLit entries ->
             S.Expr.MapLit

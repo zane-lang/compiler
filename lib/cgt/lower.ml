@@ -286,9 +286,6 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
                 (invoke ~fn:read st ctx span v (arguments ~direct:false st ctx span v args) handler)
           | _ -> invoke ~fn st ctx span v (arguments ~direct:false st ctx span v args) handler)
       | _ -> Diagnostic.bug ~span "lowering expected a function value here")
-  (* `&` written before a place: a reference to it, minted, or a reference it
-     holds copied (memory.md §2.6). *)
-  | T.Expr.Ref value -> reference_to st ctx span value
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ }
     when String.starts_with ~prefix:"@controlflow$" spelling ->
       refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)

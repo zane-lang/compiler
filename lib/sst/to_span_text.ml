@@ -216,9 +216,6 @@ and expr d (x : Expr.t) =
       line d "expr Subscript" at;
       expr (deeper d) target;
       each (deeper d) expr args
-  | Expr.Ref inner ->
-      line d "expr Ref" at;
-      expr (deeper d) inner
   | Expr.Init fields ->
       line d "expr Init" at;
       each (deeper d) field_arg fields

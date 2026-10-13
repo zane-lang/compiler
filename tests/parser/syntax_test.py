@@ -79,13 +79,17 @@ class DeclarationTests(ParserSyntaxTestCase):
             (this Node)[index Int] => this
 
             Unit work(this Node) mut {
-                this.next = &this;
+                this.next = this;
                 guard(true);
                 spawn run();
                 return Unit();
             }
             '''
         )
+        # A reference is minted by storing a place into an `&` slot; `&`
+        # marks a type and never prefixes an expression.
+        self.assert_rejects("Unit work(this Node) { this.next = &this; }")
+        self.assert_rejects("Unit work(n Node) { m &Node = &n; }")
 
     def test_generic_parameter_introduction_and_collection_literals(self) -> None:
         self.assert_parses(
@@ -304,7 +308,7 @@ class TerminatorTests(ParserSyntaxTestCase):
         self.assert_parses("Unit f() { x Int = (Foo{a = b;}):size(); }")
         self.assert_parses("Unit f() { use((match (x) { })(y)); }")
         # As an argument or an operand the value itself is unchanged.
-        self.assert_parses("Unit f() { use(match (x) { }, &{ k, v; }); }")
+        self.assert_parses("Unit f() { use(match (x) { }, { k, v; }); }")
         self.assert_parses("Unit f() { x Int = Foo{a = b;} ?? y; }")
 
     def test_a_constructor_call_trails_its_last_argument(self) -> None:

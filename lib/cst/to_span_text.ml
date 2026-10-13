@@ -256,7 +256,7 @@ and expr d (x : Expr.t) =
   | Expr.Subscript { target; args } ->
       expr d target;
       each d expr args
-  | Expr.Ref v | Expr.Parenthized v -> expr d v
+  | Expr.Parenthized v -> expr d v
   | Expr.Init fs -> each d field_arg fs
   | Expr.MapLit entries ->
       List.iter

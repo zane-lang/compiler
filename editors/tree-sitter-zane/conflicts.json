@@ -140,20 +140,6 @@
     },
     {
       "rules": [
-        "_computed_call_no_trailing_arg_",
-        "app"
-      ],
-      "symbol_sequence": [
-        "identifier",
-        "type_expr",
-        "'='",
-        "'&'",
-        "func_callee"
-      ],
-      "lookahead": "'('"
-    },
-    {
-      "rules": [
         "expr",
         "func_callee"
       ],
@@ -208,22 +194,6 @@
         "identifier",
         "type_expr",
         "'='",
-        "name_type",
-        "'.'",
-        "identifier"
-      ],
-      "lookahead": "'('"
-    },
-    {
-      "rules": [
-        "app",
-        "unbraced_verb_call"
-      ],
-      "symbol_sequence": [
-        "identifier",
-        "type_expr",
-        "'='",
-        "'&'",
         "name_type",
         "'.'",
         "identifier"

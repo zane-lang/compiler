@@ -43,7 +43,6 @@ and expr v acc (e : Expr.t) =
   | Expr.CollectionLit items -> List.fold_left (expr v) acc items
   | Expr.DotAccess { target; abort_handle; _ } -> handle v (expr v acc target) abort_handle
   | Expr.Subscript { target; args } -> List.fold_left (expr v) (expr v acc target) args
-  | Expr.Ref inner -> expr v acc inner
   | Expr.Init fields -> List.fold_left (field_arg v) acc fields
   | Expr.MapLit entries -> List.fold_left (fun acc (k, x) -> expr v (expr v acc k) x) acc entries
   | Expr.Spawn c | Expr.VerbCall c -> verb_call v acc c

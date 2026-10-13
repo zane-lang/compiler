@@ -433,7 +433,7 @@ Unit main() {
 
 	// An abortable call is handled where it is made, and every path out of
 	// the handler is a `resolve`, a `return`, or an `abort`.
-	result Float = evaluate(program, &env) ? failure {
+	result Float = evaluate(program, env) ? failure {
 		entry Report{ severity = Severity.failure; message = failure; }
 		announce(entry);
 		resolve Float(0);
@@ -523,7 +523,7 @@ Unit main() {
 	}
 
 	// A guest of the environment, walked without ever hosting it.
-	walker Cursor(&env);
+	walker Cursor(env);
 
 	// Comparisons are ordinary calls, and `Bool` joins them with the same
 	// operators every other type uses: `*` for conjunction, `+` for disjunction.
@@ -571,7 +571,7 @@ Unit main() {
 
 	// `spawn` starts a call concurrently; an abortable one still handles here.
 	spawn std$print(total);
-	spawn evaluate(program, &env) ?? Float(0);
+	spawn evaluate(program, env) ?? Float(0);
 
 	if(settled) {
 		std$print("settled");
