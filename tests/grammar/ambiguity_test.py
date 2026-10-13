@@ -573,6 +573,13 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             0,
         )
         self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN LBRACKET "
+            "LIDENT COMMA LIDENT RBRACKET COMMA AMPERSAND UIDENT RPAREN "
+            "SEMICOLON RCURLY EOF",
+            "Unit f() { row ArrayRef([p, q], &Port); }",
+            1,
+        )
+        self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT "
             "LBRACKET INT RBRACKET RPAREN SEMICOLON RCURLY EOF",
             "Unit f() { register(Int[3]); }",

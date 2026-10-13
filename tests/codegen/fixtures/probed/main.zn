@@ -38,9 +38,7 @@ Port(n Int) => init{ n; }
 Unit references() {
 	p Port(Int(1));
 	q Port(Int(2));
-	first &Port = p;
-	second &Port = q;
-	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([first, second]);
+	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([p, q], &Port);
 	x &Port = row[Int(1)];
 	check(String("an `&` element is read"), @operators$equal(x.n, Int(1)));
 	check(String("through it"), @operators$equal(row[Int(2)].n, Int(2)));

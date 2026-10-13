@@ -41,11 +41,18 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   | N.Expr.MapLit entries -> map_literal env ctx span entries
   | N.Expr.NameExpr n -> name_value env ctx n
   | N.Expr.TypeMember { type_; member } -> type_member env ctx span type_ member
-  | N.Expr.TypeValue name -> (
+  | N.Expr.TypeValue { reference; name } -> (
       match Type_decls.resolve_head env (type_scope ctx) name with
       | Type_decls.Unknown -> invalid span
       | head ->
           let t = Type_decls.apply env (type_scope ctx) span head name [] in
+          let t =
+            if reference then (
+              let t = Ty.Reference t in
+              Type_decls.check_marker env span t;
+              t)
+            else t
+          in
           mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span)
   | N.Expr.DotAccess { target; field; abort_handle } -> member env ~flow ctx span target field abort_handle
   | N.Expr.Subscript { target; args } -> subscript env ctx span target args

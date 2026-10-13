@@ -359,7 +359,9 @@ constructor arguments use that rule; ordinary calls, collection elements,
 operator operands and nested expressions do not. The constructor exception
 applies to a whole argument, so `Ctor(Int)` is accepted and `Ctor(Int + 1)` is
 rejected. Type annotations, generic arguments, type members and constructed
-values retain their explicit grammar positions.
+values retain their explicit grammar positions. A type value may carry `&`, as
+in `ArrayRef([p, q], &Port)`; `&` begins no expression, so the marked form has
+no expression reading to compete with and adds no conflict state.
 
 Both witnesses now have one complete derivation, including when nested in a
 constructor argument. `tests/grammar/type_arguments_test.py` checks that the

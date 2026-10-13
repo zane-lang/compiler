@@ -204,9 +204,9 @@ and expr d (x : Expr.t) =
       line d "expr TypeMember" at;
       name_type (deeper d) type_;
       name (deeper d) "member" member
-  | Expr.TypeValue t ->
-      line d "expr TypeValue" at;
-      name_type (deeper d) t
+  | Expr.TypeValue { reference; name } ->
+      line d (if reference then "expr TypeValue &" else "expr TypeValue") at;
+      name_type (deeper d) name
   | Expr.DotAccess { target; field; abort_handle } ->
       line d "expr DotAccess" at;
       expr (deeper d) target;

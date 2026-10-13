@@ -238,7 +238,8 @@ module rec Expr : sig
        The parser admits this node only as an entire positional or named
        constructor argument. It is not a general expression operand.
        Only bare names are currently supported; see docs/spec-divergences.md. *)
-    | TypeValue of Name_type.t
+    (* A type passed as a constructor argument, `&`-marked when [reference]. *)
+    | TypeValue of { reference : bool; name : Name_type.t }
     (* [abort_handle] because a member read can fail: reading a member of a
        variant "is **partial**: the case may not be the live one", so it is
        "an **abortable** access (`?` / `??`)" (adt.md §3). Whether a read is of

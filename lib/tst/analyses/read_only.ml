@@ -77,6 +77,10 @@ let rec carries env ?(seen = []) (t : Ty.t) =
   match t with
   | Ty.Reference _ | Ty.Param _ -> true
   | Ty.Roaming t -> carries env ~seen t
+  (* A container literal carries what its elements do: `[p, q]` held as
+     `&Port` elements carries both references into the array it builds. *)
+  | Ty.Concept (Ty.Array_lit (t, _)) -> carries env ~seen t
+  | Ty.Concept (Ty.Map_lit (k, v)) -> carries env ~seen k || carries env ~seen v
   | Ty.Error | Ty.Verb _ | Ty.Concept _ -> false
   | Ty.Intrinsic { args; _ } -> List.exists (carries_arg env ~seen) args
   | Ty.Named (tid, args) -> (

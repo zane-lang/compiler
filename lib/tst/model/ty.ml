@@ -290,6 +290,10 @@ and concept_equal a b =
 let held_as ~dst ~src =
   match (strip_mode dst, strip_mode src) with
   | Verb d, Verb s when d.is_mut && not s.is_mut -> Verb { s with is_mut = true }
+  (* An array literal whose element type is already decided as `&T` holds
+     each element as an `&T` parameter would. *)
+  | Concept (Array_lit (Reference d, _)), Concept (Array_lit (s, n)) when not (is_ref s) ->
+      if equal d s then Concept (Array_lit (Reference s, n)) else src
   | _, s -> s
 
 (* Whether a value of [src] may be stored where [dst] is declared, at a

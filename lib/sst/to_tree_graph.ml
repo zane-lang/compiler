@@ -206,8 +206,10 @@ and expr_to_node (x : Nodes.Expr.t) =
            [
              ("type", name_type_to_node type_); ("member", Leaf (text member));
            ])
-  | TypeValue type_ ->
-      group "type_value" (fields [ ("type", name_type_to_node type_) ])
+  | TypeValue { reference; name } ->
+      group
+        (if reference then "ref_type_value" else "type_value")
+        (fields [ ("type", name_type_to_node name) ])
   | DotAccess { target; field; abort_handle } ->
       group "dot_access"
         (fields
