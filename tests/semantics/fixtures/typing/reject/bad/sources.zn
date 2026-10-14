@@ -37,9 +37,9 @@ Unit mint(rack &Rack, bells &List<Bell>, hooks &@primitives$ArrayRef<&Bell, 2>, 
 Unit fixed() {
 	spare ^Bell = Bell(Int(5));
 	s &Bell = spare;
-	row @primitives$ArrayRef<Bell, 2> = @primitives$ArrayRef([Bell(Int(1)), Bell(Int(2))]);
+	row @primitives$ArrayRef<Bell, 2> = @primitives$ArrayRef.roaming([Bell(Int(1)), Bell(Int(2))]);
 	r &Bell = row[Int(1)];
-	loose ^@primitives$ArrayRef<Bell, 2> = @primitives$ArrayRef([Bell(Int(3)), Bell(Int(4))]);
+	loose ^@primitives$ArrayRef<Bell, 2> = @primitives$ArrayRef.roaming([Bell(Int(3)), Bell(Int(4))]);
 	l &Bell = loose[Int(1)];
 	return Unit();
 }
@@ -90,25 +90,29 @@ Unit retains(value T Type) {
 	return Unit();
 }
 
-/// An `ArrayRef` given its element type takes each element as that type,
-/// so `&Bell` mints a reference from every element, as an `&Bell` parameter
-/// would: from a settled place only. The element type must be the one the
-/// elements have, and `&` marks only a reference type. A literal of settled
-/// owners and references both has only the element type `&Bell` names, and
-/// no type parameter is inferred from it (generics.md §8.4).
+/// An `ArrayRef`'s literal elements arrive in the mode its constructor
+/// writes (generics.md §8.4). `ArrayRef` borrows them, so it stores no owner;
+/// `ArrayRef.refs` mints a reference from each settled owner, as an `&Bell`
+/// parameter would, and copies one already a reference, and `&` marks only a
+/// reference type; `ArrayRef.roaming` takes an owner, which a reference does
+/// not have. A literal of owners and references both is taken only as `&`
+/// elements, and no type parameter is inferred from it.
 Unit typed() {
 	bell Bell(Int(6));
 	spare ^Bell = Bell(Int(7));
 	rung &Bell = bell;
+	temps @primitives$ArrayRef<Bell, 1> = @primitives$ArrayRef([Bell(Int(8))]);
 	undecided @primitives$ArrayRef<&Bell, 2> = @primitives$ArrayRef([bell, rung]);
-	owning @primitives$ArrayRef<Bell, 2> = @primitives$ArrayRef([bell, rung], Bell);
-	roaming @primitives$ArrayRef<&Bell, 2> = @primitives$ArrayRef([spare, rung], &Bell);
+	owning @primitives$ArrayRef<Bell, 2> = @primitives$ArrayRef.roaming([bell, rung]);
+	roaming @primitives$ArrayRef<&Bell, 2> = @primitives$ArrayRef.refs([spare, rung]);
 	retains([bell, rung]);
-	held @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([bell], &Bell);
-	made @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([Bell(Int(8))], &Bell);
-	moving @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([spare], &Bell);
-	other @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([bell], &Rack);
+	held @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef.refs([bell]);
+	made @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef.refs([Bell(Int(8))]);
+	moving @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef.refs([spare]);
+	taken @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef.roaming([rung]);
+	settledIn @primitives$ArrayRef<Bell, 1> = @primitives$ArrayRef.roaming([bell]);
 	count Int(1);
-	counts @primitives$ArrayRef<Int, 1> = @primitives$ArrayRef([count], &Int);
+	counts @primitives$ArrayRef.refs([count]);
+	copied @primitives$ArrayRef<Int, 1> = @primitives$ArrayRef([count]);
 	return Unit();
 }

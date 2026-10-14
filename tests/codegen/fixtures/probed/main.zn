@@ -38,7 +38,7 @@ Port(n Int) => init{ n; }
 Unit references() {
 	p Port(Int(1));
 	q Port(Int(2));
-	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([p, q], &Port);
+	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef.refs([p, q]);
 	x &Port = row[Int(1)];
 	check(String("an `&` element is read"), @operators$equal(x.n, Int(1)));
 	check(String("through it"), @operators$equal(row[Int(2)].n, Int(2)));
@@ -46,7 +46,7 @@ Unit references() {
 	check(String("a copied reference keeps its owner"), @operators$equal(x.n, Int(1)));
 	check(String("the element names its new owner"), @operators$equal(row[Int(1)].n, Int(2)));
 	r &Port = q;
-	mixed @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([p, r], &Port);
+	mixed @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef.refs([p, r]);
 	check(String("one literal mints and copies"), @operators$equal(@operators$add(mixed[Int(1)].n, mixed[Int(2)].n), Int(3)));
 	return Unit();
 }

@@ -421,7 +421,7 @@ Where the typing rules need care:
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
 | Block argument | Typed `@concepts$Block`: a block yields nothing (control-flow.md §2.4). |
-| Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). Elements of both `T` and `&T` make a literal whose element type only a named `&T` decides, `ArrayRef([p, r], &Port)` (`generics.md` §8.4); nothing else accepts it. |
+| Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). Elements of both `T` and `&T` make a literal that only `&T` elements take, `ArrayRef.refs([p, r])` (`generics.md` §8.4). |
 
 ---
 
@@ -484,7 +484,7 @@ The SST's `TypeMember`, `TypeValue` and `DotAccess` resolve the same way:
 |---|---|
 | `DotAccess` | field read (a slot index); variant member read (abortable, D13); enum-map read |
 | `TypeMember` | enum member; variant case; named constructor |
-| `TypeValue` | a `Type` argument passed to an explicit `Type` parameter (`generics.md` §5.3); written `&Port`, it is the reference type |
+| `TypeValue` | a `Type` argument passed to an explicit `Type` parameter (`generics.md` §5.3) |
 
 An expression that failed to type is an `Invalid` node of type `Ty.Error`
 (D4). A declaration carries what passes 3 and 4 resolved about it, and a verb

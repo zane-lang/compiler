@@ -134,14 +134,6 @@ class DeclarationTests(ParserSyntaxTestCase):
         self.assert_rejects("Unit use() { machine Slot = @primitives$I64; }")
         # A named constructor takes one on the same terms.
         self.assert_parses("Unit use() { v Vector2.zeros(Int); }")
-        # A type argument may be a reference type; `&` begins no expression,
-        # so it reads only as one. Ordinary calls take none.
-        self.assert_parses(
-            "Unit use() { row ArrayRef<&Port, 2> = ArrayRef([p, q], &Port); }"
-        )
-        self.assert_parses("Unit use() { row ArrayRef([p], &pkg$Port); }")
-        self.assert_rejects("Unit use() { row ArrayRef([p], ^Port); }")
-        self.assert_rejects("Unit use() { register(&Port); }")
         # The inferred half is unchanged and still the one a literal drives.
         self.assert_parses(
             "Unit use() { vec Vector(Int(2), Int(3)); }"
@@ -155,6 +147,7 @@ class DeclarationTests(ParserSyntaxTestCase):
         # See docs/spec-divergences.md.
         self.assert_rejects("Unit use() { register(Array<Int, 4>); }")
         self.assert_rejects("Unit use() { register(&Int); }")
+        self.assert_rejects("Unit use() { row ArrayRef([p, q], &Port); }")
         self.assert_rejects("Unit use() { register(Int[3]); }")
         # `Type` is a concept: legal in a parameter position, never as storage.
         self.assert_rejects("Unit use() { held Type = Int; }")

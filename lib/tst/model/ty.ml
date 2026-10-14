@@ -48,9 +48,9 @@ and concept =
   | Decimal_lit
   | Text_lit
   | Array_lit of t * number
-  (* An array literal whose elements are settled owners of [t] and
-     references to it: its element type is the `&t` a named element type
-     decides (generics.md §8.4), and nothing reads it off the elements. *)
+  (* An array literal whose elements are owners of [t] and references to
+     it: only `&t` elements take both (generics.md §8.4), so nothing reads
+     an element type off it. *)
   | Mixed_lit of t * number
   | Map_lit of t * t
   (* A block argument: statements that yield nothing (control-flow.md §2.4). *)
@@ -298,11 +298,12 @@ and concept_equal a b =
 let held_as ~dst ~src =
   match (strip_mode dst, strip_mode src) with
   | Verb d, Verb s when d.is_mut && not s.is_mut -> Verb { s with is_mut = true }
-  (* An array literal whose element type is already decided as `&T` holds
-     each element as an `&T` parameter would. *)
-  | Concept (Array_lit (Reference d, _)), Concept (Array_lit (s, n) | Mixed_lit (s, n))
+  (* An array literal passed as `&T` elements holds each element as an `&T`
+     parameter would: an owner as a reference to it, and a reference as
+     itself. *)
+  | Concept (Array_lit (Reference _, _)), Concept (Array_lit (s, n) | Mixed_lit (s, n))
     when not (is_ref s) ->
-      if equal d s then Concept (Array_lit (Reference s, n)) else src
+      Concept (Array_lit (Reference s, n))
   | _, s -> s
 
 (* Whether a value of [src] may be stored where [dst] is declared, at a

@@ -345,17 +345,10 @@ map_lit:
    enclosing brace. *)
 (* Type arguments are standalone constructor arguments, not expressions.
    In particular, admitting a bare type as an operator operand makes
-   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). A leading `&`
-   marks a reference type, and since `&` begins no expression it cannot be
-   read as anything else here. *)
+   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). *)
 %inline constructor_value:
   | value=expr { value }
-  | name=name_type {
-      expr $loc (Nodes.Expr.TypeValue { reference = false; name })
-    }
-  | AMPERSAND name=name_type {
-      expr $loc (Nodes.Expr.TypeValue { reference = true; name })
-    }
+  | name=name_type { expr $loc (Nodes.Expr.TypeValue name) }
 
 %inline constructor_call_arg:
   | value=constructor_value { call_arg $loc (Nodes.Call_arg.Value value) }
