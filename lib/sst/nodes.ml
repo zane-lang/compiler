@@ -274,6 +274,9 @@ and Generic_arg : sig
     | Number of string
     | NumberRef of Name.t
     | Inferred of Param.t
+    (* `^T Type` or `&T Type` as a parameter's `@concepts$Array` element
+       (generics.md §8.4); always a [Param_type.InferredType]. *)
+    | Moded of Param_type.t
 end = Generic_arg
 
 and Verb_type : sig

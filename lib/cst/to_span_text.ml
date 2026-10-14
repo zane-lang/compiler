@@ -117,6 +117,7 @@ and generic_arg d (x : Generic_arg.t) =
   | Generic_arg.Number _ -> ()
   | Generic_arg.NumberRef n -> name d "number_ref" n
   | Generic_arg.Inferred p -> param d p
+  | Generic_arg.Moded t -> param_type d t
 
 and param_type d (x : Param_type.t) =
   line d "param_type" x.Param_type.span;

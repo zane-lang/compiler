@@ -865,7 +865,7 @@ Error: a new reference must come from a settled place, and this is a roaming own
 File "fixtures/typing/reject/bad/sources.zn", line 112, characters 73-79:
 112 |     taken @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef.roaming([rung]);
   |                                                                         ^^^^^^
-Error: `ArrayRef.roaming` takes each element's owner, and `&bad$Bell` is a reference, which has none to hand over; `ArrayRef` copies references
+Error: `&bad$Bell` is a reference, and it fills a `^` at the parameter `values`; `^` takes an owner, and a reference has none to hand over
 File "fixtures/typing/reject/bad/sources.zn", line 113, characters 77-81:
 113 |     settledIn @primitives$ArrayRef<Bell, 1> = @primitives$ArrayRef.roaming([bell]);
   |                                                                             ^^^^
@@ -874,6 +874,26 @@ File "fixtures/typing/reject/bad/sources.zn", line 115, characters 38-45:
 115 |     counts @primitives$ArrayRef.refs([count]);
   |                                      ^^^^^^^
 Error: `@primitives$I64` is a value type, and it fills an `&` at the result of `@primitives$ArrayRef.refs`; `&` marks only a reference type, since a value is never referenced, only copied
+File "fixtures/typing/reject/bad/sources.zn", line 130, characters 39-46:
+130 | Unit carried(row @primitives$ArrayRef<^T Type, 1>) {
+  |                                       ^^^^^^^
+Error: a marked introduction is written only on a parameter's own type, or as the element of a parameter's `@concepts$Array`, where it is the mode each element is passed in
+File "fixtures/typing/reject/bad/sources.zn", line 134, characters 55-62:
+134 | Unit wrapped(row @primitives$ArrayRef<@concepts$Array<&T Type, n @concepts$Int>, 1>) {
+  |                                                       ^^^^^^^
+Error: a marked introduction is written only on a parameter's own type, or as the element of a parameter's `@concepts$Array`, where it is the mode each element is passed in
+File "fixtures/typing/reject/bad/sources.zn", line 141, characters 19-23:
+141 |     settled Peal([bell]);
+  |                   ^^^^
+Error: `bell` is a settled owner, which may be referenced and so never moves; an owner that is to move is declared `^T`
+File "fixtures/typing/reject/bad/sources.zn", line 142, characters 19-25:
+142 |     pointing Peal([rung]);
+  |                   ^^^^^^
+Error: `&bad$Bell` is a reference, and it fills a `^` at the parameter `xs`; `^` takes an owner, and a reference has none to hand over
+File "fixtures/typing/reject/bad/sources.zn", line 143, characters 18-30:
+143 |     fresh Chime([Bell(Int(9))]);
+  |                  ^^^^^^^^^^^^
+Error: a new reference names a place, and this is a temporary value
 File "fixtures/typing/reject/bad/spawns.zn", line 44, characters 11-15:
 44 |     spawn dial!tune();
   |           ^^^^

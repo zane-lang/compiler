@@ -137,6 +137,9 @@ and generic_arg d (x : Generic_arg.t) =
   | Generic_arg.Inferred p ->
       line d "generic_arg Inferred" x.Generic_arg.span;
       param (deeper d) p
+  | Generic_arg.Moded t ->
+      line d "generic_arg Moded" x.Generic_arg.span;
+      param_type (deeper d) t
 
 and verb_type d (x : Verb_type.t) =
   match x.Verb_type.node with

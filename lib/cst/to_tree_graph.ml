@@ -83,6 +83,7 @@ and generic_arg_to_node (x: Nodes.Generic_arg.t) = match x.Nodes.Generic_arg.nod
   | Number x -> group "number" (Leaf x)
   | NumberRef x -> group "number_ref" (Leaf (text x))
   | Inferred x -> group "param" (param_to_node x)
+  | Moded x -> group "moded" (param_type_to_node x)
 
 and type_to_node (x: Nodes.Type_expr.t) = match x.Nodes.Type_expr.node with
   | Verb x -> verb_type_to_node x

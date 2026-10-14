@@ -107,34 +107,25 @@ let held_literal dst (arg : T.Arg.t) =
 
 (* An `ArrayRef`'s literal elements are stored, so each must arrive in a
    mode a store takes (generics.md §8.4, memory.md §2.9). `ArrayRef`
-   borrows them, and a borrowed owner cannot be stored; `ArrayRef.roaming`
-   takes an owner, which a reference does not have. That `ArrayRef.refs`
-   writes `&T` over a reference type is checked as every `&` is. *)
+   borrows them, and a borrowed owner cannot be stored. That a `^T` or `&T`
+   element is filled with the right kind of type is checked as every `^` and
+   `&` is (§3.6). *)
 let stored_elements env (s : S.t) subst (slots : actual option list) =
   let element = match s.generics with e :: _ -> List.assoc_opt e.Ty.id subst | [] -> None in
   let at = match slots with Some a :: _ -> Some a.aspan | _ -> None in
   let problem =
     match (s.kind, element) with
-    | S.Constructor { member; _ }, Some (Ty.Type t)
+    | S.Constructor { member = None; _ }, Some (Ty.Type t)
       when s.home = S.Namespace "primitives"
-           && String.starts_with ~prefix:"@primitives$ArrayRef" s.name
-           && not (Ty.contains_error t) -> (
-        let owner = Type_decls.is_reference env t && not (Ty.is_ref t) in
-        let shown = quote (Ty.to_string t) in
-        match member with
-        | None when owner ->
-            Some
-              (Printf.sprintf
-                 "`ArrayRef` borrows each element, and a borrowed %s cannot be stored: \
-                  `ArrayRef.roaming` takes owners, and `ArrayRef.refs` references them"
-                 shown)
-        | Some "roaming" when Ty.is_ref t ->
-            Some
-              (Printf.sprintf
-                 "`ArrayRef.roaming` takes each element's owner, and %s is a reference, which has \
-                  none to hand over; `ArrayRef` copies references"
-                 shown)
-        | _ -> None)
+           && s.name = "@primitives$ArrayRef"
+           && (not (Ty.contains_error t))
+           && Type_decls.is_reference env t
+           && not (Ty.is_ref t) ->
+        Some
+          (Printf.sprintf
+             "`ArrayRef` borrows each element, and a borrowed %s cannot be stored: \
+              `ArrayRef.roaming` takes owners, and `ArrayRef.refs` references them"
+             (quote (Ty.to_string t)))
     | _ -> None
   in
   match (problem, at) with Some m, Some at -> [ (at, m) ] | _ -> []

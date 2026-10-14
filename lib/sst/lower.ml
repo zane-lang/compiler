@@ -80,6 +80,7 @@ and generic_arg (x : C.Generic_arg.t) : S.Generic_arg.t =
     | C.Generic_arg.Number n -> S.Generic_arg.Number n
     | C.Generic_arg.NumberRef n -> S.Generic_arg.NumberRef (name n)
     | C.Generic_arg.Inferred p -> S.Generic_arg.Inferred (param p)
+    | C.Generic_arg.Moded t -> S.Generic_arg.Moded (param_type t)
   in
   { S.Generic_arg.node; span }
 

@@ -184,6 +184,11 @@ else.
      (`functions.md` §4.1);
    - a reference-typed result or abort type written `^T` or `&T`, never bare,
      and no marker on `this` ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.9);
+   - a marked introduction (`^T Type`, `&T Type`) inside type arguments only
+     as the element of a parameter's own `@concepts$Array`, where it is the
+     mode each literal element is passed in (`generics.md` §8.4); a `^` or `&`
+     element filled with the wrong kind of type is reported at the call, as
+     for any `^T` or `&T`;
    - the operator home-package rule ([`operators.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/operators.md) §2.2);
    - implicit-constructor source and destination kinds, and the orphan rule
      (`types.md` §4.4–§4.5);

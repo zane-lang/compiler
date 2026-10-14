@@ -106,6 +106,18 @@ class DeclarationTests(ParserSyntaxTestCase):
             }
             '''
         )
+        # A nested introduction may carry a passing mode. The parser takes it
+        # in any type argument; the checker keeps it to the element of a
+        # parameter's `@concepts$Array` (generics.md §8.4).
+        self.assert_parses(
+            "Crew<T, n>(xs @concepts$Array<^T Type, n @concepts$Int>) => init{ }"
+        )
+        self.assert_parses(
+            "Pins<T, n>(xs @concepts$Array<&T Type, n @concepts$Int>) => init{ }"
+        )
+        self.assert_rejects(
+            "Crew<T, n>(xs @concepts$Array<^&T Type, n @concepts$Int>) => init{ }"
+        )
 
     def test_a_type_is_passed_as_a_constructor_argument(self) -> None:
         # Explicit type values are standalone constructor arguments. Ordinary

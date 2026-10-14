@@ -58,7 +58,7 @@ let rec number_refs (te : N.Type_expr.t) =
           | N.Generic_arg.Type t -> number_refs t
           | N.Generic_arg.NumberRef n -> [ n.N.Name.text ]
           | N.Generic_arg.Inferred p -> param_type_number_refs p.N.Param.type_
-          | N.Generic_arg.Number _ -> [])
+          | N.Generic_arg.Number _ | N.Generic_arg.Moded _ -> [])
         generics
 
 and param_type_number_refs (pt : N.Param_type.t) =
@@ -99,6 +99,7 @@ let rec scan_type env intro (te : N.Type_expr.t) =
                        "%s introduces a parameter, which takes `Type` or \
                         `@concepts$Int` (generics.md §3.3)"
                        (quote name)))
+          | N.Generic_arg.Moded t -> scan_param_type env intro t
           | _ -> ())
         generics
 

@@ -180,6 +180,22 @@ top_decl:
   | param=param {
       generic_arg $loc (Nodes.Generic_arg.Inferred param)
     }
+  | CARET name=uname concept_=UTYPE {
+      ignore concept_;
+      generic_arg $loc
+        (Nodes.Generic_arg.Moded
+           (param_type $loc
+              (Nodes.Param_type.InferredType
+                 { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Roaming })))
+    }
+  | AMPERSAND name=uname concept_=UTYPE {
+      ignore concept_;
+      generic_arg $loc
+        (Nodes.Generic_arg.Moded
+           (param_type $loc
+              (Nodes.Param_type.InferredType
+                 { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Reference })))
+    }
 
 %inline generics:
   | LESS generics=separated_nonempty_list(COMMA, generic_arg) MORE {

@@ -116,3 +116,30 @@ Unit typed() {
 	copied @primitives$ArrayRef<Int, 1> = @primitives$ArrayRef([count]);
 	return Unit();
 }
+
+/// A constructor's own `@concepts$Array` parameter may write the mode of its
+/// elements as `^T Type` or `&T Type`, and the elements are checked as at
+/// `ArrayRef.roaming` and `ArrayRef.refs`. That is the one place a marked
+/// introduction stands inside type arguments.
+type Peal<T Type, n @concepts$Int> = #struct { bells @primitives$ArrayRef<T, n>; }
+Peal<T, n>(xs @concepts$Array<^T Type, n @concepts$Int>) => init{ bells = @primitives$ArrayRef.roaming(xs); }
+
+type Chime<T Type, n @concepts$Int> = #struct { bells @primitives$ArrayRef<&T, n>; }
+Chime<T, n>(xs @concepts$Array<&T Type, n @concepts$Int>) => init{ bells = @primitives$ArrayRef.refs(xs); }
+
+Unit carried(row @primitives$ArrayRef<^T Type, 1>) {
+	return Unit();
+}
+
+Unit wrapped(row @primitives$ArrayRef<@concepts$Array<&T Type, n @concepts$Int>, 1>) {
+	return Unit();
+}
+
+Unit moded() {
+	bell Bell(Int(6));
+	rung &Bell = bell;
+	settled Peal([bell]);
+	pointing Peal([rung]);
+	fresh Chime([Bell(Int(9))]);
+	return Unit();
+}
