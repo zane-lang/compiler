@@ -180,7 +180,8 @@ else.
    inline generic parameters at their first marked occurrence (`generics.md`
    §3.2, §4.4). Check here:
    - overload identity, including no overloads that differ only by passing mode
-     (`T`, `^T` or `&T`) or by the `mut` of a function-type parameter
+     (`T`, `^T` or `&T`, on a parameter or on its `@concepts$Array`
+     element) or by the `mut` of a function-type parameter
      (`functions.md` §4.1);
    - a reference-typed result or abort type written `^T` or `&T`, never bare,
      and no marker on `this` ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.9);
