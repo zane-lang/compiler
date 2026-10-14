@@ -86,13 +86,24 @@ Unit retone(this Rack, other &Rack) mut {
 	return Unit();
 }
 
+Unit retains(value T Type) {
+	return Unit();
+}
+
 /// An `ArrayRef` given its element type takes each element as that type,
 /// so `&Bell` mints a reference from every element, as an `&Bell` parameter
 /// would: from a settled place only. The element type must be the one the
-/// elements have, and `&` marks only a reference type (generics.md §8.4).
+/// elements have, and `&` marks only a reference type. A literal of settled
+/// owners and references both has only the element type `&Bell` names, and
+/// no type parameter is inferred from it (generics.md §8.4).
 Unit typed() {
 	bell Bell(Int(6));
 	spare ^Bell = Bell(Int(7));
+	rung &Bell = bell;
+	undecided @primitives$ArrayRef<&Bell, 2> = @primitives$ArrayRef([bell, rung]);
+	owning @primitives$ArrayRef<Bell, 2> = @primitives$ArrayRef([bell, rung], Bell);
+	roaming @primitives$ArrayRef<&Bell, 2> = @primitives$ArrayRef([spare, rung], &Bell);
+	retains([bell, rung]);
 	held @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([bell], &Bell);
 	made @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([Bell(Int(8))], &Bell);
 	moving @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([spare], &Bell);

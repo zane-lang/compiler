@@ -68,13 +68,24 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
         ~ret_type:l.N.Meth_lambda.ret_type ~is_mut:l.N.Meth_lambda.is_mut ~body:l.N.Meth_lambda.body
 
 (* syntax.md §2.9: every element already has the one element type; nothing
-   searches for a common one. *)
+   searches for a common one. A literal of settled owners of one type and
+   references to it is the exception, whose element type only a named `&T`
+   decides (generics.md §8.4). *)
 and array_literal env ctx span items =
   let items = List.map (expr env ctx) items in
+  let owned (i : T.Expr.t) = match i.T.Expr.ty with Ty.Reference t -> t | t -> t in
   match items with
   | [] ->
       error env span "an array literal holds at least one element; name the type to build an empty one";
       invalid span
+  | first :: _
+    when (not (Ty.is_ref (owned first)))
+         && List.exists (fun (i : T.Expr.t) -> Ty.is_ref i.T.Expr.ty) items
+         && List.exists (fun (i : T.Expr.t) -> not (Ty.is_ref i.T.Expr.ty)) items
+         && List.for_all (fun i -> Ty.equal (owned i) (owned first)) items ->
+      mk (T.Expr.Array_lit items)
+        (Ty.Concept (Ty.Mixed_lit (owned first, Ty.Known (List.length items))))
+        span
   | first :: rest ->
       List.iter
         (fun (item : T.Expr.t) ->

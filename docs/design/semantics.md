@@ -361,6 +361,7 @@ and number = Known of int | Param_num of Param_id.t
 and concept =
   | Integer_lit | Decimal_lit | Text_lit           (* @concepts$Int, Float, String *)
   | Array_lit of t * number                        (* @concepts$Array<T, n> *)
+  | Mixed_lit of t * number                        (* owners of T and &T, undecided *)
   | Map_lit of t * t                               (* @concepts$Map<K, V> *)
   | Block                                          (* @concepts$Block *)
   | Type_concept                                  (* Type *)
@@ -420,7 +421,7 @@ Where the typing rules need care:
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
 | Block argument | Typed `@concepts$Block`: a block yields nothing (control-flow.md §2.4). |
-| Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). |
+| Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). Elements of both `T` and `&T` make a literal whose element type only a named `&T` decides, `ArrayRef([p, r], &Port)` (`generics.md` §8.4); nothing else accepts it. |
 
 ---
 

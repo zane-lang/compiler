@@ -48,6 +48,10 @@ and concept =
   | Decimal_lit
   | Text_lit
   | Array_lit of t * number
+  (* An array literal whose elements are settled owners of [t] and
+     references to it: its element type is the `&t` a named element type
+     decides (generics.md §8.4), and nothing reads it off the elements. *)
+  | Mixed_lit of t * number
   | Map_lit of t * t
   (* A block argument: statements that yield nothing (control-flow.md §2.4). *)
   | Block
@@ -91,7 +95,7 @@ and arg_contains_error = function
   | Number _ -> false
 
 and concept_contains_error = function
-  | Array_lit (t, _) -> contains_error t
+  | Array_lit (t, _) | Mixed_lit (t, _) -> contains_error t
   | Map_lit (k, v) -> contains_error k || contains_error v
   | _ -> false
 
@@ -128,6 +132,8 @@ and concept_to_string = function
   | Text_lit -> "@concepts$String"
   | Array_lit (t, n) ->
       "@concepts$Array<" ^ to_string t ^ ", " ^ number_to_string n ^ ">"
+  | Mixed_lit (t, n) ->
+      "@concepts$Array<" ^ to_string t ^ " and &" ^ to_string t ^ ", " ^ number_to_string n ^ ">"
   | Map_lit (k, v) -> "@concepts$Map<" ^ to_string k ^ ", " ^ to_string v ^ ">"
   | Block -> "@concepts$Block"
   | Type_value -> "Type"
@@ -189,6 +195,7 @@ and subst_number s = function
 
 and subst_concept s = function
   | Array_lit (t, n) -> Array_lit (subst s t, subst_number s n)
+  | Mixed_lit (t, n) -> Mixed_lit (subst s t, subst_number s n)
   | Map_lit (k, v) -> Map_lit (subst s k, subst s v)
   | c -> c
 
@@ -224,7 +231,7 @@ let free_params t =
   and go_arg = function Type t -> go t | Number n -> go_number n
   and go_number = function Known _ -> () | Number_param p -> add p
   and go_concept = function
-    | Array_lit (t, n) -> go t; go_number n
+    | Array_lit (t, n) | Mixed_lit (t, n) -> go t; go_number n
     | Map_lit (k, v) -> go k; go v
     | _ -> ()
   in
@@ -278,7 +285,8 @@ and number_equal a b =
 
 and concept_equal a b =
   match (a, b) with
-  | Array_lit (t, n), Array_lit (u, m) -> equal t u && number_equal n m
+  | Array_lit (t, n), Array_lit (u, m) | Mixed_lit (t, n), Mixed_lit (u, m) ->
+      equal t u && number_equal n m
   | Map_lit (k, v), Map_lit (k', v') -> equal k k' && equal v v'
   | x, y -> x = y
 
@@ -292,7 +300,8 @@ let held_as ~dst ~src =
   | Verb d, Verb s when d.is_mut && not s.is_mut -> Verb { s with is_mut = true }
   (* An array literal whose element type is already decided as `&T` holds
      each element as an `&T` parameter would. *)
-  | Concept (Array_lit (Reference d, _)), Concept (Array_lit (s, n)) when not (is_ref s) ->
+  | Concept (Array_lit (Reference d, _)), Concept (Array_lit (s, n) | Mixed_lit (s, n))
+    when not (is_ref s) ->
       if equal d s then Concept (Array_lit (Reference s, n)) else src
   | _, s -> s
 
@@ -328,7 +337,12 @@ let rec unify ~open_ (s : subst) pattern actual : subst option =
       match List.assoc_opt p.id s with
       | Some (Type bound) -> if equal bound actual then Some s else None
       | Some (Number _) -> None
-      | None -> if is_bare_literal actual then None else Some ((p.id, Type actual) :: s))
+      | None -> (
+          match actual with
+          (* Neither fixes a type: a literal's concept type, and a literal
+             whose element type only a named `&T` decides. *)
+          | Concept (Mixed_lit _) -> None
+          | _ -> if is_bare_literal actual then None else Some ((p.id, Type actual) :: s)))
   | _, Error -> Some s
   (* `^T` over a type parameter takes an owner when it is filled with a
      reference type and borrows a value otherwise (memory.md §2.9), so a
@@ -410,6 +424,7 @@ let canonical ts =
     | Concept c -> (
         match c with
         | Array_lit (t, n) -> "@concepts$Array<" ^ go t ^ "," ^ go_number n ^ ">"
+        | Mixed_lit (t, n) -> "@concepts$Array<" ^ go t ^ " and &" ^ go t ^ "," ^ go_number n ^ ">"
         | Map_lit (k, v) -> "@concepts$Map<" ^ go k ^ "," ^ go v ^ ">"
         | c -> concept_to_string c)
     | Verb v ->

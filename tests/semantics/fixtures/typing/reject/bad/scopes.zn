@@ -80,16 +80,18 @@ Unit bind() {
 
 /// An array literal of references carries each of them into the array it
 /// builds, whether the elements were references already or the element type
-/// minted them (generics.md §8.4).
+/// minted them, or the literal mixed the two (generics.md §8.4).
 Unit gather() {
 	far Leaf(Int(11));
 	row @primitives$ArrayRef<&Leaf, 1> = @primitives$ArrayRef([far], &Leaf);
+	both @primitives$ArrayRef<&Leaf, 2> = @primitives$ArrayRef([far, far], &Leaf);
 	inside({
 		near Leaf(Int(12));
 		r &Leaf = near;
 		row = @primitives$ArrayRef([r]);
 		row = @primitives$ArrayRef([near], &Leaf);
 		kept @primitives$ArrayRef<&Leaf, 2> = @primitives$ArrayRef([far, near], &Leaf);
+		both = @primitives$ArrayRef([far, r], &Leaf);
 	});
 	return Unit();
 }

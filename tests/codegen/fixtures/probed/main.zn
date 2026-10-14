@@ -45,6 +45,9 @@ Unit references() {
 	row[Int(1)] = q;
 	check(String("a copied reference keeps its owner"), @operators$equal(x.n, Int(1)));
 	check(String("the element names its new owner"), @operators$equal(row[Int(1)].n, Int(2)));
+	r &Port = q;
+	mixed @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([p, r], &Port);
+	check(String("one literal mints and copies"), @operators$equal(@operators$add(mixed[Int(1)].n, mixed[Int(2)].n), Int(3)));
 	return Unit();
 }
 

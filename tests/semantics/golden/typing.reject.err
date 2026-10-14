@@ -754,14 +754,18 @@ File "fixtures/typing/reject/bad/scopes.zn", line 73, characters 13-24:
 73 |         r = match (t) {
   |             ^^^^^^^^^^^
 Error: this stores a reference to `near`, whose block ends before `r`'s does
-File "fixtures/typing/reject/bad/scopes.zn", line 90, characters 15-40:
-90 |         row = @primitives$ArrayRef([r]);
+File "fixtures/typing/reject/bad/scopes.zn", line 91, characters 15-40:
+91 |         row = @primitives$ArrayRef([r]);
   |               ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: this stores a reference to `near`, whose block ends before `row`'s does
-File "fixtures/typing/reject/bad/scopes.zn", line 91, characters 15-50:
-91 |         row = @primitives$ArrayRef([near], &Leaf);
+File "fixtures/typing/reject/bad/scopes.zn", line 92, characters 15-50:
+92 |         row = @primitives$ArrayRef([near], &Leaf);
   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: this stores a reference to `near`, whose block ends before `row`'s does
+File "fixtures/typing/reject/bad/scopes.zn", line 94, characters 16-53:
+94 |         both = @primitives$ArrayRef([far, r], &Leaf);
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: this stores a reference to `near`, whose block ends before `both`'s does
 File "fixtures/typing/reject/bad/sources.zn", line 19, characters 15-28:
 19 |     b &Bell = bells[Int(1)];
   |               ^^^^^^^^^^^^^
@@ -826,24 +830,40 @@ File "fixtures/typing/reject/bad/sources.zn", line 85, characters 5-8:
 85 |     own.bell = Bell(Int(4));
   |     ^^^
 Error: a store may not go through a reference, since what it names belongs to a tree this path's root does not hold; change it with a `mut` method called through the reference
-File "fixtures/typing/reject/bad/sources.zn", line 97, characters 65-77:
-97 |     made @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([Bell(Int(8))], &Bell);
+File "fixtures/typing/reject/bad/sources.zn", line 103, characters 48-82:
+103 |     undecided @primitives$ArrayRef<&Bell, 2> = @primitives$ArrayRef([bell, rung]);
+  |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@primitives$ArrayRef<_, _>` accepts (@concepts$Array<bad$Bell and &bad$Bell, 2>); the candidates are `@primitives$ArrayRef(@concepts$Array<T, n>)`; `@primitives$ArrayRef(@concepts$Array<T, n>, T Type)`
+File "fixtures/typing/reject/bad/sources.zn", line 104, characters 44-84:
+104 |     owning @primitives$ArrayRef<Bell, 2> = @primitives$ArrayRef([bell, rung], Bell);
+  |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@primitives$ArrayRef<_, _>` accepts (@concepts$Array<bad$Bell and &bad$Bell, 2>, Type); the candidates are `@primitives$ArrayRef(@concepts$Array<T, n>)`; `@primitives$ArrayRef(@concepts$Array<T, n>, T Type)`
+File "fixtures/typing/reject/bad/sources.zn", line 105, characters 68-73:
+105 |     roaming @primitives$ArrayRef<&Bell, 2> = @primitives$ArrayRef([spare, rung], &Bell);
+  |                                                                    ^^^^^
+Error: a new reference must come from a settled place, and this is a roaming owner, which may still move; settle it first by moving it into an owner declared without `^`
+File "fixtures/typing/reject/bad/sources.zn", line 106, characters 5-26:
+106 |     retains([bell, rung]);
+  |     ^^^^^^^^^^^^^^^^^^^^^
+Error: no `retains` accepts (@concepts$Array<bad$Bell and &bad$Bell, 2>); the candidate is `@primitives$Unit retains(T)`
+File "fixtures/typing/reject/bad/sources.zn", line 108, characters 65-77:
+108 |     made @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([Bell(Int(8))], &Bell);
   |                                                                 ^^^^^^^^^^^^
 Error: a new reference names a place, and this is a temporary value
-File "fixtures/typing/reject/bad/sources.zn", line 98, characters 67-72:
-98 |     moving @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([spare], &Bell);
+File "fixtures/typing/reject/bad/sources.zn", line 109, characters 67-72:
+109 |     moving @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([spare], &Bell);
   |                                                                   ^^^^^
 Error: a new reference must come from a settled place, and this is a roaming owner, which may still move; settle it first by moving it into an owner declared without `^`
-File "fixtures/typing/reject/bad/sources.zn", line 99, characters 44-79:
-99 |     other @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([bell], &Rack);
+File "fixtures/typing/reject/bad/sources.zn", line 110, characters 44-79:
+110 |     other @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([bell], &Rack);
   |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: no `@primitives$ArrayRef<_, _>` accepts (@concepts$Array<bad$Bell, 1>, Type); the candidates are `@primitives$ArrayRef(@concepts$Array<T, n>)`; `@primitives$ArrayRef(@concepts$Array<T, n>, T Type)`
-File "fixtures/typing/reject/bad/sources.zn", line 101, characters 43-78:
-101 |     counts @primitives$ArrayRef<Int, 1> = @primitives$ArrayRef([count], &Int);
+File "fixtures/typing/reject/bad/sources.zn", line 112, characters 43-78:
+112 |     counts @primitives$ArrayRef<Int, 1> = @primitives$ArrayRef([count], &Int);
   |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `counts` is declared `@primitives$ArrayRef<@primitives$I64, 1>`, and its value is `@primitives$ArrayRef<&@primitives$I64, 1>`; a declaration is not a coercion site, so a conversion is written out
-File "fixtures/typing/reject/bad/sources.zn", line 101, characters 73-77:
-101 |     counts @primitives$ArrayRef<Int, 1> = @primitives$ArrayRef([count], &Int);
+File "fixtures/typing/reject/bad/sources.zn", line 112, characters 73-77:
+112 |     counts @primitives$ArrayRef<Int, 1> = @primitives$ArrayRef([count], &Int);
   |                                                                         ^^^^
 Error: `@primitives$I64` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)
 File "fixtures/typing/reject/bad/spawns.zn", line 44, characters 11-15:

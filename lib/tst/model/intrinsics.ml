@@ -194,7 +194,8 @@ let constructors =
          order, with the position counted from 1 (generics.md §8.4). The
          literal may be followed by its element type, which then decides it
          rather than the elements: `ArrayRef([p, q], &Port)` mints a
-         reference from each element as an `&Port` parameter would. *)
+         reference from each element as an `&Port` parameter would, and
+         copies one that is already an `&Port`, so one literal may hold both. *)
       ctor ~generics:[ ref_element; ref_length ] "ArrayRef"
         [ param "values" (elements ref_element ref_length) ]
         (fixed "ArrayRef" ref_element ref_length);

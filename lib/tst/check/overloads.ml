@@ -98,7 +98,9 @@ let all_some xs =
 let held_literal dst (arg : T.Arg.t) =
   match (Ty.strip_mode dst, arg) with
   | ( Ty.Concept (Ty.Array_lit ((Ty.Reference _ as element), _)),
-      T.Arg.Value ({ T.Expr.node = T.Expr.Array_lit _; ty = Ty.Concept (Ty.Array_lit (t, n)); _ } as e) )
+      T.Arg.Value
+        ({ T.Expr.node = T.Expr.Array_lit _; ty = Ty.Concept (Ty.Array_lit (t, n) | Ty.Mixed_lit (t, n)); _ } as e)
+    )
     when not (Ty.is_ref t) ->
       T.Arg.Value { e with T.Expr.ty = Ty.Concept (Ty.Array_lit (element, n)) }
   | _ -> arg
