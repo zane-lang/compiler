@@ -95,3 +95,17 @@ Unit gather() {
 	});
 	return Unit();
 }
+
+/// A store that is reported is not taken on by its destination, so a later
+/// use of the destination is not reported for it again.
+Unit relayed() {
+	far Leaf(Int(13));
+	r &Leaf = far;
+	inside({
+		near Leaf(Int(14));
+		r = near;
+	});
+	s &Leaf = r;
+	row @primitives$ArrayRef<&Leaf, 2> = @primitives$ArrayRef([r, s]);
+	return Unit();
+}

@@ -766,6 +766,10 @@ File "fixtures/typing/reject/bad/scopes.zn", line 94, characters 16-51:
 94 |         both = @primitives$ArrayRef.refs([far, r]);
   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: this stores a reference to `near`, whose block ends before `both`'s does
+File "fixtures/typing/reject/bad/scopes.zn", line 106, characters 13-17:
+106 |         r = near;
+  |             ^^^^
+Error: this stores a reference to `near`, whose block ends before `r`'s does
 File "fixtures/typing/reject/bad/sources.zn", line 19, characters 15-28:
 19 |     b &Bell = bells[Int(1)];
   |               ^^^^^^^^^^^^^
