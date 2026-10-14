@@ -206,7 +206,8 @@ Unit store(this Holdall, n Int) mut {
 Unit holdalls() {
 	ints List<Int> = @primitives$List(Int);
 	ints!push(Int(1));
-	holdall Holdall(@primitives$ArrayRef([&ints]));
+	list &List<Int> = ints;
+	holdall Holdall(@primitives$ArrayRef([list]));
 	k Int = Int(2);
 	holdall!store(k);
 	holdall!store(ints[Int(1)]);

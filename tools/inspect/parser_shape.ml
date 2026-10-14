@@ -60,7 +60,8 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
   | Cst.Nodes.Expr.TypeMember _ -> "type_member"
   (* A type passed as a value, told apart from a type member so a shape says
      which of the two an uppercase name was read as. *)
-  | Cst.Nodes.Expr.TypeValue _ -> "type_value"
+  | Cst.Nodes.Expr.TypeValue { reference = false; _ } -> "type_value"
+  | Cst.Nodes.Expr.TypeValue { reference = true; _ } -> "ref_type_value"
   | Cst.Nodes.Expr.DotAccess { target; _ } -> "dot(" ^ expr_shape target ^ ")"
   | Cst.Nodes.Expr.Parenthized inner -> "paren(" ^ expr_shape inner ^ ")"
   | Cst.Nodes.Expr.VerbCall call -> verb_call_shape call
@@ -78,7 +79,6 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
   | Cst.Nodes.Expr.Spawn call -> "spawn(" ^ verb_call_shape call ^ ")"
   | Cst.Nodes.Expr.Match { scrutinees; _ } ->
       parts "match" (List.map expr_shape scrutinees)
-  | Cst.Nodes.Expr.Ref value -> "ref(" ^ expr_shape value ^ ")"
   (* A map literal renders its entries in order, so a shape says whether a
      brace in argument position was read as a literal or as a block. *)
   | Cst.Nodes.Expr.MapLit entries ->

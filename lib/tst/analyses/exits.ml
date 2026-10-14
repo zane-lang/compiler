@@ -38,7 +38,6 @@ let parts (e : T.Expr.t) =
   | T.Expr.Case { payload = v; _ }
   | T.Expr.Field { target = v; _ }
   | T.Expr.Map_read { target = v; _ }
-  | T.Expr.Ref v
   | T.Expr.Spawn v
   | T.Expr.Coerce { value = v; _ } ->
       [ Same v ]

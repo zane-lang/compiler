@@ -51,9 +51,9 @@ Unit pass(c &@runtime$Console) {
 
 Unit main() {
 	a Person(Int(3));
-	g &Person = &a;
-	check(@operators$equal(@operators$add(age(&a), g.age), Int(6)));
-	h &Person = &g;
+	g &Person = a;
+	check(@operators$equal(@operators$add(age(a), g.age), Int(6)));
+	h &Person = g;
 	a = Person(Int(4));
 	check(@operators$equal(h.age, Int(4)));
 	pin Pin(a);

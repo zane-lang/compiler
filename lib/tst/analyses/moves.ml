@@ -198,8 +198,7 @@ let rec expr env ?(into = Ty.Error) w (e : T.Expr.t) =
         entries
   | T.Expr.Case { case; payload } ->
       value env w (Option.value ~default:Ty.Error (References.member_type env e.T.Expr.ty case)) payload
-  | T.Expr.Field { target; _ } | T.Expr.Map_read { target; _ } | T.Expr.Ref target
-  | T.Expr.Spawn target ->
+  | T.Expr.Field { target; _ } | T.Expr.Map_read { target; _ } | T.Expr.Spawn target ->
       expr env w target
   | T.Expr.Case_read { target; handler; _ } ->
       expr env w target;

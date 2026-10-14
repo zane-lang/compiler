@@ -398,7 +398,6 @@ the syntax does not carry. They are listed so the refusal is on the record.
 | `implicit` constructor insertion at coercion sites | [`types.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/types.md) §4.2. Needs both types at the site. |
 | `import pkg$` → an explicit member list | [`packages.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/packages.md) §3.3. Needs the other package's exported members. It is also name resolution rather than desugaring: "An import is a **spelling**, not a linkage." |
 | `Constructor_args.Positional` vs `.Fields` | Unifying them needs the constructor's declared field order. Both arms stay. |
-| `Expr.Ref` (`&x`) | A passing mode, not sugar. [`memory.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/memory.md) §2.4. |
 | `:` vs `!` call markers | A check, not sugar: calling a `mut` method with `:` is illegal and vice versa ([`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md) §2.5). §2.11 keeps the flag on the call for that check. |
 
 ---

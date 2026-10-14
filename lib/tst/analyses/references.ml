@@ -160,9 +160,6 @@ let rec expr env w (e : T.Expr.t) =
   | T.Expr.Case_read { target; handler; _ } ->
       expr env w target;
       handler_block env w e.T.Expr.ty handler
-  | T.Expr.Ref inner ->
-      expr env w inner;
-      store env w e.T.Expr.ty inner
   | T.Expr.Spawn inner -> expr env w inner
   | T.Expr.Init fields ->
       fields_ env w (fun f -> member_type env e.T.Expr.ty f.T.Field_value.name) fields

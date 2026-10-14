@@ -191,8 +191,10 @@ and expr_to_node (x: Nodes.Expr.t) = match x.Nodes.Expr.node with
         ("type", name_type_to_node type_);
         ("member", Leaf (text member));
       ])
-  | TypeValue type_ ->
-      group "type_value" (fields [ ("type", name_type_to_node type_) ])
+  | TypeValue { reference; name } ->
+      group
+        (if reference then "ref_type_value" else "type_value")
+        (fields [ ("type", name_type_to_node name) ])
   | DotAccess { target; field; abort_handle } ->
       group "dot_access" (fields [
         ("target", expr_to_node target);
@@ -204,8 +206,6 @@ and expr_to_node (x: Nodes.Expr.t) = match x.Nodes.Expr.node with
         ("target", expr_to_node target);
         ("args", map_seq expr_to_node args);
       ])
-  | Ref x ->
-      group "ref" (expr_to_node x)
   | Parenthized x ->
       group "parenthized" (expr_to_node x)
   | Init fields_ ->

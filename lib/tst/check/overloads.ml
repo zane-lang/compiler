@@ -92,6 +92,17 @@ let all_some xs =
     (fun x acc -> match (x, acc) with Some x, Some acc -> Some (x :: acc) | _ -> None)
     xs (Some [])
 
+(* An array literal matched as the `&T` elements its parameter decided
+   (Ty.held_as) carries that element type from here on, so every analysis
+   reads each element as stored into an `&T`. *)
+let held_literal dst (arg : T.Arg.t) =
+  match (Ty.strip_mode dst, arg) with
+  | ( Ty.Concept (Ty.Array_lit ((Ty.Reference _ as element), _)),
+      T.Arg.Value ({ T.Expr.node = T.Expr.Array_lit _; ty = Ty.Concept (Ty.Array_lit (t, n)); _ } as e) )
+    when not (Ty.is_ref t) ->
+      T.Arg.Value { e with T.Expr.ty = Ty.Concept (Ty.Array_lit (element, n)) }
+  | _ -> arg
+
 let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome option =
   if List.length slots <> List.length s.params then None
   else if phase = Direct && s.generics <> [] then None
@@ -115,21 +126,28 @@ let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome op
               | None -> (None, None))
           | None -> (
               match
-                Ty.unify ~open_ subst (Ty.strip_mode p.ty) (Ty.held_as ~dst:p.ty ~src:a.aty)
+                Ty.unify ~open_ subst (Ty.strip_mode p.ty)
+                  (Ty.held_as ~dst:(Ty.subst subst p.ty) ~src:a.aty)
               with
               | Some subst -> (Some subst, Some `Exact)
               | None -> (Some subst, Some `Convert)))
     in
+    (* An explicit `T Type` argument is bound before the arguments it
+       types, wherever it is written: `ArrayRef([p, q], &Port)` decides the
+       literal's elements rather than being read off them. *)
+    let indexed = List.mapi (fun i pair -> (i, pair)) pairs in
+    let explicit, rest = List.partition (fun (_, ((p : S.param), _)) -> p.binds <> None) indexed in
     let subst, marks =
       List.fold_left
-        (fun (subst, marks) pair ->
+        (fun (subst, marks) (i, pair) ->
           match subst with
           | None -> (None, marks)
           | Some _ ->
               let subst', mark = exact subst pair in
-              (subst', marks @ [ mark ]))
-        (Some [], []) pairs
+              (subst', (i, mark) :: marks))
+        (Some [], []) (explicit @ rest)
     in
+    let marks = List.sort (fun (i, _) (j, _) -> compare i j) marks |> List.map snd in
     (* A function argument matches only at the modes it was written with,
        once inference has filled the parameter's type. *)
     let modes_hold subst =
@@ -154,7 +172,7 @@ let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome op
               (fun ((p : S.param), slot) mark ->
                 match (slot, mark) with
                 | None, _ -> Some None
-                | Some a, Some `Exact -> Some (Some a.arg)
+                | Some a, Some `Exact -> Some (Some (held_literal (Ty.subst subst p.ty) a.arg))
                 | Some a, Some `Convert -> (
                     if a.subject then None
                     else

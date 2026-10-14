@@ -155,7 +155,6 @@ and names env w (e : T.Expr.t) =
     | T.Expr.Var (T.Name_ref.Global { name; _ }) -> Names.singleton (Global, name)
     | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } -> names env w target
     | T.Expr.Case_read { target; _ } -> names env w target
-    | T.Expr.Ref inner -> if Ty.is_ref inner.T.Expr.ty then names env w inner else place env w inner
     | T.Expr.Spawn inner -> names env w inner
     | T.Expr.Array_lit items ->
         let element =
@@ -279,7 +278,7 @@ let rec expr env w (e : T.Expr.t) =
           expr env w v)
         entries
   | T.Expr.Case { payload = inner; _ } | T.Expr.Field { target = inner; _ }
-  | T.Expr.Map_read { target = inner; _ } | T.Expr.Ref inner | T.Expr.Spawn inner ->
+  | T.Expr.Map_read { target = inner; _ } | T.Expr.Spawn inner ->
       expr env w inner
   | T.Expr.Coerce { ctor; value } ->
       expr env w value;
@@ -441,7 +440,6 @@ and rests env w rs ~method_ tys via args =
 and root_local w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) when not (Hashtbl.mem w.params l.T.Local.id) -> Some l
-  | T.Expr.Ref inner -> root_local w inner
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
     when not (Ty.is_ref target.T.Expr.ty) ->
       root_local w target
