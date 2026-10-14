@@ -63,6 +63,13 @@ Int balanceOf(account Account) => account.balance
 /// Takes its argument, which dies with the body.
 Int closed(account ^Account) => account.balance
 
+/// Takes its argument, lends it to a borrow, then hands it on to a take:
+/// a `^T` parameter is passed bare either way.
+Int lent(account ^Account) {
+	seen Int = balanceOf(account);
+	return @operators$add(seen, closed(account));
+}
+
 /// Takes its argument and hands it back: a parameter is read-only, so it
 /// moves into a local first.
 ^Account relayed(account ^Account) {
@@ -184,6 +191,8 @@ Unit main() {
 	c = relayed(c);
 	check(@operators$equal(c.balance, Int(8)));
 	check(@operators$equal(closed(Account(Int(4))), Int(0)));
+	check(@operators$equal(balanceOf(opened(Int(5), Int(6))), Int(6)));
+	check(@operators$equal(lent(opened(Int(6), Int(2))), Int(4)));
 
 	// A variant holding a struct.
 	s Slot = Slot.held(Account(Int(3)));

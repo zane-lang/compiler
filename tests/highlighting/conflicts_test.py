@@ -101,8 +101,8 @@ class DiscoveryTests(unittest.TestCase):
         report = json.loads(result['editors/tree-sitter-zane/conflicts.json'])
         # Keeping qualified names as nodes removes the type_expr /
         # unbraced_verb_call conflict from the original flattened editor tree.
-        self.assertEqual(len(report['conflicts']), 19)
-        self.assertEqual(len({tuple(c['rules']) for c in report['conflicts']}), 19)
+        self.assertEqual(len(report['conflicts']), 17)
+        self.assertEqual(len({tuple(c['rules']) for c in report['conflicts']}), 17)
         # No generated file or authored conflict list is read by discovery.
         self.assertIn('conflicts: $ => [', result['editors/tree-sitter-zane/grammar.js'])
 

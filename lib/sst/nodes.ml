@@ -115,14 +115,13 @@ module rec Expr : sig
     | CollectionLit of t list
     | NameExpr of Name_expr.t
     | TypeMember of { type_ : Name_type.t; member : Name.t }
-    | TypeValue of Name_type.t
+    | TypeValue of { reference : bool; name : Name_type.t }
     | DotAccess of {
         target : t;
         field : Name.t;
         abort_handle : Abort_handle.t option;
       }
     | Subscript of { target : t; args : t list }
-    | Ref of t
     (* No [Parenthized]. Parentheses "group an inner expression explicitly"
        (syntax.md §4.7) and the grouping is the tree, so the node had nothing
        left to say. The inner expression keeps its own span, which covers what

@@ -2294,8 +2294,8 @@ package | package main; /// Every im … ettled"); return Unit(); }
               type_expr | Float
                 name_type | Float
                   ident Float | Float
-              expr | evaluate(program, &env) ?  … ntry); resolve Float(0); }
-                verb_call | evaluate(program, &env)
+              expr | evaluate(program, env) ? f … ntry); resolve Float(0); }
+                verb_call | evaluate(program, env)
                   expr | evaluate
                     name_expr | evaluate
                       ident evaluate | evaluate
@@ -2303,11 +2303,10 @@ package | package main; /// Every im … ettled"); return Unit(); }
                     expr | program
                       name_expr | program
                         ident program | program
-                  call_arg | &env
-                    expr | &env
-                      expr | env
-                        name_expr | env
-                          ident env | env
+                  call_arg | env
+                    expr | env
+                      name_expr | env
+                        ident env | env
                   abort_handle | ? failure { entry Report{  … ntry); resolve Float(0); }
                     binder failure | failure
                     body | { entry Report{ severity = … ntry); resolve Float(0); }
@@ -2892,19 +2891,18 @@ package | package main; /// Every im … ettled"); return Unit(); }
                           expr | index
                             name_expr | index
                               ident index | index
-        statement | walker Cursor(&env);
-          stat | walker Cursor(&env);
-            decl | walker Cursor(&env)
+        statement | walker Cursor(env);
+          stat | walker Cursor(env);
+            decl | walker Cursor(env)
               name walker | walker
               constructor_name | Cursor
                 name_type | Cursor
                   ident Cursor | Cursor
-              constructor_args | (&env)
-                call_arg | &env
-                  expr | &env
-                    expr | env
-                      name_expr | env
-                        ident env | env
+              constructor_args | (env)
+                call_arg | env
+                  expr | env
+                    name_expr | env
+                      ident env | env
         statement | settled Bool = Float(0) <  … 0) '+ answer == Float(42);
           stat | settled Bool = Float(0) <  … 0) '+ answer == Float(42);
             decl | settled Bool = Float(0) <  … 00) '+ answer == Float(42)
@@ -3324,9 +3322,9 @@ package | package main; /// Every im … ettled"); return Unit(); }
                 expr | total
                   name_expr | total
                     ident total | total
-        statement | spawn evaluate(program, &env) ?? Float(0);
-          stat | spawn evaluate(program, &env) ?? Float(0);
-            verb_call | evaluate(program, &env)
+        statement | spawn evaluate(program, env) ?? Float(0);
+          stat | spawn evaluate(program, env) ?? Float(0);
+            verb_call | evaluate(program, env)
               expr | evaluate
                 name_expr | evaluate
                   ident evaluate | evaluate
@@ -3334,11 +3332,10 @@ package | package main; /// Every im … ettled"); return Unit(); }
                 expr | program
                   name_expr | program
                     ident program | program
-              call_arg | &env
-                expr | &env
-                  expr | env
-                    name_expr | env
-                      ident env | env
+              call_arg | env
+                expr | env
+                  name_expr | env
+                    ident env | env
               abort_handle | ?? Float(0)
                 expr | Float(0)
                   verb_call | Float(0)

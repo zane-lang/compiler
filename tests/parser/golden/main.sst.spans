@@ -2401,8 +2401,8 @@ package | package main; /// Every im … ettled"); return Unit(); }
             type_expr Path | Float
               name_type | Float
                 ident Float | Float
-            expr VerbCall | evaluate(program, &env) ?  … ntry); resolve Float(0); }
-              verb_call Call function | evaluate(program, &env)
+            expr VerbCall | evaluate(program, env) ? f … ntry); resolve Float(0); }
+              verb_call Call function | evaluate(program, env)
                 expr NameExpr | evaluate
                   name_expr | evaluate
                     ident evaluate | evaluate
@@ -2410,11 +2410,10 @@ package | package main; /// Every im … ettled"); return Unit(); }
                   expr NameExpr | program
                     name_expr | program
                       ident program | program
-                call_arg Value | &env
-                  expr Ref | &env
-                    expr NameExpr | env
-                      name_expr | env
-                        ident env | env
+                call_arg Value | env
+                  expr NameExpr | env
+                    name_expr | env
+                      ident env | env
                 abort_handle | ? failure { entry Report{  … ntry); resolve Float(0); }
                   binder failure | failure
                   block | { entry Report{ severity = … ntry); resolve Float(0); }
@@ -3012,23 +3011,22 @@ package | package main; /// Every im … ettled"); return Unit(); }
                         expr NameExpr | index
                           name_expr | index
                             ident index | index
-        stat Decl | walker Cursor(&env);
-          decl Var | walker Cursor(&env)
+        stat Decl | walker Cursor(env);
+          decl Var | walker Cursor(env)
             name walker | walker
             type_expr Path | Cursor
               name_type | Cursor
                 ident Cursor | Cursor
-            expr VerbCall | Cursor(&env)
-              verb_call Constructor | Cursor(&env)
+            expr VerbCall | Cursor(env)
+              verb_call Constructor | Cursor(env)
                 constructor_name | Cursor
                   name_type | Cursor
                     ident Cursor | Cursor
-                constructor_args Positional | (&env)
-                  call_arg Value | &env
-                    expr Ref | &env
-                      expr NameExpr | env
-                        name_expr | env
-                          ident env | env
+                constructor_args Positional | (env)
+                  call_arg Value | env
+                    expr NameExpr | env
+                      name_expr | env
+                        ident env | env
         stat Decl | settled Bool = Float(0) <  … 0) '+ answer == Float(42);
           decl Var | settled Bool = Float(0) <  … 00) '+ answer == Float(42)
             name settled | settled
@@ -3447,8 +3445,8 @@ package | package main; /// Every im … ettled"); return Unit(); }
               expr NameExpr | total
                 name_expr | total
                   ident total | total
-        stat Spawn | spawn evaluate(program, &env) ?? Float(0);
-          verb_call Call function | evaluate(program, &env)
+        stat Spawn | spawn evaluate(program, env) ?? Float(0);
+          verb_call Call function | evaluate(program, env)
             expr NameExpr | evaluate
               name_expr | evaluate
                 ident evaluate | evaluate
@@ -3456,11 +3454,10 @@ package | package main; /// Every im … ettled"); return Unit(); }
               expr NameExpr | program
                 name_expr | program
                   ident program | program
-            call_arg Value | &env
-              expr Ref | &env
-                expr NameExpr | env
-                  name_expr | env
-                    ident env | env
+            call_arg Value | env
+              expr NameExpr | env
+                name_expr | env
+                  ident env | env
             abort_handle | ?? Float(0)
               block | ?? Float(0)
                 stat Resolve | ?? Float(0)

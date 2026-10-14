@@ -286,9 +286,6 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
                 (invoke ~fn:read st ctx span v (arguments ~direct:false st ctx span v args) handler)
           | _ -> invoke ~fn st ctx span v (arguments ~direct:false st ctx span v args) handler)
       | _ -> Diagnostic.bug ~span "lowering expected a function value here")
-  (* `&` written before a place: a reference to it, minted, or a reference it
-     holds copied (memory.md §2.6). *)
-  | T.Expr.Ref value -> reference_to st ctx span value
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ }
     when String.starts_with ~prefix:"@controlflow$" spelling ->
       refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)
@@ -315,7 +312,7 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
   | "List", [ _ ] ->
       { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = Nodes.Ty.Handle }
   | "ArrayRef.fill", [ _; T.Arg.Value make ] -> fill st ctx span make t
-  | ("Array" | "ArrayRef"), [ T.Arg.Value v ] -> (
+  | ("Array" | "ArrayRef"), T.Arg.Value v :: ([] | [ T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } ]) -> (
       match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_mode t)) with
       | T.Expr.Array_lit values, Some (e, n) when List.length values = n ->
           let element i v = (i, moved st ctx span e v) in

@@ -415,9 +415,8 @@ test passing.
     `@primitives$Array<T, n>` with its literal and checked elements,
     `@primitives$I32`, a number parameter read as its number, field
     constructors called as the verbs they are with their defaults filled in,
-    `&` written before a place, a program value such as `@program$console`
-    passed as a guest, and spawned calls to an intrinsic or to a verb
-    expanded where it is called. After this step lowering refuses no
+    a program value such as `@program$console` passed as a guest, and
+    spawned calls to an intrinsic or to a verb expanded where it is called. After this step lowering refuses no
     program the TST accepts.
 11. **Settled and roaming owners.** The memory model of spec
     [#212](https://github.com/zane-lang/spec/pull/212) and

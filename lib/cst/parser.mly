@@ -93,7 +93,7 @@ open Statement_shape
 %left PLUS MINUS                                /* 3 */
 %left STAR SLASH                                /* 2 */
 %nonassoc QSTNMARK QSTNQSTN                    /* abort handling */
-%nonassoc TILDE AMPERSAND                       /* 1 -- prefix ~, and & */
+%nonassoc TILDE                                 /* 1 -- prefix ~ */
 %left DOT                                       /* field access */
 %left LBRACKET                                  /* subscript */
 %left LPAREN                                    /* function application */
@@ -345,10 +345,17 @@ map_lit:
    enclosing brace. *)
 (* Type arguments are standalone constructor arguments, not expressions.
    In particular, admitting a bare type as an operator operand makes
-   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). *)
+   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). A leading `&`
+   marks a reference type, and since `&` begins no expression it cannot be
+   read as anything else here. *)
 %inline constructor_value:
   | value=expr { value }
-  | name=name_type { expr $loc (Nodes.Expr.TypeValue name) }
+  | name=name_type {
+      expr $loc (Nodes.Expr.TypeValue { reference = false; name })
+    }
+  | AMPERSAND name=name_type {
+      expr $loc (Nodes.Expr.TypeValue { reference = true; name })
+    }
 
 %inline constructor_call_arg:
   | value=constructor_value { call_arg $loc (Nodes.Call_arg.Value value) }
@@ -1217,28 +1224,8 @@ expr:
            (verb_call $loc
               (Nodes.Verb_call.Flip { value; abort_handle = None })))
     }
-  | AMPERSAND value=ref_target %prec AMPERSAND {
-      expr $loc (Nodes.Expr.Ref value)
-    }
   | value=expr abort_handle=abort_handle %prec QSTNQSTN {
       attach_abort_handle abort_handle (Span.of_loc $loc) value
-    }
-
-(* What a reference may be taken of: a postfix chain, optionally under further
-   prefixes. A bare lambda is excluded, so the leading `&` in `&Int () { }`
-   belongs to the return type and the whole reads as a lambda returning `&Int`.
-   Parenthesize the lambda to take a reference to it. *)
-ref_target:
-  | value=app { value }
-  | value=app_braced { value }
-  | AMPERSAND value=ref_target %prec AMPERSAND {
-      expr $loc (Nodes.Expr.Ref value)
-    }
-  | TILDE value=ref_target %prec TILDE {
-      expr $loc
-        (Nodes.Expr.VerbCall
-           (verb_call $loc
-              (Nodes.Verb_call.Flip { value; abort_handle = None })))
     }
 
 abort_handle:
@@ -1316,9 +1303,6 @@ expr_braced:
            (verb_call $loc
               (Nodes.Verb_call.Flip { value; abort_handle = None })))
     }
-  | AMPERSAND value=ref_target_braced {
-      expr $loc (Nodes.Expr.Ref value)
-    }
   | value=expr abort_handle=abort_handle_braced {
       attach_abort_handle abort_handle (Span.of_loc $loc) value
     }
@@ -1332,18 +1316,6 @@ expr_braced:
 app_braced:
   | value=primary_braced { value }
   | call=braced_verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
-
-ref_target_braced:
-  | value=app_braced { value }
-  | AMPERSAND value=ref_target_braced {
-      expr $loc (Nodes.Expr.Ref value)
-    }
-  | TILDE value=ref_target_braced {
-      expr $loc
-        (Nodes.Expr.VerbCall
-           (verb_call $loc
-              (Nodes.Verb_call.Flip { value; abort_handle = None })))
-    }
 
 abort_handle_braced:
   | QSTNMARK binder=lname body=body_braced {

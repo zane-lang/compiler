@@ -95,9 +95,6 @@ let rec expr d (e : Expr.t) =
       at "Subscript";
       expr d target;
       each d expr args
-  | Expr.Ref inner ->
-      at "Ref";
-      expr d inner
   | Expr.Init fields ->
       at "Init";
       each d field_value fields

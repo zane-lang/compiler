@@ -48,7 +48,7 @@ Unit loaned() {
 Int?^Parcel refuse(p Parcel) { abort p; }
 Int?&Parcel wander() {
 	p Parcel(String("wander"));
-	abort &p;
+	abort p;
 }
 
 /// A bare type parameter as a result hands back a borrow once it is filled
@@ -68,10 +68,10 @@ Int?^Satchel hand(p &Parcel) { abort Satchel(p); }
 
 Unit binders() {
 	kept Parcel(String("kept"));
-	outer &Parcel = &kept;
+	outer &Parcel = kept;
 	@controlflow$branch(true, {
 		inner Parcel(String("inner"));
-		n Int = hand(&inner) ? e {
+		n Int = hand(inner) ? e {
 			outer = e.at;
 			resolve Int(0);
 		}

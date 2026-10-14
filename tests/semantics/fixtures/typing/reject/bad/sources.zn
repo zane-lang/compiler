@@ -85,3 +85,19 @@ Unit retone(this Rack, other &Rack) mut {
 	own.bell = Bell(Int(4));
 	return Unit();
 }
+
+/// An `ArrayRef` given its element type takes each element as that type,
+/// so `&Bell` mints a reference from every element, as an `&Bell` parameter
+/// would: from a settled place only. The element type must be the one the
+/// elements have, and `&` marks only a reference type (generics.md §8.4).
+Unit typed() {
+	bell Bell(Int(6));
+	spare ^Bell = Bell(Int(7));
+	held @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([bell], &Bell);
+	made @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([Bell(Int(8))], &Bell);
+	moving @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([spare], &Bell);
+	other @primitives$ArrayRef<&Bell, 1> = @primitives$ArrayRef([bell], &Rack);
+	count Int(1);
+	counts @primitives$ArrayRef<Int, 1> = @primitives$ArrayRef([count], &Int);
+	return Unit();
+}

@@ -483,7 +483,7 @@ The SST's `TypeMember`, `TypeValue` and `DotAccess` resolve the same way:
 |---|---|
 | `DotAccess` | field read (a slot index); variant member read (abortable, D13); enum-map read |
 | `TypeMember` | enum member; variant case; named constructor |
-| `TypeValue` | a `Type` argument passed to an explicit `Type` parameter (`generics.md` §5.3) |
+| `TypeValue` | a `Type` argument passed to an explicit `Type` parameter (`generics.md` §5.3); written `&Port`, it is the reference type |
 
 An expression that failed to type is an `Invalid` node of type `Ty.Error`
 (D4). A declaration carries what passes 3 and 4 resolved about it, and a verb

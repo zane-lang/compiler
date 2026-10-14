@@ -79,13 +79,17 @@ class DeclarationTests(ParserSyntaxTestCase):
             (this Node)[index Int] => this
 
             Unit work(this Node) mut {
-                this.next = &this;
+                this.next = this;
                 guard(true);
                 spawn run();
                 return Unit();
             }
             '''
         )
+        # A reference is minted by storing a place into an `&` slot; `&`
+        # marks a type and never prefixes an expression.
+        self.assert_rejects("Unit work(this Node) { this.next = &this; }")
+        self.assert_rejects("Unit work(n Node) { m &Node = &n; }")
 
     def test_generic_parameter_introduction_and_collection_literals(self) -> None:
         self.assert_parses(
@@ -130,6 +134,14 @@ class DeclarationTests(ParserSyntaxTestCase):
         self.assert_rejects("Unit use() { machine Slot = @primitives$I64; }")
         # A named constructor takes one on the same terms.
         self.assert_parses("Unit use() { v Vector2.zeros(Int); }")
+        # A type argument may be a reference type; `&` begins no expression,
+        # so it reads only as one. Ordinary calls take none.
+        self.assert_parses(
+            "Unit use() { row ArrayRef<&Port, 2> = ArrayRef([p, q], &Port); }"
+        )
+        self.assert_parses("Unit use() { row ArrayRef([p], &pkg$Port); }")
+        self.assert_rejects("Unit use() { row ArrayRef([p], ^Port); }")
+        self.assert_rejects("Unit use() { register(&Port); }")
         # The inferred half is unchanged and still the one a literal drives.
         self.assert_parses(
             "Unit use() { vec Vector(Int(2), Int(3)); }"
@@ -304,7 +316,7 @@ class TerminatorTests(ParserSyntaxTestCase):
         self.assert_parses("Unit f() { x Int = (Foo{a = b;}):size(); }")
         self.assert_parses("Unit f() { use((match (x) { })(y)); }")
         # As an argument or an operand the value itself is unchanged.
-        self.assert_parses("Unit f() { use(match (x) { }, &{ k, v; }); }")
+        self.assert_parses("Unit f() { use(match (x) { }, { k, v; }); }")
         self.assert_parses("Unit f() { x Int = Foo{a = b;} ?? y; }")
 
     def test_a_constructor_call_trails_its_last_argument(self) -> None:
