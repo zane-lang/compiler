@@ -172,8 +172,11 @@ let constructors =
   let elements e n = Ty.Concept (Ty.Array_lit (Ty.Param e, Ty.Number_param n)) in
   let ref_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let ref_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
-  let typed_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
-  let typed_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
+  let refs_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+  let refs_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
+  let roaming_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+  let roaming_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
+  let moded mode e n = Ty.Concept (Ty.Array_lit (mode (Ty.Param e), Ty.Number_param n)) in
   let fill_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let fill_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
   List.map (fun s -> ctor s [ param "value" (Ty.Concept (concept s)) ] (prim s)) scalars
@@ -189,21 +192,23 @@ let constructors =
       ctor ~generics:[ element; length ] "Array"
         [ param "values" (elements element length) ]
         (fixed "Array" element length);
-      (* An `ArrayRef` is built from an array literal, each element moved into
-         its place, or by `fill`, which calls `make` once per position, in
-         order, with the position counted from 1 (generics.md §8.4). The
-         literal may be followed by its element type, which then decides it
-         rather than the elements: `ArrayRef([p, q], &Port)` mints a
-         reference from each element as an `&Port` parameter would. *)
+      (* An `ArrayRef` is built from an array literal or by `fill`, which
+         calls `make` once per position, in order, with the position counted
+         from 1 (generics.md §8.4). A literal's elements are passed in the
+         mode its constructor writes: borrowed by `ArrayRef`, so each is a
+         value or an `&` value, copied into its place; taken by `ArrayRef.roaming`, so an owner
+         moves in; and as references by `ArrayRef.refs`, so a settled owner
+         mints one and an `&` value is copied. *)
       ctor ~generics:[ ref_element; ref_length ] "ArrayRef"
         [ param "values" (elements ref_element ref_length) ]
         (fixed "ArrayRef" ref_element ref_length);
-      ctor ~generics:[ typed_element; typed_length ] "ArrayRef"
-        [
-          param "values" (elements typed_element typed_length);
-          param ~binds:typed_element "T" (Ty.Concept Ty.Type_value);
-        ]
-        (fixed "ArrayRef" typed_element typed_length);
+      ctor ~generics:[ refs_element; refs_length ] ~member:"refs" "ArrayRef"
+        [ param "values" (moded (fun t -> Ty.Reference t) refs_element refs_length) ]
+        (prim "ArrayRef"
+           ~args:[ Ty.Type (Ty.Reference (Ty.Param refs_element)); Ty.Number (Ty.Number_param refs_length) ]);
+      ctor ~generics:[ roaming_element; roaming_length ] ~member:"roaming" "ArrayRef"
+        [ param "values" (moded (fun t -> Ty.Roaming t) roaming_element roaming_length) ]
+        (fixed "ArrayRef" roaming_element roaming_length);
       ctor ~generics:[ fill_element; fill_length ] ~member:"fill" "ArrayRef"
         [
           param ~binds:fill_length "n" (Ty.Concept Ty.Integer_lit);

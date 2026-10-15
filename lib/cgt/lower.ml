@@ -312,7 +312,7 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
   | "List", [ _ ] ->
       { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = Nodes.Ty.Handle }
   | "ArrayRef.fill", [ _; T.Arg.Value make ] -> fill st ctx span make t
-  | ("Array" | "ArrayRef"), T.Arg.Value v :: ([] | [ T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } ]) -> (
+  | ("Array" | "ArrayRef" | "ArrayRef.refs" | "ArrayRef.roaming"), [ T.Arg.Value v ] -> (
       match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_mode t)) with
       | T.Expr.Array_lit values, Some (e, n) when List.length values = n ->
           let element i v = (i, moved st ctx span e v) in

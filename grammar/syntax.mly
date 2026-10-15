@@ -113,6 +113,22 @@ top_decl:
   | param=param {
       generic_arg $loc (Nodes.Generic_arg.Inferred param)
     }
+  | CARET name=uname concept_=UTYPE {
+      ignore concept_;
+      generic_arg $loc
+        (Nodes.Generic_arg.Moded
+           (param_type $loc
+              (Nodes.Param_type.InferredType
+                 { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Roaming })))
+    }
+  | AMPERSAND name=uname concept_=UTYPE {
+      ignore concept_;
+      generic_arg $loc
+        (Nodes.Generic_arg.Moded
+           (param_type $loc
+              (Nodes.Param_type.InferredType
+                 { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Reference })))
+    }
 
 %inline generics:
   | LESS generics=separated_nonempty_list(COMMA, generic_arg) MORE {
@@ -278,17 +294,10 @@ map_lit:
    enclosing brace. *)
 (* Type arguments are standalone constructor arguments, not expressions.
    In particular, admitting a bare type as an operator operand makes
-   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). A leading `&`
-   marks a reference type, and since `&` begins no expression it cannot be
-   read as anything else here. *)
+   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). *)
 %inline constructor_value:
   | value=expr { value }
-  | name=name_type {
-      expr $loc (Nodes.Expr.TypeValue { reference = false; name })
-    }
-  | AMPERSAND name=name_type {
-      expr $loc (Nodes.Expr.TypeValue { reference = true; name })
-    }
+  | name=name_type { expr $loc (Nodes.Expr.TypeValue name) }
 
 %inline constructor_call_arg:
   | value=constructor_value { call_arg $loc (Nodes.Call_arg.Value value) }

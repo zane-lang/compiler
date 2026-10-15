@@ -238,8 +238,7 @@ module rec Expr : sig
        The parser admits this node only as an entire positional or named
        constructor argument. It is not a general expression operand.
        Only bare names are currently supported; see docs/spec-divergences.md. *)
-    (* A type passed as a constructor argument, `&`-marked when [reference]. *)
-    | TypeValue of { reference : bool; name : Name_type.t }
+    | TypeValue of Name_type.t
     (* [abort_handle] because a member read can fail: reading a member of a
        variant "is **partial**: the case may not be the live one", so it is
        "an **abortable** access (`?` / `??`)" (adt.md §3). Whether a read is of
@@ -369,6 +368,10 @@ and Generic_arg : sig
     | Number of string
     | NumberRef of Name.t
     | Inferred of Param.t
+    (* A marked introduction, `^T Type` or `&T Type`, as the element of a
+       parameter's `@concepts$Array`: the mode each element is passed in
+       (generics.md §8.4). Always a [Param_type.InferredType]. *)
+    | Moded of Param_type.t
 end = Generic_arg
 
 and Verb_type : sig

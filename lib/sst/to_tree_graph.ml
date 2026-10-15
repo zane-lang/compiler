@@ -90,6 +90,7 @@ and generic_arg_to_node (x : Nodes.Generic_arg.t) =
   | Number x -> group "number" (Leaf x)
   | NumberRef x -> group "number_ref" (Leaf (text x))
   | Inferred x -> group "param" (param_to_node x)
+  | Moded x -> group "moded" (param_type_to_node x)
 
 (* No `parenthesized`: the grouping is the tree. *)
 and type_to_node (x : Nodes.Type_expr.t) =
@@ -206,10 +207,8 @@ and expr_to_node (x : Nodes.Expr.t) =
            [
              ("type", name_type_to_node type_); ("member", Leaf (text member));
            ])
-  | TypeValue { reference; name } ->
-      group
-        (if reference then "ref_type_value" else "type_value")
-        (fields [ ("type", name_type_to_node name) ])
+  | TypeValue type_ ->
+      group "type_value" (fields [ ("type", name_type_to_node type_) ])
   | DotAccess { target; field; abort_handle } ->
       group "dot_access"
         (fields

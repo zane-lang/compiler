@@ -15,8 +15,9 @@
    when every scope the stored value names outlives the destination's. A
    block outlives the blocks nested in it; the call site outlives the body.
 
-   A local's names are the union of every value stored in it, at any path, so
-   a body is walked until they stop growing and then once more to report. A
+   A local's names are the union of every value stored in it, at any path,
+   less what a reported store could not keep, so a body is walked until they
+   stop growing and then once more to report. A
    call's result names what its arguments name, and the scope of every place
    a reference parameter mints one from, since a verb may return a reference
    rooted in any `&T` parameter (§1.7). §1.4 needs no check of its own: a
@@ -222,6 +223,14 @@ and fields_names env w ty fields =
 (* Stores                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
+(* What of [n] a store into [dest] may keep: every name that outlives it, and
+   a parameter's, which only a call settles. A name that does not is a store
+   [check] reports, and the destination does not take it on, so one mistake
+   is reported once rather than at every later use of what it was stored
+   into. *)
+let legal w dest n =
+  Names.filter (fun (o, _) -> match (o, dest) with Param _, Param _ -> true | _ -> outlives w o dest) n
+
 (* §1.1: every scope a stored value names outlives the destination's. One
    parameter stored into another's place comes to rest there (§1.11), which
    only a call can settle. [via] says which call stored it. *)
@@ -421,6 +430,7 @@ and rests env w rs ~method_ tys via args =
                 else stored env w tys.(i) v
               in
               let via = via i j in
+              let roots = place env w d in
               Names.iter
                 (fun (o, root) ->
                   let what =
@@ -429,8 +439,9 @@ and rests env w rs ~method_ tys via args =
                     | Global | Block _ -> Env.quote root
                   in
                   check env ~via w v o what n)
-                (place env w d);
-              Option.iter (fun l -> add w l n) (root_local w d)
+                roots;
+              let kept = Names.fold (fun (o, _) n -> legal w o n) roots n in
+              Option.iter (fun l -> add w l kept) (root_local w d)
           | _ -> ())
       rs
   end
@@ -500,7 +511,7 @@ and stat env w (s : T.Stat.t) =
       Hashtbl.replace w.declared local.T.Local.id w.block;
       let n = stored env w local.T.Local.ty value in
       check env w value (Block w.block) (Env.quote local.T.Local.name) n;
-      add w local n
+      add w local (legal w (Block w.block) n)
   | T.Stat.Assign { target; value } -> (
       expr env w value;
       expr env w target;
@@ -508,7 +519,7 @@ and stat env w (s : T.Stat.t) =
       match destination w target with
       | Some (dest, local, what) -> (
           check env w value dest what n;
-          match local with Some l -> add w l n | None -> ())
+          match local with Some l -> add w l (legal w dest n) | None -> ())
       | None -> ())
   | T.Stat.Return e -> (
       expr env w e;

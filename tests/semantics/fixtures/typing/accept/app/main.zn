@@ -149,9 +149,12 @@ Unit main() {
 	spare = grown(spare);
 	crew Crew(spare, shape);
 	lead &Shape = leadOf(crew);
-	shapes @primitives$ArrayRef<Shape, 2> = @primitives$ArrayRef([Shape.circle(Float(3.0)), Shape.circle(Float(4.0))]);
+	shapes @primitives$ArrayRef<Shape, 2> = @primitives$ArrayRef.roaming([Shape.circle(Float(3.0)), Shape.circle(Float(4.0))]);
 	second &Shape = shapes[Int(2)];
 	tiles @primitives$ArrayRef<Int, 4> = @primitives$ArrayRef.fill(4, Int(n Int) => @operators$multiply(n, n));
+	corners @primitives$ArrayRef<Int, 2> = @primitives$ArrayRef([Int(1), Int(2)]);
+	leads @primitives$ArrayRef<&Shape, 2> = @primitives$ArrayRef([lead, second]);
+	pointed @primitives$ArrayRef<&Shape, 2> = @primitives$ArrayRef.refs([shape, lead]);
 
 	numbers Array<Int, 3> = @primitives$Array([Int(1), Int(2), Int(3)]);
 	first Int = numbers[Int(1)];

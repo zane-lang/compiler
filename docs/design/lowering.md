@@ -427,8 +427,9 @@ test passing.
     body's arena; a bare reference-type parameter is a borrow, passed by
     address. Every overwrite is made in place, keeping each boxed member's
     block, and a block relocates only when its owner escapes.
-    `@primitives$ArrayRef<T, n>` lowers as `Array` does, with `fill` a counted
-    loop over its lambda. `@primitives$String` is a value type. The runtime
+    `@primitives$ArrayRef<T, n>` lowers as `Array` does from any of its
+    literal constructors, `.refs` and `.roaming` included, with `fill` a
+    counted loop over its lambda. `@primitives$String` is a value type. The runtime
     is tested in C on its own: an overwrite keeps a boxed member's address,
     and arrival leaves blocks that outlive their destination where they are.
 12. **Where blocks are made.** Once every function is lowered, a pass over

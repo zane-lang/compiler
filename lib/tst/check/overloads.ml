@@ -92,16 +92,43 @@ let all_some xs =
     (fun x acc -> match (x, acc) with Some x, Some acc -> Some (x :: acc) | _ -> None)
     xs (Some [])
 
-(* An array literal matched as the `&T` elements its parameter decided
-   (Ty.held_as) carries that element type from here on, so every analysis
-   reads each element as stored into an `&T`. *)
+(* An array literal matched as `&T` elements (Ty.held_as) carries that
+   element type from here on, so every analysis reads each element as stored
+   into an `&T`. *)
 let held_literal dst (arg : T.Arg.t) =
   match (Ty.strip_mode dst, arg) with
   | ( Ty.Concept (Ty.Array_lit ((Ty.Reference _ as element), _)),
-      T.Arg.Value ({ T.Expr.node = T.Expr.Array_lit _; ty = Ty.Concept (Ty.Array_lit (t, n)); _ } as e) )
+      T.Arg.Value
+        ({ T.Expr.node = T.Expr.Array_lit _; ty = Ty.Concept (Ty.Array_lit (t, n) | Ty.Mixed_lit (t, n)); _ } as e)
+    )
     when not (Ty.is_ref t) ->
       T.Arg.Value { e with T.Expr.ty = Ty.Concept (Ty.Array_lit (element, n)) }
   | _ -> arg
+
+(* An `ArrayRef`'s literal elements are stored, so each must arrive in a
+   mode a store takes (generics.md §8.4, memory.md §2.9). `ArrayRef`
+   borrows them, and a borrowed owner cannot be stored. That a `^T` or `&T`
+   element is filled with the right kind of type is checked as every `^` and
+   `&` is (§3.6). *)
+let stored_elements env (s : S.t) subst (slots : actual option list) =
+  let element = match s.generics with e :: _ -> List.assoc_opt e.Ty.id subst | [] -> None in
+  let at = match slots with Some a :: _ -> Some a.aspan | _ -> None in
+  let problem =
+    match (s.kind, element) with
+    | S.Constructor { member = None; _ }, Some (Ty.Type t)
+      when s.home = S.Namespace "primitives"
+           && s.name = "@primitives$ArrayRef"
+           && (not (Ty.contains_error t))
+           && Type_decls.is_reference env t
+           && not (Ty.is_ref t) ->
+        Some
+          (Printf.sprintf
+             "`ArrayRef` borrows each element, and a borrowed %s cannot be stored: \
+              `ArrayRef.roaming` takes owners, and `ArrayRef.refs` references them"
+             (quote (Ty.to_string t)))
+    | _ -> None
+  in
+  match (problem, at) with Some m, Some at -> [ (at, m) ] | _ -> []
 
 let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome option =
   if List.length slots <> List.length s.params then None
@@ -125,29 +152,20 @@ let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome op
               | Some subst -> (Some subst, Some `Exact)
               | None -> (None, None))
           | None -> (
-              match
-                Ty.unify ~open_ subst (Ty.strip_mode p.ty)
-                  (Ty.held_as ~dst:(Ty.subst subst p.ty) ~src:a.aty)
-              with
+              match Ty.unify ~open_ subst (Ty.strip_mode p.ty) (Ty.held_as ~dst:p.ty ~src:a.aty) with
               | Some subst -> (Some subst, Some `Exact)
               | None -> (Some subst, Some `Convert)))
     in
-    (* An explicit `T Type` argument is bound before the arguments it
-       types, wherever it is written: `ArrayRef([p, q], &Port)` decides the
-       literal's elements rather than being read off them. *)
-    let indexed = List.mapi (fun i pair -> (i, pair)) pairs in
-    let explicit, rest = List.partition (fun (_, ((p : S.param), _)) -> p.binds <> None) indexed in
     let subst, marks =
       List.fold_left
-        (fun (subst, marks) (i, pair) ->
+        (fun (subst, marks) pair ->
           match subst with
           | None -> (None, marks)
           | Some _ ->
               let subst', mark = exact subst pair in
-              (subst', (i, mark) :: marks))
-        (Some [], []) (explicit @ rest)
+              (subst', marks @ [ mark ]))
+        (Some [], []) pairs
     in
-    let marks = List.sort (fun (i, _) (j, _) -> compare i j) marks |> List.map snd in
     (* A function argument matches only at the modes it was written with,
        once inference has filled the parameter's type. *)
     let modes_hold subst =
@@ -166,7 +184,7 @@ let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome op
         else if phase <> Implicit && List.exists (fun m -> m = Some `Convert) marks then None
         else if not (List.for_all (fun (q : Ty.param) -> List.mem_assoc q.id subst) open_) then None
         else begin
-          let site_errors = ref [] in
+          let site_errors = ref (stored_elements env s subst slots) in
           let converted =
             List.map2
               (fun ((p : S.param), slot) mark ->

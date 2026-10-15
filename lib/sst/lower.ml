@@ -80,6 +80,7 @@ and generic_arg (x : C.Generic_arg.t) : S.Generic_arg.t =
     | C.Generic_arg.Number n -> S.Generic_arg.Number n
     | C.Generic_arg.NumberRef n -> S.Generic_arg.NumberRef (name n)
     | C.Generic_arg.Inferred p -> S.Generic_arg.Inferred (param p)
+    | C.Generic_arg.Moded t -> S.Generic_arg.Moded (param_type t)
   in
   { S.Generic_arg.node; span }
 
@@ -155,8 +156,7 @@ and expression (x : C.Expr.t) : S.Expr.t =
         | C.Expr.TypeMember { type_; member } ->
             S.Expr.TypeMember
               { type_ = name_type type_; member = name member }
-        | C.Expr.TypeValue { reference; name } ->
-            S.Expr.TypeValue { reference; name = name_type name }
+        | C.Expr.TypeValue t -> S.Expr.TypeValue (name_type t)
         | C.Expr.DotAccess { target; field; abort_handle } ->
             S.Expr.DotAccess
               {

@@ -65,7 +65,7 @@ Unit check(ok Bool) {
 
 Unit main() {
 	// Built from a literal, its elements moved in, read and written by index.
-	team @primitives$ArrayRef<Player, 3> = @primitives$ArrayRef([Player(Int(1)), Player(Int(2)), Player(Int(3))]);
+	team @primitives$ArrayRef<Player, 3> = @primitives$ArrayRef.roaming([Player(Int(1)), Player(Int(2)), Player(Int(3))]);
 	check(@operators$equal(team[Int(2)].score, Int(2)));
 	team[Int(2)]!add(Int(10));
 	check(@operators$equal(team[Int(2)].score, Int(12)));
@@ -81,7 +81,7 @@ Unit main() {
 
 	// The whole `ArrayRef` overwritten in place: the reference still names
 	// its second element.
-	team = @primitives$ArrayRef([Player(Int(7)), Player(Int(8)), Player(Int(9))]);
+	team = @primitives$ArrayRef.roaming([Player(Int(7)), Player(Int(8)), Player(Int(9))]);
 	check(@operators$equal(second.score, Int(8)));
 
 	// Made by `fill`, element by element, in order.
@@ -91,13 +91,13 @@ Unit main() {
 
 	// A declared subscript whose projection ends at an `ArrayRef` element is
 	// a reference source.
-	squad Squad(@primitives$ArrayRef([Player(Int(5)), Player(Int(6)), Player(Int(7))]));
+	squad Squad(@primitives$ArrayRef.roaming([Player(Int(5)), Player(Int(6)), Player(Int(7))]));
 	lead &Player = squad[Int(1)];
 	squad!replace(Int(1), Player(Int(50)));
 	check(@operators$equal(lead.score, Int(50)));
 
 	// A roaming `ArrayRef` moves whole, and settles where it lands.
-	spare ^@primitives$ArrayRef<Player, 3> = @primitives$ArrayRef([Player(Int(4)), Player(Int(5)), Player(Int(6))]);
+	spare ^@primitives$ArrayRef<Player, 3> = @primitives$ArrayRef.roaming([Player(Int(4)), Player(Int(5)), Player(Int(6))]);
 	spare[Int(1)]!add(Int(1));
 	kept @primitives$ArrayRef<Player, 3> = spare;
 	check(@operators$equal(kept[Int(1)].score, Int(5)));

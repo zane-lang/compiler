@@ -185,6 +185,8 @@ let rec filled_references env (raw : Ty.t) (inst : Ty.t) =
   | Ty.Reference (Ty.Param _), Ty.Reference x -> if is_value env x then [ (x, Under_reference) ] else []
   | Ty.Roaming (Ty.Param _), Ty.Roaming (Ty.Reference _ as x) -> [ (x, Under_take) ]
   | (Ty.Reference r | Ty.Roaming r), (Ty.Reference i | Ty.Roaming i) -> filled_references env r i
+  (* A literal's elements are passed in the mode its element writes. *)
+  | Ty.Concept (Ty.Array_lit (r, _)), Ty.Concept (Ty.Array_lit (i, _)) -> filled_references env r i
   | Ty.Named (_, ra), Ty.Named (_, ia) | Ty.Intrinsic { args = ra; _ }, Ty.Intrinsic { args = ia; _ }
     when List.length ra = List.length ia ->
       List.concat
@@ -433,7 +435,10 @@ let parse_number env span text =
       error env span (Printf.sprintf "%s is not a number this compiler can represent" (quote text));
       Ty.Known 0
 
-let rec resolve env scope (te : N.Type_expr.t) : Ty.t =
+(* [param] is set on a value parameter's own type, the one place a marked
+   introduction may stand inside type arguments: as its `@concepts$Array`'s
+   element (generics.md §8.4). *)
+let rec resolve ?(param = false) env scope (te : N.Type_expr.t) : Ty.t =
   let span = te.N.Type_expr.span in
   match te.N.Type_expr.node with
   | N.Type_expr.Reference inner ->
@@ -445,9 +450,9 @@ let rec resolve env scope (te : N.Type_expr.t) : Ty.t =
       check_marker env span t;
       t
   | N.Type_expr.Verb v -> Ty.Verb (verb_type env scope v)
-  | N.Type_expr.Path { name; generics } -> apply env scope span (resolve_head env scope name) name generics
+  | N.Type_expr.Path { name; generics } -> apply ~param env scope span (resolve_head env scope name) name generics
 
-and generic_arg env scope (a : N.Generic_arg.t) : Ty.arg =
+and generic_arg ?(element = false) env scope (a : N.Generic_arg.t) : Ty.arg =
   let span = a.N.Generic_arg.span in
   match a.N.Generic_arg.node with
   | N.Generic_arg.Type t ->
@@ -486,6 +491,14 @@ and generic_arg env scope (a : N.Generic_arg.t) : Ty.arg =
         match List.assoc_opt name scope.params with
         | Some arg -> arg
         | None -> Ty.Type Ty.Error)
+  | N.Generic_arg.Moded t ->
+      if element then Ty.Type (param_type env scope t)
+      else begin
+        error env span
+          "a marked introduction is written only on a parameter's own type, or as the element \
+           of a parameter's `@concepts$Array`, where it is the mode each element is passed in";
+        Ty.Type (Ty.strip_mode (param_type env scope t))
+      end
 
 (* Arguments against the parameters they fill: one each, of the right kind
    (generics.md §4.2). *)
@@ -517,7 +530,7 @@ and apply_args env scope span what (kinds : Ty.kind list) generics =
     if !ok then Some args else None
   end
 
-and apply env scope span head (name : N.Name_type.t) generics : Ty.t =
+and apply ?(param = false) env scope span head (name : N.Name_type.t) generics : Ty.t =
   match head with
   | Unknown -> Ty.Error
   | Bound (Ty.Type t) ->
@@ -534,7 +547,7 @@ and apply env scope span head (name : N.Name_type.t) generics : Ty.t =
           check_kinds env span t (arg_spans args generics);
           t
       | None -> Ty.Error)
-  | Concept_type c -> concept env scope span c generics
+  | Concept_type c -> concept ~param env scope span c generics
   | Declared d -> (
       match Hashtbl.find_opt env.type_infos d.id with
       | Some info -> (
@@ -562,7 +575,7 @@ and apply env scope span head (name : N.Name_type.t) generics : Ty.t =
 and arg_spans args (generics : N.Generic_arg.t list) =
   List.combine args (List.map (fun (g : N.Generic_arg.t) -> g.N.Generic_arg.span) generics)
 
-and concept env scope span c generics : Ty.t =
+and concept ~param env scope span c generics : Ty.t =
   let args () = List.map (generic_arg env scope) generics in
   let expect n =
     if List.length generics <> n then begin
@@ -586,7 +599,10 @@ and concept env scope span c generics : Ty.t =
              (control-flow.md §2.4)";
           Ty.Error)
   | "Array" -> (
-      match args () with
+      let args =
+        List.mapi (fun i g -> generic_arg ~element:(param && i = 0) env scope g) generics
+      in
+      match args with
       | [ Ty.Type t; Ty.Number n ] -> Ty.Concept (Ty.Array_lit (t, n))
       | _ ->
           error env span "`@concepts$Array` takes a type and a number";
@@ -621,7 +637,7 @@ and ret_type_of env scope (r : N.Ret_type.t) =
 
 and param_type env scope (p : N.Param_type.t) : Ty.t =
   match p.N.Param_type.node with
-  | N.Param_type.Concrete t -> resolve env scope t
+  | N.Param_type.Concrete t -> resolve ~param:true env scope t
   | N.Param_type.Concept { N.Concept.node = N.Concept.Type; _ } -> Ty.Concept Ty.Type_value
   (* Only a type's header entry is written this way, and the grammar builds
      one nowhere else. *)

@@ -484,7 +484,7 @@ Probe `refelems`. A program that reads an element of an
 `internal compiler error: the stack overflowed` (exit 3):
 
 ```zane
-row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([p, q], &Port);
+row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef.refs([p, q]);
 x &Port = row[Int(1)];          // legal; the build overflows here
 ```
 

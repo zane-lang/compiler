@@ -55,6 +55,7 @@ and concept stamp = function
   | Tty.Text_lit -> namespace "concepts" ^ "$String"
   | Tty.Array_lit (t, n) ->
       namespace "concepts" ^ "$Array<" ^ ty_ stamp t ^ ", " ^ number n ^ ">"
+  | Tty.Mixed_lit _ -> Diagnostic.bug "Symbol.concept: a mixed array literal is never a parameter's type"
   | Tty.Map_lit (k, v) ->
       namespace "concepts" ^ "$Map<" ^ ty_ stamp k ^ ", " ^ ty_ stamp v ^ ">"
   | Tty.Block -> namespace "concepts" ^ "$Block"

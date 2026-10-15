@@ -102,27 +102,27 @@ Unit main() {
 	check(String("loop of case changes"), @operators$equal(power(view), Int(100000)));
 
 	// ArrayRef elements: settled under a settled root.
-	row @primitives$ArrayRef<Engine, 3> = @primitives$ArrayRef([Engine(Int(1), String("a")), Engine(Int(2), String("b")), Engine(Int(3), String("c"))]);
+	row @primitives$ArrayRef<Engine, 3> = @primitives$ArrayRef.roaming([Engine(Int(1), String("a")), Engine(Int(2), String("b")), Engine(Int(3), String("c"))]);
 	second &Engine = row[Int(2)];
 	row[Int(2)] = Engine(Int(20), String("bb"));
 	check(String("ArrayRef element overwrite seen"), @operators$equal(second.power, Int(20)));
 	second!tune();
 	check(String("write through element reference"), @operators$equal(row[Int(2)].power, Int(21)));
-	row = @primitives$ArrayRef([Engine(Int(4), String("d")), Engine(Int(5), String("e")), Engine(Int(6), String("f"))]);
+	row = @primitives$ArrayRef.roaming([Engine(Int(4), String("d")), Engine(Int(5), String("e")), Engine(Int(6), String("f"))]);
 	check(String("whole ArrayRef overwrite seen"), @operators$and(@operators$equal(second.power, Int(5)), @operators$equal(second.label, String("e"))));
 
 	// Replaced from an inner block, whose blocks then drain.
-	row2 @primitives$ArrayRef<Engine, 2> = @primitives$ArrayRef([Engine(Int(1), String("a")), Engine(Int(2), String("b"))]);
+	row2 @primitives$ArrayRef<Engine, 2> = @primitives$ArrayRef.roaming([Engine(Int(1), String("a")), Engine(Int(2), String("b"))]);
 	second2 &Engine = row2[Int(2)];
 	inner({
-		row2 = @primitives$ArrayRef([Engine(Int(3), @operators$concat(String("c"), String("c"))), Engine(Int(4), @operators$concat(String("d"), String("d")))]);
+		row2 = @primitives$ArrayRef.roaming([Engine(Int(3), @operators$concat(String("c"), String("c"))), Engine(Int(4), @operators$concat(String("d"), String("d")))]);
 	});
 	churn();
 	check(String("element ref after the ArrayRef is replaced from an inner block"), @operators$and(@operators$equal(second2.power, Int(4)), @operators$equal(second2.label, String("dd"))));
-	shed Shed(@primitives$ArrayRef([Engine(Int(1), String("a")), Engine(Int(2), String("b"))]));
+	shed Shed(@primitives$ArrayRef.roaming([Engine(Int(1), String("a")), Engine(Int(2), String("b"))]));
 	s &Engine = shed.row[Int(1)];
 	inner({
-		shed = Shed(@primitives$ArrayRef([Engine(Int(5), @operators$concat(String("e"), String("e"))), Engine(Int(6), String("f"))]));
+		shed = Shed(@primitives$ArrayRef.roaming([Engine(Int(5), @operators$concat(String("e"), String("e"))), Engine(Int(6), String("f"))]));
 	});
 	churn();
 	check(String("element ref after its owner is replaced from an inner block"), @operators$and(@operators$equal(s.power, Int(5)), @operators$equal(s.label, String("ee"))));

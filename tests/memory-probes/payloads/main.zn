@@ -28,9 +28,9 @@ Unit main() {
 	q &Slot = roaming;              // ILLEGAL: roaming
 	settledEngine Engine(Int(2));
 	s3 ^Slot = Slot.full(settledEngine);  // ILLEGAL: settledEngine is settled
-	row @primitives$ArrayRef<Engine, 2> = @primitives$ArrayRef([Engine(Int(1)), Engine(Int(2))]);
+	row @primitives$ArrayRef<Engine, 2> = @primitives$ArrayRef.roaming([Engine(Int(1)), Engine(Int(2))]);
 	x Engine = row[Int(1)];         // ILLEGAL: an ArrayRef element is never moved out
-	loose ^@primitives$ArrayRef<Engine, 2> = @primitives$ArrayRef([Engine(Int(1)), Engine(Int(2))]);
+	loose ^@primitives$ArrayRef<Engine, 2> = @primitives$ArrayRef.roaming([Engine(Int(1)), Engine(Int(2))]);
 	y Engine = loose[Int(1)];       // ILLEGAL: not even under a roaming root
 	z &Engine = first(row);         // legal
 	w &Engine = row[Int(2)];        // legal
