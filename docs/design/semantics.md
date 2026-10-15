@@ -605,8 +605,14 @@ its own boolean type at a coercion site.
 a `core` needs to be written at all: the constructors, none of them implicit,
 that build an `@primitives$String` from an `@concepts$String` and a container
 primitive from its literal, element access on `@primitives$Array` and
-`@primitives$List`, and `push` and `size` on `@primitives$List`. An index, a
-size and a count are each an `@primitives$I64`.
+`@primitives$List`, and `push`, `size`, `remove` and `swapRemove` on
+`@primitives$List`. An index, a size and a count are each an
+`@primitives$I64`. `remove` and `swapRemove` give the element at an index as
+`^T`, which moves it out, and the list closes over its place: `remove` moves
+the later elements down, keeping their order, and `swapRemove` moves the
+last one in. An index outside the list stops the program, as reading there
+does. Where nothing takes the element, it dies there, which is the
+disappearing place of `lifetimes.md` §2.1.
 
 **A `match` arm is where its `return` goes.** `=> expr` is `{ return expr }`
 (`adt.md` §5.1), so a `return` in an arm gives the arm's value, not the verb's.
@@ -738,7 +744,8 @@ only reject more, never let a write through.
 - A case read and what its handler resolves are a place too: the store the
   whole expression feeds decides whether it moves.
 - An `@operators$` function or an intrinsic constructor reads its arguments,
-  and `push` takes its value as `^T`.
+  and `push` takes its value as `^T`. `remove` and `swapRemove` give theirs
+  as `^T`: an element is roaming (`memory.md` §2.8.1), so it moves out.
 - `^T` describes a place, not a value, so no expression's type carries it: a
   `^T` local read, and a call returning `^T`, are values of type `T`. What a
   place holds is read from the local's or the signature's declared type.

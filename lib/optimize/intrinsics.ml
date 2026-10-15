@@ -15,7 +15,8 @@ let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
   | Arguments -> Input
   | Text_join | Text_equal | Text_i32 | Text_i64 | Text_f32 | Text_f64
-  | List_new | List_push | List_at | Array_at | Constant_begin | Constant_end | Writeback
+  | List_new | List_push | List_at | List_remove | List_swap_remove | Array_at | Constant_begin
+  | Constant_end | Writeback
   | Parse_i64 | Parse_f64 ->
       Computed
   (* Codegen calls these for nodes of the tree rather than the tree naming

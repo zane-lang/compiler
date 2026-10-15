@@ -286,6 +286,15 @@ let methods =
       [ param "this" list; param "value" (Ty.Roaming (Ty.Param list_element)) ]
       (prim "Unit");
     meth ~generics:[ list_element ] "primitives" "size" [ param "this" list ] (prim "I64");
+    (* The element at an index moves out and the list closes over its place
+       (lifetimes.md §2.1): `remove` shifts the later elements down, keeping
+       their order, and `swapRemove` moves the last element into it. *)
+    meth ~generics:[ list_element ] ~is_mut:true "primitives" "remove"
+      [ param "this" list; param "index" (prim "I64") ]
+      (Ty.Roaming (Ty.Param list_element));
+    meth ~generics:[ list_element ] ~is_mut:true "primitives" "swapRemove"
+      [ param "this" list; param "index" (prim "I64") ]
+      (Ty.Roaming (Ty.Param list_element));
   ]
 
 (* The control-flow intrinsics (syntax.md §5.1). *)

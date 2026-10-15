@@ -31,7 +31,9 @@ overcommit setting; other platforms run the placement checks alone.
 a list whose elements own no blocks, and a box whose payload owns none,
 have walks for their own block alone. List backing blocks and scalar box
 payloads must still be copied, promoted, and returned, and an overwrite
-must preserve a box's address while updating its payload. The `blocks.c`
+must preserve a box's address while updating its payload. It also holds
+removal to keeping the order or moving the last element in, and the list to
+keeping its block once emptied. The `blocks.c`
 fixture covers values that own more, including lists of owned strings and
 recursively boxed values.
 

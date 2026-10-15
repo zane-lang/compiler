@@ -70,6 +70,7 @@ until it is classified:
 | `String` `+ ==`, `String(…)` | `Text_join`, `Text_equal`, `Text` | computed |
 | `parseI64`, `parseF64` | `Parse_i64`, `Parse_f64` | computed |
 | `List(T)`, `push`, `size`, `[]` | `List_new`, `List_push`, `Member`, `List_at` | computed |
+| `remove`, `swapRemove` | `List_at` and a `Take`, then `List_remove` or `List_swap_remove` | computed |
 | `Array`, `ArrayRef`, `fill`, `[]` | `Record`, a counted loop, `Array_at` | computed |
 | `@controlflow$branch`, `repeat` | `If`, `Repeat` | computed |
 | storage: slots, boxes, copies, moves, overwrites, scopes | the nodes and the runtime calls codegen makes for them | computed (O5) |

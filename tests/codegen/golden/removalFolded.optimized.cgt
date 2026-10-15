@@ -1,0 +1,171 @@
+└── program:
+    ├── entry: removalFolded$main()
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── layouts[1] > layout:
+    │   ├── type: %primitives$I64
+    │   └── positions:
+    ├── layouts[2] > layout:
+    │   ├── type: %primitives$List<%primitives$I64>
+    │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
+    ├── funcs[0] > func:
+    │   ├── symbol: removalFolded$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %4
+    │       ├── body[0] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "15" : handle
+    │       └── body[1] > return: unit : void
+    └── funcs[1] > func:
+        ├── symbol: removalFolded$picked()
+        ├── params:
+        ├── ret: i64
+        └── body[0] > scope:
+            ├── id: %2
+            ├── body[0] > hold:
+            │   ├── local: #1
+            │   ├── scope: %2
+            │   ├── value > expand:
+            │   │   ├── type: handle
+            │   │   ├── label: @22
+            │   │   ├── result: #23
+            │   │   └── body[0] > assign:
+            │   │       ├── place: #23
+            │   │       └── value > runtime:
+            │   │           ├── type: handle
+            │   │           ├── fn: zane_list_new
+            │   │           └── args:
+            │   └── layout: %primitives$List<%primitives$I64>
+            ├── body[1] > eval > expand:
+            │   ├── type: void
+            │   ├── label: @5
+            │   ├── body[0] > let:
+            │   │   ├── local: #3
+            │   │   └── value: 1 : i64
+            │   ├── body[1] > let:
+            │   │   ├── local: #4
+            │   │   └── value > runtime:
+            │   │       ├── type: ptr
+            │   │       ├── fn: zane_list_push
+            │   │       ├── args[0]: address of #1 : ptr
+            │   │       └── args[1]: 8 : i64
+            │   └── body[2] > place:
+            │       ├── address: local #4 : ptr
+            │       ├── value: 1 : i64
+            │       └── layout: %primitives$I64
+            ├── body[2] > eval > expand:
+            │   ├── type: void
+            │   ├── label: @8
+            │   ├── body[0] > let:
+            │   │   ├── local: #6
+            │   │   └── value: 2 : i64
+            │   ├── body[1] > let:
+            │   │   ├── local: #7
+            │   │   └── value > runtime:
+            │   │       ├── type: ptr
+            │   │       ├── fn: zane_list_push
+            │   │       ├── args[0]: address of #1 : ptr
+            │   │       └── args[1]: 8 : i64
+            │   └── body[2] > place:
+            │       ├── address: local #7 : ptr
+            │       ├── value: 2 : i64
+            │       └── layout: %primitives$I64
+            ├── body[3] > eval > expand:
+            │   ├── type: void
+            │   ├── label: @11
+            │   ├── body[0] > let:
+            │   │   ├── local: #9
+            │   │   └── value: 3 : i64
+            │   ├── body[1] > let:
+            │   │   ├── local: #10
+            │   │   └── value > runtime:
+            │   │       ├── type: ptr
+            │   │       ├── fn: zane_list_push
+            │   │       ├── args[0]: address of #1 : ptr
+            │   │       └── args[1]: 8 : i64
+            │   └── body[2] > place:
+            │       ├── address: local #10 : ptr
+            │       ├── value: 3 : i64
+            │       └── layout: %primitives$I64
+            ├── body[4] > let:
+            │   ├── local: #16
+            │   └── value > expand:
+            │       ├── type: i64
+            │       ├── label: @15
+            │       ├── result: #14
+            │       ├── body[0] > let:
+            │       │   ├── local: #12
+            │       │   └── value: address of #1 : ptr
+            │       ├── body[1] > let:
+            │       │   ├── local: #13
+            │       │   └── value: 1 : i64
+            │       ├── body[2] > let:
+            │       │   ├── local: #14
+            │       │   └── value > take:
+            │       │       ├── type: i64
+            │       │       ├── address > runtime:
+            │       │       │   ├── type: ptr
+            │       │       │   ├── fn: zane_list_at
+            │       │       │   ├── args[0]: local #12 : ptr
+            │       │       │   ├── args[1]: 1 : i64
+            │       │       │   └── args[2]: 8 : i64
+            │       │       └── layout: %primitives$I64
+            │       └── body[3] > eval > runtime:
+            │           ├── type: void
+            │           ├── fn: zane_list_remove
+            │           ├── args[0]: local #12 : ptr
+            │           ├── args[1]: 1 : i64
+            │           └── args[2]: 8 : i64
+            ├── body[5] > let:
+            │   ├── local: #21
+            │   └── value > expand:
+            │       ├── type: i64
+            │       ├── label: @20
+            │       ├── result: #19
+            │       ├── body[0] > let:
+            │       │   ├── local: #17
+            │       │   └── value: address of #1 : ptr
+            │       ├── body[1] > let:
+            │       │   ├── local: #18
+            │       │   └── value: 1 : i64
+            │       ├── body[2] > let:
+            │       │   ├── local: #19
+            │       │   └── value > take:
+            │       │       ├── type: i64
+            │       │       ├── address > runtime:
+            │       │       │   ├── type: ptr
+            │       │       │   ├── fn: zane_list_at
+            │       │       │   ├── args[0]: local #17 : ptr
+            │       │       │   ├── args[1]: 1 : i64
+            │       │       │   └── args[2]: 8 : i64
+            │       │       └── layout: %primitives$I64
+            │       └── body[3] > eval > runtime:
+            │           ├── type: void
+            │           ├── fn: zane_list_swap_remove
+            │           ├── args[0]: local #17 : ptr
+            │           ├── args[1]: 1 : i64
+            │           └── args[2]: 8 : i64
+            └── body[6] > return > binary:
+                ├── type: i64
+                ├── op: +
+                ├── left > binary:
+                │   ├── type: i64
+                │   ├── op: *
+                │   ├── left: local #16 : i64
+                │   └── right: 10 : i64
+                └── right > binary:
+                    ├── type: i64
+                    ├── op: +
+                    ├── left: local #21 : i64
+                    └── right > snapshot:
+                        ├── type: i64
+                        └── ptr > runtime:
+                            ├── type: ptr
+                            ├── fn: zane_list_at
+                            ├── args[0]: address of #1 : ptr
+                            ├── args[1]: 1 : i64
+                            └── args[2]: 8 : i64

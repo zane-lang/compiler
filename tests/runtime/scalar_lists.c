@@ -76,6 +76,28 @@ static void exercise_lists(void) {
 	check(zane_blocks() == 0);
 }
 
+/* Removal closes the list over an element's place: `zane_list_remove`
+   keeps the order of what follows it, `zane_list_swap_remove` moves the
+   last element in, and the block stays the list's until its scope drains. */
+static void exercise_removal(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *list = make_list(scope);
+	char *block = list->items;
+	zane_list_remove(list, 1, sizeof(int64_t));
+	zane_list_remove(list, ELEMENTS / 2, sizeof(int64_t));
+	const int64_t *items = (const int64_t *)list->items;
+	check(list->count == ELEMENTS - 2 && items[0] == 2 && items[ELEMENTS / 2 - 2] == ELEMENTS / 2 &&
+	      items[ELEMENTS / 2 - 1] == ELEMENTS / 2 + 2 && items[ELEMENTS - 3] == ELEMENTS);
+	zane_list_swap_remove(list, 1, sizeof(int64_t));
+	zane_list_swap_remove(list, list->count, sizeof(int64_t));
+	check(list->count == ELEMENTS - 4 && items[0] == ELEMENTS && items[list->count - 1] == ELEMENTS - 2);
+	while (list->count) zane_list_swap_remove(list, 1, sizeof(int64_t));
+	*(int64_t *)zane_list_push(list, sizeof(int64_t)) = 5;
+	check(list->items == block && items[0] == 5);
+	zane_scope_drain(scope);
+	check(zane_blocks() == 0);
+}
+
 /* A payload that owns no blocks still has its bytes copied and overwritten. */
 static void exercise_boxes(void) {
 	zane_mark *scope = zane_scope_enter(0);
@@ -121,5 +143,6 @@ void zane_main(void) {
 	if (setrlimit(RLIMIT_AS, &limit) != 0) zane_broken("cannot set the test memory budget");
 #endif
 	exercise_lists();
+	exercise_removal();
 	exercise_boxes();
 }
