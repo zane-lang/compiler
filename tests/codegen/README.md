@@ -79,7 +79,9 @@ again, read the golden diff and promote that.
   strings, owners and lists, each removed element kept, settled, pushed back
   or left to die where it was removed, a list emptied and grown again, and a
   list that is an element, removed from with an index that grows the list
-  holding it, which the call locates only after the index runs.
+  holding it, which the call locates only after the index runs. A list made
+  by a call runs before the index, which prints `list index`, and a list of
+  `Unit` only changes its count.
   `removalFolded` is removals the optimizer runs while folding. `removeRange`
   removes past a list's end, which stops the program as reading there does.
 - `range` indexes past a list's end: the program stops with status 1 after what

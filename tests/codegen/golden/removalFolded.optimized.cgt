@@ -98,11 +98,11 @@
             │       ├── label: @15
             │       ├── result: #14
             │       ├── body[0] > let:
-            │       │   ├── local: #13
-            │       │   └── value: 1 : i64
-            │       ├── body[1] > let:
             │       │   ├── local: #12
             │       │   └── value: address of #1 : ptr
+            │       ├── body[1] > let:
+            │       │   ├── local: #13
+            │       │   └── value: 1 : i64
             │       ├── body[2] > let:
             │       │   ├── local: #14
             │       │   └── value > take:
@@ -127,11 +127,11 @@
             │       ├── label: @20
             │       ├── result: #19
             │       ├── body[0] > let:
-            │       │   ├── local: #18
-            │       │   └── value: 1 : i64
-            │       ├── body[1] > let:
             │       │   ├── local: #17
             │       │   └── value: address of #1 : ptr
+            │       ├── body[1] > let:
+            │       │   ├── local: #18
+            │       │   └── value: 1 : i64
             │       ├── body[2] > let:
             │       │   ├── local: #19
             │       │   └── value > take:

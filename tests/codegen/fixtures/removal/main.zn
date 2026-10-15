@@ -1,9 +1,10 @@
 /// Removing a list's elements: `remove` moves the element at an index out and
 /// shifts the later ones down, and `swapRemove` moves the last one into its
 /// place. Of scalars, strings, owners and lists; a removed element kept,
-/// settled, pushed back, or left to die where it was removed, and from a
-/// list that is itself an element whose list the index grows. Each check
-/// prints `yes` when it holds and `no` when it does not.
+/// settled, pushed back, or left to die where it was removed; from a list
+/// that is itself an element whose list the index grows, and from one made
+/// by a call, which runs before the index; and of elements with no storage.
+/// Each check prints `yes` when it holds and `no` when it does not.
 package removal;
 
 alias Int = @primitives$I64
@@ -48,6 +49,20 @@ Int growAndGive(this List<Row>, n Int) mut {
 		row!push(i);
 		this!push(row);
 	}
+	return Int(1);
+}
+
+/// A list made by a call, which says when it runs.
+^Row made() {
+	@program$console!print(String("list "));
+	row ^Row = @primitives$List(Int);
+	row!push(Int(5));
+	return row;
+}
+
+/// An index given by a call, which says when it runs.
+Int firstIndex() {
+	@program$console!print(String("index\n"));
 	return Int(1);
 }
 
@@ -150,5 +165,18 @@ Unit main() {
 	check(@operators$equal(rows[Int(1)]:size(), Int(1)));
 	check(@operators$equal(rows[Int(1)][Int(1)], Int(30)));
 	check(@operators$equal(rows:size(), Int(1001)));
+
+	// A subject made by a call runs before the index, as any subject runs
+	// before its arguments: this prints `list index`.
+	check(@operators$equal(made()!remove(firstIndex()), Int(5)));
+
+	// Elements with no storage: only the count changes.
+	units List<Unit> = @primitives$List(Unit);
+	units!push(Unit());
+	units!push(Unit());
+	units!push(Unit());
+	units!remove(Int(1));
+	units!swapRemove(Int(2));
+	check(@operators$equal(units:size(), Int(1)));
 	return Unit();
 }

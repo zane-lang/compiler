@@ -196,15 +196,19 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
         args;
         handler = None;
       } -> (
-      (* The list's own operands run first, then the index, and only then
-         is the list located, as for any `!` call on an element
-         ([located_last]): an index that grows the list holding it moves it
-         before the call finds it. The element's place is checked against
-         the count as a subscript's is, and the element moves out of it;
-         then the list closes over the place. *)
+      (* The list runs before the index, as a subject runs before its
+         arguments. A list that is an element is the exception, as for any
+         `!` call on one ([located_last]): its own operands run first, then
+         the index, and only then is it located, so an index that grows the
+         list holding it moves it before the call finds it. The element's
+         place is checked against the count as a subscript's is, and the
+         element moves out of it; then the list closes over the place. An
+         element with no storage has nothing to move, so only the check
+         and the closing run. *)
       match args with
       | [ T.Arg.Value list; T.Arg.Value index ] ->
-          let pins, list = pinned st ctx span list in
+          let element_of = subscripted list in
+          let pins, list = if element_of then pinned st ctx span list else ([], list) in
           let t =
             match element (Tty.strip_mode list.T.Expr.ty) with
             | Some t -> t
@@ -224,18 +228,21 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           let the_list = local_ptr l in
           let the_index = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
           let at = ptr (Expr.Runtime { fn = Runtime.List_at; args = [ the_list; the_index; s ] }) in
-          let taken = Expr.Take { address = at; layout = layout st span t } in
           let closed = Expr.Runtime { fn; args = [ the_list; the_index; s ] } in
-          let body =
-            pins
-            @ [
-              Stat.Let { id = i; value = borrow st ctx span index };
-              Stat.Let { id = l; value = lend st ctx span list };
-              Stat.Let { id = v; value = { Expr.node = taken; ty = lt } };
-              Stat.Eval { Expr.node = closed; ty = Nodes.Ty.Void };
-            ]
+          let the_index_runs = Stat.Let { id = i; value = borrow st ctx span index } in
+          let the_list_runs = Stat.Let { id = l; value = lend st ctx span list } in
+          let operands =
+            if element_of then pins @ [ the_index_runs; the_list_runs ]
+            else [ the_list_runs; the_index_runs ]
           in
-          { Expr.node = Expr.Expand { label; body; result = Some v }; ty = lt }
+          let moved, result =
+            if lt = Nodes.Ty.Void then ([ Stat.Eval at ], None)
+            else
+              let taken = Expr.Take { address = at; layout = layout st span t } in
+              ([ Stat.Let { id = v; value = { Expr.node = taken; ty = lt } } ], Some v)
+          in
+          let body = operands @ moved @ [ Stat.Eval { Expr.node = closed; ty = Nodes.Ty.Void } ] in
+          { Expr.node = Expr.Expand { label; body; result }; ty = lt }
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
   | T.Expr.Subscript _ -> (
       (* The element's own storage: for an `&` element, what it holds is the
