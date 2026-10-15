@@ -193,8 +193,8 @@ package app
               stat Return | => String("bottom")
                 expr Construct @primitives$String | String("bottom")
                   expr Text_lit | "bottom"
-  decl Verb main | Unit main() { say(String(" … rge")); } return Unit(); }
-    block | { say(String("hello")); or … rge")); } return Unit(); }
+  decl Verb main | Unit main() { say(String(" … w = team; return Unit(); }
+    block | { say(String("hello")); or … w = team; return Unit(); }
       stat Expr | say(String("hello"));
         expr Call say | say(String("hello"))
           expr Construct @primitives$String | String("hello")
@@ -476,6 +476,19 @@ package app
               expr Call say | say(String("large"))
                 expr Construct @primitives$String | String("large")
                   expr Text_lit | "large"
+      stat Let | drawn ^Shape.circle(Float(5.0));
+        local drawn | drawn
+        expr Case circle | Shape.circle(Float(5.0))
+          expr Construct @primitives$F64 | Float(5.0)
+            expr Decimal_lit | 5.0
+      stat Let | team ^Crew(drawn, shape);
+        local team | team
+        expr Construct Crew | Crew(drawn, shape)
+          expr Var drawn | drawn
+          expr Var shape | shape
+      stat Let | kept Crew = team;
+        local kept | kept
+        expr Var team | team
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
   decl Verb twice | T twice(value T Type) => value + value

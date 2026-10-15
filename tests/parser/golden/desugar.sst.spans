@@ -1097,6 +1097,297 @@ package | package desugar; import co … .early)); return Unit(); }
                 name_type | Unit
                   ident Unit | Unit
               constructor_args Positional | ()
+  decl Type | type Rig = #struct { x Int; y Int; }
+    name Rig | Rig
+    type_or_moulded Moulded | #struct { x Int; y Int; }
+      moulded | #struct { x Int; y Int; }
+        mould Struct | struct { x Int; y Int; }
+          body_field | x Int;
+            name x | x
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+          body_field | y Int;
+            name y | y
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+        type_axis Reference | #
+  decl Verb | Rig(x Int, y Int) => init{x; y;}
+    verb_decl Constructor | Rig(x Int, y Int) => init{x; y;}
+      type_expr Path | Rig
+        name_type | Rig
+          ident Rig | Rig
+      constructor_params Positional | (x Int, y Int)
+        param | x Int
+          name x | x
+          param_type Concrete | Int
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+        param | y Int
+          name y | y
+          param_type Concrete | Int
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+      block | => init{x; y;}
+        stat Ret | => init{x; y;}
+          expr Init | init{x; y;}
+            field_arg | x
+              name x | x
+              expr NameExpr | x
+                name_expr | x
+                  ident x | x
+            field_arg | y
+              name y | y
+              expr NameExpr | y
+                name_expr | y
+                  ident y | y
+  decl Verb | Rig{x Int; y Int;} => init{x; y;}
+    verb_decl Constructor | Rig{x Int; y Int;} => init{x; y;}
+      type_expr Path | Rig
+        name_type | Rig
+          ident Rig | Rig
+      constructor_params Fields | {x Int; y Int;}
+        constructor_field | x Int
+          name x | x
+          param_type Concrete | Int
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+        constructor_field | y Int
+          name y | y
+          param_type Concrete | Int
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+      block | => init{x; y;}
+        stat Ret | => init{x; y;}
+          expr Init | init{x; y;}
+            field_arg | x
+              name x | x
+              expr NameExpr | x
+                name_expr | x
+                  ident x | x
+            field_arg | y
+              name y | y
+              expr NameExpr | y
+                name_expr | y
+                  ident y | y
+  decl Verb | Rig.square(side Int) => init{x = side; y = side;}
+    verb_decl Constructor | Rig.square(side Int) => init{x = side; y = side;}
+      type_expr Path | Rig
+        name_type | Rig
+          ident Rig | Rig
+      member square | square
+      constructor_params Positional | (side Int)
+        param | side Int
+          name side | side
+          param_type Concrete | Int
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+      block | => init{x = side; y = side;}
+        stat Ret | => init{x = side; y = side;}
+          expr Init | init{x = side; y = side;}
+            field_arg | x = side
+              name x | x
+              expr NameExpr | side
+                name_expr | side
+                  ident side | side
+            field_arg | y = side
+              name y | y
+              expr NameExpr | side
+                name_expr | side
+                  ident side | side
+  decl Type | type Load = #variant { crate Int; }
+    name Load | Load
+    type_or_moulded Moulded | #variant { crate Int; }
+      moulded | #variant { crate Int; }
+        mould Variant | variant { crate Int; }
+          body_field | crate Int;
+            name crate | crate
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+        type_axis Reference | #
+  decl Verb | Unit roamers() { built ^Ri … ig{x; y;} return Unit(); }
+    verb_decl Func | Unit roamers() { built ^Ri … ig{x; y;} return Unit(); }
+      name roamers | roamers
+      ret_type Safe | Unit
+        type_expr Path | Unit
+          name_type | Unit
+            ident Unit | Unit
+      block | { built ^Rig(Int(1), Int(2 … ig{x; y;} return Unit(); }
+        stat Decl | built ^Rig(Int(1), Int(2));
+          decl Var | built ^Rig(Int(1), Int(2))
+            name built | built
+            type_expr Roaming | ^Rig
+              type_expr Path | Rig
+                name_type | Rig
+                  ident Rig | Rig
+            expr VerbCall | Rig(Int(1), Int(2))
+              verb_call Constructor | Rig(Int(1), Int(2))
+                constructor_name | Rig
+                  name_type | Rig
+                    ident Rig | Rig
+                constructor_args Positional | (Int(1), Int(2))
+                  call_arg Value | Int(1)
+                    expr VerbCall | Int(1)
+                      verb_call Constructor | Int(1)
+                        constructor_name | Int
+                          name_type | Int
+                            ident Int | Int
+                        constructor_args Positional | (1)
+                          call_arg Value | 1
+                            expr IntLit | 1
+                  call_arg Value | Int(2)
+                    expr VerbCall | Int(2)
+                      verb_call Constructor | Int(2)
+                        constructor_name | Int
+                          name_type | Int
+                            ident Int | Int
+                        constructor_args Positional | (2)
+                          call_arg Value | 2
+                            expr IntLit | 2
+        stat Decl | named ^Rig.square(Int(3));
+          decl Var | named ^Rig.square(Int(3))
+            name named | named
+            type_expr Roaming | ^Rig
+              type_expr Path | Rig
+                name_type | Rig
+                  ident Rig | Rig
+            expr VerbCall | Rig.square(Int(3))
+              verb_call Constructor | Rig.square(Int(3))
+                constructor_name | Rig.square
+                  name_type | Rig
+                    ident Rig | Rig
+                  member square | square
+                constructor_args Positional | (Int(3))
+                  call_arg Value | Int(3)
+                    expr VerbCall | Int(3)
+                      verb_call Constructor | Int(3)
+                        constructor_name | Int
+                          name_type | Int
+                            ident Int | Int
+                        constructor_args Positional | (3)
+                          call_arg Value | 3
+                            expr IntLit | 3
+        stat Decl | cased ^Load.crate(Int(4));
+          decl Var | cased ^Load.crate(Int(4))
+            name cased | cased
+            type_expr Roaming | ^Load
+              type_expr Path | Load
+                name_type | Load
+                  ident Load | Load
+            expr VerbCall | Load.crate(Int(4))
+              verb_call Constructor | Load.crate(Int(4))
+                constructor_name | Load.crate
+                  name_type | Load
+                    ident Load | Load
+                  member crate | crate
+                constructor_args Positional | (Int(4))
+                  call_arg Value | Int(4)
+                    expr VerbCall | Int(4)
+                      verb_call Constructor | Int(4)
+                        constructor_name | Int
+                          name_type | Int
+                            ident Int | Int
+                        constructor_args Positional | (4)
+                          call_arg Value | 4
+                            expr IntLit | 4
+        stat Decl | fielded ^Rig{x = Int(5); y = Int(6);}
+          decl Var | fielded ^Rig{x = Int(5); y = Int(6);}
+            name fielded | fielded
+            type_expr Roaming | ^Rig
+              type_expr Path | Rig
+                name_type | Rig
+                  ident Rig | Rig
+            expr VerbCall | Rig{x = Int(5); y = Int(6);}
+              verb_call Constructor | Rig{x = Int(5); y = Int(6);}
+                constructor_name | Rig
+                  name_type | Rig
+                    ident Rig | Rig
+                constructor_args Fields | {x = Int(5); y = Int(6);}
+                  field_arg | x = Int(5)
+                    name x | x
+                    expr VerbCall | Int(5)
+                      verb_call Constructor | Int(5)
+                        constructor_name | Int
+                          name_type | Int
+                            ident Int | Int
+                        constructor_args Positional | (5)
+                          call_arg Value | 5
+                            expr IntLit | 5
+                  field_arg | y = Int(6)
+                    name y | y
+                    expr VerbCall | Int(6)
+                      verb_call Constructor | Int(6)
+                        constructor_name | Int
+                          name_type | Int
+                            ident Int | Int
+                        constructor_args Positional | (6)
+                          call_arg Value | 6
+                            expr IntLit | 6
+        stat Decl | x Int = Int(7);
+          decl Var | x Int = Int(7)
+            name x | x
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | Int(7)
+              verb_call Constructor | Int(7)
+                constructor_name | Int
+                  name_type | Int
+                    ident Int | Int
+                constructor_args Positional | (7)
+                  call_arg Value | 7
+                    expr IntLit | 7
+        stat Decl | y Int = Int(8);
+          decl Var | y Int = Int(8)
+            name y | y
+            type_expr Path | Int
+              name_type | Int
+                ident Int | Int
+            expr VerbCall | Int(8)
+              verb_call Constructor | Int(8)
+                constructor_name | Int
+                  name_type | Int
+                    ident Int | Int
+                constructor_args Positional | (8)
+                  call_arg Value | 8
+                    expr IntLit | 8
+        stat Decl | implied ^Rig{x; y;}
+          decl Var | implied ^Rig{x; y;}
+            name implied | implied
+            type_expr Roaming | ^Rig
+              type_expr Path | Rig
+                name_type | Rig
+                  ident Rig | Rig
+            expr VerbCall | Rig{x; y;}
+              verb_call Constructor | Rig{x; y;}
+                constructor_name | Rig
+                  name_type | Rig
+                    ident Rig | Rig
+                constructor_args Fields | {x; y;}
+                  field_arg | x
+                    name x | x
+                    expr NameExpr | x
+                      name_expr | x
+                        ident x | x
+                  field_arg | y
+                    name y | y
+                    expr NameExpr | y
+                      name_expr | y
+                        ident y | y
+        stat Ret | return Unit();
+          expr VerbCall | Unit()
+            verb_call Constructor | Unit()
+              constructor_name | Unit
+                name_type | Unit
+                  ident Unit | Unit
+              constructor_args Positional | ()
   decl Verb | Unit lambdas() { twice Int … Int(1); } return Unit(); }
     verb_decl Func | Unit lambdas() { twice Int … Int(1); } return Unit(); }
       name lambdas | lambdas

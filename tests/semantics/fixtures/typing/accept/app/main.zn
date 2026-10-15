@@ -188,6 +188,11 @@ Unit main() {
 		say(String("large"));
 	}
 
+	// The instantiation shorthand with `^` declares a roaming owner.
+	drawn ^Shape.circle(Float(5.0));
+	team ^Crew(drawn, shape);
+	kept Crew = team;
+
 	return Unit();
 }
 

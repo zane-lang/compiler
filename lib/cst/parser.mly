@@ -652,9 +652,11 @@ simple_decl:
   | name=lname type_=type_expr EQUAL value=expr {
       decl $loc (Nodes.Decl.Var { name; type_; value })
     }
-  | name=lname constructor=constructor_name args=positional_constructor_args {
+  | name=lname roaming=roaming_mark constructor=constructor_name
+    args=positional_constructor_args {
       decl $loc
-        (Nodes.Decl.VarShorthand { name; constructor; args; trailing = false })
+        (Nodes.Decl.VarShorthand
+           { name; roaming; constructor; args; trailing = false })
     }
   | value=fields_var_shorthand { value }
   | value=trailing_var_shorthand { value }
@@ -718,10 +720,20 @@ simple_decl_braced:
               (Nodes.Verb_decl.Subscript { this_type; params; value })))
     }
 
+(* The `^` that makes an instantiation shorthand declare a roaming owner rather
+   than a settled one (syntax.md §1.1): `car ^Car(Int(1))` is
+   `car ^Car = Car(Int(1))`. Inline, so the unmarked form stays the production
+   it was and no empty reduction stands between the binder and the type. *)
+%inline roaming_mark:
+  | { None }
+  | CARET { Some (Span.of_loc $loc) }
+
 fields_var_shorthand:
-  | name=lname constructor=constructor_name args=field_constructor_args {
+  | name=lname roaming=roaming_mark constructor=constructor_name
+    args=field_constructor_args {
       decl $loc
-        (Nodes.Decl.VarShorthand { name; constructor; args; trailing = false })
+        (Nodes.Decl.VarShorthand
+           { name; roaming; constructor; args; trailing = false })
     }
 
 (* The same instantiation with the call's last argument trailing, under the
@@ -729,13 +741,14 @@ fields_var_shorthand:
    not be empty, or `name Foo() { ... }` would read both as this and as the
    lambda-variable shorthand in [simple_decl]. *)
 trailing_var_shorthand:
-  | name=lname constructor=constructor_name
+  | name=lname roaming=roaming_mark constructor=constructor_name
     open_=LPAREN args=separated_nonempty_list(COMMA, constructor_call_arg) RPAREN
     tail=trailing_arg {
       ignore open_;
       decl $loc
         (Nodes.Decl.VarShorthand {
           name;
+          roaming;
           constructor;
           (* The arguments run from the `(` through the trailing argument. The
              production's own span would start at the binder and the

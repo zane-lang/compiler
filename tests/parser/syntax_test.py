@@ -56,6 +56,22 @@ class DeclarationTests(ParserSyntaxTestCase):
             '''
         )
 
+    def test_the_instantiation_shorthand_declares_a_roaming_owner(self) -> None:
+        self.assert_parses(
+            '''
+            Unit use() {
+                a ^Car(Int(1));
+                b ^Vehicle.truck(Int(4));
+                c ^Expr.intLit("5");
+                d ^Car{id = Int(1); seats = Int(4);}
+                e ^Car{id; seats;}
+                f ^Car(Int(1)) { tune(); }
+                return Unit();
+            }
+            '''
+        )
+        self.assert_rejects("Unit use() { a &Car(Int(1)); return Unit(); }")
+
     def test_a_body_entry_keeps_its_terminator(self) -> None:
         # An entry of a `{ }` body carries its `;` unconditionally, including
         # one whose value ends in a `}`. Only statements take the brace

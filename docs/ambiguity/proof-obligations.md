@@ -59,8 +59,8 @@ numbers in a proof report refer to.
 
 | Automaton | Conflict states | with shift/reduce | with reduce/reduce |
 | --------- | --------------: | ----------------: | -----------------: |
-| `--GLR`, the parser that ships | 52 | 51 | 1 |
-| stock | 45 | 44 | 1 |
+| `--GLR`, the parser that ships | 55 | 54 | 1 |
+| stock | 48 | 47 | 1 |
 
 Menhir explains each conflict state once, so the explanations file holds one
 block per state; a state with both kinds of conflict counts in both of Menhir's
@@ -94,7 +94,7 @@ are not independent problems:
 
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
-| `(`             | 12 | `loption_generics_ ->` | before a call or a lambda, including standalone constructor type arguments |
+| `(`             | 15 | `loption_generics_ ->` | before a call or a lambda, including standalone constructor type arguments |
 | `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
@@ -109,6 +109,16 @@ either a type or a reference to the expression after it went away with the prefi
 form, ten states in each automaton: the three `(` / `<` states of a named type
 opening a constructor argument, and the same name, qualified name, type member
 and callee after `= &` that the `(` rows above still count without one.
+
+The instantiation shorthand reaches the first `(` row a second time behind a
+`^`: `car ^Car(Int(1))` declares a roaming owner, and after `car ^Car` the
+`(` opens either its constructor arguments or, as in `car ^Car(x Int) { }`, a
+lambda-variable's parameters returning `^Car`. That is the fork the unmarked
+`car Car(` already has, and it adds three states to each automaton, one for
+each way the type may be named (bare, qualified, intrinsic). The stock census
+counts them in this row; the shipped one reports them as reducing the marked
+name, `type_expr -> CARET UIDENT` and its two qualified forms, beside the
+unmarked `type_expr -> UIDENT` lines.
 
 Restricting standalone type values to whole constructor arguments removed the
 three stock `expr -> ... UIDENT` forks and the three mixed operator/type

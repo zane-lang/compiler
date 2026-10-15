@@ -629,8 +629,13 @@ and declaration (x : C.Decl.t) : S.Decl.t =
        (generics.md §5.1).
 
        The value spans from the constructor name to the end of its arguments,
-       which is the text that would have been written after the `=`. *)
-    | C.Decl.VarShorthand { name = n; constructor; args; trailing = _ } ->
+       which is the text that would have been written after the `=`.
+
+       A `^` before the type makes the long form's type `^T`: `car ^Car(...)`
+       is `car ^Car = Car(...)`, a roaming owner, and the roaming type spans
+       from the `^` to the end of the type name. *)
+    | C.Decl.VarShorthand { name = n; roaming; constructor; args; trailing = _ }
+      ->
         let declared = constructor_name constructor in
         let type_name = declared.C.Constructor_name.type_ in
         let type_ =
@@ -638,6 +643,15 @@ and declaration (x : C.Decl.t) : S.Decl.t =
             S.Type_expr.span = type_name.C.Name_type.span;
             node = S.Type_expr.Path { name = type_name; generics = [] };
           }
+        in
+        let type_ =
+          match roaming with
+          | None -> type_
+          | Some caret ->
+              {
+                S.Type_expr.span = Span.join caret type_.S.Type_expr.span;
+                node = S.Type_expr.Roaming type_;
+              }
         in
         let built =
           Span.join declared.C.Constructor_name.span
