@@ -53,6 +53,9 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; args; handler = None }
     when String.starts_with ~prefix:"@operators$" spelling ->
       operation st ctx span spelling args e.T.Expr.ty
+  | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; args; handler = None }
+    when String.starts_with ~prefix:"@math$" spelling ->
+      math st ctx span spelling args e.T.Expr.ty
   | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$print"; _ }; args; handler = None }
     -> (
       (* The program has one console (effects.md §6.6), so the subject names
@@ -431,6 +434,19 @@ and operation st ctx span spelling args (t : Tty.t) : Expr.t =
       in
       primitive_op span op t l r)
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
+
+(* A math function of `@math$` (math.md §2). Its operands run in the order
+   written, and are read where they are, as an operation's are. *)
+and math st ctx span spelling args (t : Tty.t) : Expr.t =
+  let name = String.sub spelling 6 (String.length spelling - 6) in
+  match Math.of_name name with
+  | Some fn ->
+      let value = function
+        | T.Arg.Value v -> borrow st ctx span v
+        | T.Arg.Block _ -> Diagnostic.bug ~span "lowering: a block passed to a math function"
+      in
+      { Expr.node = Expr.Math { fn; args = List.map value args }; ty = ty st span t }
+  | None -> Diagnostic.bug ~span (Printf.sprintf "lowering: no math function `%s`" spelling)
 
 (* `ArrayRef.fill(n, make)` (generics.md §8.4): a slot this scope holds,
    each element made by calling `make` with its position, counted from 1, in

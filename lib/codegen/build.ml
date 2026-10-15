@@ -143,7 +143,10 @@ let executable ?target ?(optimize = false) ?(link = []) m output =
         | Some target -> List.mem "windows" (String.split_on_char '-' target)
         | None -> Sys.win32
       in
-      let link = if windows then link @ [ "-lshell32"; "-Wl,--stack,8388608" ] else link in
+      (* The approximate math functions are the C math library's
+         (math.md §2.6). Windows' C runtime and macOS's libSystem hold it;
+         on Linux it is a library of its own. *)
+      let link = if windows then link @ [ "-lshell32"; "-Wl,--stack,8388608" ] else link @ [ "-lm" ] in
       let command =
         String.concat " "
           (List.map Filename.quote

@@ -114,6 +114,14 @@ let rec expr (e : Expr.t) =
         (fields
            [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("fn", expr fn); ("args", map_seq expr args) ])
   | Expr.Runtime { fn; args } -> call "runtime" (Runtime.name fn) args
+  | Expr.Math { fn; args } ->
+      group "math"
+        (fields
+           [
+             ("type", Leaf (Ty.to_string e.Expr.ty));
+             ("fn", Leaf (Math.name fn));
+             ("args", map_seq expr args);
+           ])
   | Expr.Binary { op; left; right } ->
       group "binary"
         (fields

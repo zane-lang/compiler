@@ -280,6 +280,15 @@ its own.
 C because it adds no toolchain beside the LLVM the compiler already uses, and
 because an arena is exactly the kind of code C states without ceremony.
 
+The math functions of `@math$` ([`math.md`](https://github.com/zane-lang/spec/blob/1457830/spec/math.md)
+§2) need no runtime function. A call to one lowers to a `Math` node, which
+codegen emits as an instruction or an LLVM intrinsic when the function is
+exact, a shift's count masked to the width first, and as a call to the C
+math library's function of the same name when it is approximate, marked
+`nobuiltin` so that LLVM neither computes it ahead of time nor rewrites it.
+Its result is then the library's where the program runs, as §2.6 has it
+(`platforms.md`).
+
 ---
 
 ## 7. How it is built, and how to look at it

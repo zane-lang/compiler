@@ -1,0 +1,18 @@
+/// The math functions of `@math$` take operands of one scalar primitive each,
+/// and only the primitives each is declared over (math.md §2.1).
+package bad;
+
+alias I64 = @primitives$I64
+alias F64 = @primitives$F64
+
+/// A float function on an integer.
+F64 root(value I64) => @math$sqrt(value)
+
+/// An integer function on a float.
+F64 shifted(value F64) => @math$shiftLeft(value, value)
+
+/// Operands of two types.
+F64 least(left F64, right I64) => @math$min(left, right)
+
+/// No such function.
+F64 tangentHyperbolic(value F64) => @math$tanh(value)

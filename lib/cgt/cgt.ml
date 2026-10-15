@@ -2,6 +2,7 @@
 
 module Nodes = Nodes
 module Runtime = Runtime
+module Math = Math
 
 let lower = Program.program
 let expr_parts = Regions.expr_parts

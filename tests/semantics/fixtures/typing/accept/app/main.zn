@@ -223,3 +223,9 @@ Unit main() {
 /// Nothing calls this. Its body is checked where it is declared, and
 /// everything in it depends on `T`, so there is nothing to report.
 T twice(value T Type) => value + value
+
+/// The math functions of `@math$` (math.md §2): an integer one, an exact
+/// float one taking three operands, and an approximate one.
+Int lowByte(value Int) => @math$bitAnd(@math$shiftRightLogical(value, Int(8)), Int(255))
+Float hypotenuse(a Float, b Float) => @math$sqrt(@math$fma(a, a, @operators$multiply(b, b)))
+Float heading(y Float, x Float) => @math$atan2(y, x)

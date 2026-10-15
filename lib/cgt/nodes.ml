@@ -177,6 +177,9 @@ module Expr = struct
     (* A call into the C runtime (L17), by the runtime's symbol. A string
        goes to it, and comes back from it, through the address of a copy. *)
     | Runtime of { fn : Runtime.fn; args : t list }
+    (* A math function of `@math$` (math.md §2) on operands of the node's
+       type, run in the order listed. *)
+    | Math of { fn : Math.fn; args : t list }
     (* An `@operators$` operation on two operands of one type: an integer or
        a float adds, multiplies, divides and compares; an [I1] adds as `or`,
        multiplies as `and` and compares. *)
@@ -299,6 +302,7 @@ module Expr = struct
     | Call _ -> "Call"
     | Call_value _ -> "Call_value"
     | Runtime _ -> "Runtime"
+    | Math _ -> "Math"
     | Binary _ -> "Binary"
     | Flip _ -> "Flip"
     | Convert _ -> "Convert"

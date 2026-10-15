@@ -83,6 +83,90 @@ let runtime env fn =
 
 let walks env = Option.get env.walks
 
+(* A math function of `@math$` (math.md §2) on operands of type [t]. An
+   exact one is an instruction or an LLVM intrinsic: a shift's count is
+   taken modulo the width first, since LLVM gives no result for a count at
+   or past it, and a rotation is a funnel shift of the value with itself,
+   which takes its count modulo the width already. `roundEven` is `rint`,
+   which rounds as the rounding mode does, and a program never leaves the
+   default one, to nearest with ties to even. An approximate one is a call
+   to the C math library's function of that name, `f`-suffixed for an
+   `F32`, marked `nobuiltin` so that LLVM neither computes it nor rewrites
+   it: its result is the library's where the program runs (math.md §2.6). *)
+let math env b (fn : Cgt.Math.fn) (t : Ty.t) args =
+  let lt = lltype env t in
+  let declare name params ret =
+    match Llvm.lookup_function name env.m with
+    | Some f -> (f, Llvm.function_type ret params)
+    | None ->
+        let fty = Llvm.function_type ret params in
+        (Llvm.declare_function name fty env.m, fty)
+  in
+  let intrinsic base args =
+    let suffix =
+      match t with
+      | Ty.I32 -> "i32"
+      | Ty.I64 -> "i64"
+      | Ty.F32 -> "f32"
+      | Ty.F64 -> "f64"
+      | _ -> Diagnostic.bug ("codegen: a math function on " ^ Ty.to_string t)
+    in
+    let f, fty =
+      declare ("llvm." ^ base ^ "." ^ suffix) (Array.of_list (List.map Llvm.type_of args)) lt
+    in
+    Llvm.build_call fty f (Array.of_list args) "" b
+  in
+  let no = Llvm.const_int (Llvm.i1_type env.ctx) 0 in
+  let count c =
+    let width = match t with Ty.I32 -> 32 | _ -> 64 in
+    Llvm.build_and c (Llvm.const_int lt (width - 1)) "" b
+  in
+  let library name =
+    let name = if t = Ty.F32 then name ^ "f" else name in
+    let f, fty = declare name (Array.of_list (List.map Llvm.type_of args)) lt in
+    let call = Llvm.build_call fty f (Array.of_list args) "" b in
+    Llvm.add_call_site_attr call (Llvm.create_enum_attr env.ctx "nobuiltin" 0L) Llvm.AttrIndex.Function;
+    call
+  in
+  let float = match t with Ty.F32 | Ty.F64 -> true | _ -> false in
+  match (fn, args) with
+  | Cgt.Math.Bit_and, [ l; r ] -> Llvm.build_and l r "" b
+  | Cgt.Math.Bit_or, [ l; r ] -> Llvm.build_or l r "" b
+  | Cgt.Math.Bit_xor, [ l; r ] -> Llvm.build_xor l r "" b
+  | Cgt.Math.Bit_not, [ v ] -> Llvm.build_not v "" b
+  | Cgt.Math.Shift_left, [ v; c ] -> Llvm.build_shl v (count c) "" b
+  | Cgt.Math.Shift_right, [ v; c ] -> Llvm.build_ashr v (count c) "" b
+  | Cgt.Math.Shift_right_logical, [ v; c ] -> Llvm.build_lshr v (count c) "" b
+  | Cgt.Math.Rotate_left, [ v; c ] -> intrinsic "fshl" [ v; v; c ]
+  | Cgt.Math.Rotate_right, [ v; c ] -> intrinsic "fshr" [ v; v; c ]
+  | Cgt.Math.Pop_count, [ v ] -> intrinsic "ctpop" [ v ]
+  | Cgt.Math.Leading_zeros, [ v ] -> intrinsic "ctlz" [ v; no ]
+  | Cgt.Math.Trailing_zeros, [ v ] -> intrinsic "cttz" [ v; no ]
+  | Cgt.Math.Abs, [ v ] when float -> intrinsic "fabs" [ v ]
+  | Cgt.Math.Abs, [ v ] -> intrinsic "abs" [ v; no ]
+  | Cgt.Math.Min, [ l; r ] when float -> intrinsic "minimum" [ l; r ]
+  | Cgt.Math.Min, [ l; r ] -> intrinsic "smin" [ l; r ]
+  | Cgt.Math.Max, [ l; r ] when float -> intrinsic "maximum" [ l; r ]
+  | Cgt.Math.Max, [ l; r ] -> intrinsic "smax" [ l; r ]
+  | Cgt.Math.Sqrt, [ v ] -> intrinsic "sqrt" [ v ]
+  | Cgt.Math.Floor, [ v ] -> intrinsic "floor" [ v ]
+  | Cgt.Math.Ceil, [ v ] -> intrinsic "ceil" [ v ]
+  | Cgt.Math.Trunc, [ v ] -> intrinsic "trunc" [ v ]
+  | Cgt.Math.Round_even, [ v ] -> intrinsic "rint" [ v ]
+  | Cgt.Math.Fma, [ l; r; a ] -> intrinsic "fma" [ l; r; a ]
+  | Cgt.Math.Copy_sign, [ m; s ] ->
+      (* A NaN's sign is not the program's to see (math.md §2.5), so a NaN
+         sign operand counts as positive. *)
+      let nan = Llvm.build_fcmp Llvm.Fcmp.Uno s s "" b in
+      Llvm.build_select nan (intrinsic "fabs" [ m ]) (intrinsic "copysign" [ m; s ]) "" b
+  | ( ( Cgt.Math.Cbrt | Cgt.Math.Sin | Cgt.Math.Cos | Cgt.Math.Tan | Cgt.Math.Asin | Cgt.Math.Acos
+      | Cgt.Math.Atan | Cgt.Math.Atan2 | Cgt.Math.Exp | Cgt.Math.Log | Cgt.Math.Pow
+      | Cgt.Math.Hypot ) as fn ),
+    _ ->
+      library (Cgt.Math.name fn)
+  | _ -> Diagnostic.bug ("codegen: `@math$" ^ Cgt.Math.name fn ^ "` with the wrong operands")
+
+
 (* A layout's table of walks, or none when it lists nothing. *)
 let layout env (l : Layout.t) = Walks.table (walks env) l
 let listed env (l : Layout.t) = Walks.listed (walks env) l
@@ -610,6 +694,10 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           ignore (Llvm.build_call fty f (Array.of_list (out :: args)) "" b);
           Some (Llvm.build_load t out "" b)
       | _ -> Some (Llvm.build_call fty f (Array.of_list args) "" b))
+  | Expr.Math { fn; args } ->
+      (* The operands' instructions come in the order they are listed. *)
+      let args = List.map (value_of env fr b) args in
+      Some (math env b fn e.Expr.ty args)
   | Expr.Binary { op; left; right } -> (
       (* The left operand's instructions come first. *)
       let l = expr env fr b left in

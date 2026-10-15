@@ -737,6 +737,52 @@
   (diff golden/lists.out lists.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/math))
+ (action
+  (with-stdout-to
+   math.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/math))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/math.optimized.cgt math.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/math))
+ (targets math.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build math.exe --package fixtures/math)))
+
+(rule
+ (deps (source_tree fixtures/math))
+ (targets math.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build math.optimized.exe --optimize --package fixtures/math)))
+
+(rule
+ (action
+  (with-stdout-to
+   math.out.actual
+   (run ./math.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/math.out math.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   math.optimized.out.actual
+   (run ./math.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/math.out math.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/operators))
  (targets operators.exe)
  (action
