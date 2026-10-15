@@ -74,6 +74,12 @@ again, read the golden diff and promote that.
   reads of boxed payloads. `Solo`, a struct whose one member is boxed, is a
   single address, so reading one out of a list takes the snapshot's acquire
   load.
+- `removal` removes lists' elements with `remove`, which keeps the order of
+  the rest, and `swapRemove`, which moves the last element in: of scalars,
+  strings, owners and lists, each removed element kept, settled, pushed back
+  or left to die where it was removed, and a list emptied and grown again.
+  `removalFolded` is removals the optimizer runs while folding. `removeRange`
+  removes past a list's end, which stops the program as reading there does.
 - `range` indexes past a list's end: the program stops with status 1 after what
   it wrote so far, and says why on stderr. `rangeZero` does the same with
   index 0, below a list's first element.

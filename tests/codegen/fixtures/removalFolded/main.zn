@@ -1,0 +1,20 @@
+/// Removals the optimizer runs while folding: the whole computation becomes
+/// the text it prints (docs/design/optimization.md).
+package removalFolded;
+
+alias Int = @primitives$I64
+
+Int picked() {
+	xs @primitives$List<Int> = @primitives$List(Int);
+	xs!push(Int(1));
+	xs!push(Int(2));
+	xs!push(Int(3));
+	a Int = xs!remove(Int(1));
+	b Int = xs!swapRemove(Int(1));
+	return @operators$add(@operators$multiply(a, Int(10)), @operators$add(b, xs[Int(1)]));
+}
+
+@primitives$Unit main() {
+	@program$console!print(@primitives$String(picked()));
+	return @primitives$Unit();
+}

@@ -1,0 +1,133 @@
+/// Removing a list's elements: `remove` moves the element at an index out and
+/// shifts the later ones down, and `swapRemove` moves the last one into its
+/// place. Of scalars, strings, owners and lists; a removed element kept,
+/// settled, pushed back, or left to die where it was removed. Each check
+/// prints `yes` when it holds and `no` when it does not.
+package removal;
+
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+alias Row = @primitives$List<Int>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+type Person = #struct {
+	name String;
+	age Int;
+}
+
+Person(name String, age Int) => init{ name; age; }
+
+Int sum(values &List<Int>) {
+	total Int(0);
+	i Int(1);
+	i!to(values:size()) {
+		total = @operators$add(total, values[i]);
+	}
+	return total;
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	// Scalars: the order kept by `remove`, the last moved in by `swapRemove`.
+	numbers List<Int> = @primitives$List(Int);
+	i Int(1);
+	i!to(Int(10)) {
+		numbers!push(i);
+	}
+	third Int = numbers!remove(Int(3));
+	check(@operators$equal(third, Int(3)));
+	check(@operators$equal(numbers:size(), Int(9)));
+	check(@operators$equal(numbers[Int(3)], Int(4)));
+	check(@operators$equal(numbers[Int(9)], Int(10)));
+	check(@operators$equal(sum(numbers), Int(52)));
+	second Int = numbers!swapRemove(Int(2));
+	check(@operators$equal(second, Int(2)));
+	check(@operators$equal(numbers:size(), Int(8)));
+	check(@operators$equal(numbers[Int(2)], Int(10)));
+	check(@operators$equal(numbers[Int(8)], Int(9)));
+	// The first and the last, by each.
+	check(@operators$equal(numbers!remove(Int(1)), Int(1)));
+	check(@operators$equal(numbers!swapRemove(numbers:size()), Int(9)));
+	check(@operators$equal(numbers!remove(numbers:size()), Int(8)));
+	check(@operators$equal(numbers:size(), Int(5)));
+	check(@operators$equal(numbers[Int(1)], Int(10)));
+
+	// Emptied, and grown again from the block it kept.
+	j Int(1);
+	j!to(Int(5)) {
+		numbers!swapRemove(Int(1));
+	}
+	check(@operators$equal(numbers:size(), Int(0)));
+	numbers!push(Int(7));
+	check(@operators$equal(numbers[Int(1)], Int(7)));
+
+	// Strings: a removed one owns its bytes, and one nothing keeps dies.
+	words List<String> = @primitives$List(String);
+	words!push(String("to"));
+	words!push(String("be"));
+	words!push(String("or"));
+	words!push(String("not"));
+	kept String = words!remove(Int(2));
+	check(@operators$equal(kept, String("be")));
+	words!remove(Int(1));
+	check(@operators$equal(@operators$concat(words[Int(1)], words[Int(2)]), String("ornot")));
+	words!swapRemove(Int(1));
+	check(@operators$equal(words[Int(1)], String("not")));
+	check(@operators$equal(words:size(), Int(1)));
+
+	// Owners: one moved out settles, one is pushed back, and one dies.
+	people List<Person> = @primitives$List(Person);
+	k Int(1);
+	k!to(Int(100)) {
+		people!push(Person(String("x"), k));
+	}
+	settled Person = people!remove(Int(50));
+	check(@operators$equal(settled.age, Int(50)));
+	check(@operators$equal(people[Int(50)].age, Int(51)));
+	moving ^Person = people!swapRemove(Int(1));
+	check(@operators$equal(people[Int(1)].age, Int(100)));
+	people!push(moving);
+	check(@operators$equal(people[people:size()].age, Int(1)));
+	people!remove(Int(2));
+	check(@operators$equal(people[Int(2)].age, Int(3)));
+	check(@operators$equal(people:size(), Int(98)));
+
+	// A list of lists: the inner list moves out whole.
+	rows List<Row> = @primitives$List(Row);
+	r Int(1);
+	r!to(Int(3)) {
+		row ^Row = @primitives$List(Int);
+		row!push(r);
+		row!push(@operators$multiply(r, Int(10)));
+		rows!push(row);
+	}
+	first Row = rows!remove(Int(1));
+	check(@operators$equal(first[Int(2)], Int(10)));
+	check(@operators$equal(rows[Int(1)][Int(2)], Int(20)));
+	rows!swapRemove(Int(1));
+	check(@operators$equal(rows[Int(1)][Int(1)], Int(3)));
+	return Unit();
+}

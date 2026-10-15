@@ -189,6 +189,49 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           let value = borrow st ctx span list in
           { Expr.node = Expr.Member { value; index = 1 }; ty = Nodes.Ty.I64 }
       | _ -> Diagnostic.bug ~span "lowering: `size` with the wrong arguments")
+  | T.Expr.Call
+      {
+        callee =
+          { owner = S.Intrinsic (("@primitives$remove" | "@primitives$swapRemove") as spelling); _ };
+        args;
+        handler = None;
+      } -> (
+      (* The element's place is found, checked against the count as a
+         subscript's is, and the element moves out of it; then the list
+         closes over the place. *)
+      match args with
+      | [ T.Arg.Value list; T.Arg.Value index ] ->
+          let t =
+            match element (Tty.strip_mode list.T.Expr.ty) with
+            | Some t -> t
+            | None -> Diagnostic.bug ~span "lowering: a removal from something not a list"
+          in
+          let fn =
+            if spelling = "@primitives$remove" then Runtime.List_remove
+            else Runtime.List_swap_remove
+          in
+          let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
+          let l = fresh st in
+          let i = fresh st in
+          let v = fresh st in
+          let label = fresh st in
+          let lt = ty st span t in
+          let s = int (stride st span t) in
+          let the_list = local_ptr l in
+          let the_index = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
+          let at = ptr (Expr.Runtime { fn = Runtime.List_at; args = [ the_list; the_index; s ] }) in
+          let taken = Expr.Take { address = at; layout = layout st span t } in
+          let closed = Expr.Runtime { fn; args = [ the_list; the_index; s ] } in
+          let body =
+            [
+              Stat.Let { id = l; value = lend st ctx span list };
+              Stat.Let { id = i; value = borrow st ctx span index };
+              Stat.Let { id = v; value = { Expr.node = taken; ty = lt } };
+              Stat.Eval { Expr.node = closed; ty = Nodes.Ty.Void };
+            ]
+          in
+          { Expr.node = Expr.Expand { label; body; result = Some v }; ty = lt }
+      | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
   | T.Expr.Subscript _ -> (
       (* The element's own storage: for an `&` element, what it holds is the
          reference, so this reads it rather than asking [addr] for the

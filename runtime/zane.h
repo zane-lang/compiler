@@ -89,6 +89,8 @@ void zane_overwrite(char *slot, char *incoming, int64_t size, const zane_type *t
 void zane_list_new(zane_list *out);
 void *zane_list_push(zane_list *list, int64_t stride);
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride);
+void zane_list_remove(zane_list *list, int64_t index, int64_t stride);
+void zane_list_swap_remove(zane_list *list, int64_t index, int64_t stride);
 void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride);
 void zane_out_of_range(void);
 

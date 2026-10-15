@@ -559,7 +559,10 @@ test passing.
   emitted code reads each at a fixed offset (below); any other size has a
   stack found by a search. A list's block doubles from 128 bytes (§3.6): into a returned block
   of that size, in place when it is last at the frontier, or else into new
-  bytes. Where the runtime departs from the spec:
+  bytes. It never shrinks: a removal moves the element out of its place and
+  closes the list over it, by moving the later elements down or the last one
+  in, and the list keeps the block until it dies. Where the runtime departs
+  from the spec:
   - A block is placed where its value is made, which is the innermost
     scope. When the value arrives in a place -- a slot, an overwritten
     place, a list's element -- its blocks stay where they are if their
@@ -805,7 +808,9 @@ test passing.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
   §5.2, [`spec-divergences.md`](../spec-divergences.md) §13). Until it says, the program stops:
   what it wrote so far is kept, the runtime writes `index out of range` to
-  stderr, and the status is 1, for a list and an array alike. The CGT names
+  stderr, and the status is 1, for a list and an array alike, and for a
+  list's `remove` and `swapRemove`, which find the element they move out
+  through `List_at`. The CGT names
   the element's address as `List_at` or `Array_at`, and codegen checks the
   index where the address is made: one unsigned compare of the index less one
   against the count covers both ends, and only an index outside calls

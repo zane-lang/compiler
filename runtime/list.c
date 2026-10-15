@@ -57,6 +57,24 @@ void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
 	return list->items + (index - 1) * stride;
 }
 
+/* The list closes over the element at `index`, counted from 1, which the
+   caller has already moved out: the later elements move down one place,
+   keeping their order, and the list keeps its block. Nothing references an
+   element, so moving their bytes moves them. */
+void zane_list_remove(zane_list *list, int64_t index, int64_t stride) {
+	char *at = list->items + (index - 1) * stride;
+	memmove(at, at + stride, (size_t)((list->count - index) * stride));
+	list->count--;
+}
+
+/* As `zane_list_remove`, but the last element moves into the place, so only
+   one element moves and the order is not kept. */
+void zane_list_swap_remove(zane_list *list, int64_t index, int64_t stride) {
+	char *last = list->items + (list->count - 1) * stride;
+	if (index < list->count) memcpy(list->items + (index - 1) * stride, last, (size_t)stride);
+	list->count--;
+}
+
 /* The element at `index` of an array of `count` elements laid out inline,
    counted from 1 like a list's. */
 void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride) {
