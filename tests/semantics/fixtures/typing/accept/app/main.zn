@@ -114,6 +114,12 @@ Crew(lead ^Shape, backup &Shape) => init{ lead; backup; }
 
 &Shape leadOf(crew &Crew) => crew.lead
 
+/// A generic owner takes its arguments from the value it is built with,
+/// whether or not it is declared roaming.
+type Holder<T Type> = #struct { item T; }
+
+Holder<T>(item T Type) => init{ item; }
+
 String describe(corner Corner) => match (corner) {
 	[topLeft, topRight] => String("top");
 	[bottomLeft, bottomRight] => String("bottom");
@@ -192,6 +198,9 @@ Unit main() {
 	drawn ^Shape.circle(Float(5.0));
 	team ^Crew(drawn, shape);
 	kept Crew = team;
+	boxed ^Holder(Int(1));
+	spelled ^Holder = Holder(Int(2));
+	shelf Holder = boxed;
 
 	return Unit();
 }

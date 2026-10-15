@@ -72,5 +72,6 @@ Unit spool(row @primitives$ArrayRef<&Kite, 2>) => Unit()
 /// type it is the same mistake (syntax.md §1.1).
 Unit roam() {
 	count ^Int(9);
+	hamper ^Hamper(Int(10));
 	return Unit();
 }

@@ -163,6 +163,8 @@ package app
       stat Return | => crew.lead
         expr Field lead | crew.lead
           expr Var crew | crew
+  decl Type Holder | type Holder<T Type> = #struct { item T; }
+  decl Verb Holder | Holder<T>(item T Type) => init{ item; }
   decl Verb describe | String describe(corner Cor … ht] => String("bottom"); }
     param corner | corner Corner
     block | => match (corner) { [topLe … ht] => String("bottom"); }
@@ -193,8 +195,8 @@ package app
               stat Return | => String("bottom")
                 expr Construct @primitives$String | String("bottom")
                   expr Text_lit | "bottom"
-  decl Verb main | Unit main() { say(String(" … w = team; return Unit(); }
-    block | { say(String("hello")); or … w = team; return Unit(); }
+  decl Verb main | Unit main() { say(String(" …  = boxed; return Unit(); }
+    block | { say(String("hello")); or …  = boxed; return Unit(); }
       stat Expr | say(String("hello"));
         expr Call say | say(String("hello"))
           expr Construct @primitives$String | String("hello")
@@ -489,6 +491,19 @@ package app
       stat Let | kept Crew = team;
         local kept | kept
         expr Var team | team
+      stat Let | boxed ^Holder(Int(1));
+        local boxed | boxed
+        expr Construct Holder | Holder(Int(1))
+          expr Construct @primitives$I64 | Int(1)
+            expr Integer_lit | 1
+      stat Let | spelled ^Holder = Holder(Int(2));
+        local spelled | spelled
+        expr Construct Holder | Holder(Int(2))
+          expr Construct @primitives$I64 | Int(2)
+            expr Integer_lit | 2
+      stat Let | shelf Holder = boxed;
+        local shelf | shelf
+        expr Var boxed | boxed
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
   decl Verb twice | T twice(value T Type) => value + value
@@ -792,3 +807,10 @@ instances
         expr Call_value | measure(values)
           expr Var measure | measure
           expr Var values | values
+  instance Holder with T = @primitives$I64 | Holder<T>(item T Type) => init{ item; }
+    param item | item T Type
+    block | => init{ item; }
+      stat Return | => init{ item; }
+        expr Init | init{ item; }
+          field item | item
+            expr Var item | item
