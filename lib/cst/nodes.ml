@@ -625,7 +625,14 @@ and Decl : sig
     | Package of Name.t
     | Import of Import.t
     | Var of { name : Name.t; type_ : Type_expr.t; value : Expr.t }
-    | VarShorthand of { name : Name.t; constructor : Constructor_name.t; args : Constructor_args.t; trailing : bool }
+    (* [roaming] is the span of the `^` that declares a roaming owner. *)
+    | VarShorthand of {
+        name : Name.t;
+        roaming : Span.t option;
+        constructor : Constructor_name.t;
+        args : Constructor_args.t;
+        trailing : bool;
+      }
     | Type of {
         name : Name.t;
         params : Generic_param.t list;

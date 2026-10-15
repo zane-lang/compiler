@@ -163,6 +163,10 @@ package app
       stat Return | => crew.lead
         expr Field lead | crew.lead
           expr Var crew | crew
+  decl Type Holder | type Holder<T Type> = #struct { item T; }
+  decl Verb Holder | Holder<T>(item T Type) => init{ item; }
+  decl Verb relayed | ^T relayed(seed ^T Type) { …  ^T = seed; return kept; }
+  decl Verb zeroed | ^T zeroed(like T Type) { made ^T(0); return made; }
   decl Verb describe | String describe(corner Cor … ht] => String("bottom"); }
     param corner | corner Corner
     block | => match (corner) { [topLe … ht] => String("bottom"); }
@@ -193,8 +197,8 @@ package app
               stat Return | => String("bottom")
                 expr Construct @primitives$String | String("bottom")
                   expr Text_lit | "bottom"
-  decl Verb main | Unit main() { say(String(" … rge")); } return Unit(); }
-    block | { say(String("hello")); or … rge")); } return Unit(); }
+  decl Verb main | Unit main() { say(String(" … (Int(7)); return Unit(); }
+    block | { say(String("hello")); or … (Int(7)); return Unit(); }
       stat Expr | say(String("hello"));
         expr Call say | say(String("hello"))
           expr Construct @primitives$String | String("hello")
@@ -476,6 +480,48 @@ package app
               expr Call say | say(String("large"))
                 expr Construct @primitives$String | String("large")
                   expr Text_lit | "large"
+      stat Let | drawn ^Shape.circle(Float(5.0));
+        local drawn | drawn
+        expr Case circle | Shape.circle(Float(5.0))
+          expr Construct @primitives$F64 | Float(5.0)
+            expr Decimal_lit | 5.0
+      stat Let | team ^Crew(drawn, shape);
+        local team | team
+        expr Construct Crew | Crew(drawn, shape)
+          expr Var drawn | drawn
+          expr Var shape | shape
+      stat Let | kept Crew = team;
+        local kept | kept
+        expr Var team | team
+      stat Let | boxed ^Holder(Int(1));
+        local boxed | boxed
+        expr Construct Holder | Holder(Int(1))
+          expr Construct @primitives$I64 | Int(1)
+            expr Integer_lit | 1
+      stat Let | spelled ^Holder = Holder(Int(2));
+        local spelled | spelled
+        expr Construct Holder | Holder(Int(2))
+          expr Construct @primitives$I64 | Int(2)
+            expr Integer_lit | 2
+      stat Let | shelf Holder = boxed;
+        local shelf | shelf
+        expr Var boxed | boxed
+      stat Let | relayedInt Int = relayed(Int(5));
+        local relayedInt | relayedInt
+        expr Call relayed | relayed(Int(5))
+          expr Construct @primitives$I64 | Int(5)
+            expr Integer_lit | 5
+      stat Let | relayedShape Shape = relayed(Shape.circle(Float(6.0)));
+        local relayedShape | relayedShape
+        expr Call relayed | relayed(Shape.circle(Float(6.0)))
+          expr Case circle | Shape.circle(Float(6.0))
+            expr Construct @primitives$F64 | Float(6.0)
+              expr Decimal_lit | 6.0
+      stat Let | nothing Int = zeroed(Int(7));
+        local nothing | nothing
+        expr Call zeroed | zeroed(Int(7))
+          expr Construct @primitives$I64 | Int(7)
+            expr Integer_lit | 7
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
   decl Verb twice | T twice(value T Type) => value + value
@@ -779,3 +825,35 @@ instances
         expr Call_value | measure(values)
           expr Var measure | measure
           expr Var values | values
+  instance Holder with T = @primitives$I64 | Holder<T>(item T Type) => init{ item; }
+    param item | item T Type
+    block | => init{ item; }
+      stat Return | => init{ item; }
+        expr Init | init{ item; }
+          field item | item
+            expr Var item | item
+  instance relayed with T = @primitives$I64 | ^T relayed(seed ^T Type) { …  ^T = seed; return kept; }
+    param seed | seed ^T Type
+    block | { kept ^T = seed; return kept; }
+      stat Let | kept ^T = seed;
+        local kept | kept
+        expr Var seed | seed
+      stat Return | return kept;
+        expr Var kept | kept
+  instance relayed with T = shapes$Shape | ^T relayed(seed ^T Type) { …  ^T = seed; return kept; }
+    param seed | seed ^T Type
+    block | { kept ^T = seed; return kept; }
+      stat Let | kept ^T = seed;
+        local kept | kept
+        expr Var seed | seed
+      stat Return | return kept;
+        expr Var kept | kept
+  instance zeroed with T = @primitives$I64 | ^T zeroed(like T Type) { made ^T(0); return made; }
+    param like | like T Type
+    block | { made ^T(0); return made; }
+      stat Let | made ^T(0);
+        local made | made
+        expr Construct @primitives$I64 | T(0)
+          expr Integer_lit | 0
+      stat Return | return made;
+        expr Var made | made

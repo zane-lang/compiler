@@ -435,6 +435,24 @@ let parse_number env span text =
       error env span (Printf.sprintf "%s is not a number this compiler can represent" (quote text));
       Ty.Known 0
 
+(* `^T` over a type parameter filled with a value type is an ordinary value
+   (memory.md §2.1). In an instance [T] already stands for its argument, so
+   the `^` written over it marks nothing and the type is the plain value;
+   every other `^` is a roaming owner, checked as one. *)
+let roaming env scope span (inner : N.Type_expr.t) (t : Ty.t) : Ty.t =
+  let over_param =
+    match inner.N.Type_expr.node with
+    | N.Type_expr.Path { name = { N.Name_type.node = N.Name_type.Ident id; _ }; generics = [] } ->
+        List.mem_assoc id.N.Name.text scope.params
+    | _ -> false
+  in
+  if over_param && is_value env t then t
+  else begin
+    let marked = Ty.Roaming t in
+    check_marker env span marked;
+    marked
+  end
+
 (* [param] is set on a value parameter's own type, the one place a marked
    introduction may stand inside type arguments: as its `@concepts$Array`'s
    element (generics.md §8.4). *)
@@ -445,10 +463,7 @@ let rec resolve ?(param = false) env scope (te : N.Type_expr.t) : Ty.t =
       let t = Ty.Reference (resolve env scope inner) in
       check_marker env span t;
       t
-  | N.Type_expr.Roaming inner ->
-      let t = Ty.Roaming (resolve env scope inner) in
-      check_marker env span t;
-      t
+  | N.Type_expr.Roaming inner -> roaming env scope span inner (resolve env scope inner)
   | N.Type_expr.Verb v -> Ty.Verb (verb_type env scope v)
   | N.Type_expr.Path { name; generics } -> apply ~param env scope span (resolve_head env scope name) name generics
 

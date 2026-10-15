@@ -458,6 +458,14 @@ File "fixtures/typing/reject/bad/marks.zn", line 67, characters 23-28:
 67 | alias KiteRefs = List<&Kite>
   |                       ^^^^^
 Error: `&bad$Kite` is a reference, and it fills the elements of `@primitives$List<&bad$Kite>`; a list's elements are owners, never references
+File "fixtures/typing/reject/bad/marks.zn", line 74, characters 11-15:
+74 |     count ^Int(9);
+  |           ^^^^
+Error: `@primitives$I64` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
+File "fixtures/typing/reject/bad/marks.zn", line 75, characters 12-19:
+75 |     hamper ^Hamper(Int(10));
+  |            ^^^^^^^
+Error: `bad$Hamper<@primitives$I64>` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
 File "fixtures/typing/reject/bad/matches.zn", line 6, characters 29-44:
 6 | Int answer(value Answer) => match (value) {
   |                             ^^^^^^^^^^^^^^^

@@ -360,8 +360,9 @@ and decl d (x : Decl.t) =
       name d "name" n;
       type_expr d type_;
       expr d value
-  | Decl.VarShorthand { name = n; constructor; args; _ } ->
+  | Decl.VarShorthand { name = n; roaming; constructor; args; _ } ->
       name d "name" n;
+      opt d (fun d span -> line d "roaming" span) roaming;
       constructor_name d constructor;
       constructor_args d args
   | Decl.Type { name = n; params; value } | Decl.Alias { name = n; params; value } ->

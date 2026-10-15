@@ -382,9 +382,10 @@ and decl_to_node (x: Nodes.Decl.t) = match x.Nodes.Decl.node with
         ("type",  type_to_node type_);
         ("value", expr_to_node value);
       ])
-  | VarShorthand { name; constructor; args; trailing } ->
+  | VarShorthand { name; roaming; constructor; args; trailing } ->
       let fs = [
         ("name", Leaf (text name));
+        ("roaming", Leaf (string_of_bool (Option.is_some roaming)));
         ("type", name_type_to_node constructor.type_);
       ] in
       let fs = match constructor.member with

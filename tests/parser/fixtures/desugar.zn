@@ -135,6 +135,34 @@ Unit shorthands() {
 	return Unit();
 }
 
+/// §2.7 again, with a `^` before the type: each shorthand declares a roaming
+/// owner, and is the same declaration with `^` on its long form's type.
+type Rig = #struct {
+	x Int;
+	y Int;
+}
+
+Rig(x Int, y Int) => init{x; y;}
+
+Rig{x Int; y Int;} => init{x; y;}
+
+Rig.square(side Int) => init{x = side; y = side;}
+
+type Load = #variant {
+	crate Int;
+}
+
+Unit roamers() {
+	built ^Rig(Int(1), Int(2));
+	named ^Rig.square(Int(3));
+	cased ^Load.crate(Int(4));
+	fielded ^Rig{x = Int(5); y = Int(6);}
+	x Int = Int(7);
+	y Int = Int(8);
+	implied ^Rig{x; y;}
+	return Unit();
+}
+
 /// A lambda, whose body takes the same `=> expr` rewrite as a named verb.
 Unit lambdas() {
 	twice Int(value Int) => value * Int(2);

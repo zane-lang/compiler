@@ -1,4 +1,4 @@
-52 conflict states
+55 conflict states
 
   1  shift/reduce  [LESS]  abort_ret_type -> type_expr QSTNMARK AMPERSAND AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LESS]  abort_ret_type -> type_expr QSTNMARK AMPERSAND LIDENT DOLLAR UIDENT
@@ -25,6 +25,9 @@
   1  reduce/reduce  [LPAREN]  expr -> SPAWN unbraced_verb_call ; func_callee -> unbraced_verb_call
   4  shift/reduce  [LPAREN]  type_expr -> AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> AT LIDENT DOLLAR UIDENT nonempty_loption(generics)
+  1  shift/reduce  [LPAREN]  type_expr -> CARET AT LIDENT DOLLAR UIDENT
+  1  shift/reduce  [LPAREN]  type_expr -> CARET LIDENT DOLLAR UIDENT
+  1  shift/reduce  [LPAREN]  type_expr -> CARET UIDENT
   4  shift/reduce  [LPAREN]  type_expr -> LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> LIDENT DOLLAR UIDENT nonempty_loption(generics)
   5  shift/reduce  [LPAREN]  type_expr -> UIDENT
