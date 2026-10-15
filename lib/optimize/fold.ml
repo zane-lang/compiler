@@ -24,7 +24,7 @@ let children (e : Expr.t) : Expr.t list =
   | Expr.Address _ | Expr.Layout _ | Expr.Function _ | Expr.Global _ ->
       []
   | Expr.Deref e | Expr.Flip e | Expr.Convert e | Expr.Snapshot e -> [ e ]
-  | Expr.Call { args; _ } | Expr.Runtime { args; _ } -> args
+  | Expr.Call { args; _ } | Expr.Runtime { args; _ } | Expr.Math { args; _ } -> args
   | Expr.Call_value { fn; args } -> fn :: args
   | Expr.Binary { left; right; _ } -> [ left; right ]
   | Expr.Expand _ -> []
@@ -547,6 +547,8 @@ let candidate fn (env : known) (e : Expr.t) =
   | Expr.Runtime { fn = Cgt.Runtime.(Constant_begin | Constant_end); _ } -> false
   | Expr.Runtime { fn = f; _ } ->
       Intrinsics.classify f = Intrinsics.Computed && List.for_all (known_input env) (children e)
+  | Expr.Math { fn = f; _ } ->
+      Intrinsics.math f e.Expr.ty = Intrinsics.Computed && List.for_all (known_input env) (children e)
   (* A value on its way out of arenas keeps its way out: what it is made
      of folds inside it. *)
   | Expr.Address _ | Expr.Global _ | Expr.Layout _ | Expr.Function _ | Expr.Escape _ -> false
@@ -612,6 +614,7 @@ and map_children fn env (e : Expr.t) =
     | Expr.Snapshot x -> Expr.Snapshot (f x)
     | Expr.Call { fn = callee; args } -> Expr.Call { fn = callee; args = List.map f args }
     | Expr.Runtime { fn = r; args } -> Expr.Runtime { fn = r; args = List.map f args }
+    | Expr.Math { fn = m; args } -> Expr.Math { fn = m; args = List.map f args }
     | Expr.Call_value { fn = v; args } ->
         let v = f v in
         Expr.Call_value { fn = v; args = List.map f args }

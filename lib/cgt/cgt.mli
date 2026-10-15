@@ -6,6 +6,9 @@ module Nodes = Nodes
 (** The C runtime's functions that emitted code calls. *)
 module Runtime = Runtime
 
+(** The math functions of `@math$`, and which of them are exact. *)
+module Math = Math
+
 (** The program, from the root package's `main`, or from every function of
     the root when it is a [library]. A construct lowering does not handle
     yet is refused with a diagnostic at it. [import_bodies] retains reachable

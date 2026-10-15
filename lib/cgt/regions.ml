@@ -33,7 +33,7 @@ let expr_parts (e : Expr.t) : Expr.t list * Stat.t list list =
   | Expr.Address _ | Expr.Layout _ | Expr.Function _ | Expr.Global _ ->
       ([], [])
   | Expr.Deref x | Expr.Flip x | Expr.Convert x | Expr.Snapshot x -> ([ x ], [])
-  | Expr.Call { args; _ } | Expr.Runtime { args; _ } -> (args, [])
+  | Expr.Call { args; _ } | Expr.Runtime { args; _ } | Expr.Math { args; _ } -> (args, [])
   | Expr.Call_value { fn; args } -> (fn :: args, [])
   | Expr.Binary { left; right; _ } -> ([ left; right ], [])
   | Expr.Expand { body; _ } -> ([], [ body ])
@@ -96,6 +96,7 @@ let rec map_expr fe fs (e : Expr.t) : Expr.t =
         | Expr.Snapshot x -> Expr.Snapshot (me x)
         | Expr.Call { fn; args } -> Expr.Call { fn; args = List.map me args }
         | Expr.Runtime { fn; args } -> Expr.Runtime { fn; args = List.map me args }
+        | Expr.Math { fn; args } -> Expr.Math { fn; args = List.map me args }
         | Expr.Call_value { fn; args } -> Expr.Call_value { fn = me fn; args = List.map me args }
         | Expr.Binary { op; left; right } -> Expr.Binary { op; left = me left; right = me right }
         | Expr.Expand { label; body; result } -> Expr.Expand { label; body = ms body; result }
@@ -237,6 +238,7 @@ let rec ex a st ~moving (e : Expr.t) =
       | Expr.Offset { base = x; _ } | Expr.Member { value = x; _ } | Expr.Copy { value = x; _ } ->
           (read st x, false)
       | Expr.Binary { left; right; _ } -> (read (read st left) right, false)
+      | Expr.Math { args; _ } -> (List.fold_left read st args, false)
       | Expr.Record ms ->
           List.fold_left
             (fun (st, any) (_, x) ->

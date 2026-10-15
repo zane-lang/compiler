@@ -1,0 +1,196 @@
+/// The math functions of `@math$` (math.md §2): each on each type it takes,
+/// at the edges the spec settles -- shift counts at and past the width, the
+/// most negative integer, zero's leading and trailing zeros, NaNs and signed
+/// zeros -- in a build that folds the exact ones and one that does not. The
+/// approximate ones are held to within a tolerance of the true value, since
+/// their last digit is the C math library's (math.md §2.6). Every check
+/// prints `yes` when it holds and `no` when it does not.
+package math;
+
+alias I32 = @primitives$I32
+alias I64 = @primitives$I64
+alias F32 = @primitives$F32
+alias F64 = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit check(holds Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(holds, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(holds), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+/// Values the optimizer cannot see through unless it folds the call.
+I32 i32(value @concepts$Int) => I32(value)
+I64 i64(value @concepts$Int) => I64(value)
+F32 f32(value @concepts$Float) => F32(value)
+F64 f64(value @concepts$Float) => F64(value)
+
+I32 minusI32(value @concepts$Int) => @operators$negate(I32(value))
+I64 minus(value @concepts$Int) => @operators$negate(I64(value))
+F64 minusF(value @concepts$Float) => @operators$negate(F64(value))
+
+I32 minI32() => @operators$add(@operators$negate(I32(2147483647)), @operators$negate(I32(1)))
+I64 minI64() => @operators$add(@operators$negate(I64(9223372036854775807)), @operators$negate(I64(1)))
+F64 infinity() => @operators$divide(f64(1.0), f64(0.0))
+F64 nan() => @operators$divide(f64(0.0), f64(0.0))
+F32 nan32() => @operators$divide(f32(0.0), f32(0.0))
+
+Bool same(left I64, right I64) => @operators$equal(left, right)
+Bool same32(left I32, right I32) => @operators$equal(left, right)
+Bool equal(left F64, right F64) => @operators$equal(left, right)
+Bool isNan(value F64) => @operators$not(@operators$equal(value, value))
+Bool isNan32(value F32) => @operators$not(@operators$equal(value, value))
+
+/// A zero of each sign: one over it is an infinity of its sign.
+Bool negativeZero(value F64) => @operators$equal(@operators$divide(f64(1.0), value), @operators$negate(infinity()))
+Bool positiveZero(value F64) => @operators$equal(@operators$divide(f64(1.0), value), infinity())
+
+/// Within a tolerance of the true value.
+Bool near(value F64, expected F64) => @operators$lessThan(@math$abs(@operators$add(value, @operators$negate(expected))), f64(0.000000000001))
+Bool near32(value F32, expected F32) => @operators$lessThan(@math$abs(@operators$add(value, @operators$negate(expected))), f32(0.00001))
+
+Unit main() {
+	// Bit operations on an `I64`.
+	check(same(@math$bitAnd(i64(12), i64(10)), i64(8)));
+	check(same(@math$bitOr(i64(12), i64(10)), i64(14)));
+	check(same(@math$bitXor(i64(12), i64(10)), i64(6)));
+	check(same(@math$bitNot(i64(0)), minus(1)));
+
+	// A shift's count is taken modulo the width: 64 moves nothing, 65 one
+	// place, and -1 the most there are.
+	check(same(@math$shiftLeft(i64(1), i64(3)), i64(8)));
+	check(same(@math$shiftLeft(i64(1), i64(64)), i64(1)));
+	check(same(@math$shiftLeft(i64(1), i64(65)), i64(2)));
+	check(same(@math$shiftLeft(i64(1), minus(1)), minI64()));
+
+	// `shiftRight` keeps the sign, `shiftRightLogical` fills with zeros.
+	check(same(@math$shiftRight(minus(16), i64(2)), minus(4)));
+	check(same(@math$shiftRight(minus(1), i64(63)), minus(1)));
+	check(same(@math$shiftRightLogical(minus(1), i64(63)), i64(1)));
+	check(same(@math$shiftRightLogical(minus(16), i64(60)), i64(15)));
+
+	// A rotation brings back what it moves out.
+	check(same(@math$rotateLeft(minI64(), i64(1)), i64(1)));
+	check(same(@math$rotateRight(i64(1), i64(1)), minI64()));
+	check(same(@math$rotateLeft(i64(5), i64(0)), i64(5)));
+	check(same(@math$rotateLeft(i64(5), i64(64)), i64(5)));
+	check(same(@math$rotateRight(i64(6), i64(65)), i64(3)));
+
+	// Counting bits, and zero's leading and trailing zeros, which are the width.
+	check(same(@math$popCount(minus(1)), i64(64)));
+	check(same(@math$popCount(i64(255)), i64(8)));
+	check(same(@math$leadingZeros(i64(0)), i64(64)));
+	check(same(@math$leadingZeros(i64(1)), i64(63)));
+	check(same(@math$leadingZeros(minus(1)), i64(0)));
+	check(same(@math$trailingZeros(i64(0)), i64(64)));
+	check(same(@math$trailingZeros(i64(8)), i64(3)));
+
+	// `abs` wraps on the most negative value, as `negate` does.
+	check(same(@math$abs(minus(5)), i64(5)));
+	check(same(@math$abs(minI64()), minI64()));
+	check(same(@math$min(minus(3), i64(2)), minus(3)));
+	check(same(@math$max(minus(3), i64(2)), i64(2)));
+
+	// The same on an `I32`, whose width is 32.
+	check(same32(@math$bitNot(i32(0)), minusI32(1)));
+	check(same32(@math$shiftLeft(i32(1), i32(32)), i32(1)));
+	check(same32(@math$shiftLeft(i32(1), i32(31)), minI32()));
+	check(same32(@math$shiftRight(minI32(), i32(31)), minusI32(1)));
+	check(same32(@math$shiftRightLogical(minusI32(1), i32(28)), i32(15)));
+	check(same32(@math$rotateLeft(minI32(), i32(1)), i32(1)));
+	check(same32(@math$rotateRight(i32(1), i32(33)), minI32()));
+	check(same32(@math$popCount(minusI32(1)), i32(32)));
+	check(same32(@math$leadingZeros(i32(0)), i32(32)));
+	check(same32(@math$leadingZeros(i32(1)), i32(31)));
+	check(same32(@math$trailingZeros(i32(0)), i32(32)));
+	check(same32(@math$abs(minI32()), minI32()));
+	check(same32(@math$max(minusI32(7), minusI32(9)), minusI32(7)));
+
+	// `sqrt` is correctly rounded; below zero it is a NaN, and it keeps a
+	// negative zero.
+	check(equal(@math$sqrt(f64(4.0)), f64(2.0)));
+	check(equal(@math$sqrt(f64(2.0)), f64(1.4142135623730951)));
+	check(isNan(@math$sqrt(minusF(1.0))));
+	check(negativeZero(@math$sqrt(minusF(0.0))));
+	check(equal(@math$sqrt(infinity()), infinity()));
+
+	// Rounding to an integer keeps the sign, and `roundEven` takes a tie to
+	// the even neighbour.
+	check(equal(@math$abs(minusF(2.5)), f64(2.5)));
+	check(negativeZero(@math$ceil(minusF(0.5))));
+	check(equal(@math$floor(minusF(1.5)), minusF(2.0)));
+	check(equal(@math$ceil(minusF(1.5)), minusF(1.0)));
+	check(equal(@math$ceil(f64(1.25)), f64(2.0)));
+	check(equal(@math$trunc(minusF(1.75)), minusF(1.0)));
+	check(equal(@math$roundEven(f64(2.5)), f64(2.0)));
+	check(equal(@math$roundEven(f64(3.5)), f64(4.0)));
+	check(equal(@math$roundEven(minusF(2.5)), minusF(2.0)));
+	check(positiveZero(@math$roundEven(f64(0.5))));
+	check(equal(@math$roundEven(f64(2.75)), f64(3.0)));
+	check(equal(@math$floor(infinity()), infinity()));
+
+	// `fma` rounds once: (1 + 2^-27)^2 - 1 keeps the 2^-54 that a multiply
+	// and an add, rounding twice, lose.
+	check(equal(@math$fma(f64(1.0000000074505806), f64(1.0000000074505806), minusF(1.0)), f64(0.000000014901161249358807)));
+	check(equal(@operators$add(@operators$multiply(f64(1.0000000074505806), f64(1.0000000074505806)), minusF(1.0)), f64(0.000000014901161193847656)));
+
+	// `copySign` takes the sign alone, a negative zero's too, and a NaN's
+	// sign counts as positive.
+	check(equal(@math$copySign(f64(2.0), minusF(0.0)), minusF(2.0)));
+	check(equal(@math$copySign(minusF(2.0), f64(1.0)), f64(2.0)));
+	check(equal(@math$copySign(f64(3.0), nan()), f64(3.0)));
+	check(equal(@math$copySign(minusF(3.0), @operators$negate(nan())), f64(3.0)));
+
+	// `min` and `max` let a NaN through, and order a negative zero first.
+	check(isNan(@math$min(nan(), f64(1.0))));
+	check(isNan(@math$max(f64(1.0), nan())));
+	check(negativeZero(@math$min(f64(0.0), minusF(0.0))));
+	check(positiveZero(@math$max(minusF(0.0), f64(0.0))));
+	check(equal(@math$min(f64(1.0), f64(2.0)), f64(1.0)));
+	check(equal(@math$max(f64(1.0), f64(2.0)), f64(2.0)));
+
+	// The same on an `F32`.
+	check(@operators$equal(@math$sqrt(f32(2.0)), f32(1.4142135381698608)));
+	check(@operators$equal(@math$roundEven(f32(2.5)), f32(2.0)));
+	check(@operators$equal(@math$floor(f32(2.75)), f32(2.0)));
+	check(@operators$equal(@math$fma(f32(2.0), f32(3.0), f32(1.0)), f32(7.0)));
+	check(@operators$equal(@math$copySign(f32(1.5), @operators$negate(f32(1.0))), @operators$negate(f32(1.5))));
+	check(isNan32(@math$max(nan32(), f32(1.0))));
+	check(@operators$equal(@math$min(f32(1.0), f32(2.0)), f32(1.0)));
+
+	// The approximate functions, near the true value.
+	check(near(@math$sin(f64(0.5)), f64(0.479425538604203)));
+	check(near(@math$cos(f64(0.5)), f64(0.8775825618903728)));
+	check(near(@math$tan(f64(0.5)), f64(0.5463024898437905)));
+	check(near(@math$asin(f64(0.5)), f64(0.5235987755982989)));
+	check(near(@math$acos(f64(0.5)), f64(1.0471975511965979)));
+	check(near(@math$atan(f64(1.0)), f64(0.7853981633974483)));
+	check(near(@math$atan2(f64(1.0), minusF(1.0)), f64(2.356194490192345)));
+	check(near(@math$exp(f64(1.0)), f64(2.718281828459045)));
+	check(near(@math$log(f64(10.0)), f64(2.302585092994046)));
+	check(near(@math$pow(f64(2.0), f64(10.0)), f64(1024.0)));
+	check(near(@math$cbrt(minusF(27.0)), minusF(3.0)));
+	check(near(@math$hypot(f64(3.0), f64(4.0)), f64(5.0)));
+	check(near32(@math$sin(f32(0.5)), f32(0.4794255495071411)));
+	check(near32(@math$pow(f32(2.0), f32(0.5)), f32(1.4142135381698608)));
+
+	// `hypot` does not overflow in between.
+	check(@operators$lessThan(@math$hypot(f64(100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0), f64(100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0)), infinity()));
+
+	// Outside a function's domain, and at its special operands, the result is
+	// IEEE 754's.
+	check(isNan(@math$log(minusF(1.0))));
+	check(isNan(@math$asin(f64(2.0))));
+	check(equal(@math$log(f64(0.0)), @operators$negate(infinity())));
+	check(equal(@math$pow(nan(), f64(0.0)), f64(1.0)));
+	check(equal(@math$exp(@operators$negate(infinity())), f64(0.0)));
+	return Unit();
+}
