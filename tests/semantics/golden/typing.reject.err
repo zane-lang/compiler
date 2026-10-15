@@ -490,6 +490,22 @@ File "fixtures/typing/reject/bad/matches.zn", line 17, characters 32-37:
 17 | Int plain(value Int) => match (value) {
   |                                ^^^^^
 Error: a match dispatches on a variant or an enum, and `@primitives$I64` is neither
+File "fixtures/typing/reject/bad/math.zn", line 9, characters 24-41:
+9 | F64 root(value I64) => @math$sqrt(value)
+  |                        ^^^^^^^^^^^^^^^^^
+Error: no `@math$sqrt` accepts (@primitives$I64); the candidates are `@primitives$F32 @math$sqrt(@primitives$F32)`; `@primitives$F64 @math$sqrt(@primitives$F64)`
+File "fixtures/typing/reject/bad/math.zn", line 12, characters 27-56:
+12 | F64 shifted(value F64) => @math$shiftLeft(value, value)
+  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@math$shiftLeft` accepts (@primitives$F64, @primitives$F64); the candidates are `@primitives$I32 @math$shiftLeft(@primitives$I32, @primitives$I32)`; `@primitives$I64 @math$shiftLeft(@primitives$I64, @primitives$I64)`
+File "fixtures/typing/reject/bad/math.zn", line 15, characters 35-57:
+15 | F64 least(left F64, right I64) => @math$min(left, right)
+  |                                   ^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@math$min` accepts (@primitives$F64, @primitives$I64); the candidates are `@primitives$I32 @math$min(@primitives$I32, @primitives$I32)`; `@primitives$I64 @math$min(@primitives$I64, @primitives$I64)`; `@primitives$F32 @math$min(@primitives$F32, @primitives$F32)`; `@primitives$F64 @math$min(@primitives$F64, @primitives$F64)`
+File "fixtures/typing/reject/bad/math.zn", line 18, characters 37-47:
+18 | F64 tangentHyperbolic(value F64) => @math$tanh(value)
+  |                                     ^^^^^^^^^^
+Error: no intrinsic operation named `@math$tanh`
 File "fixtures/typing/reject/bad/moves.zn", line 21, characters 13-23:
 21 |     b Cup = saucer.cup;
   |             ^^^^^^^^^^

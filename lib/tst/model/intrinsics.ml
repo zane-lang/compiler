@@ -1,12 +1,12 @@
 (* The intrinsic namespaces (syntax.md §2.7): what `@primitives$`,
-   `@concepts$`, `@operators$`, `@controlflow$`, `@runtime$` and `@program$`
-   hold.
+   `@concepts$`, `@operators$`, `@math$`, `@controlflow$`, `@runtime$` and
+   `@program$` hold.
 
    They are not packages, so they are not read from source. Most intrinsic
    operations have exactly one signature. The overloads the spec states are
    the exceptions: methods that share a name on different subjects, the
-   machine operations of `@operators$`, one per operand type, and a scalar's
-   constructors, which take its concept and each scalar that converts into
+   machine operations of `@operators$` and the math functions of `@math$`,
+   one per operand type, and a scalar's constructors, which take its concept and each scalar that converts into
    it exactly (syntax.md §2.7, types.md §2.7). No intrinsic is an operator:
    a primitive has no home package, so an operator over one is declared
    nowhere (operators.md §2.2).
@@ -297,6 +297,41 @@ let methods =
       (Ty.Roaming (Ty.Param list_element));
   ]
 
+(* `@math$` (math.md §2): the math functions on scalar primitives, one
+   overload per scalar each takes, every operand of that one type. The
+   integer ones take `I32` and `I64`, the float ones `F32` and `F64`. Which
+   are exact and which approximate is the CGT's to know (Cgt.Nodes.Math). *)
+let math_functions =
+  let f name params ret =
+    ( ("math", name),
+      verb ~namespace:"math" ~kind:S.Function ~name:("@math$" ^ name) ~spelling:("@math$" ^ name)
+        params ret )
+  in
+  let over names s =
+    List.map (fun (name, params) -> f name (List.map (fun p -> param p (prim s)) params) (prim s)) names
+  in
+  let unary = [ "value" ] and binary = [ "left"; "right" ] in
+  let integer =
+    [
+      ("bitAnd", binary); ("bitOr", binary); ("bitXor", binary); ("bitNot", unary);
+      ("shiftLeft", [ "value"; "count" ]); ("shiftRight", [ "value"; "count" ]);
+      ("shiftRightLogical", [ "value"; "count" ]); ("rotateLeft", [ "value"; "count" ]);
+      ("rotateRight", [ "value"; "count" ]); ("popCount", unary); ("leadingZeros", unary);
+      ("trailingZeros", unary); ("abs", unary); ("min", binary); ("max", binary);
+    ]
+  in
+  let float =
+    [
+      ("sqrt", unary); ("abs", unary); ("floor", unary); ("ceil", unary); ("trunc", unary);
+      ("roundEven", unary); ("fma", [ "left"; "right"; "addend" ]);
+      ("copySign", [ "magnitude"; "sign" ]); ("min", binary); ("max", binary);
+      ("cbrt", unary); ("sin", unary); ("cos", unary); ("tan", unary); ("asin", unary);
+      ("acos", unary); ("atan", unary); ("atan2", [ "y"; "x" ]); ("exp", unary);
+      ("log", unary); ("pow", [ "base"; "exponent" ]); ("hypot", [ "x"; "y" ]);
+    ]
+  in
+  List.concat_map (over integer) integers @ List.concat_map (over float) floats
+
 (* The control-flow intrinsics (syntax.md §5.1). *)
 let control_functions =
   let f name params =
@@ -312,9 +347,9 @@ let control_functions =
 
 (* Every intrinsic function, keyed by namespace and name. A key the
    operators share holds one entry per overload. *)
-let functions = control_functions @ operator_functions
+let functions = control_functions @ operator_functions @ math_functions
 
 let find_functions namespace name =
   List.filter_map (fun (key, s) -> if key = (namespace, name) then Some s else None) functions
 
-let namespaces = [ "primitives"; "concepts"; "operators"; "controlflow"; "runtime"; "program" ]
+let namespaces = [ "primitives"; "concepts"; "operators"; "math"; "controlflow"; "runtime"; "program" ]

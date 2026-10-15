@@ -525,6 +525,37 @@ package app
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
   decl Verb twice | T twice(value T Type) => value + value
+  decl Verb lowByte | Int lowByte(value Int) =>  … (value, Int(8)), Int(255))
+    param value | value Int
+    block | => @math$bitAnd(@math$shif … (value, Int(8)), Int(255))
+      stat Return | => @math$bitAnd(@math$shif … (value, Int(8)), Int(255))
+        expr Call @math$bitAnd | @math$bitAnd(@math$shiftRi … (value, Int(8)), Int(255))
+          expr Call @math$shiftRightLogical | @math$shiftRightLogical(value, Int(8))
+            expr Var value | value
+            expr Construct @primitives$I64 | Int(8)
+              expr Integer_lit | 8
+          expr Construct @primitives$I64 | Int(255)
+            expr Integer_lit | 255
+  decl Verb hypotenuse | Float hypotenuse(a Float,  … operators$multiply(b, b)))
+    param a | a Float
+    param b | b Float
+    block | => @math$sqrt(@math$fma(a, … operators$multiply(b, b)))
+      stat Return | => @math$sqrt(@math$fma(a, … operators$multiply(b, b)))
+        expr Call @math$sqrt | @math$sqrt(@math$fma(a, a, @operators$multiply(b, b)))
+          expr Call @math$fma | @math$fma(a, a, @operators$multiply(b, b))
+            expr Var a | a
+            expr Var a | a
+            expr Call @operators$multiply | @operators$multiply(b, b)
+              expr Var b | b
+              expr Var b | b
+  decl Verb heading | Float heading(y Float, x Float) => @math$atan2(y, x)
+    param y | y Float
+    param x | x Float
+    block | => @math$atan2(y, x)
+      stat Return | => @math$atan2(y, x)
+        expr Call @math$atan2 | @math$atan2(y, x)
+          expr Var y | y
+          expr Var x | x
 package shapes
   decl Alias Float | alias Float = @primitives$F64
   decl Alias Unit | alias Unit = @primitives$Unit

@@ -316,22 +316,22 @@
     │   │   │   ├── local: origin #24 : shapes$Vec2
     │   │   │   └── value > construct:
     │   │   │       ├── type: shapes$Vec2
-    │   │   │       ├── ctor: Vec2.zero #40
+    │   │   │       ├── ctor: Vec2.zero #43
     │   │   │       └── args:
     │   │   ├── body[2] > let:
     │   │   │   ├── local: moved #25 : shapes$Vec2
     │   │   │   └── value > op:
     │   │   │       ├── type: shapes$Vec2
     │   │   │       ├── op: +
-    │   │   │       ├── impl: + #42
+    │   │   │       ├── impl: + #45
     │   │   │       ├── left: origin #24 : shapes$Vec2
     │   │   │       └── right > coerce:
     │   │   │           ├── type: shapes$Vec2
-    │   │   │           ├── ctor: Vec2 #46
+    │   │   │           ├── ctor: Vec2 #49
     │   │   │           └── value: 3.0 : @concepts$Float
     │   │   ├── body[3] > do > call:
     │   │   │   ├── type: @primitives$Unit
-    │   │   │   ├── callee: scale #45
+    │   │   │   ├── callee: scale #48
     │   │   │   ├── args[0]: moved #25 : shapes$Vec2
     │   │   │   └── args[1] > construct:
     │   │   │       ├── type: @primitives$F64
@@ -341,7 +341,7 @@
     │   │   │   ├── local: flat #26 : shapes$Vec2
     │   │   │   └── value > construct_fields:
     │   │   │       ├── type: shapes$Vec2
-    │   │   │       ├── ctor: Vec2 #41
+    │   │   │       ├── ctor: Vec2 #44
     │   │   │       └── fields[0] > field:
     │   │   │           ├── name: x (slot 0)
     │   │   │           └── value > construct:
@@ -352,7 +352,7 @@
     │   │   │   ├── local: size #27 : @primitives$F64
     │   │   │   └── value > call:
     │   │   │       ├── type: @primitives$F64
-    │   │   │       ├── callee: length #44
+    │   │   │       ├── callee: length #47
     │   │   │       └── args[0]: moved #25 : shapes$Vec2
     │   │   ├── body[6] > let:
     │   │   │   ├── local: shape #28 : shapes$Shape
@@ -367,7 +367,7 @@
     │   │   │   ├── local: covered #29 : @primitives$F64
     │   │   │   └── value > call:
     │   │   │       ├── type: @primitives$F64
-    │   │   │       ├── callee: area #55
+    │   │   │       ├── callee: area #58
     │   │   │       └── args[0]: shape #28 : shapes$Shape
     │   │   ├── body[8] > let:
     │   │   │   ├── local: radius #30 : @primitives$F64
@@ -648,7 +648,7 @@
     │   │   │   └── value > map_read:
     │   │   │       ├── type: @primitives$String
     │   │   │       ├── target: .topLeft : shapes$Corner
-    │   │   │       └── map: label #49
+    │   │   │       └── map: label #52
     │   │   ├── body[35] > let:
     │   │   │   ├── local: side #58 : @primitives$String
     │   │   │   └── value > call:
@@ -823,39 +823,83 @@
     │   │       ├── type: @primitives$Unit
     │   │       ├── ctor: @primitives$Unit
     │   │       └── args:
-    │   └── decls[33] > verb:
-    │       ├── signature: T twice(T) #34
-    │       └── body: checked per instance
+    │   ├── decls[33] > verb:
+    │   │   ├── signature: T twice(T) #34
+    │   │   └── body: checked per instance
+    │   ├── decls[34] > verb:
+    │   │   ├── signature: @primitives$I64 lowByte(@primitives$I64) #35
+    │   │   ├── params[0]: value #73 : @primitives$I64
+    │   │   └── body[0] > return > call:
+    │   │       ├── type: @primitives$I64
+    │   │       ├── callee: @math$bitAnd
+    │   │       ├── args[0] > call:
+    │   │       │   ├── type: @primitives$I64
+    │   │       │   ├── callee: @math$shiftRightLogical
+    │   │       │   ├── args[0]: value #73 : @primitives$I64
+    │   │       │   └── args[1] > construct:
+    │   │       │       ├── type: @primitives$I64
+    │   │       │       ├── ctor: @primitives$I64
+    │   │       │       └── args[0]: 8 : @concepts$Int
+    │   │       └── args[1] > construct:
+    │   │           ├── type: @primitives$I64
+    │   │           ├── ctor: @primitives$I64
+    │   │           └── args[0]: 255 : @concepts$Int
+    │   ├── decls[35] > verb:
+    │   │   ├── signature: @primitives$F64 hypotenuse(@primitives$F64, @primitives$F64) #36
+    │   │   ├── params[0]: a #74 : @primitives$F64
+    │   │   ├── params[1]: b #75 : @primitives$F64
+    │   │   └── body[0] > return > call:
+    │   │       ├── type: @primitives$F64
+    │   │       ├── callee: @math$sqrt
+    │   │       └── args[0] > call:
+    │   │           ├── type: @primitives$F64
+    │   │           ├── callee: @math$fma
+    │   │           ├── args[0]: a #74 : @primitives$F64
+    │   │           ├── args[1]: a #74 : @primitives$F64
+    │   │           └── args[2] > call:
+    │   │               ├── type: @primitives$F64
+    │   │               ├── callee: @operators$multiply
+    │   │               ├── args[0]: b #75 : @primitives$F64
+    │   │               └── args[1]: b #75 : @primitives$F64
+    │   └── decls[36] > verb:
+    │       ├── signature: @primitives$F64 heading(@primitives$F64, @primitives$F64) #37
+    │       ├── params[0]: y #76 : @primitives$F64
+    │       ├── params[1]: x #77 : @primitives$F64
+    │       └── body[0] > return > call:
+    │           ├── type: @primitives$F64
+    │           ├── callee: @math$atan2
+    │           ├── args[0]: y #76 : @primitives$F64
+    │           └── args[1]: x #77 : @primitives$F64
     ├── packages[1] > package:
     │   ├── name: shapes
     │   ├── decls[0] > alias:
-    │   │   ├── name: Float #35
+    │   │   ├── name: Float #38
     │   │   └── target: @primitives$F64
     │   ├── decls[1] > alias:
-    │   │   ├── name: Unit #36
+    │   │   ├── name: Unit #39
     │   │   └── target: @primitives$Unit
     │   ├── decls[2] > alias:
-    │   │   ├── name: String #37
+    │   │   ├── name: String #40
     │   │   └── target: @primitives$String
     │   ├── decls[3] > type:
-    │   │   ├── name: Vec2 #38
+    │   │   ├── name: Vec2 #41
     │   │   ├── kind: value
     │   │   ├── struct[0]: x : @primitives$F64
     │   │   └── struct[1]: y : @primitives$F64
     │   ├── decls[4] > verb:
-    │   │   ├── signature: Vec2(@primitives$F64, @primitives$F64) #39
-    │   │   ├── params[0]: x #73 : @primitives$F64
-    │   │   ├── params[1]: y #74 : @primitives$F64
+    │   │   ├── signature: Vec2(@primitives$F64, @primitives$F64) #42
+    │   │   ├── params[0]: x #78 : @primitives$F64
+    │   │   ├── params[1]: y #79 : @primitives$F64
     │   │   └── body[0] > return > init:
     │   │       ├── type: shapes$Vec2
     │   │       ├── fields[0] > field:
     │   │       │   ├── name: x (slot 0)
-    │   │       │   └── value: x #73 : @primitives$F64
+    │   │       │   └── value: x #78 : @primitives$F64
     │   │       └── fields[1] > field:
     │   │           ├── name: y (slot 1)
-    │   │           └── value: y #74 : @primitives$F64
+    │   │           └── value: y #79 : @primitives$F64
     │   ├── decls[5] > verb:
-    │   │   ├── signature: Vec2.zero() #40
+    │   │   ├── signature: Vec2.zero() #43
     │   │   ├── params:
     │   │   └── body[0] > return > init:
     │   │       ├── type: shapes$Vec2
@@ -872,69 +916,69 @@
     │   │               ├── ctor: @primitives$F64
     │   │               └── args[0]: 0.0 : @concepts$Float
     │   ├── decls[6] > verb:
-    │   │   ├── signature: Vec2{x @primitives$F64; y @primitives$F64 = ...} #41
-    │   │   ├── params[0]: x #77 : @primitives$F64
-    │   │   ├── params[1]: y #78 : @primitives$F64
+    │   │   ├── signature: Vec2{x @primitives$F64; y @primitives$F64 = ...} #44
+    │   │   ├── params[0]: x #82 : @primitives$F64
+    │   │   ├── params[1]: y #83 : @primitives$F64
     │   │   └── body[0] > return > init:
     │   │       ├── type: shapes$Vec2
     │   │       ├── fields[0] > field:
     │   │       │   ├── name: x (slot 0)
-    │   │       │   └── value: x #77 : @primitives$F64
+    │   │       │   └── value: x #82 : @primitives$F64
     │   │       └── fields[1] > field:
     │   │           ├── name: y (slot 1)
-    │   │           └── value: y #78 : @primitives$F64
+    │   │           └── value: y #83 : @primitives$F64
     │   ├── decls[7] > verb:
-    │   │   ├── signature: shapes$Vec2 +(shapes$Vec2, shapes$Vec2) #42
-    │   │   ├── params[0]: left #79 : shapes$Vec2
-    │   │   ├── params[1]: right #80 : shapes$Vec2
+    │   │   ├── signature: shapes$Vec2 +(shapes$Vec2, shapes$Vec2) #45
+    │   │   ├── params[0]: left #84 : shapes$Vec2
+    │   │   ├── params[1]: right #85 : shapes$Vec2
     │   │   └── body[0] > return > construct:
     │   │       ├── type: shapes$Vec2
-    │   │       ├── ctor: Vec2 #39
+    │   │       ├── ctor: Vec2 #42
     │   │       ├── args[0] > call:
     │   │       │   ├── type: @primitives$F64
     │   │       │   ├── callee: @operators$add
     │   │       │   ├── args[0] > field:
     │   │       │   │   ├── type: @primitives$F64
-    │   │       │   │   ├── target: left #79 : shapes$Vec2
+    │   │       │   │   ├── target: left #84 : shapes$Vec2
     │   │       │   │   └── field: x (slot 0)
     │   │       │   └── args[1] > field:
     │   │       │       ├── type: @primitives$F64
-    │   │       │       ├── target: right #80 : shapes$Vec2
+    │   │       │       ├── target: right #85 : shapes$Vec2
     │   │       │       └── field: x (slot 0)
     │   │       └── args[1] > call:
     │   │           ├── type: @primitives$F64
     │   │           ├── callee: @operators$add
     │   │           ├── args[0] > field:
     │   │           │   ├── type: @primitives$F64
-    │   │           │   ├── target: left #79 : shapes$Vec2
+    │   │           │   ├── target: left #84 : shapes$Vec2
     │   │           │   └── field: y (slot 1)
     │   │           └── args[1] > field:
     │   │               ├── type: @primitives$F64
-    │   │               ├── target: right #80 : shapes$Vec2
+    │   │               ├── target: right #85 : shapes$Vec2
     │   │               └── field: y (slot 1)
     │   ├── decls[8] > verb:
-    │   │   ├── signature: shapes$Vec2 ~(shapes$Vec2) #43
-    │   │   ├── params[0]: value #81 : shapes$Vec2
+    │   │   ├── signature: shapes$Vec2 ~(shapes$Vec2) #46
+    │   │   ├── params[0]: value #86 : shapes$Vec2
     │   │   └── body[0] > return > construct:
     │   │       ├── type: shapes$Vec2
-    │   │       ├── ctor: Vec2 #39
+    │   │       ├── ctor: Vec2 #42
     │   │       ├── args[0] > call:
     │   │       │   ├── type: @primitives$F64
     │   │       │   ├── callee: @operators$negate
     │   │       │   └── args[0] > field:
     │   │       │       ├── type: @primitives$F64
-    │   │       │       ├── target: value #81 : shapes$Vec2
+    │   │       │       ├── target: value #86 : shapes$Vec2
     │   │       │       └── field: x (slot 0)
     │   │       └── args[1] > call:
     │   │           ├── type: @primitives$F64
     │   │           ├── callee: @operators$negate
     │   │           └── args[0] > field:
     │   │               ├── type: @primitives$F64
-    │   │               ├── target: value #81 : shapes$Vec2
+    │   │               ├── target: value #86 : shapes$Vec2
     │   │               └── field: y (slot 1)
     │   ├── decls[9] > verb:
-    │   │   ├── signature: @primitives$F64 length(this shapes$Vec2) #44
-    │   │   ├── params[0]: this #82 : shapes$Vec2
+    │   │   ├── signature: @primitives$F64 length(this shapes$Vec2) #47
+    │   │   ├── params[0]: this #87 : shapes$Vec2
     │   │   └── body[0] > return > call:
     │   │       ├── type: @primitives$F64
     │   │       ├── callee: @operators$add
@@ -943,60 +987,60 @@
     │   │       │   ├── callee: @operators$multiply
     │   │       │   ├── args[0] > field:
     │   │       │   │   ├── type: @primitives$F64
-    │   │       │   │   ├── target: this #82 : shapes$Vec2
+    │   │       │   │   ├── target: this #87 : shapes$Vec2
     │   │       │   │   └── field: x (slot 0)
     │   │       │   └── args[1] > field:
     │   │       │       ├── type: @primitives$F64
-    │   │       │       ├── target: this #82 : shapes$Vec2
+    │   │       │       ├── target: this #87 : shapes$Vec2
     │   │       │       └── field: x (slot 0)
     │   │       └── args[1] > call:
     │   │           ├── type: @primitives$F64
     │   │           ├── callee: @operators$multiply
     │   │           ├── args[0] > field:
     │   │           │   ├── type: @primitives$F64
-    │   │           │   ├── target: this #82 : shapes$Vec2
+    │   │           │   ├── target: this #87 : shapes$Vec2
     │   │           │   └── field: y (slot 1)
     │   │           └── args[1] > field:
     │   │               ├── type: @primitives$F64
-    │   │               ├── target: this #82 : shapes$Vec2
+    │   │               ├── target: this #87 : shapes$Vec2
     │   │               └── field: y (slot 1)
     │   ├── decls[10] > verb:
-    │   │   ├── signature: @primitives$Unit scale(this shapes$Vec2, @primitives$F64) mut #45
-    │   │   ├── params[0]: this #83 : shapes$Vec2
-    │   │   ├── params[1]: by #84 : @primitives$F64
+    │   │   ├── signature: @primitives$Unit scale(this shapes$Vec2, @primitives$F64) mut #48
+    │   │   ├── params[0]: this #88 : shapes$Vec2
+    │   │   ├── params[1]: by #89 : @primitives$F64
     │   │   ├── body[0] > assign:
     │   │   │   ├── target > field:
     │   │   │   │   ├── type: @primitives$F64
-    │   │   │   │   ├── target: this #83 : shapes$Vec2
+    │   │   │   │   ├── target: this #88 : shapes$Vec2
     │   │   │   │   └── field: x (slot 0)
     │   │   │   └── value > call:
     │   │   │       ├── type: @primitives$F64
     │   │   │       ├── callee: @operators$multiply
     │   │   │       ├── args[0] > field:
     │   │   │       │   ├── type: @primitives$F64
-    │   │   │       │   ├── target: this #83 : shapes$Vec2
+    │   │   │       │   ├── target: this #88 : shapes$Vec2
     │   │   │       │   └── field: x (slot 0)
-    │   │   │       └── args[1]: by #84 : @primitives$F64
+    │   │   │       └── args[1]: by #89 : @primitives$F64
     │   │   ├── body[1] > assign:
     │   │   │   ├── target > field:
     │   │   │   │   ├── type: @primitives$F64
-    │   │   │   │   ├── target: this #83 : shapes$Vec2
+    │   │   │   │   ├── target: this #88 : shapes$Vec2
     │   │   │   │   └── field: y (slot 1)
     │   │   │   └── value > call:
     │   │   │       ├── type: @primitives$F64
     │   │   │       ├── callee: @operators$multiply
     │   │   │       ├── args[0] > field:
     │   │   │       │   ├── type: @primitives$F64
-    │   │   │       │   ├── target: this #83 : shapes$Vec2
+    │   │   │       │   ├── target: this #88 : shapes$Vec2
     │   │   │       │   └── field: y (slot 1)
-    │   │   │       └── args[1]: by #84 : @primitives$F64
+    │   │   │       └── args[1]: by #89 : @primitives$F64
     │   │   └── body[2] > return > construct:
     │   │       ├── type: @primitives$Unit
     │   │       ├── ctor: @primitives$Unit
     │   │       └── args:
     │   ├── decls[11] > verb:
-    │   │   ├── signature: implicit Vec2(@concepts$Float) #46
-    │   │   ├── params[0]: value #85 : @concepts$Float
+    │   │   ├── signature: implicit Vec2(@concepts$Float) #49
+    │   │   ├── params[0]: value #90 : @concepts$Float
     │   │   └── body[0] > return > init:
     │   │       ├── type: shapes$Vec2
     │   │       ├── fields[0] > field:
@@ -1004,28 +1048,28 @@
     │   │       │   └── value > construct:
     │   │       │       ├── type: @primitives$F64
     │   │       │       ├── ctor: @primitives$F64
-    │   │       │       └── args[0]: value #85 : @concepts$Float
+    │   │       │       └── args[0]: value #90 : @concepts$Float
     │   │       └── fields[1] > field:
     │   │           ├── name: y (slot 1)
     │   │           └── value > construct:
     │   │               ├── type: @primitives$F64
     │   │               ├── ctor: @primitives$F64
-    │   │               └── args[0]: value #85 : @concepts$Float
+    │   │               └── args[0]: value #90 : @concepts$Float
     │   ├── decls[12] > type:
-    │   │   ├── name: Shape #47
+    │   │   ├── name: Shape #50
     │   │   ├── kind: reference
     │   │   ├── variant[0]: circle : @primitives$F64
     │   │   ├── variant[1]: square : @primitives$F64
     │   │   └── variant[2]: point : shapes$Vec2
     │   ├── decls[13] > type:
-    │   │   ├── name: Corner #48
+    │   │   ├── name: Corner #51
     │   │   ├── kind: value
     │   │   ├── enum[0]: topLeft
     │   │   ├── enum[1]: topRight
     │   │   ├── enum[2]: bottomLeft
     │   │   └── enum[3]: bottomRight
     │   ├── decls[14] > enum_map:
-    │   │   ├── map: shapes$Corner.label #49
+    │   │   ├── map: shapes$Corner.label #52
     │   │   ├── type: @primitives$String
     │   │   ├── entries[0]:
     │   │   │   ├── member: topLeft
@@ -1052,83 +1096,83 @@
     │   │           ├── ctor: @primitives$String
     │   │           └── args[0]: "bottom right" : @concepts$String
     │   ├── decls[15] > type:
-    │   │   ├── name: Meters #50
+    │   │   ├── name: Meters #53
     │   │   ├── kind: value
     │   │   └── struct[0]: _value : @primitives$F64
     │   ├── decls[16] > verb:
-    │   │   ├── signature: Meters(@primitives$F64) #51
-    │   │   ├── params[0]: value #86 : @primitives$F64
+    │   │   ├── signature: Meters(@primitives$F64) #54
+    │   │   ├── params[0]: value #91 : @primitives$F64
     │   │   └── body[0] > return > init:
     │   │       ├── type: shapes$Meters
     │   │       └── fields[0] > field:
     │   │           ├── name: _value (slot 0)
-    │   │           └── value: value #86 : @primitives$F64
+    │   │           └── value: value #91 : @primitives$F64
     │   ├── decls[17] > verb:
-    │   │   ├── signature: shapes$Meters +(shapes$Meters, shapes$Meters) #52
-    │   │   ├── params[0]: left #87 : shapes$Meters
-    │   │   ├── params[1]: right #88 : shapes$Meters
+    │   │   ├── signature: shapes$Meters +(shapes$Meters, shapes$Meters) #55
+    │   │   ├── params[0]: left #92 : shapes$Meters
+    │   │   ├── params[1]: right #93 : shapes$Meters
     │   │   └── body[0] > return > construct:
     │   │       ├── type: shapes$Meters
-    │   │       ├── ctor: Meters #51
+    │   │       ├── ctor: Meters #54
     │   │       └── args[0] > call:
     │   │           ├── type: @primitives$F64
     │   │           ├── callee: @operators$add
     │   │           ├── args[0] > field:
     │   │           │   ├── type: @primitives$F64
-    │   │           │   ├── target: left #87 : shapes$Meters
+    │   │           │   ├── target: left #92 : shapes$Meters
     │   │           │   └── field: _value (slot 0)
     │   │           └── args[1] > field:
     │   │               ├── type: @primitives$F64
-    │   │               ├── target: right #88 : shapes$Meters
+    │   │               ├── target: right #93 : shapes$Meters
     │   │               └── field: _value (slot 0)
     │   ├── decls[18] > verb:
-    │   │   ├── signature: @primitives$F64 inFeet(shapes$Meters) #53
-    │   │   ├── params[0]: distance #89 : shapes$Meters
+    │   │   ├── signature: @primitives$F64 inFeet(shapes$Meters) #56
+    │   │   ├── params[0]: distance #94 : shapes$Meters
     │   │   └── body[0] > return > call:
     │   │       ├── type: @primitives$F64
     │   │       ├── callee: @operators$multiply
     │   │       ├── args[0] > field:
     │   │       │   ├── type: @primitives$F64
-    │   │       │   ├── target: distance #89 : shapes$Meters
+    │   │       │   ├── target: distance #94 : shapes$Meters
     │   │       │   └── field: _value (slot 0)
     │   │       └── args[1] > construct:
     │   │           ├── type: @primitives$F64
     │   │           ├── ctor: @primitives$F64
     │   │           └── args[0]: 3.28 : @concepts$Float
     │   ├── decls[19] > verb:
-    │   │   ├── signature: @primitives$F64 _half(@primitives$F64) #54
-    │   │   ├── params[0]: value #90 : @primitives$F64
+    │   │   ├── signature: @primitives$F64 _half(@primitives$F64) #57
+    │   │   ├── params[0]: value #95 : @primitives$F64
     │   │   └── body[0] > return > call:
     │   │       ├── type: @primitives$F64
     │   │       ├── callee: @operators$divide
-    │   │       ├── args[0]: value #90 : @primitives$F64
+    │   │       ├── args[0]: value #95 : @primitives$F64
     │   │       └── args[1] > construct:
     │   │           ├── type: @primitives$F64
     │   │           ├── ctor: @primitives$F64
     │   │           └── args[0]: 2.0 : @concepts$Float
     │   └── decls[20] > verb:
-    │       ├── signature: @primitives$F64 area(&shapes$Shape) #55
-    │       ├── params[0]: shape #91 : &shapes$Shape
+    │       ├── signature: @primitives$F64 area(&shapes$Shape) #58
+    │       ├── params[0]: shape #96 : &shapes$Shape
     │       └── body[0] > return > match:
     │           ├── type: @primitives$F64
-    │           ├── scrutinees[0]: shape #91 : &shapes$Shape
+    │           ├── scrutinees[0]: shape #96 : &shapes$Shape
     │           ├── arms[0] > arm:
-    │           │   ├── patterns[0]: r #92 : @primitives$F64 <- circle
+    │           │   ├── patterns[0]: r #97 : @primitives$F64 <- circle
     │           │   └── body[0] > return > call:
     │           │       ├── type: @primitives$F64
     │           │       ├── callee: @operators$multiply
-    │           │       ├── args[0]: r #92 : @primitives$F64
-    │           │       └── args[1]: r #92 : @primitives$F64
+    │           │       ├── args[0]: r #97 : @primitives$F64
+    │           │       └── args[1]: r #97 : @primitives$F64
     │           ├── arms[1] > arm:
-    │           │   ├── patterns[0]: s #93 : @primitives$F64 <- square
+    │           │   ├── patterns[0]: s #98 : @primitives$F64 <- square
     │           │   └── body[0] > return > call:
     │           │       ├── type: @primitives$F64
-    │           │       ├── callee: _half #54
+    │           │       ├── callee: _half #57
     │           │       └── args[0] > call:
     │           │           ├── type: @primitives$F64
     │           │           ├── callee: @operators$add
-    │           │           ├── args[0]: s #93 : @primitives$F64
-    │           │           └── args[1]: s #93 : @primitives$F64
+    │           │           ├── args[0]: s #98 : @primitives$F64
+    │           │           └── args[1]: s #98 : @primitives$F64
     │           └── arms[2] > arm:
     │               ├── patterns[0]: point
     │               └── body[0] > return > construct:
@@ -1137,12 +1181,30 @@
     │                   └── args[0]: 0.0 : @concepts$Float
     ├── instances[0] > instance:
     │   ├── of: pick #12 with T = @primitives$F64
-    │   ├── params[0]: first #103 : @primitives$F64
-    │   ├── params[1]: second #104 : @primitives$F64
+    │   ├── params[0]: first #108 : @primitives$F64
+    │   ├── params[1]: second #109 : @primitives$F64
+    │   ├── params[2]: takeFirst #110 : @primitives$Bool
+    │   ├── body[0] > let:
+    │   │   ├── local: chosen #111 : @primitives$F64
+    │   │   └── value: second #109 : @primitives$F64
+    │   ├── body[1] > let:
+    │   │   ├── local: ran #112 : @primitives$Bool
+    │   │   └── value > call:
+    │   │       ├── type: @primitives$Bool
+    │   │       ├── callee: if #7
+    │   │       ├── args[0]: takeFirst #110 : @primitives$Bool
+    │   │       └── args[1] > block[0] > assign:
+    │   │           ├── target: chosen #111 : @primitives$F64
+    │   │           └── value: first #108 : @primitives$F64
+    │   └── body[2] > return: chosen #111 : @primitives$F64
+    ├── instances[1] > instance:
+    │   ├── of: pick #12 with T = @primitives$I64
+    │   ├── params[0]: first #103 : @primitives$I64
+    │   ├── params[1]: second #104 : @primitives$I64
     │   ├── params[2]: takeFirst #105 : @primitives$Bool
     │   ├── body[0] > let:
-    │   │   ├── local: chosen #106 : @primitives$F64
-    │   │   └── value: second #104 : @primitives$F64
+    │   │   ├── local: chosen #106 : @primitives$I64
+    │   │   └── value: second #104 : @primitives$I64
     │   ├── body[1] > let:
     │   │   ├── local: ran #107 : @primitives$Bool
     │   │   └── value > call:
@@ -1150,154 +1212,136 @@
     │   │       ├── callee: if #7
     │   │       ├── args[0]: takeFirst #105 : @primitives$Bool
     │   │       └── args[1] > block[0] > assign:
-    │   │           ├── target: chosen #106 : @primitives$F64
-    │   │           └── value: first #103 : @primitives$F64
-    │   └── body[2] > return: chosen #106 : @primitives$F64
-    ├── instances[1] > instance:
-    │   ├── of: pick #12 with T = @primitives$I64
-    │   ├── params[0]: first #98 : @primitives$I64
-    │   ├── params[1]: second #99 : @primitives$I64
-    │   ├── params[2]: takeFirst #100 : @primitives$Bool
-    │   ├── body[0] > let:
-    │   │   ├── local: chosen #101 : @primitives$I64
-    │   │   └── value: second #99 : @primitives$I64
-    │   ├── body[1] > let:
-    │   │   ├── local: ran #102 : @primitives$Bool
-    │   │   └── value > call:
-    │   │       ├── type: @primitives$Bool
-    │   │       ├── callee: if #7
-    │   │       ├── args[0]: takeFirst #100 : @primitives$Bool
-    │   │       └── args[1] > block[0] > assign:
-    │   │           ├── target: chosen #101 : @primitives$I64
-    │   │           └── value: first #98 : @primitives$I64
-    │   └── body[2] > return: chosen #101 : @primitives$I64
+    │   │           ├── target: chosen #106 : @primitives$I64
+    │   │           └── value: first #103 : @primitives$I64
+    │   └── body[2] > return: chosen #106 : @primitives$I64
     ├── instances[2] > instance:
     │   ├── of: Pair #14 with T = @primitives$F64
-    │   ├── params[0]: left #96 : @primitives$F64
-    │   ├── params[1]: right #97 : @primitives$F64
+    │   ├── params[0]: left #101 : @primitives$F64
+    │   ├── params[1]: right #102 : @primitives$F64
     │   └── body[0] > return > init:
     │       ├── type: app$Pair<@primitives$F64>
     │       ├── fields[0] > field:
     │       │   ├── name: left (slot 0)
-    │       │   └── value: left #96 : @primitives$F64
+    │       │   └── value: left #101 : @primitives$F64
     │       └── fields[1] > field:
     │           ├── name: right (slot 1)
-    │           └── value: right #97 : @primitives$F64
+    │           └── value: right #102 : @primitives$F64
     ├── instances[3] > instance:
     │   ├── of: Pair #14 with T = @primitives$I64
-    │   ├── params[0]: left #94 : @primitives$I64
-    │   ├── params[1]: right #95 : @primitives$I64
+    │   ├── params[0]: left #99 : @primitives$I64
+    │   ├── params[1]: right #100 : @primitives$I64
     │   └── body[0] > return > init:
     │       ├── type: app$Pair<@primitives$I64>
     │       ├── fields[0] > field:
     │       │   ├── name: left (slot 0)
-    │       │   └── value: left #94 : @primitives$I64
+    │       │   └── value: left #99 : @primitives$I64
     │       └── fields[1] > field:
     │           ├── name: right (slot 1)
-    │           └── value: right #95 : @primitives$I64
+    │           └── value: right #100 : @primitives$I64
     ├── instances[4] > instance:
     │   ├── of: sum #15 with T = @primitives$F64
-    │   ├── params[0]: pair #109 : app$Pair<@primitives$F64>
+    │   ├── params[0]: pair #114 : app$Pair<@primitives$F64>
     │   └── body[0] > return > call:
     │       ├── type: @primitives$F64
     │       ├── callee: @operators$add
     │       ├── args[0] > field:
     │       │   ├── type: @primitives$F64
-    │       │   ├── target: pair #109 : app$Pair<@primitives$F64>
+    │       │   ├── target: pair #114 : app$Pair<@primitives$F64>
     │       │   └── field: left (slot 0)
     │       └── args[1] > field:
     │           ├── type: @primitives$F64
-    │           ├── target: pair #109 : app$Pair<@primitives$F64>
+    │           ├── target: pair #114 : app$Pair<@primitives$F64>
     │           └── field: right (slot 1)
     ├── instances[5] > instance:
     │   ├── of: sum #15 with T = @primitives$I64
-    │   ├── params[0]: pair #108 : app$Pair<@primitives$I64>
+    │   ├── params[0]: pair #113 : app$Pair<@primitives$I64>
     │   └── body[0] > return > call:
     │       ├── type: @primitives$I64
     │       ├── callee: @operators$add
     │       ├── args[0] > field:
     │       │   ├── type: @primitives$I64
-    │       │   ├── target: pair #108 : app$Pair<@primitives$I64>
+    │       │   ├── target: pair #113 : app$Pair<@primitives$I64>
     │       │   └── field: left (slot 0)
     │       └── args[1] > field:
     │           ├── type: @primitives$I64
-    │           ├── target: pair #108 : app$Pair<@primitives$I64>
+    │           ├── target: pair #113 : app$Pair<@primitives$I64>
     │           └── field: right (slot 1)
     ├── instances[6] > instance:
     │   ├── of: count #16 with T = @primitives$I64, n = 3
-    │   ├── params[0]: values #110 : @primitives$Array<@primitives$I64, 3>
+    │   ├── params[0]: values #115 : @primitives$Array<@primitives$I64, 3>
     │   └── body[0] > return > construct:
     │       ├── type: @primitives$I64
     │       ├── ctor: @primitives$I64
     │       └── args[0]: n = 3 : @concepts$Int
     ├── instances[7] > instance:
     │   ├── of: measured #17 with n = 3
-    │   ├── params[0]: values #111 : @primitives$Array<@primitives$I64, 3>
+    │   ├── params[0]: values #116 : @primitives$Array<@primitives$I64, 3>
     │   └── body[0] > return > construct:
     │       ├── type: @primitives$I64
     │       ├── ctor: @primitives$I64
     │       └── args[0]: n = 3 : @concepts$Int
     ├── instances[8] > instance:
     │   ├── of: relayed #18 with n = 3
-    │   ├── params[0]: values #123 : @primitives$Array<@primitives$I64, 3>
+    │   ├── params[0]: values #128 : @primitives$Array<@primitives$I64, 3>
     │   └── body[0] > return > call:
     │       ├── type: @primitives$I64
     │       ├── callee: measured #17 with n = 3
-    │       ├── args[0]: values #123 : @primitives$Array<@primitives$I64, 3>
+    │       ├── args[0]: values #128 : @primitives$Array<@primitives$I64, 3>
     │       └── args[1]: n = 3 : @concepts$Int
     ├── instances[9] > instance:
     │   ├── of: forwarded #19 with count = 3
-    │   ├── params[0]: values #115 : @primitives$Array<@primitives$I64, 3>
+    │   ├── params[0]: values #120 : @primitives$Array<@primitives$I64, 3>
     │   └── body[0] > return > call:
     │       ├── type: @primitives$I64
     │       ├── callee: relayed #18 with n = 3
-    │       ├── args[0]: values #115 : @primitives$Array<@primitives$I64, 3>
+    │       ├── args[0]: values #120 : @primitives$Array<@primitives$I64, 3>
     │       └── args[1]: count = 3 : @concepts$Int
     ├── instances[10] > instance:
     │   ├── of: sizedLike #20 with n = 3
-    │   ├── params[0]: values #112 : @primitives$Array<@primitives$I64, 3>
+    │   ├── params[0]: values #117 : @primitives$Array<@primitives$I64, 3>
     │   ├── body[0] > let:
-    │   │   ├── local: measure #114 : @primitives$I64[@primitives$Array<@primitives$I64, 3>]
+    │   │   ├── local: measure #119 : @primitives$I64[@primitives$Array<@primitives$I64, 3>]
     │   │   └── value > lambda:
     │   │       ├── type: @primitives$I64[@primitives$Array<@primitives$I64, 3>]
-    │   │       ├── params[0]: held #113 : @primitives$Array<@primitives$I64, 3>
+    │   │       ├── params[0]: held #118 : @primitives$Array<@primitives$I64, 3>
     │   │       └── body[0] > return > construct:
     │   │           ├── type: @primitives$I64
     │   │           ├── ctor: @primitives$I64
     │   │           └── args[0]: n = 3 : @concepts$Int
     │   └── body[1] > return > call_value:
     │       ├── type: @primitives$I64
-    │       ├── callee: measure #114 : @primitives$I64[@primitives$Array<@primitives$I64, 3>]
-    │       └── args[0]: values #112 : @primitives$Array<@primitives$I64, 3>
+    │       ├── callee: measure #119 : @primitives$I64[@primitives$Array<@primitives$I64, 3>]
+    │       └── args[0]: values #117 : @primitives$Array<@primitives$I64, 3>
     ├── instances[11] > instance:
     │   ├── of: Holder #29 with T = @primitives$I64
-    │   ├── params[0]: item #116 : @primitives$I64
+    │   ├── params[0]: item #121 : @primitives$I64
     │   └── body[0] > return > init:
     │       ├── type: app$Holder<@primitives$I64>
     │       └── fields[0] > field:
     │           ├── name: item (slot 0)
-    │           └── value: item #116 : @primitives$I64
+    │           └── value: item #121 : @primitives$I64
     ├── instances[12] > instance:
     │   ├── of: relayed #30 with T = @primitives$I64
-    │   ├── params[0]: seed #117 : ^@primitives$I64
+    │   ├── params[0]: seed #122 : ^@primitives$I64
     │   ├── body[0] > let:
-    │   │   ├── local: kept #118 : @primitives$I64
-    │   │   └── value: seed #117 : @primitives$I64
-    │   └── body[1] > return: kept #118 : @primitives$I64
+    │   │   ├── local: kept #123 : @primitives$I64
+    │   │   └── value: seed #122 : @primitives$I64
+    │   └── body[1] > return: kept #123 : @primitives$I64
     ├── instances[13] > instance:
     │   ├── of: relayed #30 with T = shapes$Shape
-    │   ├── params[0]: seed #119 : ^shapes$Shape
+    │   ├── params[0]: seed #124 : ^shapes$Shape
     │   ├── body[0] > let:
-    │   │   ├── local: kept #120 : ^shapes$Shape
-    │   │   └── value: seed #119 : shapes$Shape
-    │   └── body[1] > return: kept #120 : shapes$Shape
+    │   │   ├── local: kept #125 : ^shapes$Shape
+    │   │   └── value: seed #124 : shapes$Shape
+    │   └── body[1] > return: kept #125 : shapes$Shape
     └── instances[14] > instance:
         ├── of: zeroed #31 with T = @primitives$I64
-        ├── params[0]: like #121 : @primitives$I64
+        ├── params[0]: like #126 : @primitives$I64
         ├── body[0] > let:
-        │   ├── local: made #122 : @primitives$I64
+        │   ├── local: made #127 : @primitives$I64
         │   └── value > construct:
         │       ├── type: @primitives$I64
         │       ├── ctor: @primitives$I64
         │       └── args[0]: 0 : @concepts$Int
-        └── body[1] > return: made #122 : @primitives$I64
+        └── body[1] > return: made #127 : @primitives$I64
