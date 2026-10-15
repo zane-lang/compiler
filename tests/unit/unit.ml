@@ -345,6 +345,63 @@ let intrinsic_classes () =
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
     = Cgt.Runtime.[ Arguments ])
 
+(* The math functions of `@math$` as the evaluator folds them (math.md §2),
+   which the math codegen fixture holds both builds to as well, and which
+   of them fold at all. *)
+let folded_math () =
+  let i32 n = Value.VInt (Value.int C.Ty.I32 n) and i64 n = Value.VInt n in
+  let f x = Value.VFloat x in
+  let m fn t args = Eval.math fn t args in
+  let sign_bit = function Value.VFloat x -> Float.sign_bit x | _ -> false in
+  let is_nan = function Value.VFloat x -> Float.is_nan x | _ -> false in
+  check "a shift count is taken modulo the width"
+    (m Cgt.Math.Shift_left C.Ty.I64 [ i64 1L; i64 65L ] = i64 2L
+    && m Cgt.Math.Shift_left C.Ty.I32 [ i32 1L; i32 32L ] = i32 1L
+    && m Cgt.Math.Shift_left C.Ty.I64 [ i64 1L; i64 (-1L) ] = i64 Int64.min_int);
+  check "a logical shift of an I32 fills with zeros"
+    (m Cgt.Math.Shift_right_logical C.Ty.I32 [ i32 (-1L); i32 28L ] = i32 15L);
+  check "an arithmetic shift keeps the sign"
+    (m Cgt.Math.Shift_right C.Ty.I32 [ i32 (-2147483648L); i32 31L ] = i32 (-1L));
+  check "a rotation brings back what it moves out"
+    (m Cgt.Math.Rotate_left C.Ty.I32 [ i32 (-2147483648L); i32 1L ] = i32 1L
+    && m Cgt.Math.Rotate_right C.Ty.I64 [ i64 1L; i64 1L ] = i64 Int64.min_int
+    && m Cgt.Math.Rotate_left C.Ty.I64 [ i64 5L; i64 64L ] = i64 5L);
+  check "zero's leading and trailing zeros are the width"
+    (m Cgt.Math.Leading_zeros C.Ty.I32 [ i32 0L ] = i32 32L
+    && m Cgt.Math.Trailing_zeros C.Ty.I64 [ i64 0L ] = i64 64L);
+  check "a population count reads an I32's 32 bits"
+    (m Cgt.Math.Pop_count C.Ty.I32 [ i32 (-1L) ] = i32 32L);
+  check "abs wraps on the most negative value"
+    (m Cgt.Math.Abs C.Ty.I32 [ i32 (-2147483648L) ] = i32 (-2147483648L));
+  check "roundEven takes a tie to the even neighbour"
+    (m Cgt.Math.Round_even C.Ty.F64 [ f 2.5 ] = f 2.
+    && m Cgt.Math.Round_even C.Ty.F64 [ f (-3.5) ] = f (-4.)
+    && sign_bit (m Cgt.Math.Round_even C.Ty.F64 [ f (-0.5) ]));
+  check "min and max let a NaN through"
+    (is_nan (m Cgt.Math.Min C.Ty.F64 [ f Float.nan; f 1. ])
+    && is_nan (m Cgt.Math.Max C.Ty.F32 [ f 1.; f Float.nan ]));
+  check "min orders a negative zero first"
+    (sign_bit (m Cgt.Math.Min C.Ty.F64 [ f 0.; f (-0.) ])
+    && not (sign_bit (m Cgt.Math.Max C.Ty.F64 [ f (-0.); f 0. ])));
+  check "copySign takes a NaN's sign as positive"
+    (m Cgt.Math.Copy_sign C.Ty.F64 [ f (-3.); f (Float.neg Float.nan) ] = f 3.);
+  check "fma rounds once"
+    (let a = 1. +. Float.pow 2. (-27.) in
+     m Cgt.Math.Fma C.Ty.F64 [ f a; f a; f (-1.) ] = f (Float.pow 2. (-26.) +. Float.pow 2. (-54.)));
+  check "an F32 sqrt is rounded to a single"
+    (m Cgt.Math.Sqrt C.Ty.F32 [ f 2. ] = f (Int32.float_of_bits (Int32.bits_of_float (Float.sqrt 2.))));
+  check "the approximate functions and an F32 fma are inputs, the rest computed"
+    (List.for_all
+       (fun fn ->
+         let expected t =
+           if Cgt.Math.exact fn && not (fn = Cgt.Math.Fma && t = C.Ty.F32) then Intrinsics.Computed
+           else Intrinsics.Input
+         in
+         List.for_all (fun t -> Intrinsics.math fn t = expected t) C.Ty.[ I32; I64; F32; F64 ])
+       Cgt.Math.all
+    && List.filter (fun fn -> not (Cgt.Math.exact fn)) Cgt.Math.all
+       = Cgt.Math.[ Cbrt; Sin; Cos; Tan; Asin; Acos; Atan; Atan2; Exp; Log; Pow; Hypot ])
+
 (* What `parseI64` and `parseF64` read (types.md §2.10), as the evaluator
    folds them; runtime/block.c reads the same text the same way. *)
 let parsed_numbers () =
@@ -625,6 +682,7 @@ let () =
   single_literals ();
   folded_arithmetic ();
   intrinsic_classes ();
+  folded_math ();
   parsed_numbers ();
   materialized ();
   evaluated ();

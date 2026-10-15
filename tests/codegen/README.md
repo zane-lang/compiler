@@ -38,6 +38,16 @@ again, read the golden diff and promote that.
 - `counting` is step 2 of docs/design/lowering.md §8: scalar arithmetic, verbs
   that call verbs, and the fixture's own `if`, `elif`, `else` and `to` expanded
   where they are called. Every check it makes prints `yes` when it holds.
+- `math` is every `@math$` function on each type it takes (math.md §2):
+  shift and rotation counts at and past the width, zero's leading and
+  trailing zeros, `abs` of the most negative integer, `sqrt` below zero,
+  rounding ties and signed zeros, an `fma` that a multiply and an add would
+  round differently, `copySign` with a NaN, and `min` and `max` with a NaN
+  and with both zeros, in a build that folds the exact ones and one that
+  does not. The approximate functions are held to within a tolerance of the
+  true value, since their last digit is the C math library's.
+  `math.optimized.cgt` shows the exact ones folded and the approximate ones
+  left as calls. Every check prints `yes` when it holds.
 - `operators` is the derived operators of operators.md §2.3 on declared
   operators, written over `@operators$`: each gives its value, and a `a b`
   line shows its operands ran in written order however the desugaring passes

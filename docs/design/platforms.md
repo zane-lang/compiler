@@ -38,6 +38,17 @@ only what `libSystem` provides. They keep to it: a feature that would need an
 Apple framework, such as a GUI or the GPU, belongs in a package of its own,
 built on a Mac by those who want it.
 
+## The C math library
+
+The approximate math functions of `@math$` are the C math library's where
+the program runs ([`lowering.md`](lowering.md) L17). Every platform's C
+library holds it: `libSystem` on macOS and MinGW's C library on Windows,
+which a program links already, and glibc on Linux, where it is a library
+of its own and a program is linked with `-lm`. Their results can differ in
+the last digit, which the spec allows of an approximate function
+([`math.md`](https://github.com/zane-lang/spec/blob/1457830/spec/math.md)
+§2.6); the `math` codegen fixture checks them within a tolerance.
+
 ## Machine stack sizes
 
 A program's main thread uses the stack its launch environment provides on
