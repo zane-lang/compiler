@@ -1314,9 +1314,8 @@ and declared_type env ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
   (* `b ^Box(Int(1))` and `b ^Box = Box(Int(1))` infer the same way, and keep
      the `^`. *)
   | N.Type_expr.Roaming ({ N.Type_expr.node = N.Type_expr.Path { generics = []; _ }; _ } as inner) ->
-      let t = Ty.Roaming (declared_type env ctx inner value_ty) in
-      Type_decls.check_marker env te.N.Type_expr.span t;
-      t
+      Type_decls.roaming env (type_scope ctx) te.N.Type_expr.span inner
+        (declared_type env ctx inner value_ty)
   | _ -> Type_decls.resolve env (type_scope ctx) te
 
 (* The binding a place is reached through. A field, an element or a case

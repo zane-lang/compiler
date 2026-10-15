@@ -120,6 +120,18 @@ type Holder<T Type> = #struct { item T; }
 
 Holder<T>(item T Type) => init{ item; }
 
+/// `^T` over a type parameter filled with a value type is that value, in
+/// the long form and the shorthand alike.
+^T relayed(seed ^T Type) {
+	kept ^T = seed;
+	return kept;
+}
+
+^T zeroed(like T Type) {
+	made ^T(0);
+	return made;
+}
+
 String describe(corner Corner) => match (corner) {
 	[topLeft, topRight] => String("top");
 	[bottomLeft, bottomRight] => String("bottom");
@@ -201,6 +213,9 @@ Unit main() {
 	boxed ^Holder(Int(1));
 	spelled ^Holder = Holder(Int(2));
 	shelf Holder = boxed;
+	relayedInt Int = relayed(Int(5));
+	relayedShape Shape = relayed(Shape.circle(Float(6.0)));
+	nothing Int = zeroed(Int(7));
 
 	return Unit();
 }
