@@ -1,7 +1,8 @@
 /// Removing a list's elements: `remove` moves the element at an index out and
 /// shifts the later ones down, and `swapRemove` moves the last one into its
 /// place. Of scalars, strings, owners and lists; a removed element kept,
-/// settled, pushed back, or left to die where it was removed. Each check
+/// settled, pushed back, or left to die where it was removed, and from a
+/// list that is itself an element whose list the index grows. Each check
 /// prints `yes` when it holds and `no` when it does not.
 package removal;
 
@@ -36,6 +37,18 @@ Int sum(values &List<Int>) {
 		total = @operators$add(total, values[i]);
 	}
 	return total;
+}
+
+/// Grows the list by `n` rows, which moves its elements into a new block,
+/// and gives 1.
+Int growAndGive(this List<Row>, n Int) mut {
+	i Int(1);
+	i!to(n) {
+		row ^Row = @primitives$List(Int);
+		row!push(i);
+		this!push(row);
+	}
+	return Int(1);
 }
 
 Unit check(ok Bool) {
@@ -129,5 +142,13 @@ Unit main() {
 	check(@operators$equal(rows[Int(1)][Int(2)], Int(20)));
 	rows!swapRemove(Int(1));
 	check(@operators$equal(rows[Int(1)][Int(1)], Int(3)));
+
+	// A subject that is an element, whose index grows the list holding it:
+	// the element is found after the index runs, in the block it moved to.
+	grown Int = rows[Int(1)]!remove(rows!growAndGive(Int(1000)));
+	check(@operators$equal(grown, Int(3)));
+	check(@operators$equal(rows[Int(1)]:size(), Int(1)));
+	check(@operators$equal(rows[Int(1)][Int(1)], Int(30)));
+	check(@operators$equal(rows:size(), Int(1001)));
 	return Unit();
 }

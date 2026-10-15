@@ -196,11 +196,15 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
         args;
         handler = None;
       } -> (
-      (* The element's place is found, checked against the count as a
-         subscript's is, and the element moves out of it; then the list
-         closes over the place. *)
+      (* The list's own operands run first, then the index, and only then
+         is the list located, as for any `!` call on an element
+         ([located_last]): an index that grows the list holding it moves it
+         before the call finds it. The element's place is checked against
+         the count as a subscript's is, and the element moves out of it;
+         then the list closes over the place. *)
       match args with
       | [ T.Arg.Value list; T.Arg.Value index ] ->
+          let pins, list = pinned st ctx span list in
           let t =
             match element (Tty.strip_mode list.T.Expr.ty) with
             | Some t -> t
@@ -223,9 +227,10 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           let taken = Expr.Take { address = at; layout = layout st span t } in
           let closed = Expr.Runtime { fn; args = [ the_list; the_index; s ] } in
           let body =
-            [
-              Stat.Let { id = l; value = lend st ctx span list };
+            pins
+            @ [
               Stat.Let { id = i; value = borrow st ctx span index };
+              Stat.Let { id = l; value = lend st ctx span list };
               Stat.Let { id = v; value = { Expr.node = taken; ty = lt } };
               Stat.Eval { Expr.node = closed; ty = Nodes.Ty.Void };
             ]
