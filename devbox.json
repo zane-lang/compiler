@@ -16,7 +16,12 @@
     "pkg-config": "latest",
     "m4": "latest",
     "zstd": "latest",
-    "python3": "latest"
+    "python3": "latest",
+    "nodejs": "latest",
+    "elan": "latest",
+    "neovim": "latest",
+    "typst": "latest",
+    "zig": "0.16.0"
   },
   "shell": {
     "init_hook": [
