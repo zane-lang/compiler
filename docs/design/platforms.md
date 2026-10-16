@@ -80,9 +80,10 @@ A Windows program links with MinGW's C library and its POSIX threads,
 winpthreads, both of which `zig cc` carries; `ZANE_CC=dev/bin/zig-cc` links
 with it ([`lowering.md`](lowering.md) §7). The runtime differs there in five
 places, each marked `_WIN32`: a chunk comes from `_aligned_malloc` and goes
-back through `_aligned_free`, a context's range of frames is reserved with
-`VirtualAlloc(MEM_RESERVE)` and made usable with `MEM_COMMIT` from a
-vectored exception handler, which also reports a full machine stack
+back through `_aligned_free`, a context's range of frames and a list's
+growing oversized span ([`lowering.md`](lowering.md) §9) are reserved with
+`VirtualAlloc(MEM_RESERVE)` and made usable with `MEM_COMMIT`, the range
+from a vectored exception handler, which also reports a full machine stack
 (`EXCEPTION_STACK_OVERFLOW`), winpthreads counts the processors, stdout
 and stderr are set to binary mode, so a program writes `\n` and not `\r\n`,
 as it does everywhere else, and the program's arguments are read from

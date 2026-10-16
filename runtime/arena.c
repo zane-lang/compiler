@@ -194,6 +194,8 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 		zane_broken("out of memory for a dynamic chunk");
 	for (size_t at = 0; at < size; at += ZANE_CHUNK) zane_set_page((char *)m + at, (uintptr_t)region);
 	m->size = size;
+	m->reserved = 0;
+	m->raw = NULL;
 	m->next = region->mappings;
 	region->mappings = m;
 	return m;
@@ -201,14 +203,18 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 
 /* A region's chunks given back, whatever is still in them (memory.md
    §3.2): each leaves the chunk map, and a whole chunk is kept for the next
-   region of the same context that needs one. Its context's lock is held. */
+   region of the same context that needs one. A list's growable span gives
+   back its whole reservation. Its context's lock is held. */
 void zane_unmap(zane_mark *region) {
 	zane_context *c = region->context;
 	while (region->mappings) {
 		zane_mapping *next = region->mappings->next;
 		for (size_t at = 0; at < region->mappings->size; at += ZANE_CHUNK)
 			zane_set_page((char *)region->mappings + at, 0);
-		if (region->mappings->size == ZANE_CHUNK) {
+		if (region->mappings->reserved) {
+			zane_release_addresses(region->mappings->raw, (char *)region->mappings,
+			                       region->mappings->reserved);
+		} else if (region->mappings->size == ZANE_CHUNK) {
 			region->mappings->next = c->spare;
 			c->spare = region->mappings;
 		} else {
@@ -237,6 +243,57 @@ static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
 	}
 	h->bump = (char *)(start + (uintptr_t)size);
 	return (char *)start;
+}
+
+/* The whole chunks an oversized block of `size` bytes takes, its mapping's
+   header included. */
+static size_t zane_span_bytes(int64_t size) {
+	return ((size_t)size + ZANE_LINE + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
+}
+
+/* How many times a list's oversized block may grow in place, in bytes, over
+   the size it is first made at. */
+enum { ZANE_HEADROOM = 64 };
+
+/* A list's oversized block of `size` bytes in a region, at the start of a
+   reservation of addresses `ZANE_HEADROOM` times its span, so that it grows
+   in place as the list doubles (memory.md §3.6). Reserving costs addresses,
+   not memory: only what is usable is charged, and only what is touched
+   takes RAM. Where a process may not reserve that many addresses, the
+   reservation is the span alone. Its context's lock is held. */
+char *zane_alloc_growable(zane_mark *region, int64_t size) {
+	size_t bytes = zane_span_bytes(size), reserved = bytes * ZANE_HEADROOM;
+	char *raw;
+	char *base = reserved / ZANE_HEADROOM == bytes ? zane_reserve_aligned(reserved, &raw) : NULL;
+	if (!base) base = zane_reserve_aligned(reserved = bytes, &raw);
+	if (!base) zane_broken("out of addresses for a list's elements");
+	if (!zane_commit_range(base, bytes)) zane_broken("out of memory for a list's elements");
+	zane_mapping *m = (zane_mapping *)base;
+	for (size_t at = 0; at < bytes; at += ZANE_CHUNK) zane_set_page(base + at, (uintptr_t)region);
+	m->size = bytes;
+	m->reserved = reserved;
+	m->raw = raw;
+	m->next = region->mappings;
+	region->mappings = m;
+	region->heap.live++;
+	return base + ZANE_LINE;
+}
+
+/* The oversized block at `block`, in `region`, grown in place to `size`
+   bytes, or 0 when its reservation cannot hold them: what follows its
+   usable bytes is made usable and listed as the region's. Its context's
+   lock is held. */
+int zane_extend(zane_mark *region, char *block, int64_t size) {
+	zane_mapping *m = (zane_mapping *)(block - ZANE_LINE);
+	size_t bytes = zane_span_bytes(size);
+	if (bytes > m->reserved) return 0;
+	if (bytes > m->size) {
+		if (!zane_commit_range((char *)m + m->size, bytes - m->size))
+			zane_broken("out of memory for a list's elements");
+		for (size_t at = m->size; at < bytes; at += ZANE_CHUNK) zane_set_page((char *)m + at, (uintptr_t)region);
+		m->size = bytes;
+	}
+	return 1;
 }
 
 /* The size class of a block of `size` bytes aligned to `align`, both
