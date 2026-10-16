@@ -43,6 +43,15 @@ runs:
       shell: bash
       run: devbox run -- dev/setup/bootstrap-toolchain
 
+    - name: Restore npm download cache
+      if: inputs.grammar-dependencies == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('editors/tree-sitter-zane/package-lock.json') }}
+        restore-keys: |
+          npm-${{ runner.os }}-
+
     # The highlighting requirements include the generator's own.
     - name: Install grammar generator dependencies
       if: inputs.grammar-dependencies == 'true'
