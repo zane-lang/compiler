@@ -553,6 +553,40 @@
   (diff golden/frames.out frames.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/headers))
+ (targets headers.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build headers.exe --package fixtures/headers)))
+
+(rule
+ (deps (source_tree fixtures/headers))
+ (targets headers.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build headers.optimized.exe --optimize --package fixtures/headers)))
+
+(rule
+ (action
+  (with-stdout-to
+   headers.out.actual
+   (run ./headers.exe "6"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/headers.out headers.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   headers.optimized.out.actual
+   (run ./headers.optimized.exe "6"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/headers.out headers.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/hello))
  (action
   (with-stdout-to

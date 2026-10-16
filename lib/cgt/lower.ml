@@ -563,12 +563,15 @@ and value_of st ctx (e : T.Expr.t) =
   else read st ctx e
 
 (* A value read out of its place. One reached through an owner is read as a
-   snapshot (concurrency.md §4.4). *)
+   snapshot (concurrency.md §4.4), or read where it is when no spawned call
+   can write it back meanwhile. *)
 and read st ctx (e : T.Expr.t) =
   let span = e.T.Expr.span in
   if through_owner st e && not (reference st e.T.Expr.ty) then
     match addr st ctx span e with
-    | Some p -> { Expr.node = Expr.Snapshot p; ty = ty st span e.T.Expr.ty }
+    | Some p ->
+        let node = if st.exclusive then Expr.Deref p else Expr.Snapshot p in
+        { Expr.node; ty = ty st span e.T.Expr.ty }
     | None -> expr st ctx e
   else expr st ctx e
 
@@ -1785,8 +1788,10 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           [ Stat.Repeat { count; body = code st ctx span body } ]
       | "@controlflow$exitFromCall", [] -> ctx.exit_call span
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
-  (* A fresh value nothing keeps is held here, so the drain ends it. *)
-  | T.Stat.Expr e when held st span e.T.Expr.ty && not (is_place e) ->
+  (* A fresh value nothing keeps is held here, so the drain ends it. One
+     that owns no block has nothing to end, so nothing holds it: such as
+     the element a discarded `swapRemove` moves out. *)
+  | T.Stat.Expr e when owns st span e.T.Expr.ty && not (is_place e) ->
       [ bind st ctx.scope span e.T.Expr.ty (fresh st) (expr st ctx e) ]
   | T.Stat.Expr e -> [ Stat.Eval (expr st ctx e) ]
   | T.Stat.Return e -> (

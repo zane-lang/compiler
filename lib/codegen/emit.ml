@@ -15,6 +15,10 @@ type env = {
   globals : (string, Llvm.llvalue) Hashtbl.t;
   (* The walks of each layout the program names that lists a position. *)
   mutable walks : Walks.known option;
+  (* The type-based alias tags of a handle's fields and of any other
+     scalar (see [access]). *)
+  handle_tag : Llvm.llvalue;
+  value_tag : Llvm.llvalue;
 }
 
 (* ---------------------------------------------------------------------- *)
@@ -54,6 +58,22 @@ let fn_type env params ret =
 (* The runtime and its layouts                                            *)
 (* ---------------------------------------------------------------------- *)
 
+(* LLVM's attributes of a function that reads any memory and writes none,
+   and of a pointer parameter it only reads through and keeps no copy of.
+   How each is spelled inside LLVM changes between releases, so LLVM's
+   parser makes them rather than this file. *)
+let reads_only ctx =
+  let source =
+    "declare void @f(ptr nocapture readonly) memory(read) nounwind willreturn nosync nofree"
+  in
+  let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string source) in
+  let f = Option.get (Llvm.lookup_function "f" m) in
+  let attrs =
+    (Llvm.function_attrs f Llvm.AttrIndex.Function, Llvm.function_attrs f (Llvm.AttrIndex.Param 0))
+  in
+  Llvm.dispose_module m;
+  attrs
+
 (* The runtime's functions, declared the first time a call needs one, with
    the signature [Cgt.Runtime] gives each. *)
 let runtime env fn =
@@ -72,16 +92,64 @@ let runtime env fn =
       let ret, params = Cgt.Runtime.signature fn in
       let fty = Llvm.function_type (abi ret) (Array.of_list (List.map abi params)) in
       let f = Llvm.declare_function name fty env.m in
-      (* An index out of range stops the program, so the path to it is cold
-         and nothing follows it. *)
-      if fn = Cgt.Runtime.Out_of_range then
-        List.iter
-          (fun a -> Llvm.add_function_attr f (Llvm.create_enum_attr env.ctx a 0L) Llvm.AttrIndex.Function)
-          [ "noreturn"; "cold"; "nounwind" ];
+      (* What the runtime's body is known to do, as LLVM attributes, which
+         are a contract on it rather than a hint. An index out of range and
+         a nest of scopes too deep stop the program, so the path to either
+         is cold and nothing follows it. Comparing two strings only reads
+         them, and what their handles point to. *)
+      let attr index a = Llvm.add_function_attr f (Llvm.create_enum_attr env.ctx a 0L) index in
+      (match fn with
+      | Cgt.Runtime.Out_of_range | Cgt.Runtime.Too_deep ->
+          List.iter (attr Llvm.AttrIndex.Function) [ "noreturn"; "cold"; "nounwind" ]
+      | Cgt.Runtime.Text_equal ->
+          let fn_attrs, param = reads_only env.ctx in
+          Array.iter (fun a -> Llvm.add_function_attr f a Llvm.AttrIndex.Function) fn_attrs;
+          List.iter
+            (fun i -> Array.iter (fun a -> Llvm.add_function_attr f a (Llvm.AttrIndex.Param i)) param)
+            [ 0; 1 ]
+      | _ -> ());
       Hashtbl.replace env.funcs name (f, fty);
       (f, fty)
 
 let walks env = Option.get env.walks
+
+(* Type-based alias information (LLVM's `!tbaa`), which tells LLVM that a
+   write of an element's field leaves the list's header as it was. A handle,
+   the header of a list or a string, is never a member or an element of a
+   scalar's place, nor one inside it, since a path through a place's members
+   stops at a handle (Cgt.Nodes.Expr.Offset), so a handle's fields and a
+   place of a scalar type are disjoint storage. An access made here as one
+   of the two says so with its tag: a handle's fields read and written where
+   an element is located, pushed or removed, and a handle loaded or stored
+   whole, as the first; a scalar loaded or stored through an address as the
+   second. A scalar's tag is one for every scalar type, since storage the
+   program reads as one type it may have written as another the same size,
+   as a snapshot does. Everything else, a frame's or a walk's access, a copy
+   of an aggregate and the runtime's own, carries no tag, which LLVM takes
+   as one that may touch both. *)
+let tags ctx =
+  let root = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane" |] in
+  let tag name =
+    let zero = Llvm.const_int (Llvm.i64_type ctx) 0 in
+    let node = Llvm.mdnode ctx [| Llvm.mdstring ctx name; root; zero |] in
+    Llvm.mdnode ctx [| node; node; zero |]
+  in
+  (tag "zane handle", tag "zane scalar")
+
+let access env (t : Ty.t) instr =
+  let tag =
+    match t with
+    | Ty.Handle -> Some env.handle_tag
+    | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr -> Some env.value_tag
+    | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ -> None
+  in
+  Option.iter (Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa")) tag;
+  instr
+
+(* A handle's field: what [element], [push] and [remove] read and write. *)
+let handle_field env instr =
+  Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa") env.handle_tag;
+  instr
 
 (* A math function of `@math$` (math.md §2) on operands of type [t]. An
    exact one is an instruction or an LLVM intrinsic: a shift's count is
@@ -433,7 +501,9 @@ let element env fr b fn args =
     match (fn, args) with
     | Cgt.Runtime.List_at, [ list; index; stride ] ->
         let header = Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |] in
-        let field i t = Llvm.build_load t (Llvm.build_struct_gep header list i "" b) "" b in
+        let field i t =
+          handle_field env (Llvm.build_load t (Llvm.build_struct_gep header list i "" b) "" b)
+        in
         (field 0 env.ptr, index, field 1 env.i64, stride)
     | Cgt.Runtime.Array_at, [ array; index; count; stride ] -> (array, index, count, stride)
     | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
@@ -458,18 +528,20 @@ let element env fr b fn args =
 let push env fr b list stride =
   let header = Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |] in
   let count_at = Llvm.build_struct_gep header list 1 "" b in
-  let count = Llvm.build_load env.i64 count_at "" b in
-  let room = Llvm.build_load env.i64 (Llvm.build_struct_gep header list 2 "" b) "" b in
+  let count = handle_field env (Llvm.build_load env.i64 count_at "" b) in
+  let room_at = Llvm.build_struct_gep header list 2 "" b in
+  let room = handle_field env (Llvm.build_load env.i64 room_at "" b) in
   let next = Llvm.build_nsw_add count (Llvm.const_int env.i64 1) "" b in
   let full = Llvm.build_icmp Llvm.Icmp.Sgt (Llvm.build_nsw_mul next stride "" b) room "" b in
   let grow = block env fr and fits = block env fr and pushed = block env fr in
   unlikely env (Llvm.build_cond_br full grow fits b);
   Llvm.position_at_end fits b;
-  let items = Llvm.build_load env.ptr (Llvm.build_struct_gep header list 0 "" b) "" b in
+  let items_at = Llvm.build_struct_gep header list 0 "" b in
+  let items = handle_field env (Llvm.build_load env.ptr items_at "" b) in
   let at =
     Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items [| Llvm.build_nsw_mul count stride "" b |] "" b
   in
-  ignore (Llvm.build_store next count_at b);
+  ignore (handle_field env (Llvm.build_store next count_at b));
   ignore (Llvm.build_br pushed b);
   Llvm.position_at_end grow b;
   let f, fty = runtime env Cgt.Runtime.List_push in
@@ -477,6 +549,46 @@ let push env fr b list stride =
   ignore (Llvm.build_br pushed b);
   Llvm.position_at_end pushed b;
   Llvm.build_phi [ (at, fits); (grown, grow) ] "" b
+
+(* A list closes over the element at [index], which the caller has checked
+   and moved out of its place (runtime/list.c says the same of the
+   runtime's removal). An ordered removal moves the later elements down one
+   place; a swapping one moves the last element into the place, unless the
+   place is the last. Either is made here, with the element's stride a
+   constant, so LLVM sees which bytes move and that the count goes down by
+   one. *)
+let remove env fr b fn list index stride =
+  let header = Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |] in
+  let i8 = Llvm.i8_type env.ctx and one = Llvm.const_int env.i64 1 in
+  let count_at = Llvm.build_struct_gep header list 1 "" b in
+  let count = handle_field env (Llvm.build_load env.i64 count_at "" b) in
+  let items_at = Llvm.build_struct_gep header list 0 "" b in
+  let items = handle_field env (Llvm.build_load env.ptr items_at "" b) in
+  let slot n = Llvm.build_in_bounds_gep i8 items [| Llvm.build_nsw_mul n stride "" b |] "" b in
+  let at = slot (Llvm.build_nsw_sub index one "" b) in
+  let move name dst src size =
+    let i1 = Llvm.i1_type env.ctx in
+    let t = Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr; env.i64; i1 |] in
+    let f =
+      match Llvm.lookup_function name env.m with
+      | Some f -> f
+      | None -> Llvm.declare_function name t env.m
+    in
+    ignore (Llvm.build_call t f [| dst; src; size; Llvm.const_int i1 0 |] "" b)
+  in
+  (match fn with
+  | Cgt.Runtime.List_remove ->
+      let later = Llvm.build_nsw_mul (Llvm.build_nsw_sub count index "" b) stride "" b in
+      move "llvm.memmove.p0.p0.i64" at (Llvm.build_in_bounds_gep i8 at [| stride |] "" b) later
+  | _ ->
+      let before = Llvm.build_icmp Llvm.Icmp.Slt index count "" b in
+      let moving = block env fr and moved = block env fr in
+      ignore (Llvm.build_cond_br before moving moved b);
+      Llvm.position_at_end moving b;
+      move "llvm.memcpy.p0.p0.i64" at (slot (Llvm.build_nsw_sub count one "" b)) stride;
+      ignore (Llvm.build_br moved b);
+      Llvm.position_at_end moved b);
+  ignore (handle_field env (Llvm.build_store (Llvm.build_nsw_sub count one "" b) count_at b))
 
 (* ---------------------------------------------------------------------- *)
 (* Arithmetic                                                             *)
@@ -500,8 +612,8 @@ let divide b l r =
 (* A scalar converted from [from] to [into] (Cgt.Nodes.Scalar). A float
    truncated to an integer saturates (types.md §2.9): a NaN gives zero, and
    one whose integer part the target cannot hold gives the target's nearest
-   end. [fptosi] is poison outside the bounds, and the selects never pick it
-   there. *)
+   end. That is what LLVM's `llvm.fptosi.sat` gives, so the target's own
+   saturating conversion is what runs. *)
 let convert env b (from : Ty.t) (into : Ty.t) v =
   let target = lltype env into in
   let is_float = function Ty.F32 | Ty.F64 -> true | _ -> false in
@@ -517,20 +629,15 @@ let convert env b (from : Ty.t) (into : Ty.t) v =
       | Ty.F64, Ty.F32 -> Llvm.build_fptrunc v target "" b
       | _ -> v)
   | true, false ->
-      let source = Llvm.type_of v in
-      let lower, inclusive, upper = Scalar.truncation ~from into in
-      let above =
-        Llvm.build_fcmp
-          (if inclusive then Llvm.Fcmp.Oge else Llvm.Fcmp.Ogt)
-          v (Llvm.const_float source lower) "" b
+      let suffix = function Ty.I32 -> "i32" | Ty.I64 -> "i64" | Ty.F32 -> "f32" | _ -> "f64" in
+      let name = Printf.sprintf "llvm.fptosi.sat.%s.%s" (suffix into) (suffix from) in
+      let fty = Llvm.function_type target [| Llvm.type_of v |] in
+      let f =
+        match Llvm.lookup_function name env.m with
+        | Some f -> f
+        | None -> Llvm.declare_function name fty env.m
       in
-      let below = Llvm.build_fcmp Llvm.Fcmp.Olt v (Llvm.const_float source upper) "" b in
-      let nan = Llvm.build_fcmp Llvm.Fcmp.Uno v v "" b in
-      let least, most = Scalar.ends into in
-      let truncated = Llvm.build_fptosi v target "" b in
-      let high = Llvm.build_select below truncated (Llvm.const_of_int64 target most true) "" b in
-      let saturated = Llvm.build_select above high (Llvm.const_of_int64 target least true) "" b in
-      Llvm.build_select nan (Llvm.const_int target 0) saturated "" b
+      Llvm.build_call fty f [| v |] "" b
 
 let binary b (op : Expr.binop) (t : Ty.t) l r =
   match (t, op) with
@@ -658,7 +765,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       let p = expr env fr b p in
       match (e.Expr.ty, p) with
       | Ty.Void, _ | _, None -> None
-      | t, Some p -> Some (Llvm.build_load (lltype env t) p "" b))
+      | t, Some p -> Some (access env t (Llvm.build_load (lltype env t) p "" b)))
   | Expr.Record members ->
       Some
         (List.fold_left
@@ -702,6 +809,16 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       if e.Expr.ty = Ty.Void then None else Some v
   | Expr.Runtime { fn = (Cgt.Runtime.List_at | Cgt.Runtime.Array_at) as fn; args } ->
       Some (element env fr b fn (List.filter_map (expr env fr b) args))
+  | Expr.Runtime { fn = (Cgt.Runtime.List_remove | Cgt.Runtime.List_swap_remove) as fn; args } -> (
+      match List.filter_map (expr env fr b) args with
+      | [ list; index; stride ] ->
+          remove env fr b fn list index stride;
+          None
+      | _ -> Diagnostic.bug "codegen: a removal with the wrong arguments")
+  (* A new list is empty and owns no block (runtime/list.c). *)
+  | Expr.Runtime { fn = Cgt.Runtime.List_new; args = [] } ->
+      let zero = Llvm.const_int env.i64 0 in
+      Some (Llvm.const_struct env.ctx [| Llvm.const_null env.ptr; zero; zero |])
   | Expr.Runtime { fn = Cgt.Runtime.List_push; args } -> (
       match List.filter_map (expr env fr b) args with
       | [ list; stride ] -> Some (push env fr b list stride)
@@ -775,7 +892,9 @@ and stat env fr b (s : Stat.t) =
                 | _ -> Diagnostic.bug "codegen: a member path through something not a struct")
               (base, place.Expr.ty) place.Expr.path
           in
-          ignore (Llvm.build_store v target b)
+          let store = Llvm.build_store v target b in
+          (* A store into a local's own slot is the frame's. *)
+          if place.Expr.deref || place.Expr.path <> [] then ignore (access env value.Expr.ty store)
       | _ -> ())
   | Stat.Switch { value; cases } ->
       let v = value_of env fr b value in
@@ -829,7 +948,9 @@ and stat env fr b (s : Stat.t) =
       match expr env fr b value with Some v -> place env b p v l | None -> ())
   | Stat.Store { address; value } -> (
       let p = value_of env fr b address in
-      match expr env fr b value with Some v -> ignore (Llvm.build_store v p b) | None -> ())
+      match expr env fr b value with
+      | Some v -> ignore (access env value.Expr.ty (Llvm.build_store v p b))
+      | None -> ())
   | Stat.Overwrite { address; value; layout = l } -> (
       let p = value_of env fr b address in
       match expr env fr b value with
@@ -957,6 +1078,8 @@ let program ?(fixed_region = default_fixed_region) ?(spawned_fixed_region = defa
       funcs = Hashtbl.create 32;
       globals = Hashtbl.create 8;
       walks = None;
+      handle_tag = fst (tags ctx);
+      value_tag = snd (tags ctx);
     }
   in
   env.walks <-

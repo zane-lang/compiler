@@ -148,6 +148,10 @@ type state = {
   (* Retain reachable stamped dependency bodies for optimization. They are
      never emitted as ordinary definitions in this object's code. *)
   import_bodies : bool;
+  (* Whether this is a program none of whose code spawns: then no spawned
+     call ever writes back while a place is read, and a read through an
+     owner needs no snapshot. *)
+  exclusive : bool;
   exports : string -> bool;
   stamp : string -> string;
   stamped : string -> bool;
@@ -158,7 +162,7 @@ type state = {
 }
 
 (* A state that has reached nothing yet. *)
-let create ~import_bodies ~library ~exports ~stamp ~stamped =
+let create ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
   {
     verbs = Hashtbl.create 64;
     types = Hashtbl.create 64;
@@ -183,6 +187,7 @@ let create ~import_bodies ~library ~exports ~stamp ~stamped =
     wants = Hashtbl.create 16;
     library;
     import_bodies;
+    exclusive;
     exports;
     stamp;
     stamped;

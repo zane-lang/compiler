@@ -171,13 +171,13 @@
     │       │       ├── left > binary:
     │       │       │   ├── type: i64
     │       │       │   ├── op: +
-    │       │       │   ├── left > snapshot:
+    │       │       │   ├── left > deref:
     │       │       │   │   ├── type: i64
     │       │       │   │   └── ptr > offset:
     │       │       │   │       ├── within: {handle, i64}
     │       │       │   │       ├── path: 1
     │       │       │   │       └── base: address of #21 : ptr
-    │       │       │   └── right > snapshot:
+    │       │       │   └── right > deref:
     │       │       │       ├── type: i64
     │       │       │       └── ptr > offset:
     │       │       │           ├── within: {handle, i64}

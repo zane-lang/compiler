@@ -42,7 +42,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -59,7 +59,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -112,7 +112,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -148,7 +148,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -168,7 +168,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -181,7 +181,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -201,7 +201,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -233,7 +233,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -256,7 +256,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -282,7 +282,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -306,7 +306,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -319,7 +319,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -369,7 +369,7 @@
     │       │           │   └── value > binary:
     │       │           │       ├── type: i1
     │       │           │       ├── op: ==
-    │       │           │       ├── left > snapshot:
+    │       │           │       ├── left > deref:
     │       │           │       │   ├── type: i64
     │       │           │       │   └── ptr > offset:
     │       │           │       │       ├── within: {i64}
@@ -412,7 +412,7 @@
     │       │           │   └── value > binary:
     │       │           │       ├── type: i1
     │       │           │       ├── op: ==
-    │       │           │       ├── left > snapshot:
+    │       │           │       ├── left > deref:
     │       │           │       │   ├── type: i64
     │       │           │       │   └── ptr > offset:
     │       │           │       │       ├── within: {i64}
@@ -470,7 +470,7 @@
     │       │           │   └── value > binary:
     │       │           │       ├── type: i1
     │       │           │       ├── op: ==
-    │       │           │       ├── left > snapshot:
+    │       │           │       ├── left > deref:
     │       │           │       │   ├── type: i64
     │       │           │       │   └── ptr > offset:
     │       │           │       │       ├── within: {i64}
@@ -574,7 +574,7 @@
     │   │   └── value > binary:
     │   │       ├── type: i64
     │   │       ├── op: +
-    │   │       ├── left > snapshot:
+    │   │       ├── left > deref:
     │   │       │   ├── type: i64
     │   │       │   └── ptr > offset:
     │   │       │       ├── within: {i64}
@@ -617,7 +617,7 @@
     │   ├── symbol: settled$peek(&settled$Node)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > snapshot:
+    │   └── body[0] > return > deref:
     │       ├── type: i64
     │       └── ptr > offset:
     │           ├── within: {i64}
@@ -630,7 +630,7 @@
     │   └── body[0] > return > binary:
     │       ├── type: i64
     │       ├── op: *
-    │       ├── left > snapshot:
+    │       ├── left > deref:
     │       │   ├── type: i64
     │       │   └── ptr > offset:
     │       │       ├── within: {i64}
@@ -651,13 +651,13 @@
     │   │   │   └── value > binary:
     │   │   │       ├── type: i1
     │   │   │       ├── op: <
-    │   │   │       ├── left > snapshot:
+    │   │   │       ├── left > deref:
     │   │   │       │   ├── type: i64
     │   │   │       │   └── ptr > offset:
     │   │   │       │       ├── within: {i64}
     │   │   │       │       ├── path: 0
     │   │   │       │       └── base: local #2 : ptr
-    │   │   │       └── right > snapshot:
+    │   │   │       └── right > deref:
     │   │   │           ├── type: i64
     │   │   │           └── ptr > offset:
     │   │   │               ├── within: {i64}

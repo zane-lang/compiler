@@ -57,7 +57,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, i64}
@@ -77,7 +77,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, i64}
@@ -145,7 +145,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, i64}
@@ -253,7 +253,7 @@
     │       │           │   └── value > binary:
     │       │           │       ├── type: i1
     │       │           │       ├── op: ==
-    │       │           │       ├── left > snapshot:
+    │       │           │       ├── left > deref:
     │       │           │       │   ├── type: i64
     │       │           │       │   └── ptr > offset:
     │       │           │       │       ├── within: {i64, i64}
@@ -405,7 +405,7 @@
     │       │       │           │   └── layout: ^owners$Account
     │       │       │           ├── body[1] > assign:
     │       │       │           │   ├── place: #22
-    │       │       │           │   └── value > snapshot:
+    │       │       │           │   └── value > deref:
     │       │       │           │       ├── type: i64
     │       │       │           │       └── ptr > offset:
     │       │       │           │           ├── within: {i64, i64}
@@ -450,7 +450,7 @@
     │       │       │           │   └── layout: ^owners$Account
     │       │       │           ├── body[1] > assign:
     │       │       │           │   ├── place: #27
-    │       │       │           │   └── value > snapshot:
+    │       │       │           │   └── value > deref:
     │       │       │           │       ├── type: i64
     │       │       │           │       └── ptr > offset:
     │       │       │           │           ├── within: {i64, i64}
@@ -551,7 +551,7 @@
     │       │   │   │       │       ├── type: i64
     │       │   │   │       │       ├── op: +
     │       │   │   │       │       ├── left: local #31 : i64
-    │       │   │   │       │       └── right > snapshot:
+    │       │   │   │       │       └── right > deref:
     │       │   │   │       │           ├── type: i64
     │       │   │   │       │           └── ptr > offset:
     │       │   │   │       │               ├── within: {i64, i64}
@@ -619,7 +619,7 @@
     │   │   └── value > binary:
     │   │       ├── type: i64
     │   │       ├── op: +
-    │   │       ├── left > snapshot:
+    │   │       ├── left > deref:
     │   │       │   ├── type: i64
     │   │       │   └── ptr > offset:
     │   │       │       ├── within: {i64, i64}
@@ -631,7 +631,7 @@
     │   ├── symbol: owners$funds(this owners$Account)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > snapshot:
+    │   └── body[0] > return > deref:
     │       ├── type: i64
     │       └── ptr > offset:
     │           ├── within: {i64, i64}
@@ -683,7 +683,7 @@
     │   ├── symbol: owners$balanceOf(owners$Account)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > snapshot:
+    │   └── body[0] > return > deref:
     │       ├── type: i64
     │       └── ptr > offset:
     │           ├── within: {i64, i64}
@@ -700,7 +700,7 @@
     │       │   ├── scope: %3
     │       │   ├── value: local #1 : {i64, i64}
     │       │   └── layout: ^owners$Account
-    │       └── body[1] > return > snapshot:
+    │       └── body[1] > return > deref:
     │           ├── type: i64
     │           └── ptr > offset:
     │               ├── within: {i64, i64}
@@ -805,7 +805,7 @@
     │   │   │   │           │       ├── type: i1
     │   │   │   │           │       ├── op: <
     │   │   │   │           │       ├── left: 30 : i64
-    │   │   │   │           │       └── right > snapshot:
+    │   │   │   │           │       └── right > deref:
     │   │   │   │           │           ├── type: i64
     │   │   │   │           │           └── ptr > offset:
     │   │   │   │           │               ├── within: {i64, i64}
@@ -813,7 +813,7 @@
     │   │   │   │           │               └── base: address of #7 : ptr
     │   │   │   │           ├── body[1] > if:
     │   │   │   │           │   ├── cond: local #9 : i1
-    │   │   │   │           │   └── body[0] > return > snapshot:
+    │   │   │   │           │   └── body[0] > return > deref:
     │   │   │   │           │       ├── type: i64
     │   │   │   │           │       └── ptr > offset:
     │   │   │   │           │           ├── within: {i64, i64}
@@ -857,7 +857,7 @@
     │       │   │   └── value > binary:
     │       │   │       ├── type: i1
     │       │   │       ├── op: <
-    │       │   │       ├── left > snapshot:
+    │       │   │       ├── left > deref:
     │       │   │       │   ├── type: i64
     │       │   │       │   └── ptr > offset:
     │       │   │       │       ├── within: {i64, i64}
@@ -880,7 +880,7 @@
     │       │   │       └── body[1] > return > case:
     │       │   │           ├── type: <i64 | i64 | void>
     │       │   │           ├── index: 1
-    │       │   │           └── payload > snapshot:
+    │       │   │           └── payload > deref:
     │       │   │               ├── type: i64
     │       │   │               └── ptr > offset:
     │       │   │                   ├── within: {i64, i64}
@@ -893,7 +893,7 @@
     │       └── body[2] > return > case:
     │           ├── type: <i64 | i64 | void>
     │           ├── index: 0
-    │           └── payload > snapshot:
+    │           └── payload > deref:
     │               ├── type: i64
     │               └── ptr > offset:
     │                   ├── within: {i64, i64}
@@ -966,7 +966,7 @@
     │   │   │   │                   ├── type: i64
     │   │   │   │                   ├── op: +
     │   │   │   │                   ├── left: local #2 : i64
-    │   │   │   │                   └── right > snapshot:
+    │   │   │   │                   └── right > deref:
     │   │   │   │                       ├── type: i64
     │   │   │   │                       └── ptr > offset:
     │   │   │   │                           ├── within: {i64, i64}
@@ -1122,7 +1122,7 @@
     │           │   │   │   └── value > binary:
     │           │   │   │       ├── type: i1
     │           │   │   │       ├── op: ==
-    │           │   │   │       ├── left > snapshot:
+    │           │   │   │       ├── left > deref:
     │           │   │   │       │   ├── type: i64
     │           │   │   │       │   └── ptr > offset:
     │           │   │   │       │       ├── within: {i64, i64}
@@ -1143,7 +1143,7 @@
     │           │   │   │       │   └── value > binary:
     │           │   │   │       │       ├── type: i64
     │           │   │   │       │       ├── op: *
-    │           │   │   │       │       ├── left > snapshot:
+    │           │   │   │       │       ├── left > deref:
     │           │   │   │       │       │   ├── type: i64
     │           │   │   │       │       │   └── ptr > offset:
     │           │   │   │       │       │       ├── within: {i64, i64}
@@ -1157,7 +1157,7 @@
     │           │   │   └── body[3]: leave @9
     │           │   ├── body[2] > assign:
     │           │   │   ├── place: #3
-    │           │   │   └── value > snapshot:
+    │           │   │   └── value > deref:
     │           │   │       ├── type: i64
     │           │   │       └── ptr > offset:
     │           │   │           ├── within: {i64, i64}
@@ -1185,7 +1185,7 @@
     │               │   └── value > binary:
     │               │       ├── type: i64
     │               │       ├── op: *
-    │               │       ├── left > snapshot:
+    │               │       ├── left > deref:
     │               │       │   ├── type: i64
     │               │       │   └── ptr > offset:
     │               │       │       ├── within: {i64, i64}

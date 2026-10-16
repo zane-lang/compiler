@@ -162,7 +162,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
@@ -201,7 +201,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
@@ -248,7 +248,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
@@ -283,7 +283,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
@@ -319,7 +319,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
@@ -382,7 +382,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
@@ -401,7 +401,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
@@ -474,7 +474,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
@@ -533,7 +533,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
@@ -630,7 +630,7 @@
     │       │   │   │               ├── type: i64
     │       │   │   │               ├── op: +
     │       │   │   │               ├── left: local #27 : i64
-    │       │   │   │               └── right > snapshot:
+    │       │   │   │               └── right > deref:
     │       │   │   │                   ├── type: i64
     │       │   │   │                   └── ptr > offset:
     │       │   │   │                       ├── within: {i64, handle}
@@ -712,7 +712,7 @@
     │   │   └── value > binary:
     │   │       ├── type: i64
     │   │       ├── op: +
-    │   │       ├── left > snapshot:
+    │   │       ├── left > deref:
     │   │       │   ├── type: i64
     │   │       │   └── ptr > offset:
     │   │       │       ├── within: {i64, handle}
@@ -724,7 +724,7 @@
     │   ├── symbol: arrayrefs$scoreOf(&arrayrefs$Player)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > snapshot:
+    │   └── body[0] > return > deref:
     │       ├── type: i64
     │       └── ptr > offset:
     │           ├── within: {i64, handle}

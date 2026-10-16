@@ -613,7 +613,9 @@ test passing.
   - A value that owns a block is held in its scope's arena like an owner,
     and so is a fresh owner or value that nothing keeps, such as a result
     that is dropped or an operand, so its blocks are in a region that
-    drains with it.
+    drains with it. A dropped result that owns no block has nothing for a
+    drain to end, so nothing holds it: the element a discarded `swapRemove`
+    moves out needs no scope.
   - A drain walks none of its values. Nothing that outlives the scope owns
     a block in its region, since an escape moves its blocks out first, so
     every block still there dies with it. A value of the scope may own
@@ -733,6 +735,17 @@ test passing.
   diagnostic build with plain loads in its place is no faster
   ([#203](https://github.com/zane-lang/compiler/issues/203#issuecomment-6062273902)).
   How long retired values are kept is left to measurement.
+
+  A program none of whose code spawns reads such a value where it is, as
+  a plain load. Only a spawned call writes back, and only spawned calls
+  run on the pool's threads, so in such a program nothing writes while it
+  reads. Lowering decides it from the source of every package in the build,
+  a stamped dependency's included, since its objects are built from that
+  source ([`separate-compilation.md`](separate-compilation.md) C2), and a
+  spawn anywhere counts, reached or not. A library's object keeps its
+  snapshots, since a program that spawns may link it. The plain load is
+  what lets LLVM forward a value just written to the read after it, and
+  keep a field in a register across a loop, which no atomic load allows.
 - **An owner lent to a running spawn.** The spawning block may not write an
   owner it lent a spawn that may still be reading it; the checker rejects
   that write ([`spec-divergences.md`](../spec-divergences.md) §11), so the
@@ -818,13 +831,14 @@ test passing.
   `operators.md` §2.6 gives a division by zero the result zero, and
   `types.md` §2.9 saturates a `truncate` whose integer part the target cannot
   hold and gives zero for a NaN. Neither instruction LLVM has means that by
-  itself, since `sdiv` by zero and `fptosi` out of range are undefined, so
-  codegen guards each with selects: the divisor is replaced before the
-  `sdiv`, and the bounds `Scalar.truncation` gives pick the target's ends
-  over `fptosi`'s result. The one other quotient an integer cannot hold, the
-  most negative value over `-1`, wraps, as `+` and `*` do. A conversion is one
-  CGT node, `Convert`, whose instruction the source and target types pick,
-  and the optimizer folds by the same bounds.
+  itself, since `sdiv` by zero and `fptosi` out of range are undefined. So
+  codegen guards a division with selects, replacing the divisor before the
+  `sdiv`, and truncates with `llvm.fptosi.sat`, whose result is exactly
+  §2.9's: toward zero, the target's nearest end past it, and zero for a
+  NaN. The one other quotient an integer cannot hold, the most negative
+  value over `-1`, wraps, as `+` and `*` do. A conversion is one CGT node,
+  `Convert`, whose instruction the source and target types pick, and the
+  optimizer folds a truncation by the bounds `Scalar.truncation` gives.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
   §5.2, [`spec-divergences.md`](../spec-divergences.md) §13). Until it says, the program stops:
   what it wrote so far is kept, the runtime writes `index out of range` to
@@ -837,6 +851,32 @@ test passing.
   `zane_out_of_range`, which is cold and does not return. LLVM so sees the
   count, the index and the address as ordinary arithmetic, and can hoist or
   drop a check it proves redundant.
+- **What LLVM is told.** Codegen states what it knows about the code it
+  emits in LLVM's own terms, so LLVM's passes can drop the checks and
+  reloads it proves redundant, rather than lowering trying to. Each is a
+  contract, which LLVM may act on however it likes, so each holds for every
+  program:
+  - *A list's header is not an element.* A handle is never a member or an
+    element of a scalar's place, so a handle's fields and a scalar place
+    are disjoint storage, which type-based alias tags (`!tbaa`) say: the
+    header fields read and written where an element is located, pushed or
+    removed, and a handle loaded or stored whole, carry one tag, and a
+    scalar loaded or stored through an address carries the other, one for
+    every scalar type. Every other access, a frame's, a walk's, an
+    aggregate's and the runtime's, carries none, which LLVM takes as one
+    that may touch both. So a write of an element's field leaves the count
+    and the block LLVM read before it, and LLVM keeps them, and the check
+    made with them, across the write.
+  - *What some runtime functions do.* `zane_out_of_range` and
+    `zane_too_deep` stop the program, so they are cold and do not return;
+    `zane_text_equal` only reads memory, so what LLVM read before a call to
+    it still holds after.
+  - *The list operations small enough to see.* A new list is the constant
+    empty handle, and a `remove` or `swapRemove` moves the elements with
+    LLVM's `memmove` or `memcpy` of the element's own stride, and lowers
+    the count, in the function that removes. LLVM then sees exactly which
+    bytes change, as it sees an element's address and a push's
+    (`runtime/list.c` keeps the runtime's own forms of all three).
 - **A type argument passes nothing.** A generic verb is lowered once per
   instance the TST checked ([`semantics.md`](semantics.md) D12), with a
   symbol of its own, and a type written where a value goes, or a number
