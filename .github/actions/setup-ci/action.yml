@@ -43,20 +43,12 @@ runs:
       shell: bash
       run: devbox run -- dev/setup/bootstrap-toolchain
 
-    - name: Set up Node for grammar generation
-      if: inputs.grammar-dependencies == 'true'
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-      with:
-        node-version: 22
-        cache: npm
-        cache-dependency-path: editors/tree-sitter-zane/package-lock.json
-
     # The highlighting requirements include the generator's own.
     - name: Install grammar generator dependencies
       if: inputs.grammar-dependencies == 'true'
       shell: bash
       run: |
-        npm ci --prefix editors/tree-sitter-zane
+        devbox run -- npm ci --prefix editors/tree-sitter-zane
         devbox run -- python3 -m venv .grammar-venv
         .grammar-venv/bin/python -m pip install -r tests/highlighting/requirements.txt
         echo "GRAMMAR_PYTHON=$PWD/.grammar-venv/bin/python" >> "$GITHUB_ENV"
