@@ -518,6 +518,47 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             1,
         )
 
+    def test_the_roaming_instantiation_shorthand_has_one_reading(self) -> None:
+        # `name ^VarType(args, ...)` is the same shorthand behind a `^`, so it
+        # meets the same forks: against `name ^VarType = expr`, and against a
+        # lambda variable returning `^VarType`, which still owns the empty
+        # list before a trailing block.
+        cases = [
+            (
+                "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT CARET UIDENT LPAREN "
+                "LIDENT RPAREN SEMICOLON RCURLY EOF",
+                "Unit f() { v ^Car(first); }",
+            ),
+            (
+                "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT CARET UIDENT DOT "
+                "LIDENT LPAREN LIDENT RPAREN SEMICOLON RCURLY EOF",
+                "Unit f() { v ^Car.compact(first); }",
+            ),
+            (
+                "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT CARET UIDENT LCURLY "
+                "LIDENT EQUAL LIDENT SEMICOLON RCURLY RCURLY EOF",
+                "Unit f() { v ^Car{ id = first; } }",
+            ),
+            (
+                "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT CARET UIDENT LCURLY "
+                "LIDENT SEMICOLON RCURLY RCURLY EOF",
+                "Unit f() { v ^Car{ id; } }",
+            ),
+            (
+                "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT CARET UIDENT LPAREN "
+                "LIDENT RPAREN LCURLY RCURLY RCURLY EOF",
+                "Unit f() { v ^Car(first) { } }",
+            ),
+            (
+                "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT CARET UIDENT LPAREN "
+                "RPAREN LCURLY RCURLY RCURLY EOF",
+                "Unit f() { v ^Car() { } }",
+            ),
+        ]
+        for tokens, source in cases:
+            with self.subTest(source=source):
+                self.assert_derivations(tokens, source, 1)
+
     def test_bare_type_member_has_one_value_reading(self) -> None:
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
@@ -571,13 +612,6 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "UIDENT RPAREN SEMICOLON RCURLY EOF",
             "Unit f() { register(&Int); }",
             0,
-        )
-        self.assert_derivations(
-            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN LBRACKET "
-            "LIDENT COMMA LIDENT RBRACKET COMMA AMPERSAND UIDENT RPAREN "
-            "SEMICOLON RCURLY EOF",
-            "Unit f() { row ArrayRef([p, q], &Port); }",
-            1,
         )
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT "

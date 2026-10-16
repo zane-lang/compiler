@@ -58,7 +58,7 @@ let rec number_refs (te : N.Type_expr.t) =
           | N.Generic_arg.Type t -> number_refs t
           | N.Generic_arg.NumberRef n -> [ n.N.Name.text ]
           | N.Generic_arg.Inferred p -> param_type_number_refs p.N.Param.type_
-          | N.Generic_arg.Number _ -> [])
+          | N.Generic_arg.Number _ | N.Generic_arg.Moded _ -> [])
         generics
 
 and param_type_number_refs (pt : N.Param_type.t) =
@@ -99,6 +99,7 @@ let rec scan_type env intro (te : N.Type_expr.t) =
                        "%s introduces a parameter, which takes `Type` or \
                         `@concepts$Int` (generics.md §3.3)"
                        (quote name)))
+          | N.Generic_arg.Moded t -> scan_param_type env intro t
           | _ -> ())
         generics
 
@@ -501,16 +502,22 @@ let build env (d : decl) (v : N.Verb_decl.t) : S.t option =
 let params_key erase (s : S.t) = Ty.canonical (List.map (fun (p : S.param) -> erase p.ty) s.params)
 
 (* functions.md §4.1: one overload set, no two members with the same ordered
-   parameter types, and none that differ only in a passing mode or in the
-   `mut` of a function-type parameter. *)
+   parameter types, and none that differ only in a passing mode, a literal
+   parameter's element mode included, or in the `mut` of a function-type
+   parameter. *)
 let check_overload_set env what (sigs : (decl * S.t) list) =
-  let modes t = Ty.without_mut (Ty.strip_mode t) in
+  let passing t =
+    match Ty.strip_mode t with
+    | Ty.Concept (Ty.Array_lit (e, n)) -> Ty.Concept (Ty.Array_lit (Ty.strip_mode e, n))
+    | t -> t
+  in
+  let modes t = Ty.without_mut (passing t) in
   let rec go seen = function
     | [] -> ()
     | ((d : decl), s) :: rest ->
         (match List.find_opt (fun (_, t) -> params_key modes t = params_key modes s) seen with
         | Some ((first : decl), t) ->
-            if params_key Ty.strip_mode t <> params_key Ty.strip_mode s then
+            if params_key passing t <> params_key passing s then
               error env d.span
                 (Printf.sprintf
                    "illegal overload set: this %s differs from the one at %s only by \

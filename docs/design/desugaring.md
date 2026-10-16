@@ -258,6 +258,7 @@ what was written.
 ```
 e Expr.intLit("5")         ->   e Expr = Expr.intLit("5")
 v Vector2.diagonal(x)      ->   v Vector2 = Vector2.diagonal(x)
+car ^Car(x)                ->   car ^Car = Car(x)
 ```
 
 [`adt.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/adt.md) §3.2 says
@@ -268,6 +269,12 @@ of the two spellings that "the two lines declare the same thing", and
 
 **CST → SST.** `Decl.VarShorthand` disappears; `Decl.Var` is the only
 declaration form left.
+
+A `^` before the type stays on the declared type
+([`syntax.md`](https://github.com/zane-lang/spec/blob/ccfbf10/spec/syntax.md)
+§1.1), so a marked shorthand lowers to a `Var` whose type is `Roaming`, spanning
+the `^` and the type name. Its value is the same constructor call either way,
+and the checker then treats it as any `^T` local.
 
 **This is the first of the two entries that sit on the line drawn at the top of
 this file.** The

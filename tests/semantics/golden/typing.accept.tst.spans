@@ -163,6 +163,10 @@ package app
       stat Return | => crew.lead
         expr Field lead | crew.lead
           expr Var crew | crew
+  decl Type Holder | type Holder<T Type> = #struct { item T; }
+  decl Verb Holder | Holder<T>(item T Type) => init{ item; }
+  decl Verb relayed | ^T relayed(seed ^T Type) { …  ^T = seed; return kept; }
+  decl Verb zeroed | ^T zeroed(like T Type) { made ^T(0); return made; }
   decl Verb describe | String describe(corner Cor … ht] => String("bottom"); }
     param corner | corner Corner
     block | => match (corner) { [topLe … ht] => String("bottom"); }
@@ -193,8 +197,8 @@ package app
               stat Return | => String("bottom")
                 expr Construct @primitives$String | String("bottom")
                   expr Text_lit | "bottom"
-  decl Verb main | Unit main() { say(String(" … rge")); } return Unit(); }
-    block | { say(String("hello")); or … rge")); } return Unit(); }
+  decl Verb main | Unit main() { say(String(" … (Int(7)); return Unit(); }
+    block | { say(String("hello")); or … (Int(7)); return Unit(); }
       stat Expr | say(String("hello"));
         expr Call say | say(String("hello"))
           expr Construct @primitives$String | String("hello")
@@ -314,7 +318,7 @@ package app
           expr Var crew | crew
       stat Let | shapes @primitives$ArrayRe … hape.circle(Float(4.0))]);
         local shapes | shapes
-        expr Construct @primitives$ArrayRef | @primitives$ArrayRef([Shap … Shape.circle(Float(4.0))])
+        expr Construct @primitives$ArrayRef.roaming | @primitives$ArrayRef.roami … Shape.circle(Float(4.0))])
           expr Array_lit | [Shape.circle(Float(3.0)), Shape.circle(Float(4.0))]
             expr Case circle | Shape.circle(Float(3.0))
               expr Construct @primitives$F64 | Float(3.0)
@@ -339,6 +343,26 @@ package app
                 expr Call @operators$multiply | @operators$multiply(n, n)
                   expr Var n | n
                   expr Var n | n
+      stat Let | corners @primitives$ArrayR … rrayRef([Int(1), Int(2)]);
+        local corners | corners
+        expr Construct @primitives$ArrayRef | @primitives$ArrayRef([Int(1), Int(2)])
+          expr Array_lit | [Int(1), Int(2)]
+            expr Construct @primitives$I64 | Int(1)
+              expr Integer_lit | 1
+            expr Construct @primitives$I64 | Int(2)
+              expr Integer_lit | 2
+      stat Let | leads @primitives$ArrayRef … $ArrayRef([lead, second]);
+        local leads | leads
+        expr Construct @primitives$ArrayRef | @primitives$ArrayRef([lead, second])
+          expr Array_lit | [lead, second]
+            expr Var lead | lead
+            expr Var second | second
+      stat Let | pointed @primitives$ArrayR … ayRef.refs([shape, lead]);
+        local pointed | pointed
+        expr Construct @primitives$ArrayRef.refs | @primitives$ArrayRef.refs([shape, lead])
+          expr Array_lit | [shape, lead]
+            expr Var shape | shape
+            expr Var lead | lead
       stat Let | numbers Array<Int, 3> = @p … [Int(1), Int(2), Int(3)]);
         local numbers | numbers
         expr Construct @primitives$Array | @primitives$Array([Int(1), Int(2), Int(3)])
@@ -456,9 +480,82 @@ package app
               expr Call say | say(String("large"))
                 expr Construct @primitives$String | String("large")
                   expr Text_lit | "large"
+      stat Let | drawn ^Shape.circle(Float(5.0));
+        local drawn | drawn
+        expr Case circle | Shape.circle(Float(5.0))
+          expr Construct @primitives$F64 | Float(5.0)
+            expr Decimal_lit | 5.0
+      stat Let | team ^Crew(drawn, shape);
+        local team | team
+        expr Construct Crew | Crew(drawn, shape)
+          expr Var drawn | drawn
+          expr Var shape | shape
+      stat Let | kept Crew = team;
+        local kept | kept
+        expr Var team | team
+      stat Let | boxed ^Holder(Int(1));
+        local boxed | boxed
+        expr Construct Holder | Holder(Int(1))
+          expr Construct @primitives$I64 | Int(1)
+            expr Integer_lit | 1
+      stat Let | spelled ^Holder = Holder(Int(2));
+        local spelled | spelled
+        expr Construct Holder | Holder(Int(2))
+          expr Construct @primitives$I64 | Int(2)
+            expr Integer_lit | 2
+      stat Let | shelf Holder = boxed;
+        local shelf | shelf
+        expr Var boxed | boxed
+      stat Let | relayedInt Int = relayed(Int(5));
+        local relayedInt | relayedInt
+        expr Call relayed | relayed(Int(5))
+          expr Construct @primitives$I64 | Int(5)
+            expr Integer_lit | 5
+      stat Let | relayedShape Shape = relayed(Shape.circle(Float(6.0)));
+        local relayedShape | relayedShape
+        expr Call relayed | relayed(Shape.circle(Float(6.0)))
+          expr Case circle | Shape.circle(Float(6.0))
+            expr Construct @primitives$F64 | Float(6.0)
+              expr Decimal_lit | 6.0
+      stat Let | nothing Int = zeroed(Int(7));
+        local nothing | nothing
+        expr Call zeroed | zeroed(Int(7))
+          expr Construct @primitives$I64 | Int(7)
+            expr Integer_lit | 7
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
   decl Verb twice | T twice(value T Type) => value + value
+  decl Verb lowByte | Int lowByte(value Int) =>  … (value, Int(8)), Int(255))
+    param value | value Int
+    block | => @math$bitAnd(@math$shif … (value, Int(8)), Int(255))
+      stat Return | => @math$bitAnd(@math$shif … (value, Int(8)), Int(255))
+        expr Call @math$bitAnd | @math$bitAnd(@math$shiftRi … (value, Int(8)), Int(255))
+          expr Call @math$shiftRightLogical | @math$shiftRightLogical(value, Int(8))
+            expr Var value | value
+            expr Construct @primitives$I64 | Int(8)
+              expr Integer_lit | 8
+          expr Construct @primitives$I64 | Int(255)
+            expr Integer_lit | 255
+  decl Verb hypotenuse | Float hypotenuse(a Float,  … operators$multiply(b, b)))
+    param a | a Float
+    param b | b Float
+    block | => @math$sqrt(@math$fma(a, … operators$multiply(b, b)))
+      stat Return | => @math$sqrt(@math$fma(a, … operators$multiply(b, b)))
+        expr Call @math$sqrt | @math$sqrt(@math$fma(a, a, @operators$multiply(b, b)))
+          expr Call @math$fma | @math$fma(a, a, @operators$multiply(b, b))
+            expr Var a | a
+            expr Var a | a
+            expr Call @operators$multiply | @operators$multiply(b, b)
+              expr Var b | b
+              expr Var b | b
+  decl Verb heading | Float heading(y Float, x Float) => @math$atan2(y, x)
+    param y | y Float
+    param x | x Float
+    block | => @math$atan2(y, x)
+      stat Return | => @math$atan2(y, x)
+        expr Call @math$atan2 | @math$atan2(y, x)
+          expr Var y | y
+          expr Var x | x
 package shapes
   decl Alias Float | alias Float = @primitives$F64
   decl Alias Unit | alias Unit = @primitives$Unit
@@ -759,3 +856,35 @@ instances
         expr Call_value | measure(values)
           expr Var measure | measure
           expr Var values | values
+  instance Holder with T = @primitives$I64 | Holder<T>(item T Type) => init{ item; }
+    param item | item T Type
+    block | => init{ item; }
+      stat Return | => init{ item; }
+        expr Init | init{ item; }
+          field item | item
+            expr Var item | item
+  instance relayed with T = @primitives$I64 | ^T relayed(seed ^T Type) { …  ^T = seed; return kept; }
+    param seed | seed ^T Type
+    block | { kept ^T = seed; return kept; }
+      stat Let | kept ^T = seed;
+        local kept | kept
+        expr Var seed | seed
+      stat Return | return kept;
+        expr Var kept | kept
+  instance relayed with T = shapes$Shape | ^T relayed(seed ^T Type) { …  ^T = seed; return kept; }
+    param seed | seed ^T Type
+    block | { kept ^T = seed; return kept; }
+      stat Let | kept ^T = seed;
+        local kept | kept
+        expr Var seed | seed
+      stat Return | return kept;
+        expr Var kept | kept
+  instance zeroed with T = @primitives$I64 | ^T zeroed(like T Type) { made ^T(0); return made; }
+    param like | like T Type
+    block | { made ^T(0); return made; }
+      stat Let | made ^T(0);
+        local made | made
+        expr Construct @primitives$I64 | T(0)
+          expr Integer_lit | 0
+      stat Return | return made;
+        expr Var made | made

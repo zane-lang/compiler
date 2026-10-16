@@ -83,6 +83,7 @@ and generic_arg_to_node (x: Nodes.Generic_arg.t) = match x.Nodes.Generic_arg.nod
   | Number x -> group "number" (Leaf x)
   | NumberRef x -> group "number_ref" (Leaf (text x))
   | Inferred x -> group "param" (param_to_node x)
+  | Moded x -> group "moded" (param_type_to_node x)
 
 and type_to_node (x: Nodes.Type_expr.t) = match x.Nodes.Type_expr.node with
   | Verb x -> verb_type_to_node x
@@ -191,10 +192,8 @@ and expr_to_node (x: Nodes.Expr.t) = match x.Nodes.Expr.node with
         ("type", name_type_to_node type_);
         ("member", Leaf (text member));
       ])
-  | TypeValue { reference; name } ->
-      group
-        (if reference then "ref_type_value" else "type_value")
-        (fields [ ("type", name_type_to_node name) ])
+  | TypeValue type_ ->
+      group "type_value" (fields [ ("type", name_type_to_node type_) ])
   | DotAccess { target; field; abort_handle } ->
       group "dot_access" (fields [
         ("target", expr_to_node target);
@@ -383,9 +382,10 @@ and decl_to_node (x: Nodes.Decl.t) = match x.Nodes.Decl.node with
         ("type",  type_to_node type_);
         ("value", expr_to_node value);
       ])
-  | VarShorthand { name; constructor; args; trailing } ->
+  | VarShorthand { name; roaming; constructor; args; trailing } ->
       let fs = [
         ("name", Leaf (text name));
+        ("roaming", Leaf (string_of_bool (Option.is_some roaming)));
         ("type", name_type_to_node constructor.type_);
       ] in
       let fs = match constructor.member with

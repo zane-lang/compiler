@@ -67,3 +67,11 @@ Unit pegs(kite Kite) {
 alias KiteRefs = List<&Kite>
 
 Unit spool(row @primitives$ArrayRef<&Kite, 2>) => Unit()
+
+/// An instantiation shorthand takes `^` as its long form does, so on a value
+/// type it is the same mistake (syntax.md §1.1).
+Unit roam() {
+	count ^Int(9);
+	hamper ^Hamper(Int(10));
+	return Unit();
+}

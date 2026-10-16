@@ -53,6 +53,9 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; args; handler = None }
     when String.starts_with ~prefix:"@operators$" spelling ->
       operation st ctx span spelling args e.T.Expr.ty
+  | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; args; handler = None }
+    when String.starts_with ~prefix:"@math$" spelling ->
+      math st ctx span spelling args e.T.Expr.ty
   | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$print"; _ }; args; handler = None }
     -> (
       (* The program has one console (effects.md §6.6), so the subject names
@@ -189,6 +192,61 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           let value = borrow st ctx span list in
           { Expr.node = Expr.Member { value; index = 1 }; ty = Nodes.Ty.I64 }
       | _ -> Diagnostic.bug ~span "lowering: `size` with the wrong arguments")
+  | T.Expr.Call
+      {
+        callee =
+          { owner = S.Intrinsic (("@primitives$remove" | "@primitives$swapRemove") as spelling); _ };
+        args;
+        handler = None;
+      } -> (
+      (* The list runs before the index, as a subject runs before its
+         arguments. A list that is an element is the exception, as for any
+         `!` call on one ([located_last]): its own operands run first, then
+         the index, and only then is it located, so an index that grows the
+         list holding it moves it before the call finds it. The element's
+         place is checked against the count as a subscript's is, and the
+         element moves out of it; then the list closes over the place. An
+         element with no storage has nothing to move, so only the check
+         and the closing run. *)
+      match args with
+      | [ T.Arg.Value list; T.Arg.Value index ] ->
+          let element_of = subscripted list in
+          let pins, list = if element_of then pinned st ctx span list else ([], list) in
+          let t =
+            match element (Tty.strip_mode list.T.Expr.ty) with
+            | Some t -> t
+            | None -> Diagnostic.bug ~span "lowering: a removal from something not a list"
+          in
+          let fn =
+            if spelling = "@primitives$remove" then Runtime.List_remove
+            else Runtime.List_swap_remove
+          in
+          let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
+          let l = fresh st in
+          let i = fresh st in
+          let v = fresh st in
+          let label = fresh st in
+          let lt = ty st span t in
+          let s = int (stride st span t) in
+          let the_list = local_ptr l in
+          let the_index = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
+          let at = ptr (Expr.Runtime { fn = Runtime.List_at; args = [ the_list; the_index; s ] }) in
+          let closed = Expr.Runtime { fn; args = [ the_list; the_index; s ] } in
+          let the_index_runs = Stat.Let { id = i; value = borrow st ctx span index } in
+          let the_list_runs = Stat.Let { id = l; value = lend st ctx span list } in
+          let operands =
+            if element_of then pins @ [ the_index_runs; the_list_runs ]
+            else [ the_list_runs; the_index_runs ]
+          in
+          let moved, result =
+            if lt = Nodes.Ty.Void then ([ Stat.Eval at ], None)
+            else
+              let taken = Expr.Take { address = at; layout = layout st span t } in
+              ([ Stat.Let { id = v; value = { Expr.node = taken; ty = lt } } ], Some v)
+          in
+          let body = operands @ moved @ [ Stat.Eval { Expr.node = closed; ty = Nodes.Ty.Void } ] in
+          { Expr.node = Expr.Expand { label; body; result }; ty = lt }
+      | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
   | T.Expr.Subscript _ -> (
       (* The element's own storage: for an `&` element, what it holds is the
          reference, so this reads it rather than asking [addr] for the
@@ -312,7 +370,7 @@ and primitive st ctx span spelling args (t : Tty.t) : Expr.t =
   | "List", [ _ ] ->
       { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = Nodes.Ty.Handle }
   | "ArrayRef.fill", [ _; T.Arg.Value make ] -> fill st ctx span make t
-  | ("Array" | "ArrayRef"), T.Arg.Value v :: ([] | [ T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } ]) -> (
+  | ("Array" | "ArrayRef" | "ArrayRef.refs" | "ArrayRef.roaming"), [ T.Arg.Value v ] -> (
       match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_mode t)) with
       | T.Expr.Array_lit values, Some (e, n) when List.length values = n ->
           let element i v = (i, moved st ctx span e v) in
@@ -376,6 +434,19 @@ and operation st ctx span spelling args (t : Tty.t) : Expr.t =
       in
       primitive_op span op t l r)
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
+
+(* A math function of `@math$` (math.md §2). Its operands run in the order
+   written, and are read where they are, as an operation's are. *)
+and math st ctx span spelling args (t : Tty.t) : Expr.t =
+  let name = String.sub spelling 6 (String.length spelling - 6) in
+  match Math.of_name name with
+  | Some fn ->
+      let value = function
+        | T.Arg.Value v -> borrow st ctx span v
+        | T.Arg.Block _ -> Diagnostic.bug ~span "lowering: a block passed to a math function"
+      in
+      { Expr.node = Expr.Math { fn; args = List.map value args }; ty = ty st span t }
+  | None -> Diagnostic.bug ~span (Printf.sprintf "lowering: no math function `%s`" spelling)
 
 (* `ArrayRef.fill(n, make)` (generics.md §8.4): a slot this scope holds,
    each element made by calling `make` with its position, counted from 1, in

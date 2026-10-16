@@ -1,0 +1,723 @@
+└── program:
+    ├── entry: math$main()
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── funcs[0] > func:
+    │   ├── symbol: math$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[1] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[2] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[3] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[4] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[5] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[6] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[7] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[8] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[9] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[10] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[11] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[12] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[13] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[14] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[15] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[16] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[17] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[18] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[19] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[20] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[21] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[22] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[23] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[24] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[25] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[26] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[27] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[28] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[29] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[30] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[31] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[32] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[33] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[34] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[35] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[36] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[37] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[38] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[39] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[40] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[41] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[42] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[43] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[44] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[45] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[46] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[47] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[48] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[49] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[50] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[51] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[52] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[53] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[54] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[55] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[56] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[57] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[58] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[59] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[60] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[61] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[62] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[63] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[64] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[65] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[66] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[67] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[68] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[69] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[70] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[71] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[72] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[73] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > math:
+    │   │       │   ├── type: f32
+    │   │       │   ├── fn: fma
+    │   │       │   ├── args[0]: 0x1p+1 : f32
+    │   │       │   ├── args[1]: 0x1.8p+1 : f32
+    │   │       │   └── args[2]: 0x1p+0 : f32
+    │   │       └── right: 0x1.cp+2 : f32
+    │   ├── body[74] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[75] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[76] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[77] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: sin
+    │   │       │   └── args[0]: 0x1p-1 : f64
+    │   │       └── args[1]: 0x1.eaee8744b05fp-2 : f64
+    │   ├── body[78] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: cos
+    │   │       │   └── args[0]: 0x1p-1 : f64
+    │   │       └── args[1]: 0x1.c1528065b7d5p-1 : f64
+    │   ├── body[79] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: tan
+    │   │       │   └── args[0]: 0x1p-1 : f64
+    │   │       └── args[1]: 0x1.17b4f5bf3474ap-1 : f64
+    │   ├── body[80] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: asin
+    │   │       │   └── args[0]: 0x1p-1 : f64
+    │   │       └── args[1]: 0x1.0c152382d7366p-1 : f64
+    │   ├── body[81] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: acos
+    │   │       │   └── args[0]: 0x1p-1 : f64
+    │   │       └── args[1]: 0x1.0c152382d7366p+0 : f64
+    │   ├── body[82] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: atan
+    │   │       │   └── args[0]: 0x1p+0 : f64
+    │   │       └── args[1]: 0x1.921fb54442d18p-1 : f64
+    │   ├── body[83] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: atan2
+    │   │       │   ├── args[0]: 0x1p+0 : f64
+    │   │       │   └── args[1]: -0x1p+0 : f64
+    │   │       └── args[1]: 0x1.2d97c7f3321d2p+1 : f64
+    │   ├── body[84] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: exp
+    │   │       │   └── args[0]: 0x1p+0 : f64
+    │   │       └── args[1]: 0x1.5bf0a8b145769p+1 : f64
+    │   ├── body[85] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: log
+    │   │       │   └── args[0]: 0x1.4p+3 : f64
+    │   │       └── args[1]: 0x1.26bb1bbb55516p+1 : f64
+    │   ├── body[86] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: pow
+    │   │       │   ├── args[0]: 0x1p+1 : f64
+    │   │       │   └── args[1]: 0x1.4p+3 : f64
+    │   │       └── args[1]: 0x1p+10 : f64
+    │   ├── body[87] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: cbrt
+    │   │       │   └── args[0]: -0x1.bp+4 : f64
+    │   │       └── args[1]: -0x1.8p+1 : f64
+    │   ├── body[88] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: hypot
+    │   │       │   ├── args[0]: 0x1.8p+1 : f64
+    │   │       │   └── args[1]: 0x1p+2 : f64
+    │   │       └── args[1]: 0x1.4p+2 : f64
+    │   ├── body[89] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near32(%primitives$F32, %primitives$F32)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f32
+    │   │       │   ├── fn: sin
+    │   │       │   └── args[0]: 0x1p-1 : f32
+    │   │       └── args[1]: 0x1.eaee88p-2 : f32
+    │   ├── body[90] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$near32(%primitives$F32, %primitives$F32)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f32
+    │   │       │   ├── fn: pow
+    │   │       │   ├── args[0]: 0x1p+1 : f32
+    │   │       │   └── args[1]: 0x1p-1 : f32
+    │   │       └── args[1]: 0x1.6a09e6p+0 : f32
+    │   ├── body[91] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: <
+    │   │       ├── left > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: hypot
+    │   │       │   ├── args[0]: 0x1.4e718d7d7625ap+664 : f64
+    │   │       │   └── args[1]: 0x1.4e718d7d7625ap+664 : f64
+    │   │       └── right: infinity : f64
+    │   ├── body[92] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$isNan(%primitives$F64)
+    │   │       └── args[0] > math:
+    │   │           ├── type: f64
+    │   │           ├── fn: log
+    │   │           └── args[0]: -0x1p+0 : f64
+    │   ├── body[93] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$isNan(%primitives$F64)
+    │   │       └── args[0] > math:
+    │   │           ├── type: f64
+    │   │           ├── fn: asin
+    │   │           └── args[0]: 0x1p+1 : f64
+    │   ├── body[94] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$equal(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: log
+    │   │       │   └── args[0]: 0x0p+0 : f64
+    │   │       └── args[1]: -infinity : f64
+    │   ├── body[95] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$equal(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: pow
+    │   │       │   ├── args[0]: nan : f64
+    │   │       │   └── args[1]: 0x0p+0 : f64
+    │   │       └── args[1]: 0x1p+0 : f64
+    │   ├── body[96] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: math$check(%primitives$Bool)
+    │   │   └── args[0] > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: math$equal(%primitives$F64, %primitives$F64)
+    │   │       ├── args[0] > math:
+    │   │       │   ├── type: f64
+    │   │       │   ├── fn: exp
+    │   │       │   └── args[0]: -infinity : f64
+    │   │       └── args[1]: 0x0p+0 : f64
+    │   └── body[97] > return: unit : void
+    ├── funcs[1] > func:
+    │   ├── symbol: math$same(%primitives$I64, %primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: i1
+    │   └── body[0] > return > binary:
+    │       ├── type: i1
+    │       ├── op: ==
+    │       ├── left: local #1 : i64
+    │       └── right: local #2 : i64
+    ├── funcs[2] > func:
+    │   ├── symbol: math$check(%primitives$Bool)
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[2] > if:
+    │       │   ├── cond: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: "yes\n" : handle
+    │       ├── body[3] > if:
+    │       │   ├── cond > flip:
+    │       │   │   ├── type: i1
+    │       │   │   └── value: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: "no\n" : handle
+    │       └── body[4] > return: unit : void
+    ├── funcs[3] > func:
+    │   ├── symbol: math$minI64()
+    │   ├── params:
+    │   ├── ret: i64
+    │   └── body[0] > return: -9223372036854775808 : i64
+    ├── funcs[4] > func:
+    │   ├── symbol: math$same32(%primitives$I32, %primitives$I32)
+    │   ├── params[0]: local #1 : i32
+    │   ├── params[1]: local #2 : i32
+    │   ├── ret: i1
+    │   └── body[0] > return > binary:
+    │       ├── type: i1
+    │       ├── op: ==
+    │       ├── left: local #1 : i32
+    │       └── right: local #2 : i32
+    ├── funcs[5] > func:
+    │   ├── symbol: math$minI32()
+    │   ├── params:
+    │   ├── ret: i32
+    │   └── body[0] > return: -2147483648 : i32
+    ├── funcs[6] > func:
+    │   ├── symbol: math$equal(%primitives$F64, %primitives$F64)
+    │   ├── params[0]: local #1 : f64
+    │   ├── params[1]: local #2 : f64
+    │   ├── ret: i1
+    │   └── body[0] > return > binary:
+    │       ├── type: i1
+    │       ├── op: ==
+    │       ├── left: local #1 : f64
+    │       └── right: local #2 : f64
+    ├── funcs[7] > func:
+    │   ├── symbol: math$isNan(%primitives$F64)
+    │   ├── params[0]: local #1 : f64
+    │   ├── ret: i1
+    │   └── body[0] > return > flip:
+    │       ├── type: i1
+    │       └── value > binary:
+    │           ├── type: i1
+    │           ├── op: ==
+    │           ├── left: local #1 : f64
+    │           └── right: local #1 : f64
+    ├── funcs[8] > func:
+    │   ├── symbol: math$negativeZero(%primitives$F64)
+    │   ├── params[0]: local #1 : f64
+    │   ├── ret: i1
+    │   └── body[0] > return > binary:
+    │       ├── type: i1
+    │       ├── op: ==
+    │       ├── left > binary:
+    │       │   ├── type: f64
+    │       │   ├── op: /
+    │       │   ├── left: 0x1p+0 : f64
+    │       │   └── right: local #1 : f64
+    │       └── right: -infinity : f64
+    ├── funcs[9] > func:
+    │   ├── symbol: math$infinity()
+    │   ├── params:
+    │   ├── ret: f64
+    │   └── body[0] > return: infinity : f64
+    ├── funcs[10] > func:
+    │   ├── symbol: math$positiveZero(%primitives$F64)
+    │   ├── params[0]: local #1 : f64
+    │   ├── ret: i1
+    │   └── body[0] > return > binary:
+    │       ├── type: i1
+    │       ├── op: ==
+    │       ├── left > binary:
+    │       │   ├── type: f64
+    │       │   ├── op: /
+    │       │   ├── left: 0x1p+0 : f64
+    │       │   └── right: local #1 : f64
+    │       └── right: infinity : f64
+    ├── funcs[11] > func:
+    │   ├── symbol: math$nan()
+    │   ├── params:
+    │   ├── ret: f64
+    │   └── body[0] > return: nan : f64
+    ├── funcs[12] > func:
+    │   ├── symbol: math$nan32()
+    │   ├── params:
+    │   ├── ret: f32
+    │   └── body[0] > return: nan : f32
+    ├── funcs[13] > func:
+    │   ├── symbol: math$isNan32(%primitives$F32)
+    │   ├── params[0]: local #1 : f32
+    │   ├── ret: i1
+    │   └── body[0] > return > flip:
+    │       ├── type: i1
+    │       └── value > binary:
+    │           ├── type: i1
+    │           ├── op: ==
+    │           ├── left: local #1 : f32
+    │           └── right: local #1 : f32
+    ├── funcs[14] > func:
+    │   ├── symbol: math$near(%primitives$F64, %primitives$F64)
+    │   ├── params[0]: local #1 : f64
+    │   ├── params[1]: local #2 : f64
+    │   ├── ret: i1
+    │   └── body[0] > return > binary:
+    │       ├── type: i1
+    │       ├── op: <
+    │       ├── left > math:
+    │       │   ├── type: f64
+    │       │   ├── fn: abs
+    │       │   └── args[0] > binary:
+    │       │       ├── type: f64
+    │       │       ├── op: +
+    │       │       ├── left: local #1 : f64
+    │       │       └── right > flip:
+    │       │           ├── type: f64
+    │       │           └── value: local #2 : f64
+    │       └── right: 0x1.19799812dea11p-40 : f64
+    └── funcs[15] > func:
+        ├── symbol: math$near32(%primitives$F32, %primitives$F32)
+        ├── params[0]: local #1 : f32
+        ├── params[1]: local #2 : f32
+        ├── ret: i1
+        └── body[0] > return > binary:
+            ├── type: i1
+            ├── op: <
+            ├── left > math:
+            │   ├── type: f32
+            │   ├── fn: abs
+            │   └── args[0] > binary:
+            │       ├── type: f32
+            │       ├── op: +
+            │       ├── left: local #1 : f32
+            │       └── right > flip:
+            │           ├── type: f32
+            │           └── value: local #2 : f32
+            └── right: 0x1.4f8b58p-17 : f32

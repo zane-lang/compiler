@@ -114,6 +114,24 @@ Crew(lead ^Shape, backup &Shape) => init{ lead; backup; }
 
 &Shape leadOf(crew &Crew) => crew.lead
 
+/// A generic owner takes its arguments from the value it is built with,
+/// whether or not it is declared roaming.
+type Holder<T Type> = #struct { item T; }
+
+Holder<T>(item T Type) => init{ item; }
+
+/// `^T` over a type parameter filled with a value type is that value, in
+/// the long form and the shorthand alike.
+^T relayed(seed ^T Type) {
+	kept ^T = seed;
+	return kept;
+}
+
+^T zeroed(like T Type) {
+	made ^T(0);
+	return made;
+}
+
 String describe(corner Corner) => match (corner) {
 	[topLeft, topRight] => String("top");
 	[bottomLeft, bottomRight] => String("bottom");
@@ -149,9 +167,12 @@ Unit main() {
 	spare = grown(spare);
 	crew Crew(spare, shape);
 	lead &Shape = leadOf(crew);
-	shapes @primitives$ArrayRef<Shape, 2> = @primitives$ArrayRef([Shape.circle(Float(3.0)), Shape.circle(Float(4.0))]);
+	shapes @primitives$ArrayRef<Shape, 2> = @primitives$ArrayRef.roaming([Shape.circle(Float(3.0)), Shape.circle(Float(4.0))]);
 	second &Shape = shapes[Int(2)];
 	tiles @primitives$ArrayRef<Int, 4> = @primitives$ArrayRef.fill(4, Int(n Int) => @operators$multiply(n, n));
+	corners @primitives$ArrayRef<Int, 2> = @primitives$ArrayRef([Int(1), Int(2)]);
+	leads @primitives$ArrayRef<&Shape, 2> = @primitives$ArrayRef([lead, second]);
+	pointed @primitives$ArrayRef<&Shape, 2> = @primitives$ArrayRef.refs([shape, lead]);
 
 	numbers Array<Int, 3> = @primitives$Array([Int(1), Int(2), Int(3)]);
 	first Int = numbers[Int(1)];
@@ -185,9 +206,26 @@ Unit main() {
 		say(String("large"));
 	}
 
+	// The instantiation shorthand with `^` declares a roaming owner.
+	drawn ^Shape.circle(Float(5.0));
+	team ^Crew(drawn, shape);
+	kept Crew = team;
+	boxed ^Holder(Int(1));
+	spelled ^Holder = Holder(Int(2));
+	shelf Holder = boxed;
+	relayedInt Int = relayed(Int(5));
+	relayedShape Shape = relayed(Shape.circle(Float(6.0)));
+	nothing Int = zeroed(Int(7));
+
 	return Unit();
 }
 
 /// Nothing calls this. Its body is checked where it is declared, and
 /// everything in it depends on `T`, so there is nothing to report.
 T twice(value T Type) => value + value
+
+/// The math functions of `@math$` (math.md §2): an integer one, an exact
+/// float one taking three operands, and an approximate one.
+Int lowByte(value Int) => @math$bitAnd(@math$shiftRightLogical(value, Int(8)), Int(255))
+Float hypotenuse(a Float, b Float) => @math$sqrt(@math$fma(a, a, @operators$multiply(b, b)))
+Float heading(y Float, x Float) => @math$atan2(y, x)

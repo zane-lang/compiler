@@ -136,8 +136,8 @@ and the optimized build alike, and still does.
   copies and concatenation, ignored `^T` results, block-local owners, refilled
   roaming owners, deep copies, rebuilt lists, owners resolved out of a
   handler — keep the same peak RSS (about
-  11 MB) at 10,000 and at 1,000,000 iterations. The control, which keeps one
-  owner per iteration in a list, grows to 73 MB, so the measurement can see
+  13 MB) at 10,000 and at 1,000,000 iterations. The control, which keeps one
+  owner per iteration in a list, grows to 42 MB, so the measurement can see
   growth.
 - **The store rule** (`launder`; lifetimes.md §1.1, §1.10, §1.11). Twenty
   routes for storing a reference to an inner-block owner into an outer place
@@ -484,7 +484,7 @@ Probe `refelems`. A program that reads an element of an
 `internal compiler error: the stack overflowed` (exit 3):
 
 ```zane
-row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([p, q], &Port);
+row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef.refs([p, q]);
 x &Port = row[Int(1)];          // legal; the build overflows here
 ```
 

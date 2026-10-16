@@ -280,6 +280,15 @@ its own.
 C because it adds no toolchain beside the LLVM the compiler already uses, and
 because an arena is exactly the kind of code C states without ceremony.
 
+The math functions of `@math$` ([`math.md`](https://github.com/zane-lang/spec/blob/1457830/spec/math.md)
+§2) need no runtime function. A call to one lowers to a `Math` node, which
+codegen emits as an instruction or an LLVM intrinsic when the function is
+exact, a shift's count masked to the width first, and as a call to the C
+math library's function of the same name when it is approximate, marked
+`nobuiltin` so that LLVM neither computes it ahead of time nor rewrites it.
+Its result is then the library's where the program runs, as §2.6 has it
+(`platforms.md`).
+
 ---
 
 ## 7. How it is built, and how to look at it
@@ -427,8 +436,9 @@ test passing.
     body's arena; a bare reference-type parameter is a borrow, passed by
     address. Every overwrite is made in place, keeping each boxed member's
     block, and a block relocates only when its owner escapes.
-    `@primitives$ArrayRef<T, n>` lowers as `Array` does, with `fill` a counted
-    loop over its lambda. `@primitives$String` is a value type. The runtime
+    `@primitives$ArrayRef<T, n>` lowers as `Array` does from any of its
+    literal constructors, `.refs` and `.roaming` included, with `fill` a
+    counted loop over its lambda. `@primitives$String` is a value type. The runtime
     is tested in C on its own: an overwrite keeps a boxed member's address,
     and arrival leaves blocks that outlive their destination where they are.
 12. **Where blocks are made.** Once every function is lowered, a pass over
@@ -556,9 +566,23 @@ test passing.
   whose stack is one of a fixed array at the start of the region's mark,
   beside its frontier, its frontier's end and its count of blocks out, so
   emitted code reads each at a fixed offset (below); any other size has a
-  stack found by a search. A list's block doubles from 128 bytes (§3.6): into a returned block
-  of that size, in place when it is last at the frontier, or else into new
-  bytes. Where the runtime departs from the spec:
+  stack found by a search. A list's block doubles from 128 bytes (§3.6): up
+  to 1 MiB into a returned block of that size, in place when it is last at
+  the frontier, or else into new bytes. Past 1 MiB it moves once into a span
+  at the start of a reservation of 64 times the span's size, made with no
+  access as a context's range is (below), and each later doubling makes
+  more of it usable instead of moving the elements. Where the system will
+  not reserve that much, as under a cap on the address space, the
+  reservation is the span alone, and a list that outgrows its reservation
+  moves into a fresh one. A push is inline: while the block has room, the
+  emitted code takes the element's address and counts it itself, and only a
+  full block calls `zane_list_push`, which grows it. Together these make
+  `listgrowth` in the spec's `langbench/`, which appends two million
+  entities to a list twenty times, take less than half the time it did, and
+  as much as C's `realloc` does within a few percent. It never shrinks: a
+  removal moves the element out of its place and closes the list over it,
+  by moving the later elements down or the last one in, and the list keeps
+  the block until it dies. Where the runtime departs from the spec:
   - A block is placed where its value is made, which is the innermost
     scope. When the value arrives in a place -- a slot, an overwritten
     place, a list's element -- its blocks stay where they are if their
@@ -804,7 +828,9 @@ test passing.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
   §5.2, [`spec-divergences.md`](../spec-divergences.md) §13). Until it says, the program stops:
   what it wrote so far is kept, the runtime writes `index out of range` to
-  stderr, and the status is 1, for a list and an array alike. The CGT names
+  stderr, and the status is 1, for a list and an array alike, and for a
+  list's `remove` and `swapRemove`, which find the element they move out
+  through `List_at`. The CGT names
   the element's address as `List_at` or `Array_at`, and codegen checks the
   index where the address is made: one unsigned compare of the index less one
   against the count covers both ends, and only an index outside calls

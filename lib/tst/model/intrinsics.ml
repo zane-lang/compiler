@@ -1,12 +1,12 @@
 (* The intrinsic namespaces (syntax.md §2.7): what `@primitives$`,
-   `@concepts$`, `@operators$`, `@controlflow$`, `@runtime$` and `@program$`
-   hold.
+   `@concepts$`, `@operators$`, `@math$`, `@controlflow$`, `@runtime$` and
+   `@program$` hold.
 
    They are not packages, so they are not read from source. Most intrinsic
    operations have exactly one signature. The overloads the spec states are
    the exceptions: methods that share a name on different subjects, the
-   machine operations of `@operators$`, one per operand type, and a scalar's
-   constructors, which take its concept and each scalar that converts into
+   machine operations of `@operators$` and the math functions of `@math$`,
+   one per operand type, and a scalar's constructors, which take its concept and each scalar that converts into
    it exactly (syntax.md §2.7, types.md §2.7). No intrinsic is an operator:
    a primitive has no home package, so an operator over one is declared
    nowhere (operators.md §2.2).
@@ -172,8 +172,11 @@ let constructors =
   let elements e n = Ty.Concept (Ty.Array_lit (Ty.Param e, Ty.Number_param n)) in
   let ref_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let ref_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
-  let typed_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
-  let typed_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
+  let refs_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+  let refs_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
+  let roaming_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+  let roaming_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
+  let moded mode e n = Ty.Concept (Ty.Array_lit (mode (Ty.Param e), Ty.Number_param n)) in
   let fill_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let fill_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
   List.map (fun s -> ctor s [ param "value" (Ty.Concept (concept s)) ] (prim s)) scalars
@@ -189,21 +192,23 @@ let constructors =
       ctor ~generics:[ element; length ] "Array"
         [ param "values" (elements element length) ]
         (fixed "Array" element length);
-      (* An `ArrayRef` is built from an array literal, each element moved into
-         its place, or by `fill`, which calls `make` once per position, in
-         order, with the position counted from 1 (generics.md §8.4). The
-         literal may be followed by its element type, which then decides it
-         rather than the elements: `ArrayRef([p, q], &Port)` mints a
-         reference from each element as an `&Port` parameter would. *)
+      (* An `ArrayRef` is built from an array literal or by `fill`, which
+         calls `make` once per position, in order, with the position counted
+         from 1 (generics.md §8.4). A literal's elements are passed in the
+         mode its constructor writes: borrowed by `ArrayRef`, so each is a
+         value or an `&` value, copied into its place; taken by `ArrayRef.roaming`, so an owner
+         moves in; and as references by `ArrayRef.refs`, so a settled owner
+         mints one and an `&` value is copied. *)
       ctor ~generics:[ ref_element; ref_length ] "ArrayRef"
         [ param "values" (elements ref_element ref_length) ]
         (fixed "ArrayRef" ref_element ref_length);
-      ctor ~generics:[ typed_element; typed_length ] "ArrayRef"
-        [
-          param "values" (elements typed_element typed_length);
-          param ~binds:typed_element "T" (Ty.Concept Ty.Type_value);
-        ]
-        (fixed "ArrayRef" typed_element typed_length);
+      ctor ~generics:[ refs_element; refs_length ] ~member:"refs" "ArrayRef"
+        [ param "values" (moded (fun t -> Ty.Reference t) refs_element refs_length) ]
+        (prim "ArrayRef"
+           ~args:[ Ty.Type (Ty.Reference (Ty.Param refs_element)); Ty.Number (Ty.Number_param refs_length) ]);
+      ctor ~generics:[ roaming_element; roaming_length ] ~member:"roaming" "ArrayRef"
+        [ param "values" (moded (fun t -> Ty.Roaming t) roaming_element roaming_length) ]
+        (fixed "ArrayRef" roaming_element roaming_length);
       ctor ~generics:[ fill_element; fill_length ] ~member:"fill" "ArrayRef"
         [
           param ~binds:fill_length "n" (Ty.Concept Ty.Integer_lit);
@@ -281,7 +286,51 @@ let methods =
       [ param "this" list; param "value" (Ty.Roaming (Ty.Param list_element)) ]
       (prim "Unit");
     meth ~generics:[ list_element ] "primitives" "size" [ param "this" list ] (prim "I64");
+    (* The element at an index moves out and the list closes over its place
+       (lifetimes.md §2.1): `remove` shifts the later elements down, keeping
+       their order, and `swapRemove` moves the last element into it. *)
+    meth ~generics:[ list_element ] ~is_mut:true "primitives" "remove"
+      [ param "this" list; param "index" (prim "I64") ]
+      (Ty.Roaming (Ty.Param list_element));
+    meth ~generics:[ list_element ] ~is_mut:true "primitives" "swapRemove"
+      [ param "this" list; param "index" (prim "I64") ]
+      (Ty.Roaming (Ty.Param list_element));
   ]
+
+(* `@math$` (math.md §2): the math functions on scalar primitives, one
+   overload per scalar each takes, every operand of that one type. The
+   integer ones take `I32` and `I64`, the float ones `F32` and `F64`. Which
+   are exact and which approximate is the CGT's to know (Cgt.Nodes.Math). *)
+let math_functions =
+  let f name params ret =
+    ( ("math", name),
+      verb ~namespace:"math" ~kind:S.Function ~name:("@math$" ^ name) ~spelling:("@math$" ^ name)
+        params ret )
+  in
+  let over names s =
+    List.map (fun (name, params) -> f name (List.map (fun p -> param p (prim s)) params) (prim s)) names
+  in
+  let unary = [ "value" ] and binary = [ "left"; "right" ] in
+  let integer =
+    [
+      ("bitAnd", binary); ("bitOr", binary); ("bitXor", binary); ("bitNot", unary);
+      ("shiftLeft", [ "value"; "count" ]); ("shiftRight", [ "value"; "count" ]);
+      ("shiftRightLogical", [ "value"; "count" ]); ("rotateLeft", [ "value"; "count" ]);
+      ("rotateRight", [ "value"; "count" ]); ("popCount", unary); ("leadingZeros", unary);
+      ("trailingZeros", unary); ("abs", unary); ("min", binary); ("max", binary);
+    ]
+  in
+  let float =
+    [
+      ("sqrt", unary); ("abs", unary); ("floor", unary); ("ceil", unary); ("trunc", unary);
+      ("roundEven", unary); ("fma", [ "left"; "right"; "addend" ]);
+      ("copySign", [ "magnitude"; "sign" ]); ("min", binary); ("max", binary);
+      ("cbrt", unary); ("sin", unary); ("cos", unary); ("tan", unary); ("asin", unary);
+      ("acos", unary); ("atan", unary); ("atan2", [ "y"; "x" ]); ("exp", unary);
+      ("log", unary); ("pow", [ "base"; "exponent" ]); ("hypot", [ "x"; "y" ]);
+    ]
+  in
+  List.concat_map (over integer) integers @ List.concat_map (over float) floats
 
 (* The control-flow intrinsics (syntax.md §5.1). *)
 let control_functions =
@@ -298,9 +347,9 @@ let control_functions =
 
 (* Every intrinsic function, keyed by namespace and name. A key the
    operators share holds one entry per overload. *)
-let functions = control_functions @ operator_functions
+let functions = control_functions @ operator_functions @ math_functions
 
 let find_functions namespace name =
   List.filter_map (fun (key, s) -> if key = (namespace, name) then Some s else None) functions
 
-let namespaces = [ "primitives"; "concepts"; "operators"; "controlflow"; "runtime"; "program" ]
+let namespaces = [ "primitives"; "concepts"; "operators"; "math"; "controlflow"; "runtime"; "program" ]

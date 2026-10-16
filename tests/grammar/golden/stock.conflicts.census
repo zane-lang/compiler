@@ -1,4 +1,4 @@
-45 conflict states
+48 conflict states
 
  18  shift/reduce  [LESS]  loption(generics) ->
   1  shift/reduce  [LPAREN]  app -> AT LIDENT DOLLAR UIDENT DOT LIDENT
@@ -7,7 +7,7 @@
   1  shift/reduce  [LPAREN]  app -> func_callee
   1  reduce/reduce  [LPAREN]  expr -> SPAWN unbraced_verb_call ; func_callee -> unbraced_verb_call
   3  shift/reduce  [LPAREN]  list(verb_type_suffix) ->
- 12  shift/reduce  [LPAREN]  loption(generics) ->
+ 15  shift/reduce  [LPAREN]  loption(generics) ->
   3  shift/reduce  [LPAREN LESS LCURLY DOT]  loption(generics) ->
   1  shift/reduce  [QSTNQSTN QSTNMARK]  app_braced -> braced_verb_call
   1  shift/reduce  [QSTNQSTN QSTNMARK]  expr -> SPAWN braced_verb_call

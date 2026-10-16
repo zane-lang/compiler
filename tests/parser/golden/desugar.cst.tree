@@ -594,12 +594,14 @@
     │   └── body > scope:
     │       ├── stat[0] > var_decl_shorthand:
     │       │   ├── name: origin
+    │       │   ├── roaming: false
     │       │   ├── type: Vec
     │       │   ├── member: origin
     │       │   ├── args:
     │       │   └── trailing: false
     │       ├── stat[1] > var_decl_shorthand:
     │       │   ├── name: square
+    │       │   ├── roaming: false
     │       │   ├── type: Vec
     │       │   ├── args > fields[0]:
     │       │   │   ├── name: x
@@ -618,6 +620,7 @@
     │       │   └── trailing: false
     │       ├── stat[2] > var_decl_shorthand:
     │       │   ├── name: literal
+    │       │   ├── roaming: false
     │       │   ├── type: Expr
     │       │   ├── member: intLit
     │       │   ├── args[0] > ctor_call:
@@ -648,6 +651,7 @@
     │       │       └── abort: none
     │       ├── stat[5] > var_decl_shorthand:
     │       │   ├── name: implied
+    │       │   ├── roaming: false
     │       │   ├── type: Vec
     │       │   ├── args > fields[0]:
     │       │   │   ├── name: x
@@ -711,7 +715,184 @@
     │           ├── args:
     │           ├── trailing: false
     │           └── abort: none
-    ├── declarations[22] > func_decl:
+    ├── declarations[22] > type_decl:
+    │   ├── name: Rig
+    │   ├── params:
+    │   └── value:
+    │       ├── mould > struct[0]:
+    │       │   ├── name: x
+    │       │   └── type:
+    │       │       ├── qualifier: Int
+    │       │       └── args:
+    │       ├── mould > struct[1]:
+    │       │   ├── name: y
+    │       │   └── type:
+    │       │       ├── qualifier: Int
+    │       │       └── args:
+    │       └── type_axis: reference
+    ├── declarations[23] > ctor_decl:
+    │   ├── type:
+    │   │   ├── qualifier: Rig
+    │   │   └── args:
+    │   ├── param[0]:
+    │   │   ├── name: x
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── param[1]:
+    │   │   ├── name: y
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── body > ret_shorthand > init[0]:
+    │   │   └── name: x
+    │   ├── body > ret_shorthand > init[1]:
+    │   │   └── name: y
+    │   └── is_implicit: false
+    ├── declarations[24] > ctor_decl:
+    │   ├── type:
+    │   │   ├── qualifier: Rig
+    │   │   └── args:
+    │   ├── param > fields[0]:
+    │   │   ├── name: x
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── param > fields[1]:
+    │   │   ├── name: y
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── body > ret_shorthand > init[0]:
+    │   │   └── name: x
+    │   ├── body > ret_shorthand > init[1]:
+    │   │   └── name: y
+    │   └── is_implicit: false
+    ├── declarations[25] > ctor_decl:
+    │   ├── type:
+    │   │   ├── qualifier: Rig
+    │   │   └── args:
+    │   ├── member: square
+    │   ├── param[0]:
+    │   │   ├── name: side
+    │   │   └── type:
+    │   │       ├── qualifier: Int
+    │   │       └── args:
+    │   ├── body > ret_shorthand > init[0]:
+    │   │   ├── name: x
+    │   │   └── value: side
+    │   ├── body > ret_shorthand > init[1]:
+    │   │   ├── name: y
+    │   │   └── value: side
+    │   └── is_implicit: false
+    ├── declarations[26] > type_decl:
+    │   ├── name: Load
+    │   ├── params:
+    │   └── value:
+    │       ├── mould > variant[0]:
+    │       │   ├── name: crate
+    │       │   └── type:
+    │       │       ├── qualifier: Int
+    │       │       └── args:
+    │       └── type_axis: reference
+    ├── declarations[27] > func_decl:
+    │   ├── name: roamers
+    │   ├── param:
+    │   ├── ret_type:
+    │   │   ├── qualifier: Unit
+    │   │   └── args:
+    │   └── body > scope:
+    │       ├── stat[0] > var_decl_shorthand:
+    │       │   ├── name: built
+    │       │   ├── roaming: true
+    │       │   ├── type: Rig
+    │       │   ├── args[0] > ctor_call:
+    │       │   │   ├── type: Int
+    │       │   │   ├── args[0]: 1
+    │       │   │   ├── trailing: false
+    │       │   │   └── abort: none
+    │       │   ├── args[1] > ctor_call:
+    │       │   │   ├── type: Int
+    │       │   │   ├── args[0]: 2
+    │       │   │   ├── trailing: false
+    │       │   │   └── abort: none
+    │       │   └── trailing: false
+    │       ├── stat[1] > var_decl_shorthand:
+    │       │   ├── name: named
+    │       │   ├── roaming: true
+    │       │   ├── type: Rig
+    │       │   ├── member: square
+    │       │   ├── args[0] > ctor_call:
+    │       │   │   ├── type: Int
+    │       │   │   ├── args[0]: 3
+    │       │   │   ├── trailing: false
+    │       │   │   └── abort: none
+    │       │   └── trailing: false
+    │       ├── stat[2] > var_decl_shorthand:
+    │       │   ├── name: cased
+    │       │   ├── roaming: true
+    │       │   ├── type: Load
+    │       │   ├── member: crate
+    │       │   ├── args[0] > ctor_call:
+    │       │   │   ├── type: Int
+    │       │   │   ├── args[0]: 4
+    │       │   │   ├── trailing: false
+    │       │   │   └── abort: none
+    │       │   └── trailing: false
+    │       ├── stat[3] > var_decl_shorthand:
+    │       │   ├── name: fielded
+    │       │   ├── roaming: true
+    │       │   ├── type: Rig
+    │       │   ├── args > fields[0]:
+    │       │   │   ├── name: x
+    │       │   │   └── value > ctor_call:
+    │       │   │       ├── type: Int
+    │       │   │       ├── args[0]: 5
+    │       │   │       ├── trailing: false
+    │       │   │       └── abort: none
+    │       │   ├── args > fields[1]:
+    │       │   │   ├── name: y
+    │       │   │   └── value > ctor_call:
+    │       │   │       ├── type: Int
+    │       │   │       ├── args[0]: 6
+    │       │   │       ├── trailing: false
+    │       │   │       └── abort: none
+    │       │   └── trailing: false
+    │       ├── stat[4] > var_decl:
+    │       │   ├── name: x
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Int
+    │       │       ├── args[0]: 7
+    │       │       ├── trailing: false
+    │       │       └── abort: none
+    │       ├── stat[5] > var_decl:
+    │       │   ├── name: y
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Int
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Int
+    │       │       ├── args[0]: 8
+    │       │       ├── trailing: false
+    │       │       └── abort: none
+    │       ├── stat[6] > var_decl_shorthand:
+    │       │   ├── name: implied
+    │       │   ├── roaming: true
+    │       │   ├── type: Rig
+    │       │   ├── args > fields[0]:
+    │       │   │   └── name: x
+    │       │   ├── args > fields[1]:
+    │       │   │   └── name: y
+    │       │   └── trailing: false
+    │       └── stat[7] > ret_stat > ctor_call:
+    │           ├── type: Unit
+    │           ├── args:
+    │           ├── trailing: false
+    │           └── abort: none
+    ├── declarations[28] > func_decl:
     │   ├── name: lambdas
     │   ├── param:
     │   ├── ret_type:
@@ -778,7 +959,7 @@
     │           ├── args:
     │           ├── trailing: false
     │           └── abort: none
-    └── declarations[23] > func_decl:
+    └── declarations[29] > func_decl:
         ├── name: main
         ├── param:
         ├── ret_type:

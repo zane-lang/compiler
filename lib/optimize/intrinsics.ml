@@ -15,7 +15,8 @@ let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
   | Arguments -> Input
   | Text_join | Text_equal | Text_i32 | Text_i64 | Text_f32 | Text_f64
-  | List_new | List_push | List_at | Array_at | Constant_begin | Constant_end | Writeback
+  | List_new | List_push | List_at | List_remove | List_swap_remove | Array_at | Constant_begin
+  | Constant_end | Writeback
   | Parse_i64 | Parse_f64 ->
       Computed
   (* Codegen calls these for nodes of the tree rather than the tree naming
@@ -25,3 +26,14 @@ let classify : Cgt.Runtime.fn -> t = function
   | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range
   | Region_at | Alloc | Alloc_held | Free | Leaves | Defer | Defer_return ->
       Computed
+
+(* What a math function of `@math$` on operands of type [t] is to a fold.
+   An exact one is [Computed]. An approximate one is [Input]: its result is
+   the C math library's where the program runs (math.md §2.6), which the
+   compiler's own may not match. So is an [F32] `fma`, which a double would
+   compute rounded twice. *)
+let math (fn : Cgt.Math.fn) (t : Cgt.Nodes.Ty.t) =
+  match (fn, t) with
+  | Cgt.Math.Fma, Cgt.Nodes.Ty.F32 -> Input
+  | _ when Cgt.Math.exact fn -> Computed
+  | _ -> Input

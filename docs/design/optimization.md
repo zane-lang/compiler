@@ -59,17 +59,21 @@ linkage. No new artifact, linker option or package flag is required.
 
 **O3. A value is known unless it depends on an input.** Every intrinsic
 reaches the CGT either as ordinary nodes (an operator as a `Binary`,
-`@controlflow$branch` as an `If`) or as a call into the runtime, so a class
-for each runtime function covers them all. `intrinsics.ml` gives one to each
-in an exhaustive match, so a runtime function added later does not compile
-until it is classified:
+`@controlflow$branch` as an `If`, a math function as a `Math`) or as a call
+into the runtime, so a class for each runtime function and each math
+function covers them all. `intrinsics.ml` gives one to each in an exhaustive
+match, so a runtime function added later does not compile until it is
+classified:
 
 | Intrinsic | In the CGT | Class |
 |---|---|---|
 | scalar `+ * / == < ~`, `Bool` `+ * ==` | `Binary`, `Flip` | computed |
+| `@math$` exact functions | `Math` | computed |
+| `@math$` approximate functions, and `fma` on an `F32` | `Math` | input |
 | `String` `+ ==`, `String(…)` | `Text_join`, `Text_equal`, `Text` | computed |
 | `parseI64`, `parseF64` | `Parse_i64`, `Parse_f64` | computed |
 | `List(T)`, `push`, `size`, `[]` | `List_new`, `List_push`, `Member`, `List_at` | computed |
+| `remove`, `swapRemove` | `List_at` and a `Take`, then `List_remove` or `List_swap_remove` | computed |
 | `Array`, `ArrayRef`, `fill`, `[]` | `Record`, a counted loop, `Array_at` | computed |
 | `@controlflow$branch`, `repeat` | `If`, `Repeat` | computed |
 | storage: slots, boxes, copies, moves, overwrites, scopes | the nodes and the runtime calls codegen makes for them | computed (O5) |
@@ -84,6 +88,14 @@ fold stops where it is reached, and everything computed before it still
 folds. `setThreadsAuto` reads the processor count, but gives nothing back, so
 no value of the program depends on it. An intrinsic added later that reads
 input, a console read or the time, joins `arguments` in the input class.
+
+The approximate math functions are inputs for another reason: their result
+is the C math library's where the program runs
+([`math.md`](https://github.com/zane-lang/spec/blob/1457830/spec/math.md)
+§2.6), which the compiler's own library need not match, so folding one could
+change what the program computes. An `F32` `fma` is an input too: the
+evaluator holds a float as a double, and a double `fma` rounded to a single
+rounds twice. Every other `F32` function gives its single exactly that way.
 
 Besides an input, a value is unknown when it is a parameter of the function
 being folded, or what a function with no body available gives. Optimized
@@ -291,10 +303,12 @@ optimized build makes, for the fixtures that show folding:
   to run that writes a local;
 - `runs` folds a sieve as one run of statements, and keeps a list that is
   still named after the program's arguments are read;
+- `math` folds every exact math function at its edges, and keeps the
+  approximate ones and an `F32` `fma` as calls;
 - `constants`, `counting` and `zero` show their optimized trees.
 
-`tests/unit/` checks the evaluator's arithmetic against codegen's, the
-intrinsic classes, a value written as code and read back, calls, outputs,
+`tests/unit/` checks the evaluator's arithmetic against codegen's, its math
+functions, the intrinsic classes, a value written as code and read back, calls, outputs,
 memoization and the budget, stores in place, two folds of handmade
 functions, a replacement past the size cap only as a whole, a string that
 doubles past the budget, a member of a program variable written in place,

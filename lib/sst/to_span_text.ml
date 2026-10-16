@@ -137,6 +137,9 @@ and generic_arg d (x : Generic_arg.t) =
   | Generic_arg.Inferred p ->
       line d "generic_arg Inferred" x.Generic_arg.span;
       param (deeper d) p
+  | Generic_arg.Moded t ->
+      line d "generic_arg Moded" x.Generic_arg.span;
+      param_type (deeper d) t
 
 and verb_type d (x : Verb_type.t) =
   match x.Verb_type.node with
@@ -204,9 +207,9 @@ and expr d (x : Expr.t) =
       line d "expr TypeMember" at;
       name_type (deeper d) type_;
       name (deeper d) "member" member
-  | Expr.TypeValue { reference; name } ->
-      line d (if reference then "expr TypeValue &" else "expr TypeValue") at;
-      name_type (deeper d) name
+  | Expr.TypeValue t ->
+      line d "expr TypeValue" at;
+      name_type (deeper d) t
   | Expr.DotAccess { target; field; abort_handle } ->
       line d "expr DotAccess" at;
       expr (deeper d) target;

@@ -38,6 +38,17 @@ only what `libSystem` provides. They keep to it: a feature that would need an
 Apple framework, such as a GUI or the GPU, belongs in a package of its own,
 built on a Mac by those who want it.
 
+## The C math library
+
+The approximate math functions of `@math$` are the C math library's where
+the program runs ([`lowering.md`](lowering.md) L17). Every platform's C
+library holds it: `libSystem` on macOS and MinGW's C library on Windows,
+which a program links already, and glibc on Linux, where it is a library
+of its own and a program is linked with `-lm`. Their results can differ in
+the last digit, which the spec allows of an approximate function
+([`math.md`](https://github.com/zane-lang/spec/blob/1457830/spec/math.md)
+§2.6); the `math` codegen fixture checks them within a tolerance.
+
 ## Machine stack sizes
 
 A program's main thread uses the stack its launch environment provides on
@@ -69,9 +80,10 @@ A Windows program links with MinGW's C library and its POSIX threads,
 winpthreads, both of which `zig cc` carries; `ZANE_CC=dev/bin/zig-cc` links
 with it ([`lowering.md`](lowering.md) §7). The runtime differs there in five
 places, each marked `_WIN32`: a chunk comes from `_aligned_malloc` and goes
-back through `_aligned_free`, a context's range of frames is reserved with
-`VirtualAlloc(MEM_RESERVE)` and made usable with `MEM_COMMIT` from a
-vectored exception handler, which also reports a full machine stack
+back through `_aligned_free`, a context's range of frames and a list's
+growing oversized span ([`lowering.md`](lowering.md) §9) are reserved with
+`VirtualAlloc(MEM_RESERVE)` and made usable with `MEM_COMMIT`, the range
+from a vectored exception handler, which also reports a full machine stack
 (`EXCEPTION_STACK_OVERFLOW`), winpthreads counts the processors, stdout
 and stderr are set to binary mode, so a program writes `\n` and not `\r\n`,
 as it does everywhere else, and the program's arguments are read from

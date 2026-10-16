@@ -117,6 +117,7 @@ and generic_arg d (x : Generic_arg.t) =
   | Generic_arg.Number _ -> ()
   | Generic_arg.NumberRef n -> name d "number_ref" n
   | Generic_arg.Inferred p -> param d p
+  | Generic_arg.Moded t -> param_type d t
 
 and param_type d (x : Param_type.t) =
   line d "param_type" x.Param_type.span;
@@ -248,7 +249,7 @@ and expr d (x : Expr.t) =
   | Expr.TypeMember { type_; member } ->
       name_type d type_;
       name d "member" member
-  | Expr.TypeValue { name = t; _ } -> name_type d t
+  | Expr.TypeValue t -> name_type d t
   | Expr.DotAccess { target; field; abort_handle = h } ->
       expr d target;
       name d "field" field;
@@ -359,8 +360,9 @@ and decl d (x : Decl.t) =
       name d "name" n;
       type_expr d type_;
       expr d value
-  | Decl.VarShorthand { name = n; constructor; args; _ } ->
+  | Decl.VarShorthand { name = n; roaming; constructor; args; _ } ->
       name d "name" n;
+      opt d (fun d span -> line d "roaming" span) roaming;
       constructor_name d constructor;
       constructor_args d args
   | Decl.Type { name = n; params; value } | Decl.Alias { name = n; params; value } ->

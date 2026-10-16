@@ -115,7 +115,7 @@ module rec Expr : sig
     | CollectionLit of t list
     | NameExpr of Name_expr.t
     | TypeMember of { type_ : Name_type.t; member : Name.t }
-    | TypeValue of { reference : bool; name : Name_type.t }
+    | TypeValue of Name_type.t
     | DotAccess of {
         target : t;
         field : Name.t;
@@ -274,6 +274,9 @@ and Generic_arg : sig
     | Number of string
     | NumberRef of Name.t
     | Inferred of Param.t
+    (* `^T Type` or `&T Type` as a parameter's `@concepts$Array` element
+       (generics.md §8.4); always a [Param_type.InferredType]. *)
+    | Moded of Param_type.t
 end = Generic_arg
 
 and Verb_type : sig

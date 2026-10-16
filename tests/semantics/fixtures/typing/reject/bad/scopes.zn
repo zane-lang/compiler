@@ -79,17 +79,33 @@ Unit bind() {
 }
 
 /// An array literal of references carries each of them into the array it
-/// builds, whether the elements were references already or the element type
-/// minted them (generics.md §8.4).
+/// builds, whether the elements were references already or `ArrayRef.refs`
+/// minted them, or the literal mixed the two (generics.md §8.4).
 Unit gather() {
 	far Leaf(Int(11));
-	row @primitives$ArrayRef<&Leaf, 1> = @primitives$ArrayRef([far], &Leaf);
+	row @primitives$ArrayRef<&Leaf, 1> = @primitives$ArrayRef.refs([far]);
+	both @primitives$ArrayRef<&Leaf, 2> = @primitives$ArrayRef.refs([far, far]);
 	inside({
 		near Leaf(Int(12));
 		r &Leaf = near;
 		row = @primitives$ArrayRef([r]);
-		row = @primitives$ArrayRef([near], &Leaf);
-		kept @primitives$ArrayRef<&Leaf, 2> = @primitives$ArrayRef([far, near], &Leaf);
+		row = @primitives$ArrayRef.refs([near]);
+		kept @primitives$ArrayRef<&Leaf, 2> = @primitives$ArrayRef.refs([far, near]);
+		both = @primitives$ArrayRef.refs([far, r]);
 	});
+	return Unit();
+}
+
+/// A store that is reported is not taken on by its destination, so a later
+/// use of the destination is not reported for it again.
+Unit relayed() {
+	far Leaf(Int(13));
+	r &Leaf = far;
+	inside({
+		near Leaf(Int(14));
+		r = near;
+	});
+	s &Leaf = r;
+	row @primitives$ArrayRef<&Leaf, 2> = @primitives$ArrayRef([r, s]);
 	return Unit();
 }

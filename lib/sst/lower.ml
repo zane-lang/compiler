@@ -80,6 +80,7 @@ and generic_arg (x : C.Generic_arg.t) : S.Generic_arg.t =
     | C.Generic_arg.Number n -> S.Generic_arg.Number n
     | C.Generic_arg.NumberRef n -> S.Generic_arg.NumberRef (name n)
     | C.Generic_arg.Inferred p -> S.Generic_arg.Inferred (param p)
+    | C.Generic_arg.Moded t -> S.Generic_arg.Moded (param_type t)
   in
   { S.Generic_arg.node; span }
 
@@ -155,8 +156,7 @@ and expression (x : C.Expr.t) : S.Expr.t =
         | C.Expr.TypeMember { type_; member } ->
             S.Expr.TypeMember
               { type_ = name_type type_; member = name member }
-        | C.Expr.TypeValue { reference; name } ->
-            S.Expr.TypeValue { reference; name = name_type name }
+        | C.Expr.TypeValue t -> S.Expr.TypeValue (name_type t)
         | C.Expr.DotAccess { target; field; abort_handle } ->
             S.Expr.DotAccess
               {
@@ -629,8 +629,13 @@ and declaration (x : C.Decl.t) : S.Decl.t =
        (generics.md §5.1).
 
        The value spans from the constructor name to the end of its arguments,
-       which is the text that would have been written after the `=`. *)
-    | C.Decl.VarShorthand { name = n; constructor; args; trailing = _ } ->
+       which is the text that would have been written after the `=`.
+
+       A `^` before the type makes the long form's type `^T`: `car ^Car(...)`
+       is `car ^Car = Car(...)`, a roaming owner, and the roaming type spans
+       from the `^` to the end of the type name. *)
+    | C.Decl.VarShorthand { name = n; roaming; constructor; args; trailing = _ }
+      ->
         let declared = constructor_name constructor in
         let type_name = declared.C.Constructor_name.type_ in
         let type_ =
@@ -638,6 +643,15 @@ and declaration (x : C.Decl.t) : S.Decl.t =
             S.Type_expr.span = type_name.C.Name_type.span;
             node = S.Type_expr.Path { name = type_name; generics = [] };
           }
+        in
+        let type_ =
+          match roaming with
+          | None -> type_
+          | Some caret ->
+              {
+                S.Type_expr.span = Span.join caret type_.S.Type_expr.span;
+                node = S.Type_expr.Roaming type_;
+              }
         in
         let built =
           Span.join declared.C.Constructor_name.span

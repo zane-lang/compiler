@@ -180,6 +180,22 @@ top_decl:
   | param=param {
       generic_arg $loc (Nodes.Generic_arg.Inferred param)
     }
+  | CARET name=uname concept_=UTYPE {
+      ignore concept_;
+      generic_arg $loc
+        (Nodes.Generic_arg.Moded
+           (param_type $loc
+              (Nodes.Param_type.InferredType
+                 { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Roaming })))
+    }
+  | AMPERSAND name=uname concept_=UTYPE {
+      ignore concept_;
+      generic_arg $loc
+        (Nodes.Generic_arg.Moded
+           (param_type $loc
+              (Nodes.Param_type.InferredType
+                 { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Reference })))
+    }
 
 %inline generics:
   | LESS generics=separated_nonempty_list(COMMA, generic_arg) MORE {
@@ -345,17 +361,10 @@ map_lit:
    enclosing brace. *)
 (* Type arguments are standalone constructor arguments, not expressions.
    In particular, admitting a bare type as an operator operand makes
-   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). A leading `&`
-   marks a reference type, and since `&` begins no expression it cannot be
-   read as anything else here. *)
+   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). *)
 %inline constructor_value:
   | value=expr { value }
-  | name=name_type {
-      expr $loc (Nodes.Expr.TypeValue { reference = false; name })
-    }
-  | AMPERSAND name=name_type {
-      expr $loc (Nodes.Expr.TypeValue { reference = true; name })
-    }
+  | name=name_type { expr $loc (Nodes.Expr.TypeValue name) }
 
 %inline constructor_call_arg:
   | value=constructor_value { call_arg $loc (Nodes.Call_arg.Value value) }
@@ -643,9 +652,11 @@ simple_decl:
   | name=lname type_=type_expr EQUAL value=expr {
       decl $loc (Nodes.Decl.Var { name; type_; value })
     }
-  | name=lname constructor=constructor_name args=positional_constructor_args {
+  | name=lname roaming=roaming_mark constructor=constructor_name
+    args=positional_constructor_args {
       decl $loc
-        (Nodes.Decl.VarShorthand { name; constructor; args; trailing = false })
+        (Nodes.Decl.VarShorthand
+           { name; roaming; constructor; args; trailing = false })
     }
   | value=fields_var_shorthand { value }
   | value=trailing_var_shorthand { value }
@@ -709,10 +720,20 @@ simple_decl_braced:
               (Nodes.Verb_decl.Subscript { this_type; params; value })))
     }
 
+(* The `^` that makes an instantiation shorthand declare a roaming owner rather
+   than a settled one (syntax.md §1.1): `car ^Car(Int(1))` is
+   `car ^Car = Car(Int(1))`. Inline, so the unmarked form stays the production
+   it was and no empty reduction stands between the binder and the type. *)
+%inline roaming_mark:
+  | { None }
+  | CARET { Some (Span.of_loc $loc) }
+
 fields_var_shorthand:
-  | name=lname constructor=constructor_name args=field_constructor_args {
+  | name=lname roaming=roaming_mark constructor=constructor_name
+    args=field_constructor_args {
       decl $loc
-        (Nodes.Decl.VarShorthand { name; constructor; args; trailing = false })
+        (Nodes.Decl.VarShorthand
+           { name; roaming; constructor; args; trailing = false })
     }
 
 (* The same instantiation with the call's last argument trailing, under the
@@ -720,13 +741,14 @@ fields_var_shorthand:
    not be empty, or `name Foo() { ... }` would read both as this and as the
    lambda-variable shorthand in [simple_decl]. *)
 trailing_var_shorthand:
-  | name=lname constructor=constructor_name
+  | name=lname roaming=roaming_mark constructor=constructor_name
     open_=LPAREN args=separated_nonempty_list(COMMA, constructor_call_arg) RPAREN
     tail=trailing_arg {
       ignore open_;
       decl $loc
         (Nodes.Decl.VarShorthand {
           name;
+          roaming;
           constructor;
           (* The arguments run from the `(` through the trailing argument. The
              production's own span would start at the binder and the

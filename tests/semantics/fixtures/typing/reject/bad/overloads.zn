@@ -8,6 +8,10 @@ Int same(other Int) => other
 Unit consume(engine Engine) => Unit()
 Unit consume(engine &Engine) => Unit()
 
+/// A literal's element mode is a passing mode too (generics.md §8.4).
+Unit fleet(engines @concepts$Array<^T Type, n @concepts$Int>) => Unit()
+Unit fleet(engines @concepts$Array<T Type, n @concepts$Int>) => Unit()
+
 /// A function value that does not declare `mut` would match both.
 Unit tune(f Unit[this Engine]) => Unit()
 Unit tune(f Unit[this Engine] mut) => Unit()

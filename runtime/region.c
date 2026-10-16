@@ -43,21 +43,55 @@ static char *zane_reserve_addresses(size_t bytes) {
 #endif
 }
 
-/* `size` bytes of the range, and its guard, at a 1 MiB boundary, so each
-   MiB of it is the context's alone in the chunk map. The reservation is
+/* `bytes` of addresses with no access at a 1 MiB boundary, so each MiB of
+   them can be listed alone in the chunk map, or null. The reservation is
    1 MiB larger to find one. A POSIX system gives back what is left over at
    either end; Windows releases a reservation only whole, so there it stays
-   reserved and unused. */
+   reserved and unused, and `*raw` is where the whole one starts. */
+char *zane_reserve_aligned(size_t bytes, char **raw) {
+	char *at = zane_reserve_addresses(bytes + ZANE_CHUNK);
+	if (!at) return NULL;
+	char *base = (char *)(((uintptr_t)at + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK);
+#ifndef _WIN32
+	if (base > at) munmap(at, (size_t)(base - at));
+	char *end = at + bytes + ZANE_CHUNK;
+	if (end > base + bytes) munmap(base + bytes, (size_t)(end - (base + bytes)));
+	at = base;
+#endif
+	*raw = at;
+	return base;
+}
+
+/* `bytes` of a reservation from `at` made usable, or 0 when the system
+   cannot back them. */
+int zane_commit_range(char *at, size_t bytes) {
+#ifdef _WIN32
+	return VirtualAlloc(at, bytes, MEM_COMMIT, PAGE_READWRITE) != NULL;
+#else
+	return mprotect(at, bytes, PROT_READ | PROT_WRITE) == 0;
+#endif
+}
+
+/* A reservation `zane_reserve_aligned` made, `bytes` from `base`, given
+   back whole. */
+void zane_release_addresses(char *raw, char *base, size_t bytes) {
+#ifdef _WIN32
+	(void)base;
+	(void)bytes;
+	VirtualFree(raw, 0, MEM_RELEASE);
+#else
+	(void)raw;
+	munmap(base, bytes);
+#endif
+}
+
+/* `size` bytes of the range, and its guard, so each MiB of it is the
+   context's alone in the chunk map. */
 void zane_reserve(zane_context *c, int64_t size) {
 	size_t total = (size_t)size + ZANE_GUARD;
-	char *raw = zane_reserve_addresses(total + ZANE_CHUNK);
-	if (!raw) zane_broken("out of addresses for a context's frames");
-	char *base = (char *)(((uintptr_t)raw + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK);
-#ifndef _WIN32
-	if (base > raw) munmap(raw, (size_t)(base - raw));
-	char *end = raw + total + ZANE_CHUNK;
-	if (end > base + total) munmap(base + total, (size_t)(end - (base + total)));
-#endif
+	char *raw;
+	char *base = zane_reserve_aligned(total, &raw);
+	if (!base) zane_broken("out of addresses for a context's frames");
 	c->base = c->frontier = c->committed = base;
 	c->limit = base + size;
 	c->size = size;
@@ -76,11 +110,7 @@ static int zane_commit(zane_context *c, char *at) {
 	size_t steps = (size_t)(at - c->base) / ZANE_STEP + 1;
 	char *to = c->base + steps * ZANE_STEP;
 	if (to > c->limit) to = c->limit;
-#ifdef _WIN32
-	if (!VirtualAlloc(from, (size_t)(to - from), MEM_COMMIT, PAGE_READWRITE)) return 0;
-#else
-	if (mprotect(from, (size_t)(to - from), PROT_READ | PROT_WRITE) != 0) return 0;
-#endif
+	if (!zane_commit_range(from, (size_t)(to - from))) return 0;
 	char *seen = from;
 	while (seen < to &&
 	       !__atomic_compare_exchange_n(&c->committed, &seen, to, 0, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))

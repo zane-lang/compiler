@@ -282,6 +282,77 @@ let flip (t : Ty.t) v =
   | Ty.I1, VBool a -> VBool (not a)
   | _ -> stop "`~` on a value it does not flip"
 
+(* A math function of `@math$` (math.md §2), as emit.ml's [math]. An
+   integer's bits are its low [width] ones, read unsigned where a shift or
+   a count needs them so. *)
+let math (fn : Cgt.Math.fn) (t : Ty.t) args =
+  let width = Scalar.bits t in
+  let unsigned a = if width = 32 then Int64.logand a 0xFFFF_FFFFL else a in
+  let count c = Int64.to_int (Int64.logand c (Int64.of_int (width - 1))) in
+  let rotate a n =
+    let u = unsigned a in
+    if n = 0 then a
+    else int t (Int64.logor (Int64.shift_left u n) (Int64.shift_right_logical u (width - n)))
+  in
+  let rec ones a n = if Int64.equal a 0L then n else ones (Int64.logand a (Int64.pred a)) (n + 1) in
+  let rec length a n = if Int64.equal a 0L then n else length (Int64.shift_right_logical a 1) (n + 1) in
+  (* IEEE 754's minimum and maximum: a NaN wins, and a negative zero is the
+     lesser zero. *)
+  let least a b =
+    if Float.is_nan a || Float.is_nan b then Float.nan
+    else if a = b then if Float.sign_bit a then a else b
+    else if a < b then a
+    else b
+  in
+  let greatest a b =
+    if Float.is_nan a || Float.is_nan b then Float.nan
+    else if a = b then if Float.sign_bit a then b else a
+    else if a > b then a
+    else b
+  in
+  (* To nearest, a tie to the even neighbour. Past 2^52 a double holds
+     only integers. *)
+  let round_even x =
+    if (not (Float.is_finite x)) || Float.abs x >= 0x1p52 then x
+    else
+      let r = Float.round x in
+      if Float.abs (x -. Float.trunc x) = 0.5 then 2. *. Float.round (x /. 2.) else r
+  in
+  match (fn, args) with
+  | Cgt.Math.Bit_and, [ VInt a; VInt b ] -> VInt (int t (Int64.logand a b))
+  | Cgt.Math.Bit_or, [ VInt a; VInt b ] -> VInt (int t (Int64.logor a b))
+  | Cgt.Math.Bit_xor, [ VInt a; VInt b ] -> VInt (int t (Int64.logxor a b))
+  | Cgt.Math.Bit_not, [ VInt a ] -> VInt (int t (Int64.lognot a))
+  | Cgt.Math.Shift_left, [ VInt a; VInt c ] -> VInt (int t (Int64.shift_left a (count c)))
+  | Cgt.Math.Shift_right, [ VInt a; VInt c ] -> VInt (int t (Int64.shift_right a (count c)))
+  | Cgt.Math.Shift_right_logical, [ VInt a; VInt c ] ->
+      VInt (int t (Int64.shift_right_logical (unsigned a) (count c)))
+  | Cgt.Math.Rotate_left, [ VInt a; VInt c ] -> VInt (rotate a (count c))
+  | Cgt.Math.Rotate_right, [ VInt a; VInt c ] -> VInt (rotate a ((width - count c) mod width))
+  | Cgt.Math.Pop_count, [ VInt a ] -> VInt (Int64.of_int (ones (unsigned a) 0))
+  | Cgt.Math.Leading_zeros, [ VInt a ] -> VInt (Int64.of_int (width - length (unsigned a) 0))
+  | Cgt.Math.Trailing_zeros, [ VInt a ] ->
+      let rec zeros a n =
+        if n = width || Int64.logand a 1L = 1L then n else zeros (Int64.shift_right_logical a 1) (n + 1)
+      in
+      VInt (Int64.of_int (zeros (unsigned a) 0))
+  | Cgt.Math.Abs, [ VInt a ] -> VInt (if Int64.compare a 0L < 0 then int t (Int64.neg a) else a)
+  | Cgt.Math.Min, [ VInt a; VInt b ] -> VInt (if Int64.compare a b <= 0 then a else b)
+  | Cgt.Math.Max, [ VInt a; VInt b ] -> VInt (if Int64.compare a b >= 0 then a else b)
+  | Cgt.Math.Sqrt, [ VFloat a ] -> VFloat (float t (Float.sqrt a))
+  | Cgt.Math.Abs, [ VFloat a ] -> VFloat (float t (Float.abs a))
+  | Cgt.Math.Floor, [ VFloat a ] -> VFloat (float t (Float.floor a))
+  | Cgt.Math.Ceil, [ VFloat a ] -> VFloat (float t (Float.ceil a))
+  | Cgt.Math.Trunc, [ VFloat a ] -> VFloat (float t (Float.trunc a))
+  | Cgt.Math.Round_even, [ VFloat a ] -> VFloat (float t (round_even a))
+  | Cgt.Math.Fma, [ VFloat a; VFloat b; VFloat c ] when t = Ty.F64 -> VFloat (float t (Float.fma a b c))
+  (* A NaN's sign is not the program's to see (math.md §2.5). *)
+  | Cgt.Math.Copy_sign, [ VFloat m; VFloat s ] ->
+      VFloat (float t (if Float.is_nan s then Float.abs m else Float.copy_sign m s))
+  | Cgt.Math.Min, [ VFloat a; VFloat b ] -> VFloat (float t (least a b))
+  | Cgt.Math.Max, [ VFloat a; VFloat b ] -> VFloat (float t (greatest a b))
+  | _ -> stop ("`@math$" ^ Cgt.Math.name fn ^ "`, which only the running program computes")
+
 (* A scalar converted from [from] to [into], as emit.ml's [convert]. *)
 let convert (from : Ty.t) (into : Ty.t) v =
   match (from, into, v) with
@@ -338,6 +409,11 @@ let rec expr run fr (e : Expr.t) : v =
       let l = expr run fr left in
       let r = expr run fr right in
       binary op left.Expr.ty l r
+  | Expr.Math { fn; args } -> (
+      let args = List.map (expr run fr) args in
+      match Intrinsics.math fn e.Expr.ty with
+      | Intrinsics.Computed | Intrinsics.Output -> math fn e.Expr.ty args
+      | Intrinsics.Input -> stop "an approximate math function, which only the running program has")
   | Expr.Flip value -> flip value.Expr.ty (expr run fr value)
   | Expr.Convert value -> convert value.Expr.ty e.Expr.ty (expr run fr value)
   | Expr.Expand { label; body; result } -> (
@@ -590,6 +666,22 @@ and runtime run (fn : Cgt.Runtime.fn) args =
           at l.items.(Int64.to_int i - 1)
       | VList _ -> stop "an index out of range"
       | _ -> stop "an element of something not a list")
+  (* The element at [index] has moved out: the list closes over its cell. *)
+  | _, ((Cgt.Runtime.List_remove | Cgt.Runtime.List_swap_remove) as fn), [ list; index; _ ] -> (
+      let i = Int64.to_int (int_of index) - 1 in
+      match load (ptr_of list) with
+      | VList l when i >= 0 && i < l.count ->
+          let last = l.count - 1 in
+          if fn = Cgt.Runtime.List_remove then begin
+            bytes run (8 * (last - i));
+            Array.blit l.items (i + 1) l.items i (last - i)
+          end
+          else l.items.(i) <- l.items.(last);
+          l.items.(last) <- cell Ty.Void VNull;
+          l.count <- last;
+          VUnit
+      | VList _ -> stop "an index out of range"
+      | _ -> stop "a removal from something not a list")
   | _, Cgt.Runtime.Array_at, [ array; index; count; _stride ] ->
       let i = int_of index in
       if Int64.compare i 1L < 0 || Int64.compare i (int_of count) > 0 then stop "an index out of range";

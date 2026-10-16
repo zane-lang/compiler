@@ -737,6 +737,52 @@
   (diff golden/lists.out lists.optimized.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/math))
+ (action
+  (with-stdout-to
+   math.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/math))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/math.optimized.cgt math.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/math))
+ (targets math.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build math.exe --package fixtures/math)))
+
+(rule
+ (deps (source_tree fixtures/math))
+ (targets math.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build math.optimized.exe --optimize --package fixtures/math)))
+
+(rule
+ (action
+  (with-stdout-to
+   math.out.actual
+   (run ./math.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/math.out math.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   math.optimized.out.actual
+   (run ./math.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/math.out math.optimized.out.actual)))
+
+(rule
  (deps (source_tree fixtures/operators))
  (targets operators.exe)
  (action
@@ -1089,6 +1135,124 @@
  (alias runtest)
  (action
   (diff golden/regions.out regions.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/removal))
+ (targets removal.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build removal.exe --package fixtures/removal)))
+
+(rule
+ (deps (source_tree fixtures/removal))
+ (targets removal.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build removal.optimized.exe --optimize --package fixtures/removal)))
+
+(rule
+ (action
+  (with-stdout-to
+   removal.out.actual
+   (run ./removal.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removal.out removal.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   removal.optimized.out.actual
+   (run ./removal.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removal.out removal.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/removalFolded))
+ (action
+  (with-stdout-to
+   removalFolded.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/removalFolded))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removalFolded.optimized.cgt removalFolded.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/removalFolded))
+ (targets removalFolded.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build removalFolded.exe --package fixtures/removalFolded)))
+
+(rule
+ (deps (source_tree fixtures/removalFolded))
+ (targets removalFolded.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build removalFolded.optimized.exe --optimize --package fixtures/removalFolded)))
+
+(rule
+ (action
+  (with-stdout-to
+   removalFolded.out.actual
+   (run ./removalFolded.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removalFolded.out removalFolded.out.actual)))
+
+(rule
+ (action
+  (with-stdout-to
+   removalFolded.optimized.out.actual
+   (run ./removalFolded.optimized.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removalFolded.out removalFolded.optimized.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/removeRange))
+ (targets removeRange.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build removeRange.exe --package fixtures/removeRange)))
+
+(rule
+ (deps (source_tree fixtures/removeRange))
+ (targets removeRange.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build removeRange.optimized.exe --optimize --package fixtures/removeRange)))
+
+(rule
+ (action
+  (with-outputs-to
+   removeRange.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./removeRange.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removeRange.out removeRange.out.actual)))
+
+(rule
+ (action
+  (with-outputs-to
+   removeRange.optimized.out.actual
+   (with-accepted-exit-codes
+    1
+    (run ./removeRange.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removeRange.out removeRange.optimized.out.actual)))
 
 (rule
  (deps (source_tree fixtures/replayed))

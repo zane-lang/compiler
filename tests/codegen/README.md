@@ -38,6 +38,16 @@ again, read the golden diff and promote that.
 - `counting` is step 2 of docs/design/lowering.md §8: scalar arithmetic, verbs
   that call verbs, and the fixture's own `if`, `elif`, `else` and `to` expanded
   where they are called. Every check it makes prints `yes` when it holds.
+- `math` is every `@math$` function on each type it takes (math.md §2):
+  shift and rotation counts at and past the width, zero's leading and
+  trailing zeros, `abs` of the most negative integer, `sqrt` below zero,
+  rounding ties and signed zeros, an `fma` that a multiply and an add would
+  round differently, `copySign` with a NaN, and `min` and `max` with a NaN
+  and with both zeros, in a build that folds the exact ones and one that
+  does not. The approximate functions are held to within a tolerance of the
+  true value, since their last digit is the C math library's.
+  `math.optimized.cgt` shows the exact ones folded and the approximate ones
+  left as calls. Every check prints `yes` when it holds.
 - `operators` is the derived operators of operators.md §2.3 on declared
   operators, written over `@operators$`: each gives its value, and a `a b`
   line shows its operands ran in written order however the desugaring passes
@@ -74,6 +84,16 @@ again, read the golden diff and promote that.
   reads of boxed payloads. `Solo`, a struct whose one member is boxed, is a
   single address, so reading one out of a list takes the snapshot's acquire
   load.
+- `removal` removes lists' elements with `remove`, which keeps the order of
+  the rest, and `swapRemove`, which moves the last element in: of scalars,
+  strings, owners and lists, each removed element kept, settled, pushed back
+  or left to die where it was removed, a list emptied and grown again, and a
+  list that is an element, removed from with an index that grows the list
+  holding it, which the call locates only after the index runs. A list made
+  by a call runs before the index, which prints `list index`, and a list of
+  `Unit` only changes its count.
+  `removalFolded` is removals the optimizer runs while folding. `removeRange`
+  removes past a list's end, which stops the program as reading there does.
 - `range` indexes past a list's end: the program stops with status 1 after what
   it wrote so far, and says why on stderr. `rangeZero` does the same with
   index 0, below a list's first element.

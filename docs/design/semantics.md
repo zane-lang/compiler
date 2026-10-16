@@ -180,10 +180,16 @@ else.
    inline generic parameters at their first marked occurrence (`generics.md`
    §3.2, §4.4). Check here:
    - overload identity, including no overloads that differ only by passing mode
-     (`T`, `^T` or `&T`) or by the `mut` of a function-type parameter
+     (`T`, `^T` or `&T`, on a parameter or on its `@concepts$Array`
+     element) or by the `mut` of a function-type parameter
      (`functions.md` §4.1);
    - a reference-typed result or abort type written `^T` or `&T`, never bare,
      and no marker on `this` ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.9);
+   - a marked introduction (`^T Type`, `&T Type`) inside type arguments only
+     as the element of a parameter's own `@concepts$Array`, where it is the
+     mode each literal element is passed in (`generics.md` §8.4); a `^` or `&`
+     element filled with the wrong kind of type is reported at the call, as
+     for any `^T` or `&T`;
    - the operator home-package rule ([`operators.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/operators.md) §2.2);
    - implicit-constructor source and destination kinds, and the orphan rule
      (`types.md` §4.4–§4.5);
@@ -361,6 +367,7 @@ and number = Known of int | Param_num of Param_id.t
 and concept =
   | Integer_lit | Decimal_lit | Text_lit           (* @concepts$Int, Float, String *)
   | Array_lit of t * number                        (* @concepts$Array<T, n> *)
+  | Mixed_lit of t * number                        (* owners of T and &T, undecided *)
   | Map_lit of t * t                               (* @concepts$Map<K, V> *)
   | Block                                          (* @concepts$Block *)
   | Type_concept                                  (* Type *)
@@ -420,7 +427,7 @@ Where the typing rules need care:
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
 | Block argument | Typed `@concepts$Block`: a block yields nothing (control-flow.md §2.4). |
-| Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). |
+| Collection literal | `@concepts$Array<T, n>` when every element has the same concrete type `T`; with a bare literal element it fixes no `T` and cannot drive inference (`generics.md` §5.4). Elements of both `T` and `&T` make a literal that only `&T` elements take, `ArrayRef.refs([p, r])` (`generics.md` §8.4). |
 
 ---
 
@@ -483,7 +490,7 @@ The SST's `TypeMember`, `TypeValue` and `DotAccess` resolve the same way:
 |---|---|
 | `DotAccess` | field read (a slot index); variant member read (abortable, D13); enum-map read |
 | `TypeMember` | enum member; variant case; named constructor |
-| `TypeValue` | a `Type` argument passed to an explicit `Type` parameter (`generics.md` §5.3); written `&Port`, it is the reference type |
+| `TypeValue` | a `Type` argument passed to an explicit `Type` parameter (`generics.md` §5.3) |
 
 An expression that failed to type is an `Invalid` node of type `Ty.Error`
 (D4). A declaration carries what passes 3 and 4 resolved about it, and a verb
@@ -598,8 +605,14 @@ its own boolean type at a coercion site.
 a `core` needs to be written at all: the constructors, none of them implicit,
 that build an `@primitives$String` from an `@concepts$String` and a container
 primitive from its literal, element access on `@primitives$Array` and
-`@primitives$List`, and `push` and `size` on `@primitives$List`. An index, a
-size and a count are each an `@primitives$I64`.
+`@primitives$List`, and `push`, `size`, `remove` and `swapRemove` on
+`@primitives$List`. An index, a size and a count are each an
+`@primitives$I64`. `remove` and `swapRemove` give the element at an index as
+`^T`, which moves it out, and the list closes over its place: `remove` moves
+the later elements down, keeping their order, and `swapRemove` moves the
+last one in. An index outside the list stops the program, as reading there
+does. Where nothing takes the element, it dies there, which is the
+disappearing place of `lifetimes.md` §2.1.
 
 **A `match` arm is where its `return` goes.** `=> expr` is `{ return expr }`
 (`adt.md` §5.1), so a `return` in an arm gives the arm's value, not the verb's.
@@ -731,7 +744,8 @@ only reject more, never let a write through.
 - A case read and what its handler resolves are a place too: the store the
   whole expression feeds decides whether it moves.
 - An `@operators$` function or an intrinsic constructor reads its arguments,
-  and `push` takes its value as `^T`.
+  and `push` takes its value as `^T`. `remove` and `swapRemove` give theirs
+  as `^T`: an element is roaming (`memory.md` §2.8.1), so it moves out.
 - `^T` describes a place, not a value, so no expression's type carries it: a
   `^T` local read, and a call returning `^T`, are values of type `T`. What a
   place holds is read from the local's or the signature's declared type.
