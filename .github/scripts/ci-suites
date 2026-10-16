@@ -69,8 +69,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 			# against: the shared sources, the generator, the generated
 			# editor files, and the compiler parser the backend tests compare.
 			grammar/* | tools/grammar/* | editors/* | tests/highlighting/* | \
-				lib/cst/* | tests/parser/* | \
-				.github/scripts/install-highlighting-consumers)
+				lib/cst/* | tests/parser/*)
 				highlighting=true
 				;;
 		esac
