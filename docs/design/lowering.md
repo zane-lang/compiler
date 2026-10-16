@@ -566,12 +566,23 @@ test passing.
   whose stack is one of a fixed array at the start of the region's mark,
   beside its frontier, its frontier's end and its count of blocks out, so
   emitted code reads each at a fixed offset (below); any other size has a
-  stack found by a search. A list's block doubles from 128 bytes (§3.6): into a returned block
-  of that size, in place when it is last at the frontier, or else into new
-  bytes. It never shrinks: a removal moves the element out of its place and
-  closes the list over it, by moving the later elements down or the last one
-  in, and the list keeps the block until it dies. Where the runtime departs
-  from the spec:
+  stack found by a search. A list's block doubles from 128 bytes (§3.6): up
+  to 1 MiB into a returned block of that size, in place when it is last at
+  the frontier, or else into new bytes. Past 1 MiB it moves once into a span
+  at the start of a reservation of 64 times the span's size, made with no
+  access as a context's range is (below), and each later doubling makes
+  more of it usable instead of moving the elements. Where the system will
+  not reserve that much, as under a cap on the address space, the
+  reservation is the span alone, and a list that outgrows its reservation
+  moves into a fresh one. A push is inline: while the block has room, the
+  emitted code takes the element's address and counts it itself, and only a
+  full block calls `zane_list_push`, which grows it. Together these make
+  `listgrowth` in the spec's `langbench/`, which appends two million
+  entities to a list twenty times, take less than half the time it did, and
+  as much as C's `realloc` does within a few percent. It never shrinks: a
+  removal moves the element out of its place and closes the list over it,
+  by moving the later elements down or the last one in, and the list keeps
+  the block until it dies. Where the runtime departs from the spec:
   - A block is placed where its value is made, which is the innermost
     scope. When the value arrives in a place -- a slot, an overwritten
     place, a list's element -- its blocks stay where they are if their

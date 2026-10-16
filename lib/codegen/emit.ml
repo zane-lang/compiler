@@ -450,6 +450,34 @@ let element env fr b fn args =
   let bytes = Llvm.build_nsw_mul offset stride "" b in
   Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| bytes |] "" b
 
+(* Room for one more element at the end of a list, [stride] bytes wide: the
+   address the element is then moved into. While the list's block has room,
+   the push is made here, so LLVM sees the count and the address the way it
+   sees any arithmetic; only a full block calls the runtime, which grows it
+   and makes the push (§9). *)
+let push env fr b list stride =
+  let header = Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |] in
+  let count_at = Llvm.build_struct_gep header list 1 "" b in
+  let count = Llvm.build_load env.i64 count_at "" b in
+  let room = Llvm.build_load env.i64 (Llvm.build_struct_gep header list 2 "" b) "" b in
+  let next = Llvm.build_nsw_add count (Llvm.const_int env.i64 1) "" b in
+  let full = Llvm.build_icmp Llvm.Icmp.Sgt (Llvm.build_nsw_mul next stride "" b) room "" b in
+  let grow = block env fr and fits = block env fr and pushed = block env fr in
+  unlikely env (Llvm.build_cond_br full grow fits b);
+  Llvm.position_at_end fits b;
+  let items = Llvm.build_load env.ptr (Llvm.build_struct_gep header list 0 "" b) "" b in
+  let at =
+    Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items [| Llvm.build_nsw_mul count stride "" b |] "" b
+  in
+  ignore (Llvm.build_store next count_at b);
+  ignore (Llvm.build_br pushed b);
+  Llvm.position_at_end grow b;
+  let f, fty = runtime env Cgt.Runtime.List_push in
+  let grown = Llvm.build_call fty f [| list; stride |] "" b in
+  ignore (Llvm.build_br pushed b);
+  Llvm.position_at_end pushed b;
+  Llvm.build_phi [ (at, fits); (grown, grow) ] "" b
+
 (* ---------------------------------------------------------------------- *)
 (* Arithmetic                                                             *)
 (* ---------------------------------------------------------------------- *)
@@ -674,6 +702,10 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       if e.Expr.ty = Ty.Void then None else Some v
   | Expr.Runtime { fn = (Cgt.Runtime.List_at | Cgt.Runtime.Array_at) as fn; args } ->
       Some (element env fr b fn (List.filter_map (expr env fr b) args))
+  | Expr.Runtime { fn = Cgt.Runtime.List_push; args } -> (
+      match List.filter_map (expr env fr b) args with
+      | [ list; stride ] -> Some (push env fr b list stride)
+      | _ -> Diagnostic.bug "codegen: a push with the wrong arguments")
   | Expr.Runtime { fn; args } -> (
       let f, fty = runtime env fn in
       let args =

@@ -37,6 +37,24 @@
   (diff golden/blocks.out blocks.out.actual)))
 
 (rule
+ (deps growth.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (targets growth.exe)
+ (action
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o growth.exe growth.c
+   ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)))
+
+(rule
+ (action
+  (with-stdout-to
+   growth.out.actual
+   (run ./growth.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/growth.out growth.out.actual)))
+
+(rule
  (deps numbers.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets numbers.exe)
  (action

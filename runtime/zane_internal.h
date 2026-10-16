@@ -96,10 +96,14 @@ typedef struct zane_stack {
 } zane_stack;
 
 /* A dynamic chunk, or the chunks of one oversized block, begins with this,
-   and its blocks start a cache line in. */
+   and its blocks start a cache line in. `size` bytes of it are usable. A
+   list's oversized block lies at the start of `reserved` bytes of addresses
+   that `raw` begins, so it can grow in place (list.c); any other mapping
+   reserves none. */
 typedef struct zane_mapping {
 	struct zane_mapping *next;
-	size_t size;
+	size_t size, reserved;
+	char *raw;
 } zane_mapping;
 
 typedef struct zane_task zane_task;
@@ -251,6 +255,8 @@ uintptr_t *zane_page(const void *at, int make);
 extern int zane_argc;
 extern char **zane_argv;
 void zane_unmap(zane_mark *region);
+char *zane_alloc_growable(zane_mark *region, int64_t size);
+int zane_extend(zane_mark *region, char *block, int64_t size);
 void zane_give_spares(zane_context *c);
 zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align);
 int64_t zane_blocks(void);
@@ -302,6 +308,9 @@ void zane_end(char *base, const zane_type *type);
 void zane_regions_start(void);
 void zane_thread_start(void);
 void zane_thread_stop(void);
+char *zane_reserve_aligned(size_t bytes, char **raw);
+int zane_commit_range(char *at, size_t bytes);
+void zane_release_addresses(char *raw, char *base, size_t bytes);
 void zane_reserve(zane_context *c, int64_t size);
 _Noreturn void zane_too_deep_in(zane_context *c);
 
