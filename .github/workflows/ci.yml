@@ -91,9 +91,11 @@ jobs:
         if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting != 'true'
         run: devbox run -- just test-grammar-generation
 
-      - name: Install Neovim and Typst
+      - name: Check Devbox-managed Neovim and Typst
         if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting == 'true'
-        run: .github/scripts/install-highlighting-consumers
+        run: |
+          devbox run -- nvim --version
+          devbox run -- typst --version
 
       - name: Grammar generator and highlighting tests
         if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting == 'true'
@@ -121,8 +123,8 @@ jobs:
       - name: Set up toolchain
         uses: ./.github/actions/setup-ci
 
-      - name: Install Zig
-        run: .github/scripts/install-zig
+      - name: Verify Devbox-managed Zig
+        run: devbox run -- zig version
 
       - name: Build the Windows programs
         run: devbox run -- dev/bin/windows-programs windows-programs
