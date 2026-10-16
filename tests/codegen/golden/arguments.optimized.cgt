@@ -80,7 +80,7 @@
     │       │   │   │           │   ├── value > runtime:
     │       │   │   │           │   │   ├── type: handle
     │       │   │   │           │   │   ├── fn: zane_text_join
-    │       │   │   │           │   │   ├── args[0] > snapshot:
+    │       │   │   │           │   │   ├── args[0] > deref:
     │       │   │   │           │   │   │   ├── type: handle
     │       │   │   │           │   │   │   └── ptr > runtime:
     │       │   │   │           │   │   │       ├── type: ptr
@@ -110,7 +110,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arguments$integer(%primitives$String, %primitives$I64)
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -129,7 +129,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arguments$integer(%primitives$String, %primitives$I64)
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -148,7 +148,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arguments$integer(%primitives$String, %primitives$I64)
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -167,7 +167,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arguments$integer(%primitives$String, %primitives$I64)
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -186,7 +186,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arguments$integer(%primitives$String, %primitives$I64)
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -205,7 +205,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arguments$integer(%primitives$String, %primitives$I64)
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -224,7 +224,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arguments$integer(%primitives$String, %primitives$I64)
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -243,7 +243,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arguments$integer(%primitives$String, %primitives$I64)
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -262,7 +262,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arguments$integer(%primitives$String, %primitives$I64)
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -281,7 +281,7 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: arguments$integer(%primitives$String, %primitives$I64)
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -309,7 +309,7 @@
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
-    │       │       │   │       ├── args[0] > snapshot:
+    │       │       │   │       ├── args[0] > deref:
     │       │       │   │       │   ├── type: handle
     │       │       │   │       │   └── ptr > runtime:
     │       │       │   │       │       ├── type: ptr
@@ -350,7 +350,7 @@
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
-    │       │       │   │       ├── args[0] > snapshot:
+    │       │       │   │       ├── args[0] > deref:
     │       │       │   │       │   ├── type: handle
     │       │       │   │       │   └── ptr > runtime:
     │       │       │   │       │       ├── type: ptr
@@ -391,7 +391,7 @@
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
-    │       │       │   │       ├── args[0] > snapshot:
+    │       │       │   │       ├── args[0] > deref:
     │       │       │   │       │   ├── type: handle
     │       │       │   │       │   └── ptr > runtime:
     │       │       │   │       │       ├── type: ptr
@@ -432,7 +432,7 @@
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
-    │       │       │   │       ├── args[0] > snapshot:
+    │       │       │   │       ├── args[0] > deref:
     │       │       │   │       │   ├── type: handle
     │       │       │   │       │   └── ptr > runtime:
     │       │       │   │       │       ├── type: ptr
@@ -473,7 +473,7 @@
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
-    │       │       │   │       ├── args[0] > snapshot:
+    │       │       │   │       ├── args[0] > deref:
     │       │       │   │       │   ├── type: handle
     │       │       │   │       │   └── ptr > runtime:
     │       │       │   │       │       ├── type: ptr
@@ -514,7 +514,7 @@
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
-    │       │       │   │       ├── args[0] > snapshot:
+    │       │       │   │       ├── args[0] > deref:
     │       │       │   │       │   ├── type: handle
     │       │       │   │       │   └── ptr > runtime:
     │       │       │   │       │       ├── type: ptr

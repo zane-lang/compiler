@@ -1,0 +1,14 @@
+/// A program that spawns nothing itself, but calls a library that does.
+package relay;
+
+import cells$;
+import pool$;
+
+Unit main() {
+	args List<String> = @program$runtime:arguments();
+	n Int = doubled(args[Int(1)]:parseI64() ?? Int(0));
+	grid Grid();
+	grid!fill(n);
+	@program$console!print(@operators$concat(String(grid!sweep()), String("\n")));
+	return Unit();
+}

@@ -13,7 +13,8 @@ void zane_out_of_range(void) {
 	exit(1);
 }
 
-/* `@primitives$List(T)`: empty, owning no block. */
+/* `@primitives$List(T)`: empty, owning no block. Emitted code makes the
+   same empty handle itself (docs/design/lowering.md §9). */
 void zane_list_new(zane_list *out) { *out = (zane_list){ NULL, 0, 0 }; }
 
 /* The list's block made at least `needed` bytes. A full list's block
@@ -84,7 +85,8 @@ void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
 /* The list closes over the element at `index`, counted from 1, which the
    caller has already moved out: the later elements move down one place,
    keeping their order, and the list keeps its block. Nothing references an
-   element, so moving their bytes moves them. */
+   element, so moving their bytes moves them. Emitted code makes the same
+   removal itself, with the stride a constant (docs/design/lowering.md §9). */
 void zane_list_remove(zane_list *list, int64_t index, int64_t stride) {
 	char *at = list->items + (index - 1) * stride;
 	memmove(at, at + stride, (size_t)((list->count - index) * stride));

@@ -90,9 +90,9 @@ module Ty = struct
     | Array (t, n) -> Printf.sprintf "[%d x %s]" n (to_string t)
 end
 
-(* What a scalar conversion means (types.md §2.9), which codegen emits and
-   the optimizer folds, so the two cannot disagree. A float is held as a
-   double either way; an [F32] is one that [single] has rounded. *)
+(* What a scalar conversion means (types.md §2.9), which the optimizer
+   folds and codegen's `llvm.fptosi.sat` gives for a truncation. A float is
+   held as a double either way; an [F32] is one that [single] has rounded. *)
 module Scalar = struct
   let single f = Int32.float_of_bits (Int32.bits_of_float f)
 

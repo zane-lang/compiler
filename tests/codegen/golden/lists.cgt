@@ -124,7 +124,7 @@
     │       │       ├── left > binary:
     │       │       │   ├── type: i64
     │       │       │   ├── op: +
-    │       │       │   ├── left > snapshot:
+    │       │       │   ├── left > deref:
     │       │       │   │   ├── type: i64
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -132,7 +132,7 @@
     │       │       │   │       ├── args[0]: address of #1 : ptr
     │       │       │   │       ├── args[1]: 1 : i64
     │       │       │   │       └── args[2]: 8 : i64
-    │       │       │   └── right > snapshot:
+    │       │       │   └── right > deref:
     │       │       │       ├── type: i64
     │       │       │       └── ptr > runtime:
     │       │       │           ├── type: ptr
@@ -235,7 +235,7 @@
     │       │       │   │   │   ├── value > runtime:
     │       │       │   │   │   │   ├── type: handle
     │       │       │   │   │   │   ├── fn: zane_text_join
-    │       │       │   │   │   │   ├── args[0] > snapshot:
+    │       │       │   │   │   │   ├── args[0] > deref:
     │       │       │   │   │   │   │   ├── type: handle
     │       │       │   │   │   │   │   └── ptr > runtime:
     │       │       │   │   │   │   │       ├── type: ptr
@@ -243,7 +243,7 @@
     │       │       │   │   │   │   │       ├── args[0]: address of #13 : ptr
     │       │       │   │   │   │   │       ├── args[1]: 1 : i64
     │       │       │   │   │   │   │       └── args[2]: 24 : i64
-    │       │       │   │   │   │   └── args[1] > snapshot:
+    │       │       │   │   │   │   └── args[1] > deref:
     │       │       │   │   │   │       ├── type: handle
     │       │       │   │   │   │       └── ptr > runtime:
     │       │       │   │   │   │           ├── type: ptr
@@ -292,7 +292,7 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -412,7 +412,7 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
     │       │       │   │       ├── within: {handle, i64}
@@ -442,7 +442,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {handle, i64}
@@ -482,7 +482,7 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
     │       │       │   │       ├── within: {handle, i64}
@@ -631,7 +631,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > runtime:
     │       │       │       ├── type: ptr
@@ -672,7 +672,7 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > expand:
     │       │       │   │       ├── type: ptr
@@ -805,7 +805,7 @@
     │   │   │   │           ├── type: i64
     │   │   │   │           ├── op: +
     │   │   │   │           ├── left: local #2 : i64
-    │   │   │   │           └── right > snapshot:
+    │   │   │   │           └── right > deref:
     │   │   │   │               ├── type: i64
     │   │   │   │               └── ptr > runtime:
     │   │   │   │                   ├── type: ptr

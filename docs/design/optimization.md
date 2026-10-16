@@ -1,8 +1,9 @@
 # Optimization: folding at compile time
 
 > **Status: built.** Stage 5 runs one pass, compile-time evaluation, which
-> follows this design. Each decision is numbered (**O1**…). §4 says how it
-> follows the spec's rule, and §6 what is left to measurement.
+> follows this design, and leaves to LLVM what LLVM does (O11). Each
+> decision is numbered (**O1**…). §4 says how it follows the spec's rule,
+> and §6 what is left to measurement.
 
 Stage 5 rewrites the CGT into a faster CGT ([`stages.md`](stages.md)). Its
 pass evaluates, while the compiler runs, everything the program would compute
@@ -52,6 +53,30 @@ call left after optimization links against the dependency's original object.
 Unoptimized builds retain declarations alone and skip this additional
 lowering. Generic instances and package constants keep their existing shared
 linkage. No new artifact, linker option or package flag is required.
+
+**O11. Stage 5 does what LLVM cannot, and LLVM does the rest.** LLVM's
+`-O2` pipeline already folds constants, removes dead code, merges common
+subexpressions, hoists what a loop does not change, unrolls, vectorizes and
+inlines, and does each better for every target than a second pass here
+would. So the compiler implements an optimization itself only when it rests
+on something about Zane that LLVM does not know, and otherwise tells LLVM
+what it knows and leaves the transformation to it
+([`lowering.md`](lowering.md) §9, "What LLVM is told"). Where each piece of
+work stands:
+
+| Work | Where it is done, and why |
+|---|---|
+| Folding constants, choosing a known branch, dropping a loop that never runs (`fold.ml`) | Here as well as in LLVM: the evaluator needs these folds' results as its inputs, so they stay while it does |
+| Running calls, lists, strings, boxes, runs of statements, output and spawned calls (`eval.ml`) | Here: LLVM cannot run the runtime's functions, and does not know O4's replay of output. Measured on the fixtures, LLVM alone leaves the list constructors, spawns and snapshots in `folding`, `runs` and `removalFolded` that stage 5 removes |
+| Package constants (O9) | Here: a constant is made once, under the runtime's lock, and an unoptimized dependency shares its object, so it is not an immutable global LLVM could fold |
+| Inlining | LLVM, which sees a dependency's bodies through O10; nothing here chooses what to inline |
+| Writing out block-taking verbs, generic instances, lambdas and spawn thunks | Lowering: a verb that takes a block has no function of its own to inline (L11) |
+| Copies, scopes and results in the caller's region (`lib/cgt/regions.ml`) | Lowering: each rests on ownership and regions, which LLVM does not see |
+| Each type's walks, frames and allocation fast paths | Codegen, which emits them as plain IR for LLVM to simplify further |
+| Bounds checks, a list's count and block, a push | Codegen emits them as plain arithmetic and branches, tagged so LLVM can keep the header across element writes; LLVM drops the checks it proves redundant |
+| A truncation, exact math | LLVM intrinsics (`llvm.fptosi.sat`, `llvm.sqrt`, …), which mean exactly what the spec says |
+| Division | Codegen's guards around `sdiv`, which by itself does not give `operators.md` §2.6's results |
+| Large aggregates (`lib/codegen/big_moves.ml`) | Codegen, since LLVM's code generator cannot move one at all, at either optimization level |
 
 ---
 
@@ -306,6 +331,12 @@ optimized build makes, for the fixtures that show folding:
 - `math` folds every exact math function at its edges, and keeps the
   approximate ones and an `F32` `fma` as calls;
 - `constants`, `counting` and `zero` show their optimized trees.
+
+`tests/objects/facts_test.py` checks what codegen tells LLVM, and what
+LLVM makes of it in an optimized build: no snapshot in a program that
+spawns nothing and every snapshot where something may write back, the
+runtime's small list operations in line, and a loop over a list's elements,
+each written and read again, with no index check left in it.
 
 `tests/unit/` checks the evaluator's arithmetic against codegen's, its math
 functions, the intrinsic classes, a value written as code and read back, calls, outputs,

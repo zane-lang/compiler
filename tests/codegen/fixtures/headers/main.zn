@@ -1,0 +1,144 @@
+/// A list's header and the elements it holds are separate storage, which
+/// codegen tells LLVM, so the header is read once where it can be. Each
+/// check here writes an element, or what an element owns, between two reads
+/// that need the header's current count or block: of scalars, of a struct,
+/// of lists in a list, and of a type that holds a list beside a scalar.
+/// The sizes come from the program's argument, so an optimized build leaves
+/// the loops for the program to run. Each check prints `yes` when it holds
+/// and `no` when it does not.
+package headers;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+alias Row = @primitives$List<Int>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+type Pair = struct {
+	count Int;
+	weight Float;
+}
+
+Pair(count Int, weight Float) => init{ count; weight; }
+
+/// A list beside a scalar, in one owner.
+type Bag = #struct {
+	items List<Int>;
+	total Int;
+}
+
+Bag() => init{ items = @primitives$List(Int); total = Int(0); }
+
+/// Pushes `value` and adds it to the total.
+Unit add(this Bag, value Int) mut {
+	this.items!push(value);
+	this.total = @operators$add(this.total, value);
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	args List<String> = @program$runtime:arguments();
+	n Int = args[Int(1)]:parseI64() ?? Int(0);
+	check(@operators$equal(n, Int(6)));
+
+	// A field written, then the same element read through the header again;
+	// each element's count is its index once the loop is done.
+	pairs List<Pair> = @primitives$List(Pair);
+	i Int(1);
+	i!to(n) {
+		pairs!push(Pair(Int(0), Float(0.5)));
+	}
+	k Int(1);
+	k!to(pairs:size()) {
+		pairs[k].count = k;
+		pairs[k].weight = @operators$add(pairs[k].weight, Float(1.0));
+		pairs[k].count = @operators$add(pairs[k].count, pairs:size());
+	}
+	check(@operators$equal(pairs[Int(1)].count, @operators$add(Int(1), n)));
+	check(@operators$equal(pairs[n].count, @operators$add(n, n)));
+	check(@operators$equal(pairs[n].weight, Float(1.5)));
+
+	// A push between two reads of one element grows the list, which moves
+	// its elements into a new block: the second read finds the element there.
+	m Int(1);
+	m!to(Int(100)) {
+		before Int = pairs[Int(1)].count;
+		pairs!push(Pair(m, Float(0.0)));
+		check(@operators$equal(pairs[Int(1)].count, before));
+	}
+	check(@operators$equal(pairs:size(), @operators$add(n, Int(100))));
+	check(@operators$equal(pairs[pairs:size()].count, Int(100)));
+
+	// A swapping removal between two writes of the same index: the second
+	// writes the element that moved into the place, and one at the end
+	// moves nothing.
+	pairs[Int(2)].count = Int(0);
+	pairs!swapRemove(Int(2));
+	pairs[Int(2)].count = @operators$add(pairs[Int(2)].count, Int(1));
+	check(@operators$equal(pairs[Int(2)].count, Int(101)));
+	last Pair = pairs!swapRemove(pairs:size());
+	check(@operators$equal(last.count, Int(99)));
+	check(@operators$equal(pairs:size(), @operators$add(n, Int(98))));
+	pairs!remove(Int(1));
+	check(@operators$equal(pairs[Int(1)].count, Int(101)));
+
+	// Lists in a list: an inner list's header lives in the outer list's
+	// block, so a push to an element changes what an element read gives,
+	// and leaves the outer count as it was.
+	rows List<Row> = @primitives$List(Row);
+	r Int(1);
+	r!to(n) {
+		rows!push(@primitives$List(Int));
+	}
+	s Int(1);
+	s!to(rows:size()) {
+		j Int(1);
+		j!to(s) {
+			rows[s]!push(j);
+		}
+		rows[s][Int(1)] = @operators$add(rows[s][Int(1)], rows[s]:size());
+	}
+	check(@operators$equal(rows:size(), n));
+	check(@operators$equal(rows[n]:size(), n));
+	check(@operators$equal(rows[n][Int(1)], @operators$add(Int(1), n)));
+	rows[n]!swapRemove(Int(1));
+	check(@operators$equal(rows[n][Int(1)], n));
+	check(@operators$equal(rows[n]:size(), @operators$add(n, @operators$negate(Int(1)))));
+	check(@operators$equal(rows:size(), n));
+
+	// A list beside a scalar in one owner: writing the scalar leaves the
+	// list's count, and pushing leaves the scalar.
+	bag Bag();
+	t Int(1);
+	t!to(n) {
+		bag!add(t);
+		check(@operators$equal(bag.items:size(), t));
+	}
+	check(@operators$equal(bag.total, Int(21)));
+	check(@operators$equal(bag.items[n], n));
+	return Unit();
+}

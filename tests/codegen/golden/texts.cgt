@@ -273,7 +273,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > copy:
     │       │   │   ├── type: handle
-    │       │   │   ├── value > snapshot:
+    │       │   │   ├── value > deref:
     │       │   │   │   ├── type: handle
     │       │   │   │   └── ptr > offset:
     │       │   │   │       ├── within: {handle}
@@ -819,7 +819,7 @@
     │           │   │   └── body[1] > assign:
     │           │   │       ├── place: #4
     │           │   │       └── value: local #2 : handle
-    │           │   └── args[1] > snapshot:
+    │           │   └── args[1] > deref:
     │           │       ├── type: handle
     │           │       └── ptr > offset:
     │           │           ├── within: {handle}

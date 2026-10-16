@@ -225,7 +225,7 @@
     │       │       ├── left > binary:
     │       │       │   ├── type: i64
     │       │       │   ├── op: +
-    │       │       │   ├── left > snapshot:
+    │       │       │   ├── left > deref:
     │       │       │   │   ├── type: i64
     │       │       │   │   └── ptr > runtime:
     │       │       │   │       ├── type: ptr
@@ -243,7 +243,7 @@
     │       │       │   └── right > call:
     │       │       │       ├── type: i64
     │       │       │       ├── fn: arrays$at(this arrays$Grid, %primitives$I64)
-    │       │       │       ├── args[0] > snapshot:
+    │       │       │       ├── args[0] > deref:
     │       │       │       │   ├── type: {[4 x i64], i64}
     │       │       │       │   └── ptr > offset:
     │       │       │       │       ├── within: {{[4 x i64], i64}}

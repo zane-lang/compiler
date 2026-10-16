@@ -363,7 +363,7 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
     │       │       │   │       ├── within: {handle, ptr}
@@ -434,7 +434,7 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
     │       │       │   │       ├── within: {handle, ptr}
@@ -596,7 +596,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, ptr}
@@ -655,7 +655,7 @@
     │       │   ├── scope: %2
     │       │   ├── value > copy:
     │       │   │   ├── type: {ptr}
-    │       │   │   ├── value > snapshot:
+    │       │   │   ├── value > deref:
     │       │   │   │   ├── type: {ptr}
     │       │   │   │   └── ptr > runtime:
     │       │   │   │       ├── type: ptr

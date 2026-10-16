@@ -94,6 +94,14 @@ again, read the golden diff and promote that.
   `Unit` only changes its count.
   `removalFolded` is removals the optimizer runs while folding. `removeRange`
   removes past a list's end, which stops the program as reading there does.
+- `headers` writes list elements, and what they own, between reads that need
+  the list's current count or block: a field written and read again through
+  the list, a push that grows the list between two reads of one element, a
+  `swapRemove` between two writes at one index, lists in a list whose
+  elements are pushed to, and a type holding a list beside a scalar. Its
+  sizes come from the `arguments` file, so the optimized build leaves the
+  loops for LLVM, which is told a list's header is not an element
+  (docs/design/lowering.md §9). Every check prints `yes` when it holds.
 - `range` indexes past a list's end: the program stops with status 1 after what
   it wrote so far, and says why on stderr. `rangeZero` does the same with
   index 0, below a list's first element.

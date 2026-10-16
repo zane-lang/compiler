@@ -563,12 +563,15 @@ and value_of st ctx (e : T.Expr.t) =
   else read st ctx e
 
 (* A value read out of its place. One reached through an owner is read as a
-   snapshot (concurrency.md §4.4). *)
+   snapshot (concurrency.md §4.4), or read where it is when no spawned call
+   can write it back meanwhile. *)
 and read st ctx (e : T.Expr.t) =
   let span = e.T.Expr.span in
   if through_owner st e && not (reference st e.T.Expr.ty) then
     match addr st ctx span e with
-    | Some p -> { Expr.node = Expr.Snapshot p; ty = ty st span e.T.Expr.ty }
+    | Some p ->
+        let node = if st.exclusive then Expr.Deref p else Expr.Snapshot p in
+        { Expr.node; ty = ty st span e.T.Expr.ty }
     | None -> expr st ctx e
   else expr st ctx e
 

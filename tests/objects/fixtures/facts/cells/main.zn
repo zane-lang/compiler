@@ -1,0 +1,60 @@
+/// A list of cells in an owner, each written and read again through it.
+/// Spawns nothing.
+package cells;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+type Cell = struct {
+	hits Int;
+	heat Float;
+}
+
+Cell(hits Int, heat Float) => init{ hits; heat; }
+
+type Grid = #struct {
+	cells List<Cell>;
+}
+
+Grid() => init{ cells = @primitives$List(Cell); }
+
+Unit fill(this Grid, n Int) mut {
+	i Int(1);
+	i!to(n) {
+		this.cells!push(Cell(i, Float(0.5)));
+	}
+	return Unit();
+}
+
+/// Bumps every cell and gives the sum of their hits, each cell's read again
+/// after its write.
+Int sweep(this Grid) mut {
+	total Int(0);
+	k Int(1);
+	k!to(this.cells:size()) {
+		this.cells[k].hits = @operators$add(this.cells[k].hits, Int(1));
+		this.cells[k].heat = @operators$add(this.cells[k].heat, this.cells[k].heat);
+		total = @operators$add(total, this.cells[k].hits);
+	}
+	return total;
+}
+
+/// The first cell's heat, truncated, and the first cell taken out.
+Int drop(this Grid) mut {
+	heat Int = Int.truncate(this.cells[Int(1)].heat);
+	this.cells!swapRemove(Int(1));
+	return heat;
+}

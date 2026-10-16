@@ -161,7 +161,7 @@
                     ├── type: i64
                     ├── op: +
                     ├── left: local #21 : i64
-                    └── right > snapshot:
+                    └── right > deref:
                         ├── type: i64
                         └── ptr > runtime:
                             ├── type: ptr

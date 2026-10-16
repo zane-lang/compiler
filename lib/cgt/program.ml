@@ -181,6 +181,39 @@ let library_roots st (root : T.Package.t) =
       | _ -> ())
     root.T.Package.decls
 
+(* Whether any code of the program can spawn: a spawn, anywhere in any
+   package of the build, a stamped dependency's included, since its objects
+   are built from the source checked here (docs/design/separate-compilation.md
+   C2). A spawn read where it is written runs at once, but counts too. *)
+let spawns (p : T.Program.t) =
+  let rec block (b : T.Block.t) = List.exists stat b.T.Block.stats
+  and stat (s : T.Stat.t) =
+    match s.T.Stat.node with
+    | T.Stat.Spawn _ -> true
+    | _ -> List.exists expr (Tst.Exits.stat_exprs s)
+  and expr (e : T.Expr.t) =
+    match e.T.Expr.node with
+    | T.Expr.Spawn _ -> true
+    | _ ->
+        List.exists
+          (function
+            | Tst.Exits.Same x -> expr x
+            | Tst.Exits.Arm b | Tst.Exits.Handler b | Tst.Exits.Block b | Tst.Exits.Lambda b ->
+                block b)
+          (Tst.Exits.parts e)
+  in
+  let decl (d : T.Decl.t) =
+    match d.T.Decl.node with
+    | T.Decl.Verb { body = T.Decl.Checked { body; _ }; _ } -> block body
+    | T.Decl.Subscript { value = Some e; _ } | T.Decl.Constant { value = e; _ } -> expr e
+    | T.Decl.Enum_map { entries; _ } -> List.exists (fun (_, e) -> expr e) entries
+    | _ -> false
+  in
+  List.exists (fun (pkg : T.Package.t) -> List.exists decl pkg.T.Package.decls) p.T.Program.packages
+  || List.exists (fun (i : T.Instance.t) -> block i.T.Instance.body) p.T.Program.instances
+  || List.exists (fun (d : T.Defaults.t) -> List.exists (fun (_, e) -> expr e) d.T.Defaults.values)
+       p.T.Program.defaults
+
 (* A program lowers from its root package's `main`; a [library] from every
    function its own packages declare, into an object with no entry.
 
@@ -204,7 +237,11 @@ let program ?(library = false) ?(import_bodies = false) (p : T.Program.t) =
   let exports p = library && own p in
   let stamp p = if library && own p && root = "" then "!" else "" in
   let stamped p = (not (own p)) && stamp_of p <> "" in
-  let st = create ~import_bodies ~library ~exports ~stamp ~stamped in
+  (* A program none of whose code spawns runs on one thread, so nothing
+     writes back while it reads (lowering.md §9). A library's code may run
+     in a program that spawns. *)
+  let exclusive = (not library) && not (spawns p) in
+  let st = create ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };

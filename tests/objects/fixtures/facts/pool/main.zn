@@ -1,0 +1,9 @@
+/// A library that spawns.
+package pool;
+
+@primitives$I64 twice(n @primitives$I64) => @operators$add(n, n)
+
+@primitives$I64 doubled(n @primitives$I64) {
+	m @primitives$I64 = spawn twice(n);
+	return m;
+}

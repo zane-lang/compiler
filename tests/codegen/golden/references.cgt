@@ -46,7 +46,7 @@
     │       │       │   │   ├── type: i64
     │       │       │   │   ├── fn: references$age(&references$Person)
     │       │       │   │   └── args[0]: address of #1 : ptr
-    │       │       │   └── right > snapshot:
+    │       │       │   └── right > deref:
     │       │       │       ├── type: i64
     │       │       │       └── ptr > offset:
     │       │       │           ├── within: {i64}
@@ -69,7 +69,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -97,7 +97,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
@@ -159,7 +159,7 @@
     │       │           │       └── value: local #9 : <i64 | ptr | void>
     │       │           ├── cases[1] > case 1[1] > assign:
     │       │           │   ├── place: #8
-    │       │           │   └── value > snapshot:
+    │       │           │   └── value > deref:
     │       │           │       ├── type: i64
     │       │           │       └── ptr > offset:
     │       │           │           ├── within: {i64}
@@ -197,7 +197,7 @@
     │   ├── symbol: references$age(&references$Person)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > snapshot:
+    │   └── body[0] > return > deref:
     │       ├── type: i64
     │       └── ptr > offset:
     │           ├── within: {i64}
@@ -249,7 +249,7 @@
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > snapshot:
+    │   └── body[0] > return > deref:
     │       ├── type: i64
     │       └── ptr > offset:
     │           ├── within: {i64}

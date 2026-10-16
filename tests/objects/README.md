@@ -72,3 +72,14 @@ definitions in the caller's object, then compares optimized and unoptimized
 program output while linking the same unoptimized dependency. It also runs
 `survey` optimized and builds the two-version, transitive `versions` graph
 with optimization enabled.
+
+`facts_test.py` checks what codegen tells LLVM (docs/design/lowering.md §9,
+"What LLVM is told"). Its `facts` fixtures are `cells`, a library whose
+verbs write list elements through an owner and read them again; `quiet`, a
+program over it that spawns nothing; `busy`, the same with one spawned
+call; `pool`, a library that spawns; and `relay`, a program that spawns
+nothing itself and calls `pool` as a stamped dependency. Only `quiet` reads
+without snapshots: `busy`, `relay` and `cells` built as a library keep them.
+It also checks that the runtime's small list operations are made in line, and
+that in `quiet`'s optimized build LLVM leaves no index check in `sweep`'s
+loop, then runs each program, optimized and not.
