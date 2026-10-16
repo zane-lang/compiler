@@ -7,7 +7,7 @@ import re
 import shutil
 import subprocess
 
-VERSION = '0.25.10'
+VERSION = '0.27.1'
 ABI = 15
 
 
@@ -43,12 +43,12 @@ def discover(render, config, directory, cli, limit=128):
     for attempt in range(limit + 1):
         grammar = render(groups)
         (directory / 'grammar.js').write_text(grammar)
-        result = subprocess.run([cli, 'generate', '--json', '--abi', str(ABI)], cwd=directory,
+        result = subprocess.run([cli, 'generate', '--json-summary', '--abi', str(ABI)], cwd=directory,
                                 capture_output=True, text=True, timeout=120)
         if not result.returncode:
             return grammar, {'generator': f'tree-sitter {VERSION}', 'abi': ABI, 'conflicts': evidence}
         try:
-            conflict = json.loads(result.stderr)['BuildTables']['Conflict']
+            conflict = json.loads(result.stderr)['error']['BuildTables']['Conflict']
             resolutions = [r['AddConflict']['symbols'] for r in conflict['possible_resolutions'] if 'AddConflict' in r]
             if len(resolutions) != 1:
                 raise ValueError('expected exactly one AddConflict recommendation')

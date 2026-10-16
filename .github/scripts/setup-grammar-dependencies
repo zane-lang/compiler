@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Run once inside Devbox; the same command is usable locally and in CI.
+set -euo pipefail
+npm ci --prefix editors/tree-sitter-zane
+python3 -m venv .grammar-venv
+.grammar-venv/bin/python -m pip install -r tests/highlighting/requirements.txt

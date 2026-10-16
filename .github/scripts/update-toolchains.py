@@ -8,19 +8,23 @@ from urllib.request import Request, urlopen
 
 
 def fetch(url):
+    """Read upstream JSON, authenticating only requests to the GitHub API."""
     headers = {"User-Agent": "zane-toolchain-updater"}
-    if url.startswith("https://api.github.com/") and os.environ.get("GH_TOKEN"):
-        headers["Authorization"] = "Bearer " + os.environ["GH_TOKEN"]
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if url.startswith("https://api.github.com/") and token:
+        headers["Authorization"] = "Bearer " + token
     with urlopen(Request(url, headers=headers), timeout=60) as response:
         return json.load(response)
 
 
 def stable_latest(versions):
+    """Select the newest numeric release and ignore prerelease names."""
     return max((v for v in versions if re.fullmatch(r"[0-9]+(?:\.[0-9]+)*", v)),
                key=lambda v: tuple(map(int, v.split("."))))
 
 
 def main():
+    """Refresh stable release pins for the scheduled update pull request."""
     root = Path(__file__).resolve().parents[2]
     bootstrap = root / "dev/setup/bootstrap-toolchain"
     content = bootstrap.read_text()

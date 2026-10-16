@@ -56,7 +56,5 @@ runs:
       if: inputs.grammar-dependencies == 'true'
       shell: bash
       run: |
-        devbox run -- npm ci --prefix editors/tree-sitter-zane
-        devbox run -- python3 -m venv .grammar-venv
-        devbox run -- .grammar-venv/bin/python -m pip install -r tests/highlighting/requirements.txt
+        devbox run -- .github/scripts/setup-grammar-dependencies
         echo "GRAMMAR_PYTHON=$PWD/.grammar-venv/bin/python" >> "$GITHUB_ENV"
