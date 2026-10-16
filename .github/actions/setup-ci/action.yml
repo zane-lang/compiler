@@ -29,6 +29,15 @@ runs:
       with:
         enable-cache: true
 
+    # Temporary capture to commit the resolved, reproducible toolchain.
+    - name: Capture resolved Devbox lock for review
+      shell: bash
+      run: |
+        echo 'DEVBOX_LOCK_B64_BEGIN'
+        base64 -w0 devbox.lock
+        echo
+        echo 'DEVBOX_LOCK_B64_END'
+
     - name: Sanity check
       shell: bash
       run: devbox list
