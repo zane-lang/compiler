@@ -43,7 +43,8 @@ the address it took at 1 MiB, every chunk it grew into is listed as its
 scope's, and none is once the scope drains. A copy's oversized block has
 no reservation, so its first doubling moves it and the next does not. On
 Linux a child process capped below what a reservation needs checks that
-the list still grows, by moving, and returns every block.
+the list still grows, by moving, and returns every block; AddressSanitizer
+builds skip that child, as they skip `scalar_lists.c`'s budget.
 
 `numbers.c` holds `zane_parse_i64` and `zane_parse_f64` to the cases
 `tests/unit/` holds the compile-time evaluator's reads to, so a number reads

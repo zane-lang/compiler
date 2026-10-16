@@ -7,7 +7,17 @@
 
 #include "walks.h"
 
-#ifdef __linux__
+/* ASan reserves shadow address space, so a cap on addresses would fail its
+   mappings rather than the reservation; keep the other checks without it. */
+#if defined(__SANITIZE_ADDRESS__)
+#define ZANE_TEST_ASAN 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define ZANE_TEST_ASAN 1
+#endif
+#endif
+
+#if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 #include <sys/resource.h>
 #include <sys/wait.h>
 #endif
@@ -68,7 +78,7 @@ static void exercise_copy(void) {
 	check(zane_blocks() == 0);
 }
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 /* With too few addresses for a reservation, the block still grows, by
    moving. The child's limit leaves room for the main context's range and
    for the lists, not for a reservation 64 times a block. */
@@ -98,7 +108,7 @@ static int without_reservation(void) {
 void zane_main(void) {
 	exercise_in_place();
 	exercise_copy();
-#ifdef __linux__
+#if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 	check(without_reservation());
 #else
 	check(1);
