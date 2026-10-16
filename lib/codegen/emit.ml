@@ -1058,7 +1058,9 @@ let func env (f : Func.t) =
    link against keeps its symbol in theirs too, and one a stamped
    dependency's objects define is only declared, or has an
    [available_externally] body that LLVM can inline but never emits
-   (docs/design/separate-compilation.md); the rest are local to this one. *)
+   (docs/design/separate-compilation.md); the rest are local to this one.
+   The module is for [triple] from the start, so each access is emitted
+   with the alignment [data_layout] gives its type. *)
 (* The size of the range each context reserves for its frames, the main
    context's and each spawned call's, when the root manifest gives none
    (memory.md §3.1, dependencies.md §2.1). *)
@@ -1066,9 +1068,11 @@ let default_fixed_region = 256 lsl 20
 let default_spawned_fixed_region = 8 lsl 20
 
 let program ?(fixed_region = default_fixed_region) ?(spawned_fixed_region = default_spawned_fixed_region)
-    (p : Program.t) =
+    ~triple ~data_layout (p : Program.t) =
   let ctx = Llvm.create_context () in
   let m = Llvm.create_module ctx "zane" in
+  Llvm.set_target_triple triple m;
+  Llvm.set_data_layout data_layout m;
   let env =
     {
       ctx;

@@ -52,6 +52,16 @@ class FactsTests(unittest.TestCase):
         self.assertRegex(ir, r'!\{!"zane handle", ![0-9]+, i64 0\}')
         self.assertRegex(ir, r'!\{!"zane scalar", ![0-9]+, i64 0\}')
 
+    def test_accesses_take_the_target_alignment(self):
+        # The module has its target's data layout as it is emitted, so an
+        # Int is read and written at the 8 bytes it is aligned to there.
+        for target in [[], ["--target", "aarch64-apple-macos"]]:
+            ir = run(ZANEC, "--ll", *target, *packages("quiet", "cells"))
+            accesses = re.findall(r"(?:load|store) i64[^\n]*", ir)
+            self.assertTrue(accesses, target)
+            for access in accesses:
+                self.assertIn("align 8", access, target)
+
     def test_discarded_removal_holds_nothing(self):
         # The cell `drop` takes out owns no block, so no scope holds it.
         cgt = run(ZANEC, "--cgt", "--kind", "library", *packages("cells"))

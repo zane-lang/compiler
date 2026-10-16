@@ -111,17 +111,19 @@ let built = function Ok v -> Ok v | Error message -> fail [ Diagnostic.about_inv
 type regions = { fixed : int option; spawned : int option }
 
 let no_regions = { fixed = None; spawned = None }
-let emit regions cgt = Codegen.emit ?fixed_region:regions.fixed ?spawned_fixed_region:regions.spawned cgt
+let emit ?target regions cgt =
+  Codegen.emit ?target ?fixed_region:regions.fixed ?spawned_fixed_region:regions.spawned cgt
 
 let ir ?target ?(regions = no_regions) ~optimize cgt =
-  let m = emit regions cgt in
-  built (Result.map (fun () -> Codegen.ir m) (Codegen.prepare ?target ~optimize m))
+  built
+    (Result.bind (emit ?target regions cgt) (fun m ->
+         Result.map (fun () -> Codegen.ir m) (Codegen.prepare ?target ~optimize m)))
 
 let executable ?target ?(regions = no_regions) ~optimize ~link cgt output =
-  built (Codegen.executable ?target ~optimize ~link (emit regions cgt) output)
+  built (Result.bind (emit ?target regions cgt) (fun m -> Codegen.executable ?target ~optimize ~link m output))
 
 let object_file ?target ?(regions = no_regions) ~optimize cgt output =
-  built (Codegen.object_file ?target ~optimize (emit regions cgt) output)
+  built (Result.bind (emit ?target regions cgt) (fun m -> Codegen.object_file ?target ~optimize m output))
 
 (* A library is checked and built into an object, never into an
    executable. *)

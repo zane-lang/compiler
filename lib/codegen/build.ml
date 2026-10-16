@@ -78,17 +78,16 @@ let probe_stack triple m =
       m
   end
 
-(* The module made ready for *target*: its triple and data layout set and,
-   when *optimize*, LLVM's standard `-O2` pipeline run over it. Without it no
-   pass runs, which is what makes an unoptimized build fast. A program means
-   the same either way (docs/design/lowering.md §7). *)
+(* The module emitted for *target* made ready to be written: its shared
+   functions in COMDATs, its stack probed and, when *optimize*, LLVM's
+   standard `-O2` pipeline run over it. Without it no pass runs, which is
+   what makes an unoptimized build fast. A program means the same either way
+   (docs/design/lowering.md §7). *)
 let prepare ?target ?(optimize = false) m =
   Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
-      Llvm.set_target_triple triple m;
       shared_in_comdats triple m;
       probe_stack triple m;
       let data_layout = Llvm_target.TargetMachine.data_layout tm in
-      Llvm.set_data_layout (Llvm_target.DataLayout.as_string data_layout) m;
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
       if optimize then
         Llvm_passbuilder.run_passes m "default<O2>" tm
