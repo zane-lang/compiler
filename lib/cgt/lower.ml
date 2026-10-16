@@ -1788,8 +1788,10 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           [ Stat.Repeat { count; body = code st ctx span body } ]
       | "@controlflow$exitFromCall", [] -> ctx.exit_call span
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
-  (* A fresh value nothing keeps is held here, so the drain ends it. *)
-  | T.Stat.Expr e when held st span e.T.Expr.ty && not (is_place e) ->
+  (* A fresh value nothing keeps is held here, so the drain ends it. One
+     that owns no block has nothing to end, so nothing holds it: such as
+     the element a discarded `swapRemove` moves out. *)
+  | T.Stat.Expr e when owns st span e.T.Expr.ty && not (is_place e) ->
       [ bind st ctx.scope span e.T.Expr.ty (fresh st) (expr st ctx e) ]
   | T.Stat.Expr e -> [ Stat.Eval (expr st ctx e) ]
   | T.Stat.Return e -> (

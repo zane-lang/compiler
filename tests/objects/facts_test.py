@@ -52,6 +52,13 @@ class FactsTests(unittest.TestCase):
         self.assertRegex(ir, r'!\{!"zane handle", ![0-9]+, i64 0\}')
         self.assertRegex(ir, r'!\{!"zane scalar", ![0-9]+, i64 0\}')
 
+    def test_discarded_removal_holds_nothing(self):
+        # The cell `drop` takes out owns no block, so no scope holds it.
+        cgt = run(ZANEC, "--cgt", "--kind", "library", *packages("cells"))
+        drop = cgt.split("symbol: !cells$drop(", 1)[1].split("symbol:", 1)[0]
+        self.assertIn("zane_list_swap_remove", drop)
+        self.assertNotRegex(drop, r"scope|hold")
+
     def test_llvm_proves_the_sweep_in_bounds(self):
         # Each cell is written and read again through the list, and LLVM,
         # told the header is not an element, checks no index in the loop.

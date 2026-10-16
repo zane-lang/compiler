@@ -613,7 +613,9 @@ test passing.
   - A value that owns a block is held in its scope's arena like an owner,
     and so is a fresh owner or value that nothing keeps, such as a result
     that is dropped or an operand, so its blocks are in a region that
-    drains with it.
+    drains with it. A dropped result that owns no block has nothing for a
+    drain to end, so nothing holds it: the element a discarded `swapRemove`
+    moves out needs no scope.
   - A drain walks none of its values. Nothing that outlives the scope owns
     a block in its region, since an escape moves its blocks out first, so
     every block still there dies with it. A value of the scope may own

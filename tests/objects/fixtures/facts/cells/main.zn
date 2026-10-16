@@ -18,7 +18,7 @@ Unit to(this Int, end Int, body @concepts$Block) mut {
 	return Unit();
 }
 
-type Cell = struct {
+type Cell = #struct {
 	hits Int;
 	heat Float;
 }
@@ -52,7 +52,8 @@ Int sweep(this Grid) mut {
 	return total;
 }
 
-/// The first cell's heat, truncated, and the first cell taken out.
+/// The first cell's heat, truncated, and the first cell taken out, which
+/// owns no block and dies there.
 Int drop(this Grid) mut {
 	heat Int = Int.truncate(this.cells[Int(1)].heat);
 	this.cells!swapRemove(Int(1));
