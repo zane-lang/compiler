@@ -4,10 +4,25 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - /
+      - /.github/actions/setup-ci
     schedule:
       interval: weekly
     groups:
       actions:
         patterns:
           - "*"
+  - package-ecosystem: npm
+    directory: /editors/tree-sitter-zane
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directories:
+      - /tools/grammar
+      - /tests/highlighting
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ['*']

@@ -1,1 +1,1 @@
-coda-format==2.2.2
+coda-format==3.1.0

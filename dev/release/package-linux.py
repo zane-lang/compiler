@@ -19,7 +19,7 @@ def package(binary, zig, output, version, commit):
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise ValueError("commit must be a full Git SHA")
     binary, zig = binary.resolve(strict=True), zig.resolve(strict=True)
-    # Releases use the verified standalone distribution from install-zig.
+    # Releases use the standalone distribution installed through Devbox.
     # Reject other layouts instead of copying a system bin directory.
     if not (zig.parent / "lib").is_dir() or not (zig.parent / "LICENSE").is_file():
         raise ValueError("Zig must be from its standalone distribution, with lib/ and LICENSE beside it")

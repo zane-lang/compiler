@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.17.2/.schema/devbox.schema.json",
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.18.4/.schema/devbox.schema.json",
   "packages": {
     "just": "latest",
     "clang": "latest",
@@ -16,7 +16,17 @@
     "pkg-config": "latest",
     "m4": "latest",
     "zstd": "latest",
-    "python3": "latest"
+    "python3": "latest",
+    "nodejs": "latest",
+    "neovim": "latest",
+    "typst": "latest",
+    "elan": "latest",
+    "path:./dev/toolchains#zig": {
+      "platforms": [
+        "x86_64-linux"
+      ]
+    },
+    "cmake": "latest"
   },
   "shell": {
     "init_hook": [

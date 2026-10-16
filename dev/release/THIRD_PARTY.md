@@ -18,9 +18,9 @@ The archive also includes:
   https://github.com/NixOS/nixpkgs
   These include glibc (LGPL-2.1-or-later), GCC runtime libraries (GPL-3.0 with
   the GCC runtime library exception), and LLVM's library dependencies.
-- Zig 0.16.0 and its C toolchain libraries. Zig's `LICENSE` and the licenses
+- Zig (the version recorded in `dev/toolchains/zig.json`) and its C toolchain libraries. Zig's `LICENSE` and the licenses
   in its `lib/` directory are retained with the distribution:
-  https://ziglang.org/download/0.16.0/
+  https://ziglang.org/download/
 
 The bundled loader and libraries can be replaced in `lib/`; the wrapper in
 `bin/zanec` uses that directory. `ZANE_CC` selects a replacement C compiler

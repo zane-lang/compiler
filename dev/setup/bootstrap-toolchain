@@ -11,9 +11,9 @@
 # generation. Bump these deliberately.
 set -euo pipefail
 
-DUNE_VERSION="3.24.1"
+DUNE_VERSION="3.24.2"
 MENHIR_VERSION="20260209"
-SEDLEX_VERSION="3.7"
+SEDLEX_VERSION="3.8.1"
 # The LLVM bindings codegen builds its module through (docs/design/lowering.md L2):
 # LLVM's own, from llvm/bindings/ocaml, which opam packages as `llvm`. They
 # wrap one LLVM release, and 19 is the newest opam has. They find it as
