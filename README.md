@@ -5,8 +5,9 @@ This repository contains the Zane language compiler and CLI.
 ## Released toolchain
 
 The **Release compiler** workflow publishes a Linux x86_64 toolchain archive
-with `zanec`, its LLVM/shared-library dependencies, and Zig 0.16.0. It builds
-Zane programs for Linux and Windows without installing OCaml, LLVM or a C
+with `zanec`, its LLVM/shared-library dependencies, and Zig (the version in the
+archive's `share/zig.json`, pinned by `dev/toolchains/zig.json`). It builds Zane
+programs for Linux and Windows without installing OCaml, LLVM or a C
 compiler. Windows-native and macOS-native compiler archives are not yet
 provided; Windows program targets are tested on Windows in CI.
 
