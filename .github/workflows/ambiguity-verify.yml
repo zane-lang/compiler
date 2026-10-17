@@ -70,18 +70,6 @@ jobs:
         if: steps.suites.outputs.formal == 'true'
         run: devbox run -- dev/setup/bootstrap-toolchain
 
-      # Lean comes from elan, at the version formal/lean-toolchain names. The
-      # installer is fetched from the v4.2.4 release commit and checked against
-      # its digest before it runs.
-      - name: Install Lean
-        if: steps.suites.outputs.formal == 'true'
-        run: |
-          curl -sSfL -o elan-init.sh https://raw.githubusercontent.com/leanprover/elan/227caca133724d5516bee25c2aeb3e609478f2d8/elan-init.sh
-          echo "a620ff1641616222c8d37c54845492004bb84d6877cdbc944dd65c1aa685bf53  elan-init.sh" | sha256sum -c -
-          sh elan-init.sh -y --default-toolchain none
-          rm elan-init.sh
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-
       - name: Restore the Lean build
         if: steps.suites.outputs.formal == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -91,6 +79,12 @@ jobs:
             formal/.lake
           key: lean-${{ runner.os }}-${{ hashFiles('formal/lean-toolchain', 'formal/**/*.lean', 'formal/lakefile.toml') }}
           restore-keys: lean-${{ runner.os }}-
+
+      # Devbox supplies elan; formal/lean-toolchain selects the proof checker;
+      # a restored toolchain makes this a no-op.
+      - name: Install Lean
+        if: steps.suites.outputs.formal == 'true'
+        run: devbox run -- elan toolchain install "$(cat formal/lean-toolchain)"
 
       # The report binds the verdict to the exact source and tool versions.
       - name: Verify the grammar

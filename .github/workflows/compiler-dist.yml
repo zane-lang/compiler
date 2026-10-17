@@ -9,6 +9,7 @@ on:
       - '.github/scripts/install-zig'
       - '.github/actions/setup-ci/**'
       - 'dev/release/**'
+      - 'dev/toolchains/**'
       - 'tests/release/**'
       - 'tests/codegen/fixtures/hello/**'
       - 'tests/codegen/golden/hello.out'

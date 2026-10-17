@@ -2,8 +2,8 @@
 
 Edit this directory, then run `python3 -m tools.grammar` from the repository
 root. Menhir **20260209** must be on `PATH` (the existing Devbox shell provides
-it). Regeneration also uses Python **3.11+**, the pinned **coda-format 2.2.2**
-parser, Node/npm and **Tree-sitter CLI 0.25.10**:
+it). Regeneration also uses Python **3.11+**, the pinned **coda-format 3.1.0**
+parser, Node/npm and **Tree-sitter CLI 0.27.1**:
 
 ```sh
 python3 -m venv .grammar-venv
@@ -28,7 +28,7 @@ Literal tokens use a table; lexical expressions and payload tokens use nested
 blocks. Coda leaves are strings: the loader explicitly interprets only version
 numbers, highlighting priorities, `eof` and `any`. A spelling such as `true`,
 or a range endpoint such as `0`, remains a string. The dependency is pinned to
-the published 2.2.2 release; no custom Coda parser is included.
+the published 3.1.0 release; no custom Coda parser is included.
 
 The productions retain Menhir notation rather than introducing a second grammar
 DSL. Token declarations are inserted at `(* @generated-tokens *)`; do not put
@@ -145,7 +145,7 @@ It does not configure the Typst web editor or your text editor.
 ## Neovim
 
 Use Neovim **0.11 or newer**, Node/npm, and a C compiler. Generate the grammar
-text first, then build with the pinned Tree-sitter CLI **0.25.10**:
+text first, then build with the pinned Tree-sitter CLI **0.27.1**:
 
 ```sh
 npm ci --prefix editors/tree-sitter-zane
@@ -206,7 +206,7 @@ full consumer check, install both and set `ZANE_REQUIRE_HIGHLIGHTING_TOOLS=1`,
 as CI does, so that a missing tool fails the run instead of skipping its tests.
 
 The initial implementation was tested with Menhir 20260209, Sedlex 3.7,
-Tree-sitter CLI 0.25.10 / Python binding 0.25.2, Neovim 0.12.5 and Typst 0.15.1.
+Tree-sitter CLI 0.27.1 / Python binding 0.26.0, Neovim 0.12.6 and Typst 0.15.1.
 The existing grammar regressions and span goldens also passed. With Lean 4.34.1,
 the existing checker verified source-grammar unambiguity and GLR unambiguity
 and correspondence for the regenerated compiler grammar.

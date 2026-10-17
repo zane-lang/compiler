@@ -1,0 +1,60 @@
+# Dependabot updates actions; this covers Devbox, which Dependabot cannot read.
+name: Update development tools
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-development-tools
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Requires Settings > Actions > General > Allow GitHub Actions to create
+    # and approve pull requests. All writes go to the automation branch.
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Leaving devbox-version unset selects the latest released Devbox CLI.
+      - name: Install Devbox
+        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
+        with:
+          enable-cache: true
+      - name: Refresh upstream toolchain pins
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: devbox run -- python3 .github/scripts/update-toolchains.py
+      - name: Refresh the portable Zig derivation
+        run: nix flake update --flake ./dev/toolchains
+      - name: Refresh Devbox lockfile
+        run: devbox update --no-install
+      - name: Keep local-flake references portable
+        run: devbox run -- python3 .github/scripts/normalize-devbox-lock.py
+      - name: Propose tool updates
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          branch: automation/update-development-tools
+          commit-message: 'chore: update development tools'
+          title: 'chore: update development tools'
+          body: |
+            Refresh the development toolchain using the latest Devbox CLI.
+            Review the version changes and run CI before merging.
+            Dependabot maintains GitHub Action pins separately.
+            This workflow uses GITHUB_TOKEN: a maintainer must trigger CI for
+            this PR, because token-created PRs do not start other workflows.
+          add-paths: |
+            devbox.lock
+            dev/toolchains/zig.json
+            dev/toolchains/flake.lock
+            dev/setup/bootstrap-toolchain
+            formal/lean-toolchain

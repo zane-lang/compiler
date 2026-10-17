@@ -84,7 +84,7 @@ class DiscoveryTests(unittest.TestCase):
                 self.run_discovery()
 
     def test_repeated_conflicts_and_limit_fail_closed(self):
-        diagnostic = json.dumps({'BuildTables': {'Conflict': {'possible_resolutions': [{'AddConflict': {'symbols': ['a', 'b']}}], 'symbol_sequence': ['x'], 'conflicting_lookahead': 'y'}}})
+        diagnostic = json.dumps({'error': {'BuildTables': {'Conflict': {'possible_resolutions': [{'AddConflict': {'symbols': ['a', 'b']}}], 'symbol_sequence': ['x'], 'conflicting_lookahead': 'y'}}}})
         with patch.object(conflicts.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1, '', diagnostic)):
             with self.assertRaisesRegex(ValueError, 'already declared'):
                 self.run_discovery()
