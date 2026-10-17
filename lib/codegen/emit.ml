@@ -596,18 +596,24 @@ let remove env fr b fn list index stride =
 
 (* LLVM leaves an integer division by zero undefined, and the one quotient an
    integer cannot hold too. The first gives zero and the second wraps, as `+`
-   and `*` do (operators.md §2.6); the divisor is replaced in both, so the
-   [sdiv] itself never sees either. *)
-let divide b l r =
+   and `*` do (operators.md §2.6). Both divisors, 0 and -1, are the two that
+   `r + 1` takes below 2 unsigned, and they branch away to an unlikely block,
+   so the [sdiv] sees neither and starts without waiting on the test. *)
+let divide env fr b l r =
   let t = Llvm.type_of l in
-  let zero = Llvm.const_int t 0 in
+  let zero = Llvm.const_int t 0 and one = Llvm.const_int t 1 in
+  let special = block env fr and ordinary = block env fr and joined = block env fr in
+  let exceptional = Llvm.build_icmp Llvm.Icmp.Ult (Llvm.build_add r one "" b) (Llvm.const_int t 2) "" b in
+  unlikely env (Llvm.build_cond_br exceptional special ordinary b);
+  Llvm.position_at_end ordinary b;
+  let quotient = Llvm.build_sdiv l r "" b in
+  ignore (Llvm.build_br joined b);
+  Llvm.position_at_end special b;
   let by_zero = Llvm.build_icmp Llvm.Icmp.Eq r zero "" b in
-  let negating = Llvm.build_icmp Llvm.Icmp.Eq r (Llvm.const_int t (-1)) "" b in
-  let replaced = Llvm.build_or by_zero negating "" b in
-  let divisor = Llvm.build_select replaced (Llvm.const_int t 1) r "" b in
-  let quotient = Llvm.build_sdiv l divisor "" b in
-  let quotient = Llvm.build_select negating (Llvm.build_sub zero l "" b) quotient "" b in
-  Llvm.build_select by_zero zero quotient "" b
+  let replaced = Llvm.build_select by_zero zero (Llvm.build_sub zero l "" b) "" b in
+  ignore (Llvm.build_br joined b);
+  Llvm.position_at_end joined b;
+  Llvm.build_phi [ (quotient, ordinary); (replaced, special) ] "" b
 
 (* A scalar converted from [from] to [into] (Cgt.Nodes.Scalar). A float
    truncated to an integer saturates (types.md §2.9): a NaN gives zero, and
@@ -639,11 +645,11 @@ let convert env b (from : Ty.t) (into : Ty.t) v =
       in
       Llvm.build_call fty f [| v |] "" b
 
-let binary b (op : Expr.binop) (t : Ty.t) l r =
+let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
   match (t, op) with
   | (Ty.I64 | Ty.I32), Expr.Add -> Llvm.build_add l r "" b
   | (Ty.I64 | Ty.I32), Expr.Mul -> Llvm.build_mul l r "" b
-  | (Ty.I64 | Ty.I32), Expr.Div -> divide b l r
+  | (Ty.I64 | Ty.I32), Expr.Div -> divide env fr b l r
   | (Ty.I64 | Ty.I32 | Ty.I1), Expr.Eq -> Llvm.build_icmp Llvm.Icmp.Eq l r "" b
   | (Ty.I64 | Ty.I32), Expr.Less -> Llvm.build_icmp Llvm.Icmp.Slt l r "" b
   | (Ty.F64 | Ty.F32), Expr.Add -> Llvm.build_fadd l r "" b
@@ -851,7 +857,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       (* The left operand's instructions come first. *)
       let l = expr env fr b left in
       match (l, expr env fr b right) with
-      | Some l, Some r -> Some (binary b op left.Expr.ty l r)
+      | Some l, Some r -> Some (binary env fr b op left.Expr.ty l r)
       | _ -> Diagnostic.bug "codegen: an operand has no value")
   | Expr.Flip value -> (
       match (value.Expr.ty, expr env fr b value) with
@@ -1058,7 +1064,9 @@ let func env (f : Func.t) =
    link against keeps its symbol in theirs too, and one a stamped
    dependency's objects define is only declared, or has an
    [available_externally] body that LLVM can inline but never emits
-   (docs/design/separate-compilation.md); the rest are local to this one. *)
+   (docs/design/separate-compilation.md); the rest are local to this one.
+   The module is for [triple] from the start, so each access is emitted
+   with the alignment [data_layout] gives its type. *)
 (* The size of the range each context reserves for its frames, the main
    context's and each spawned call's, when the root manifest gives none
    (memory.md §3.1, dependencies.md §2.1). *)
@@ -1066,9 +1074,11 @@ let default_fixed_region = 256 lsl 20
 let default_spawned_fixed_region = 8 lsl 20
 
 let program ?(fixed_region = default_fixed_region) ?(spawned_fixed_region = default_spawned_fixed_region)
-    (p : Program.t) =
+    ~triple ~data_layout (p : Program.t) =
   let ctx = Llvm.create_context () in
   let m = Llvm.create_module ctx "zane" in
+  Llvm.set_target_triple triple m;
+  Llvm.set_data_layout data_layout m;
   let env =
     {
       ctx;

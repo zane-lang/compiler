@@ -291,7 +291,123 @@
     │       │       │   │       └── args[2]: 24 : i64
     │       │       │   └── args[1]: 1 : i64
     │       │       └── right: 1 : i64
-    │       ├── body[17] > eval > call:
+    │       ├── body[17] > let:
+    │       │   ├── local: #29
+    │       │   └── value > call:
+    │       │       ├── type: i64
+    │       │       ├── fn: arguments$integer(%primitives$String, %primitives$I64)
+    │       │       ├── args[0] > deref:
+    │       │       │   ├── type: handle
+    │       │       │   └── ptr > runtime:
+    │       │       │       ├── type: ptr
+    │       │       │       ├── fn: zane_list_at
+    │       │       │       ├── args[0]: address of #16 : ptr
+    │       │       │       ├── args[1]: 1 : i64
+    │       │       │       └── args[2]: 24 : i64
+    │       │       └── args[1]: 0 : i64
+    │       ├── body[18] > let:
+    │       │   ├── local: #30
+    │       │   └── value > call:
+    │       │       ├── type: i64
+    │       │       ├── fn: arguments$integer(%primitives$String, %primitives$I64)
+    │       │       ├── args[0] > deref:
+    │       │       │   ├── type: handle
+    │       │       │   └── ptr > runtime:
+    │       │       │       ├── type: ptr
+    │       │       │       ├── fn: zane_list_at
+    │       │       │       ├── args[0]: address of #16 : ptr
+    │       │       │       ├── args[1]: 8 : i64
+    │       │       │       └── args[2]: 24 : i64
+    │       │       └── args[1]: 0 : i64
+    │       ├── body[19] > let:
+    │       │   ├── local: #31
+    │       │   └── value > call:
+    │       │       ├── type: i64
+    │       │       ├── fn: arguments$integer(%primitives$String, %primitives$I64)
+    │       │       ├── args[0] > deref:
+    │       │       │   ├── type: handle
+    │       │       │   └── ptr > runtime:
+    │       │       │       ├── type: ptr
+    │       │       │       ├── fn: zane_list_at
+    │       │       │       ├── args[0]: address of #16 : ptr
+    │       │       │       ├── args[1]: 2 : i64
+    │       │       │       └── args[2]: 24 : i64
+    │       │       └── args[1]: 0 : i64
+    │       ├── body[20] > let:
+    │       │   ├── local: #32
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #31 : i64
+    │       │       └── right: 7 : i64
+    │       ├── body[21] > let:
+    │       │   ├── local: #33
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: /
+    │       │       ├── left: local #31 : i64
+    │       │       └── right: 7 : i64
+    │       ├── body[22] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: arguments$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: /
+    │       │       │   ├── left: local #29 : i64
+    │       │       │   └── right: local #31 : i64
+    │       │       └── right: -6 : i64
+    │       ├── body[23] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: arguments$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: /
+    │       │       │   ├── left: local #29 : i64
+    │       │       │   └── right: local #32 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[24] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: arguments$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: /
+    │       │       │   ├── left: local #30 : i64
+    │       │       │   └── right: local #32 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[25] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: arguments$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: /
+    │       │       │   ├── left: local #29 : i64
+    │       │       │   └── right: local #33 : i64
+    │       │       └── right: -42 : i64
+    │       ├── body[26] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: arguments$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > binary:
+    │       │       │   ├── type: i64
+    │       │       │   ├── op: /
+    │       │       │   ├── left: local #30 : i64
+    │       │       │   └── right: local #33 : i64
+    │       │       └── right: local #30 : i64
+    │       ├── body[27] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arguments$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -299,13 +415,13 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: f64
-    │       │       │   ├── label: @29
-    │       │       │   ├── result: #32
+    │       │       │   ├── label: @34
+    │       │       │   ├── result: #37
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #30
+    │       │       │   │   ├── local: #35
     │       │       │   │   └── value: 0x0p+0 : f64
     │       │       │   ├── body[1] > let:
-    │       │       │   │   ├── local: #31
+    │       │       │   │   ├── local: #36
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
@@ -317,22 +433,22 @@
     │       │       │   │       │       ├── args[0]: address of #16 : ptr
     │       │       │   │       │       ├── args[1]: 3 : i64
     │       │       │   │       │       └── args[2]: 24 : i64
-    │       │       │   │       └── args[1]: address of #30 : ptr
+    │       │       │   │       └── args[1]: address of #35 : ptr
     │       │       │   ├── body[2] > if:
     │       │       │   │   ├── cond > binary:
     │       │       │   │   │   ├── type: i1
     │       │       │   │   │   ├── op: ==
-    │       │       │   │   │   ├── left: local #31 : i64
+    │       │       │   │   │   ├── left: local #36 : i64
     │       │       │   │   │   └── right: 0 : i64
     │       │       │   │   ├── body[0] > assign:
-    │       │       │   │   │   ├── place: #32
+    │       │       │   │   │   ├── place: #37
     │       │       │   │   │   └── value: 0x0p+0 : f64
-    │       │       │   │   └── body[1]: leave @29
+    │       │       │   │   └── body[1]: leave @34
     │       │       │   └── body[3] > assign:
-    │       │       │       ├── place: #32
-    │       │       │       └── value: local #30 : f64
+    │       │       │       ├── place: #37
+    │       │       │       └── value: local #35 : f64
     │       │       └── right: 0x1.ap+1 : f64
-    │       ├── body[18] > eval > call:
+    │       ├── body[28] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arguments$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -340,13 +456,13 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: f64
-    │       │       │   ├── label: @33
-    │       │       │   ├── result: #36
+    │       │       │   ├── label: @38
+    │       │       │   ├── result: #41
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #34
+    │       │       │   │   ├── local: #39
     │       │       │   │   └── value: 0x0p+0 : f64
     │       │       │   ├── body[1] > let:
-    │       │       │   │   ├── local: #35
+    │       │       │   │   ├── local: #40
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
@@ -358,22 +474,22 @@
     │       │       │   │       │       ├── args[0]: address of #16 : ptr
     │       │       │   │       │       ├── args[1]: 2 : i64
     │       │       │   │       │       └── args[2]: 24 : i64
-    │       │       │   │       └── args[1]: address of #34 : ptr
+    │       │       │   │       └── args[1]: address of #39 : ptr
     │       │       │   ├── body[2] > if:
     │       │       │   │   ├── cond > binary:
     │       │       │   │   │   ├── type: i1
     │       │       │   │   │   ├── op: ==
-    │       │       │   │   │   ├── left: local #35 : i64
+    │       │       │   │   │   ├── left: local #40 : i64
     │       │       │   │   │   └── right: 0 : i64
     │       │       │   │   ├── body[0] > assign:
-    │       │       │   │   │   ├── place: #36
+    │       │       │   │   │   ├── place: #41
     │       │       │   │   │   └── value: 0x0p+0 : f64
-    │       │       │   │   └── body[1]: leave @33
+    │       │       │   │   └── body[1]: leave @38
     │       │       │   └── body[3] > assign:
-    │       │       │       ├── place: #36
-    │       │       │       └── value: local #34 : f64
+    │       │       │       ├── place: #41
+    │       │       │       └── value: local #39 : f64
     │       │       └── right: -0x1.cp+2 : f64
-    │       ├── body[19] > eval > call:
+    │       ├── body[29] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arguments$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -381,13 +497,13 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: f64
-    │       │       │   ├── label: @37
-    │       │       │   ├── result: #40
+    │       │       │   ├── label: @42
+    │       │       │   ├── result: #45
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #38
+    │       │       │   │   ├── local: #43
     │       │       │   │   └── value: 0x0p+0 : f64
     │       │       │   ├── body[1] > let:
-    │       │       │   │   ├── local: #39
+    │       │       │   │   ├── local: #44
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
@@ -399,22 +515,22 @@
     │       │       │   │       │       ├── args[0]: address of #16 : ptr
     │       │       │   │       │       ├── args[1]: 6 : i64
     │       │       │   │       │       └── args[2]: 24 : i64
-    │       │       │   │       └── args[1]: address of #38 : ptr
+    │       │       │   │       └── args[1]: address of #43 : ptr
     │       │       │   ├── body[2] > if:
     │       │       │   │   ├── cond > binary:
     │       │       │   │   │   ├── type: i1
     │       │       │   │   │   ├── op: ==
-    │       │       │   │   │   ├── left: local #39 : i64
+    │       │       │   │   │   ├── left: local #44 : i64
     │       │       │   │   │   └── right: 0 : i64
     │       │       │   │   ├── body[0] > assign:
-    │       │       │   │   │   ├── place: #40
+    │       │       │   │   │   ├── place: #45
     │       │       │   │   │   └── value: 0x0p+0 : f64
-    │       │       │   │   └── body[1]: leave @37
+    │       │       │   │   └── body[1]: leave @42
     │       │       │   └── body[3] > assign:
-    │       │       │       ├── place: #40
-    │       │       │       └── value: local #38 : f64
+    │       │       │       ├── place: #45
+    │       │       │       └── value: local #43 : f64
     │       │       └── right: 0x1.5af1d78b58c4p+66 : f64
-    │       ├── body[20] > eval > call:
+    │       ├── body[30] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arguments$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -422,13 +538,13 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: f64
-    │       │       │   ├── label: @41
-    │       │       │   ├── result: #44
+    │       │       │   ├── label: @46
+    │       │       │   ├── result: #49
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #42
+    │       │       │   │   ├── local: #47
     │       │       │   │   └── value: 0x0p+0 : f64
     │       │       │   ├── body[1] > let:
-    │       │       │   │   ├── local: #43
+    │       │       │   │   ├── local: #48
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
@@ -440,22 +556,22 @@
     │       │       │   │       │       ├── args[0]: address of #16 : ptr
     │       │       │   │       │       ├── args[1]: 4 : i64
     │       │       │   │       │       └── args[2]: 24 : i64
-    │       │       │   │       └── args[1]: address of #42 : ptr
+    │       │       │   │       └── args[1]: address of #47 : ptr
     │       │       │   ├── body[2] > if:
     │       │       │   │   ├── cond > binary:
     │       │       │   │   │   ├── type: i1
     │       │       │   │   │   ├── op: ==
-    │       │       │   │   │   ├── left: local #43 : i64
+    │       │       │   │   │   ├── left: local #48 : i64
     │       │       │   │   │   └── right: 0 : i64
     │       │       │   │   ├── body[0] > assign:
-    │       │       │   │   │   ├── place: #44
+    │       │       │   │   │   ├── place: #49
     │       │       │   │   │   └── value: 0x1p+0 : f64
-    │       │       │   │   └── body[1]: leave @41
+    │       │       │   │   └── body[1]: leave @46
     │       │       │   └── body[3] > assign:
-    │       │       │       ├── place: #44
-    │       │       │       └── value: local #42 : f64
+    │       │       │       ├── place: #49
+    │       │       │       └── value: local #47 : f64
     │       │       └── right: 0x1p+0 : f64
-    │       ├── body[21] > eval > call:
+    │       ├── body[31] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arguments$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -463,13 +579,13 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: f64
-    │       │       │   ├── label: @45
-    │       │       │   ├── result: #48
+    │       │       │   ├── label: @50
+    │       │       │   ├── result: #53
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #46
+    │       │       │   │   ├── local: #51
     │       │       │   │   └── value: 0x0p+0 : f64
     │       │       │   ├── body[1] > let:
-    │       │       │   │   ├── local: #47
+    │       │       │   │   ├── local: #52
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
@@ -481,22 +597,22 @@
     │       │       │   │       │       ├── args[0]: address of #16 : ptr
     │       │       │   │       │       ├── args[1]: 5 : i64
     │       │       │   │       │       └── args[2]: 24 : i64
-    │       │       │   │       └── args[1]: address of #46 : ptr
+    │       │       │   │       └── args[1]: address of #51 : ptr
     │       │       │   ├── body[2] > if:
     │       │       │   │   ├── cond > binary:
     │       │       │   │   │   ├── type: i1
     │       │       │   │   │   ├── op: ==
-    │       │       │   │   │   ├── left: local #47 : i64
+    │       │       │   │   │   ├── left: local #52 : i64
     │       │       │   │   │   └── right: 0 : i64
     │       │       │   │   ├── body[0] > assign:
-    │       │       │   │   │   ├── place: #48
+    │       │       │   │   │   ├── place: #53
     │       │       │   │   │   └── value: 0x1p+0 : f64
-    │       │       │   │   └── body[1]: leave @45
+    │       │       │   │   └── body[1]: leave @50
     │       │       │   └── body[3] > assign:
-    │       │       │       ├── place: #48
-    │       │       │       └── value: local #46 : f64
+    │       │       │       ├── place: #53
+    │       │       │       └── value: local #51 : f64
     │       │       └── right: 0x1p+0 : f64
-    │       ├── body[22] > eval > call:
+    │       ├── body[32] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arguments$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -504,13 +620,13 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: f64
-    │       │       │   ├── label: @49
-    │       │       │   ├── result: #52
+    │       │       │   ├── label: @54
+    │       │       │   ├── result: #57
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #50
+    │       │       │   │   ├── local: #55
     │       │       │   │   └── value: 0x0p+0 : f64
     │       │       │   ├── body[1] > let:
-    │       │       │   │   ├── local: #51
+    │       │       │   │   ├── local: #56
     │       │       │   │   └── value > runtime:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: zane_parse_f64
@@ -522,22 +638,22 @@
     │       │       │   │       │       ├── args[0]: address of #16 : ptr
     │       │       │   │       │       ├── args[1]: 9 : i64
     │       │       │   │       │       └── args[2]: 24 : i64
-    │       │       │   │       └── args[1]: address of #50 : ptr
+    │       │       │   │       └── args[1]: address of #55 : ptr
     │       │       │   ├── body[2] > if:
     │       │       │   │   ├── cond > binary:
     │       │       │   │   │   ├── type: i1
     │       │       │   │   │   ├── op: ==
-    │       │       │   │   │   ├── left: local #51 : i64
+    │       │       │   │   │   ├── left: local #56 : i64
     │       │       │   │   │   └── right: 0 : i64
     │       │       │   │   ├── body[0] > assign:
-    │       │       │   │   │   ├── place: #52
+    │       │       │   │   │   ├── place: #57
     │       │       │   │   │   └── value: 0x1p+0 : f64
-    │       │       │   │   └── body[1]: leave @49
+    │       │       │   │   └── body[1]: leave @54
     │       │       │   └── body[3] > assign:
-    │       │       │       ├── place: #52
-    │       │       │       └── value: local #50 : f64
+    │       │       │       ├── place: #57
+    │       │       │       └── value: local #55 : f64
     │       │       └── right: 0x1p+0 : f64
-    │       └── body[23] > return: unit : void
+    │       └── body[33] > return: unit : void
     ├── funcs[1] > func:
     │   ├── symbol: arguments$squares()
     │   ├── params:

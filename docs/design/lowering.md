@@ -832,8 +832,11 @@ test passing.
   `types.md` §2.9 saturates a `truncate` whose integer part the target cannot
   hold and gives zero for a NaN. Neither instruction LLVM has means that by
   itself, since `sdiv` by zero and `fptosi` out of range are undefined. So
-  codegen guards a division with selects, replacing the divisor before the
-  `sdiv`, and truncates with `llvm.fptosi.sat`, whose result is exactly
+  codegen sends a division by 0 or -1 down a branch marked unlikely to the
+  result those divisors take, and the `sdiv` on the other branch sees only
+  divisors it is defined for. The test is a branch, which the processor
+  predicts, so the `sdiv` starts as soon as its operands are ready. Codegen
+  truncates with `llvm.fptosi.sat`, whose result is exactly
   §2.9's: toward zero, the target's nearest end past it, and zero for a
   NaN. The one other quotient an integer cannot hold, the most negative
   value over `-1`, wraps, as `+` and `*` do. A conversion is one CGT node,

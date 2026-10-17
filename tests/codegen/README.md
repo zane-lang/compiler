@@ -30,7 +30,8 @@ again, read the golden diff and promote that.
   values. Optimized and unoptimized builds must print the same text.
 - `arguments` is the program's arguments, read from the runtime, and numbers
   read from text with `parseI64` and `parseF64`, each held to what it accepts
-  and when it aborts. Both builds run with the `arguments` file's lines.
+  and when it aborts, then divided by 0 and -1 read at run time, which take
+  the branch around the `sdiv` (`Emit.divide`). Both builds run with the `arguments` file's lines.
   `arguments.optimized.cgt` shows what folds before the read and that the
   read itself stays. Every check prints `yes` when it holds.
 - `hello` prints a string literal through `@program$console`: the first program
