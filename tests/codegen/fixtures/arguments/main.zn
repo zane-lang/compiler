@@ -81,6 +81,19 @@ Unit main() {
 	check(@operators$equal(integer(args[Int(9)], Int(1)), Int(1)));
 	check(@operators$equal(integer(args[Int(10)], Int(1)), Int(1)));
 
+	// Division by a divisor read at run time: by zero gives zero, and by -1
+	// negates, wrapping the one quotient an I64 cannot hold.
+	answer Int = integer(args[Int(1)], Int(0));
+	least Int = integer(args[Int(8)], Int(0));
+	minusSeven Int = integer(args[Int(2)], Int(0));
+	zero Int = @operators$add(minusSeven, Int(7));
+	minusOne Int = @operators$divide(minusSeven, Int(7));
+	check(@operators$equal(@operators$divide(answer, minusSeven), @operators$negate(Int(6))));
+	check(@operators$equal(@operators$divide(answer, zero), Int(0)));
+	check(@operators$equal(@operators$divide(least, zero), Int(0)));
+	check(@operators$equal(@operators$divide(answer, minusOne), @operators$negate(Int(42))));
+	check(@operators$equal(@operators$divide(least, minusOne), least));
+
 	// Floats: an integer or a float literal with an optional `-`, finite.
 	check(@operators$equal(args[Int(3)]:parseF64() ?? Float(0.0), Float(3.25)));
 	check(@operators$equal(args[Int(2)]:parseF64() ?? Float(0.0), @operators$negate(Float(7.0))));
