@@ -53,6 +53,7 @@ def package(binary, zig, output, version, commit):
         shutil.copy2(project / "dev/release/THIRD_PARTY.md", root / "share/THIRD_PARTY.md")
         shutil.copytree(project / "dev/release/licenses", root / "share/licenses")
         shutil.copy2(project / "devbox.lock", root / "share/devbox.lock")
+        shutil.copy2(project / "dev/toolchains/zig.json", root / "share/zig.json")
         (root / "share/runtime-libraries.txt").write_text(listing)
         (root / "VERSION").write_text(version + "\n")
         (root / "toolchain.coda").write_text(

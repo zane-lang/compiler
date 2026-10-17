@@ -18,7 +18,7 @@ The archive also includes:
   https://github.com/NixOS/nixpkgs
   These include glibc (LGPL-2.1-or-later), GCC runtime libraries (GPL-3.0 with
   the GCC runtime library exception), and LLVM's library dependencies.
-- Zig (the version recorded in `dev/toolchains/zig.json`) and its C toolchain libraries. Zig's `LICENSE` and the licenses
+- Zig (the version and source recorded in the included `zig.json`) and its C toolchain libraries. Zig's `LICENSE` and the licenses
   in its `lib/` directory are retained with the distribution:
   https://ziglang.org/download/
 

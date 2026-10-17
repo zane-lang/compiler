@@ -1,6 +1,10 @@
 # Every workflow pins its actions by commit, one version per action. This
 # keeps those pins current, all of them in one pull request, so the
 # workflows never drift onto different versions of one action.
+#
+# The Tree-sitter CLI, the only npm dependency, is left out: the generator
+# (tools/grammar/conflicts.py) and its committed conflicts.json pin the same
+# version, so it is bumped by hand together with `just generate-grammar`.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -13,10 +17,6 @@ updates:
       actions:
         patterns:
           - "*"
-  - package-ecosystem: npm
-    directory: /editors/tree-sitter-zane
-    schedule:
-      interval: weekly
   - package-ecosystem: pip
     directories:
       - /tools/grammar

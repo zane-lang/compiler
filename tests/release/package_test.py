@@ -73,6 +73,8 @@ int main(int argc, char **argv) {
             self.assertEqual((relocated / "toolchain.coda").read_text(),
                 f"url https://github.com/zane-lang/compiler\ncommit {commit}\n")
             self.assertTrue((relocated / "zig/LICENSE").is_file())
+            self.assertEqual((relocated / "share/zig.json").read_bytes(),
+                             (PROJECT / "dev/toolchains/zig.json").read_bytes())
             self.assertTrue((relocated / "zig/lib/marker").is_file())
             self.assertFalse((relocated / "zig/unrelated-binary").exists())
 
