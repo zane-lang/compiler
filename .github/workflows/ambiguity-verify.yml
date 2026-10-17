@@ -70,11 +70,6 @@ jobs:
         if: steps.suites.outputs.formal == 'true'
         run: devbox run -- dev/setup/bootstrap-toolchain
 
-      # Devbox supplies elan; formal/lean-toolchain selects the proof checker.
-      - name: Install Lean
-        if: steps.suites.outputs.formal == 'true'
-        run: devbox run -- elan toolchain install "$(cat formal/lean-toolchain)"
-
       - name: Restore the Lean build
         if: steps.suites.outputs.formal == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -84,6 +79,12 @@ jobs:
             formal/.lake
           key: lean-${{ runner.os }}-${{ hashFiles('formal/lean-toolchain', 'formal/**/*.lean', 'formal/lakefile.toml') }}
           restore-keys: lean-${{ runner.os }}-
+
+      # Devbox supplies elan; formal/lean-toolchain selects the proof checker;
+      # a restored toolchain makes this a no-op.
+      - name: Install Lean
+        if: steps.suites.outputs.formal == 'true'
+        run: devbox run -- elan toolchain install "$(cat formal/lean-toolchain)"
 
       # The report binds the verdict to the exact source and tool versions.
       - name: Verify the grammar
