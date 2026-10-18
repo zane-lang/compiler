@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass, replace
 import datetime
+import math
 from pathlib import Path
 import re
 import string
@@ -77,12 +78,17 @@ def parse_duration(value: str | int | float) -> float:
             for match in DURATION_PART.finditer(text):
                 if match.start() != position:
                     break
-                seconds += float(match.group(1)) * DURATION_FACTORS[match.group(2)]
+                part = float(match.group(1)) * DURATION_FACTORS[match.group(2)]
+                if not math.isfinite(part):
+                    raise ConfigurationError(f"duration {value!r} is not finite")
+                seconds += part
                 position = match.end()
             if position != len(text) or position == 0:
                 raise ConfigurationError(
                     f"invalid duration {value!r}; use values such as 90s, 30m, or 1h"
                 )
+    if not math.isfinite(seconds):
+        raise ConfigurationError(f"duration {value!r} is not finite")
     if seconds < 0:
         raise ConfigurationError("duration must be non-negative")
     return seconds
