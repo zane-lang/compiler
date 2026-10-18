@@ -11,12 +11,36 @@ external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
 external array_type : Llvm.lltype -> int -> Llvm.lltype = "zane_array_type"
 external array_length : Llvm.lltype -> int = "zane_array_length"
 
+(* A type attribute, such as `sret(T)`, which the bindings cannot make
+   (llvm_stubs.c). *)
+external type_attr : Llvm.llcontext -> string -> Llvm.lltype -> Llvm.llattribute = "zane_type_attr"
+
+(* A function's own type (llvm_stubs.c). *)
+external value_type : Llvm.llvalue -> Llvm.lltype = "zane_global_value_type"
+
+(* How a value of a type crosses a call (docs/design/lowering.md §9): as
+   itself, in as many registers as it has pieces; as the address of a slot
+   that holds it; or, with packing, as that many 8-byte words. *)
+type passing = Itself | Address | Words of int
+
+(* A function's signature as it crosses: how each parameter that is not
+   `Unit` passes, in order, and how the result comes back. *)
+type abi = { params : (Ty.t * passing) list; ret : Ty.t * passing }
+
 type env = {
   ctx : Llvm.llcontext;
   m : Llvm.llmodule;
   ptr : Llvm.lltype;
   i64 : Llvm.lltype;
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
+  (* How each of the program's functions is called, by symbol. *)
+  abis : (string, abi) Hashtbl.t;
+  (* How many registers a value may take and still pass as itself, from
+     the target (see [registers]), whether small aggregates are packed into
+     words, and how each type passes, worked out once per type. *)
+  registers : int;
+  pack : bool;
+  passings : (Ty.t, passing) Hashtbl.t;
   globals : (string, Llvm.llvalue) Hashtbl.t;
   (* The walks of each layout the program names that lists a position. *)
   mutable walks : Walks.known option;
@@ -54,10 +78,121 @@ let rec lltype env (t : Ty.t) =
 (* A `Unit` member takes no room, but keeps its index. *)
 and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype env t
 
-(* `Unit` has no storage, so a `Unit` parameter passes nothing. *)
-let fn_type env params ret =
+(* ---------------------------------------------------------------------- *)
+(* How a value crosses a call                                             *)
+(* ---------------------------------------------------------------------- *)
+
+(* The registers a value of type [t] takes as itself: the scalar pieces LLVM
+   splits it into, one per register. A struct's and a sum's are their
+   members', a sum's tag and each word of its payload room one apiece, an
+   array's its element's times its length, and `Unit` none. Counted on the
+   CGT type, not LLVM's, so the count does not depend on [data_layout].
+   Never more than the type's size in bytes, which is below Ty.limit. *)
+let rec pieces (t : Ty.t) =
+  match t with
+  | Ty.Void -> 0
+  | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr -> 1
+  | Ty.Handle -> 3
+  | Ty.Struct ts -> List.fold_left (fun n t -> n + pieces t) 0 ts
+  | Ty.Sum ts -> 1 + words ts
+  | Ty.Array (t, n) -> n * pieces t
+
+(* The registers a value may take and still pass as itself, which is what
+   the target's C calling convention gives one aggregate: 2 on x86-64
+   Linux and macOS and on AArch64, 1 on x86-64 Windows. Every target is
+   64-bit (Build.sixty_four_bit). *)
+let registers triple =
+  match String.split_on_char '-' triple with
+  | ("x86_64" | "amd64") :: rest when List.exists (String.starts_with ~prefix:"windows") rest -> 1
+  | _ -> 2
+
+let aggregate = function Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Handle -> true | _ -> false
+
+(* How a value of type [t] crosses a call: as itself when it takes no more
+   registers than [env.registers], and by the address of a slot otherwise.
+   With [env.pack], an aggregate that fits in that many 8-byte words passes
+   as them instead, every word an integer, as clang passes a small C
+   struct. Fixed by the type, so every call site and every callee agree,
+   and a function value's call too. *)
+let passing env (t : Ty.t) =
+  match Hashtbl.find_opt env.passings t with
+  | Some p -> p
+  | None ->
+      let p =
+        let size = fst (size_align t) in
+        let words = (size + 7) / 8 in
+        if env.pack && aggregate t && size > 0 then if words <= env.registers then Words words else Address
+        else if pieces t <= env.registers then Itself
+        else Address
+      in
+      Hashtbl.replace env.passings t p;
+      p
+
+(* The LLVM type [n] words travel as: one `i64`, or a struct of them. *)
+let words_type env n = if n = 1 then env.i64 else Llvm.struct_type env.ctx (Array.make n env.i64)
+
+(* A signature as it crosses (see [passing]). `Unit` has no storage, so a
+   `Unit` parameter passes nothing. *)
+let abi env params ret =
   let kept = List.filter (fun t -> t <> Ty.Void) params in
-  Llvm.function_type (lltype env ret) (Array.of_list (List.map (lltype env) kept))
+  let crossing t = if t = Ty.Void then Itself else passing env t in
+  { params = List.map (fun t -> (t, passing env t)) kept; ret = (ret, crossing ret) }
+
+(* The LLVM function type of [a]: a result passed by address is written
+   through a leading pointer, and returns nothing. *)
+let abi_type env a =
+  let ret, ret_passing = a.ret in
+  let result, leading =
+    match ret_passing with
+    | Itself -> (lltype env ret, [])
+    | Address -> (Llvm.void_type env.ctx, [ env.ptr ])
+    | Words n -> (words_type env n, [])
+  in
+  let param (t, p) =
+    match p with Itself -> [ lltype env t ] | Address -> [ env.ptr ] | Words n -> List.init n (fun _ -> env.i64)
+  in
+  Llvm.function_type result (Array.of_list (leading @ List.concat_map param a.params))
+
+let fn_type env params ret = abi_type env (abi env params ret)
+
+(* What a signature tells LLVM, as attributes on each LLVM parameter, by
+   index. A parameter passed by address is a borrow (memory.md §2.9), and
+   nothing in the call writes what it borrows (§2.9.1), so it is `readonly`
+   and `noalias`, aligned and dereferenceable for its whole size: the
+   optimizer may take the value behind it for a private copy. It is not
+   `nocapture`, since a call the callee spawns may hold the address for as
+   long as it runs. A result passed by address is written through an
+   `sret` pointer to a fresh slot of the caller's, which nothing else
+   names, so that one is `noalias` too. *)
+let abi_attrs env a =
+  let enum name v = Llvm.create_enum_attr env.ctx name v in
+  let aligned t = enum "align" (Int64.of_int (snd (size_align t))) in
+  let ret, ret_passing = a.ret in
+  let leading =
+    match ret_passing with
+    | Address -> [ [ type_attr env.ctx "sret" (lltype env ret); enum "noalias" 0L; aligned ret ] ]
+    | Itself | Words _ -> []
+  in
+  let param (t, p) =
+    match p with
+    | Itself -> [ [] ]
+    | Words n -> List.init n (fun _ -> [])
+    | Address ->
+        [
+          [
+            enum "readonly" 0L;
+            enum "noalias" 0L;
+            aligned t;
+            enum "dereferenceable" (Int64.of_int (fst (size_align t)));
+          ];
+        ]
+  in
+  List.mapi (fun i attrs -> (i, attrs)) (leading @ List.concat_map param a.params)
+
+let declare_abi env f a =
+  List.iter
+    (fun (i, attrs) -> List.iter (fun at -> Llvm.add_function_attr f at (Llvm.AttrIndex.Param i)) attrs)
+    (abi_attrs env a)
 
 (* ---------------------------------------------------------------------- *)
 (* The runtime and its layouts                                            *)
@@ -271,7 +406,10 @@ type frame = {
   arenas : (int, Llvm.llvalue) Hashtbl.t;
   mutable open_ : Llvm.llvalue list;
   offsets : (int, int) Hashtbl.t;
-  ret : Ty.t;
+  (* The function's result type and how it comes back, and the slot it is
+     written to when that is by address. *)
+  ret : Ty.t * passing;
+  sret : Llvm.llvalue option;
 }
 
 let call_runtime env b name args =
@@ -805,19 +943,11 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           let tmp = alloca env fr sum in
           ignore (Llvm.build_store v tmp b);
           Some (Llvm.build_load (lltype env t) (Llvm.build_struct_gep sum tmp 1 "" b) "" b))
-  | Expr.Call { fn; args } ->
-      let f, fty = Hashtbl.find env.funcs fn in
-      let args = Array.of_list (List.filter_map (expr env fr b) args) in
-      let v = Llvm.build_call fty f args "" b in
-      if e.Expr.ty = Ty.Void then None else Some v
-  | Expr.Call_value { fn; args } ->
-      (* The function's type is its arguments' and its result's, which the
-         tree gives, as for a direct call. *)
-      let f = value_of env fr b fn in
-      let fty = fn_type env (List.map (fun (a : Expr.t) -> a.Expr.ty) args) e.Expr.ty in
-      let args = Array.of_list (List.filter_map (expr env fr b) args) in
-      let v = Llvm.build_call fty f args "" b in
-      if e.Expr.ty = Ty.Void then None else Some v
+  | Expr.Call _ | Expr.Call_value _ -> (
+      match call env fr b e with
+      | `Value v -> Some v
+      | `Stored p -> Some (Llvm.build_load (lltype env e.Expr.ty) p "" b)
+      | `Nothing -> None)
   | Expr.Runtime { fn = (Cgt.Runtime.List_at | Cgt.Runtime.Array_at) as fn; args } ->
       Some (element env fr b fn (List.filter_map (expr env fr b) args))
   | Expr.Runtime { fn = (Cgt.Runtime.List_remove | Cgt.Runtime.List_swap_remove) as fn; args } -> (
@@ -883,10 +1013,96 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       Llvm.position_at_end exit b;
       Option.bind result (fun id -> expr env fr b { Expr.node = Expr.Local id; ty = e.Expr.ty })
 
+(* A call (docs/design/lowering.md §9). Each argument passes as its type
+   says: as itself; as words, through a slot of words; or by address, a
+   place's own and a fresh slot of this frame for any other value. The
+   arguments run in order first. A result that comes back by address is
+   written to [into], a fresh slot the caller names, or to one made here;
+   one that comes back as words is put back together in a slot. *)
+and call ?into env fr b (e : Expr.t) =
+  let f, fty, a, args =
+    match e.Expr.node with
+    | Expr.Call { fn; args } ->
+        let f, fty = Hashtbl.find env.funcs fn in
+        (f, fty, Hashtbl.find env.abis fn, args)
+    | Expr.Call_value { fn; args } ->
+        (* The function's type is its arguments' and its result's, which the
+           tree gives, as for a direct call. *)
+        let f = value_of env fr b fn in
+        let a = abi env (List.map (fun (a : Expr.t) -> a.Expr.ty) args) e.Expr.ty in
+        (f, abi_type env a, a, args)
+    | _ -> Diagnostic.bug "codegen: a call that is not one"
+  in
+  let rec pass passings (args : Expr.t list) =
+    match (args, passings) with
+    | [], [] -> []
+    | (arg : Expr.t) :: rest, _ when arg.Expr.ty = Ty.Void ->
+        ignore (expr env fr b arg);
+        pass passings rest
+    | arg :: rest, (_, p) :: passings ->
+        let passed =
+          match p with
+          | Itself -> [ value_of env fr b arg ]
+          | Address -> [ in_memory env fr b arg ]
+          | Words n -> to_words env fr b n (value_of env fr b arg)
+        in
+        passed @ pass passings rest
+    | _ -> Diagnostic.bug "codegen: a call whose arguments do not match its signature"
+  in
+  let ret, ret_passing = a.ret in
+  let dest =
+    match ret_passing with
+    | Address -> Some (match into with Some p -> p | None -> alloca env fr (lltype env ret))
+    | Itself | Words _ -> None
+  in
+  let args = pass a.params args in
+  let site = Llvm.build_call fty f (Array.of_list (Option.to_list dest @ args)) "" b in
+  List.iter
+    (fun (i, attrs) -> List.iter (fun at -> Llvm.add_call_site_attr site at (Llvm.AttrIndex.Param i)) attrs)
+    (abi_attrs env a);
+  match (ret_passing, dest) with
+  | _ when ret = Ty.Void -> `Nothing
+  | Address, Some p -> `Stored p
+  | Words n, _ ->
+      let slot = alloca env fr (Llvm.array_type env.i64 n) in
+      ignore (Llvm.build_store site slot b);
+      `Stored slot
+  | _ -> `Value site
+
+(* The address of a slot holding [e]'s value, for a parameter passed by
+   address. A place is lent where it is: nothing else in the call writes it
+   (memory.md §2.9.1). A call that returns by address writes its result
+   straight into a fresh slot, and an expansion's result is its own slot.
+   Any other value is stored in a fresh slot of this frame first. *)
+and in_memory env fr b (e : Expr.t) =
+  match e.Expr.node with
+  | Expr.Local id when Hashtbl.mem fr.locals id -> fst (Hashtbl.find fr.locals id)
+  | Expr.Deref p -> value_of env fr b p
+  | (Expr.Call _ | Expr.Call_value _) when passing env e.Expr.ty = Address -> (
+      match call env fr b e with
+      | `Stored p -> p
+      | _ -> Diagnostic.bug "codegen: a result passed by address came back otherwise")
+  | Expr.Expand { result = Some id; _ } -> (
+      ignore (expr env fr b e);
+      match Hashtbl.find_opt fr.locals id with
+      | Some (slot, _) -> slot
+      | None -> Diagnostic.bug "codegen: an expansion's result has no slot")
+  | _ -> spill env fr b (value_of env fr b e)
+
+(* A value as [n] words, through a slot of words it is stored in. *)
+and to_words env fr b n v =
+  let slot = alloca env fr (Llvm.array_type env.i64 n) in
+  ignore (Llvm.build_store v slot b);
+  List.init n (fun i ->
+      Llvm.build_load env.i64 (Llvm.build_in_bounds_gep env.i64 slot [| Llvm.const_int env.i64 i |] "" b) "" b)
+
 and stats env fr b body = List.iter (fun s -> if not (has_terminator b) then stat env fr b s) body
 
 and stat env fr b (s : Stat.t) =
   match s with
+  | Stat.Let { id; value = { Expr.node = Expr.Call _ | Expr.Call_value _; ty } as value }
+    when passing env ty = Address ->
+      ignore (call ~into:(slot env fr id (lltype env ty)) env fr b value)
   | Stat.Let { id; value } -> (
       match expr env fr b value with
       | Some v -> ignore (Llvm.build_store v (slot env fr id (Llvm.type_of v)) b)
@@ -926,11 +1142,35 @@ and stat env fr b (s : Stat.t) =
       Llvm.position_at_end after b
   | Stat.Eval e -> ignore (expr env fr b e)
   | Stat.Return e -> (
-      (* The value is read before its arenas are drained. *)
-      let v = expr env fr b e in
+      (* The value is read before its arenas are drained: a result passed
+         by address is written to the caller's slot first, by a call
+         straight into it when the value is one. *)
+      let ret, ret_passing = fr.ret in
+      let v =
+        match (ret_passing, fr.sret, e.Expr.node) with
+        | Address, Some dest, (Expr.Call _ | Expr.Call_value _) ->
+            ignore (call ~into:dest env fr b e);
+            None
+        | Address, Some dest, _ ->
+            Option.iter (fun v -> ignore (Llvm.build_store v dest b)) (expr env fr b e);
+            None
+        | Words n, _, _ ->
+            Option.map
+              (fun v ->
+                let words = to_words env fr b n v in
+                if n = 1 then List.hd words
+                else
+                  List.fold_left
+                    (fun (acc, i) w -> (Llvm.build_insertvalue acc w i "" b, i + 1))
+                    (Llvm.undef (words_type env n), 0)
+                    words
+                  |> fst)
+              (expr env fr b e)
+        | _ -> expr env fr b e
+      in
       drain env fr b 0;
       match v with
-      | Some v when fr.ret <> Ty.Void -> ignore (Llvm.build_ret v b)
+      | Some v when ret <> Ty.Void -> ignore (Llvm.build_ret v b)
       | _ -> ignore (Llvm.build_ret_void b))
   | Stat.Scope { id; body } ->
       let frame = Frames.layout fr.symbol id body in
@@ -941,6 +1181,12 @@ and stat env fr b (s : Stat.t) =
       stats env fr b body;
       if not (has_terminator b) then drain_scope env fr b arena;
       fr.open_ <- List.tl fr.open_
+  | Stat.Hold { id; scope; value = { Expr.node = Expr.Call _ | Expr.Call_value _; ty } as value; layout = l }
+    when passing env ty = Address ->
+      let slot = frame_slot env fr b scope id in
+      ignore (call ~into:slot env fr b value);
+      hold env fr b slot l;
+      Hashtbl.replace fr.locals id (slot, lltype env ty)
   | Stat.Hold { id; scope; value; layout = l } -> (
       match expr env fr b value with
       | None -> ()
@@ -1039,10 +1285,40 @@ and stat env fr b (s : Stat.t) =
 (* Functions and programs                                                 *)
 (* ---------------------------------------------------------------------- *)
 
+(* A parameter passed by address is the caller's place or a fresh slot of
+   its, which the attributes promise the callee only reads. Lowering never
+   writes a parameter's own slot: a borrow is read-only (memory.md §2.9),
+   and a `^T` parameter is held in a slot of the body's own before it is
+   moved on. So one that does is an invariant broken, not a program to
+   build. *)
+let unwritten env (f : Func.t) addressed =
+  let bad id = Diagnostic.bug (Printf.sprintf "codegen: `%s` writes its parameter %%%d, passed by address" f.Func.symbol id) in
+  let rec stat (s : Stat.t) =
+    (match s with
+    | Stat.Assign { place; _ } when (not place.Expr.deref) && List.mem place.Expr.local addressed ->
+        bad place.Expr.local
+    | _ -> ());
+    let es, bodies = Cgt.stat_parts s in
+    List.iter expr es;
+    List.iter (List.iter stat) bodies
+  and expr (e : Expr.t) =
+    (match e.Expr.node with
+    | Expr.Take { address = { Expr.node = Expr.Address id; _ }; layout = l }
+      when List.mem id addressed && Option.is_some (Walks.vacater (walks env) l) ->
+        bad id
+    | _ -> ());
+    let es, bodies = Cgt.expr_parts e in
+    List.iter expr es;
+    List.iter (List.iter stat) bodies
+  in
+  if addressed <> [] then List.iter stat f.Func.body
+
 let func env (f : Func.t) =
   let fn, _ = Hashtbl.find env.funcs f.Func.symbol in
+  let a = Hashtbl.find env.abis f.Func.symbol in
   (* `define_function` gives the function its entry block already. *)
   let b = Llvm.builder_at_end env.ctx (Llvm.entry_block fn) in
+  let sret = match snd a.ret with Address -> Some (Llvm.param fn 0) | Itself | Words _ -> None in
   let fr =
     {
       fn;
@@ -1052,17 +1328,39 @@ let func env (f : Func.t) =
       arenas = Hashtbl.create 4;
       open_ = [];
       offsets = Hashtbl.create 8;
-      ret = f.Func.ret;
+      ret = a.ret;
+      sret;
     }
   in
-  (* A parameter is stored into a slot like any other local. *)
+  (* A parameter passed as itself is stored into a slot like any other
+     local, and one passed as words is put back together in one. One
+     passed by address is read where it is: its pointer is its slot. *)
   let kept = List.filter (fun (_, t) -> t <> Ty.Void) f.Func.params in
-  List.iteri
-    (fun i (id, t) -> ignore (Llvm.build_store (Llvm.param fn i) (slot env fr id (lltype env t)) b))
-    kept;
+  let next = ref (if Option.is_some sret then 1 else 0) in
+  let param () =
+    let p = Llvm.param fn !next in
+    incr next;
+    p
+  in
+  List.iter2
+    (fun (id, t) (_, passing) ->
+      match passing with
+      | Itself -> ignore (Llvm.build_store (param ()) (slot env fr id (lltype env t)) b)
+      | Address -> Hashtbl.replace fr.locals id (param (), lltype env t)
+      | Words n ->
+          let s = alloca env fr (Llvm.array_type env.i64 n) in
+          for i = 0 to n - 1 do
+            let at = Llvm.build_in_bounds_gep env.i64 s [| Llvm.const_int env.i64 i |] "" b in
+            ignore (Llvm.build_store (param ()) at b)
+          done;
+          Hashtbl.replace fr.locals id (s, lltype env t))
+    kept a.params;
+  unwritten env f (List.filter_map (fun ((id, _), (_, p)) -> if p = Address then Some id else None) (List.combine kept a.params));
   stats env fr b f.Func.body;
   if not (has_terminator b) then
-    ignore (if f.Func.ret = Ty.Void then Llvm.build_ret_void b else Llvm.build_unreachable b)
+    ignore
+      (if f.Func.ret = Ty.Void || Option.is_some sret then Llvm.build_ret_void b
+       else Llvm.build_unreachable b)
 
 (* The program's module. Its entry is named `zane_main` whatever its symbol,
    since that is the name the runtime calls (L16). A function other objects
@@ -1073,8 +1371,8 @@ let func env (f : Func.t) =
    The module is for [triple] from the start, so each access is emitted
    with the alignment [data_layout] gives its type. *)
 let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
-    ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region)
-    ~triple ~data_layout (p : Program.t) =
+    ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ~triple ~data_layout
+    (p : Program.t) =
   let ctx = Llvm.create_context () in
   let m = Llvm.create_module ctx "zane" in
   Llvm.set_target_triple triple m;
@@ -1086,6 +1384,10 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       ptr = Llvm.pointer_type ctx;
       i64 = Llvm.i64_type ctx;
       funcs = Hashtbl.create 32;
+      abis = Hashtbl.create 32;
+      registers = registers triple;
+      pack;
+      passings = Hashtbl.create 32;
       globals = Hashtbl.create 8;
       walks = None;
       handle_tag = fst (tags ctx);
@@ -1109,7 +1411,8 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
     p.Program.globals;
   List.iter
     (fun (f : Func.t) ->
-      let fty = fn_type env (List.map snd f.Func.params) f.Func.ret in
+      let a = abi env (List.map snd f.Func.params) f.Func.ret in
+      let fty = abi_type env a in
       let entry = Some f.Func.symbol = p.Program.entry in
       let name = if entry then "zane_main" else f.Func.symbol in
       let fn =
@@ -1123,6 +1426,8 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ()
       | Cgt.Nodes.Linkage.Available -> Llvm.set_linkage Llvm.Linkage.Available_externally fn
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr fn);
+      declare_abi env fn a;
+      Hashtbl.replace env.abis f.Func.symbol a;
       Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
     p.Program.funcs;
   List.iter

@@ -1,0 +1,2 @@
+T !largeparam$consume(%primitives$Array<%primitives$I64, 65536>)
+T !largeparam$same(%primitives$Array<%primitives$I64, 65536>)

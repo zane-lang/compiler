@@ -1,0 +1,141 @@
+/// The `crossing` program built with `--pack-aggregates`, which passes an
+/// aggregate that fits in the registers a call gives it as packed 8-byte
+/// words (docs/design/lowering.md §9): `Small`'s three `I32`s then travel
+/// in two words rather than by address, and an enum's tag in one. Each
+/// check prints `yes` when it holds and `no` when it does not.
+package crossingPacked;
+
+alias Int = @primitives$I64
+alias I32 = @primitives$I32
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+/// One piece: a reference struct of one member.
+type Solo = #struct {
+	x Int;
+}
+
+Solo(x Int) => init{ x; }
+
+^Solo solo(x Int) => Solo(x)
+
+^Solo bumped(s ^Solo) {
+	kept ^Solo = s;
+	kept.x = @operators$add(kept.x, Int(1));
+	return kept;
+}
+
+/// Two pieces, and three.
+type Pair = struct {
+	x Int;
+	y Int;
+}
+
+Pair(x Int, y Int) => init{ x; y; }
+
+type Triple = struct {
+	x Int;
+	y Int;
+	z Int;
+}
+
+Triple(x Int, y Int, z Int) => init{ x; y; z; }
+
+/// Three pieces in 12 bytes: by address unless packed into two words.
+type Small = struct {
+	a I32;
+	b I32;
+	c I32;
+}
+
+Small(a I32, b I32, c I32) => init{ a; b; c; }
+
+Pair swapped(p Pair) => Pair(p.y, p.x)
+
+Triple rotated(t Triple) => Triple(t.y, t.z, t.x)
+
+Small reversed(s Small) => Small(s.c, s.b, s.a)
+
+Int pairSum(p Pair, q Pair) => @operators$add(@operators$add(p.x, p.y), @operators$add(q.x, q.y))
+
+Int tripleSum(t Triple, u Triple) =>
+	@operators$add(@operators$add(@operators$add(t.x, t.y), t.z), @operators$add(@operators$add(u.x, u.y), u.z))
+
+/// One piece, two and three as variants: a tag alone, a tag and a word,
+/// and a tag and two words.
+type Light = enum [ red, green ]
+
+type Maybe = variant {
+	some Int;
+	none Unit;
+}
+
+type Both = variant {
+	pair Pair;
+	nothing Unit;
+}
+
+Light flipped(l Light) => match (l) {
+	red => Light.green;
+	green => Light.red;
+}
+
+Maybe doubled(m Maybe) => match (m) {
+	n some => Maybe.some(@operators$multiply(n, Int(2)));
+	none => Maybe.none(Unit());
+}
+
+Both turned(b Both) => match (b) {
+	p pair => Both.pair(swapped(p));
+	nothing => Both.nothing(Unit());
+}
+
+Int some(m Maybe) => match (m) {
+	n some => n;
+	none => Int(0);
+}
+
+Int first(b Both) => match (b) {
+	p pair => p.x;
+	nothing => Int(0);
+}
+
+Bool isGreen(l Light) => match (l) {
+	red => false;
+	green => true;
+}
+
+Unit main() {
+	s ^Solo = solo(Int(41));
+	t ^Solo = bumped(s);
+	check(@operators$equal(t.x, Int(42)));
+
+	p Pair = swapped(Pair(Int(1), Int(2)));
+	check(@operators$equal(p.x, Int(2)));
+	check(@operators$equal(pairSum(p, swapped(p)), Int(6)));
+
+	r Triple = rotated(Triple(Int(1), Int(2), Int(3)));
+	check(@operators$equal(r.x, Int(2)));
+	check(@operators$equal(r.z, Int(1)));
+	check(@operators$equal(tripleSum(r, rotated(r)), Int(12)));
+
+	m Small = reversed(Small(I32(1), I32(2), I32(3)));
+	check(@operators$equal(m.a, I32(3)));
+	check(@operators$equal(m.c, I32(1)));
+
+	check(isGreen(flipped(Light.red)));
+	check(@operators$equal(some(doubled(Maybe.some(Int(21)))), Int(42)));
+	check(@operators$equal(some(doubled(Maybe.none(Unit()))), Int(0)));
+	check(@operators$equal(first(turned(Both.pair(Pair(Int(5), Int(6))))), Int(6)));
+	check(@operators$equal(first(turned(Both.nothing(Unit()))), Int(0)));
+	return Unit();
+}

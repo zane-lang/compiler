@@ -3,10 +3,10 @@
 (* Lowering refuses each type that reaches the size limit (Cgt.Nodes.Ty.limit)
    where it is named. A frame is laid out here, from slots each below it, and
    one whose slots together reach it is refused as the build's error. *)
-let emit ?target ?fixed_region ?spawned_fixed_region p =
+let emit ?target ?pack ?fixed_region ?spawned_fixed_region p =
   Result.bind (Build.target_machine ?target ~optimize:false ()) (fun (triple, tm) ->
       let data_layout = Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm) in
-      match Emit.program ?fixed_region ?spawned_fixed_region ~triple ~data_layout p with
+      match Emit.program ?fixed_region ?spawned_fixed_region ?pack ~triple ~data_layout p with
       | m -> Ok m
       | exception Cgt.Nodes.Ty.Too_large ->
           Error "a scope's frame takes 2^48 bytes or more, past the limit on any value's size")

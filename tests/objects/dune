@@ -715,6 +715,34 @@
  (action
   (run python3 %{dep:options_test.py} %{exe:../../bin/zanec/zanec.exe})))
 
+; A library whose verbs take and return an array of 65,536 I64s, which
+; crosses each call by address (docs/design/lowering.md §9): its object is
+; written, and defines both. Before, LLVM crashed writing it.
+(rule
+ (deps (source_tree fixtures/largeparam))
+ (targets largeparam.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object largeparam.o --package fixtures/largeparam)))
+
+(rule
+ (action
+  (with-stdout-to
+   largeparam.symbols.actual
+   (system "nm --defined-only %{dep:largeparam.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/largeparam.symbols largeparam.symbols.actual)))
+
+; How an aggregate crosses a call: the register limit per target, the
+; attributes a by-address parameter and an `sret` result carry, and packing.
+(rule
+ (alias runtest)
+ (deps abi_test.py (source_tree fixtures/largeparam) (source_tree ../codegen/fixtures/crossing))
+ (action
+  (run python3 %{dep:abi_test.py} %{exe:../../bin/zanec/zanec.exe})))
+
 ; Which targets zanec builds for: a 32-bit one is refused, a 64-bit one
 ; accepted (docs/design/platforms.md).
 (rule

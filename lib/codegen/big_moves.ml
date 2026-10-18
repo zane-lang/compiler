@@ -123,6 +123,20 @@ let rewrite data_layout m =
             end)
           (large_loads f))
     m;
+  (* A parameter or a result too large to move as one value: a signature
+     passes such an aggregate by address (Emit.passing), so one here is an
+     invariant broken, not a limit of the program's. *)
+  Llvm.iter_functions
+    (fun f ->
+      let fty = Emit.value_type f in
+      List.iter
+        (fun t ->
+          if aggregate t && parts t > most_parts then
+            Diagnostic.bug
+              (Printf.sprintf "codegen: `%s` passes or returns a value of more than %d parts whole"
+                 (Llvm.value_name f) most_parts))
+        (Llvm.return_type fty :: Array.to_list (Llvm.param_types fty)))
+    m;
   (* What is still moved as one value. *)
   let too_large = ref None in
   Llvm.iter_functions

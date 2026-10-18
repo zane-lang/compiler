@@ -241,6 +241,74 @@
   (diff golden/arrays.out arrays.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/bigCalls))
+ (targets bigCalls.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bigCalls.exe --package fixtures/bigCalls)))
+
+(rule
+ (deps (source_tree fixtures/bigCalls))
+ (targets bigCalls.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bigCalls.optimized.exe --optimize --package fixtures/bigCalls)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    bigCalls.checked.out.actual
+    (run ./bigCalls.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bigCalls.out bigCalls.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    bigCalls.unchecked.out.actual
+    (run ./bigCalls.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bigCalls.out bigCalls.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    bigCalls.optimized.checked.out.actual
+    (run ./bigCalls.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bigCalls.out bigCalls.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    bigCalls.optimized.unchecked.out.actual
+    (run ./bigCalls.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bigCalls.out bigCalls.optimized.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/bounds))
  (targets bounds.exe)
  (action
@@ -655,6 +723,142 @@
  (alias runtest)
  (action
   (diff golden/counting.out counting.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/crossing))
+ (targets crossing.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crossing.exe --package fixtures/crossing)))
+
+(rule
+ (deps (source_tree fixtures/crossing))
+ (targets crossing.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crossing.optimized.exe --optimize --package fixtures/crossing)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crossing.checked.out.actual
+    (run ./crossing.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossing.out crossing.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crossing.unchecked.out.actual
+    (run ./crossing.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossing.out crossing.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crossing.optimized.checked.out.actual
+    (run ./crossing.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossing.out crossing.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crossing.optimized.unchecked.out.actual
+    (run ./crossing.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossing.out crossing.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/crossingPacked))
+ (targets crossingPacked.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crossingPacked.exe "--pack-aggregates" --package fixtures/crossingPacked)))
+
+(rule
+ (deps (source_tree fixtures/crossingPacked))
+ (targets crossingPacked.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crossingPacked.optimized.exe --optimize "--pack-aggregates" --package fixtures/crossingPacked)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crossingPacked.checked.out.actual
+    (run ./crossingPacked.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossingPacked.out crossingPacked.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crossingPacked.unchecked.out.actual
+    (run ./crossingPacked.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossingPacked.out crossingPacked.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crossingPacked.optimized.checked.out.actual
+    (run ./crossingPacked.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossingPacked.out crossingPacked.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crossingPacked.optimized.unchecked.out.actual
+    (run ./crossingPacked.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossingPacked.out crossingPacked.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/deepFrames))

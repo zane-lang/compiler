@@ -1,0 +1,66 @@
+/// An aggregate of 65,536 pieces, `ArrayRef<I64, 65536>`, passed to a `^`
+/// parameter and returned through ordinary calls, a function value and a
+/// spawned call. Its type is the CGT type `Array<I64, 65536>` is, which
+/// crosses a call by address (docs/design/lowering.md §9): LLVM cannot
+/// select it as one value. Each check prints `yes` when it holds and `no`
+/// when it does not.
+package bigCalls;
+
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias Wide = @primitives$ArrayRef<Int, 65536>
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+/// Made here, and handed back to the caller.
+^Wide make(start Int) {
+	a ^Wide = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
+	a[Int(1)] = start;
+	return a;
+}
+
+/// Taken, read, and handed back.
+^Wide pass(a ^Wide) {
+	return a;
+}
+
+/// Taken and read.
+Int ends(a ^Wide) => @operators$add(a[Int(1)], a[Int(65536)])
+
+/// Borrowed and read.
+Int middle(a Wide) => a[Int(32768)]
+
+/// The same, held as function values.
+maker ^Wide(start Int) {
+	return make(start);
+}
+
+taker Int(a ^Wide) {
+	return ends(a);
+}
+
+Unit main() {
+	made ^Wide = make(Int(10));
+	check(@operators$equal(middle(made), Int(32768)));
+	passed ^Wide = pass(made);
+	check(@operators$equal(ends(passed), Int(65546)));
+
+	// Through function values.
+	check(@operators$equal(taker(maker(Int(7))), Int(65543)));
+
+	// Through spawned calls.
+	far ^Wide = spawn make(Int(100));
+	check(@operators$equal(far[Int(1)], Int(100)));
+	check(@operators$equal(middle(far), Int(32768)));
+	sum Int = spawn ends(make(Int(1)));
+	check(@operators$equal(sum, Int(65537)));
+	return Unit();
+}

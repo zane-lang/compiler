@@ -1,0 +1,12 @@
+/// A library whose verbs take and return an array of 65,536 `I64`s, more
+/// pieces than LLVM can select as one value: each crosses the call by
+/// address, the result through a slot of the caller's
+/// (docs/design/lowering.md §9).
+package largeparam;
+
+alias Int = @primitives$I64
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+
+Int consume(x Array<Int, 65536>) => x[Int(65536)]
+
+Array<Int, 65536> same(x Array<Int, 65536>) => x

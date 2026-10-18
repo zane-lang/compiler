@@ -54,11 +54,20 @@ val lower :
 (** Stage 5 when [optimize], and the tree as it is otherwise. *)
 val optimize : optimize:bool -> Cgt.Nodes.Program.t -> Cgt.Nodes.Program.t
 
-(** The LLVM module's text. *)
-val ir : ?target:string -> ?regions:regions -> optimize:bool -> Cgt.Nodes.Program.t -> (string, failure) result
+(** The LLVM module's text. Each of these builds for [target], the host when
+    it is absent, and with [pack] passes small aggregates as packed words
+    (docs/design/lowering.md §9, `--pack-aggregates`). *)
+val ir :
+  ?target:string ->
+  ?pack:bool ->
+  ?regions:regions ->
+  optimize:bool ->
+  Cgt.Nodes.Program.t ->
+  (string, failure) result
 
 val executable :
   ?target:string ->
+  ?pack:bool ->
   ?regions:regions ->
   optimize:bool ->
   link:string list ->
@@ -68,6 +77,7 @@ val executable :
 
 val object_file :
   ?target:string ->
+  ?pack:bool ->
   ?regions:regions ->
   optimize:bool ->
   Cgt.Nodes.Program.t ->
