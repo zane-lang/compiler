@@ -54,13 +54,13 @@ uses the shared traversals.
 
    Generic verbs keep the depth limit (F01). A call in a generic body
    resolves per instance (D12), so a verb's growth is not visible in its
-   declaration the way a type's members are. This is a language rule, so
-   it belongs in the spec (`adt.md` §4, cross-referenced from
-   `generics.md`): "a type whose definition, along any of its members,
-   leads back to its own declaration at type arguments that strictly
-   contain its parameters is ill-formed". The compiler change follows the
-   spec PR. The rule follows every member, `&` members included (see
-   F16).
+   declaration the way a type's members are. This is a language rule, and
+   the spec now states it as the **growing-argument rule**
+   ([zane-lang/spec#251](https://github.com/zane-lang/spec/pull/251),
+   `generics.md` §2.4, with a pointer from `adt.md` §4 and glossary
+   §3.47). When a type leads back to itself, each argument it passes back
+   is one of its own parameters or names none of them. The rule follows
+   every member, `&` fields included (see F16).
 2. **F08: how aggregates cross a call.** *Decided:* an aggregate travels
    in registers when it needs at most as many as the target's C calling
    convention gives one, and by address otherwise. That is 2 registers on
@@ -483,8 +483,10 @@ order.
 
 ### F16: expanding generic types never finish
 
-**Fix** (decision 1: rejected at the declaration). The rule lands in the
-spec first, then:
+**Fix** (decision 1: rejected at the declaration). The rule is the spec's
+growing-argument rule (`generics.md` §2.4, merged in
+[zane-lang/spec#251](https://github.com/zane-lang/spec/pull/251)). The
+compiler implements it:
 - **Semantic check.** After type definitions resolve, `Type_decls` runs a
   new check, `check_expanding_types`, over a graph whose nodes are the
   type parameters of generic declarations.
@@ -544,9 +546,9 @@ expansion through a second declaration (`A<T>` holds `B<T>`, which holds
 mutual recursion at the same arguments are still accepted, with their
 existing fixtures.
 
-**Docs.** The spec PR (`adt.md` §4, `generics.md`). Then
-`docs/design/semantics.md`: the new check, and that boxing still decides
-per instance.
+**Docs.** `docs/design/semantics.md`: the new check, citing
+`generics.md` §2.4 by its pinned commit, and that boxing still decides per
+instance.
 
 ## Batch 5: compile-time resource bounds
 
