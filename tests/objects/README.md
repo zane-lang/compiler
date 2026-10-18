@@ -85,3 +85,7 @@ that the cell `drop` removes and discards, which owns no block, is held in
 no scope, and
 that in `quiet`'s optimized build LLVM leaves no index check in `sweep`'s
 loop, then runs each program, optimized and not.
+
+`options_test.py` checks what `zanec` accepts for the options that name and
+stamp packages. `--stamp` takes only a well-formed stamp, and a malformed
+one is a usage error that writes no object.

@@ -26,7 +26,9 @@ let not_stamp stamp =
    for a package the build does not have would be dropped silently, and the
    package it was meant for compiled into the root's object rather than
    linked from its own; one for a name two packages have would pick between
-   them. *)
+   them. A value that is no stamp would name the package's symbols with it,
+   while lowering, which recognizes a stamp by its form, took the package
+   for unstamped. *)
 let with_stamps stamps requests =
   let problems = ref [] in
   let requests =
@@ -36,6 +38,9 @@ let with_stamps stamps requests =
           r.Assembly.stamp = None && String.equal (Assembly.path_of r) name
         in
         match List.filter named requests with
+        | _ when not (Rewrite.is_stamp stamp) ->
+            problems := Diagnostic.about_invocation (not_stamp stamp) :: !problems;
+            requests
         | [ _ ] -> List.map (fun r -> if named r then { r with Assembly.stamp = Some stamp } else r) requests
         | [] ->
             problems :=

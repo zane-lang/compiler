@@ -706,3 +706,11 @@
  (deps facts_test.py (source_tree fixtures/facts))
  (action
   (run python3 %{dep:facts_test.py} %{exe:../../bin/zanec/zanec.exe})))
+
+; What zanec accepts for the options that stamp packages: only a
+; well-formed stamp.
+(rule
+ (alias runtest)
+ (deps options_test.py (source_tree fixtures/geometry))
+ (action
+  (run python3 %{dep:options_test.py} %{exe:../../bin/zanec/zanec.exe})))

@@ -6,7 +6,7 @@
 ; surfaced. They also check that semantics run twice in one process gives the
 ; same tree (it keeps no numbering from one check to the next), that the
 ; test rules' generator pairs every fixture with a golden file, and that the
-; driver's rewrite keeps a file it did not create.
+; driver checks a stamp and keeps a file its rewrite did not create.
 ;
 ; Overloads, State, Type_layout, Emit and stage 5's modules are not re-exported by their libraries'
 ; entry modules, so they are reached by the names dune gives them.

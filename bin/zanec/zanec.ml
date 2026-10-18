@@ -212,10 +212,10 @@ let arguments () =
     | "--stamp" :: stamp :: rest when is_value stamp -> (
         match String.index_opt stamp '=' with
         | Some i when i + 1 < String.length stamp ->
-            let name = String.sub stamp 0 i in
-            if is_package_path name && not (List.mem_assoc name build.stamps) then
-              let value = String.sub stamp (i + 1) (String.length stamp - i - 1) in
-              packages view { build with stamps = (name, value) :: build.stamps } rest
+            let name = String.sub stamp 0 i
+            and value = String.sub stamp (i + 1) (String.length stamp - i - 1) in
+            if is_package_path name && Rewrite.is_stamp value && not (List.mem_assoc name build.stamps)
+            then packages view { build with stamps = (name, value) :: build.stamps } rest
             else usage ()
         | _ -> usage ())
     | "--link" :: file :: rest when is_value file ->

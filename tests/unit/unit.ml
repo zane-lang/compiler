@@ -735,6 +735,22 @@ let rewriting_keeps_others_files () =
         (List.for_all Fun.id (List.mapi (fun i name -> read_all name = Some (string_of_int i)) taken));
       check "no output is written" (not (Sys.file_exists output)))
 
+let contains text part =
+  let n = String.length part in
+  let rec go i = i + n <= String.length text && (String.sub text i n = part || go (i + 1)) in
+  go 0
+
+(* A stamp given by package name is checked as `--rewrite`'s is, so a caller
+   that is not `zanec` cannot name a package's symbols with something
+   lowering would not read as a stamp. *)
+let stamps_are_checked () =
+  let request = { Tst.Assembly.manifest_name = Some "geometry"; directory = "nowhere"; stamp = None } in
+  match Driver.assemble ~root:false ~stamps:[ ("geometry", "garbage") ] [ request ] with
+  | Ok _ -> check "a malformed stamp is refused" false
+  | Error failure ->
+      check "a malformed stamp is named as no stamp"
+        (List.exists (fun line -> contains line "`garbage` is not a stamp") (Driver.render failure))
+
 (* tests/gen/gen_rules.ml stops at a fixture with no golden file and at a
    golden file whose fixture is gone, naming each, so neither leaves a
    program silently untested. *)
@@ -803,6 +819,7 @@ let () =
   target_cpus ();
   fixture_pairing ();
   rewriting_keeps_others_files ();
+  stamps_are_checked ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1
