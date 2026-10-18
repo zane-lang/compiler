@@ -648,6 +648,15 @@ after a successful `Driver.object_file`, after one that fails in
     `s` gives maker id `s - 1`).
   - **Join.** The context running the task it is joining
     (`zane_join_task`, when the task was taken elsewhere).
+- **The runner is published with the state.** Today `zane_unlink`
+  (`runtime/spawn.c`) marks a task `ZANE_RUNNING` before `zane_run`
+  gives it its context. A join could therefore see a running task whose
+  `t->context` is not set yet, and miss the edge. The context that takes
+  a task therefore records itself in `t->runner` before it publishes
+  `ZANE_RUNNING`, with a release store paired with the joiner's acquire
+  load. The join edge targets that context. `t->context`, the spawned
+  call's own context, is still made afterwards; a cycle through the
+  spawned call's own constant reads follows its waits from there.
 - A registry from context id to context makes the maker reachable. It
   holds every context ever created, since contexts are reused, never
   freed.
@@ -662,7 +671,9 @@ after a successful `Driver.object_file`, after one that fails in
 **Tests.** Add a runtime C test that reproduces the audit's probe: two
 contexts, each begins its own constant, a barrier, then each begins the
 other's. It must stop with the message within the test's timeout and not
-hang. Add a second test that closes the cycle through a join. If a Zane
+hang. Add a second test that closes the cycle through a join, joining
+the moment the task is taken, so the window between `ZANE_RUNNING` and
+the runner being recorded is exercised. If a Zane
 program can reach either shape (a constant whose initializer spawns a
 call that reads another constant, which reads the first), add it as a
 codegen fixture with expected status and stderr.
@@ -684,7 +695,12 @@ contexts.
   - **Windows.** There a 1 MiB-aligned reservation costs an extra MiB of
     reserved addresses. Take chunks by carving them from larger aligned
     reservations, 64 MiB at a time, so neither the waste nor the system
-    calls are per chunk.
+    calls are per chunk. `VirtualFree` with `MEM_RELEASE` releases only a
+    whole reservation, so one carved chunk cannot be released on its own.
+    Each 64 MiB slab therefore counts its chunks that are live or warm.
+    A cold chunk on Windows is decommitted, so it holds addresses but no
+    memory. When every chunk of a slab is cold, the whole slab is
+    released, after its chunks are taken off the cold list.
   - **Oversized blocks** (more than one chunk) take the same route.
 - **Warm spares.** `zane_unmap` (`runtime/arena.c`) keeps a drained chunk
   warm while its context holds fewer than `ZANE_WARM_KEPT` (4) warm
@@ -701,7 +717,10 @@ contexts.
     first, through `zane_commit_range`, and a failed commit stops the
     program the way any failed commit does.
   - **The limit.** Past `ZANE_COLD_KEPT` cold chunks (256, which holds
-    1 MiB of first pages), a drained chunk is released entirely.
+    1 MiB of first pages), a drained chunk is released entirely. On POSIX
+    that is `munmap` of the chunk. On Windows a chunk is released only as
+    part of a fully cold slab (above), so there the limit counts slabs
+    that are not yet fully cold.
 - **Reuse order.** `zane_map` prefers a warm spare, then a cold one, then
   a new chunk.
 - **Counts.** A per-context warm count, and warm and cold counts for the
@@ -746,8 +765,16 @@ fault handler can flush it with only async-signal-safe calls.
   instead of `stdout`. Its size is what stdio would choose for stdout
   today: the `st_blksize` that `fstat(1)` reports, or `BUFSIZ` when that
   is unavailable (and `BUFSIZ` on Windows). The buffer is guarded by a mutex for
-  ordinary writers, plus an atomic `busy` flag that a writer sets while it
-  holds the buffer.
+  ordinary writers, plus an atomic `busy` flag (0 free, 1 a writer, 2 the
+  fault path).
+  - **Only `busy` grants the buffer.** A writer takes the mutex, then
+    claims `busy` with a compare-and-swap from 0 to 1, and touches the
+    buffer only if that succeeds. If it finds 2, the fault path has the
+    buffer and the process is stopping, so the writer waits for the exit
+    instead of writing.
+  - **No gap.** A writer that holds the mutex but has not yet claimed
+    `busy` has not touched the buffer. So a fault-path claim made in that
+    moment never overlaps a writer's use.
 - **Flush.** The buffer is flushed with `write(1, ...)` in a loop
   (`WriteFile` on Windows), and a failed write records an error flag.
 - **When it flushes.** It keeps what stdio does today. At startup the
@@ -809,8 +836,9 @@ line into a displayed one, so they land together.
 **Fix.** Build the displayed line once, as a sequence of (bytes shown,
 cell width) per source character, and derive both rows from it:
 - **Control characters (F20).** C0 controls other than tab, DEL, C1
-  controls (U+0080 to U+009F) and the bidirectional controls (U+202A to
-  U+202E, U+2066 to U+2069) are shown as visible escapes such as `\x1b`
+  controls (U+0080 to U+009F) and every character with the Unicode
+  `Bidi_Control` property (U+061C, U+200E, U+200F, U+202A to U+202E,
+  U+2066 to U+2069) are shown as visible escapes such as `\x1b`
   and `\u202e`, each written as those ASCII characters and as wide as
   its escape text, so the control itself never reaches the terminal. Tabs expand as now. The
   file name in every location form (`at_span`, and the file and directory
@@ -841,8 +869,9 @@ cell width) per source character, and derive both rows from it:
 `e` plus a combining mark, after a CJK string literal, after an emoji,
 after a ZWJ family emoji, after a flag, after `©` + U+FE0F,
 on line 10 and on line 100. Add a source line holding `ESC [ 2 J` inside a
-string literal before an error. Add a file name holding a control
-character. Read every existing golden's diff by eye; only the cases above
+string literal before an error, and one golden per `Bidi_Control`
+character (U+061C, U+200E, U+200F and one each from the two ranges). Add a
+file name holding a control character. Read every existing golden's diff by eye; only the cases above
 should move.
 
 **Docs.** The comment at the top of `render.ml`.
