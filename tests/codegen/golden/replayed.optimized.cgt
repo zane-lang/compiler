@@ -1,9 +1,17 @@
 └── program:
-    ├── entry: replayed$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: replayed$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: replayed$main()
     │   ├── params:
     │   ├── ret: void
@@ -220,7 +228,7 @@
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
     │       └── body[26] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: replayed$say(%primitives$String)
     │   ├── params[0]: local #1 : handle
     │   ├── ret: void
@@ -229,7 +237,7 @@
     │   │   ├── fn: zane_print
     │   │   └── args[0]: local #1 : handle
     │   └── body[1] > return: unit : void
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: replayed$loud(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -244,7 +252,7 @@
     │           ├── op: *
     │           ├── left: local #1 : i64
     │           └── right: 2 : i64
-    ├── funcs[3] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: replayed$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -267,7 +275,7 @@
     │   │           ├── fn: zane_print
     │   │           └── args[0]: "no\n" : handle
     │   └── body[2] > return: unit : void
-    ├── funcs[4] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: replayed$spin(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -313,7 +321,7 @@
     │   │   │           └── right: 1 : i64
     │   │   └── body[2]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: replayed$down(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -347,7 +355,7 @@
     │               ├── op: +
     │               ├── left: local #1 : i64
     │               └── right: -1 : i64
-    ├── funcs[6] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: replayed$bumped(this %primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -364,7 +372,7 @@
     │   └── body[1] > return > deref:
     │       ├── type: i64
     │       └── ptr: local #1 : ptr
-    ├── funcs[7] > func:
+    ├── funcs[8] > func:
     │   ├── symbol: replayed$double(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -373,7 +381,7 @@
     │       ├── op: *
     │       ├── left: local #1 : i64
     │       └── right: 2 : i64
-    ├── funcs[8] > func:
+    ├── funcs[9] > func:
     │   ├── symbol: replayed$slowly(this %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -394,7 +402,7 @@
     │       │   │   └── ptr: local #1 : ptr
     │       │   └── right: local #2 : i64
     │       └── right: -3000000 : i64
-    └── funcs[9] > func:
+    └── funcs[10] > func:
         ├── symbol: replayed$repeated(%primitives$String, %primitives$I64)
         ├── params[0]: local #1 : handle
         ├── params[1]: local #2 : i64

@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: spawns$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$I64
     │   └── positions:
@@ -34,6 +34,14 @@
     │   ├── type: outcome of %primitives$I64
     │   └── positions:
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: spawns$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: spawns$main()
     │   ├── params:
     │   ├── ret: void
@@ -1788,7 +1796,7 @@
     │                       │   │   └── payload: 4 : i64
     │                       │   └── layout: outcome of %primitives$I64 ? %primitives$String
     │                       └── body[2]: leave @274
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: spawns$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -1819,7 +1827,7 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: spawns$fib(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1853,7 +1861,7 @@
     │               └── right > flip:
     │                   ├── type: i64
     │                   └── value: 2 : i64
-    ├── funcs[3] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: spawns$greet(%primitives$String)
     │   ├── params[0]: local #1 : handle
     │   ├── ret: handle
@@ -1878,7 +1886,7 @@
     │           │   │       └── value: local #2 : handle
     │           │   └── args[1]: local #1 : handle
     │           └── layout: %primitives$String
-    ├── funcs[4] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: spawns$Person(%primitives$String, %primitives$I64)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
@@ -1890,7 +1898,7 @@
     │       │   ├── members[0] > member 0: local #1 : handle
     │       │   └── members[1] > member 1: local #2 : i64
     │       └── layout: spawns$Person
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: spawns$nameOf(&spawns$Person)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: handle
@@ -1920,7 +1928,7 @@
     │           │           ├── place: #4
     │           │           └── value: local #2 : handle
     │           └── layout: %primitives$String
-    ├── funcs[6] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: spawns$ageOf(spawns$Person)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -1930,7 +1938,7 @@
     │           ├── within: {handle, i64}
     │           ├── path: 1
     │           └── base: local #1 : ptr
-    ├── funcs[7] > func:
+    ├── funcs[8] > func:
     │   ├── symbol: spawns$born(%primitives$String, %primitives$I64)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
@@ -1960,7 +1968,7 @@
     │           │   │           └── value: local #3 : handle
     │           │   └── args[1]: local #2 : i64
     │           └── layout: ^spawns$Person
-    ├── funcs[8] > func:
+    ├── funcs[9] > func:
     │   ├── symbol: spawns$words(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: handle
@@ -2058,12 +2066,12 @@
     │           │   ├── address: address of #2 : ptr
     │           │   └── layout: ^%primitives$List<%primitives$String>
     │           └── layout: ^%primitives$List<%primitives$String>
-    ├── funcs[9] > func:
+    ├── funcs[10] > func:
     │   ├── symbol: spawns$Tally(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > return: local #1 : i64
-    ├── funcs[10] > func:
+    ├── funcs[11] > func:
     │   ├── symbol: spawns$add(this spawns$Tally, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -2078,7 +2086,7 @@
     │   │       │   └── ptr: local #1 : ptr
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
-    ├── funcs[11] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: spawns$deepen(this spawns$Countdown, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -2130,7 +2138,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[2] > return: unit : void
-    ├── funcs[12] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: spawns$depth(spawns$Countdown)
     │   ├── params[0]: local #1 : <void | ptr>
     │   ├── ret: i64
@@ -2176,7 +2184,7 @@
     │           │               ├── type: <void | ptr>
     │           │               └── ptr: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: spawns$Holder(spawns$Countdown)
     │   ├── params[0]: local #1 : <void | ptr>
     │   ├── ret: {<void | ptr>, i64}
@@ -2190,7 +2198,7 @@
     │       │       ├── fn: spawns$Tally(%primitives$I64)
     │       │       └── args[0]: 0 : i64
     │       └── layout: spawns$Holder
-    ├── funcs[14] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: spawns$watch(&spawns$Holder, %primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -2279,7 +2287,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @7
     │   └── body[3] > return: local #4 : i64
-    ├── funcs[15] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: spawns$pair(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -2330,12 +2338,12 @@
     │                   └── value > deref:
     │                       ├── type: i64
     │                       └── ptr: address of #8 : ptr
-    ├── funcs[16] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: spawns$nothing()
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > return: unit : void
-    ├── funcs[17] > func:
+    ├── funcs[18] > func:
     │   ├── symbol: spawns$divide(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -2392,7 +2400,7 @@
     │           ├── op: /
     │           ├── left: local #1 : i64
     │           └── right: local #2 : i64
-    ├── funcs[18] > func:
+    ├── funcs[19] > func:
     │   ├── symbol: spawns$relay(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -2538,7 +2546,7 @@
     │                                   │   │           └── value: local #20 : handle
     │                                   │   └── layout: %primitives$String
     │                                   └── layout: %primitives$String
-    ├── funcs[19] > func:
+    ├── funcs[20] > func:
     │   ├── symbol: spawns$pick(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | void | void>
@@ -2556,7 +2564,7 @@
     │       ├── type: <i64 | void | void>
     │       ├── index: 0
     │       └── payload: local #1 : i64
-    ├── funcs[20] > func:
+    ├── funcs[21] > func:
     │   ├── symbol: zane.spawn.1
     │   ├── params[0]: local #8 : ptr
     │   ├── ret: void
@@ -2574,7 +2582,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #8 : ptr
-    ├── funcs[21] > func:
+    ├── funcs[22] > func:
     │   ├── symbol: zane.spawn.2
     │   ├── params[0]: local #15 : ptr
     │   ├── ret: void
@@ -2592,7 +2600,7 @@
     │                   ├── within: {handle, handle}
     │                   ├── path: 1
     │                   └── base: local #15 : ptr
-    ├── funcs[22] > func:
+    ├── funcs[23] > func:
     │   ├── symbol: zane.spawn.3
     │   ├── params[0]: local #28 : ptr
     │   ├── ret: void
@@ -2610,7 +2618,7 @@
     │                   ├── within: {handle, ptr}
     │                   ├── path: 1
     │                   └── base: local #28 : ptr
-    ├── funcs[23] > func:
+    ├── funcs[24] > func:
     │   ├── symbol: zane.spawn.4
     │   ├── params[0]: local #40 : ptr
     │   ├── ret: void
@@ -2628,7 +2636,7 @@
     │                   ├── within: {i64, ptr}
     │                   ├── path: 1
     │                   └── base: local #40 : ptr
-    ├── funcs[24] > func:
+    ├── funcs[25] > func:
     │   ├── symbol: zane.spawn.5
     │   ├── params[0]: local #48 : ptr
     │   ├── ret: void
@@ -2652,7 +2660,7 @@
     │                   ├── within: {{handle, i64}, handle, i64}
     │                   ├── path: 2
     │                   └── base: local #48 : ptr
-    ├── funcs[25] > func:
+    ├── funcs[26] > func:
     │   ├── symbol: zane.spawn.6
     │   ├── params[0]: local #57 : ptr
     │   ├── ret: void
@@ -2670,7 +2678,7 @@
     │                   ├── within: {handle, i64}
     │                   ├── path: 1
     │                   └── base: local #57 : ptr
-    ├── funcs[26] > func:
+    ├── funcs[27] > func:
     │   ├── symbol: zane.spawn.7
     │   ├── params[0]: local #64 : ptr
     │   ├── ret: void
@@ -2689,7 +2697,7 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #64 : ptr
-    ├── funcs[27] > func:
+    ├── funcs[28] > func:
     │   ├── symbol: zane.spawn.8
     │   ├── params[0]: local #71 : ptr
     │   ├── ret: void
@@ -2708,7 +2716,7 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #71 : ptr
-    ├── funcs[28] > func:
+    ├── funcs[29] > func:
     │   ├── symbol: zane.spawn.9
     │   ├── params[0]: local #74 : ptr
     │   ├── ret: void
@@ -2727,7 +2735,7 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #74 : ptr
-    ├── funcs[29] > func:
+    ├── funcs[30] > func:
     │   ├── symbol: zane.spawn.10
     │   ├── params[0]: local #76 : ptr
     │   ├── ret: void
@@ -2746,7 +2754,7 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #76 : ptr
-    ├── funcs[30] > func:
+    ├── funcs[31] > func:
     │   ├── symbol: zane.spawn.11
     │   ├── params[0]: local #84 : ptr
     │   ├── ret: void
@@ -2776,7 +2784,7 @@
     │                   ├── within: {i64, ptr, i64, i64}
     │                   ├── path: 3
     │                   └── base: local #84 : ptr
-    ├── funcs[31] > func:
+    ├── funcs[32] > func:
     │   ├── symbol: zane.spawn.12
     │   ├── params[0]: local #89 : ptr
     │   ├── ret: void
@@ -2808,7 +2816,7 @@
     │       │   └── base: local #89 : ptr
     │       ├── args[2]: 16 : i64
     │       └── args[3]: layout spawns$Countdown
-    ├── funcs[32] > func:
+    ├── funcs[33] > func:
     │   ├── symbol: zane.spawn.13
     │   ├── params[0]: local #92 : ptr
     │   ├── ret: void
@@ -2840,7 +2848,7 @@
     │       │   └── base: local #92 : ptr
     │       ├── args[2]: 8 : i64
     │       └── args[3]: layout spawns$Tally
-    ├── funcs[33] > func:
+    ├── funcs[34] > func:
     │   ├── symbol: zane.spawn.14
     │   ├── params[0]: local #96 : ptr
     │   ├── ret: void
@@ -2858,7 +2866,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #96 : ptr
-    ├── funcs[34] > func:
+    ├── funcs[35] > func:
     │   ├── symbol: zane.spawn.15
     │   ├── params[0]: local #99 : ptr
     │   ├── ret: void
@@ -2876,7 +2884,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #99 : ptr
-    ├── funcs[35] > func:
+    ├── funcs[36] > func:
     │   ├── symbol: zane.spawn.16
     │   ├── params[0]: local #102 : ptr
     │   ├── ret: void
@@ -2894,7 +2902,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #102 : ptr
-    ├── funcs[36] > func:
+    ├── funcs[37] > func:
     │   ├── symbol: zane.spawn.17
     │   ├── params[0]: local #117 : ptr
     │   ├── ret: void
@@ -2912,7 +2920,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #117 : ptr
-    ├── funcs[37] > func:
+    ├── funcs[38] > func:
     │   ├── symbol: zane.spawn.18
     │   ├── params[0]: local #128 : ptr
     │   ├── ret: void
@@ -2930,7 +2938,7 @@
     │                   ├── within: {handle, handle}
     │                   ├── path: 1
     │                   └── base: local #128 : ptr
-    ├── funcs[38] > func:
+    ├── funcs[39] > func:
     │   ├── symbol: zane.spawn.19
     │   ├── params[0]: local #134 : ptr
     │   ├── ret: void
@@ -2948,7 +2956,7 @@
     │                   ├── within: {handle, handle}
     │                   ├── path: 1
     │                   └── base: local #134 : ptr
-    ├── funcs[39] > func:
+    ├── funcs[40] > func:
     │   ├── symbol: zane.spawn.20
     │   ├── params[0]: local #137 : ptr
     │   ├── ret: void
@@ -2966,7 +2974,7 @@
     │                   ├── within: {handle, i64}
     │                   ├── path: 1
     │                   └── base: local #137 : ptr
-    ├── funcs[40] > func:
+    ├── funcs[41] > func:
     │   ├── symbol: zane.spawn.21
     │   ├── params[0]: local #140 : ptr
     │   ├── ret: void
@@ -2974,7 +2982,7 @@
     │       ├── type: void
     │       ├── fn: spawns$nothing()
     │       └── args:
-    ├── funcs[41] > func:
+    ├── funcs[42] > func:
     │   ├── symbol: zane.spawn.22
     │   ├── params[0]: local #146 : ptr
     │   ├── ret: void
@@ -2992,7 +3000,7 @@
     │                   ├── within: {handle, i64}
     │                   ├── path: 1
     │                   └── base: local #146 : ptr
-    ├── funcs[42] > func:
+    ├── funcs[43] > func:
     │   ├── symbol: zane.spawn.23
     │   ├── params[0]: local #153 : ptr
     │   ├── ret: void
@@ -3010,7 +3018,7 @@
     │                   ├── within: {handle, i64}
     │                   ├── path: 1
     │                   └── base: local #153 : ptr
-    ├── funcs[43] > func:
+    ├── funcs[44] > func:
     │   ├── symbol: zane.spawn.24
     │   ├── params[0]: local #157 : ptr
     │   ├── ret: void
@@ -3034,7 +3042,7 @@
     │                   ├── within: {<i64 | handle | void>, i64, i64}
     │                   ├── path: 2
     │                   └── base: local #157 : ptr
-    ├── funcs[44] > func:
+    ├── funcs[45] > func:
     │   ├── symbol: zane.spawn.25
     │   ├── params[0]: local #161 : ptr
     │   ├── ret: void
@@ -3058,7 +3066,7 @@
     │                   ├── within: {<i64 | handle | void>, i64, i64}
     │                   ├── path: 2
     │                   └── base: local #161 : ptr
-    ├── funcs[45] > func:
+    ├── funcs[46] > func:
     │   ├── symbol: zane.spawn.26
     │   ├── params[0]: local #188 : ptr
     │   ├── ret: void
@@ -3082,7 +3090,7 @@
     │                   ├── within: {<i64 | handle | void>, i64, i64}
     │                   ├── path: 2
     │                   └── base: local #188 : ptr
-    ├── funcs[46] > func:
+    ├── funcs[47] > func:
     │   ├── symbol: zane.spawn.27
     │   ├── params[0]: local #218 : ptr
     │   ├── ret: void
@@ -3106,7 +3114,7 @@
     │                   ├── within: {<i64 | handle | void>, i64, i64}
     │                   ├── path: 2
     │                   └── base: local #218 : ptr
-    ├── funcs[47] > func:
+    ├── funcs[48] > func:
     │   ├── symbol: zane.spawn.28
     │   ├── params[0]: local #223 : ptr
     │   ├── ret: void
@@ -3130,7 +3138,7 @@
     │                   ├── within: {<i64 | handle | void>, i64, i64}
     │                   ├── path: 2
     │                   └── base: local #223 : ptr
-    ├── funcs[48] > func:
+    ├── funcs[49] > func:
     │   ├── symbol: zane.spawn.29
     │   ├── params[0]: local #227 : ptr
     │   ├── ret: void
@@ -3154,7 +3162,7 @@
     │                   ├── within: {<i64 | handle | void>, i64, i64}
     │                   ├── path: 2
     │                   └── base: local #227 : ptr
-    ├── funcs[49] > func:
+    ├── funcs[50] > func:
     │   ├── symbol: zane.spawn.30
     │   ├── params[0]: local #246 : ptr
     │   ├── ret: void
@@ -3172,7 +3180,7 @@
     │                   ├── within: {<i64 | void | void>, i64}
     │                   ├── path: 1
     │                   └── base: local #246 : ptr
-    ├── funcs[50] > func:
+    ├── funcs[51] > func:
     │   ├── symbol: zane.spawn.31
     │   ├── params[0]: local #255 : ptr
     │   ├── ret: void
@@ -3190,7 +3198,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #255 : ptr
-    ├── funcs[51] > func:
+    ├── funcs[52] > func:
     │   ├── symbol: zane.spawn.32
     │   ├── params[0]: local #2 : ptr
     │   ├── ret: void
@@ -3208,7 +3216,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #2 : ptr
-    ├── funcs[52] > func:
+    ├── funcs[53] > func:
     │   ├── symbol: zane.spawn.33
     │   ├── params[0]: local #6 : ptr
     │   ├── ret: void
@@ -3226,7 +3234,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #6 : ptr
-    └── funcs[53] > func:
+    └── funcs[54] > func:
         ├── symbol: zane.spawn.34
         ├── params[0]: local #3 : ptr
         ├── ret: void

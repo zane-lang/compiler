@@ -153,6 +153,11 @@ then run it again, read the golden diff and promote that.
   one reading another made first whatever their order, a string that owns
   its block, a host a guest names, and a value struct, read from a verb and a
   spawned call.
+- `entryArray`, `entryString`, `entryStruct` and `entryUnit` are a `main`
+  that returns an `Array<I64, 10>`, a `String` that owns its block, a
+  `#struct` that owns a list, and `Unit`, which the start function discards
+  (docs/design/lowering.md L16). Each `...Constant` twin adds a package
+  constant nothing reads, which once changed which entry the runtime called.
 - `spawned` is step 10's spawned calls that need a function made for them: an
   intrinsic method, verbs expanded where they are called because they take
   literals, an array literal among them, one that aborts, and one with a

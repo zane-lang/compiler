@@ -389,8 +389,8 @@ module Func = struct
 end
 
 (* One program is one module (L15). [entry] is the symbol of the function
-   the runtime's C `main` calls (L16): the root package's `main`, or one
-   that makes the package constants first and then calls it. A library has
+   the runtime's C `main` calls (L16): always one that makes the package
+   constants, if any, and then calls the root package's `main`. A library has
    none. [layouts] is each layout the program names, and [globals] each of
    its variables. *)
 module Program = struct

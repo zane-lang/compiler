@@ -1,0 +1,28 @@
+/// A `main` that returns a `#struct` that owns a list, which the runtime's
+/// entry discards (docs/design/lowering.md L16), in a package with a constant
+/// nothing reads.
+package entryStructConstant;
+
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+unused Int(1)
+
+alias List<T Type> = @primitives$List<T>
+
+type Bag = #struct {
+	items List<Int>;
+	name String;
+}
+
+Bag(items ^List<Int>, name String) => init{ items; name; }
+
+^Bag main() {
+	done String("main returns a struct\n");
+	@program$console!print(done);
+	items ^List<Int> = @primitives$List(Int);
+	items!push(Int(1));
+	items!push(Int(2));
+	return Bag(items, @operators$concat(String("a "), String("bag")));
+}

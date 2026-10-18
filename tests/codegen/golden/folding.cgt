@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: folding$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
@@ -22,6 +22,14 @@
     │   ├── type: ^%primitives$List<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: folding$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: folding$main()
     │   ├── params:
     │   ├── ret: void
@@ -704,7 +712,7 @@
     │       │       │   └── args[0]: 10 : i64
     │       │       └── right: 89 : i64
     │       └── body[47] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: folding$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -735,7 +743,7 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: folding$inverse(%primitives$F64)
     │   ├── params[0]: local #1 : f64
     │   ├── ret: f64
@@ -744,7 +752,7 @@
     │       ├── op: /
     │       ├── left: 0x1p+0 : f64
     │       └── right: local #1 : f64
-    ├── funcs[3] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: folding$negate(this %primitives$F64)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: void
@@ -756,7 +764,7 @@
     │   │           ├── type: f64
     │   │           └── ptr: local #1 : ptr
     │   └── body[1] > return: unit : void
-    ├── funcs[4] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: folding$repeated(%primitives$String, %primitives$I64)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
@@ -815,7 +823,7 @@
     │           │   ├── value: local #3 : handle
     │           │   └── layout: %primitives$String
     │           └── layout: %primitives$String
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: folding$Vec(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -824,7 +832,7 @@
     │       ├── type: {i64, i64}
     │       ├── members[0] > member 0: local #1 : i64
     │       └── members[1] > member 1: local #2 : i64
-    ├── funcs[6] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: folding$scale(this folding$Vec, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -854,7 +862,7 @@
     │   │       │       └── ptr: local #1 : ptr
     │   │       └── right: local #2 : i64
     │   └── body[2] > return: unit : void
-    ├── funcs[7] > func:
+    ├── funcs[8] > func:
     │   ├── symbol: folding$corners(folding$Shape)
     │   ├── params[0]: local #1 : <{i64, i64} | f64 | void>
     │   ├── ret: i64
@@ -915,7 +923,7 @@
     │           │       ├── type: i64
     │           │       └── value: 1 : i64
     │           └── cases[2] > case 2[2]: leave @2
-    ├── funcs[8] > func:
+    ├── funcs[9] > func:
     │   ├── symbol: folding$copied()
     │   ├── params:
     │   ├── ret: i64
@@ -936,7 +944,7 @@
     │       ├── type: i64
     │       ├── index: 0
     │       └── value: local #2 : {i64, i64}
-    ├── funcs[9] > func:
+    ├── funcs[10] > func:
     │   ├── symbol: folding$unchanged(folding$Vec)
     │   ├── params[0]: local #1 : {i64, i64}
     │   ├── ret: i64
@@ -950,7 +958,7 @@
     │       ├── type: i64
     │       ├── index: 0
     │       └── value: local #1 : {i64, i64}
-    ├── funcs[10] > func:
+    ├── funcs[11] > func:
     │   ├── symbol: folding$rescued(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -989,7 +997,7 @@
     │   │               ├── left: local #6 : i64
     │   │               └── right: 100 : i64
     │   └── body[1] > return: local #7 : i64
-    ├── funcs[11] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: folding$fib(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1034,7 +1042,7 @@
     │               └── right > flip:
     │                   ├── type: i64
     │                   └── value: 2 : i64
-    ├── funcs[12] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: folding$squares(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1154,7 +1162,7 @@
     │       │   ├── body[2] > eval: unit : void
     │       │   └── body[3]: leave @15
     │       └── body[6] > return: local #12 : i64
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: folding$boxed(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1216,7 +1224,7 @@
     │           ├── type: i64
     │           ├── fn: folding$depth(folding$Countdown)
     │           └── args[0]: local #2 : <void | ptr>
-    ├── funcs[14] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: folding$upTo(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: handle
@@ -1279,7 +1287,7 @@
     │       ├── exit: function
     │       ├── value: local #2 : handle
     │       └── layout: ^%primitives$List<%primitives$I64>
-    ├── funcs[15] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: folding$sum(&%primitives$List<%primitives$I64>)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -1338,7 +1346,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[16] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: folding$words()
     │   ├── params:
     │   ├── ret: handle
@@ -1386,7 +1394,7 @@
     │       ├── exit: function
     │       ├── value: local #1 : handle
     │       └── layout: ^%primitives$List<%primitives$String>
-    ├── funcs[17] > func:
+    ├── funcs[18] > func:
     │   ├── symbol: folding$countdown(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <void | ptr>
@@ -1451,7 +1459,7 @@
     │           │   ├── value: local #2 : <void | ptr>
     │           │   └── layout: folding$Countdown
     │           └── layout: folding$Countdown
-    ├── funcs[18] > func:
+    ├── funcs[19] > func:
     │   ├── symbol: folding$depth(folding$Countdown)
     │   ├── params[0]: local #1 : <void | ptr>
     │   ├── ret: i64
@@ -1497,7 +1505,7 @@
     │           │               ├── type: <void | ptr>
     │           │               └── ptr: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
-    ├── funcs[19] > func:
+    ├── funcs[20] > func:
     │   ├── symbol: folding$main()$lambda1
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1506,7 +1514,7 @@
     │       ├── op: *
     │       ├── left: local #1 : i64
     │       └── right: 3 : i64
-    ├── funcs[20] > func:
+    ├── funcs[21] > func:
     │   ├── symbol: folding$twice(%primitives$I64[%primitives$I64], %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -1518,7 +1526,7 @@
     │           ├── type: i64
     │           ├── fn: local #1 : ptr
     │           └── args[0]: local #2 : i64
-    ├── funcs[21] > func:
+    ├── funcs[22] > func:
     │   ├── symbol: folding$pair(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1569,7 +1577,7 @@
     │                   └── value > deref:
     │                       ├── type: i64
     │                       └── ptr: address of #8 : ptr
-    ├── funcs[22] > func:
+    ├── funcs[23] > func:
     │   ├── symbol: folding$divide(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -1603,7 +1611,7 @@
     │           ├── op: /
     │           ├── left: local #1 : i64
     │           └── right: local #2 : i64
-    ├── funcs[23] > func:
+    ├── funcs[24] > func:
     │   ├── symbol: zane.spawn.1
     │   ├── params[0]: local #2 : ptr
     │   ├── ret: void
@@ -1621,7 +1629,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #2 : ptr
-    └── funcs[24] > func:
+    └── funcs[25] > func:
         ├── symbol: zane.spawn.2
         ├── params[0]: local #6 : ptr
         ├── ret: void

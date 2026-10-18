@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: owners$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: ^owners$Account
     │   └── positions:
@@ -13,6 +13,14 @@
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: owners$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: owners$main()
     │   ├── params:
     │   ├── ret: void
@@ -589,7 +597,7 @@
     │       │       ├── left: local #31 : i64
     │       │       └── right: 100000 : i64
     │       └── body[32] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: owners$opened(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -609,7 +617,7 @@
     │       ├── exit: function
     │       ├── value: local #3 : {i64, i64}
     │       └── layout: ^owners$Account
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: owners$deposit(this owners$Account, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -627,7 +635,7 @@
     │   │       │       └── base: local #1 : ptr
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
-    ├── funcs[3] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: owners$funds(this owners$Account)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -637,7 +645,7 @@
     │           ├── within: {i64, i64}
     │           ├── path: 1
     │           └── base: local #1 : ptr
-    ├── funcs[4] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: owners$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -668,7 +676,7 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: owners$Account(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i64, i64}
@@ -679,7 +687,7 @@
     │       │   ├── members[0] > member 0: local #1 : i64
     │       │   └── members[1] > member 1: 0 : i64
     │       └── layout: owners$Account
-    ├── funcs[6] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: owners$balanceOf(owners$Account)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -689,7 +697,7 @@
     │           ├── within: {i64, i64}
     │           ├── path: 1
     │           └── base: local #1 : ptr
-    ├── funcs[7] > func:
+    ├── funcs[8] > func:
     │   ├── symbol: owners$closed(^owners$Account)
     │   ├── params[0]: local #1 : {i64, i64}
     │   ├── ret: i64
@@ -706,7 +714,7 @@
     │               ├── within: {i64, i64}
     │               ├── path: 1
     │               └── base: address of #2 : ptr
-    ├── funcs[8] > func:
+    ├── funcs[9] > func:
     │   ├── symbol: owners$relayed(^owners$Account)
     │   ├── params[0]: local #1 : {i64, i64}
     │   ├── ret: {i64, i64}
@@ -725,7 +733,7 @@
     │       ├── exit: function
     │       ├── value: local #4 : {i64, i64}
     │       └── layout: ^owners$Account
-    ├── funcs[9] > func:
+    ├── funcs[10] > func:
     │   ├── symbol: owners$lent(^owners$Account)
     │   ├── params[0]: local #1 : {i64, i64}
     │   ├── ret: i64
@@ -753,7 +761,7 @@
     │                   ├── type: {i64, i64}
     │                   ├── address: address of #2 : ptr
     │                   └── layout: ^owners$Account
-    ├── funcs[10] > func:
+    ├── funcs[11] > func:
     │   ├── symbol: owners$richest(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -833,7 +841,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @4
     │   └── body[2] > return: 0 : i64
-    ├── funcs[11] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: owners$overdrawn(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | i64 | void>
@@ -899,7 +907,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: address of #2 : ptr
-    ├── funcs[12] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: owners$total(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -982,7 +990,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: owners$dropped(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1038,7 +1046,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[14] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: owners$refused(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | {i64, i64} | void>
@@ -1077,7 +1085,7 @@
     │       ├── type: <i64 | {i64, i64} | void>
     │       ├── index: 0
     │       └── payload: local #1 : i64
-    ├── funcs[15] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: owners$chosen(owners$Choice)
     │   ├── params[0]: local #1 : <i64 | void>
     │   ├── ret: i64
@@ -1193,7 +1201,7 @@
     │               │       │       └── base: address of #15 : ptr
     │               │       └── right: 100 : i64
     │               └── body[2]: leave @2
-    └── funcs[16] > func:
+    └── funcs[17] > func:
         ├── symbol: owners$guard(%primitives$Bool)
         ├── params[0]: local #1 : i1
         ├── ret: <void | void | void>

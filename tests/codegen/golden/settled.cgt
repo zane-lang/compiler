@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: settled$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: settled$Node
     │   └── positions:
@@ -16,6 +16,14 @@
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: settled$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: settled$main()
     │   ├── params:
     │   ├── ret: void
@@ -555,7 +563,7 @@
     │       │       ├── left: local #26 : i64
     │       │       └── right: 5000050000 : i64
     │       └── body[39] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: settled$Node(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i64}
@@ -565,7 +573,7 @@
     │       │   ├── type: {i64}
     │       │   └── members[0] > member 0: local #1 : i64
     │       └── layout: settled$Node
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: settled$bump(this settled$Node)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: void
@@ -582,7 +590,7 @@
     │   │       │       └── base: local #1 : ptr
     │   │       └── right: 1 : i64
     │   └── body[1] > return: unit : void
-    ├── funcs[3] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: settled$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -613,7 +621,7 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[4] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: settled$peek(&settled$Node)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -623,7 +631,7 @@
     │           ├── within: {i64}
     │           ├── path: 0
     │           └── base: local #1 : ptr
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: settled$twice(this settled$Node)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -637,7 +645,7 @@
     │       │       ├── path: 0
     │       │       └── base: local #1 : ptr
     │       └── right: 2 : i64
-    ├── funcs[6] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: settled$larger(&settled$Node, &settled$Node)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : ptr
@@ -671,7 +679,7 @@
     │   │   │   └── value: local #3 : i1
     │   │   └── body[3]: leave @4
     │   └── body[1] > return: local #2 : ptr
-    └── funcs[7] > func:
+    └── funcs[8] > func:
         ├── symbol: settled$Car(&settled$Node, ^settled$Node)
         ├── params[0]: local #1 : ptr
         ├── params[1]: local #2 : {i64}

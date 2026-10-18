@@ -1,9 +1,17 @@
 └── program:
-    ├── entry: math$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: math$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: math$main()
     │   ├── params:
     │   ├── ret: void
@@ -549,7 +557,7 @@
     │   │       │   └── args[0]: -infinity : f64
     │   │       └── args[1]: 0x0p+0 : f64
     │   └── body[97] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: math$same(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -559,7 +567,7 @@
     │       ├── op: ==
     │       ├── left: local #1 : i64
     │       └── right: local #2 : i64
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: math$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -590,12 +598,12 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: "no\n" : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[3] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: math$minI64()
     │   ├── params:
     │   ├── ret: i64
     │   └── body[0] > return: -9223372036854775808 : i64
-    ├── funcs[4] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: math$same32(%primitives$I32, %primitives$I32)
     │   ├── params[0]: local #1 : i32
     │   ├── params[1]: local #2 : i32
@@ -605,12 +613,12 @@
     │       ├── op: ==
     │       ├── left: local #1 : i32
     │       └── right: local #2 : i32
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: math$minI32()
     │   ├── params:
     │   ├── ret: i32
     │   └── body[0] > return: -2147483648 : i32
-    ├── funcs[6] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: math$equal(%primitives$F64, %primitives$F64)
     │   ├── params[0]: local #1 : f64
     │   ├── params[1]: local #2 : f64
@@ -620,7 +628,7 @@
     │       ├── op: ==
     │       ├── left: local #1 : f64
     │       └── right: local #2 : f64
-    ├── funcs[7] > func:
+    ├── funcs[8] > func:
     │   ├── symbol: math$isNan(%primitives$F64)
     │   ├── params[0]: local #1 : f64
     │   ├── ret: i1
@@ -631,7 +639,7 @@
     │           ├── op: ==
     │           ├── left: local #1 : f64
     │           └── right: local #1 : f64
-    ├── funcs[8] > func:
+    ├── funcs[9] > func:
     │   ├── symbol: math$negativeZero(%primitives$F64)
     │   ├── params[0]: local #1 : f64
     │   ├── ret: i1
@@ -644,12 +652,12 @@
     │       │   ├── left: 0x1p+0 : f64
     │       │   └── right: local #1 : f64
     │       └── right: -infinity : f64
-    ├── funcs[9] > func:
+    ├── funcs[10] > func:
     │   ├── symbol: math$infinity()
     │   ├── params:
     │   ├── ret: f64
     │   └── body[0] > return: infinity : f64
-    ├── funcs[10] > func:
+    ├── funcs[11] > func:
     │   ├── symbol: math$positiveZero(%primitives$F64)
     │   ├── params[0]: local #1 : f64
     │   ├── ret: i1
@@ -662,17 +670,17 @@
     │       │   ├── left: 0x1p+0 : f64
     │       │   └── right: local #1 : f64
     │       └── right: infinity : f64
-    ├── funcs[11] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: math$nan()
     │   ├── params:
     │   ├── ret: f64
     │   └── body[0] > return: nan : f64
-    ├── funcs[12] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: math$nan32()
     │   ├── params:
     │   ├── ret: f32
     │   └── body[0] > return: nan : f32
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: math$isNan32(%primitives$F32)
     │   ├── params[0]: local #1 : f32
     │   ├── ret: i1
@@ -683,7 +691,7 @@
     │           ├── op: ==
     │           ├── left: local #1 : f32
     │           └── right: local #1 : f32
-    ├── funcs[14] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: math$near(%primitives$F64, %primitives$F64)
     │   ├── params[0]: local #1 : f64
     │   ├── params[1]: local #2 : f64
@@ -702,7 +710,7 @@
     │       │           ├── type: f64
     │       │           └── value: local #2 : f64
     │       └── right: 0x1.19799812dea11p-40 : f64
-    └── funcs[15] > func:
+    └── funcs[16] > func:
         ├── symbol: math$near32(%primitives$F32, %primitives$F32)
         ├── params[0]: local #1 : f32
         ├── params[1]: local #2 : f32

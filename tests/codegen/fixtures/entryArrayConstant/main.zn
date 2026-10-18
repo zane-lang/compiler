@@ -1,0 +1,18 @@
+/// A `main` that returns an `Array<I64, 10>`, which the runtime's entry
+/// discards (docs/design/lowering.md L16), in a package with a constant
+/// nothing reads.
+package entryArrayConstant;
+
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+unused Int(1)
+
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+
+Array<Int, 10> main() {
+	done String("main returns an array\n");
+	@program$console!print(done);
+	return @primitives$Array([Int(1), Int(2), Int(3), Int(4), Int(5), Int(6), Int(7), Int(8), Int(9), Int(10)]);
+}

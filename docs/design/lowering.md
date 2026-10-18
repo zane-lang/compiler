@@ -240,19 +240,27 @@ package, which a library's prebuilt release needs.
 
 **L16. Constants live in the program's scope.** A package constant is
 evaluated once, in dependency order, into the program's own scope, before
-`main` runs. A program's `main` becomes a function the runtime's C `main`
-calls after setting itself up and before draining that scope.
+`main` runs. A program's `main` is called, through the start function
+below, by the runtime's C `main` after it sets itself up.
 
 Each constant has a function of its own, named by the constant, and two
 variables: its value and how far its making has got. The first call makes
 the value in a scope of its own, stores it, and moves the blocks it owns into
 the program's region; every call returns the value's address, and a read of
-the constant is a read through it. When a program has constants, its entry
-is a function that calls each one's, the packages a package depends on
-first, and then `main`. A constant that reads another calls that one's
-function first, so dependency order holds whatever order they are declared
-in, and a constant that reads itself, through any chain, stops the program.
-A context that finds another making a constant waits for it.
+the constant is a read through it. A constant that reads another calls that
+one's function first, so dependency order holds whatever order they are
+declared in, and a constant that reads itself, through any chain, stops the
+program. A context that finds another making a constant waits for it.
+
+A program's entry is always a start function, `zane.start`, that calls each
+constant's function, the packages a package depends on first, and then
+`main`, discarding what `main` returns. The runtime calls the entry as
+`void zane_main(void)` (`runtime/zane.h`), and `main` may return any type,
+so calling `main` itself would give the runtime a function of another type
+whenever `main` returns a value, and whether it did would depend on whether
+the program has constants. What a discarded result owns stays in the
+program's region, which goes with the program. An optimized build inlines
+the start function; an unoptimized one pays one call.
 
 A function value (a lambda-variable) is its lambda (L14) and has none of
 this. A library's constants are made by whichever program links it: a

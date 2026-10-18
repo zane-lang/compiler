@@ -315,9 +315,9 @@ let program ?(library = false) ?(import_bodies = false) (p : T.Program.t) =
           | Some decl -> drain (made st decl :: acc)
           | None -> List.rev acc)
     in
-    let finish ?(start = []) entry =
+    let finish ?(start = fun _ -> []) entry =
       let funcs = drain [] in
-      let funcs = start @ funcs @ List.rev st.spawned in
+      let funcs = start funcs @ funcs @ List.rev st.spawned in
       let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
       Ok (Regions.run ~wants:st.wants { Program.funcs; entry; layouts; globals = List.rev st.globals })
     in
@@ -363,19 +363,28 @@ let program ?(library = false) ?(import_bodies = false) (p : T.Program.t) =
                   pkg.T.Package.decls)
               (List.rev p.T.Program.packages)
           in
+          (* The runtime calls `void zane_main(void)` (runtime/zane.h), so
+             the entry is always a function of that type: one that makes the
+             constants, if there are any, and then calls `main`, discarding
+             its result. Calling `main` itself would give the runtime a
+             function whose type depends on what `main` returns. *)
           let entry = symbol st main in
-          if constants = [] then finish (Some entry)
-          else
-            let make decl = Stat.Eval (constant st decl) in
-            let call = { Expr.node = Expr.Call { fn = entry; args = [] }; ty = Nodes.Ty.Void } in
-            let start =
-              {
-                Func.symbol = "zane.start";
-                linkage = Linkage.Local;
-                params = [];
-                ret = Nodes.Ty.Void;
-                body = List.map make constants @ [ Stat.Eval call ];
-              }
+          (* Made before [finish] drains, so what they call is lowered. *)
+          let makes = List.map (fun decl -> Stat.Eval (constant st decl)) constants in
+          let start (funcs : Func.t list) =
+            let ret =
+              match List.find_opt (fun (f : Func.t) -> f.Func.symbol = entry) funcs with
+              | Some f -> f.Func.ret
+              | None -> Diagnostic.bug "lowering: `main` was not lowered"
             in
-            finish ~start:[ start ] (Some "zane.start")
+            let call = { Expr.node = Expr.Call { fn = entry; args = [] }; ty = ret } in
+            {
+              Func.symbol = "zane.start";
+              linkage = Linkage.Local;
+              params = [];
+              ret = Nodes.Ty.Void;
+              body = makes @ [ Stat.Eval call ];
+            }
+          in
+          finish ~start:(fun funcs -> [ start funcs ]) (Some "zane.start")
   with Refused d -> Error d
