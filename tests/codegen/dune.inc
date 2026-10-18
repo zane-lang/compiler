@@ -3809,6 +3809,34 @@
   (diff golden/wideFrames.out wideFrames.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/beyondLimit))
+ (action
+  (with-stderr-to
+   reject.beyondLimit.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/beyondLimit)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.beyondLimit.err reject.beyondLimit.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/hugeArray))
+ (action
+  (with-stderr-to
+   reject.hugeArray.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/hugeArray)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.hugeArray.err reject.hugeArray.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/literalOperator))
  (action
   (with-stderr-to
@@ -3835,6 +3863,20 @@
  (alias runtest)
  (action
   (diff golden/reject.literalRange.err reject.literalRange.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/nestedArray))
+ (action
+  (with-stderr-to
+   reject.nestedArray.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/nestedArray)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.nestedArray.err reject.nestedArray.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/unitFuture))

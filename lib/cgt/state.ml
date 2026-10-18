@@ -159,10 +159,15 @@ type state = {
      dependency's objects define, by verb key. *)
   exported : (string, unit) Hashtbl.t;
   imported : (string, unit) Hashtbl.t;
+  (* The size of the main context's range of frames, which no value may
+     outgrow (`--fixed-region`), and each layout whose size has been
+     checked against it (Type_layout.ty). *)
+  region : int;
+  sized : (Nodes.Ty.t, unit) Hashtbl.t;
 }
 
 (* A state that has reached nothing yet. *)
-let create ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
+let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
   {
     verbs = Hashtbl.create 64;
     types = Hashtbl.create 64;
@@ -193,6 +198,8 @@ let create ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     stamped;
     exported = Hashtbl.create 8;
     imported = Hashtbl.create 8;
+    region;
+    sized = Hashtbl.create 64;
   }
 
 let fresh st =

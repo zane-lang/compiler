@@ -228,7 +228,8 @@ let spawns (p : T.Program.t) =
    library's own packages without a stamp are named with the `!`
    placeholder, and ones with a stamp are named with it, as a dependency
    compiled from source is. *)
-let program ?(library = false) ?(import_bodies = false) (p : T.Program.t) =
+let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime.default_fixed_region)
+    (p : T.Program.t) =
   let stamp_of id =
     match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> ""
   in
@@ -241,7 +242,7 @@ let program ?(library = false) ?(import_bodies = false) (p : T.Program.t) =
      writes back while it reads (lowering.md §9). A library's code may run
      in a program that spawns. *)
   let exclusive = (not library) && not (spawns p) in
-  let st = create ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
+  let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };

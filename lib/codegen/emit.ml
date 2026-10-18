@@ -6,6 +6,11 @@ open Cgt.Nodes
 
 external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
 
+(* An array type and its length with all 64 bits of the count, where the
+   bindings' own truncate it to 32 (llvm_stubs.c). *)
+external array_type : Llvm.lltype -> int -> Llvm.lltype = "zane_array_type"
+external array_length : Llvm.lltype -> int = "zane_array_length"
+
 type env = {
   ctx : Llvm.llcontext;
   m : Llvm.llmodule;
@@ -43,8 +48,8 @@ let rec lltype env (t : Ty.t) =
       let tag = Llvm.i32_type env.ctx in
       match words ts with
       | 0 -> Llvm.struct_type env.ctx [| tag |]
-      | n -> Llvm.struct_type env.ctx [| tag; Llvm.array_type env.i64 n |])
-  | Ty.Array (t, n) -> Llvm.array_type (stored env t) n
+      | n -> Llvm.struct_type env.ctx [| tag; array_type env.i64 n |])
+  | Ty.Array (t, n) -> array_type (stored env t) n
 
 (* A `Unit` member takes no room, but keeps its index. *)
 and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype env t
@@ -1067,13 +1072,8 @@ let func env (f : Func.t) =
    (docs/design/separate-compilation.md); the rest are local to this one.
    The module is for [triple] from the start, so each access is emitted
    with the alignment [data_layout] gives its type. *)
-(* The size of the range each context reserves for its frames, the main
-   context's and each spawned call's, when the root manifest gives none
-   (memory.md §3.1, dependencies.md §2.1). *)
-let default_fixed_region = 256 lsl 20
-let default_spawned_fixed_region = 8 lsl 20
-
-let program ?(fixed_region = default_fixed_region) ?(spawned_fixed_region = default_spawned_fixed_region)
+let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
+    ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region)
     ~triple ~data_layout (p : Program.t) =
   let ctx = Llvm.create_context () in
   let m = Llvm.create_module ctx "zane" in

@@ -104,8 +104,15 @@ let require_main (program : Tst.Nodes.Program.t) =
 (* Lowering refuses what it cannot handle yet with a diagnostic rather than
    lowering it wrongly (docs/design/lowering.md). A library lowers from every
    function it declares. *)
-let lower ?(optimize = false) ~kind packages program =
-  match Cgt.lower ~library:(kind = Library) ~import_bodies:optimize program with
+(* The sizes of each context's range of frames, from `--fixed-region` and
+   `--spawned-fixed-region`; the defaults
+   when absent. *)
+type regions = { fixed : int option; spawned : int option }
+
+let no_regions = { fixed = None; spawned = None }
+
+let lower ?(optimize = false) ?(regions = no_regions) ~kind packages program =
+  match Cgt.lower ~library:(kind = Library) ~import_bodies:optimize ?fixed_region:regions.fixed program with
   | Ok cgt -> Ok cgt
   | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
 
@@ -117,11 +124,6 @@ let optimize ~optimize cgt = if optimize then Optimize.run cgt else cgt
    about the build, not about any file of it. *)
 let built = function Ok v -> Ok v | Error message -> fail [ Diagnostic.about_invocation message ]
 
-(* The sizes of each context's range of frames, from `--fixed-region` and
-   `--spawned-fixed-region`; codegen's defaults when absent. *)
-type regions = { fixed : int option; spawned : int option }
-
-let no_regions = { fixed = None; spawned = None }
 let emit ?target regions cgt =
   Codegen.emit ?target ?fixed_region:regions.fixed ?spawned_fixed_region:regions.spawned cgt
 

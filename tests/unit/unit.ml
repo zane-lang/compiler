@@ -155,7 +155,7 @@ let string_constructors () =
 (* ---------------------------------------------------------------------- *)
 
 let type_layout () =
-  let st = State.create ~import_bodies:false ~library:false ~exclusive:false ~exports:(fun _ -> false) ~stamp:(fun _ -> "") ~stamped:(fun _ -> false) in
+  let st = State.create ~region:Cgt.Runtime.default_fixed_region ~import_bodies:false ~library:false ~exclusive:false ~exports:(fun _ -> false) ~stamp:(fun _ -> "") ~stamped:(fun _ -> false) in
   let t = param "T" in
   Hashtbl.replace st.State.types ("app", "Box")
     ([ t ], T.Decl.Struct [ ("item", Ty.Param t); ("count", int) ], false);
@@ -672,6 +672,55 @@ let target_cpus () =
   check "an x86_64h target is tuned for Haswell" (cpu "x86_64h-apple-darwin" = Ok "core-avx2");
   check "an AArch64 target keeps LLVM's default" (cpu "aarch64-unknown-linux-gnu" = Ok "")
 
+(* A type's size is built with checked arithmetic, and one of 2^48 bytes or
+   more is refused rather than wrapping (docs/design/lowering.md §9). *)
+let checked_sizes () =
+  let module T = Cgt.Nodes.Ty in
+  let refused t = match T.size_align t with _ -> false | exception T.Too_large -> true in
+  check "2^32 I64s take 32 GiB" (T.size_align (T.Array (T.I64, 1 lsl 32)) = (1 lsl 35, 8));
+  check "an array of arrays multiplies both lengths"
+    (T.size_align (T.Array (T.Array (T.I64, 65536), 65536)) = (1 lsl 35, 8));
+  check "just under 2^48 bytes is a size" (T.size_align (T.Array (T.I64, (1 lsl 45) - 1)) = ((1 lsl 48) - 8, 8));
+  check "2^48 bytes is refused" (refused (T.Array (T.I64, 1 lsl 45)));
+  check "2^60 I64s, which wrap to 0 unchecked, are refused" (refused (T.Array (T.I64, 1 lsl 60)));
+  check "a length past max_int / 8 is refused" (refused (T.Array (T.I64, max_int)));
+  check "two members that together reach the limit are refused"
+    (refused (T.Struct [ T.Array (T.I64, 1 lsl 44); T.Array (T.I64, 1 lsl 44) ]));
+  check "a sum whose payload reaches the limit is refused" (refused (T.Sum [ T.Array (T.I64, 1 lsl 45) ]));
+  check "nothing many times over takes nothing" (T.size_align (T.Array (T.Void, max_int)) = (0, 1))
+
+(* An LLVM array type keeps all 64 bits of its length, which the bindings'
+   own `array_type` truncates to 32 (llvm_stubs.c). *)
+let long_arrays () =
+  let ctx = Llvm.create_context () in
+  let m = Llvm.create_module ctx "unit" in
+  let ptr = Llvm.pointer_type ctx and i64 = Llvm.i64_type ctx in
+  let tags = Codegen__Emit.tags ctx in
+  let env =
+    {
+      Codegen__Emit.ctx;
+      m;
+      ptr;
+      i64;
+      funcs = Hashtbl.create 1;
+      globals = Hashtbl.create 1;
+      walks = None;
+      handle_tag = fst tags;
+      value_tag = snd tags;
+    }
+  in
+  let t = Codegen__Emit.lltype env (Cgt.Nodes.Ty.Array (Cgt.Nodes.Ty.I1, 4294967297)) in
+  check "an array of 2^32 + 1 elements keeps its length" (Codegen__Emit.array_length t = 4294967297);
+  check "its parts saturate past LLVM's limit"
+    (Codegen__Big_moves.parts t = Codegen__Big_moves.most_parts + 1);
+  check "a sum's payload room keeps its length"
+    (Codegen__Emit.array_length
+       (Llvm.struct_element_types
+          (Codegen__Emit.lltype env (Cgt.Nodes.Ty.Sum [ Cgt.Nodes.Ty.Array (Cgt.Nodes.Ty.I64, 1 lsl 33) ]))).(1)
+    = 1 lsl 33);
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
 (* A target is refused unless its pointers are 8 bytes and it aligns `i64`
    and `double` to 8 (docs/design/platforms.md). No 64-bit LLVM target
    aligns either below that, so the layouts are written out here. *)
@@ -854,6 +903,8 @@ let () =
   snapshot_reads ();
   target_cpus ();
   sixty_four_bit ();
+  checked_sizes ();
+  long_arrays ();
   fixture_pairing ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();

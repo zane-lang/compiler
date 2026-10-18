@@ -1,0 +1,15 @@
+/// An array of 65,536 arrays of 65,536 `I64`s: each inner one takes
+/// 512 KiB, and the whole 32 GiB, more than the main context's range of
+/// frames holds, so lowering refuses the outer type where it is named.
+package nestedArray;
+
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+
+Array<Array<Int, 65536>, 65536> make() => make()
+
+Unit main() {
+	big Array<Array<Int, 65536>, 65536> = make();
+	return Unit();
+}

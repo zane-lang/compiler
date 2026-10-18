@@ -36,16 +36,23 @@ val require_main : Tst.Nodes.Program.t -> (unit, failure) result
 (** That a root of this kind may be built into an executable. *)
 val buildable : kind option -> (unit, failure) result
 
+(** The size in bytes of the range each context reserves for its frames:
+    the main context's, from `--fixed-region`, and each spawned call's, from
+    `--spawned-fixed-region`. [None] takes the default. *)
+type regions = { fixed : int option; spawned : int option }
+
+(** Stage 4. A type no main context's range of [regions] could hold is
+    refused where it is named. *)
 val lower :
-  ?optimize:bool -> kind:kind -> Tst.Assembly.package list -> Tst.Nodes.Program.t -> (Cgt.Nodes.Program.t, failure) result
+  ?optimize:bool ->
+  ?regions:regions ->
+  kind:kind ->
+  Tst.Assembly.package list ->
+  Tst.Nodes.Program.t ->
+  (Cgt.Nodes.Program.t, failure) result
 
 (** Stage 5 when [optimize], and the tree as it is otherwise. *)
 val optimize : optimize:bool -> Cgt.Nodes.Program.t -> Cgt.Nodes.Program.t
-
-(** The size in bytes of the range each context reserves for its frames:
-    the main context's, from `--fixed-region`, and each spawned call's, from
-    `--spawned-fixed-region`. [None] takes codegen's default. *)
-type regions = { fixed : int option; spawned : int option }
 
 (** The LLVM module's text. *)
 val ir : ?target:string -> ?regions:regions -> optimize:bool -> Cgt.Nodes.Program.t -> (string, failure) result

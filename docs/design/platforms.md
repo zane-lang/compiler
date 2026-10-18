@@ -95,6 +95,11 @@ a process to reserve. It applies to dynamic chunks and the fixed-size range,
 including its guard. Supporting higher addresses requires extending the
 chunk map; native pointers themselves impose no 32 GiB ceiling.
 
+The same bound limits the size of a type: lowering refuses a type that takes
+`2^48` bytes or more where it is named, since no value of it could be
+placed ([`lowering.md`](lowering.md) §9). The limit is `Ty.limit` in
+`lib/cgt/nodes.ml`, and it rises with the chunk map if the map is extended.
+
 ## What a Windows build uses
 
 A Windows program links with MinGW's C library and its POSIX threads,

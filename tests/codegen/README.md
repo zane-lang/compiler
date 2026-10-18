@@ -223,3 +223,10 @@ stops firing by mistake:
 `literalRange` is a refusal of the program itself: a literal too large for
 its primitive, which reaches the primitive through a verb's literal parameter
 and so is found only where the verb is written out.
+
+`hugeArray`, `nestedArray` and `beyondLimit` are refusals of a type too
+large to hold (docs/design/lowering.md §9): an `Array<I64, 4294967296>` and
+an `Array<Array<I64, 65536>, 65536>`, each 32 GiB, more than the main
+context's range of frames, and an `Array<I64, 1152921504606846976>`, whose
+size wrapped to 0 before it was checked and is past the `2^48` bytes any
+type is limited to.

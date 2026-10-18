@@ -825,6 +825,20 @@ test passing.
   name one element twice), and a
   value still too large to move whole, passed or returned, is reported as a
   limit rather than handed to LLVM.
+- **A type's size is limited.** A type takes fewer than `2^48` bytes, the
+  addresses the runtime's chunk map covers ([`platforms.md`](platforms.md),
+  "Address range supported by the runtime"), and no more than the main
+  context's range of frames, `--fixed-region`, could hold. A type past
+  either is refused where it is named, as "`@primitives$Array<@primitives$I64, 4294967296>`
+  takes 32 GiB, which the `--fixed-region` of 256 MiB cannot hold", rather
+  than built into a program that stops when it runs. A size is built up with
+  checked arithmetic (`Ty.size_align`, `Type_layout.stride`, `Frames.layout`):
+  a product `stride * n` is formed only after `n <= limit / stride` holds and
+  a sum `a + b` only after `a <= limit - b`, so no step can overflow on the
+  way to the check, as `2^60` `I64`s once wrapped to 0 bytes. LLVM's array
+  types are made and read through `LLVMArrayType2` and
+  `LLVMGetArrayLength2` (`lib/codegen/llvm_stubs.c`), since the bindings'
+  own `array_type` and `array_length` truncate a length to 32 bits.
 - **An outcome as a sum, for now.** L12 returns a tag and has the caller
   pass slots for the result and the abort value. Until results are written
   into destinations, a function that can abort or exit returns a

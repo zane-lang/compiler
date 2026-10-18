@@ -23,20 +23,20 @@ type t = {
   offsets : (int, int) Hashtbl.t;
 }
 
-let round n a = (n + a - 1) / a * a
-
 (* The frame of scope [id], whose statements are [body]. A slot the scope
    places is placed once per entry, so one under a loop with no scope of its
    own, which would take a new slot each time round, or in a nested scope,
-   which places its own, is lowering's mistake. *)
+   which places its own, is lowering's mistake. Every offset is checked
+   against Ty.limit before it is taken, and a frame that reaches it raises
+   Ty.Too_large. *)
 let layout symbol id body =
   let offsets = Hashtbl.create 8 in
   let size = ref record in
   let place key (bytes, align) =
     if align > 16 then Diagnostic.bug (Printf.sprintf "frames: `%s` has a slot aligned past 16" symbol);
-    let at = round !size align in
+    let at = Ty.round_up !size align in
     Hashtbl.replace offsets key at;
-    size := at + bytes
+    size := Ty.below_limit (Ty.add at bytes)
   in
   let placed ~again =
     if again then
@@ -57,7 +57,7 @@ let layout symbol id body =
         let bytes, align = Ty.size_align frame in
         if align > 8 then
           Diagnostic.bug (Printf.sprintf "frames: `%s` spawns a call whose frame is aligned past a word" symbol);
-        place t (task + bytes, 8);
+        place t (Ty.add task bytes, 8);
         let result = match frame with Ty.Struct (r :: _) -> r | _ -> Ty.Void in
         Option.iter (fun d -> place d (Ty.size_align result)) dest
     | _ -> ());
@@ -71,4 +71,4 @@ let layout symbol id body =
     List.iter (List.iter (stat again)) bodies
   in
   List.iter (stat false) body;
-  { size = round !size 16; offsets }
+  { size = Ty.below_limit (Ty.round_up !size 16); offsets }

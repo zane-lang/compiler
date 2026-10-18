@@ -111,9 +111,9 @@ let member_index _st _t slot = slot
    of the owner it names (§4.1), and a boxed member a pointer (adt.md §4).
    A function value is the address of the function a lambda was lifted to
    (L14). *)
-let rec ty st span (t : Tty.t) : Nodes.Ty.t =
+let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   match t with
-  | Tty.Roaming t -> ty st span t
+  | Tty.Roaming t -> shape st span t
   | _ when is_text t || is_list t -> Nodes.Ty.Handle
   | Tty.Intrinsic { namespace = "primitives"; name; args = [] } -> (
       match name with
@@ -128,10 +128,10 @@ let rec ty st span (t : Tty.t) : Nodes.Ty.t =
   | Tty.Verb _ -> Nodes.Ty.Ptr
   | Tty.Intrinsic _ when Option.is_some (array_of t) -> (
       match array_of t with
-      | Some (e, n) -> Nodes.Ty.Array (ty st span e, n)
+      | Some (e, n) -> Nodes.Ty.Array (shape st span e, n)
       | None -> unhandled span t)
   | Tty.Named _ -> (
-      let member m = if boxed st t m then Nodes.Ty.Ptr else ty st span m in
+      let member m = if boxed st t m then Nodes.Ty.Ptr else shape st span m in
       let sum ts = Nodes.Ty.Sum ts in
       match definition st t with
       | Some (T.Decl.Struct [], false) -> Nodes.Ty.Void
@@ -146,10 +146,43 @@ let rec ty st span (t : Tty.t) : Nodes.Ty.t =
       | _ -> unhandled span t)
   | _ -> unhandled span t
 
+(* A size in the unit that reads best: whole bytes, or KiB, MiB or GiB to a
+   tenth. *)
+let bytes n =
+  let rec scaled = function
+    | [] -> Printf.sprintf "%d bytes" n
+    | (unit, size) :: rest ->
+        if n < size then scaled rest
+        else if n mod size = 0 then Printf.sprintf "%d %s" (n / size) unit
+        else Printf.sprintf "%.1f %s" (float_of_int n /. float_of_int size) unit
+  in
+  scaled [ ("GiB", 1 lsl 30); ("MiB", 1 lsl 20); ("KiB", 1 lsl 10) ]
+
+(* A type's layout, refused where it is named when its size is past the
+   limit no value can reach (Nodes.Ty.limit), or past the main context's
+   range of frames (`--fixed-region`), which could then never hold a value
+   of it (docs/design/lowering.md §9). Each layout is checked once. *)
+let ty st span (t : Tty.t) : Nodes.Ty.t =
+  let lowered = shape st span t in
+  if not (Hashtbl.mem st.sized lowered) then begin
+    (match Nodes.Ty.size_align lowered with
+    | size, _ when size > st.region ->
+        refuse span
+          (Printf.sprintf "`%s` takes %s, which the `--fixed-region` of %s cannot hold" (Tty.to_string t)
+             (bytes size) (bytes st.region))
+    | _ -> ()
+    | exception Nodes.Ty.Too_large ->
+        refuse span
+          (Printf.sprintf "`%s` takes 2^48 bytes or more, past the limit on any value's size"
+             (Tty.to_string t)));
+    Hashtbl.replace st.sized lowered ()
+  end;
+  lowered
+
 (* A list's elements lie this many bytes apart. *)
 let stride st span t =
   let size, align = Nodes.Ty.size_align (ty st span t) in
-  max 1 ((size + align - 1) / align * align)
+  max 1 (Nodes.Ty.round_up size align)
 
 (* Where a type's owned blocks are (memory.md §3.6): each handle and each
    boxed member, down through variant payloads under the tag that makes each
