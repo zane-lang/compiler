@@ -1163,3 +1163,121 @@ Verified on the batch's head with `devbox run -- just test-compiler`
 virtualenv holding `tools/grammar/requirements.txt`, as in batch 1),
 `just test-grammar` and `just check-file-sizes`. `just test-windows` was
 not run: the container has no `wine64`.
+
+### Batch 3: entry point and backend ABI
+
+- **F07** (`327d375`). Lowering always emits `zane.start` as the entry,
+  which makes the package constants, if any, and calls `main` as a
+  `Stat.Eval` that discards its result, so the runtime's
+  `void zane_main(void)` always gets a function of that type. The call
+  carries `main`'s own return type. Eight codegen fixtures, `entryArray`,
+  `entryString`, `entryStruct` and `entryUnit` and a `...Constant` twin of
+  each with an unused constant, return an `Array<I64, 10>`, an owning
+  `String`, a `#struct` owning a list and `Unit`, and all exit 0 with the
+  same output in both checking modes, optimized and not: what a discarded
+  result owns stays in the program's region, and the drain check after
+  `zane_main` holds. With the old lowering, `entryArray` and `entryStruct`
+  got SIGSEGV in every build; the others passed, as the audit predicts (a
+  `String` comes back in three registers the runtime ignores). Every `.cgt`
+  golden file gains the start function, and `facts_test.py` reads the
+  optimized loop's labels with the `.i` suffix inlining into the start
+  function adds. `docs/design/lowering.md` L16 says the entry is always the
+  start function, and why. The audit's reproduction, an `Array<I64, 10>`
+  `main` with no constants, segfaults on the baseline and exits 0 here,
+  checked and unchecked.
+- **F02** (`70f4449`). `Build.target_machine` reads the new target machine's
+  data layout and refuses the target unless its pointers are 8 bytes and it
+  aligns `i64` and `double` to 8 (`Build.sixty_four_bit`). Nothing depends on
+  byte order (every value is read at the width it was written, the walks read
+  a tag as the `i32` it was stored as, and the ELF and Mach-O rewriters read
+  either order), so it is not checked. `tests/objects/targets_test.py` checks
+  that `--ll` for `i386-unknown-linux-gnu` and `armv7-unknown-linux-gnueabihf`
+  exits 1 with "the target `…` has 4-byte pointers; this compiler builds for
+  64-bit targets only" and that `x86_64-windows-gnu`, `aarch64-apple-darwin`
+  and `x86_64-linux-gnu` are accepted; both refusals failed before the
+  change. No 64-bit LLVM target aligns `i64` or `double` below 8, so a unit
+  test checks those refusals on hand-written data layouts.
+  `docs/design/platforms.md` gains "64-bit targets only", and lowering.md §9's
+  "A 64-bit target" now says such a target is refused. The audit's
+  reproduction, `--ll --target i386-unknown-linux-gnu`, exits 0 on the
+  baseline and gives the diagnostic here.
+- **F13** (`1fafa62`). A type takes fewer than `2^48` bytes (`Ty.limit`) and no
+  more than the `--fixed-region` in force; lowering refuses one past either
+  where it is named (`Type_layout.ty`, checked once per layout): "`…Array<…I64,
+  4294967296>` takes 32 GiB, which the `--fixed-region` of 256 MiB cannot
+  hold", or "takes 2^48 bytes or more". The region reaches lowering through
+  `Driver.lower ~regions` and `Cgt.lower ?fixed_region`, and its default now
+  lives in `Cgt.Runtime`. `Ty.size_align`, `Type_layout.stride` and
+  `Frames.layout` build sizes with `Ty.add` and `Ty.times`, which check
+  `n <= limit / stride` and `a <= limit - b` before each step; a frame that
+  reaches the limit is a build error from `Codegen.emit`. Stubs for
+  `LLVMArrayType2` and `LLVMGetArrayLength2` replace the bindings' 32-bit
+  `array_type` and `array_length` in `Emit.lltype` and `Big_moves.parts`,
+  which saturates at `most_parts + 1`. Reject fixtures `hugeArray`,
+  `beyondLimit` and `nestedArray` hold the three refusals, and fail on the
+  baseline, which accepts all three. The plan's unit test lowers
+  `Ty.Array (I8, 4294967297)`; the CGT has no `I8`, so it lowers
+  `Ty.Array (I1, 4294967297)`, a byte each, and reads 4294967297 back, and
+  a sum's payload room of `2^33` words too. A unit test covers the checked
+  `size_align` at and around the limit. With the old arithmetic and the
+  bindings' array calls put back, eight of those checks failed.
+  `lowering.md` §9 ("A type's size is limited") and `platforms.md` ("Address
+  range supported by the runtime") state the limit. The audit's
+  reproduction, a library `consume` taking `Array<I64, 4294967296>`, emits
+  `[0 x i64]` with exit 0 on the baseline and is refused at the parameter
+  here.
+- **F08** (`c98310d`, `0b728fe`, `dba8db3`, `edbca45`). `Emit.passing`
+  decides per type, from `Emit.pieces` (scalar pieces of the CGT type, a
+  sum's tag and payload words one apiece) and `Emit.registers` (1 on
+  x86-64 Windows, 2 elsewhere), whether a value crosses a call as itself or
+  by address; a result by address is written through a leading `sret`
+  pointer. Callers lend a place's own address, call straight into a fresh
+  slot, or store any other value in one; callees use the pointer as the
+  parameter's slot, and `Emit.unwritten` stops with an internal error if
+  lowering ever wrote one. By-address parameters carry `readonly noalias`,
+  alignment and `dereferenceable`, not `nocapture`; `sret` results carry
+  `noalias` and alignment, at the function and at each call site.
+  `Call_value` follows the same rule. `Big_moves.rewrite` checks every
+  function's signature and reports a too-large one with `Diagnostic.bug`.
+  `--pack-aggregates`, off by default, passes an aggregate that fits in the
+  registers as packed 8-byte words; with it, all 100 codegen programs built
+  plain and optimized gave their golden output checked and unchecked.
+  Tests: `tests/objects/fixtures/largeparam` (`consume` and `same` over
+  `Array<I64, 65536>`) is built with `--object` and its symbols listed;
+  `tests/objects/abi_test.py` checks the attributes, the `sret` result, where
+  the line falls on Linux, macOS and Windows, packing, and objects for all
+  three targets optimized and not (all five tests fail on the baseline);
+  the codegen fixture `bigCalls` passes and returns a 65,536-piece aggregate
+  through ordinary calls, function values and spawned calls and checks its
+  contents, and fails to build on the baseline; `crossing` passes and returns
+  values of one, two and three pieces as structs and variants, and
+  `crossingPacked` is the same built with `--pack-aggregates`; unit tests
+  cover `pieces` on each CGT type form, `registers` and `passing`, and the
+  backstop on hand-built modules (which fails with the check removed).
+  `crossing` passes on the baseline too, as it must: it shows both
+  conventions give the same results, not a defect. Its Windows line is
+  checked in the IR here; the Windows program run is CI's, since the
+  container has no Wine. A value `Array<I64, 65536>` cannot be built in a
+  program today (no value array has `fill`, and a literal of 65,536 elements
+  is itself a value too large to build), so `bigCalls` uses
+  `ArrayRef<I64, 65536>`, whose CGT type and so whose passing is the same,
+  through `^` parameters and results; the value form is covered by
+  `largeparam`. `dev/bench/calls` is the plan's added benchmark, and
+  `just bench-abi` (`dev/bin/abi-bench`) builds langbench, the binarytrees
+  reference among it, and that benchmark with the compiler before this batch
+  (`8aa9772`), the register rule and the rule with packing, optimized and
+  unoptimized, checks every output and prints the medians. A `--quick` run
+  here built and checked all six builds; its container timings are not the
+  measurement. `lowering.md` §9 ("How a value crosses a call") states the
+  count, the limits, the by-address convention, the attributes and why they
+  hold, and the option; the measurement table and the decision whether
+  packing is kept wait on the maintainer's run of `just bench-abi` on each
+  first-tier target. The audit's reproduction, a library
+  `consume(x Array<I64, 65536>)` built with `--object`, gets SIGSEGV on the
+  baseline and exits 0 here.
+
+Verified on the batch's head with `devbox run -- just test-compiler`
+(including the probe gate) and `just check-file-sizes`. `just test-windows`
+was not run: the container has no `wine64`, and no `zig` for
+`dev/bin/windows-programs`, so the Windows conventions were checked in the
+IR and objects `abi_test.py` builds.
