@@ -108,6 +108,15 @@ verify-grammar: _require-menhir
 _require-menhir:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
 
+# How aggregates cross calls, measured (docs/design/lowering.md §9): langbench
+# and dev/bench/calls built by the compiler before the register rule, with it,
+# and with it and --pack-aggregates, optimized and unoptimized, and timed.
+# Clones the spec and core into _build/abi-bench unless --spec and --core
+# name checkouts. Container timings are not comparable; run it on the machine
+# whose numbers are recorded. `just bench-abi --quick` only checks it works.
+bench-abi *ARGS:
+	dev/bin/abi-bench {{ARGS}}
+
 # Every hand-written source file under 2,000 lines, as CI checks it.
 check-file-sizes:
 	.github/scripts/file-sizes

@@ -1,0 +1,112 @@
+/// Calls LLVM cannot inline, through function values read out of a list,
+/// each passing a value and most returning one: a 16-byte struct of two
+/// `Int`s, a three-byte struct of three `Bool`s, a string's handle, and a
+/// variant whose payload is 64 bytes. It measures how a value crosses a
+/// call (docs/design/lowering.md §9): in registers, by address or, with
+/// `--pack-aggregates`, packed into words. N, the program's first argument,
+/// is how many times each is called.
+package calls;
+
+import core$;
+import bench$;
+
+type Two = struct {
+	a Int;
+	b Int;
+}
+
+Two(a Int, b Int) => init{ a; b; }
+
+type Three = struct {
+	x Bool;
+	y Bool;
+	z Bool;
+}
+
+Three(x Bool, y Bool, z Bool) => init{ x; y; z; }
+
+type Eight = struct {
+	a Int;
+	b Int;
+	c Int;
+	d Int;
+	e Int;
+	f Int;
+	g Int;
+	h Int;
+}
+
+Eight(a Int, b Int, c Int, d Int, e Int, f Int, g Int, h Int) => init{ a; b; c; d; e; f; g; h; }
+
+type Wide = variant {
+	full Eight;
+	empty Unit;
+}
+
+stepTwo Two(t Two, k Int) {
+	return Two(t.b, t.a + k);
+}
+
+stepThree Three(t Three, k Int) {
+	return Three(t.z, t.x, t.y);
+}
+
+stepText Int(s String, k Int) {
+	return k + 1;
+}
+
+stepWide Wide(w Wide, k Int) {
+	return match (w) {
+		e full => Wide.full(Eight(e.b, e.c, e.d, e.e, e.f, e.g, e.h, e.a + k));
+		empty => Wide.empty(Unit());
+	}
+}
+
+/// The functions each call goes through, held where LLVM cannot see which
+/// they are.
+type Steps = struct {
+	two Two[Two, Int];
+	three Three[Three, Int];
+	text Int[String, Int];
+	wide Wide[Wide, Int];
+}
+
+Steps(two Two[Two, Int], three Three[Three, Int], text Int[String, Int], wide Wide[Wide, Int]) => init{
+	two; three; text; wide;
+}
+
+Int total(w Wide) => match (w) {
+	e full => e.a + e.b + e.c + e.d + e.e + e.f + e.g + e.h;
+	empty => Int(0);
+}
+
+Int bits(t Three) {
+	n Int = Int(0);
+	if(t.x) { n = n + 1; }
+	if(t.y) { n = n + 2; }
+	if(t.z) { n = n + 4; }
+	return n;
+}
+
+Unit main() {
+	console Console(@program$console);
+	runtime Runtime(@program$runtime);
+	n Int = size(runtime, Int(1000));
+	steps List<Steps> = List(Steps);
+	steps!push(Steps(stepTwo, stepThree, stepText, stepWide));
+	two Two = Two(Int(1), Int(2));
+	three Three = Three(Bool(true), Bool(false), Bool(false));
+	text String = String("a string");
+	count Int = Int(0);
+	wide Wide = Wide.full(Eight(Int(1), Int(2), Int(3), Int(4), Int(5), Int(6), Int(7), Int(8)));
+	i Int = Int(1);
+	i!to(n) {
+		s Steps = steps[Int(1)];
+		two = s.two(two, i);
+		three = s.three(three, i);
+		count = s.text(text, count);
+		wide = s.wide(wide, i);
+	}
+	console!print(String(n) + " " + String(two.a + two.b) + " " + String(bits(three)) + " " + String(count) + " " + String(total(wide)));
+	return Unit();
+}

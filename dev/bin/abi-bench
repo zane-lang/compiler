@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""Measure how aggregates cross calls (docs/design/lowering.md §9, F08).
+
+Builds three compilers' worth of programs and times them: the compiler
+before the register rule (`--base`, main before audit batch 3), this
+checkout's compiler with the register rule, and the same with
+`--pack-aggregates`. Each builds the spec repo's `langbench/` programs, the
+binarytrees reference among them, and `dev/bench/calls`, optimized and
+unoptimized, each linked with a `core` object that build made. Every
+program's output is checked at its small size, then it runs once untimed and
+`--runs` times timed at its full size, each run's output checked too.
+
+Prints a Markdown table of medians in seconds and writes every sample to
+`--out` as JSON. Run it inside the devbox, from any directory:
+
+    just bench-abi                                  # this machine's target
+    ZANE_CC=dev/bin/zig-cc just bench-abi --target x86_64-windows-gnu
+
+The second builds Windows programs; run from WSL2 they execute on Windows
+itself through WSL's interop. `--quick` runs the small sizes once, to check
+that everything builds and agrees, not to measure.
+"""
+
+import argparse
+import importlib.util
+import json
+import os
+from pathlib import Path
+import statistics
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[2]
+WORK = ROOT / "_build" / "abi-bench"
+BASE = "8aa9772a608b5d2148c872336028fb088c96d72f"
+SPEC = "1d11ea4adfb8ed0c427a3032078d4d4a542804c6"
+STAMP = "v0.0%0123456789abcdef%"
+
+# The added benchmark: its size and output at the small and the full size.
+CALLS = {
+    "id": "calls",
+    "check_args": ["1000"],
+    "check_expected": "1000 500503 2 1000 500536\n",
+    "args": ["20000000"],
+    "expected": "20000000 200000010000003 4 20000000 200000010000036\n",
+}
+
+
+def run(command, **kwargs):
+    print("+", " ".join(map(str, command)), file=sys.stderr)
+    subprocess.run(list(map(str, command)), check=True, **kwargs)
+
+
+def checkout(url, rev, into):
+    if not (into / ".git").exists():
+        run(["git", "clone", "--quiet", url, into])
+    run(["git", "-C", into, "fetch", "--quiet", "origin", rev])
+    run(["git", "-C", into, "checkout", "--quiet", "--detach", rev])
+    return into
+
+
+def compilers(base):
+    """The base compiler, built in a worktree of its own, and this one."""
+    tree = WORK / "base"
+    if not tree.exists():
+        run(["git", "-C", ROOT, "worktree", "add", "--quiet", "--detach", tree, base])
+    run(["git", "-C", tree, "checkout", "--quiet", "--detach", base])
+    for where in [tree, ROOT]:
+        run(["dune", "build", "--root", where, "bin/zanec/zanec.exe"], cwd=where)
+    exe = Path("_build/default/bin/zanec/zanec.exe")
+    return tree / exe, ROOT / exe
+
+
+def packages(name, source, langbench, core):
+    """The flags for program [name] at [source], as langbench's project
+    lays its packages out: `bench`, and `core` and `math` stamped."""
+    flags = ["--package", f"{name}={source}", "--package", f"bench={langbench / 'lib/bench'}"]
+    for p in ["core", "math"]:
+        flags += ["--package", f"{STAMP}{p}={core / 'lib' / p}"]
+        flags += ["--import", f"{name}:{p}={STAMP}{p}", "--import", f"bench:{p}={STAMP}{p}"]
+    return flags + ["--import", f"{name}:bench=bench", "--import", f"{STAMP}math:core={STAMP}core"]
+
+
+def build(zanec, flags, out, programs, langbench, core):
+    """Each program built with [flags] into [out], linked with a core
+    object built the same way."""
+    out.mkdir(parents=True, exist_ok=True)
+    core_o = out / "core.o"
+    stamped = [
+        "--package", f"{STAMP}core={core / 'lib/core'}",
+        "--package", f"{STAMP}math={core / 'lib/math'}",
+        "--import", f"{STAMP}math:core={STAMP}core",
+    ]
+    run([zanec, "--kind", "library", *flags, "--object", core_o, *stamped])
+    built = {}
+    for test, source in programs:
+        exe = out / f"{test['id']}.exe"
+        run([zanec, *flags, "--build", exe, "--link", core_o,
+             *packages(test["id"], source, langbench, core)])
+        built[test["id"]] = exe
+    return built
+
+
+def timed(exe, args, expected, runner):
+    start = time.perf_counter()
+    result = subprocess.run([*runner, exe, *args], capture_output=True, text=True)
+    elapsed = time.perf_counter() - start
+    if result.returncode != 0 or (expected is not None and result.stdout != expected):
+        raise SystemExit(f"{exe} {' '.join(args)} gave {result.returncode}:\n{result.stdout}{result.stderr}")
+    return elapsed, result.stdout
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--base", default=BASE, help="the compiler before the register rule")
+    parser.add_argument("--spec", type=Path, help="a spec checkout (default: cloned at %s)" % SPEC[:7])
+    parser.add_argument("--core", type=Path, help="a core checkout (default: cloned at langbench's lock)")
+    parser.add_argument("--target", help="the LLVM target to build for (default: this machine)")
+    parser.add_argument("--runner", default=os.environ.get("RUNNER", ""), help="what runs each program")
+    parser.add_argument("--runs", type=int, default=5)
+    parser.add_argument("--only", nargs="*", help="only these tests")
+    parser.add_argument("--quick", action="store_true", help="small sizes, one run: a check, not a measurement")
+    parser.add_argument("--out", type=Path, default=WORK / "results.json")
+    args = parser.parse_args()
+
+    spec = args.spec or checkout("https://github.com/zane-lang/spec", SPEC, WORK / "spec")
+    langbench = spec.resolve() / "langbench"
+    lock = (langbench / "zane-lock.coda").read_text()
+    core_rev = next(line.split()[2] for line in lock.splitlines() if line.split()[:1] == ["core"])
+    core = (args.core or checkout("https://github.com/zane-lang/core", core_rev, WORK / "core")).resolve()
+
+    loader = importlib.util.spec_from_file_location("langbench_tests", langbench / "tests.py")
+    tests = importlib.util.module_from_spec(loader)
+    loader.loader.exec_module(tests)
+    programs = [(t, langbench / "bin" / t["id"]) for t in tests.TESTS]
+    programs.append((CALLS, ROOT / "dev/bench/calls"))
+    if args.only:
+        programs = [(t, s) for t, s in programs if t["id"] in args.only]
+
+    base, current = compilers(args.base)
+    target = ["--target", args.target] if args.target else []
+    builds = {
+        "current": (base, []),
+        "register rule": (current, []),
+        "rule with packing": (current, ["--pack-aggregates"]),
+    }
+    runner = args.runner.split()
+    runs, warmup = (1, 0) if args.quick else (args.runs, 1)
+    samples = {}
+    for name, (zanec, flags) in builds.items():
+        for optimize in [True, False]:
+            column = f"{name}, {'optimized' if optimize else 'unoptimized'}"
+            out = WORK / "programs" / column.replace(", ", "-").replace(" ", "-")
+            built = build(zanec, [*target, *(["--optimize"] if optimize else []), *flags],
+                          out, programs, langbench, core)
+            for test, _ in programs:
+                exe = built[test["id"]]
+                timed(exe, test["check_args"], test["check_expected"], runner)
+                size = test["check_args"] if args.quick else test["args"]
+                expected = test["check_expected"] if args.quick else test["expected"]
+                for _ in range(warmup):
+                    _, first = timed(exe, size, expected, runner)
+                    expected = expected or first
+                times = []
+                for _ in range(runs):
+                    elapsed, output = timed(exe, size, expected, runner)
+                    expected = expected or output
+                    times.append(elapsed)
+                samples.setdefault(test["id"], {})[column] = times
+                print(f"{test['id']:>14}  {column:<34} {statistics.median(times):.3f} s", file=sys.stderr)
+
+    columns = list(next(iter(samples.values())))
+    print("| Test | " + " | ".join(columns) + " |")
+    print("|---|" + "---:|" * len(columns))
+    for test, row in samples.items():
+        print(f"| {test} | " + " | ".join(f"{statistics.median(row[c]):.3f}" for c in columns) + " |")
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps({
+        "base": args.base,
+        "current": subprocess.run(["git", "-C", ROOT, "rev-parse", "HEAD"], capture_output=True,
+                                  text=True).stdout.strip(),
+        "spec": SPEC if args.spec is None else str(args.spec),
+        "core": core_rev,
+        "target": args.target,
+        "quick": args.quick,
+        "runs_s": samples,
+    }, indent=2) + "\n")
+    print(f"\nsamples written to {args.out}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
