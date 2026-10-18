@@ -155,8 +155,11 @@ let temporary_attempts = 8
 (* [contents] written beside [output] and renamed into place, so a failed
    write leaves an existing [output], or the input it may be, as it was. The
    temporary is created exclusively, so a name that already exists is
-   another's file: it is left alone and a new name drawn. Only a temporary
-   this call created is removed when a later step fails. *)
+   another's file: it is left alone and a new name drawn. Any failure to
+   create one draws again, since [Sys_error] does not say whether the name
+   was taken, and a lookup after the fact misses a dangling symlink or a file
+   removed in between. Only a temporary this call created is removed when a
+   later step fails. *)
 let write_replacing ~random ~output contents =
   let rec attempt drawn =
     let temporary = temporary_name random output in
@@ -176,7 +179,7 @@ let write_replacing ~random ~output contents =
           (try Sys.remove temporary with Sys_error _ -> ());
           Error message
         end
-        else if Sys.file_exists temporary && drawn < temporary_attempts then attempt (drawn + 1)
+        else if drawn < temporary_attempts then attempt (drawn + 1)
         else Error message
   in
   attempt 1

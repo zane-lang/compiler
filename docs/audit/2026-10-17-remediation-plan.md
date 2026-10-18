@@ -1106,6 +1106,11 @@ container has no `wine64`.
   first case failed four of its five checks and the second its survivors
   check.
   `docs/design/stages.md` says the driver holds the rewrite.
+  In review, any failure to create the temporary now draws again, rather
+  than only one at a name `Sys.file_exists` sees: that lookup follows a
+  dangling symlink and misses it. A third case puts a dangling symlink at
+  the first name; it failed two checks before the change, and now the
+  symlink survives and the object is written.
 - **F18** (`a89483e`). The `--stamp` case in `bin/zanec/zanec.ml` checks
   its value with `Rewrite.is_stamp` and gives the usage otherwise.
   `Driver.with_stamps` refuses a malformed stamp with the diagnostic

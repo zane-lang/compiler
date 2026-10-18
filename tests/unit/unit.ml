@@ -725,6 +725,23 @@ let rewriting_keeps_others_files () =
   in_directory (fun directory ->
       let input = Filename.concat directory "in.o" and output = Filename.concat directory "out.o" in
       write_all input "object";
+      let first = List.hd (names output 1) in
+      (* A symlink needs a privilege on Windows; without one there is nothing
+         to test. *)
+      match Unix.symlink (Filename.concat directory "nowhere") first with
+      | exception Unix.Unix_error _ -> ()
+      | () ->
+          let result =
+            Driver.rewrite_object ~random:(Random.State.make seed) ~stamps:[] ~rewrite ~input ~output
+          in
+          check "a rewrite whose first name is a dangling symlink succeeds" (Result.is_ok result);
+          check "the dangling symlink survives"
+            (match Unix.readlink first with _ -> true | exception Unix.Unix_error _ -> false);
+          check "the output is written past the symlink" (read_all output = Some "object rewritten");
+          Sys.remove first);
+  in_directory (fun directory ->
+      let input = Filename.concat directory "in.o" and output = Filename.concat directory "out.o" in
+      write_all input "object";
       let taken = names output 8 in
       List.iteri (fun i name -> write_all name (string_of_int i)) taken;
       let result =

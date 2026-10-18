@@ -13,7 +13,7 @@
 
 (test
  (name unit)
- (libraries cgt codegen diagnostic driver fixture_pairing optimize source tree_graph tst)
+ (libraries cgt codegen diagnostic driver fixture_pairing optimize source tree_graph tst unix)
  (deps
   ../../runtime/zane.h
   (source_tree ../codegen/fixtures/lambdas)))
