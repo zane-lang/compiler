@@ -3,12 +3,12 @@
 ; for. A library's code-generation tree shows each function's linkage, and
 ; its object's defined symbols are listed by `nm`, without their addresses.
 
-; Every program here runs with its drains checked: a block still out in a
-; region when its scope drains stops the program (runtime/zane_internal.h).
-(env
- (_
-  (env-vars
-   (ZANE_CHECK 1))))
+; Every program here runs checked and unchecked, each held to the same
+; golden file, as tests/codegen/ runs its programs. Checked (`ZANE_CHECK`
+; 1), a block still out in a region when its scope drains stops the program
+; (runtime/zane_internal.h); unchecked (0), a scope with nothing to wait for
+; drains in line. Each rule sets the mode it runs in, so none is inherited,
+; and the Python tests below run their programs both ways too.
 
 (rule
  (deps (source_tree fixtures/geometry))
@@ -130,14 +130,31 @@
 
 (rule
  (action
-  (with-stdout-to
-   survey.out.actual
-   (run ./survey.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    survey.out.actual.checked
+    (run ./survey.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/survey.out survey.out.actual)))
+  (diff golden/survey.out survey.out.actual.checked)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    survey.out.actual.unchecked
+    (run ./survey.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/survey.out survey.out.actual.unchecked)))
 
 ; geometry's placeholder object rewritten as fetching rewrites a release's
 ; (docs/design/separate-compilation.md C9). It defines exactly what the
@@ -190,14 +207,31 @@
 
 (rule
  (action
-  (with-stdout-to
-   survey.rewritten.out
-   (run ./survey.rewritten.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    survey.rewritten.out.checked
+    (run ./survey.rewritten.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/survey.out survey.rewritten.out)))
+  (diff golden/survey.out survey.rewritten.out.checked)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    survey.rewritten.out.unchecked
+    (run ./survey.rewritten.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/survey.out survey.rewritten.out.unchecked)))
 
 ; geometry rewritten for macOS (Mach-O) and Windows (COFF) objects, each
 ; held to the object built from source with the same stamp for that target.
@@ -358,14 +392,31 @@
 
 (rule
  (action
-  (with-stdout-to
-   versions.out.actual
-   (run ./versions.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    versions.out.actual.checked
+    (run ./versions.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/versions.out versions.out.actual)))
+  (diff golden/versions.out versions.out.actual.checked)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    versions.out.actual.unchecked
+    (run ./versions.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/versions.out versions.out.actual.unchecked)))
 
 ; Without the keys, atlas's `import geometry` could mean either version, and
 ; the compiler says so rather than choose.
@@ -435,14 +486,31 @@
 
 (rule
  (action
-  (with-stdout-to
-   remapped.out.actual
-   (run ./remapped.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    remapped.out.actual.checked
+    (run ./remapped.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/remapped.out remapped.out.actual)))
+  (diff golden/remapped.out remapped.out.actual.checked)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    remapped.out.actual.unchecked
+    (run ./remapped.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/remapped.out remapped.out.actual.unchecked)))
 
 (rule
  (action
@@ -504,14 +572,31 @@
 
 (rule
  (action
-  (with-stdout-to
-   viewer.out.actual
-   (run ./viewer.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    viewer.out.actual.checked
+    (run ./viewer.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/viewer.out viewer.out.actual)))
+  (diff golden/viewer.out viewer.out.actual.checked)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    viewer.out.actual.unchecked
+    (run ./viewer.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/viewer.out viewer.out.actual.unchecked)))
 
 (rule
  (deps (source_tree fixtures/layout))
@@ -521,14 +606,31 @@
 
 (rule
  (action
-  (with-stdout-to
-   viewer.stamped.out
-   (run ./viewer.stamped.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    viewer.stamped.out.checked
+    (run ./viewer.stamped.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/viewer.out viewer.stamped.out)))
+  (diff golden/viewer.out viewer.stamped.out.checked)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    viewer.stamped.out.unchecked
+    (run ./viewer.stamped.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/viewer.out viewer.stamped.out.unchecked)))
 
 ; A library build has no root, so no library package reaches the program's
 ; console (packages.md §6.1).

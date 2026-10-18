@@ -5,16 +5,18 @@
    added without its rules fails `dune runtest` until `dune promote` writes
    them.
 
+   Every fixture must have a golden file, and every golden file a fixture:
+   it stops, naming the file, at one without the other (fixture_pairing.ml),
+   so no fixture goes untested and no golden file outlives its fixture.
+
    It runs in the directory it writes rules for, and the golden files decide
-   which rules there are. Every fixture must have a golden file, and every
-   golden file a fixture: it stops, naming the file, at one without the
-   other (fixture_pairing.ml), so no fixture goes untested and no golden
-   file outlives its fixture.
+   which rules there are:
 
    - codegen: `golden/NAME.cgt` prints fixture NAME's code-generation tree,
      `golden/NAME.optimized.cgt` the tree an optimized build makes of it,
-     and `golden/NAME.out` builds it, unoptimized and optimized, and holds
-     what both builds of the program wrote. A
+     and `golden/NAME.out` builds it, unoptimized and optimized, runs each
+     build with its drains checked (`ZANE_CHECK` 1) and unchecked (0), and
+     holds what all four runs of the program wrote. A
      fixture whose `expected-status` file holds a status other than 0 is a
      program that stops: its golden file holds stdout and stderr together.
      A fixture's `arguments` file, one argument per line, is what both
@@ -97,19 +99,25 @@ let codegen () =
           "(rule\n (deps (source_tree %s))\n (targets %s.optimized.exe)\n (action\n  (run %s --build %s.optimized.exe --optimize%s --package %s)))\n\n"
           package name zanec name (flags name) package;
         (* The optimized build is held to the same golden file: optimizing
-           never changes what a program does. *)
+           never changes what a program does. So is each build run with its
+           drains checked and unchecked, which takes the drain lowering makes
+           in line (`Emit.drain_scope`): checking never changes it either. *)
         List.iter
           (fun exe ->
-            (match status name with
-            | 0 ->
-                Printf.printf
-                  "(rule\n (action\n  (with-stdout-to\n   %s.out.actual\n   (run ./%s.exe%s))))\n\n" exe
-                  exe (arguments name)
-            | n ->
-                Printf.printf
-                  "(rule\n (action\n  (with-outputs-to\n   %s.out.actual\n   (with-accepted-exit-codes\n    %d\n    (run ./%s.exe%s)))))\n\n"
-                  exe n exe (arguments name));
-            diff (name ^ ".out") (exe ^ ".out.actual"))
+            List.iter
+              (fun (mode, check) ->
+                let actual = Printf.sprintf "%s.%s.out.actual" exe mode in
+                (match status name with
+                | 0 ->
+                    Printf.printf
+                      "(rule\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   (with-stdout-to\n    %s\n    (run ./%s.exe%s)))))\n\n"
+                      check actual exe (arguments name)
+                | n ->
+                    Printf.printf
+                      "(rule\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   (with-outputs-to\n    %s\n    (with-accepted-exit-codes\n     %d\n     (run ./%s.exe%s))))))\n\n"
+                      check actual n exe (arguments name));
+                diff (name ^ ".out") actual)
+              [ ("checked", "1"); ("unchecked", "0") ])
           [ name; name ^ ".optimized" ]
       end)
     (List.sort_uniq compare (trees @ optimized @ outputs));

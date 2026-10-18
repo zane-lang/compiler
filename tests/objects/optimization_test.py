@@ -1,6 +1,7 @@
 """Cross-package folding, inlining and separate-object ABI regressions."""
 
 from pathlib import Path
+import os
 import re
 import subprocess
 import sys
@@ -17,6 +18,24 @@ def run(*args):
     if result.returncode:
         raise AssertionError(f"{args}\n{result.stdout}{result.stderr}")
     return result.stdout
+
+
+def run_program(exe, *args):
+    """What a program wrote, run with its drains checked and unchecked
+    (`ZANE_CHECK` 1 and 0), as every program in this directory is run. The
+    two runs must agree, and a failure names the mode it came from."""
+    outputs = {}
+    for check in ("1", "0"):
+        command = [str(exe), *map(str, args)]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60,
+                                env={**os.environ, "ZANE_CHECK": check})
+        if result.returncode:
+            raise AssertionError(f"ZANE_CHECK={check} {command}\n{result.stdout}{result.stderr}")
+        outputs[check] = result.stdout
+    if outputs["1"] != outputs["0"]:
+        raise AssertionError(f"{exe}: checked and unchecked runs differ\n"
+                             f"ZANE_CHECK=1:\n{outputs['1']}ZANE_CHECK=0:\n{outputs['0']}")
+    return outputs["1"]
 
 
 class OptimizationTests(unittest.TestCase):
@@ -78,7 +97,7 @@ class OptimizationTests(unittest.TestCase):
             exe = self.out / f"app-{optimize}"
             run(ZANEC, "--build", exe, "--link", self.obj,
                 *(["--optimize"] if optimize else []), *self.flags())
-            self.assertEqual(run(exe, "7"), expected)
+            self.assertEqual(run_program(exe, "7"), expected)
 
     def test_existing_library_features(self):
         obj = self.out / "geometry.o"
@@ -88,7 +107,7 @@ class OptimizationTests(unittest.TestCase):
         run(ZANEC, "--build", exe, "--optimize", "--link", obj,
             "--stamp", f"geometry={STAMP}", "--package", FIXTURES / "survey",
             "--package", FIXTURES / "geometry")
-        self.assertEqual(run(exe), (FIXTURES.parent / "golden/survey.out").read_text())
+        self.assertEqual(run_program(exe), (FIXTURES.parent / "golden/survey.out").read_text())
 
     def test_versions_and_transitive_imports(self):
         versions = FIXTURES / "versions"
@@ -112,7 +131,7 @@ class OptimizationTests(unittest.TestCase):
             "--package", f"{geo1}={versions / 'geometry1'}",
             "--import", f"app:geo={geo2}", "--import", f"app:atlas={atlas}",
             "--import", f"{atlas}:geometry={geo1}")
-        self.assertEqual(run(exe), (FIXTURES.parent / "golden/versions.out").read_text())
+        self.assertEqual(run_program(exe), (FIXTURES.parent / "golden/versions.out").read_text())
 
 
 if __name__ == "__main__":

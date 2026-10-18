@@ -26,25 +26,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   arguments.out.actual
-   (run ./arguments.exe "42" "-7" "3.25" "12x" "" "99999999999999999999" "9223372036854775807" "-9223372036854775808" "+5" " 5"))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    arguments.checked.out.actual
+    (run ./arguments.exe "42" "-7" "3.25" "12x" "" "99999999999999999999" "9223372036854775807" "-9223372036854775808" "+5" " 5")))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/arguments.out arguments.out.actual)))
+  (diff golden/arguments.out arguments.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   arguments.optimized.out.actual
-   (run ./arguments.optimized.exe "42" "-7" "3.25" "12x" "" "99999999999999999999" "9223372036854775807" "-9223372036854775808" "+5" " 5"))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    arguments.unchecked.out.actual
+    (run ./arguments.exe "42" "-7" "3.25" "12x" "" "99999999999999999999" "9223372036854775807" "-9223372036854775808" "+5" " 5")))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/arguments.out arguments.optimized.out.actual)))
+  (diff golden/arguments.out arguments.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    arguments.optimized.checked.out.actual
+    (run ./arguments.optimized.exe "42" "-7" "3.25" "12x" "" "99999999999999999999" "9223372036854775807" "-9223372036854775808" "+5" " 5")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arguments.out arguments.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    arguments.optimized.unchecked.out.actual
+    (run ./arguments.optimized.exe "42" "-7" "3.25" "12x" "" "99999999999999999999" "9223372036854775807" "-9223372036854775808" "+5" " 5")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arguments.out arguments.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/arrayrefs))
@@ -72,25 +106,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   arrayrefs.out.actual
-   (run ./arrayrefs.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    arrayrefs.checked.out.actual
+    (run ./arrayrefs.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/arrayrefs.out arrayrefs.out.actual)))
+  (diff golden/arrayrefs.out arrayrefs.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   arrayrefs.optimized.out.actual
-   (run ./arrayrefs.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    arrayrefs.unchecked.out.actual
+    (run ./arrayrefs.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/arrayrefs.out arrayrefs.optimized.out.actual)))
+  (diff golden/arrayrefs.out arrayrefs.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    arrayrefs.optimized.checked.out.actual
+    (run ./arrayrefs.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arrayrefs.out arrayrefs.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    arrayrefs.optimized.unchecked.out.actual
+    (run ./arrayrefs.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arrayrefs.out arrayrefs.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/arrays))
@@ -118,25 +186,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   arrays.out.actual
-   (run ./arrays.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    arrays.checked.out.actual
+    (run ./arrays.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/arrays.out arrays.out.actual)))
+  (diff golden/arrays.out arrays.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   arrays.optimized.out.actual
-   (run ./arrays.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    arrays.unchecked.out.actual
+    (run ./arrays.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/arrays.out arrays.optimized.out.actual)))
+  (diff golden/arrays.out arrays.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    arrays.optimized.checked.out.actual
+    (run ./arrays.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arrays.out arrays.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    arrays.optimized.unchecked.out.actual
+    (run ./arrays.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/arrays.out arrays.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/bounds))
@@ -152,29 +254,67 @@
 
 (rule
  (action
-  (with-outputs-to
-   bounds.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./bounds.exe)))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    bounds.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./bounds.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/bounds.out bounds.out.actual)))
+  (diff golden/bounds.out bounds.checked.out.actual)))
 
 (rule
  (action
-  (with-outputs-to
-   bounds.optimized.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./bounds.optimized.exe)))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    bounds.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./bounds.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/bounds.out bounds.optimized.out.actual)))
+  (diff golden/bounds.out bounds.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    bounds.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./bounds.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bounds.out bounds.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    bounds.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./bounds.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bounds.out bounds.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/boundsNegative))
@@ -190,29 +330,67 @@
 
 (rule
  (action
-  (with-outputs-to
-   boundsNegative.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./boundsNegative.exe)))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    boundsNegative.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./boundsNegative.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/boundsNegative.out boundsNegative.out.actual)))
+  (diff golden/boundsNegative.out boundsNegative.checked.out.actual)))
 
 (rule
  (action
-  (with-outputs-to
-   boundsNegative.optimized.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./boundsNegative.optimized.exe)))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    boundsNegative.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./boundsNegative.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/boundsNegative.out boundsNegative.optimized.out.actual)))
+  (diff golden/boundsNegative.out boundsNegative.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    boundsNegative.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./boundsNegative.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boundsNegative.out boundsNegative.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    boundsNegative.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./boundsNegative.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boundsNegative.out boundsNegative.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/boxes))
@@ -240,25 +418,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   boxes.out.actual
-   (run ./boxes.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    boxes.checked.out.actual
+    (run ./boxes.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/boxes.out boxes.out.actual)))
+  (diff golden/boxes.out boxes.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   boxes.optimized.out.actual
-   (run ./boxes.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    boxes.unchecked.out.actual
+    (run ./boxes.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/boxes.out boxes.optimized.out.actual)))
+  (diff golden/boxes.out boxes.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    boxes.optimized.checked.out.actual
+    (run ./boxes.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boxes.out boxes.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    boxes.optimized.unchecked.out.actual
+    (run ./boxes.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/boxes.out boxes.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/constants))
@@ -298,25 +510,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   constants.out.actual
-   (run ./constants.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    constants.checked.out.actual
+    (run ./constants.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/constants.out constants.out.actual)))
+  (diff golden/constants.out constants.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   constants.optimized.out.actual
-   (run ./constants.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    constants.unchecked.out.actual
+    (run ./constants.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/constants.out constants.optimized.out.actual)))
+  (diff golden/constants.out constants.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    constants.optimized.checked.out.actual
+    (run ./constants.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/constants.out constants.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    constants.optimized.unchecked.out.actual
+    (run ./constants.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/constants.out constants.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/counting))
@@ -356,25 +602,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   counting.out.actual
-   (run ./counting.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    counting.checked.out.actual
+    (run ./counting.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/counting.out counting.out.actual)))
+  (diff golden/counting.out counting.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   counting.optimized.out.actual
-   (run ./counting.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    counting.unchecked.out.actual
+    (run ./counting.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/counting.out counting.optimized.out.actual)))
+  (diff golden/counting.out counting.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    counting.optimized.checked.out.actual
+    (run ./counting.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/counting.out counting.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    counting.optimized.unchecked.out.actual
+    (run ./counting.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/counting.out counting.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/deepFrames))
@@ -390,29 +670,67 @@
 
 (rule
  (action
-  (with-outputs-to
-   deepFrames.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./deepFrames.exe)))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    deepFrames.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./deepFrames.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/deepFrames.out deepFrames.out.actual)))
+  (diff golden/deepFrames.out deepFrames.checked.out.actual)))
 
 (rule
  (action
-  (with-outputs-to
-   deepFrames.optimized.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./deepFrames.optimized.exe)))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    deepFrames.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./deepFrames.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/deepFrames.out deepFrames.optimized.out.actual)))
+  (diff golden/deepFrames.out deepFrames.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    deepFrames.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./deepFrames.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/deepFrames.out deepFrames.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    deepFrames.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./deepFrames.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/deepFrames.out deepFrames.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/defaults))
@@ -440,25 +758,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   defaults.out.actual
-   (run ./defaults.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    defaults.checked.out.actual
+    (run ./defaults.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/defaults.out defaults.out.actual)))
+  (diff golden/defaults.out defaults.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   defaults.optimized.out.actual
-   (run ./defaults.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    defaults.unchecked.out.actual
+    (run ./defaults.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/defaults.out defaults.optimized.out.actual)))
+  (diff golden/defaults.out defaults.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    defaults.optimized.checked.out.actual
+    (run ./defaults.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/defaults.out defaults.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    defaults.optimized.unchecked.out.actual
+    (run ./defaults.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/defaults.out defaults.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/folding))
@@ -498,25 +850,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   folding.out.actual
-   (run ./folding.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    folding.checked.out.actual
+    (run ./folding.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/folding.out folding.out.actual)))
+  (diff golden/folding.out folding.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   folding.optimized.out.actual
-   (run ./folding.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    folding.unchecked.out.actual
+    (run ./folding.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/folding.out folding.optimized.out.actual)))
+  (diff golden/folding.out folding.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    folding.optimized.checked.out.actual
+    (run ./folding.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.out folding.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    folding.optimized.unchecked.out.actual
+    (run ./folding.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.out folding.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/frames))
@@ -532,25 +918,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   frames.out.actual
-   (run ./frames.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    frames.checked.out.actual
+    (run ./frames.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/frames.out frames.out.actual)))
+  (diff golden/frames.out frames.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   frames.optimized.out.actual
-   (run ./frames.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    frames.unchecked.out.actual
+    (run ./frames.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/frames.out frames.optimized.out.actual)))
+  (diff golden/frames.out frames.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    frames.optimized.checked.out.actual
+    (run ./frames.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/frames.out frames.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    frames.optimized.unchecked.out.actual
+    (run ./frames.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/frames.out frames.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/headers))
@@ -566,25 +986,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   headers.out.actual
-   (run ./headers.exe "6"))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    headers.checked.out.actual
+    (run ./headers.exe "6")))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/headers.out headers.out.actual)))
+  (diff golden/headers.out headers.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   headers.optimized.out.actual
-   (run ./headers.optimized.exe "6"))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    headers.unchecked.out.actual
+    (run ./headers.exe "6")))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/headers.out headers.optimized.out.actual)))
+  (diff golden/headers.out headers.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    headers.optimized.checked.out.actual
+    (run ./headers.optimized.exe "6")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/headers.out headers.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    headers.optimized.unchecked.out.actual
+    (run ./headers.optimized.exe "6")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/headers.out headers.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/hello))
@@ -612,25 +1066,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   hello.out.actual
-   (run ./hello.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    hello.checked.out.actual
+    (run ./hello.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/hello.out hello.out.actual)))
+  (diff golden/hello.out hello.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   hello.optimized.out.actual
-   (run ./hello.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    hello.unchecked.out.actual
+    (run ./hello.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/hello.out hello.optimized.out.actual)))
+  (diff golden/hello.out hello.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    hello.optimized.checked.out.actual
+    (run ./hello.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hello.out hello.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    hello.optimized.unchecked.out.actual
+    (run ./hello.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hello.out hello.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/keeping))
@@ -658,25 +1146,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   keeping.out.actual
-   (run ./keeping.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    keeping.checked.out.actual
+    (run ./keeping.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/keeping.out keeping.out.actual)))
+  (diff golden/keeping.out keeping.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   keeping.optimized.out.actual
-   (run ./keeping.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    keeping.unchecked.out.actual
+    (run ./keeping.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/keeping.out keeping.optimized.out.actual)))
+  (diff golden/keeping.out keeping.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    keeping.optimized.checked.out.actual
+    (run ./keeping.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keeping.out keeping.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    keeping.optimized.unchecked.out.actual
+    (run ./keeping.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keeping.out keeping.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/lambdas))
@@ -704,25 +1226,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   lambdas.out.actual
-   (run ./lambdas.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    lambdas.checked.out.actual
+    (run ./lambdas.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/lambdas.out lambdas.out.actual)))
+  (diff golden/lambdas.out lambdas.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   lambdas.optimized.out.actual
-   (run ./lambdas.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    lambdas.unchecked.out.actual
+    (run ./lambdas.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/lambdas.out lambdas.optimized.out.actual)))
+  (diff golden/lambdas.out lambdas.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    lambdas.optimized.checked.out.actual
+    (run ./lambdas.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lambdas.out lambdas.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    lambdas.optimized.unchecked.out.actual
+    (run ./lambdas.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lambdas.out lambdas.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/lists))
@@ -750,25 +1306,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   lists.out.actual
-   (run ./lists.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    lists.checked.out.actual
+    (run ./lists.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/lists.out lists.out.actual)))
+  (diff golden/lists.out lists.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   lists.optimized.out.actual
-   (run ./lists.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    lists.unchecked.out.actual
+    (run ./lists.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/lists.out lists.optimized.out.actual)))
+  (diff golden/lists.out lists.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    lists.optimized.checked.out.actual
+    (run ./lists.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lists.out lists.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    lists.optimized.unchecked.out.actual
+    (run ./lists.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lists.out lists.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/math))
@@ -796,25 +1386,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   math.out.actual
-   (run ./math.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    math.checked.out.actual
+    (run ./math.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/math.out math.out.actual)))
+  (diff golden/math.out math.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   math.optimized.out.actual
-   (run ./math.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    math.unchecked.out.actual
+    (run ./math.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/math.out math.optimized.out.actual)))
+  (diff golden/math.out math.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    math.optimized.checked.out.actual
+    (run ./math.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/math.out math.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    math.optimized.unchecked.out.actual
+    (run ./math.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/math.out math.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/operators))
@@ -830,25 +1454,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   operators.out.actual
-   (run ./operators.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    operators.checked.out.actual
+    (run ./operators.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/operators.out operators.out.actual)))
+  (diff golden/operators.out operators.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   operators.optimized.out.actual
-   (run ./operators.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    operators.unchecked.out.actual
+    (run ./operators.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/operators.out operators.optimized.out.actual)))
+  (diff golden/operators.out operators.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    operators.optimized.checked.out.actual
+    (run ./operators.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/operators.out operators.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    operators.optimized.unchecked.out.actual
+    (run ./operators.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/operators.out operators.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/outcomes))
@@ -876,25 +1534,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   outcomes.out.actual
-   (run ./outcomes.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    outcomes.checked.out.actual
+    (run ./outcomes.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/outcomes.out outcomes.out.actual)))
+  (diff golden/outcomes.out outcomes.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   outcomes.optimized.out.actual
-   (run ./outcomes.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    outcomes.unchecked.out.actual
+    (run ./outcomes.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/outcomes.out outcomes.optimized.out.actual)))
+  (diff golden/outcomes.out outcomes.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    outcomes.optimized.checked.out.actual
+    (run ./outcomes.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/outcomes.out outcomes.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    outcomes.optimized.unchecked.out.actual
+    (run ./outcomes.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/outcomes.out outcomes.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/owners))
@@ -922,25 +1614,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   owners.out.actual
-   (run ./owners.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    owners.checked.out.actual
+    (run ./owners.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/owners.out owners.out.actual)))
+  (diff golden/owners.out owners.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   owners.optimized.out.actual
-   (run ./owners.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    owners.unchecked.out.actual
+    (run ./owners.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/owners.out owners.optimized.out.actual)))
+  (diff golden/owners.out owners.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    owners.optimized.checked.out.actual
+    (run ./owners.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/owners.out owners.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    owners.optimized.unchecked.out.actual
+    (run ./owners.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/owners.out owners.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/probed))
@@ -956,25 +1682,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   probed.out.actual
-   (run ./probed.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    probed.checked.out.actual
+    (run ./probed.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/probed.out probed.out.actual)))
+  (diff golden/probed.out probed.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   probed.optimized.out.actual
-   (run ./probed.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    probed.unchecked.out.actual
+    (run ./probed.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/probed.out probed.optimized.out.actual)))
+  (diff golden/probed.out probed.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    probed.optimized.checked.out.actual
+    (run ./probed.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/probed.out probed.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    probed.optimized.unchecked.out.actual
+    (run ./probed.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/probed.out probed.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/range))
@@ -990,29 +1750,67 @@
 
 (rule
  (action
-  (with-outputs-to
-   range.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./range.exe)))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    range.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./range.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/range.out range.out.actual)))
+  (diff golden/range.out range.checked.out.actual)))
 
 (rule
  (action
-  (with-outputs-to
-   range.optimized.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./range.optimized.exe)))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    range.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./range.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/range.out range.optimized.out.actual)))
+  (diff golden/range.out range.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    range.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./range.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/range.out range.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    range.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./range.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/range.out range.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/rangeZero))
@@ -1028,29 +1826,67 @@
 
 (rule
  (action
-  (with-outputs-to
-   rangeZero.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./rangeZero.exe)))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    rangeZero.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./rangeZero.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/rangeZero.out rangeZero.out.actual)))
+  (diff golden/rangeZero.out rangeZero.checked.out.actual)))
 
 (rule
  (action
-  (with-outputs-to
-   rangeZero.optimized.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./rangeZero.optimized.exe)))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    rangeZero.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./rangeZero.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/rangeZero.out rangeZero.optimized.out.actual)))
+  (diff golden/rangeZero.out rangeZero.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    rangeZero.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./rangeZero.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/rangeZero.out rangeZero.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    rangeZero.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./rangeZero.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/rangeZero.out rangeZero.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/recursion))
@@ -1066,29 +1902,67 @@
 
 (rule
  (action
-  (with-outputs-to
-   recursion.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./recursion.exe)))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    recursion.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./recursion.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/recursion.out recursion.out.actual)))
+  (diff golden/recursion.out recursion.checked.out.actual)))
 
 (rule
  (action
-  (with-outputs-to
-   recursion.optimized.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./recursion.optimized.exe)))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    recursion.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./recursion.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/recursion.out recursion.optimized.out.actual)))
+  (diff golden/recursion.out recursion.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    recursion.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./recursion.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/recursion.out recursion.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    recursion.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./recursion.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/recursion.out recursion.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/references))
@@ -1116,25 +1990,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   references.out.actual
-   (run ./references.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    references.checked.out.actual
+    (run ./references.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/references.out references.out.actual)))
+  (diff golden/references.out references.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   references.optimized.out.actual
-   (run ./references.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    references.unchecked.out.actual
+    (run ./references.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/references.out references.optimized.out.actual)))
+  (diff golden/references.out references.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    references.optimized.checked.out.actual
+    (run ./references.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/references.out references.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    references.optimized.unchecked.out.actual
+    (run ./references.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/references.out references.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/regions))
@@ -1150,25 +2058,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   regions.out.actual
-   (run ./regions.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    regions.checked.out.actual
+    (run ./regions.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/regions.out regions.out.actual)))
+  (diff golden/regions.out regions.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   regions.optimized.out.actual
-   (run ./regions.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    regions.unchecked.out.actual
+    (run ./regions.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/regions.out regions.optimized.out.actual)))
+  (diff golden/regions.out regions.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    regions.optimized.checked.out.actual
+    (run ./regions.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/regions.out regions.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    regions.optimized.unchecked.out.actual
+    (run ./regions.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/regions.out regions.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/removal))
@@ -1184,25 +2126,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   removal.out.actual
-   (run ./removal.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    removal.checked.out.actual
+    (run ./removal.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/removal.out removal.out.actual)))
+  (diff golden/removal.out removal.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   removal.optimized.out.actual
-   (run ./removal.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    removal.unchecked.out.actual
+    (run ./removal.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/removal.out removal.optimized.out.actual)))
+  (diff golden/removal.out removal.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    removal.optimized.checked.out.actual
+    (run ./removal.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removal.out removal.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    removal.optimized.unchecked.out.actual
+    (run ./removal.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removal.out removal.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/removalFolded))
@@ -1230,25 +2206,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   removalFolded.out.actual
-   (run ./removalFolded.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    removalFolded.checked.out.actual
+    (run ./removalFolded.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/removalFolded.out removalFolded.out.actual)))
+  (diff golden/removalFolded.out removalFolded.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   removalFolded.optimized.out.actual
-   (run ./removalFolded.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    removalFolded.unchecked.out.actual
+    (run ./removalFolded.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/removalFolded.out removalFolded.optimized.out.actual)))
+  (diff golden/removalFolded.out removalFolded.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    removalFolded.optimized.checked.out.actual
+    (run ./removalFolded.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removalFolded.out removalFolded.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    removalFolded.optimized.unchecked.out.actual
+    (run ./removalFolded.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removalFolded.out removalFolded.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/removeRange))
@@ -1264,29 +2274,67 @@
 
 (rule
  (action
-  (with-outputs-to
-   removeRange.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./removeRange.exe)))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    removeRange.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./removeRange.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/removeRange.out removeRange.out.actual)))
+  (diff golden/removeRange.out removeRange.checked.out.actual)))
 
 (rule
  (action
-  (with-outputs-to
-   removeRange.optimized.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./removeRange.optimized.exe)))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    removeRange.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./removeRange.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/removeRange.out removeRange.optimized.out.actual)))
+  (diff golden/removeRange.out removeRange.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    removeRange.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./removeRange.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removeRange.out removeRange.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    removeRange.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./removeRange.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/removeRange.out removeRange.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/replayed))
@@ -1314,25 +2362,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   replayed.out.actual
-   (run ./replayed.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    replayed.checked.out.actual
+    (run ./replayed.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/replayed.out replayed.out.actual)))
+  (diff golden/replayed.out replayed.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   replayed.optimized.out.actual
-   (run ./replayed.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    replayed.unchecked.out.actual
+    (run ./replayed.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/replayed.out replayed.optimized.out.actual)))
+  (diff golden/replayed.out replayed.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    replayed.optimized.checked.out.actual
+    (run ./replayed.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/replayed.out replayed.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    replayed.optimized.unchecked.out.actual
+    (run ./replayed.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/replayed.out replayed.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/runs))
@@ -1360,25 +2442,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   runs.out.actual
-   (run ./runs.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    runs.checked.out.actual
+    (run ./runs.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/runs.out runs.out.actual)))
+  (diff golden/runs.out runs.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   runs.optimized.out.actual
-   (run ./runs.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    runs.unchecked.out.actual
+    (run ./runs.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/runs.out runs.optimized.out.actual)))
+  (diff golden/runs.out runs.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    runs.optimized.checked.out.actual
+    (run ./runs.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/runs.out runs.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    runs.optimized.unchecked.out.actual
+    (run ./runs.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/runs.out runs.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/scalarTexts))
@@ -1394,25 +2510,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   scalarTexts.out.actual
-   (run ./scalarTexts.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    scalarTexts.checked.out.actual
+    (run ./scalarTexts.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/scalarTexts.out scalarTexts.out.actual)))
+  (diff golden/scalarTexts.out scalarTexts.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   scalarTexts.optimized.out.actual
-   (run ./scalarTexts.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    scalarTexts.unchecked.out.actual
+    (run ./scalarTexts.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/scalarTexts.out scalarTexts.optimized.out.actual)))
+  (diff golden/scalarTexts.out scalarTexts.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    scalarTexts.optimized.checked.out.actual
+    (run ./scalarTexts.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalarTexts.out scalarTexts.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    scalarTexts.optimized.unchecked.out.actual
+    (run ./scalarTexts.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalarTexts.out scalarTexts.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/scalars))
@@ -1440,25 +2590,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   scalars.out.actual
-   (run ./scalars.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    scalars.checked.out.actual
+    (run ./scalars.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/scalars.out scalars.out.actual)))
+  (diff golden/scalars.out scalars.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   scalars.optimized.out.actual
-   (run ./scalars.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    scalars.unchecked.out.actual
+    (run ./scalars.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/scalars.out scalars.optimized.out.actual)))
+  (diff golden/scalars.out scalars.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    scalars.optimized.checked.out.actual
+    (run ./scalars.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalars.out scalars.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    scalars.optimized.unchecked.out.actual
+    (run ./scalars.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/scalars.out scalars.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/settled))
@@ -1486,25 +2670,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   settled.out.actual
-   (run ./settled.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    settled.checked.out.actual
+    (run ./settled.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/settled.out settled.out.actual)))
+  (diff golden/settled.out settled.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   settled.optimized.out.actual
-   (run ./settled.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    settled.unchecked.out.actual
+    (run ./settled.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/settled.out settled.optimized.out.actual)))
+  (diff golden/settled.out settled.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    settled.optimized.checked.out.actual
+    (run ./settled.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/settled.out settled.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    settled.optimized.unchecked.out.actual
+    (run ./settled.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/settled.out settled.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/shapes))
@@ -1532,25 +2750,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   shapes.out.actual
-   (run ./shapes.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    shapes.checked.out.actual
+    (run ./shapes.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/shapes.out shapes.out.actual)))
+  (diff golden/shapes.out shapes.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   shapes.optimized.out.actual
-   (run ./shapes.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    shapes.unchecked.out.actual
+    (run ./shapes.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/shapes.out shapes.optimized.out.actual)))
+  (diff golden/shapes.out shapes.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    shapes.optimized.checked.out.actual
+    (run ./shapes.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/shapes.out shapes.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    shapes.optimized.unchecked.out.actual
+    (run ./shapes.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/shapes.out shapes.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/spawned))
@@ -1578,25 +2830,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   spawned.out.actual
-   (run ./spawned.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    spawned.checked.out.actual
+    (run ./spawned.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/spawned.out spawned.out.actual)))
+  (diff golden/spawned.out spawned.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   spawned.optimized.out.actual
-   (run ./spawned.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    spawned.unchecked.out.actual
+    (run ./spawned.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/spawned.out spawned.optimized.out.actual)))
+  (diff golden/spawned.out spawned.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    spawned.optimized.checked.out.actual
+    (run ./spawned.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawned.out spawned.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    spawned.optimized.unchecked.out.actual
+    (run ./spawned.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawned.out spawned.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/spawnedFrames))
@@ -1612,29 +2898,67 @@
 
 (rule
  (action
-  (with-outputs-to
-   spawnedFrames.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./spawnedFrames.exe)))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    spawnedFrames.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./spawnedFrames.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/spawnedFrames.out spawnedFrames.out.actual)))
+  (diff golden/spawnedFrames.out spawnedFrames.checked.out.actual)))
 
 (rule
  (action
-  (with-outputs-to
-   spawnedFrames.optimized.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./spawnedFrames.optimized.exe)))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    spawnedFrames.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./spawnedFrames.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/spawnedFrames.out spawnedFrames.optimized.out.actual)))
+  (diff golden/spawnedFrames.out spawnedFrames.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    spawnedFrames.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./spawnedFrames.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnedFrames.out spawnedFrames.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    spawnedFrames.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./spawnedFrames.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnedFrames.out spawnedFrames.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/spawns))
@@ -1662,25 +2986,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   spawns.out.actual
-   (run ./spawns.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    spawns.checked.out.actual
+    (run ./spawns.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/spawns.out spawns.out.actual)))
+  (diff golden/spawns.out spawns.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   spawns.optimized.out.actual
-   (run ./spawns.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    spawns.unchecked.out.actual
+    (run ./spawns.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/spawns.out spawns.optimized.out.actual)))
+  (diff golden/spawns.out spawns.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    spawns.optimized.checked.out.actual
+    (run ./spawns.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawns.out spawns.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    spawns.optimized.unchecked.out.actual
+    (run ./spawns.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawns.out spawns.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/texts))
@@ -1708,25 +3066,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   texts.out.actual
-   (run ./texts.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    texts.checked.out.actual
+    (run ./texts.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/texts.out texts.out.actual)))
+  (diff golden/texts.out texts.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   texts.optimized.out.actual
-   (run ./texts.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    texts.unchecked.out.actual
+    (run ./texts.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/texts.out texts.optimized.out.actual)))
+  (diff golden/texts.out texts.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    texts.optimized.checked.out.actual
+    (run ./texts.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/texts.out texts.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    texts.optimized.unchecked.out.actual
+    (run ./texts.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/texts.out texts.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/walks))
@@ -1742,25 +3134,59 @@
 
 (rule
  (action
-  (with-stdout-to
-   walks.out.actual
-   (run ./walks.exe))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    walks.checked.out.actual
+    (run ./walks.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/walks.out walks.out.actual)))
+  (diff golden/walks.out walks.checked.out.actual)))
 
 (rule
  (action
-  (with-stdout-to
-   walks.optimized.out.actual
-   (run ./walks.optimized.exe))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    walks.unchecked.out.actual
+    (run ./walks.exe)))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/walks.out walks.optimized.out.actual)))
+  (diff golden/walks.out walks.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    walks.optimized.checked.out.actual
+    (run ./walks.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/walks.out walks.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    walks.optimized.unchecked.out.actual
+    (run ./walks.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/walks.out walks.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/wideFrames))
@@ -1776,29 +3202,67 @@
 
 (rule
  (action
-  (with-outputs-to
-   wideFrames.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./wideFrames.exe)))))
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    wideFrames.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./wideFrames.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/wideFrames.out wideFrames.out.actual)))
+  (diff golden/wideFrames.out wideFrames.checked.out.actual)))
 
 (rule
  (action
-  (with-outputs-to
-   wideFrames.optimized.out.actual
-   (with-accepted-exit-codes
-    1
-    (run ./wideFrames.optimized.exe)))))
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    wideFrames.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./wideFrames.exe))))))
 
 (rule
  (alias runtest)
  (action
-  (diff golden/wideFrames.out wideFrames.optimized.out.actual)))
+  (diff golden/wideFrames.out wideFrames.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    wideFrames.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./wideFrames.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/wideFrames.out wideFrames.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    wideFrames.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./wideFrames.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/wideFrames.out wideFrames.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/literalOperator))

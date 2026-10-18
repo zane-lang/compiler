@@ -631,7 +631,8 @@ test passing.
     scope's values and the values write-backs retired there return their
     blocks one at a time, and a block still out in the region after that is
     one whose owner is somewhere the scope cannot reach, which stops the
-    program. The codegen and object tests run this way.
+    program. The codegen and object tests run every program both ways,
+    each held to the same output.
 
   Nothing a program does can tell these apart.
 - **Each type's walks.** Copying, ending, moving and overwriting a value

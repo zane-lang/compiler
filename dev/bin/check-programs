@@ -8,12 +8,15 @@ set -uo pipefail
 # tests/codegen/ holds it. RUNNER, when set, runs each program, so the same
 # check runs Windows programs under Wine elsewhere: `RUNNER=wine64`.
 #
+# Each program runs twice, as tests/codegen/ runs it: with its drains
+# checked (ZANE_CHECK=1), where a block still out in a region when its scope
+# drains stops the program, and unchecked (ZANE_CHECK=0), where a scope with
+# nothing to wait for drains in line, by code lowering emits. Both runs are
+# held to the same output, and a mismatch names the mode it came from.
+#
 # Every program runs, and each mismatch is reported, before the check fails.
 
 DIR="${1:?usage: check-programs DIR}"
-# Each drain is checked, as tests/codegen/ checks it: a block still out in a
-# region when its scope drains stops the program.
-export ZANE_CHECK=1
 read -r -a runner <<<"${RUNNER:-}"
 failed=0
 count=0
@@ -27,25 +30,28 @@ for program in "$DIR"/*.exe; do
 	if [[ -f "$DIR/$name.args" ]]; then
 		while IFS= read -r arg || [[ -n "$arg" ]]; do args+=("$arg"); done <"$DIR/$name.args"
 	fi
-	actual_out="$(mktemp)"
-	if [[ "$expected" == 0 ]]; then
-		${runner[@]+"${runner[@]}"} "$program" ${args[@]+"${args[@]}"} >"$actual_out"
-	else
-		${runner[@]+"${runner[@]}"} "$program" ${args[@]+"${args[@]}"} >"$actual_out" 2>&1
-	fi
-	status=$?
-	count=$((count + 1))
-	if [[ "$status" != "$expected" ]]; then
-		echo "FAIL $name: exited $status, expected $expected"
-		failed=1
-	elif ! diff "$DIR/$name.out" "$actual_out" >/dev/null; then
-		echo "FAIL $name: output differs from $name.out"
-		diff "$DIR/$name.out" "$actual_out" | head -20
-		failed=1
-	else
-		echo "ok   $name"
-	fi
-	rm -f "$actual_out"
+	for check in 1 0; do
+		mode="ZANE_CHECK=$check"
+		actual_out="$(mktemp)"
+		if [[ "$expected" == 0 ]]; then
+			ZANE_CHECK="$check" ${runner[@]+"${runner[@]}"} "$program" ${args[@]+"${args[@]}"} >"$actual_out"
+		else
+			ZANE_CHECK="$check" ${runner[@]+"${runner[@]}"} "$program" ${args[@]+"${args[@]}"} >"$actual_out" 2>&1
+		fi
+		status=$?
+		count=$((count + 1))
+		if [[ "$status" != "$expected" ]]; then
+			echo "FAIL $name ($mode): exited $status, expected $expected"
+			failed=1
+		elif ! diff "$DIR/$name.out" "$actual_out" >/dev/null; then
+			echo "FAIL $name ($mode): output differs from $name.out"
+			diff "$DIR/$name.out" "$actual_out" | head -20
+			failed=1
+		else
+			echo "ok   $name ($mode)"
+		fi
+		rm -f "$actual_out"
+	done
 done
 
 if [[ "$count" == 0 ]]; then
