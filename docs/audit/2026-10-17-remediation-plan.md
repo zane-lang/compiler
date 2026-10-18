@@ -59,8 +59,8 @@ uses the shared traversals.
    `generics.md`): "a type whose definition, along any of its members,
    leads back to its own declaration at type arguments that strictly
    contain its parameters is ill-formed". The compiler change follows the
-   spec PR. One question is still open: whether the rule follows all
-   members or only owning ones (see F16).
+   spec PR. The rule follows every member, `&` members included (see
+   F16).
 2. **F08: how aggregates cross a call.** *Decided:* an aggregate travels
    in registers when it needs at most as many as the target's C calling
    convention gives one, and by address otherwise. That is 2 registers on
@@ -507,19 +507,40 @@ spec first, then:
   It follows the approach of Go's "instantiation cycle" check. Before
   implementing it, confirm what Go rejects for types (as opposed to
   functions), and add any case Go catches that this graph misses.
-- **Which members.** Decide in the spec PR whether `&` members count. A
-  reference is a fixed-size pointer and is never walked, so excluding them
-  is sound if no other stage instantiates a referenced type's layout. The
-  implementation must confirm that before the spec excludes them.
+- **Which members: all of them, `&` members included.** A reference is a
+  fixed-size address, and a type's layout and its copy, move and drop
+  walks stop at it. So an expanding reference does not hang codegen the
+  way an expanding owning member does. It is rejected anyway, for four
+  reasons:
+  - **The checker follows references.** `Borrows.behind_references`
+    (`lib/tst/analyses/borrows.ml`) collects every type reachable through
+    `&` members at any depth, and dedupes by the full type. On
+    `type Node<T> = #struct { val T; next &Node<Array<T, 2>>; }` it meets
+    a new type at every step and never stops. Allowing such types would
+    first need that analysis, and any other that follows references,
+    changed.
+  - **Such a member is often unsatisfiable.** An `&` always names a live
+    owner and is never empty (spec `lifetimes.md` §2.4). So a `Node<I64>`
+    needs an existing `Node<Array<I64, 2>>`, which needs one a level
+    deeper, without end: no value of the type can ever be built. Only an
+    expanding reference inside a variant case, beside a case that ends
+    the chain, could be built at all.
+  - **It is safe to relax later.** Forbidding it now and allowing it later
+    breaks no program. The reverse would.
+  - **The rule stays one sentence.** It needs no exception for `&`.
+
+  `behind_references` gets the same depth backstop as `Type_layout`
+  below, so a type the check misses is an internal error there too, not
+  a hang.
 - **Backstop.** `Type_layout.boxed` and `positions`
   (`lib/cgt/type_layout.ml`) carry a depth and call `Diagnostic.bug` past
   a generous bound (say 10,000), so that a missed case is an internal
   error and not a hang or a stack overflow.
 
 **Tests.** Add a rejection golden for the audit's
-`Grow<T> = variant { done Unit; more Grow<Array<T, 2>>; }`, and one for an
+`Grow<T> = variant { done Unit; more Grow<Array<T, 2>>; }`, one for an
 expansion through a second declaration (`A<T>` holds `B<T>`, which holds
-`A<List<T>>`). Ordinary recursion (`Tree<T>` holding `Tree<T>`) and
+`A<List<T>>`), and one through an `&` member inside a variant case. Ordinary recursion (`Tree<T>` holding `Tree<T>`) and
 mutual recursion at the same arguments are still accepted, with their
 existing fixtures.
 
