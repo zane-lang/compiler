@@ -153,6 +153,14 @@ then run it again, read the golden diff and promote that.
   one reading another made first whatever their order, a string that owns
   its block, a host a guest names, and a value struct, read from a verb and a
   spawned call.
+- `entryArray`, `entryString`, `entryStruct` and `entryUnit` are a `main`
+  that returns an `Array<I64, 10>`, a `String` that owns its block, a
+  `#struct` that owns a list, and `Unit`, which the start function discards
+  (docs/design/lowering.md L16). Each `...Constant` twin adds a package
+  constant nothing reads, which once changed which entry the runtime called.
+  `entryWide` returns an `ArrayRef` of 65,536 `I64`s, too many parts to load
+  as one value: the start function holds it in a frame of its own, as any
+  dropped owner is held, rather than in a slot of the machine stack.
 - `spawned` is step 10's spawned calls that need a function made for them: an
   intrinsic method, verbs expanded where they are called because they take
   literals, an array literal among them, one that aborts, and one with a
@@ -218,3 +226,10 @@ stops firing by mistake:
 `literalRange` is a refusal of the program itself: a literal too large for
 its primitive, which reaches the primitive through a verb's literal parameter
 and so is found only where the verb is written out.
+
+`hugeArray`, `nestedArray` and `beyondLimit` are refusals of a type too
+large to hold (docs/design/lowering.md §9): an `Array<I64, 4294967296>` and
+an `Array<Array<I64, 65536>, 65536>`, each 32 GiB, more than the main
+context's range of frames, and an `Array<I64, 1152921504606846976>`, whose
+size wrapped to 0 before it was checked and is past the `2^48` bytes any
+type is limited to.

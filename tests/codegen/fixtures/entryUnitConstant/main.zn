@@ -1,0 +1,15 @@
+/// A `main` that returns `Unit`, which the runtime's entry discards
+/// (docs/design/lowering.md L16), in a package with a constant nothing reads.
+package entryUnitConstant;
+
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+unused Int(1)
+
+Unit main() {
+	done String("main returns unit\n");
+	@program$console!print(done);
+	return Unit();
+}

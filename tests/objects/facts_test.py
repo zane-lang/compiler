@@ -91,9 +91,11 @@ class FactsTests(unittest.TestCase):
     def test_llvm_proves_the_sweep_in_bounds(self):
         # Each cell is written and read again through the list, and LLVM,
         # told the header is not an element, checks no index in the loop.
+        # The labels of `main`'s inlined callees end in `.exit`, and in
+        # `.exit.i` once `main` is inlined into the start function too.
         ir = run(ZANEC, "--ll", "--optimize", *packages("quiet", "cells"))
-        start = ir.index('\n"cells$fill(this cells$Grid, %primitives$I64).exit":')
-        end = ir.index('\n"cells$sweep(this cells$Grid).exit":', start)
+        start = re.search(r'\n"cells\$fill\(this cells\$Grid, %primitives\$I64\)\.exit(\.i)*":', ir).start()
+        end = re.compile(r'\n"cells\$sweep\(this cells\$Grid\)\.exit(\.i)*":').search(ir, start).start()
         loop = ir[start:end]
         self.assertNotIn("@zane_out_of_range", loop)
         self.assertRegex(loop, r"store i64 .*!tbaa")

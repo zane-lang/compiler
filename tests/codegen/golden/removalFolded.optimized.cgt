@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: removalFolded$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
@@ -10,6 +10,14 @@
     │   ├── type: %primitives$List<%primitives$I64>
     │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > runtime:
+    │       ├── type: void
+    │       ├── fn: zane_print
+    │       └── args[0]: "15" : handle
+    ├── funcs[1] > func:
     │   ├── symbol: removalFolded$main()
     │   ├── params:
     │   ├── ret: void
@@ -20,7 +28,7 @@
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "15" : handle
     │       └── body[1] > return: unit : void
-    └── funcs[1] > func:
+    └── funcs[2] > func:
         ├── symbol: removalFolded$picked()
         ├── params:
         ├── ret: i64

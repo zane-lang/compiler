@@ -1,9 +1,97 @@
 └── program:
-    ├── entry: counting$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[1] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[2] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[3] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[4] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[5] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[6] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[7] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[8] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[9] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[10] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "\n" : handle
+    │   ├── body[11] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[12] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[13] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[14] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[15] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "\n" : handle
+    │   ├── body[16] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[17] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[18] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   ├── body[19] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "." : handle
+    │   └── body[20] > eval > runtime:
+    │       ├── type: void
+    │       ├── fn: zane_print
+    │       └── args[0]: "\n" : handle
+    ├── funcs[1] > func:
     │   ├── symbol: counting$main()
     │   ├── params:
     │   ├── ret: void
@@ -163,7 +251,7 @@
     │       │   ├── place: #42
     │       │   └── value: 4 : i64
     │       └── body[29] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: counting$triangle(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -205,7 +293,7 @@
     │   │   │           └── right: 1 : i64
     │   │   └── body[2]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: counting$factorial(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -239,7 +327,7 @@
     │               ├── op: +
     │               ├── left: local #1 : i64
     │               └── right: -1 : i64
-    └── funcs[3] > func:
+    └── funcs[4] > func:
         ├── symbol: counting$smallest(%primitives$I64, %primitives$I64)
         ├── params[0]: local #1 : i64
         ├── params[1]: local #2 : i64

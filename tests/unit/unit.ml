@@ -155,7 +155,7 @@ let string_constructors () =
 (* ---------------------------------------------------------------------- *)
 
 let type_layout () =
-  let st = State.create ~import_bodies:false ~library:false ~exclusive:false ~exports:(fun _ -> false) ~stamp:(fun _ -> "") ~stamped:(fun _ -> false) in
+  let st = State.create ~region:Cgt.Runtime.default_fixed_region ~import_bodies:false ~library:false ~exclusive:false ~exports:(fun _ -> false) ~stamp:(fun _ -> "") ~stamped:(fun _ -> false) in
   let t = param "T" in
   Hashtbl.replace st.State.types ("app", "Box")
     ([ t ], T.Decl.Struct [ ("item", Ty.Param t); ("count", int) ], false);
@@ -672,6 +672,146 @@ let target_cpus () =
   check "an x86_64h target is tuned for Haswell" (cpu "x86_64h-apple-darwin" = Ok "core-avx2");
   check "an AArch64 target keeps LLVM's default" (cpu "aarch64-unknown-linux-gnu" = Ok "")
 
+(* A type's size is built with checked arithmetic, and one of 2^48 bytes or
+   more is refused rather than wrapping (docs/design/lowering.md §9). *)
+let checked_sizes () =
+  let module T = Cgt.Nodes.Ty in
+  let refused t = match T.size_align t with _ -> false | exception T.Too_large -> true in
+  check "2^32 I64s take 32 GiB" (T.size_align (T.Array (T.I64, 1 lsl 32)) = (1 lsl 35, 8));
+  check "an array of arrays multiplies both lengths"
+    (T.size_align (T.Array (T.Array (T.I64, 65536), 65536)) = (1 lsl 35, 8));
+  check "just under 2^48 bytes is a size" (T.size_align (T.Array (T.I64, (1 lsl 45) - 1)) = ((1 lsl 48) - 8, 8));
+  check "2^48 bytes is refused" (refused (T.Array (T.I64, 1 lsl 45)));
+  check "2^60 I64s, which wrap to 0 unchecked, are refused" (refused (T.Array (T.I64, 1 lsl 60)));
+  check "a length past max_int / 8 is refused" (refused (T.Array (T.I64, max_int)));
+  check "two members that together reach the limit are refused"
+    (refused (T.Struct [ T.Array (T.I64, 1 lsl 44); T.Array (T.I64, 1 lsl 44) ]));
+  check "a sum whose payload reaches the limit is refused" (refused (T.Sum [ T.Array (T.I64, 1 lsl 45) ]));
+  check "nothing many times over takes nothing" (T.size_align (T.Array (T.Void, max_int)) = (0, 1))
+
+(* An LLVM array type keeps all 64 bits of its length, which the bindings'
+   own `array_type` truncates to 32 (llvm_stubs.c). *)
+(* What Emit builds a module with, for [triple] and with or without
+   packing, in a context and module of its own. *)
+let emit_env ?(pack = false) ?(triple = "x86_64-unknown-linux-gnu") () =
+  let ctx = Llvm.create_context () in
+  let m = Llvm.create_module ctx "unit" in
+  let tags = Codegen__Emit.tags ctx in
+  {
+    Codegen__Emit.ctx;
+    m;
+    ptr = Llvm.pointer_type ctx;
+    i64 = Llvm.i64_type ctx;
+    funcs = Hashtbl.create 1;
+    abis = Hashtbl.create 1;
+    registers = Codegen__Emit.registers triple;
+    pack;
+    passings = Hashtbl.create 1;
+    globals = Hashtbl.create 1;
+    walks = None;
+    handle_tag = fst tags;
+    value_tag = snd tags;
+  }
+
+let dispose (env : Codegen__Emit.env) =
+  Llvm.dispose_module env.m;
+  Llvm.dispose_context env.ctx
+
+let long_arrays () =
+  let env = emit_env () in
+  let t = Codegen__Emit.lltype env (Cgt.Nodes.Ty.Array (Cgt.Nodes.Ty.I1, 4294967297)) in
+  check "an array of 2^32 + 1 elements keeps its length" (Codegen__Emit.array_length t = 4294967297);
+  check "its parts saturate past LLVM's limit"
+    (Codegen__Big_moves.parts t = Codegen__Big_moves.most_parts + 1);
+  check "a sum's payload room keeps its length"
+    (Codegen__Emit.array_length
+       (Llvm.struct_element_types
+          (Codegen__Emit.lltype env (Cgt.Nodes.Ty.Sum [ Cgt.Nodes.Ty.Array (Cgt.Nodes.Ty.I64, 1 lsl 33) ]))).(1)
+    = 1 lsl 33);
+  dispose env
+
+(* How many registers a value takes as itself: one per scalar piece, on the
+   CGT type (docs/design/lowering.md §9). *)
+let counted_pieces () =
+  let module T = Cgt.Nodes.Ty in
+  let count = Codegen__Emit.pieces in
+  check "Unit takes none" (count T.Void = 0);
+  check "a scalar takes one" (List.for_all (fun t -> count t = 1) [ T.I1; T.I32; T.I64; T.F32; T.F64; T.Ptr ]);
+  check "a handle takes three" (count T.Handle = 3);
+  check "a struct takes its members'" (count (T.Struct [ T.I32; T.I32; T.I32; T.I32 ]) = 4);
+  check "a struct's Unit member takes none" (count (T.Struct [ T.I64; T.Void ]) = 1);
+  check "an empty struct takes none" (count (T.Struct []) = 0);
+  check "a nested struct takes its members' members'" (count (T.Struct [ T.Struct [ T.I64; T.F64 ]; T.Handle ]) = 5);
+  check "an enum takes its tag" (count (T.Sum [ T.Void; T.Void ]) = 1);
+  check "a variant takes its tag and each payload word"
+    (count (T.Sum [ T.I64; T.Struct [ T.I64; T.I64 ]; T.Void ]) = 3);
+  check "an array takes its element's times its length" (count (T.Array (T.Struct [ T.I64; T.I32 ], 5)) = 10);
+  check "an array of Unit takes none" (count (T.Array (T.Void, 7)) = 0);
+  check "65,536 I64s take 65,536" (count (T.Array (T.I64, 65536)) = 65536)
+
+(* Which way each type crosses, per target and with packing. *)
+let passings () =
+  let module T = Cgt.Nodes.Ty in
+  let module E = Codegen__Emit in
+  check "x86-64 Linux gives two registers" (E.registers "x86_64-unknown-linux-gnu" = 2);
+  check "AArch64 macOS gives two" (E.registers "aarch64-apple-darwin" = 2);
+  check "x86-64 Windows gives one" (E.registers "x86_64-unknown-windows-gnu" = 1);
+  check "AArch64 Windows gives two" (E.registers "aarch64-unknown-windows-msvc" = 2);
+  let pair = T.Struct [ T.I64; T.I64 ] and small = T.Struct [ T.I32; T.I32; T.I32 ] in
+  let linux = emit_env () and windows = emit_env ~triple:"x86_64-unknown-windows-gnu" () in
+  let packed = emit_env ~pack:true () and packed_windows = emit_env ~pack:true ~triple:"x86_64-pc-windows-msvc" () in
+  check "a scalar passes as itself" (E.passing windows T.I64 = E.Itself);
+  check "two pieces pass as themselves on Linux" (E.passing linux pair = E.Itself);
+  check "two pieces pass by address on Windows" (E.passing windows pair = E.Address);
+  check "three pieces pass by address" (E.passing linux small = E.Address);
+  check "a handle passes by address" (E.passing linux T.Handle = E.Address);
+  check "65,536 I64s pass by address" (E.passing linux (T.Array (T.I64, 65536)) = E.Address);
+  check "packed, three I32s are two words" (E.passing packed small = E.Words 2);
+  check "packed, three bytes are one word" (E.passing packed (T.Struct [ T.I1; T.I1; T.I1 ]) = E.Words 1);
+  check "packed, a scalar is itself" (E.passing packed T.F64 = E.Itself);
+  check "packed, three words go by address" (E.passing packed T.Handle = E.Address);
+  check "packed on Windows, one word fits" (E.passing packed_windows (T.Sum [ T.Void; T.Void ]) = E.Words 1);
+  check "packed on Windows, two words go by address" (E.passing packed_windows small = E.Address);
+  List.iter dispose [ linux; windows; packed; packed_windows ]
+
+(* The backstop: a function whose own type still passes or returns an
+   aggregate too large to move as one value is a broken invariant. *)
+let backstop () =
+  let ctx = Llvm.create_context () in
+  let m = Llvm.create_module ctx "backstop" in
+  let i64 = Llvm.i64_type ctx in
+  let big = Codegen__Emit.array_type i64 65536 in
+  let layout = Llvm_target.DataLayout.of_string "e-m:e-i64:64-n8:16:32:64-S128" in
+  ignore (Llvm.declare_function "small" (Llvm.function_type i64 [| Codegen__Emit.array_type i64 3 |]) m);
+  check "a signature of small aggregates passes" (Codegen__Big_moves.rewrite layout m = Ok ());
+  ignore (Llvm.declare_function "takes" (Llvm.function_type i64 [| big |]) m);
+  raises_bug "a parameter of 65,536 parts is a bug" (fun () -> Codegen__Big_moves.rewrite layout m);
+  Llvm.dispose_module m;
+  let m = Llvm.create_module ctx "backstop" in
+  ignore (Llvm.declare_function "gives" (Llvm.function_type big [||]) m);
+  raises_bug "a result of 65,536 parts is a bug" (fun () -> Codegen__Big_moves.rewrite layout m);
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
+(* A target is refused unless its pointers are 8 bytes and it aligns `i64`
+   and `double` to 8 (docs/design/platforms.md). No 64-bit LLVM target
+   aligns either below that, so the layouts are written out here. *)
+let sixty_four_bit () =
+  let accepts layout =
+    Codegen__Build.sixty_four_bit "t" (Llvm_target.DataLayout.of_string layout)
+  in
+  check "8-byte pointers with i64 and double aligned to 8 are accepted"
+    (accepts "e-m:e-p:64:64-i64:64-f64:64" = Ok ());
+  check "4-byte pointers are refused"
+    (accepts "e-p:32:32-i64:64-f64:64"
+    = Error "the target `t` has 4-byte pointers; this compiler builds for 64-bit targets only");
+  check "an i64 aligned to 4 is refused"
+    (accepts "e-p:64:64-i64:32-f64:64"
+    = Error "the target `t` aligns `i64` to 4 bytes; this compiler builds for 64-bit targets only");
+  check "a double aligned to 4 is refused"
+    (accepts "e-p:64:64-i64:64-f64:32"
+    = Error "the target `t` aligns `double` to 4 bytes; this compiler builds for 64-bit targets only")
+
 (* ---------------------------------------------------------------------- *)
 (* The driver                                                             *)
 (* ---------------------------------------------------------------------- *)
@@ -834,6 +974,12 @@ let () =
   at_once ();
   snapshot_reads ();
   target_cpus ();
+  sixty_four_bit ();
+  checked_sizes ();
+  long_arrays ();
+  counted_pieces ();
+  passings ();
+  backstop ();
   fixture_pairing ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();

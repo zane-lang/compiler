@@ -140,3 +140,11 @@ let signature = function
   | Leaves -> (I64, [ Ptr; Ptr; I64 ])
   | Defer -> (Void, [ Ptr; Ptr; Ptr; Ptr; I64 ])
   | Defer_return -> (Void, [ Ptr; Ptr; I64; I64 ])
+
+(* The size of the range each context reserves for its frames, the main
+   context's and each spawned call's, when the root manifest gives none
+   (memory.md §3.1, dependencies.md §2.1). Lowering refuses a type no main
+   context's range could hold, and codegen writes both sizes into the
+   program for the runtime to read. *)
+let default_fixed_region = 256 lsl 20
+let default_spawned_fixed_region = 8 lsl 20

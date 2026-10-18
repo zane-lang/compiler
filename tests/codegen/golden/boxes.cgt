@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: boxes$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: boxes$Countdown
     │   └── positions[0]: box @8 of boxes$Countdown (16 bytes) when [0]=1
@@ -42,6 +42,14 @@
     │   ├── type: ^boxes$Storey
     │   └── positions[0]: box @8 of boxes$Tower (16 bytes) when [0]=1
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: boxes$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: boxes$main()
     │   ├── params:
     │   ├── ret: void
@@ -790,7 +798,7 @@
     │       │   ├── body[2] > eval: unit : void
     │       │   └── body[3]: leave @86
     │       └── body[37] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: boxes$depth(boxes$Countdown)
     │   ├── params[0]: local #1 : <void | ptr>
     │   ├── ret: i64
@@ -836,7 +844,7 @@
     │           │               ├── type: <void | ptr>
     │           │               └── ptr: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: boxes$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -867,7 +875,7 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[3] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: boxes$Pair(boxes$Tree, boxes$Tree)
     │   ├── params[0]: local #1 : <i64 | ptr>
     │   ├── params[1]: local #2 : <i64 | ptr>
@@ -883,7 +891,7 @@
     │       │       ├── value: local #2 : <i64 | ptr>
     │       │       └── layout: boxes$Tree
     │       └── layout: boxes$Pair
-    ├── funcs[4] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: boxes$total(boxes$Tree)
     │   ├── params[0]: local #1 : <i64 | ptr>
     │   ├── ret: i64
@@ -946,7 +954,7 @@
     │           │                       ├── path: 1
     │           │                       └── base: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: boxes$Link(%primitives$String, ^boxes$Chain)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : <void | ptr>
@@ -963,7 +971,7 @@
     │       │       ├── value: local #3 : <void | ptr>
     │       │       └── layout: boxes$Chain
     │       └── layout: boxes$Link
-    ├── funcs[6] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: boxes$length(this boxes$Chain)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -1012,7 +1020,7 @@
     │           │                   ├── path: 1
     │           │                   └── base: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
-    ├── funcs[7] > func:
+    ├── funcs[8] > func:
     │   ├── symbol: boxes$Tower(%primitives$I64, ^boxes$Storey)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : <void | ptr>
@@ -1029,7 +1037,7 @@
     │       │       ├── value: local #3 : <void | ptr>
     │       │       └── layout: boxes$Storey
     │       └── layout: boxes$Tower
-    ├── funcs[8] > func:
+    ├── funcs[9] > func:
     │   ├── symbol: boxes$levels(this boxes$Storey)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -1078,7 +1086,7 @@
     │           │                   ├── path: 1
     │           │                   └── base: local #6 : ptr
     │           └── cases[1] > case 1[2]: leave @2
-    ├── funcs[9] > func:
+    ├── funcs[10] > func:
     │   ├── symbol: boxes$Solo(boxes$Knot)
     │   ├── params[0]: local #1 : <void | ptr>
     │   ├── ret: {ptr}
@@ -1090,7 +1098,7 @@
     │       │       ├── value: local #1 : <void | ptr>
     │       │       └── layout: boxes$Knot
     │       └── layout: boxes$Solo
-    └── funcs[10] > func:
+    └── funcs[11] > func:
         ├── symbol: boxes$knots(boxes$Knot)
         ├── params[0]: local #1 : <void | ptr>
         ├── ret: i64

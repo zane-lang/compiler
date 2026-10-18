@@ -14,10 +14,17 @@ let large = 4096L
 (* LLVM's limit on the parts of one value. *)
 let most_parts = 65535
 
+(* The parts of a value of LLVM type [t], or [most_parts + 1] when there are
+   more than [most_parts]: each product and sum is checked before it is
+   taken, so a length of 2^32 or more cannot overflow it. *)
 let rec parts t =
+  let over = most_parts + 1 in
+  let add a b = if a > over - b then over else a + b in
   match Llvm.classify_type t with
-  | Llvm.TypeKind.Array -> Llvm.array_length t * parts (Llvm.element_type t)
-  | Llvm.TypeKind.Struct -> Array.fold_left (fun n e -> n + parts e) 0 (Llvm.struct_element_types t)
+  | Llvm.TypeKind.Array ->
+      let n = Emit.array_length t and each = parts (Llvm.element_type t) in
+      if each = 0 then 0 else if n > over / each then over else n * each
+  | Llvm.TypeKind.Struct -> Array.fold_left (fun n e -> add n (parts e)) 0 (Llvm.struct_element_types t)
   | _ -> 1
 
 let aggregate t =
@@ -116,6 +123,20 @@ let rewrite data_layout m =
             end)
           (large_loads f))
     m;
+  (* A parameter or a result too large to move as one value: a signature
+     passes such an aggregate by address (Emit.passing), so one here is an
+     invariant broken, not a limit of the program's. *)
+  Llvm.iter_functions
+    (fun f ->
+      let fty = Emit.value_type f in
+      List.iter
+        (fun t ->
+          if aggregate t && parts t > most_parts then
+            Diagnostic.bug
+              (Printf.sprintf "codegen: `%s` passes or returns a value of more than %d parts whole"
+                 (Llvm.value_name f) most_parts))
+        (Llvm.return_type fty :: Array.to_list (Llvm.param_types fty)))
+    m;
   (* What is still moved as one value. *)
   let too_large = ref None in
   Llvm.iter_functions
@@ -127,14 +148,14 @@ let rewrite data_layout m =
                Option.is_none !too_large
                && Llvm.instr_opcode i <> Llvm.Opcode.Alloca
                && aggregate t && parts t > most_parts
-             then too_large := Some (parts t)))
+             then too_large := Some ()))
         f)
     m;
   match !too_large with
   | None -> Ok ()
-  | Some n ->
+  | Some _ ->
       Error
         (Printf.sprintf
-           "a value of %d parts is passed or returned whole, and the code generator can move at \
-            most %d parts as one value"
-           n most_parts)
+           "a value of more than %d parts is moved whole inside a function, and the code generator can \
+            move at most that many as one value"
+           most_parts)

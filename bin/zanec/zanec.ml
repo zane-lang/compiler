@@ -49,6 +49,9 @@ type build = {
   (* The size of each context's range of frames, which `zane` takes from the
      root manifest (memory.md §3.1, dependencies.md §2.1). *)
   regions : Driver.regions;
+  (* Whether small aggregates cross calls as packed words
+     (docs/design/lowering.md §9): a measured experiment, off by default. *)
+  pack : bool;
 }
 
 (* `--rewrite STAMP INPUT OUTPUT` is fetching's step, not a build's: a
@@ -79,7 +82,7 @@ let print_usage () =
   prerr_endline "             [--kind application|library]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...]";
-  prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES]";
+  prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES] [--pack-aggregates]";
   prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
   prerr_endline "             --package [[STAMP]PATH=]DIR [--package [[STAMP]PATH=]DIR ...]";
   prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
@@ -200,6 +203,7 @@ let arguments () =
         packages view { build with target = Some target } rest
     | "--optimize" :: rest when not build.optimize ->
         packages view { build with optimize = true } rest
+    | "--pack-aggregates" :: rest when not build.pack -> packages view { build with pack = true } rest
     | "--build" :: output :: rest when view = None && is_value output ->
         packages (Some (Build output)) build rest
     | "--object" :: output :: rest when view = None && is_value output ->
@@ -246,6 +250,7 @@ let arguments () =
       link = [];
       imports = [];
       regions = { Driver.fixed = None; spawned = None };
+      pack = false;
     }
   in
   match List.tl (Array.to_list Sys.argv) with
@@ -255,7 +260,8 @@ let arguments () =
     when List.for_all is_value [ from; to_; input; output ] ->
       Remap { from; to_; input; output }
   | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
-    | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--check" | "--decls" | "--tst" | "--cgt" | "--ll" )
+    | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--check"
+    | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
       packages None empty rest
   | rest -> go Cst rest
@@ -276,19 +282,23 @@ let ( let* ) = Result.bind
 
 (* Lowering and codegen, once semantics has accepted the program. *)
 let generate packages build program =
-  let* cgt = Driver.lower ~optimize:build.optimize ~kind:(Option.value build.kind ~default:Application) packages program in
-  let target = build.target and optimize = build.optimize in
+  let* cgt =
+    Driver.lower ~optimize:build.optimize ~regions:build.regions
+      ~kind:(Option.value build.kind ~default:Application)
+      packages program
+  in
+  let target = build.target and optimize = build.optimize and pack = build.pack in
   let cgt = Driver.optimize ~optimize cgt in
   match build.view with
   | Cgt ->
       print_string (Tree_graph.render (Cgt.to_node cgt));
       Ok ()
   | Ir ->
-      let* ir = Driver.ir ?target ~regions:build.regions ~optimize cgt in
+      let* ir = Driver.ir ?target ~pack ~regions:build.regions ~optimize cgt in
       print_string ir;
       Ok ()
-  | Build output -> Driver.executable ?target ~regions:build.regions ~optimize ~link:build.link cgt output
-  | Object output -> Driver.object_file ?target ~regions:build.regions ~optimize cgt output
+  | Build output -> Driver.executable ?target ~pack ~regions:build.regions ~optimize ~link:build.link cgt output
+  | Object output -> Driver.object_file ?target ~pack ~regions:build.regions ~optimize cgt output
   | Assembled | Check | Declarations | Typed -> Ok ()
 
 (* Without `--kind`, a root is an application once it is lowered, since

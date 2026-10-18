@@ -11,10 +11,17 @@ module Math = Math
 
 (** The program, from the root package's `main`, or from every function of
     the root when it is a [library]. A construct lowering does not handle
-    yet is refused with a diagnostic at it. [import_bodies] retains reachable
-    stamped dependencies' functions with optimization-only linkage. *)
+    yet is refused with a diagnostic at it, and so is a type no main
+    context's range of frames of [fixed_region] bytes could hold
+    ([Runtime.default_fixed_region] when absent). [import_bodies] retains
+    reachable stamped dependencies' functions with optimization-only
+    linkage. *)
 val lower :
-  ?library:bool -> ?import_bodies:bool -> Tst.Nodes.Program.t -> (Nodes.Program.t, Diagnostic.t) result
+  ?library:bool ->
+  ?import_bodies:bool ->
+  ?fixed_region:int ->
+  Tst.Nodes.Program.t ->
+  (Nodes.Program.t, Diagnostic.t) result
 
 (** What an expression or a statement is made of: the expressions directly
     in it, and the statement lists directly in it. *)

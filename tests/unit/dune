@@ -1,19 +1,19 @@
 ; Direct tests of the helpers the stages share: types and their substitution,
 ; signatures, overload ranking, lowering's type layouts, what stage 5's
 ; evaluator makes of the tree, how codegen reads a snapshot, and the processor
-; codegen tunes for. The golden suites test the same code end to end; these
-; say which helper broke, rather than where in a golden file the difference
-; surfaced. They also check that semantics run twice in one process gives the
+; codegen tunes for and which targets it accepts. The golden suites test the
+; same code end to end; these say which helper broke, rather than where in a
+; golden file the difference surfaced. They also check that semantics run twice in one process gives the
 ; same tree (it keeps no numbering from one check to the next), that the
 ; test rules' generator pairs every fixture with a golden file, and that the
 ; driver checks a stamp and keeps a file its rewrite did not create.
 ;
-; Overloads, State, Type_layout, Emit and stage 5's modules are not re-exported by their libraries'
+; Overloads, State, Type_layout, Emit, Build and stage 5's modules are not re-exported by their libraries'
 ; entry modules, so they are reached by the names dune gives them.
 
 (test
  (name unit)
- (libraries cgt codegen diagnostic driver fixture_pairing optimize source tree_graph tst unix)
+ (libraries cgt codegen diagnostic driver fixture_pairing llvm llvm.target optimize source tree_graph tst unix)
  (deps
   ../../runtime/zane.h
   (source_tree ../codegen/fixtures/lambdas)))

@@ -1,0 +1,13 @@
+/// A `main` that returns a `String` that owns its block, which the runtime's
+/// entry discards (docs/design/lowering.md L16).
+package entryString;
+
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+String main() {
+	done String("main returns a string\n");
+	@program$console!print(done);
+	return @operators$concat(String("owned "), String("text"));
+}

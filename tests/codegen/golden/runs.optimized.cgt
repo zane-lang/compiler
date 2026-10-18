@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: runs$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$Bool
     │   └── positions:
@@ -19,6 +19,14 @@
     │   ├── type: %primitives$List<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: runs$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: runs$main()
     │   ├── params:
     │   ├── ret: void
@@ -103,7 +111,7 @@
     │       │       │   └── value: local #29 : handle
     │       │       └── right: 2 : i64
     │       └── body[7] > return: unit : void
-    └── funcs[1] > func:
+    └── funcs[2] > func:
         ├── symbol: runs$check(%primitives$Bool)
         ├── params[0]: local #1 : i1
         ├── ret: void

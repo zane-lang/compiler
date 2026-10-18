@@ -241,6 +241,74 @@
   (diff golden/arrays.out arrays.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/bigCalls))
+ (targets bigCalls.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bigCalls.exe --package fixtures/bigCalls)))
+
+(rule
+ (deps (source_tree fixtures/bigCalls))
+ (targets bigCalls.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bigCalls.optimized.exe --optimize --package fixtures/bigCalls)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    bigCalls.checked.out.actual
+    (run ./bigCalls.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bigCalls.out bigCalls.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    bigCalls.unchecked.out.actual
+    (run ./bigCalls.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bigCalls.out bigCalls.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    bigCalls.optimized.checked.out.actual
+    (run ./bigCalls.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bigCalls.out bigCalls.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    bigCalls.optimized.unchecked.out.actual
+    (run ./bigCalls.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bigCalls.out bigCalls.optimized.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/bounds))
  (targets bounds.exe)
  (action
@@ -657,6 +725,142 @@
   (diff golden/counting.out counting.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/crossing))
+ (targets crossing.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crossing.exe --package fixtures/crossing)))
+
+(rule
+ (deps (source_tree fixtures/crossing))
+ (targets crossing.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crossing.optimized.exe --optimize --package fixtures/crossing)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crossing.checked.out.actual
+    (run ./crossing.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossing.out crossing.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crossing.unchecked.out.actual
+    (run ./crossing.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossing.out crossing.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crossing.optimized.checked.out.actual
+    (run ./crossing.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossing.out crossing.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crossing.optimized.unchecked.out.actual
+    (run ./crossing.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossing.out crossing.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/crossingPacked))
+ (targets crossingPacked.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crossingPacked.exe "--pack-aggregates" --package fixtures/crossingPacked)))
+
+(rule
+ (deps (source_tree fixtures/crossingPacked))
+ (targets crossingPacked.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crossingPacked.optimized.exe --optimize "--pack-aggregates" --package fixtures/crossingPacked)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crossingPacked.checked.out.actual
+    (run ./crossingPacked.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossingPacked.out crossingPacked.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crossingPacked.unchecked.out.actual
+    (run ./crossingPacked.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossingPacked.out crossingPacked.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crossingPacked.optimized.checked.out.actual
+    (run ./crossingPacked.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossingPacked.out crossingPacked.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crossingPacked.optimized.unchecked.out.actual
+    (run ./crossingPacked.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crossingPacked.out crossingPacked.optimized.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/deepFrames))
  (targets deepFrames.exe)
  (action
@@ -811,6 +1015,618 @@
  (alias runtest)
  (action
   (diff golden/defaults.out defaults.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/entryArray))
+ (targets entryArray.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryArray.exe --package fixtures/entryArray)))
+
+(rule
+ (deps (source_tree fixtures/entryArray))
+ (targets entryArray.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryArray.optimized.exe --optimize --package fixtures/entryArray)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryArray.checked.out.actual
+    (run ./entryArray.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryArray.out entryArray.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryArray.unchecked.out.actual
+    (run ./entryArray.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryArray.out entryArray.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryArray.optimized.checked.out.actual
+    (run ./entryArray.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryArray.out entryArray.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryArray.optimized.unchecked.out.actual
+    (run ./entryArray.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryArray.out entryArray.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/entryArrayConstant))
+ (targets entryArrayConstant.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryArrayConstant.exe --package fixtures/entryArrayConstant)))
+
+(rule
+ (deps (source_tree fixtures/entryArrayConstant))
+ (targets entryArrayConstant.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryArrayConstant.optimized.exe --optimize --package fixtures/entryArrayConstant)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryArrayConstant.checked.out.actual
+    (run ./entryArrayConstant.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryArrayConstant.out entryArrayConstant.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryArrayConstant.unchecked.out.actual
+    (run ./entryArrayConstant.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryArrayConstant.out entryArrayConstant.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryArrayConstant.optimized.checked.out.actual
+    (run ./entryArrayConstant.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryArrayConstant.out entryArrayConstant.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryArrayConstant.optimized.unchecked.out.actual
+    (run ./entryArrayConstant.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryArrayConstant.out entryArrayConstant.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/entryString))
+ (targets entryString.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryString.exe --package fixtures/entryString)))
+
+(rule
+ (deps (source_tree fixtures/entryString))
+ (targets entryString.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryString.optimized.exe --optimize --package fixtures/entryString)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryString.checked.out.actual
+    (run ./entryString.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryString.out entryString.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryString.unchecked.out.actual
+    (run ./entryString.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryString.out entryString.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryString.optimized.checked.out.actual
+    (run ./entryString.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryString.out entryString.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryString.optimized.unchecked.out.actual
+    (run ./entryString.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryString.out entryString.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/entryStringConstant))
+ (targets entryStringConstant.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryStringConstant.exe --package fixtures/entryStringConstant)))
+
+(rule
+ (deps (source_tree fixtures/entryStringConstant))
+ (targets entryStringConstant.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryStringConstant.optimized.exe --optimize --package fixtures/entryStringConstant)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryStringConstant.checked.out.actual
+    (run ./entryStringConstant.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStringConstant.out entryStringConstant.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryStringConstant.unchecked.out.actual
+    (run ./entryStringConstant.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStringConstant.out entryStringConstant.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryStringConstant.optimized.checked.out.actual
+    (run ./entryStringConstant.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStringConstant.out entryStringConstant.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryStringConstant.optimized.unchecked.out.actual
+    (run ./entryStringConstant.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStringConstant.out entryStringConstant.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/entryStruct))
+ (targets entryStruct.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryStruct.exe --package fixtures/entryStruct)))
+
+(rule
+ (deps (source_tree fixtures/entryStruct))
+ (targets entryStruct.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryStruct.optimized.exe --optimize --package fixtures/entryStruct)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryStruct.checked.out.actual
+    (run ./entryStruct.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStruct.out entryStruct.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryStruct.unchecked.out.actual
+    (run ./entryStruct.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStruct.out entryStruct.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryStruct.optimized.checked.out.actual
+    (run ./entryStruct.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStruct.out entryStruct.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryStruct.optimized.unchecked.out.actual
+    (run ./entryStruct.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStruct.out entryStruct.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/entryStructConstant))
+ (targets entryStructConstant.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryStructConstant.exe --package fixtures/entryStructConstant)))
+
+(rule
+ (deps (source_tree fixtures/entryStructConstant))
+ (targets entryStructConstant.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryStructConstant.optimized.exe --optimize --package fixtures/entryStructConstant)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryStructConstant.checked.out.actual
+    (run ./entryStructConstant.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStructConstant.out entryStructConstant.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryStructConstant.unchecked.out.actual
+    (run ./entryStructConstant.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStructConstant.out entryStructConstant.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryStructConstant.optimized.checked.out.actual
+    (run ./entryStructConstant.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStructConstant.out entryStructConstant.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryStructConstant.optimized.unchecked.out.actual
+    (run ./entryStructConstant.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryStructConstant.out entryStructConstant.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/entryUnit))
+ (targets entryUnit.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryUnit.exe --package fixtures/entryUnit)))
+
+(rule
+ (deps (source_tree fixtures/entryUnit))
+ (targets entryUnit.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryUnit.optimized.exe --optimize --package fixtures/entryUnit)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryUnit.checked.out.actual
+    (run ./entryUnit.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryUnit.out entryUnit.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryUnit.unchecked.out.actual
+    (run ./entryUnit.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryUnit.out entryUnit.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryUnit.optimized.checked.out.actual
+    (run ./entryUnit.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryUnit.out entryUnit.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryUnit.optimized.unchecked.out.actual
+    (run ./entryUnit.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryUnit.out entryUnit.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/entryUnitConstant))
+ (targets entryUnitConstant.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryUnitConstant.exe --package fixtures/entryUnitConstant)))
+
+(rule
+ (deps (source_tree fixtures/entryUnitConstant))
+ (targets entryUnitConstant.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryUnitConstant.optimized.exe --optimize --package fixtures/entryUnitConstant)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryUnitConstant.checked.out.actual
+    (run ./entryUnitConstant.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryUnitConstant.out entryUnitConstant.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryUnitConstant.unchecked.out.actual
+    (run ./entryUnitConstant.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryUnitConstant.out entryUnitConstant.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryUnitConstant.optimized.checked.out.actual
+    (run ./entryUnitConstant.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryUnitConstant.out entryUnitConstant.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryUnitConstant.optimized.unchecked.out.actual
+    (run ./entryUnitConstant.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryUnitConstant.out entryUnitConstant.optimized.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/entryWide))
+ (targets entryWide.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryWide.exe --package fixtures/entryWide)))
+
+(rule
+ (deps (source_tree fixtures/entryWide))
+ (targets entryWide.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryWide.optimized.exe --optimize --package fixtures/entryWide)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryWide.checked.out.actual
+    (run ./entryWide.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryWide.out entryWide.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryWide.unchecked.out.actual
+    (run ./entryWide.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryWide.out entryWide.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryWide.optimized.checked.out.actual
+    (run ./entryWide.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryWide.out entryWide.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryWide.optimized.unchecked.out.actual
+    (run ./entryWide.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryWide.out entryWide.optimized.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/folding))
@@ -3265,6 +4081,34 @@
   (diff golden/wideFrames.out wideFrames.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/beyondLimit))
+ (action
+  (with-stderr-to
+   reject.beyondLimit.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/beyondLimit)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.beyondLimit.err reject.beyondLimit.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/hugeArray))
+ (action
+  (with-stderr-to
+   reject.hugeArray.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/hugeArray)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.hugeArray.err reject.hugeArray.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/literalOperator))
  (action
   (with-stderr-to
@@ -3291,6 +4135,20 @@
  (alias runtest)
  (action
   (diff golden/reject.literalRange.err reject.literalRange.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/nestedArray))
+ (action
+  (with-stderr-to
+   reject.nestedArray.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/nestedArray)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.nestedArray.err reject.nestedArray.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/unitFuture))

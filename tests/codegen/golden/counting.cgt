@@ -1,9 +1,17 @@
 └── program:
-    ├── entry: counting$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: counting$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: counting$main()
     │   ├── params:
     │   ├── ret: void
@@ -352,7 +360,7 @@
     │       │   ├── body[2] > eval: unit : void
     │       │   └── body[3]: leave @44
     │       └── body[16] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: counting$triangle(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -399,7 +407,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: counting$factorial(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -435,7 +443,7 @@
     │               └── right > flip:
     │                   ├── type: i64
     │                   └── value: 1 : i64
-    └── funcs[3] > func:
+    └── funcs[4] > func:
         ├── symbol: counting$smallest(%primitives$I64, %primitives$I64)
         ├── params[0]: local #1 : i64
         ├── params[1]: local #2 : i64

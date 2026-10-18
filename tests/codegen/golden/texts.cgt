@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: texts$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
@@ -16,6 +16,14 @@
     │   ├── type: texts$Holder
     │   └── positions[0]: text @8 when [0]=0
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: texts$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: texts$main()
     │   ├── params:
     │   ├── ret: void
@@ -743,7 +751,7 @@
     │       │       │           └── value: local #115 : handle
     │       │       └── right: 1 : i64
     │       └── body[32] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: texts$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -774,7 +782,7 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: texts$twice(%primitives$String)
     │   ├── params[0]: local #1 : handle
     │   ├── ret: handle
@@ -786,7 +794,7 @@
     │       │   ├── args[0]: local #1 : handle
     │       │   └── args[1]: local #1 : handle
     │       └── layout: %primitives$String
-    ├── funcs[3] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: texts$Person(%primitives$String)
     │   ├── params[0]: local #1 : handle
     │   ├── ret: {handle}
@@ -796,7 +804,7 @@
     │       │   ├── type: {handle}
     │       │   └── members[0] > member 0: local #1 : handle
     │       └── layout: texts$Person
-    ├── funcs[4] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: texts$greeting(this texts$Person)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: handle
@@ -826,7 +834,7 @@
     │           │           ├── path: 0
     │           │           └── base: local #1 : ptr
     │           └── layout: %primitives$String
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: texts$rename(this texts$Person, %primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : handle
@@ -839,7 +847,7 @@
     │   │   ├── value: local #2 : handle
     │   │   └── layout: %primitives$String
     │   └── body[1] > return: unit : void
-    └── funcs[6] > func:
+    └── funcs[7] > func:
         ├── symbol: texts$refuse(%primitives$String)
         ├── params[0]: local #1 : handle
         ├── ret: <handle | handle | void>

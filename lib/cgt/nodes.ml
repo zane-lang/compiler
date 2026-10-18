@@ -34,9 +34,26 @@ module Ty = struct
     | Sum of t list
     | Array of t * int
 
+  (* No type takes [limit] bytes or more: no such value can be placed, since
+     the runtime's chunk map covers 48-bit addresses
+     (docs/design/platforms.md, "Address range supported by the runtime").
+     A size is built up by [add] and [times], which check each step against
+     the limit before taking it, so none can overflow on the way, and raise
+     [Too_large] past it. *)
+  let limit = 1 lsl 48
+
+  exception Too_large
+
+  let add a b = if a > limit - b then raise Too_large else a + b
+  let times stride n = if n < 0 || (stride > 0 && n > limit / stride) then raise Too_large else stride * n
+  let round_up size align = add size (align - 1) / align * align
+
+  let below_limit size = if size >= limit then raise Too_large else size
+
   (* Size and alignment in bytes on a 64-bit target, where a struct is laid
      out as C lays it out, and a sum is its tag and then its payload room at
-     offset 8 (docs/design/lowering.md §9). *)
+     offset 8 (docs/design/lowering.md §9). [Too_large] when the type takes
+     [limit] bytes or more. *)
   let rec size_align = function
     | Void -> (0, 1)
     | I1 -> (1, 1)
@@ -48,14 +65,14 @@ module Ty = struct
           List.fold_left
             (fun (size, align) t ->
               let s, a = size_align t in
-              (((size + a - 1) / a * a) + s, max align a))
+              (below_limit (add (round_up size a) s), max align a))
             (0, 1) ts
         in
-        ((size + align - 1) / align * align, align)
-    | Sum ts -> ( match words ts with 0 -> (4, 4) | n -> (8 + (8 * n), 8))
+        (below_limit (round_up size align), align)
+    | Sum ts -> ( match words ts with 0 -> (4, 4) | n -> (below_limit (add 8 (times 8 n)), 8))
     | Array (t, n) ->
         let size, align = size_align t in
-        ((size + align - 1) / align * align * n, align)
+        (below_limit (times (round_up size align) n), align)
 
   (* A sum's payload room, in 8-byte words: enough for its widest case, and
      aligned for every one, since no layout here needs more than 8. *)
@@ -389,8 +406,8 @@ module Func = struct
 end
 
 (* One program is one module (L15). [entry] is the symbol of the function
-   the runtime's C `main` calls (L16): the root package's `main`, or one
-   that makes the package constants first and then calls it. A library has
+   the runtime's C `main` calls (L16): always one that makes the package
+   constants, if any, and then calls the root package's `main`. A library has
    none. [layouts] is each layout the program names, and [globals] each of
    its variables. *)
 module Program = struct

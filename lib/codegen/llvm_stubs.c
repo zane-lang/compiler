@@ -1,25 +1,38 @@
 /* What LLVM's C API offers and its OCaml bindings do not: a function or a
    variable placed in a COMDAT of its own name
    (docs/design/separate-compilation.md C4), a target triple in LLVM's
-   normal form, and a load made atomic. The bindings carry an LLVM pointer
-   with its low bit set; their `from_val` undoes that. The C API is declared
+   normal form, a load made atomic, an array type whose length takes more
+   than 32 bits, an attribute that carries a type, such as `sret`, and a
+   function's own type. The bindings carry an LLVM pointer with its low bit
+   set; their `from_val` undoes that, and `to_val` sets it. The C API is declared
    here rather than included, so the build needs no LLVM headers beyond the
    bindings it already links. */
 
 #include <caml/alloc.h>
 #include <caml/memory.h>
 #include <caml/mlvalues.h>
+#include <stdint.h>
+#include <string.h>
 
 typedef struct LLVMOpaqueModule *LLVMModuleRef;
 typedef struct LLVMOpaqueValue *LLVMValueRef;
 typedef struct LLVMComdat *LLVMComdatRef;
+typedef struct LLVMOpaqueType *LLVMTypeRef;
+typedef struct LLVMOpaqueContext *LLVMContextRef;
+typedef struct LLVMOpaqueAttributeRef *LLVMAttributeRef;
 
 extern void *from_val(value v);
+extern value to_val(void *ptr);
 extern LLVMComdatRef LLVMGetOrInsertComdat(LLVMModuleRef M, const char *Name);
 extern void LLVMSetComdat(LLVMValueRef V, LLVMComdatRef C);
 extern char *LLVMNormalizeTargetTriple(const char *triple);
 extern void LLVMDisposeMessage(char *message);
 extern void LLVMSetOrdering(LLVMValueRef access, int ordering);
+extern LLVMTypeRef LLVMArrayType2(LLVMTypeRef element, uint64_t count);
+extern uint64_t LLVMGetArrayLength2(LLVMTypeRef array);
+extern LLVMTypeRef LLVMGlobalGetValueType(LLVMValueRef global);
+extern unsigned LLVMGetEnumAttributeKindForName(const char *name, size_t length);
+extern LLVMAttributeRef LLVMCreateTypeAttribute(LLVMContextRef context, unsigned kind, LLVMTypeRef type);
 
 value zane_set_own_comdat(value m, value f, value name) {
   CAMLparam3(m, f, name);
@@ -45,4 +58,34 @@ value zane_set_ordering(value access, value acquire) {
   CAMLparam2(access, acquire);
   LLVMSetOrdering((LLVMValueRef)from_val(access), Bool_val(acquire) ? 4 : 1);
   CAMLreturn(Val_unit);
+}
+
+/* An array type of [count] elements, and an array type's length, both 64
+   bits wide. The bindings' `array_type` and `array_length` pass the count
+   through LLVM's 32-bit `LLVMArrayType` and `LLVMGetArrayLength`, which
+   truncate a longer one. Lowering keeps every length below 2^48
+   (Cgt.Nodes.Ty.limit), so it fits an OCaml int either way. */
+value zane_array_type(value element, value count) {
+  CAMLparam2(element, count);
+  CAMLreturn(to_val(LLVMArrayType2((LLVMTypeRef)from_val(element), (uint64_t)Long_val(count))));
+}
+
+value zane_array_length(value array) {
+  CAMLparam1(array);
+  CAMLreturn(Val_long((long)LLVMGetArrayLength2((LLVMTypeRef)from_val(array))));
+}
+
+/* An attribute of the kind [name] that carries [type], as `sret(T)` does. */
+value zane_type_attr(value context, value name, value type) {
+  CAMLparam3(context, name, type);
+  unsigned kind = LLVMGetEnumAttributeKindForName(String_val(name), caml_string_length(name));
+  CAMLreturn(to_val(
+      LLVMCreateTypeAttribute((LLVMContextRef)from_val(context), kind, (LLVMTypeRef)from_val(type))));
+}
+
+/* The type of what a global names: a function's own type, which its
+   address, a `ptr`, no longer carries. */
+value zane_global_value_type(value global) {
+  CAMLparam1(global);
+  CAMLreturn(to_val(LLVMGlobalGetValueType((LLVMValueRef)from_val(global))));
 }

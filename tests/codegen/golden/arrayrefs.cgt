@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: arrayrefs$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$ArrayRef<arrayrefs$Player, 3>
     │   ├── positions[0]: text @8
@@ -133,6 +133,14 @@
     │   ├── type: ^arrayrefs$Player
     │   └── positions[0]: text @8
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: arrayrefs$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: arrayrefs$main()
     │   ├── params:
     │   ├── ret: void
@@ -660,7 +668,7 @@
     │       │       ├── left: local #27 : i64
     │       │       └── right: 4000 : i64
     │       └── body[29] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: arrayrefs$Player(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i64, handle}
@@ -671,7 +679,7 @@
     │       │   ├── members[0] > member 0: local #1 : i64
     │       │   └── members[1] > member 1: "p" : handle
     │       └── layout: arrayrefs$Player
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: arrayrefs$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -702,7 +710,7 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[3] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: arrayrefs$add(this arrayrefs$Player, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -720,7 +728,7 @@
     │   │       │       └── base: local #1 : ptr
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
-    ├── funcs[4] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: arrayrefs$scoreOf(&arrayrefs$Player)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -730,7 +738,7 @@
     │           ├── within: {i64, handle}
     │           ├── path: 0
     │           └── base: local #1 : ptr
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: arrayrefs$main()$lambda1
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i64, handle}
@@ -745,7 +753,7 @@
     │       │       ├── left: local #1 : i64
     │       │       └── right: local #1 : i64
     │       └── layout: ^arrayrefs$Player
-    ├── funcs[6] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: arrayrefs$Squad(^%primitives$ArrayRef<arrayrefs$Player, 3>)
     │   ├── params[0]: local #1 : [3 x {i64, handle}]
     │   ├── ret: {[3 x {i64, handle}]}
@@ -758,7 +766,7 @@
     │       │   ├── type: {[3 x {i64, handle}]}
     │       │   └── members[0] > member 0: local #2 : [3 x {i64, handle}]
     │       └── layout: arrayrefs$Squad
-    ├── funcs[7] > func:
+    ├── funcs[8] > func:
     │   ├── symbol: arrayrefs$replace(this arrayrefs$Squad, %primitives$I64, ^arrayrefs$Player)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -787,7 +795,7 @@
     │   │   ├── value: local #7 : {i64, handle}
     │   │   └── layout: arrayrefs$Player
     │   └── body[4] > return: unit : void
-    └── funcs[8] > func:
+    └── funcs[9] > func:
         ├── symbol: arrayrefs$main()$lambda2
         ├── params[0]: local #1 : i64
         ├── ret: {i64, handle}

@@ -7,9 +7,12 @@
     that target's triple and data layout. The module with the program's
     entry also defines the size in bytes of each context's range of frames,
     the main context's and each spawned call's; each takes its default when
-    absent. *)
+    absent. With [pack], an aggregate that fits in the registers a call
+    gives it passes as packed 8-byte words rather than by address
+    (docs/design/lowering.md §9); off when absent. *)
 val emit :
   ?target:string ->
+  ?pack:bool ->
   ?fixed_region:int ->
   ?spawned_fixed_region:int ->
   Cgt.Nodes.Program.t ->

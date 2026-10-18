@@ -1,9 +1,17 @@
 └── program:
-    ├── entry: hello$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
-    └── funcs[0] > func:
+    ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: hello$main()
+    │       └── args:
+    └── funcs[1] > func:
         ├── symbol: hello$main()
         ├── params:
         ├── ret: void

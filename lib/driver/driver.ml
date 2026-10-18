@@ -104,8 +104,15 @@ let require_main (program : Tst.Nodes.Program.t) =
 (* Lowering refuses what it cannot handle yet with a diagnostic rather than
    lowering it wrongly (docs/design/lowering.md). A library lowers from every
    function it declares. *)
-let lower ?(optimize = false) ~kind packages program =
-  match Cgt.lower ~library:(kind = Library) ~import_bodies:optimize program with
+(* The sizes of each context's range of frames, from `--fixed-region` and
+   `--spawned-fixed-region`; the defaults
+   when absent. *)
+type regions = { fixed : int option; spawned : int option }
+
+let no_regions = { fixed = None; spawned = None }
+
+let lower ?(optimize = false) ?(regions = no_regions) ~kind packages program =
+  match Cgt.lower ~library:(kind = Library) ~import_bodies:optimize ?fixed_region:regions.fixed program with
   | Ok cgt -> Ok cgt
   | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
 
@@ -117,24 +124,22 @@ let optimize ~optimize cgt = if optimize then Optimize.run cgt else cgt
    about the build, not about any file of it. *)
 let built = function Ok v -> Ok v | Error message -> fail [ Diagnostic.about_invocation message ]
 
-(* The sizes of each context's range of frames, from `--fixed-region` and
-   `--spawned-fixed-region`; codegen's defaults when absent. *)
-type regions = { fixed : int option; spawned : int option }
+let emit ?target ?pack regions cgt =
+  Codegen.emit ?target ?pack ?fixed_region:regions.fixed ?spawned_fixed_region:regions.spawned cgt
 
-let no_regions = { fixed = None; spawned = None }
-let emit ?target regions cgt =
-  Codegen.emit ?target ?fixed_region:regions.fixed ?spawned_fixed_region:regions.spawned cgt
-
-let ir ?target ?(regions = no_regions) ~optimize cgt =
+let ir ?target ?pack ?(regions = no_regions) ~optimize cgt =
   built
-    (Result.bind (emit ?target regions cgt) (fun m ->
+    (Result.bind (emit ?target ?pack regions cgt) (fun m ->
          Result.map (fun () -> Codegen.ir m) (Codegen.prepare ?target ~optimize m)))
 
-let executable ?target ?(regions = no_regions) ~optimize ~link cgt output =
-  built (Result.bind (emit ?target regions cgt) (fun m -> Codegen.executable ?target ~optimize ~link m output))
+let executable ?target ?pack ?(regions = no_regions) ~optimize ~link cgt output =
+  built
+    (Result.bind (emit ?target ?pack regions cgt) (fun m ->
+         Codegen.executable ?target ~optimize ~link m output))
 
-let object_file ?target ?(regions = no_regions) ~optimize cgt output =
-  built (Result.bind (emit ?target regions cgt) (fun m -> Codegen.object_file ?target ~optimize m output))
+let object_file ?target ?pack ?(regions = no_regions) ~optimize cgt output =
+  built
+    (Result.bind (emit ?target ?pack regions cgt) (fun m -> Codegen.object_file ?target ~optimize m output))
 
 (* A library is checked and built into an object, never into an
    executable. *)

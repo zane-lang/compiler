@@ -1,0 +1,4 @@
+File "fixtures/reject/beyondLimit/main.zn", line 13, characters 43-49:
+13 |     big Array<Int, 1152921504606846976> = make();
+  |                                           ^^^^^^
+Error: `@primitives$Array<@primitives$I64, 1152921504606846976>` takes 2^48 bytes or more, past the limit on any value's size

@@ -1,5 +1,5 @@
 └── program:
-    ├── entry: lists$main()
+    ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: %primitives$I64
     │   └── positions:
@@ -31,6 +31,14 @@
     │   ├── type: lists$Stack<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
     ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: lists$main()
+    │       └── args:
+    ├── funcs[1] > func:
     │   ├── symbol: lists$main()
     │   ├── params:
     │   ├── ret: void
@@ -723,7 +731,7 @@
     │       │       │       └── base: address of #80 : ptr
     │       │       └── right: 2 : i64
     │       └── body[40] > return: unit : void
-    ├── funcs[1] > func:
+    ├── funcs[2] > func:
     │   ├── symbol: lists$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -754,7 +762,7 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[2] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: lists$count<%primitives$I64>(&%primitives$List<%primitives$I64>)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -764,7 +772,7 @@
     │       └── value > deref:
     │           ├── type: handle
     │           └── ptr: local #1 : ptr
-    ├── funcs[3] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: lists$sum(&%primitives$List<%primitives$I64>)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -823,7 +831,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[4] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: lists$Person(%primitives$String, %primitives$I64)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
@@ -835,7 +843,7 @@
     │       │   ├── members[0] > member 0: local #1 : handle
     │       │   └── members[1] > member 1: local #2 : i64
     │       └── layout: lists$Person
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: lists$Stack<%primitives$String>(Type)
     │   ├── params:
     │   ├── ret: {handle}
@@ -848,7 +856,7 @@
     │       │       ├── fn: zane_list_new
     │       │       └── args:
     │       └── layout: lists$Stack<%primitives$String>
-    ├── funcs[6] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: lists$add<%primitives$String>(this lists$Stack<%primitives$String>, %primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : handle
@@ -874,7 +882,7 @@
     │   │       ├── value: local #3 : handle
     │   │       └── layout: %primitives$String
     │   └── body[1] > return: unit : void
-    └── funcs[7] > func:
+    └── funcs[8] > func:
         ├── symbol: lists$count<%primitives$String>(&%primitives$List<%primitives$String>)
         ├── params[0]: local #1 : ptr
         ├── ret: i64
