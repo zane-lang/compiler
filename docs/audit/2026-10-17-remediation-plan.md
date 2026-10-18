@@ -26,7 +26,7 @@ gates.
 | 3. Entry point and backend ABI | F07, F08, F02, F13 | Programs and objects the compiler builds wrongly or crashes on |
 | 4. Termination of semantics | F01, F14, F16 | Valid programs rejected, and checks that never finish. F16 needs a spec change |
 | 5. Compile-time resource bounds | F09, F15, F05 | Allocation not bounded by the source program, and native memory never freed |
-| 6. Runtime | F10, F11, F30 | Deadlock, retained memory, and stdio in a fault handler |
+| 6. Runtime | F10, F11, F30 | Deadlock, physical memory held after use, and stdio in a fault handler |
 | 7. Diagnostics rendering | F03, F04, F20 | One rework of `render.ml` |
 | 8. Architecture | F22, F25, F23, F21, F24 | Refactors with no change in behaviour, smallest first |
 
@@ -90,10 +90,27 @@ uses the shared traversals.
      `noalias`.
    - **Backstop.** The existing limit, extended to signatures, stays as an
      internal check that should never fire.
-3. **F11: how many spare chunks the runtime keeps.** *Recommendation:* at
-   most 4 per context and 16 in the global pool. Before the caps land,
-   measure them against `docs/design/binarytrees-reference-results.json`
-   and the memory bench, and adjust them if either slows down.
+3. **F11: what happens to a drained chunk.** *Decided:* a few spare
+   chunks stay warm. Every other spare keeps its addresses but gives its
+   physical memory back to the system. Each drained chunk is kept as a
+   spare for reuse. That avoids mapping it afresh, and while its pages
+   stay resident it also avoids the page faults of touching new memory.
+   But keeping every spare resident holds a program's peak memory for the
+   rest of its run: 130 MiB in the audit's probe.
+   - **The trade-off.** Giving pages back costs a fault per page when the
+     chunk is reused. A program that builds and drops a large structure
+     in a loop would pay that every round if every chunk went back at
+     once.
+   - **What others do.** The usual allocators settle it the same way:
+     jemalloc returns unused memory over a decay period of about 10
+     seconds, mimalloc after a short delay, and glibc's `malloc` trims
+     above a threshold.
+   - **What is chosen.** Warm spares cover immediate reuse, and the rest
+     is returned at once. A delay before returning it is added only if
+     the benchmarks show the faults (see F11). Nothing documents a reason
+     for keeping every spare resident: the spare list came with #217, to
+     make reuse fast, and returning memory was simply not part of that
+     change.
 
 ## Batch 1: test gates
 
@@ -615,23 +632,69 @@ contexts.
 
 ### F11: spare chunks are cached without bound
 
-**Fix** (decision 3). Cap both caches and free the rest.
-- `zane_unmap` (`runtime/arena.c`) keeps a whole chunk as a spare only
-  while the context holds fewer than `ZANE_SPARES_KEPT` (4). Otherwise it
-  calls `zane_chunk_free`.
-- `zane_give_spares` (`runtime/snapshot.c`) moves spares to the global
-  pool only up to `ZANE_POOL_KEPT` (16), and frees the rest.
-- A per-context spare count and a pool count, kept beside the lists, make
-  the caps O(1).
+**Fix** (decision 3). A spare chunk is **warm** (its pages resident) or
+**cold** (addresses kept, physical memory given back).
+- **Chunks come from the system directly.** Today a chunk comes from
+  `aligned_alloc`, or `_aligned_malloc` on Windows (`zane_internal.h`).
+  Memory from the C allocator cannot be decommitted on Windows, and on
+  POSIX the runtime would be giving back pages inside memory `malloc`
+  owns. So a chunk is taken with the helpers `runtime/region.c` already
+  has for the fixed-size range: `zane_reserve_aligned`, then
+  `zane_commit_range`, and given back with `zane_release_addresses`.
+  - **Windows.** There a 1 MiB-aligned reservation costs an extra MiB of
+    reserved addresses. Take chunks by carving them from larger aligned
+    reservations, 64 MiB at a time, so neither the waste nor the system
+    calls are per chunk.
+  - **Oversized blocks** (more than one chunk) take the same route.
+- **Warm spares.** `zane_unmap` (`runtime/arena.c`) keeps a drained chunk
+  warm while its context holds fewer than `ZANE_WARM_KEPT` (4) warm
+  spares. `zane_give_spares` (`runtime/snapshot.c`) moves a context's warm
+  spares to the global pool, which keeps at most `ZANE_POOL_WARM` (16)
+  warm.
+- **Cold spares.** Every other drained chunk turns cold. Its pages after
+  the first are given back: `madvise(MADV_DONTNEED)` on Linux and macOS,
+  and `VirtualFree(MEM_DECOMMIT)` on Windows. The first page holds the
+  chunk's `zane_mapping` header and the link of the spare list, so it
+  stays.
+  - **Reuse.** A cold chunk is reused like a warm one: its pages fault
+    back in, zeroed, on first touch. On Windows it is committed again
+    first, through `zane_commit_range`, and a failed commit stops the
+    program the way any failed commit does.
+  - **The limit.** Past `ZANE_COLD_KEPT` cold chunks (256, which holds
+    1 MiB of first pages), a drained chunk is released entirely.
+- **Reuse order.** `zane_map` prefers a warm spare, then a cold one, then
+  a new chunk.
+- **Counts.** A per-context warm count, and warm and cold counts for the
+  pool, are kept beside the lists, so every limit is O(1).
+- **A delay, as a measured step.** Measure the change above with the
+  binarytrees reference (`docs/design/binarytrees-reference-results.json`),
+  the memory bench and the spec repo's `langbench/`, before and after, on
+  the maintainer's machine.
+  - **When to add it.** Only if returning pages at once is slower there.
+  - **What it is.** Chunks turn cold only after sitting unused for a
+    while: past a number of later drains of the same context, so no
+    timer thread is needed. Choose that number from the same
+    benchmarks.
 
-**Tests.** Add a runtime C test: allocate 128 chunks in a scope, drain it,
-and check through an internal counter (exposed to tests in
-`zane_internal.h`) that at most 4 spares remain on the context and at most
-16 in the pool after the context goes idle. Run the existing runtime
-tests in both modes. Compare the binarytrees and memory-bench timings
-before and after (decision 3).
+**Tests.**
+- **The audit's probe.** Add a runtime C test: record resident memory
+  (`/proc/self/statm` on Linux, where the tests run), allocate 128 chunks
+  in a scope and fill them, drain the scope, and let the context go idle.
+  Resident memory must fall back to within a few MiB of where it started,
+  where it stayed at 130 MiB before.
+- **The counts.** Through an internal counter exposed to tests in
+  `zane_internal.h`, at most 4 chunks stay warm on the context and at most
+  16 in the pool.
+- **Reuse.** A second test allocates 128 chunks again after the drain and
+  checks that the cold chunks are reused (counted), that they read as
+  zero, and that the output matches.
+- **Existing tests.** Run the existing runtime tests and codegen fixtures
+  in both checking modes, and the Windows programs check, since Windows
+  takes the decommit path.
 
-**Docs.** `docs/design/lowering.md` §9 (regions and chunks): the caps.
+**Docs.** `docs/design/lowering.md` §9 (regions and chunks): warm and cold
+spares, where chunks come from, what each platform does to give pages
+back, and whether a delay was kept, with the measurements.
 
 ### F30: overflow handlers call stdio
 
