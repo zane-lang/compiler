@@ -16,6 +16,7 @@ ZANEC = str(Path(sys.argv.pop(1)).resolve())
 HERE = Path(__file__).resolve().parent
 LARGEPARAM = HERE / "fixtures/largeparam"
 CROSSING = HERE / "../codegen/fixtures/crossing"
+FIXTURES = HERE / "fixtures"
 
 
 def zanec(*args):
@@ -70,6 +71,29 @@ class AbiTests(unittest.TestCase):
         ir = zanec("--ll", "--pack-aggregates", "--target", "x86_64-windows-gnu", "--package", CROSSING)
         self.assertRegex(signature(ir, "crossing$flipped("), r'i64 @"[^"]*"\(i64 %0\)')
         self.assertRegex(signature(ir, "crossing$reversed("), r"\(ptr noalias sret")
+
+    def test_packed_and_unpacked_objects_do_not_link(self):
+        # Packing changes how a call crosses, so a program built one way
+        # must not link against a library built the other way.
+        def build(temp, library, program):
+            obj = Path(temp) / f"geometry{len(library)}.o"
+            stamp = ["--stamp", "geometry=v1.0%0123456789abcdef%"]
+            zanec("--kind", "library", "--object", obj, *library, *stamp, "--package", FIXTURES / "geometry")
+            exe = Path(temp) / f"survey{len(library)}{len(program)}"
+            return subprocess.run(
+                [ZANEC, "--build", exe, *program, "--link", obj, *stamp, "--package", FIXTURES / "survey",
+                 "--package", FIXTURES / "geometry"], capture_output=True, text=True, timeout=120), exe
+
+        packed = ["--pack-aggregates"]
+        with tempfile.TemporaryDirectory() as temp:
+            for library, program in [(packed, []), ([], packed)]:
+                with self.subTest(library=library, program=program):
+                    result, _ = build(temp, library, program)
+                    self.assertNotEqual(result.returncode, 0, result.stderr)
+            result, exe = build(temp, packed, packed)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            run = subprocess.run([exe], capture_output=True, text=True, timeout=60)
+            self.assertEqual(run.stdout, (HERE / "golden/survey.out").read_text())
 
     def test_the_object_is_written_for_every_target(self):
         # LLVM crashed writing it when the array crossed as one value.

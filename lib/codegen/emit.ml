@@ -1368,8 +1368,13 @@ let func env (f : Func.t) =
    dependency's objects define is only declared, or has an
    [available_externally] body that LLVM can inline but never emits
    (docs/design/separate-compilation.md); the rest are local to this one.
-   The module is for [triple] from the start, so each access is emitted
+   With [pack], every function but the entry is named with [packed] after
+   its symbol, so an object built with packing links only against objects
+   built with it too: one built without would call it with the other
+   convention (docs/design/lowering.md §9). The module is for [triple] from the start, so each access is emitted
    with the alignment [data_layout] gives its type. *)
+let packed = "~packed"
+
 let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
     ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ~triple ~data_layout
     (p : Program.t) =
@@ -1414,7 +1419,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       let a = abi env (List.map snd f.Func.params) f.Func.ret in
       let fty = abi_type env a in
       let entry = Some f.Func.symbol = p.Program.entry in
-      let name = if entry then "zane_main" else f.Func.symbol in
+      let name = if entry then "zane_main" else if pack then f.Func.symbol ^ packed else f.Func.symbol in
       let fn =
         match f.Func.linkage with
         | Cgt.Nodes.Linkage.Imported -> Llvm.declare_function name fty m

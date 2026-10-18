@@ -856,9 +856,15 @@ test passing.
     one it uses as the parameter's slot. `{ I8; I8; I8; }` then takes one
     register and `{ I32; I32; I32; I32; }` two, so on a two-register target
     both travel in registers, and on x86-64 Windows only the first. It costs
-    a few instructions around each call. The option is off by default, and
-    every object a program links must be built with it or without it alike,
-    since it changes how a call crosses. It is kept only if the benchmark
+    a few instructions around each call. The option is off by default.
+    Since it changes how a call crosses, every function but the entry is
+    named with `~packed` after its symbol when it is on, so an object built
+    with it links only against objects built with it too, and a mismatch is
+    an undefined symbol rather than a miscall. Packing only calls within one
+    compilation would keep separate objects compatible, but the benchmark
+    builds `core` as an object of its own, and its calls are the ones being
+    measured; a function value, called without knowing its function, would
+    also need one convention for both. It is kept only if the benchmark
     below is faster with it on some target and slower on none; following
     the platform's separate floating-point registers is a further variant,
     to measure only if packing is kept.

@@ -1278,7 +1278,10 @@ not run: the container has no `wine64`.
   In review, the start function holds a discarded `main` result that is an
   owner or owns a block in its own arena, as any dropped result like it is,
   instead of a slot of the machine stack, which also could not compile a
-  dropped result of 65,536 parts (`entryWide`).
+  dropped result of 65,536 parts (`entryWide`). In review too,
+  `--pack-aggregates` names every function but the entry with `~packed`
+  after its symbol, so objects built with and without it fail to link
+  rather than miscall (`abi_test.py`).
 
 Verified on the batch's head with `devbox run -- just test-compiler`
 (including the probe gate) and `just check-file-sizes`. `just test-windows`
