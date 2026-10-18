@@ -12,9 +12,11 @@
 type suite = Codegen | Parser | Runtime | Semantics
 
 (* The fixture [golden] holds the expectation of: [Ok None] for a golden
-   file whose rule is written by hand, and [Error] for one no rule makes. *)
-let fixture suite golden =
+   file a rule written by hand compares against, one of [hand_written], and
+   [Error] for one no rule makes. *)
+let fixture ?(hand_written = []) suite golden =
   match (suite, String.split_on_char '.' golden) with
+  | _ when List.mem golden hand_written -> Ok None
   | Codegen, ([ name; ("cgt" | "out") ] | [ name; "optimized"; "cgt" ]) ->
       Ok (Some ("fixtures/" ^ name))
   | (Codegen | Parser), [ "reject"; name; "err" ] ->
@@ -24,15 +26,16 @@ let fixture suite golden =
   | Semantics, ([ "typing"; name; ("decls" | "tst" | "err") ] | [ "typing"; name; "tst"; "spans" ])
     ->
       Ok (Some ("fixtures/typing/" ^ name))
-  | Semantics, ("assembly" | "project") :: _ -> Ok None
   | _ -> Error (Printf.sprintf "no rule makes golden/%s" golden)
 
 (* Every way [fixtures] and [goldens] fail to pair, in name order, each
    naming the file: a golden file no rule makes or whose fixture does not
-   exist, then a fixture no golden file holds the expectation of. *)
-let check suite ~fixtures ~goldens =
+   exist, then a fixture no golden file holds the expectation of.
+   [hand_written] names the golden files the directory's own rules compare
+   against. *)
+let check ?hand_written suite ~fixtures ~goldens =
   let goldens = List.sort compare goldens and fixtures = List.sort compare fixtures in
-  let paired = List.map (fun g -> (g, fixture suite g)) goldens in
+  let paired = List.map (fun g -> (g, fixture ?hand_written suite g)) goldens in
   let orphan_goldens =
     List.filter_map
       (fun (golden, fixture) ->

@@ -677,8 +677,8 @@ let target_cpus () =
    program silently untested. *)
 let fixture_pairing () =
   let module P = Fixture_pairing in
-  let check_pairs name suite ~fixtures ~goldens expected =
-    let errors = P.check suite ~fixtures ~goldens in
+  let check_pairs ?hand_written name suite ~fixtures ~goldens expected =
+    let errors = P.check ?hand_written suite ~fixtures ~goldens in
     check name (errors = expected);
     if errors <> expected then List.iter (Printf.printf "  got: %s\n") errors
   in
@@ -703,9 +703,14 @@ let fixture_pairing () =
   check_pairs "a runtime test pairs with its output" P.Runtime ~fixtures:[ "arenas.c"; "texts.c" ]
     ~goldens:[ "arenas.out" ] [ "texts.c has no golden file" ];
   check_pairs "hand-written semantics rules are left alone" P.Semantics
+    ~hand_written:[ "assembly.accept.packages"; "project.app.check" ]
     ~fixtures:[ "fixtures/typing/accept" ]
     ~goldens:[ "assembly.accept.packages"; "project.app.check"; "typing.accept.tst.spans" ]
-    []
+    [];
+  check_pairs "a golden file no hand-written rule compares against is named" P.Semantics
+    ~hand_written:[ "project.app.check" ]
+    ~fixtures:[] ~goldens:[ "project.app.check"; "project.app.chek" ]
+    [ "no rule makes golden/project.app.chek" ]
 
 let () =
   ty ();

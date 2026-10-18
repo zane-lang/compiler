@@ -1024,7 +1024,10 @@ it in stages, each of them a PR:
   status and the output. Every rejection case in the suite already passed
   it, so the stricter run found no crash to fix. Checked against two
   stand-in compilers, one exiting 3 and one killed by SIGSEGV: the
-  assertion fails on both (`3 != 1`, `-11 != 1`).
+  assertion fails on both (`3 != 1`, `-11 != 1`). The highlighting
+  suite reruns this module against `tests/highlighting/parser_check.exe`,
+  which refused silently; it now prints the parse diagnostic as `zanec`
+  does (`447d0b9`).
 - **F28** (`6eb5744`). A new library, `tests/gen/fixture_pairing.ml`, says
   which fixture each golden file is for. `gen_rules` lists `fixtures/`
   beside `golden/` for codegen, parser, runtime and the `typing` builds of
@@ -1035,7 +1038,10 @@ it in stages, each of them a PR:
   pairing over in-memory listings with an orphan fixture and an orphan
   golden. A codegen fixture added with no golden file, and a parser golden
   file with no fixture, each failed `dune runtest`, naming the file. The
-  codegen README states the rule.
+  codegen README states the rule. A golden file that a hand-written rule
+  in the directory's `dune` compares against is the only kind the pairing
+  leaves alone, so a misnamed `golden/project.app.chek` also failed
+  `dune runtest`, naming it.
 - **F26** (`853ab75`). `gen_rules` writes each codegen run rule twice,
   under `(setenv ZANE_CHECK 1 ...)` and `(setenv ZANE_CHECK 0 ...)`, both
   diffed against the same golden file: 168 runs for the 42 programs. The

@@ -209,6 +209,26 @@ let fixtures = function
       let entries dir = List.map (Filename.concat dir) (sorted dir) in
       List.filter (fun f -> f <> "fixtures/reject") (entries "fixtures") @ entries "fixtures/reject"
 
+(* The golden files the directory's own dune file compares against, which
+   Fixture_pairing leaves to those hand-written rules. *)
+let hand_written () =
+  if not (Sys.file_exists "dune") then []
+  else
+    let text = In_channel.with_open_bin "dune" In_channel.input_all in
+    let marker = "(diff golden/" in
+    let rec scan from found =
+      match String.index_from_opt text from '(' with
+      | None -> found
+      | Some i
+        when i + String.length marker <= String.length text
+             && String.sub text i (String.length marker) = marker ->
+          let start = i + String.length marker in
+          let stop = String.index_from text start ' ' in
+          scan stop (String.sub text start (stop - start) :: found)
+      | Some i -> scan (i + 1) found
+    in
+    scan 0 []
+
 let () =
   let suite, rules =
     match Sys.argv with
@@ -220,7 +240,10 @@ let () =
         prerr_endline "usage: gen_rules (codegen|parser|runtime|semantics)";
         exit 2
   in
-  match Fixture_pairing.check suite ~fixtures:(fixtures suite) ~goldens:(sorted "golden") with
+  match
+    Fixture_pairing.check ~hand_written:(hand_written ()) suite ~fixtures:(fixtures suite)
+      ~goldens:(sorted "golden")
+  with
   | [] ->
       print_string "; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.\n\n";
       rules ()
