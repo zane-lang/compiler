@@ -141,7 +141,7 @@ def main():
     base, current = compilers(args.base)
     target = ["--target", args.target] if args.target else []
     builds = {
-        "current": (base, []),
+        "before the rule": (base, []),
         "register rule": (current, []),
         "rule with packing": (current, ["--pack-aggregates"]),
     }
