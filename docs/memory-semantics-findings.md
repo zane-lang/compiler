@@ -541,8 +541,9 @@ v V(Int(1), Int(2));
 v!setFrom(v);             // v.y is 1: other was a copy
 ```
 
-`design/lowering.md` §9 ("Values by value, for now") passes value types as
-LLVM aggregates and argues "a value parameter cannot be written, so nothing
+`design/lowering.md` §9 (then "Values by value, for now", now "How a value
+crosses a call") passed value types as
+LLVM aggregates and argued "a value parameter cannot be written, so nothing
 observes the difference"; the subject is the one way it can. The
 reference-type form, `car!swapFrom(car)`, passes its borrow by address and
 does see the write, so the two kinds of type disagree. Either the compiler

@@ -156,6 +156,6 @@ let rewrite data_layout m =
   | Some _ ->
       Error
         (Printf.sprintf
-           "a value of more than %d parts is passed or returned whole, and the code generator can \
+           "a value of more than %d parts is moved whole inside a function, and the code generator can \
             move at most that many as one value"
            most_parts)
