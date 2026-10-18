@@ -86,5 +86,7 @@ The stages run in order through `lib/driver/`: one function per step
 (assemble, check, lower, and emit an IR module, an object or an executable),
 each a result whose failure is the step's diagnostics with the text they
 point into. The rules about a build rather than a stage live there too: which
-package a `--stamp` names, and whether the root needs a `main`. `zanec` and
-the inspection tools parse their arguments, call the driver, and print.
+package a `--stamp` names, and whether the root needs a `main`. So does
+rewriting an object (`--rewrite`, `--remap`), which is fetching's step and not
+a build's. `zanec` and the inspection tools parse their arguments, call the
+driver, and print.

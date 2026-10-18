@@ -180,7 +180,8 @@ let settings (o : options) =
       "AMBIGUITY_MAX_FRONTIER_RATIO must be finite and greater than 0";
   Option.iter
     (fun value ->
-      if value < 0. then invalid_arg "--timeout must be non-negative")
+      if not (Float.is_finite value && value >= 0.) then
+        invalid_arg "--timeout must be finite and non-negative")
     o.timeout;
   if jobs < 1 then invalid_arg "AMBIGUITY_JOBS must be at least 1";
   Option.iter

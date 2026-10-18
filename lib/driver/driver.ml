@@ -3,7 +3,8 @@
    of the files they point into, so a front end prints them all the same
    way. The rules that are about the build rather than about any one stage
    live here too: which package a `--stamp` names, and whether the root
-   needs a `main`. *)
+   needs a `main`. So does rewriting an object, fetching's step rather than a
+   build's (docs/design/separate-compilation.md C9, C11). *)
 
 module Assembly = Tst.Assembly
 
@@ -16,11 +17,18 @@ let render failure = List.map (Diagnostic.render_in failure.sources) failure.dia
    to start from, and a library does not become an executable. *)
 type kind = Application | Library
 
+let not_stamp stamp =
+  Printf.sprintf
+    "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
+    stamp
+
 (* `--stamp NAME=STAMP` gives the one package named NAME its stamp. A stamp
    for a package the build does not have would be dropped silently, and the
    package it was meant for compiled into the root's object rather than
    linked from its own; one for a name two packages have would pick between
-   them. *)
+   them. A value that is no stamp would name the package's symbols with it,
+   while lowering, which recognizes a stamp by its form, took the package
+   for unstamped. *)
 let with_stamps stamps requests =
   let problems = ref [] in
   let requests =
@@ -30,6 +38,9 @@ let with_stamps stamps requests =
           r.Assembly.stamp = None && String.equal (Assembly.path_of r) name
         in
         match List.filter named requests with
+        | _ when not (Rewrite.is_stamp stamp) ->
+            problems := Diagnostic.about_invocation (not_stamp stamp) :: !problems;
+            requests
         | [ _ ] -> List.map (fun r -> if named r then { r with Assembly.stamp = Some stamp } else r) requests
         | [] ->
             problems :=
@@ -130,3 +141,71 @@ let object_file ?target ?(regions = no_regions) ~optimize cgt output =
 let buildable = function
   | Some Library -> fail [ Diagnostic.about_invocation "a library is not built into an executable; check it with `--check`" ]
   | _ -> Ok ()
+
+(* The name of a file beside [output] to write it under before it is renamed
+   into place, drawn from [random]. *)
+let temporary_name random output =
+  Filename.concat (Filename.dirname output)
+    (Printf.sprintf ".%s.%08x" (Filename.basename output) (Random.State.bits random))
+
+(* How many names [write_replacing] draws before it gives up: each one
+   already taken is a file someone else made. *)
+let temporary_attempts = 8
+
+(* [contents] written beside [output] and renamed into place, so a failed
+   write leaves an existing [output], or the input it may be, as it was. The
+   temporary is created exclusively, so a name that already exists is
+   another's file: it is left alone and a new name drawn. Any failure to
+   create one draws again, since [Sys_error] does not say whether the name
+   was taken, and a lookup after the fact misses a dangling symlink or a file
+   removed in between. Only a temporary this call created is removed when a
+   later step fails. *)
+let write_replacing ~random ~output contents =
+  let rec attempt drawn =
+    let temporary = temporary_name random output in
+    let created = ref false in
+    match
+      Out_channel.with_open_gen
+        [ Open_wronly; Open_creat; Open_excl; Open_binary ]
+        0o666 temporary
+        (fun oc ->
+          created := true;
+          output_string oc contents);
+      Sys.rename temporary output
+    with
+    | () -> Ok ()
+    | exception Sys_error message ->
+        if !created then begin
+          (try Sys.remove temporary with Sys_error _ -> ());
+          Error message
+        end
+        else if drawn < temporary_attempts then attempt (drawn + 1)
+        else Error message
+  in
+  attempt 1
+
+(* The output is written only once the whole object has been rewritten, so a
+   malformed input leaves nothing behind. *)
+let rewrite_object ~random ~stamps ~rewrite ~input ~output =
+  let fail_with message = fail [ Diagnostic.about_invocation message ] in
+  match List.find_opt (fun stamp -> not (Rewrite.is_stamp stamp)) stamps with
+  | Some stamp -> fail_with (not_stamp stamp)
+  | None -> (
+      match stamps with
+      | [ from; to_ ] when not (Rewrite.same_package from to_) ->
+          fail_with
+            (Printf.sprintf
+               "`%s` and `%s` are versions of two packages, since their identity hashes differ; \
+                remapping moves references between versions of one package"
+               from to_)
+      | _ -> (
+          match In_channel.with_open_bin input In_channel.input_all with
+          | exception Sys_error message -> fail_with message
+          | contents -> (
+              match rewrite contents with
+              | Error message -> fail_with (input ^ ": " ^ message)
+              | Ok (rewritten, _) -> (
+                  match write_replacing ~random ~output rewritten with
+                  | Ok () -> Ok ()
+                  | Error message ->
+                      fail_with (Printf.sprintf "cannot write `%s`: %s" output message)))))

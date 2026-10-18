@@ -1088,3 +1088,78 @@ run with `GRAMMAR_PYTHON` pointing at a virtualenv holding
 `tools/grammar/requirements.txt`, since the container's Python lacks it)
 and `just check-file-sizes`. `just test-windows` was not run: the
 container has no `wine64`.
+
+### Batch 2: small, independent fixes
+
+- **F17** (`b347cd7`). The object rewrite moves from `zanec` into the
+  driver as `Driver.rewrite_object`, which takes its random source, and
+  `Driver.temporary_name` draws each name from it. The temporary is
+  created exclusively, and a flag set first thing inside the
+  `with_open_gen` callback records that this call created it: only then is
+  it removed on failure. A name that already exists is left alone and a new
+  one drawn, up to 8 before the error is reported. A unit test in
+  `tests/unit/` fixes the seed, pre-creates a file at the first name, and
+  checks that the file survives, the object is written, the second name is
+  gone (renamed into place) and exactly two names were drawn. A second case
+  takes all eight names: the rewrite fails and all eight files survive.
+  With the old behaviour put back (no retry, unconditional removal), the
+  first case failed four of its five checks and the second its survivors
+  check.
+  `docs/design/stages.md` says the driver holds the rewrite.
+  In review, any failure to create the temporary now draws again, rather
+  than only one at a name `Sys.file_exists` sees: that lookup follows a
+  dangling symlink and misses it. A third case puts a dangling symlink at
+  the first name; it failed two checks before the change, and now the
+  symlink survives and the object is written.
+- **F18** (`a89483e`). The `--stamp` case in `bin/zanec/zanec.ml` checks
+  its value with `Rewrite.is_stamp` and gives the usage otherwise.
+  `Driver.with_stamps` refuses a malformed stamp with the diagnostic
+  `--rewrite` gives ("`garbage` is not a stamp: …"), now shared as
+  `not_stamp`. `tests/objects/options_test.py` checks that
+  `--stamp geometry=garbage` exits 2 and writes no object, and that a
+  well-formed stamp still builds one; a driver unit test checks the
+  diagnostic. The audit's reproduction, rebuilt as a `largeparam` library
+  with `consume`: the baseline compiler (`aa3d923`) gives exit 0 and
+  `!garbagelargeparam$consume(%primitives$I64)`; this one exits 2 with the
+  usage and writes no IR, and `--stamp largeparam=v1.0%0123456789abcdef%`
+  still names `v1.0%0123456789abcdef%largeparam$consume`.
+- **F29** (`c2ce96b`). The second `DURATION_PART = ...` line in
+  `tools/ambiguity/profiles.py` is gone.
+- **F19** (`6b9d0ca`). `parse_duration` rejects a result that is not
+  finite, checking each part of a composed duration as well as the sum.
+  The engine's `--timeout` check is `Float.is_finite value && value >= 0.`,
+  and its message "--timeout must be finite and non-negative" is worded
+  like the `AMBIGUITY_MAX_FRONTIER_RATIO` check beside it.
+  `tests/ambiguity/profiles_test.py` covers `"nan"`, `"inf"`,
+  `float('nan')`, `float('inf')`, `'9' * 400`, the same digits as one part
+  (`ms`, and after `1h`), and TOML profiles with `timeout = nan`, `inf`
+  and `+inf`. `tests/ambiguity/cli_test.py` runs the engine with
+  `--timeout nan` and `--timeout inf`, each exiting 2 with the message. All
+  ten new cases failed before the fix.
+  In review, an integer too large for a float (`timeout = 1` followed by 400
+  zeros in a profile) raised `OverflowError` past the CLI's handler; the
+  conversion now reports it as not finite. Both new cases, the integer
+  passed directly and in a profile, errored before that change.
+- **F31** (`7570369`). The grammar generator emits `is_lower_identifier`
+  at the end of `lib/cst/lexer.ml`. It runs the generated `token` on the
+  string and holds only when that yields one `LIDENT` whose lexeme is the
+  whole string, so leftover input fails, and so does a keyword, whose rule
+  takes the match first. `Cst` exposes it, and `is_package_name` in
+  `zanec`, which `--package NAME=DIR` and the `--import` key use, is that
+  function. `options_test.py` checks `--check --package bücher=DIR`,
+  `--package _bücher=DIR`, and `--import app:bücher=bücher`, each exit 0;
+  and that `Buecher`, `Übersicht`, `1bücher`, the empty name and `type`
+  are no name, read as a directory by `--package` (exit 1, "no such
+  directory") and a usage error as an `--import` key (exit 2). The
+  baseline compiler failed the three positive cases and accepted `type`.
+  The audit's reproduction: for a package `bücher`, the baseline gives exit
+  0 for `--check --package DIR` and exit 1 ("no such directory") for
+  `--check --package bücher=DIR`; this compiler gives 0 for both.
+  `grammar/README.md` names the function among the lexer's consumers.
+
+Verified on the batch's head with `devbox run -- just test-compiler`
+(including the probe gate), `just test-ambiguity-tools`,
+`just test-grammar-generation` (with `GRAMMAR_PYTHON` pointing at a
+virtualenv holding `tools/grammar/requirements.txt`, as in batch 1),
+`just test-grammar` and `just check-file-sizes`. `just test-windows` was
+not run: the container has no `wine64`.

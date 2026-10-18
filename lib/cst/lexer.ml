@@ -77,3 +77,12 @@ let rec token buf =
   | ((lowercase | ("_", lowercase)), Star ((alphabetic | '0'..'9'))) -> LIDENT (Utf8.lexeme buf)
   | ((uppercase | ("_", uppercase)), Star ((alphabetic | '0'..'9'))) -> UIDENT (Utf8.lexeme buf)
   | _ -> raise Lexing_error
+
+(* Whether the whole of [text] is one lowercase identifier, as [token] reads
+   one: the LIDENT rule matches all of it, and no keyword's rule takes it
+   first. *)
+let is_lower_identifier text =
+  match token (Utf8.from_string text) with
+  | LIDENT lexeme -> String.equal lexeme text
+  | _ -> false
+  | exception (Lexing_error | MalFormed) -> false

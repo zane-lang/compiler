@@ -93,14 +93,9 @@ let read = function
 
 (* A package name as lexical.md §3 spells one: camelCase, so a lowercase
    letter and then letters and digits, after a leading `_` when the package
-   is private to its project (§4.2, packages.md §4.4). *)
-let is_package_name name =
-  let rest =
-    if String.starts_with ~prefix:"_" name then String.sub name 1 (String.length name - 1) else name
-  in
-  rest <> ""
-  && (match rest.[0] with 'a' .. 'z' -> true | _ -> false)
-  && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> true | _ -> false) rest
+   is private to its project (§4.2, packages.md §4.4). Letters are Unicode
+   ones, as in source, so the lexer itself decides. *)
+let is_package_name = Cst.is_lower_identifier
 
 (* A range of frames is a whole number of MiB, at least one, since the
    runtime makes it usable a MiB at a time. *)
@@ -212,10 +207,10 @@ let arguments () =
     | "--stamp" :: stamp :: rest when is_value stamp -> (
         match String.index_opt stamp '=' with
         | Some i when i + 1 < String.length stamp ->
-            let name = String.sub stamp 0 i in
-            if is_package_path name && not (List.mem_assoc name build.stamps) then
-              let value = String.sub stamp (i + 1) (String.length stamp - i - 1) in
-              packages view { build with stamps = (name, value) :: build.stamps } rest
+            let name = String.sub stamp 0 i
+            and value = String.sub stamp (i + 1) (String.length stamp - i - 1) in
+            if is_package_path name && Rewrite.is_stamp value && not (List.mem_assoc name build.stamps)
+            then packages view { build with stamps = (name, value) :: build.stamps } rest
             else usage ()
         | _ -> usage ())
     | "--link" :: file :: rest when is_value file ->
@@ -325,50 +320,6 @@ let run_packages build =
           Ok ()
       | _ -> generate packages build program)
 
-(* The output is written only once the whole object has been rewritten, so a
-   malformed input leaves nothing behind. It is written beside OUTPUT and
-   renamed into place, so a failed write leaves an existing OUTPUT, or the
-   INPUT it may be, as it was. *)
-let run_rewrite ~stamps ~rewrite ~input ~output =
-  let fail message = Driver.fail [ Diagnostic.about_invocation message ] in
-  let not_stamp stamp =
-    Printf.sprintf
-      "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
-      stamp
-  in
-  match List.find_opt (fun stamp -> not (Rewrite.is_stamp stamp)) stamps with
-  | Some stamp -> fail (not_stamp stamp)
-  | None -> (
-      match stamps with
-      | [ from; to_ ] when not (Rewrite.same_package from to_) ->
-          fail
-            (Printf.sprintf
-               "`%s` and `%s` are versions of two packages, since their identity hashes differ; \
-                remapping moves references between versions of one package"
-               from to_)
-      | _ -> (
-          match In_channel.with_open_bin input In_channel.input_all with
-          | exception Sys_error message -> fail message
-          | contents -> (
-              match rewrite contents with
-              | Error message -> fail (input ^ ": " ^ message)
-              | Ok (rewritten, _) -> (
-                  Random.self_init ();
-                  let temporary =
-                    Filename.concat (Filename.dirname output)
-                      (Printf.sprintf ".%s.%08x" (Filename.basename output) (Random.bits ()))
-                  in
-                  try
-                    Out_channel.with_open_gen
-                      [ Open_wronly; Open_creat; Open_excl; Open_binary ]
-                      0o666 temporary
-                      (fun oc -> output_string oc rewritten);
-                    Sys.rename temporary output;
-                    Ok ()
-                  with Sys_error message ->
-                    (try Sys.remove temporary with Sys_error _ -> ());
-                    fail (Printf.sprintf "cannot write `%s`: %s" output message)))))
-
 (* The one place the binary exits: 0 when the run did what it was asked,
    1 when the compiler refused the program, 2 for a command it cannot run,
    and 3 for a broken invariant, the compiler's own fault. Any other
@@ -385,9 +336,11 @@ let () =
         | File (stage, input) -> run_file stage input
         | Packages build -> run_packages build
         | Rewrite { stamp; input; output } ->
-            run_rewrite ~stamps:[ stamp ] ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
+            Driver.rewrite_object ~random:(Random.State.make_self_init ()) ~stamps:[ stamp ]
+              ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
         | Remap { from; to_; input; output } ->
-            run_rewrite ~stamps:[ from; to_ ] ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output
+            Driver.rewrite_object ~random:(Random.State.make_self_init ()) ~stamps:[ from; to_ ]
+              ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output
       in
       match result with
       | Ok () -> 0

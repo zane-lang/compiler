@@ -222,6 +222,23 @@ class StreamingOutputTests(unittest.TestCase):
                 )
                 self.assertNotIn("Fatal error", result.stderr)
 
+    def test_a_non_finite_timeout_is_refused(self) -> None:
+        # `--timeout` reads with OCaml's float_of_string, which takes both.
+        # Neither bounds the search: a deadline of nan is never reached, nor
+        # is one of infinity.
+        for value in ("nan", "inf"):
+            with self.subTest(timeout=value):
+                result = self.engine(
+                    "--max-tokens", "8",
+                    "--timeout", value,
+                    "--max-witnesses", "5",
+                )
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn(
+                    "--timeout must be finite and non-negative", result.stderr
+                )
+                self.assertNotIn("Fatal error", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

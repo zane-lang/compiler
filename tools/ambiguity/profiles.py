@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass, replace
 import datetime
+import math
 from pathlib import Path
 import re
 import string
@@ -29,7 +30,6 @@ from typing import Any, Callable
 
 DEFAULT_PROFILES = Path(__file__).resolve().parent / "profiles.toml"
 
-DURATION_PART = re.compile(r"(\d+(?:\.\d+)?)(ms|s|m|h)")
 DURATION_PART = re.compile(r"(\d+(?:\.\d+)?)(ms|s|m|h)")
 DURATION_FACTORS = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
 
@@ -67,7 +67,10 @@ def parse_duration(value: str | int | float) -> float:
     if isinstance(value, bool):
         raise ConfigurationError("duration must be a number or a value such as 30m")
     if isinstance(value, (int, float)):
-        seconds = float(value)
+        try:
+            seconds = float(value)
+        except OverflowError as error:
+            raise ConfigurationError(f"duration {value!r} is not finite") from error
     else:
         text = value.strip().lower()
         if re.fullmatch(r"\d+(?:\.\d+)?", text):
@@ -78,12 +81,17 @@ def parse_duration(value: str | int | float) -> float:
             for match in DURATION_PART.finditer(text):
                 if match.start() != position:
                     break
-                seconds += float(match.group(1)) * DURATION_FACTORS[match.group(2)]
+                part = float(match.group(1)) * DURATION_FACTORS[match.group(2)]
+                if not math.isfinite(part):
+                    raise ConfigurationError(f"duration {value!r} is not finite")
+                seconds += part
                 position = match.end()
             if position != len(text) or position == 0:
                 raise ConfigurationError(
                     f"invalid duration {value!r}; use values such as 90s, 30m, or 1h"
                 )
+    if not math.isfinite(seconds):
+        raise ConfigurationError(f"duration {value!r} is not finite")
     if seconds < 0:
         raise ConfigurationError("duration must be non-negative")
     return seconds

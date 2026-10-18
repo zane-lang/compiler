@@ -672,6 +672,102 @@ let target_cpus () =
   check "an x86_64h target is tuned for Haswell" (cpu "x86_64h-apple-darwin" = Ok "core-avx2");
   check "an AArch64 target keeps LLVM's default" (cpu "aarch64-unknown-linux-gnu" = Ok "")
 
+(* ---------------------------------------------------------------------- *)
+(* The driver                                                             *)
+(* ---------------------------------------------------------------------- *)
+
+(* What a file holds, or [None] when it is gone. *)
+let read_all path =
+  try Some (In_channel.with_open_bin path In_channel.input_all) with Sys_error _ -> None
+let write_all path contents = Out_channel.with_open_bin path (fun oc -> output_string oc contents)
+
+let rec remove_tree path =
+  if Sys.is_directory path then begin
+    Array.iter (fun name -> remove_tree (Filename.concat path name)) (Sys.readdir path);
+    Sys.rmdir path
+  end
+  else Sys.remove path
+
+(* Rewriting writes beside its output under a name it creates exclusively.
+   A name that is already there is someone else's file: it is kept, and the
+   object goes out under the next name drawn. *)
+let rewriting_keeps_others_files () =
+  let seed = [| 17 |] in
+  let names output count =
+    let random = Random.State.make seed in
+    List.init count (fun _ -> Driver.temporary_name random output)
+  in
+  let rewrite contents = Ok (contents ^ " rewritten", 0) in
+  let in_directory f =
+    let directory = Filename.temp_dir "zane-rewrite" "" in
+    Fun.protect ~finally:(fun () -> remove_tree directory) (fun () -> f directory)
+  in
+  in_directory (fun directory ->
+      let input = Filename.concat directory "in.o" and output = Filename.concat directory "out.o" in
+      write_all input "object";
+      let first, second =
+        match names output 2 with [ first; second ] -> (first, second) | _ -> assert false
+      in
+      write_all first "someone else's";
+      let random = Random.State.make seed in
+      let result = Driver.rewrite_object ~random ~stamps:[] ~rewrite ~input ~output in
+      check "a rewrite whose first name is taken succeeds" (Result.is_ok result);
+      check "the file at the taken name survives" (read_all first = Some "someone else's");
+      check "the output is written" (read_all output = Some "object rewritten");
+      check "the output went out under the next name, renamed away" (not (Sys.file_exists second));
+      check "exactly two names were drawn"
+        (Random.State.bits random
+        = Random.State.bits
+            (let r = Random.State.make seed in
+             ignore (Random.State.bits r);
+             ignore (Random.State.bits r);
+             r)));
+  in_directory (fun directory ->
+      let input = Filename.concat directory "in.o" and output = Filename.concat directory "out.o" in
+      write_all input "object";
+      let first = List.hd (names output 1) in
+      (* A symlink needs a privilege on Windows; without one there is nothing
+         to test. *)
+      match Unix.symlink (Filename.concat directory "nowhere") first with
+      | exception Unix.Unix_error _ -> ()
+      | () ->
+          let result =
+            Driver.rewrite_object ~random:(Random.State.make seed) ~stamps:[] ~rewrite ~input ~output
+          in
+          check "a rewrite whose first name is a dangling symlink succeeds" (Result.is_ok result);
+          check "the dangling symlink survives"
+            (match Unix.readlink first with _ -> true | exception Unix.Unix_error _ -> false);
+          check "the output is written past the symlink" (read_all output = Some "object rewritten");
+          Sys.remove first);
+  in_directory (fun directory ->
+      let input = Filename.concat directory "in.o" and output = Filename.concat directory "out.o" in
+      write_all input "object";
+      let taken = names output 8 in
+      List.iteri (fun i name -> write_all name (string_of_int i)) taken;
+      let result =
+        Driver.rewrite_object ~random:(Random.State.make seed) ~stamps:[] ~rewrite ~input ~output
+      in
+      check "a rewrite whose eight names are all taken fails" (Result.is_error result);
+      check "every taken name survives"
+        (List.for_all Fun.id (List.mapi (fun i name -> read_all name = Some (string_of_int i)) taken));
+      check "no output is written" (not (Sys.file_exists output)))
+
+let contains text part =
+  let n = String.length part in
+  let rec go i = i + n <= String.length text && (String.sub text i n = part || go (i + 1)) in
+  go 0
+
+(* A stamp given by package name is checked as `--rewrite`'s is, so a caller
+   that is not `zanec` cannot name a package's symbols with something
+   lowering would not read as a stamp. *)
+let stamps_are_checked () =
+  let request = { Tst.Assembly.manifest_name = Some "geometry"; directory = "nowhere"; stamp = None } in
+  match Driver.assemble ~root:false ~stamps:[ ("geometry", "garbage") ] [ request ] with
+  | Ok _ -> check "a malformed stamp is refused" false
+  | Error failure ->
+      check "a malformed stamp is named as no stamp"
+        (List.exists (fun line -> contains line "`garbage` is not a stamp") (Driver.render failure))
+
 (* tests/gen/gen_rules.ml stops at a fixture with no golden file and at a
    golden file whose fixture is gone, naming each, so neither leaves a
    program silently untested. *)
@@ -739,6 +835,8 @@ let () =
   snapshot_reads ();
   target_cpus ();
   fixture_pairing ();
+  rewriting_keeps_others_files ();
+  stamps_are_checked ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

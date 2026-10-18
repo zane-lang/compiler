@@ -85,3 +85,12 @@ that the cell `drop` removes and discards, which owns no block, is held in
 no scope, and
 that in `quiet`'s optimized build LLVM leaves no index check in `sweep`'s
 loop, then runs each program, optimized and not.
+
+`options_test.py` checks what `zanec` accepts for the options that name and
+stamp packages. A package name in `--package NAME=DIR` or an `--import` key
+is held to the lexer's identifier rule, so `bücher` and `_bücher` bind a
+directory and key an import, while an uppercase first letter, a leading
+digit, an empty name or a keyword does not. `--stamp` takes only a
+well-formed stamp, and a malformed one is a usage error that writes no
+object. Its packages are written to a temporary directory, so no file name
+in the repository is Unicode.

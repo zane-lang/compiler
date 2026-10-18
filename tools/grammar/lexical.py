@@ -99,7 +99,23 @@ def lexer(spec: dict) -> str:
             if token.get("value") == "unquote":
                 action = "let s = Utf8.lexeme buf in " + name + " (String.sub s 1 (String.length s - 2))"
         lines.append(f"  | {pattern} -> {action}")
-    return "\n".join([*lines, "  | _ -> raise Lexing_error", ""])
+    lines.append("  | _ -> raise Lexing_error")
+    # Names given on the command line follow the identifier rule too, so they
+    # are classified by the rules above rather than by a copy of one of them.
+    if not any(token["name"] == "LIDENT" for token in spec["tokens"]):
+        raise ValueError("the lexicon declares no LIDENT token")
+    lines += [
+        "",
+        "(* Whether the whole of [text] is one lowercase identifier, as [token] reads",
+        "   one: the LIDENT rule matches all of it, and no keyword's rule takes it",
+        "   first. *)",
+        "let is_lower_identifier text =",
+        "  match token (Utf8.from_string text) with",
+        "  | LIDENT lexeme -> String.equal lexeme text",
+        "  | _ -> false",
+        "  | exception (Lexing_error | MalFormed) -> false",
+    ]
+    return "\n".join([*lines, ""])
 
 
 def sublime(spec: dict) -> str:
