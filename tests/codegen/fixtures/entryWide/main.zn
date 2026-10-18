@@ -1,0 +1,19 @@
+/// A `main` that returns a 512 KiB `ArrayRef`, which the runtime's entry
+/// discards. The entry holds it in a frame of the program's range, as any
+/// dropped owner is held, so it takes no slot on the machine stack
+/// (docs/design/lowering.md L16).
+package entryWide;
+
+alias Int = @primitives$I64
+alias String = @primitives$String
+alias Wide = @primitives$ArrayRef<Int, 65536>
+
+^Wide make() {
+	return @primitives$ArrayRef.fill(65536, Int(i Int) => i);
+}
+
+^Wide main() {
+	done String("main returns 512 KiB\n");
+	@program$console!print(done);
+	return make();
+}

@@ -1275,6 +1275,10 @@ not run: the container has no `wine64`.
   first-tier target. The audit's reproduction, a library
   `consume(x Array<I64, 65536>)` built with `--object`, gets SIGSEGV on the
   baseline and exits 0 here.
+  In review, the start function holds a discarded `main` result that is an
+  owner or owns a block in its own arena, as any dropped result like it is,
+  instead of a slot of the machine stack, which also could not compile a
+  dropped result of 65,536 parts (`entryWide`).
 
 Verified on the batch's head with `devbox run -- just test-compiler`
 (including the probe gate) and `just check-file-sizes`. `just test-windows`

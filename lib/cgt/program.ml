@@ -368,7 +368,11 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
              the entry is always a function of that type: one that makes the
              constants, if there are any, and then calls `main`, discarding
              its result. Calling `main` itself would give the runtime a
-             function whose type depends on what `main` returns. *)
+             function whose type depends on what `main` returns. A result
+             that is an owner or owns a block is held in the start
+             function's own arena, as any dropped result like it is, so a
+             large one takes a frame of the program's range rather than the
+             machine stack. *)
           let entry = symbol st main in
           (* Made before [finish] drains, so what they call is lowered. *)
           let makes = List.map (fun decl -> Stat.Eval (constant st decl)) constants in
@@ -379,12 +383,20 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
               | None -> Diagnostic.bug "lowering: `main` was not lowered"
             in
             let call = { Expr.node = Expr.Call { fn = entry; args = [] }; ty = ret } in
+            let t = main.signature.S.ret in
+            let dropped =
+              if held st span t then begin
+                let scope = { arena = None; settles = []; wants = [] } in
+                close st scope [ bind st scope span t (fresh st) call ]
+              end
+              else [ Stat.Eval call ]
+            in
             {
               Func.symbol = "zane.start";
               linkage = Linkage.Local;
               params = [];
               ret = Nodes.Ty.Void;
-              body = makes @ [ Stat.Eval call ];
+              body = makes @ dropped;
             }
           in
           finish ~start:(fun funcs -> [ start funcs ]) (Some "zane.start")

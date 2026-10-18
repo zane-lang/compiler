@@ -258,9 +258,11 @@ constant's function, the packages a package depends on first, and then
 `void zane_main(void)` (`runtime/zane.h`), and `main` may return any type,
 so calling `main` itself would give the runtime a function of another type
 whenever `main` returns a value, and whether it did would depend on whether
-the program has constants. What a discarded result owns stays in the
-program's region, which goes with the program. An optimized build inlines
-the start function; an unoptimized one pays one call.
+the program has constants. A discarded result that is an owner or owns a
+block is held in the start function's own arena, as any dropped result like
+it is (§3), so a large one takes a frame of the main context's range, not
+the machine stack, and its blocks drain with that arena. An optimized build
+inlines the start function; an unoptimized one pays one call.
 
 A function value (a lambda-variable) is its lambda (L14) and has none of
 this. A library's constants are made by whichever program links it: a

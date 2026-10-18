@@ -158,6 +158,9 @@ then run it again, read the golden diff and promote that.
   `#struct` that owns a list, and `Unit`, which the start function discards
   (docs/design/lowering.md L16). Each `...Constant` twin adds a package
   constant nothing reads, which once changed which entry the runtime called.
+  `entryWide` returns an `ArrayRef` of 65,536 `I64`s, too many parts to load
+  as one value: the start function holds it in a frame of its own, as any
+  dropped owner is held, rather than in a slot of the machine stack.
 - `spawned` is step 10's spawned calls that need a function made for them: an
   intrinsic method, verbs expanded where they are called because they take
   literals, an array literal among them, one that aborts, and one with a

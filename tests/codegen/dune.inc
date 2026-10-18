@@ -1561,6 +1561,74 @@
   (diff golden/entryUnitConstant.out entryUnitConstant.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/entryWide))
+ (targets entryWide.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryWide.exe --package fixtures/entryWide)))
+
+(rule
+ (deps (source_tree fixtures/entryWide))
+ (targets entryWide.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build entryWide.optimized.exe --optimize --package fixtures/entryWide)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryWide.checked.out.actual
+    (run ./entryWide.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryWide.out entryWide.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryWide.unchecked.out.actual
+    (run ./entryWide.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryWide.out entryWide.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    entryWide.optimized.checked.out.actual
+    (run ./entryWide.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryWide.out entryWide.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    entryWide.optimized.unchecked.out.actual
+    (run ./entryWide.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/entryWide.out entryWide.optimized.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/folding))
  (action
   (with-stdout-to
