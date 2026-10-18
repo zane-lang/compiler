@@ -36,17 +36,31 @@ uses the shared traversals.
 
 ## Decisions to make first
 
-1. **F16: which generic types are ill-formed.** A type whose instance must
-   hold an instance of the same declaration at a strictly larger argument,
-   such as `Grow<T>` holding `Grow<Array<T, 2>>`, has infinitely many
-   distinct instance types, and so no finite set of layouts and walks.
-   Boxing cannot fix that. *Recommendation:* make such a type a
-   compile-time error. This is a language rule, so it belongs in the spec
-   (`adt.md` §4, cross-referenced from `generics.md`): "a type whose
-   definition, along any of its members, leads back to its own
-   declaration at type arguments that strictly contain its parameters is
-   ill-formed". The compiler change follows the spec PR. The rule could
-   follow all members or only owning ones; see F16 for that choice.
+1. **F16: which generic types are ill-formed.** *Decided:* reject them at
+   the declaration. A type whose instance must hold an
+   instance of the same declaration at a strictly larger argument, such as
+   `Grow<T>` holding `Grow<Array<T, 2>>`, has infinitely many distinct
+   instance types. A compiler that writes out every instance with its own
+   layout, as this one does, cannot finish such a type. Boxing cannot fix
+   that. The other compilers that write out every instance refuse it too.
+   C++ and Rust do so where the type is used, after a depth limit. Go
+   recognizes the pattern itself and reports an "instantiation cycle"
+   without counting. The check here follows Go's approach and makes it at
+   the declaration, for three reasons:
+   - The error reaches the author of the type, not whoever imports the
+     package that declares it.
+   - It names the member that makes the argument grow.
+   - It depends on no limit.
+
+   Generic verbs keep the depth limit (F01). A call in a generic body
+   resolves per instance (D12), so a verb's growth is not visible in its
+   declaration the way a type's members are. This is a language rule, so
+   it belongs in the spec (`adt.md` §4, cross-referenced from
+   `generics.md`): "a type whose definition, along any of its members,
+   leads back to its own declaration at type arguments that strictly
+   contain its parameters is ill-formed". The compiler change follows the
+   spec PR. One question is still open: whether the rule follows all
+   members or only owning ones (see F16).
 2. **F08: how large aggregates cross a call.** One option only reports
    them: extend the existing limit to cover signatures. *Recommendation:*
    pass and return them by address, so these programs build. A value
@@ -367,20 +381,30 @@ order.
 
 ### F16: expanding generic types never finish
 
-**Fix** (decision 1). The rule lands in the spec first, then:
+**Fix** (decision 1: rejected at the declaration). The rule lands in the
+spec first, then:
 - **Semantic check.** After type definitions resolve, `Type_decls` runs a
-  new check, `check_expansive_types`. It builds a graph over generic type
-  declarations with an edge `A -> B` for each occurrence of `B<args>` in
-  `A`'s definition: struct and variant members, a distinct type's right
-  side, and element types of `Array`, `ArrayRef` and `List`. Each edge is
-  labelled with how each of `B`'s parameters is filled. An edge is
-  **expanding** when a parameter of `A` occurs strictly inside an argument
-  (`T` inside `Array<T, 2>`), and **non-expanding** when the argument is
-  the parameter itself. A strongly connected component that contains an
-  expanding edge is an error at the declaration, naming the member that
-  closes the cycle. This is the expansive-cycle check that ECMA-335 §II.9.2
-  uses for the same problem, and it runs in time linear in the
-  declarations.
+  new check, `check_expanding_types`, over a graph whose nodes are the
+  type parameters of generic declarations.
+  - **Edges.** For each occurrence of `B<args>` in `A`'s definition (struct
+    and variant members, a distinct type's right side, and element types
+    of `Array`, `ArrayRef` and `List`), there is an edge from each
+    parameter `T` of `A` to each parameter `U` of `B` whose argument
+    mentions `T`.
+  - **Expanding edges.** The edge is **expanding** when `T` occurs strictly
+    inside that argument (`T` inside `Array<T, 2>`), and **plain** when the
+    argument is `T` itself.
+  - **The error.** A cycle in this graph that contains an expanding edge is
+    an error at the declaration, naming the member that closes the cycle.
+    Following parameters rather than declarations catches growth that
+    passes through another type: `A<T>` holds `B<Array<T, 2>>`, and `B<U>`
+    holds `A<U>`.
+  - **Cost.** The check is strongly connected components over the
+    parameter graph, linear in its size.
+
+  It follows the approach of Go's "instantiation cycle" check. Before
+  implementing it, confirm what Go rejects for types (as opposed to
+  functions), and add any case Go catches that this graph misses.
 - **Which members.** Decide in the spec PR whether `&` members count. A
   reference is a fixed-size pointer and is never walked, so excluding them
   is sound if no other stage instantiates a referenced type's layout. The
