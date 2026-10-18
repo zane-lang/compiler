@@ -30,7 +30,6 @@ from typing import Any, Callable
 DEFAULT_PROFILES = Path(__file__).resolve().parent / "profiles.toml"
 
 DURATION_PART = re.compile(r"(\d+(?:\.\d+)?)(ms|s|m|h)")
-DURATION_PART = re.compile(r"(\d+(?:\.\d+)?)(ms|s|m|h)")
 DURATION_FACTORS = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
 
 
