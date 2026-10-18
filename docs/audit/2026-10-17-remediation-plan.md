@@ -61,13 +61,28 @@ uses the shared traversals.
    contain its parameters is ill-formed". The compiler change follows the
    spec PR. One question is still open: whether the rule follows all
    members or only owning ones (see F16).
-2. **F08: how large aggregates cross a call.** One option only reports
-   them: extend the existing limit to cover signatures. *Recommendation:*
-   pass and return them by address, so these programs build. A value
-   parameter is a borrow (spec `memory.md` §2.9), and nothing else in the
-   call writes what it borrows (§2.9.1), so passing by address keeps the
-   language's meaning. Keep the extended limit as an internal check that
-   should never fire.
+2. **F08: how aggregates cross a call.** *Decided:* pass and return them
+   by address above a size threshold, so these programs build. Below the
+   threshold they stay values. The threshold is chosen by measurement (see
+   F08).
+   - **Why by address.** LLVM splits an aggregate held as one value into a
+     piece per element and cannot select more than 65,535 pieces. Long
+     before that limit, a large value is copied piece by piece at every
+     call. Clang, rustc and swiftc never hand LLVM a large aggregate as
+     one value. They pass it by pointer and return it through a pointer
+     to the caller's storage. They keep a small one in registers, up to
+     16 bytes in C on x86-64 Linux and up to about two to four registers
+     in Rust and Swift.
+   - **Why not by address for everything.** A small value passed in
+     registers never touches memory. By pointer, it is stored and loaded
+     again on every call that is not inlined.
+   - **Why the meaning is kept.** A value parameter is a borrow (spec
+     `memory.md` §2.9), and nothing else in the call writes what it
+     borrows (§2.9.1). So passing the address keeps the language's
+     meaning, and the parameter can tell LLVM so with `readonly` and
+     `noalias`.
+   - **Backstop.** The existing limit, extended to signatures, stays as an
+     internal check that should never fire.
 3. **F11: how many spare chunks the runtime keeps.** *Recommendation:* at
    most 4 per context and 16 in the global pool. Before the caps land,
    measure them against `docs/design/binarytrees-reference-results.json`
@@ -237,12 +252,36 @@ function, and why.
 
 ### F08: the large-aggregate guard misses parameters
 
-**Fix** (decision 2). Large aggregates cross calls by address.
+**Fix** (decision 2). Aggregates above a threshold cross calls by
+address.
 - **Signature rule.** Set it in one place, a function in
   `lib/codegen/emit.ml` beside `fn_type`: a parameter or result whose
-  stored size is at least `Big_moves.large` (4096 bytes) is passed as a
-  `ptr`. Use the CGT size, not LLVM's, so the rule cannot depend on
-  `data_layout`.
+  stored size is at least `by_address` bytes is passed as a `ptr`. Use
+  the CGT size, not LLVM's, so the rule cannot depend on `data_layout`.
+- **Choosing `by_address`.** Measure it; do not guess. Build the
+  candidates 16, 32, 64 and 4096 bytes (4096 is `Big_moves.large`, the
+  line at which moves inside a function become `memcpy`).
+  - **What to run.** For each candidate, run the spec repo's `langbench/`
+    programs and the binarytrees reference
+    (`docs/design/binarytrees-reference-results.json`), optimized and
+    unoptimized. Add one benchmark of calls on mid-sized values: a
+    24-byte string handle, a 16-byte two-field struct and a variant with
+    a 64-byte payload, each passed through a function that is not
+    inlined.
+  - **How to choose.** Take the candidate that is fastest overall, and
+    record the table of results in `docs/design/lowering.md` §9 beside
+    the rule.
+  - **Where to measure.** Run on the maintainer's machine, since timings
+    from a container are not comparable. Every candidate passes the
+    crashing case by address, because 65,535 pieces of 8 bytes is far
+    above 4096 bytes.
+- **Telling LLVM what the spec guarantees.** A by-address value parameter
+  carries `readonly` and `noalias`, and its alignment and
+  `dereferenceable` size. Nothing in the call writes what it borrows
+  (`memory.md` §2.9.1), so the optimizer may treat the pointed-to value as
+  a private copy. Leave `nocapture` off: a call spawned inside the callee
+  can hold the address for as long as it runs. An `sret` result carries
+  `noalias` and its alignment as well.
 - **Parameters.** When the argument is a place, the caller passes its
   address. Nothing in the call writes what it borrows (`memory.md`
   §2.9.1), so no copy is needed. Any other argument is built in a fresh
@@ -261,14 +300,23 @@ function, and why.
 Separate compilation is unaffected beyond this: the rule is a function of
 the type, so every object agrees on it.
 
-**Tests.** Add a library fixture with `consume(x Array<I64, 65536>)` built
-with `--object` (exits 0), and a program that passes and returns
-`Array<I64, 65536>` through ordinary calls, a function value and a spawned
-call, then checks the contents. Add a unit test that the backstop fires on
-a hand-built module.
+**Tests.**
+- **The crash.** Add a library fixture with `consume(x Array<I64, 65536>)`
+  built with `--object` (exits 0).
+- **Every kind of call.** Add a program that passes and returns
+  `Array<I64, 65536>` through ordinary calls, a function value and a
+  spawned call, then checks the contents.
+- **Both sides of the threshold.** Add a program that passes and returns
+  values just under and just over `by_address`, as a struct and as a
+  variant, so both conventions run in every build mode.
+- **The attributes.** Add a `--ll` check that a by-address parameter
+  carries the attributes above.
+- **The backstop.** Add a unit test that the backstop fires on a
+  hand-built module.
 
 **Docs.** `docs/design/lowering.md` §9 (large aggregates): the by-address
-convention and its threshold.
+convention, the attributes and why they hold, the threshold, and the
+measurements that chose it.
 
 ### F02: 32-bit and other unsupported layouts are accepted
 
