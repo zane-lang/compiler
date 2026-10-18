@@ -799,16 +799,26 @@ fault handler can flush it with only async-signal-safe calls.
   faulting thread was itself mid-print, it skips the flush and loses at
   most that buffer.
   - **A full pipe.** Claiming the buffer is not enough on its own: a
-    `write` to a pipe that is full and not being read blocks. On POSIX the
-    handler first calls `fstat` on fd 1.
-    - **Pipes and sockets.** If fd 1 is a pipe or a socket, the handler
-      calls `poll` with a zero timeout before each `write`, and writes a
-      single byte each time. A writable report promises room for some
-      data, not for any particular amount, and one byte is the most it
-      can promise. When `poll` says the fd is not writable, the rest of
-      the buffer is dropped. The loop is bounded by the buffer's size.
+    `write` to a pipe that is full and not being read blocks. `poll` cannot
+    rule that out: another process writing to the same pipe can fill it
+    between the `poll` and the `write`, and the `busy` flag only excludes
+    this process's threads. So the handler writes to a pipe or socket only
+    through a descriptor that cannot block, and drops the buffer when it
+    has none. It first calls `fstat` on fd 1.
+    - **Sockets.** It writes with `send` and `MSG_DONTWAIT`, and drops the
+      rest on `EAGAIN`.
+    - **Pipes on Linux.** It opens `/proc/self/fd/1` with
+      `O_WRONLY | O_NONBLOCK`. For a pipe this gives a new open file
+      description, so the flag affects no other process sharing the pipe.
+      It writes through that descriptor and drops the rest on `EAGAIN`.
+      `O_NONBLOCK` is never set on fd 1 itself, whose description other
+      processes share.
+    - **Pipes elsewhere.** macOS has no such reopening, so there the
+      handler drops the buffer for a pipe. The error message on stderr
+      still appears.
     - **Terminals and files.** Anything else is written in whole chunks.
-    - **Safety.** `fstat`, `poll` and `write` are all async-signal-safe.
+    - **Safety.** `fstat`, `open`, `send` and `write` are all
+      async-signal-safe.
   - **Windows.** A pipe there offers no way to ask whether a write would
     block. The handler writes the buffer only when `GetFileType` reports
     a terminal or a file, and drops it when stdout is a pipe.
