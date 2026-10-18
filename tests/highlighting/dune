@@ -1,4 +1,4 @@
 (executable
  (name parser_check)
  (modules parser_check)
- (libraries cst))
+ (libraries cst diagnostic))
