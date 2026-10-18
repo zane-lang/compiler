@@ -720,8 +720,10 @@ contexts.
 - **The audit's probe.** Add a runtime C test: record resident memory
   (`/proc/self/statm` on Linux, where the tests run), allocate 128 chunks
   in a scope and fill them, drain the scope, and let the context go idle.
-  Resident memory must fall back to within a few MiB of where it started,
-  where it stayed at 130 MiB before.
+  Resident memory must fall back to at most
+  `ZANE_POOL_WARM + ZANE_WARM_KEPT` MiB (the chunks the policy keeps warm
+  on purpose) plus a few MiB of slack above where it started. Before this
+  fix it stayed at 130 MiB.
 - **The counts.** Through an internal counter exposed to tests in
   `zane_internal.h`, at most 4 chunks stay warm on the context and at most
   16 in the pool.
@@ -814,11 +816,22 @@ cell width) per source character, and derive both rows from it:
   file name in every location form (`at_span`, and the file and directory
   cases of `render`) is escaped the same way. So is any source text quoted
   in a message: escape when rendering, not where messages are made.
-- **Widths (F03).** A character's cell width is 0 for combining marks, 2
-  for wide East Asian characters and emoji, 1 otherwise. Add `uucp` as a
-  dependency (`zane-compiler.opam`, `devbox.json`) and use
-  `Uucp.Break.tty_width_hint`, which is built for this. Invalid UTF-8
-  bytes are escaped like controls.
+- **Widths (F03).** Width is measured per grapheme cluster, the unit a
+  terminal draws as one glyph, not per code point.
+  - **Splitting the line.** The line is split into extended grapheme
+    clusters with `uuseg`, the segmenter built on `uucp`. Add both as
+    dependencies (`zane-compiler.opam`, `devbox.json`).
+  - **Ordinary clusters.** A cluster is as wide as its first code point by
+    `Uucp.Break.tty_width_hint`: 2 for wide East Asian characters, 1
+    otherwise. Combining marks and the rest of the cluster add nothing.
+  - **Emoji clusters.** A cluster that is an emoji sequence is 2 wide.
+    That covers a ZWJ sequence such as a family emoji, a pair of regional
+    indicators forming a flag, and a character followed by the emoji
+    presentation selector U+FE0F, such as `©` + U+FE0F.
+    `tty_width_hint` alone gets these wrong, since it sees one code point
+    at a time and calls some emoji one cell wide.
+  - **Invalid UTF-8.** Bytes that are not valid UTF-8 are escaped like
+    controls.
 - **Gutter (F04).** The caret row's gutter is spaces as wide as the line
   number, then ` | `, so it lines up for any number of digits.
 - **Header.** The `characters N-M` header keeps counting characters (code
@@ -826,6 +839,7 @@ cell width) per source character, and derive both rows from it:
 
 **Tests.** Add parser rejection goldens with an error after `é` written as
 `e` plus a combining mark, after a CJK string literal, after an emoji,
+after a ZWJ family emoji, after a flag, after `©` + U+FE0F,
 on line 10 and on line 100. Add a source line holding `ESC [ 2 J` inside a
 string literal before an error. Add a file name holding a control
 character. Read every existing golden's diff by eye; only the cases above
