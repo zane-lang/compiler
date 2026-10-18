@@ -349,6 +349,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
 | `--fixed-region BYTES` | the size of the main context's range of frames, a whole number of MiB, 256 MiB when absent (§9) |
 | `--spawned-fixed-region BYTES` | the size of each spawned call's range of frames, a whole number of MiB, 8 MiB when absent (§9) |
+| `--pack-aggregates` | passes an aggregate that fits in the registers a call gives it as packed 8-byte words rather than as itself or by address; off by default, an option to measure (§9) |
 
 `zanec --rewrite STAMP INPUT OUTPUT` takes no packages: it writes the
 library object `INPUT` to `OUTPUT` with its `!` placeholder turned into
@@ -806,25 +807,87 @@ test passing.
 - **String escapes.** The spec names none, and the lexer keeps a backslash
   with the character after it. Lowering decodes `\n`, `\t`, `\r` and `\0`, and
   any other pair stands for its second character, until the spec says.
-- **Values by value, for now.** L6 passes a value struct or sum by the
-  address of the caller's slot and L7 has a result written into a
-  destination the caller names. Lowering passes and returns value types as
-  LLVM aggregate values instead, which copies what L6 would lend; a value
-  parameter cannot be written, and nothing else in the call may write what
-  it borrows (memory.md §2.9.1), so nothing observes the difference. A
-  reference-type result, and a `^T` argument, are passed the same way, and
-  arrive where the caller or the callee holds them, their blocks staying
-  where they are unless the arrival is an escape. A `mut` subject, a
-  reference-type subject and a borrowed reference-type argument are passed
-  by address.
+- **How a value crosses a call.** L6 lends a value parameter by the address
+  of the caller's slot and L7 has a result written into a destination the
+  caller names. Lowering passes and returns value types, a reference-type
+  result and a `^T` argument as values in the CGT, and codegen decides per
+  type how each crosses (`Emit.passing`, beside `fn_type`), the way clang,
+  rustc and swiftc keep a small aggregate in registers and pass a large one
+  by pointer. A `mut` subject, a reference-type subject and a borrowed
+  reference-type argument are addresses already.
+  - **The count.** A type takes as many registers as the scalar pieces LLVM
+    splits it into (`Emit.pieces`): a struct's and a sum's are its members',
+    a sum's tag and each word of its payload room one apiece, an array's its
+    element's times its length, and `Unit` none. It is counted on the CGT
+    type, not LLVM's, so it cannot depend on the data layout, and worked out
+    once per type. `{ I32; I32; I32; I32; }` is 16 bytes but 4 registers; a
+    string or list handle is 3.
+  - **The limit.** A value of no more pieces than the target's C calling
+    convention gives one aggregate passes as itself: 2 on x86-64 Linux and
+    macOS and on AArch64, and 1 on x86-64 Windows (`Emit.registers`). A
+    larger one passes by address, and a larger result is written through a
+    leading `sret` pointer to a fresh slot of the caller's. The choice is
+    made per signature while compiling, so no call branches on it, and a
+    function value's call (L14) follows the same rule, since it depends only
+    on the type and the target. Objects for different targets never link,
+    so every object a program links agrees on it.
+  - **The address passed.** An argument that is a place, a local or what an
+    address names, is lent where it is: nothing else in the call writes what
+    the call borrows ([`memory.md`](https://github.com/zane-lang/spec/blob/1d11ea4/spec/memory.md) §2.9.1), so no copy is needed. A
+    call that returns by address writes straight into a fresh slot, and any
+    other value is stored in a fresh slot of the caller's frame first. The
+    callee uses the pointer as the parameter's slot. Lowering never writes a
+    parameter's own slot, a borrow being read-only and a `^T` parameter held
+    in a slot of the body's own first, and codegen stops with an internal
+    error if one does (`Emit.unwritten`).
+  - **What LLVM is told.** A parameter passed by address is `readonly` and
+    `noalias`, with its alignment and `dereferenceable` for its whole size:
+    nothing in the call writes what it borrows, so the optimizer may treat
+    the value behind it as a private copy. It is not `nocapture`, since a
+    call the callee spawns can hold the address for as long as it runs. An
+    `sret` result is `noalias` and aligned, its slot being one nothing else
+    names. Each call site carries the same attributes as the function.
+  - **Packing, an option.** `--pack-aggregates` passes an aggregate that fits
+    in the registers a call gives it as that many 8-byte words, every word
+    an integer, as clang passes a small C struct: the caller stores the value
+    in a slot of words and passes them, and the callee stores them back into
+    one it uses as the parameter's slot. `{ I8; I8; I8; }` then takes one
+    register and `{ I32; I32; I32; I32; }` two, so on a two-register target
+    both travel in registers, and on x86-64 Windows only the first. It costs
+    a few instructions around each call. The option is off by default, and
+    every object a program links must be built with it or without it alike,
+    since it changes how a call crosses. It is kept only if the benchmark
+    below is faster with it on some target and slower on none; following
+    the platform's separate floating-point registers is a further variant,
+    to measure only if packing is kept.
+  - **Measuring.** `just bench-abi` (`dev/bin/abi-bench`) builds the spec
+    repo's `langbench/` programs, the binarytrees reference among them
+    (depth 16, as in
+    [`binarytrees-reference-results.json`](binarytrees-reference-results.json)),
+    and `dev/bench/calls`, which makes non-inlined calls on a 16-byte
+    two-field struct, a three-byte struct, a string handle and a variant with
+    a 64-byte payload. It builds them with the compiler before this rule
+    (main before audit batch 3), with the rule, and with the rule and
+    packing, optimized and unoptimized, checks every output, and prints the
+    medians. On Windows, from WSL2:
+    `ZANE_CC=dev/bin/zig-cc just bench-abi --target x86_64-windows-gnu`. The
+    expected result is that the rule is no slower than the compiler before
+    it; a benchmark that is slower is to be understood before the limit
+    changes. The measurement, and with it the decision whether packing is
+    kept, waits on the maintainer's run of that recipe on each first-tier
+    target, since timings from a container are not comparable; the table
+    goes here when it is made.
+  - **The backstop.** Before the target machine sees a module,
+    `lib/codegen/big_moves.ml` checks every defined and declared function's
+    parameter and return types, and reports one still too large to move as
+    one value as an internal error: the rule above makes it unreachable.
 - **Large aggregates as memory.** LLVM's code generator gives one value at
   most 65,535 parts, and is slow well before that. Before the target machine
   sees a module, `lib/codegen/big_moves.ml` turns each load of an aggregate of
   4 KiB or more whose only uses are stores into a copy per store (a
   `memmove` when it reads the source directly, since `xs[i] = xs[j]` may
-  name one element twice), and a
-  value still too large to move whole, passed or returned, is reported as a
-  limit rather than handed to LLVM.
+  name one element twice), and a value still too large to move whole inside
+  a function is reported as a limit rather than handed to LLVM.
 - **A type's size is limited.** A type takes fewer than `2^48` bytes, the
   addresses the runtime's chunk map covers ([`platforms.md`](platforms.md),
   "Address range supported by the runtime"), and no more than the main
