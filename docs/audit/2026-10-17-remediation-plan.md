@@ -570,12 +570,17 @@ cap them in total.
   `mutable output_count : int`.
 - `Print` charges the text's length through the existing `bytes`
   function, and adds the length and one entry to the two counters.
+- Every output entry weighs its text's length plus one, including a
+  `Print ""` and the `Set_threads` and `Set_threads_auto` entries, which
+  carry no text. That weight is what the cap below measures, so a list of
+  empty outputs cannot grow without bound.
 - A memo entry stores its output list together with that list's count and
   bytes, computed once when it is recorded. Replay charges both through
   `bytes` before the `rev_append`, so a replay costs what producing the
   output cost.
-- When `output_bytes` exceeds `Materialize.max_size` (the most a folded
-  result may materialize to), the run stops with
+- When the run's total output weight, `output_bytes + output_count`,
+  exceeds `Materialize.max_size` (the most a folded result may
+  materialize to), the run stops with
   `stop "output too large to fold"`. The fold then falls back to the
   running program, as it does for any other stop.
 - A call whose output exceeds the same cap is not memoized, so the memo
@@ -584,7 +589,9 @@ cap them in total.
 **Tests.** Add an optimizer unit test: a function that calls its previous
 level twice and prints once at the base, 40 levels deep, folds or stops
 quickly under a small heap limit, and the optimized program's output
-matches the unoptimized one. Add a codegen fixture with the same program
+matches the unoptimized one. Run it twice, once printing a word at the
+base and once printing `""`, so the cap is shown to fire on entries that
+carry no bytes. Add a codegen fixture with the same program
 at a size that runs, both builds held to one golden.
 
 **Docs.** `docs/design/optimization.md` O6: outputs are charged, replay
@@ -734,7 +741,9 @@ back, and whether a delay was kept, with the measurements.
 **Fix.** Make the program's output buffer the runtime's own, so that the
 fault handler can flush it with only async-signal-safe calls.
 - **Buffer.** `runtime/block.c`'s print writes into a runtime buffer
-  (64 KiB) instead of `stdout`. The buffer is guarded by a mutex for
+  instead of `stdout`. Its size is what stdio would choose for stdout
+  today: the `st_blksize` that `fstat(1)` reports, or `BUFSIZ` when that
+  is unavailable (and `BUFSIZ` on Windows). The buffer is guarded by a mutex for
   ordinary writers, plus an atomic `busy` flag that a writer sets while it
   holds the buffer.
 - **Flush.** The buffer is flushed with `write(1, ...)` in a loop
@@ -743,18 +752,29 @@ fault handler can flush it with only async-signal-safe calls.
   runtime checks whether stdout is a terminal (`isatty`, `_isatty` on
   Windows). If it is, every print that writes a newline flushes the
   buffer, so a long-running program's progress lines and a prompt before
-  waiting appear at once. Otherwise output is flushed only when the
-  buffer fills or the program ends. A full buffer flushes in either
-  case.
+  waiting appear at once. Otherwise output is flushed when the buffer
+  fills or the program ends. Since the buffer has stdio's size, a piped
+  program's output reaches its reader at the same points it does now. A
+  full buffer flushes in either case.
 - **Normal paths.** The exit path in `runtime/main.c` flushes the buffer
   and tests the error flag in place of `fflush(stdout)` and `ferror`. So
   do `zane_broken` and the index-out-of-range path.
 - **Fault path.** `zane_stop` with `flush_stdout` claims the buffer with
-  an atomic compare-and-swap on `busy`. If it gets it, it writes the
-  buffered bytes with `write(1)`. If another thread holds it, or the
+  an atomic compare-and-swap on `busy`. If another thread holds it, or the
   faulting thread was itself mid-print, it skips the flush and loses at
-  most that buffer. It never blocks. The commit-failure path can then
-  flush the same way, which it does not do now.
+  most that buffer.
+  - **A full pipe.** Claiming the buffer is not enough on its own: a
+    `write` to a pipe that is full and not being read blocks. On POSIX the
+    handler therefore writes in chunks of at most `PIPE_BUF` bytes, and
+    calls `poll` on fd 1 with a zero timeout before each. Both calls are
+    async-signal-safe, and a pipe that `poll` reports writable has room
+    for `PIPE_BUF` bytes, so no write blocks. When `poll` says the fd is
+    not writable, the rest of the buffer is dropped.
+  - **Windows.** A pipe there offers no way to ask whether a write would
+    block. The handler writes the buffer only when `GetFileType` reports
+    a terminal or a file, and drops it when stdout is a pipe.
+  - **Commit failure.** That path can then flush the same way, which it
+    does not do now.
 - **Remaining stdio.** Nothing else in the runtime writes to `stdout`.
   `fprintf(stderr, ...)` calls outside the handler stay.
 
@@ -763,12 +783,18 @@ fixtures still show the output printed before the error. Add a runtime C
 test that overflows the stack in one thread while another prints in a
 loop; it must exit 1 with the message, not hang, across many runs under
 the test's timeout. Add a test that a write error on stdout (stdout
-closed or a full pipe) still gives exit 1. Add a runtime C test that runs
+closed) still gives exit 1. Add a test that overflows the stack while
+stdout is a full pipe that nothing reads. It must stop with exit 1 and
+the message on stderr within the timeout, dropping the buffered output
+and not blocking. Add a runtime C test that runs
 a child on a pseudo-terminal (`forkpty`): the child prints one line and
 then blocks on a pipe. The parent must read that line from the terminal
 before it releases the child, which shows that terminal output is
 flushed at each newline and not only at exit. The same test with a pipe
-in place of the terminal checks that nothing is flushed early there.
+in place of the terminal checks two things. Output smaller than the
+buffer is not flushed early. Output of exactly the buffer's size
+(`st_blksize`) reaches the reader while the child still blocks, as it
+does under stdio today.
 
 **Docs.** `docs/design/lowering.md` §9 and `platforms.md` ("Machine stack
 sizes"): the buffer, and what the fault handler flushes.
