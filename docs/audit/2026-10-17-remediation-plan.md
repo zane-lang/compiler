@@ -402,8 +402,11 @@ still accepted.
   error. No such value can be placed, since the runtime's chunk map covers
   48-bit addresses (`docs/design/platforms.md`, "Address range").
 - **Checked arithmetic.** `Nodes.Ty.size_align` (`lib/cgt/nodes.ml`),
-  `Type_layout.stride` and `Frames.layout` use addition and multiplication
-  that fail on overflow and on reaching the limit. The failure becomes a
+  `Type_layout.stride` and `Frames.layout` check each step against the
+  limit before taking it. A product `stride * n` is formed only after
+  `n <= limit / stride` holds, and a sum `a + b` only after
+  `a <= limit - b`, so no step can overflow on the way to the check. The
+  failure becomes a
   lowering `Refused` diagnostic at the span of the declaration or use that
   names the type: "`Array<I64, 4294967296>` takes 32 GiB, which the
   `--fixed-region` cannot hold" when it exceeds the region, and "takes
@@ -420,15 +423,19 @@ still accepted.
 
 **Tests.** Add rejection fixtures for `Array<I64, 4294967296>` (larger
 than the region), `Array<I64, 1152921504606846976>` (`2^60`, past the
-limit) and a nested `Array<Array<I64, 65536>, 65536>`. Add a library
-unit test that lowers the CGT type `Ty.Array (I8, 4294967297)` through
+limit) and a nested `Array<Array<I64, 65536>, 65536>`. Add a unit test that lowers the CGT type `Ty.Array (I8, 4294967297)` through
 `Emit.lltype` and reads the count back with the new
 `LLVMGetArrayLength2` stub, to show that the LLVM type has the full count.
 A fixture cannot show it: an array behind a reference lowers to a plain
 pointer, and an array held by value of that size is past the fixed-region
 check. Add a unit test for the checked `size_align`.
 
-**Docs.** `docs/design/lowering.md` §9 and `platforms.md`: the size limit.
+**Docs.** `docs/design/lowering.md` §9 and `platforms.md`: the size
+limit. In `platforms.md` the limit goes under "Address range supported by
+the runtime", which already explains that the chunk map indexes the low
+48 bits and how supporting higher addresses would extend it. The type
+size limit is tied to that bound, so it rises if the chunk map is
+extended.
 
 ## Batch 4: termination of semantics
 
@@ -816,6 +823,10 @@ fixture and generated rule unchanged. CI's file-size check
   `lib/cgt/traverse.ml`, exported from `cgt.ml`.
 - `lib/optimize/fold.ml` drops its own child and body inventories and
   uses `Cgt.Traverse`.
+- A traversal that only reads the tree uses `parts` or `walk`, never
+  `map`. `map` rebuilds every node it visits, so a read-only query through
+  it allocates a copy of the tree for nothing. Moving the functions is a
+  chance to check each caller for this.
 - Each analysis keeps only what is specific to it.
 
 **Tests.** Add a unit test per traverse module: on one node of each
