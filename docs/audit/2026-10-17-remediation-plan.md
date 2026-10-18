@@ -1040,8 +1040,9 @@ it in stages, each of them a PR:
   file with no fixture, each failed `dune runtest`, naming the file. The
   codegen README states the rule. A golden file that a hand-written rule
   in the directory's `dune` compares against is the only kind the pairing
-  leaves alone, so a misnamed `golden/project.app.chek` also failed
-  `dune runtest`, naming it.
+  leaves alone, and a rule commented out with `;` counts for nothing, so a
+  misnamed `golden/project.app.chek`, and `project.app.check` with its rule
+  commented out, each failed `dune runtest`, naming the file.
 - **F26** (`853ab75`). `gen_rules` writes each codegen run rule twice,
   under `(setenv ZANE_CHECK 1 ...)` and `(setenv ZANE_CHECK 0 ...)`, both
   diffed against the same golden file: 168 runs for the 42 programs. The

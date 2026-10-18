@@ -210,24 +210,25 @@ let fixtures = function
       List.filter (fun f -> f <> "fixtures/reject") (entries "fixtures") @ entries "fixtures/reject"
 
 (* The golden files the directory's own dune file compares against, which
-   Fixture_pairing leaves to those hand-written rules. *)
+   Fixture_pairing leaves to those hand-written rules. A line's `;` comment is
+   dropped first, so a rule commented out exempts nothing. *)
 let hand_written () =
-  if not (Sys.file_exists "dune") then []
-  else
-    let text = In_channel.with_open_bin "dune" In_channel.input_all in
-    let marker = "(diff golden/" in
-    let rec scan from found =
-      match String.index_from_opt text from '(' with
-      | None -> found
-      | Some i
-        when i + String.length marker <= String.length text
-             && String.sub text i (String.length marker) = marker ->
-          let start = i + String.length marker in
-          let stop = String.index_from text start ' ' in
-          scan stop (String.sub text start (stop - start) :: found)
-      | Some i -> scan (i + 1) found
+  let marker = "(diff golden/" in
+  let golden line =
+    let line = match String.index_opt line ';' with Some i -> String.sub line 0 i | None -> line in
+    let rec find i =
+      if i + String.length marker > String.length line then None
+      else if String.sub line i (String.length marker) = marker then
+        let start = i + String.length marker in
+        let stop = Option.value (String.index_from_opt line start ' ') ~default:(String.length line) in
+        Some (String.sub line start (stop - start))
+      else find (i + 1)
     in
-    scan 0 []
+    find 0
+  in
+  if Sys.file_exists "dune" then
+    List.filter_map golden (In_channel.with_open_bin "dune" In_channel.input_lines)
+  else []
 
 let () =
   let suite, rules =
