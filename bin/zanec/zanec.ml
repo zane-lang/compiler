@@ -93,14 +93,9 @@ let read = function
 
 (* A package name as lexical.md §3 spells one: camelCase, so a lowercase
    letter and then letters and digits, after a leading `_` when the package
-   is private to its project (§4.2, packages.md §4.4). *)
-let is_package_name name =
-  let rest =
-    if String.starts_with ~prefix:"_" name then String.sub name 1 (String.length name - 1) else name
-  in
-  rest <> ""
-  && (match rest.[0] with 'a' .. 'z' -> true | _ -> false)
-  && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> true | _ -> false) rest
+   is private to its project (§4.2, packages.md §4.4). Letters are Unicode
+   ones, as in source, so the lexer itself decides. *)
+let is_package_name = Cst.is_lower_identifier
 
 (* A range of frames is a whole number of MiB, at least one, since the
    runtime makes it usable a MiB at a time. *)

@@ -43,7 +43,7 @@ identical to the previous grammar.
 | Generated output | Consumer |
 |---|---|
 | `lib/cst/parser.mly` | Menhir / Dune and the existing ambiguity/proof tools |
-| `lib/cst/lexer.ml` | Sedlex / Dune |
+| `lib/cst/lexer.ml` | Sedlex / Dune; its `is_lower_identifier` classifies the package names `zanec` options give |
 | `editors/tree-sitter-zane/grammar.js` | Tree-sitter CLI |
 | `editors/tree-sitter-zane/conflicts.json` | Generated discovery report with rule groups, example prefixes and lookahead tokens |
 | `editors/tree-sitter-zane/queries/highlights.scm` | Neovim and Tree-sitter highlighting |
