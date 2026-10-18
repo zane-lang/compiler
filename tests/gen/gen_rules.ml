@@ -6,7 +6,10 @@
    them.
 
    It runs in the directory it writes rules for, and the golden files decide
-   which rules there are:
+   which rules there are. Every fixture must have a golden file, and every
+   golden file a fixture: it stops, naming the file, at one without the
+   other (fixture_pairing.ml), so no fixture goes untested and no golden
+   file outlives its fixture.
 
    - codegen: `golden/NAME.cgt` prints fixture NAME's code-generation tree,
      `golden/NAME.optimized.cgt` the tree an optimized build makes of it,
@@ -189,13 +192,30 @@ let runtime () =
       diff (name ^ ".out") (name ^ ".out.actual"))
     (List.filter_map (chop_suffix ~suffix:".c") (sorted "."))
 
+(* What a directory holds to be tested, named as Fixture_pairing names it:
+   the semantics builds whose rules are written by hand are left out. *)
+let fixtures = function
+  | Fixture_pairing.Runtime -> List.filter (fun f -> Filename.check_suffix f ".c") (sorted ".")
+  | Semantics -> List.map (Filename.concat "fixtures/typing") (sorted "fixtures/typing")
+  | Codegen | Parser ->
+      let entries dir = List.map (Filename.concat dir) (sorted dir) in
+      List.filter (fun f -> f <> "fixtures/reject") (entries "fixtures") @ entries "fixtures/reject"
+
 let () =
-  print_string "; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.\n\n";
-  match Sys.argv with
-  | [| _; "codegen" |] -> codegen ()
-  | [| _; "parser" |] -> parser ()
-  | [| _; "runtime" |] -> runtime ()
-  | [| _; "semantics" |] -> semantics ()
-  | _ ->
-      prerr_endline "usage: gen_rules (codegen|parser|runtime|semantics)";
-      exit 2
+  let suite, rules =
+    match Sys.argv with
+    | [| _; "codegen" |] -> (Fixture_pairing.Codegen, codegen)
+    | [| _; "parser" |] -> (Parser, parser)
+    | [| _; "runtime" |] -> (Runtime, runtime)
+    | [| _; "semantics" |] -> (Semantics, semantics)
+    | _ ->
+        prerr_endline "usage: gen_rules (codegen|parser|runtime|semantics)";
+        exit 2
+  in
+  match Fixture_pairing.check suite ~fixtures:(fixtures suite) ~goldens:(sorted "golden") with
+  | [] ->
+      print_string "; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.\n\n";
+      rules ()
+  | errors ->
+      List.iter (fun e -> prerr_endline ("gen_rules: " ^ e)) errors;
+      exit 1

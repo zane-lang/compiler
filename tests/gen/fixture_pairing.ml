@@ -1,0 +1,53 @@
+(* Which fixture each golden file of a test directory holds the expectation
+   of, so that a fixture with no golden file, or a golden file whose fixture
+   is gone, stops tests/gen/gen_rules.ml rather than leaving a program
+   untested. Every fixture is tested, so neither has an opt-out.
+
+   A fixture is named by its path in the directory: `fixtures/NAME` for a
+   codegen package, `fixtures/reject/NAME` for one lowering refuses,
+   `fixtures/NAME.zn` and `fixtures/reject/NAME.zn` for a parser source,
+   `fixtures/typing/NAME` for a semantics build, and `NAME.c` for a runtime
+   test. *)
+
+type suite = Codegen | Parser | Runtime | Semantics
+
+(* The fixture [golden] holds the expectation of: [Ok None] for a golden
+   file whose rule is written by hand, and [Error] for one no rule makes. *)
+let fixture suite golden =
+  match (suite, String.split_on_char '.' golden) with
+  | Codegen, ([ name; ("cgt" | "out") ] | [ name; "optimized"; "cgt" ]) ->
+      Ok (Some ("fixtures/" ^ name))
+  | (Codegen | Parser), [ "reject"; name; "err" ] ->
+      Ok (Some ("fixtures/reject/" ^ name ^ if suite = Parser then ".zn" else ""))
+  | Parser, [ name; _stage; ("spans" | "tree") ] -> Ok (Some ("fixtures/" ^ name ^ ".zn"))
+  | Runtime, [ name; "out" ] -> Ok (Some (name ^ ".c"))
+  | Semantics, ([ "typing"; name; ("decls" | "tst" | "err") ] | [ "typing"; name; "tst"; "spans" ])
+    ->
+      Ok (Some ("fixtures/typing/" ^ name))
+  | Semantics, ("assembly" | "project") :: _ -> Ok None
+  | _ -> Error (Printf.sprintf "no rule makes golden/%s" golden)
+
+(* Every way [fixtures] and [goldens] fail to pair, in name order, each
+   naming the file: a golden file no rule makes or whose fixture does not
+   exist, then a fixture no golden file holds the expectation of. *)
+let check suite ~fixtures ~goldens =
+  let goldens = List.sort compare goldens and fixtures = List.sort compare fixtures in
+  let paired = List.map (fun g -> (g, fixture suite g)) goldens in
+  let orphan_goldens =
+    List.filter_map
+      (fun (golden, fixture) ->
+        match fixture with
+        | Error message -> Some message
+        | Ok (Some f) when not (List.mem f fixtures) ->
+            Some (Printf.sprintf "golden/%s is for %s, which does not exist" golden f)
+        | Ok _ -> None)
+      paired
+  in
+  let orphan_fixtures =
+    List.filter_map
+      (fun f ->
+        if List.exists (fun (_, fixture) -> fixture = Ok (Some f)) paired then None
+        else Some (Printf.sprintf "%s has no golden file" f))
+      fixtures
+  in
+  orphan_goldens @ orphan_fixtures

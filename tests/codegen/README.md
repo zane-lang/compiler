@@ -18,10 +18,14 @@ block still out in the region afterwards stops the program
 (docs/design/lowering.md §9). A program built for use releases a region in
 bulk and checks nothing.
 
-The rules are written by `tests/gen/gen_rules.ml` into `dune.inc`. To add a
-fixture, add its directory and an empty golden file, run `dune runtest`,
-check the new rules in the `dune.inc` diff and `dune promote`, then run it
-again, read the golden diff and promote that.
+The rules are written by `tests/gen/gen_rules.ml` into `dune.inc`. Every
+fixture has at least one golden file, and every golden file names a fixture
+that exists: the generator stops at either kind of orphan and names it, as it
+does in `tests/parser/`, `tests/runtime/` and the `typing` builds of
+`tests/semantics/`. A fixture is tested or it is deleted; none is kept and
+skipped. To add a fixture, add its directory and an empty golden file, run
+`dune runtest`, check the new rules in the `dune.inc` diff and `dune promote`,
+then run it again, read the golden diff and promote that.
 
 ## Fixtures
 

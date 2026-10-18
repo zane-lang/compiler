@@ -4,14 +4,15 @@
 ; codegen tunes for. The golden suites test the same code end to end; these
 ; say which helper broke, rather than where in a golden file the difference
 ; surfaced. They also check that semantics run twice in one process gives the
-; same tree (it keeps no numbering from one check to the next).
+; same tree (it keeps no numbering from one check to the next), and that the
+; test rules' generator pairs every fixture with a golden file.
 ;
 ; Overloads, State, Type_layout, Emit and stage 5's modules are not re-exported by their libraries'
 ; entry modules, so they are reached by the names dune gives them.
 
 (test
  (name unit)
- (libraries cgt codegen diagnostic optimize source tree_graph tst)
+ (libraries cgt codegen diagnostic fixture_pairing optimize source tree_graph tst)
  (deps
   ../../runtime/zane.h
   (source_tree ../codegen/fixtures/lambdas)))

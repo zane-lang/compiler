@@ -60,7 +60,7 @@
 (include dune.inc)
 
 (rule
- (deps (glob_files golden/*))
+ (deps (glob_files golden/*) (source_tree fixtures))
  (action
   (with-stdout-to
    dune.inc.gen
