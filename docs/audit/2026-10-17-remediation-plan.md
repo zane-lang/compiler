@@ -154,7 +154,10 @@ unchecked.
   committed outputs, as it does now.
 - A probe whose output contains `== build failed` or
   `== the optimized build differs` fails `--check` unless its directory
-  holds an `EXPECTED` file that names that outcome and says why.
+  holds an `EXPECTED` file that names that outcome and says why. The file
+  only permits the outcome. What the probe printed must still match its
+  committed `NAME.out` exactly, so a different failure in the same probe
+  fails the diff.
 - `just test-compiler` and the CI job that runs it call
   `tests/memory-probes/run --check` after `dune build`. Before the gate is
   enabled, run it twice in a row to confirm that no probe prints anything
@@ -302,7 +305,10 @@ address.
   and unpacking them in the callee, as clang does.
   - **What it changes.** The count becomes the number of words:
     `{ I8; I8; I8; }` then needs 1 register and `{ I32; I32; I32; I32; }`
-    needs 2, so both travel in registers instead of by address.
+    needs 2. On targets with a two-register limit both then travel in
+    registers instead of by address. On x86-64 Windows, with its limit of
+    one, only the first does, and the four-`I32` struct still goes by
+    address.
   - **What it costs.** A few instructions to combine and split fields
     around each call.
   - **The decision.** Keep it only if the benchmark below is faster with
@@ -794,11 +800,15 @@ fault handler can flush it with only async-signal-safe calls.
   most that buffer.
   - **A full pipe.** Claiming the buffer is not enough on its own: a
     `write` to a pipe that is full and not being read blocks. On POSIX the
-    handler therefore writes in chunks of at most `PIPE_BUF` bytes, and
-    calls `poll` on fd 1 with a zero timeout before each. Both calls are
-    async-signal-safe, and a pipe that `poll` reports writable has room
-    for `PIPE_BUF` bytes, so no write blocks. When `poll` says the fd is
-    not writable, the rest of the buffer is dropped.
+    handler first calls `fstat` on fd 1.
+    - **Pipes and sockets.** If fd 1 is a pipe or a socket, the handler
+      calls `poll` with a zero timeout before each `write`, and writes a
+      single byte each time. A writable report promises room for some
+      data, not for any particular amount, and one byte is the most it
+      can promise. When `poll` says the fd is not writable, the rest of
+      the buffer is dropped. The loop is bounded by the buffer's size.
+    - **Terminals and files.** Anything else is written in whole chunks.
+    - **Safety.** `fstat`, `poll` and `write` are all async-signal-safe.
   - **Windows.** A pipe there offers no way to ask whether a write would
     block. The handler writes the buffer only when `GetFileType` reports
     a terminal or a file, and drops it when stdout is a pipe.
