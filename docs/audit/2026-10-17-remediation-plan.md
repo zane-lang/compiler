@@ -9,8 +9,8 @@ is the report's.
 Each finding has its own entry: the **fix** and where it goes, the
 **tests** that prove it and guard it, and the **docs** that change with it.
 Every fix ships with its tests and docs in the same change. Three findings
-call for a decision before they are built. The section "Decisions to make
-first" lists them, each with a recommendation.
+called for a design decision. The section "Design decisions" records each
+one and why it was made.
 
 ## Order of work
 
@@ -34,7 +34,7 @@ Batches 2 to 7 are independent of one another once batch 1 is in. In batch
 8, F22 comes before F25, because the fixed point's dependency tracking
 uses the shared traversals.
 
-## Decisions to make first
+## Design decisions
 
 1. **F16: which generic types are ill-formed.** *Decided:* reject them at
    the declaration. A type whose instance must hold an
