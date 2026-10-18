@@ -1071,7 +1071,15 @@ it in stages, each of them a PR:
   `ZANE_CC=false`: it fails without an `EXPECTED` file, still fails with
   one that gives no reason, and with a reason fails only on the output
   diff. `docs/memory-semantics-findings.md` and the justfile comment for
-  `test-compiler` say how the probes are gated.
+  `test-compiler` say how the probes are gated. Added in review:
+  `tests/memory-probes/reclaim.py --check`, also run by `test-compiler`,
+  fails when an allocating loop's peak RSS grows by more than 1 MiB from
+  10,000 to 1,000,000 iterations, or when the leaking control grows by less
+  than 16 MiB. Peak RSS differs between machines (12,956 KiB in
+  `reclaim.out`, 13,780 KiB in a cloud container for the same case), so it
+  compares each case's two runs rather than `reclaim.out`. Measured growth
+  stayed within about 120 KiB, and the control grew about 28 MiB. Treating
+  the control as an ordinary loop made the check fail with exit status 1.
 
 Verified on the batch's head with `devbox run -- just test-compiler`
 (including the new probe gate), `just test` (the grammar-generation part

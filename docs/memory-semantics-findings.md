@@ -18,7 +18,12 @@ the committed files alone and fails when a probe's output differs from its
 `NAME.out`. It also fails on a probe whose build failed or whose optimized
 build differs, unless the probe's directory holds an `EXPECTED` file whose
 first line names that outcome and whose remaining lines say why; the file
-only permits the outcome, and the output must still match.
+only permits the outcome, and the output must still match. The same recipe
+runs `tests/memory-probes/reclaim.py --check`, which fails when an allocating
+loop's peak RSS grows by more than 1 MiB from 10,000 to 1,000,000 iterations,
+or when the leaking control grows by less than 16 MiB. It compares each case's
+two runs with each other, because peak RSS differs between machines;
+`reclaim.out` records one machine's numbers.
 
 To rerun them: `dune build bin/zanec/zanec.exe`, then
 `tests/memory-probes/run [NAME...]` for the programs and
