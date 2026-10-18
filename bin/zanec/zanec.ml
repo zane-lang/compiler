@@ -325,50 +325,6 @@ let run_packages build =
           Ok ()
       | _ -> generate packages build program)
 
-(* The output is written only once the whole object has been rewritten, so a
-   malformed input leaves nothing behind. It is written beside OUTPUT and
-   renamed into place, so a failed write leaves an existing OUTPUT, or the
-   INPUT it may be, as it was. *)
-let run_rewrite ~stamps ~rewrite ~input ~output =
-  let fail message = Driver.fail [ Diagnostic.about_invocation message ] in
-  let not_stamp stamp =
-    Printf.sprintf
-      "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
-      stamp
-  in
-  match List.find_opt (fun stamp -> not (Rewrite.is_stamp stamp)) stamps with
-  | Some stamp -> fail (not_stamp stamp)
-  | None -> (
-      match stamps with
-      | [ from; to_ ] when not (Rewrite.same_package from to_) ->
-          fail
-            (Printf.sprintf
-               "`%s` and `%s` are versions of two packages, since their identity hashes differ; \
-                remapping moves references between versions of one package"
-               from to_)
-      | _ -> (
-          match In_channel.with_open_bin input In_channel.input_all with
-          | exception Sys_error message -> fail message
-          | contents -> (
-              match rewrite contents with
-              | Error message -> fail (input ^ ": " ^ message)
-              | Ok (rewritten, _) -> (
-                  Random.self_init ();
-                  let temporary =
-                    Filename.concat (Filename.dirname output)
-                      (Printf.sprintf ".%s.%08x" (Filename.basename output) (Random.bits ()))
-                  in
-                  try
-                    Out_channel.with_open_gen
-                      [ Open_wronly; Open_creat; Open_excl; Open_binary ]
-                      0o666 temporary
-                      (fun oc -> output_string oc rewritten);
-                    Sys.rename temporary output;
-                    Ok ()
-                  with Sys_error message ->
-                    (try Sys.remove temporary with Sys_error _ -> ());
-                    fail (Printf.sprintf "cannot write `%s`: %s" output message)))))
-
 (* The one place the binary exits: 0 when the run did what it was asked,
    1 when the compiler refused the program, 2 for a command it cannot run,
    and 3 for a broken invariant, the compiler's own fault. Any other
@@ -385,9 +341,11 @@ let () =
         | File (stage, input) -> run_file stage input
         | Packages build -> run_packages build
         | Rewrite { stamp; input; output } ->
-            run_rewrite ~stamps:[ stamp ] ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
+            Driver.rewrite_object ~random:(Random.State.make_self_init ()) ~stamps:[ stamp ]
+              ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
         | Remap { from; to_; input; output } ->
-            run_rewrite ~stamps:[ from; to_ ] ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output
+            Driver.rewrite_object ~random:(Random.State.make_self_init ()) ~stamps:[ from; to_ ]
+              ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output
       in
       match result with
       | Ok () -> 0

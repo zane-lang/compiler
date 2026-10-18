@@ -66,3 +66,22 @@ val object_file :
   Cgt.Nodes.Program.t ->
   string ->
   (unit, failure) result
+
+(** The name of a file beside the output to write it under first, drawn
+    from the random source. *)
+val temporary_name : Random.State.t -> string -> string
+
+(** [rewrite_object ~stamps ~rewrite ~input ~output] writes [output] as
+    [rewrite] makes it from [input]'s contents, once each of [stamps] is a
+    stamp and, for two, they are versions of one package (`--rewrite` and
+    `--remap`, docs/design/separate-compilation.md C9, C11). The object is
+    written beside [output] under a name drawn from [random] and renamed into
+    place, so a failure leaves an existing [output] as it was; a name that
+    is already taken is left alone and another drawn, up to eight. *)
+val rewrite_object :
+  random:Random.State.t ->
+  stamps:string list ->
+  rewrite:(string -> (string * 'a, string) result) ->
+  input:string ->
+  output:string ->
+  (unit, failure) result
