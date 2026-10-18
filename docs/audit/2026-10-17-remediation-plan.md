@@ -1014,3 +1014,77 @@ it in stages, each of them a PR:
   build and run cleanly; those for F02 and F18 give a diagnostic. Record
   each in an "Outcome" section appended to this file, finding by finding,
   with the commit that closed it.
+
+## Outcome
+
+### Batch 1: test gates
+
+- **F12** (`700fd70`). `assert_rejects` in `tests/parser/syntax_test.py`
+  requires exit status 1 and a non-empty stderr, and a failure shows the
+  status and the output. Every rejection case in the suite already passed
+  it, so the stricter run found no crash to fix. Checked against two
+  stand-in compilers, one exiting 3 and one killed by SIGSEGV: the
+  assertion fails on both (`3 != 1`, `-11 != 1`). The highlighting
+  suite reruns this module against `tests/highlighting/parser_check.exe`,
+  which refused silently; it now prints the parse diagnostic as `zanec`
+  does (`447d0b9`).
+- **F28** (`6eb5744`). A new library, `tests/gen/fixture_pairing.ml`, says
+  which fixture each golden file is for. `gen_rules` lists `fixtures/`
+  beside `golden/` for codegen, parser, runtime and the `typing` builds of
+  semantics, and stops before it writes any rule, naming each fixture
+  with no golden file, each golden file whose fixture is gone, and each
+  golden file no rule makes. The parser and runtime directories' generator
+  rules now depend on what the pairing reads. `tests/unit/` checks the
+  pairing over in-memory listings with an orphan fixture and an orphan
+  golden. A codegen fixture added with no golden file, and a parser golden
+  file with no fixture, each failed `dune runtest`, naming the file. The
+  codegen README states the rule. A golden file that a hand-written rule
+  in the directory's `dune` compares against is the only kind the pairing
+  leaves alone, and a rule commented out with `;` counts for nothing, so a
+  misnamed `golden/project.app.chek`, and `project.app.check` with its rule
+  commented out, each failed `dune runtest`, naming the file.
+- **F26** (`853ab75`). `gen_rules` writes each codegen run rule twice,
+  under `(setenv ZANE_CHECK 1 ...)` and `(setenv ZANE_CHECK 0 ...)`, both
+  diffed against the same golden file: 168 runs for the 42 programs. The
+  six hand-written program runs in `tests/objects/dune` do the same, and
+  the Python tests there run their programs in both modes through
+  `run_program`. The directory-wide `env` stanzas are gone.
+  `dev/bin/check-programs` runs each program in both modes and names the
+  mode that failed, which was checked on native builds of three fixtures,
+  one tampered. For the inline drain: under gdb, every codegen fixture
+  that drains a scope calls `zane_scope_drain` fewer times unchecked than
+  checked (for example `hello` 1 to 0, `owners` 200,052 to 0, `settled`
+  100,019 to 0). The drains it does not call took the `plain` path of
+  `Emit.drain_scope`, its only other way out. The comments in both `dune`
+  files, the codegen README and `docs/design/lowering.md` §9 say that
+  every program runs checked and unchecked.
+- **F27** (`2751d33`). `tests/memory-probes/run --check` writes each
+  probe's output to a temporary directory and diffs it against the
+  committed `NAME.out`. A run fails on any difference, and on a
+  `== build failed` or `== the optimized build differs` outcome unless the
+  probe's `EXPECTED` file names that outcome on its first line and says
+  why below it. `just test-compiler`, which CI's compiler job and the
+  distribution workflow run, calls it last. Three consecutive runs gave
+  identical outputs for all 37 probes, so none needed making
+  deterministic, and none currently fails to build or differs when
+  optimized, so no `EXPECTED` file exists. Checked with a tampered
+  `copies.out` (fails with the diff) and with a build failure forced by
+  `ZANE_CC=false`: it fails without an `EXPECTED` file, still fails with
+  one that gives no reason, and with a reason fails only on the output
+  diff. `docs/memory-semantics-findings.md` and the justfile comment for
+  `test-compiler` say how the probes are gated. Added in review:
+  `tests/memory-probes/reclaim.py --check`, also run by `test-compiler`,
+  fails when an allocating loop's peak RSS grows by more than 1 MiB from
+  10,000 to 1,000,000 iterations, or when the leaking control grows by less
+  than 16 MiB. Peak RSS differs between machines (12,956 KiB in
+  `reclaim.out`, 13,780 KiB in a cloud container for the same case), so it
+  compares each case's two runs rather than `reclaim.out`. Measured growth
+  stayed within about 120 KiB, and the control grew about 28 MiB. Treating
+  the control as an ordinary loop made the check fail with exit status 1.
+
+Verified on the batch's head with `devbox run -- just test-compiler`
+(including the new probe gate), `just test` (the grammar-generation part
+run with `GRAMMAR_PYTHON` pointing at a virtualenv holding
+`tools/grammar/requirements.txt`, since the container's Python lacks it)
+and `just check-file-sizes`. `just test-windows` was not run: the
+container has no `wine64`.

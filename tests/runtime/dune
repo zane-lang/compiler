@@ -11,7 +11,7 @@
 (include dune.inc)
 
 (rule
- (deps (glob_files *.c))
+ (deps (glob_files *.c) (glob_files golden/*))
  (action
   (with-stdout-to
    dune.inc.gen

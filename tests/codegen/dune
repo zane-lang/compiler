@@ -6,12 +6,12 @@
 ; tests/gen/gen_rules.ml, into dune.inc. A fixture added without its rules
 ; fails the diff below; `dune promote` then writes them.
 
-; Every program here runs with its drains checked: a block still out in a
-; region when its scope drains stops the program (runtime/zane_internal.h).
-(env
- (_
-  (env-vars
-   (ZANE_CHECK 1))))
+; Every program here runs checked and unchecked, each held to the same
+; golden file. Checked (`ZANE_CHECK` 1), a block still out in a region when
+; its scope drains stops the program (runtime/zane_internal.h). Unchecked
+; (0), as a program built for use runs, a scope with nothing to wait for
+; drains in line, by code lowering emits. Each rule sets the mode it runs
+; in, so none is inherited.
 
 (include dune.inc)
 

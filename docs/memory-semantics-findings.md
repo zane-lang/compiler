@@ -12,8 +12,18 @@ every case the spec leaves unsettled `QUESTION`, and everything else should
 be accepted; programs that check are also built and run, and print `yes` for
 each runtime check that holds. `tests/memory-probes/run` reruns them all and
 writes what the compiler and the program printed to `NAME.out`, which is
-committed, so a behaviour change shows as a diff. The probes are not part of
-`dune runtest`.
+committed, so a behaviour change shows as a diff. `just test-compiler`, and
+so CI, gates on them with `tests/memory-probes/run --check`, which leaves
+the committed files alone and fails when a probe's output differs from its
+`NAME.out`. It also fails on a probe whose build failed or whose optimized
+build differs, unless the probe's directory holds an `EXPECTED` file whose
+first line names that outcome and whose remaining lines say why; the file
+only permits the outcome, and the output must still match. The same recipe
+runs `tests/memory-probes/reclaim.py --check`, which fails when an allocating
+loop's peak RSS grows by more than 1 MiB from 10,000 to 1,000,000 iterations,
+or when the leaking control grows by less than 16 MiB. It compares each case's
+two runs with each other, because peak RSS differs between machines;
+`reclaim.out` records one machine's numbers.
 
 To rerun them: `dune build bin/zanec/zanec.exe`, then
 `tests/memory-probes/run [NAME...]` for the programs and

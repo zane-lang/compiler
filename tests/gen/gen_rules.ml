@@ -5,13 +5,18 @@
    added without its rules fails `dune runtest` until `dune promote` writes
    them.
 
+   Every fixture must have a golden file, and every golden file a fixture:
+   it stops, naming the file, at one without the other (fixture_pairing.ml),
+   so no fixture goes untested and no golden file outlives its fixture.
+
    It runs in the directory it writes rules for, and the golden files decide
    which rules there are:
 
    - codegen: `golden/NAME.cgt` prints fixture NAME's code-generation tree,
      `golden/NAME.optimized.cgt` the tree an optimized build makes of it,
-     and `golden/NAME.out` builds it, unoptimized and optimized, and holds
-     what both builds of the program wrote. A
+     and `golden/NAME.out` builds it, unoptimized and optimized, runs each
+     build with its drains checked (`ZANE_CHECK` 1) and unchecked (0), and
+     holds what all four runs of the program wrote. A
      fixture whose `expected-status` file holds a status other than 0 is a
      program that stops: its golden file holds stdout and stderr together.
      A fixture's `arguments` file, one argument per line, is what both
@@ -94,19 +99,25 @@ let codegen () =
           "(rule\n (deps (source_tree %s))\n (targets %s.optimized.exe)\n (action\n  (run %s --build %s.optimized.exe --optimize%s --package %s)))\n\n"
           package name zanec name (flags name) package;
         (* The optimized build is held to the same golden file: optimizing
-           never changes what a program does. *)
+           never changes what a program does. So is each build run with its
+           drains checked and unchecked, which takes the drain lowering makes
+           in line (`Emit.drain_scope`): checking never changes it either. *)
         List.iter
           (fun exe ->
-            (match status name with
-            | 0 ->
-                Printf.printf
-                  "(rule\n (action\n  (with-stdout-to\n   %s.out.actual\n   (run ./%s.exe%s))))\n\n" exe
-                  exe (arguments name)
-            | n ->
-                Printf.printf
-                  "(rule\n (action\n  (with-outputs-to\n   %s.out.actual\n   (with-accepted-exit-codes\n    %d\n    (run ./%s.exe%s)))))\n\n"
-                  exe n exe (arguments name));
-            diff (name ^ ".out") (exe ^ ".out.actual"))
+            List.iter
+              (fun (mode, check) ->
+                let actual = Printf.sprintf "%s.%s.out.actual" exe mode in
+                (match status name with
+                | 0 ->
+                    Printf.printf
+                      "(rule\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   (with-stdout-to\n    %s\n    (run ./%s.exe%s)))))\n\n"
+                      check actual exe (arguments name)
+                | n ->
+                    Printf.printf
+                      "(rule\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   (with-outputs-to\n    %s\n    (with-accepted-exit-codes\n     %d\n     (run ./%s.exe%s))))))\n\n"
+                      check actual n exe (arguments name));
+                diff (name ^ ".out") actual)
+              [ ("checked", "1"); ("unchecked", "0") ])
           [ name; name ^ ".optimized" ]
       end)
     (List.sort_uniq compare (trees @ optimized @ outputs));
@@ -189,13 +200,54 @@ let runtime () =
       diff (name ^ ".out") (name ^ ".out.actual"))
     (List.filter_map (chop_suffix ~suffix:".c") (sorted "."))
 
+(* What a directory holds to be tested, named as Fixture_pairing names it:
+   the semantics builds whose rules are written by hand are left out. *)
+let fixtures = function
+  | Fixture_pairing.Runtime -> List.filter (fun f -> Filename.check_suffix f ".c") (sorted ".")
+  | Semantics -> List.map (Filename.concat "fixtures/typing") (sorted "fixtures/typing")
+  | Codegen | Parser ->
+      let entries dir = List.map (Filename.concat dir) (sorted dir) in
+      List.filter (fun f -> f <> "fixtures/reject") (entries "fixtures") @ entries "fixtures/reject"
+
+(* The golden files the directory's own dune file compares against, which
+   Fixture_pairing leaves to those hand-written rules. A line's `;` comment is
+   dropped first, so a rule commented out exempts nothing. *)
+let hand_written () =
+  let marker = "(diff golden/" in
+  let golden line =
+    let line = match String.index_opt line ';' with Some i -> String.sub line 0 i | None -> line in
+    let rec find i =
+      if i + String.length marker > String.length line then None
+      else if String.sub line i (String.length marker) = marker then
+        let start = i + String.length marker in
+        let stop = Option.value (String.index_from_opt line start ' ') ~default:(String.length line) in
+        Some (String.sub line start (stop - start))
+      else find (i + 1)
+    in
+    find 0
+  in
+  if Sys.file_exists "dune" then
+    List.filter_map golden (In_channel.with_open_bin "dune" In_channel.input_lines)
+  else []
+
 let () =
-  print_string "; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.\n\n";
-  match Sys.argv with
-  | [| _; "codegen" |] -> codegen ()
-  | [| _; "parser" |] -> parser ()
-  | [| _; "runtime" |] -> runtime ()
-  | [| _; "semantics" |] -> semantics ()
-  | _ ->
-      prerr_endline "usage: gen_rules (codegen|parser|runtime|semantics)";
-      exit 2
+  let suite, rules =
+    match Sys.argv with
+    | [| _; "codegen" |] -> (Fixture_pairing.Codegen, codegen)
+    | [| _; "parser" |] -> (Parser, parser)
+    | [| _; "runtime" |] -> (Runtime, runtime)
+    | [| _; "semantics" |] -> (Semantics, semantics)
+    | _ ->
+        prerr_endline "usage: gen_rules (codegen|parser|runtime|semantics)";
+        exit 2
+  in
+  match
+    Fixture_pairing.check ~hand_written:(hand_written ()) suite ~fixtures:(fixtures suite)
+      ~goldens:(sorted "golden")
+  with
+  | [] ->
+      print_string "; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.\n\n";
+      rules ()
+  | errors ->
+      List.iter (fun e -> prerr_endline ("gen_rules: " ^ e)) errors;
+      exit 1

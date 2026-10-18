@@ -30,8 +30,13 @@ class ParserSyntaxTestCase(unittest.TestCase):
         self.assertEqual(parsed.returncode, 0, parsed.stdout + parsed.stderr)
 
     def assert_rejects(self, source: str) -> None:
+        # Exit 1 is the compiler refusing the program, with a diagnostic
+        # saying why (bin/zanec/zanec.ml). Any other failing status is a
+        # crash: 3 an internal error, a negative one a signal.
         parsed = self.run_parser(source)
-        self.assertNotEqual(parsed.returncode, 0, parsed.stdout + parsed.stderr)
+        output = f"exit {parsed.returncode}\n{parsed.stdout}{parsed.stderr}"
+        self.assertEqual(parsed.returncode, 1, output)
+        self.assertNotEqual(parsed.stderr.strip(), "", output)
 
 
 class DeclarationTests(ParserSyntaxTestCase):

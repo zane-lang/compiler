@@ -672,6 +672,46 @@ let target_cpus () =
   check "an x86_64h target is tuned for Haswell" (cpu "x86_64h-apple-darwin" = Ok "core-avx2");
   check "an AArch64 target keeps LLVM's default" (cpu "aarch64-unknown-linux-gnu" = Ok "")
 
+(* tests/gen/gen_rules.ml stops at a fixture with no golden file and at a
+   golden file whose fixture is gone, naming each, so neither leaves a
+   program silently untested. *)
+let fixture_pairing () =
+  let module P = Fixture_pairing in
+  let check_pairs ?hand_written name suite ~fixtures ~goldens expected =
+    let errors = P.check ?hand_written suite ~fixtures ~goldens in
+    check name (errors = expected);
+    if errors <> expected then List.iter (Printf.printf "  got: %s\n") errors
+  in
+  check_pairs "paired codegen fixtures pass" P.Codegen
+    ~fixtures:[ "fixtures/hello"; "fixtures/reject/flow" ]
+    ~goldens:[ "hello.cgt"; "hello.optimized.cgt"; "hello.out"; "reject.flow.err" ]
+    [];
+  check_pairs "an orphan fixture and an orphan golden are both named" P.Codegen
+    ~fixtures:[ "fixtures/hello"; "fixtures/untested" ]
+    ~goldens:[ "hello.out"; "gone.out" ]
+    [ "golden/gone.out is for fixtures/gone, which does not exist"; "fixtures/untested has no golden file" ];
+  check_pairs "a golden file no rule makes is named" P.Codegen ~fixtures:[ "fixtures/hello" ]
+    ~goldens:[ "hello.out"; "hello.txt" ]
+    [ "no rule makes golden/hello.txt" ];
+  check_pairs "a parser rejection pairs with its source" P.Parser
+    ~fixtures:[ "fixtures/main.zn"; "fixtures/reject/lexing.zn"; "fixtures/reject/lost.zn" ]
+    ~goldens:[ "main.cst.spans"; "reject.lexing.err"; "reject.syntax.err" ]
+    [
+      "golden/reject.syntax.err is for fixtures/reject/syntax.zn, which does not exist";
+      "fixtures/reject/lost.zn has no golden file";
+    ];
+  check_pairs "a runtime test pairs with its output" P.Runtime ~fixtures:[ "arenas.c"; "texts.c" ]
+    ~goldens:[ "arenas.out" ] [ "texts.c has no golden file" ];
+  check_pairs "hand-written semantics rules are left alone" P.Semantics
+    ~hand_written:[ "assembly.accept.packages"; "project.app.check" ]
+    ~fixtures:[ "fixtures/typing/accept" ]
+    ~goldens:[ "assembly.accept.packages"; "project.app.check"; "typing.accept.tst.spans" ]
+    [];
+  check_pairs "a golden file no hand-written rule compares against is named" P.Semantics
+    ~hand_written:[ "project.app.check" ]
+    ~fixtures:[] ~goldens:[ "project.app.check"; "project.app.chek" ]
+    [ "no rule makes golden/project.app.chek" ]
+
 let () =
   ty ();
   signatures ();
@@ -698,6 +738,7 @@ let () =
   at_once ();
   snapshot_reads ();
   target_cpus ();
+  fixture_pairing ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

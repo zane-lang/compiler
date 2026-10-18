@@ -2,6 +2,7 @@
 (docs/design/lowering.md §9, "What LLVM is told")."""
 
 from pathlib import Path
+import os
 import re
 import subprocess
 import sys
@@ -19,6 +20,24 @@ def run(*args):
     if result.returncode:
         raise AssertionError(f"{args}\n{result.stdout}{result.stderr}")
     return result.stdout
+
+
+def run_program(exe, *args):
+    """What a program wrote, run with its drains checked and unchecked
+    (`ZANE_CHECK` 1 and 0), as every program in this directory is run. The
+    two runs must agree, and a failure names the mode it came from."""
+    outputs = {}
+    for check in ("1", "0"):
+        command = [str(exe), *map(str, args)]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60,
+                                env={**os.environ, "ZANE_CHECK": check})
+        if result.returncode:
+            raise AssertionError(f"ZANE_CHECK={check} {command}\n{result.stdout}{result.stderr}")
+        outputs[check] = result.stdout
+    if outputs["1"] != outputs["0"]:
+        raise AssertionError(f"{exe}: checked and unchecked runs differ\n"
+                             f"ZANE_CHECK=1:\n{outputs['1']}ZANE_CHECK=0:\n{outputs['0']}")
+    return outputs["1"]
 
 
 def packages(*names, stamped=()):
@@ -93,7 +112,7 @@ class FactsTests(unittest.TestCase):
                     deps = ["cells"] + (["pool"] if program == "relay" else [])
                     run(ZANEC, "--build", exe, *optimize, *link,
                         *packages(program, *deps, stamped=["pool"]))
-                    self.assertEqual(run(exe, "4"), expected, (program, optimize))
+                    self.assertEqual(run_program(exe, "4"), expected, (program, optimize))
 
 
 if __name__ == "__main__":

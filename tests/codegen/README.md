@@ -12,16 +12,23 @@ holds stdout and stderr together. A fixture's `arguments` file, one argument
 per line, is what both builds of its program run with, and its `flags` file,
 one per line, what both are built with besides.
 
-Every program runs with `ZANE_CHECK` set, which `dune` sets for this
-directory: each drain then returns its values' blocks one at a time, and a
-block still out in the region afterwards stops the program
-(docs/design/lowering.md §9). A program built for use releases a region in
-bulk and checks nothing.
+Every program runs checked and unchecked, and both runs are held to the same
+golden file; each rule sets `ZANE_CHECK` itself. Checked (`ZANE_CHECK=1`),
+each drain returns its values' blocks one at a time, and a block still out in
+the region afterwards stops the program (docs/design/lowering.md §9).
+Unchecked (`ZANE_CHECK=0`), as a program built for use runs, a region is
+released in bulk and nothing is checked, and a scope with nothing to wait for
+drains in line, by the code `Emit.drain_scope` emits rather than in the
+runtime.
 
-The rules are written by `tests/gen/gen_rules.ml` into `dune.inc`. To add a
-fixture, add its directory and an empty golden file, run `dune runtest`,
-check the new rules in the `dune.inc` diff and `dune promote`, then run it
-again, read the golden diff and promote that.
+The rules are written by `tests/gen/gen_rules.ml` into `dune.inc`. Every
+fixture has at least one golden file, and every golden file names a fixture
+that exists: the generator stops at either kind of orphan and names it, as it
+does in `tests/parser/`, `tests/runtime/` and the `typing` builds of
+`tests/semantics/`. A fixture is tested or it is deleted; none is kept and
+skipped. To add a fixture, add its directory and an empty golden file, run
+`dune runtest`, check the new rules in the `dune.inc` diff and `dune promote`,
+then run it again, read the golden diff and promote that.
 
 ## Fixtures
 
