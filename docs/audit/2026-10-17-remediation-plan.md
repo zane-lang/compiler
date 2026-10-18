@@ -388,7 +388,7 @@ order (constant folding of text, the object rewriters in `lib/rewrite`).
 If something does, add byte order to the check.
 
 **Tests.** Add CLI tests: `--ll --target i386-unknown-linux-gnu` and
-`--target armv7-unknown-linux-gnueabihf` exit 2 with the message, and
+`--target armv7-unknown-linux-gnueabihf` exit 1 with the message, and
 `x86_64-windows-gnu`, `aarch64-apple-darwin` and `x86_64-linux-gnu` are
 still accepted.
 
@@ -421,9 +421,12 @@ still accepted.
 **Tests.** Add rejection fixtures for `Array<I64, 4294967296>` (larger
 than the region), `Array<I64, 1152921504606846976>` (`2^60`, past the
 limit) and a nested `Array<Array<I64, 65536>, 65536>`. Add a library
-fixture with `Array<I8, 4294967297>` behind a reference, to show that
-the LLVM type now has the full count; its IR line is checked with
-`--ll | grep`. Add a unit test for the checked `size_align`.
+unit test that lowers the CGT type `Ty.Array (I8, 4294967297)` through
+`Emit.lltype` and reads the count back with the new
+`LLVMGetArrayLength2` stub, to show that the LLVM type has the full count.
+A fixture cannot show it: an array behind a reference lowers to a plain
+pointer, and an array held by value of that size is past the fixed-region
+check. Add a unit test for the checked `size_align`.
 
 **Docs.** `docs/design/lowering.md` §9 and `platforms.md`: the size limit.
 
@@ -729,6 +732,13 @@ fault handler can flush it with only async-signal-safe calls.
   holds the buffer.
 - **Flush.** The buffer is flushed with `write(1, ...)` in a loop
   (`WriteFile` on Windows), and a failed write records an error flag.
+- **When it flushes.** It keeps what stdio does today. At startup the
+  runtime checks whether stdout is a terminal (`isatty`, `_isatty` on
+  Windows). If it is, every print that writes a newline flushes the
+  buffer, so a long-running program's progress lines and a prompt before
+  waiting appear at once. Otherwise output is flushed only when the
+  buffer fills or the program ends. A full buffer flushes in either
+  case.
 - **Normal paths.** The exit path in `runtime/main.c` flushes the buffer
   and tests the error flag in place of `fflush(stdout)` and `ferror`. So
   do `zane_broken` and the index-out-of-range path.
@@ -746,7 +756,12 @@ fixtures still show the output printed before the error. Add a runtime C
 test that overflows the stack in one thread while another prints in a
 loop; it must exit 1 with the message, not hang, across many runs under
 the test's timeout. Add a test that a write error on stdout (stdout
-closed or a full pipe) still gives exit 1.
+closed or a full pipe) still gives exit 1. Add a runtime C test that runs
+a child on a pseudo-terminal (`forkpty`): the child prints one line and
+then blocks on a pipe. The parent must read that line from the terminal
+before it releases the child, which shows that terminal output is
+flushed at each newline and not only at exit. The same test with a pipe
+in place of the terminal checks that nothing is flushed early there.
 
 **Docs.** `docs/design/lowering.md` §9 and `platforms.md` ("Machine stack
 sizes"): the buffer, and what the fault handler flushes.
@@ -761,7 +776,8 @@ cell width) per source character, and derive both rows from it:
 - **Control characters (F20).** C0 controls other than tab, DEL, C1
   controls (U+0080 to U+009F) and the bidirectional controls (U+202A to
   U+202E, U+2066 to U+2069) are shown as visible escapes such as `\x1b`
-  and `‮`, each as wide as its escape text. Tabs expand as now. The
+  and `\u202e`, each written as those ASCII characters and as wide as
+  its escape text, so the control itself never reaches the terminal. Tabs expand as now. The
   file name in every location form (`at_span`, and the file and directory
   cases of `render`) is escaped the same way. So is any source text quoted
   in a message: escape when rendering, not where messages are made.
