@@ -12,8 +12,13 @@ every case the spec leaves unsettled `QUESTION`, and everything else should
 be accepted; programs that check are also built and run, and print `yes` for
 each runtime check that holds. `tests/memory-probes/run` reruns them all and
 writes what the compiler and the program printed to `NAME.out`, which is
-committed, so a behaviour change shows as a diff. The probes are not part of
-`dune runtest`.
+committed, so a behaviour change shows as a diff. `just test-compiler`, and
+so CI, gates on them with `tests/memory-probes/run --check`, which leaves
+the committed files alone and fails when a probe's output differs from its
+`NAME.out`. It also fails on a probe whose build failed or whose optimized
+build differs, unless the probe's directory holds an `EXPECTED` file whose
+first line names that outcome and whose remaining lines say why; the file
+only permits the outcome, and the output must still match.
 
 To rerun them: `dune build bin/zanec/zanec.exe`, then
 `tests/memory-probes/run [NAME...]` for the programs and

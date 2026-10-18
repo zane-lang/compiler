@@ -48,10 +48,17 @@ test-highlighting: test-grammar-generation
 # there and nothing anywhere else, and so is a rewrite that stopped happening.
 # Promote an intended move with `just promote`. tests/unit/ tests the shared
 # helpers directly, so a broken one is named rather than found in a diff.
+#
+# The memory-semantics probes (tests/memory-probes/) are held to their
+# committed NAME.out files: `run --check` fails on any difference, and on a
+# probe that failed to build or whose optimized build differs unless the
+# probe's EXPECTED file permits it. To accept an intended change, rerun
+# `tests/memory-probes/run` without `--check` and read the `git diff`.
 test-compiler: _require-menhir
 	dune build bin/zanec/zanec.exe
 	dune runtest tests/parser tests/semantics tests/codegen tests/runtime tests/objects tests/unit
 	python3 -m unittest tests.parser.syntax_test -v
+	tests/memory-probes/run --check
 
 # The test programs built for Windows and run under Wine, as CI runs them on
 # Windows itself (docs/design/platforms.md). Needs `zig` and `wine64`; set
