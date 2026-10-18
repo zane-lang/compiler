@@ -61,18 +61,25 @@ uses the shared traversals.
    contain its parameters is ill-formed". The compiler change follows the
    spec PR. One question is still open: whether the rule follows all
    members or only owning ones (see F16).
-2. **F08: how aggregates cross a call.** *Decided:* pass and return them
-   by address above a size threshold, so these programs build. Below the
-   threshold they stay values. The threshold is chosen by measurement (see
-   F08).
+2. **F08: how aggregates cross a call.** *Decided:* an aggregate travels
+   in registers when it needs at most as many as the target's C calling
+   convention gives one, and by address otherwise. That is 2 registers on
+   x86-64 Linux and macOS and on AArch64, and 1 on x86-64 Windows. Packing
+   small aggregates into whole words is a separate step, kept only if it
+   measures faster (see F08).
    - **Why by address.** LLVM splits an aggregate held as one value into a
      piece per element and cannot select more than 65,535 pieces. Long
      before that limit, a large value is copied piece by piece at every
      call. Clang, rustc and swiftc never hand LLVM a large aggregate as
      one value. They pass it by pointer and return it through a pointer
-     to the caller's storage. They keep a small one in registers, up to
-     16 bytes in C on x86-64 Linux and up to about two to four registers
-     in Rust and Swift.
+     to the caller's storage. They keep a small one in registers: up to
+     16 bytes (2 registers) in C on x86-64 Linux, macOS and AArch64, up to
+     8 bytes on x86-64 Windows, and about two to four registers in Rust
+     and Swift.
+   - **Why count registers.** Registers are what a call spends. LLVM gives
+     each element of an unpacked aggregate its own register, so the count
+     is the number of pieces, not the size in bytes:
+     `{ I32; I32; I32; I32; }` is 16 bytes but 4 registers.
    - **Why not by address for everything.** A small value passed in
      registers never touches memory. By pointer, it is stored and loaded
      again on every call that is not inlined.
@@ -255,26 +262,51 @@ function, and why.
 **Fix** (decision 2). Aggregates above a threshold cross calls by
 address.
 - **Signature rule.** Set it in one place, a function in
-  `lib/codegen/emit.ml` beside `fn_type`: a parameter or result whose
-  stored size is at least `by_address` bytes is passed as a `ptr`. Use
-  the CGT size, not LLVM's, so the rule cannot depend on `data_layout`.
-- **Choosing `by_address`.** Measure it; do not guess. Build the
-  candidates 16, 32, 64 and 4096 bytes (4096 is `Big_moves.large`, the
-  line at which moves inside a function become `memcpy`).
-  - **What to run.** For each candidate, run the spec repo's `langbench/`
-    programs and the binarytrees reference
-    (`docs/design/binarytrees-reference-results.json`), optimized and
-    unoptimized. Add one benchmark of calls on mid-sized values: a
-    24-byte string handle, a 16-byte two-field struct and a variant with
-    a 64-byte payload, each passed through a function that is not
-    inlined.
-  - **How to choose.** Take the candidate that is fastest overall, and
-    record the table of results in `docs/design/lowering.md` §9 beside
-    the rule.
-  - **Where to measure.** Run on the maintainer's machine, since timings
-    from a container are not comparable. Every candidate passes the
-    crashing case by address, because 65,535 pieces of 8 bytes is far
-    above 4096 bytes.
+  `lib/codegen/emit.ml` beside `fn_type`.
+  - **Counting.** A parameter or result is counted in registers: the
+    number of scalar pieces its CGT type lowers to. `Struct` and `Sum`
+    count their members, with the tag and each payload word one apiece,
+    and `Array (t, n)` counts `n` times `t`. `Void` counts nothing. Use
+    the CGT type, not LLVM's, so the rule cannot depend on `data_layout`.
+  - **The limit.** A value of more than `registers` pieces is passed as a
+    `ptr`. `registers` comes from the target triple: 1 for
+    `x86_64-*-windows-*` and 2 otherwise, since F02 limits the targets to
+    64-bit ones. Results use the same count.
+  - **Cost.** The decision is made per signature while compiling, so the
+    generated code has no branch at run time: each call site passes
+    either way, fixed by its type. Counting is a walk over the type,
+    cached per type like its layout.
+  - **What crosses.** Every scalar and every one-member struct (L5)
+    still passes as itself. A string or list handle (three pieces) goes
+    by address. The 65,536-element array, the crashing case, goes by
+    address too.
+- **Packing, as a measured step.** After the rule above is in and
+  measured, try packing small aggregates into 8-byte words before a call
+  and unpacking them in the callee, as clang does.
+  - **What it changes.** The count becomes the number of words:
+    `{ I8; I8; I8; }` then needs 1 register and `{ I32; I32; I32; I32; }`
+    needs 2, so both travel in registers instead of by address.
+  - **What it costs.** A few instructions to combine and split fields
+    around each call.
+  - **The decision.** Keep it only if the benchmark below is faster with
+    it on some target and slower on none. Treat every word as an integer
+    register; following the platform's separate floating-point registers
+    is a further variant to measure only if packing is kept.
+- **Measuring.** On each first-tier target, run three builds of the spec
+  repo's `langbench/` programs and the binarytrees reference
+  (`docs/design/binarytrees-reference-results.json`), optimized and
+  unoptimized: the current compiler, the register rule, and the rule
+  with packing.
+  - **An added benchmark.** Non-inlined calls on a 16-byte two-field
+    struct, a three-byte struct, a string handle and a variant with a
+    64-byte payload.
+  - **Expected result.** The register rule is no slower than the current
+    compiler. If a benchmark is slower, find out why before changing the
+    limit.
+  - **Recording it.** Put the table in `docs/design/lowering.md` §9
+    beside the rule.
+  - **Where to run.** On the maintainer's machine, since timings from a
+    container are not comparable.
 - **Telling LLVM what the spec guarantees.** A by-address value parameter
   carries `readonly` and `noalias`, and its alignment and
   `dereferenceable` size. Nothing in the call writes what it borrows
@@ -297,8 +329,9 @@ address.
   reports a broken invariant (`Diagnostic.bug`), not a user error, if one
   is still too large.
 
-Separate compilation is unaffected beyond this: the rule is a function of
-the type, so every object agrees on it.
+Separate compilation is unaffected beyond this. The rule is a function of
+the type and the target, and objects for different targets never link, so
+every object a program links agrees on it.
 
 **Tests.**
 - **The crash.** Add a library fixture with `consume(x Array<I64, 65536>)`
@@ -306,17 +339,21 @@ the type, so every object agrees on it.
 - **Every kind of call.** Add a program that passes and returns
   `Array<I64, 65536>` through ordinary calls, a function value and a
   spawned call, then checks the contents.
-- **Both sides of the threshold.** Add a program that passes and returns
-  values just under and just over `by_address`, as a struct and as a
-  variant, so both conventions run in every build mode.
+- **Both sides of the limit.** Add a program that passes and returns
+  values of one, two and three pieces, as a struct and as a variant, so
+  both conventions run in every build mode. Run it for
+  `x86_64-windows-gnu` too, where the line falls between one and two.
+- **The count.** Add a unit test of the counting function on each CGT type
+  form.
 - **The attributes.** Add a `--ll` check that a by-address parameter
   carries the attributes above.
 - **The backstop.** Add a unit test that the backstop fires on a
   hand-built module.
 
-**Docs.** `docs/design/lowering.md` §9 (large aggregates): the by-address
-convention, the attributes and why they hold, the threshold, and the
-measurements that chose it.
+**Docs.** `docs/design/lowering.md` §9 (large aggregates): the register
+count, the limit per target, the by-address convention, the attributes
+and why they hold, whether packing was kept, and the measurements behind
+both.
 
 ### F02: 32-bit and other unsupported layouts are accepted
 
