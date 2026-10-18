@@ -833,9 +833,12 @@ test passing.
   before. An exit ends the run of the block the call is written in
   ([`spec-divergences.md`](../spec-divergences.md) §9), so each run of a block
   argument has a label to leave.
-- **A 64-bit target.** Codegen sizes a sum's payload room assuming 8-byte
-  pointers and C struct layout, which holds for x86-64 and AArch64. Another
-  target reads the sizes from LLVM's data layout.
+- **A 64-bit target.** Lowering sizes every type, a sum's payload room
+  included, for 8-byte pointers, `i64` and `double` aligned to 8, and C
+  struct layout, which holds for x86-64 and AArch64, and the runtime's
+  records have fixed offsets on the same terms. So a target whose data
+  layout differs is refused before anything is emitted for it
+  ([`platforms.md`](platforms.md), "64-bit targets only").
 - **Integer division by zero, and a float truncated out of range.**
   `operators.md` §2.6 gives a division by zero the result zero, and
   `types.md` §2.9 saturates a `truncate` whose integer part the target cannot

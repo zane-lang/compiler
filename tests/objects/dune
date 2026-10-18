@@ -714,3 +714,11 @@
  (deps options_test.py (source_tree fixtures/geometry))
  (action
   (run python3 %{dep:options_test.py} %{exe:../../bin/zanec/zanec.exe})))
+
+; Which targets zanec builds for: a 32-bit one is refused, a 64-bit one
+; accepted (docs/design/platforms.md).
+(rule
+ (alias runtest)
+ (deps targets_test.py (source_tree fixtures/geometry))
+ (action
+  (run python3 %{dep:targets_test.py} %{exe:../../bin/zanec/zanec.exe})))

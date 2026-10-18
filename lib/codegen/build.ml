@@ -17,11 +17,35 @@ let cpu triple =
   | "x86_64h" :: _ -> "core-avx2"
   | _ -> ""
 
+(* Whether [triple], whose data layout is [layout], is a target this
+   compiler builds for (docs/design/platforms.md, "64-bit targets only").
+   Lowering lays out every type, and the runtime its records, for 8-byte
+   pointers with `i64` and `double` aligned to 8 bytes; a target that
+   differs would get offsets that disagree with what LLVM and the C
+   compiler lay out. Byte order is not checked: nothing here depends on it,
+   since every value is read at the width it was written, and the object
+   rewriters read both byte orders. *)
+let sixty_four_bit triple layout =
+  let ctx = Llvm.global_context () in
+  let align t = Llvm_target.DataLayout.abi_align t layout in
+  let pointer = Llvm_target.DataLayout.pointer_size layout in
+  let refused = Printf.sprintf "the target `%s` %s; this compiler builds for 64-bit targets only" triple in
+  if pointer <> 8 then Error (refused (Printf.sprintf "has %d-byte pointers" pointer))
+  else
+    match
+      List.find_opt
+        (fun (_, t) -> align t <> 8)
+        [ ("i64", Llvm.i64_type ctx); ("double", Llvm.double_type ctx) ]
+    with
+    | Some (name, t) -> Error (refused (Printf.sprintf "aligns `%s` to %d bytes" name (align t)))
+    | None -> Ok ()
+
 (* The machine for *target*, an LLVM triple, or for the host when it is
    absent. The triple is taken in LLVM's normal form, which reads a short
    spelling such as `x86_64-windows-gnu` as the Windows triple it is, where
    LLVM would otherwise take `windows` for the vendor and build for no
-   operating system. An unknown triple is an error, not an exception. *)
+   operating system. An unknown triple, or one that is not 64-bit, is an
+   error, not an exception. *)
 let target_machine ?target ~optimize () =
   Llvm_all_backends.initialize ();
   let triple =
@@ -32,10 +56,11 @@ let target_machine ?target ~optimize () =
   let level = Llvm_target.CodeGenOptLevel.(if optimize then Default else None) in
   match Llvm_target.Target.by_triple triple with
   | target ->
-      Ok
-        ( triple,
-          Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~level
-            ~reloc_mode:Llvm_target.RelocMode.PIC target )
+      let tm =
+        Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~level
+          ~reloc_mode:Llvm_target.RelocMode.PIC target
+      in
+      Result.map (fun () -> (triple, tm)) (sixty_four_bit triple (Llvm_target.TargetMachine.data_layout tm))
   | exception Llvm_target.Error message ->
       Error (Printf.sprintf "cannot compile for the target `%s`: %s" triple message)
 

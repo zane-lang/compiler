@@ -26,6 +26,27 @@ and a problem there may wait.
 - **macOS** is the lower tier. Its objects are built, rewritten and tested
   as Windows ones are.
 
+## 64-bit targets only
+
+The compiler builds for 64-bit targets only. Lowering lays out every type
+for a target whose pointers are 8 bytes and which aligns `i64` and `double`
+to 8 bytes, as C lays out a struct there: a handle is 24 bytes, a sum's
+payload starts at offset 8, and a scope's record and a spawned call's header
+are 224 and 96 bytes (`lib/cgt/nodes.ml`, `lib/codegen/frames.ml`). The
+runtime's records have the same fixed offsets, and `runtime/zane_internal.h`
+asserts them. On a target with 4-byte pointers, such as
+`i386-unknown-linux-gnu` or `armv7-unknown-linux-gnueabihf`, those offsets
+would disagree with what LLVM and the C compiler lay out.
+
+So once LLVM has made the target machine, `Build.target_machine`
+(`lib/codegen/build.ml`) reads its data layout and refuses the target
+unless the pointer size is 8 and the ABI alignment of `i64` and of `double`
+is 8. The refusal is an error before anything is emitted: "the target
+`i386-unknown-linux-gnu` has 4-byte pointers; this compiler builds for
+64-bit targets only". Byte order is not part of the check, since nothing
+depends on it: every value is read at the width it was written, and the
+object rewriters read either byte order.
+
 ## Building for macOS needs no Apple SDK
 
 Linking for macOS needs the declarations of its C library, `libSystem`, and

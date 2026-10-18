@@ -672,6 +672,25 @@ let target_cpus () =
   check "an x86_64h target is tuned for Haswell" (cpu "x86_64h-apple-darwin" = Ok "core-avx2");
   check "an AArch64 target keeps LLVM's default" (cpu "aarch64-unknown-linux-gnu" = Ok "")
 
+(* A target is refused unless its pointers are 8 bytes and it aligns `i64`
+   and `double` to 8 (docs/design/platforms.md). No 64-bit LLVM target
+   aligns either below that, so the layouts are written out here. *)
+let sixty_four_bit () =
+  let accepts layout =
+    Codegen__Build.sixty_four_bit "t" (Llvm_target.DataLayout.of_string layout)
+  in
+  check "8-byte pointers with i64 and double aligned to 8 are accepted"
+    (accepts "e-m:e-p:64:64-i64:64-f64:64" = Ok ());
+  check "4-byte pointers are refused"
+    (accepts "e-p:32:32-i64:64-f64:64"
+    = Error "the target `t` has 4-byte pointers; this compiler builds for 64-bit targets only");
+  check "an i64 aligned to 4 is refused"
+    (accepts "e-p:64:64-i64:32-f64:64"
+    = Error "the target `t` aligns `i64` to 4 bytes; this compiler builds for 64-bit targets only");
+  check "a double aligned to 4 is refused"
+    (accepts "e-p:64:64-i64:64-f64:32"
+    = Error "the target `t` aligns `double` to 4 bytes; this compiler builds for 64-bit targets only")
+
 (* ---------------------------------------------------------------------- *)
 (* The driver                                                             *)
 (* ---------------------------------------------------------------------- *)
@@ -834,6 +853,7 @@ let () =
   at_once ();
   snapshot_reads ();
   target_cpus ();
+  sixty_four_bit ();
   fixture_pairing ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
