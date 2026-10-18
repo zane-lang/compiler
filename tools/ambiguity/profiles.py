@@ -67,7 +67,10 @@ def parse_duration(value: str | int | float) -> float:
     if isinstance(value, bool):
         raise ConfigurationError("duration must be a number or a value such as 30m")
     if isinstance(value, (int, float)):
-        seconds = float(value)
+        try:
+            seconds = float(value)
+        except OverflowError as error:
+            raise ConfigurationError(f"duration {value!r} is not finite") from error
     else:
         text = value.strip().lower()
         if re.fullmatch(r"\d+(?:\.\d+)?", text):

@@ -31,12 +31,14 @@ class ValueParsingTests(unittest.TestCase):
 
     def test_duration_rejects_a_value_that_is_not_finite(self) -> None:
         # TOML reads `nan` and `inf` as floats, and 400 digits overflow a
-        # float to infinity, alone or as one part of a composed duration.
+        # float to infinity, alone or as one part of a composed duration. A
+        # TOML integer that long is too large for a float at all.
         for value in (
             "nan",
             "inf",
             float("nan"),
             float("inf"),
+            10**400,
             "9" * 400,
             "9" * 400 + "ms",
             "1h" + "9" * 400 + "s",
@@ -46,7 +48,7 @@ class ValueParsingTests(unittest.TestCase):
                     profiles.parse_duration(value)
 
     def test_a_profile_timeout_must_be_finite(self) -> None:
-        for value in ("nan", "inf", "+inf"):
+        for value in ("nan", "inf", "+inf", "1" + "0" * 400):
             with self.subTest(timeout=value):
                 with TemporaryDirectory() as directory:
                     path = Path(directory) / "searches.toml"

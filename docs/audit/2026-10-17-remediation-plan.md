@@ -1136,6 +1136,10 @@ container has no `wine64`.
   and `+inf`. `tests/ambiguity/cli_test.py` runs the engine with
   `--timeout nan` and `--timeout inf`, each exiting 2 with the message. All
   ten new cases failed before the fix.
+  In review, an integer too large for a float (`timeout = 1` followed by 400
+  zeros in a profile) raised `OverflowError` past the CLI's handler; the
+  conversion now reports it as not finite. Both new cases, the integer
+  passed directly and in a profile, errored before that change.
 - **F31** (`7570369`). The grammar generator emits `is_lower_identifier`
   at the end of `lib/cst/lexer.ml`. It runs the generated `token` on the
   string and holds only when that yields one `LIDENT` whose lexeme is the
