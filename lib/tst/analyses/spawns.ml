@@ -364,8 +364,7 @@ let walk_body env multi (body : T.Block.t) =
   in
   block [] false body
 
-let run env (p : T.Program.t) =
-  let multi = Repeats.compute env p in
+let run env ~multi (p : T.Program.t) =
   List.iter
     (fun (pkg : T.Package.t) ->
       List.iter

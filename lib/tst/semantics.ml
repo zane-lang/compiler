@@ -14,15 +14,17 @@ let check (packages : Assembly.package list) =
   Type_decls.run env;
   Verb_signatures.run env;
   let program = Program.run env in
-  (* The analyses over the finished tree (D1). *)
-  Read_only.run env program;
+  (* The analyses over the finished tree (D1). Which blocks run more than
+     once is computed here, once, for the two that ask. *)
+  let multi = Repeats.compute env program in
+  Read_only.run env ~multi program;
   References.run env program;
   Moves.run env program;
   Scopes.run env program;
   Exits.run env program;
   Expansions.run env program;
   Literal_ranges.run env program;
-  Spawns.run env program;
+  Spawns.run env ~multi program;
   Borrows.run env program;
   let diagnostics =
     List.sort_uniq

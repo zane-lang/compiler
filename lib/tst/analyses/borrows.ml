@@ -51,7 +51,7 @@ end)
 
 let summary_of summaries (r : T.Verb_ref.t) =
   match r.T.Verb_ref.owner with
-  | S.Declared id -> Fixpoint.find summaries id
+  | S.Declared id -> Fixpoint.read summaries id
   | S.Intrinsic _ -> Needs.empty
 
 (* What a parameter is to the body checking it. *)
@@ -699,10 +699,7 @@ let run env (p : T.Program.t) =
             fun f -> Env.in_instance env i f ))
         p.T.Program.instances
   in
-  Fixpoint.settle summaries (fun ~report ->
-      List.iter
-        (fun (decl, params, start, within) ->
-          within (fun overlaps ->
-              let needs = walk env summaries ~report ~params start in
-              Option.iter (fun d -> Fixpoint.add summaries d needs) decl))
-        verbs)
+  Fixpoint.settle summaries verbs (fun ~report (decl, params, start, within) ->
+      within (fun overlaps ->
+          let needs = walk env summaries ~report ~params start in
+          Option.iter (fun d -> Fixpoint.add summaries d needs) decl))

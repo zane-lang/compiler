@@ -49,7 +49,7 @@ end)
 (* An intrinsic has no body to summarise: `push` keeps its value in `this`. *)
 let summary_of summaries (r : T.Verb_ref.t) =
   match r.T.Verb_ref.owner with
-  | S.Declared id -> Fixpoint.find summaries id
+  | S.Declared id -> Fixpoint.read summaries id
   | S.Intrinsic "@primitives$push" -> Rests.singleton (1, 0)
   | S.Intrinsic _ -> Rests.empty
 
@@ -612,5 +612,4 @@ let bodies env (p : T.Program.t) =
 let run env (p : T.Program.t) =
   let summaries = Fixpoint.create ~empty:Rests.empty ~union:Rests.union ~equal:Rests.equal in
   let bodies = bodies env p in
-  Fixpoint.settle summaries (fun ~report ->
-      List.iter (fun (d, ret, ps, b) -> walk summaries ~report d ret ps b) bodies)
+  Fixpoint.settle summaries bodies (fun ~report (d, ret, ps, b) -> walk summaries ~report d ret ps b)

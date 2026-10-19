@@ -25,12 +25,15 @@ let passed env callee args =
          | _ -> if bound then None else Some arg)
 
 (* Whether the argument at [i] of a call to [r] is run more than once:
-   `@controlflow$repeat`'s body, or a block parameter a verb runs so. *)
-let runs_often multi (r : T.Verb_ref.t) i =
+   `@controlflow$repeat`'s body, or a block parameter a verb runs so, by
+   [declared]. *)
+let runs_often_by declared (r : T.Verb_ref.t) i =
   match r.T.Verb_ref.owner with
   | S.Intrinsic "@controlflow$repeat" -> i = 1
-  | S.Declared id -> Hashtbl.mem multi (id, i)
+  | S.Declared id -> declared id i
   | S.Intrinsic _ -> false
+
+let runs_often multi = runs_often_by (fun id i -> Hashtbl.mem multi (id, i))
 
 let call_parts env (e : T.Expr.t) =
   match e.T.Expr.node with
@@ -38,81 +41,72 @@ let call_parts env (e : T.Expr.t) =
       Some (callee, passed env callee args)
   | _ -> None
 
-(* One pass of the fixed point: a verb runs a block parameter more than once
-   when it passes it where it runs more than once, or passes it anywhere from
-   inside a block that does. *)
-let find_multi env multi bodies =
-  let changed = ref false in
-  let mark id i =
-    if not (Hashtbl.mem multi (id, i)) then begin
-      Hashtbl.replace multi (id, i) ();
-      changed := true
-    end
+(* One body's walk in the fixed point, whose summary for a verb is the
+   indices of the block parameters it runs more than once: a verb runs one
+   so when it passes it where it runs more than once, or passes it anywhere
+   from inside a block that does. *)
+let find_multi env summaries (id, (params : T.Local.t list), (body : T.Block.t)) =
+  let mark id i = Fixpoint.add summaries id [ i ] in
+  let runs_often = runs_often_by (fun id i -> List.mem i (Fixpoint.read summaries id)) in
+  let param l =
+    let rec find i = function
+      | [] -> None
+      | (p : T.Local.t) :: rest -> if p.T.Local.id = l then Some i else find (i + 1) rest
+    in
+    find 0 params
   in
-  List.iter
-    (fun (id, (params : T.Local.t list), (body : T.Block.t)) ->
-      let param l =
-        let rec find i = function
-          | [] -> None
-          | (p : T.Local.t) :: rest -> if p.T.Local.id = l then Some i else find (i + 1) rest
-        in
-        find 0 params
-      in
-      let rec block often (b : T.Block.t) =
-        List.iter (fun s -> List.iter (expr often) (Traverse.stat_exprs s)) b.T.Block.stats
-      and expr often (e : T.Expr.t) =
-        (* A function value is not seen into, so it may run a block it is
-           given any number of times. *)
-        (match e.T.Expr.node with
-        | T.Expr.Call_value { args; _ } ->
-            List.iter
-              (function
-                | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
-                    match param l.T.Local.id with Some p -> mark id p | None -> ())
-                | _ -> ())
-              args
-        | _ -> ());
-        (match call_parts env e with
-        | Some (callee, args) ->
-            List.iteri
-              (fun i a ->
-                match a with
-                | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
-                    match param l.T.Local.id with
-                    | Some p when often || runs_often multi callee i -> mark id p
-                    | _ -> ())
-                | _ -> ())
-              args
-        | None -> ());
-        let blocks =
-          match call_parts env e with
-          | Some (callee, args) ->
-              List.concat
-                (List.mapi
-                   (fun i a ->
-                     match a with T.Arg.Block b -> [ (b, often || runs_often multi callee i) ] | _ -> [])
-                   args)
-          | None -> (
-              match e.T.Expr.node with
-              | T.Expr.Call_value { args; _ } ->
-                  List.filter_map (function T.Arg.Block b -> Some (b, true) | _ -> None) args
-              | _ -> [])
-        in
+  let rec block often (b : T.Block.t) =
+    List.iter (fun s -> List.iter (expr often) (Traverse.stat_exprs s)) b.T.Block.stats
+  and expr often (e : T.Expr.t) =
+    (* A function value is not seen into, so it may run a block it is
+       given any number of times. *)
+    (match e.T.Expr.node with
+    | T.Expr.Call_value { args; _ } ->
         List.iter
           (function
-            | Traverse.Same x -> expr often x
-            | Traverse.Block b -> (
-                match List.assq_opt b blocks with
-                | Some o -> block o b
-                | None -> block often b)
-            | Traverse.Arm b | Traverse.Handler b -> block often b
-            | Traverse.Lambda _ -> ())
-          (Traverse.parts e)
-      in
-      block false body)
-    bodies;
-  !changed
-
+            | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
+                match param l.T.Local.id with Some p -> mark id p | None -> ())
+            | _ -> ())
+          args
+    | _ -> ());
+    (match call_parts env e with
+    | Some (callee, args) ->
+        List.iteri
+          (fun i a ->
+            match a with
+            | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
+                match param l.T.Local.id with
+                | Some p when often || runs_often callee i -> mark id p
+                | _ -> ())
+            | _ -> ())
+          args
+    | None -> ());
+    let blocks =
+      match call_parts env e with
+      | Some (callee, args) ->
+          List.concat
+            (List.mapi
+               (fun i a ->
+                 match a with T.Arg.Block b -> [ (b, often || runs_often callee i) ] | _ -> [])
+               args)
+      | None -> (
+          match e.T.Expr.node with
+          | T.Expr.Call_value { args; _ } ->
+              List.filter_map (function T.Arg.Block b -> Some (b, true) | _ -> None) args
+          | _ -> [])
+    in
+    List.iter
+      (function
+        | Traverse.Same x -> expr often x
+        | Traverse.Block b -> (
+            match List.assq_opt b blocks with
+            | Some o -> block o b
+            | None -> block often b)
+        | Traverse.Arm b | Traverse.Handler b -> block often b
+        | Traverse.Lambda _ -> ())
+      (Traverse.parts e)
+  in
+  block false body
 
 (* Every verb body with its declaration and parameters, instances included. *)
 let bodies (p : T.Program.t) =
@@ -133,11 +127,12 @@ let bodies (p : T.Program.t) =
 (* Each block parameter, by verb and index, that its verb runs more than
    once. *)
 let compute env (p : T.Program.t) =
+  let summaries = Fixpoint.create ~empty:[] ~union:(fun a b -> List.sort_uniq compare (a @ b)) ~equal:( = ) in
+  Fixpoint.settle summaries (bodies p) (fun ~report:_ body -> find_multi env summaries body);
   let multi : (int * int, unit) Hashtbl.t = Hashtbl.create 16 in
-  let bodies = bodies p in
-  while find_multi env multi bodies do
-    ()
-  done;
+  List.iter
+    (fun (id, _, _) -> List.iter (fun i -> Hashtbl.replace multi (id, i) ()) (Fixpoint.read summaries id))
+    (bodies p);
   multi
 
 (* For each of a call's arguments, whether it is a block run more than once.

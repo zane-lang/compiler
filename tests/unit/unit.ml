@@ -3,6 +3,7 @@ module S = Tst.Signature
 module T = Tst.Nodes
 module Overloads = Tst__Overloads
 module Borrows = Tst__Borrows
+module Fixpoint = Tst__Fixpoint
 module State = Cgt__State
 module Type_layout = Cgt__Type_layout
 module Value = Optimize__Value
@@ -219,6 +220,39 @@ let growing_types () =
   in
   raises_bug "following references through a growing type stops once it keeps growing" (fun () ->
       Borrows.reached_through_references ~members:deeper (named "Node" ~args:[ Ty.Type int ]))
+
+(* A chain of 2,000 verbs, each calling the next, listed caller first, so
+   that the fact the last one starts gets back to the first one link by link.
+   Walking every body until no summary grows takes a round per link, so about
+   n * n walks; the worklist walks each body once and each caller once more
+   (Fixpoint, F25). The round-robin count is taken here too, so the chain is
+   known to be the worst case for it. *)
+let fixpoint_chain () =
+  let n = 2000 in
+  let walk t i =
+    Fixpoint.add t i (if i = n - 1 then true else Fixpoint.read t (i + 1))
+  in
+  let t = Fixpoint.create ~empty:false ~union:( || ) ~equal:Bool.equal in
+  let reported = ref 0 in
+  Fixpoint.settle t (List.init n Fun.id) (fun ~report i ->
+      if report then incr reported;
+      walk t i);
+  check "the fixed point reaches the head of the chain" (Fixpoint.read t 0);
+  check "every body is walked once more to report" (!reported = n);
+  check "a worst-first chain settles in a walk per body and one per caller"
+    (Fixpoint.walks t = (2 * n) - 1);
+  let rounds = Fixpoint.create ~empty:false ~union:( || ) ~equal:Bool.equal in
+  let walks = ref 0 and changed = ref true in
+  while !changed do
+    changed := false;
+    for i = 0 to n - 1 do
+      incr walks;
+      let before = Fixpoint.read rounds i in
+      walk rounds i;
+      if Fixpoint.read rounds i <> before then changed := true
+    done
+  done;
+  check "walking every body until nothing grows is quadratic on the chain" (!walks = n * (n + 1))
 
 (* ---------------------------------------------------------------------- *)
 (* The runtime's ABI                                                      *)
@@ -1109,6 +1143,7 @@ let () =
   string_constructors ();
   type_layout ();
   growing_types ();
+  fixpoint_chain ();
   runtime_abi ();
   single_literals ();
   folded_arithmetic ();
