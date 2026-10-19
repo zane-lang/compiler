@@ -353,7 +353,7 @@ Error: `ping` is instantiated more than 64 times along one chain of instantiatio
 File "fixtures/typing/reject/bad/instances.zn", line 34, characters 5-21:
 34 |     fork(Jar(value));
   |     ^^^^^^^^^^^^^^^^
-Error: `fork` is instantiated more than 64 times along one chain of instantiations, which begins `fork`, `fork`, `fork`, `fork`, ...; its calls to itself never reach a fixed set (in `fork` with T = bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<bad$Crate<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>, required at fixtures/typing/reject/bad/instances.zn:35)
+Error: `fork` is instantiated more than 64 times along one chain of instantiations, which begins `fork`, `fork`, `fork`, `fork`, ...; its calls to itself never reach a fixed set (in `fork` with T = bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>, required at fixtures/typing/reject/bad/instances.zn:35)
 File "fixtures/typing/reject/bad/lambdas.zn", line 5, characters 20-25:
 5 |     reads Int() => outer;
   |                    ^^^^^
@@ -1078,14 +1078,6 @@ File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 21-27:
 5 | Int unimported() => helper(Int(1))
   |                     ^^^^^^
 Error: no function named `helper` is in scope; the package `lib` declares one, and like every package it needs an import
-File "fixtures/typing/reject/bad/writes.zn", line 5, characters 6-11:
-5 | type Crate = variant { held Counter; none Int; }
-  |      ^^^^^
-Error: the type `Crate` is already declared at fixtures/typing/reject/bad/instances.zn:29
-File "fixtures/typing/reject/bad/writes.zn", line 14, characters 47-52:
-14 | Unit report(counter Counter, tray Tray, crate Crate) {
-  |                                               ^^^^^
-Error: `Crate` takes 1 type argument, and 0 were written
 File "fixtures/typing/reject/bad/writes.zn", line 15, characters 5-12:
 15 |     counter!tick();
   |     ^^^^^^^
@@ -1094,6 +1086,10 @@ File "fixtures/typing/reject/bad/writes.zn", line 16, characters 5-17:
 16 |     tray.counter!tick();
   |     ^^^^^^^^^^^^
 Error: a `!` call writes its subject, and `tray` is a parameter, which is read-only
+File "fixtures/typing/reject/bad/writes.zn", line 17, characters 6-35:
+17 |     (crate.held ?? Counter(Int(0)))!tick();
+  |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a `!` call writes its subject, and `crate` is a parameter, which is read-only
 File "fixtures/typing/reject/bad/writes.zn", line 24, characters 5-9:
 24 |     this!tick();
   |     ^^^^

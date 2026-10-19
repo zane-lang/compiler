@@ -1303,7 +1303,7 @@ IR and objects `abi_test.py` builds.
   a stack, not a queue, and a declaration once reported (`Env.runaway`) is
   asked for no more instances. Counting per chain alone would have made a
   verb that asks for two growing instances per step, `fork<T>` calling
-  `fork<Jar<T>>` and `fork<Crate<T>>`, check `2^64` instances before any
+  `fork<Jar<T>>` and `fork<Sack<T>>`, check `2^64` instances before any
   chain reached the limit; breadth-first, the `fork` fixture did not finish
   in 20 seconds, and depth-first it is reported in under a second. The
   changed order renumbers locals in `typing.accept.tst` and changes no

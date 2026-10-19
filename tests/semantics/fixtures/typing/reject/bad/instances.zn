@@ -26,13 +26,13 @@ Unit pong(value T Type) {
 /// Two such calls per instance: the chain is followed to its end before the
 /// instances beside it, so the error comes after one chain, not after every
 /// instance the branches would ask for.
-type Crate<T Type> = struct { item T; }
+type Sack<T Type> = struct { item T; }
 
-Crate<T>(item T Type) => init{ item; }
+Sack<T>(item T Type) => init{ item; }
 
 Unit fork(value T Type) {
 	fork(Jar(value));
-	fork(Crate(value));
+	fork(Sack(value));
 	return Unit();
 }
 
