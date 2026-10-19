@@ -9,3 +9,35 @@ Unit instances() {
 	text String = half(String("x"));
 	return Unit();
 }
+
+/// Each instance asks for one at a larger argument, so its chain of
+/// instantiations never ends. The limit is on that chain's depth, through
+/// however many declarations it passes.
+Unit ping(value T Type) {
+	pong(Jar(value));
+	return Unit();
+}
+
+Unit pong(value T Type) {
+	ping(value);
+	return Unit();
+}
+
+/// Two such calls per instance: the chain is followed to its end before the
+/// instances beside it, so the error comes after one chain, not after every
+/// instance the branches would ask for.
+type Crate<T Type> = struct { item T; }
+
+Crate<T>(item T Type) => init{ item; }
+
+Unit fork(value T Type) {
+	fork(Jar(value));
+	fork(Crate(value));
+	return Unit();
+}
+
+Unit chains() {
+	ping(Int(1));
+	fork(Int(1));
+	return Unit();
+}

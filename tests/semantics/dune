@@ -173,6 +173,29 @@
  (action
   (diff golden/project.bad-target.err project.bad-target.err.actual)))
 
+; `instances/accept` calls a generic verb that never calls itself at 200
+; distinct argument types. Each use is a chain of instantiations one deep, so
+; the instantiation limit, which is on a chain's depth (D12), does not count
+; them together and the build checks with nothing to report.
+
+(rule
+ (deps (source_tree fixtures/instances/accept))
+ (action
+  (with-outputs-to
+   instances.accept.check.actual
+   (run
+    %{exe:../../bin/zanec/zanec.exe}
+    --check
+    --kind
+    application
+    --package
+    fixtures/instances/accept/app))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/instances.accept.check instances.accept.check.actual)))
+
 ; Stage 3 proper (docs/design/semantics.md §3). `typing/accept` is a build that checks: the
 ; root `app`, and a second package `shapes` whose methods, operators and
 ; implicit constructors travel with its types. Its `--decls` view is what

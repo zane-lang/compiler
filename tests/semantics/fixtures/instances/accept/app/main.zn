@@ -1,0 +1,613 @@
+/// A generic verb that never calls itself, used at 200 distinct argument
+/// types: each use is its own chain of instantiations, one deep (D12).
+package app;
+
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+
+Unit consume(x T Type) => Unit()
+
+type W1 = struct { v Int; }
+W1(v Int) => init{ v; }
+type W2 = struct { v Int; }
+W2(v Int) => init{ v; }
+type W3 = struct { v Int; }
+W3(v Int) => init{ v; }
+type W4 = struct { v Int; }
+W4(v Int) => init{ v; }
+type W5 = struct { v Int; }
+W5(v Int) => init{ v; }
+type W6 = struct { v Int; }
+W6(v Int) => init{ v; }
+type W7 = struct { v Int; }
+W7(v Int) => init{ v; }
+type W8 = struct { v Int; }
+W8(v Int) => init{ v; }
+type W9 = struct { v Int; }
+W9(v Int) => init{ v; }
+type W10 = struct { v Int; }
+W10(v Int) => init{ v; }
+type W11 = struct { v Int; }
+W11(v Int) => init{ v; }
+type W12 = struct { v Int; }
+W12(v Int) => init{ v; }
+type W13 = struct { v Int; }
+W13(v Int) => init{ v; }
+type W14 = struct { v Int; }
+W14(v Int) => init{ v; }
+type W15 = struct { v Int; }
+W15(v Int) => init{ v; }
+type W16 = struct { v Int; }
+W16(v Int) => init{ v; }
+type W17 = struct { v Int; }
+W17(v Int) => init{ v; }
+type W18 = struct { v Int; }
+W18(v Int) => init{ v; }
+type W19 = struct { v Int; }
+W19(v Int) => init{ v; }
+type W20 = struct { v Int; }
+W20(v Int) => init{ v; }
+type W21 = struct { v Int; }
+W21(v Int) => init{ v; }
+type W22 = struct { v Int; }
+W22(v Int) => init{ v; }
+type W23 = struct { v Int; }
+W23(v Int) => init{ v; }
+type W24 = struct { v Int; }
+W24(v Int) => init{ v; }
+type W25 = struct { v Int; }
+W25(v Int) => init{ v; }
+type W26 = struct { v Int; }
+W26(v Int) => init{ v; }
+type W27 = struct { v Int; }
+W27(v Int) => init{ v; }
+type W28 = struct { v Int; }
+W28(v Int) => init{ v; }
+type W29 = struct { v Int; }
+W29(v Int) => init{ v; }
+type W30 = struct { v Int; }
+W30(v Int) => init{ v; }
+type W31 = struct { v Int; }
+W31(v Int) => init{ v; }
+type W32 = struct { v Int; }
+W32(v Int) => init{ v; }
+type W33 = struct { v Int; }
+W33(v Int) => init{ v; }
+type W34 = struct { v Int; }
+W34(v Int) => init{ v; }
+type W35 = struct { v Int; }
+W35(v Int) => init{ v; }
+type W36 = struct { v Int; }
+W36(v Int) => init{ v; }
+type W37 = struct { v Int; }
+W37(v Int) => init{ v; }
+type W38 = struct { v Int; }
+W38(v Int) => init{ v; }
+type W39 = struct { v Int; }
+W39(v Int) => init{ v; }
+type W40 = struct { v Int; }
+W40(v Int) => init{ v; }
+type W41 = struct { v Int; }
+W41(v Int) => init{ v; }
+type W42 = struct { v Int; }
+W42(v Int) => init{ v; }
+type W43 = struct { v Int; }
+W43(v Int) => init{ v; }
+type W44 = struct { v Int; }
+W44(v Int) => init{ v; }
+type W45 = struct { v Int; }
+W45(v Int) => init{ v; }
+type W46 = struct { v Int; }
+W46(v Int) => init{ v; }
+type W47 = struct { v Int; }
+W47(v Int) => init{ v; }
+type W48 = struct { v Int; }
+W48(v Int) => init{ v; }
+type W49 = struct { v Int; }
+W49(v Int) => init{ v; }
+type W50 = struct { v Int; }
+W50(v Int) => init{ v; }
+type W51 = struct { v Int; }
+W51(v Int) => init{ v; }
+type W52 = struct { v Int; }
+W52(v Int) => init{ v; }
+type W53 = struct { v Int; }
+W53(v Int) => init{ v; }
+type W54 = struct { v Int; }
+W54(v Int) => init{ v; }
+type W55 = struct { v Int; }
+W55(v Int) => init{ v; }
+type W56 = struct { v Int; }
+W56(v Int) => init{ v; }
+type W57 = struct { v Int; }
+W57(v Int) => init{ v; }
+type W58 = struct { v Int; }
+W58(v Int) => init{ v; }
+type W59 = struct { v Int; }
+W59(v Int) => init{ v; }
+type W60 = struct { v Int; }
+W60(v Int) => init{ v; }
+type W61 = struct { v Int; }
+W61(v Int) => init{ v; }
+type W62 = struct { v Int; }
+W62(v Int) => init{ v; }
+type W63 = struct { v Int; }
+W63(v Int) => init{ v; }
+type W64 = struct { v Int; }
+W64(v Int) => init{ v; }
+type W65 = struct { v Int; }
+W65(v Int) => init{ v; }
+type W66 = struct { v Int; }
+W66(v Int) => init{ v; }
+type W67 = struct { v Int; }
+W67(v Int) => init{ v; }
+type W68 = struct { v Int; }
+W68(v Int) => init{ v; }
+type W69 = struct { v Int; }
+W69(v Int) => init{ v; }
+type W70 = struct { v Int; }
+W70(v Int) => init{ v; }
+type W71 = struct { v Int; }
+W71(v Int) => init{ v; }
+type W72 = struct { v Int; }
+W72(v Int) => init{ v; }
+type W73 = struct { v Int; }
+W73(v Int) => init{ v; }
+type W74 = struct { v Int; }
+W74(v Int) => init{ v; }
+type W75 = struct { v Int; }
+W75(v Int) => init{ v; }
+type W76 = struct { v Int; }
+W76(v Int) => init{ v; }
+type W77 = struct { v Int; }
+W77(v Int) => init{ v; }
+type W78 = struct { v Int; }
+W78(v Int) => init{ v; }
+type W79 = struct { v Int; }
+W79(v Int) => init{ v; }
+type W80 = struct { v Int; }
+W80(v Int) => init{ v; }
+type W81 = struct { v Int; }
+W81(v Int) => init{ v; }
+type W82 = struct { v Int; }
+W82(v Int) => init{ v; }
+type W83 = struct { v Int; }
+W83(v Int) => init{ v; }
+type W84 = struct { v Int; }
+W84(v Int) => init{ v; }
+type W85 = struct { v Int; }
+W85(v Int) => init{ v; }
+type W86 = struct { v Int; }
+W86(v Int) => init{ v; }
+type W87 = struct { v Int; }
+W87(v Int) => init{ v; }
+type W88 = struct { v Int; }
+W88(v Int) => init{ v; }
+type W89 = struct { v Int; }
+W89(v Int) => init{ v; }
+type W90 = struct { v Int; }
+W90(v Int) => init{ v; }
+type W91 = struct { v Int; }
+W91(v Int) => init{ v; }
+type W92 = struct { v Int; }
+W92(v Int) => init{ v; }
+type W93 = struct { v Int; }
+W93(v Int) => init{ v; }
+type W94 = struct { v Int; }
+W94(v Int) => init{ v; }
+type W95 = struct { v Int; }
+W95(v Int) => init{ v; }
+type W96 = struct { v Int; }
+W96(v Int) => init{ v; }
+type W97 = struct { v Int; }
+W97(v Int) => init{ v; }
+type W98 = struct { v Int; }
+W98(v Int) => init{ v; }
+type W99 = struct { v Int; }
+W99(v Int) => init{ v; }
+type W100 = struct { v Int; }
+W100(v Int) => init{ v; }
+type W101 = struct { v Int; }
+W101(v Int) => init{ v; }
+type W102 = struct { v Int; }
+W102(v Int) => init{ v; }
+type W103 = struct { v Int; }
+W103(v Int) => init{ v; }
+type W104 = struct { v Int; }
+W104(v Int) => init{ v; }
+type W105 = struct { v Int; }
+W105(v Int) => init{ v; }
+type W106 = struct { v Int; }
+W106(v Int) => init{ v; }
+type W107 = struct { v Int; }
+W107(v Int) => init{ v; }
+type W108 = struct { v Int; }
+W108(v Int) => init{ v; }
+type W109 = struct { v Int; }
+W109(v Int) => init{ v; }
+type W110 = struct { v Int; }
+W110(v Int) => init{ v; }
+type W111 = struct { v Int; }
+W111(v Int) => init{ v; }
+type W112 = struct { v Int; }
+W112(v Int) => init{ v; }
+type W113 = struct { v Int; }
+W113(v Int) => init{ v; }
+type W114 = struct { v Int; }
+W114(v Int) => init{ v; }
+type W115 = struct { v Int; }
+W115(v Int) => init{ v; }
+type W116 = struct { v Int; }
+W116(v Int) => init{ v; }
+type W117 = struct { v Int; }
+W117(v Int) => init{ v; }
+type W118 = struct { v Int; }
+W118(v Int) => init{ v; }
+type W119 = struct { v Int; }
+W119(v Int) => init{ v; }
+type W120 = struct { v Int; }
+W120(v Int) => init{ v; }
+type W121 = struct { v Int; }
+W121(v Int) => init{ v; }
+type W122 = struct { v Int; }
+W122(v Int) => init{ v; }
+type W123 = struct { v Int; }
+W123(v Int) => init{ v; }
+type W124 = struct { v Int; }
+W124(v Int) => init{ v; }
+type W125 = struct { v Int; }
+W125(v Int) => init{ v; }
+type W126 = struct { v Int; }
+W126(v Int) => init{ v; }
+type W127 = struct { v Int; }
+W127(v Int) => init{ v; }
+type W128 = struct { v Int; }
+W128(v Int) => init{ v; }
+type W129 = struct { v Int; }
+W129(v Int) => init{ v; }
+type W130 = struct { v Int; }
+W130(v Int) => init{ v; }
+type W131 = struct { v Int; }
+W131(v Int) => init{ v; }
+type W132 = struct { v Int; }
+W132(v Int) => init{ v; }
+type W133 = struct { v Int; }
+W133(v Int) => init{ v; }
+type W134 = struct { v Int; }
+W134(v Int) => init{ v; }
+type W135 = struct { v Int; }
+W135(v Int) => init{ v; }
+type W136 = struct { v Int; }
+W136(v Int) => init{ v; }
+type W137 = struct { v Int; }
+W137(v Int) => init{ v; }
+type W138 = struct { v Int; }
+W138(v Int) => init{ v; }
+type W139 = struct { v Int; }
+W139(v Int) => init{ v; }
+type W140 = struct { v Int; }
+W140(v Int) => init{ v; }
+type W141 = struct { v Int; }
+W141(v Int) => init{ v; }
+type W142 = struct { v Int; }
+W142(v Int) => init{ v; }
+type W143 = struct { v Int; }
+W143(v Int) => init{ v; }
+type W144 = struct { v Int; }
+W144(v Int) => init{ v; }
+type W145 = struct { v Int; }
+W145(v Int) => init{ v; }
+type W146 = struct { v Int; }
+W146(v Int) => init{ v; }
+type W147 = struct { v Int; }
+W147(v Int) => init{ v; }
+type W148 = struct { v Int; }
+W148(v Int) => init{ v; }
+type W149 = struct { v Int; }
+W149(v Int) => init{ v; }
+type W150 = struct { v Int; }
+W150(v Int) => init{ v; }
+type W151 = struct { v Int; }
+W151(v Int) => init{ v; }
+type W152 = struct { v Int; }
+W152(v Int) => init{ v; }
+type W153 = struct { v Int; }
+W153(v Int) => init{ v; }
+type W154 = struct { v Int; }
+W154(v Int) => init{ v; }
+type W155 = struct { v Int; }
+W155(v Int) => init{ v; }
+type W156 = struct { v Int; }
+W156(v Int) => init{ v; }
+type W157 = struct { v Int; }
+W157(v Int) => init{ v; }
+type W158 = struct { v Int; }
+W158(v Int) => init{ v; }
+type W159 = struct { v Int; }
+W159(v Int) => init{ v; }
+type W160 = struct { v Int; }
+W160(v Int) => init{ v; }
+type W161 = struct { v Int; }
+W161(v Int) => init{ v; }
+type W162 = struct { v Int; }
+W162(v Int) => init{ v; }
+type W163 = struct { v Int; }
+W163(v Int) => init{ v; }
+type W164 = struct { v Int; }
+W164(v Int) => init{ v; }
+type W165 = struct { v Int; }
+W165(v Int) => init{ v; }
+type W166 = struct { v Int; }
+W166(v Int) => init{ v; }
+type W167 = struct { v Int; }
+W167(v Int) => init{ v; }
+type W168 = struct { v Int; }
+W168(v Int) => init{ v; }
+type W169 = struct { v Int; }
+W169(v Int) => init{ v; }
+type W170 = struct { v Int; }
+W170(v Int) => init{ v; }
+type W171 = struct { v Int; }
+W171(v Int) => init{ v; }
+type W172 = struct { v Int; }
+W172(v Int) => init{ v; }
+type W173 = struct { v Int; }
+W173(v Int) => init{ v; }
+type W174 = struct { v Int; }
+W174(v Int) => init{ v; }
+type W175 = struct { v Int; }
+W175(v Int) => init{ v; }
+type W176 = struct { v Int; }
+W176(v Int) => init{ v; }
+type W177 = struct { v Int; }
+W177(v Int) => init{ v; }
+type W178 = struct { v Int; }
+W178(v Int) => init{ v; }
+type W179 = struct { v Int; }
+W179(v Int) => init{ v; }
+type W180 = struct { v Int; }
+W180(v Int) => init{ v; }
+type W181 = struct { v Int; }
+W181(v Int) => init{ v; }
+type W182 = struct { v Int; }
+W182(v Int) => init{ v; }
+type W183 = struct { v Int; }
+W183(v Int) => init{ v; }
+type W184 = struct { v Int; }
+W184(v Int) => init{ v; }
+type W185 = struct { v Int; }
+W185(v Int) => init{ v; }
+type W186 = struct { v Int; }
+W186(v Int) => init{ v; }
+type W187 = struct { v Int; }
+W187(v Int) => init{ v; }
+type W188 = struct { v Int; }
+W188(v Int) => init{ v; }
+type W189 = struct { v Int; }
+W189(v Int) => init{ v; }
+type W190 = struct { v Int; }
+W190(v Int) => init{ v; }
+type W191 = struct { v Int; }
+W191(v Int) => init{ v; }
+type W192 = struct { v Int; }
+W192(v Int) => init{ v; }
+type W193 = struct { v Int; }
+W193(v Int) => init{ v; }
+type W194 = struct { v Int; }
+W194(v Int) => init{ v; }
+type W195 = struct { v Int; }
+W195(v Int) => init{ v; }
+type W196 = struct { v Int; }
+W196(v Int) => init{ v; }
+type W197 = struct { v Int; }
+W197(v Int) => init{ v; }
+type W198 = struct { v Int; }
+W198(v Int) => init{ v; }
+type W199 = struct { v Int; }
+W199(v Int) => init{ v; }
+type W200 = struct { v Int; }
+W200(v Int) => init{ v; }
+
+Unit main() {
+	consume(W1(Int(1)));
+	consume(W2(Int(2)));
+	consume(W3(Int(3)));
+	consume(W4(Int(4)));
+	consume(W5(Int(5)));
+	consume(W6(Int(6)));
+	consume(W7(Int(7)));
+	consume(W8(Int(8)));
+	consume(W9(Int(9)));
+	consume(W10(Int(10)));
+	consume(W11(Int(11)));
+	consume(W12(Int(12)));
+	consume(W13(Int(13)));
+	consume(W14(Int(14)));
+	consume(W15(Int(15)));
+	consume(W16(Int(16)));
+	consume(W17(Int(17)));
+	consume(W18(Int(18)));
+	consume(W19(Int(19)));
+	consume(W20(Int(20)));
+	consume(W21(Int(21)));
+	consume(W22(Int(22)));
+	consume(W23(Int(23)));
+	consume(W24(Int(24)));
+	consume(W25(Int(25)));
+	consume(W26(Int(26)));
+	consume(W27(Int(27)));
+	consume(W28(Int(28)));
+	consume(W29(Int(29)));
+	consume(W30(Int(30)));
+	consume(W31(Int(31)));
+	consume(W32(Int(32)));
+	consume(W33(Int(33)));
+	consume(W34(Int(34)));
+	consume(W35(Int(35)));
+	consume(W36(Int(36)));
+	consume(W37(Int(37)));
+	consume(W38(Int(38)));
+	consume(W39(Int(39)));
+	consume(W40(Int(40)));
+	consume(W41(Int(41)));
+	consume(W42(Int(42)));
+	consume(W43(Int(43)));
+	consume(W44(Int(44)));
+	consume(W45(Int(45)));
+	consume(W46(Int(46)));
+	consume(W47(Int(47)));
+	consume(W48(Int(48)));
+	consume(W49(Int(49)));
+	consume(W50(Int(50)));
+	consume(W51(Int(51)));
+	consume(W52(Int(52)));
+	consume(W53(Int(53)));
+	consume(W54(Int(54)));
+	consume(W55(Int(55)));
+	consume(W56(Int(56)));
+	consume(W57(Int(57)));
+	consume(W58(Int(58)));
+	consume(W59(Int(59)));
+	consume(W60(Int(60)));
+	consume(W61(Int(61)));
+	consume(W62(Int(62)));
+	consume(W63(Int(63)));
+	consume(W64(Int(64)));
+	consume(W65(Int(65)));
+	consume(W66(Int(66)));
+	consume(W67(Int(67)));
+	consume(W68(Int(68)));
+	consume(W69(Int(69)));
+	consume(W70(Int(70)));
+	consume(W71(Int(71)));
+	consume(W72(Int(72)));
+	consume(W73(Int(73)));
+	consume(W74(Int(74)));
+	consume(W75(Int(75)));
+	consume(W76(Int(76)));
+	consume(W77(Int(77)));
+	consume(W78(Int(78)));
+	consume(W79(Int(79)));
+	consume(W80(Int(80)));
+	consume(W81(Int(81)));
+	consume(W82(Int(82)));
+	consume(W83(Int(83)));
+	consume(W84(Int(84)));
+	consume(W85(Int(85)));
+	consume(W86(Int(86)));
+	consume(W87(Int(87)));
+	consume(W88(Int(88)));
+	consume(W89(Int(89)));
+	consume(W90(Int(90)));
+	consume(W91(Int(91)));
+	consume(W92(Int(92)));
+	consume(W93(Int(93)));
+	consume(W94(Int(94)));
+	consume(W95(Int(95)));
+	consume(W96(Int(96)));
+	consume(W97(Int(97)));
+	consume(W98(Int(98)));
+	consume(W99(Int(99)));
+	consume(W100(Int(100)));
+	consume(W101(Int(101)));
+	consume(W102(Int(102)));
+	consume(W103(Int(103)));
+	consume(W104(Int(104)));
+	consume(W105(Int(105)));
+	consume(W106(Int(106)));
+	consume(W107(Int(107)));
+	consume(W108(Int(108)));
+	consume(W109(Int(109)));
+	consume(W110(Int(110)));
+	consume(W111(Int(111)));
+	consume(W112(Int(112)));
+	consume(W113(Int(113)));
+	consume(W114(Int(114)));
+	consume(W115(Int(115)));
+	consume(W116(Int(116)));
+	consume(W117(Int(117)));
+	consume(W118(Int(118)));
+	consume(W119(Int(119)));
+	consume(W120(Int(120)));
+	consume(W121(Int(121)));
+	consume(W122(Int(122)));
+	consume(W123(Int(123)));
+	consume(W124(Int(124)));
+	consume(W125(Int(125)));
+	consume(W126(Int(126)));
+	consume(W127(Int(127)));
+	consume(W128(Int(128)));
+	consume(W129(Int(129)));
+	consume(W130(Int(130)));
+	consume(W131(Int(131)));
+	consume(W132(Int(132)));
+	consume(W133(Int(133)));
+	consume(W134(Int(134)));
+	consume(W135(Int(135)));
+	consume(W136(Int(136)));
+	consume(W137(Int(137)));
+	consume(W138(Int(138)));
+	consume(W139(Int(139)));
+	consume(W140(Int(140)));
+	consume(W141(Int(141)));
+	consume(W142(Int(142)));
+	consume(W143(Int(143)));
+	consume(W144(Int(144)));
+	consume(W145(Int(145)));
+	consume(W146(Int(146)));
+	consume(W147(Int(147)));
+	consume(W148(Int(148)));
+	consume(W149(Int(149)));
+	consume(W150(Int(150)));
+	consume(W151(Int(151)));
+	consume(W152(Int(152)));
+	consume(W153(Int(153)));
+	consume(W154(Int(154)));
+	consume(W155(Int(155)));
+	consume(W156(Int(156)));
+	consume(W157(Int(157)));
+	consume(W158(Int(158)));
+	consume(W159(Int(159)));
+	consume(W160(Int(160)));
+	consume(W161(Int(161)));
+	consume(W162(Int(162)));
+	consume(W163(Int(163)));
+	consume(W164(Int(164)));
+	consume(W165(Int(165)));
+	consume(W166(Int(166)));
+	consume(W167(Int(167)));
+	consume(W168(Int(168)));
+	consume(W169(Int(169)));
+	consume(W170(Int(170)));
+	consume(W171(Int(171)));
+	consume(W172(Int(172)));
+	consume(W173(Int(173)));
+	consume(W174(Int(174)));
+	consume(W175(Int(175)));
+	consume(W176(Int(176)));
+	consume(W177(Int(177)));
+	consume(W178(Int(178)));
+	consume(W179(Int(179)));
+	consume(W180(Int(180)));
+	consume(W181(Int(181)));
+	consume(W182(Int(182)));
+	consume(W183(Int(183)));
+	consume(W184(Int(184)));
+	consume(W185(Int(185)));
+	consume(W186(Int(186)));
+	consume(W187(Int(187)));
+	consume(W188(Int(188)));
+	consume(W189(Int(189)));
+	consume(W190(Int(190)));
+	consume(W191(Int(191)));
+	consume(W192(Int(192)));
+	consume(W193(Int(193)));
+	consume(W194(Int(194)));
+	consume(W195(Int(195)));
+	consume(W196(Int(196)));
+	consume(W197(Int(197)));
+	consume(W198(Int(198)));
+	consume(W199(Int(199)));
+	consume(W200(Int(200)));
+	return Unit();
+}

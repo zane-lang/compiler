@@ -557,6 +557,21 @@ and the TST holds one body per instance. An error in a generic body is reported
 at the instantiation that exposed it, and names the call site that asked for
 it.
 
+An instance asked for while another is checked extends that one's chain of
+instantiations: `main` calling `f<Int>`, whose body calls `g<Pair<Int>>`, is
+the chain `f`, `g`. A declaration that occurs more than 64 times along one
+chain is reported where the call that would extend it is written, with the
+first links of the chain: `f<T>` calling `f<Pair<T>>` asks for a new instance
+at every step and never reaches a fixed set. Since instances are memoized, a
+chain that only revisits a fixed set of instances stops growing, so only such
+a chain gets that deep. The limit is on one chain's depth; uses on separate
+chains are not counted together, so one generic verb can be used at any number
+of distinct arguments. The latest instance asked for is checked first, so a
+chain is followed to its end before the ones beside it: `f<T>` calling both
+`f<Jar<T>>` and `f<Crate<T>>` is reported after about 64 instances, not after
+the `2^64` its branches would ask for. Once reported, a declaration is asked
+for no more instances.
+
 A generic verb nothing instantiates is checked once more, where it is
 declared, so an unused one is not an unchecked one. Its type parameters stand
 for the type of an expression that failed to type, which every check accepts
@@ -644,9 +659,8 @@ generic too; nothing in `Int`'s constructor depends on `value`, so `value` is
 an ordinary parameter. A generic and an ordinary `@concepts$Int` parameter
 are compile-time integers either way (`syntax.md` §2.8). The distinction is
 what keeps D12 affordable: were every such parameter generic, each distinct
-literal a program writes would be a new instance of `Int`'s constructor, and a
-program with more distinct literals than the instance limit could not be
-built.
+literal a program writes would be a new instance of `Int`'s constructor, a
+body to check and a function to write out.
 
 Whether a callee's parameter is a number parameter can itself turn on the
 callee's body, so pass 4 settles this for the whole build before it builds a
