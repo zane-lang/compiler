@@ -17,11 +17,12 @@ open Build
 (* The address of an element (functions.md §2.9): a list's or an array's,
    checked against its length, or what a declared subscript's body names,
    with `this` bound to the target's place. *)
-let rec subscript w st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
+let subscript w st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
   let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
   match (impl.owner, args) with
   | S.Intrinsic "@primitives$[]", [ index ] -> (
-      match (element (Tty.strip_mode target.T.Expr.ty), array_of (Tty.strip_mode target.T.Expr.ty)) with
+      let ty = Tty.strip_mode target.T.Expr.ty in
+      match (element ty, array_of ty) with
       | Some t, _ ->
           ptr
             (Expr.Runtime
@@ -72,7 +73,7 @@ let rec subscript w st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
       | _ -> Diagnostic.bug ~span "lowering: a declared subscript with no single place to name")
   | _ -> Diagnostic.bug ~span "lowering: a subscript of no owner it knows"
 
-and call w st ctx span verb args handler ret : Expr.t =
+let rec call w st ctx span verb args handler ret : Expr.t =
   match verb with
   | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
   | Some v -> (

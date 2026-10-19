@@ -10,13 +10,38 @@ open State
 open Type_layout
 open Build
 
+(* A handler is a block of its own, so an abort value of a reference type
+   is held in the handler's arena, which is innermost wherever the handler
+   runs. *)
+let handle w ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value : Expr.t) =
+  let scope = { arena = None; settles = []; wants = [] } in
+  let bind =
+    match (h.T.Handler.binder, dropped) with
+    | Some l, _ ->
+        let id = fresh st in
+        Hashtbl.replace ctx.env l.T.Local.id (Slot id);
+        [ bind_local st scope l id value ]
+    (* An abort value no binder names, of type [dropped], is still held
+       here when it is an owner or owns a block, so the drain ends it. *)
+    | None, Some t when held st span t -> [ bind st scope span t (fresh st) value ]
+    | None, _ -> [ Stat.Eval value ]
+  in
+  let resolve =
+    match resolve with
+    | Some r -> r
+    | None -> fun t value -> leave label result (escape st span t (Some label) value)
+  in
+  let inner = { ctx with resolve = Some resolve; scope } in
+  let body = bind @ w.block st inner h.T.Handler.body in
+  close st scope body
+
 (* L13. The scrutinees are reached once, in order, and a switch on each one's
    tag nests inside the last; the semantic pass wrote one arm per
    combination of cases, so each arm is lowered once, where its combination
    is reached. A binder is the address of its case's payload, in the
    scrutinee's own storage when it is a place, so a write through it is a
    write to the payload. A `return` in an arm is the `match`'s value. *)
-let rec match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
+let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
   let t = ty st span ret in
   let label = fresh st in
   let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
@@ -85,7 +110,7 @@ let rec match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
   { Expr.node = Expr.Expand { label; body = lets @ dispatch [] stored; result }; ty = t }
 
 (* An enum map read is a switch on the member, each case giving its entry. *)
-and map_read w st ctx span target map ret =
+let map_read w st ctx span target map ret =
   match Hashtbl.find_opt st.maps map with
   | None -> Diagnostic.bug ~span "lowering found no enum map here"
   | Some (enum, entries) ->
@@ -124,61 +149,13 @@ and map_read w st ctx span target map ret =
 
 (* A handler, run where its operation aborted: its binder holds the abort
    value, and a `resolve` gives the operation its value and goes past it. *)
-(* A handler is a block of its own, so an abort value of a reference type
-   is held in the handler's arena, which is innermost wherever the handler
-   runs. *)
-and handle w ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value : Expr.t) =
-  let scope = { arena = None; settles = []; wants = [] } in
-  let bind =
-    match (h.T.Handler.binder, dropped) with
-    | Some l, _ ->
-        let id = fresh st in
-        Hashtbl.replace ctx.env l.T.Local.id (Slot id);
-        [ bind_local st scope l id value ]
-    (* An abort value no binder names, of type [dropped], is still held
-       here when it is an owner or owns a block, so the drain ends it. *)
-    | None, Some t when held st span t -> [ bind st scope span t (fresh st) value ]
-    | None, _ -> [ Stat.Eval value ]
-  in
-  let resolve =
-    match resolve with
-    | Some r -> r
-    | None -> fun t value -> leave label result (escape st span t (Some label) value)
-  in
-  let inner = { ctx with resolve = Some resolve; scope } in
-  let body = bind @ w.block st inner h.T.Handler.body in
-  close st scope body
-
-(* A case read is its payload when the case is live, and runs its handler
-   when another is (adt.md §5.2). The other cases fall through to it. *)
-and case_read w st ctx span (target : T.Expr.t) case handler ret =
-  let t = ty st span ret in
-  if held st span ret then
-    { Expr.node = Expr.Deref (case_place w st ctx span target case handler ret); ty = t }
-  else
-    let label = fresh st in
-    let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
-    let value = w.borrow st ctx span target in
-    let id = fresh st in
-    let live = case_index st span target.T.Expr.ty case in
-    let tsty = Tty.strip_mode target.T.Expr.ty in
-    let source = sum_of st span tsty { Expr.node = Expr.Local id; ty = value.Expr.ty } in
-    let payload i = { Expr.node = Expr.Payload { value = source; index = i }; ty = t } in
-    let cases =
-      List.mapi
-        (fun i _ -> if i = live then (i, leave label result (payload i)) else (i, []))
-        (cases st span target.T.Expr.ty)
-    in
-    let otherwise = handle w st ctx handler label result span unit_ in
-    let body = [ Stat.Let { id; value }; Stat.Switch { value = source; cases } ] @ otherwise in
-    { Expr.node = Expr.Expand { label; body; result }; ty = t }
 
 (* A case read of an owner, or of a value that owns a block, as a place: the
    payload where the variant holds it when the case is live, or else a slot
    reserved in this scope before the read, which the handler's `resolve`
    fills. Either way what the read gives has one owner, and a copy of it
    owns blocks of its own. *)
-and case_place w st ctx span (target : T.Expr.t) case handler ret =
+let case_place w st ctx span (target : T.Expr.t) case handler ret =
   let t = ty st span ret in
   let tsty = Tty.strip_mode target.T.Expr.ty in
   let within = ty st span tsty in
@@ -216,3 +193,27 @@ and case_place w st ctx span (target : T.Expr.t) case handler ret =
     @ otherwise
   in
   ptr (Expr.Expand { label; body; result = Some result })
+
+(* A case read is its payload when the case is live, and runs its handler
+   when another is (adt.md §5.2). The other cases fall through to it. *)
+let case_read w st ctx span (target : T.Expr.t) case handler ret =
+  let t = ty st span ret in
+  if held st span ret then
+    { Expr.node = Expr.Deref (case_place w st ctx span target case handler ret); ty = t }
+  else
+    let label = fresh st in
+    let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
+    let value = w.borrow st ctx span target in
+    let id = fresh st in
+    let live = case_index st span target.T.Expr.ty case in
+    let tsty = Tty.strip_mode target.T.Expr.ty in
+    let source = sum_of st span tsty { Expr.node = Expr.Local id; ty = value.Expr.ty } in
+    let payload i = { Expr.node = Expr.Payload { value = source; index = i }; ty = t } in
+    let cases =
+      List.mapi
+        (fun i _ -> if i = live then (i, leave label result (payload i)) else (i, []))
+        (cases st span target.T.Expr.ty)
+    in
+    let otherwise = handle w st ctx handler label result span unit_ in
+    let body = [ Stat.Let { id; value }; Stat.Switch { value = source; cases } ] @ otherwise in
+    { Expr.node = Expr.Expand { label; body; result }; ty = t }

@@ -13,10 +13,68 @@ open Literals
 open Verbs
 open Build
 
+(* A member's value on its way into the type [holder] being built: moved
+   there, and placed in a block of its own when the member is boxed. *)
+let member w st ctx span holder t (e : T.Expr.t) =
+  let value = w.moved st ctx span t e in
+  if boxed st holder t then ptr (Expr.Box { value; layout = layout st span t }) else value
+
+(* `ArrayRef.fill(n, make)` (generics.md §8.4): a slot this scope holds,
+   each element made by calling `make` with its position, counted from 1, in
+   order, and moved into place; then the whole array moves out of the slot,
+   which is spent, into wherever the call's value goes. *)
+let fill w st ctx span (make : T.Expr.t) (t : Tty.t) : Expr.t =
+  match (array_of (Tty.strip_mode t), make.T.Expr.ty) with
+  | Some (e, n), Tty.Verb fv ->
+      let arr = ty st span t in
+      let int k = { Expr.node = Expr.Int (Int64.of_int k); ty = Nodes.Ty.I64 } in
+      let f = fresh st and slot = fresh st and i = fresh st and made = fresh st in
+      let label = fresh st and result = fresh st in
+      let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
+      let fn = { Expr.node = Expr.Local f; ty = Nodes.Ty.Ptr } in
+      let index = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
+      let call = Lower_calls.invoke w ~fn st ctx span v [ index ] None in
+      let at =
+        ptr
+          (Expr.Runtime
+             {
+               fn = Runtime.Array_at;
+               args = [ ptr (Expr.Address slot); index; int n; int (stride st span e) ];
+             })
+      in
+      let next = { Expr.node = Expr.Binary { op = Expr.Add; left = index; right = int 1 }; ty = Nodes.Ty.I64 } in
+      let whole = layout st span t in
+      let body =
+        [
+          Stat.Let { id = f; value = w.value_of st ctx make };
+          Stat.Reserve { id = slot; scope = arena st ctx.scope; ty = arr; layout = whole };
+          Stat.Let { id = i; value = int 1 };
+          Stat.Repeat
+            {
+              count = int n;
+              body =
+                [
+                  Stat.Let { id = made; value = call };
+                  Stat.Place
+                    {
+                      address = at;
+                      value = { Expr.node = Expr.Local made; ty = call.Expr.ty };
+                      layout = layout st span e;
+                    };
+                  Stat.assign i next;
+                ];
+            };
+          Stat.assign result
+            { Expr.node = Expr.Take { address = ptr (Expr.Address slot); layout = whole }; ty = arr };
+        ]
+      in
+      { Expr.node = Expr.Expand { label; body; result = Some result }; ty = arr }
+  | _ -> Diagnostic.bug ~span "lowering: `ArrayRef.fill` with the wrong arguments"
+
 (* A storage primitive's constructor: `Unit` has no storage, a list starts
    empty, and the others embed their literal. An array's literal is its
    elements, each a value moved into its place, in the order written. *)
-let rec primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
+let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
   let prefix = "@primitives$" in
   let n = String.length prefix in
   let name =
@@ -69,67 +127,9 @@ let rec primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
   | _, [ T.Arg.Value v ] -> literal ctx span name v
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
 
-(* `ArrayRef.fill(n, make)` (generics.md §8.4): a slot this scope holds,
-   each element made by calling `make` with its position, counted from 1, in
-   order, and moved into place; then the whole array moves out of the slot,
-   which is spent, into wherever the call's value goes. *)
-and fill w st ctx span (make : T.Expr.t) (t : Tty.t) : Expr.t =
-  match (array_of (Tty.strip_mode t), make.T.Expr.ty) with
-  | Some (e, n), Tty.Verb fv ->
-      let arr = ty st span t in
-      let int k = { Expr.node = Expr.Int (Int64.of_int k); ty = Nodes.Ty.I64 } in
-      let f = fresh st and slot = fresh st and i = fresh st and made = fresh st in
-      let label = fresh st and result = fresh st in
-      let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
-      let fn = { Expr.node = Expr.Local f; ty = Nodes.Ty.Ptr } in
-      let index = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
-      let call = Lower_calls.invoke w ~fn st ctx span v [ index ] None in
-      let at =
-        ptr
-          (Expr.Runtime
-             {
-               fn = Runtime.Array_at;
-               args = [ ptr (Expr.Address slot); index; int n; int (stride st span e) ];
-             })
-      in
-      let next = { Expr.node = Expr.Binary { op = Expr.Add; left = index; right = int 1 }; ty = Nodes.Ty.I64 } in
-      let whole = layout st span t in
-      let body =
-        [
-          Stat.Let { id = f; value = w.value_of st ctx make };
-          Stat.Reserve { id = slot; scope = arena st ctx.scope; ty = arr; layout = whole };
-          Stat.Let { id = i; value = int 1 };
-          Stat.Repeat
-            {
-              count = int n;
-              body =
-                [
-                  Stat.Let { id = made; value = call };
-                  Stat.Place
-                    {
-                      address = at;
-                      value = { Expr.node = Expr.Local made; ty = call.Expr.ty };
-                      layout = layout st span e;
-                    };
-                  Stat.assign i next;
-                ];
-            };
-          Stat.assign result
-            { Expr.node = Expr.Take { address = ptr (Expr.Address slot); layout = whole }; ty = arr };
-        ]
-      in
-      { Expr.node = Expr.Expand { label; body; result = Some result }; ty = arr }
-  | _ -> Diagnostic.bug ~span "lowering: `ArrayRef.fill` with the wrong arguments"
-
-(* A member's value on its way into the type [holder] being built: moved
-   there, and placed in a block of its own when the member is boxed. *)
-and member w st ctx span holder t (e : T.Expr.t) =
-  let value = w.moved st ctx span t e in
-  if boxed st holder t then ptr (Expr.Box { value; layout = layout st span t }) else value
-
 (* A struct built member by member, in the order they were written. One of a
    single member is that member, and an empty one is nothing (L5). *)
-and record w st ctx span t (fields : T.Field_value.t list) =
+let record w st ctx span t (fields : T.Field_value.t list) =
   let lowered = ty st span t in
   let value (f : T.Field_value.t) =
     member w st ctx span t (field_type st span t f.T.Field_value.slot) f.T.Field_value.value
@@ -148,7 +148,7 @@ and record w st ctx span t (fields : T.Field_value.t list) =
    with each entry's value in its slot and an entry left out given its
    default. The entries run in the order written, then the defaults in
    declaration order. *)
-and construct_fields w st ctx span verb (fields : T.Field_value.t list) handler ret =
+let construct_fields w st ctx span verb (fields : T.Field_value.t list) handler ret =
   match verb with
   | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
   | Some v ->

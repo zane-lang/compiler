@@ -14,57 +14,6 @@ open Verbs
 open Outcome
 open Build
 
-(* concurrency.md §3. A spawned call's arguments run here, as any call's do
-   (L6), and are stored in a frame in this block's arena. A function of its
-   own reads them from there on a thread of the pool, calls the verb, and
-   stores how it ended at the frame's start. The block waits for the call
-   before it drains (§4.1), and the result comes home to a slot reserved in
-   the same arena: at a read of the local it is bound to, or at the drain.
-
-   A call that can abort or exit settles on this thread, once, where it is
-   first read, or where the block ends when nothing reads it first
-   (docs/spec-divergences.md §10). An abort runs the handler written at the
-   spawn (§3.3), or goes where an abort from here goes, and its `resolve`
-   gives the result; an exit ends the run of the block the spawn is in. *)
-let rec spawn w st ctx span (e : T.Expr.t) =
-  match e.T.Expr.node with
-  | T.Expr.Spawn inner -> spawn w st ctx span inner
-  | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; args; handler } -> (
-      match verb_of st id instance with
-      | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
-      | Some v when expands v ->
-          let v, args = specialized st ctx span v (Lower_calls.passed v args) in
-          spawn_call w st ctx span v None ~writes:v.signature.S.is_mut args handler
-      | Some v -> (
-          match Lower_calls.passed v args with
-          | T.Arg.Value subject :: rest
-            when v.signature.S.is_mut && Lower_calls.subscripted subject ->
-              let lets, args = Lower_calls.held_last w st ctx span v subject rest in
-              let stats, future = spawn_call w st ctx span v None ~writes:true args handler in
-              (lets @ stats, future)
-          | args -> spawn_call w st ctx span v None ~writes:v.signature.S.is_mut args handler))
-  | T.Expr.Call { callee = { owner = S.Intrinsic _; _ } as callee; args; handler } ->
-      let v, args = wrapped st span callee args e.T.Expr.ty in
-      spawn_call w st ctx span v None ~writes:false args handler
-  | T.Expr.Call_value { callee; args; handler } -> (
-      match Tty.strip_mode callee.T.Expr.ty with
-      | Tty.Verb fv -> (
-          let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
-          let (fn : Expr.t) = w.value_of st ctx callee in
-          match args with
-          | T.Arg.Value subject :: rest
-            when fv.Tty.is_mut && Option.is_some fv.Tty.this_ && Lower_calls.subscripted subject ->
-              let id = fresh st in
-              let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
-              let lets, args = Lower_calls.held_last w ~direct:false st ctx span v subject rest in
-              let stats, future =
-                spawn_call w st ctx span v (Some read) ~writes:true args handler
-              in
-              ((Stat.Let { id; value = fn } :: lets) @ stats, future)
-          | _ -> spawn_call w st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler)
-      | _ -> Diagnostic.bug ~span "lowering expected a function value here")
-  | _ -> Diagnostic.bug ~span "lowering: a spawn of something not a call"
-
 (* A spawned call has a function to run on another thread, which a verb
    expanded where it is called has not (L11). It gets one of its own, named
    `zane.expanded.N`: the verb with each literal it was given bound where
@@ -72,7 +21,7 @@ let rec spawn w st ctx span (e : T.Expr.t) =
    block argument cannot be spawned (concurrency.md §3.1), and an array
    literal's elements are values the spawn makes, so its parameter becomes
    one the function takes, of the array's type. *)
-and specialized st ctx span (v : verb) args =
+let specialized st ctx span (v : verb) args =
   let concept (p : T.Local.t) = match p.T.Local.ty with Tty.Concept c -> Some c | _ -> None in
   let pairs = List.combine v.params args in
   let literals, kept =
@@ -117,7 +66,7 @@ and specialized st ctx span (v : verb) args =
    through one named `zane.intrinsic.N` that takes the call's arguments
    and makes the call. One the program has, such as `@program$console`,
    stays where the call reads it. *)
-and wrapped st span (callee : T.Verb_ref.t) args ret =
+let wrapped st span (callee : T.Verb_ref.t) args ret =
   let spelling = match callee.owner with S.Intrinsic s -> s | S.Declared _ -> "" in
   let abort =
     List.find_map
@@ -167,7 +116,7 @@ and wrapped st span (callee : T.Verb_ref.t) args ret =
 (* A spawned call to [v]'s function, or through [fn], a function value's
    address, which runs before the arguments and rides in the frame ahead of
    them. [writes] is whether the call may write its subject. *)
-and spawn_call w st ctx span v fn ~writes passed handler =
+let spawn_call w st ctx span v fn ~writes passed handler =
   let o = outcome st span v in
   let whole = returned o in
   let args = Lower_calls.arguments w ~direct:(Option.is_none fn) st ctx span v passed in
@@ -312,3 +261,54 @@ and spawn_call w st ctx span v fn ~writes passed handler =
     let first = Stat.Let { id = pending; value = unsettled } in
     let at = if o.ok = Nodes.Ty.Void then None else Some (payload done_) in
     (pre @ [ first; spawned ], Future { settle; at })
+
+(* concurrency.md §3. A spawned call's arguments run here, as any call's do
+   (L6), and are stored in a frame in this block's arena. A function of its
+   own reads them from there on a thread of the pool, calls the verb, and
+   stores how it ended at the frame's start. The block waits for the call
+   before it drains (§4.1), and the result comes home to a slot reserved in
+   the same arena: at a read of the local it is bound to, or at the drain.
+
+   A call that can abort or exit settles on this thread, once, where it is
+   first read, or where the block ends when nothing reads it first
+   (docs/spec-divergences.md §10). An abort runs the handler written at the
+   spawn (§3.3), or goes where an abort from here goes, and its `resolve`
+   gives the result; an exit ends the run of the block the spawn is in. *)
+let rec spawn w st ctx span (e : T.Expr.t) =
+  match e.T.Expr.node with
+  | T.Expr.Spawn inner -> spawn w st ctx span inner
+  | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; args; handler } -> (
+      match verb_of st id instance with
+      | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
+      | Some v when expands v ->
+          let v, args = specialized st ctx span v (Lower_calls.passed v args) in
+          spawn_call w st ctx span v None ~writes:v.signature.S.is_mut args handler
+      | Some v -> (
+          match Lower_calls.passed v args with
+          | T.Arg.Value subject :: rest
+            when v.signature.S.is_mut && Lower_calls.subscripted subject ->
+              let lets, args = Lower_calls.held_last w st ctx span v subject rest in
+              let stats, future = spawn_call w st ctx span v None ~writes:true args handler in
+              (lets @ stats, future)
+          | args -> spawn_call w st ctx span v None ~writes:v.signature.S.is_mut args handler))
+  | T.Expr.Call { callee = { owner = S.Intrinsic _; _ } as callee; args; handler } ->
+      let v, args = wrapped st span callee args e.T.Expr.ty in
+      spawn_call w st ctx span v None ~writes:false args handler
+  | T.Expr.Call_value { callee; args; handler } -> (
+      match Tty.strip_mode callee.T.Expr.ty with
+      | Tty.Verb fv -> (
+          let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
+          let (fn : Expr.t) = w.value_of st ctx callee in
+          match args with
+          | T.Arg.Value subject :: rest
+            when fv.Tty.is_mut && Option.is_some fv.Tty.this_ && Lower_calls.subscripted subject ->
+              let id = fresh st in
+              let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
+              let lets, args = Lower_calls.held_last w ~direct:false st ctx span v subject rest in
+              let stats, future =
+                spawn_call w st ctx span v (Some read) ~writes:true args handler
+              in
+              ((Stat.Let { id; value = fn } :: lets) @ stats, future)
+          | _ -> spawn_call w st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler)
+      | _ -> Diagnostic.bug ~span "lowering expected a function value here")
+  | _ -> Diagnostic.bug ~span "lowering: a spawn of something not a call"
