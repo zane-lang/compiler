@@ -1572,7 +1572,8 @@ still counts characters, so no header moved. The comment at the top of
   `\u202e`), as wide as their text, and tabs expand as before. Bytes
   that are not UTF-8 are escaped too (`\xe9`); this commit already
   needed that, since it decodes the line. The file name in `at_span` and in the file and
-  directory forms, and every message, are escaped when rendered, and so
+  directory forms, and every message, are escaped when rendered (a tab
+  there too, as `\x09`, since nothing expands it), and so
   are the file name and message of an internal error
   (`Diagnostic.render_internal`), which the plan did not list. Tests:
   parser rejection goldens `control-escape` (`ESC [ 2 J` in a string
@@ -1586,15 +1587,18 @@ still counts characters, so no header moved. The comment at the top of
   one existing golden that moved is `reject.malformed-utf8`, whose
   Latin-1 byte now shows as `\xe9`.
 - **F03** (`5ab45da`). Pieces are extended grapheme clusters from
-  `uuseg`. A cluster is as wide as its first code point by
-  `Uucp.Break.tty_width_hint`, and an emoji sequence (a ZWJ sequence, a
+  `uuseg`. A cluster is as wide as its widest code point by
+  `Uucp.Break.tty_width_hint`, not its first as the plan said: after a
+  prepended character such as U+0600, which takes no cell, the first is
+  not the base (review, golden `width-prepend`). An emoji sequence (a ZWJ sequence, a
   regional-indicator pair, an emoji with U+FE0F) is 2. `uucp` and
   `uuseg` 18.0.0 reach devbox and CI the way the other OCaml libraries
   do: they are pinned in `dev/setup/bootstrap-toolchain`, whose hash keys
   the CI switch cache, and listed in `dune-project` and so in
   `zane-compiler.opam`. `devbox.json` lists only Nix packages, so it is
   unchanged. `.github/scripts/update-toolchains.py` refreshes the two
-  pins. Tests: goldens `width-combining`, `width-cjk`, `width-emoji` and
+  pins, taking the newest `uucp` of the latest `uuseg`'s major version,
+  which is the one it requires. Tests: goldens `width-combining`, `width-cjk`, `width-emoji` and
   `width-zwj`, each with the caret off the error on the old renderer.
   `width-flag` and `width-presentation` (U+00A9 U+FE0F) came out right
   on the old renderer, since two code points happen to be two cells.
