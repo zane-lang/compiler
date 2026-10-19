@@ -1040,18 +1040,18 @@ let stamps_are_checked () =
 (* A control character in a file name or a message reaches the terminal as an
    escape, in every location form and in an internal error, never as itself. *)
 let escaped_locations () =
-  let name = "dir\027]0;title\007/a\226\128\174.zn" in
-  let message = "unknown name `x\027[2J`" in
+  let name = "dir\027]0;title\007/a\226\128\174\t.zn" in
+  let message = "unknown name `x\027[2J\t`" in
   let pos = { Lexing.pos_fname = name; pos_lnum = 1; pos_bol = 0; pos_cnum = 0 } in
   let at = Source.Span.of_loc (pos, { pos with Lexing.pos_cnum = 1 }) in
-  let shown = "dir\\x1b]0;title\\x07/a\\u202e.zn" in
+  let shown = "dir\\x1b]0;title\\x07/a\\u202e\\x09.zn" in
   let quiet text =
     String.for_all (fun c -> c = '\n' || Char.code c >= 0x20 && Char.code c < 0x7F) text
   in
   List.iter
     (fun (form, names_file, text) ->
       check (form ^ " escapes its controls") (quiet text);
-      check (form ^ " shows the escaped message") (contains text "unknown name `x\\x1b[2J`");
+      check (form ^ " shows the escaped message") (contains text "unknown name `x\\x1b[2J\\x09`");
       if names_file then check (form ^ " escapes the file name") (contains text shown))
     [
       ("a span", true, Diagnostic.render ~source:"x\n" (Diagnostic.error at message));

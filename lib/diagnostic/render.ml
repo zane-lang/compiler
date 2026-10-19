@@ -42,19 +42,22 @@ let escape_bytes s =
   String.concat "" (List.init (String.length s) (fun i -> Printf.sprintf "\\x%02x" (Char.code s.[i])))
 
 (* Text printed outside the excerpt -- a file name, a message -- with every
-   character the terminal would act on escaped. *)
+   character the terminal would act on escaped. Nothing here expands a tab,
+   so a tab is escaped too. *)
 let escaped s =
   let buf = Buffer.create (String.length s) in
   let rec aux i =
     if i < String.length s then begin
       let d = String.get_utf_8_uchar s i in
       let n = Uchar.utf_decode_length d in
-      let bytes = String.sub s i n in
-      let shown =
-        if not (Uchar.utf_decode_is_valid d) then escape_bytes bytes
-        else Option.value (escape (Uchar.utf_decode_uchar d)) ~default:bytes
-      in
-      Buffer.add_string buf shown;
+      (if not (Uchar.utf_decode_is_valid d) then Buffer.add_string buf (escape_bytes (String.sub s i n))
+       else
+         let u = Uchar.utf_decode_uchar d in
+         if Uchar.to_int u = 0x09 then Buffer.add_string buf "\\x09"
+         else
+           match escape u with
+           | Some e -> Buffer.add_string buf e
+           | None -> Buffer.add_substring buf s i n);
       aux (i + n)
     end
   in
