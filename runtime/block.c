@@ -231,7 +231,7 @@ void zane_text_f64(zane_text *out, double value) {
 /* `@runtime$Console`'s `print` (effects.md §6.6): exactly the string's
    length in bytes, with no terminator and nothing added. */
 void zane_print(const zane_text *text) {
-	fwrite(text->bytes, 1, (size_t)text->length, stdout);
+	zane_output(text->bytes, (size_t)text->length);
 }
 
 /* `+` on `@primitives$String`: a new string that owns its bytes. */

@@ -75,6 +75,20 @@ pass; eight contexts going idle leave the pool `ZANE_POOL_WARM`; and past
 `ZANE_COLD_KEPT` cold chunks a drained one goes back whole. Before chunks
 turned cold, resident memory stayed at the 128 chunks' peak.
 
+`output.c` holds the program's output buffer (docs/design/lowering.md §9)
+to flushing where stdio would and to a fault handler that neither
+deadlocks nor blocks, each case in a child that an alarm stops after ten
+seconds. The machine stack overflows twenty times while a spawned call
+prints in a loop and the overflowing thread prints at every call, and
+once while stdout is a pipe that is full and that nothing reads: each
+stops with "recursion too deep" and status 1, the second dropping the
+buffered output, where the old `fflush` in the handler blocked forever.
+A print to a closed stdout ends the program with status 1. The test
+re-runs itself as a child on a pseudo-terminal, which prints a line and
+waits on a pipe: the line arrives first. On a pipe, a short line does not
+arrive while the child waits, and output of exactly the pipe's `st_blksize`
+does.
+
 `writeback.c` holds a write-back to the atomicity a snapshot load relies on:
 a second thread reads each naturally aligned word of a subject at an address
 aligned to 4 and not 8 while the main thread writes back all-zero and

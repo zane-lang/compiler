@@ -567,6 +567,32 @@ test passing.
     grow it, and the fault handler runs on a stack of its own, so a full
     machine stack stops the program with "recursion too deep" and status 1
     rather than a crash.
+  - **The program's output.** A print writes into a buffer of the
+    runtime's own (`runtime/main.c`), never through stdio, so that the
+    fault handler can flush it with only async-signal-safe calls. It has
+    stdio's size for stdout, the block size `fstat` reports or `BUFSIZ`,
+    and flushes where stdio's would: when it fills and when the program
+    ends, and at every print that writes a newline when stdout is a
+    terminal, which the runtime asks once at startup. A mutex orders
+    ordinary writers, and an atomic `busy` flag grants the buffer: a
+    writer claims it from free to 1 after taking the mutex, and touches the
+    buffer only then. A failed write marks the output failed, and the
+    program then ends with status 1. The exit path, an index out of range,
+    a cycle of constants and `zane_broken` flush it first.
+    - **From the fault handler.** A stop for a full machine stack, a
+      range full of frames or a failed commit claims `busy` from free to 2
+      without the mutex, and flushes only if that succeeds, so it loses at
+      most the buffer when another thread, or the faulting one, was mid
+      print, and a writer that later finds 2 waits for the program to end.
+      A write to a full pipe would block, and a check before it cannot
+      rule that out, since another process may fill the pipe in between.
+      So the handler writes a socket with `MSG_DONTWAIT`, and a pipe, on
+      Linux, through `/proc/self/fd/1` opened anew with `O_NONBLOCK`, a
+      description of its own that no process sharing fd 1 sees, dropping
+      what it cannot write at once. Elsewhere it drops a pipe's output. On
+      Windows, where a pipe offers no way to ask whether a write would
+      block, it writes only a terminal or a file. The message on stderr
+      appears either way.
 - **A reference is an address.** [`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §4.1 stores a
   reference as the `u32` segmented offset of the settled owner it names. The
   runtime addresses everything else with native pointers rather than

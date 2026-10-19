@@ -100,7 +100,7 @@ static pthread_mutex_t zane_waits = PTHREAD_MUTEX_INITIALIZER;
    program reaches it when making a constant spawns a call that reads,
    through any chain, the constant being made. */
 _Noreturn static void zane_constant_cycle(void) {
-	fflush(stdout);
+	zane_flush_output();
 	fputs("package constants read each other while they are made\n", stderr);
 	exit(1);
 }

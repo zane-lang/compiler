@@ -85,6 +85,13 @@ since one that overflowed leaves none, and finds the thread's stack with
 `pthread_getattr_np`, or `pthread_get_stackaddr_np` on macOS. A protection
 fault is SIGSEGV on Linux and SIGBUS on macOS, so both are handled.
 
+A stop from the handler first flushes what the program printed, which waits
+in the runtime's own buffer ([`lowering.md`](lowering.md) §9), unless
+another thread holds the buffer. It never blocks on a full pipe: on Linux
+it writes a pipe through a non-blocking descriptor of its own, opened from
+`/proc/self/fd/1`, and drops what the pipe cannot take, while macOS drops a
+pipe's output and Windows writes only a terminal or a file.
+
 ## Address range supported by the runtime
 
 Slots, references and dynamic blocks use native pointers. The current

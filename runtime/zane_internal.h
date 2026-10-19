@@ -252,6 +252,9 @@ enum { ZANE_DEQUES = 1 << 12 };
 
 /* main.c */
 void zane_broken(const char *what);
+void zane_output(const char *bytes, size_t n);
+int zane_flush_output(void);
+void zane_flush_output_in_fault(void);
 
 /* arena.c */
 extern pthread_mutex_t zane_memory;
