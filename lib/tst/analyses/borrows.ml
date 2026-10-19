@@ -110,10 +110,21 @@ let bindings start =
   (match start with `Block b -> block b | `Expr e -> expr e);
   List.rev !found
 
-(* The types a value of type [t] reaches through `&` fields, at any depth. *)
-let behind_references env t =
+(* How deep [behind_references] may follow members. Type_decls rejects a type
+   that holds itself at a growing argument (generics.md §2.4), the only kind
+   whose members lead to ever new types, so a walk this deep is a type that
+   check missed: an internal error, not a hang. *)
+let depth_limit = 256
+
+(* The types a value of type [t] reaches through `&` fields, at any depth,
+   where [members] gives a type's members. *)
+let reached_through_references ~members t =
   let rec go seen acc t =
     if List.exists (Ty.equal t) seen then acc
+    else if List.compare_length_with seen depth_limit > 0 then
+      Diagnostic.bug
+        (Printf.sprintf "borrows: the members of `%s` lead more than %d types deep" (Ty.to_string t)
+           depth_limit)
     else
       List.fold_left
         (fun acc m ->
@@ -122,9 +133,11 @@ let behind_references env t =
               let acc = if List.exists (Ty.equal r) acc then acc else r :: acc in
               go (t :: seen) acc r
           | m -> go (t :: seen) acc m)
-        acc (Spawns.members env t)
+        acc (members t)
   in
   go [] [] (Ty.strip_mode t)
+
+let behind_references env t = reached_through_references ~members:(Spawns.members env) t
 
 (* How a pair of claims stands: apart, overlapping, or apart only if the
    caller keeps the listed pairs apart. *)

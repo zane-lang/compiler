@@ -294,6 +294,22 @@ File "fixtures/typing/reject/bad/expansions.zn", line 39, characters 45-58:
 39 | Int around(stand Stand, n @concepts$Int) => stand[Int(n)]
   |                                             ^^^^^^^^^^^^^
 Error: `around` expands into itself: it takes a block or a literal, so each call to it is written out in place of the call, and this call is reached again
+File "fixtures/typing/reject/bad/growing.zn", line 5, characters 47-64:
+5 | type Grow<T Type> = variant { done Unit; more Grow<Array<T, 2>>; }
+  |                                               ^^^^^^^^^^^^^^^^^
+Error: `Grow` holds itself at a growing argument: its case `more` passes `@primitives$Array<T, 2>` as `T` of `Grow`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
+File "fixtures/typing/reject/bad/growing.zn", line 9, characters 48-62:
+9 | type Inner<U Type> = variant { done Unit; more Outer<List<U>>; }
+  |                                                ^^^^^^^^^^^^^^
+Error: `Inner` holds itself at a growing argument: its case `more` passes `@primitives$List<U>` as `T` of `Outer`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
+File "fixtures/typing/reject/bad/growing.zn", line 12, characters 48-66:
+12 | type Node<T Type> = #variant { last Unit; next &Node<Array<T, 2>>; }
+  |                                                ^^^^^^^^^^^^^^^^^^
+Error: `Node` holds itself at a growing argument: its case `next` passes `@primitives$Array<T, 2>` as `T` of `Node`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
+File "fixtures/typing/reject/bad/growing.zn", line 16, characters 57-79:
+16 | type Spread<T Type, U Type> = variant { done Unit; more Spread<Array<U, 2>, U>; }
+  |                                                         ^^^^^^^^^^^^^^^^^^^^^^
+Error: `Spread` holds itself at a growing argument: its case `more` passes `@primitives$Array<U, 2>` as `T` of `Spread`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
 File "fixtures/typing/reject/bad/imports.zn", line 3, characters 8-15:
 3 | import missing;
   |        ^^^^^^^

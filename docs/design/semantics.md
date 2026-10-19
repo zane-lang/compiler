@@ -175,7 +175,10 @@ else.
    §2.3); a type argument of the wrong kind, reported where it is written
    ([`generics.md`](https://github.com/zane-lang/spec/blob/911d749/spec/generics.md) §3.6),
    including a `^` or a `List` element filled with an `&` type, and through
-   a generic alias as through the type it names.
+   a generic alias as through the type it names; a type that holds itself at
+   a growing argument
+   ([`generics.md`](https://github.com/zane-lang/spec/blob/8298a3a/spec/generics.md)
+   §2.4; see §4 below).
 4. **Signatures.** Resolve every verb's parameter and return types, introducing
    inline generic parameters at their first marked occurrence (`generics.md`
    §3.2, §4.4). Check here:
@@ -391,6 +394,44 @@ keeps, for each `Type_id`:
 - value or reference (`types.md` §2.1);
 - its definition: struct fields, variant cases, enum members, or a distinct
   type's right-hand side.
+
+Once every definition is resolved, pass 3 holds them to the growing-argument
+rule ([`generics.md`](https://github.com/zane-lang/spec/blob/8298a3a/spec/generics.md)
+§2.4): where a type leads back to itself through its members, each argument
+it passes back is one of its own parameters as written or names none of them.
+`type Grow<T Type> = variant { done Unit; more Grow<Array<T, 2>>; }` breaks
+it. `Grow<Int>` holds a `Grow<Array<Int, 2>>`, and so on without end, and
+lowering, which writes out every instance with its own layout, could never
+finish one. The check runs over a graph whose nodes are the generic types'
+parameters. Each occurrence of `B<args>` in a member of `A`, inside `&`,
+`^` and the element types of `Array`, `ArrayRef` and `List` too, gives an
+edge from each parameter of `A` an argument names to the parameter of `B`
+it fills: plain when the argument is that parameter itself, growing
+otherwise. A path from one of `A`'s parameters to another of them is a way
+`A` leads back to itself, so a growing edge breaks the rule when some
+declaration has a parameter that reaches the edge and a parameter the edge
+reaches. The error names the member that holds the edge, and is reported
+whether or not anything uses the type. Its graph is the one Go's
+"instantiation cycle" check builds over type parameters, which reports a
+cycle through a growing edge. The rule is wider than a cycle: `A<T, U>`
+holding `A<Array<U, 2>, U>` passes back a larger argument and is rejected,
+though its instances are finite. The member's type becomes the type of an
+expression that failed to type (D4), so no later walk follows it.
+
+`&` members are followed like any other. A reference is an address, so an
+expanding one would not stop a layout, but the borrow checker follows
+references to every type behind them (`Borrows.behind_references`), and
+such a member usually cannot be filled: an `&` is never empty, so a
+`Node<Int>` would need a `Node<Array<Int, 2>>` to exist first, and so on.
+
+Boxing is unchanged. Whether a member is boxed is still decided per instance
+in lowering (`Type_layout.boxed`, [`adt.md`](https://github.com/zane-lang/spec/blob/8298a3a/spec/adt.md)
+§4); the rule only guarantees that the instances it meets are finitely many.
+The walks over a type's members, `Type_layout.boxed` and `positions` in
+lowering and `Borrows.behind_references` here, stop with an internal error
+past 256 types deep, so a type the rule ever missed is a reported bug rather
+than a hang. The bound is low because each walk compares every type it meets
+with every type on its path, and a growing type's size grows with the depth.
 
 ---
 

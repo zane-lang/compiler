@@ -79,16 +79,29 @@ let inline st t =
   | None, Some (e, _) when not (Tty.is_ref e) -> [ e ]
   | _ -> []
 
+(* How deep a walk over a type's members may go. Semantics rejects a type
+   that holds itself at a growing argument (generics.md §2.4), the only kind
+   whose members lead to ever new types, so a walk this deep is a type that
+   check missed: an internal error, not a hang or a stack overflow. *)
+let depth_limit = 256
+
+let too_deep ?span t =
+  Diagnostic.bug ?span
+    (Printf.sprintf "lowering: the members of `%s` lead more than %d types deep" (Tty.to_string t)
+       depth_limit)
+
 (* adt.md §4: a member is boxed when its type leads back to the type that
    holds it along owning edges, since no finite inline layout exists for it.
    A boxed member is a pointer to its payload's block. *)
 let boxed st holder member =
-  let rec reaches seen t =
+  let rec reaches depth seen t =
+    if depth > depth_limit then too_deep holder;
     (not (Tty.is_ref t))
     && (Tty.equal t holder
-       || (not (List.exists (Tty.equal t) seen)) && List.exists (reaches (t :: seen)) (inline st t))
+       || (not (List.exists (Tty.equal t) seen))
+          && List.exists (reaches (depth + 1) (t :: seen)) (inline st t))
   in
-  reaches [] member
+  reaches 0 [] member
 
 (* A value struct of one member is that member (L5), so reading or storing
    the member is reading or storing the struct. *)
@@ -188,7 +201,9 @@ let stride st span t =
    boxed member, down through variant payloads under the tag that makes each
    live, and through each of an array's elements. A reference is an
    address, and owns nothing. *)
-let rec positions st span (t : Tty.t) base tags : Layout.position list =
+let rec positions ?(depth = 0) st span (t : Tty.t) base tags : Layout.position list =
+  if depth > depth_limit then too_deep ~span t;
+  let positions = positions ~depth:(depth + 1) and layout = layout ~depth:(depth + 1) in
   let at kind size = { Layout.kind; offset = base; size; tags } in
   let handle = fst (Nodes.Ty.size_align Nodes.Ty.Handle) in
   match (t, element t) with
@@ -235,11 +250,11 @@ let rec positions st span (t : Tty.t) base tags : Layout.position list =
 (* A type's layout, by the type's symbol (Symbol.ty), which is also the name
    of its table in the IR. A layout that names itself, through a box, finds
    its name taken before it is done. *)
-and layout st span (t : Tty.t) : Layout.t =
+and layout ?(depth = 0) st span (t : Tty.t) : Layout.t =
   let name = Symbol.ty t in
   if not (Hashtbl.mem st.layouts name) then begin
     Hashtbl.replace st.layouts name [];
-    Hashtbl.replace st.layouts name (positions st span t 0 []);
+    Hashtbl.replace st.layouts name (positions ~depth st span t 0 []);
     st.named <- name :: st.named
   end;
   name

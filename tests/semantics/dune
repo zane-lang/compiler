@@ -196,6 +196,30 @@
  (action
   (diff golden/instances.accept.check instances.accept.check.actual)))
 
+; `growing/accept` holds types that lead back to themselves at their own
+; parameters as written, shuffled, or at arguments that name none of them,
+; and a larger argument that never leads back: all of them obey the
+; growing-argument rule (generics.md §2.4), so the build checks with nothing
+; to report. `typing/reject`'s `growing.zn` holds the types that break it.
+
+(rule
+ (deps (source_tree fixtures/growing/accept))
+ (action
+  (with-outputs-to
+   growing.accept.check.actual
+   (run
+    %{exe:../../bin/zanec/zanec.exe}
+    --check
+    --kind
+    application
+    --package
+    fixtures/growing/accept/app))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/growing.accept.check growing.accept.check.actual)))
+
 ; Stage 3 proper (docs/design/semantics.md §3). `typing/accept` is a build that checks: the
 ; root `app`, and a second package `shapes` whose methods, operators and
 ; implicit constructors travel with its types. Its `--decls` view is what
