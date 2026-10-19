@@ -177,7 +177,28 @@ let type_layout () =
   check "a struct is a struct of its members" (Type_layout.ty st span box = N.Struct [ N.F64; N.I64 ]);
   check "a value type is not a reference" (not (Type_layout.reference st box));
   raises_bug "a declared type with the wrong number of arguments is a bug" (fun () ->
-      Type_layout.definition st (named "Box"))
+      Type_layout.definition st (named "Box"));
+  (* An array of owning elements is one position, which names its
+     element's layout, however long it is. *)
+  let strings n =
+    Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = [ Ty.Type (prim "String"); Ty.Number (Ty.Known n) ] }
+  in
+  let module L = Cgt.Nodes.Layout in
+  check "an array of 100,000 strings is one position"
+    (match Type_layout.positions st span (strings 100_000) 0 [] with
+    | [ { L.kind = L.Array { count = 100_000; stride = 24; elements }; offset = 0; _ } ] ->
+        (match Hashtbl.find st.State.layouts elements with
+        | [ { L.kind = L.Text; offset = 0; tags = []; _ } ] -> true
+        | _ -> false)
+    | _ -> false);
+  check "an array of arrays of strings is one position"
+    (match Type_layout.positions st span (Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = [ Ty.Type (strings 10); Ty.Number (Ty.Known 1000) ] }) 0 [] with
+    | [ { L.kind = L.Array { count = 1000; stride = 240; elements }; _ } ] -> (
+        match Hashtbl.find st.State.layouts elements with
+        | [ { L.kind = L.Array { count = 10; stride = 24; _ }; _ } ] -> true
+        | _ -> false)
+    | _ -> false);
+  check "an array of what owns nothing has no positions" (Type_layout.positions st span array 0 [] = [])
 
 (* A type that holds itself at a growing argument (generics.md §2.4), which
    semantics rejects, reaches lowering only by a bug; the walks over its

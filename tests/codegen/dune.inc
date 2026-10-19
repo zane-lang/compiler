@@ -3993,6 +3993,74 @@
   (diff golden/spawns.out spawns.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/stringArrays))
+ (targets stringArrays.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build stringArrays.exe --package fixtures/stringArrays)))
+
+(rule
+ (deps (source_tree fixtures/stringArrays))
+ (targets stringArrays.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build stringArrays.optimized.exe --optimize --package fixtures/stringArrays)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    stringArrays.checked.out.actual
+    (run ./stringArrays.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/stringArrays.out stringArrays.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    stringArrays.unchecked.out.actual
+    (run ./stringArrays.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/stringArrays.out stringArrays.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    stringArrays.optimized.checked.out.actual
+    (run ./stringArrays.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/stringArrays.out stringArrays.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    stringArrays.optimized.unchecked.out.actual
+    (run ./stringArrays.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/stringArrays.out stringArrays.optimized.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/texts))
  (action
   (with-stdout-to

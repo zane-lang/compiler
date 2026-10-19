@@ -1,0 +1,147 @@
+/// Arrays of strings described once, not once per element
+/// (docs/design/lowering.md §9, "Where a value's blocks are"): an
+/// `ArrayRef` of 100,000 strings filled, moved and dropped, one of 50,000
+/// overwritten,
+/// and a value array of 20,000 strings, arrays nested four deep, copied
+/// whole: a value moved whole holds at most 65,535 parts (lowering.md §9,
+/// "How a value crosses a call"), so a value array of 100,000 strings is
+/// refused. Each pass sums what its strings read back as, and each
+/// check prints `yes` when it holds and `no` when it does not.
+package stringArrays;
+
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias Strings = @primitives$ArrayRef<String, 100000>
+alias Half = @primitives$ArrayRef<String, 50000>
+alias Ten = @primitives$Array<String, 10>
+alias Hundred = @primitives$Array<Ten, 10>
+alias Thousand = @primitives$Array<Hundred, 10>
+alias Some = @primitives$Array<Thousand, 20>
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	@controlflow$branch(ok, { @program$console!print(String("yes\n")); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(String("no\n")); });
+	return Unit();
+}
+
+Int read(text String) => text:parseI64() ?? Int(0)
+
+/// The sum of every element, read back as a number.
+Int sum(values &Strings) {
+	total Int(0);
+	i Int(1);
+	i!to(Int(100000)) {
+		total = @operators$add(total, read(values[i]));
+	}
+	return total;
+}
+
+Int sumTen(values Ten) {
+	total Int(0);
+	i Int(1);
+	i!to(Int(10)) {
+		total = @operators$add(total, read(values[i]));
+	}
+	return total;
+}
+
+Int sumSome(values Some) {
+	total Int(0);
+	a Int(1);
+	a!to(Int(20)) {
+		b Int(1);
+		b!to(Int(10)) {
+			c Int(1);
+			c!to(Int(10)) {
+				total = @operators$add(total, sumTen(values[a][b][c]));
+			}
+		}
+	}
+	return total;
+}
+
+/// Made in its own arena, and dropped with it.
+Int dropped() {
+	made Strings = @primitives$ArrayRef.fill(100000, String(i Int) => String(i));
+	return sum(made);
+}
+
+/// Twenty thousand strings, each a copy of [word]'s.
+Some some(word String) {
+	ten Ten = @primitives$Array([word, word, word, word, word, word, word, word, word, word]);
+	hundred Hundred = @primitives$Array([ten, ten, ten, ten, ten, ten, ten, ten, ten, ten]);
+	thousand Thousand = @primitives$Array([hundred, hundred, hundred, hundred, hundred, hundred, hundred, hundred, hundred, hundred]);
+	return @primitives$Array([thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand, thousand]);
+}
+
+/// Filled, element by element.
+Unit filled() {
+	grid Strings = @primitives$ArrayRef.fill(100000, String(i Int) => String(i));
+	check(@operators$equal(sum(grid), Int(5000050000)));
+	return Unit();
+}
+
+/// Moved whole, and settled where it lands.
+Unit moved() {
+	spare ^Strings = @primitives$ArrayRef.fill(100000, String(i Int) => String(@operators$multiply(i, Int(2))));
+	kept Strings = spare;
+	check(@operators$equal(sum(kept), Int(10000100000)));
+	return Unit();
+}
+
+/// Overwritten in place: the old strings end, the new ones stay. At 50,000,
+/// since making one and overwriting with it holds five copies of the array
+/// on the machine stack, past its 8 MiB at 100,000.
+Unit overwritten() {
+	kept Half = @primitives$ArrayRef.fill(50000, String(i Int) => String(i));
+	kept!refill();
+	total Int(0);
+	i Int(1);
+	i!to(Int(50000)) {
+		total = @operators$add(total, read(kept[i]));
+	}
+	check(@operators$equal(total, Int(3750075000)));
+	return Unit();
+}
+
+Unit refill(this Half) mut {
+	this = @primitives$ArrayRef.fill(50000, String(i Int) => String(@operators$multiply(i, Int(3))));
+	return Unit();
+}
+
+/// A value array copied whole, and the copy changed: the original keeps
+/// its strings.
+Unit copied() {
+	first Some = some(String("2"));
+	second Some = first;
+	second[Int(1)] = some(String("5"))[Int(1)];
+	check(@operators$equal(sumSome(first), Int(40000)));
+	check(@operators$equal(sumSome(second), Int(43000)));
+	return Unit();
+}
+
+Unit main() {
+	filled();
+	moved();
+	overwritten();
+
+	// Many made and dropped: each returns every block it made.
+	total Int(0);
+	j Int(1);
+	j!to(Int(20)) {
+		total = @operators$add(total, dropped());
+	}
+	check(@operators$equal(total, Int(100001000000)));
+	copied();
+	return Unit();
+}

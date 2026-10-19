@@ -299,6 +299,24 @@ let walks known l =
    when they own no blocks. *)
 let inner known l = if Hashtbl.mem known.positions l then Some (walks known l) else None
 
+(* The [i]th of the elements [stride] bytes apart from [base]. *)
+let element_at c base stride i =
+  Llvm.build_in_bounds_gep (Llvm.i8_type c.env.ctx) base [| Llvm.build_mul i (int c.env stride) "" c.b |] "" c.b
+
+(* An array's elements (Layout.Array) are walked by a loop over its count,
+   each by its element's walk, called one deeper and never handed on to the
+   work: an element is inline in the value, so a job handed on could find
+   its bytes replaced by the time it ran. How deep arrays nest is bounded by
+   the type, and the boxes and lists inside them still hand on past
+   [deepest]. *)
+let each_element c base ~count ~stride walk with_ extra =
+  let next = Llvm.build_add c.depth (int c.env 1) "" c.b in
+  each c (int c.env count) (fun i ->
+      ignore
+        (Llvm.build_call (walk_type c.env) walk
+           [| element_at c base stride i; with_; extra; c.work; next |]
+           "" c.b))
+
 (* Copy: each block the value names is still the original's, so it gets a
    copy of its own in the region the copy works with. *)
 let copy known c (p : Layout.position) =
@@ -337,6 +355,8 @@ let copy known c (p : Layout.position) =
           memcpy c fresh old (int env size);
           store c fresh h;
           Option.iter (fun w -> visit c w.copy fresh c.with_ (int env 0)) (inner known payload))
+  | Layout.Array { count; stride; elements } ->
+      each_element c h ~count ~stride (walks known elements).copy c.with_ (int env 0)
 
 (* End: each block the value owns is returned once what lives in it has
    died, and its handle or box names none. A block whose contents are
@@ -400,7 +420,9 @@ let end_at known c base (p : Layout.position) =
                 (fun () ->
                   defer_return old (int env size) 8;
                   defer w old));
-      store c (Llvm.const_null env.ptr) h);
+      store c (Llvm.const_null env.ptr) h
+  | Layout.Array { count; stride; elements } ->
+      each_element c h ~count ~stride (walks known elements).end_ (Llvm.const_null env.ptr) (int env 0));
   ()
 
 (* Move: each block the value owns that must move into the region the move
@@ -447,6 +469,8 @@ let move known c (p : Layout.position) =
           when_ c (leaves old) (fun () ->
               let fresh = relocate old (int env size) 8 (int env size) in
               Option.iter (fun w -> visit c w.move fresh c.with_ c.extra) (inner known payload)))
+  | Layout.Array { count; stride; elements } ->
+      each_element c h ~count ~stride (walks known elements).move c.with_ c.extra
 
 (* Overwrite (runtime/value.c, `zane_overwrite`): the place hands on its
    arrival first, so it arrives after everything below it. A box present
@@ -472,9 +496,28 @@ let overwrite known self c (ps : Layout.position list) =
   List.iter2
     (fun (p : Layout.position) k ->
       where_present c c.at p (fun () ->
-          match k with
-          | None -> end_at known c c.at p
-          | Some k ->
+          match (p.kind, k) with
+          | Layout.Array { count; stride; elements }, _ ->
+              (* Present in both, each element overwrites its own, and the
+                 result is written back over the replacement so that the
+                 copy of its bytes below keeps it; present in the occupant
+                 alone, the occupant's elements end. *)
+              let w = walks known elements in
+              let at = offset c c.at p.offset and with_ = offset c c.with_ p.offset in
+              let both () =
+                each c (int env count) (fun i ->
+                    let next = Llvm.build_add c.depth (int env 1) "" c.b in
+                    ignore
+                      (Llvm.build_call (walk_type env) w.overwrite
+                         [| element_at c at stride i; element_at c with_ stride i; int env stride; c.work; next |]
+                         "" c.b));
+                memcpy c with_ at (int env (count * stride))
+              in
+              (match present c c.with_ p with
+              | None -> both ()
+              | Some there -> either c there both (fun () -> end_at known c c.at p))
+          | _, None -> end_at known c c.at p
+          | _, Some k ->
               let old = load c env.ptr (offset c c.at p.offset) in
               let both =
                 match present c c.with_ p with
@@ -533,12 +576,22 @@ let overwrite known self c (ps : Layout.position list) =
     ps kept
 
 (* Vacate: an owner moved out of its slot, and its blocks left with it
-   (lifetimes.md §1.6), so the slot names none. *)
-let vacate c (p : Layout.position) =
+   (lifetimes.md §1.6), so the slot names none. An array's elements are
+   vacated by [element]'s function for their layout. *)
+let vacate element c (p : Layout.position) =
   let h = offset c c.at p.offset in
   match p.kind with
   | Layout.Text | Layout.List _ -> zero_handle c h
   | Layout.Box _ -> store c (Llvm.const_null c.env.ptr) h
+  | Layout.Array { count; stride; elements } ->
+      let f = element elements in
+      each c (int c.env count) (fun i ->
+          ignore
+            (Llvm.build_call
+               (Llvm.function_type (Llvm.void_type c.env.ctx) [| c.env.ptr |])
+               f
+               [| element_at c h stride i |]
+               "" c.b))
 
 (* ---------------------------------------------------------------------- *)
 (* Emitting them                                                          *)
@@ -574,7 +627,7 @@ let table known l =
   if listed known l then (walks known l).table else Llvm.const_null known.emitting.ptr
 
 (* The function that vacates a value of the layout, if it lists anything. *)
-let vacater known l =
+let rec vacater known l =
   match (Hashtbl.find_opt known.vacates l, Hashtbl.find_opt known.positions l) with
   | Some f, _ -> Some f
   | None, None -> None
@@ -596,7 +649,8 @@ let vacater known l =
           depth = int env 0;
         }
       in
-      List.iter (fun p -> where_present c c.at p (fun () -> vacate c p)) ps;
+      let element l = Option.get (vacater known l) in
+      List.iter (fun p -> where_present c c.at p (fun () -> vacate element c p)) ps;
       ignore (Llvm.build_ret_void b);
       Hashtbl.replace known.vacates l f;
       Some f

@@ -166,6 +166,9 @@ module Layout = struct
   type kind =
     | Text
     | List of { stride : int; elements : string }
+    (* An array's [count] elements inline, [stride] bytes apart from the
+       position's offset: one position for them all, however many. *)
+    | Array of { count : int; stride : int; elements : string }
     | Box of { size : int; payload : string }
 
   type position = { kind : kind; offset : int; size : int; tags : (int * int) list }
