@@ -128,11 +128,12 @@ let bodies (p : T.Program.t) =
    once. *)
 let compute env (p : T.Program.t) =
   let summaries = Fixpoint.create ~empty:[] ~union:(fun a b -> List.sort_uniq compare (a @ b)) ~equal:( = ) in
-  Fixpoint.settle summaries (bodies p) (fun ~report:_ body -> find_multi env summaries body);
+  let bodies = bodies p in
+  Fixpoint.settle summaries bodies (fun ~report:_ body -> find_multi env summaries body);
   let multi : (int * int, unit) Hashtbl.t = Hashtbl.create 16 in
   List.iter
     (fun (id, _, _) -> List.iter (fun i -> Hashtbl.replace multi (id, i) ()) (Fixpoint.read summaries id))
-    (bodies p);
+    bodies;
   multi
 
 (* For each of a call's arguments, whether it is a block run more than once.
