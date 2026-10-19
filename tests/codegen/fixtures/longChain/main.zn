@@ -1,0 +1,2164 @@
+/// A chain of 300 distinct structs that ends in an `Int` and a `String`,
+/// held by a reference type beside a `&` member. Nothing in it grows, so its
+/// layout, its owned blocks and what it reaches through references are found
+/// however long it is (Tty.Growth). Each check prints `yes` when it holds
+/// and `no` when it does not. Each struct has one member but S150, whose
+/// second makes the chain a struct there rather than the member it holds,
+/// and S299 at the end.
+package longChain;
+
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+type Leaf = #struct {
+	n Int;
+}
+
+Leaf(n Int) => init{ n; }
+
+Unit bump(this Leaf) mut {
+	this.n = @operators$add(this.n, Int(1));
+	return Unit();
+}
+
+type Top = #struct {
+	at &Leaf;
+	chain S0;
+}
+
+Top(at &Leaf, chain S0) => init{ at; chain; }
+
+/// A write through a `Top`, which the borrow analysis follows down every
+/// member to the `Leaf` its `&` member names.
+Unit bump(this Top) mut {
+	this.at!bump();
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+
+type S0 = struct {
+	next S1;
+}
+
+S0(next S1) => init{ next; }
+
+type S1 = struct {
+	next S2;
+}
+
+S1(next S2) => init{ next; }
+
+type S2 = struct {
+	next S3;
+}
+
+S2(next S3) => init{ next; }
+
+type S3 = struct {
+	next S4;
+}
+
+S3(next S4) => init{ next; }
+
+type S4 = struct {
+	next S5;
+}
+
+S4(next S5) => init{ next; }
+
+type S5 = struct {
+	next S6;
+}
+
+S5(next S6) => init{ next; }
+
+type S6 = struct {
+	next S7;
+}
+
+S6(next S7) => init{ next; }
+
+type S7 = struct {
+	next S8;
+}
+
+S7(next S8) => init{ next; }
+
+type S8 = struct {
+	next S9;
+}
+
+S8(next S9) => init{ next; }
+
+type S9 = struct {
+	next S10;
+}
+
+S9(next S10) => init{ next; }
+
+type S10 = struct {
+	next S11;
+}
+
+S10(next S11) => init{ next; }
+
+type S11 = struct {
+	next S12;
+}
+
+S11(next S12) => init{ next; }
+
+type S12 = struct {
+	next S13;
+}
+
+S12(next S13) => init{ next; }
+
+type S13 = struct {
+	next S14;
+}
+
+S13(next S14) => init{ next; }
+
+type S14 = struct {
+	next S15;
+}
+
+S14(next S15) => init{ next; }
+
+type S15 = struct {
+	next S16;
+}
+
+S15(next S16) => init{ next; }
+
+type S16 = struct {
+	next S17;
+}
+
+S16(next S17) => init{ next; }
+
+type S17 = struct {
+	next S18;
+}
+
+S17(next S18) => init{ next; }
+
+type S18 = struct {
+	next S19;
+}
+
+S18(next S19) => init{ next; }
+
+type S19 = struct {
+	next S20;
+}
+
+S19(next S20) => init{ next; }
+
+type S20 = struct {
+	next S21;
+}
+
+S20(next S21) => init{ next; }
+
+type S21 = struct {
+	next S22;
+}
+
+S21(next S22) => init{ next; }
+
+type S22 = struct {
+	next S23;
+}
+
+S22(next S23) => init{ next; }
+
+type S23 = struct {
+	next S24;
+}
+
+S23(next S24) => init{ next; }
+
+type S24 = struct {
+	next S25;
+}
+
+S24(next S25) => init{ next; }
+
+type S25 = struct {
+	next S26;
+}
+
+S25(next S26) => init{ next; }
+
+type S26 = struct {
+	next S27;
+}
+
+S26(next S27) => init{ next; }
+
+type S27 = struct {
+	next S28;
+}
+
+S27(next S28) => init{ next; }
+
+type S28 = struct {
+	next S29;
+}
+
+S28(next S29) => init{ next; }
+
+type S29 = struct {
+	next S30;
+}
+
+S29(next S30) => init{ next; }
+
+type S30 = struct {
+	next S31;
+}
+
+S30(next S31) => init{ next; }
+
+type S31 = struct {
+	next S32;
+}
+
+S31(next S32) => init{ next; }
+
+type S32 = struct {
+	next S33;
+}
+
+S32(next S33) => init{ next; }
+
+type S33 = struct {
+	next S34;
+}
+
+S33(next S34) => init{ next; }
+
+type S34 = struct {
+	next S35;
+}
+
+S34(next S35) => init{ next; }
+
+type S35 = struct {
+	next S36;
+}
+
+S35(next S36) => init{ next; }
+
+type S36 = struct {
+	next S37;
+}
+
+S36(next S37) => init{ next; }
+
+type S37 = struct {
+	next S38;
+}
+
+S37(next S38) => init{ next; }
+
+type S38 = struct {
+	next S39;
+}
+
+S38(next S39) => init{ next; }
+
+type S39 = struct {
+	next S40;
+}
+
+S39(next S40) => init{ next; }
+
+type S40 = struct {
+	next S41;
+}
+
+S40(next S41) => init{ next; }
+
+type S41 = struct {
+	next S42;
+}
+
+S41(next S42) => init{ next; }
+
+type S42 = struct {
+	next S43;
+}
+
+S42(next S43) => init{ next; }
+
+type S43 = struct {
+	next S44;
+}
+
+S43(next S44) => init{ next; }
+
+type S44 = struct {
+	next S45;
+}
+
+S44(next S45) => init{ next; }
+
+type S45 = struct {
+	next S46;
+}
+
+S45(next S46) => init{ next; }
+
+type S46 = struct {
+	next S47;
+}
+
+S46(next S47) => init{ next; }
+
+type S47 = struct {
+	next S48;
+}
+
+S47(next S48) => init{ next; }
+
+type S48 = struct {
+	next S49;
+}
+
+S48(next S49) => init{ next; }
+
+type S49 = struct {
+	next S50;
+}
+
+S49(next S50) => init{ next; }
+
+type S50 = struct {
+	next S51;
+}
+
+S50(next S51) => init{ next; }
+
+type S51 = struct {
+	next S52;
+}
+
+S51(next S52) => init{ next; }
+
+type S52 = struct {
+	next S53;
+}
+
+S52(next S53) => init{ next; }
+
+type S53 = struct {
+	next S54;
+}
+
+S53(next S54) => init{ next; }
+
+type S54 = struct {
+	next S55;
+}
+
+S54(next S55) => init{ next; }
+
+type S55 = struct {
+	next S56;
+}
+
+S55(next S56) => init{ next; }
+
+type S56 = struct {
+	next S57;
+}
+
+S56(next S57) => init{ next; }
+
+type S57 = struct {
+	next S58;
+}
+
+S57(next S58) => init{ next; }
+
+type S58 = struct {
+	next S59;
+}
+
+S58(next S59) => init{ next; }
+
+type S59 = struct {
+	next S60;
+}
+
+S59(next S60) => init{ next; }
+
+type S60 = struct {
+	next S61;
+}
+
+S60(next S61) => init{ next; }
+
+type S61 = struct {
+	next S62;
+}
+
+S61(next S62) => init{ next; }
+
+type S62 = struct {
+	next S63;
+}
+
+S62(next S63) => init{ next; }
+
+type S63 = struct {
+	next S64;
+}
+
+S63(next S64) => init{ next; }
+
+type S64 = struct {
+	next S65;
+}
+
+S64(next S65) => init{ next; }
+
+type S65 = struct {
+	next S66;
+}
+
+S65(next S66) => init{ next; }
+
+type S66 = struct {
+	next S67;
+}
+
+S66(next S67) => init{ next; }
+
+type S67 = struct {
+	next S68;
+}
+
+S67(next S68) => init{ next; }
+
+type S68 = struct {
+	next S69;
+}
+
+S68(next S69) => init{ next; }
+
+type S69 = struct {
+	next S70;
+}
+
+S69(next S70) => init{ next; }
+
+type S70 = struct {
+	next S71;
+}
+
+S70(next S71) => init{ next; }
+
+type S71 = struct {
+	next S72;
+}
+
+S71(next S72) => init{ next; }
+
+type S72 = struct {
+	next S73;
+}
+
+S72(next S73) => init{ next; }
+
+type S73 = struct {
+	next S74;
+}
+
+S73(next S74) => init{ next; }
+
+type S74 = struct {
+	next S75;
+}
+
+S74(next S75) => init{ next; }
+
+type S75 = struct {
+	next S76;
+}
+
+S75(next S76) => init{ next; }
+
+type S76 = struct {
+	next S77;
+}
+
+S76(next S77) => init{ next; }
+
+type S77 = struct {
+	next S78;
+}
+
+S77(next S78) => init{ next; }
+
+type S78 = struct {
+	next S79;
+}
+
+S78(next S79) => init{ next; }
+
+type S79 = struct {
+	next S80;
+}
+
+S79(next S80) => init{ next; }
+
+type S80 = struct {
+	next S81;
+}
+
+S80(next S81) => init{ next; }
+
+type S81 = struct {
+	next S82;
+}
+
+S81(next S82) => init{ next; }
+
+type S82 = struct {
+	next S83;
+}
+
+S82(next S83) => init{ next; }
+
+type S83 = struct {
+	next S84;
+}
+
+S83(next S84) => init{ next; }
+
+type S84 = struct {
+	next S85;
+}
+
+S84(next S85) => init{ next; }
+
+type S85 = struct {
+	next S86;
+}
+
+S85(next S86) => init{ next; }
+
+type S86 = struct {
+	next S87;
+}
+
+S86(next S87) => init{ next; }
+
+type S87 = struct {
+	next S88;
+}
+
+S87(next S88) => init{ next; }
+
+type S88 = struct {
+	next S89;
+}
+
+S88(next S89) => init{ next; }
+
+type S89 = struct {
+	next S90;
+}
+
+S89(next S90) => init{ next; }
+
+type S90 = struct {
+	next S91;
+}
+
+S90(next S91) => init{ next; }
+
+type S91 = struct {
+	next S92;
+}
+
+S91(next S92) => init{ next; }
+
+type S92 = struct {
+	next S93;
+}
+
+S92(next S93) => init{ next; }
+
+type S93 = struct {
+	next S94;
+}
+
+S93(next S94) => init{ next; }
+
+type S94 = struct {
+	next S95;
+}
+
+S94(next S95) => init{ next; }
+
+type S95 = struct {
+	next S96;
+}
+
+S95(next S96) => init{ next; }
+
+type S96 = struct {
+	next S97;
+}
+
+S96(next S97) => init{ next; }
+
+type S97 = struct {
+	next S98;
+}
+
+S97(next S98) => init{ next; }
+
+type S98 = struct {
+	next S99;
+}
+
+S98(next S99) => init{ next; }
+
+type S99 = struct {
+	next S100;
+}
+
+S99(next S100) => init{ next; }
+
+type S100 = struct {
+	next S101;
+}
+
+S100(next S101) => init{ next; }
+
+type S101 = struct {
+	next S102;
+}
+
+S101(next S102) => init{ next; }
+
+type S102 = struct {
+	next S103;
+}
+
+S102(next S103) => init{ next; }
+
+type S103 = struct {
+	next S104;
+}
+
+S103(next S104) => init{ next; }
+
+type S104 = struct {
+	next S105;
+}
+
+S104(next S105) => init{ next; }
+
+type S105 = struct {
+	next S106;
+}
+
+S105(next S106) => init{ next; }
+
+type S106 = struct {
+	next S107;
+}
+
+S106(next S107) => init{ next; }
+
+type S107 = struct {
+	next S108;
+}
+
+S107(next S108) => init{ next; }
+
+type S108 = struct {
+	next S109;
+}
+
+S108(next S109) => init{ next; }
+
+type S109 = struct {
+	next S110;
+}
+
+S109(next S110) => init{ next; }
+
+type S110 = struct {
+	next S111;
+}
+
+S110(next S111) => init{ next; }
+
+type S111 = struct {
+	next S112;
+}
+
+S111(next S112) => init{ next; }
+
+type S112 = struct {
+	next S113;
+}
+
+S112(next S113) => init{ next; }
+
+type S113 = struct {
+	next S114;
+}
+
+S113(next S114) => init{ next; }
+
+type S114 = struct {
+	next S115;
+}
+
+S114(next S115) => init{ next; }
+
+type S115 = struct {
+	next S116;
+}
+
+S115(next S116) => init{ next; }
+
+type S116 = struct {
+	next S117;
+}
+
+S116(next S117) => init{ next; }
+
+type S117 = struct {
+	next S118;
+}
+
+S117(next S118) => init{ next; }
+
+type S118 = struct {
+	next S119;
+}
+
+S118(next S119) => init{ next; }
+
+type S119 = struct {
+	next S120;
+}
+
+S119(next S120) => init{ next; }
+
+type S120 = struct {
+	next S121;
+}
+
+S120(next S121) => init{ next; }
+
+type S121 = struct {
+	next S122;
+}
+
+S121(next S122) => init{ next; }
+
+type S122 = struct {
+	next S123;
+}
+
+S122(next S123) => init{ next; }
+
+type S123 = struct {
+	next S124;
+}
+
+S123(next S124) => init{ next; }
+
+type S124 = struct {
+	next S125;
+}
+
+S124(next S125) => init{ next; }
+
+type S125 = struct {
+	next S126;
+}
+
+S125(next S126) => init{ next; }
+
+type S126 = struct {
+	next S127;
+}
+
+S126(next S127) => init{ next; }
+
+type S127 = struct {
+	next S128;
+}
+
+S127(next S128) => init{ next; }
+
+type S128 = struct {
+	next S129;
+}
+
+S128(next S129) => init{ next; }
+
+type S129 = struct {
+	next S130;
+}
+
+S129(next S130) => init{ next; }
+
+type S130 = struct {
+	next S131;
+}
+
+S130(next S131) => init{ next; }
+
+type S131 = struct {
+	next S132;
+}
+
+S131(next S132) => init{ next; }
+
+type S132 = struct {
+	next S133;
+}
+
+S132(next S133) => init{ next; }
+
+type S133 = struct {
+	next S134;
+}
+
+S133(next S134) => init{ next; }
+
+type S134 = struct {
+	next S135;
+}
+
+S134(next S135) => init{ next; }
+
+type S135 = struct {
+	next S136;
+}
+
+S135(next S136) => init{ next; }
+
+type S136 = struct {
+	next S137;
+}
+
+S136(next S137) => init{ next; }
+
+type S137 = struct {
+	next S138;
+}
+
+S137(next S138) => init{ next; }
+
+type S138 = struct {
+	next S139;
+}
+
+S138(next S139) => init{ next; }
+
+type S139 = struct {
+	next S140;
+}
+
+S139(next S140) => init{ next; }
+
+type S140 = struct {
+	next S141;
+}
+
+S140(next S141) => init{ next; }
+
+type S141 = struct {
+	next S142;
+}
+
+S141(next S142) => init{ next; }
+
+type S142 = struct {
+	next S143;
+}
+
+S142(next S143) => init{ next; }
+
+type S143 = struct {
+	next S144;
+}
+
+S143(next S144) => init{ next; }
+
+type S144 = struct {
+	next S145;
+}
+
+S144(next S145) => init{ next; }
+
+type S145 = struct {
+	next S146;
+}
+
+S145(next S146) => init{ next; }
+
+type S146 = struct {
+	next S147;
+}
+
+S146(next S147) => init{ next; }
+
+type S147 = struct {
+	next S148;
+}
+
+S147(next S148) => init{ next; }
+
+type S148 = struct {
+	next S149;
+}
+
+S148(next S149) => init{ next; }
+
+type S149 = struct {
+	next S150;
+}
+
+S149(next S150) => init{ next; }
+
+type S150 = struct {
+	next S151;
+	tag Int;
+}
+
+S150(next S151) => init{ next; tag = Int(150); }
+
+type S151 = struct {
+	next S152;
+}
+
+S151(next S152) => init{ next; }
+
+type S152 = struct {
+	next S153;
+}
+
+S152(next S153) => init{ next; }
+
+type S153 = struct {
+	next S154;
+}
+
+S153(next S154) => init{ next; }
+
+type S154 = struct {
+	next S155;
+}
+
+S154(next S155) => init{ next; }
+
+type S155 = struct {
+	next S156;
+}
+
+S155(next S156) => init{ next; }
+
+type S156 = struct {
+	next S157;
+}
+
+S156(next S157) => init{ next; }
+
+type S157 = struct {
+	next S158;
+}
+
+S157(next S158) => init{ next; }
+
+type S158 = struct {
+	next S159;
+}
+
+S158(next S159) => init{ next; }
+
+type S159 = struct {
+	next S160;
+}
+
+S159(next S160) => init{ next; }
+
+type S160 = struct {
+	next S161;
+}
+
+S160(next S161) => init{ next; }
+
+type S161 = struct {
+	next S162;
+}
+
+S161(next S162) => init{ next; }
+
+type S162 = struct {
+	next S163;
+}
+
+S162(next S163) => init{ next; }
+
+type S163 = struct {
+	next S164;
+}
+
+S163(next S164) => init{ next; }
+
+type S164 = struct {
+	next S165;
+}
+
+S164(next S165) => init{ next; }
+
+type S165 = struct {
+	next S166;
+}
+
+S165(next S166) => init{ next; }
+
+type S166 = struct {
+	next S167;
+}
+
+S166(next S167) => init{ next; }
+
+type S167 = struct {
+	next S168;
+}
+
+S167(next S168) => init{ next; }
+
+type S168 = struct {
+	next S169;
+}
+
+S168(next S169) => init{ next; }
+
+type S169 = struct {
+	next S170;
+}
+
+S169(next S170) => init{ next; }
+
+type S170 = struct {
+	next S171;
+}
+
+S170(next S171) => init{ next; }
+
+type S171 = struct {
+	next S172;
+}
+
+S171(next S172) => init{ next; }
+
+type S172 = struct {
+	next S173;
+}
+
+S172(next S173) => init{ next; }
+
+type S173 = struct {
+	next S174;
+}
+
+S173(next S174) => init{ next; }
+
+type S174 = struct {
+	next S175;
+}
+
+S174(next S175) => init{ next; }
+
+type S175 = struct {
+	next S176;
+}
+
+S175(next S176) => init{ next; }
+
+type S176 = struct {
+	next S177;
+}
+
+S176(next S177) => init{ next; }
+
+type S177 = struct {
+	next S178;
+}
+
+S177(next S178) => init{ next; }
+
+type S178 = struct {
+	next S179;
+}
+
+S178(next S179) => init{ next; }
+
+type S179 = struct {
+	next S180;
+}
+
+S179(next S180) => init{ next; }
+
+type S180 = struct {
+	next S181;
+}
+
+S180(next S181) => init{ next; }
+
+type S181 = struct {
+	next S182;
+}
+
+S181(next S182) => init{ next; }
+
+type S182 = struct {
+	next S183;
+}
+
+S182(next S183) => init{ next; }
+
+type S183 = struct {
+	next S184;
+}
+
+S183(next S184) => init{ next; }
+
+type S184 = struct {
+	next S185;
+}
+
+S184(next S185) => init{ next; }
+
+type S185 = struct {
+	next S186;
+}
+
+S185(next S186) => init{ next; }
+
+type S186 = struct {
+	next S187;
+}
+
+S186(next S187) => init{ next; }
+
+type S187 = struct {
+	next S188;
+}
+
+S187(next S188) => init{ next; }
+
+type S188 = struct {
+	next S189;
+}
+
+S188(next S189) => init{ next; }
+
+type S189 = struct {
+	next S190;
+}
+
+S189(next S190) => init{ next; }
+
+type S190 = struct {
+	next S191;
+}
+
+S190(next S191) => init{ next; }
+
+type S191 = struct {
+	next S192;
+}
+
+S191(next S192) => init{ next; }
+
+type S192 = struct {
+	next S193;
+}
+
+S192(next S193) => init{ next; }
+
+type S193 = struct {
+	next S194;
+}
+
+S193(next S194) => init{ next; }
+
+type S194 = struct {
+	next S195;
+}
+
+S194(next S195) => init{ next; }
+
+type S195 = struct {
+	next S196;
+}
+
+S195(next S196) => init{ next; }
+
+type S196 = struct {
+	next S197;
+}
+
+S196(next S197) => init{ next; }
+
+type S197 = struct {
+	next S198;
+}
+
+S197(next S198) => init{ next; }
+
+type S198 = struct {
+	next S199;
+}
+
+S198(next S199) => init{ next; }
+
+type S199 = struct {
+	next S200;
+}
+
+S199(next S200) => init{ next; }
+
+type S200 = struct {
+	next S201;
+}
+
+S200(next S201) => init{ next; }
+
+type S201 = struct {
+	next S202;
+}
+
+S201(next S202) => init{ next; }
+
+type S202 = struct {
+	next S203;
+}
+
+S202(next S203) => init{ next; }
+
+type S203 = struct {
+	next S204;
+}
+
+S203(next S204) => init{ next; }
+
+type S204 = struct {
+	next S205;
+}
+
+S204(next S205) => init{ next; }
+
+type S205 = struct {
+	next S206;
+}
+
+S205(next S206) => init{ next; }
+
+type S206 = struct {
+	next S207;
+}
+
+S206(next S207) => init{ next; }
+
+type S207 = struct {
+	next S208;
+}
+
+S207(next S208) => init{ next; }
+
+type S208 = struct {
+	next S209;
+}
+
+S208(next S209) => init{ next; }
+
+type S209 = struct {
+	next S210;
+}
+
+S209(next S210) => init{ next; }
+
+type S210 = struct {
+	next S211;
+}
+
+S210(next S211) => init{ next; }
+
+type S211 = struct {
+	next S212;
+}
+
+S211(next S212) => init{ next; }
+
+type S212 = struct {
+	next S213;
+}
+
+S212(next S213) => init{ next; }
+
+type S213 = struct {
+	next S214;
+}
+
+S213(next S214) => init{ next; }
+
+type S214 = struct {
+	next S215;
+}
+
+S214(next S215) => init{ next; }
+
+type S215 = struct {
+	next S216;
+}
+
+S215(next S216) => init{ next; }
+
+type S216 = struct {
+	next S217;
+}
+
+S216(next S217) => init{ next; }
+
+type S217 = struct {
+	next S218;
+}
+
+S217(next S218) => init{ next; }
+
+type S218 = struct {
+	next S219;
+}
+
+S218(next S219) => init{ next; }
+
+type S219 = struct {
+	next S220;
+}
+
+S219(next S220) => init{ next; }
+
+type S220 = struct {
+	next S221;
+}
+
+S220(next S221) => init{ next; }
+
+type S221 = struct {
+	next S222;
+}
+
+S221(next S222) => init{ next; }
+
+type S222 = struct {
+	next S223;
+}
+
+S222(next S223) => init{ next; }
+
+type S223 = struct {
+	next S224;
+}
+
+S223(next S224) => init{ next; }
+
+type S224 = struct {
+	next S225;
+}
+
+S224(next S225) => init{ next; }
+
+type S225 = struct {
+	next S226;
+}
+
+S225(next S226) => init{ next; }
+
+type S226 = struct {
+	next S227;
+}
+
+S226(next S227) => init{ next; }
+
+type S227 = struct {
+	next S228;
+}
+
+S227(next S228) => init{ next; }
+
+type S228 = struct {
+	next S229;
+}
+
+S228(next S229) => init{ next; }
+
+type S229 = struct {
+	next S230;
+}
+
+S229(next S230) => init{ next; }
+
+type S230 = struct {
+	next S231;
+}
+
+S230(next S231) => init{ next; }
+
+type S231 = struct {
+	next S232;
+}
+
+S231(next S232) => init{ next; }
+
+type S232 = struct {
+	next S233;
+}
+
+S232(next S233) => init{ next; }
+
+type S233 = struct {
+	next S234;
+}
+
+S233(next S234) => init{ next; }
+
+type S234 = struct {
+	next S235;
+}
+
+S234(next S235) => init{ next; }
+
+type S235 = struct {
+	next S236;
+}
+
+S235(next S236) => init{ next; }
+
+type S236 = struct {
+	next S237;
+}
+
+S236(next S237) => init{ next; }
+
+type S237 = struct {
+	next S238;
+}
+
+S237(next S238) => init{ next; }
+
+type S238 = struct {
+	next S239;
+}
+
+S238(next S239) => init{ next; }
+
+type S239 = struct {
+	next S240;
+}
+
+S239(next S240) => init{ next; }
+
+type S240 = struct {
+	next S241;
+}
+
+S240(next S241) => init{ next; }
+
+type S241 = struct {
+	next S242;
+}
+
+S241(next S242) => init{ next; }
+
+type S242 = struct {
+	next S243;
+}
+
+S242(next S243) => init{ next; }
+
+type S243 = struct {
+	next S244;
+}
+
+S243(next S244) => init{ next; }
+
+type S244 = struct {
+	next S245;
+}
+
+S244(next S245) => init{ next; }
+
+type S245 = struct {
+	next S246;
+}
+
+S245(next S246) => init{ next; }
+
+type S246 = struct {
+	next S247;
+}
+
+S246(next S247) => init{ next; }
+
+type S247 = struct {
+	next S248;
+}
+
+S247(next S248) => init{ next; }
+
+type S248 = struct {
+	next S249;
+}
+
+S248(next S249) => init{ next; }
+
+type S249 = struct {
+	next S250;
+}
+
+S249(next S250) => init{ next; }
+
+type S250 = struct {
+	next S251;
+}
+
+S250(next S251) => init{ next; }
+
+type S251 = struct {
+	next S252;
+}
+
+S251(next S252) => init{ next; }
+
+type S252 = struct {
+	next S253;
+}
+
+S252(next S253) => init{ next; }
+
+type S253 = struct {
+	next S254;
+}
+
+S253(next S254) => init{ next; }
+
+type S254 = struct {
+	next S255;
+}
+
+S254(next S255) => init{ next; }
+
+type S255 = struct {
+	next S256;
+}
+
+S255(next S256) => init{ next; }
+
+type S256 = struct {
+	next S257;
+}
+
+S256(next S257) => init{ next; }
+
+type S257 = struct {
+	next S258;
+}
+
+S257(next S258) => init{ next; }
+
+type S258 = struct {
+	next S259;
+}
+
+S258(next S259) => init{ next; }
+
+type S259 = struct {
+	next S260;
+}
+
+S259(next S260) => init{ next; }
+
+type S260 = struct {
+	next S261;
+}
+
+S260(next S261) => init{ next; }
+
+type S261 = struct {
+	next S262;
+}
+
+S261(next S262) => init{ next; }
+
+type S262 = struct {
+	next S263;
+}
+
+S262(next S263) => init{ next; }
+
+type S263 = struct {
+	next S264;
+}
+
+S263(next S264) => init{ next; }
+
+type S264 = struct {
+	next S265;
+}
+
+S264(next S265) => init{ next; }
+
+type S265 = struct {
+	next S266;
+}
+
+S265(next S266) => init{ next; }
+
+type S266 = struct {
+	next S267;
+}
+
+S266(next S267) => init{ next; }
+
+type S267 = struct {
+	next S268;
+}
+
+S267(next S268) => init{ next; }
+
+type S268 = struct {
+	next S269;
+}
+
+S268(next S269) => init{ next; }
+
+type S269 = struct {
+	next S270;
+}
+
+S269(next S270) => init{ next; }
+
+type S270 = struct {
+	next S271;
+}
+
+S270(next S271) => init{ next; }
+
+type S271 = struct {
+	next S272;
+}
+
+S271(next S272) => init{ next; }
+
+type S272 = struct {
+	next S273;
+}
+
+S272(next S273) => init{ next; }
+
+type S273 = struct {
+	next S274;
+}
+
+S273(next S274) => init{ next; }
+
+type S274 = struct {
+	next S275;
+}
+
+S274(next S275) => init{ next; }
+
+type S275 = struct {
+	next S276;
+}
+
+S275(next S276) => init{ next; }
+
+type S276 = struct {
+	next S277;
+}
+
+S276(next S277) => init{ next; }
+
+type S277 = struct {
+	next S278;
+}
+
+S277(next S278) => init{ next; }
+
+type S278 = struct {
+	next S279;
+}
+
+S278(next S279) => init{ next; }
+
+type S279 = struct {
+	next S280;
+}
+
+S279(next S280) => init{ next; }
+
+type S280 = struct {
+	next S281;
+}
+
+S280(next S281) => init{ next; }
+
+type S281 = struct {
+	next S282;
+}
+
+S281(next S282) => init{ next; }
+
+type S282 = struct {
+	next S283;
+}
+
+S282(next S283) => init{ next; }
+
+type S283 = struct {
+	next S284;
+}
+
+S283(next S284) => init{ next; }
+
+type S284 = struct {
+	next S285;
+}
+
+S284(next S285) => init{ next; }
+
+type S285 = struct {
+	next S286;
+}
+
+S285(next S286) => init{ next; }
+
+type S286 = struct {
+	next S287;
+}
+
+S286(next S287) => init{ next; }
+
+type S287 = struct {
+	next S288;
+}
+
+S287(next S288) => init{ next; }
+
+type S288 = struct {
+	next S289;
+}
+
+S288(next S289) => init{ next; }
+
+type S289 = struct {
+	next S290;
+}
+
+S289(next S290) => init{ next; }
+
+type S290 = struct {
+	next S291;
+}
+
+S290(next S291) => init{ next; }
+
+type S291 = struct {
+	next S292;
+}
+
+S291(next S292) => init{ next; }
+
+type S292 = struct {
+	next S293;
+}
+
+S292(next S293) => init{ next; }
+
+type S293 = struct {
+	next S294;
+}
+
+S293(next S294) => init{ next; }
+
+type S294 = struct {
+	next S295;
+}
+
+S294(next S295) => init{ next; }
+
+type S295 = struct {
+	next S296;
+}
+
+S295(next S296) => init{ next; }
+
+type S296 = struct {
+	next S297;
+}
+
+S296(next S297) => init{ next; }
+
+type S297 = struct {
+	next S298;
+}
+
+S297(next S298) => init{ next; }
+
+type S298 = struct {
+	next S299;
+}
+
+S298(next S299) => init{ next; }
+
+type S299 = struct {
+	value Int;
+	label String;
+}
+
+S299(value Int, label String) => init{ value; label; }
+
+Unit main() {
+	s299 S299(Int(7), String("deep\n"));
+	s298 S298(s299);
+	s297 S297(s298);
+	s296 S296(s297);
+	s295 S295(s296);
+	s294 S294(s295);
+	s293 S293(s294);
+	s292 S292(s293);
+	s291 S291(s292);
+	s290 S290(s291);
+	s289 S289(s290);
+	s288 S288(s289);
+	s287 S287(s288);
+	s286 S286(s287);
+	s285 S285(s286);
+	s284 S284(s285);
+	s283 S283(s284);
+	s282 S282(s283);
+	s281 S281(s282);
+	s280 S280(s281);
+	s279 S279(s280);
+	s278 S278(s279);
+	s277 S277(s278);
+	s276 S276(s277);
+	s275 S275(s276);
+	s274 S274(s275);
+	s273 S273(s274);
+	s272 S272(s273);
+	s271 S271(s272);
+	s270 S270(s271);
+	s269 S269(s270);
+	s268 S268(s269);
+	s267 S267(s268);
+	s266 S266(s267);
+	s265 S265(s266);
+	s264 S264(s265);
+	s263 S263(s264);
+	s262 S262(s263);
+	s261 S261(s262);
+	s260 S260(s261);
+	s259 S259(s260);
+	s258 S258(s259);
+	s257 S257(s258);
+	s256 S256(s257);
+	s255 S255(s256);
+	s254 S254(s255);
+	s253 S253(s254);
+	s252 S252(s253);
+	s251 S251(s252);
+	s250 S250(s251);
+	s249 S249(s250);
+	s248 S248(s249);
+	s247 S247(s248);
+	s246 S246(s247);
+	s245 S245(s246);
+	s244 S244(s245);
+	s243 S243(s244);
+	s242 S242(s243);
+	s241 S241(s242);
+	s240 S240(s241);
+	s239 S239(s240);
+	s238 S238(s239);
+	s237 S237(s238);
+	s236 S236(s237);
+	s235 S235(s236);
+	s234 S234(s235);
+	s233 S233(s234);
+	s232 S232(s233);
+	s231 S231(s232);
+	s230 S230(s231);
+	s229 S229(s230);
+	s228 S228(s229);
+	s227 S227(s228);
+	s226 S226(s227);
+	s225 S225(s226);
+	s224 S224(s225);
+	s223 S223(s224);
+	s222 S222(s223);
+	s221 S221(s222);
+	s220 S220(s221);
+	s219 S219(s220);
+	s218 S218(s219);
+	s217 S217(s218);
+	s216 S216(s217);
+	s215 S215(s216);
+	s214 S214(s215);
+	s213 S213(s214);
+	s212 S212(s213);
+	s211 S211(s212);
+	s210 S210(s211);
+	s209 S209(s210);
+	s208 S208(s209);
+	s207 S207(s208);
+	s206 S206(s207);
+	s205 S205(s206);
+	s204 S204(s205);
+	s203 S203(s204);
+	s202 S202(s203);
+	s201 S201(s202);
+	s200 S200(s201);
+	s199 S199(s200);
+	s198 S198(s199);
+	s197 S197(s198);
+	s196 S196(s197);
+	s195 S195(s196);
+	s194 S194(s195);
+	s193 S193(s194);
+	s192 S192(s193);
+	s191 S191(s192);
+	s190 S190(s191);
+	s189 S189(s190);
+	s188 S188(s189);
+	s187 S187(s188);
+	s186 S186(s187);
+	s185 S185(s186);
+	s184 S184(s185);
+	s183 S183(s184);
+	s182 S182(s183);
+	s181 S181(s182);
+	s180 S180(s181);
+	s179 S179(s180);
+	s178 S178(s179);
+	s177 S177(s178);
+	s176 S176(s177);
+	s175 S175(s176);
+	s174 S174(s175);
+	s173 S173(s174);
+	s172 S172(s173);
+	s171 S171(s172);
+	s170 S170(s171);
+	s169 S169(s170);
+	s168 S168(s169);
+	s167 S167(s168);
+	s166 S166(s167);
+	s165 S165(s166);
+	s164 S164(s165);
+	s163 S163(s164);
+	s162 S162(s163);
+	s161 S161(s162);
+	s160 S160(s161);
+	s159 S159(s160);
+	s158 S158(s159);
+	s157 S157(s158);
+	s156 S156(s157);
+	s155 S155(s156);
+	s154 S154(s155);
+	s153 S153(s154);
+	s152 S152(s153);
+	s151 S151(s152);
+	s150 S150(s151);
+	s149 S149(s150);
+	s148 S148(s149);
+	s147 S147(s148);
+	s146 S146(s147);
+	s145 S145(s146);
+	s144 S144(s145);
+	s143 S143(s144);
+	s142 S142(s143);
+	s141 S141(s142);
+	s140 S140(s141);
+	s139 S139(s140);
+	s138 S138(s139);
+	s137 S137(s138);
+	s136 S136(s137);
+	s135 S135(s136);
+	s134 S134(s135);
+	s133 S133(s134);
+	s132 S132(s133);
+	s131 S131(s132);
+	s130 S130(s131);
+	s129 S129(s130);
+	s128 S128(s129);
+	s127 S127(s128);
+	s126 S126(s127);
+	s125 S125(s126);
+	s124 S124(s125);
+	s123 S123(s124);
+	s122 S122(s123);
+	s121 S121(s122);
+	s120 S120(s121);
+	s119 S119(s120);
+	s118 S118(s119);
+	s117 S117(s118);
+	s116 S116(s117);
+	s115 S115(s116);
+	s114 S114(s115);
+	s113 S113(s114);
+	s112 S112(s113);
+	s111 S111(s112);
+	s110 S110(s111);
+	s109 S109(s110);
+	s108 S108(s109);
+	s107 S107(s108);
+	s106 S106(s107);
+	s105 S105(s106);
+	s104 S104(s105);
+	s103 S103(s104);
+	s102 S102(s103);
+	s101 S101(s102);
+	s100 S100(s101);
+	s99 S99(s100);
+	s98 S98(s99);
+	s97 S97(s98);
+	s96 S96(s97);
+	s95 S95(s96);
+	s94 S94(s95);
+	s93 S93(s94);
+	s92 S92(s93);
+	s91 S91(s92);
+	s90 S90(s91);
+	s89 S89(s90);
+	s88 S88(s89);
+	s87 S87(s88);
+	s86 S86(s87);
+	s85 S85(s86);
+	s84 S84(s85);
+	s83 S83(s84);
+	s82 S82(s83);
+	s81 S81(s82);
+	s80 S80(s81);
+	s79 S79(s80);
+	s78 S78(s79);
+	s77 S77(s78);
+	s76 S76(s77);
+	s75 S75(s76);
+	s74 S74(s75);
+	s73 S73(s74);
+	s72 S72(s73);
+	s71 S71(s72);
+	s70 S70(s71);
+	s69 S69(s70);
+	s68 S68(s69);
+	s67 S67(s68);
+	s66 S66(s67);
+	s65 S65(s66);
+	s64 S64(s65);
+	s63 S63(s64);
+	s62 S62(s63);
+	s61 S61(s62);
+	s60 S60(s61);
+	s59 S59(s60);
+	s58 S58(s59);
+	s57 S57(s58);
+	s56 S56(s57);
+	s55 S55(s56);
+	s54 S54(s55);
+	s53 S53(s54);
+	s52 S52(s53);
+	s51 S51(s52);
+	s50 S50(s51);
+	s49 S49(s50);
+	s48 S48(s49);
+	s47 S47(s48);
+	s46 S46(s47);
+	s45 S45(s46);
+	s44 S44(s45);
+	s43 S43(s44);
+	s42 S42(s43);
+	s41 S41(s42);
+	s40 S40(s41);
+	s39 S39(s40);
+	s38 S38(s39);
+	s37 S37(s38);
+	s36 S36(s37);
+	s35 S35(s36);
+	s34 S34(s35);
+	s33 S33(s34);
+	s32 S32(s33);
+	s31 S31(s32);
+	s30 S30(s31);
+	s29 S29(s30);
+	s28 S28(s29);
+	s27 S27(s28);
+	s26 S26(s27);
+	s25 S25(s26);
+	s24 S24(s25);
+	s23 S23(s24);
+	s22 S22(s23);
+	s21 S21(s22);
+	s20 S20(s21);
+	s19 S19(s20);
+	s18 S18(s19);
+	s17 S17(s18);
+	s16 S16(s17);
+	s15 S15(s16);
+	s14 S14(s15);
+	s13 S13(s14);
+	s12 S12(s13);
+	s11 S11(s12);
+	s10 S10(s11);
+	s9 S9(s10);
+	s8 S8(s9);
+	s7 S7(s8);
+	s6 S6(s7);
+	s5 S5(s6);
+	s4 S4(s5);
+	s3 S3(s4);
+	s2 S2(s3);
+	s1 S1(s2);
+	s0 S0(s1);
+	leaf Leaf(Int(1));
+	top Top(leaf, s0);
+	top!bump();
+	check(@operators$equal(leaf.n, Int(2)));
+	check(@operators$equal(top.chain.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.value, Int(7)));
+	check(@operators$equal(top.chain.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.tag, Int(150)));
+	@program$console!print(top.chain.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.next.label);
+	return Unit();
+}

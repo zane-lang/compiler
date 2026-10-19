@@ -72,33 +72,38 @@ let whole s = Taint.map (fun e -> elem e.origin e.src []) s
 (* Types                                                                  *)
 (* ---------------------------------------------------------------------- *)
 
-(* Whether storage of type [t] can hold a reference. *)
-let rec carries env ?(seen = []) (t : Ty.t) =
-  match t with
-  | Ty.Reference _ | Ty.Param _ -> true
-  | Ty.Roaming t -> carries env ~seen t
-  (* An array literal carries what its elements do: `[p, q]` held as
-     `&Port` elements carries both references into the `ArrayRef` it builds.
-     No container consumes a map literal yet, so none carries anything. *)
-  | Ty.Concept (Ty.Array_lit (t, _)) -> carries env ~seen t
-  | Ty.Error | Ty.Verb _ | Ty.Concept _ -> false
-  | Ty.Intrinsic { args; _ } -> List.exists (carries_arg env ~seen) args
-  | Ty.Named (tid, args) -> (
-      List.exists (carries_arg env ~seen) args
-      || (not (List.mem tid seen))
-         &&
-         match Hashtbl.find_opt env.Env.type_infos_by_id tid with
-         | None -> false
-         | Some info -> (
-             let s = Ty.bindings info.Env.params args in
-             let seen = tid :: seen in
-             match info.Env.definition with
-             | Some (Env.Struct fs) | Some (Env.Variant fs) ->
-                 List.exists (fun (_, t) -> carries env ~seen (Ty.subst s t)) fs
-             | Some (Env.Distinct t) -> carries env ~seen (Ty.subst s t)
-             | _ -> false))
-
-and carries_arg env ~seen = function Ty.Type t -> carries env ~seen t | Ty.Number _ -> false
+(* Whether storage of type [t] can hold a reference. A declaration's own
+   members are looked at once per question: its arguments are looked at
+   where it is named, so what its members carry beyond them does not depend
+   on them. *)
+let carries env (t : Ty.t) =
+  let seen = Hashtbl.create 8 in
+  let rec carries (t : Ty.t) =
+    match t with
+    | Ty.Reference _ | Ty.Param _ -> true
+    | Ty.Roaming t -> carries t
+    (* An array literal carries what its elements do: `[p, q]` held as
+       `&Port` elements carries both references into the `ArrayRef` it builds.
+       No container consumes a map literal yet, so none carries anything. *)
+    | Ty.Concept (Ty.Array_lit (t, _)) -> carries t
+    | Ty.Error | Ty.Verb _ | Ty.Concept _ -> false
+    | Ty.Intrinsic { args; _ } -> List.exists carries_arg args
+    | Ty.Named (tid, args) -> (
+        List.exists carries_arg args
+        || (not (Hashtbl.mem seen tid))
+           &&
+           (Hashtbl.replace seen tid ();
+            match Hashtbl.find_opt env.Env.type_infos_by_id tid with
+            | None -> false
+            | Some info -> (
+                let s = Ty.bindings info.Env.params args in
+                match info.Env.definition with
+                | Some (Env.Struct fs) | Some (Env.Variant fs) ->
+                    List.exists (fun (_, t) -> carries (Ty.subst s t)) fs
+                | Some (Env.Distinct t) -> carries (Ty.subst s t)
+                | _ -> false)))
+  and carries_arg = function Ty.Type t -> carries t | Ty.Number _ -> false in
+  carries t
 
 (* What storing a value of type [t] keeps of its taint. *)
 let store env t s = if carries env t then s else Taint.empty

@@ -92,6 +92,10 @@ then run it again, read the golden diff and promote that.
   reads of boxed payloads. `Solo`, a struct whose one member is boxed, is a
   single address, so reading one out of a list takes the snapshot's acquire
   load.
+- `longChain` is a chain of 300 distinct structs ending in an `Int` and a
+  `String`, held beside a `&` member. However long a chain of types that
+  does not grow is, its layout, its owned blocks and what a write reaches
+  through its references are found, with no limit on its length.
 - `removal` removes lists' elements with `remove`, which keeps the order of
   the rest, and `swapRemove`, which moves the last element in: of scalars,
   strings, owners and lists, each removed element kept, settled, pushed back

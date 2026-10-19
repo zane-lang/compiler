@@ -428,10 +428,16 @@ Boxing is unchanged. Whether a member is boxed is still decided per instance
 in lowering (`Type_layout.boxed`, [`adt.md`](https://github.com/zane-lang/spec/blob/8298a3a/spec/adt.md)
 §4); the rule only guarantees that the instances it meets are finitely many.
 The walks over a type's members, `Type_layout.boxed` and `positions` in
-lowering and `Borrows.behind_references` here, stop with an internal error
-past 256 types deep, so a type the rule ever missed is a reported bug rather
-than a hang. The bound is low because each walk compares every type it meets
-with every type on its path, and a growing type's size grows with the depth.
+lowering and `Borrows.behind_references` here, count along their path how
+often each declaration reappears at a larger argument than it had where it
+last appeared on that path (`Ty.Growth`). Under the rule a declaration grows
+only through an argument that names no parameter, which it can do a bounded
+number of times, and a chain of distinct declarations never grows however
+long it is. A walk on which one declaration grows more than 32 times stops
+with an internal error, so a type the rule ever missed is a reported bug
+rather than a hang. Each walk marks the types it has met in a table, and
+`boxed` keeps each answer, so a long chain costs time in proportion to its
+length for each member.
 
 ---
 

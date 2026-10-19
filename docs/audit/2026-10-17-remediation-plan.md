@@ -1344,13 +1344,12 @@ IR and objects `abi_test.py` builds.
   member's type, "`Grow` holds itself at a growing argument: its case
   `more` passes `@primitives$Array<T, 2>` as `T` of `Grow`; …", and the
   member's type becomes `Ty.Error`. `Type_layout.boxed` and `positions`
-  and `Borrows.behind_references` stop with `Diagnostic.bug` past 256 types
-  deep, not the plan's 10,000. Each compares every type it meets with every
-  type on its path, and a growing type's size grows with its depth, so the
-  backstop costs the cube of the bound: 19 seconds for the unit test at
-  1,000, against 0.36 seconds at 256. The borrows walk is
-  `Borrows.reached_through_references ~members`, so the unit test can give
-  it a growing `members` without building an environment. Tests:
+  and `Borrows.behind_references` stop with `Diagnostic.bug` once one
+  declaration has reappeared on the walk's path at a larger argument more
+  than 32 times (`Ty.Growth`), not the plan's 10,000 types deep. The
+  borrows walk is `Borrows.reached_through_references ~members`, so the
+  unit test can give it a growing `members` without building an
+  environment. Tests:
   `typing/reject/bad/growing.zn` rejects the audit's `Grow`, `Outer`/`Inner`
   (growth on the second declaration's step), `Node` (an `&` in a `#variant`
   case) and `Spread` (the finite case above); `tests/semantics/fixtures/growing/accept`
@@ -1365,6 +1364,14 @@ IR and objects `abi_test.py` builds.
   decides per instance. The audit's reproduction, a library `consume` over
   `Grow<I64>` built with `--ll`, did not finish on the baseline and exits 1
   with the diagnostic here.
+  In review, the backstops first stopped past 256 types deep, which a valid
+  chain of 300 distinct structs reaches; they now count growth instead, and
+  `longChain` in `tests/codegen` builds and runs such a chain, with a `String`
+  at its end and a `&` member beside it. `boxed` keeps its answers in
+  `State.boxes`, and it and the borrows walk mark the types they meet in a
+  table instead of comparing each with their path. In review too,
+  `Read_only.carries` marks the declarations it meets the same way, since
+  its path list made checking the chain take 8 seconds.
 
 Verified on the batch's head with `devbox run -- just test-compiler`
 (including the probe gate) and `just check-file-sizes`, which warns that

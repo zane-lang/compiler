@@ -190,13 +190,13 @@ let growing_types () =
     ([ t ], T.Decl.Variant [ ("done", prim "Unit"); ("more", named "Grow" ~args:[ Ty.Type (pair (Ty.Param t)) ]) ], false);
   let grow = named "Grow" ~args:[ Ty.Type int ] in
   let more = named "Grow" ~args:[ Ty.Type (pair int) ] in
-  raises_bug "boxing a growing type stops at the depth limit" (fun () -> Type_layout.boxed st grow more);
-  raises_bug "laying out a growing type stops at the depth limit" (fun () -> Type_layout.layout st span grow);
+  raises_bug "boxing a growing type stops once it keeps growing" (fun () -> Type_layout.boxed st grow more);
+  raises_bug "laying out a growing type stops once it keeps growing" (fun () -> Type_layout.layout st span grow);
   let deeper = function
     | Ty.Named (_, [ Ty.Type e ]) -> [ Ty.Reference (named "Node" ~args:[ Ty.Type (pair e) ]) ]
     | _ -> []
   in
-  raises_bug "following references through a growing type stops at the depth limit" (fun () ->
+  raises_bug "following references through a growing type stops once it keeps growing" (fun () ->
       Borrows.reached_through_references ~members:deeper (named "Node" ~args:[ Ty.Type int ]))
 
 (* ---------------------------------------------------------------------- *)

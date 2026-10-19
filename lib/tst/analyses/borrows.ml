@@ -110,32 +110,34 @@ let bindings start =
   (match start with `Block b -> block b | `Expr e -> expr e);
   List.rev !found
 
-(* How deep [behind_references] may follow members. Type_decls rejects a type
-   that holds itself at a growing argument (generics.md §2.4), the only kind
-   whose members lead to ever new types, so a walk this deep is a type that
-   check missed: an internal error, not a hang. *)
-let depth_limit = 256
-
 (* The types a value of type [t] reaches through `&` fields, at any depth,
-   where [members] gives a type's members. *)
+   where [members] gives a type's members. Type_decls rejects a type that
+   holds itself at a growing argument (generics.md §2.4), the only kind whose
+   members lead to ever new types, so a walk that keeps growing (Ty.Growth)
+   is a type that check missed: an internal error, not a hang. *)
 let reached_through_references ~members t =
-  let rec go seen acc t =
-    if List.exists (Ty.equal t) seen then acc
-    else if List.compare_length_with seen depth_limit > 0 then
-      Diagnostic.bug
-        (Printf.sprintf "borrows: the members of `%s` lead more than %d types deep" (Ty.to_string t)
-           depth_limit)
+  let seen = Hashtbl.create 16 in
+  let rec go path acc t =
+    if Hashtbl.mem seen t then acc
     else
+      let path =
+        match Ty.Growth.step path t with
+        | Some path -> path
+        | None ->
+            Diagnostic.bug
+              (Printf.sprintf "borrows: the members of `%s` grow without end" (Ty.to_string t))
+      in
+      Hashtbl.replace seen t ();
       List.fold_left
         (fun acc m ->
           match m with
           | Ty.Reference r ->
               let acc = if List.exists (Ty.equal r) acc then acc else r :: acc in
-              go (t :: seen) acc r
-          | m -> go (t :: seen) acc m)
+              go path acc r
+          | m -> go path acc m)
         acc (members t)
   in
-  go [] [] (Ty.strip_mode t)
+  go Ty.Growth.start [] (Ty.strip_mode t)
 
 let behind_references env t = reached_through_references ~members:(Spawns.members env) t
 

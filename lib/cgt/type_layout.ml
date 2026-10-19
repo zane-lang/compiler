@@ -79,29 +79,38 @@ let inline st t =
   | None, Some (e, _) when not (Tty.is_ref e) -> [ e ]
   | _ -> []
 
-(* How deep a walk over a type's members may go. Semantics rejects a type
-   that holds itself at a growing argument (generics.md §2.4), the only kind
-   whose members lead to ever new types, so a walk this deep is a type that
-   check missed: an internal error, not a hang or a stack overflow. *)
-let depth_limit = 256
-
-let too_deep ?span t =
-  Diagnostic.bug ?span
-    (Printf.sprintf "lowering: the members of `%s` lead more than %d types deep" (Tty.to_string t)
-       depth_limit)
+(* A walk down a type's members, gone down to [t] (Tty.Growth). Semantics
+   rejects a type that holds itself at a growing argument (generics.md §2.4),
+   the only kind whose members lead to ever new types, so a walk that keeps
+   growing is a type that check missed: an internal error, not a hang or a
+   stack overflow. *)
+let down ?span path t =
+  match Tty.Growth.step path t with
+  | Some path -> path
+  | None ->
+      Diagnostic.bug ?span
+        (Printf.sprintf "lowering: the members of `%s` grow without end" (Tty.to_string t))
 
 (* adt.md §4: a member is boxed when its type leads back to the type that
    holds it along owning edges, since no finite inline layout exists for it.
-   A boxed member is a pointer to its payload's block. *)
+   A boxed member is a pointer to its payload's block. Each answer is kept,
+   so a long chain of types is walked once per member, not once per use. *)
 let boxed st holder member =
-  let rec reaches depth seen t =
-    if depth > depth_limit then too_deep holder;
-    (not (Tty.is_ref t))
-    && (Tty.equal t holder
-       || (not (List.exists (Tty.equal t) seen))
-          && List.exists (reaches (depth + 1) (t :: seen)) (inline st t))
-  in
-  reaches 0 [] member
+  match Hashtbl.find_opt st.boxes (holder, member) with
+  | Some boxed -> boxed
+  | None ->
+      let seen = Hashtbl.create 16 in
+      let rec reaches path t =
+        (not (Tty.is_ref t))
+        && (Tty.equal t holder
+           || (not (Hashtbl.mem seen t))
+              &&
+              (Hashtbl.replace seen t ();
+               List.exists (reaches (down path t)) (inline st t)))
+      in
+      let boxed = reaches Tty.Growth.start member in
+      Hashtbl.replace st.boxes (holder, member) boxed;
+      boxed
 
 (* A value struct of one member is that member (L5), so reading or storing
    the member is reading or storing the struct. *)
@@ -201,9 +210,9 @@ let stride st span t =
    boxed member, down through variant payloads under the tag that makes each
    live, and through each of an array's elements. A reference is an
    address, and owns nothing. *)
-let rec positions ?(depth = 0) st span (t : Tty.t) base tags : Layout.position list =
-  if depth > depth_limit then too_deep ~span t;
-  let positions = positions ~depth:(depth + 1) and layout = layout ~depth:(depth + 1) in
+let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Layout.position list =
+  let path = down ~span path t in
+  let positions = positions ~path and layout = layout ~path in
   let at kind size = { Layout.kind; offset = base; size; tags } in
   let handle = fst (Nodes.Ty.size_align Nodes.Ty.Handle) in
   match (t, element t) with
@@ -250,11 +259,11 @@ let rec positions ?(depth = 0) st span (t : Tty.t) base tags : Layout.position l
 (* A type's layout, by the type's symbol (Symbol.ty), which is also the name
    of its table in the IR. A layout that names itself, through a box, finds
    its name taken before it is done. *)
-and layout ?(depth = 0) st span (t : Tty.t) : Layout.t =
+and layout ?path st span (t : Tty.t) : Layout.t =
   let name = Symbol.ty t in
   if not (Hashtbl.mem st.layouts name) then begin
     Hashtbl.replace st.layouts name [];
-    Hashtbl.replace st.layouts name (positions ~depth st span t 0 []);
+    Hashtbl.replace st.layouts name (positions ?path st span t 0 []);
     st.named <- name :: st.named
   end;
   name
