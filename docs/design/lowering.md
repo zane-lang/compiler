@@ -320,8 +320,12 @@ Its result is then the library's where the program runs, as §2.6 has it
 ## 7. How it is built, and how to look at it
 
 Lowering lives in `lib/cgt/`, beside `lib/tst/`: `nodes.ml` for the tree,
-`lower.ml` for the TST → CGT walk over a verb's body, `program.ml` for a
-whole program built with it, `traverse.ml` for what each node is made of
+`lower.ml` for the TST → CGT walk over a verb's body (its expressions,
+the storage they read, and its blocks and statements), the `lower_*.ml`
+modules for the rest of that lowering, each taking the walk as an argument
+so that it stays outside the walk's recursion (`lower_intrinsics.ml`,
+`lower_data.ml`, `lower_calls.ml`, `lower_match.ml`, `lower_spawn.ml` and
+`lower_lambda.ml`), `program.ml` for a whole program built with it, `traverse.ml` for what each node is made of
 and the walks and rewrites every pass over the tree uses, and
 `to_tree_graph.ml` to render it. Codegen
 lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,

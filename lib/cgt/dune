@@ -1,7 +1,8 @@
 ; Stage 4: lowering, which builds the code-generation tree from the TST. See
 ; docs/design/lowering.md: [Nodes] is the tree, [Lower] the walk over a
 ; verb's body that builds it, over [State], [Type_layout], [Literals],
-; [Verbs], [Outcome] and [Build]; [Program] lowers a whole program with the
+; [Verbs], [Outcome] and [Build], with the [Lower_*] modules lowering the
+; rest outside its recursion; [Program] lowers a whole program with the
 ; walk, [Regions] places its arenas, [Traverse] walks and rewrites the tree
 ; for every pass over it, and [To_tree_graph] renders it for `--cgt`.
 (library
