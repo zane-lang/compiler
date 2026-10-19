@@ -244,8 +244,11 @@ let at_span ~source severity span message =
        (character_column source_line char_end + 1));
   Buffer.add_string buf
     (Printf.sprintf "%d | %s\n" line (String.concat "" (List.map (fun p -> p.shown) shown)));
+  (* The caret row's gutter is as wide as the line number, so the two rows
+     line up whatever its number of digits. *)
   Buffer.add_string buf
-    (Printf.sprintf "  | %s%s\n"
+    (Printf.sprintf "%s | %s%s\n"
+       (String.make (String.length (string_of_int line)) ' ')
        (String.make cell_start ' ')
        (String.make (max 1 (cell_end - cell_start)) '^'));
   Buffer.add_string buf

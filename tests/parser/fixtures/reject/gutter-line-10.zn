@@ -1,0 +1,11 @@
+package main;
+
+Int answer() {
+
+
+
+
+
+
+	return Int(4) @ Int(2);
+}

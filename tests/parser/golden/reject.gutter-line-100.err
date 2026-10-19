@@ -1,0 +1,4 @@
+File "fixtures/reject/gutter-line-100.zn", line 100, characters 19-20:
+100 |     return Int(4) @ Int(2);
+    |                   ^
+Error: Parse error

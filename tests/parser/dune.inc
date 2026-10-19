@@ -146,6 +146,30 @@
 
 (rule
  (with-stderr-to
+  reject.gutter-line-10.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/gutter-line-10.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.gutter-line-10.err reject.gutter-line-10.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.gutter-line-100.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/gutter-line-100.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.gutter-line-100.err reject.gutter-line-100.err.actual)))
+
+(rule
+ (with-stderr-to
   reject.identifier.err.actual
   (with-accepted-exit-codes
    1

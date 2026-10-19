@@ -1,4 +1,4 @@
 File "fixtures/reject/nestedArray/main.zn", line 13, characters 43-49:
 13 |     big Array<Array<Int, 65536>, 65536> = make();
-  |                                           ^^^^^^
+   |                                           ^^^^^^
 Error: `@primitives$Array<@primitives$Array<@primitives$I64, 65536>, 65536>` takes 32 GiB, which the `--fixed-region` of 256 MiB cannot hold

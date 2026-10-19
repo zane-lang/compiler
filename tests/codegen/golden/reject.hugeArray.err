@@ -1,4 +1,4 @@
 File "fixtures/reject/hugeArray/main.zn", line 13, characters 34-40:
 13 |     big Array<Int, 4294967296> = make();
-  |                                  ^^^^^^
+   |                                  ^^^^^^
 Error: `@primitives$Array<@primitives$I64, 4294967296>` takes 32 GiB, which the `--fixed-region` of 256 MiB cannot hold
