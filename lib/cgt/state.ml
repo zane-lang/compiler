@@ -169,6 +169,22 @@ type state = {
   boxes : (Tty.t * Tty.t, bool) Hashtbl.t;
 }
 
+(* The walk over a verb's body, in [Lower], as the rest of lowering reaches
+   it: the modules beside [Lower] are outside its recursion, so each of their
+   functions takes this as its first argument. *)
+type walk = {
+  expr : state -> ctx -> T.Expr.t -> Expr.t;
+  value_of : state -> ctx -> T.Expr.t -> Expr.t;
+  addr : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t option;
+  borrow : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
+  lend : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
+  reference_to : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
+  moved : state -> ctx -> Source.Span.t -> Tty.t -> T.Expr.t -> Expr.t;
+  is_place : T.Expr.t -> bool;
+  block : ?enter:(scope -> Stat.t list) -> state -> ctx -> T.Block.t -> Stat.t list;
+  primitive : state -> ctx -> Source.Span.t -> string -> T.Arg.t list -> Tty.t -> Expr.t;
+}
+
 (* A state that has reached nothing yet. *)
 let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
   {

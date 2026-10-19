@@ -83,6 +83,13 @@ let escape st span t exit (value : Expr.t) =
   if held st span t then
     { value with Expr.node = Expr.Escape { value; layout = layout st span t; exit } }
   else value
+
+(* What a `return` to an expansion does: store the result, and leave. *)
+let leave label result value =
+  match result with
+  | Some id -> [ Stat.assign id value; Stat.Leave label ]
+  | None -> [ Stat.Eval value; Stat.Leave label ]
+
 let layout_table l = ptr (Expr.Layout l)
 let local_ptr id = ptr (Expr.Local id)
 

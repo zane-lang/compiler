@@ -177,7 +177,7 @@ let library_roots st (root : T.Package.t) =
       | T.Decl.Verb { signature; body = T.Decl.Checked _ } -> declared signature
       | T.Decl.Subscript { signature; value = Some _; _ } -> declared signature
       | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; _ } ->
-          Hashtbl.replace st.exported ("lambda " ^ lambda st span ty l) ()
+          Hashtbl.replace st.exported ("lambda " ^ Lower_lambda.lambda st span ty l) ()
       | _ -> ())
     root.T.Package.decls
 

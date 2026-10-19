@@ -1682,3 +1682,39 @@ The batch's head passed `devbox run -- just test-compiler` (including the
 probe gate) and `just check-file-sizes`, which still warns about
 `lib/cgt/lower.ml` as before. `dev/bin/windows-programs` cross-built every
 Windows program and the probe; Wine was not available to run them.
+
+### Batch 8b: lowering split (F21)
+
+- **F21** (`b2e1db6`, `de2a64a`, `027d47f`, `15a66eb`, `0789317`,
+  `05e415c`, one module each, then this entry and the docs). `lower.ml`
+  keeps the walk: `expr`, the storage it reads (`value_of`, `read`,
+  `addr`, `storage`, `reference_to`, `moved`, `is_place`, `borrow`,
+  `lend`), `block`, `code`, `stat` and `place`. The other modules take
+  the walk as an argument, as the plan has it, but as a record of its
+  entry points, `State.walk`, rather than `expr` alone: every module
+  needs the storage functions too. `Lower` builds the record in the
+  knot. `Lower_intrinsics` has the runtime's and a list's intrinsics,
+  which were arms of `expr` and are now `Lower_intrinsics.call`, reached
+  for the spellings `Lower_intrinsics.runs` lists, with `@operators$`
+  operations and `@math$` functions. `Lower_data` has a storage
+  primitive's constructor, `ArrayRef.fill`, structs, a sum's payload and
+  field-constructor calls. `Lower_calls` has subscripts, calls,
+  function-value calls (an arm of `expr`, now `call_value`), arguments,
+  `invoke` and `expand`. `Lower_match` has `match`, the enum map read,
+  handlers and case reads; handlers are there, rather than with calls,
+  because a case read runs one too. `Lower_spawn` has spawned calls and
+  `Lower_lambda` lambdas. Three things the plan did not name: `leave`,
+  which `Lower_match`, `Lower_calls` and `stat` all use, moved to
+  `Build`; `Lower_calls` reaches `Lower_data.primitive` through the
+  walk's `primitive`, since `Lower_data` calls into `Lower_calls`; and
+  `in_order` and `joined` stay beside `expr`, their one user. Lines:
+  `lower.ml` 518, `lower_calls.ml` 395, `lower_spawn.ml` 314,
+  `lower_intrinsics.ml` 269, `lower_data.ml` 218, `lower_match.ml` 218,
+  `lower_lambda.ml` 23. No golden or fixture changed.
+
+Each commit built and passed `devbox run -- just test-compiler`; for
+`15a66eb` and `05e415c` the suite ran just before lines were wrapped to
+the margin, and the head passed it again. `just check-file-sizes` no
+longer warns about `lib/cgt/lower.ml`. On
+`main` before the split, `tests/memory-probes/run --check` failed once
+and passed when run again.
