@@ -870,6 +870,183 @@ let check_distinct_cycles env () =
       | _ -> ())
     (infos_in_order env ())
 
+(* generics.md §2.4, the growing-argument rule: where a type leads back to
+   itself through its members, each argument it passes back is one of its own
+   parameters as written or names none of them. `Grow<T>` holding
+   `Grow<Array<T, 2>>` would have a distinct instance at every depth, which no
+   layout, and no walk over its members, could finish.
+
+   The graph's nodes are the generic types' parameters. Each occurrence of
+   `B<args>` in a member of `A` -- inside `&`, `^` and the element types of
+   the intrinsic generics too -- gives an edge from each parameter of `A` an
+   argument names to the parameter of `B` it is passed as: plain when the
+   argument is that parameter itself, growing otherwise. A path from one of
+   `A`'s parameters to another of them is a way `A` leads back to itself, and
+   the argument it passes back grows when the path takes a growing edge. So a
+   growing edge breaks the rule when some declaration has a parameter that
+   reaches the edge and a parameter the edge reaches. That is wider than a
+   cycle through the edge: `A<T, U>` holding `A<Array<U, 2>, U>` passes back a
+   larger argument, though its instances are finite. The member that holds
+   the edge is reported, and its type replaced by [Ty.Error], so that nothing
+   after this pass walks it. *)
+type growth = {
+  g_from : int;
+  g_to : int;
+  g_growing : bool;
+  g_owner : type_info;
+  g_member : string;
+  g_arg : Ty.arg;
+  g_target : type_info;
+  g_param : Ty.param;
+}
+
+let member_span (info : type_info) name =
+  match info.decl.kind with
+  | Type_decl { value; _ } -> (
+      match value.N.Type_or_moulded.node with
+      | N.Type_or_moulded.Raw te -> te.N.Type_expr.span
+      | N.Type_or_moulded.Moulded { N.Moulded.mould; _ } -> (
+          match mould.N.Mould.node with
+          | N.Mould.Struct fields | N.Mould.Variant fields -> (
+              match List.find_opt (fun (f : N.Body_field.t) -> f.N.Body_field.name.N.Name.text = name) fields with
+              | Some f -> f.N.Body_field.type_.N.Type_expr.span
+              | None -> info.decl.span)
+          | N.Mould.Enum _ -> info.decl.span))
+  | _ -> info.decl.span
+
+let check_growing_arguments env () =
+  let infos = infos_in_order env () in
+  let members (info : type_info) =
+    match info.definition with
+    | Some (Struct fs) -> List.map (fun (n, t) -> ("field", n, t)) fs
+    | Some (Variant fs) -> List.map (fun (n, t) -> ("case", n, t)) fs
+    | Some (Distinct t) -> [ ("definition", "", t) ]
+    | _ -> []
+  in
+  let edges = ref [] in
+  List.iter
+    (fun (owner : type_info) ->
+      List.iter
+        (fun (_, member, t) ->
+          let rec occurrences (t : Ty.t) =
+            match t with
+            | Ty.Named (tid, args) ->
+                (match type_info_of_id env tid with
+                | Some target when List.compare_lengths target.params args = 0 ->
+                    List.iter2
+                      (fun (param : Ty.param) arg ->
+                        let named =
+                          match arg with
+                          | Ty.Type t -> Ty.free_params t
+                          | Ty.Number (Ty.Number_param p) -> [ p ]
+                          | Ty.Number (Ty.Known _) -> []
+                        in
+                        let bare =
+                          match arg with Ty.Type (Ty.Param _) | Ty.Number (Ty.Number_param _) -> true | _ -> false
+                        in
+                        List.iter
+                          (fun (from : Ty.param) ->
+                            edges :=
+                              {
+                                g_from = from.id;
+                                g_to = param.id;
+                                g_growing = not bare;
+                                g_owner = owner;
+                                g_member = member;
+                                g_arg = arg;
+                                g_target = target;
+                                g_param = param;
+                              }
+                              :: !edges)
+                          named)
+                      target.params args
+                | _ -> ());
+                List.iter occurrences_arg args
+            | Ty.Intrinsic { args; _ } -> List.iter occurrences_arg args
+            | Ty.Reference t | Ty.Roaming t -> occurrences t
+            | _ -> ()
+          and occurrences_arg = function Ty.Type t -> occurrences t | Ty.Number _ -> () in
+          occurrences t)
+        (members owner))
+    infos;
+  let edges = List.rev !edges in
+  if List.exists (fun e -> e.g_growing) edges then begin
+    let forward = Hashtbl.create 16 and backward = Hashtbl.create 16 in
+    List.iter
+      (fun e ->
+        Hashtbl.add forward e.g_from e.g_to;
+        Hashtbl.add backward e.g_to e.g_from)
+      edges;
+    let reach graph (params : Ty.param list) =
+      let seen = Hashtbl.create 16 in
+      let rec visit id =
+        if not (Hashtbl.mem seen id) then begin
+          Hashtbl.add seen id ();
+          List.iter visit (Hashtbl.find_all graph id)
+        end
+      in
+      List.iter (fun (p : Ty.param) -> visit p.id) params;
+      seen
+    in
+    let reaches = Hashtbl.create 16 in
+    let sets (info : type_info) =
+      match Hashtbl.find_opt reaches info.decl.id with
+      | Some r -> r
+      | None ->
+          (* What reaches the declaration's parameters, and what they reach. *)
+          let r = (reach backward info.params, reach forward info.params) in
+          Hashtbl.add reaches info.decl.id r;
+          r
+    in
+    (* The declaration that leads back to itself through the edge: the one
+       that holds it, when it does. *)
+    let leads_back e =
+      let through (info : type_info) =
+        let reaching, reached = sets info in
+        Hashtbl.mem reached e.g_from && Hashtbl.mem reaching e.g_to
+      in
+      List.find_opt through (e.g_owner :: List.filter (fun i -> i != e.g_owner) infos)
+    in
+    let reported = Hashtbl.create 4 in
+    List.iter
+      (fun e ->
+        let key = (e.g_owner.decl.id, e.g_member) in
+        if e.g_growing && not (Hashtbl.mem reported key) then
+          match leads_back e with
+          | None -> ()
+          | Some looping ->
+              Hashtbl.add reported key ();
+              let kind, _, _ = List.find (fun (_, n, _) -> n = e.g_member) (members e.g_owner) in
+              let which =
+                match kind with "definition" -> "definition" | _ -> kind ^ " " ^ quote e.g_member
+              in
+              let holder =
+                if looping == e.g_owner then "its " ^ which
+                else Printf.sprintf "the %s of %s" which (quote e.g_owner.tid.name)
+              in
+              error env (member_span e.g_owner e.g_member)
+                (Printf.sprintf
+                   "%s holds itself at a growing argument: %s passes %s as %s of %s; where a type \
+                    leads back to itself, each argument it passes back is one of its own \
+                    parameters as written or names none of them"
+                   (quote looping.tid.name) holder (quote (Ty.arg_to_string e.g_arg))
+                   (quote e.g_param.name) (quote e.g_target.tid.name)))
+      edges;
+    Hashtbl.iter
+      (fun (id, member) () ->
+        match List.find_opt (fun (i : type_info) -> i.decl.id = id) infos with
+        | Some info ->
+            let blank fs = List.map (fun (n, t) -> (n, if n = member then Ty.Error else t)) fs in
+            info.definition <-
+              (match info.definition with
+              | Some (Struct fs) -> Some (Struct (blank fs))
+              | Some (Variant fs) -> Some (Variant (blank fs))
+              | Some (Distinct _) -> Some (Distinct Ty.Error)
+              | d -> d)
+        | None -> ())
+      reported
+  end
+
 (* A value type is transitively a value: no reference-type or `&` member,
    anywhere downstream (memory.md §2.10). Every member's own type obeys the
    same rule where it is declared, so checking one level is checking all of
@@ -914,6 +1091,7 @@ let run env =
   let aliases = Hashtbl.fold (fun _ a acc -> a :: acc) env.alias_infos [] in
   List.iter (fun a -> ignore (alias_target env a)) (List.sort (fun a b -> compare a.alias_decl.id b.alias_decl.id) aliases);
   check_distinct_cycles env ();
+  check_growing_arguments env ();
   env.ready := true;
   List.iter (fun (t, span) -> check_marker env span t) (List.rev !(env.deferred_marks));
   env.deferred_marks := [];

@@ -188,8 +188,14 @@ let run env : T.Program.t =
         { T.Package.name; decls = List.filter_map (declaration env) pkg.decls })
       !(env.package_order)
   in
-  while not (Queue.is_empty env.pending) do
-    let p = Queue.pop env.pending in
+  (* The latest instance asked for is checked first, so a chain is followed
+     to its end before the instances beside it: one that never ends reaches
+     the limit after as many steps, not after every instance its branches
+     would have asked for. *)
+  while not (Stack.is_empty env.pending) do
+    let p = Stack.pop env.pending in
+    env.current_chain := p.p_decl.id :: p.p_chain;
+    Fun.protect ~finally:(fun () -> env.current_chain := []) @@ fun () ->
     with_note env (describe_instance p.p_sig p.p_subst p.p_at) (fun () ->
       match p.p_sig.kind with
       | S.Subscript -> ()
@@ -230,7 +236,7 @@ let run env : T.Program.t =
   let instantiated (d : decl) (s : S.t) =
     match s.S.kind with
     | S.Subscript -> Hashtbl.mem instantiated_subscripts d.id
-    | _ -> Hashtbl.mem env.instance_counts d.id
+    | _ -> Hashtbl.mem env.instantiated d.id
   in
   env.defining := true;
   Fun.protect

@@ -126,7 +126,9 @@ just test
 ambiguity-tool and grammar-generator suites, each of which also has its own recipe.
 
 CI holds every hand-written source file to 2,000 lines, and warns about one
-past 1,500. `just check-file-sizes` runs the same check.
+past 1,500. The warning is a prompt to split a file along a natural seam, not
+a rule to meet: a file that holds one thing and has no such seam stays past
+1,500 on purpose. `just check-file-sizes` runs the same check.
 
 ## Usage
 

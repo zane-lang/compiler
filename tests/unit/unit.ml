@@ -2,6 +2,7 @@ module Ty = Tst.Ty
 module S = Tst.Signature
 module T = Tst.Nodes
 module Overloads = Tst__Overloads
+module Borrows = Tst__Borrows
 module State = Cgt__State
 module Type_layout = Cgt__Type_layout
 module Value = Optimize__Value
@@ -177,6 +178,26 @@ let type_layout () =
   check "a value type is not a reference" (not (Type_layout.reference st box));
   raises_bug "a declared type with the wrong number of arguments is a bug" (fun () ->
       Type_layout.definition st (named "Box"))
+
+(* A type that holds itself at a growing argument (generics.md §2.4), which
+   semantics rejects, reaches lowering only by a bug; the walks over its
+   members then stop at their depth limit instead of running forever. *)
+let growing_types () =
+  let st = State.create ~region:Cgt.Runtime.default_fixed_region ~import_bodies:false ~library:false ~exclusive:false ~exports:(fun _ -> false) ~stamp:(fun _ -> "") ~stamped:(fun _ -> false) in
+  let t = param "T" in
+  let pair e = Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = [ Ty.Type e; Ty.Number (Ty.Known 2) ] } in
+  Hashtbl.replace st.State.types ("app", "Grow")
+    ([ t ], T.Decl.Variant [ ("done", prim "Unit"); ("more", named "Grow" ~args:[ Ty.Type (pair (Ty.Param t)) ]) ], false);
+  let grow = named "Grow" ~args:[ Ty.Type int ] in
+  let more = named "Grow" ~args:[ Ty.Type (pair int) ] in
+  raises_bug "boxing a growing type stops once it keeps growing" (fun () -> Type_layout.boxed st grow more);
+  raises_bug "laying out a growing type stops once it keeps growing" (fun () -> Type_layout.layout st span grow);
+  let deeper = function
+    | Ty.Named (_, [ Ty.Type e ]) -> [ Ty.Reference (named "Node" ~args:[ Ty.Type (pair e) ]) ]
+    | _ -> []
+  in
+  raises_bug "following references through a growing type stops once it keeps growing" (fun () ->
+      Borrows.reached_through_references ~members:deeper (named "Node" ~args:[ Ty.Type int ]))
 
 (* ---------------------------------------------------------------------- *)
 (* The runtime's ABI                                                      *)
@@ -954,6 +975,7 @@ let () =
   overloads ();
   string_constructors ();
   type_layout ();
+  growing_types ();
   runtime_abi ();
   single_literals ();
   folded_arithmetic ();

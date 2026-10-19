@@ -2177,6 +2177,74 @@
   (diff golden/lists.out lists.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/longChain))
+ (targets longChain.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build longChain.exe --package fixtures/longChain)))
+
+(rule
+ (deps (source_tree fixtures/longChain))
+ (targets longChain.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build longChain.optimized.exe --optimize --package fixtures/longChain)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    longChain.checked.out.actual
+    (run ./longChain.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/longChain.out longChain.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    longChain.unchecked.out.actual
+    (run ./longChain.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/longChain.out longChain.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    longChain.optimized.checked.out.actual
+    (run ./longChain.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/longChain.out longChain.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    longChain.optimized.unchecked.out.actual
+    (run ./longChain.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/longChain.out longChain.optimized.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/math))
  (action
   (with-stdout-to

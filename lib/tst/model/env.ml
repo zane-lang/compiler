@@ -147,8 +147,16 @@ type enum_map = {
   map_ty : Ty.t;
 }
 
-(* A generic instance pass 5 still has to check (D12). *)
-type pending = { p_decl : decl; p_sig : Signature.t; p_subst : Ty.subst; p_at : Span.t }
+(* A generic instance pass 5 still has to check (D12), with the declarations
+   of the instances being checked when it was asked for, innermost first: the
+   chain of instantiations that led to it. *)
+type pending = {
+  p_decl : decl;
+  p_sig : Signature.t;
+  p_subst : Ty.subst;
+  p_at : Span.t;
+  p_chain : int list;
+}
 
 (* ---------------------------------------------------------------------- *)
 (* One check's tables                                                     *)
@@ -197,8 +205,10 @@ type t = {
   promoted : (int, string list) Hashtbl.t;
   own_numbers : (int, string list) Hashtbl.t;
   (* Pass 5 ([Check]): the next local's number; the generic instances
-     recorded, by key, how many each declaration has, those still to check,
-     and those checked, with [defining] set while a generic verb nothing
+     recorded, by key, the declarations instantiated at all, those whose
+     chain of instantiations ran past the limit, those still to check, the
+     chain of the instance being checked (empty outside one), and those
+     checked, with [defining] set while a generic verb nothing
      instantiates is checked where it is declared, which asks for no
      instances; a subscript's result type per set of arguments, [None] while
      it is computed, which is how one that depends on itself is caught, and
@@ -206,8 +216,10 @@ type t = {
      carries. *)
   next_local : int ref;
   instance_keys : (string, unit) Hashtbl.t;
-  instance_counts : (int, int) Hashtbl.t;
-  pending : pending Queue.t;
+  instantiated : (int, unit) Hashtbl.t;
+  runaway : (int, unit) Hashtbl.t;
+  pending : pending Stack.t;
+  current_chain : int list ref;
   instances : Nodes.Instance.t list ref;
   defining : bool ref;
   subscript_results : (string, Ty.t option) Hashtbl.t;
@@ -247,8 +259,10 @@ let create () =
       own_numbers = Hashtbl.create 64;
       next_local = ref 0;
       instance_keys = Hashtbl.create 32;
-      instance_counts = Hashtbl.create 32;
-      pending = Queue.create ();
+      instantiated = Hashtbl.create 32;
+      runaway = Hashtbl.create 4;
+      pending = Stack.create ();
+      current_chain = ref [];
       instances = ref [];
       defining = ref false;
       subscript_results = Hashtbl.create 16;

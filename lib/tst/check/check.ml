@@ -13,8 +13,8 @@
    ask for more.
 
    This file is the recursive walk. What it reads but is not part of it is
-   beside it: [Context], [Instances], [Overloads] and [Termination]; [Program]
-   runs the walk over every body of the build. *)
+   beside it: [Context], [Instances], [Overloads], [Termination] and
+   [Coverage]; [Program] runs the walk over every body of the build. *)
 
 open Env
 module N = Sst.Nodes
@@ -1081,25 +1081,14 @@ and match_ env ~flow ctx (m : N.Match_expr.t) =
         { T.Arm.patterns = typed; body; span = arm.N.Match_arm.span })
       m.N.Match_expr.arms
   in
-  (* Every combination of cases, covered (adt.md §5.2, §5.6). *)
+  (* Every combination of cases, covered. *)
   if List.for_all (fun s -> s <> `Unknown) shapes && List.length shapes > 0 then begin
     let cases_of = function
       | `Variant (_, cases) -> List.map fst cases
       | `Enum (_, members) -> members
       | `Unknown -> []
     in
-    let combos =
-      List.fold_right
-        (fun shape acc -> List.concat_map (fun c -> List.map (fun rest -> c :: rest) acc) (cases_of shape))
-        shapes [ [] ]
-    in
-    let missing = List.filter (fun combo -> not (Hashtbl.mem covered (String.concat "," combo))) combos in
-    if missing <> [] then
-      let shown = List.filteri (fun i _ -> i < 3) missing in
-      error env span
-        (Printf.sprintf "the match does not cover %s%s; every case needs an arm, and there is no default"
-           (String.concat ", " (List.map (fun c -> quote (String.concat ", " c)) shown))
-           (if List.length missing > 3 then Printf.sprintf " (and %d more)" (List.length missing - 3) else ""))
+    Option.iter (error env span) (Coverage.missing (List.map cases_of shapes) covered)
   end;
   let ty =
     match results.results with

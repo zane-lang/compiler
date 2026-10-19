@@ -164,6 +164,9 @@ type state = {
      checked against it (Type_layout.ty). *)
   region : int;
   sized : (Nodes.Ty.t, unit) Hashtbl.t;
+  (* Whether a member is boxed in the type that holds it, by holder and
+     member (Type_layout.boxed). *)
+  boxes : (Tty.t * Tty.t, bool) Hashtbl.t;
 }
 
 (* A state that has reached nothing yet. *)
@@ -200,6 +203,7 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     imported = Hashtbl.create 8;
     region;
     sized = Hashtbl.create 64;
+    boxes = Hashtbl.create 64;
   }
 
 let fresh st =

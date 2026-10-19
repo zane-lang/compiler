@@ -238,8 +238,56 @@ let free_params t =
   go t;
   List.rev !seen
 
+(* How many constructors a type is built from. *)
+let rec size = function
+  | Named (_, args) | Intrinsic { args; _ } -> 1 + args_size args
+  | Reference t | Roaming t -> 1 + size t
+  | Verb v ->
+      let opt = Option.fold ~none:0 ~some:size in
+      1 + opt v.this_ + List.fold_left (fun n t -> n + size t) 0 v.params + size v.ret + opt v.abort
+  | Concept (Array_lit (t, _) | Mixed_lit (t, _)) -> 2 + size t
+  | Concept (Map_lit (k, v)) -> 1 + size k + size v
+  | Concept _ | Param _ | Error -> 1
+
+and args_size args = List.fold_left (fun n a -> n + match a with Type t -> size t | Number _ -> 1) 0 args
+
+(* How far a walk down types' members has grown along its path: for each
+   declaration on the path, the size of the arguments it last appeared with
+   and how many times it reappeared with larger ones. Type_decls rejects a
+   type that holds itself at a growing argument (generics.md §2.4), so in a
+   checked program a declaration reappears larger only through an argument
+   that names no parameter, a bounded number of times, and a chain of
+   distinct declarations, however long, never grows. A declaration grown
+   past [limit] times is a type that check missed. *)
+module Growth = struct
+  module Decls = Map.Make (struct
+    type t = type_id
+
+    let compare = compare
+  end)
+
+  type nonrec t = (int * int) Decls.t
+
+  let start : t = Decls.empty
+  let limit = 32
+
+  (* The path gone down to [t], or [None] when it grew past [limit]. *)
+  let step (path : t) t =
+    match t with
+    | Named (id, args) | Reference (Named (id, args)) | Roaming (Named (id, args)) ->
+        let now = args_size args in
+        let grown =
+          match Decls.find_opt id path with
+          | Some (before, grown) when now > before -> grown + 1
+          | Some (_, grown) -> grown
+          | None -> 0
+        in
+        if grown > limit then None else Some (Decls.add id (now, grown) path)
+    | _ -> Some path
+end
+
 (* ---------------------------------------------------------------------- *)
-(* Comparison                                                             *)
+(* Comparison                                                           *)
 (* ---------------------------------------------------------------------- *)
 
 (* The passing mode is not part of what a value is: a `&T`, a `^T` and a `T`

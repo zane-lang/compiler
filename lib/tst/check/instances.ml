@@ -9,10 +9,24 @@ module S = Signature
 open Context
 
 
-(* How many instances of one declaration are enough to call it recursion
-   without end: `f<T>` calling `f<Pair<T>>`, which no program can finish
-   instantiating. *)
+(* How many instances of one declaration along one chain of instantiations
+   are enough to call it recursion without end: `f<T>` calling `f<Pair<T>>`,
+   which no program can finish instantiating. Instances are deduplicated by
+   their arguments, so a chain that only revisits a fixed set of them stops
+   growing; only one that keeps reaching new arguments gets this deep. Uses
+   on separate chains, however many, are not counted together. *)
 let instance_limit = 64
+
+(* The first few links of a chain, outermost first, by the names of their
+   declarations. *)
+let describe_chain env chain =
+  let rec take n = function x :: rest when n > 0 -> x :: take (n - 1) rest | _ -> [] in
+  let links = List.rev chain in
+  let shown = take 4 links in
+  let name id =
+    match Hashtbl.find_opt env.signatures id with Some (s : S.t) -> quote s.name | None -> "?"
+  in
+  String.concat ", " (List.map name shown) ^ if List.length links > List.length shown then ", ..." else ""
 
 let binding_args (s : S.t) (subst : Ty.subst) =
   List.map
@@ -116,18 +130,30 @@ let request env ?(args = []) (s : S.t) subst at =
           string_of_int id ^ ":"
           ^ String.concat "," (List.map (fun (_, a) -> Ty.arg_to_string a) args)
         in
-        if not (Hashtbl.mem env.instance_keys key) then begin
+        if not (Hashtbl.mem env.instance_keys key || Hashtbl.mem env.runaway id) then begin
           Hashtbl.add env.instance_keys key ();
-          let count = 1 + Option.value ~default:0 (Hashtbl.find_opt env.instance_counts id) in
-          Hashtbl.replace env.instance_counts id count;
+          Hashtbl.replace env.instantiated id ();
+          let chain = id :: !(env.current_chain) in
+          let count = List.length (List.filter (Int.equal id) chain) in
           if count > instance_limit then begin
-            if count = instance_limit + 1 then
-              error env at
-                (Printf.sprintf
-                   "%s is instantiated at more than %d sets of arguments; its calls to \
-                    itself never reach a fixed set"
-                   (quote s.name) instance_limit)
+            (* Reported once: the instances still waiting on this declaration
+               ask for no more of it. *)
+            Hashtbl.replace env.runaway id ();
+            error env at
+              (Printf.sprintf
+                 "%s is instantiated more than %d times along one chain of instantiations, \
+                  which begins %s; its calls to itself never reach a fixed set"
+                 (quote s.name) instance_limit (describe_chain env chain))
           end
-          else Queue.add { p_decl = Hashtbl.find env.decls id; p_sig = s; p_subst = subst; p_at = at } env.pending
+          else
+            Stack.push
+              {
+                p_decl = Hashtbl.find env.decls id;
+                p_sig = s;
+                p_subst = subst;
+                p_at = at;
+                p_chain = !(env.current_chain);
+              }
+              env.pending
         end
   | _ -> ()
