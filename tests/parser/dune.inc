@@ -62,6 +62,66 @@
 
 (rule
  (with-stderr-to
+  reject.bidi-061c.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/bidi-061c.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.bidi-061c.err reject.bidi-061c.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.bidi-200e.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/bidi-200e.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.bidi-200e.err reject.bidi-200e.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.bidi-200f.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/bidi-200f.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.bidi-200f.err reject.bidi-200f.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.bidi-202e.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/bidi-202e.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.bidi-202e.err reject.bidi-202e.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.bidi-2067.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/bidi-2067.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.bidi-2067.err reject.bidi-2067.err.actual)))
+
+(rule
+ (with-stderr-to
   reject.binder.err.actual
   (with-accepted-exit-codes
    1
@@ -71,6 +131,18 @@
  (alias runtest)
  (action
   (diff golden/reject.binder.err reject.binder.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.control-escape.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/control-escape.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.control-escape.err reject.control-escape.err.actual)))
 
 (rule
  (with-stderr-to

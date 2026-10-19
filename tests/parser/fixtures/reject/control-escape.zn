@@ -1,0 +1,5 @@
+package main;
+
+String shown() {
+	return String("before[2Jafter") @ Int(2);
+}

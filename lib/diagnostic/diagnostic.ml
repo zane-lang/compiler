@@ -22,7 +22,7 @@ let render_internal ?span message =
     | None -> ""
     | Some (s : Source.Span.t) ->
         let p = s.Source.Span.start_ in
-        Printf.sprintf "File \"%s\", line %d, characters %d:\n" p.Lexing.pos_fname
+        Printf.sprintf "File \"%s\", line %d, characters %d:\n" (Render.escaped p.Lexing.pos_fname)
           p.Lexing.pos_lnum
           (p.Lexing.pos_cnum - p.Lexing.pos_bol + 1)
   in
@@ -30,4 +30,4 @@ let render_internal ?span message =
     "%sinternal compiler error: %s\n\
      This is a bug in the compiler, not in the program. Please report it at\n\
      https://github.com/zane-lang/compiler/issues\n"
-    where message
+    where (Render.escaped message)

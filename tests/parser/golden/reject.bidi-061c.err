@@ -1,0 +1,4 @@
+File "fixtures/reject/bidi-061c.zn", line 4, characters 30-31:
+4 |     return String("abc\u061cdef") @ Int(2);
+  |                                   ^
+Error: Parse error
