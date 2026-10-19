@@ -14,6 +14,7 @@
    bindings it already links. */
 
 #include <caml/alloc.h>
+#include <caml/fail.h>
 #include <caml/memory.h>
 #include <caml/mlvalues.h>
 #include <stdint.h>
@@ -102,51 +103,56 @@ value zane_global_value_type(value global) {
   CAMLreturn(to_val(LLVMGlobalGetValueType((LLVMValueRef)from_val(global))));
 }
 
-/* [count] pointers as an OCaml array, each carried as the bindings carry
-   one; an empty array is OCaml's own, `Atom(0)`, which [caml_alloc_tuple]
-   gives for no fields. */
-static value pointers(void **items, unsigned count) {
+/* [count] pointers, which [fill] writes for [subject] and [index], as an
+   OCaml array, each carried as the bindings carry one; an empty array is
+   OCaml's own, `Atom(0)`, which [caml_alloc_tuple] gives for no fields.
+   The array is allocated before the C buffer, and nothing between the
+   buffer's `malloc` and its `free` allocates on the OCaml heap or raises,
+   so the buffer cannot leak. */
+static value pointers(unsigned count, void (*fill)(void *, int, void **), void *subject, int index) {
   CAMLparam0();
   CAMLlocal1(array);
   array = caml_alloc_tuple(count);
+  if (count == 0) CAMLreturn(array);
+  void **items = malloc(count * sizeof(void *));
+  if (items == NULL) caml_raise_out_of_memory();
+  fill(subject, index, items);
   for (unsigned i = 0; i < count; ++i) Store_field(array, i, to_val(items[i]));
+  free(items);
   CAMLreturn(array);
+}
+
+static void fill_param_types(void *t, int index, void **items) {
+  (void)index;
+  LLVMGetParamTypes((LLVMTypeRef)t, (LLVMTypeRef *)items);
+}
+
+static void fill_struct_element_types(void *t, int index, void **items) {
+  (void)index;
+  LLVMGetStructElementTypes((LLVMTypeRef)t, (LLVMTypeRef *)items);
+}
+
+static void fill_function_attrs(void *f, int index, void **items) {
+  LLVMGetAttributesAtIndex((LLVMValueRef)f, index, (LLVMAttributeRef *)items);
 }
 
 value zane_param_types(value function) {
   CAMLparam1(function);
-  CAMLlocal1(array);
   LLVMTypeRef t = (LLVMTypeRef)from_val(function);
-  unsigned n = LLVMCountParamTypes(t);
-  void **items = malloc((n ? n : 1) * sizeof(void *));
-  LLVMGetParamTypes(t, (LLVMTypeRef *)items);
-  array = pointers(items, n);
-  free(items);
-  CAMLreturn(array);
+  CAMLreturn(pointers(LLVMCountParamTypes(t), fill_param_types, t, 0));
 }
 
 value zane_struct_element_types(value structure) {
   CAMLparam1(structure);
-  CAMLlocal1(array);
   LLVMTypeRef t = (LLVMTypeRef)from_val(structure);
-  unsigned n = LLVMCountStructElementTypes(t);
-  void **items = malloc((n ? n : 1) * sizeof(void *));
-  LLVMGetStructElementTypes(t, (LLVMTypeRef *)items);
-  array = pointers(items, n);
-  free(items);
-  CAMLreturn(array);
+  CAMLreturn(pointers(LLVMCountStructElementTypes(t), fill_struct_element_types, t, 0));
 }
 
 /* [index] as LLVM numbers it: -1 for the function, 0 for its result, and
    n + 1 for parameter n. */
 value zane_function_attrs(value function, value index) {
   CAMLparam2(function, index);
-  CAMLlocal1(array);
   LLVMValueRef f = (LLVMValueRef)from_val(function);
-  unsigned n = LLVMGetAttributeCountAtIndex(f, Int_val(index));
-  void **items = malloc((n ? n : 1) * sizeof(void *));
-  LLVMGetAttributesAtIndex(f, Int_val(index), (LLVMAttributeRef *)items);
-  array = pointers(items, n);
-  free(items);
-  CAMLreturn(array);
+  int i = Int_val(index);
+  CAMLreturn(pointers(LLVMGetAttributeCountAtIndex(f, i), fill_function_attrs, f, i));
 }

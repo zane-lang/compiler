@@ -237,7 +237,7 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
             Hashtbl.replace st.layouts elements ps;
             st.named <- elements :: st.named
           end;
-          [ at (Layout.Array { count = n; stride = s; elements }) (n * s) ])
+          [ at (Layout.Array { count = n; stride = s; elements }) (Nodes.Ty.times s n) ])
   | _ -> (
       match definition st t with
       | Some (T.Decl.Distinct u, _) -> positions st span u base tags
