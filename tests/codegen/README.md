@@ -192,6 +192,18 @@ then run it again, read the golden diff and promote that.
   replayed in order; calls past the step budget, the depth and the size cap,
   left to run; and a slot read when the program runs, after a store made by
   code that folded.
+- `doubling` is output replayed from a remembered call, charged and capped
+  (docs/design/optimization.md O6): a call that makes its previous level
+  twice and prints once at its base folds to its prints at ten levels, stays
+  runtime code at seventeen levels of empty prints, which pass the output
+  cap, and stops at the cap at forty levels, behind a condition that is
+  false when the program runs, rather than make 2^40 outputs.
+- `stringArrays` is arrays of strings described by one position each
+  (docs/design/lowering.md §9, "Each type's walks"): an `ArrayRef` of
+  100,000 strings filled, moved and dropped twenty times over, one of 50,000
+  overwritten, and a value array of 20,000 strings, four arrays deep,
+  copied whole and changed. Each pass sums its strings read back as
+  numbers, and each check prints `yes` when it holds.
 - `walks` is values nested deeper than an emitted walk calls itself
   (docs/design/lowering.md §9): a countdown a thousand boxes deep made,
   copied and overwritten by deeper and shallower ones, a variant whose

@@ -1,131 +1,23 @@
 └── program:
     ├── entry: zane.start
     ├── layouts[0] > layout:
-    │   ├── type: %primitives$ArrayRef<arrayrefs$Player, 3>
-    │   ├── positions[0]: text @8
-    │   ├── positions[1]: text @40
-    │   └── positions[2]: text @72
-    ├── layouts[1] > layout:
     │   ├── type: arrayrefs$Player
     │   └── positions[0]: text @8
+    ├── layouts[1] > layout:
+    │   ├── type: %primitives$ArrayRef<arrayrefs$Player, 3>
+    │   └── positions[0]: array @0 of 3 arrayrefs$Player (32 bytes apart)
     ├── layouts[2] > layout:
     │   ├── type: %primitives$ArrayRef<arrayrefs$Player, 100>
-    │   ├── positions[0]: text @8
-    │   ├── positions[1]: text @40
-    │   ├── positions[2]: text @72
-    │   ├── positions[3]: text @104
-    │   ├── positions[4]: text @136
-    │   ├── positions[5]: text @168
-    │   ├── positions[6]: text @200
-    │   ├── positions[7]: text @232
-    │   ├── positions[8]: text @264
-    │   ├── positions[9]: text @296
-    │   ├── positions[10]: text @328
-    │   ├── positions[11]: text @360
-    │   ├── positions[12]: text @392
-    │   ├── positions[13]: text @424
-    │   ├── positions[14]: text @456
-    │   ├── positions[15]: text @488
-    │   ├── positions[16]: text @520
-    │   ├── positions[17]: text @552
-    │   ├── positions[18]: text @584
-    │   ├── positions[19]: text @616
-    │   ├── positions[20]: text @648
-    │   ├── positions[21]: text @680
-    │   ├── positions[22]: text @712
-    │   ├── positions[23]: text @744
-    │   ├── positions[24]: text @776
-    │   ├── positions[25]: text @808
-    │   ├── positions[26]: text @840
-    │   ├── positions[27]: text @872
-    │   ├── positions[28]: text @904
-    │   ├── positions[29]: text @936
-    │   ├── positions[30]: text @968
-    │   ├── positions[31]: text @1000
-    │   ├── positions[32]: text @1032
-    │   ├── positions[33]: text @1064
-    │   ├── positions[34]: text @1096
-    │   ├── positions[35]: text @1128
-    │   ├── positions[36]: text @1160
-    │   ├── positions[37]: text @1192
-    │   ├── positions[38]: text @1224
-    │   ├── positions[39]: text @1256
-    │   ├── positions[40]: text @1288
-    │   ├── positions[41]: text @1320
-    │   ├── positions[42]: text @1352
-    │   ├── positions[43]: text @1384
-    │   ├── positions[44]: text @1416
-    │   ├── positions[45]: text @1448
-    │   ├── positions[46]: text @1480
-    │   ├── positions[47]: text @1512
-    │   ├── positions[48]: text @1544
-    │   ├── positions[49]: text @1576
-    │   ├── positions[50]: text @1608
-    │   ├── positions[51]: text @1640
-    │   ├── positions[52]: text @1672
-    │   ├── positions[53]: text @1704
-    │   ├── positions[54]: text @1736
-    │   ├── positions[55]: text @1768
-    │   ├── positions[56]: text @1800
-    │   ├── positions[57]: text @1832
-    │   ├── positions[58]: text @1864
-    │   ├── positions[59]: text @1896
-    │   ├── positions[60]: text @1928
-    │   ├── positions[61]: text @1960
-    │   ├── positions[62]: text @1992
-    │   ├── positions[63]: text @2024
-    │   ├── positions[64]: text @2056
-    │   ├── positions[65]: text @2088
-    │   ├── positions[66]: text @2120
-    │   ├── positions[67]: text @2152
-    │   ├── positions[68]: text @2184
-    │   ├── positions[69]: text @2216
-    │   ├── positions[70]: text @2248
-    │   ├── positions[71]: text @2280
-    │   ├── positions[72]: text @2312
-    │   ├── positions[73]: text @2344
-    │   ├── positions[74]: text @2376
-    │   ├── positions[75]: text @2408
-    │   ├── positions[76]: text @2440
-    │   ├── positions[77]: text @2472
-    │   ├── positions[78]: text @2504
-    │   ├── positions[79]: text @2536
-    │   ├── positions[80]: text @2568
-    │   ├── positions[81]: text @2600
-    │   ├── positions[82]: text @2632
-    │   ├── positions[83]: text @2664
-    │   ├── positions[84]: text @2696
-    │   ├── positions[85]: text @2728
-    │   ├── positions[86]: text @2760
-    │   ├── positions[87]: text @2792
-    │   ├── positions[88]: text @2824
-    │   ├── positions[89]: text @2856
-    │   ├── positions[90]: text @2888
-    │   ├── positions[91]: text @2920
-    │   ├── positions[92]: text @2952
-    │   ├── positions[93]: text @2984
-    │   ├── positions[94]: text @3016
-    │   ├── positions[95]: text @3048
-    │   ├── positions[96]: text @3080
-    │   ├── positions[97]: text @3112
-    │   ├── positions[98]: text @3144
-    │   └── positions[99]: text @3176
+    │   └── positions[0]: array @0 of 100 arrayrefs$Player (32 bytes apart)
     ├── layouts[3] > layout:
     │   ├── type: arrayrefs$Squad
-    │   ├── positions[0]: text @8
-    │   ├── positions[1]: text @40
-    │   └── positions[2]: text @72
+    │   └── positions[0]: array @0 of 3 arrayrefs$Player (32 bytes apart)
     ├── layouts[4] > layout:
     │   ├── type: ^%primitives$ArrayRef<arrayrefs$Player, 3>
-    │   ├── positions[0]: text @8
-    │   ├── positions[1]: text @40
-    │   └── positions[2]: text @72
+    │   └── positions[0]: array @0 of 3 arrayrefs$Player (32 bytes apart)
     ├── layouts[5] > layout:
     │   ├── type: %primitives$ArrayRef<arrayrefs$Player, 4>
-    │   ├── positions[0]: text @8
-    │   ├── positions[1]: text @40
-    │   ├── positions[2]: text @72
-    │   └── positions[3]: text @104
+    │   └── positions[0]: array @0 of 4 arrayrefs$Player (32 bytes apart)
     ├── layouts[6] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0

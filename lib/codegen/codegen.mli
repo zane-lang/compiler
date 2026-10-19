@@ -3,30 +3,39 @@
     failures are about the build -- a target LLVM does not know, a link that
     failed -- and are messages, not diagnostics. *)
 
-(** The program's module for [target], the host when it is absent, with
-    that target's triple and data layout. The module with the program's
+(** [f] run on the program's module for [target], the host when it is
+    absent, with that target's triple and data layout. The module and its
+    context live only while [f] runs: both are disposed when it returns or
+    raises, and when emitting the program fails, so nothing may keep the
+    module past it. The module with the program's
     entry also defines the size in bytes of each context's range of frames,
     the main context's and each spawned call's; each takes its default when
     absent. With [pack], an aggregate that fits in the registers a call
     gives it passes as packed 8-byte words rather than by address
     (docs/design/lowering.md §9); off when absent. *)
-val emit :
+val with_program :
   ?target:string ->
   ?pack:bool ->
   ?fixed_region:int ->
   ?spawned_fixed_region:int ->
   Cgt.Nodes.Program.t ->
-  (Llvm.llmodule, string) result
+  (Llvm.llmodule -> ('a, string) result) ->
+  ('a, string) result
+
+(** How many contexts [with_program] has made and not yet disposed: zero
+    whenever no build is running. For the tests. *)
+val live_contexts : unit -> int
 
 (** The processor [prepare] tunes code for on [target], the host when it is
     absent: [x86-64] on any x86-64 target, [core-avx2] on [x86_64h], else
     LLVM's default, [""]. *)
 val target_cpu : ?target:string -> unit -> (string, string) result
 
-(** The module's text, as [prepare] left it. *)
+(** The module's text, as [prepare] left it, copied into an OCaml string
+    that outlives the module. *)
 val ir : Llvm.llmodule -> string
 
-(** Readies a module [emit] made for [target] to be written, and runs the
+(** Readies a module [with_program] made for [target] to be written, and runs the
     optimizer when [optimize]. *)
 val prepare : ?target:string -> ?optimize:bool -> Llvm.llmodule -> (unit, string) result
 

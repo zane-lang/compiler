@@ -20,6 +20,11 @@ type output = Print of string | Set_threads of int64 | Set_threads_auto
    value once it is known to fold. *)
 type constant = { maker : string; state : string; value : string; mutable known : const option }
 
+(* A remembered call: its result, its outputs in order, and how many
+   outputs there are and how many bytes their text holds, counted once when
+   it is recorded so that a replay can be charged without walking them. *)
+type memo = { result : const; outputs : output list; count : int; text : int }
+
 type program = {
   funcs : (string, Func.t) Hashtbl.t;
   layouts : (Layout.t, Layout.position list) Hashtbl.t;
@@ -28,7 +33,7 @@ type program = {
   constants : (string, constant) Hashtbl.t;
   (* A call's result and what it output, by the function and its
      arguments (O6). *)
-  memo : (const * output list) Key.t;
+  memo : memo Key.t;
   (* The steps every fold of the program may take together, so that many
      calls that each run out of budget cannot make a build slow. *)
   mutable left : int;
@@ -45,6 +50,9 @@ type run = {
   mutable steps : int;
   mutable depth : int;
   mutable outputs : output list;
+  (* How many outputs [outputs] holds, and the bytes of their text. *)
+  mutable output_count : int;
+  mutable output_bytes : int;
   cells : (string, cell) Hashtbl.t;
   (* What each variable held when the run first read it, and that as a
      constant: a store into a member writes the value in place. *)
@@ -66,6 +74,8 @@ let start ?making prog =
     steps = budget;
     depth = 0;
     outputs = [];
+    output_count = 0;
+    output_bytes = 0;
     cells = Hashtbl.create 8;
     initial = Hashtbl.create 8;
     making;
@@ -98,6 +108,22 @@ let tick run = spend run 1
    each 64 bytes, charged before the work is done, so a few steps cannot
    build a value of any size. *)
 let bytes run n = if n >= 64 then spend run (n / 64)
+
+(* Outputs made or replayed, charged by their size. Each output weighs its
+   text's length and one more, so that many outputs with no text are not
+   free, and a run whose outputs weigh more than a folded result may
+   materialize to stops (O6). A call's outputs are part of its run's, so a
+   call whose outputs pass the cap stops before it can be remembered. *)
+let charge_outputs run ~count ~text =
+  bytes run (text + count);
+  run.output_count <- run.output_count + count;
+  run.output_bytes <- run.output_bytes + text;
+  if run.output_bytes + run.output_count > max_size then stop "output too large to fold"
+
+let output run o =
+  let text = match o with Print s -> String.length s | Set_threads _ | Set_threads_auto -> 0 in
+  charge_outputs run ~count:1 ~text;
+  run.outputs <- o :: run.outputs
 let sized run t = bytes run (fst (Ty.size_align t))
 
 (* ---------------------------------------------------------------------- *)
@@ -572,15 +598,16 @@ and call run fn args =
         else None
       in
       match Option.bind key (Key.find_opt run.prog.memo) with
-      | Some (result, outputs) ->
-          run.outputs <- List.rev_append outputs run.outputs;
-          import result
+      | Some m ->
+          charge_outputs run ~count:m.count ~text:m.text;
+          run.outputs <- List.rev_append m.outputs run.outputs;
+          import m.result
       | None ->
           run.depth <- run.depth + 1;
           if run.depth > max_depth then stop "calls nested too deep";
           let fr = { locals = Hashtbl.create 16; outer = None } in
           List.iter2 (fun (id, ty) v -> bind fr id ty v) f.Func.params args;
-          let before = run.outputs in
+          let before = run.outputs and count = run.output_count and text = run.output_bytes in
           let result = try stats run fr f.Func.body; VUnit with Returned v -> v in
           run.depth <- run.depth - 1;
           (match (key, export result) with
@@ -590,7 +617,13 @@ and call run fn args =
               let rec since acc l =
                 if l == before then acc else match l with x :: r -> since (x :: acc) r | [] -> acc
               in
-              Key.replace run.prog.memo key (c, since [] run.outputs)
+              Key.replace run.prog.memo key
+                {
+                  result = c;
+                  outputs = since [] run.outputs;
+                  count = run.output_count - count;
+                  text = run.output_bytes - text;
+                }
           | _ -> ());
           result)
 
@@ -598,14 +631,14 @@ and runtime run (fn : Cgt.Runtime.fn) args =
   match (Intrinsics.classify fn, fn, args) with
   | Intrinsics.Input, _, _ -> stop "an input, which only the running program has"
   | _, Cgt.Runtime.Print, [ text ] ->
-      run.outputs <- Print (text_of text) :: run.outputs;
+      output run (Print (text_of text));
       VUnit
   | _, Cgt.Runtime.Set_threads, [ count ] ->
       let n = int_of count in
-      run.outputs <- Set_threads n :: run.outputs;
+      output run (Set_threads n);
       VInt (if Int64.compare n 1L < 0 then 0L else 1L)
   | _, Cgt.Runtime.Set_threads_auto, [] ->
-      run.outputs <- Set_threads_auto :: run.outputs;
+      output run Set_threads_auto;
       VUnit
   | _, Cgt.Runtime.Text_join, [ l; r ] ->
       let l = text_of l and r = text_of r in

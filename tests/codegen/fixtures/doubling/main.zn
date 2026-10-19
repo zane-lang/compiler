@@ -1,0 +1,63 @@
+/// Output replayed from a remembered call is charged (docs/design/
+/// optimization.md O6): `tree` makes its previous level twice and prints
+/// once at its base, so after its first call each level is remembered and
+/// replays what the one below output. Ten levels of `w` fold to what they
+/// print; seventeen levels of `""` make more outputs than the cap, which
+/// counts outputs with no text, and stay runtime code. `forty`, which
+/// nothing calls, is still folded and stops at the cap rather than make
+/// 2^40 outputs.
+package doubling;
+
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit tree(n Int, word String) {
+	if(@operators$equal(n, Int(0))) {
+		say(word);
+		return Unit();
+	}
+	tree(@operators$add(n, @operators$negate(Int(1))), word);
+	tree(@operators$add(n, @operators$negate(Int(1))), word);
+	return Unit();
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// Three million steps: past the budget, so it runs when the program does.
+Int spin(n Int) {
+	total Int(0);
+	i Int(1);
+	i!to(n) {
+		total = @operators$add(total, Int(1));
+	}
+	return total;
+}
+
+Unit main() {
+	tree(Int(10), String("w"));
+	say(String("\n"));
+	tree(Int(17), String(""));
+	if(@operators$equal(spin(Int(3000000)), Int(0))) {
+		tree(Int(40), String(""));
+	}
+	say(String("done\n"));
+	return Unit();
+}

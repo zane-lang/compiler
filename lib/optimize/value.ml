@@ -163,15 +163,9 @@ let locate (t : Ty.t) (v : v) (p : Layout.position) =
           | _ -> stop "a layout position past a struct's members"
         in
         find 0 ts offsets
-    | Ty.Array (e, _) -> (
-        let size, align = Ty.size_align e in
-        let stride = (size + align - 1) / align * align in
-        (* An element of no size holds no handle or box. *)
-        let i = if stride = 0 then -1 else off / stride in
-        match v with
-        | VRecord a when i >= 0 && i < Array.length a ->
-            go e a.(i) (off - (i * stride)) (base + (i * stride)) (Member i :: path)
-        | _ -> stop "an array that holds no such element")
+    (* An array whose elements own blocks is one position (Layout.Array),
+       and what its elements hold is found by their own layout. *)
+    | Ty.Array _ when off = 0 -> Some (List.rev path)
     | Ty.Sum ts when off >= Ty.payload_offset -> (
         match v with
         | VCase (tag, payload) ->
@@ -184,6 +178,13 @@ let locate (t : Ty.t) (v : v) (p : Layout.position) =
     | _ -> stop "a layout position at no handle or box"
   in
   go t v p.Layout.offset 0 []
+
+(* The elements of the array at [at] in a value of type [t], and their
+   type. *)
+let elements_at t v at =
+  match (ty_at t at, read_path v at) with
+  | Ty.Array (e, _), VRecord a -> (e, a)
+  | _ -> stop "an array position at no array"
 
 (* Every position of [layout] present in [v], with the path to it. *)
 let positions layouts layout t v =
@@ -206,6 +207,9 @@ let rec copy layouts layout t v =
           let target = b.cell in
           let made = cell ~layout:payload target.ty (copy layouts payload target.ty (load b)) in
           set_path v at (owner made)
+      | Layout.Array { elements; _ }, _ ->
+          let e, a = elements_at t v at in
+          set_path v at (VRecord (Array.map (copy layouts elements e) a))
       | _ -> v)
     (own v)
     (positions layouts layout t v)
@@ -227,13 +231,16 @@ let rec weight = function
 
 (* What a move leaves in the place it moved out of (zane_vacate): no list,
    no string and no box. *)
-let vacate layouts layout t v =
+let rec vacate layouts layout t v =
   List.fold_left
     (fun v ((p : Layout.position), at) ->
       match p.Layout.kind with
       | Layout.Text -> set_path v at (VText "")
       | Layout.List _ -> set_path v at (empty ())
-      | Layout.Box _ -> set_path v at VNull)
+      | Layout.Box _ -> set_path v at VNull
+      | Layout.Array { elements; _ } ->
+          let e, a = elements_at t v at in
+          set_path v at (VRecord (Array.map (vacate layouts elements e) a)))
     (own v)
     (positions layouts layout t v)
 
@@ -241,28 +248,31 @@ let vacate layouts layout t v =
    keeps its cell, which the incoming payload is written into, recursively,
    so an address into it still names it. *)
 let rec overwrite layouts layout t old incoming =
+  let both = positions layouts layout t incoming in
   let kept =
     List.filter_map
       (fun ((p : Layout.position), at) ->
-        match (p.Layout.kind, read_path old at) with
-        | Layout.Box { payload; _ }, (VPtr _ as b) -> (
-            match List.assoc_opt p (positions layouts layout t incoming) with
-            | Some at' when at' = at -> (
-                match read_path incoming at with
-                | VPtr _ as n -> Some (at, b, n, payload)
-                | _ -> None)
+        match List.assoc_opt p both with
+        | Some at' when at' = at -> (
+            match (p.Layout.kind, read_path old at, read_path incoming at) with
+            | Layout.Box { payload; _ }, (VPtr _ as b), (VPtr _ as n) -> Some (at, `Box (b, n, payload))
+            (* An array present in both overwrites element by element. *)
+            | Layout.Array { elements; _ }, _, _ -> Some (at, `Array elements)
             | _ -> None)
         | _ -> None)
       (positions layouts layout t old)
   in
   List.fold_left
-    (fun v (at, b, n, payload) ->
-      match (b, n) with
-      | VPtr b, VPtr n ->
+    (fun v (at, kept) ->
+      match kept with
+      | `Box (VPtr b, VPtr n, payload) ->
           let inner = overwrite layouts payload b.cell.ty (load b) (load n) in
           store b n.cell.ty inner;
           set_path v at (VPtr { b with owned = true })
-      | _ -> v)
+      | `Box _ -> v
+      | `Array elements ->
+          let e, olds = elements_at t old at and _, news = elements_at t incoming at in
+          set_path v at (VRecord (Array.mapi (fun i n -> overwrite layouts elements e olds.(i) n) news)))
     (own incoming) kept
 
 (* ---------------------------------------------------------------------- *)
@@ -336,8 +346,12 @@ module Key = Hashtbl.Make (struct
   let hash = Hashtbl.hash
 end)
 
+(* A folded value must not make the program much larger than the code it
+   replaces, and a run must not output more than that (O6). *)
+let max_size = 65_536
+
 (* How many bytes a constant takes where it is written, which the size cap
-   (O6) counts. *)
+   counts. *)
 let rec size = function
   | Int _ | Float _ | Bool _ | Func _ -> 8
   | Unit -> 0

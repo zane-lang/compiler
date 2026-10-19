@@ -1376,3 +1376,85 @@ IR and objects `abi_test.py` builds.
 Verified on the batch's head with `devbox run -- just test-compiler`
 (including the probe gate) and `just check-file-sizes`, which warns that
 `lib/tst/check/check.ml` is now 1,515 lines, past the 1,500 mark.
+
+### Batch 5: compile-time resource bounds
+
+- **F09** (`53d75dc`). `Eval.run` counts `output_count` and
+  `output_bytes`, and `Eval.output` charges each output its text's length
+  plus one through `bytes`, `setThreads` and `print("")` included. A memo
+  entry is a record of the result, the outputs, and their count and text
+  bytes, taken as the difference of the run's counters across the call, so
+  a replay is charged both before its `rev_append`. A run whose outputs
+  weigh more than the cap stops with "output too large to fold"; a call's
+  outputs are part of its run's, so one past the cap stops before it is
+  remembered. Beyond the plan, the cap moved from `Materialize.max_size` to
+  `Value.max_size`, which `Materialize.max_size` now names: `Materialize`
+  depends on `Eval`, so `Eval` cannot read it there. Tests: the unit test
+  `replayed_outputs` folds forty levels printing `w` and printing `""` under
+  a `Gc.Memprof` allocation limit, and all four checks fail on the baseline
+  at the limit; the codegen fixture `doubling` folds ten levels of `w` to
+  their prints, keeps seventeen levels of `""`, which pass the cap, and
+  forty levels behind a condition false at run time, both builds held to
+  one golden. The baseline compiler dies on `doubling` with "allocation
+  failure during minor GC". `docs/design/optimization.md` O6 lists the
+  output limit with the others and says replay is charged.
+- **F15** (`15ac53a`). `Layout.kind` gained `Array { count; stride;
+  elements }`, and `Type_layout.positions` gives one such position for an
+  array whose elements own blocks, registering the element's positions as
+  its layout once rather than computing them again, which nested arrays
+  would do once per level. The copy, end, move and vacate walks loop over
+  the count, calling the element's walk one level deeper and never handing
+  it on, since an element is inline and an overwrite writes over its bytes
+  before handed-on work would run. The overwrite walk, where both sides
+  hold the array, overwrites element by element and writes the result back
+  over the replacement so that its byte copy keeps it, and ends the
+  occupant's elements otherwise. `Value` locates an array position at the
+  array, and copies, vacates and overwrites its elements by their layout.
+  The `arrays` and `arrayrefs` tree goldens show one position where they
+  showed one per element; no output golden changed. Tests: `type_layout`
+  checks that `Array<String, 100000>` and `Array<Array<String, 10>, 1000>`
+  are one position each, which fails with the old `positions`. Unlike the
+  plan, the fixture `stringArrays` cannot use a value `Array<String,
+  100000>`: F08 refuses any value of more than 65,535 parts moved whole. So
+  it fills, moves and drops (twenty times) an `ArrayRef<String, 100000>`,
+  which has Array's layout, overwrites an `ArrayRef<String, 50000>`, and
+  copies a value array of 20,000 strings four arrays deep, then changes the
+  copy. The overwrite runs at 50,000 because making one array and
+  overwriting with it holds five copies of the array on the 8 MiB machine
+  stack, which an unoptimized build does not merge. The baseline compiler
+  takes 2 min 56 s to build the fixture, and this one about 7 s.
+  `docs/design/lowering.md` §9 ("Each type's walks") describes the array
+  position and why its elements' walks are never handed on.
+- **F05** (`776cefe`). `Codegen.with_program` replaces `Codegen.emit`. It
+  creates the context and the module, runs the caller's function on the
+  module, and disposes both in `Fun.protect ~finally`, so a build that
+  returns, fails or raises, and an emit refused for a frame past the size
+  limit, all release them. `Emit.program` fills a module it is given.
+  `Driver.ir`, `executable` and `object_file` build inside it, and `ir`
+  copies the text out with `string_of_llmodule` before the scope ends.
+  `Codegen.live_contexts` counts the contexts made and not yet disposed.
+  Tests: the unit test `disposed_modules` reads it after a built object, an
+  unknown target, an object that cannot be written and a build that raises,
+  and the raising case fails with the dispose moved out of the `finally`.
+  The leak shows in RSS: 200 `Driver.ir` builds of 2,000 functions with
+  no parameters in one process take it from 45 MB to 379 MB without
+  disposal and to 68 MB with it.
+- **Beyond the audit: repeated builds crashed** (`b88cfa9`). Measuring
+  F05 found that a process building many programs segfaulted within some
+  dozens of builds, on `main` too, in `Big_moves` reading a function's
+  parameter types. LLVM 19's OCaml bindings allocate an empty array from
+  `param_types`, `struct_element_types` and `function_attrs` as a block of
+  no size in the minor heap (`caml_alloc_small(0, 0)`), which the collector
+  does not allow, so every function with no parameters corrupted the heap
+  a little. `llvm_stubs.c` gives these three arrays through
+  `caml_alloc_tuple`, which returns OCaml's own empty array, and codegen
+  calls `Emit.param_types`, `struct_element_types` and `function_attrs`
+  wherever it called the bindings'. Tests: the unit test `repeated_builds`
+  runs `Driver.ir` sixty times on 2,000 functions with no parameters and
+  one returning an empty struct, which segfaulted the unit binary before
+  the stubs; `disposed_modules` builds a function with no parameters.
+
+Verified on the batch's head with `devbox run -- just test-compiler`
+(including the probe gate) and `just check-file-sizes`, which warns that
+`lib/cgt/lower.ml` is 1,834 lines, past the 1,500 mark, as it was before
+this batch.

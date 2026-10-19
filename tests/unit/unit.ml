@@ -177,7 +177,28 @@ let type_layout () =
   check "a struct is a struct of its members" (Type_layout.ty st span box = N.Struct [ N.F64; N.I64 ]);
   check "a value type is not a reference" (not (Type_layout.reference st box));
   raises_bug "a declared type with the wrong number of arguments is a bug" (fun () ->
-      Type_layout.definition st (named "Box"))
+      Type_layout.definition st (named "Box"));
+  (* An array of owning elements is one position, which names its
+     element's layout, however long it is. *)
+  let strings n =
+    Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = [ Ty.Type (prim "String"); Ty.Number (Ty.Known n) ] }
+  in
+  let module L = Cgt.Nodes.Layout in
+  check "an array of 100,000 strings is one position"
+    (match Type_layout.positions st span (strings 100_000) 0 [] with
+    | [ { L.kind = L.Array { count = 100_000; stride = 24; elements }; offset = 0; _ } ] ->
+        (match Hashtbl.find st.State.layouts elements with
+        | [ { L.kind = L.Text; offset = 0; tags = []; _ } ] -> true
+        | _ -> false)
+    | _ -> false);
+  check "an array of arrays of strings is one position"
+    (match Type_layout.positions st span (Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = [ Ty.Type (strings 10); Ty.Number (Ty.Known 1000) ] }) 0 [] with
+    | [ { L.kind = L.Array { count = 1000; stride = 240; elements }; _ } ] -> (
+        match Hashtbl.find st.State.layouts elements with
+        | [ { L.kind = L.Array { count = 10; stride = 24; _ }; _ } ] -> true
+        | _ -> false)
+    | _ -> false);
+  check "an array of what owns nothing has no positions" (Type_layout.positions st span array 0 [] = [])
 
 (* A type that holds itself at a growing argument (generics.md §2.4), which
    semantics rejects, reaches lowering only by a bug; the walks over its
@@ -298,6 +319,53 @@ let runtime_abi () =
       check (name ^ " in zane.h is a function the compiler knows")
         (name = "zane_main" || List.exists (fun fn -> R.name fn = name) R.all))
     declared
+
+(* Many programs built in one process, each with functions that take no
+   parameters and one that returns an empty struct: LLVM's bindings give an
+   empty array as a block of no size in the minor heap, which corrupts it,
+   so codegen reads those arrays through stubs of its own (llvm_stubs.c). *)
+let repeated_builds () =
+  let module C = Cgt.Nodes in
+  let f i =
+    { C.Func.symbol = "f" ^ string_of_int i; linkage = C.Linkage.Exported; params = []; ret = C.Ty.I64;
+      body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ] }
+  in
+  let empty =
+    { C.Func.symbol = "empty"; linkage = C.Linkage.Exported; params = []; ret = C.Ty.Struct [];
+      body = [ C.Stat.Return { C.Expr.node = C.Expr.Record []; ty = C.Ty.Struct [] } ] }
+  in
+  let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; layouts = []; globals = [] } in
+  let built = ref 0 in
+  for _ = 1 to 60 do
+    match Driver.ir ~optimize:false p with Ok _ -> incr built | Error _ -> ()
+  done;
+  check "sixty builds of zero-parameter functions in one process" (!built = 60)
+
+(* A build's LLVM context and module are disposed however it ends: built,
+   refused before codegen starts (an unknown target), failed after (an
+   object it cannot write), or raised out of. *)
+let disposed_modules () =
+  let module C = Cgt.Nodes in
+  let f =
+    { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = []; ret = C.Ty.I64;
+      body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ] }
+  in
+  let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = [] } in
+  let dir = Filename.temp_dir "zane-unit" "" in
+  let none () = Codegen.live_contexts () = 0 in
+  check "a built object leaves no context"
+    (Result.is_ok (Driver.object_file ~optimize:false p (Filename.concat dir "f.o")) && none ());
+  check "an unknown target leaves no context"
+    (Result.is_error (Driver.object_file ~target:"nowhere-at-all" ~optimize:false p (Filename.concat dir "g.o")) && none ());
+  check "an object that cannot be written leaves no context"
+    (Result.is_error (Driver.object_file ~optimize:false p (Filename.concat dir "missing/f.o")) && none ());
+  let inside = ref 0 in
+  (match Codegen.with_program p (fun _ -> inside := Codegen.live_contexts (); failwith "raised") with
+  | _ -> ()
+  | exception Failure _ -> ());
+  check "a build that raises leaves no context, and had one while it ran" (!inside = 1 && none ());
+  Sys.remove (Filename.concat dir "f.o");
+  Sys.rmdir dir
 
 (* ---------------------------------------------------------------------- *)
 (* Stage 5                                                                *)
@@ -606,6 +674,46 @@ let bounded_allocation () =
   let f = Fold.func (program []) (Value.Key.create 1) (func "huge" [] body) in
   check "a string doubled past the budget stays a loop" (List.mem loop f.C.Func.body)
 
+(* [f ()], or [None] once it has allocated about [words] words: a run whose
+   allocation nothing bounds fails rather than exhausting the machine. *)
+let within_allocation ~words f =
+  let exception Spent in
+  let rate = 1e-4 and sampled = ref 0 in
+  let count (a : Gc.Memprof.allocation) =
+    sampled := !sampled + a.Gc.Memprof.n_samples;
+    if Float.of_int !sampled > Float.of_int words *. rate then raise Spent;
+    None
+  in
+  let _ = Gc.Memprof.start ~sampling_rate:rate { Gc.Memprof.null_tracker with alloc_minor = count; alloc_major = count } in
+  Fun.protect ~finally:Gc.Memprof.stop (fun () -> try Some (f ()) with Spent -> None)
+
+(* A call that makes its previous level twice and prints once at the base
+   is remembered after its first call, and each replay of its outputs is
+   charged, so forty levels stop at the output cap rather than make 2^40
+   outputs, and the call stays. Outputs with no text count too. *)
+let replayed_outputs () =
+  let n = e (C.Expr.Local 1) C.Ty.I64 in
+  let tree word =
+    let print = C.Stat.Eval (e (C.Expr.Runtime { fn = Cgt.Runtime.Print; args = [ e (C.Expr.Text word) C.Ty.Handle ] }) C.Ty.Void) in
+    let below = e (C.Expr.Binary { op = C.Expr.Add; left = n; right = i64 (-1L) }) C.Ty.I64 in
+    let again = C.Stat.Eval (e (C.Expr.Call { fn = "tree"; args = [ below ] }) C.Ty.I64) in
+    let base = e (C.Expr.Binary { op = C.Expr.Eq; left = n; right = i64 0L }) C.Ty.I1 in
+    func "tree" [ (1, C.Ty.I64) ] [ C.Stat.If { cond = base; body = [ print; C.Stat.Return (i64 0L) ] }; again; again; C.Stat.Return (i64 0L) ]
+  in
+  List.iter
+    (fun word ->
+      let prog = program [ tree word ] in
+      let run = Eval.start prog in
+      let stopped = within_allocation ~words:50_000_000 (fun () -> stops (fun () -> Eval.call run "tree" [ Value.VInt 40L ])) in
+      check (Printf.sprintf "forty levels printing %S stop at the output cap" word) (stopped = Some true);
+      let call = e (C.Expr.Call { fn = "tree"; args = [ i64 40L ] }) C.Ty.I64 in
+      let folded =
+        within_allocation ~words:50_000_000 (fun () -> Fold.func prog (Value.Key.create 1) (func "f" [] [ C.Stat.Return call ]))
+      in
+      check (Printf.sprintf "forty levels printing %S stay a call" word)
+        (Option.map (fun (f : C.Func.t) -> f.C.Func.body) folded = Some [ C.Stat.Return call ]))
+    [ "w"; "" ]
+
 (* A run that writes a member of a program variable wrote it, though the
    variable holds the same value it did, changed in place. *)
 let global_member () =
@@ -746,7 +854,7 @@ let long_arrays () =
     (Codegen__Big_moves.parts t = Codegen__Big_moves.most_parts + 1);
   check "a sum's payload room keeps its length"
     (Codegen__Emit.array_length
-       (Llvm.struct_element_types
+       (Codegen__Emit.struct_element_types
           (Codegen__Emit.lltype env (Cgt.Nodes.Ty.Sum [ Cgt.Nodes.Ty.Array (Cgt.Nodes.Ty.I64, 1 lsl 33) ]))).(1)
     = 1 lsl 33);
   dispose env
@@ -990,6 +1098,7 @@ let () =
   folded_function ();
   capped_replacement ();
   bounded_allocation ();
+  replayed_outputs ();
   global_member ();
   signed_zero ();
   twice ();
@@ -1005,6 +1114,8 @@ let () =
   fixture_pairing ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
+  disposed_modules ();
+  repeated_builds ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

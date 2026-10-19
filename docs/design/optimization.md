@@ -230,17 +230,28 @@ of budget. Three limits bound it, each counted in steps, so that the same
 source folds the same way on any machine. Work that grows with a value's
 size, joining strings, copying a list or a struct, growing a list, costs a
 step for each 64 bytes, charged before the work is done, so a few steps
-cannot build a value of any size:
+cannot build a value of any size. Each output costs the same way, by its
+weight: its text's length and one more, so that an output with no text, a
+`print("")` or a `setThreads`, still weighs something:
 
 - one fold takes at most 5,000,000 steps;
 - all the folds of a program take at most 50,000,000;
-- calls nest at most 2,000 deep.
+- calls nest at most 2,000 deep;
+- the outputs of one fold weigh at most 65,536 together, the most a folded
+  result may materialize to, and a fold that outputs more stops with
+  "output too large to fold".
 
 A replacement whose code would be larger than 64 KiB, its value, its outputs
 and the locals it stores counted together, does not fold either, which keeps a cheap call that builds a large value out of the
 binary. A call's result and outputs are remembered by its function and its
 arguments, so a call made again with the same arguments costs a lookup, and
-a call with constant arguments that did not fold is not tried again.
+a call with constant arguments that did not fold is not tried again. A
+remembered call keeps how many outputs it made and the bytes of their text,
+and replaying them is charged steps and counted against the output limit as
+making them was, so a call that makes its previous level twice cannot output
+twice as much at each level for free. A call whose outputs pass the limit
+stops before it is remembered, so what is remembered is bounded by the step
+budget.
 
 **O7. A folded value is written as the code that builds it.**
 
@@ -342,7 +353,8 @@ each written and read again, with no index check left in it.
 functions, the intrinsic classes, a value written as code and read back, calls, outputs,
 memoization and the budget, stores in place, two folds of handmade
 functions, a replacement past the size cap only as a whole, a string that
-doubles past the budget, a member of a program variable written in place,
+doubles past the budget, a call that replays its previous level's output
+twice stopping at the output cap, with a word and with empty prints, a member of a program variable written in place,
 and a call remembered for a zero and for its negative.
 
 ---

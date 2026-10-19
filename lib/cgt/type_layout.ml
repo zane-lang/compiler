@@ -208,8 +208,10 @@ let stride st span t =
 
 (* Where a type's owned blocks are (memory.md §3.6): each handle and each
    boxed member, down through variant payloads under the tag that makes each
-   live, and through each of an array's elements. A reference is an
-   address, and owns nothing. *)
+   live. An array whose elements own blocks is one position, which names
+   its element's layout, so that its positions do not grow with its length
+   (docs/design/lowering.md §9). A reference is an address, and owns
+   nothing. *)
 let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Layout.position list =
   let path = down ~span path t in
   let positions = positions ~path and layout = layout ~path in
@@ -224,11 +226,18 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
   | _ when is_text t -> [ at Layout.Text handle ]
   | Tty.Intrinsic _, _ when Option.is_some (array_of t) -> (
       let e, n = Option.get (array_of t) in
-      match positions st span e base tags with
+      match positions st span e 0 [] with
       | [] -> []
-      | _ ->
-          let s = stride st span e in
-          List.concat (List.init n (fun i -> positions st span e (base + (i * s)) tags)))
+      | ps ->
+          (* The element's positions are its layout's, so they are kept as
+             that layout rather than worked out again, which arrays nested
+             in arrays would do once for each level above them. *)
+          let elements = Symbol.ty e and s = stride st span e in
+          if not (Hashtbl.mem st.layouts elements) then begin
+            Hashtbl.replace st.layouts elements ps;
+            st.named <- elements :: st.named
+          end;
+          [ at (Layout.Array { count = n; stride = s; elements }) (Nodes.Ty.times s n) ])
   | _ -> (
       match definition st t with
       | Some (T.Decl.Distinct u, _) -> positions st span u base tags

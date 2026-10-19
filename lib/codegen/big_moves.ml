@@ -24,7 +24,7 @@ let rec parts t =
   | Llvm.TypeKind.Array ->
       let n = Emit.array_length t and each = parts (Llvm.element_type t) in
       if each = 0 then 0 else if n > over / each then over else n * each
-  | Llvm.TypeKind.Struct -> Array.fold_left (fun n e -> add n (parts e)) 0 (Llvm.struct_element_types t)
+  | Llvm.TypeKind.Struct -> Array.fold_left (fun n e -> add n (parts e)) 0 (Emit.struct_element_types t)
   | _ -> 1
 
 let aggregate t =
@@ -135,7 +135,7 @@ let rewrite data_layout m =
             Diagnostic.bug
               (Printf.sprintf "codegen: `%s` passes or returns a value of more than %d parts whole"
                  (Llvm.value_name f) most_parts))
-        (Llvm.return_type fty :: Array.to_list (Llvm.param_types fty)))
+        (Llvm.return_type fty :: Array.to_list (Emit.param_types fty)))
     m;
   (* What is still moved as one value. *)
   let too_large = ref None in

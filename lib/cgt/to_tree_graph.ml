@@ -21,6 +21,8 @@ let positions (ps : Layout.position list) =
       | Layout.Text -> Leaf (Printf.sprintf "text @%d%s" p.offset tags)
       | Layout.List { stride; elements } ->
           Leaf (Printf.sprintf "list @%d of %s (%d bytes apart)%s" p.offset elements stride tags)
+      | Layout.Array { count; stride; elements } ->
+          Leaf (Printf.sprintf "array @%d of %d %s (%d bytes apart)%s" p.offset count elements stride tags)
       | Layout.Box { size; payload } ->
           Leaf (Printf.sprintf "box @%d of %s (%d bytes)%s" p.offset payload size tags))
     ps

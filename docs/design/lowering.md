@@ -656,7 +656,13 @@ test passing.
   no walks, and is handed as none. A walk knows its type's positions, the
   offset of each and the variant tags each lies under, so it reads each
   handle and box where it is, and calls the walk of what a box or a list's
-  elements hold directly, one level deeper. Past 256 levels it hands that
+  elements hold directly, one level deeper. An array whose elements own
+  blocks is one position, its count, the bytes between its elements and
+  the element's layout, so a type's positions do not grow with an array's
+  length: its walks loop over the elements and call the element's walk for
+  each, one level deeper. They never hand an element's walk on, since an
+  element is inline and an overwrite writes over its bytes before the work
+  would run; how deep arrays nest is bounded by the type. Past 256 levels it hands that
   walk to the runtime's work instead, which runs it from the top once the
   walk handing it on returns, so a value nested any number of boxes deep is
   walked without the machine stack growing with it ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md)
