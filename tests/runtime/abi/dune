@@ -1,0 +1,14 @@
+; The probe of what the runtime's structs measure (probe.c), built as the
+; runtime tests beside it are built; tests/unit compares its output with
+; the compiler's `Abi`.
+(rule
+ (deps probe.c ../../../runtime/zane.h ../../../runtime/zane_abi.h ../../../runtime/zane_internal.h)
+ (targets probe.exe)
+ (action
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../../runtime -o probe.exe probe.c)))
+
+(rule
+ (action
+  (with-stdout-to
+   probe.out
+   (run ./probe.exe))))

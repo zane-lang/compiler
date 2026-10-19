@@ -31,19 +31,20 @@ type walks = {
 (* How many walks deep a walk calls the next itself. *)
 let deepest = 256
 
-(* A region's heap (runtime/zane_internal.h, which asserts each offset): a
-   stack of returned blocks for each size class of 1 to [classes] words,
-   then its frontier, the frontier's end, and its count of blocks out. *)
-let classes = 16
-let frontier = 8 * classes
-let frontier_end = frontier + 8
-let live = frontier_end + 8
+(* A region's heap (runtime/zane_abi.h): a stack of returned blocks for
+   each size class of 1 to [classes] words, then its frontier, the
+   frontier's end, and its count of blocks out. *)
+let classes = Abi.classes
+let frontier = Abi.heap_bump
+let frontier_end = Abi.heap_end
+let live = Abi.heap_live
 
 (* A string's or a list's handle: its bytes or elements, its length or
-   count, and its room. *)
-let length = 8
-let room = 16
-let line = 64
+   count, and its room; and the alignment of the block of a list's
+   elements. *)
+let length = Abi.handle_length
+let room = Abi.handle_room
+let line = Abi.line
 
 (* A walk takes the place, what it works with, a number, the work it hands
    walks on to, and its depth (runtime/zane.h). *)

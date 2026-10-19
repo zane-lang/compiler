@@ -4,6 +4,7 @@ module T = Tst.Nodes
 module Overloads = Tst__Overloads
 module Borrows = Tst__Borrows
 module Fixpoint = Tst__Fixpoint
+module Abi = Codegen__Abi
 module State = Cgt__State
 module Type_layout = Cgt__Type_layout
 module Value = Optimize__Value
@@ -353,6 +354,32 @@ let runtime_abi () =
       check (name ^ " in zane.h is a function the compiler knows")
         (name = "zane_main" || List.exists (fun fn -> R.name fn = name) R.all))
     declared
+
+(* What the runtime's structs measure, as tests/runtime/abi/probe.c prints
+   it on this platform, against the numbers the compiler emits code with,
+   which Abi reads from runtime/zane_abi.h. Every number is measured but the
+   two nothing but the header defines. *)
+let probed_abi () =
+  let probed =
+    In_channel.with_open_text "../runtime/abi/probe.out" In_channel.input_lines
+    |> List.filter_map (fun line ->
+           match String.split_on_char ' ' line with
+           | [ name; value ] -> Some (name, int_of_string value)
+           | _ -> None)
+  in
+  check "the probe measures something" (probed <> []);
+  List.iter
+    (fun (name, value) ->
+      check
+        (Printf.sprintf "%s is %d in the runtime and in Abi" name value)
+        (List.assoc_opt name Abi.values = Some value))
+    probed;
+  check "every number in Abi is measured but ZANE_LINE and ZANE_GUARD"
+    (List.sort compare
+       (List.filter (fun (name, _) -> not (List.mem_assoc name probed)) Abi.values |> List.map fst)
+    = [ "ZANE_GUARD"; "ZANE_LINE" ]);
+  check "lowering lays a handle out as the runtime does"
+    (Cgt.Nodes.Ty.size_align Cgt.Nodes.Ty.Handle = (Abi.handle_size, 8))
 
 (* Many programs built in one process, each with functions that take no
    parameters and one that returns an empty struct: LLVM's bindings give an
@@ -1145,6 +1172,7 @@ let () =
   growing_types ();
   fixpoint_chain ();
   runtime_abi ();
+  probed_abi ();
   single_literals ();
   folded_arithmetic ();
   intrinsic_classes ();

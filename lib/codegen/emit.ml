@@ -462,17 +462,16 @@ let unlikely env br =
   in
   Llvm.set_metadata br (Llvm.mdkind_id env.ctx "prof") weights
 
-(* Offsets into a scope's record and a context, as runtime/zane_internal.h
-   asserts them. *)
-let record_context = 152
-and record_depth = 160
-and record_outer = 168
-and record_skip = 176
-and record_tasks = 184
-and record_mappings = 192
-and context_frontier = 0
-and context_top = 8
-and context_limit = 16
+(* Offsets into a scope's record and a context (runtime/zane_abi.h). *)
+let record_context = Abi.mark_context
+and record_depth = Abi.mark_depth
+and record_outer = Abi.mark_outer
+and record_skip = Abi.mark_skip
+and record_tasks = Abi.mark_tasks
+and record_mappings = Abi.mark_mappings
+and context_frontier = Abi.context_frontier
+and context_top = Abi.context_top
+and context_limit = Abi.context_limit
 
 (* A scope opens with a frame of [size] bytes (Frames), and its record's
    address names it. While no call this thread's context spawned is out,

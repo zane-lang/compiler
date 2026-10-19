@@ -1,0 +1,3 @@
+; Writes lib/codegen/abi.ml from runtime/zane_abi.h (lib/codegen/dune).
+(executable
+ (name abi_ml))

@@ -22,6 +22,7 @@
 #include <unistd.h>
 
 #include "zane.h"
+#include "zane_abi.h"
 
 /* What Windows does differently (docs/design/platforms.md). Its POSIX
    threads are MinGW's winpthreads, which also counts the processors. */
@@ -58,12 +59,14 @@
    The program's `main` runs in one context, and each spawned call in one of
    its own (concurrency.md §3): its own nest of scopes, and its own range,
    so a thread places frames only in its own (docs/design/lowering.md §9). */
-enum { ZANE_CHUNK = 1 << 20, ZANE_LINE = 64, ZANE_CONTEXTS = (1 << 16) - 1 };
+enum { ZANE_CHUNK = 1 << 20, ZANE_CONTEXTS = (1 << 16) - 1 };
 
-/* The guard after a context's range, and the step it becomes usable in:
-   a frame no larger than the guard, placed below the range's end, ends
-   inside the guard at worst, so lowering checks only a larger one. */
-enum { ZANE_GUARD = ZANE_CHUNK, ZANE_STEP = ZANE_CHUNK };
+/* The guard after a context's range (ZANE_GUARD, zane_abi.h), and the step
+   the range becomes usable in: a frame no larger than the guard, placed
+   below the range's end, ends inside the guard at worst, so lowering checks
+   only a larger one. */
+_Static_assert(ZANE_GUARD == ZANE_CHUNK, "the guard is one chunk");
+enum { ZANE_STEP = ZANE_CHUNK };
 
 enum { ZANE_PAGES = 1 << 14 };
 
@@ -133,8 +136,6 @@ typedef struct zane_retired {
    class takes its bytes from there as they are. `live` counts the blocks
    handed out and not returned. A region with no chunk yet has both ends
    null. */
-enum { ZANE_CLASSES = 16 };
-
 typedef struct {
 	char *classes[ZANE_CLASSES];
 	char *bump, *end;
@@ -165,20 +166,19 @@ struct zane_mark {
 	zane_retired *retired;
 };
 
-/* The offsets emitted code reads a record at (lib/codegen/walks.ml and
-   lib/codegen/emit.ml). A frame starts with its record, and frames are
-   aligned to 16. */
-_Static_assert(offsetof(zane_mark, heap) == 0, "a mark starts with its heap");
-_Static_assert(offsetof(zane_heap, bump) == 8 * ZANE_CLASSES, "the frontier follows the classes");
-_Static_assert(offsetof(zane_heap, end) == 8 * ZANE_CLASSES + 8, "its end follows it");
-_Static_assert(offsetof(zane_heap, live) == 8 * ZANE_CLASSES + 16, "the count follows that");
-_Static_assert(offsetof(zane_mark, context) == 152, "the context follows the heap");
-_Static_assert(offsetof(zane_mark, depth) == 160, "then the depth");
-_Static_assert(offsetof(zane_mark, outer) == 168, "then the scope around it");
-_Static_assert(offsetof(zane_mark, skip) == 176, "then its skip");
-_Static_assert(offsetof(zane_mark, tasks) == 184, "then its calls");
-_Static_assert(offsetof(zane_mark, mappings) == 192, "then its chunks");
-_Static_assert(sizeof(zane_mark) == 224, "a frame's record is 224 bytes");
+/* The offsets emitted code reads a record at, as zane_abi.h has them. A
+   frame starts with its record, and frames are aligned to 16. */
+_Static_assert(offsetof(zane_mark, heap) == ZANE_MARK_HEAP, "a mark starts with its heap");
+_Static_assert(offsetof(zane_heap, bump) == ZANE_HEAP_BUMP, "the frontier follows the classes");
+_Static_assert(offsetof(zane_heap, end) == ZANE_HEAP_END, "its end follows it");
+_Static_assert(offsetof(zane_heap, live) == ZANE_HEAP_LIVE, "the count follows that");
+_Static_assert(offsetof(zane_mark, context) == ZANE_MARK_CONTEXT, "the context follows the heap");
+_Static_assert(offsetof(zane_mark, depth) == ZANE_MARK_DEPTH, "then the depth");
+_Static_assert(offsetof(zane_mark, outer) == ZANE_MARK_OUTER, "then the scope around it");
+_Static_assert(offsetof(zane_mark, skip) == ZANE_MARK_SKIP, "then its skip");
+_Static_assert(offsetof(zane_mark, tasks) == ZANE_MARK_TASKS, "then its calls");
+_Static_assert(offsetof(zane_mark, mappings) == ZANE_MARK_MAPPINGS, "then its chunks");
+_Static_assert(sizeof(zane_mark) == ZANE_MARK_SIZE, "a frame's record is its own size");
 
 /* A context's range: `frontier` is where the next frame starts, `top` the
    innermost scope's record, and `limit` the range's end, where the guard
@@ -210,9 +210,9 @@ struct zane_context {
 	zane_task *joins;
 };
 
-_Static_assert(offsetof(zane_context, frontier) == 0, "a context starts with its frontier");
-_Static_assert(offsetof(zane_context, top) == 8, "then its innermost scope");
-_Static_assert(offsetof(zane_context, limit) == 16, "then its range's end");
+_Static_assert(offsetof(zane_context, frontier) == ZANE_CONTEXT_FRONTIER, "a context starts with its frontier");
+_Static_assert(offsetof(zane_context, top) == ZANE_CONTEXT_TOP, "then its innermost scope");
+_Static_assert(offsetof(zane_context, limit) == ZANE_CONTEXT_LIMIT, "then its range's end");
 
 /* A spawned call. Its frame -- room for its result, then its arguments --
    follows this header in the frame of the scope that spawned it,
@@ -231,7 +231,16 @@ struct zane_task {
 	int state;
 };
 
-_Static_assert(sizeof(zane_task) == 96, "lowering places a 96-byte header before a spawn's frame");
+_Static_assert(sizeof(zane_task) == ZANE_TASK_SIZE, "lowering places a header of this size before a spawn's frame");
+
+/* A string's and a list's handle (zane.h), as emitted code reads and writes
+   them. */
+_Static_assert(offsetof(zane_text, length) == ZANE_HANDLE_LENGTH, "a string's length follows its bytes");
+_Static_assert(offsetof(zane_text, room) == ZANE_HANDLE_ROOM, "then its room");
+_Static_assert(sizeof(zane_text) == ZANE_HANDLE_SIZE, "a string is a handle");
+_Static_assert(offsetof(zane_list, count) == ZANE_HANDLE_LENGTH, "a list's count follows its elements");
+_Static_assert(offsetof(zane_list, room) == ZANE_HANDLE_ROOM, "then its room");
+_Static_assert(sizeof(zane_list) == ZANE_HANDLE_SIZE, "a list is a handle");
 
 enum { ZANE_QUEUED, ZANE_RUNNING, ZANE_DONE, ZANE_JOINED };
 

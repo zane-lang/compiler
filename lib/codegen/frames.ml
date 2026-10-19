@@ -6,15 +6,15 @@
 
 open Cgt.Nodes
 
-(* A frame's record, and the header before a spawned call's own frame, as
-   runtime/zane_internal.h has them and asserts. *)
-let record = 224
-let task = 96
+(* A frame's record, and the header before a spawned call's own frame
+   (runtime/zane_abi.h). *)
+let record = Abi.mark_size
+let task = Abi.task_size
 
 (* The guard after a context's range (ZANE_GUARD): a frame no larger is
    stopped by the guard if it does not fit, and a larger one is checked
    before it is placed. *)
-let guard = 1 lsl 20
+let guard = Abi.guard
 
 type t = {
   size : int;

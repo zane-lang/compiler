@@ -1,9 +1,19 @@
 ; Codegen: the CGT to an LLVM module, built through LLVM's OCaml bindings
 ; (docs/design/lowering.md L2), and the module to a binary, linked with the C
-; runtime that [Runtime_source] embeds (runtime/dune).
+; runtime that [Runtime_source] embeds (runtime/dune). [Abi] is written from
+; runtime/zane_abi.h, so the offsets and sizes emitted code relies on are the
+; runtime's own.
 (library
  (name codegen)
  (foreign_stubs
   (language c)
   (names llvm_stubs))
  (libraries cgt diagnostic runtime_source llvm llvm.analysis llvm.irreader llvm.target llvm.passbuilder llvm.all_backends))
+
+(rule
+ (target abi.ml)
+ (deps ../../runtime/zane_abi.h)
+ (action
+  (with-stdout-to
+   %{target}
+   (run gen/abi_ml.exe %{deps}))))

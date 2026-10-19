@@ -12,6 +12,11 @@ moves and overwrites it runs with walks like a program's. The emitted walks
 themselves are tested by the programs in `tests/codegen/`, which run with
 checked drains.
 
+`abi/probe.c` prints what the runtime's structs measure, each offset and
+size by the name `runtime/zane_abi.h` gives it. The unit tests compare its
+output with the compiler's `Abi`, which is read from that header, and
+`dev/bin/windows-programs` builds it for Windows, held to the header.
+
 `scopes.h` defines the sizes of each context's range of frames, which a
 program's own module defines, and places slots by growing the innermost
 scope's frame, since a test has no layout from codegen. `arenas.c` holds the

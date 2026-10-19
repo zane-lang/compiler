@@ -1,8 +1,8 @@
 ; Direct tests of the helpers the stages share: the traversals of the TST and
-; the CGT (traversals.ml), types and their substitution,
-; signatures, overload ranking, lowering's type layouts, what stage 5's
-; evaluator makes of the tree, how codegen reads a snapshot, and the processor
-; codegen tunes for and which targets it accepts. The golden suites test the
+; the CGT (traversals.ml), types and their substitution, signatures, overload
+; ranking, lowering's type layouts, the runtime's ABI and what its structs
+; measure (tests/runtime/abi), what stage 5's evaluator makes of the tree,
+; how codegen reads a snapshot, and the processor codegen tunes for and which targets it accepts. The golden suites test the
 ; same code end to end; these say which helper broke, rather than where in a
 ; golden file the difference surfaced. They also check that semantics run twice in one process gives the
 ; same tree (it keeps no numbering from one check to the next), that the
@@ -17,4 +17,5 @@
  (libraries cgt codegen diagnostic driver fixture_pairing llvm llvm.target optimize source sst tree_graph tst unix)
  (deps
   ../../runtime/zane.h
+  ../runtime/abi/probe.out
   (source_tree ../codegen/fixtures/lambdas)))

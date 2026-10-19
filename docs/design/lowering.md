@@ -327,9 +327,10 @@ and the walks and rewrites every pass over the tree uses, and
 lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,
 and `build.ml` writes the object file and links it with the runtime. The
 runtime is written as nine parts in `runtime/` (`main.c`, `arena.c`,
-`region.c`, `block.c` and so on), with `zane.h` as the ABI that emitted code calls and
-`zane_internal.h` as what the parts share. `runtime/dune` joins the parts in
-a fixed order into one generated `zane.c` and embeds it, with both headers,
+`region.c`, `block.c` and so on), with `zane.h` as the ABI that emitted code calls,
+`zane_abi.h` as the offsets and sizes emitted code relies on, which codegen
+reads as `Abi`, and `zane_internal.h` as what the parts share. `runtime/dune` joins the parts in
+a fixed order into one generated `zane.c` and embeds it, with the headers,
 into the compiler as strings, so a build needs nothing beside the compiler
 and a C compiler (`clang`, or `ZANE_CC`).
 
