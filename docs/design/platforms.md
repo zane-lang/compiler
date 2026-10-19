@@ -105,9 +105,11 @@ placed ([`lowering.md`](lowering.md) §9). The limit is `Ty.limit` in
 A Windows program links with MinGW's C library and its POSIX threads,
 winpthreads, both of which `zig cc` carries; `ZANE_CC=dev/bin/zig-cc` links
 with it ([`lowering.md`](lowering.md) §7). The runtime differs there in five
-places, each marked `_WIN32`: a chunk comes from `_aligned_malloc` and goes
-back through `_aligned_free`, a context's range of frames and a list's
-growing oversized span ([`lowering.md`](lowering.md) §9) are reserved with
+places, each marked `_WIN32`: a dynamic chunk is carved from a 64 MiB
+reservation, decommitted with `VirtualFree(MEM_DECOMMIT)` when it turns
+cold, and released with its whole reservation
+([`lowering.md`](lowering.md) §9), a context's range of frames and a list's
+growing oversized span are reserved with
 `VirtualAlloc(MEM_RESERVE)` and made usable with `MEM_COMMIT`, the range
 from a vectored exception handler, which also reports a full machine stack
 (`EXCEPTION_STACK_OVERFLOW`), winpthreads counts the processors, stdout

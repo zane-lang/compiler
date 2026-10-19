@@ -634,9 +634,52 @@ test passing.
     innermost scope first, rather than from a segmented offset (§3.1). A dynamic chunk begins with a cache line of
     its own bookkeeping, and an oversized block's chunks are one mapping.
   - Every block is at least a word, and aligned to one; a list's is aligned
-    to a cache line. A chunk a region gives back is kept for the next
-    region of the same context rather than unmapped, and a context whose
-    call is over gives its kept chunks to any context that has none.
+    to a cache line.
+  - Dynamic chunks come from the system directly, reserved at a 1 MiB
+    boundary and committed, not from the C allocator: memory `malloc`
+    owns cannot be decommitted on Windows, and on POSIX its pages are not
+    the runtime's to give back. A spare chunk, one a drained region gave
+    back, is **warm**, its pages resident, or **cold**, its addresses
+    kept and its pages after the first given back. The first page holds
+    the chunk's header and the link of the list it is on, so it stays.
+    - **Warm.** A context keeps `ZANE_WARM_KEPT` (4) drained chunks warm
+      for good, and any others while they have sat unused through fewer
+      than `ZANE_COOLING` (8) of its later drains. A context whose call is
+      over gives its warm chunks to the pool, which keeps up to
+      `ZANE_POOL_WARM` (16) of them warm.
+    - **Cold.** Every other spare turns cold: its pages go back with
+      `madvise(MADV_DONTNEED)` on Linux, a fresh anonymous mapping over
+      them elsewhere on POSIX, since macOS may keep a page's memory and
+      contents through `MADV_DONTNEED`, and `VirtualFree(MEM_DECOMMIT)` on
+      Windows. A cold chunk is reused like a warm one; its pages come back
+      zeroed when touched, after a commit on Windows, and a failed commit
+      stops the program as a new chunk's does. Past `ZANE_COLD_KEPT` (256)
+      cold chunks, which hold 1 MiB of first pages, a drained chunk goes
+      back to the system whole, as an oversized block's chunks always do.
+    - **Reuse.** A region takes its context's latest warm spare, then one
+      from the pool, then a cold one, then a new chunk. Counts beside each
+      list keep every limit O(1).
+    - **Windows.** A 1 MiB-aligned reservation costs an extra MiB of
+      addresses there, and `VirtualFree(MEM_RELEASE)` frees only a whole
+      reservation, so chunks are carved from slabs of 64 MiB, or one of
+      its own for a larger block. A slab counts its chunks that are live or
+      warm. A chunk given back whole is decommitted entirely, and once every
+      chunk carved from a slab is cold or given back, and no more will be
+      carved from it, its cold chunks leave the cold list and the slab is
+      released.
+    - **The delay, measured.** Langbench at spec `8298a3a`, core
+      `02852ef`, built with `--optimize` before and after, on a 4-core
+      x86_64 container, medians with ranges in brackets. With chunks
+      turning cold at once (five runs each), ntree 10 went from 0.380 s [0.354–0.456] to 0.523 s
+      [0.494–0.630] and treecopy 18 from 0.257 s [0.249–0.266] to 0.395 s
+      [0.349–0.412]: both drain more chunks per scope than a context keeps
+      for good, and faulted their pages back in at every drain. With the
+      delay at 8 drains (seven runs each), ntree took 0.391 s [0.367–0.448] before and
+      0.383 s [0.370–0.439] after, treecopy 0.295 s [0.292–0.311] and
+      0.283 s [0.271–0.297], and binarytrees 16, listgrowth 2000000 and
+      allocfree 1000000 overlapped too; delays of 64 and 512 drains
+      measured the same. Every other langbench program overlapped without
+      the delay. Peak memory did not change for any of them.
   - A value that owns a block is held in its scope's arena like an owner,
     and so is a fresh owner or value that nothing keeps, such as a result
     that is dropped or an operand, so its blocks are in a region that

@@ -85,6 +85,41 @@ void zane_release_addresses(char *raw, char *base, size_t bytes) {
 #endif
 }
 
+/* `bytes` of usable memory from `at` given back to the system, its
+   addresses kept: touched again, they read as zero, after a commit on
+   Windows. Linux drops the pages with `madvise`. Other POSIX systems, macOS
+   among them, may keep a page's contents and its memory through
+   `MADV_DONTNEED`, so there a fresh anonymous mapping replaces the range.
+   0 when the system refuses. */
+int zane_decommit_range(char *at, size_t bytes) {
+#ifdef _WIN32
+	return VirtualFree(at, bytes, MEM_DECOMMIT) != 0;
+#elif defined(__linux__)
+	return madvise(at, bytes, MADV_DONTNEED) == 0;
+#else
+	return mmap(at, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) != MAP_FAILED;
+#endif
+}
+
+/* The system's page size, the unit memory is given back in. Any thread
+   may be the first to ask, and each finds the same. */
+static size_t zane_system_page;
+
+size_t zane_page_bytes(void) {
+	size_t page = __atomic_load_n(&zane_system_page, __ATOMIC_RELAXED);
+	if (!page) {
+#ifdef _WIN32
+		SYSTEM_INFO info;
+		GetSystemInfo(&info);
+		page = info.dwPageSize;
+#else
+		page = (size_t)sysconf(_SC_PAGESIZE);
+#endif
+		__atomic_store_n(&zane_system_page, page, __ATOMIC_RELAXED);
+	}
+	return page;
+}
+
 /* `size` bytes of the range, and its guard, so each MiB of it is the
    context's alone in the chunk map. */
 void zane_reserve(zane_context *c, int64_t size) {

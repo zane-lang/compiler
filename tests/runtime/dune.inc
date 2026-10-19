@@ -109,6 +109,24 @@
   (diff golden/scalar_lists.out scalar_lists.out.actual)))
 
 (rule
+ (deps spares.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
+ (targets spares.exe)
+ (action
+  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o spares.exe spares.c
+   ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)))
+
+(rule
+ (action
+  (with-stdout-to
+   spares.out.actual
+   (run ./spares.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spares.out spares.out.actual)))
+
+(rule
  (deps spawns.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/spawn.c ../../runtime/snapshot.c)
  (targets spawns.exe)
  (action
