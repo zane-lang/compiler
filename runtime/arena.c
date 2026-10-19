@@ -256,9 +256,11 @@ static zane_mapping *zane_chunks_new(size_t size) {
 /* Chunks of `size` bytes from `m` given back to the system whole. */
 static void zane_chunks_drop(zane_mapping *m, size_t size) {
 #ifdef _WIN32
+	/* The header is in the range decommitted, so its slab is read first. */
+	zane_slab *slab = m->slab;
 	zane_decommit_range((char *)m, size);
 	pthread_mutex_lock(&zane_memory);
-	zane_slab_drop(m->slab, size / ZANE_CHUNK);
+	zane_slab_drop(slab, size / ZANE_CHUNK);
 	pthread_mutex_unlock(&zane_memory);
 #else
 	zane_release_addresses(NULL, (char *)m, size);

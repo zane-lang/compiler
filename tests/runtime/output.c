@@ -120,7 +120,7 @@ static int closed_stdout(void) {
 	if (child == 0) {
 		close(STDOUT_FILENO);
 		say("nowhere\n");
-		return 0;
+		_exit(zane_flush_output() ? 0 : 1);
 	}
 	int status;
 	return child > 0 && waitpid(child, &status, 0) == child && WIFEXITED(status) &&

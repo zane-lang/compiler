@@ -143,7 +143,11 @@ void zane_flush_output_in_fault(void) {
 	if (fstat(1, &s) != 0) return;
 	if (S_ISSOCK(s.st_mode)) {
 		while (n > 0) {
+#ifdef MSG_NOSIGNAL
+			ssize_t sent = send(1, at, n, MSG_DONTWAIT | MSG_NOSIGNAL);
+#else
 			ssize_t sent = send(1, at, n, MSG_DONTWAIT);
+#endif
 			if (sent < 0 && errno == EINTR) continue;
 			if (sent <= 0) return;
 			at += sent;
