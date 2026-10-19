@@ -217,6 +217,78 @@
   (diff golden/reject.syntax.err reject.syntax.err.actual)))
 
 (rule
+ (with-stderr-to
+  reject.width-cjk.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/width-cjk.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.width-cjk.err reject.width-cjk.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.width-combining.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/width-combining.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.width-combining.err reject.width-combining.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.width-emoji.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/width-emoji.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.width-emoji.err reject.width-emoji.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.width-flag.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/width-flag.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.width-flag.err reject.width-flag.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.width-presentation.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/width-presentation.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.width-presentation.err reject.width-presentation.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.width-zwj.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/width-zwj.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.width-zwj.err reject.width-zwj.err.actual)))
+
+(rule
  (with-stdout-to
   utf8.cst.spans.actual
   (run %{exe:../../tools/inspect/span_dump.exe} --cst %{dep:fixtures/utf8.zn})))

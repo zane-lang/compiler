@@ -7,8 +7,8 @@ inputs:
 runs:
   using: composite
   steps:
-    # The opam switch is most of a cold setup: dune, menhir and sedlex are
-    # built from source. It is restored before devbox starts because the
+    # The opam switch is most of a cold setup: dune, menhir, sedlex, uucp
+    # and uuseg are built from source. It is restored before devbox starts because the
     # devbox init hook runs `bootstrap-toolchain`, which finds a warm switch
     # already at its pins and installs nothing.
     #

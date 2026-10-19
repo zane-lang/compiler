@@ -8,4 +8,4 @@
 ; of printing it, applied by whichever binary decides the text is for a human.
 (library
  (name diagnostic)
- (libraries source))
+ (libraries source uucp uuseg))

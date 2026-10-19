@@ -1,0 +1,4 @@
+File "fixtures/reject/width-cjk.zn", line 4, characters 25-26:
+4 |     return String("漢字") @ Int(2);
+  |                           ^
+Error: Parse error

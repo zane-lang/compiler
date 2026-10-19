@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Idempotently provision the OCaml toolchain the project builds with.
 #
-# Devbox supplies opam and the system OCaml compiler; dune, menhir and sedlex
-# are opam packages, so a fresh Devbox shell has none of them on PATH until
+# Devbox supplies opam and the system OCaml compiler; dune, menhir, sedlex,
+# uucp and uuseg are opam packages, so a fresh Devbox shell has none of them on PATH until
 # this script has run once. The devbox init hook and the CI workflow both call
 # it so they provision the exact same toolchain.
 #
@@ -14,6 +14,12 @@ set -euo pipefail
 DUNE_VERSION="3.24.2"
 MENHIR_VERSION="20260209"
 SEDLEX_VERSION="3.8.1"
+# Unicode properties and grapheme segmentation, which the diagnostic renderer
+# measures a source line's width with (lib/diagnostic/render.ml). Each uuseg
+# release requires the uucp of the same Unicode version, so the two move
+# together.
+UUCP_VERSION="18.0.0"
+UUSEG_VERSION="18.0.0"
 # The LLVM bindings codegen builds its module through (docs/design/lowering.md L2):
 # LLVM's own, from llvm/bindings/ocaml, which opam packages as `llvm`. They
 # wrap one LLVM release, and 19 is the newest opam has. They find it as
@@ -28,6 +34,8 @@ packages=(
 	"dune.$DUNE_VERSION"
 	"menhir.$MENHIR_VERSION"
 	"sedlex.$SEDLEX_VERSION"
+	"uucp.$UUCP_VERSION"
+	"uuseg.$UUSEG_VERSION"
 )
 
 if ! command -v opam >/dev/null 2>&1; then

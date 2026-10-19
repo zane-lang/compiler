@@ -28,7 +28,7 @@ def main():
     root = Path(__file__).resolve().parents[2]
     bootstrap = root / "dev/setup/bootstrap-toolchain"
     content = bootstrap.read_text()
-    for name in ("dune", "menhir", "sedlex"):
+    for name in ("dune", "menhir", "sedlex", "uucp", "uuseg"):
         packages = fetch(f"https://api.github.com/repos/ocaml/opam-repository/contents/packages/{name}")
         version = stable_latest(p["name"].removeprefix(name + ".") for p in packages)
         content = re.sub(rf'{name.upper()}_VERSION="[^"\n]+"',

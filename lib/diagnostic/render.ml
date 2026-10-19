@@ -4,10 +4,12 @@
    Only the span's first line is shown. The file name is the one the span's
    positions carry, which [Cst.parse] sets on every position it produces.
 
-   The line is built once, as a list of pieces: each source character, the
-   bytes shown for it, and how many cells it takes. The source row is those
-   bytes in order, and the caret row counts their cells, so the two cannot
-   disagree about where a character sits. A character that would act on the
+   The line is built once, as a list of pieces: each grapheme cluster, the
+   unit a terminal draws as one glyph, with the bytes shown for it and how many
+   cells it takes. The source row is those bytes in order, and the caret row
+   counts their cells, so the two cannot disagree about where a character
+   sits: a combining mark adds nothing, and a wide East Asian character or an
+   emoji takes two. A character that would act on the
    terminal rather than be drawn -- a control, a bidirectional override, a byte
    that is not UTF-8 -- is shown as an escape such as [\x1b] or [\u202e],
    written in ASCII and as wide as its text. The file name and the message are
@@ -55,34 +57,124 @@ let escaped s =
   aux 0;
   Buffer.contents buf
 
-(* One character of the displayed line: the source bytes [first, next), what
-   is shown for them, and the cells that takes. *)
-type piece = { first : int; next : int; shown : string; cells : int }
+(* A grapheme cluster: the characters a terminal draws as one glyph, found by
+   [Uuseg], and the source bytes [first, next) they came from. *)
+type cluster = { first : int; next : int; chars : Uchar.t list }
 
-let pieces line =
-  let rec aux i column acc =
-    if i >= String.length line then List.rev acc
+(* The line's clusters, and each run of bytes that is not UTF-8 on its own.
+   The segmenter is fed one character at a time and hands characters back in
+   the same order, perhaps later, so the byte length of each one fed waits in
+   [pending] until it comes out. A byte that does not decode ends the
+   segmentation, since a cluster cannot span it, and a fresh one starts after. *)
+let clusters line =
+  let out = ref [] in
+  let current = ref None in
+  let pending = Queue.create () in
+  let close () =
+    Option.iter (fun c -> out := `Cluster { c with chars = List.rev c.chars } :: !out) !current;
+    current := None
+  in
+  let rec drain segmenter v =
+    match Uuseg.add segmenter v with
+    | `Await | `End -> ()
+    | `Boundary ->
+        close ();
+        drain segmenter `Await
+    | `Uchar u ->
+        let first, next = Queue.pop pending in
+        current :=
+          Some
+            (match !current with
+            | None -> { first; next; chars = [ u ] }
+            | Some c -> { c with next; chars = u :: c.chars });
+        drain segmenter `Await
+  in
+  let rec aux segmenter i =
+    if i >= String.length line then begin
+      drain segmenter `End;
+      close ()
+    end
     else
       let d = String.get_utf_8_uchar line i in
       let n = Uchar.utf_decode_length d in
-      let bytes = String.sub line i n in
-      let shown, cells =
-        if not (Uchar.utf_decode_is_valid d) then
-          let e = escape_bytes bytes in
-          (e, String.length e)
-        else
-          let u = Uchar.utf_decode_uchar d in
-          if Uchar.to_int u = 0x09 then
-            let spaces = tab_width - (column mod tab_width) in
-            (String.make spaces ' ', spaces)
-          else
-            match escape u with
-            | Some e -> (e, String.length e)
-            | None -> (bytes, 1)
-      in
-      aux (i + n) (column + cells) ({ first = i; next = i + n; shown; cells } :: acc)
+      if Uchar.utf_decode_is_valid d then begin
+        Queue.push (i, i + n) pending;
+        drain segmenter (`Uchar (Uchar.utf_decode_uchar d));
+        aux segmenter (i + n)
+      end
+      else begin
+        drain segmenter `End;
+        close ();
+        out := `Invalid (i, i + n) :: !out;
+        aux (Uuseg.create `Grapheme_cluster) (i + n)
+      end
   in
-  aux 0 0 []
+  aux (Uuseg.create `Grapheme_cluster) 0;
+  List.rev !out
+
+let is_regional_indicator u = Uchar.to_int u >= 0x1F1E6 && Uchar.to_int u <= 0x1F1FF
+
+(* The cells a cluster takes. An emoji sequence is two: a ZWJ sequence such as
+   a family, a pair of regional indicators that makes a flag, and an emoji
+   asking for emoji presentation with U+FE0F, such as U+00A9 U+FE0F. A terminal
+   draws these as one wide glyph, though [tty_width_hint] sees one character at
+   a time and calls some of them one cell. Any other cluster is as wide as its
+   first character: two for a wide East Asian character, one otherwise, with
+   combining marks and the rest of the cluster adding nothing. *)
+let cluster_cells = function
+  | [] -> 0
+  | first :: rest ->
+      let has c = List.exists (fun u -> Uchar.to_int u = c) rest in
+      let emoji =
+        (Uucp.Emoji.is_extended_pictographic first && has 0x200D)
+        || (is_regional_indicator first && List.exists is_regional_indicator rest)
+        || (Uucp.Emoji.is_emoji first && has 0xFE0F)
+      in
+      if emoji then 2 else max 0 (Uucp.Break.tty_width_hint first)
+
+(* One glyph of the displayed line: the source bytes [first, next), what is
+   shown for them, and the cells that takes. *)
+type piece = { first : int; next : int; shown : string; cells : int }
+
+let pieces line =
+  let piece column = function
+    | `Invalid (first, next) ->
+        let e = escape_bytes (String.sub line first (next - first)) in
+        { first; next; shown = e; cells = String.length e }
+    | `Cluster { first; next; chars } -> (
+        let bytes = String.sub line first (next - first) in
+        match chars with
+        | [ u ] when Uchar.to_int u = 0x09 ->
+            let spaces = tab_width - (column mod tab_width) in
+            { first; next; shown = String.make spaces ' '; cells = spaces }
+        | _ when List.exists (fun u -> escape u <> None) chars ->
+            (* A control is a cluster of its own, so this is that one
+               character; the rest are shown one by one all the same. *)
+            let one u =
+              match escape u with
+              | Some e -> (e, String.length e)
+              | None ->
+                  let b = Buffer.create 4 in
+                  Buffer.add_utf_8_uchar b u;
+                  (Buffer.contents b, cluster_cells [ u ])
+            in
+            let parts = List.map one chars in
+            {
+              first;
+              next;
+              shown = String.concat "" (List.map fst parts);
+              cells = List.fold_left (fun n (_, w) -> n + w) 0 parts;
+            }
+        | _ -> { first; next; shown = bytes; cells = cluster_cells chars })
+  in
+  let _, acc =
+    List.fold_left
+      (fun (column, acc) c ->
+        let p = piece column c in
+        (column + p.cells, p :: acc))
+      (0, []) (clusters line)
+  in
+  List.rev acc
 
 (* The cell a byte offset starts at, counting the pieces wholly before it, and
    the cell it ends at, counting every piece it reaches into. A span that starts

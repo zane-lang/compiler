@@ -1,0 +1,4 @@
+File "fixtures/reject/width-emoji.zn", line 4, characters 24-25:
+4 |     return String("😀") @ Int(2);
+  |                         ^
+Error: Parse error
