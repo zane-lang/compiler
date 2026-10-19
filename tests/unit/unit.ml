@@ -1103,6 +1103,7 @@ let fixture_pairing () =
 
 let () =
   ty ();
+  Traversals.run check;
   signatures ();
   overloads ();
   string_constructors ();

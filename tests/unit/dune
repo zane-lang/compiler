@@ -1,4 +1,5 @@
-; Direct tests of the helpers the stages share: types and their substitution,
+; Direct tests of the helpers the stages share: the traversals of the TST and
+; the CGT (traversals.ml), types and their substitution,
 ; signatures, overload ranking, lowering's type layouts, what stage 5's
 ; evaluator makes of the tree, how codegen reads a snapshot, and the processor
 ; codegen tunes for and which targets it accepts. The golden suites test the
@@ -13,7 +14,7 @@
 
 (test
  (name unit)
- (libraries cgt codegen diagnostic driver fixture_pairing llvm llvm.target optimize source tree_graph tst unix)
+ (libraries cgt codegen diagnostic driver fixture_pairing llvm llvm.target optimize source sst tree_graph tst unix)
  (deps
   ../../runtime/zane.h
   (source_tree ../codegen/fixtures/lambdas)))

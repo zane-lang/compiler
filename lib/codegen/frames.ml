@@ -61,12 +61,12 @@ let layout symbol id body =
         let result = match frame with Ty.Struct (r :: _) -> r | _ -> Ty.Void in
         Option.iter (fun d -> place d (Ty.size_align result)) dest
     | _ -> ());
-    let es, bodies = Cgt.stat_parts s in
+    let es, bodies = Cgt.Traverse.stat_parts s in
     let inner = match s with Stat.Repeat _ | Stat.Scope _ -> true | _ -> again in
     List.iter (expr again) es;
     List.iter (List.iter (stat inner)) bodies
   and expr again e =
-    let es, bodies = Cgt.expr_parts e in
+    let es, bodies = Cgt.Traverse.expr_parts e in
     List.iter (expr again) es;
     List.iter (List.iter (stat again)) bodies
   in

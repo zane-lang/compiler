@@ -99,13 +99,13 @@ let bindings start =
       ->
         found := (l.T.Local.id, value) :: !found
     | _ -> ());
-    List.iter expr (Exits.stat_exprs s)
+    List.iter expr (Traverse.stat_exprs s)
   and expr (e : T.Expr.t) =
     List.iter
       (function
-        | Exits.Same x -> expr x
-        | Exits.Arm b | Exits.Handler b | Exits.Block b | Exits.Lambda b -> block b)
-      (Exits.parts e)
+        | Traverse.Same x -> expr x
+        | Traverse.Arm b | Traverse.Handler b | Traverse.Block b | Traverse.Lambda b -> block b)
+      (Traverse.parts e)
   in
   (match start with `Block b -> block b | `Expr e -> expr e);
   List.rev !found
@@ -234,13 +234,13 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
          | Ty.Reference _ -> ()
          | _ -> Hashtbl.replace owned local.T.Local.id ())
      | _ -> ());
-     List.iter expr (Exits.stat_exprs s)
+     List.iter expr (Traverse.stat_exprs s)
    and expr (e : T.Expr.t) =
      List.iter
        (function
-         | Exits.Same x -> expr x
-         | Exits.Arm b | Exits.Handler b | Exits.Block b | Exits.Lambda b -> block b)
-       (Exits.parts e)
+         | Traverse.Same x -> expr x
+         | Traverse.Arm b | Traverse.Handler b | Traverse.Block b | Traverse.Lambda b -> block b)
+       (Traverse.parts e)
    in
    match start with `Block b -> block b | `Expr e -> expr e);
   (* A place the body owns cannot sit inside what the caller passed, and
@@ -454,18 +454,18 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
             acc tys args
       | _ -> acc
     in
-    List.fold_left writes_part acc (Exits.parts e)
+    List.fold_left writes_part acc (Traverse.parts e)
   and writes_part acc = function
-    | Exits.Same x -> writes_expr acc x
-    | Exits.Arm b | Exits.Handler b | Exits.Block b -> writes_block acc b
-    | Exits.Lambda _ -> acc
+    | Traverse.Same x -> writes_expr acc x
+    | Traverse.Arm b | Traverse.Handler b | Traverse.Block b -> writes_block acc b
+    | Traverse.Lambda _ -> acc
   and writes_block acc (b : T.Block.t) = List.fold_left writes_stat acc b.T.Block.stats
   and writes_stat acc (s : T.Stat.t) =
     match s.T.Stat.node with
     | T.Stat.Assign { target; value } -> (
         let acc = writes_expr acc value in
         (* What locates the destination runs too: `xs[ys!grow()] = v`. *)
-        let acc = List.fold_left writes_part acc (Exits.parts target) in
+        let acc = List.fold_left writes_part acc (Traverse.parts target) in
         let acc = match target.T.Expr.ty with Ty.Reference _ -> acc | _ -> moved acc value in
         match (target.T.Expr.ty, target.T.Expr.node) with
         (* Repointing a reference writes no place it names. *)
@@ -482,7 +482,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
     | T.Stat.Let { local = { T.Local.ty = Ty.Reference _; _ }; value } | T.Stat.Return value ->
         writes_expr acc value
     | T.Stat.Let { value; _ } -> moved (writes_expr acc value) value
-    | _ -> List.fold_left writes_expr acc (Exits.stat_exprs s)
+    | _ -> List.fold_left writes_expr acc (Traverse.stat_exprs s)
   (* An owner read from a place into owning storage moves out of it. *)
   and moved acc (v : T.Expr.t) =
     match v.T.Expr.ty with
@@ -646,17 +646,17 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
       m.T.Match.scrutinees
   in
   let rec block (b : T.Block.t) = List.iter stat b.T.Block.stats
-  and stat (s : T.Stat.t) = List.iter expr (Exits.stat_exprs s)
+  and stat (s : T.Stat.t) = List.iter expr (Traverse.stat_exprs s)
   and expr (e : T.Expr.t) =
     check_call e;
     (match e.T.Expr.node with T.Expr.Match m -> check_match m | _ -> ());
     List.iter
       (function
-        | Exits.Same x -> expr x
-        | Exits.Arm b | Exits.Handler b | Exits.Block b -> block b
+        | Traverse.Same x -> expr x
+        | Traverse.Arm b | Traverse.Handler b | Traverse.Block b -> block b
         (* A lambda has a frame of its own, walked as its own body. *)
-        | Exits.Lambda b -> block b)
-      (Exits.parts e)
+        | Traverse.Lambda b -> block b)
+      (Traverse.parts e)
   in
   (match start with `Block b -> block b | `Expr e -> expr e);
   !needs

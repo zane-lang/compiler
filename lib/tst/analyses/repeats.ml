@@ -59,7 +59,7 @@ let find_multi env multi bodies =
         find 0 params
       in
       let rec block often (b : T.Block.t) =
-        List.iter (fun s -> List.iter (expr often) (Exits.stat_exprs s)) b.T.Block.stats
+        List.iter (fun s -> List.iter (expr often) (Traverse.stat_exprs s)) b.T.Block.stats
       and expr often (e : T.Expr.t) =
         (* A function value is not seen into, so it may run a block it is
            given any number of times. *)
@@ -100,14 +100,14 @@ let find_multi env multi bodies =
         in
         List.iter
           (function
-            | Exits.Same x -> expr often x
-            | Exits.Block b -> (
+            | Traverse.Same x -> expr often x
+            | Traverse.Block b -> (
                 match List.assq_opt b blocks with
                 | Some o -> block o b
                 | None -> block often b)
-            | Exits.Arm b | Exits.Handler b -> block often b
-            | Exits.Lambda _ -> ())
-          (Exits.parts e)
+            | Traverse.Arm b | Traverse.Handler b -> block often b
+            | Traverse.Lambda _ -> ())
+          (Traverse.parts e)
       in
       block false body)
     bodies;

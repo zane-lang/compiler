@@ -148,12 +148,12 @@ let made st decl : Func.t =
 let name_lambdas st owner (b : T.Block.t) =
   let n = ref 0 in
   let rec block (b : T.Block.t) =
-    List.iter (fun s -> List.iter expr (Tst.Exits.stat_exprs s)) b.T.Block.stats
-  and expr e = List.iter part (Tst.Exits.parts e)
+    List.iter (fun s -> List.iter expr (Tst.Traverse.stat_exprs s)) b.T.Block.stats
+  and expr e = List.iter part (Tst.Traverse.parts e)
   and part = function
-    | Tst.Exits.Same x -> expr x
-    | Tst.Exits.Arm b | Tst.Exits.Handler b | Tst.Exits.Block b -> block b
-    | Tst.Exits.Lambda b ->
+    | Tst.Traverse.Same x -> expr x
+    | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b -> block b
+    | Tst.Traverse.Lambda b ->
         incr n;
         st.lambdas <- (b, Printf.sprintf "%s$lambda%d" owner !n) :: st.lambdas;
         block b
@@ -190,17 +190,17 @@ let spawns (p : T.Program.t) =
   and stat (s : T.Stat.t) =
     match s.T.Stat.node with
     | T.Stat.Spawn _ -> true
-    | _ -> List.exists expr (Tst.Exits.stat_exprs s)
+    | _ -> List.exists expr (Tst.Traverse.stat_exprs s)
   and expr (e : T.Expr.t) =
     match e.T.Expr.node with
     | T.Expr.Spawn _ -> true
     | _ ->
         List.exists
           (function
-            | Tst.Exits.Same x -> expr x
-            | Tst.Exits.Arm b | Tst.Exits.Handler b | Tst.Exits.Block b | Tst.Exits.Lambda b ->
+            | Tst.Traverse.Same x -> expr x
+            | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b | Tst.Traverse.Lambda b ->
                 block b)
-          (Tst.Exits.parts e)
+          (Tst.Traverse.parts e)
   in
   let decl (d : T.Decl.t) =
     match d.T.Decl.node with

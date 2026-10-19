@@ -29,6 +29,7 @@ modules by kind; module names stay flat, so `passes/collect.ml` is `Collect`:
 | `check/` | Pass 5, with overload resolution and instantiation |
 | `model/ty.ml`, `model/signature.ml` | Types (§4), and what a call site needs to know about a verb |
 | `model/intrinsics.ml` | The intrinsic namespaces (D3) |
+| `model/traverse.ml` | What each expression and statement is made of, which every analysis walks the tree by |
 | `analyses/` | The analyses over the finished tree (D1) |
 | `semantics.ml` | The passes, run in order |
 

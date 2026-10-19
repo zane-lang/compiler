@@ -1308,7 +1308,7 @@ let unwritten env (f : Func.t) addressed =
     | Stat.Assign { place; _ } when (not place.Expr.deref) && List.mem place.Expr.local addressed ->
         bad place.Expr.local
     | _ -> ());
-    let es, bodies = Cgt.stat_parts s in
+    let es, bodies = Cgt.Traverse.stat_parts s in
     List.iter expr es;
     List.iter (List.iter stat) bodies
   and expr (e : Expr.t) =
@@ -1317,7 +1317,7 @@ let unwritten env (f : Func.t) addressed =
       when List.mem id addressed && Option.is_some (Walks.vacater (walks env) l) ->
         bad id
     | _ -> ());
-    let es, bodies = Cgt.expr_parts e in
+    let es, bodies = Cgt.Traverse.expr_parts e in
     List.iter expr es;
     List.iter (List.iter stat) bodies
   in

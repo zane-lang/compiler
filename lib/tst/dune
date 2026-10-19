@@ -4,7 +4,8 @@
 ; named after its directory:
 ;
 ; - model/     the tree and what it is built from: [Nodes], [Ty],
-;              [Signature], [Env] and [Intrinsics];
+;              [Signature], [Env] and [Intrinsics], and [Traverse], what each
+;              node is made of;
 ; - passes/    [Assembly] groups files into packages, then [Collect] (passes
 ;              1 and 2), [Type_decls] (3) and [Verb_signatures] (4);
 ; - check/     pass 5, [Check], and the parts of it that are not the

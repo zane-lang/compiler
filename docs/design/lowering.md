@@ -321,7 +321,9 @@ Its result is then the library's where the program runs, as §2.6 has it
 
 Lowering lives in `lib/cgt/`, beside `lib/tst/`: `nodes.ml` for the tree,
 `lower.ml` for the TST → CGT walk over a verb's body, `program.ml` for a
-whole program built with it, and `to_tree_graph.ml` to render it. Codegen
+whole program built with it, `traverse.ml` for what each node is made of
+and the walks and rewrites every pass over the tree uses, and
+`to_tree_graph.ml` to render it. Codegen
 lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,
 and `build.ml` writes the object file and links it with the runtime. The
 runtime is written as nine parts in `runtime/` (`main.c`, `arena.c`,
