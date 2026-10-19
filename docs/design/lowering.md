@@ -252,6 +252,22 @@ one's function first, so dependency order holds whatever order they are
 declared in, and a constant that reads itself, through any chain, stops the
 program. A context that finds another making a constant waits for it.
 
+Those waits can form a cycle across contexts: making a constant may spawn
+a call that reads, through any chain, the constant being made, and joining
+that call waits for a context that waits for the joiner. The runtime keeps
+the graph of waits (`runtime/value.c`). A context about to block names what
+it waits for, a constant's state, whose maker it waits for while the
+constant is made, or a call it joins, whose context it waits for while the
+call runs. A call run where it is joined is waited for the same way. Each
+edge is read from what it names when it is followed, so a made constant or
+a finished call leads nowhere, and a reused context is never reached
+through a wait that has ended. Edges are set, cleared and followed under
+one lock, so the last wait to close a cycle follows the edges from its own
+context back to itself, and the program stops with "package constants read
+each other while they are made" and status 1, the program's error as an
+index out of range is. A maker reading its own constant again is the
+one-step case of the same test.
+
 A program's entry is always a start function, `zane.start`, that calls each
 constant's function, the packages a package depends on first, and then
 `main`, discarding what `main` returns. The runtime calls the entry as
@@ -551,6 +567,32 @@ test passing.
     grow it, and the fault handler runs on a stack of its own, so a full
     machine stack stops the program with "recursion too deep" and status 1
     rather than a crash.
+  - **The program's output.** A print writes into a buffer of the
+    runtime's own (`runtime/main.c`), never through stdio, so that the
+    fault handler can flush it with only async-signal-safe calls. It has
+    stdio's size for stdout, the block size `fstat` reports or `BUFSIZ`,
+    and flushes where stdio's would: when it fills and when the program
+    ends, and at every print that writes a newline when stdout is a
+    terminal, which the runtime asks once at startup. A mutex orders
+    ordinary writers, and an atomic `busy` flag grants the buffer: a
+    writer claims it from free to 1 after taking the mutex, and touches the
+    buffer only then. A failed write marks the output failed, and the
+    program then ends with status 1. The exit path, an index out of range,
+    a cycle of constants and `zane_broken` flush it first.
+    - **From the fault handler.** A stop for a full machine stack, a
+      range full of frames or a failed commit claims `busy` from free to 2
+      without the mutex, and flushes only if that succeeds, so it loses at
+      most the buffer when another thread, or the faulting one, was mid
+      print, and a writer that later finds 2 waits for the program to end.
+      A write to a full pipe would block, and a check before it cannot
+      rule that out, since another process may fill the pipe in between.
+      So the handler writes a socket with `MSG_DONTWAIT`, and a pipe, on
+      Linux, through `/proc/self/fd/1` opened anew with `O_NONBLOCK`, a
+      description of its own that no process sharing fd 1 sees, dropping
+      what it cannot write at once. Elsewhere it drops a pipe's output. On
+      Windows, where a pipe offers no way to ask whether a write would
+      block, it writes only a terminal or a file. The message on stderr
+      appears either way.
 - **A reference is an address.** [`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §4.1 stores a
   reference as the `u32` segmented offset of the settled owner it names. The
   runtime addresses everything else with native pointers rather than
@@ -618,9 +660,52 @@ test passing.
     innermost scope first, rather than from a segmented offset (§3.1). A dynamic chunk begins with a cache line of
     its own bookkeeping, and an oversized block's chunks are one mapping.
   - Every block is at least a word, and aligned to one; a list's is aligned
-    to a cache line. A chunk a region gives back is kept for the next
-    region of the same context rather than unmapped, and a context whose
-    call is over gives its kept chunks to any context that has none.
+    to a cache line.
+  - Dynamic chunks come from the system directly, reserved at a 1 MiB
+    boundary and committed, not from the C allocator: memory `malloc`
+    owns cannot be decommitted on Windows, and on POSIX its pages are not
+    the runtime's to give back. A spare chunk, one a drained region gave
+    back, is **warm**, its pages resident, or **cold**, its addresses
+    kept and its pages after the first given back. The first page holds
+    the chunk's header and the link of the list it is on, so it stays.
+    - **Warm.** A context keeps `ZANE_WARM_KEPT` (4) drained chunks warm
+      for good, and any others while they have sat unused through fewer
+      than `ZANE_COOLING` (8) of its later drains. A context whose call is
+      over gives its warm chunks to the pool, which keeps up to
+      `ZANE_POOL_WARM` (16) of them warm.
+    - **Cold.** Every other spare turns cold: its pages go back with
+      `madvise(MADV_DONTNEED)` on Linux, a fresh anonymous mapping over
+      them elsewhere on POSIX, since macOS may keep a page's memory and
+      contents through `MADV_DONTNEED`, and `VirtualFree(MEM_DECOMMIT)` on
+      Windows. A cold chunk is reused like a warm one; its pages come back
+      zeroed when touched, after a commit on Windows, and a failed commit
+      stops the program as a new chunk's does. Past `ZANE_COLD_KEPT` (256)
+      cold chunks, which hold 1 MiB of first pages, a drained chunk goes
+      back to the system whole, as an oversized block's chunks always do.
+    - **Reuse.** A region takes its context's latest warm spare, then one
+      from the pool, then a cold one, then a new chunk. Counts beside each
+      list keep every limit O(1).
+    - **Windows.** A 1 MiB-aligned reservation costs an extra MiB of
+      addresses there, and `VirtualFree(MEM_RELEASE)` frees only a whole
+      reservation, so chunks are carved from slabs of 64 MiB, or one of
+      its own for a larger block. A slab counts its chunks that are live or
+      warm. A chunk given back whole is decommitted entirely, and once every
+      chunk carved from a slab is cold or given back, and no more will be
+      carved from it, its cold chunks leave the cold list and the slab is
+      released.
+    - **The delay, measured.** Langbench at spec `8298a3a`, core
+      `02852ef`, built with `--optimize` before and after, on a 4-core
+      x86_64 container, medians with ranges in brackets. With chunks
+      turning cold at once (five runs each), ntree 10 went from 0.380 s [0.354–0.456] to 0.523 s
+      [0.494–0.630] and treecopy 18 from 0.257 s [0.249–0.266] to 0.395 s
+      [0.349–0.412]: both drain more chunks per scope than a context keeps
+      for good, and faulted their pages back in at every drain. With the
+      delay at 8 drains (seven runs each), ntree took 0.391 s [0.367–0.448] before and
+      0.383 s [0.370–0.439] after, treecopy 0.295 s [0.292–0.311] and
+      0.283 s [0.271–0.297], and binarytrees 16, listgrowth 2000000 and
+      allocfree 1000000 overlapped too; delays of 64 and 512 drains
+      measured the same. Every other langbench program overlapped without
+      the delay. Peak memory did not change for any of them.
   - A value that owns a block is held in its scope's arena like an owner,
     and so is a fresh owner or value that nothing keeps, such as a result
     that is dropped or an operand, so its blocks are in a region that

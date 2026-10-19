@@ -66,6 +66,9 @@ void zane_reopen(void) {
 	zane_open = c && c->top && c->shared == 0 ? c->top : NULL;
 }
 
+/* The context with id `id`, once it is listed. */
+zane_context *zane_context_at(int32_t id) { return __atomic_load_n(&zane_contexts[id], __ATOMIC_ACQUIRE); }
+
 static int zane_guarded(zane_context *c) { return c != zane_self || c->shared > 0; }
 void zane_lock(zane_context *c) { if (zane_guarded(c)) pthread_mutex_lock(&c->lock); }
 void zane_unlock(zane_context *c) { if (zane_guarded(c)) pthread_mutex_unlock(&c->lock); }
@@ -157,41 +160,205 @@ zane_mark *zane_region_at(const void *at) {
 /* Every block is at least a word, and aligned to one. */
 static int64_t zane_word(int64_t n) { return n < 8 ? 8 : (n + 7) / 8 * 8; }
 
-/* Dynamic chunks that contexts gave back when their calls were over,
-   ready for any context that has no spare of its own. */
-static zane_mapping *zane_spare;
+/* Dynamic chunks come from the system directly, at a 1 MiB boundary, so
+   that a drained one's pages can go back to it. A spare chunk is warm, its
+   pages resident, or cold, its pages after the first given back: the first
+   holds its header and the link of the list it is on. A drained chunk stays
+   warm on its context, which keeps ZANE_WARM_KEPT of them for good and the
+   rest while fewer than ZANE_COOLING of its later drains have passed, and
+   a context going idle gives its warm ones to the pool, which keeps up to
+   ZANE_POOL_WARM. Every other spare turns cold, and past ZANE_COLD_KEPT
+   cold ones goes back to the system whole, as an oversized block's chunks
+   always do. A region takes its context's latest warm spare first, then
+   the pool's, then a cold one, whose pages come back zeroed when touched,
+   then a new chunk. The pool's lists and every count change under
+   `zane_memory`; a context's own warm list, under its lock. */
+static zane_mapping *zane_spare, *zane_cold;
+int64_t zane_warm_spares, zane_cold_spares, zane_cold_reuses;
 
-/* A context going idle gives its spare chunks to every context, so an idle
-   one never keeps the peak its last call reached. */
+#ifdef _WIN32
+/* Windows gives back a reservation only whole, and a 1 MiB-aligned one costs
+   an extra MiB of addresses, so chunks are carved from slabs of 64 MiB, or
+   one of its own for a larger block. A slab counts its chunks that are live
+   or warm. A cold chunk keeps its first page committed; one given back
+   whole is decommitted entirely and only its slab's addresses remain. Once
+   every chunk carved from a slab is cold or given back, and no more will be
+   carved from it, its cold chunks leave the cold list and the slab goes back
+   to the system. Slabs change under `zane_memory`. */
+enum { ZANE_SLAB = 64 * ZANE_CHUNK };
+
+typedef struct zane_slab {
+	char *raw, *base;
+	size_t bytes, carved;
+	int64_t held;
+} zane_slab;
+
+static zane_slab *zane_carving;
+
+static zane_slab *zane_slab_new(size_t bytes) {
+	zane_slab *s = calloc(1, sizeof *s);
+	if (!s || !(s->base = zane_reserve_aligned(bytes, &s->raw)))
+		zane_broken("out of addresses for a dynamic chunk");
+	s->bytes = bytes;
+	return s;
+}
+
+static void zane_slab_release(zane_slab *s) {
+	for (zane_mapping **at = &zane_cold; *at;)
+		if ((*at)->slab == s) {
+			*at = (*at)->next;
+			zane_cold_spares--;
+		} else {
+			at = &(*at)->next;
+		}
+	zane_release_addresses(s->raw, s->base, s->bytes);
+	free(s);
+}
+
+/* `chunks` of a slab's chunks are cold or given back. */
+static void zane_slab_drop(zane_slab *s, size_t chunks) {
+	s->held -= (int64_t)chunks;
+	if (s->held == 0 && s != zane_carving) zane_slab_release(s);
+}
+#endif
+
+/* `size` bytes of new chunks, usable. */
+static zane_mapping *zane_chunks_new(size_t size) {
+	char *base;
+#ifdef _WIN32
+	pthread_mutex_lock(&zane_memory);
+	zane_slab *s = zane_carving;
+	if (size >= ZANE_SLAB) {
+		s = zane_slab_new(size);
+	} else if (!s || s->bytes - s->carved < size) {
+		zane_slab *old = s;
+		s = zane_carving = zane_slab_new(ZANE_SLAB);
+		if (old && old->held == 0) zane_slab_release(old);
+	}
+	base = s->base + s->carved;
+	s->carved += size;
+	s->held += (int64_t)(size / ZANE_CHUNK);
+	pthread_mutex_unlock(&zane_memory);
+#else
+	char *raw;
+	if (!(base = zane_reserve_aligned(size, &raw))) zane_broken("out of addresses for a dynamic chunk");
+#endif
+	if (!zane_commit_range(base, size)) zane_broken("out of memory for a dynamic chunk");
+	zane_mapping *m = (zane_mapping *)base;
+#ifdef _WIN32
+	m->slab = s;
+#else
+	m->slab = NULL;
+#endif
+	return m;
+}
+
+/* Chunks of `size` bytes from `m` given back to the system whole. */
+static void zane_chunks_drop(zane_mapping *m, size_t size) {
+#ifdef _WIN32
+	/* The header is in the range decommitted, so its slab is read first. */
+	zane_slab *slab = m->slab;
+	zane_decommit_range((char *)m, size);
+	pthread_mutex_lock(&zane_memory);
+	zane_slab_drop(slab, size / ZANE_CHUNK);
+	pthread_mutex_unlock(&zane_memory);
+#else
+	zane_release_addresses(NULL, (char *)m, size);
+#endif
+}
+
+/* A drained chunk no context keeps warm turns cold, or goes back to the
+   system past the cold ones kept. */
+static void zane_chill(zane_mapping *m) {
+	size_t page = zane_page_bytes();
+	if (!zane_decommit_range((char *)m + page, ZANE_CHUNK - page)) {
+		zane_chunks_drop(m, ZANE_CHUNK);
+		return;
+	}
+	pthread_mutex_lock(&zane_memory);
+	if (zane_cold_spares < ZANE_COLD_KEPT) {
+		m->next = zane_cold;
+		zane_cold = m;
+		zane_cold_spares++;
+#ifdef _WIN32
+		zane_slab_drop(m->slab, 1);
+#endif
+		pthread_mutex_unlock(&zane_memory);
+		return;
+	}
+	pthread_mutex_unlock(&zane_memory);
+	zane_chunks_drop(m, ZANE_CHUNK);
+}
+
+/* A context's warm spares: the latest given back first, the earliest
+   last. */
+static void zane_keep_warm(zane_context *c, zane_mapping *m) {
+	m->stamp = c->drains;
+	m->prev = NULL;
+	m->next = c->spare;
+	if (c->spare) c->spare->prev = m;
+	else c->spare_last = m;
+	c->spare = m;
+	c->warm++;
+}
+
+static zane_mapping *zane_take_warm(zane_context *c) {
+	zane_mapping *m = c->spare;
+	c->spare = m->next;
+	if (c->spare) c->spare->prev = NULL;
+	else c->spare_last = NULL;
+	c->warm--;
+	return m;
+}
+
+/* A context going idle gives its warm chunks to the pool, so an idle one
+   never keeps the peak its last call reached; past what the pool keeps
+   warm, they turn cold. */
 void zane_give_spares(zane_context *c) {
 	if (!c->spare) return;
-	zane_mapping *last = c->spare;
-	while (last->next) last = last->next;
 	pthread_mutex_lock(&zane_memory);
-	last->next = zane_spare;
-	zane_spare = c->spare;
+	while (c->spare && zane_warm_spares < ZANE_POOL_WARM) {
+		zane_mapping *m = zane_take_warm(c);
+		m->next = zane_spare;
+		zane_spare = m;
+		zane_warm_spares++;
+	}
 	pthread_mutex_unlock(&zane_memory);
-	c->spare = NULL;
+	while (c->spare) zane_chill(zane_take_warm(c));
 }
 
 /* Chunks of its own for one region: `size` bytes in all, a whole number of
-   chunks, listed in the chunk map as the region's. A whole chunk is one of
-   its context's spares when there is one, else one an idle context gave
-   back. Its context's lock is held. */
+   chunks, listed in the chunk map as the region's. A whole chunk is a warm
+   spare of its context's or the pool's when there is one, else a cold one,
+   made usable again, else a new one. Its context's lock is held. */
 static zane_mapping *zane_map(zane_mark *region, size_t size) {
 	zane_context *c = region->context;
 	zane_mapping *m = NULL;
 	if (size == ZANE_CHUNK) {
-		if ((m = c->spare)) {
-			c->spare = m->next;
+		if (c->spare) {
+			m = zane_take_warm(c);
 		} else {
+			int cold = 0;
 			pthread_mutex_lock(&zane_memory);
-			if ((m = zane_spare)) zane_spare = m->next;
+			if ((m = zane_spare)) {
+				zane_spare = m->next;
+				zane_warm_spares--;
+			} else if ((m = zane_cold)) {
+				zane_cold = m->next;
+				zane_cold_spares--;
+				zane_cold_reuses++;
+				cold = 1;
+#ifdef _WIN32
+				m->slab->held++;
+#endif
+			}
 			pthread_mutex_unlock(&zane_memory);
+			size_t page = zane_page_bytes();
+			if (cold && !zane_commit_range((char *)m + page, ZANE_CHUNK - page))
+				zane_broken("out of memory for a dynamic chunk");
 		}
 	}
-	if (!m && !(m = zane_chunk_alloc(size)))
-		zane_broken("out of memory for a dynamic chunk");
+	if (!m) m = zane_chunks_new(size);
 	for (size_t at = 0; at < size; at += ZANE_CHUNK) zane_set_page((char *)m + at, (uintptr_t)region);
 	m->size = size;
 	m->reserved = 0;
@@ -202,25 +369,28 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 }
 
 /* A region's chunks given back, whatever is still in them (memory.md
-   §3.2): each leaves the chunk map, and a whole chunk is kept for the next
-   region of the same context that needs one. A list's growable span gives
-   back its whole reservation. Its context's lock is held. */
+   §3.2): each leaves the chunk map, and a whole chunk stays warm for the
+   next region of the same context, until it has sat unused through
+   ZANE_COOLING of the context's drains past the ZANE_WARM_KEPT it keeps
+   for good. A list's growable span gives back its whole reservation, and an
+   oversized block its chunks. Its context's lock is held. */
 void zane_unmap(zane_mark *region) {
 	zane_context *c = region->context;
+	if (region->mappings) c->drains++;
 	while (region->mappings) {
-		zane_mapping *next = region->mappings->next;
-		for (size_t at = 0; at < region->mappings->size; at += ZANE_CHUNK)
-			zane_set_page((char *)region->mappings + at, 0);
-		if (region->mappings->reserved) {
-			zane_release_addresses(region->mappings->raw, (char *)region->mappings,
-			                       region->mappings->reserved);
-		} else if (region->mappings->size == ZANE_CHUNK) {
-			region->mappings->next = c->spare;
-			c->spare = region->mappings;
-		} else {
-			zane_chunk_free(region->mappings);
-		}
-		region->mappings = next;
+		zane_mapping *m = region->mappings;
+		region->mappings = m->next;
+		for (size_t at = 0; at < m->size; at += ZANE_CHUNK) zane_set_page((char *)m + at, 0);
+		if (m->reserved) zane_release_addresses(m->raw, (char *)m, m->reserved);
+		else if (m->size != ZANE_CHUNK) zane_chunks_drop(m, m->size);
+		else zane_keep_warm(c, m);
+	}
+	while (c->warm > ZANE_WARM_KEPT && c->drains - c->spare_last->stamp >= ZANE_COOLING) {
+		zane_mapping *m = c->spare_last;
+		c->spare_last = m->prev;
+		c->spare_last->next = NULL;
+		c->warm--;
+		zane_chill(m);
 	}
 	region->heap = (zane_heap){ 0 };
 	region->stacks = NULL;

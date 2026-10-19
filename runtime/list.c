@@ -8,7 +8,7 @@
    far is kept, and it stops with a failing status. Emitted code checks an
    index itself and calls this only when the index is outside. */
 void zane_out_of_range(void) {
-	fflush(stdout);
+	zane_flush_output();
 	fputs("index out of range\n", stderr);
 	exit(1);
 }

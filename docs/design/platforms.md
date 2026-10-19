@@ -85,6 +85,13 @@ since one that overflowed leaves none, and finds the thread's stack with
 `pthread_getattr_np`, or `pthread_get_stackaddr_np` on macOS. A protection
 fault is SIGSEGV on Linux and SIGBUS on macOS, so both are handled.
 
+A stop from the handler first flushes what the program printed, which waits
+in the runtime's own buffer ([`lowering.md`](lowering.md) §9), unless
+another thread holds the buffer. It never blocks on a full pipe: on Linux
+it writes a pipe through a non-blocking descriptor of its own, opened from
+`/proc/self/fd/1`, and drops what the pipe cannot take, while macOS drops a
+pipe's output and Windows writes only a terminal or a file.
+
 ## Address range supported by the runtime
 
 Slots, references and dynamic blocks use native pointers. The current
@@ -105,9 +112,11 @@ placed ([`lowering.md`](lowering.md) §9). The limit is `Ty.limit` in
 A Windows program links with MinGW's C library and its POSIX threads,
 winpthreads, both of which `zig cc` carries; `ZANE_CC=dev/bin/zig-cc` links
 with it ([`lowering.md`](lowering.md) §7). The runtime differs there in five
-places, each marked `_WIN32`: a chunk comes from `_aligned_malloc` and goes
-back through `_aligned_free`, a context's range of frames and a list's
-growing oversized span ([`lowering.md`](lowering.md) §9) are reserved with
+places, each marked `_WIN32`: a dynamic chunk is carved from a 64 MiB
+reservation, decommitted with `VirtualFree(MEM_DECOMMIT)` when it turns
+cold, and released with its whole reservation
+([`lowering.md`](lowering.md) §9), a context's range of frames and a list's
+growing oversized span are reserved with
 `VirtualAlloc(MEM_RESERVE)` and made usable with `MEM_COMMIT`, the range
 from a vectored exception handler, which also reports a full machine stack
 (`EXCEPTION_STACK_OVERFLOW`), winpthreads counts the processors, stdout

@@ -64,7 +64,10 @@ static zane_task *zane_find(void) {
    holds its result's blocks until the result comes home. */
 void zane_run(zane_task *t) {
 	zane_context *outer = zane_self;
-	zane_self = t->context = zane_context_new();
+	zane_context *c = zane_context_new();
+	/* A joiner following its wait reads the context from here (value.c). */
+	__atomic_store_n(&t->context, c, __ATOMIC_RELEASE);
+	zane_self = c;
 	zane_scope_enter(0);
 	t->run(t->frame);
 	zane_self = outer;
@@ -178,6 +181,7 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 	t->type = type;
 	t->size = size;
 	t->owner = c;
+	__atomic_store_n(&t->context, NULL, __ATOMIC_RELAXED);
 	t->next = m->tasks;
 	m->tasks = t;
 	c->shared++;

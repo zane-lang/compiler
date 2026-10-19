@@ -23,19 +23,11 @@
 
 #include "zane.h"
 
-/* What Windows does differently (docs/design/platforms.md). It has no
-   `aligned_alloc`, and memory from `_aligned_malloc` goes back through
-   `_aligned_free`. Its POSIX threads are MinGW's winpthreads, which also
-   counts the processors. */
+/* What Windows does differently (docs/design/platforms.md). Its POSIX
+   threads are MinGW's winpthreads, which also counts the processors. */
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
-#include <malloc.h>
-#define zane_chunk_alloc(size) _aligned_malloc((size), ZANE_CHUNK)
-#define zane_chunk_free(chunk) _aligned_free(chunk)
-#else
-#define zane_chunk_alloc(size) aligned_alloc(ZANE_CHUNK, (size))
-#define zane_chunk_free(chunk) free(chunk)
 #endif
 
 /* A scope's memory is in two regions (memory.md §3.1). Its fixed-size
@@ -104,7 +96,21 @@ typedef struct zane_mapping {
 	struct zane_mapping *next;
 	size_t size, reserved;
 	char *raw;
+	struct zane_slab *slab; /* on Windows, the reservation it was carved from */
+	/* While a context keeps it warm: the one given back after it, and the
+	   context's drain it was given back at (arena.c). */
+	struct zane_mapping *prev;
+	int64_t stamp;
 } zane_mapping;
+
+_Static_assert(sizeof(zane_mapping) <= ZANE_LINE, "a mapping's header fits before its blocks");
+
+/* How many spare chunks stay warm, their pages resident: on each context
+   for good, and in the pool idle contexts give theirs to. A context keeps
+   any others warm until they sit unused through ZANE_COOLING of its later
+   drains. How many more stay cold, their pages after the first given back.
+   Every other drained chunk goes back to the system (arena.c). */
+enum { ZANE_WARM_KEPT = 4, ZANE_POOL_WARM = 16, ZANE_COOLING = 8, ZANE_COLD_KEPT = 256 };
 
 typedef struct zane_task zane_task;
 typedef struct zane_context zane_context;
@@ -192,8 +198,16 @@ struct zane_context {
 	int32_t id;
 	pthread_mutex_t lock;
 	int64_t shared;
-	zane_mapping *spare; /* dynamic chunks its drained regions gave back */
+	/* The warm chunks its drained regions gave back, the latest first, how
+	   many, and how many times its regions gave chunks back. */
+	zane_mapping *spare, *spare_last;
+	int64_t warm, drains;
 	zane_context *next;
+	/* What it waits for, as an edge of the graph of waits (value.c): the
+	   state of a package constant another context is making, or a call it
+	   joins. Each is set and cleared under `zane_waits`. */
+	int64_t *awaits;
+	zane_task *joins;
 };
 
 _Static_assert(offsetof(zane_context, frontier) == 0, "a context starts with its frontier");
@@ -238,6 +252,9 @@ enum { ZANE_DEQUES = 1 << 12 };
 
 /* main.c */
 void zane_broken(const char *what);
+void zane_output(const char *bytes, size_t n);
+int zane_flush_output(void);
+void zane_flush_output_in_fault(void);
 
 /* arena.c */
 extern pthread_mutex_t zane_memory;
@@ -246,6 +263,7 @@ extern zane_context *zane_idle;
 extern _Thread_local zane_context *zane_self;
 extern zane_mark *zane_program;
 void zane_reopen(void);
+zane_context *zane_context_at(int32_t id);
 void zane_lock(zane_context *c);
 void zane_unlock(zane_context *c);
 zane_context *zane_context_new(void);
@@ -258,6 +276,7 @@ void zane_unmap(zane_mark *region);
 char *zane_alloc_growable(zane_mark *region, int64_t size);
 int zane_extend(zane_mark *region, char *block, int64_t size);
 void zane_give_spares(zane_context *c);
+extern int64_t zane_warm_spares, zane_cold_spares, zane_cold_reuses;
 zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align);
 int64_t zane_blocks(void);
 
@@ -311,11 +330,15 @@ void zane_thread_stop(void);
 char *zane_reserve_aligned(size_t bytes, char **raw);
 int zane_commit_range(char *at, size_t bytes);
 void zane_release_addresses(char *raw, char *base, size_t bytes);
+int zane_decommit_range(char *at, size_t bytes);
+size_t zane_page_bytes(void);
 void zane_reserve(zane_context *c, int64_t size);
 _Noreturn void zane_too_deep_in(zane_context *c);
 
 /* value.c */
 void zane_move(char *value, const zane_type *type, zane_mark *region, int64_t from);
+void zane_wait_for(int64_t *constant, zane_task *call);
+void zane_waited(void);
 
 /* spawn.c */
 int zane_state(zane_task *t);

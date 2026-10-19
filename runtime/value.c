@@ -85,10 +85,66 @@ void zane_overwrite(char *slot, char *incoming, int64_t size, const zane_type *t
 static pthread_mutex_t zane_constants = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t zane_constant_made = PTHREAD_COND_INITIALIZER;
 
+/* The graph of waits. A context about to block names what it waits for: a
+   constant's state, whose maker it waits for while the constant is made,
+   or a call it joins, whose context it waits for while the call runs. Each
+   edge is read from what it names when it is followed, so it never outlives
+   its wait: a made constant or a finished call leads nowhere, and a call
+   not yet given its context leads nowhere yet. Edges are set, cleared and
+   followed under one lock, so of the waits that close a cycle, the last
+   finds it, by following the edges from itself back to itself. Contexts
+   are reused, never freed, and each names at most one thing. */
+static pthread_mutex_t zane_waits = PTHREAD_MUTEX_INITIALIZER;
+
+/* A cycle of waits is the program's error, as an index out of range is: a
+   program reaches it when making a constant spawns a call that reads,
+   through any chain, the constant being made. */
+_Noreturn static void zane_constant_cycle(void) {
+	zane_flush_output();
+	fputs("package constants read each other while they are made\n", stderr);
+	exit(1);
+}
+
+static zane_context *zane_waited_on(zane_context *c) {
+	if (c->awaits) {
+		int64_t s = __atomic_load_n(c->awaits, __ATOMIC_ACQUIRE);
+		return s > 0 ? zane_context_at((int32_t)(s - 1)) : NULL;
+	}
+	zane_task *t = c->joins;
+	if (t && zane_state(t) < ZANE_DONE) return __atomic_load_n(&t->context, __ATOMIC_ACQUIRE);
+	return NULL;
+}
+
+/* This context waits for the constant whose state is `constant`, or for
+   `call`; a wait that leads back to it stops the program. */
+void zane_wait_for(int64_t *constant, zane_task *call) {
+	zane_context *self = zane_self;
+	pthread_mutex_lock(&zane_waits);
+	self->awaits = constant;
+	self->joins = call;
+	/* No chain of waits is longer than the contexts there can be. */
+	int32_t steps = ZANE_CONTEXTS;
+	for (zane_context *c = zane_waited_on(self); c && steps-- > 0; c = zane_waited_on(c))
+		if (c == self) {
+			pthread_mutex_unlock(&zane_waits);
+			zane_constant_cycle();
+		}
+	pthread_mutex_unlock(&zane_waits);
+}
+
+/* This context waits no longer. */
+void zane_waited(void) {
+	pthread_mutex_lock(&zane_waits);
+	zane_self->awaits = NULL;
+	zane_self->joins = NULL;
+	pthread_mutex_unlock(&zane_waits);
+}
+
 /* 1 when the caller is to make the constant, and 0 once it is made. */
 int64_t zane_constant_begin(int64_t *state) {
 	if (__atomic_load_n(state, __ATOMIC_ACQUIRE) == -1) return 0;
 	int64_t self = (int64_t)zane_self->id + 1, make = 0;
+	int waited = 0;
 	pthread_mutex_lock(&zane_constants);
 	for (;;) {
 		int64_t s = __atomic_load_n(state, __ATOMIC_RELAXED);
@@ -102,9 +158,14 @@ int64_t zane_constant_begin(int64_t *state) {
 			pthread_mutex_unlock(&zane_constants);
 			zane_broken("a package constant read while it is made");
 		}
+		if (!waited) {
+			zane_wait_for(state, NULL);
+			waited = 1;
+		}
 		pthread_cond_wait(&zane_constant_made, &zane_constants);
 	}
 	pthread_mutex_unlock(&zane_constants);
+	if (waited) zane_waited();
 	return make;
 }
 

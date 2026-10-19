@@ -1458,3 +1458,103 @@ Verified on the batch's head with `devbox run -- just test-compiler`
 (including the probe gate) and `just check-file-sizes`, which warns that
 `lib/cgt/lower.ml` is 1,834 lines, past the 1,500 mark, as it was before
 this batch.
+
+### Batch 6: runtime
+
+- **F10** (`f8e19a7`). A context about to block on a constant or a join
+  names what it waits for, in `awaits` or `joins` on its `zane_context`,
+  and `value.c` follows the edges from there under a leaf lock,
+  `zane_waits`, which every edge is set, cleared and followed under. An
+  edge is read from what it names when it is followed: a constant's state
+  gives its maker through the registry of contexts (`zane_context_at`), and
+  a call gives `t->context` while it is not done. So a made constant or a
+  finished call leads nowhere, and a reused context is never reached
+  through an ended wait. A call run where it is joined is waited for in the
+  same way, so a cycle through an inline run is found. Unlike the plan,
+  there is no `t->runner` published with `ZANE_RUNNING`: a pool thread has
+  no context when it takes a call, and a call not yet given its context has
+  no waits of its own, so the call's own later wait closes the cycle and
+  finds it. `zane_spawn` clears `t->context`, so a reused frame never
+  names the context of the call that used it before. Also unlike the plan,
+  the stop is the program's error, "package constants read each other
+  while they are made" with status 1, as an index out of range is, rather
+  than `zane_broken`'s abort: a Zane program reaches it, and a fixture
+  needs the same status on Linux and Windows. Tests: the runtime test
+  `cycles.c` covers two contexts that each make their own constant and
+  then read the other's, and a maker joining a call that reads its
+  constant, both run inline and joined the moment a pool thread takes it
+  (fifty times per run). Every case hung on the old runtime until its
+  alarm. The codegen fixture `constantCycle` spawns a call that reads
+  `second` while `first` is made, and `second` reads `first`; it stops
+  with the message, and hung before. `docs/design/lowering.md` L16
+  describes the graph of waits.
+- **F11** (`94f353e`). Dynamic chunks come from the system directly,
+  through `zane_reserve_aligned` and `zane_commit_range`, not from
+  `aligned_alloc`. A spare is warm or cold. A cold chunk's pages after the
+  first go back, through `zane_decommit_range`: `MADV_DONTNEED` on Linux,
+  `MEM_DECOMMIT` on Windows, and, beyond the plan, a fresh anonymous
+  mapping on other POSIX systems, since macOS may keep a page's memory and
+  contents through `MADV_DONTNEED`. A context keeps `ZANE_WARM_KEPT` (4)
+  warm, the pool `ZANE_POOL_WARM` (16), and past `ZANE_COLD_KEPT` (256)
+  cold chunks a drained one goes back whole, as an oversized block's always
+  does. Reuse takes warm, then cold, then new. On Windows, chunks are carved
+  from 64 MiB slabs that count their live and warm chunks. A chunk given
+  back whole is decommitted, and a slab with nothing live or warm is
+  released once no more will be carved from it, after its cold chunks
+  leave the list. The measured step found the delay was needed. With
+  chunks turning cold at once, langbench's ntree 10 went from 0.380 s to
+  0.523 s and treecopy 18 from 0.257 s to 0.395 s, with separated ranges,
+  on a 4-core container. Making every spare warm brought treecopy back, so
+  the cost was pages faulting back in. A context now also keeps any other
+  drained chunk warm until it has sat unused through `ZANE_COOLING` (8) of
+  its drains. The warm list is kept latest first, with each chunk's drain
+  stamped in its header. Delays of 8, 64 and 512 all measured within the
+  before ranges, and 8 is taken. These measurements were made in the
+  container, not on the maintainer's machine. Tests: the runtime test
+  `spares.c` checks the following. After 128 filled and drained chunks and
+  an idle context, resident memory is back within the warm chunks plus
+  4 MiB; before, it stayed at the peak. The warm, cold and reuse counts
+  hold. Cold chunks read as zero past their first page. A running context
+  keeps 4 after its cooling drains. Eight idle contexts leave the pool 16.
+  The cold limit holds at 256. Its resident-memory and zero checks failed
+  on the old runtime. `docs/design/lowering.md` §9 describes the spares,
+  each platform's calls and the measurements, and `platforms.md` lists
+  the Windows slabs.
+- **F30** (`366ce10`). `zane_print` writes into the runtime's own
+  buffer (`runtime/main.c`), stdio's size for stdout, through
+  `zane_output`. The buffer is flushed when it fills, when the program
+  ends, and at each print with a newline when stdout is a terminal. A
+  mutex orders writers, and the atomic `busy` flag grants the buffer: 1
+  for a writer, 2 for the fault path. A write that fails marks the output
+  failed. `zane_flush_output` replaces `fflush(stdout)` and `ferror` at
+  exit, in `zane_broken`, in `zane_out_of_range` and in F10's stop.
+  `zane_stop` always calls `zane_flush_output_in_fault`, the commit-failure
+  path included, so its `flush_stdout` parameter is gone. That function
+  claims the buffer by compare-and-swap. On a socket it writes with
+  `MSG_DONTWAIT`; on a pipe on Linux, through `/proc/self/fd/1` reopened
+  `O_NONBLOCK`; on a pipe elsewhere it drops the buffer; on Windows it
+  writes only when `GetFileType` reports a terminal or a file. Tests: the
+  runtime test `output.c` runs each case in a child under an alarm:
+  - twenty stack overflows while another thread prints and the
+    overflowing thread prints at every call;
+  - an overflow while stdout is a full pipe nothing reads;
+  - a closed stdout, which gives status 1;
+  - a child on a pseudo-terminal (`posix_openpt`, re-running the test
+    binary so the runtime checks the terminal at its own startup), whose
+    line arrives while it waits;
+  - on a pipe, a short line that does not arrive early, and `st_blksize`
+    bytes that do.
+
+  Only the full-pipe case failed on the old runtime, where it hung. The
+  others pass on both, since they hold what stdio already did. The
+  "recursion too deep" and "scopes nested too deep" fixtures still show
+  the output printed before the error. `docs/design/lowering.md` §9 and
+  `platforms.md` ("Machine stack sizes") describe the buffer and what the
+  handler flushes.
+
+Each new runtime test passed 100 runs in a row (`output.c` 50, at fifty
+overflows per run), and the batch's head passed `devbox run -- just
+test-compiler` (including the probe gate) and `just check-file-sizes`,
+which still warns about `lib/cgt/lower.ml` as before. The Windows programs
+build with `dev/bin/windows-programs`; with no Wine here, they run only in
+CI.

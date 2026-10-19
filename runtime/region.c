@@ -85,6 +85,41 @@ void zane_release_addresses(char *raw, char *base, size_t bytes) {
 #endif
 }
 
+/* `bytes` of usable memory from `at` given back to the system, its
+   addresses kept: touched again, they read as zero, after a commit on
+   Windows. Linux drops the pages with `madvise`. Other POSIX systems, macOS
+   among them, may keep a page's contents and its memory through
+   `MADV_DONTNEED`, so there a fresh anonymous mapping replaces the range.
+   0 when the system refuses. */
+int zane_decommit_range(char *at, size_t bytes) {
+#ifdef _WIN32
+	return VirtualFree(at, bytes, MEM_DECOMMIT) != 0;
+#elif defined(__linux__)
+	return madvise(at, bytes, MADV_DONTNEED) == 0;
+#else
+	return mmap(at, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) != MAP_FAILED;
+#endif
+}
+
+/* The system's page size, the unit memory is given back in. Any thread
+   may be the first to ask, and each finds the same. */
+static size_t zane_system_page;
+
+size_t zane_page_bytes(void) {
+	size_t page = __atomic_load_n(&zane_system_page, __ATOMIC_RELAXED);
+	if (!page) {
+#ifdef _WIN32
+		SYSTEM_INFO info;
+		GetSystemInfo(&info);
+		page = info.dwPageSize;
+#else
+		page = (size_t)sysconf(_SC_PAGESIZE);
+#endif
+		__atomic_store_n(&zane_system_page, page, __ATOMIC_RELAXED);
+	}
+	return page;
+}
+
 /* `size` bytes of the range, and its guard, so each MiB of it is the
    context's alone in the chunk map. */
 void zane_reserve(zane_context *c, int64_t size) {
@@ -121,14 +156,15 @@ static int zane_commit(zane_context *c, char *at) {
 /* The program stops with an error, and status 1, as it does for an index
    out of range: the error is the program's, not the compiler's. It may run
    in the fault handler, so the error is formatted by hand and written with
-   one call. */
+   one call, after what the program printed is flushed the way the handler
+   may (main.c). */
 static char *zane_append(char *at, const char *text) {
 	while (*text) *at++ = *text++;
 	return at;
 }
 
-_Noreturn static void zane_stop(const char *text, char *end, int flush_stdout) {
-	if (flush_stdout) fflush(stdout);
+_Noreturn static void zane_stop(const char *text, char *end) {
+	zane_flush_output_in_fault();
 #ifdef _WIN32
 	_write(2, text, (unsigned)(end - text));
 	ExitProcess(1);
@@ -143,14 +179,13 @@ _Noreturn static void zane_stop(const char *text, char *end, int flush_stdout) {
    touched step. Raising the range's bound would not make memory available. */
 _Noreturn static void zane_commit_failed(void) {
 	char text[96], *at = zane_append(text, "out of memory: cannot commit a context's fixed-size region\n");
-	/* A commit can fail while stdio holds its lock: do not flush here. */
-	zane_stop(text, at, 0);
+	zane_stop(text, at);
 }
 
 /* The program's calls nest deeper than its thread's machine stack holds. */
 _Noreturn static void zane_stack_full(void) {
 	char text[64], *at = zane_append(text, "recursion too deep: the machine stack is full\n");
-	zane_stop(text, at, 1);
+	zane_stop(text, at);
 }
 
 /* The program's scopes nest deeper than its range holds: the error says
@@ -168,7 +203,7 @@ _Noreturn void zane_too_deep_in(zane_context *c) {
 	at = zane_append(at, " MiB is full; raise `");
 	at = zane_append(at, main_context ? "fixed-region" : "spawned-fixed-region");
 	at = zane_append(at, "` in zane.coda\n");
-	zane_stop(text, at, 1);
+	zane_stop(text, at);
 }
 
 /* A frame larger than the guard, which emitted code checks before it
