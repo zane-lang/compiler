@@ -336,8 +336,12 @@ module Key = Hashtbl.Make (struct
   let hash = Hashtbl.hash
 end)
 
+(* A folded value must not make the program much larger than the code it
+   replaces, and a run must not output more than that (O6). *)
+let max_size = 65_536
+
 (* How many bytes a constant takes where it is written, which the size cap
-   (O6) counts. *)
+   counts. *)
 let rec size = function
   | Int _ | Float _ | Bool _ | Func _ -> 8
   | Unit -> 0

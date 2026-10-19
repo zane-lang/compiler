@@ -606,6 +606,46 @@ let bounded_allocation () =
   let f = Fold.func (program []) (Value.Key.create 1) (func "huge" [] body) in
   check "a string doubled past the budget stays a loop" (List.mem loop f.C.Func.body)
 
+(* [f ()], or [None] once it has allocated about [words] words: a run whose
+   allocation nothing bounds fails rather than exhausting the machine. *)
+let within_allocation ~words f =
+  let exception Spent in
+  let rate = 1e-4 and sampled = ref 0 in
+  let count (a : Gc.Memprof.allocation) =
+    sampled := !sampled + a.Gc.Memprof.n_samples;
+    if Float.of_int !sampled > Float.of_int words *. rate then raise Spent;
+    None
+  in
+  let _ = Gc.Memprof.start ~sampling_rate:rate { Gc.Memprof.null_tracker with alloc_minor = count; alloc_major = count } in
+  Fun.protect ~finally:Gc.Memprof.stop (fun () -> try Some (f ()) with Spent -> None)
+
+(* A call that makes its previous level twice and prints once at the base
+   is remembered after its first call, and each replay of its outputs is
+   charged, so forty levels stop at the output cap rather than make 2^40
+   outputs, and the call stays. Outputs with no text count too. *)
+let replayed_outputs () =
+  let n = e (C.Expr.Local 1) C.Ty.I64 in
+  let tree word =
+    let print = C.Stat.Eval (e (C.Expr.Runtime { fn = Cgt.Runtime.Print; args = [ e (C.Expr.Text word) C.Ty.Handle ] }) C.Ty.Void) in
+    let below = e (C.Expr.Binary { op = C.Expr.Add; left = n; right = i64 (-1L) }) C.Ty.I64 in
+    let again = C.Stat.Eval (e (C.Expr.Call { fn = "tree"; args = [ below ] }) C.Ty.I64) in
+    let base = e (C.Expr.Binary { op = C.Expr.Eq; left = n; right = i64 0L }) C.Ty.I1 in
+    func "tree" [ (1, C.Ty.I64) ] [ C.Stat.If { cond = base; body = [ print; C.Stat.Return (i64 0L) ] }; again; again; C.Stat.Return (i64 0L) ]
+  in
+  List.iter
+    (fun word ->
+      let prog = program [ tree word ] in
+      let run = Eval.start prog in
+      let stopped = within_allocation ~words:50_000_000 (fun () -> stops (fun () -> Eval.call run "tree" [ Value.VInt 40L ])) in
+      check (Printf.sprintf "forty levels printing %S stop at the output cap" word) (stopped = Some true);
+      let call = e (C.Expr.Call { fn = "tree"; args = [ i64 40L ] }) C.Ty.I64 in
+      let folded =
+        within_allocation ~words:50_000_000 (fun () -> Fold.func prog (Value.Key.create 1) (func "f" [] [ C.Stat.Return call ]))
+      in
+      check (Printf.sprintf "forty levels printing %S stay a call" word)
+        (Option.map (fun (f : C.Func.t) -> f.C.Func.body) folded = Some [ C.Stat.Return call ]))
+    [ "w"; "" ]
+
 (* A run that writes a member of a program variable wrote it, though the
    variable holds the same value it did, changed in place. *)
 let global_member () =
@@ -990,6 +1030,7 @@ let () =
   folded_function ();
   capped_replacement ();
   bounded_allocation ();
+  replayed_outputs ();
   global_member ();
   signed_zero ();
   twice ();

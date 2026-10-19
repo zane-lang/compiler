@@ -5,9 +5,7 @@
 open Cgt.Nodes
 module V = Value
 
-(* A folded value must not make the program much larger than the code it
-   replaces (O6). *)
-let max_size = 65_536
+let max_size = V.max_size
 
 let ptr node = { Expr.node; ty = Ty.Ptr }
 let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Ty.I64 }

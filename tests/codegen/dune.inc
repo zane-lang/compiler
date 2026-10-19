@@ -1017,6 +1017,74 @@
   (diff golden/defaults.out defaults.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/doubling))
+ (targets doubling.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build doubling.exe --package fixtures/doubling)))
+
+(rule
+ (deps (source_tree fixtures/doubling))
+ (targets doubling.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build doubling.optimized.exe --optimize --package fixtures/doubling)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    doubling.checked.out.actual
+    (run ./doubling.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/doubling.out doubling.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    doubling.unchecked.out.actual
+    (run ./doubling.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/doubling.out doubling.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    doubling.optimized.checked.out.actual
+    (run ./doubling.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/doubling.out doubling.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    doubling.optimized.unchecked.out.actual
+    (run ./doubling.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/doubling.out doubling.optimized.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/entryArray))
  (targets entryArray.exe)
  (action
