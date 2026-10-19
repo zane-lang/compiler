@@ -28,9 +28,15 @@ def main():
     root = Path(__file__).resolve().parents[2]
     bootstrap = root / "dev/setup/bootstrap-toolchain"
     content = bootstrap.read_text()
-    for name in ("dune", "menhir", "sedlex"):
+    def releases(name):
         packages = fetch(f"https://api.github.com/repos/ocaml/opam-repository/contents/packages/{name}")
-        version = stable_latest(p["name"].removeprefix(name + ".") for p in packages)
+        return [p["name"].removeprefix(name + ".") for p in packages]
+
+    versions = {name: stable_latest(releases(name)) for name in ("dune", "menhir", "sedlex", "uuseg")}
+    # uuseg requires the uucp of its own Unicode version, the same major.
+    major = versions["uuseg"].split(".")[0]
+    versions["uucp"] = stable_latest(v for v in releases("uucp") if v.split(".")[0] == major)
+    for name, version in versions.items():
         content = re.sub(rf'{name.upper()}_VERSION="[^"\n]+"',
                          f'{name.upper()}_VERSION="{version}"', content)
     bootstrap.write_text(content)

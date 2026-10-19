@@ -5,7 +5,8 @@ on:
 
 # The same toolchain CI builds with (.github/workflows/ci.yml): devbox's
 # packages (including LLVM 19 for codegen's bindings), and the opam switch
-# with dune, menhir and sedlex. Without the last two the environment cannot build.
+# with dune, menhir, sedlex, uucp and uuseg. Without the opam switch the
+# environment cannot build.
 jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest

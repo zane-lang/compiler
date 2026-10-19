@@ -19,6 +19,8 @@ depends: [
   "menhir" {>= "20260122"}
   "menhirGLR"
   "sedlex"
+  "uucp"
+  "uuseg"
   "llvm"
   "odoc" {with-doc}
 ]

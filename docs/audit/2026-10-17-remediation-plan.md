@@ -1558,3 +1558,64 @@ test-compiler` (including the probe gate) and `just check-file-sizes`,
 which still warns about `lib/cgt/lower.ml` as before. The Windows programs
 build with `dev/bin/windows-programs`; with no Wine here, they run only in
 CI.
+
+### Batch 7: diagnostics rendering
+
+`lib/diagnostic/render.ml` builds the displayed source line once, as a
+list of pieces (source bytes, what is shown, cells taken), and the source
+row and the caret row both come from it. The header's `characters N-M`
+still counts characters, so no header moved. The comment at the top of
+`render.ml` describes the result.
+
+- **F20** (`f6f3b51`). A C0 control other than tab, DEL, a C1 control and
+  each Bidi_Control character are shown as ASCII escapes (`\x1b`,
+  `\u202e`), as wide as their text, and tabs expand as before. Bytes
+  that are not UTF-8 are escaped too (`\xe9`); this commit already
+  needed that, since it decodes the line. The file name in `at_span` and in the file and
+  directory forms, and every message, are escaped when rendered (a tab
+  there too, as `\x09`, since nothing expands it), and so
+  are the file name and message of an internal error
+  (`Diagnostic.render_internal`), which the plan did not list. Tests:
+  parser rejection goldens `control-escape` (`ESC [ 2 J` in a string
+  literal) and `bidi-061c`, `bidi-200e`, `bidi-200f`, `bidi-202e` and
+  `bidi-2067`. Each printed the raw control on the old renderer, with
+  the caret short of the error. The unit test `escaped_locations` puts a
+  control and a bidi override in a file name and a message, and checks
+  every location form and an internal error. A file name is tested there
+  rather than as a fixture, since a fixture with a control in its name
+  cannot be checked out on Windows. It failed on the old renderer. The
+  one existing golden that moved is `reject.malformed-utf8`, whose
+  Latin-1 byte now shows as `\xe9`.
+- **F03** (`5ab45da`). Pieces are extended grapheme clusters from
+  `uuseg`. A cluster is as wide as its widest code point by
+  `Uucp.Break.tty_width_hint`, not its first as the plan said: after a
+  prepended character such as U+0600, which takes no cell, the first is
+  not the base (review, golden `width-prepend`), so the emoji test below
+  also starts after any prepended characters (`width-prepend-emoji`). An
+  emoji sequence (a ZWJ sequence, a
+  regional-indicator pair, an emoji with U+FE0F) is 2. `uucp` and
+  `uuseg` 18.0.0 reach devbox and CI the way the other OCaml libraries
+  do: they are pinned in `dev/setup/bootstrap-toolchain`, whose hash keys
+  the CI switch cache, and listed in `dune-project` and so in
+  `zane-compiler.opam`. `devbox.json` lists only Nix packages, so it is
+  unchanged. `.github/scripts/update-toolchains.py` refreshes the two
+  pins, taking the newest `uucp` of the latest `uuseg`'s major version,
+  which is the one it requires. Tests: goldens `width-combining`, `width-cjk`, `width-emoji` and
+  `width-zwj`, each with the caret off the error on the old renderer.
+  `width-flag` and `width-presentation` (U+00A9 U+FE0F) came out right
+  on the old renderer, since two code points happen to be two cells.
+  With the emoji rule removed they move, so they hold that rule. No
+  existing golden moved.
+- **F04** (`2cd6755`). The caret row's gutter is spaces as wide as the
+  line number, then ` | `. Tests: goldens `gutter-line-10` and
+  `gutter-line-100`, with the caret one and two cells left of the
+  source on the old renderer. Beyond the cases the plan names, every
+  existing expectation with an error on line 10 or later moved:
+  codegen's `reject.*` goldens, objects' `layout.noisy` and
+  `versions.ambiguous`, semantics' `typing.exiting` and `typing.reject`,
+  and 22 memory-probe outputs. Each changed line was checked to be a
+  caret row under a line number of two or more digits.
+
+The batch's head passed `devbox run -- just test-compiler` (including the
+probe gate) and `just check-file-sizes`, which still warns about
+`lib/cgt/lower.ml` as before.
