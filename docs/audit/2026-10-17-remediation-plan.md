@@ -1436,9 +1436,23 @@ Verified on the batch's head with `devbox run -- just test-compiler`
   Tests: the unit test `disposed_modules` reads it after a built object, an
   unknown target, an object that cannot be written and a build that raises,
   and the raising case fails with the dispose moved out of the `finally`.
-  The leak shows in RSS: 200 `Driver.ir` builds of a 2,000-function
-  program in one process went from 45 MB to 558 MB without disposal and
-  from 45 MB to 69 MB with it.
+  The leak shows in RSS: 200 `Driver.ir` builds of 2,000 functions with
+  no parameters in one process take it from 45 MB to 379 MB without
+  disposal and to 68 MB with it.
+- **Beyond the audit: repeated builds crashed** (`b88cfa9`). Measuring
+  F05 found that a process building many programs segfaulted within some
+  dozens of builds, on `main` too, in `Big_moves` reading a function's
+  parameter types. LLVM 19's OCaml bindings allocate an empty array from
+  `param_types`, `struct_element_types` and `function_attrs` as a block of
+  no size in the minor heap (`caml_alloc_small(0, 0)`), which the collector
+  does not allow, so every function with no parameters corrupted the heap
+  a little. `llvm_stubs.c` gives these three arrays through
+  `caml_alloc_tuple`, which returns OCaml's own empty array, and codegen
+  calls `Emit.param_types`, `struct_element_types` and `function_attrs`
+  wherever it called the bindings'. Tests: the unit test `repeated_builds`
+  runs `Driver.ir` sixty times on 2,000 functions with no parameters and
+  one returning an empty struct, which segfaulted the unit binary before
+  the stubs; `disposed_modules` builds a function with no parameters.
 
 Verified on the batch's head with `devbox run -- just test-compiler`
 (including the probe gate) and `just check-file-sizes`, which warns that
