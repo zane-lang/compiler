@@ -320,14 +320,35 @@ let runtime_abi () =
         (name = "zane_main" || List.exists (fun fn -> R.name fn = name) R.all))
     declared
 
+(* Many programs built in one process, each with functions that take no
+   parameters and one that returns an empty struct: LLVM's bindings give an
+   empty array as a block of no size in the minor heap, which corrupts it,
+   so codegen reads those arrays through stubs of its own (llvm_stubs.c). *)
+let repeated_builds () =
+  let module C = Cgt.Nodes in
+  let f i =
+    { C.Func.symbol = "f" ^ string_of_int i; linkage = C.Linkage.Exported; params = []; ret = C.Ty.I64;
+      body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ] }
+  in
+  let empty =
+    { C.Func.symbol = "empty"; linkage = C.Linkage.Exported; params = []; ret = C.Ty.Struct [];
+      body = [ C.Stat.Return { C.Expr.node = C.Expr.Record []; ty = C.Ty.Struct [] } ] }
+  in
+  let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; layouts = []; globals = [] } in
+  let built = ref 0 in
+  for _ = 1 to 60 do
+    match Driver.ir ~optimize:false p with Ok _ -> incr built | Error _ -> ()
+  done;
+  check "sixty builds of zero-parameter functions in one process" (!built = 60)
+
 (* A build's LLVM context and module are disposed however it ends: built,
    refused before codegen starts (an unknown target), failed after (an
    object it cannot write), or raised out of. *)
 let disposed_modules () =
   let module C = Cgt.Nodes in
   let f =
-    { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = [ (1, C.Ty.I64) ]; ret = C.Ty.I64;
-      body = [ C.Stat.Return { C.Expr.node = C.Expr.Local 1; ty = C.Ty.I64 } ] }
+    { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = []; ret = C.Ty.I64;
+      body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ] }
   in
   let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = [] } in
   let dir = Filename.temp_dir "zane-unit" "" in
@@ -833,7 +854,7 @@ let long_arrays () =
     (Codegen__Big_moves.parts t = Codegen__Big_moves.most_parts + 1);
   check "a sum's payload room keeps its length"
     (Codegen__Emit.array_length
-       (Llvm.struct_element_types
+       (Codegen__Emit.struct_element_types
           (Codegen__Emit.lltype env (Cgt.Nodes.Ty.Sum [ Cgt.Nodes.Ty.Array (Cgt.Nodes.Ty.I64, 1 lsl 33) ]))).(1)
     = 1 lsl 33);
   dispose env
@@ -1094,6 +1115,7 @@ let () =
   rewriting_keeps_others_files ();
   stamps_are_checked ();
   disposed_modules ();
+  repeated_builds ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

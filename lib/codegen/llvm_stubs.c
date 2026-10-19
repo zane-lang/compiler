@@ -3,7 +3,12 @@
    (docs/design/separate-compilation.md C4), a target triple in LLVM's
    normal form, a load made atomic, an array type whose length takes more
    than 32 bits, an attribute that carries a type, such as `sret`, and a
-   function's own type. The bindings carry an LLVM pointer with its low bit
+   function's own type. And arrays the bindings do give, but wrongly when
+   empty: their `param_types`, `struct_element_types` and `function_attrs`
+   allocate an empty array as a block of no size in the minor heap, which
+   the collector does not allow and which corrupts the heap, so a process
+   that builds many programs crashes. These give OCaml's own empty array.
+   The bindings carry an LLVM pointer with its low bit
    set; their `from_val` undoes that, and `to_val` sets it. The C API is declared
    here rather than included, so the build needs no LLVM headers beyond the
    bindings it already links. */
@@ -12,6 +17,7 @@
 #include <caml/memory.h>
 #include <caml/mlvalues.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct LLVMOpaqueModule *LLVMModuleRef;
@@ -33,6 +39,12 @@ extern uint64_t LLVMGetArrayLength2(LLVMTypeRef array);
 extern LLVMTypeRef LLVMGlobalGetValueType(LLVMValueRef global);
 extern unsigned LLVMGetEnumAttributeKindForName(const char *name, size_t length);
 extern LLVMAttributeRef LLVMCreateTypeAttribute(LLVMContextRef context, unsigned kind, LLVMTypeRef type);
+extern unsigned LLVMCountParamTypes(LLVMTypeRef function);
+extern void LLVMGetParamTypes(LLVMTypeRef function, LLVMTypeRef *types);
+extern unsigned LLVMCountStructElementTypes(LLVMTypeRef structure);
+extern void LLVMGetStructElementTypes(LLVMTypeRef structure, LLVMTypeRef *types);
+extern unsigned LLVMGetAttributeCountAtIndex(LLVMValueRef function, int index);
+extern void LLVMGetAttributesAtIndex(LLVMValueRef function, int index, LLVMAttributeRef *attributes);
 
 value zane_set_own_comdat(value m, value f, value name) {
   CAMLparam3(m, f, name);
@@ -88,4 +100,53 @@ value zane_type_attr(value context, value name, value type) {
 value zane_global_value_type(value global) {
   CAMLparam1(global);
   CAMLreturn(to_val(LLVMGlobalGetValueType((LLVMValueRef)from_val(global))));
+}
+
+/* [count] pointers as an OCaml array, each carried as the bindings carry
+   one; an empty array is OCaml's own, `Atom(0)`, which [caml_alloc_tuple]
+   gives for no fields. */
+static value pointers(void **items, unsigned count) {
+  CAMLparam0();
+  CAMLlocal1(array);
+  array = caml_alloc_tuple(count);
+  for (unsigned i = 0; i < count; ++i) Store_field(array, i, to_val(items[i]));
+  CAMLreturn(array);
+}
+
+value zane_param_types(value function) {
+  CAMLparam1(function);
+  CAMLlocal1(array);
+  LLVMTypeRef t = (LLVMTypeRef)from_val(function);
+  unsigned n = LLVMCountParamTypes(t);
+  void **items = malloc((n ? n : 1) * sizeof(void *));
+  LLVMGetParamTypes(t, (LLVMTypeRef *)items);
+  array = pointers(items, n);
+  free(items);
+  CAMLreturn(array);
+}
+
+value zane_struct_element_types(value structure) {
+  CAMLparam1(structure);
+  CAMLlocal1(array);
+  LLVMTypeRef t = (LLVMTypeRef)from_val(structure);
+  unsigned n = LLVMCountStructElementTypes(t);
+  void **items = malloc((n ? n : 1) * sizeof(void *));
+  LLVMGetStructElementTypes(t, (LLVMTypeRef *)items);
+  array = pointers(items, n);
+  free(items);
+  CAMLreturn(array);
+}
+
+/* [index] as LLVM numbers it: -1 for the function, 0 for its result, and
+   n + 1 for parameter n. */
+value zane_function_attrs(value function, value index) {
+  CAMLparam2(function, index);
+  CAMLlocal1(array);
+  LLVMValueRef f = (LLVMValueRef)from_val(function);
+  unsigned n = LLVMGetAttributeCountAtIndex(f, Int_val(index));
+  void **items = malloc((n ? n : 1) * sizeof(void *));
+  LLVMGetAttributesAtIndex(f, Int_val(index), (LLVMAttributeRef *)items);
+  array = pointers(items, n);
+  free(items);
+  CAMLreturn(array);
 }
