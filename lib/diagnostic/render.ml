@@ -5,16 +5,20 @@
    positions carry, which [Cst.parse] sets on every position it produces.
 
    The line is built once, as a list of pieces: each grapheme cluster, the
-   unit a terminal draws as one glyph, with the bytes shown for it and how many
-   cells it takes. The source row is those bytes in order, and the caret row
-   counts their cells, so the two cannot disagree about where a character
+   unit a terminal draws as one glyph, with the bytes shown for it and how
+   many cells it takes. The source row is those bytes in order, and the caret
+   row counts their cells, so the two cannot disagree about where a character
    sits: a combining mark adds nothing, and a wide East Asian character or an
-   emoji takes two. A character that would act on the
-   terminal rather than be drawn -- a control, a bidirectional override, a byte
-   that is not UTF-8 -- is shown as an escape such as [\x1b] or [\u202e],
-   written in ASCII and as wide as its text. The file name and the message are
-   escaped the same way, so source text quoted in a message is safe too: it is
-   escaped here, when it is printed, not where the message is made. *)
+   emoji takes two. The caret row's gutter is as wide as the line number, so
+   the rows line up at any number of digits. The header's columns count
+   characters rather than cells, for an editor to jump to.
+
+   A character that would act on the terminal rather than be drawn -- a
+   control, a bidirectional override, a byte that is not UTF-8 -- is shown as
+   an escape such as [\x1b] or [\u202e], written in ASCII and as wide as its
+   text. The file name and the message are escaped the same way, so source
+   text quoted in a message is safe too: it is escaped here, when it is
+   printed, not where the message is made. *)
 
 let tab_width = 4
 
