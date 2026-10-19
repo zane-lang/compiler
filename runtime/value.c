@@ -122,7 +122,8 @@ void zane_wait_for(int64_t *constant, zane_task *call) {
 	pthread_mutex_lock(&zane_waits);
 	self->awaits = constant;
 	self->joins = call;
-	int32_t steps = __atomic_load_n(&zane_context_count, __ATOMIC_ACQUIRE);
+	/* No chain of waits is longer than the contexts there can be. */
+	int32_t steps = ZANE_CONTEXTS;
 	for (zane_context *c = zane_waited_on(self); c && steps-- > 0; c = zane_waited_on(c))
 		if (c == self) {
 			pthread_mutex_unlock(&zane_waits);
