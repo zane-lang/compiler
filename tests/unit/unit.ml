@@ -320,6 +320,32 @@ let runtime_abi () =
         (name = "zane_main" || List.exists (fun fn -> R.name fn = name) R.all))
     declared
 
+(* A build's LLVM context and module are disposed however it ends: built,
+   refused before codegen starts (an unknown target), failed after (an
+   object it cannot write), or raised out of. *)
+let disposed_modules () =
+  let module C = Cgt.Nodes in
+  let f =
+    { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = [ (1, C.Ty.I64) ]; ret = C.Ty.I64;
+      body = [ C.Stat.Return { C.Expr.node = C.Expr.Local 1; ty = C.Ty.I64 } ] }
+  in
+  let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = [] } in
+  let dir = Filename.temp_dir "zane-unit" "" in
+  let none () = Codegen.live_contexts () = 0 in
+  check "a built object leaves no context"
+    (Result.is_ok (Driver.object_file ~optimize:false p (Filename.concat dir "f.o")) && none ());
+  check "an unknown target leaves no context"
+    (Result.is_error (Driver.object_file ~target:"nowhere-at-all" ~optimize:false p (Filename.concat dir "g.o")) && none ());
+  check "an object that cannot be written leaves no context"
+    (Result.is_error (Driver.object_file ~optimize:false p (Filename.concat dir "missing/f.o")) && none ());
+  let inside = ref 0 in
+  (match Codegen.with_program p (fun _ -> inside := Codegen.live_contexts (); failwith "raised") with
+  | _ -> ()
+  | exception Failure _ -> ());
+  check "a build that raises leaves no context, and had one while it ran" (!inside = 1 && none ());
+  Sys.remove (Filename.concat dir "f.o");
+  Sys.rmdir dir
+
 (* ---------------------------------------------------------------------- *)
 (* Stage 5                                                                *)
 (* ---------------------------------------------------------------------- *)
@@ -1067,6 +1093,7 @@ let () =
   fixture_pairing ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
+  disposed_modules ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

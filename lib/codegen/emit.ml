@@ -1362,7 +1362,8 @@ let func env (f : Func.t) =
       (if f.Func.ret = Ty.Void || Option.is_some sret then Llvm.build_ret_void b
        else Llvm.build_unreachable b)
 
-(* The program's module. Its entry is named `zane_main` whatever its symbol,
+(* The program, emitted into [m], whose context and lifetime are its
+   caller's (Codegen.with_program). Its entry is named `zane_main` whatever its symbol,
    since that is the name the runtime calls (L16). A function other objects
    link against keeps its symbol in theirs too, and one a stamped
    dependency's objects define is only declared, or has an
@@ -1376,10 +1377,9 @@ let func env (f : Func.t) =
 let packed = "~packed"
 
 let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
-    ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ~triple ~data_layout
+    ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ~triple ~data_layout m
     (p : Program.t) =
-  let ctx = Llvm.create_context () in
-  let m = Llvm.create_module ctx "zane" in
+  let ctx = Llvm.module_context m in
   Llvm.set_target_triple triple m;
   Llvm.set_data_layout data_layout m;
   let env =
@@ -1447,7 +1447,6 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
         Llvm.set_global_constant true g)
       [ ("zane_fixed_region", fixed_region); ("zane_spawned_fixed_region", spawned_fixed_region) ];
   Walks.finish (walks env);
-  (match Llvm_analysis.verify_module m with
+  match Llvm_analysis.verify_module m with
   | Some problem -> Diagnostic.bug ("codegen built an invalid module: " ^ problem)
-  | None -> ());
-  m
+  | None -> ()
