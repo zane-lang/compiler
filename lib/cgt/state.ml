@@ -178,7 +178,11 @@ type walk = {
   addr : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t option;
   borrow : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
   lend : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
+  reference_to : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
+  moved : state -> ctx -> Source.Span.t -> Tty.t -> T.Expr.t -> Expr.t;
+  is_place : T.Expr.t -> bool;
   block : ?enter:(scope -> Stat.t list) -> state -> ctx -> T.Block.t -> Stat.t list;
+  primitive : state -> ctx -> Source.Span.t -> string -> T.Arg.t list -> Tty.t -> Expr.t;
 }
 
 (* A state that has reached nothing yet. *)

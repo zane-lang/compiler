@@ -9,8 +9,10 @@
    This file is the recursive walk over a verb's body. What it reads is
    beside it: [State], [Type_layout], [Literals], [Verbs], [Outcome] and
    [Build]. The rest of lowering is in modules outside the walk's
-   recursion, which take it as an argument ([State.walk]): [Lower_match]
-   for `match`es, handlers and case reads, and [Lower_lambda] for lambdas.
+   recursion, which take it as an argument ([State.walk]): [Lower_calls]
+   for subscripts, calls and their arguments, and verbs expanded where
+   they are called, [Lower_match] for `match`es, handlers and case reads,
+   and [Lower_lambda] for lambdas.
    [Program] lowers a whole program with the walk. *)
 
 module T = Tst.Nodes
@@ -50,9 +52,10 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       primitive st ctx span spelling [ T.Arg.Value value ] e.T.Expr.ty
   | T.Expr.Construct { ctor = { owner = S.Declared id; instance; _ }; args; handler }
   | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; args; handler } ->
-      call st ctx span (verb_of st id instance) args handler e.T.Expr.ty
+      Lower_calls.call walk st ctx span (verb_of st id instance) args handler e.T.Expr.ty
   | T.Expr.Coerce { ctor = { owner = S.Declared id; instance; _ }; value } ->
-      call st ctx span (verb_of st id instance) [ T.Arg.Value value ] None e.T.Expr.ty
+      Lower_calls.call walk st ctx span (verb_of st id instance) [ T.Arg.Value value ] None
+        e.T.Expr.ty
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; args; handler = None }
     when String.starts_with ~prefix:"@operators$" spelling ->
       operation st ctx span spelling args e.T.Expr.ty
@@ -217,8 +220,10 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
          and the closing run. *)
       match args with
       | [ T.Arg.Value list; T.Arg.Value index ] ->
-          let element_of = subscripted list in
-          let pins, list = if element_of then pinned st ctx span list else ([], list) in
+          let element_of = Lower_calls.subscripted list in
+          let pins, list =
+            if element_of then Lower_calls.pinned walk st ctx span list else ([], list)
+          in
           let t =
             match element (Tty.strip_mode list.T.Expr.ty) with
             | Some t -> t
@@ -279,14 +284,15 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
           | Some ({ params = [ pl; pr ]; _ } as v) when not (expands v) ->
               let for_left, for_right = if swapped then (pr, pl) else (pl, pr) in
               operands
-                (fun () -> argument st ctx span v for_left left)
-                (fun () -> argument st ctx span v for_right right)
-                (fun l r -> invoke st ctx span v [ l; r ] handler)
+                (fun () -> Lower_calls.argument walk st ctx span v for_left left)
+                (fun () -> Lower_calls.argument walk st ctx span v for_right right)
+                (fun l r -> Lower_calls.invoke walk st ctx span v [ l; r ] handler)
           | Some v when expands v ->
               refuse span "lowering does not handle an operator that takes a block or a literal yet"
           | _ -> Diagnostic.bug ~span "lowering: an operator with no verb to call"))
   | T.Expr.Flip { impl = { owner = S.Declared id; instance; _ }; value; handler } ->
-      call st ctx span (verb_of st id instance) [ T.Arg.Value value ] handler e.T.Expr.ty
+      Lower_calls.call walk st ctx span (verb_of st id instance) [ T.Arg.Value value ] handler
+        e.T.Expr.ty
   | T.Expr.Field { target; slot; _ } ->
       let t = ty st span e.T.Expr.ty in
       let owner = Tty.strip_mode target.T.Expr.ty in
@@ -335,27 +341,34 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | Some { value = { T.Expr.node = T.Expr.Lambda _; _ } as value; _ } -> expr st ctx value
       | Some _ -> { Expr.node = Expr.Deref (constant st decl); ty = ty st span e.T.Expr.ty }
       | None -> Diagnostic.bug ~span "lowering found no package constant here")
-  | T.Expr.Call_value { callee; args; handler } -> (
-      match Tty.strip_mode callee.T.Expr.ty with
-      | Tty.Verb fv -> (
-          let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
-          let (fn : Expr.t) = value_of st ctx callee in
-          match args with
-          | T.Arg.Value subject :: rest
-            when fv.Tty.is_mut && Option.is_some fv.Tty.this_ && subscripted subject ->
-              (* The function value is read first, as it is written. *)
-              let id = fresh st in
-              let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
-              let lets, args = held_last ~direct:false st ctx span v subject rest in
-              held_in st
-                (Stat.Let { id; value = fn } :: lets)
-                (invoke ~fn:read st ctx span v (arguments ~direct:false st ctx span v args) handler)
-          | _ -> invoke ~fn st ctx span v (arguments ~direct:false st ctx span v args) handler)
-      | _ -> Diagnostic.bug ~span "lowering expected a function value here")
+  | T.Expr.Call_value { callee; args; handler } ->
+      Lower_calls.call_value walk st ctx span callee args handler
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ }
     when String.starts_with ~prefix:"@controlflow$" spelling ->
       refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)
   | _ -> Diagnostic.bug ~span "lowering: an expression of a form it has no case for"
+
+(* Two operands stored in the order they are given, then combined. *)
+and in_order st t first second combine =
+  let store make =
+    let (v : Expr.t) = make () in
+    let id = fresh st in
+    ({ Expr.node = Expr.Local id; ty = v.Expr.ty }, Stat.Let { id; value = v })
+  in
+  let a, let_a = store first in
+  let b, let_b = store second in
+  let label = fresh st in
+  let result = fresh st in
+  {
+    Expr.node =
+      Expr.Expand
+        {
+          label;
+          body = [ let_a; let_b; Stat.assign result (combine a b) ];
+          result = Some result;
+        };
+    ty = t;
+  }
 
 (* ---------------------------------------------------------------------- *)
 (* Primitives and records                                                 *)
@@ -470,7 +483,7 @@ and fill st ctx span (make : T.Expr.t) (t : Tty.t) : Expr.t =
       let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
       let fn = { Expr.node = Expr.Local f; ty = Nodes.Ty.Ptr } in
       let index = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
-      let call = invoke ~fn st ctx span v [ index ] None in
+      let call = Lower_calls.invoke walk ~fn st ctx span v [ index ] None in
       let at =
         ptr
           (Expr.Runtime
@@ -542,6 +555,77 @@ and record st ctx span t (fields : T.Field_value.t list) =
   | _, [ f ] when collapsed st t -> { (value f) with ty = lowered }
   | _ -> Diagnostic.bug ~span "lowering expected a value for every member here"
 
+(* types.md §3.3: a field-constructor call is a call to the constructor,
+   with each entry's value in its slot and an entry left out given its
+   default. The entries run in the order written, then the defaults in
+   declaration order. *)
+and construct_fields st ctx span verb (fields : T.Field_value.t list) handler ret =
+  match verb with
+  | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
+  | Some v ->
+      let defaults = Option.value ~default:[] (Hashtbl.find_opt st.defaults v.key) in
+      let slots = List.map (fun (f : T.Field_value.t) -> f.T.Field_value.slot) fields in
+      let left_out = List.filter (fun (slot, _) -> not (List.mem slot slots)) defaults in
+      let written =
+        List.map (fun (f : T.Field_value.t) -> (f.T.Field_value.slot, f.value)) fields
+      in
+      let given = written @ left_out in
+      if List.length given <> List.length v.params then
+        Diagnostic.bug ~span "lowering expected every entry of a field constructor to be given or defaulted";
+      if List.map fst given = List.init (List.length given) Fun.id then
+        Lower_calls.call walk st ctx span verb (List.map (fun (_, e) -> T.Arg.Value e) given) handler ret
+      else
+        (* Each value is stored as the constructor takes it, in the order it
+           runs, and passed in its slot. A constructor expanded where it is
+           called (L11) takes its literals as they are, and a stored value
+           through a local of its own that names the store. *)
+        let stored =
+          List.map
+            (fun (slot, (e : T.Expr.t)) ->
+              let p = List.nth v.params slot in
+              match p.T.Local.ty with
+              | Tty.Concept _ when expands v -> (slot, [], `Arg (T.Arg.Value e))
+              | _ ->
+                  let value = Lower_calls.argument walk st ctx span v p e in
+                  let id = fresh st in
+                  let read = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
+                  let named =
+                    if expands v then begin
+                      let l = { p with T.Local.id = -id } in
+                      Hashtbl.replace ctx.env l.T.Local.id
+                        (if by_address st v p then Pointer id else Slot id);
+                      `Arg (T.Arg.Value { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) })
+                    end
+                    else `Value read
+                  in
+                  (slot, [ Stat.Let { id; value } ], named))
+            given
+        in
+        let lets = List.concat_map (fun (_, l, _) -> l) stored in
+        let in_slot slot = List.find_map (fun (s, _, a) -> if s = slot then Some a else None) stored in
+        let slots =
+          List.init (List.length given) (fun slot ->
+              match in_slot slot with
+              | Some a -> a
+              | None -> Diagnostic.bug ~span (Printf.sprintf "lowering: argument slot %d is empty" slot))
+        in
+        let value =
+          if expands v then
+            let arg = function `Arg a -> a | `Value _ -> Diagnostic.bug ~span "lowering expected an argument" in
+            Lower_calls.expand walk st ctx span v (List.map arg slots) handler ret
+          else
+            let value = function `Value a -> a | `Arg _ -> Diagnostic.bug ~span "lowering expected a value" in
+            Lower_calls.invoke walk st ctx span v (List.map value slots) handler
+        in
+        let label = fresh st in
+        if value.Expr.ty = Nodes.Ty.Void then
+          let body = lets @ [ Stat.Eval value ] in
+          { Expr.node = Expr.Expand { label; body; result = None }; ty = value.Expr.ty }
+        else
+          let result = fresh st in
+          let body = lets @ [ Stat.assign result value ] in
+          { Expr.node = Expr.Expand { label; body; result = Some result }; ty = value.Expr.ty }
+
 (* ---------------------------------------------------------------------- *)
 (* Storage, moves and borrows                                             *)
 (* ---------------------------------------------------------------------- *)
@@ -611,7 +695,8 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
       if not (List.exists (fun (g : Global.t) -> g.Global.symbol = symbol) st.globals) then
         st.globals <- { Global.symbol; linkage = Linkage.Local; ty = Nodes.Ty.I64 } :: st.globals;
       Some (ptr (Expr.Global symbol))
-  | T.Expr.Subscript { target; impl; args } -> Some (subscript st ctx span target impl args)
+  | T.Expr.Subscript { target; impl; args } ->
+      Some (Lower_calls.subscript walk st ctx span target impl args)
   | T.Expr.Case_read { target; case; handler } when held st span e.T.Expr.ty ->
       Some (Lower_match.case_place walk st ctx span target case handler e.T.Expr.ty)
   | _ -> None
@@ -694,272 +779,6 @@ and lend st ctx span (a : T.Expr.t) =
       ptr (Expr.Expand { label; body; result = Some result })
 
 (* ---------------------------------------------------------------------- *)
-(* Subscripts, calls and arguments                                        *)
-(* ---------------------------------------------------------------------- *)
-
-(* The address of an element (functions.md §2.9): a list's or an array's,
-   checked against its length, or what a declared subscript's body names,
-   with `this` bound to the target's place. *)
-and subscript st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
-  let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
-  match (impl.owner, args) with
-  | S.Intrinsic "@primitives$[]", [ index ] -> (
-      match (element (Tty.strip_mode target.T.Expr.ty), array_of (Tty.strip_mode target.T.Expr.ty)) with
-      | Some t, _ ->
-          ptr
-            (Expr.Runtime
-               {
-                 fn = Runtime.List_at;
-                 args =
-                   [ lend st ctx span target; borrow st ctx span index; int (stride st span t) ];
-               })
-      | None, Some (t, n) ->
-          let array = lend st ctx span target in
-          let index = borrow st ctx span index in
-          ptr
-            (Expr.Runtime
-               { fn = Runtime.Array_at; args = [ array; index; int n; int (stride st span t) ] })
-      | None, None -> Diagnostic.bug ~span "lowering: an intrinsic subscript of something not a list or an array")
-  | S.Declared id, _ -> (
-      match verb_of st id impl.instance with
-      | Some ({ params = this :: rest; body = { stats = [ { node = T.Stat.Return e; _ } ]; _ }; _ }
-             as v)
-        when List.length rest = List.length args ->
-          let env = Hashtbl.create 4 in
-          let at = fresh st in
-          Hashtbl.replace env this.T.Local.id (Pointer at);
-          let binds =
-            Stat.Let { id = at; value = lend st ctx span target }
-            :: List.map2
-                 (fun (p : T.Local.t) a ->
-                   let id = fresh st in
-                   Hashtbl.replace env p.T.Local.id (Slot id);
-                   Stat.Let { id; value = borrow st ctx span a })
-                 rest args
-          in
-          let inner = { ctx with env; expanding = v.decl :: ctx.expanding } in
-          let label = fresh st in
-          let result = fresh st in
-          let place =
-            match addr st inner span e with
-            | Some p -> p
-            | None -> Diagnostic.bug ~span "lowering expected a subscript's body to name a place"
-          in
-          ptr
-            (Expr.Expand
-               { label; body = binds @ [ Stat.assign result place ]; result = Some result })
-      | _ -> Diagnostic.bug ~span "lowering: a declared subscript with no single place to name")
-  | _ -> Diagnostic.bug ~span "lowering: a subscript of no owner it knows"
-
-(* Two operands stored in the order they are given, then combined. *)
-and in_order st t first second combine =
-  let store make =
-    let (v : Expr.t) = make () in
-    let id = fresh st in
-    ({ Expr.node = Expr.Local id; ty = v.Expr.ty }, Stat.Let { id; value = v })
-  in
-  let a, let_a = store first in
-  let b, let_b = store second in
-  let label = fresh st in
-  let result = fresh st in
-  {
-    Expr.node =
-      Expr.Expand
-        {
-          label;
-          body = [ let_a; let_b; Stat.assign result (combine a b) ];
-          result = Some result;
-        };
-    ty = t;
-  }
-
-and call st ctx span verb args handler ret : Expr.t =
-  match verb with
-  | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
-  | Some v -> (
-      match passed v args with
-      | T.Arg.Value subject :: rest when v.signature.S.is_mut && subscripted subject ->
-          located_last st ctx span v subject rest handler ret
-      | args -> plain_call st ctx span v args handler ret)
-
-and plain_call st ctx span v args handler ret =
-  if expands v then expand st ctx span v args handler ret
-  else invoke st ctx span v (arguments st ctx span v args) handler
-
-(* A `!` call whose subject is reached through a subscript (memory.md §2.12):
-   the subject's operands run first, then the arguments, each held in a slot
-   of its own in written order, and only then is the subject located, so an
-   argument that moves the list the subject is an element of moves it before
-   the call finds where the element is. *)
-and located_last st ctx span v subject rest handler ret =
-  let lets, args = held_last st ctx span v subject rest in
-  held_in st lets (plain_call st ctx span v args handler ret)
-
-(* The subject's operands pinned and each argument held, as [located_last]
-   needs them, for any call form that runs a `!` call on a subscripted
-   subject: the statements, and the arguments to pass. *)
-and held_last ?direct st ctx span v subject rest =
-  let pins, subject = pinned st ctx span subject in
-  let held =
-    match v.params with
-    | _ :: params when List.length params = List.length rest ->
-        List.map2
-          (fun (p : T.Local.t) a ->
-            match (a, p.T.Local.ty) with
-            | T.Arg.Value e, Tty.Concept _ when expands v -> ([], T.Arg.Value e)
-            | T.Arg.Value e, _ ->
-                let value = argument ?direct st ctx span v p e in
-                let id = fresh st in
-                let l = { p with T.Local.id = -id } in
-                Hashtbl.replace ctx.env l.T.Local.id
-                  (if by_address st v p then Pointer id else Slot id);
-                let read = { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
-                ([ Stat.Let { id; value } ], T.Arg.Value read)
-            | (T.Arg.Block _ as b), _ -> ([], b))
-          params rest
-    | _ -> Diagnostic.bug ~span "lowering: a `!` call with the wrong arguments"
-  in
-  (pins @ List.concat_map fst held, T.Arg.Value subject :: List.map snd held)
-
-(* [lets], then [value], as one expression. *)
-and held_in st lets (value : Expr.t) =
-  let label = fresh st in
-  let body, result =
-    if value.Expr.ty = Nodes.Ty.Void then (lets @ [ Stat.Eval value ], None)
-    else
-      let result = fresh st in
-      (lets @ [ Stat.assign result value ], Some result)
-  in
-  { Expr.node = Expr.Expand { label; body; result }; ty = value.Expr.ty }
-
-(* Whether a place is reached through a subscript, whose element a list
-   that grows would move. *)
-and subscripted (e : T.Expr.t) =
-  match e.T.Expr.node with
-  | T.Expr.Subscript _ -> true
-  | T.Expr.Field { target; _ } | T.Expr.Case_read { target; _ } -> subscripted target
-  | _ -> false
-
-(* A place's operands, its subscripts' indices, run now into slots of their
-   own in written order, and the place rewritten to read them: what runs
-   after them no longer changes which element is meant, and where that
-   element is is found when the place is located. *)
-and pinned st ctx span (e : T.Expr.t) : Stat.t list * T.Expr.t =
-  match e.T.Expr.node with
-  | T.Expr.Field ({ target; _ } as f) ->
-      let pins, target = pinned st ctx span target in
-      (pins, { e with T.Expr.node = T.Expr.Field { f with target } })
-  | T.Expr.Subscript ({ target; args; _ } as s) ->
-      let pins, target = pinned st ctx span target in
-      let held =
-        List.map
-          (fun (a : T.Expr.t) ->
-            let id = fresh st in
-            let l = { T.Local.id = -id; name = "index"; ty = a.T.Expr.ty; span = a.T.Expr.span } in
-            Hashtbl.replace ctx.env l.T.Local.id (Slot id);
-            let read = { a with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
-            (Stat.Let { id; value = borrow st ctx span a }, read))
-          args
-      in
-      let args = List.map snd held in
-      (pins @ List.map fst held, { e with T.Expr.node = T.Expr.Subscript { s with target; args } })
-  | _ -> ([], e)
-
-(* types.md §3.3: a field-constructor call is a call to the constructor,
-   with each entry's value in its slot and an entry left out given its
-   default. The entries run in the order written, then the defaults in
-   declaration order. *)
-and construct_fields st ctx span verb (fields : T.Field_value.t list) handler ret =
-  match verb with
-  | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
-  | Some v ->
-      let defaults = Option.value ~default:[] (Hashtbl.find_opt st.defaults v.key) in
-      let slots = List.map (fun (f : T.Field_value.t) -> f.T.Field_value.slot) fields in
-      let left_out = List.filter (fun (slot, _) -> not (List.mem slot slots)) defaults in
-      let written =
-        List.map (fun (f : T.Field_value.t) -> (f.T.Field_value.slot, f.value)) fields
-      in
-      let given = written @ left_out in
-      if List.length given <> List.length v.params then
-        Diagnostic.bug ~span "lowering expected every entry of a field constructor to be given or defaulted";
-      if List.map fst given = List.init (List.length given) Fun.id then
-        call st ctx span verb (List.map (fun (_, e) -> T.Arg.Value e) given) handler ret
-      else
-        (* Each value is stored as the constructor takes it, in the order it
-           runs, and passed in its slot. A constructor expanded where it is
-           called (L11) takes its literals as they are, and a stored value
-           through a local of its own that names the store. *)
-        let stored =
-          List.map
-            (fun (slot, (e : T.Expr.t)) ->
-              let p = List.nth v.params slot in
-              match p.T.Local.ty with
-              | Tty.Concept _ when expands v -> (slot, [], `Arg (T.Arg.Value e))
-              | _ ->
-                  let value = argument st ctx span v p e in
-                  let id = fresh st in
-                  let read = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
-                  let named =
-                    if expands v then begin
-                      let l = { p with T.Local.id = -id } in
-                      Hashtbl.replace ctx.env l.T.Local.id
-                        (if by_address st v p then Pointer id else Slot id);
-                      `Arg (T.Arg.Value { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) })
-                    end
-                    else `Value read
-                  in
-                  (slot, [ Stat.Let { id; value } ], named))
-            given
-        in
-        let lets = List.concat_map (fun (_, l, _) -> l) stored in
-        let in_slot slot = List.find_map (fun (s, _, a) -> if s = slot then Some a else None) stored in
-        let slots =
-          List.init (List.length given) (fun slot ->
-              match in_slot slot with
-              | Some a -> a
-              | None -> Diagnostic.bug ~span (Printf.sprintf "lowering: argument slot %d is empty" slot))
-        in
-        let value =
-          if expands v then
-            let arg = function `Arg a -> a | `Value _ -> Diagnostic.bug ~span "lowering expected an argument" in
-            expand st ctx span v (List.map arg slots) handler ret
-          else
-            let value = function `Value a -> a | `Arg _ -> Diagnostic.bug ~span "lowering expected a value" in
-            invoke st ctx span v (List.map value slots) handler
-        in
-        let label = fresh st in
-        if value.Expr.ty = Nodes.Ty.Void then
-          let body = lets @ [ Stat.Eval value ] in
-          { Expr.node = Expr.Expand { label; body; result = None }; ty = value.Expr.ty }
-        else
-          let result = fresh st in
-          let body = lets @ [ Stat.assign result value ] in
-          { Expr.node = Expr.Expand { label; body; result = Some result }; ty = value.Expr.ty }
-
-(* A type written where a value goes, or a number given to an explicit
-   number parameter, picks the instance, and an instance takes no parameter
-   for it (generics.md §5.3). *)
-and passed (v : verb) args =
-  let bound =
-    if List.length v.signature.S.params = List.length args then
-      List.map (fun (p : S.param) -> Option.is_some p.S.binds) v.signature.S.params
-    else List.map (fun _ -> false) args
-  in
-  List.combine bound args
-  |> List.filter_map (fun (bound, arg) ->
-         match arg with
-         | T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> None
-         | _ -> if bound then None else Some arg)
-
-and arguments ?direct st ctx span v args =
-  List.map2
-    (fun (p : T.Local.t) arg ->
-      match arg with
-      | T.Arg.Value a -> argument ?direct st ctx span v p a
-      | T.Arg.Block _ -> Diagnostic.bug ~span "lowering: a block argument to a verb it does not expand")
-    v.params args
-
-(* ---------------------------------------------------------------------- *)
 (* Spawns                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
@@ -982,12 +801,12 @@ and spawn st ctx span (e : T.Expr.t) =
       match verb_of st id instance with
       | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
       | Some v when expands v ->
-          let v, args = specialized st ctx span v (passed v args) in
+          let v, args = specialized st ctx span v (Lower_calls.passed v args) in
           spawn_call st ctx span v None ~writes:v.signature.S.is_mut args handler
       | Some v -> (
-          match passed v args with
-          | T.Arg.Value subject :: rest when v.signature.S.is_mut && subscripted subject ->
-              let lets, args = held_last st ctx span v subject rest in
+          match Lower_calls.passed v args with
+          | T.Arg.Value subject :: rest when v.signature.S.is_mut && Lower_calls.subscripted subject ->
+              let lets, args = Lower_calls.held_last walk st ctx span v subject rest in
               let stats, future = spawn_call st ctx span v None ~writes:true args handler in
               (lets @ stats, future)
           | args -> spawn_call st ctx span v None ~writes:v.signature.S.is_mut args handler))
@@ -1001,10 +820,10 @@ and spawn st ctx span (e : T.Expr.t) =
           let (fn : Expr.t) = value_of st ctx callee in
           match args with
           | T.Arg.Value subject :: rest
-            when fv.Tty.is_mut && Option.is_some fv.Tty.this_ && subscripted subject ->
+            when fv.Tty.is_mut && Option.is_some fv.Tty.this_ && Lower_calls.subscripted subject ->
               let id = fresh st in
               let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
-              let lets, args = held_last ~direct:false st ctx span v subject rest in
+              let lets, args = Lower_calls.held_last walk ~direct:false st ctx span v subject rest in
               let stats, future = spawn_call st ctx span v (Some read) ~writes:true args handler in
               ((Stat.Let { id; value = fn } :: lets) @ stats, future)
           | _ -> spawn_call st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler)
@@ -1116,7 +935,7 @@ and wrapped st span (callee : T.Verb_ref.t) args ret =
 and spawn_call st ctx span v fn ~writes passed handler =
   let o = outcome st span v in
   let whole = returned o in
-  let args = arguments ~direct:(Option.is_none fn) st ctx span v passed in
+  let args = Lower_calls.arguments walk ~direct:(Option.is_none fn) st ctx span v passed in
   (* A `mut` subject reached through an owner is copied into the frame,
      and the call works on the copy, which it writes back when it
      returns (§4.4). A function value's subject is lent by its address
@@ -1260,197 +1079,6 @@ and spawn_call st ctx span v fn ~writes passed handler =
     (pre @ [ first; spawned ], Future { settle; at })
 
 (* ---------------------------------------------------------------------- *)
-(* Calls and expansion                                                    *)
-(* ---------------------------------------------------------------------- *)
-
-(* An argument as the callee takes it (L6): a place it may write, or a
-   borrowed owner, is lent by its address, a reference is minted or copied,
-   a `^T` argument is moved, and a value is borrowed.
-
-   A fresh owner moved into a `^T` parameter is made in this block's
-   region. A callee that drops it leaves its blocks there (memory.md §3.5),
-   so they go when this block drains, as they would in the block's own
-   scope, rather than piling up in an enclosing one for as long as a loop
-   runs. The block keeps an arena for that only when the callee can drop
-   the owner, which Regions decides; a call through a function value, and a
-   verb expanded here, which has no function of its own, can always. *)
-and argument ?(direct = true) st ctx span v (p : T.Local.t) a =
-  if by_address st v p then lend st ctx span a
-  else if Tty.is_ref p.T.Local.ty then reference_to st ctx span a
-  else if roaming st p.T.Local.ty then begin
-    (if held st span p.T.Local.ty && not (is_place a) then
-       if (not direct) || expands v then
-         (* A callee Regions cannot see may drop it, so the arena stays. *)
-         ctx.scope.wants <- (dropping, -1) :: ctx.scope.wants
-       else
-         let same (q : T.Local.t) = q.T.Local.id = p.T.Local.id in
-         let index = Option.value ~default:(-1) (List.find_index same v.params) in
-         ctx.scope.wants <- (symbol st v, index) :: ctx.scope.wants);
-    moved st ctx span p.T.Local.ty a
-  end
-  else borrow st ctx span a
-
-(* L12. A call that can end more than one way is switched on how it ended:
-   done gives its result, aborted runs its handler, or the abort of the
-   `match` it flows out of, and an exit ends this invocation too. The call
-   is to [v]'s function, or through [fn], a function value's address. *)
-and invoke ?fn st ctx span v args handler =
-  let o = outcome st span v in
-  let call =
-    match fn with
-    | Some fn -> Expr.Call_value { fn; args }
-    | None -> Expr.Call { fn = symbol st v; args }
-  in
-  let value = { Expr.node = call; ty = returned o } in
-  if plain o then value
-  else
-    let label = fresh st in
-    let result = if o.ok = Nodes.Ty.Void then None else Some (fresh st) in
-    let id = fresh st in
-    let source = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
-    let payload index t = { Expr.node = Expr.Payload { value = source; index }; ty = t } in
-    let on_abort =
-      match handler with
-      | Some h -> Lower_match.handle walk ?dropped:v.signature.S.abort st ctx h label result
-      | None -> ctx.abort
-    in
-    let finished =
-      if o.ok = Nodes.Ty.Void then [ (done_, [ Stat.Leave label ]) ]
-      else [ (done_, leave label result (payload done_ o.ok)) ]
-    in
-    let failed =
-      match o.aborts with Some a -> [ (aborted, on_abort span (payload aborted a)) ] | None -> []
-    in
-    let left = if o.exit_ then [ (exited, ctx.finish span) ] else [] in
-    let cases = finished @ failed @ left in
-    let body = [ Stat.Let { id; value }; Stat.Switch { value = source; cases } ] in
-    { Expr.node = Expr.Expand { label; body; result }; ty = o.ok }
-
-(* L11. A parameter is bound to what it stands for in the body: a block
-   argument to its code, a literal to itself, the subject or a borrowed
-   owner to the caller's place, a `^T` argument to a slot this scope holds
-   the moved value in, and any other argument to a new slot holding its
-   value (L6). *)
-and expand st ctx span v args handler ret =
-  if List.mem v.decl ctx.expanding then
-    Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` expands into itself" v.signature.S.name);
-  if List.length args <> List.length v.params then
-    Diagnostic.bug ~span "lowering expected an argument for every parameter";
-  let env = Hashtbl.create 8 in
-  let bind (p : T.Local.t) b = Hashtbl.replace env p.T.Local.id b in
-  let binds =
-    List.concat
-      (List.map2
-         (fun (p : T.Local.t) arg ->
-           match (arg, p.T.Local.ty) with
-           | T.Arg.Block block, _ ->
-               bind p (Code { block; ctx });
-               []
-           | T.Arg.Value a, Tty.Concept Tty.Block -> (
-               match a.T.Expr.node with
-               | T.Expr.Var (T.Name_ref.Local l) -> (
-                   match lookup ctx span l with
-                   | Code c ->
-                       bind p (Code c);
-                       []
-                   | _ -> Diagnostic.bug ~span "lowering expected a block here")
-               | _ -> Diagnostic.bug ~span "lowering expected a block here")
-           (* An array literal's elements are values the caller's code
-              names, so the array is made here, where the call is written,
-              and the parameter names its slot. *)
-           | T.Arg.Value a, Tty.Concept (Tty.Array_lit (t, n)) when is_array_lit (literal_of ctx a)
-             ->
-               let arr = array_type t n in
-               let value = primitive st ctx span "@primitives$Array" [ arg ] arr in
-               let id = fresh st in
-               bind p (Slot id);
-               if held st span arr then
-                 let layout = layout st span arr in
-                 [ Stat.Hold { id; scope = arena st ctx.scope; value; layout } ]
-               else [ Stat.Let { id; value } ]
-           (* A literal stands for itself. A spawned call's array literal is
-              a value in a slot by now (specialized), which the parameter
-              names too. *)
-           | T.Arg.Value a, Tty.Concept _ -> (
-               let lit = literal_of ctx a in
-               match lit.T.Expr.node with
-               | T.Expr.Var (T.Name_ref.Local l) -> (
-                   match lookup ctx span l with
-                   | (Slot _ | Pointer _) as b ->
-                       bind p b;
-                       []
-                   | _ ->
-                       bind p (Literal lit);
-                       [])
-               | _ ->
-                   bind p (Literal lit);
-                   [])
-           | ( T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); T.Expr.ty = at; _ },
-               _ )
-             when (p.T.Local.name = "this" || (owned st p.T.Local.ty && not (roaming st p.T.Local.ty)))
-                  && not (Tty.is_ref at) -> (
-               match lookup ctx span l with
-               | (Slot _ | Pointer _) as b ->
-                   bind p b;
-                   []
-               | Future { settle; at = Some at } ->
-                   let id = fresh st in
-                   bind p (Pointer id);
-                   settle () @ [ Stat.Let { id; value = at } ]
-               | _ -> Diagnostic.bug ~span "lowering expected a place here")
-           (* Any other place the body may write, or that it borrows, is lent
-              by its address. *)
-           | T.Arg.Value a, _
-             when p.T.Local.name = "this" || (owned st p.T.Local.ty && not (roaming st p.T.Local.ty)) ->
-               let value = lend st ctx span a in
-               let id = fresh st in
-               bind p (Pointer id);
-               [ Stat.Let { id; value } ]
-           (* A taken owner is moved into a slot of its own, which this scope
-              holds, so it dies with the scope unless the body moves it on. *)
-           | T.Arg.Value a, _ when roaming st p.T.Local.ty ->
-               let value = moved st ctx span p.T.Local.ty a in
-               let id = fresh st in
-               bind p (Slot id);
-               [ Build.bind st ctx.scope span p.T.Local.ty id value ]
-           | T.Arg.Value a, _ ->
-               let value =
-                 if Tty.is_ref p.T.Local.ty then reference_to st ctx span a else borrow st ctx span a
-               in
-               let id = fresh st in
-               bind p (Slot id);
-               [ Stat.Let { id; value } ])
-         v.params args)
-  in
-  let t = ty st span ret in
-  let label = fresh st in
-  let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
-  (* An exit in the body ends the invocation the call was written in, and
-     one that body calls ends the expansion (control-flow.md §4.2). *)
-  let inner =
-    {
-      env;
-      exit = Leave { label; result; ret };
-      expanding = v.decl :: ctx.expanding;
-      abort =
-        (match handler with
-        | Some h -> Lower_match.handle walk ?dropped:v.signature.S.abort st ctx h label result
-        | None -> ctx.abort);
-      resolve = None;
-      finish = no_block;
-      exit_call = ctx.finish;
-      scope = ctx.scope;
-    }
-  in
-  match binds @ block st inner v.body with
-  (* A body that only returns a value is that value. *)
-  | [ Stat.Assign { place = { local; path = []; deref = false; _ }; value }; Stat.Leave l ]
-    when Some local = result && l = label ->
-      value
-  | [ Stat.Eval value; Stat.Leave l ] when result = None && l = label -> value
-  | body -> { Expr.node = Expr.Expand { label; body; result }; ty = t }
-
-(* ---------------------------------------------------------------------- *)
 (* Blocks, statements and places                                          *)
 (* ---------------------------------------------------------------------- *)
 
@@ -1509,11 +1137,11 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       let id = fresh st in
       Hashtbl.replace ctx.env local.T.Local.id (Slot id);
       [ bind_local st ctx.scope local id value ]
-  | T.Stat.Assign { target; value } when subscripted target ->
+  | T.Stat.Assign { target; value } when Lower_calls.subscripted target ->
       (* The destination's operands, then the value, and only then is the
          destination located (memory.md §2.12): a value that grows the list
          the destination is an element of has moved it by then. *)
-      let pins, target = pinned st ctx span target in
+      let pins, target = Lower_calls.pinned walk st ctx span target in
       let t = target.T.Expr.ty in
       let id = fresh st in
       let v = moved st ctx span t value in
@@ -1610,4 +1238,5 @@ and place st ctx span (target : T.Expr.t) : Expr.place option =
   | _ -> None
 
 (* The walk, as the modules outside its recursion take it. *)
-and walk = { expr; value_of; addr; borrow; lend; block }
+and walk =
+  { expr; value_of; addr; borrow; lend; reference_to; moved; is_place; block; primitive }
