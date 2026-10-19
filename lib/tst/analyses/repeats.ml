@@ -129,7 +129,7 @@ let bodies (p : T.Program.t) =
 let compute env (p : T.Program.t) =
   let summaries = Fixpoint.create ~empty:[] ~union:(fun a b -> List.sort_uniq compare (a @ b)) ~equal:( = ) in
   let bodies = bodies p in
-  Fixpoint.settle summaries bodies (fun ~report:_ body -> find_multi env summaries body);
+  Fixpoint.settle summaries bodies (fun ~report body -> if not report then find_multi env summaries body);
   let multi : (int * int, unit) Hashtbl.t = Hashtbl.create 16 in
   List.iter
     (fun (id, _, _) -> List.iter (fun i -> Hashtbl.replace multi (id, i) ()) (Fixpoint.read summaries id))

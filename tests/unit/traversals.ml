@@ -326,7 +326,8 @@ let cgt check =
       check (name ^ ": map rebuilds every part")
         (List.length (fst rebuilt) = List.length (fst expected)
         && List.length (snd rebuilt) = List.length (snd expected)
-        && not (List.exists (fun x -> List.memq x (fst expected)) (fst rebuilt))))
+        && not (List.exists (fun x -> List.memq x (fst expected)) (fst rebuilt))
+        && not (List.exists (fun b -> List.memq b (snd expected)) (snd rebuilt))))
     samples;
   let stats = cgt_stat_samples () in
   check "every CGT statement constructor has a sample" (tags (fun (s, _) -> cgt_stat_tag s) cgt_stat_count stats);
@@ -339,7 +340,8 @@ let cgt check =
       check (name ^ ": map rebuilds every part")
         (List.length (fst rebuilt) = List.length (fst expected)
         && List.length (snd rebuilt) = List.length (snd expected)
-        && not (List.exists (fun x -> List.memq x (fst expected)) (fst rebuilt))))
+        && not (List.exists (fun x -> List.memq x (fst expected)) (fst rebuilt))
+        && not (List.exists (fun b -> List.memq b (snd expected)) (snd rebuilt))))
     stats;
   (* A walk reaches every node once, outermost first. *)
   let inner = cleaf () in
