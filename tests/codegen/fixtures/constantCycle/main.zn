@@ -1,0 +1,25 @@
+/// Package constants that read each other across contexts
+/// (docs/design/lowering.md L16): making `first` spawns a call that reads
+/// `second`, whose making reads `first`. The program's context waits for the
+/// call, and the call's context for `first`, so the program stops with the
+/// cycle's message instead of hanging.
+package constantCycle;
+
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Int readSecond() => second
+
+Int viaSpawn() {
+	n Int = spawn readSecond();
+	return n;
+}
+
+first Int = viaSpawn()
+second Int = @operators$add(first, Int(1))
+
+Unit main() {
+	@program$console!print(String("unreached\n"));
+	return Unit();
+}

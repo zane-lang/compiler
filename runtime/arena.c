@@ -66,6 +66,9 @@ void zane_reopen(void) {
 	zane_open = c && c->top && c->shared == 0 ? c->top : NULL;
 }
 
+/* The context with id `id`, once it is listed. */
+zane_context *zane_context_at(int32_t id) { return __atomic_load_n(&zane_contexts[id], __ATOMIC_ACQUIRE); }
+
 static int zane_guarded(zane_context *c) { return c != zane_self || c->shared > 0; }
 void zane_lock(zane_context *c) { if (zane_guarded(c)) pthread_mutex_lock(&c->lock); }
 void zane_unlock(zane_context *c) { if (zane_guarded(c)) pthread_mutex_unlock(&c->lock); }

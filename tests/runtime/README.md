@@ -52,6 +52,16 @@ the same whether the program or the compiler reads it, and checks that
 `zane_arguments` copies each argument into a string of its own and that the
 list returns every block when its scope drains.
 
+`cycles.c` holds package constants that wait for each other across
+contexts to stopping with "package constants read each other while they
+are made" and status 1 instead of hanging: two contexts that each make
+their own constant and then read the other's, and a constant's maker
+joining a call that reads it, both when it runs the call itself and when
+it joins the moment a pool thread has taken the call, before the call has
+its context. Each case runs in a child that an alarm stops after ten
+seconds, and the last one fifty times. Before the runtime kept its graph of
+waits, every case hung.
+
 `writeback.c` holds a write-back to the atomicity a snapshot load relies on:
 a second thread reads each naturally aligned word of a subject at an address
 aligned to 4 and not 8 while the main thread writes back all-zero and

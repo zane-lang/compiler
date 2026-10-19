@@ -541,6 +541,82 @@
   (diff golden/boxes.out boxes.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/constantCycle))
+ (targets constantCycle.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build constantCycle.exe --package fixtures/constantCycle)))
+
+(rule
+ (deps (source_tree fixtures/constantCycle))
+ (targets constantCycle.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build constantCycle.optimized.exe --optimize --package fixtures/constantCycle)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    constantCycle.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./constantCycle.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/constantCycle.out constantCycle.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    constantCycle.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./constantCycle.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/constantCycle.out constantCycle.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    constantCycle.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./constantCycle.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/constantCycle.out constantCycle.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    constantCycle.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./constantCycle.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/constantCycle.out constantCycle.optimized.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/constants))
  (action
   (with-stdout-to

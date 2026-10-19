@@ -252,6 +252,22 @@ one's function first, so dependency order holds whatever order they are
 declared in, and a constant that reads itself, through any chain, stops the
 program. A context that finds another making a constant waits for it.
 
+Those waits can form a cycle across contexts: making a constant may spawn
+a call that reads, through any chain, the constant being made, and joining
+that call waits for a context that waits for the joiner. The runtime keeps
+the graph of waits (`runtime/value.c`). A context about to block names what
+it waits for, a constant's state, whose maker it waits for while the
+constant is made, or a call it joins, whose context it waits for while the
+call runs. A call run where it is joined is waited for the same way. Each
+edge is read from what it names when it is followed, so a made constant or
+a finished call leads nowhere, and a reused context is never reached
+through a wait that has ended. Edges are set, cleared and followed under
+one lock, so the last wait to close a cycle follows the edges from its own
+context back to itself, and the program stops with "package constants read
+each other while they are made" and status 1, the program's error as an
+index out of range is. A maker reading its own constant again is the
+one-step case of the same test.
+
 A program's entry is always a start function, `zane.start`, that calls each
 constant's function, the packages a package depends on first, and then
 `main`, discarding what `main` returns. The runtime calls the entry as

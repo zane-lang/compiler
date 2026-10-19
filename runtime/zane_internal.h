@@ -194,6 +194,11 @@ struct zane_context {
 	int64_t shared;
 	zane_mapping *spare; /* dynamic chunks its drained regions gave back */
 	zane_context *next;
+	/* What it waits for, as an edge of the graph of waits (value.c): the
+	   state of a package constant another context is making, or a call it
+	   joins. Each is set and cleared under `zane_waits`. */
+	int64_t *awaits;
+	zane_task *joins;
 };
 
 _Static_assert(offsetof(zane_context, frontier) == 0, "a context starts with its frontier");
@@ -246,6 +251,7 @@ extern zane_context *zane_idle;
 extern _Thread_local zane_context *zane_self;
 extern zane_mark *zane_program;
 void zane_reopen(void);
+zane_context *zane_context_at(int32_t id);
 void zane_lock(zane_context *c);
 void zane_unlock(zane_context *c);
 zane_context *zane_context_new(void);
@@ -316,6 +322,8 @@ _Noreturn void zane_too_deep_in(zane_context *c);
 
 /* value.c */
 void zane_move(char *value, const zane_type *type, zane_mark *region, int64_t from);
+void zane_wait_for(int64_t *constant, zane_task *call);
+void zane_waited(void);
 
 /* spawn.c */
 int zane_state(zane_task *t);

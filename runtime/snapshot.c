@@ -147,6 +147,9 @@ static void zane_join_task(zane_task *t) {
 	int mine = zane_state(t) == ZANE_QUEUED;
 	if (mine) zane_unlink(d, t);
 	pthread_mutex_unlock(&d->lock);
+	/* A call run here is waited for as one run elsewhere is, so that a
+	   cycle of waits through it is found (value.c). */
+	zane_wait_for(NULL, t);
 	if (mine) {
 		zane_taken();
 		zane_run(t);
@@ -155,6 +158,7 @@ static void zane_join_task(zane_task *t) {
 	while (zane_state(t) != ZANE_DONE) pthread_cond_wait(&zane_finished, &zane_pool);
 	zane_set_state(t, ZANE_JOINED);
 	pthread_mutex_unlock(&zane_pool);
+	zane_waited();
 	if (t->size) {
 		memcpy(t->dest, t->frame, (size_t)t->size);
 		zane_arrive(t->dest, t->type);
