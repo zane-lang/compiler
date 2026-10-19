@@ -13,8 +13,8 @@
    ask for more.
 
    This file is the recursive walk. What it reads but is not part of it is
-   beside it: [Context], [Instances], [Overloads] and [Termination]; [Program]
-   runs the walk over every body of the build. *)
+   beside it: [Context], [Instances], [Overloads], [Termination] and
+   [Coverage]; [Program] runs the walk over every body of the build. *)
 
 open Env
 module N = Sst.Nodes
@@ -1081,55 +1081,14 @@ and match_ env ~flow ctx (m : N.Match_expr.t) =
         { T.Arm.patterns = typed; body; span = arm.N.Match_arm.span })
       m.N.Match_expr.arms
   in
-  (* Every combination of cases, covered (adt.md §5.2, §5.6). An arm covers
-     exactly one combination, so what is missing is counted rather than
-     listed: the combinations number the product of the case counts, which
-     can be far too many to write out, and the arms cover as many as they
-     have distinct valid keys. Only the first three missing ones are found,
-     by walking the combinations in order and skipping the covered ones,
-     which takes at most as many steps as there are arms, plus three. *)
+  (* Every combination of cases, covered. *)
   if List.for_all (fun s -> s <> `Unknown) shapes && List.length shapes > 0 then begin
     let cases_of = function
       | `Variant (_, cases) -> List.map fst cases
       | `Enum (_, members) -> members
       | `Unknown -> []
     in
-    let all_cases = List.map cases_of shapes in
-    let total, saturated =
-      List.fold_left
-        (fun (n, sat) cases ->
-          let k = List.length cases in
-          if n = 0 || k = 0 then (0, false)
-          else if sat || n > max_int / k then (max_int, true)
-          else (n * k, false))
-        (1, false) all_cases
-    in
-    let valid key =
-      let cases = String.split_on_char ',' key in
-      List.length cases = List.length all_cases && List.for_all2 List.mem cases all_cases
-    in
-    let covered_count = Hashtbl.fold (fun key _ n -> if valid key then n + 1 else n) covered 0 in
-    let missing = total - covered_count in
-    if missing > 0 then begin
-      let rec combos = function
-        | [] -> Seq.return []
-        | cases :: rest ->
-            let tails = combos rest in
-            Seq.flat_map (fun c -> Seq.map (fun tail -> c :: tail) tails) (List.to_seq cases)
-      in
-      let shown =
-        combos all_cases
-        |> Seq.filter (fun combo -> not (Hashtbl.mem covered (String.concat "," combo)))
-        |> Seq.take 3 |> List.of_seq
-      in
-      let rest = missing - List.length shown in
-      error env span
-        (Printf.sprintf "the match does not cover %s%s; every case needs an arm, and there is no default"
-           (String.concat ", " (List.map (fun c -> quote (String.concat ", " c)) shown))
-           (if saturated then Printf.sprintf " (and more than %d more)" rest
-            else if rest > 0 then Printf.sprintf " (and %d more)" rest
-            else ""))
-    end
+    Option.iter (error env span) (Coverage.missing (List.map cases_of shapes) covered)
   end;
   let ty =
     match results.results with
