@@ -8,7 +8,8 @@
 
    This file is the recursive walk over a verb's body. What it reads is
    beside it: [State], [Type_layout], [Literals], [Verbs], [Outcome] and
-   [Build]; [Program] lowers a whole program with it. *)
+   [Build]; [Lower_lambda] lifts a lambda out as a function of its own;
+   [Program] lowers a whole program with it. *)
 
 module T = Tst.Nodes
 module S = Tst.Signature
@@ -319,7 +320,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
      is the call itself (docs/design/lowering.md §9). *)
   | T.Expr.Spawn call -> expr st ctx call
   | T.Expr.Lambda l ->
-      { Expr.node = Expr.Function (lambda st span e.T.Expr.ty l); ty = Nodes.Ty.Ptr }
+      { Expr.node = Expr.Function (Lower_lambda.lambda st span e.T.Expr.ty l); ty = Nodes.Ty.Ptr }
   (* A lambda-variable declared at package scope is its lambda, and any
      other package constant is read where it was made. *)
   | T.Expr.Var (T.Name_ref.Global { decl; _ }) -> (
@@ -350,7 +351,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | _ -> Diagnostic.bug ~span "lowering: an expression of a form it has no case for"
 
 (* ---------------------------------------------------------------------- *)
-(* Primitives, lambdas and records                                        *)
+(* Primitives and records                                                 *)
 (* ---------------------------------------------------------------------- *)
 
 (* A storage primitive's constructor: `Unit` has no storage, a list starts
@@ -499,22 +500,6 @@ and fill st ctx span (make : T.Expr.t) (t : Tty.t) : Expr.t =
       in
       { Expr.node = Expr.Expand { label; body; result = Some result }; ty = arr }
   | _ -> Diagnostic.bug ~span "lowering: `ArrayRef.fill` with the wrong arguments"
-
-(* L14. A lambda captures nothing (functions.md §7.4), so it is lifted out
-   as a function of its own, once, and its value is that function's address.
-   A call through it ends only the ways its type says, which is why a
-   lambda's body may not exit (control-flow.md §4.2). *)
-and lambda st span t (l : T.Lambda.t) =
-  match (List.assq_opt l.T.Lambda.body st.lambdas, t) with
-  | None, _ -> Diagnostic.bug ~span "lowering: a lambda it gave no name"
-  | Some s, Tty.Verb fv ->
-      let key = "lambda " ^ s in
-      if not (Hashtbl.mem st.symbols key) then begin
-        Hashtbl.replace st.symbols key s;
-        Queue.add (value_verb key fv l.T.Lambda.params l.T.Lambda.body) st.pending
-      end;
-      s
-  | Some _, _ -> Diagnostic.bug ~span "lowering expected a function type here"
 
 (* A spawned call's result, read once the call has returned (concurrency.md
    §3.2). *)
