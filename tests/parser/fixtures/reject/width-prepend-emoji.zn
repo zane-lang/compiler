@@ -1,0 +1,5 @@
+package main;
+
+String shown() {
+	return String("؀©️") @ Int(2);
+}

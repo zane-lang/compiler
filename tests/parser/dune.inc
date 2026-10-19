@@ -290,6 +290,18 @@
 
 (rule
  (with-stderr-to
+  reject.width-prepend-emoji.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/width-prepend-emoji.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.width-prepend-emoji.err reject.width-prepend-emoji.err.actual)))
+
+(rule
+ (with-stderr-to
   reject.width-prepend.err.actual
   (with-accepted-exit-codes
    1

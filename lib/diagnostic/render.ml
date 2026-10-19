@@ -127,19 +127,23 @@ let is_regional_indicator u = Uchar.to_int u >= 0x1F1E6 && Uchar.to_int u <= 0x1
    draws these as one wide glyph, though [tty_width_hint] sees one character at
    a time and calls some of them one cell. Any other cluster is as wide as its
    widest character: two for a wide East Asian character, one otherwise, with
-   combining marks adding nothing. Its base is usually the first character, but
-   not after a prepended one such as U+0600, which takes no cell itself. *)
-let cluster_cells = function
-  | [] -> 0
-  | first :: rest ->
-      let has c = List.exists (fun u -> Uchar.to_int u = c) rest in
-      let emoji =
+   combining marks adding nothing. Either way the base is the first character
+   after any prepended ones such as U+0600, which take no cell themselves. *)
+let cluster_cells chars =
+  let rec base = function
+    | u :: rest when Uucp.Break.grapheme_cluster u = `PP -> base rest
+    | chars -> chars
+  in
+  let emoji =
+    match base chars with
+    | [] -> false
+    | first :: rest ->
+        let has c = List.exists (fun u -> Uchar.to_int u = c) rest in
         (Uucp.Emoji.is_extended_pictographic first && has 0x200D)
         || (is_regional_indicator first && List.exists is_regional_indicator rest)
         || (Uucp.Emoji.is_emoji first && has 0xFE0F)
-      in
-      if emoji then 2
-      else List.fold_left (fun w u -> max w (Uucp.Break.tty_width_hint u)) 0 (first :: rest)
+  in
+  if emoji then 2 else List.fold_left (fun w u -> max w (Uucp.Break.tty_width_hint u)) 0 chars
 
 (* One glyph of the displayed line: the source bytes [first, next), what is
    shown for them, and the cells that takes. *)

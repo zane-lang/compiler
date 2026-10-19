@@ -1590,7 +1590,9 @@ still counts characters, so no header moved. The comment at the top of
   `uuseg`. A cluster is as wide as its widest code point by
   `Uucp.Break.tty_width_hint`, not its first as the plan said: after a
   prepended character such as U+0600, which takes no cell, the first is
-  not the base (review, golden `width-prepend`). An emoji sequence (a ZWJ sequence, a
+  not the base (review, golden `width-prepend`), so the emoji test below
+  also starts after any prepended characters (`width-prepend-emoji`). An
+  emoji sequence (a ZWJ sequence, a
   regional-indicator pair, an emoji with U+FE0F) is 2. `uucp` and
   `uuseg` 18.0.0 reach devbox and CI the way the other OCaml libraries
   do: they are pinned in `dev/setup/bootstrap-toolchain`, whose hash keys

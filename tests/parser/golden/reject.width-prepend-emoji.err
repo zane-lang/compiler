@@ -1,0 +1,4 @@
+File "fixtures/reject/width-prepend-emoji.zn", line 4, characters 26-27:
+4 |     return String("؀©️") @ Int(2);
+  |                         ^
+Error: Parse error
