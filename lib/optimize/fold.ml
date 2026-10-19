@@ -18,54 +18,17 @@ module V = Value
 (* Walking the tree                                                       *)
 (* ---------------------------------------------------------------------- *)
 
-let children (e : Expr.t) : Expr.t list =
-  match e.Expr.node with
-  | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Text _ | Expr.Unit | Expr.Local _
-  | Expr.Address _ | Expr.Layout _ | Expr.Function _ | Expr.Global _ ->
-      []
-  | Expr.Deref e | Expr.Flip e | Expr.Convert e | Expr.Snapshot e -> [ e ]
-  | Expr.Call { args; _ } | Expr.Runtime { args; _ } | Expr.Math { args; _ } -> args
-  | Expr.Call_value { fn; args } -> fn :: args
-  | Expr.Binary { left; right; _ } -> [ left; right ]
-  | Expr.Expand _ -> []
-  | Expr.Record ms -> List.map snd ms
-  | Expr.Member { value; _ } | Expr.Payload { value; _ } -> [ value ]
-  | Expr.Case { payload; _ } -> [ payload ]
-  | Expr.Offset { base; _ } -> [ base ]
-  | Expr.Take { address; _ } -> [ address ]
-  | Expr.Copy { value; _ } | Expr.Box { value; _ } | Expr.Escape { value; _ } -> [ value ]
+module Traverse = Cgt.Traverse
 
-let stat_exprs (s : Stat.t) : Expr.t list =
-  match s with
-  | Stat.Let { value; _ } | Stat.Hold { value; _ } | Stat.Assign { value; _ } -> [ value ]
-  | Stat.Eval e | Stat.Return e -> [ e ]
-  | Stat.If { cond; _ } -> [ cond ]
-  | Stat.Repeat { count; _ } -> [ count ]
-  | Stat.Switch { value; _ } -> [ value ]
-  | Stat.Store { address; value } | Stat.Overwrite { address; value; _ } | Stat.Place { address; value; _ } ->
-      [ address; value ]
-  | Stat.Spawn { args; _ } -> args
-  | Stat.Scope _ | Stat.Leave _ | Stat.Reserve _ | Stat.Join _ -> []
-
-let stat_bodies (s : Stat.t) : Stat.t list list =
-  match s with
-  | Stat.Scope { body; _ } | Stat.If { body; _ } | Stat.Repeat { body; _ } -> [ body ]
-  | Stat.Switch { cases; _ } -> List.map snd cases
-  | _ -> []
+(* The expressions directly in an expression, in the order they run; an
+   expansion's body is a statement list, which a walk reaches on its own. *)
+let children e = fst (Traverse.expr_parts e)
 
 (* Every expression and statement in a run of statements, nested ones
    included. *)
-let rec iter_stats ~expr ~stat body = List.iter (iter_stat ~expr ~stat) body
-
-and iter_stat ~expr ~stat s =
-  stat s;
-  List.iter (iter_expr ~expr ~stat) (stat_exprs s);
-  List.iter (iter_stats ~expr ~stat) (stat_bodies s)
-
-and iter_expr ~expr ~stat (e : Expr.t) =
-  expr e;
-  (match e.Expr.node with Expr.Expand { body; _ } -> iter_stats ~expr ~stat body | _ -> ());
-  List.iter (iter_expr ~expr ~stat) (children e)
+let iter_stats ~expr ~stat body = Traverse.walk_stats expr stat body
+let iter_stat ~expr ~stat s = Traverse.walk_stat expr stat s
+let iter_expr ~expr ~stat e = Traverse.walk_expr expr stat e
 
 let nothing _ = ()
 
@@ -119,8 +82,9 @@ let wide (f : Func.t) =
     | Stat.Assign { place; _ } -> named := (place.Expr.local, chain) :: !named
     | Stat.Join task -> named := (task, chain) :: !named
     | _ -> ());
-    List.iter (expr chain) (stat_exprs s);
-    List.iter (run chain) (stat_bodies s)
+    let es, bodies = Traverse.stat_parts s in
+    List.iter (expr chain) es;
+    List.iter (run chain) bodies
   and expr chain (e : Expr.t) =
     (match e.Expr.node with
     | Expr.Local i | Expr.Address i -> named := (i, chain) :: !named
@@ -606,33 +570,7 @@ and map_children fn env (e : Expr.t) =
     settle fn env x;
     x
   in
-  let node =
-    match e.Expr.node with
-    | Expr.Deref x -> Expr.Deref (f x)
-    | Expr.Flip x -> Expr.Flip (f x)
-    | Expr.Convert x -> Expr.Convert (f x)
-    | Expr.Snapshot x -> Expr.Snapshot (f x)
-    | Expr.Call { fn = callee; args } -> Expr.Call { fn = callee; args = List.map f args }
-    | Expr.Runtime { fn = r; args } -> Expr.Runtime { fn = r; args = List.map f args }
-    | Expr.Math { fn = m; args } -> Expr.Math { fn = m; args = List.map f args }
-    | Expr.Call_value { fn = v; args } ->
-        let v = f v in
-        Expr.Call_value { fn = v; args = List.map f args }
-    | Expr.Binary { op; left; right } ->
-        let left = f left in
-        Expr.Binary { op; left; right = f right }
-    | Expr.Record ms -> Expr.Record (List.map (fun (i, m) -> (i, f m)) ms)
-    | Expr.Member { value; index } -> Expr.Member { value = f value; index }
-    | Expr.Payload { value; index } -> Expr.Payload { value = f value; index }
-    | Expr.Case { index; payload } -> Expr.Case { index; payload = f payload }
-    | Expr.Offset o -> Expr.Offset { o with base = f o.base }
-    | Expr.Take t -> Expr.Take { t with address = f t.address }
-    | Expr.Copy c -> Expr.Copy { c with value = f c.value }
-    | Expr.Box b -> Expr.Box { b with value = f b.value }
-    | Expr.Escape x -> Expr.Escape { x with value = f x.value }
-    | n -> n
-  in
-  { e with Expr.node }
+  Traverse.map_expr_parts f Fun.id e
 
 (* A run of statements, each folded in turn, except where a run of them
    evaluated whole ends at a mark: the run is replaced by what it left. A

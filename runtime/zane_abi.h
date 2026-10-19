@@ -1,0 +1,54 @@
+/* Every offset, size and count that emitted code relies on, written once.
+   `zane_internal.h` includes this and asserts each against the structs it
+   describes, and lib/codegen/dune reads it into the compiler's `Abi`
+   module, so the runtime and the code the compiler emits share one copy.
+   That rule reads the lines as they are, without a C compiler, so each
+   number is a `#define` of a name to a plain decimal number. */
+
+#ifndef ZANE_ABI_H
+#define ZANE_ABI_H
+
+/* A region's heap (`zane_heap`): a stack of returned blocks for each size
+   class of 1 to ZANE_CLASSES words, then its frontier, the frontier's end,
+   and its count of blocks out. */
+#define ZANE_CLASSES 16
+#define ZANE_HEAP_BUMP 128
+#define ZANE_HEAP_END 136
+#define ZANE_HEAP_LIVE 144
+
+/* A scope's record (`zane_mark`), at the start of its frame: its region's
+   heap first, then what emitted code reads and writes when it places and
+   drains a frame. */
+#define ZANE_MARK_HEAP 0
+#define ZANE_MARK_CONTEXT 152
+#define ZANE_MARK_DEPTH 160
+#define ZANE_MARK_OUTER 168
+#define ZANE_MARK_SKIP 176
+#define ZANE_MARK_TASKS 184
+#define ZANE_MARK_MAPPINGS 192
+#define ZANE_MARK_SIZE 224
+
+/* A context (`zane_context`): where its next frame starts, its innermost
+   scope's record, and its range's end. */
+#define ZANE_CONTEXT_FRONTIER 0
+#define ZANE_CONTEXT_TOP 8
+#define ZANE_CONTEXT_LIMIT 16
+
+/* The header before a spawned call's frame (`zane_task`). */
+#define ZANE_TASK_SIZE 96
+
+/* A string's or a list's handle (`zane_text`, `zane_list`): its bytes or
+   elements, its length or count, and its room. */
+#define ZANE_HANDLE_LENGTH 8
+#define ZANE_HANDLE_ROOM 16
+#define ZANE_HANDLE_SIZE 24
+
+/* The alignment of a block a handle's elements are held in. */
+#define ZANE_LINE 64
+
+/* The guard after a context's range, one chunk: a frame no larger, placed
+   below the range's end, ends inside the guard at worst, so emitted code
+   checks only a larger one. */
+#define ZANE_GUARD 1048576
+
+#endif

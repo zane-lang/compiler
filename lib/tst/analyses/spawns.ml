@@ -115,13 +115,13 @@ let rec beside (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Field { target; _ } -> beside target
   | T.Expr.Subscript { target; args; _ } ->
-      List.map (fun a -> Exits.Same a) args @ beside target
-  | T.Expr.Case_read { target; handler; _ } -> Exits.Handler handler.T.Handler.body :: beside target
+      List.map (fun a -> Traverse.Same a) args @ beside target
+  | T.Expr.Case_read { target; handler; _ } -> Traverse.Handler handler.T.Handler.body :: beside target
   | _ -> []
 
 (* A part of an expression to walk, with whether a block argument runs more
    than once. *)
-type piece = Plain of Exits.part | Run of T.Block.t * bool
+type piece = Plain of Traverse.part | Run of T.Block.t * bool
 
 let walk_body env multi (body : T.Block.t) =
   (* Where each reference local points, when the checker knows: the place it was
@@ -215,7 +215,7 @@ let walk_body env multi (body : T.Block.t) =
     | T.Stat.Return e ->
         expr frames e;
         moved frames e
-    | _ -> List.iter (expr frames) (Exits.stat_exprs s)
+    | _ -> List.iter (expr frames) (Traverse.stat_exprs s)
   and declare frames (l : T.Local.t) =
     match frames with f :: _ -> Hashtbl.replace f.declared l.T.Local.id () | [] -> ()
   (* A place touched while a spawn holds an overlapping borrow. *)
@@ -279,16 +279,16 @@ let walk_body env multi (body : T.Block.t) =
         in
         List.map
           (function
-            | Exits.Block b -> Run (b, Option.value ~default:false (List.assq_opt b often))
+            | Traverse.Block b -> Run (b, Option.value ~default:false (List.assq_opt b often))
             | p -> Plain p)
-          (Exits.parts e)
-    | None -> List.map (fun p -> Plain p) (Exits.parts e)
+          (Traverse.parts e)
+    | None -> List.map (fun p -> Plain p) (Traverse.parts e)
   and part frames = function
     | Run (b, often) -> block frames often b
-    | Plain (Exits.Same x) -> expr frames x
-    | Plain (Exits.Block b | Exits.Arm b | Exits.Handler b) -> block frames false b
+    | Plain (Traverse.Same x) -> expr frames x
+    | Plain (Traverse.Block b | Traverse.Arm b | Traverse.Handler b) -> block frames false b
     (* A lambda has a frame of its own, and captures nothing. *)
-    | Plain (Exits.Lambda b) -> block [] false b
+    | Plain (Traverse.Lambda b) -> block [] false b
   and spawn frames ~keeps (e : T.Expr.t) =
     let inner = match e.T.Expr.node with T.Expr.Spawn inner -> inner | _ -> e in
     match inner.T.Expr.node with
@@ -364,8 +364,7 @@ let walk_body env multi (body : T.Block.t) =
   in
   block [] false body
 
-let run env (p : T.Program.t) =
-  let multi = Repeats.compute env p in
+let run env ~multi (p : T.Program.t) =
   List.iter
     (fun (pkg : T.Package.t) ->
       List.iter

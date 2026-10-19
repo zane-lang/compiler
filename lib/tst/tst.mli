@@ -11,6 +11,10 @@ module Nodes = Nodes
 (** A decimal literal's single, which lowering embeds as checked here. *)
 module Decimal = Decimal
 
+(** What each expression and statement of the tree is made of, for every
+    pass over it. *)
+module Traverse = Traverse
+
 (** Which verbs can exit, which lowering asks of a verb's body. *)
 module Exits = Exits
 

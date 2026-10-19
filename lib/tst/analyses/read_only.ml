@@ -223,7 +223,7 @@ let add w (l : T.Local.t) p s =
 
 let summary_of w (r : T.Verb_ref.t) =
   match r.T.Verb_ref.owner with
-  | S.Declared id -> Fixpoint.find_opt w.summaries id
+  | S.Declared id -> Fixpoint.read_opt w.summaries id
   | S.Intrinsic _ -> None
 
 let rec expr env w (e : T.Expr.t) : Taint.t =
@@ -590,11 +590,10 @@ let bodies env (p : T.Program.t) =
         })
       p.T.Program.instances
 
-let run env (p : T.Program.t) =
+let run env ~multi (p : T.Program.t) =
   let summaries = summaries () in
   let bodies = bodies env p in
   (* Every body starts from nothing, so a callee not yet walked is not
      mistaken for one that has no body to walk. *)
   List.iter (fun (b : body) -> Fixpoint.start summaries b.decl) bodies;
-  let multi = Repeats.compute env p in
-  Fixpoint.settle summaries (fun ~report -> List.iter (walk_body summaries multi ~report) bodies)
+  Fixpoint.settle summaries bodies (walk_body summaries multi)

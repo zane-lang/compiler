@@ -4,6 +4,7 @@ module Signature = Signature
 module Nodes = Nodes
 module Decimal = Decimal
 module Exits = Exits
+module Traverse = Traverse
 module Intrinsics = Intrinsics
 module Semantics = Semantics
 

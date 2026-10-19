@@ -6,15 +6,15 @@
 
 open Cgt.Nodes
 
-(* A frame's record, and the header before a spawned call's own frame, as
-   runtime/zane_internal.h has them and asserts. *)
-let record = 224
-let task = 96
+(* A frame's record, and the header before a spawned call's own frame
+   (runtime/zane_abi.h). *)
+let record = Abi.mark_size
+let task = Abi.task_size
 
 (* The guard after a context's range (ZANE_GUARD): a frame no larger is
    stopped by the guard if it does not fit, and a larger one is checked
    before it is placed. *)
-let guard = 1 lsl 20
+let guard = Abi.guard
 
 type t = {
   size : int;
@@ -61,12 +61,12 @@ let layout symbol id body =
         let result = match frame with Ty.Struct (r :: _) -> r | _ -> Ty.Void in
         Option.iter (fun d -> place d (Ty.size_align result)) dest
     | _ -> ());
-    let es, bodies = Cgt.stat_parts s in
+    let es, bodies = Cgt.Traverse.stat_parts s in
     let inner = match s with Stat.Repeat _ | Stat.Scope _ -> true | _ -> again in
     List.iter (expr again) es;
     List.iter (List.iter (stat inner)) bodies
   and expr again e =
-    let es, bodies = Cgt.expr_parts e in
+    let es, bodies = Cgt.Traverse.expr_parts e in
     List.iter (expr again) es;
     List.iter (List.iter (stat again)) bodies
   in

@@ -124,7 +124,7 @@ let prepare ?target ?(optimize = false) m =
 (* The C compiler that links: `ZANE_CC` if set, else `clang`. *)
 let cc () = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC")
 
-(* The runtime is written out as it is laid out in runtime/: its two headers
+(* The runtime is written out as it is laid out in runtime/: its three headers
    beside the one translation unit that includes them. *)
 let write_runtime dir =
   List.iter
@@ -132,6 +132,7 @@ let write_runtime dir =
       Out_channel.with_open_bin (Filename.concat dir name) (fun oc -> output_string oc text))
     [
       ("zane.h", Runtime_source.header);
+      ("zane_abi.h", Runtime_source.abi);
       ("zane_internal.h", Runtime_source.internal);
       ("zane.c", Runtime_source.text);
     ]
@@ -184,7 +185,7 @@ let executable ?target ?(optimize = false) ?(link = []) m output =
         ~finally:(fun () ->
           List.iter
             (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
-            [ "program.o"; "zane.h"; "zane_internal.h"; "zane.c" ];
+            [ "program.o"; "zane.h"; "zane_abi.h"; "zane_internal.h"; "zane.c" ];
           try Sys.rmdir dir with Sys_error _ -> ())
         (fun () ->
           match

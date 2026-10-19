@@ -17,16 +17,16 @@ let expands (s : S.t) =
 (* Each call to a declared verb in a block, outside its lambdas, with the
    verb it names. *)
 let rec calls (b : T.Block.t) =
-  List.concat_map (fun s -> List.concat_map expr_calls (Exits.stat_exprs s)) b.T.Block.stats
+  List.concat_map (fun s -> List.concat_map expr_calls (Traverse.stat_exprs s)) b.T.Block.stats
 
 and expr_calls (e : T.Expr.t) =
   (match Exits.callee e with Some (id, _) -> [ (id, e) ] | None -> [])
   @ List.concat_map
       (function
-        | Exits.Same x -> expr_calls x
-        | Exits.Arm b | Exits.Handler b | Exits.Block b -> calls b
-        | Exits.Lambda _ -> [])
-      (Exits.parts e)
+        | Traverse.Same x -> expr_calls x
+        | Traverse.Arm b | Traverse.Handler b | Traverse.Block b -> calls b
+        | Traverse.Lambda _ -> [])
+      (Traverse.parts e)
 
 let run env (p : T.Program.t) =
   let names = Hashtbl.create 16 in

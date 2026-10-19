@@ -1619,3 +1619,66 @@ still counts characters, so no header moved. The comment at the top of
 The batch's head passed `devbox run -- just test-compiler` (including the
 probe gate) and `just check-file-sizes`, which still warns about
 `lib/cgt/lower.ml` as before.
+
+### Batch 8: architecture (F22, F25, F23)
+
+F21 and F24 follow in their own PRs. Each of these three left every
+golden and fixture as it was.
+
+- **F22** (`9754f7f`). `Tst.Traverse` (`lib/tst/model/traverse.ml`)
+  holds `part`, `parts` and `stat_exprs`, moved from `Exits`, and every
+  analysis and `Cgt.Program` walks the tree through it. `Cgt.Traverse`
+  (`lib/cgt/traverse.ml`) holds the parts, the walks, `exists_in` and the
+  rewrite, moved from `Regions`, and exports them in place of `Cgt`'s two
+  top-level `*_parts`. It also has `map_expr_parts` and
+  `map_stat_parts`, one level of the rewrite in the order the parts run,
+  which the plan did not name: the rewrite is built on them, and
+  `Fold.map_children`, which must fold children left to right, is
+  `map_expr_parts`. `Fold`'s other inventories became the shared walks.
+  Every caller of the rewrite changes the tree, so no read-only query
+  needed moving off it. Test: `tests/unit/traversals.ml` builds one node
+  of each constructor of each tree, every child a node of its own, and
+  checks by identity that the traversal returns exactly those children in
+  order, and that the CGT's one-level rewrite visits and replaces exactly
+  them. A tag match over every constructor makes a new one fail to
+  compile there until it is numbered, and then fail the test until it has
+  a sample. Dropping `Flip`'s handler from `Tst.Traverse.parts` or a
+  `Switch` case from `Cgt.Traverse.stat_parts` fails it.
+- **F25** (`34526be`). `Fixpoint.settle` takes the bodies and a walk of
+  one, and runs a worklist: every body is walked once, a read through
+  `Fixpoint.read` or `read_opt` notes the walked body as a reader, and a
+  summary that grows queues only its readers. The `~report:true` pass over
+  every body, in order, is as it was. `Semantics.check` computes
+  `Repeats` once and passes it to `Read_only.run` and `Spawns.run`.
+  `Repeats` had a whole-program loop of its own, which the plan did not
+  name; it now settles on the same worklist. Test: the unit test
+  `fixpoint_chain` settles a chain of 2,000 calls listed caller first in
+  2n - 1 walks, counted by the `Fixpoint.walks` hook, and counts the
+  round-robin loop on the same chain at n (n + 1). With `add` queuing
+  every body on any growth, as the old loop did, it fails.
+- **F23** (`923fb8d`). `runtime/zane_abi.h` defines each number emitted
+  code relies on: the heap's class count and offsets, a scope record's
+  offsets and size, a context's offsets, the spawned call's header size,
+  and a handle's offsets and size, as the plan lists, and also the line a
+  list's block is aligned to and the guard after a context's range, which
+  codegen used too. `zane_internal.h` includes it and asserts every
+  `offsetof` and `sizeof` against it, `zane_text` and `zane_list`
+  included; the guard, now a macro, is asserted to be one chunk.
+  `lib/codegen/gen/abi_ml.ml` reads the header into the generated `Abi`,
+  refusing any `#define` that is not a plain number, and `frames.ml`,
+  `emit.ml` and `walks.ml` take their numbers from it. The embedded
+  runtime carries the new header, and `Build` writes it out with the
+  others. `tests/runtime/dune.inc` lists it among each runtime test's
+  dependencies, the one generated rule that changed. Test:
+  `tests/runtime/abi/probe.c` prints what the structs measure, by header
+  name. The unit test `probed_abi` holds that to `Abi`, checks that only
+  the line and the guard go unmeasured, and that lowering's handle is
+  `Abi`'s size; emitting one value one higher into `Abi` fails it. The
+  runtime tests build on Linux only, so `dev/bin/windows-programs` also
+  builds the probe for Windows, held to the header, for `check-programs`
+  to run there.
+
+The batch's head passed `devbox run -- just test-compiler` (including the
+probe gate) and `just check-file-sizes`, which still warns about
+`lib/cgt/lower.ml` as before. `dev/bin/windows-programs` cross-built every
+Windows program and the probe; Wine was not available to run them.

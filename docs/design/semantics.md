@@ -29,6 +29,7 @@ modules by kind; module names stay flat, so `passes/collect.ml` is `Collect`:
 | `check/` | Pass 5, with overload resolution and instantiation |
 | `model/ty.ml`, `model/signature.ml` | Types (§4), and what a call site needs to know about a verb |
 | `model/intrinsics.ml` | The intrinsic namespaces (D3) |
+| `model/traverse.ml` | What each expression and statement is made of, which every analysis walks the tree by |
 | `analyses/` | The analyses over the finished tree (D1) |
 | `semantics.ml` | The passes, run in order |
 
@@ -202,6 +203,12 @@ else.
    check in any order, which is what "order-independent" asks for (§2.3).
 
 Then the analyses of D1's right-hand column run over the finished tree.
+Several summarise each verb for its callers, and verbs may call each other in a
+cycle, so their summaries are computed to a fixed point
+(`lib/tst/analyses/fixpoint.ml`) before any body reports. Every body is walked
+once; a walk reads another verb's summary through `Fixpoint.read`, which notes
+the body as its reader; and when a summary grows, only its readers are walked
+again. Then every body is walked once more to report.
 
 **Read-only references** (`lib/tst/analyses/read_only.ml`,
 [`effects.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/effects.md) §4.4): a `!` call whose subject reaches a reference taken from
@@ -326,8 +333,8 @@ when it is `@controlflow$repeat`'s body, a block argument to a function
 value, or a block argument at a position its verb runs more than once: one
 it passes on to such a position or to a function value, or passes anywhere
 from inside a block that runs more than once, computed to a fixed
-point over every body (`lib/tst/analyses/repeats.ml`, which the read-only
-analysis reads too).
+point over every body (`lib/tst/analyses/repeats.ml`). `Semantics.check`
+computes it once and hands it to this analysis and the read-only one.
 
 The same spawn is lent every owner passed to it, directly or through a reference,
 until the same drain, and the block may not write one meanwhile

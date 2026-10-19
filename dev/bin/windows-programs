@@ -15,6 +15,8 @@ set -euo pipefail
 # with besides; a program expected to fail is held to what it writes on both
 # streams, as tests/codegen/ holds it.
 #
+# `abi` is the runtime's probe of its own structs, held to runtime/zane_abi.h.
+#
 # The programs link with `zig cc`, which carries Windows' C library and
 # threads. The compiler is built first.
 
@@ -68,5 +70,15 @@ for object in stamped rewritten; do
 		--build "$OUT/survey.$object.exe" "${survey[@]}"
 	expect "survey.$object" tests/objects/golden/survey.out 0
 done
+
+# The runtime's structs as Windows lays them out (tests/runtime/abi/probe.c),
+# held to runtime/zane_abi.h, the numbers emitted code is built with: each
+# one the header gives, in its order, but ZANE_LINE and ZANE_GUARD, which
+# nothing else defines.
+"$ZANE_CC" --target="$TARGET" -std=c11 -Wall -Wextra -Werror -O2 -I runtime \
+	-o "$OUT/abi.exe" tests/runtime/abi/probe.c
+sed -n 's/^#define \(ZANE_[A-Z0-9_]*\) \([0-9][0-9]*\)$/\1 \2/p' runtime/zane_abi.h |
+	grep -Ev '^ZANE_(LINE|GUARD) ' >"$OUT/abi.out"
+echo 0 >"$OUT/abi.status"
 
 echo "windows-programs: $(ls "$OUT"/*.exe | wc -l) programs in $OUT"

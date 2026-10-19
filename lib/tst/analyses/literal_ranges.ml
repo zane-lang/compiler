@@ -32,7 +32,7 @@ let text = function
 let prefix = "@primitives$"
 
 let rec block env (b : T.Block.t) =
-  List.iter (fun s -> List.iter (expr env) (Exits.stat_exprs s)) b.T.Block.stats
+  List.iter (fun s -> List.iter (expr env) (Traverse.stat_exprs s)) b.T.Block.stats
 
 and expr env (e : T.Expr.t) =
   let check spelling (v : T.Expr.t) =
@@ -51,9 +51,9 @@ and expr env (e : T.Expr.t) =
   | _ -> ());
   List.iter
     (function
-      | Exits.Same x -> expr env x
-      | Exits.Arm b | Exits.Handler b | Exits.Block b | Exits.Lambda b -> block env b)
-    (Exits.parts e)
+      | Traverse.Same x -> expr env x
+      | Traverse.Arm b | Traverse.Handler b | Traverse.Block b | Traverse.Lambda b -> block env b)
+    (Traverse.parts e)
 
 let run env (p : T.Program.t) =
   List.iter

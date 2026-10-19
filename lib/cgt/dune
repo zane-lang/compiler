@@ -2,7 +2,8 @@
 ; docs/design/lowering.md: [Nodes] is the tree, [Lower] the walk over a
 ; verb's body that builds it, over [State], [Type_layout], [Literals],
 ; [Verbs], [Outcome] and [Build]; [Program] lowers a whole program with the
-; walk, and [To_tree_graph] renders it for `--cgt`.
+; walk, [Regions] places its arenas, [Traverse] walks and rewrites the tree
+; for every pass over it, and [To_tree_graph] renders it for `--cgt`.
 (library
  (name cgt)
  (libraries diagnostic source tree_graph tst))

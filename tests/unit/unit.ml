@@ -3,6 +3,8 @@ module S = Tst.Signature
 module T = Tst.Nodes
 module Overloads = Tst__Overloads
 module Borrows = Tst__Borrows
+module Fixpoint = Tst__Fixpoint
+module Abi = Codegen__Abi
 module State = Cgt__State
 module Type_layout = Cgt__Type_layout
 module Value = Optimize__Value
@@ -220,6 +222,39 @@ let growing_types () =
   raises_bug "following references through a growing type stops once it keeps growing" (fun () ->
       Borrows.reached_through_references ~members:deeper (named "Node" ~args:[ Ty.Type int ]))
 
+(* A chain of 2,000 verbs, each calling the next, listed caller first, so
+   that the fact the last one starts gets back to the first one link by link.
+   Walking every body until no summary grows takes a round per link, so about
+   n * n walks; the worklist walks each body once and each caller once more
+   (Fixpoint, F25). The round-robin count is taken here too, so the chain is
+   known to be the worst case for it. *)
+let fixpoint_chain () =
+  let n = 2000 in
+  let walk t i =
+    Fixpoint.add t i (if i = n - 1 then true else Fixpoint.read t (i + 1))
+  in
+  let t = Fixpoint.create ~empty:false ~union:( || ) ~equal:Bool.equal in
+  let reported = ref 0 in
+  Fixpoint.settle t (List.init n Fun.id) (fun ~report i ->
+      if report then incr reported;
+      walk t i);
+  check "the fixed point reaches the head of the chain" (Fixpoint.read t 0);
+  check "every body is walked once more to report" (!reported = n);
+  check "a worst-first chain settles in a walk per body and one per caller"
+    (Fixpoint.walks t = (2 * n) - 1);
+  let rounds = Fixpoint.create ~empty:false ~union:( || ) ~equal:Bool.equal in
+  let walks = ref 0 and changed = ref true in
+  while !changed do
+    changed := false;
+    for i = 0 to n - 1 do
+      incr walks;
+      let before = Fixpoint.read rounds i in
+      walk rounds i;
+      if Fixpoint.read rounds i <> before then changed := true
+    done
+  done;
+  check "walking every body until nothing grows is quadratic on the chain" (!walks = n * (n + 1))
+
 (* ---------------------------------------------------------------------- *)
 (* The runtime's ABI                                                      *)
 (* ---------------------------------------------------------------------- *)
@@ -319,6 +354,32 @@ let runtime_abi () =
       check (name ^ " in zane.h is a function the compiler knows")
         (name = "zane_main" || List.exists (fun fn -> R.name fn = name) R.all))
     declared
+
+(* What the runtime's structs measure, as tests/runtime/abi/probe.c prints
+   it on this platform, against the numbers the compiler emits code with,
+   which Abi reads from runtime/zane_abi.h. Every number is measured but the
+   two nothing but the header defines. *)
+let probed_abi () =
+  let probed =
+    In_channel.with_open_text "../runtime/abi/probe.out" In_channel.input_lines
+    |> List.filter_map (fun line ->
+           match String.split_on_char ' ' line with
+           | [ name; value ] -> Some (name, int_of_string value)
+           | _ -> None)
+  in
+  check "the probe measures something" (probed <> []);
+  List.iter
+    (fun (name, value) ->
+      check
+        (Printf.sprintf "%s is %d in the runtime and in Abi" name value)
+        (List.assoc_opt name Abi.values = Some value))
+    probed;
+  check "every number in Abi is measured but ZANE_LINE and ZANE_GUARD"
+    (List.sort compare
+       (List.filter (fun (name, _) -> not (List.mem_assoc name probed)) Abi.values |> List.map fst)
+    = [ "ZANE_GUARD"; "ZANE_LINE" ]);
+  check "lowering lays a handle out as the runtime does"
+    (Cgt.Nodes.Ty.size_align Cgt.Nodes.Ty.Handle = (Abi.handle_size, 8))
 
 (* Many programs built in one process, each with functions that take no
    parameters and one that returns an empty struct: LLVM's bindings give an
@@ -1103,12 +1164,15 @@ let fixture_pairing () =
 
 let () =
   ty ();
+  Traversals.run check;
   signatures ();
   overloads ();
   string_constructors ();
   type_layout ();
   growing_types ();
+  fixpoint_chain ();
   runtime_abi ();
+  probed_abi ();
   single_literals ();
   folded_arithmetic ();
   intrinsic_classes ();

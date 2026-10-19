@@ -3,8 +3,7 @@
 module Nodes = Nodes
 module Runtime = Runtime
 module Math = Math
+module Traverse = Traverse
 
 let lower = Program.program
-let expr_parts = Regions.expr_parts
-let stat_parts = Regions.stat_parts
 let to_node = To_tree_graph.program
