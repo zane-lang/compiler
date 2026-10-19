@@ -1113,7 +1113,9 @@ and match_ env ~flow ctx (m : N.Match_expr.t) =
     if missing > 0 then begin
       let rec combos = function
         | [] -> Seq.return []
-        | cases :: rest -> Seq.flat_map (fun c -> Seq.map (fun tail -> c :: tail) (combos rest)) (List.to_seq cases)
+        | cases :: rest ->
+            let tails = combos rest in
+            Seq.flat_map (fun c -> Seq.map (fun tail -> c :: tail) tails) (List.to_seq cases)
       in
       let shown =
         combos all_cases
