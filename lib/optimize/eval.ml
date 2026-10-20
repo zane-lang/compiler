@@ -25,8 +25,90 @@ type constant = { maker : string; state : string; value : string; mutable known 
    it is recorded so that a replay can be charged without walking them. *)
 type memo = { result : const; outputs : output list; count : int; text : int }
 
+(* A function the evaluator can call, and whether its calls are remembered
+   (O6): when its body makes more than one call, when it and the chain of
+   unremembered calls below it hold more than [large_body] nodes, or when a
+   loop, a spawn, a call through a value, recursion, or work that grows with
+   a value's size (a runtime function, a copy or an overwrite) is reachable
+   from it. Any other call runs a small chain of small bodies, fewer steps
+   than a remembered call takes to keep and look up. Known the first time it
+   is asked. *)
+type entry = { func : Func.t; mutable remembers : remembers; mutable frame : int }
+and remembers = Unknown | Asking | Known of bool * int
+
+module Funcs = Hashtbl.Make (struct
+  type t = string
+
+  let equal = String.equal
+  let hash = Hashtbl.hash
+end)
+
+let entry (f : Func.t) = { func = f; remembers = Unknown; frame = 4 }
+
+let functions fs =
+  let t = Funcs.create 64 in
+  List.iter (fun (f : Func.t) -> Funcs.replace t f.Func.symbol (entry f)) fs;
+  t
+
+(* The steps a value of [t] costs to make or move, as [bytes] charges them. *)
+let size_steps (t : Ty.t) =
+  match t with
+  (* Scalars are smaller than a step's worth of bytes. *)
+  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Ptr -> 0
+  | Ty.Struct _ | Ty.Array _ | Ty.Sum _ -> fst (Ty.size_align t) / 64
+
+(* The weight a body may have and still be run again rather than
+   remembered: a node each, and the steps of each aggregate it makes or
+   moves. [core]'s arithmetic and constructors weigh a few each. *)
+let large_body = 64
+
+(* Whether [e] is remembered, and the weight of a call to it when it is
+   not: its body's and, through its one call, those of the chain of
+   unremembered calls below it, so a long chain of small bodies is as large
+   as one long body. *)
+let rec weigh funcs e =
+  match e.remembers with
+  | Known (r, w) -> (r, w)
+  | Asking -> (true, 0)
+  | Unknown ->
+      e.remembers <- Asking;
+      (* Two calls in one body can double the work at each level of calls
+         below it, which only remembering keeps linear in their depth. *)
+      let calls = ref 0 and nodes = ref 0 in
+      let large n =
+        nodes := !nodes + n;
+        !nodes > large_body
+      in
+      let r =
+        Cgt.Traverse.exists_in e.func.Func.body
+          ~expr:(fun x ->
+            large (1 + size_steps x.Expr.ty)
+            ||
+            match x.Expr.node with
+            | Expr.Call { fn; _ } -> (
+                incr calls;
+                !calls > 1
+                ||
+                match Funcs.find_opt funcs fn with
+                | None -> false
+                (* A call to a function still being asked about is a
+                   recursive call, which is worth remembering. *)
+                | Some { remembers = Asking; _ } -> true
+                | Some callee -> (
+                    match weigh funcs callee with true, _ -> false | false, w -> large w))
+            | Expr.Call_value _ | Expr.Runtime _ | Expr.Copy _ -> true
+            | _ -> false)
+          ~stat:(fun st ->
+            large (1 + match st with Stat.Reserve { ty; _ } -> size_steps ty | _ -> 0)
+            || match st with Stat.Repeat _ | Stat.Spawn _ | Stat.Overwrite _ -> true | _ -> false)
+      in
+      e.remembers <- Known (r, !nodes);
+      (r, !nodes)
+
+let remembers funcs e = fst (weigh funcs e)
+
 type program = {
-  funcs : (string, Func.t) Hashtbl.t;
+  funcs : entry Funcs.t;
   layouts : (Layout.t, Layout.position list) Hashtbl.t;
   globals : (string, Global.t) Hashtbl.t;
   (* By the symbol of each of the constant's variables. *)
@@ -63,7 +145,46 @@ type run = {
 
 (* The locals of one call. The function being folded has [outer]: the value
    the fold knows a local of it holds, read the first time it is needed. *)
-type frame = { locals : (int, cell) Hashtbl.t; outer : (int -> (const * Ty.t) option) option }
+module Locals = struct
+  (* The cell each local number names: numbers below [dense] in an array
+     grown as they are bound, and any above in a table. A frame then costs
+     at most [dense] slots however many locals its function numbers, which
+     keeps a fold of a large function from growing with the square of its
+     locals. *)
+  type t = { mutable cells : cell option array; mutable far : (int, cell) Hashtbl.t option }
+
+  let dense = 1024
+  let create ?(size = 8) () = { cells = Array.make (min size dense) None; far = None }
+  let size t = Array.length t.cells
+
+  let find_opt t id =
+    if id >= 0 && id < Array.length t.cells then t.cells.(id)
+    else Option.bind t.far (fun h -> Hashtbl.find_opt h id)
+
+  let replace t id c =
+    if id < 0 then stop "a local with no number";
+    let n = Array.length t.cells in
+    if id < n then t.cells.(id) <- Some c
+    else if id < dense then begin
+      let cells = Array.make (min dense (max (2 * n) (id + 1))) None in
+      Array.blit t.cells 0 cells 0 n;
+      t.cells <- cells;
+      cells.(id) <- Some c
+    end
+    else
+      match t.far with
+      | Some h -> Hashtbl.replace h id c
+      | None ->
+          let h = Hashtbl.create 8 in
+          Hashtbl.replace h id c;
+          t.far <- Some h
+
+  let iter f t =
+    Array.iteri (fun id c -> Option.iter (f id) c) t.cells;
+    Option.iter (Hashtbl.iter f) t.far
+end
+
+type frame = { locals : Locals.t; outer : (int -> (const * Ty.t) option) option }
 
 exception Left of int
 exception Returned of v
@@ -124,24 +245,26 @@ let output run o =
   let text = match o with Print s -> String.length s | Set_threads _ | Set_threads_auto -> 0 in
   charge_outputs run ~count:1 ~text;
   run.outputs <- o :: run.outputs
-let sized run t = bytes run (fst (Ty.size_align t))
+let sized run (t : Ty.t) =
+  let n = size_steps t in
+  if n > 0 then spend run n
 
 (* ---------------------------------------------------------------------- *)
 (* Places                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
 let local fr id =
-  match Hashtbl.find_opt fr.locals id with
+  match Locals.find_opt fr.locals id with
   | Some c -> c
   | None -> (
       match Option.bind fr.outer (fun known -> known id) with
       | Some (c, ty) ->
           let c = cell ~origin:(Outer id) ty (import c) in
-          Hashtbl.replace fr.locals id c;
+          Locals.replace fr.locals id c;
           c
       | None -> stop "a local whose value is not known")
 
-let bind fr id ty v = Hashtbl.replace fr.locals id (cell ty v)
+let bind fr id ty v = Locals.replace fr.locals id (cell ty v)
 
 (* A variable of the program: a constant's value and state, or a program
    value such as the console, which holds nothing a program reads. *)
@@ -503,12 +626,12 @@ and stat run fr (s : Stat.t) =
   | Stat.Assign { place; value } ->
       let v = expr run fr value in
       let c =
-        match (Hashtbl.find_opt fr.locals place.Expr.local, place.Expr.deref, place.Expr.path) with
+        match (Locals.find_opt fr.locals place.Expr.local, place.Expr.deref, place.Expr.path) with
         (* A whole local of the function being folded can be stored into
            whether or not its value is known: the store decides it. *)
         | None, false, [] when Option.is_some fr.outer ->
             let c = cell ~origin:(Outer place.Expr.local) value.Expr.ty VNull in
-            Hashtbl.replace fr.locals place.Expr.local c;
+            Locals.replace fr.locals place.Expr.local c;
             c
         | _ -> local fr place.Expr.local
       in
@@ -583,18 +706,18 @@ and stat run fr (s : Stat.t) =
 (* ---------------------------------------------------------------------- *)
 
 and call run fn args =
-  match Hashtbl.find_opt run.prog.funcs fn with
+  match Funcs.find_opt run.prog.funcs fn with
   | None -> stop "a call to a function with no body here"
-  | Some f when f.Func.linkage = Linkage.Imported -> stop "a call to a function with no body here"
-  | Some f -> (
+  | Some { func = f; _ } when f.Func.linkage = Linkage.Imported -> stop "a call to a function with no body here"
+  | Some ({ func = f; _ } as e) -> (
       if List.length f.Func.params <> List.length args then stop "a call with the wrong arguments";
       (* A call made before with the same arguments gives what it gave then.
          A run that makes a constant changes what a constant's state holds,
          which a call's arguments do not say, so it remembers nothing. *)
-      let consts = List.map export args in
       let key =
-        if run.making = None && List.for_all Option.is_some consts then
-          Some (fn, List.map Option.get consts)
+        if run.making = None && remembers run.prog.funcs e then
+          let consts = List.map export args in
+          if List.for_all Option.is_some consts then Some (fn, List.map Option.get consts) else None
         else None
       in
       match Option.bind key (Key.find_opt run.prog.memo) with
@@ -605,11 +728,13 @@ and call run fn args =
       | None ->
           run.depth <- run.depth + 1;
           if run.depth > max_depth then stop "calls nested too deep";
-          let fr = { locals = Hashtbl.create 16; outer = None } in
+          (* As many locals as the last call of the function numbered. *)
+          let fr = { locals = Locals.create ~size:e.frame (); outer = None } in
           List.iter2 (fun (id, ty) v -> bind fr id ty v) f.Func.params args;
           let before = run.outputs and count = run.output_count and text = run.output_bytes in
           let result = try stats run fr f.Func.body; VUnit with Returned v -> v in
           run.depth <- run.depth - 1;
+          e.frame <- Locals.size fr.locals;
           (match (key, export result) with
           | Some key, Some c ->
               (* What this call output: the newest outputs, back to those

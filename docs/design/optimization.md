@@ -181,7 +181,12 @@ and its negative, which a division tells apart, are two values.
 `fold.ml` walks each function's body in the order it runs and keeps what it
 knows: each local whose value is a constant at that point. Every function is
 folded, whether or not anything calls it, so the constant code inside a
-function that never ends still folds.
+function that never ends still folds. A function is folded after the
+functions it calls, the thunks it spawns and the functions it names as
+values, except where calls form a cycle, and its folded body is
+the one evaluation runs from then on. A call to a function that folded to
+its outputs runs those outputs, not the code they came from, so `main`'s
+work is done once, not again for the entry point that calls it.
 
 - An expression is tried once its children are folded and all its inputs are
   known: constants, known locals, or addresses of them. If evaluating it
@@ -244,8 +249,17 @@ weight: its text's length and one more, so that an output with no text, a
 A replacement whose code would be larger than 64 KiB, its value, its outputs
 and the locals it stores counted together, does not fold either, which keeps a cheap call that builds a large value out of the
 binary. A call's result and outputs are remembered by its function and its
-arguments, so a call made again with the same arguments costs a lookup, and
-a call with constant arguments that did not fold is not tried again. A
+arguments when the function's body makes more than one call, when it and
+the chain of unremembered calls below it weigh more than 64 (a node each,
+and a step for each 64 bytes of every aggregate they make, reserve or
+move), or when a loop, a spawn, a call through a value, a recursive call,
+or work that grows with a value's size, a runtime function, a copy or an
+overwrite, is reachable from it, so such a call made again with the same arguments costs
+a lookup. Any other call runs a short chain of small bodies, fewer steps
+than keeping and finding its result would, and runs again: `core`'s
+arithmetic, which a loop calls with new arguments on every pass, is never
+remembered. A call with constant arguments that did not fold is not tried
+again. A
 remembered call keeps how many outputs it made and the bytes of their text,
 and replaying them is charged steps and counted against the output limit as
 making them was, so a call that makes its previous level twice cannot output
@@ -351,7 +365,10 @@ each written and read again, with no index check left in it.
 
 `tests/unit/` checks the evaluator's arithmetic against codegen's, its math
 functions, the intrinsic classes, a value written as code and read back, calls, outputs,
-memoization and the budget, stores in place, two folds of handmade
+memoization of a call that reaches a loop or a runtime function, or runs a
+large body or a long chain of small ones, and not of one that does none of
+these, a chain of calls that each make two staying
+linear, the budget, stores in place, two folds of handmade
 functions, a replacement past the size cap only as a whole, a string that
 doubles past the budget, a call that replays its previous level's output
 twice stopping at the output cap, with a word and with empty prints, a member of a program variable written in place,

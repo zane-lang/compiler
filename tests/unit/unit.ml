@@ -581,10 +581,8 @@ let e node ty = { C.Expr.node; ty }
 let i64 n = e (C.Expr.Int n) C.Ty.I64
 
 let program funcs =
-  let funcs' = Hashtbl.create 8 in
-  List.iter (fun (f : C.Func.t) -> Hashtbl.replace funcs' f.C.Func.symbol f) funcs;
   {
-    Eval.funcs = funcs';
+    Eval.funcs = Eval.functions funcs;
     layouts = Hashtbl.create 1;
     globals = Hashtbl.create 1;
     constants = Hashtbl.create 1;
@@ -602,24 +600,86 @@ let materialized () =
     (Option.bind (Materialize.expr t c) Materialize.const = Some c);
   check "a string is no function's address" (Materialize.expr C.Ty.Ptr (Value.Text "x") = None)
 
-(* Calls run, outputs are kept in order, a call made again is remembered,
-   and a budget spent or a constant made where it is read stops the run. *)
+(* Calls run, outputs are kept in order, a call made again is remembered
+   when a loop or work that grows with a value is reachable from it, and a budget spent or a constant made where it is read stops the run. *)
 let evaluated () =
   let print s = C.Stat.Eval (e (C.Expr.Runtime { fn = Cgt.Runtime.Print; args = [ e (C.Expr.Text s) C.Ty.Handle ] }) C.Ty.Void) in
   let double =
     func "double" [ (1, C.Ty.I64) ]
       [ print "a"; print "b"; C.Stat.Return (e (C.Expr.Binary { op = C.Expr.Mul; left = e (C.Expr.Local 1) C.Ty.I64; right = i64 2L }) C.Ty.I64) ]
   in
-  let prog = program [ double ] in
+  let twice =
+    func "twice" [ (1, C.Ty.I64) ]
+      [
+        C.Stat.Repeat { count = i64 1L; body = [] };
+        C.Stat.Return (e (C.Expr.Call { fn = "double"; args = [ e (C.Expr.Local 1) C.Ty.I64 ] }) C.Ty.I64);
+      ]
+  in
+  let join =
+    let text = e (C.Expr.Local 1) C.Ty.Handle in
+    func "join" [ (1, C.Ty.Handle) ]
+      [ C.Stat.Return (e (C.Expr.Runtime { fn = Cgt.Runtime.Text_join; args = [ text; text ] }) C.Ty.Handle) ]
+  in
+  let next =
+    func "next" [ (1, C.Ty.I64) ]
+      [ C.Stat.Return (e (C.Expr.Binary { op = C.Expr.Add; left = e (C.Expr.Local 1) C.Ty.I64; right = i64 1L }) C.Ty.I64) ]
+  in
+  let long =
+    let x = e (C.Expr.Local 1) C.Ty.I64 in
+    let sum = List.fold_left (fun acc _ -> e (C.Expr.Binary { op = C.Expr.Add; left = acc; right = x }) C.Ty.I64) x (List.init 40 Fun.id) in
+    func "long" [ (1, C.Ty.I64) ] [ C.Stat.Return sum ]
+  in
+  let self =
+    func "self" [ (1, C.Ty.I64) ] [ C.Stat.Return (e (C.Expr.Call { fn = "self"; args = [ e (C.Expr.Local 1) C.Ty.I64 ] }) C.Ty.I64) ]
+  in
+  let zeroes =
+    func "zeroes" [ (1, C.Ty.I64) ]
+      [ C.Stat.Reserve { id = 2; scope = 0; ty = C.Ty.Array (C.Ty.I64, 8191); layout = "a" }; C.Stat.Return (i64 0L) ]
+  in
+  let prog = program [ double; twice; join; next; long; self; zeroes ] in
+  let asked f = Eval.remembers prog.Eval.funcs (Eval.Funcs.find prog.Eval.funcs f) in
+  check "a small body that calls itself is remembered" (asked "self");
+  check "as is a small body that reserves a large aggregate" (asked "zeroes");
   let run = Eval.start prog in
-  check "a call gives its result" (Eval.call run "double" [ Value.VInt 21L ] = Value.VInt 42L);
+  check "a call gives its result" (Eval.call run "twice" [ Value.VInt 21L ] = Value.VInt 42L);
   check "outputs are kept in the order made" (List.rev run.Eval.outputs = Eval.[ Print "a"; Print "b" ]);
-  check "a call is remembered by its arguments" (Value.Key.mem prog.Eval.memo ("double", [ Value.Int 21L ]));
+  check "a call is remembered by its arguments" (Value.Key.mem prog.Eval.memo ("twice", [ Value.Int 21L ]));
+  ignore (Eval.call run "long" [ Value.VInt 1L ]);
+  check "as is a call to a large body, though it neither loops nor calls"
+    (Value.Key.mem prog.Eval.memo ("long", [ Value.Int 1L ]));
+  ignore (Eval.call run "next" [ Value.VInt 1L ]);
+  check "a call that reaches no loop, recursion or runtime function is not"
+    (not (Value.Key.mem prog.Eval.memo ("next", [ Value.Int 1L ])));
+  ignore (Eval.call run "join" [ Value.VText "ab" ]);
+  check "as is a call whose work grows with its arguments"
+    (Value.Key.mem prog.Eval.memo ("join", [ Value.Text "ab" ]));
+  (* f30 calls f29 twice, and so on down, which is 2^30 calls unless each
+     level is remembered. *)
+  let level k =
+    let call = e (C.Expr.Call { fn = Printf.sprintf "f%d" (k - 1); args = [ e (C.Expr.Local 1) C.Ty.I64 ] }) C.Ty.I64 in
+    func (Printf.sprintf "f%d" k) [ (1, C.Ty.I64) ]
+      [ C.Stat.Return (e (C.Expr.Binary { op = C.Expr.Add; left = call; right = call }) C.Ty.I64) ]
+  in
+  let leaf = func "f0" [ (1, C.Ty.I64) ] [ C.Stat.Return (e (C.Expr.Local 1) C.Ty.I64) ] in
+  let doubling = program (leaf :: List.init 30 (fun k -> level (k + 1))) in
+  let link k =
+    let call = e (C.Expr.Call { fn = Printf.sprintf "f%d" (k - 1); args = [ e (C.Expr.Local 1) C.Ty.I64 ] }) C.Ty.I64 in
+    func (Printf.sprintf "f%d" k) [ (1, C.Ty.I64) ] [ C.Stat.Return call ]
+  in
+  let chain = program (leaf :: List.init 100 (fun k -> link (k + 1))) in
+  ignore (Eval.call (Eval.start chain) "f100" [ Value.VInt 1L ]);
+  let remembered k = Value.Key.mem chain.Eval.memo (Printf.sprintf "f%d" k, [ Value.Int 1L ]) in
+  check "a long chain of small bodies, each making one call, is remembered every 64 nodes or so"
+    (List.exists remembered (List.init 30 (fun k -> k + 1)) && not (remembered 1));
+  check "a body making two calls is remembered, so their doubling stays linear"
+    (match Eval.call (Eval.start doubling) "f30" [ Value.VInt 1L ] with
+     | v -> v = Value.VInt 1073741824L
+     | exception Value.Stop _ -> false);
   let again = Eval.start prog in
-  ignore (Eval.call again "double" [ Value.VInt 21L ]);
+  ignore (Eval.call again "twice" [ Value.VInt 21L ]);
   check "a remembered call outputs again" (List.rev again.Eval.outputs = Eval.[ Print "a"; Print "b" ]);
   let forever = C.Stat.Repeat { count = i64 Int64.max_int; body = [] } in
-  let fr = { Eval.locals = Hashtbl.create 1; outer = None } in
+  let fr = { Eval.locals = Eval.Locals.create (); outer = None } in
   check "a spent budget stops the run" (stops (fun () -> Eval.stat (Eval.start prog) fr forever));
   let state = e (C.Expr.Global "k.state") C.Ty.Ptr in
   let begin_ = e (C.Expr.Runtime { fn = Cgt.Runtime.Constant_begin; args = [ state ] }) C.Ty.I64 in
