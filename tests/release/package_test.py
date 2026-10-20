@@ -69,6 +69,7 @@ int main(int argc, char **argv) {
                 str(relocated / "bin/zig-cc"), str(relocated / "share/runtime"), "clean", "argument with spaces",
             ])
             environment["ZIG"] = "/custom/zig"
+            environment["ZANE_RUNTIME_OBJECTS"] = "/inherited/runtimes"
             result = subprocess.check_output(
                 [str(relocated / "bin/zanec"), "another Zig"], env=environment, text=True
             )

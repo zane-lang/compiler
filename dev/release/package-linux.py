@@ -80,10 +80,12 @@ def package(binary, zig, output, version, commit):
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 unset LD_LIBRARY_PATH
+# The bundled runtimes are linked only by the Zig that compiled them, so an
+# inherited directory of them never reaches a build with another compiler.
+unset ZANE_RUNTIME_OBJECTS
 if [ "${ZANE_CC+x}" != x ]; then
     ZANE_CC="$root/bin/zig-cc"
     export ZANE_CC
-    # The bundled runtimes are linked only by the Zig that compiled them.
     if [ "${ZIG+x}" != x ]; then
         ZANE_RUNTIME_OBJECTS="$root/share/runtime"
         export ZANE_RUNTIME_OBJECTS
