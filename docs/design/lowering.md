@@ -343,7 +343,8 @@ apart from the link, and the object is kept in a cache directory
 compiler's command and its `--version`, the target triple, and the flags it
 compiled with. The `--version` answer is itself kept there, under the path,
 size, modification time and inode of the file the command runs, so a build
-asks again only once that file has changed. A
+asks again only once that file has changed; on Windows, whose command search
+it does not follow, it asks every time. A
 later build that would compile the same object links the kept one instead,
 which saves most of a small program's build. A build with no cache directory,
 or with a C compiler that will not say its version, compiles the runtime every

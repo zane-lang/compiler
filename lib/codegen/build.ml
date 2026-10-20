@@ -213,29 +213,25 @@ let keep ~random ~object_ ~kept =
 
 (* The file *cc* runs: itself when it names a directory, else the first file
    of its name in a directory on the path that the shell would run, an empty
-   entry being the current directory; [None] when there is none. *)
+   entry being the current directory; [None] when there is none. On Windows,
+   where the command's search also tries the current directory and each of
+   `PATHEXT`'s extensions, it is [None], and the compiler is asked every
+   time. *)
 let located cc =
-  if Filename.basename cc <> cc then Some cc
+  if Sys.win32 then None
+  else if Filename.basename cc <> cc then Some cc
   else
     let dirs =
-      match Sys.getenv_opt "PATH" with
-      | Some path -> String.split_on_char (if Sys.win32 then ';' else ':') path
-      | None -> []
+      match Sys.getenv_opt "PATH" with Some path -> String.split_on_char ':' path | None -> []
     in
-    let names = if Sys.win32 then [ cc ^ ".exe"; cc ] else [ cc ] in
+    let runs path =
+      match Unix.access path [ Unix.X_OK ] with () -> true | exception Unix.Unix_error _ -> false
+    in
     List.find_map
       (fun dir ->
-        let dir = if dir = "" && not Sys.win32 then Filename.current_dir_name else dir in
-        let runs path =
-          Sys.win32
-          || match Unix.access path [ Unix.X_OK ] with () -> true | exception Unix.Unix_error _ -> false
-        in
-        List.find_map
-          (fun name ->
-            let path = Filename.concat dir name in
-            if dir <> "" && Sys.file_exists path && (not (Sys.is_directory path)) && runs path then Some path
-            else None)
-          names)
+        let path = Filename.concat (if dir = "" then Filename.current_dir_name else dir) cc in
+        if Sys.file_exists path && (not (Sys.is_directory path)) && runs path then Some path
+        else None)
       dirs
 
 (* What *cc* says it is, written to a file in [dir]; [None] when it will not
