@@ -279,3 +279,32 @@ let bundled_runtime () =
     (bundled_files <> [] && List.for_all Sys.file_exists bundled_files);
   let refused = Build.bundle_runtime ~target:"i386-unknown-linux-gnu" ~optimize:false bundled in
   check "a target the compiler does not build for is refused" (Result.is_error refused)
+
+(* An error LLD cannot go on from, such as a corrupt object's, ends the link
+   and comes back to the build, which links through the C compiler then;
+   it does not end the compiler. Last of the tests that run LLD, since LLD
+   cannot run again in a process after it. *)
+let fatal_link () =
+  let module Build = Codegen__Build in
+  let directory = Filename.temp_dir "zane-fatal" "" in
+  Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
+  let obj = Filename.concat directory "program.o" in
+  let ctx = Llvm.create_context () in
+  let m = Llvm.create_module ctx "program" in
+  Result.iter
+    (fun (_, tm) -> Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm)
+    (Build.prepare m);
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx;
+  match read_all obj with
+  | Some text when String.starts_with ~prefix:"\127ELF\002" text ->
+      (* The section headers, by the 64-bit ELF header's e_shoff, past the
+         end of the file. *)
+      let bytes = Bytes.of_string text in
+      Bytes.fill bytes 0x28 8 '\255';
+      write_all obj (Bytes.to_string bytes);
+      check "a fatal error in LLD comes back from the link"
+        (match Build.lld_run [ "ld.lld"; "-o"; Filename.concat directory "out"; obj ] with
+        | Error text -> text <> ""
+        | Ok () -> false)
+  | _ -> ()

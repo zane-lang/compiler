@@ -7,6 +7,7 @@
    wrote. */
 
 #include "lld/Common/Driver.h"
+#include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <string>
@@ -32,11 +33,16 @@ extern "C" value zane_lld_link(value args) {
   for (const std::string &arg : owned) argv.push_back(arg.c_str());
   std::string text;
   llvm::raw_string_ostream out(text);
+  /* Without crash recovery a fatal error in LLD, such as a corrupt input
+     file, exits the whole process; with it, the link fails and returns.
+     Its signal handlers are installed only while LLD runs. */
+  llvm::CrashRecoveryContext::Enable();
   lld::Result linked = lld::lldMain(argv, out, out,
                                     {{lld::Gnu, &lld::elf::link},
                                      {lld::WinLink, &lld::coff::link},
                                      {lld::MinGW, &lld::mingw::link},
                                      {lld::Darwin, &lld::macho::link}});
+  llvm::CrashRecoveryContext::Disable();
   out.flush();
   message = caml_copy_string(text.c_str());
   result = caml_alloc_tuple(3);
