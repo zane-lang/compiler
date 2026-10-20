@@ -340,7 +340,8 @@ and a C compiler (`clang`, or `ZANE_CC`). The C compiler compiles the runtime
 apart from the link, and the object is kept in a cache directory
 (`ZANE_CACHE_DIR`, else `$XDG_CACHE_HOME/zane`, `~/.cache/zane`, or
 `%LOCALAPPDATA%\zane` on Windows) under a hash of the runtime's sources, the C
-compiler's command and its `--version`, and the flags it compiled with. A
+compiler's command and its `--version`, the target triple, and the flags it
+compiled with. A
 later build that would compile the same object links the kept one instead,
 which saves most of a small program's build. A build with no cache directory,
 or with a C compiler that will not say its version, compiles the runtime every

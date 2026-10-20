@@ -1034,7 +1034,8 @@ let cached_runtime () =
     | names -> List.filter (fun n -> Filename.check_suffix n ".o") (Array.to_list names)
     | exception Sys_error _ -> []
   in
-  let compiled flags = Build.runtime_object ~cache ~cc ~flags work in
+  let host = Llvm_target.Target.default_triple () in
+  let compiled ?(triple = host) flags = Build.runtime_object ~cache ~cc ~triple ~flags work in
   let in_cache = function
     | Ok path -> String.starts_with ~prefix:cache path
     | Error _ -> false
@@ -1048,11 +1049,14 @@ let cached_runtime () =
   let other = compiled [ "-O2"; "-pthread" ] in
   check "other flags compile their own" (Result.is_ok other && not (in_cache other));
   check "and keep it beside the first" (List.length (kept ()) = 2);
+  let elsewhere = compiled ~triple:"x86_64-unknown-linux-musl" [ "-O0"; "-pthread" ] in
+  check "another triple compiles its own, though the flags name none"
+    (Result.is_ok elsewhere && not (in_cache elsewhere) && List.length (kept ()) = 3);
   let blocked = Filename.concat directory "file" in
   write_all blocked "not a directory";
-  let unwritable = Build.runtime_object ~cache:(Filename.concat blocked "cache") ~cc ~flags:[ "-O0" ] work in
+  let unwritable = Build.runtime_object ~cache:(Filename.concat blocked "cache") ~cc ~triple:host ~flags:[ "-O0" ] work in
   check "a cache that cannot be made still compiles the runtime" (Result.is_ok unwritable);
-  let uncached = Build.runtime_object ~cc ~flags:[ "-O0" ] work in
+  let uncached = Build.runtime_object ~cc ~triple:host ~flags:[ "-O0" ] work in
   check "no cache compiles the runtime" (Result.is_ok uncached && not (in_cache uncached))
 
 (* Rewriting writes beside its output under a name it creates exclusively.

@@ -172,12 +172,14 @@ let identity cc dir =
   | _ -> None
 
 (* The name a runtime compiled by *cc*, which says it is [identity], with
-   [flags] is kept under: everything that changes the object is in it. *)
-let runtime_key ~cc ~identity flags =
+   [flags] for [triple] is kept under: everything that changes the object is
+   in it. The triple is the build's own, given or the host's, so a build that
+   names no target still keys its runtime by the one it links for. *)
+let runtime_key ~cc ~identity ~triple flags =
   Digest.to_hex
     (Digest.string
        (String.concat "\000"
-          ((cc :: identity :: flags) @ List.concat_map (fun (name, text) -> [ name; text ]) runtime_files)))
+          ((cc :: identity :: triple :: flags) @ List.concat_map (fun (name, text) -> [ name; text ]) runtime_files)))
 
 (* [object_] copied into the cache as [kept], through a temporary beside it
    renamed into place, so a build reading the cache never sees half an
@@ -196,12 +198,13 @@ let keep ~random ~object_ ~kept =
     Sys.rename temporary kept
   with Sys_error _ -> ( try Sys.remove temporary with Sys_error _ -> ())
 
-(* The runtime compiled for a build with [flags], from the sources already
-   written to [dir]. The same compiler with the same flags always makes the
-   same object of the same runtime, so one compiled before is taken from
-   [cache] when it has one, and one compiled now is kept there; compiling it
-   costs more than the rest of a small program's build. *)
-let runtime_object ?cache ~cc ~flags dir =
+(* The runtime compiled for a build for [triple] with [flags], from the
+   sources already written to [dir]. The same compiler with the same flags
+   for the same triple always makes the same object of the same runtime, so
+   one compiled before is taken from [cache] when it has one, and one
+   compiled now is kept there; compiling it costs more than the rest of a
+   small program's build. *)
+let runtime_object ?cache ~cc ~triple ~flags dir =
   let compile output =
     let command =
       Filename.quote_command cc (flags @ [ "-c"; "-o"; output; Filename.concat dir "zane.c" ])
@@ -214,7 +217,7 @@ let runtime_object ?cache ~cc ~flags dir =
   match Option.bind cache (fun cache -> Option.map (fun id -> (cache, id)) (identity cc dir)) with
   | None -> compile fresh
   | Some (cache, identity) ->
-      let kept = Filename.concat (Filename.concat cache "runtime") (runtime_key ~cc ~identity flags ^ ".o") in
+      let kept = Filename.concat (Filename.concat cache "runtime") (runtime_key ~cc ~identity ~triple flags ^ ".o") in
       if Sys.file_exists kept then Ok kept
       else
         Result.map
@@ -238,7 +241,7 @@ let object_file ?target ?(optimize = false) m output =
 let executable ?target ?(optimize = false) ?(link = []) ?(cache = cache_dir ()) m output =
   match prepare ?target ~optimize m with
   | Error _ as error -> error
-  | Ok (_, tm) -> (
+  | Ok (triple, tm) -> (
       let dir = Filename.temp_dir "zane" "" in
       let obj = Filename.concat dir "program.o" in
       (* The C compiler links for the target as it was written: `zig cc`
@@ -279,7 +282,7 @@ let executable ?target ?(optimize = false) ?(link = []) ?(cache = cache_dir ()) 
           | exception Sys_error message ->
               Error (Printf.sprintf "cannot write the runtime's sources: %s" message)
           | () -> (
-              match runtime_object ?cache ~cc ~flags dir with
+              match runtime_object ?cache ~cc ~triple ~flags dir with
               | Error _ as error -> error
               | Ok runtime -> (
                   let command = command runtime in
