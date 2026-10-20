@@ -581,10 +581,8 @@ let e node ty = { C.Expr.node; ty }
 let i64 n = e (C.Expr.Int n) C.Ty.I64
 
 let program funcs =
-  let funcs' = Hashtbl.create 8 in
-  List.iter (fun (f : C.Func.t) -> Hashtbl.replace funcs' f.C.Func.symbol f) funcs;
   {
-    Eval.funcs = funcs';
+    Eval.funcs = Eval.functions funcs;
     layouts = Hashtbl.create 1;
     globals = Hashtbl.create 1;
     constants = Hashtbl.create 1;
@@ -602,24 +600,33 @@ let materialized () =
     (Option.bind (Materialize.expr t c) Materialize.const = Some c);
   check "a string is no function's address" (Materialize.expr C.Ty.Ptr (Value.Text "x") = None)
 
-(* Calls run, outputs are kept in order, a call made again is remembered,
-   and a budget spent or a constant made where it is read stops the run. *)
+(* Calls run, outputs are kept in order, a call made again is remembered
+   when a loop is reachable from it, and a budget spent or a constant made where it is read stops the run. *)
 let evaluated () =
   let print s = C.Stat.Eval (e (C.Expr.Runtime { fn = Cgt.Runtime.Print; args = [ e (C.Expr.Text s) C.Ty.Handle ] }) C.Ty.Void) in
   let double =
     func "double" [ (1, C.Ty.I64) ]
       [ print "a"; print "b"; C.Stat.Return (e (C.Expr.Binary { op = C.Expr.Mul; left = e (C.Expr.Local 1) C.Ty.I64; right = i64 2L }) C.Ty.I64) ]
   in
-  let prog = program [ double ] in
+  let twice =
+    func "twice" [ (1, C.Ty.I64) ]
+      [
+        C.Stat.Repeat { count = i64 1L; body = [] };
+        C.Stat.Return (e (C.Expr.Call { fn = "double"; args = [ e (C.Expr.Local 1) C.Ty.I64 ] }) C.Ty.I64);
+      ]
+  in
+  let prog = program [ double; twice ] in
   let run = Eval.start prog in
-  check "a call gives its result" (Eval.call run "double" [ Value.VInt 21L ] = Value.VInt 42L);
+  check "a call gives its result" (Eval.call run "twice" [ Value.VInt 21L ] = Value.VInt 42L);
   check "outputs are kept in the order made" (List.rev run.Eval.outputs = Eval.[ Print "a"; Print "b" ]);
-  check "a call is remembered by its arguments" (Value.Key.mem prog.Eval.memo ("double", [ Value.Int 21L ]));
+  check "a call is remembered by its arguments" (Value.Key.mem prog.Eval.memo ("twice", [ Value.Int 21L ]));
+  check "a call that reaches no loop or recursion is not"
+    (not (Value.Key.mem prog.Eval.memo ("double", [ Value.Int 21L ])));
   let again = Eval.start prog in
-  ignore (Eval.call again "double" [ Value.VInt 21L ]);
+  ignore (Eval.call again "twice" [ Value.VInt 21L ]);
   check "a remembered call outputs again" (List.rev again.Eval.outputs = Eval.[ Print "a"; Print "b" ]);
   let forever = C.Stat.Repeat { count = i64 Int64.max_int; body = [] } in
-  let fr = { Eval.locals = Hashtbl.create 1; outer = None } in
+  let fr = { Eval.locals = Eval.Locals.create (); outer = None } in
   check "a spent budget stops the run" (stops (fun () -> Eval.stat (Eval.start prog) fr forever));
   let state = e (C.Expr.Global "k.state") C.Ty.Ptr in
   let begin_ = e (C.Expr.Runtime { fn = Cgt.Runtime.Constant_begin; args = [ state ] }) C.Ty.I64 in

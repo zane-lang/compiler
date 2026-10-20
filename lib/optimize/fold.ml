@@ -242,7 +242,7 @@ let call_key (e : Expr.t) =
 let effects ?(value = 0) fn (env : known) (run : Eval.run) (fr : Eval.frame) =
   if Eval.wrote_globals run then V.stop "a variable of the program written";
   let assigns = ref [] in
-  Hashtbl.iter
+  Eval.Locals.iter
     (fun id (c : V.cell) ->
       match c.V.origin with
       | V.Outer _ -> (
@@ -270,7 +270,7 @@ let commit (env : known) assigns =
   List.map (fun (_, _, _, s) -> s) assigns
 
 let frame (env : known) =
-  { Eval.locals = Hashtbl.create 8; outer = Some (fun id -> Hashtbl.find_opt env id) }
+  { Eval.locals = Eval.Locals.create (); outer = Some (fun id -> Hashtbl.find_opt env id) }
 
 (* An expression evaluated where it is, and what replaces it. *)
 let attempt fn (env : known) (e : Expr.t) : Expr.t option =
@@ -402,7 +402,7 @@ let mark fn (env : known) (run : Eval.run) (fr : Eval.frame) ~last ~length ~outp
       let named_after id =
         match Hashtbl.find_opt last id with Some i -> i >= length | None -> false
       in
-      Hashtbl.iter
+      Eval.Locals.iter
         (fun id (c : V.cell) ->
           match c.V.origin with
           | V.Outer _ -> (
