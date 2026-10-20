@@ -196,8 +196,9 @@ let bundled_dir () = match Sys.getenv_opt "ZANE_RUNTIME_OBJECTS" with Some "" | 
 
 (* The name a runtime compiled with [level] for [triple] is bundled under.
    It names no C compiler, since a bundle is used only with the one that
-   compiled it, and no spelling of the target, since every spelling of one
-   triple, and a build that names none, links the same object. *)
+   compiled it, and the target only in LLVM's normal form, so spellings that
+   normalize alike, and a build for the host that names none, link the same
+   object. *)
 let bundled_name ~triple level =
   Digest.to_hex (Digest.string (String.concat "\000" ((triple :: level) @ sources))) ^ ".o"
 
