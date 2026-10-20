@@ -2,12 +2,21 @@
 ; (docs/design/lowering.md L2), and the module to a binary, linked with the C
 ; runtime that [Runtime_source] embeds (runtime/dune). [Abi] is written from
 ; runtime/zane_abi.h, so the offsets and sizes emitted code relies on are the
-; runtime's own.
+; runtime's own. LLD is linked in as a library (lld_stubs.cpp), its flags
+; found by gen/lld_flags.sh.
 (library
  (name codegen)
  (foreign_stubs
   (language c)
   (names llvm_stubs))
+ (foreign_stubs
+  (language cxx)
+  (names lld_stubs)
+  (flags
+   (:standard
+    (:include lld_cxx.sexp))))
+ (c_library_flags
+  (:include lld_libs.sexp))
  (libraries cgt diagnostic runtime_source unix llvm llvm.analysis llvm.irreader llvm.target llvm.passbuilder llvm.all_backends))
 
 (rule
@@ -17,3 +26,13 @@
   (with-stdout-to
    %{target}
    (run gen/abi_ml.exe %{deps}))))
+
+(rule
+ (target lld_cxx.sexp)
+ (deps gen/lld_flags.sh (env_var LLVM_CONFIG) (env_var PATH))
+ (action (with-stdout-to %{target} (run sh gen/lld_flags.sh cxx))))
+
+(rule
+ (target lld_libs.sexp)
+ (deps gen/lld_flags.sh (env_var LLVM_CONFIG) (env_var PATH))
+ (action (with-stdout-to %{target} (run sh gen/lld_flags.sh libs))))

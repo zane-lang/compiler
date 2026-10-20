@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# Run every NAME.exe in DIR, with the arguments NAME.args holds a line each
-# when it is there, and hold it to NAME.out and NAME.status, as
-# `windows-programs` wrote them. A program expected to exit 0 is held to its
+# Run every program in DIR, NAME.exe or NAME beside a NAME.status, with the
+# arguments NAME.args holds a line each when it is there, and hold it to
+# NAME.out and NAME.status, as `windows-programs` wrote them. A program expected to exit 0 is held to its
 # stdout; one expected to fail is held to everything it wrote, as
 # tests/codegen/ holds it. RUNNER, when set, runs each program, so the same
 # check runs Windows programs under Wine elsewhere: `RUNNER=wine64`.
@@ -21,10 +21,12 @@ read -r -a runner <<<"${RUNNER:-}"
 failed=0
 count=0
 
-for program in "$DIR"/*.exe; do
+for status in "$DIR"/*.status; do
 	# With no programs the pattern stays as written, and names no file.
-	[[ -f "$program" ]] || continue
-	name="$(basename "$program" .exe)"
+	[[ -f "$status" ]] || continue
+	name="$(basename "$status" .status)"
+	program="$DIR/$name.exe"
+	[[ -f "$program" ]] || program="$DIR/$name"
 	expected="$(tr -d '[:space:]' <"$DIR/$name.status")"
 	args=()
 	if [[ -f "$DIR/$name.args" ]]; then

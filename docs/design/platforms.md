@@ -24,7 +24,8 @@ and a problem there may wait.
     test expects, and run with the arguments its fixture lists.
     `just test-windows` runs the same programs under Wine.
 - **macOS** is the lower tier. Its objects are built, rewritten and tested
-  as Windows ones are.
+  as Windows ones are, and the released toolchain's programs for both its
+  architectures are run on macOS in CI.
 
 ## 64-bit targets only
 
@@ -54,9 +55,10 @@ object rewriters read either byte order.
 ## Building for macOS needs no Apple SDK
 
 Linking for macOS needs the declarations of its C library, `libSystem`, and
-nothing else from Apple. A cross-linker such as `zig cc` carries those
-itself, so any machine can build a macOS program without the macOS SDK, whose
-license allows its use only on Apple hardware.
+nothing else from Apple. Zig carries those itself, as the text stubs
+`libSystem.tbd`, which the LLD in the compiler links with
+(docs/design/lowering.md §7), so any machine can build a macOS program without
+the macOS SDK, whose license allows its use only on Apple hardware.
 
 That holds as long as the compiler, the runtime and the standard library use
 only what `libSystem` provides. They keep to it: a feature that would need an

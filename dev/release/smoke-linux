@@ -11,10 +11,13 @@ test -n "$root"
 mv "$root" "$out/toolchain with spaces"
 root="$out/toolchain with spaces"
 cp -R /source/tests/codegen/fixtures/hello "$out/hello"
-# Every build below links a runtime the release bundles, so none is
-# compiled into the cache.
-export ZANE_CACHE_DIR="$out/cache"
-test "$(find "$root/share/runtime" -name '*.o' | wc -l)" -eq 12
+# Every build below links a runtime the release bundles with the linker
+# command and files the release bundles for it, so no C compiler runs: nothing
+# is compiled into the cache, nor asked for, and Zig never makes its cache.
+export ZANE_CACHE_DIR="$out/cache" ZIG_GLOBAL_CACHE_DIR="$out/zig-cache" ZIG_LOCAL_CACHE_DIR="$out/zig-cache"
+test "$(find "$root/share/runtime" -maxdepth 1 -name '*.o' | wc -l)" -eq 12
+test "$(find "$root/share/runtime/link" -maxdepth 1 -type f | wc -l)" -eq 12
+mkdir -p "$out/macos"
 for optimization in plain optimized; do
     flags=()
     [[ "$optimization" == plain ]] || flags+=(--optimize)
@@ -24,8 +27,13 @@ for optimization in plain optimized; do
     cmp /source/tests/codegen/golden/hello.out "$out/hello-$optimization.out"
     "$root/bin/zanec" "${flags[@]}" --target x86_64-windows-gnu \
         --build "$out/hello-$optimization.exe" --package "$out/hello"
+    for arch in x86_64 aarch64; do
+        "$root/bin/zanec" "${flags[@]}" --target "$arch-macos" \
+            --build "$out/macos/hello-$arch-$optimization" --package "$out/hello"
+    done
 done
 "$root/bin/zanec" --build "$out/hello-host" --package "$out/hello"
 "$out/hello-host" | cmp /source/tests/codegen/golden/hello.out -
-test ! -e "$ZANE_CACHE_DIR/runtime"
-echo 'Relocated compiler built and ran Linux programs and linked Windows programs with its bundled runtimes'
+test ! -e "$ZANE_CACHE_DIR"
+test ! -e "$out/zig-cache"
+echo 'Relocated compiler built and ran Linux programs and linked Windows and macOS programs with its bundled runtimes and links, running no C compiler'

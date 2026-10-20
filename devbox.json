@@ -3,7 +3,14 @@
   "packages": {
     "just": "latest",
     "clang": "latest",
-    "lld_19": "latest",
+    "lld_19": {
+      "version": "latest",
+      "outputs": [
+        "out",
+        "dev",
+        "lib"
+      ]
+    },
     "llvm_19": {
       "version": "latest",
       "outputs": [

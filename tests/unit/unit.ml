@@ -14,16 +14,7 @@ module Materialize = Optimize__Materialize
 module Intrinsics = Optimize__Intrinsics
 module TIntrinsics = Tst.Intrinsics
 
-let failures = ref 0
-
-let check name ok =
-  if not ok then begin
-    incr failures;
-    Printf.printf "FAIL %s\n" name
-  end
-
-let raises_bug name f =
-  check name (match f () with _ -> false | exception Diagnostic.Internal _ -> true)
+open Support
 
 let span = Source.Span.of_loc (Lexing.dummy_pos, Lexing.dummy_pos)
 let prim name = Ty.Intrinsic { namespace = "primitives"; name; args = [] }
@@ -1097,129 +1088,6 @@ let sixty_four_bit () =
 (* The driver                                                             *)
 (* ---------------------------------------------------------------------- *)
 
-(* What a file holds, or [None] when it is gone. *)
-let read_all path =
-  try Some (In_channel.with_open_bin path In_channel.input_all) with Sys_error _ -> None
-let write_all path contents = Out_channel.with_open_bin path (fun oc -> output_string oc contents)
-
-let rec remove_tree path =
-  if Sys.is_directory path then begin
-    Array.iter (fun name -> remove_tree (Filename.concat path name)) (Sys.readdir path);
-    Sys.rmdir path
-  end
-  else Sys.remove path
-
-(* A build compiles the runtime once for each compiler and set of flags and
-   takes it from the cache after that; a cache it cannot write to costs the
-   build nothing but the time. *)
-let cached_runtime () =
-  let module Build = Codegen__Build in
-  let directory = Filename.temp_dir "zane-runtime" "" in
-  Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
-  let work = Filename.concat directory "work" and cache = Filename.concat directory "cache" in
-  Sys.mkdir work 0o755;
-  Build.write_runtime work;
-  let cc = Build.cc () in
-  let kept () =
-    match Sys.readdir (Filename.concat cache "runtime") with
-    | names -> List.filter (fun n -> Filename.check_suffix n ".o") (Array.to_list names)
-    | exception Sys_error _ -> []
-  in
-  let host = Llvm_target.Target.default_triple () in
-  let compiled ?(triple = host) ?(optimize = false) () = Build.runtime_object ~cache ~cc ~triple ~optimize work in
-  let in_cache = function
-    | Ok path -> String.starts_with ~prefix:cache path
-    | Error _ -> false
-  in
-  let first = compiled () in
-  check "a runtime not yet kept is compiled" (Result.is_ok first && not (in_cache first));
-  check "and kept" (List.length (kept ()) = 1);
-  let second = compiled () in
-  check "the same flags take it from the cache" (in_cache second);
-  check "and keep no second copy" (List.length (kept ()) = 1);
-  let other = compiled ~optimize:true () in
-  check "other flags compile their own" (Result.is_ok other && not (in_cache other));
-  check "and keep it beside the first" (List.length (kept ()) = 2);
-  let elsewhere = compiled ~triple:"x86_64-unknown-linux-musl" () in
-  check "another triple compiles its own, though the flags name none"
-    (Result.is_ok elsewhere && not (in_cache elsewhere) && List.length (kept ()) = 3);
-  let blocked = Filename.concat directory "file" in
-  write_all blocked "not a directory";
-  let unwritable =
-    Build.runtime_object ~cache:(Filename.concat blocked "cache") ~cc ~triple:host ~optimize:false work
-  in
-  check "a cache that cannot be made still compiles the runtime" (Result.is_ok unwritable);
-  let uncached = Build.runtime_object ~cc ~triple:host ~optimize:false work in
-  check "no cache compiles the runtime" (Result.is_ok uncached && not (in_cache uncached));
-  (* What a C compiler says it is is asked once, and again only once the
-     file it runs has changed. *)
-  if Sys.unix then begin
-    let asked = Filename.concat directory "asked" and fake = Filename.concat directory "fake-cc" in
-    let script extra =
-      write_all fake
-        (Printf.sprintf "#!/bin/sh\n[ \"$1\" = --version ] && echo asked >> %s\necho fake 1.0%s\n"
-           (Filename.quote asked) extra);
-      Unix.chmod fake 0o755
-    in
-    let times () = match read_all asked with Some s -> List.length (String.split_on_char '\n' s) - 1 | None -> 0 in
-    script "";
-    let first = Build.identity ~cache fake work in
-    check "a C compiler's identity is asked the first time" (first = Some "fake 1.0\n" && times () = 1);
-    let again = Build.identity ~cache fake work in
-    check "and kept after that" (again = first && times () = 1);
-    script " changed";
-    let changed = Build.identity ~cache fake work in
-    check "a changed C compiler is asked again" (changed = Some "fake 1.0 changed\n" && times () = 2);
-    check "one found nowhere has none"
-      (Build.identity ~cache "zane-no-such-compiler" work = None);
-    (* A name on the path is found where the shell would run it: a file of
-       the name that cannot run is passed over. *)
-    let first = Filename.concat directory "first" and second = Filename.concat directory "second" in
-    Sys.mkdir first 0o755;
-    Sys.mkdir second 0o755;
-    write_all (Filename.concat first "zane-cc") "not a program";
-    write_all (Filename.concat second "zane-cc") "#!/bin/sh\n";
-    Unix.chmod (Filename.concat second "zane-cc") 0o755;
-    let path = Sys.getenv_opt "PATH" in
-    Unix.putenv "PATH" (first ^ ":" ^ second);
-    let found = Build.located "zane-cc" in
-    Unix.putenv "PATH" (Option.value ~default:"" path);
-    check "a file on the path that cannot run is passed over"
-      (found = Some (Filename.concat second "zane-cc"))
-  end
-
-(* A released toolchain's own runtimes are found by the triple a build is
-   for and whether it optimizes, whichever spelling of the target it was
-   given, and before the cache; any other build compiles its own. *)
-let bundled_runtime () =
-  let module Build = Codegen__Build in
-  let directory = Filename.temp_dir "zane-bundled" "" in
-  Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
-  let work = Filename.concat directory "work"
-  and bundled = Filename.concat directory "bundled"
-  and cache = Filename.concat directory "cache" in
-  Sys.mkdir work 0o755;
-  Build.write_runtime work;
-  let host = Llvm_target.Target.default_triple () in
-  let bundle optimize = Build.bundle_runtime ~target:host ~optimize bundled in
-  check "a runtime is bundled" (Result.is_ok (bundle false));
-  check "into a directory made for it" (Array.length (Sys.readdir bundled) = 1);
-  let cc = Build.cc () in
-  let found ?target ?(triple = host) ~optimize () =
-    match Build.runtime_object ~bundled ~cache ~cc ~triple ?target ~optimize work with
-    | Ok path -> String.starts_with ~prefix:bundled path
-    | Error _ -> false
-  in
-  check "a build for the host links the bundled runtime" (found ~optimize:false ());
-  check "as does one naming the host as its target" (found ~target:host ~optimize:false ());
-  check "and the cache is left alone" (not (Sys.file_exists cache));
-  check "an optimized build compiles its own" (not (found ~optimize:true ()));
-  check "as does a build for another triple" (not (found ~triple:"x86_64-unknown-linux-musl" ~optimize:false ()));
-  check "an optimized runtime is bundled beside the other" (Result.is_ok (bundle true));
-  check "and is linked by an optimized build" (found ~optimize:true ());
-  let refused = Build.bundle_runtime ~target:"i386-unknown-linux-gnu" ~optimize:false bundled in
-  check "a target the compiler does not build for is refused" (Result.is_error refused)
-
 (* Rewriting writes beside its output under a name it creates exclusively.
    A name that is already there is someone else's file: it is kept, and the
    object goes out under the next name drawn. *)
@@ -1404,8 +1272,10 @@ let () =
   backstop ();
   fixture_pairing ();
   escaped_locations ();
-  cached_runtime ();
-  bundled_runtime ();
+  Builds.cached_runtime ();
+  Builds.linked_in_process ();
+  Builds.bundled_runtime ();
+  Builds.fatal_link ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
   disposed_modules ();

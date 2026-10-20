@@ -270,6 +270,359 @@ let identity ~cache cc dir =
           if Option.is_some answer then keep ~random:(Random.State.make_self_init ()) ~object_:file ~kept;
           answer)
 
+(* LLD, linked into the compiler (lld_stubs.cpp): the linker its first
+   argument names run on the rest, and its exit code, whether it can run
+   again in this process, and what it wrote. *)
+external lld_link : string array -> int * bool * string = "zane_lld_link"
+
+(* Whether LLD may run again in this process: it may not once it has
+   recovered from a crash. *)
+let lld_usable = ref true
+
+(* The words of a command as a C compiler's `-###` prints it: clang puts
+   each in double quotes with backslash escapes, `zig cc` separates them
+   with spaces. *)
+let words line =
+  let b = Buffer.create 64 and found = ref [] and n = String.length line in
+  let flush () =
+    if Buffer.length b > 0 then begin
+      found := Buffer.contents b :: !found;
+      Buffer.clear b
+    end
+  in
+  let rec plain i =
+    if i >= n then flush ()
+    else
+      match line.[i] with
+      | ' ' | '\t' | '\r' ->
+          flush ();
+          plain (i + 1)
+      | '"' -> quoted (i + 1)
+      | c ->
+          Buffer.add_char b c;
+          plain (i + 1)
+  and quoted i =
+    if i >= n then flush ()
+    else
+      match line.[i] with
+      | '"' -> plain (i + 1)
+      | '\\' when i + 1 < n ->
+          Buffer.add_char b line.[i + 1];
+          quoted (i + 2)
+      | c ->
+          Buffer.add_char b c;
+          quoted (i + 1)
+  in
+  plain 0;
+  List.rev !found
+
+(* The LLD a C compiler's linker is, by the name it runs it by, or [None]
+   for any other linker. *)
+let lld_named program =
+  let name = Filename.basename program in
+  match if Filename.check_suffix name ".exe" then Filename.chop_suffix name ".exe" else name with
+  | ("ld.lld" | "ld64.lld" | "lld-link") as name -> Some name
+  | _ -> None
+
+(* The architecture [triple] names, as ld64 spells it. *)
+let darwin_arch triple =
+  match String.split_on_char '-' triple with
+  | "aarch64" :: _ | "arm64" :: _ -> "arm64"
+  | arch :: _ -> arch
+  | [] -> triple
+
+(* The linker command a line of *cc*'s `-###` runs, as LLD in the compiler
+   runs it: LLD's own, GCC's `collect2`, which takes the linker's arguments
+   and runs the linker with them, as `ld.lld` without the LTO plugin GCC
+   names, or `zig ld`, Zig's Mach-O linker, which takes ld64's, as
+   `ld64.lld` for [triple]'s architecture with Zig's own `libSystem` stubs,
+   which [system] finds; [None] for any other line. LTO's `-mllvm` options,
+   `-MLLVM:` to `lld-link`, are left out: they would set options of the
+   compiler's own LLVM, and nothing here is LTO. *)
+let linker_line ~triple ~system line =
+  let rec without_mllvm = function
+    | "-mllvm" :: _ :: rest -> without_mllvm rest
+    | arg :: rest when String.starts_with ~prefix:"-MLLVM:" arg -> without_mllvm rest
+    | arg :: rest -> arg :: without_mllvm rest
+    | [] -> []
+  in
+  let rec without_plugin = function
+    | "-plugin" :: _ :: rest -> without_plugin rest
+    | arg :: rest when String.starts_with ~prefix:"-plugin-opt=" arg -> without_plugin rest
+    | arg :: rest -> arg :: without_plugin rest
+    | [] -> []
+  in
+  let named program = Filename.remove_extension (Filename.basename program) in
+  match words line with
+  | program :: rest when Option.is_some (lld_named program) ->
+      Option.map (fun name -> name :: without_mllvm rest) (lld_named program)
+  | program :: rest when named program = "collect2" -> Some ("ld.lld" :: without_plugin rest)
+  | program :: "ld" :: rest when named program = "zig" ->
+      Option.map
+        (fun system ->
+          "ld64.lld" :: "-arch" :: darwin_arch triple
+          :: List.map (fun w -> if w = "-lSystem" then system else w) rest)
+        (system ())
+  | _ -> None
+
+(* The linker command *cc* runs for [args], as LLD in the compiler runs it
+   ([linker_line]), or [None] when its linker is none of those; an error
+   when *cc* does not say. A C compiler whose own linker is another, such as
+   clang with the system's `ld`, is asked again with `-fuse-ld=lld`: it then
+   names its files for LLD. *)
+let asked_link ~cc ~triple args dir =
+  let file = Filename.concat dir "cc-link" in
+  let ask args =
+    let shown = List.nth args (List.length args - 1) in
+    match Sys.command (Filename.quote_command cc ~stdout:file ~stderr:file args) with
+    | 0 -> (
+        match In_channel.with_open_bin file In_channel.input_all with
+        | exception Sys_error _ -> Error (Printf.sprintf "its `%s` could not be read" shown)
+        | text -> Ok (List.rev (String.split_on_char '\n' text)))
+    | n -> Error (Printf.sprintf "its `%s` exited with %d" shown n)
+  in
+  (* Zig's install directory, where its `libSystem` stubs are. *)
+  let system () =
+    match ask [ "-print-search-dirs" ] with
+    | Error _ -> None
+    | Ok lines ->
+        List.find_map
+          (fun line ->
+            Option.bind (String.index_opt line '=') (fun i ->
+                if String.starts_with ~prefix:"programs:" line then
+                  List.find_map
+                    (fun dir ->
+                      let tbd =
+                        List.fold_left Filename.concat (String.trim dir) [ "lib"; "libc"; "darwin"; "libSystem.tbd" ]
+                      in
+                      if Sys.file_exists tbd then Some tbd else None)
+                    (String.split_on_char ':' (String.sub line (i + 1) (String.length line - i - 1)))
+                else None))
+          lines
+  in
+  let found lines = List.find_map (linker_line ~triple ~system) lines in
+  match ask (args @ [ "-###" ]) with
+  | Error _ as error -> error
+  | Ok lines -> (
+      match found lines with
+      | Some _ as command -> Ok command
+      | None -> Ok (match ask (args @ [ "-fuse-ld=lld"; "-###" ]) with Ok lines -> found lines | Error _ -> None))
+
+(* Where the command a build links with came from: asked for now and not
+   kept, asked for now and [Kept] in the cache, kept by an earlier build
+   ([Known]), or [Bundled] with a released toolchain. *)
+type source = Asked | Kept of string | Known of string | Bundled
+
+(* How a build links: by the LLD in the compiler with [command], or by the
+   C compiler, for [why]. *)
+type plan = Lld of { command : string list; source : source } | Cc of string
+
+(* [text] kept in [kept], through a file of [dir]'s. A kept file holds a
+   command's words, or `\001` and why the C compiler links. *)
+let keep_text ~dir ~kept text =
+  let file = Filename.concat dir "cc-link-words" in
+  try
+    Out_channel.with_open_bin file (fun oc -> output_string oc text);
+    keep ~random:(Random.State.make_self_init ()) ~object_:file ~kept
+  with Sys_error _ -> ()
+
+(* A word of a linker command as an option that names a file after its
+   `:`, as `lld-link` takes them (`-OUT:hello.exe`), and the rest. *)
+let option_split w =
+  match String.index_opt w ':' with
+  | Some i when String.length w > 1 && w.[0] = '-' && i > 1 ->
+      (String.sub w 0 (i + 1), String.sub w (i + 1) (String.length w - i - 1))
+  | _ -> ("", w)
+
+(* For a build of [obj] and [runtime] into [output]: a word of its linker
+   command with the build's files marked, so the command can be kept, and
+   one with a kept command's marks filled in with this build's files. A
+   file is named by a word of its own, or after an option's `:`, and the
+   files a COFF link writes beside the executable are named for it
+   (`-PDB:hello.pdb`, `-PDBALTPATH:hello.pdb`). [bundle] is filled in for
+   a bundled command's `\001bundle`. *)
+let link_marks ?(bundle = "") ~obj ~runtime ~output () =
+  let stem = Filename.remove_extension output in
+  let marks =
+    [
+      ("\001obj", obj);
+      ("\001runtime", runtime);
+      ("\001output", output);
+      ("\001stem", stem);
+      ("\001nearstem", Filename.concat (Filename.dirname output) (Filename.basename stem));
+      ("\001basestem", Filename.basename stem);
+    ]
+  in
+  let stems = [ "\001stem"; "\001nearstem"; "\001basestem" ] in
+  let mark w =
+    let option, path = option_split w in
+    (* The path a COFF executable records for its PDB is the PDB's bare
+       name, which for an output with no directory is also its stem. *)
+    let marks =
+      if option = "-PDBALTPATH:" then List.filter (fun (m, _) -> m = "\001basestem") marks @ marks else marks
+    in
+    let named =
+      List.find_map
+        (fun (m, file) ->
+          if path = file && not (List.mem m stems) then Some m
+          else if List.mem m stems && stem <> output && String.starts_with ~prefix:(file ^ ".") path then
+            Some (m ^ String.sub path (String.length file) (String.length path - String.length file))
+          else None)
+        marks
+    in
+    match named with Some m -> option ^ m | None -> w
+  in
+  let fill w =
+    let option, path = option_split w in
+    match List.find_opt (fun (m, _) -> String.starts_with ~prefix:m path) (("\001bundle", bundle) :: marks) with
+    | Some (m, file) -> option ^ file ^ String.sub path (String.length m) (String.length path - String.length m)
+    | None -> w
+  in
+  (mark, fill)
+
+(* The linker command *cc* prints for a build of [obj] and [runtime] into
+   [output] with [args], with the build's files marked ([link_marks]):
+   [`Lld] when LLD in the compiler can run it, [`Other] when it cannot, and
+   [`Unasked] when *cc* would not say. *)
+let marked_link ~cc ~triple ~args ~obj ~runtime ~output dir =
+  let mark, _ = link_marks ~obj ~runtime ~output () in
+  let named m = List.exists (fun w -> String.starts_with ~prefix:m (snd (option_split w))) in
+  match asked_link ~cc ~triple args dir with
+  | Error why -> `Unasked why
+  | Ok None -> `Other "its linker is not LLD"
+  | Ok (Some command) ->
+      let command = List.map mark command in
+      if List.for_all (fun m -> named m command) [ "\001obj"; "\001runtime"; "\001output" ] then `Lld command
+      else `Other "its link command does not name the program's files"
+
+(* The linker command for a build of [obj] and [runtime] into [output] with
+   [args]: what *cc* prints for these, the first time, and then what was
+   kept in [cache] for the same compiler, target, flags and objects to link,
+   with this build's files put in. That *cc* cannot link through LLD in the
+   compiler is kept too, so it is asked once; that it would not say is not. *)
+let link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir =
+  let mark, fill = link_marks ~obj ~runtime ~output () in
+  let filled = List.map fill in
+  let fresh () = marked_link ~cc ~triple ~args ~obj ~runtime ~output dir in
+  match Option.bind cache (fun cache -> Option.map (fun id -> (cache, id)) (identity ~cache cc dir)) with
+  | None -> (
+      match fresh () with
+      | `Lld command -> Lld { command = filled command; source = Asked }
+      | `Other why | `Unasked why -> Cc why)
+  | Some (cache, identity) -> (
+      let key = List.map mark args in
+      let kept =
+        Filename.concat (Filename.concat cache "link")
+          (Digest.to_hex (Digest.string (String.concat "\000" (cc :: identity :: triple :: key))))
+      in
+      match In_channel.with_open_bin kept In_channel.input_all with
+      | text when String.starts_with ~prefix:"\001" text -> Cc (String.sub text 1 (String.length text - 1))
+      | text -> Lld { command = filled (String.split_on_char '\000' text); source = Known kept }
+      | exception Sys_error _ -> (
+          match fresh () with
+          | `Lld command ->
+              keep_text ~dir ~kept (String.concat "\000" command);
+              Lld { command = filled command; source = Kept kept }
+          | `Other why ->
+              keep_text ~dir ~kept ("\001" ^ why);
+              Cc why
+          | `Unasked why -> Cc why))
+
+(* The name the linker command a release bundles for [triple], linking with
+   [level] and the [system] libraries, is kept under in its `link/`. *)
+let bundled_link_name ~triple level system =
+  Digest.to_hex (Digest.string (String.concat "\000" (("link" :: triple :: level) @ system)))
+
+(* Whether [target], or the host when there is none, is Windows. *)
+let windows = function
+  | Some target -> List.mem "windows" (String.split_on_char '-' target)
+  | None -> Sys.win32
+
+(* The libraries every program for [target] links with besides libc. The
+   approximate math functions are the C math library's (math.md §2.6):
+   Windows' C runtime and macOS's libSystem hold it, and on Linux it is a
+   library of its own. The runtime reads a Windows program's arguments
+   through `CommandLineToArgvW`, which shell32 holds, and a Windows
+   program's main thread gets the 8 MiB of machine stack it has on Linux
+   and macOS, where the linker would give it 1 MiB
+   (docs/design/platforms.md). *)
+let system_libraries target =
+  if windows target then [ "-lshell32"; "-Wl,--stack,8388608" ] else [ "-lm" ]
+
+(* [command] run by the LLD in the compiler; what it wrote when it fails. *)
+let lld_run command =
+  let code, again, text = lld_link (Array.of_list command) in
+  lld_usable := again;
+  if code = 0 then begin
+    prerr_string text;
+    Ok ()
+  end
+  else Error text
+
+(* Whether to say how a build links: `ZANE_VERBOSE` is set. *)
+let verbose () = match Sys.getenv_opt "ZANE_VERBOSE" with Some "" | None -> false | Some _ -> true
+
+(* [args] linked by the LLD in the compiler with the command [bundled]
+   holds, when a released toolchain bundles one, with [deps], the program's
+   other objects, after [obj]; else with the command *cc* gives, when LLD
+   can run it, and else by *cc*, which [say]s why under `ZANE_VERBOSE`. A
+   command LLD fails on where *cc* links is warned of: one kept by an
+   earlier build may have gone stale, and is asked for again next build;
+   one just asked for is not, so *cc* links from then on. When *cc* fails
+   too, the program does not link, and nothing is forgotten. [lld] runs the
+   LLD. *)
+let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ~cc ~triple ~args ~deps ~obj ~runtime
+    ~output dir =
+  let through_cc why =
+    if verbose () then say (Printf.sprintf "zanec: `%s` links: %s\n" cc why);
+    let command = Filename.quote_command cc args in
+    match Sys.command command with 0 -> Ok () | n -> Error (Printf.sprintf "`%s` exited with %d" command n)
+  in
+  let from_bundle file =
+    match In_channel.with_open_bin file In_channel.input_all with
+    | exception Sys_error _ -> None
+    | text ->
+        let _, fill = link_marks ~bundle:(Filename.dirname file) ~obj ~runtime ~output () in
+        Some
+          (List.concat_map
+             (fun w -> if w = "\001obj" then obj :: deps else [ fill w ])
+             (String.split_on_char '\000' text))
+  in
+  let plan =
+    match Option.bind bundled from_bundle with
+    | Some command -> Lld { command; source = Bundled }
+    | None -> link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir
+  in
+  match plan with
+  | Cc why -> through_cc why
+  | Lld _ when not !lld_usable -> through_cc "the built-in LLD cannot run again in this process"
+  | Lld { command; source } -> (
+      match lld command with
+      | Ok () -> Ok ()
+      | Error text -> (
+          match through_cc "the built-in LLD could not link" with
+          | Error _ as error -> error
+          | Ok () ->
+              let failed = "zanec: warning: the built-in LLD could not link with the command" in
+              (match source with
+              | Known kept ->
+                  (try Sys.remove kept with Sys_error _ -> ());
+                  say
+                    (Printf.sprintf "%s kept for `%s`, so it linked instead; it is asked again next build\n"
+                       failed cc)
+              | Kept kept ->
+                  keep_text ~dir ~kept "\001the built-in LLD could not link with its command";
+                  say
+                    (Printf.sprintf
+                       "%s `%s` gave, so it linked instead, as it will for this target and these flags \
+                        until %s is removed\n"
+                       failed cc kept)
+              | Asked -> say (Printf.sprintf "%s `%s` gave, so it linked instead\n" failed cc)
+              | Bundled ->
+                  say (Printf.sprintf "%s the toolchain bundles for this target, so `%s` linked instead\n" failed cc));
+              say text;
+              Ok ()))
+
 (* The runtime's sources in [dir] compiled by *cc* with [flags] into
    [output]. *)
 let compile ~cc flags dir output =
@@ -314,28 +667,95 @@ let in_work_dir f =
     ~finally:(fun () ->
       List.iter
         (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
-        ([ "program.o"; "runtime.o"; "cc-version" ] @ List.map fst runtime_files);
+        ([ "program.o"; "program"; "program.exe"; "program.pdb"; "program.lib"; "runtime.o" ]
+        @ [ "cc-version"; "cc-link"; "cc-link-words" ]
+        @ List.map fst runtime_files);
       try Sys.rmdir dir with Sys_error _ -> ())
     (fun () -> f dir)
 
+(* The linker command *cc* gives for a program for [target], [triple] in
+   LLVM's normal form, linking with [level] and the [runtime] bundled for
+   it, kept in [dir]'s `link/` under [bundled_link_name], with every file it
+   links besides the program's own copied into `link/files/`, named for its
+   contents. A released toolchain then links for [target] without running
+   *cc* at all. The loader a program names (`--dynamic-linker`) is a path
+   on the machine it runs on, not a file to copy. *)
+let bundle_link ~cc ~target ~triple ~tm level dir work runtime =
+  let system = system_libraries (Some target) in
+  let obj = Filename.concat work "program.o"
+  and output = Filename.concat work (if windows (Some target) then "program.exe" else "program") in
+  (* A program as small as the runtime links with (runtime/zane.h), for a
+     C compiler such as `zig cc` that links what it prints. *)
+  let ctx = Llvm.create_context () in
+  let m = Llvm.create_module ctx "program" in
+  Llvm.set_target_triple triple m;
+  Llvm.set_data_layout (Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm)) m;
+  let main = Llvm.define_function "zane_main" (Llvm.function_type (Llvm.void_type ctx) [||]) m in
+  ignore (Llvm.build_ret_void (Llvm.builder_at_end ctx (Llvm.entry_block main)));
+  List.iter
+    (fun name -> ignore (Llvm.define_global name (Llvm.const_int (Llvm.i64_type ctx) 0) m))
+    [ "zane_fixed_region"; "zane_spawned_fixed_region" ];
+  Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm;
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx;
+  let args = target_flag (Some target) @ level @ [ "-o"; output; obj ] @ system @ [ runtime ] in
+  match marked_link ~cc ~triple ~args ~obj ~runtime ~output work with
+  | `Other why | `Unasked why -> Error (Printf.sprintf "cannot bundle the link for `%s`: `%s`: %s" target cc why)
+  | `Lld command ->
+      let link = Filename.concat dir "link" in
+      let files = Filename.concat link "files" in
+      make_dirs files;
+      let random = Random.State.make_self_init () in
+      let rec bundled previous = function
+        | [] -> []
+        | w :: rest ->
+            let option, path = option_split w in
+            let copied =
+              if
+                previous <> "--dynamic-linker"
+                && previous <> "-dynamic-linker"
+                && (not (Filename.is_relative path))
+                && Sys.file_exists path
+                && not (Sys.is_directory path)
+              then begin
+                let name = Digest.to_hex (Digest.file path) ^ "-" ^ Filename.basename path in
+                let kept = Filename.concat files name in
+                if not (Sys.file_exists kept) then keep ~random ~object_:path ~kept;
+                if not (Sys.file_exists kept) then raise (Sys_error (Printf.sprintf "cannot copy %s" path));
+                option ^ "\001bundle/files/" ^ name
+              end
+              else w
+            in
+            copied :: bundled w rest
+      in
+      keep_text ~dir:work ~kept:(Filename.concat link (bundled_link_name ~triple level system))
+        (String.concat "\000" (bundled "" command));
+      Ok ()
+
 (* The runtime compiled for [target], with or without optimizing, into
    [dir] under the name a build for that target looks for there
-   ([bundled_name]): what a release bundles for each target it ships
+   ([bundled_name]), and the linker command and files that link a program
+   with it ([bundle_link]): what a release bundles for each target it ships
    (docs/design/lowering.md §7). A target is required, since a C compiler
    given none compiles for the processor it runs on. *)
 let bundle_runtime ~target ~optimize dir =
-  Result.bind (target_machine ~target ~optimize ()) @@ fun (triple, _) ->
+  Result.bind (target_machine ~target ~optimize ()) @@ fun (triple, tm) ->
   in_work_dir @@ fun work ->
   match
     write_runtime work;
     make_dirs dir
   with
   | exception Sys_error message -> Error (Printf.sprintf "cannot write the runtime: %s" message)
-  | () ->
-      let level = level ~optimize in
-      Result.map ignore
-        (compile ~cc:(cc ()) (target_flag (Some target) @ level) work
-           (Filename.concat dir (bundled_name ~triple level)))
+  | () -> (
+      let level = level ~optimize and cc = cc () in
+      let runtime = Filename.concat dir (bundled_name ~triple level) in
+      match compile ~cc (target_flag (Some target) @ level) work runtime with
+      | Error _ as error -> error
+      | Ok _ -> (
+          match bundle_link ~cc ~target ~triple ~tm level dir work runtime with
+          | result -> result
+          | exception Sys_error message -> Error (Printf.sprintf "cannot bundle the link: %s" message)
+          | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot bundle the link: %s" message)))
 
 (* The module's object file alone, for a package other objects link with
    (docs/design/separate-compilation.md C3): no runtime, and no link. *)
@@ -356,23 +776,15 @@ let executable ?target ?(optimize = false) ?(link = []) ?(bundled = bundled_dir 
   match prepare ?target ~optimize m with
   | Error _ as error -> error
   | Ok (triple, tm) -> (
-      (* The runtime reads a Windows program's arguments through
-         `CommandLineToArgvW`, which shell32 holds. A Windows program's
-         main thread gets the 8 MiB of machine stack it has on Linux and
-         macOS, where the linker would give it 1 MiB
-         (docs/design/platforms.md). *)
-      let windows =
-        match target with
-        | Some target -> List.mem "windows" (String.split_on_char '-' target)
-        | None -> Sys.win32
-      in
-      (* The approximate math functions are the C math library's
-         (math.md §2.6). Windows' C runtime and macOS's libSystem hold it;
-         on Linux it is a library of its own. *)
-      let link = if windows then link @ [ "-lshell32"; "-Wl,--stack,8388608" ] else link @ [ "-lm" ] in
       let cc = cc () in
-      let flags = target_flag target @ level ~optimize in
-      let command obj runtime = Filename.quote_command cc (flags @ [ "-o"; output; obj ] @ link @ [ runtime ]) in
+      let level = level ~optimize and system = system_libraries target in
+      let flags = target_flag target @ level in
+      let args obj runtime = flags @ [ "-o"; output; obj ] @ link @ system @ [ runtime ] in
+      let bundled_link =
+        Option.map
+          (fun dir -> List.fold_left Filename.concat dir [ "link"; bundled_link_name ~triple level system ])
+          bundled
+      in
       (* A failure to write the temporary files is an error like any other,
          not an exception. *)
       in_work_dir @@ fun dir ->
@@ -387,7 +799,5 @@ let executable ?target ?(optimize = false) ?(link = []) ?(bundled = bundled_dir 
           match runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir with
           | Error _ as error -> error
           | Ok runtime -> (
-              let command = command obj runtime in
-              match Sys.command command with
-              | 0 -> Ok ()
-              | n -> Error (Printf.sprintf "`%s` exited with %d" command n))))
+              link_program ?cache ?bundled:bundled_link ~cc ~triple ~args:(args obj runtime) ~deps:link ~obj
+                ~runtime ~output dir)))
