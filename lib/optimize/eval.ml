@@ -114,32 +114,29 @@ type run = {
    the fold knows a local of it holds, read the first time it is needed. *)
 module Locals = struct
   (* The cell each local number names: numbers below [dense] in an array
-     grown as they are bound, with [none] marking one bound to nothing, and
-     any above in a table. A frame then costs at most [dense] cells however
-     many locals its function numbers, which keeps a fold of a large function
-     from growing with the square of its locals. *)
-  type t = { mutable cells : cell array; mutable far : (int, cell) Hashtbl.t option }
+     grown as they are bound, and any above in a table. A frame then costs
+     at most [dense] slots however many locals its function numbers, which
+     keeps a fold of a large function from growing with the square of its
+     locals. *)
+  type t = { mutable cells : cell option array; mutable far : (int, cell) Hashtbl.t option }
 
   let dense = 1024
-  let none = cell Ty.Void VNull
-  let create ?(size = 8) () = { cells = Array.make (min size dense) none; far = None }
+  let create ?(size = 8) () = { cells = Array.make (min size dense) None; far = None }
   let size t = Array.length t.cells
 
   let find_opt t id =
-    if id >= 0 && id < Array.length t.cells then
-      let c = t.cells.(id) in
-      if c != none then Some c else None
+    if id >= 0 && id < Array.length t.cells then t.cells.(id)
     else Option.bind t.far (fun h -> Hashtbl.find_opt h id)
 
   let replace t id c =
     if id < 0 then stop "a local with no number";
     let n = Array.length t.cells in
-    if id < n then t.cells.(id) <- c
+    if id < n then t.cells.(id) <- Some c
     else if id < dense then begin
-      let cells = Array.make (min dense (max (2 * n) (id + 1))) none in
+      let cells = Array.make (min dense (max (2 * n) (id + 1))) None in
       Array.blit t.cells 0 cells 0 n;
       t.cells <- cells;
-      cells.(id) <- c
+      cells.(id) <- Some c
     end
     else
       match t.far with
@@ -150,7 +147,7 @@ module Locals = struct
           t.far <- Some h
 
   let iter f t =
-    Array.iteri (fun id c -> if c != none then f id c) t.cells;
+    Array.iteri (fun id c -> Option.iter (f id) c) t.cells;
     Option.iter (Hashtbl.iter f) t.far
 end
 
