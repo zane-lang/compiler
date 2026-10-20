@@ -361,8 +361,14 @@ runs that command with its own files put in, through the LLD linked into
 Mach-O and `lld-link` for COFF. LTO's `-mllvm` options are left out, since
 they would set options of the compiler's own LLVM. A C compiler whose linker
 is not LLD, such as clang with the system's `ld`, or `zig cc` for macOS,
-links the program itself, as does a build whose kept command fails, and the
-command is then forgotten.
+links the program itself; that is kept in the cache too, so it is asked only
+once, and `ZANE_VERBOSE` makes each such build say why. When LLD cannot link
+with a command and the C compiler can, the build warns. A command kept by an
+earlier build may have gone stale, as when a libc update moves its start-up
+files, so it is forgotten and asked for again; one just asked for is not, so
+the C compiler links for that target and those flags until the kept answer
+is removed. A program neither can link is an error, and nothing is
+forgotten.
 
 A released toolchain links a runtime without compiling it at all. Its
 `zanec` sets `ZANE_RUNTIME_OBJECTS` to the toolchain's `share/runtime/`

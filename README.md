@@ -106,7 +106,9 @@ devbox shell
 
 The shell provides the compiler toolchain and adds `dev/bin` to `PATH`. It
 sets `ZANE_CC` to `dev/bin/clang-lld`, whose linker is LLVM's `lld`, unless
-`ZANE_CC` is already set, so `zanec` links with the `lld` built into it.
+`ZANE_CC` is already set, so `zanec` links with the `lld` built into it. Set
+`ZANE_VERBOSE` to have a build say why it links through the C compiler
+instead.
 For regeneration and `just test`, also install Node/npm and the pinned grammar
 generator dependencies as described in [`grammar/README.md`](grammar/README.md).
 

@@ -325,9 +325,10 @@ let lld_named program =
   | _ -> None
 
 (* The linker command *cc* runs for [args], as its `-###` prints it, with
-   LLD's own name first; [None] when the linker is not LLD. LTO's `-mllvm`
-   options, `-MLLVM:` to `lld-link`, are left out: they would set options
-   of the compiler's own LLVM, and nothing here is LTO. *)
+   LLD's own name first, or [None] when the linker is not LLD; an error
+   when *cc* does not say. LTO's `-mllvm` options, `-MLLVM:` to
+   `lld-link`, are left out: they would set options of the compiler's own
+   LLVM, and nothing here is LTO. *)
 let asked_link ~cc args dir =
   let file = Filename.concat dir "cc-link" in
   let rec without_mllvm = function
@@ -339,15 +340,30 @@ let asked_link ~cc args dir =
   match Sys.command (Filename.quote_command cc ~stdout:file ~stderr:file (args @ [ "-###" ])) with
   | 0 -> (
       match In_channel.with_open_bin file In_channel.input_all with
-      | exception Sys_error _ -> None
+      | exception Sys_error _ -> Error "its `-###` could not be read"
       | text ->
-          List.find_map
-            (fun line ->
-              match words line with
-              | program :: rest -> Option.map (fun name -> name :: without_mllvm rest) (lld_named program)
-              | [] -> None)
-            (List.rev (String.split_on_char '\n' text)))
-  | _ -> None
+          Ok
+            (List.find_map
+               (fun line ->
+                 match words line with
+                 | program :: rest -> Option.map (fun name -> name :: without_mllvm rest) (lld_named program)
+                 | [] -> None)
+               (List.rev (String.split_on_char '\n' text))))
+  | n -> Error (Printf.sprintf "its `-###` exited with %d" n)
+
+(* How a build links: by the LLD in the compiler, with [command], kept in
+   [kept] when there is a cache, and [known] when an earlier build kept it;
+   or by the C compiler, for [why]. *)
+type plan = Lld of { command : string list; kept : string option; known : bool } | Cc of string
+
+(* [text] kept in [kept], through a file of [dir]'s. A kept file holds a
+   command's words, or `\001` and why the C compiler links. *)
+let keep_text ~dir ~kept text =
+  let file = Filename.concat dir "cc-link-words" in
+  try
+    Out_channel.with_open_bin file (fun oc -> output_string oc text);
+    keep ~random:(Random.State.make_self_init ()) ~object_:file ~kept
+  with Sys_error _ -> ()
 
 (* The linker command for a build of [obj] and [runtime] into [output] with
    [args], when *cc* links with LLD: what it prints for these, the first
@@ -355,8 +371,9 @@ let asked_link ~cc args dir =
    flags and objects to link, with this build's files put in. A file is
    named by a word of its own, or after an option's `:` as `lld-link` takes
    it (`-OUT:hello.exe`), and the files a COFF link writes beside the
-   executable are named for it (`-PDB:hello.pdb`, `-PDBALTPATH:hello.pdb`). The kept file, if any,
-   comes with the command, so a command that fails can be forgotten. *)
+   executable are named for it (`-PDB:hello.pdb`, `-PDBALTPATH:hello.pdb`).
+   That the linker is not LLD is kept too, so such a C compiler is asked
+   once; that it would not say is not. *)
 let link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir =
   let stem = Filename.remove_extension output in
   let marks =
@@ -405,14 +422,20 @@ let link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir =
   in
   let named m = List.exists (fun w -> String.starts_with ~prefix:m (snd (split w))) in
   let fresh () =
-    Option.bind (asked_link ~cc args dir) (fun command ->
+    match asked_link ~cc args dir with
+    | Error why -> `Unasked why
+    | Ok None -> `Other "its linker is not LLD"
+    | Ok (Some command) ->
         let command = List.map mark command in
-        if List.for_all (fun m -> named m command) [ "\001obj"; "\001runtime"; "\001output" ] then Some command
-        else None)
+        if List.for_all (fun m -> named m command) [ "\001obj"; "\001runtime"; "\001output" ] then `Lld command
+        else `Other "its link command does not name the program's files"
   in
   let filled = List.map fill in
   match Option.bind cache (fun cache -> Option.map (fun id -> (cache, id)) (identity ~cache cc dir)) with
-  | None -> Option.map (fun command -> (None, filled command)) (fresh ())
+  | None -> (
+      match fresh () with
+      | `Lld command -> Lld { command = filled command; kept = None; known = false }
+      | `Other why | `Unasked why -> Cc why)
   | Some (cache, identity) -> (
       let key = List.map mark args in
       let kept =
@@ -420,29 +443,70 @@ let link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir =
           (Digest.to_hex (Digest.string (String.concat "\000" (cc :: identity :: triple :: key))))
       in
       match In_channel.with_open_bin kept In_channel.input_all with
-      | text -> Some (Some kept, filled (String.split_on_char '\000' text))
-      | exception Sys_error _ ->
-          Option.map
-            (fun command ->
-              let file = Filename.concat dir "cc-link-words" in
-              (try
-                 Out_channel.with_open_bin file (fun oc -> output_string oc (String.concat "\000" command));
-                 keep ~random:(Random.State.make_self_init ()) ~object_:file ~kept
-               with Sys_error _ -> ());
-              (Some kept, filled command))
-            (fresh ()))
+      | text when String.starts_with ~prefix:"\001" text -> Cc (String.sub text 1 (String.length text - 1))
+      | text -> Lld { command = filled (String.split_on_char '\000' text); kept = Some kept; known = true }
+      | exception Sys_error _ -> (
+          match fresh () with
+          | `Lld command ->
+              keep_text ~dir ~kept (String.concat "\000" command);
+              Lld { command = filled command; kept = Some kept; known = false }
+          | `Other why ->
+              keep_text ~dir ~kept ("\001" ^ why);
+              Cc why
+          | `Unasked why -> Cc why))
 
 (* [command] run by the LLD in the compiler; what it wrote when it fails. *)
 let lld_run command =
-  if not !lld_usable then Error ""
-  else
-    let code, again, text = lld_link (Array.of_list command) in
-    lld_usable := again;
-    if code = 0 then begin
-      prerr_string text;
-      Ok ()
-    end
-    else Error text
+  let code, again, text = lld_link (Array.of_list command) in
+  lld_usable := again;
+  if code = 0 then begin
+    prerr_string text;
+    Ok ()
+  end
+  else Error text
+
+(* Whether to say how a build links: `ZANE_VERBOSE` is set. *)
+let verbose () = match Sys.getenv_opt "ZANE_VERBOSE" with Some "" | None -> false | Some _ -> true
+
+(* [args] linked by the LLD in the compiler when *cc*'s linker is LLD, else
+   by *cc*, which [say]s why under `ZANE_VERBOSE`. A command LLD fails on
+   where *cc* links is warned of: one kept by an earlier build may have gone
+   stale, and is asked for again next build; one just asked for is not, so
+   *cc* links from then on. When *cc* fails too, the program does not link,
+   and nothing is forgotten. [lld] runs the LLD. *)
+let link_program ?cache ?(lld = lld_run) ?(say = prerr_string) ~cc ~triple ~args ~obj ~runtime ~output dir =
+  let through_cc why =
+    if verbose () then say (Printf.sprintf "zanec: `%s` links: %s\n" cc why);
+    let command = Filename.quote_command cc args in
+    match Sys.command command with 0 -> Ok () | n -> Error (Printf.sprintf "`%s` exited with %d" command n)
+  in
+  match link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir with
+  | Cc why -> through_cc why
+  | Lld _ when not !lld_usable -> through_cc "the built-in LLD cannot run again in this process"
+  | Lld { command; kept; known } -> (
+      match lld command with
+      | Ok () -> Ok ()
+      | Error text -> (
+          match through_cc "the built-in LLD could not link" with
+          | Error _ as error -> error
+          | Ok () ->
+              let failed = "zanec: warning: the built-in LLD could not link with the command" in
+              (match kept with
+              | Some kept when known ->
+                  (try Sys.remove kept with Sys_error _ -> ());
+                  say
+                    (Printf.sprintf "%s kept for `%s`, so it linked instead; it is asked again next build\n"
+                       failed cc)
+              | Some kept ->
+                  keep_text ~dir ~kept "\001the built-in LLD could not link with its command";
+                  say
+                    (Printf.sprintf
+                       "%s `%s` gave, so it linked instead, as it will for this target and these flags \
+                        until %s is removed\n"
+                       failed cc kept)
+              | None -> say (Printf.sprintf "%s `%s` gave, so it linked instead\n" failed cc));
+              say text;
+              Ok ()))
 
 (* The runtime's sources in [dir] compiled by *cc* with [flags] into
    [output]. *)
@@ -561,21 +625,4 @@ let executable ?target ?(optimize = false) ?(link = []) ?(bundled = bundled_dir 
           match runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir with
           | Error _ as error -> error
           | Ok runtime -> (
-              let args = args obj runtime in
-              (* The C compiler links when LLD in the compiler cannot: its
-                 linker is another, or LLD failed, and then the command
-                 kept for it is forgotten. *)
-              let linked () =
-                let command = Filename.quote_command cc args in
-                match Sys.command command with
-                | 0 -> Ok ()
-                | n -> Error (Printf.sprintf "`%s` exited with %d" command n)
-              in
-              match link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir with
-              | None -> linked ()
-              | Some (kept, command) -> (
-                  match lld_run command with
-                  | Ok () -> Ok ()
-                  | Error _ ->
-                      Option.iter (fun kept -> try Sys.remove kept with Sys_error _ -> ()) kept;
-                      linked ()))))
+              link_program ?cache ~cc ~triple ~args:(args obj runtime) ~obj ~runtime ~output dir)))

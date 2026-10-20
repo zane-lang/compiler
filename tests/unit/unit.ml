@@ -1202,22 +1202,25 @@ let linked_in_process () =
     let cache = Filename.concat directory "cache" and work = Filename.concat directory "work" in
     Sys.mkdir work 0o755;
     let asked = Filename.concat directory "asked" in
-    let fake name linker =
+    let fake ?(links = true) name linker =
       let path = Filename.concat directory name in
       write_all path
         (Printf.sprintf
            "#!/bin/sh\n\
-            case \" $* \" in *' -### '*) ;; *) echo fake 1.0; exit 0;; esac\n\
+            case \" $* \" in *' -### '*) ;; *' --version '*) echo fake 1.0; exit 0;; *) exit %d;; esac\n\
             echo asked >> %s\n\
             %s >&2\n"
+           (if links then 0 else 1)
            (Filename.quote asked) linker);
       Unix.chmod path 0o755;
       path
     in
     let times () = match read_all asked with Some s -> List.length (String.split_on_char '\n' s) - 1 | None -> 0 in
+    let args ~obj ~runtime ~output = [ "-O0"; "-o"; output; obj; "-lm"; runtime ] in
     let command cc ~obj ~runtime ~output =
-      let args = [ "-O0"; "-o"; output; obj; "-lm"; runtime ] in
-      Option.map snd (Build.link_command ~cache ~cc ~triple:"t" ~args ~obj ~runtime ~output work)
+      match Build.link_command ~cache ~cc ~triple:"t" ~args:(args ~obj ~runtime ~output) ~obj ~runtime ~output work with
+      | Build.Lld { command; _ } -> Some command
+      | Build.Cc _ -> None
     in
     let elf =
       fake "elf-cc"
@@ -1242,8 +1245,50 @@ let linked_in_process () =
       = Some
           [ "lld-link"; "-OUT:/b/bye.exe"; "-PDB:/b/bye.pdb"; "-PDBALTPATH:bye.pdb"; "-IMPLIB:/b/bye.lib"; "/w2/program.o"; "/r/runtime.o" ]);
     let gnu = fake "gnu-cc" {|printf ' "/usr/bin/ld" "-o" "x"\n'|} in
+    let before = times () in
     check "a linker that is not LLD links as a program of its own"
       (command gnu ~obj:"/w/program.o" ~runtime:"/r/runtime.o" ~output:"x" = None);
+    check "and is asked about once"
+      (command gnu ~obj:"/w2/program.o" ~runtime:"/r/runtime.o" ~output:"y" = None && times () = before + 1);
+    let said = Buffer.create 64 in
+    let linked ?(lld = fun _ -> Error "lld: error: stale\n") cc ~output =
+      Buffer.clear said;
+      let obj = "/w/program.o" and runtime = "/r/runtime.o" in
+      Build.link_program ~cache ~lld ~say:(Buffer.add_string said) ~cc ~triple:"t"
+        ~args:(args ~obj ~runtime ~output) ~obj ~runtime ~output work
+    in
+    let warned () =
+      String.starts_with ~prefix:"zanec: warning:" (Buffer.contents said)
+      && String.ends_with ~suffix:"lld: error: stale\n" (Buffer.contents said)
+    in
+    let before = times () in
+    check "a kept command LLD fails on, where the C compiler links, is warned of"
+      (Result.is_ok (linked elf ~output:"three") && warned ());
+    check "and asked for again"
+      (command elf ~obj:"/w/program.o" ~runtime:"/r/runtime.o" ~output:"three" <> None
+      && times () = before + 1);
+    let echoing =
+      {|printf ' "/x/ld.lld"'; for a; do [ "$a" = -### ] || printf ' "%s"' "$a"; done; printf '\n'|}
+    in
+    let fresh = fake "fresh-cc" echoing in
+    check "a command just asked for that LLD fails on is warned of"
+      (Result.is_ok (linked fresh ~output:"four") && warned ());
+    let before = times () in
+    check "and the C compiler links from then on"
+      (command fresh ~obj:"/w/program.o" ~runtime:"/r/runtime.o" ~output:"four" = None && times () = before);
+    let failing = fake ~links:false "failing-cc" echoing in
+    let before = times () in
+    check "a program neither links is an error, and not warned of"
+      (Result.is_error (linked failing ~output:"five") && Buffer.length said = 0);
+    check "and its command is kept"
+      (command failing ~obj:"/w/program.o" ~runtime:"/r/runtime.o" ~output:"five" <> None && times () = before + 1);
+    Unix.putenv "ZANE_VERBOSE" "1";
+    let quiet = linked gnu ~output:"x" in
+    Unix.putenv "ZANE_VERBOSE" "";
+    check "ZANE_VERBOSE says why the C compiler links"
+      (Result.is_ok quiet && Buffer.contents said = Printf.sprintf "zanec: `%s` links: its linker is not LLD\n" gnu);
+    check "and is quiet when LLD links"
+      (Result.is_ok (linked ~lld:(fun _ -> Ok ()) elf ~output:"six") && Buffer.length said = 0);
     check "clang's quoted words and zig's plain ones are both read"
       (Build.words {| "/a b/ld.lld" "-o" "x\"y"|} = [ "/a b/ld.lld"; "-o"; {|x"y|} ]
       && Build.words "ld.lld -o out a.o" = [ "ld.lld"; "-o"; "out"; "a.o" ])
