@@ -290,22 +290,40 @@ let body_calls (v : N.Verb_decl.t) =
 let all_verbs env () =
   Names.fold_decls (fun _ (d : decl) acc -> match d.kind with Verb v -> (d, v) :: acc | _ -> acc) env.names []
 
+(* The methods by name and the constructors by the type they build and the
+   member they name, each found once, so a call looks its candidates up
+   rather than scanning every verb of the build. *)
+type index = {
+  methods : (string, decl * N.Verb_decl.t) Hashtbl.t;
+  constructors : (int * string option, decl * N.Verb_decl.t) Hashtbl.t;
+}
+
+let member_text (m : N.Name.t option) = Option.map (fun (m : N.Name.t) -> m.N.Name.text) m
+
+let index env verbs =
+  let methods = Hashtbl.create 64 and constructors = Hashtbl.create 64 in
+  List.iter
+    (fun (((x : decl), (v : N.Verb_decl.t)) as verb) ->
+      match v.N.Verb_decl.node with
+      | N.Verb_decl.Meth { name; _ } -> Hashtbl.add methods name.N.Name.text verb
+      | N.Verb_decl.Constructor
+          { type_ = { N.Type_expr.node = N.Type_expr.Path { name = n; _ }; _ }; member = m; _ } -> (
+          match Type_decls.resolve_head env (Type_decls.scope x.file) n with
+          | Type_decls.Declared t -> Hashtbl.add constructors (t.id, member_text m) verb
+          | _ -> ())
+      | _ -> ())
+    (List.rev verbs);
+  { methods; constructors }
+
 (* The verbs a call could reach, by name, and the arguments it passes them. *)
-let call_targets env verbs (d : decl) (c : N.Verb_call.t) =
+let call_targets env index (d : decl) (c : N.Verb_call.t) =
   let functions ds = List.filter_map (fun (x : decl) -> match x.kind with Verb v when is_function x -> Some (x, v) | _ -> None) ds in
   match c.N.Verb_call.node with
   | N.Verb_call.Call
       { callee = { N.Expr.node = N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Ident id; _ }; _ }; args; form; _ } -> (
       match form with
       | N.Call_form.Function -> (functions (lookup_values env d.file id.N.Name.text), args)
-      | N.Call_form.Method _ ->
-          ( List.filter
-              (fun (_, (v : N.Verb_decl.t)) ->
-                match v.N.Verb_decl.node with
-                | N.Verb_decl.Meth { name; _ } -> name.N.Name.text = id.N.Name.text
-                | _ -> false)
-              verbs,
-            args ))
+      | N.Call_form.Method _ -> (Hashtbl.find_all index.methods id.N.Name.text, args))
   | N.Verb_call.Call
       {
         callee = { N.Expr.node = N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Qualified { package; ident }; _ }; _ };
@@ -317,22 +335,9 @@ let call_targets env verbs (d : decl) (c : N.Verb_call.t) =
       | Error _ -> ([], args))
   | N.Verb_call.Constructor
       { name; args = { N.Constructor_args.node = N.Constructor_args.Positional args; _ }; _ } -> (
-      let member (m : N.Name.t option) = Option.map (fun (m : N.Name.t) -> m.N.Name.text) m in
       match Type_decls.resolve_head env (Type_decls.scope d.file) name.N.Constructor_name.type_ with
       | Type_decls.Declared built ->
-          ( List.filter
-              (fun ((x : decl), (v : N.Verb_decl.t)) ->
-                match v.N.Verb_decl.node with
-                | N.Verb_decl.Constructor
-                    { type_ = { N.Type_expr.node = N.Type_expr.Path { name = n; _ }; _ }; member = m; _ } -> (
-                    member m = member name.N.Constructor_name.member
-                    &&
-                    match Type_decls.resolve_head env (Type_decls.scope x.file) n with
-                    | Type_decls.Declared t -> t.id = built.id
-                    | _ -> false)
-                | _ -> false)
-              verbs,
-            args )
+          (Hashtbl.find_all index.constructors (built.id, member_text name.N.Constructor_name.member), args)
       | _ -> ([], args))
   | _ -> ([], [])
 
@@ -352,8 +357,9 @@ let promote env tables =
      reports whatever is wrong with them; this pass reports nothing. *)
   let saved = !(env.diagnostics) in
   let verbs = all_verbs env () in
+  let index = index env verbs in
   let calls = Hashtbl.create 64 in
-  List.iter (fun ((d : decl), v) -> Hashtbl.replace calls d.id (List.map (call_targets env verbs d) (body_calls v))) verbs;
+  List.iter (fun ((d : decl), v) -> Hashtbl.replace calls d.id (List.map (call_targets env index d) (body_calls v))) verbs;
   let changed = ref true in
   while !changed do
     changed := false;

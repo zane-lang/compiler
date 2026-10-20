@@ -40,7 +40,8 @@ zanec --target x86_64-windows-gnu --build hello.exe --package path/to/hello
 ```
 
 Set `ZANE_CC` to use another C compiler wrapper, or `ZIG` to use another Zig
-executable. The compiler itself runs natively on Linux; Zig cross-compiles
+executable. The compiled C runtime is cached under `~/.cache/zane` (or
+`$XDG_CACHE_HOME/zane`); set `ZANE_CACHE_DIR` to keep it elsewhere. The compiler itself runs natively on Linux; Zig cross-compiles
 the generated Zane program's runtime and links its target executable.
 
 ## Publishing a compiler release

@@ -1018,6 +1018,47 @@ let rec remove_tree path =
   end
   else Sys.remove path
 
+(* A build compiles the runtime once for each compiler and set of flags and
+   takes it from the cache after that; a cache it cannot write to costs the
+   build nothing but the time. *)
+let cached_runtime () =
+  let module Build = Codegen__Build in
+  let directory = Filename.temp_dir "zane-runtime" "" in
+  Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
+  let work = Filename.concat directory "work" and cache = Filename.concat directory "cache" in
+  Sys.mkdir work 0o755;
+  Build.write_runtime work;
+  let cc = Build.cc () in
+  let kept () =
+    match Sys.readdir (Filename.concat cache "runtime") with
+    | names -> List.filter (fun n -> Filename.check_suffix n ".o") (Array.to_list names)
+    | exception Sys_error _ -> []
+  in
+  let host = Llvm_target.Target.default_triple () in
+  let compiled ?(triple = host) flags = Build.runtime_object ~cache ~cc ~triple ~flags work in
+  let in_cache = function
+    | Ok path -> String.starts_with ~prefix:cache path
+    | Error _ -> false
+  in
+  let first = compiled [ "-O0"; "-pthread" ] in
+  check "a runtime not yet kept is compiled" (Result.is_ok first && not (in_cache first));
+  check "and kept" (List.length (kept ()) = 1);
+  let second = compiled [ "-O0"; "-pthread" ] in
+  check "the same flags take it from the cache" (in_cache second);
+  check "and keep no second copy" (List.length (kept ()) = 1);
+  let other = compiled [ "-O2"; "-pthread" ] in
+  check "other flags compile their own" (Result.is_ok other && not (in_cache other));
+  check "and keep it beside the first" (List.length (kept ()) = 2);
+  let elsewhere = compiled ~triple:"x86_64-unknown-linux-musl" [ "-O0"; "-pthread" ] in
+  check "another triple compiles its own, though the flags name none"
+    (Result.is_ok elsewhere && not (in_cache elsewhere) && List.length (kept ()) = 3);
+  let blocked = Filename.concat directory "file" in
+  write_all blocked "not a directory";
+  let unwritable = Build.runtime_object ~cache:(Filename.concat blocked "cache") ~cc ~triple:host ~flags:[ "-O0" ] work in
+  check "a cache that cannot be made still compiles the runtime" (Result.is_ok unwritable);
+  let uncached = Build.runtime_object ~cc ~triple:host ~flags:[ "-O0" ] work in
+  check "no cache compiles the runtime" (Result.is_ok uncached && not (in_cache uncached))
+
 (* Rewriting writes beside its output under a name it creates exclusively.
    A name that is already there is someone else's file: it is kept, and the
    object goes out under the next name drawn. *)
@@ -1201,6 +1242,7 @@ let () =
   backstop ();
   fixture_pairing ();
   escaped_locations ();
+  cached_runtime ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
   disposed_modules ();
