@@ -245,11 +245,16 @@ pins in §4 are also the contract that makes these body imports sound.
 
 A consumer computes a dependency's layouts, its verbs' signatures and its
 generic bodies from source, and links against objects built elsewhere. Those
-agree because both are built by the same compiler, pinned by `zane-version`
-(`dependencies.md` §14), from the same source, pinned by commit. A
-dependency built by a different compiler pin is the one way they could
-disagree; `zane` records the pin a cache entry was rewritten with
-(`dependencies.md` §7), and refuses to reuse it under another.
+agree because they are built from the same source, pinned by commit, by
+compilers of one major (`dependencies.md` §14). The project being built
+names the compiler for its whole graph, and a dependency's `zane-version`
+names the oldest compiler that builds it, which is the one its release
+objects were written by. Within a major, a compiler computes the layouts and
+signatures an earlier one did and links the objects it wrote, so a consumer
+built by a newer compiler agrees with an archive built by an older one.
+`zane` refuses a graph holding a package of another major, or one that needs
+a newer compiler than the project's; it records the pin a cache entry was
+rewritten with (`dependencies.md` §7), and refuses to reuse it under another.
 
 ---
 
