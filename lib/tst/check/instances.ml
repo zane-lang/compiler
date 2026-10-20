@@ -24,7 +24,7 @@ let describe_chain env chain =
   let links = List.rev chain in
   let shown = take 4 links in
   let name id =
-    match Hashtbl.find_opt env.verbs.signatures id with Some (s : S.t) -> quote s.name | None -> "?"
+    match Verbs.signature env.verbs id with Some (s : S.t) -> quote s.name | None -> "?"
   in
   String.concat ", " (List.map name shown) ^ if List.length links > List.length shown then ", ..." else ""
 
@@ -116,13 +116,13 @@ let check_kinds env (s : S.t) subst at (args : T.Arg.t option list) =
       false
 
 (* A call that builds storage out of a concept was reported, and its instance
-   would only report it again. *)
+   would only report it again. A body checked without requests, as a generic
+   verb nothing instantiates is, asks for no instances. *)
 let request env ?(args = []) (s : S.t) subst at =
-  match s.owner with
+  match (s.owner, env.instances.requests) with
   | _ when not (check_result env s subst at) -> ()
   | _ when s.generics <> [] && not (check_kinds env s subst at args) -> ()
-  | _ when !(env.instances.defining) -> ()
-  | S.Declared id when s.generics <> [] ->
+  | S.Declared id, Some requests when s.generics <> [] ->
       let args = binding_args s subst in
       if List.exists (fun (_, a) -> Ty.arg_contains_error a) args then ()
       else
@@ -130,15 +130,15 @@ let request env ?(args = []) (s : S.t) subst at =
           string_of_int id ^ ":"
           ^ String.concat "," (List.map (fun (_, a) -> Ty.arg_to_string a) args)
         in
-        if not (Hashtbl.mem env.instances.instance_keys key || Hashtbl.mem env.instances.runaway id) then begin
-          Hashtbl.add env.instances.instance_keys key ();
-          Hashtbl.replace env.instances.instantiated id ();
-          let chain = id :: !(env.instances.current_chain) in
+        if not (Hashtbl.mem requests.instance_keys key || Hashtbl.mem requests.runaway id) then begin
+          Hashtbl.add requests.instance_keys key ();
+          Hashtbl.replace requests.instantiated id ();
+          let chain = id :: !(requests.current_chain) in
           let count = List.length (List.filter (Int.equal id) chain) in
           if count > instance_limit then begin
             (* Reported once: the instances still waiting on this declaration
                ask for no more of it. *)
-            Hashtbl.replace env.instances.runaway id ();
+            Hashtbl.replace requests.runaway id ();
             error env at
               (Printf.sprintf
                  "%s is instantiated more than %d times along one chain of instantiations, \
@@ -148,12 +148,12 @@ let request env ?(args = []) (s : S.t) subst at =
           else
             Stack.push
               {
-                p_decl = Hashtbl.find env.names.decls id;
+                p_decl = Names.decl env.names id;
                 p_sig = s;
                 p_subst = subst;
                 p_at = at;
-                p_chain = !(env.instances.current_chain);
+                p_chain = !(requests.current_chain);
               }
-              env.instances.pending
+              requests.pending
         end
   | _ -> ()

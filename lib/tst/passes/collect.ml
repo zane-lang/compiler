@@ -14,11 +14,11 @@ let name_of (n : N.Name.t) = n.N.Name.text
 (* Pass 1                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
-let declaration env pkg file (d : N.Decl.t) =
+let declaration env (tables : names) pkg file (d : N.Decl.t) =
   let make kind =
     incr env.counters.next_decl;
     let decl = { id = !(env.counters.next_decl); package = pkg.name; file; span = d.N.Decl.span; kind } in
-    Hashtbl.replace env.names.decls decl.id decl;
+    Hashtbl.replace tables.decls decl.id decl;
     pkg.decls <- decl :: pkg.decls;
     Some decl
   in
@@ -272,7 +272,7 @@ let check_import_overloads env (file : file) =
                          (List.map
                             (fun (p : Signature.param) -> Ty.without_mut (Ty.strip_mode p.ty))
                             s.params))
-                     (Hashtbl.find_opt env.verbs.signatures d.id)
+                     (Verbs.signature env.verbs d.id)
                  in
                  (match
                     List.find_opt
@@ -348,9 +348,11 @@ let check_import_cycles env (loaded : (package * (file * Assembly.file) list) li
       Hashtbl.replace finished name ()
     end
   in
-  List.iter (visit []) !(env.names.package_order)
+  List.iter (visit []) (Names.package_order env.names)
 
-let run env (assembled : Assembly.package list) =
+(* Fills [tables] and hands on a view of them. *)
+let run env (tables : names) (assembled : Assembly.package list) =
+  let env = { env with names = Names.view tables } in
   (* Every package is registered before any import is read, so an import may
      name a package given later on the command line. *)
   let loaded =
@@ -373,8 +375,8 @@ let run env (assembled : Assembly.package list) =
             method_names = Hashtbl.create 16;
           }
         in
-        Hashtbl.replace env.names.packages p.id pkg;
-        env.names.package_order := !(env.names.package_order) @ [ p.id ];
+        Hashtbl.replace tables.packages p.id pkg;
+        tables.package_order := !(tables.package_order) @ [ p.id ];
         (pkg, files))
       assembled
   in
@@ -383,7 +385,7 @@ let run env (assembled : Assembly.package list) =
       List.iter
         (fun (file, (f : Assembly.file)) ->
           List.iter
-            (fun d -> ignore (declaration env pkg file d))
+            (fun d -> ignore (declaration env tables pkg file d))
             f.sst.N.Package.decls)
         files;
       pkg.decls <- List.rev pkg.decls;
@@ -397,4 +399,5 @@ let run env (assembled : Assembly.package list) =
           check_import_collisions env file)
         files)
     loaded;
-  check_import_cycles env loaded
+  check_import_cycles env loaded;
+  env.names

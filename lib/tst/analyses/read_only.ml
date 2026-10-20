@@ -93,7 +93,7 @@ let carries env (t : Ty.t) =
         || (not (Hashtbl.mem seen tid))
            &&
            (Hashtbl.replace seen tid ();
-            match Hashtbl.find_opt env.Env.types.type_infos_by_id tid with
+            match Env.Types.type_info_of_id env.Env.types tid with
             | None -> false
             | Some info -> (
                 let s = Ty.bindings info.Env.params args in
@@ -114,7 +114,7 @@ let store env t s = if carries env t then s else Taint.empty
 let field_type env (t : Ty.t) name =
   match t with
   | Ty.Named (tid, args) -> (
-      match Hashtbl.find_opt env.Env.types.type_infos_by_id tid with
+      match Env.Types.type_info_of_id env.Env.types tid with
       | Some { Env.definition = Some (Env.Struct fs); params; _ } -> (
           match List.assoc_opt name fs with
           | Some ft -> Some (Ty.instantiate params args ft)

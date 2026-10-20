@@ -114,7 +114,7 @@ and map_literal env ctx span entries =
       mk (T.Expr.Map_lit entries) (Ty.Concept (Ty.Map_lit (k0.T.Expr.ty, v0.T.Expr.ty))) span
 
 and constant_ref env (d : decl) span =
-  let ty = Option.value ~default:Ty.Error (Hashtbl.find_opt env.verbs.constant_types d.id) in
+  let ty = Option.value ~default:Ty.Error (Verbs.constant_type env.verbs d.id) in
   mk (T.Expr.Var (T.Name_ref.Global { decl = d.id; name = decl_name d })) ty span
 
 and call_only env span name =
@@ -278,7 +278,7 @@ and private_field env ctx span (tid : Ty.type_id) f =
 (* An enum map is found where a method is: in the enum's home package, then
    in the current one. *)
 and map_read env ctx span target tid property ~missing =
-  let maps = Option.value ~default:[] (Hashtbl.find_opt env.verbs.enum_maps (tid, property)) in
+  let maps = Option.value ~default:[] (Verbs.enum_maps env.verbs (tid, property)) in
   let in_package p = List.filter (fun m -> m.map_decl.package = p) maps in
   let visible = in_package tid.Ty.package @ in_package ctx.package in
   match visible with
@@ -292,7 +292,7 @@ and subscript env ctx span target args =
   let args = List.map (expr env ctx) args in
   let homes = List.filter_map Verb_signatures.home [ target.T.Expr.ty ] @ [ S.Package ctx.package ] in
   let cands =
-    List.filter (fun (s : S.t) -> List.mem s.home homes && accessible_sig ctx s) !(env.verbs.subscripts)
+    List.filter (fun (s : S.t) -> List.mem s.home homes && accessible_sig ctx s) (Verbs.subscripts env.verbs)
   in
   if target.T.Expr.ty = Ty.Error || List.exists (fun (a : T.Expr.t) -> a.T.Expr.ty = Ty.Error) args then
     invalid span
@@ -315,7 +315,7 @@ and subscript env ctx span target args =
           let ty =
             match o.sig_.owner with
             | S.Intrinsic _ -> Ty.subst o.subst o.sig_.ret
-            | S.Declared id -> subscript_result env (Hashtbl.find env.names.decls id) o.sig_ o.subst span
+            | S.Declared id -> subscript_result env (Names.decl env.names id) o.sig_ o.subst span
           in
           let args = List.filter_map (function Some (T.Arg.Value e) -> Some e | _ -> None) (List.tl o.converted) in
           mk (T.Expr.Subscript { target; impl = verb_ref o.sig_ o.subst; args }) ty span
@@ -462,7 +462,7 @@ and skip_handler env ctx handle = ignore (handler_opt env ctx ~abort:Ty.Error ~o
 
 and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
   let call_decls ~name cands =
-    let cands = List.filter_map (fun (d : decl) -> Hashtbl.find_opt env.verbs.signatures d.id) cands in
+    let cands = List.filter_map (fun (d : decl) -> Verbs.signature env.verbs d.id) cands in
     if any_error actuals then begin
       skip_handler env ctx handle;
       (invalid span, None)
@@ -603,7 +603,7 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
   let actuals = match actuals with a :: rest -> { a with subject = true } :: rest | [] -> [] in
   let subject = List.hd actuals in
   let named_in home name =
-    Hashtbl.find_all env.verbs.methods name
+    Verbs.methods env.verbs name
     |> List.filter (fun (s : S.t) -> s.home = home && accessible_sig ctx s)
     |> List.rev
   in
@@ -719,10 +719,10 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
     match head with
     | Type_decls.Unknown -> `None
     | Type_decls.Declared d -> (
-        match Hashtbl.find_opt env.types.type_infos d.id with
+        match Types.type_info env.types d.id with
         | Some info -> `Type (Ty.Named (info.tid, List.map Type_decls.param_arg info.params), info.params)
         | None -> (
-            match Hashtbl.find_opt env.types.alias_infos d.id with
+            match Types.alias_info env.types d.id with
             | Some a when a.alias_params = [] -> `Type (Type_decls.alias_target env a, [])
             | Some _ ->
                 error env span "a generic alias cannot name a constructor; name the type it stands for";
@@ -775,7 +775,7 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
             match Verb_signatures.type_key built with
             | None -> []
             | Some key ->
-                Hashtbl.find_all env.verbs.constructors key
+                Verbs.constructors env.verbs key
                 |> List.rev
                 |> List.filter (fun (s : S.t) ->
                        (match s.kind with S.Constructor c -> c.member = member | _ -> false)
@@ -931,7 +931,7 @@ and operator env ~flow ctx span (op : N.Operator.t) left right ~swapped handle =
   else
     let homes = List.filter_map (fun (e : T.Expr.t) -> Verb_signatures.home e.T.Expr.ty) passed in
     let cands =
-      Hashtbl.find_all env.verbs.operators op.N.Operator.node |> List.rev
+      Verbs.operators env.verbs op.N.Operator.node |> List.rev
       |> List.filter (fun (s : S.t) -> List.mem s.home homes)
     in
     if cands = [] then begin
@@ -963,7 +963,7 @@ and flip env ~flow ctx span value handle =
   if Ty.contains_error value.T.Expr.ty then (skip_handler env ctx handle; (invalid span, None))
   else
     let homes = Option.to_list (Verb_signatures.home value.T.Expr.ty) in
-    let cands = List.filter (fun (s : S.t) -> List.mem s.home homes) !(env.verbs.flips) in
+    let cands = List.filter (fun (s : S.t) -> List.mem s.home homes) (Verbs.flips env.verbs) in
     if cands = [] then begin
       error env span
         (Printf.sprintf "no operator `~` is declared for %s in its home package"
@@ -1288,7 +1288,7 @@ and declared_type env ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
   | N.Type_expr.Path { name; generics = [] } -> (
       match Type_decls.resolve_head env (type_scope ctx) name with
       | Type_decls.Declared d as head -> (
-          match (Hashtbl.find_opt env.types.type_infos d.id, Ty.strip_mode value_ty) with
+          match (Types.type_info env.types d.id, Ty.strip_mode value_ty) with
           | Some info, Ty.Named (tid, _) when info.params <> [] && tid = info.tid -> Ty.strip_mode value_ty
           | Some info, Ty.Error when info.params <> [] -> Ty.Error
           | _ -> Type_decls.apply env (type_scope ctx) te.N.Type_expr.span head name [])
