@@ -182,7 +182,8 @@ and its negative, which a division tells apart, are two values.
 knows: each local whose value is a constant at that point. Every function is
 folded, whether or not anything calls it, so the constant code inside a
 function that never ends still folds. A function is folded after the
-functions it calls, except where calls form a cycle, and its folded body is
+functions it calls and the thunks it spawns, except where calls form a
+cycle, and its folded body is
 the one evaluation runs from then on. A call to a function that folded to
 its outputs runs those outputs, not the code they came from, so `main`'s
 work is done once, not again for the entry point that calls it.
@@ -248,9 +249,10 @@ weight: its text's length and one more, so that an output with no text, a
 A replacement whose code would be larger than 64 KiB, its value, its outputs
 and the locals it stores counted together, does not fold either, which keeps a cheap call that builds a large value out of the
 binary. A call's result and outputs are remembered by its function and its
-arguments when a loop, a spawn, a call through a value or a recursive call
-is reachable from the function, so such a call made again with the same
-arguments costs a lookup. Any other call takes a bounded number of steps,
+arguments when a loop, a spawn, a call through a value, a recursive call,
+or work that grows with a value's size, a runtime function, a copy or an
+overwrite, is reachable from the function, so such a call made again with
+the same arguments costs a lookup. Any other call takes a bounded number of steps,
 fewer than keeping and finding its result would, and runs again: `core`'s
 arithmetic, which a loop calls with new arguments on every pass, is never
 remembered. A call with constant arguments that did not fold is not tried
@@ -360,7 +362,8 @@ each written and read again, with no index check left in it.
 
 `tests/unit/` checks the evaluator's arithmetic against codegen's, its math
 functions, the intrinsic classes, a value written as code and read back, calls, outputs,
-memoization of a call that reaches a loop and not of one that does not, the budget, stores in place, two folds of handmade
+memoization of a call that reaches a loop or a runtime function and not of
+one that reaches neither, the budget, stores in place, two folds of handmade
 functions, a replacement past the size cap only as a whole, a string that
 doubles past the budget, a call that replays its previous level's output
 twice stopping at the output cap, with a word and with empty prints, a member of a program variable written in place,

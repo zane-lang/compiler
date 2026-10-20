@@ -23,14 +23,15 @@ let run (p : Program.t) =
   in
   Constants.find prog p.Program.funcs;
   let failed = Value.Key.create 64 in
-  (* Callees first, each folded body replacing its original, so that a
-     caller's evaluation runs what its callees folded to (O6). A call back
+  (* Callees first, a spawned call's thunk among them, each folded body
+     replacing its original, so that a caller's evaluation runs what its
+     callees folded to (O6). A call back
      into a function still being folded runs its original body. *)
   let calls (f : Func.t) =
     let found = ref [] in
     Cgt.Traverse.walk_stats
       (fun e -> match e.Expr.node with Expr.Call { fn; _ } -> found := fn :: !found | _ -> ())
-      (fun _ -> ())
+      (function Stat.Spawn { thunk; _ } -> found := thunk :: !found | _ -> ())
       f.Func.body;
     !found
   in

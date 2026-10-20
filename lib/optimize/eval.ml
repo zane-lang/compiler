@@ -26,10 +26,12 @@ type constant = { maker : string; state : string; value : string; mutable known 
 type memo = { result : const; outputs : output list; count : int; text : int }
 
 (* A function the evaluator can call, and whether its calls are remembered
-   (O6): only when a loop, a spawn, a call through a value or recursion is
-   reachable from its body. A call that reaches none of these takes a
-   bounded number of steps, fewer than a remembered call takes to keep and
-   look up. Known the first time it is asked. *)
+   (O6): when a loop, a spawn, a call through a value, recursion, or work
+   that grows with a value's size (a runtime function, a copy or an
+   overwrite) is
+   reachable from its body. Any other call takes a bounded number of steps,
+   fewer than a remembered call takes to keep and look up. Known the first
+   time it is asked. *)
 type entry = { func : Func.t; mutable remembers : remembers; mutable frame : int }
 and remembers = Unknown | Asking | Known of bool
 
@@ -60,9 +62,9 @@ let rec remembers funcs e =
           ~expr:(fun x ->
             match x.Expr.node with
             | Expr.Call { fn; _ } -> Option.fold ~none:false ~some:(remembers funcs) (Funcs.find_opt funcs fn)
-            | Expr.Call_value _ -> true
+            | Expr.Call_value _ | Expr.Runtime _ | Expr.Copy _ -> true
             | _ -> false)
-          ~stat:(function Stat.Repeat _ | Stat.Spawn _ -> true | _ -> false)
+          ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Overwrite _ -> true | _ -> false)
       in
       e.remembers <- Known r;
       r
