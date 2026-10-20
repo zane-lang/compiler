@@ -50,15 +50,23 @@ let functions fs =
   List.iter (fun (f : Func.t) -> Funcs.replace t f.Func.symbol (entry f)) fs;
   t
 
-(* The nodes a body may hold and still be run again rather than remembered:
-   [core]'s arithmetic and constructors hold a few each. *)
+(* The steps a value of [t] costs to make or move, as [bytes] charges them. *)
+let size_steps (t : Ty.t) =
+  match t with
+  (* Scalars are smaller than a step's worth of bytes. *)
+  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Ptr -> 0
+  | Ty.Struct _ | Ty.Array _ | Ty.Sum _ -> fst (Ty.size_align t) / 64
+
+(* The weight a body may have and still be run again rather than
+   remembered: a node each, and the steps of each aggregate it makes or
+   moves. [core]'s arithmetic and constructors weigh a few each. *)
 let large_body = 64
 
-(* A function being asked about again is recursive, which is worth
-   remembering. *)
+(* A call to a function still being asked about is a recursive call, which
+   is worth remembering. *)
 let rec remembers funcs e = fst (weigh funcs e)
 
-(* Whether [e] is remembered, and the nodes a call to it runs when it is
+(* Whether [e] is remembered, and the weight of a call to it when it is
    not: its body's and, through its one call, those of the chain of
    unremembered calls below it, so a long chain of small bodies is as large
    as one long body. *)
@@ -78,7 +86,7 @@ and weigh funcs e =
       let r =
         Cgt.Traverse.exists_in e.func.Func.body
           ~expr:(fun x ->
-            large 1
+            large (1 + size_steps x.Expr.ty)
             ||
             match x.Expr.node with
             | Expr.Call { fn; _ } -> (
@@ -87,12 +95,14 @@ and weigh funcs e =
                 ||
                 match Funcs.find_opt funcs fn with
                 | None -> false
+                | Some { remembers = Asking; _ } -> true
                 | Some callee -> (
                     match weigh funcs callee with true, _ -> false | false, w -> large w))
             | Expr.Call_value _ | Expr.Runtime _ | Expr.Copy _ -> true
             | _ -> false)
           ~stat:(fun st ->
-            large 1 || match st with Stat.Repeat _ | Stat.Spawn _ | Stat.Overwrite _ -> true | _ -> false)
+            large (1 + match st with Stat.Reserve { ty; _ } -> size_steps ty | _ -> 0)
+            || match st with Stat.Repeat _ | Stat.Spawn _ | Stat.Overwrite _ -> true | _ -> false)
       in
       e.remembers <- Known (r, !nodes);
       (r, !nodes)
@@ -236,10 +246,8 @@ let output run o =
   charge_outputs run ~count:1 ~text;
   run.outputs <- o :: run.outputs
 let sized run (t : Ty.t) =
-  match t with
-  (* Scalars are smaller than a step's worth of bytes. *)
-  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Ptr -> ()
-  | Ty.Struct _ | Ty.Array _ | Ty.Sum _ -> bytes run (fst (Ty.size_align t))
+  let n = size_steps t in
+  if n > 0 then spend run n
 
 (* ---------------------------------------------------------------------- *)
 (* Places                                                                 *)

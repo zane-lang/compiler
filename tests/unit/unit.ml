@@ -629,7 +629,17 @@ let evaluated () =
     let sum = List.fold_left (fun acc _ -> e (C.Expr.Binary { op = C.Expr.Add; left = acc; right = x }) C.Ty.I64) x (List.init 40 Fun.id) in
     func "long" [ (1, C.Ty.I64) ] [ C.Stat.Return sum ]
   in
-  let prog = program [ double; twice; join; next; long ] in
+  let self =
+    func "self" [ (1, C.Ty.I64) ] [ C.Stat.Return (e (C.Expr.Call { fn = "self"; args = [ e (C.Expr.Local 1) C.Ty.I64 ] }) C.Ty.I64) ]
+  in
+  let zeroes =
+    func "zeroes" [ (1, C.Ty.I64) ]
+      [ C.Stat.Reserve { id = 2; scope = 0; ty = C.Ty.Array (C.Ty.I64, 8191); layout = "a" }; C.Stat.Return (i64 0L) ]
+  in
+  let prog = program [ double; twice; join; next; long; self; zeroes ] in
+  let asked f = Eval.remembers prog.Eval.funcs (Eval.Funcs.find prog.Eval.funcs f) in
+  check "a small body that calls itself is remembered" (asked "self");
+  check "as is a small body that reserves a large aggregate" (asked "zeroes");
   let run = Eval.start prog in
   check "a call gives its result" (Eval.call run "twice" [ Value.VInt 21L ] = Value.VInt 42L);
   check "outputs are kept in the order made" (List.rev run.Eval.outputs = Eval.[ Print "a"; Print "b" ]);

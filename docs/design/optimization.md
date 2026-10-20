@@ -250,10 +250,11 @@ A replacement whose code would be larger than 64 KiB, its value, its outputs
 and the locals it stores counted together, does not fold either, which keeps a cheap call that builds a large value out of the
 binary. A call's result and outputs are remembered by its function and its
 arguments when the function's body makes more than one call, when it and
-the chain of unremembered calls below it hold more than 64 nodes, or when a
-loop, a spawn, a call through a value, a recursive call, or work that grows
-with a value's size, a runtime function, a copy or an overwrite, is
-reachable from it, so such a call made again with the same arguments costs
+the chain of unremembered calls below it weigh more than 64 (a node each,
+and a step for each 64 bytes of every aggregate they make, reserve or
+move), or when a loop, a spawn, a call through a value, a recursive call,
+or work that grows with a value's size, a runtime function, a copy or an
+overwrite, is reachable from it, so such a call made again with the same arguments costs
 a lookup. Any other call runs a short chain of small bodies, fewer steps
 than keeping and finding its result would, and runs again: `core`'s
 arithmetic, which a loop calls with new arguments on every pass, is never
