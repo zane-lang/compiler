@@ -42,6 +42,15 @@ pipeline, and an unoptimized build skips it. `zane run` builds unoptimized, so
 it stays as fast to build as before. `zanec --cgt --optimize` prints the tree
 stage 5 made, which is how the tests see what folded (§5).
 
+**O12. Each kind of build puts one speed first.** An optimized build makes
+the fastest program it can in a reasonable compile time, and is then made to
+build as fast as it can without the program running any slower: a change that
+shortens it at the cost of the program's speed, such as a lighter LLVM
+pipeline, is not made. An unoptimized build is the other way around: it
+builds as fast as it can, and the program it makes is then as fast as it can
+be without the build taking any longer. This holds for every stage, codegen
+and the link included, not only for stage 5.
+
 **O10. Package boundaries do not block optimization.** When `--optimize` is
 given, lowering follows calls into stamped dependencies and retains their
 bodies with `Available` linkage. Stage 5 can evaluate these calls, including
