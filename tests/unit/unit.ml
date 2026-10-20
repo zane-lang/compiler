@@ -1188,6 +1188,67 @@ let cached_runtime () =
       (found = Some (Filename.concat second "zane-cc"))
   end
 
+(* A link runs the LLD in the compiler with the command the C compiler
+   prints for it with `-###`, asked once for a compiler, target and flags and
+   kept, with each build's own files put in: as words of their own, as
+   `ld.lld` takes them, or after an option's `:`, as `lld-link` does, with the
+   files a COFF link writes beside the executable named for it. A C compiler
+   whose linker is not LLD links itself. *)
+let linked_in_process () =
+  if Sys.unix then begin
+    let module Build = Codegen__Build in
+    let directory = Filename.temp_dir "zane-link" "" in
+    Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
+    let cache = Filename.concat directory "cache" and work = Filename.concat directory "work" in
+    Sys.mkdir work 0o755;
+    let asked = Filename.concat directory "asked" in
+    let fake name linker =
+      let path = Filename.concat directory name in
+      write_all path
+        (Printf.sprintf
+           "#!/bin/sh\n\
+            case \" $* \" in *' -### '*) ;; *) echo fake 1.0; exit 0;; esac\n\
+            echo asked >> %s\n\
+            %s >&2\n"
+           (Filename.quote asked) linker);
+      Unix.chmod path 0o755;
+      path
+    in
+    let times () = match read_all asked with Some s -> List.length (String.split_on_char '\n' s) - 1 | None -> 0 in
+    let command cc ~obj ~runtime ~output =
+      let args = [ "-O0"; "-o"; output; obj; "-lm"; runtime ] in
+      Option.map snd (Build.link_command ~cache ~cc ~triple:"t" ~args ~obj ~runtime ~output work)
+    in
+    let elf =
+      fake "elf-cc"
+        {|printf 'clang version 1\n'; printf ' "/x/ld.lld" "-z" "now"'; for a; do [ "$a" = -### ] || printf ' "%s"' "$a"; done; printf '\n'|}
+    in
+    let first = command elf ~obj:"/w1/program.o" ~runtime:"/r/runtime.o" ~output:"out one" in
+    check "an ELF link is LLD's, as the C compiler prints it"
+      (first = Some [ "ld.lld"; "-z"; "now"; "-O0"; "-o"; "out one"; "/w1/program.o"; "-lm"; "/r/runtime.o" ]
+      && times () = 1);
+    let second = command elf ~obj:"/w2/program.o" ~runtime:"/r/runtime.o" ~output:"two" in
+    check "and is kept, with the next build's files put in"
+      (second = Some [ "ld.lld"; "-z"; "now"; "-O0"; "-o"; "two"; "/w2/program.o"; "-lm"; "/r/runtime.o" ]
+      && times () = 1);
+    let coff =
+      fake "coff-cc"
+        {|for a; do case "$a" in -o) out=1;; -###|-O0|-lm) ;; *) if [ -n "$out" ]; then o="$a"; out=; else objs="$objs $a"; fi;; esac; done; s="${o%.exe}"; echo "lld-link -MLLVM:-float-abi=hard -OUT:$o -PDB:$s.pdb -PDBALTPATH:$(basename "$s").pdb -IMPLIB:./$s.lib$objs"|}
+    in
+    ignore (command coff ~obj:"/w1/program.o" ~runtime:"/r/runtime.o" ~output:"hello.exe");
+    let again = command coff ~obj:"/w2/program.o" ~runtime:"/r/runtime.o" ~output:"/b/bye.exe" in
+    check "a COFF link names its files after an option's colon, and drops LLVM's options"
+      (again
+      = Some
+          [ "lld-link"; "-OUT:/b/bye.exe"; "-PDB:/b/bye.pdb"; "-PDBALTPATH:bye.pdb"; "-IMPLIB:/b/bye.lib"; "/w2/program.o"; "/r/runtime.o" ]);
+    let gnu = fake "gnu-cc" {|printf ' "/usr/bin/ld" "-o" "x"\n'|} in
+    check "a linker that is not LLD links as a program of its own"
+      (command gnu ~obj:"/w/program.o" ~runtime:"/r/runtime.o" ~output:"x" = None);
+    check "clang's quoted words and zig's plain ones are both read"
+      (Build.words {| "/a b/ld.lld" "-o" "x\"y"|} = [ "/a b/ld.lld"; "-o"; {|x"y|} ]
+      && Build.words "ld.lld -o out a.o" = [ "ld.lld"; "-o"; "out"; "a.o" ])
+  end
+
 (* A released toolchain's own runtimes are found by the triple a build is
    for and whether it optimizes, whichever spelling of the target it was
    given, and before the cache; any other build compiles its own. *)
@@ -1405,6 +1466,7 @@ let () =
   fixture_pairing ();
   escaped_locations ();
   cached_runtime ();
+  linked_in_process ();
   bundled_runtime ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();

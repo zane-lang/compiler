@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 # `clang` linking with LLVM's `lld`, as one command, which is what `ZANE_CC`
 # names: the C compiler that compiles the runtime and links a program with
-# it. The devbox shell sets `ZANE_CC` to it, since `lld` links a program in
-# about half the time the system linker takes, and the tests link every
-# program they run. A compile alone (`-c`) is passed through as it is, since
+# it. The devbox shell sets `ZANE_CC` to it, since `zanec` links in-process,
+# with the LLD built into it, only for a C compiler whose linker is LLD
+# (docs/design/lowering.md §7). A compile alone (`-c`) is passed through as it is, since
 # clang warns of a linker flag it does not use, and so is everything off
 # Linux, where the system's linker is kept.
 [ "$(uname -s)" = Linux ] || exec clang "$@"

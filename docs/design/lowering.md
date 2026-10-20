@@ -34,8 +34,9 @@ LLVM's own passes, and write the object file through the target machine, so
 no text is written and read back. The target machine tunes code for the
 processor clang would pick: `x86-64` on any x86-64 target, `core-avx2` on
 `x86_64h`, the Haswell architecture, and LLVM's default elsewhere. Each
-allows only the instructions every processor of the architecture has. Linking that object with the runtime (§6) is the one step
-left to a system linker, which `clang` drives.
+allows only the instructions every processor of the architecture has. Linking that object with the runtime (§6) is done by LLD,
+linked into the compiler as a library, with the arguments the C compiler
+would give it (§7).
 
 The bindings are LLVM's own, from `llvm/bindings/ocaml` in llvm-project,
 which opam builds from each LLVM release as its `llvm` package. They are
@@ -349,6 +350,19 @@ later build that would compile the same object links the kept one instead,
 which saves most of a small program's build. A build with no cache directory,
 or with a C compiler that will not say its version, compiles the runtime every
 time.
+
+The link itself runs in the compiler. Starting the C compiler and its linker
+as programs of their own costs about eight times the link: each loads LLVM's
+shared library again. So the first build for a C compiler, target, set of
+flags and objects to link asks the C compiler, with `-###`, for the linker
+command it would run, keeps it in the cache under those, and every build
+runs that command with its own files put in, through the LLD linked into
+`zanec` (`lib/codegen/lld_stubs.cpp`): `ld.lld` for ELF, `ld64.lld` for
+Mach-O and `lld-link` for COFF. LTO's `-mllvm` options are left out, since
+they would set options of the compiler's own LLVM. A C compiler whose linker
+is not LLD, such as clang with the system's `ld`, or `zig cc` for macOS,
+links the program itself, as does a build whose kept command fails, and the
+command is then forgotten.
 
 A released toolchain links a runtime without compiling it at all. Its
 `zanec` sets `ZANE_RUNTIME_OBJECTS` to the toolchain's `share/runtime/`
