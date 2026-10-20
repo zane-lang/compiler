@@ -358,32 +358,52 @@ flags and objects to link asks the C compiler, with `-###`, for the linker
 command it would run, keeps it in the cache under those, and every build
 runs that command with its own files put in, through the LLD linked into
 `zanec` (`lib/codegen/lld_stubs.cpp`): `ld.lld` for ELF, `ld64.lld` for
-Mach-O and `lld-link` for COFF. LTO's `-mllvm` options are left out, since
-they would set options of the compiler's own LLVM. A C compiler whose linker
-is not LLD, such as clang with the system's `ld`, or `zig cc` for macOS,
-links the program itself; that is kept in the cache too, so it is asked only
-once, and `ZANE_VERBOSE` makes each such build say why. When LLD cannot link
-with a command and the C compiler can, the build warns. A command kept by an
-earlier build may have gone stale, as when a libc update moves its start-up
-files, so it is forgotten and asked for again; one just asked for is not, so
-the C compiler links for that target and those flags until the kept answer
-is removed. A program neither can link is an error, and nothing is
-forgotten.
+Mach-O and `lld-link` for COFF. What the C compiler prints is the work of
+its driver, which knows where the target's start-up files, C library and
+compiler runtime are on this machine; LLD knows none of it. LLD runs the
+command whichever linker the C compiler would have run: GCC's `collect2`
+takes the linker's own arguments, so it is run as `ld.lld` without GCC's LTO
+plugin, and `zig ld`, Zig's Mach-O linker, takes ld64's, so it is run as
+`ld64.lld` with the target's architecture and the `libSystem` stubs Zig
+carries (docs/design/platforms.md). A C compiler whose own linker is another,
+such as clang with the system's `ld`, is asked again with `-fuse-ld=lld`.
+LTO's `-mllvm` options are left out, since they would set options of the
+compiler's own LLVM.
 
-A released toolchain links a runtime without compiling it at all. Its
-`zanec` sets `ZANE_RUNTIME_OBJECTS` to the toolchain's `share/runtime/`
+A C compiler whose command LLD cannot run, because it prints none of those or
+does not name the program's files, links the program itself; that is kept in
+the cache too, so it is asked only once, and `ZANE_VERBOSE` makes each such
+build say why. When LLD cannot link with a command and the C compiler can,
+the build warns. A command kept by an earlier build may have gone stale, as
+when a libc update moves its start-up files, so it is forgotten and asked
+for again; one just asked for is not, so the C compiler links for that
+target and those flags until the kept answer is removed. A program neither
+can link is an error, and nothing is forgotten.
+
+A released toolchain runs no C compiler at all for the targets it bundles.
+Its `zanec` sets `ZANE_RUNTIME_OBJECTS` to the toolchain's `share/runtime/`
 when it also sets the C compiler to its own `zig cc`, and a build looks
 there before the cache, for an object named by a hash of the runtime's
 sources, the target triple in LLVM's normal form and the flags besides the
-target's. Spellings of a target with one normal form, such as
+target's, and in its `link/` for the linker command named by a hash of the
+triple, those flags and the libraries every program for the target links
+with. Spellings of a target with one normal form, such as
 `x86_64-linux-gnu` and `x86_64-unknown-linux-gnu`, and a build for the host
-that names no target, so find one object; a spelling LLVM normalizes apart,
-such as one naming another vendor, compiles its own. Packaging fills the directory with `zanec --bundle-runtime DIR
---target TRIPLE [--optimize]`, which compiles the runtime as a build for that
-target would, for each target `dev/release/package-linux.py` lists. A target
-is always named there, since a C compiler given none compiles for the
-processor it runs on. A build for any other target, or with another C
-compiler or Zig, compiles its runtime and keeps it in the cache.
+that names no target, so find one object and one command; a spelling LLVM
+normalizes apart, such as one naming another vendor, compiles its own.
+Packaging fills the directory with `zanec --bundle-runtime DIR --target
+TRIPLE [--optimize]`, for each target `dev/release/package-linux.py` lists.
+It compiles the runtime as a build for that target would, then asks the C
+compiler for the command linking a program with it, through a program object
+defining only what the runtime takes from a program, and copies every file
+the command links besides the program's own into `link/files/`, named by its
+contents, where the command names it relative to the bundle. The loader a
+program names, `--dynamic-linker`, is a path on the machine the program runs
+on, and is not copied. A program's other objects, its dependencies', are put
+in after its own. A target is always named there, since a C compiler given
+none compiles for the processor it runs on. A build for any other target, or
+with another C compiler or Zig, compiles its runtime and keeps it in the
+cache, and asks for its linker command as above.
 
 Lowering starts at the root package's `main` and lowers each verb the first
 time a call reaches it, so a program's unused declarations never need to

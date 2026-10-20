@@ -11,7 +11,9 @@ import tempfile
 
 
 # The targets whose runtime a release bundles, compiled once by its own Zig
-# for a build with and without optimizing (docs/design/lowering.md §7).
+# for a build with and without optimizing, with the linker command and files
+# that link a program with it, so a build for one runs no C compiler
+# (docs/design/lowering.md §7).
 RUNTIME_TARGETS = (
     "x86_64-linux-gnu",
     "aarch64-linux-gnu",
@@ -80,8 +82,9 @@ def package(binary, zig, output, version, commit):
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 unset LD_LIBRARY_PATH
-# The bundled runtimes are linked only by the Zig that compiled them, so an
-# inherited directory of them never reaches a build with another compiler.
+# The bundled runtimes and links are used only with the Zig that made them,
+# so an inherited directory of them never reaches a build with another
+# compiler.
 unset ZANE_RUNTIME_OBJECTS
 if [ "${ZANE_CC+x}" != x ]; then
     ZANE_CC="$root/bin/zig-cc"

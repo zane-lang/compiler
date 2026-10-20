@@ -7,9 +7,10 @@ This repository contains the Zane language compiler and CLI.
 The **Release compiler** workflow publishes a Linux x86_64 toolchain archive
 with `zanec`, its LLVM/shared-library dependencies, and Zig (the version in the
 archive's `share/zig.json`, pinned by `dev/toolchains/zig.json`). It builds Zane
-programs for Linux and Windows without installing OCaml, LLVM or a C
+programs for Linux, Windows and macOS without installing OCaml, LLVM or a C
 compiler. Windows-native and macOS-native compiler archives are not yet
-provided; Windows program targets are tested on Windows in CI.
+provided; Windows and macOS program targets are tested on Windows and macOS
+in CI.
 
 Download the `.tar.gz` and `SHA256SUMS` from a
 [compiler release](https://github.com/zane-lang/compiler/releases), then verify
@@ -28,7 +29,8 @@ export PATH="$HOME/.zane/toolchains/$version/bin:$PATH"
 ```
 
 Keep the whole extracted directory together: `bin/zanec` loads its bundled
-libraries and uses its bundled Zig to compile the C runtime and link programs.
+libraries, links with its bundled runtimes and link files, and uses its
+bundled Zig for any other target.
 The archive includes `toolchain.coda`, so the `zane` CLI recognizes it under
 `~/.zane/toolchains/<version>/`, where `zane toolchain install` puts it. A
 different extraction directory also works
@@ -40,13 +42,15 @@ zanec --target x86_64-windows-gnu --build hello.exe --package path/to/hello
 ```
 
 The archive bundles the C runtime compiled by its Zig for x86-64 and AArch64
-Linux, Windows and macOS, optimized and not, so a build for one of those
-links it without compiling it. Set `ZANE_CC` to use another C compiler
-wrapper, or `ZIG` to use another Zig executable; either way the bundled
-runtime is not used, and the runtime that compiler compiles is cached under
-`~/.cache/zane` (or `$XDG_CACHE_HOME/zane`); set `ZANE_CACHE_DIR` to keep it
-elsewhere. The compiler itself runs natively on Linux; Zig cross-compiles
-the generated Zane program's runtime and links its target executable.
+Linux, Windows and macOS, optimized and not, with the linker command and
+files that link a program with it, so a build for one of those runs no C
+compiler: `zanec` links it with the LLD built into it. Set `ZANE_CC` to use
+another C compiler wrapper, or `ZIG` to use another Zig executable; either
+way the bundled runtime is not used, and the runtime that compiler compiles
+and the linker command it gives are cached under `~/.cache/zane` (or
+`$XDG_CACHE_HOME/zane`); set `ZANE_CACHE_DIR` to keep them elsewhere. The
+compiler itself runs natively on Linux; Zig cross-compiles the runtime for
+any other target.
 
 ## Publishing a compiler release
 
