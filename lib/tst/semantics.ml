@@ -7,13 +7,15 @@ type result = {
   diagnostics : Diagnostic.t list;
 }
 
-(* Every pass, over tables of this check's own. *)
+(* Every pass, over tables of this check's own. Each pass fills its group's
+   tables and hands on a view of them, and the next pass runs on that view:
+   a pass runs only once the passes before it have. *)
 let check (packages : Assembly.package list) =
-  let env = Env.create () in
-  Collect.run env packages;
-  Type_decls.run env;
-  Verb_signatures.run env;
-  let program = Program.run env in
+  let env = Env.start () in
+  let env = { env with names = Collect.run env (Env.names ()) packages } in
+  let env = { env with types = Type_decls.run env (Env.types ()) } in
+  let env = { env with verbs = Verb_signatures.run env (Env.verbs ()) } in
+  let program = Program.run env (Env.instances ()) in
   (* The analyses over the finished tree (D1). Which blocks run more than
      once is computed here, once, for the two that ask. *)
   let multi = Repeats.compute env program in

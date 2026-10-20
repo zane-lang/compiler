@@ -22,7 +22,7 @@ modules by kind; module names stay flat, so `passes/collect.ml` is `Collect`:
 | Module | Holds |
 |---|---|
 | `passes/assembly.ml` | The packages, read from their directories (§2) |
-| `model/env.ml` | The declaration tables, each file's import map, and the diagnostics: one `Env.t` per check, passed to every pass, its tables grouped by the pass that fills them (`names`, `types`, `verbs`, `instances`) and the `counters` |
+| `model/env.ml` | The declaration tables, each file's import map, and the diagnostics: one `Env.t` per check, passed to every pass, its tables grouped by the pass that fills them (`names`, `types`, `verbs`, `instances`) and the `counters`, and the read-only views a pass hands on |
 | `passes/collect.ml` | Passes 1 and 2 |
 | `passes/type_decls.ml` | Type-expression resolution, and pass 3 |
 | `passes/verb_signatures.ml` | Pass 4 |
@@ -152,7 +152,14 @@ in §9.
 ## 3. The passes
 
 Each pass reads the SST and the tables of the passes before it, and nothing
-else.
+else. Its entry point says so: it is given empty tables for its own group,
+fills them, and returns a view of them that has no way to write
+(`Env.Names`, `Env.Types`, `Env.Verbs`). `Semantics.check` hands that view to
+the next pass, so no pass can run before the ones it reads. Pass 3 holds back
+the checks that need every type's kind until every type is defined; while it
+runs they wait in a queue its view carries, and the view it returns has none.
+Pass 5 asks for generic instances through a queue that it closes before it
+checks the generic verbs nothing instantiates, which ask for none.
 
 1. **Collect.** Walk every declaration of every package. Give each one a
    `Decl_id` and file it under its package:

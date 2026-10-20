@@ -1742,3 +1742,41 @@ F24's stages 2 and 3 follow in their own PRs.
 
 The commit built and passed `devbox run -- just test-compiler`, memory
 probes included, and `just check-file-sizes` passed.
+
+### Batch 8d: environment, stage 2 (F24)
+
+- **F24, stage 2** (`18a0f5c`). `Env.t` is `('names, 'types, 'verbs,
+  'instances) t`: the diagnostics, the note, the counters and one slot
+  per group, `()` until the group's pass has run. `Env.Names`,
+  `Env.Types` and `Env.Verbs` are the read-only views, each a signature
+  with an abstract `t` and only accessors (folds included, so a pass that
+  walks a table walks it in the order it did). Each pass's entry point
+  takes empty tables for its own group and returns their view:
+  `Collect.run`, `Type_decls.run` and `Verb_signatures.run` hand on
+  `Names.t`, `Types.t` and `Verbs.t`, and `Program.run` takes the
+  instance tables and returns the program. `Semantics.check` threads
+  them in order with `{ env with names = ... }`, so a pass cannot be
+  called before the passes it reads have run. Inside a pass, `env` holds
+  views of every group, its own included, and only the functions that
+  write take the tables (`Collect.declaration`, `Type_decls.register`,
+  and `numbers_of`, `promote`, `build`, `enum_map` and `constant` in
+  `Verb_signatures`). Check and Program keep the instance tables
+  themselves, since no pass reads them afterwards. The readiness flags
+  are gone. `ready` became the deferral queue `Types.t` carries while
+  pass 3 runs (`Types.defining`), and the view it returns has none
+  (`Types.view`). `defining` became `instances.requests`, an option that
+  `Program.run` fills with a fresh queue, drains, and sets to `None`
+  before checking the generic verbs nothing instantiates. Three things
+  the plan did not name: the note moved from `instances` to beside the
+  diagnostics, because `error` reads it in every pass and the analyses
+  set it; the instance queue's tables became the `requests` record, the
+  group that closes; and `Env.create` stays, building every group empty
+  and finished, for the unit test of overload resolution. The `option`
+  fields of a type or alias info (`definition`, `reference`, `target`)
+  stay: each is per-declaration resolution state inside pass 3, which
+  is how a cycle is caught, not a flag saying a pass has run. No golden
+  or fixture changed.
+
+The commit built and passed `devbox run -- just test-compiler`, memory
+probes included, and `just check-file-sizes` passed. It is one commit,
+since a slot's type changes for every pass that reads it at once.
