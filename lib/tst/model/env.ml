@@ -6,8 +6,10 @@
    The passes run in order (docs/design/semantics.md §3) and each reads only what the
    ones before it wrote. The tables are grouped by the pass that fills them:
    [names], [types], [verbs] and [instances], with the counters apart. They
-   are mutable because a pass writes them once and every later pass reads
-   them; nothing is written twice. *)
+   are mutable because a pass fills them as it runs, revising some entries
+   on the way (a subscript's result is [None] while it is computed, and a
+   verb's promoted parameters grow until a fixed point settles), and the
+   passes after it read them. *)
 
 module N = Sst.Nodes
 module Span = Source.Span
