@@ -62,15 +62,11 @@ let size_steps (t : Ty.t) =
    moves. [core]'s arithmetic and constructors weigh a few each. *)
 let large_body = 64
 
-(* A call to a function still being asked about is a recursive call, which
-   is worth remembering. *)
-let rec remembers funcs e = fst (weigh funcs e)
-
 (* Whether [e] is remembered, and the weight of a call to it when it is
    not: its body's and, through its one call, those of the chain of
    unremembered calls below it, so a long chain of small bodies is as large
    as one long body. *)
-and weigh funcs e =
+let rec weigh funcs e =
   match e.remembers with
   | Known (r, w) -> (r, w)
   | Asking -> (true, 0)
@@ -95,6 +91,8 @@ and weigh funcs e =
                 ||
                 match Funcs.find_opt funcs fn with
                 | None -> false
+                (* A call to a function still being asked about is a
+                   recursive call, which is worth remembering. *)
                 | Some { remembers = Asking; _ } -> true
                 | Some callee -> (
                     match weigh funcs callee with true, _ -> false | false, w -> large w))
@@ -106,6 +104,8 @@ and weigh funcs e =
       in
       e.remembers <- Known (r, !nodes);
       (r, !nodes)
+
+let remembers funcs e = fst (weigh funcs e)
 
 type program = {
   funcs : entry Funcs.t;
