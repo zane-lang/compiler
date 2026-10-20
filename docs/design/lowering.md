@@ -336,7 +336,15 @@ runtime is written as nine parts in `runtime/` (`main.c`, `arena.c`,
 reads as `Abi`, and `zane_internal.h` as what the parts share. `runtime/dune` joins the parts in
 a fixed order into one generated `zane.c` and embeds it, with the headers,
 into the compiler as strings, so a build needs nothing beside the compiler
-and a C compiler (`clang`, or `ZANE_CC`).
+and a C compiler (`clang`, or `ZANE_CC`). The C compiler compiles the runtime
+apart from the link, and the object is kept in a cache directory
+(`ZANE_CACHE_DIR`, else `$XDG_CACHE_HOME/zane`, `~/.cache/zane`, or
+`%LOCALAPPDATA%\zane` on Windows) under a hash of the runtime's sources, the C
+compiler's command and its `--version`, and the flags it compiled with. A
+later build that would compile the same object links the kept one instead,
+which saves most of a small program's build. A build with no cache directory,
+or with a C compiler that will not say its version, compiles the runtime every
+time.
 
 Lowering starts at the root package's `main` and lowers each verb the first
 time a call reaches it, so a program's unused declarations never need to
