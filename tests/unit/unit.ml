@@ -624,11 +624,19 @@ let evaluated () =
     func "next" [ (1, C.Ty.I64) ]
       [ C.Stat.Return (e (C.Expr.Binary { op = C.Expr.Add; left = e (C.Expr.Local 1) C.Ty.I64; right = i64 1L }) C.Ty.I64) ]
   in
-  let prog = program [ double; twice; join; next ] in
+  let long =
+    let x = e (C.Expr.Local 1) C.Ty.I64 in
+    let sum = List.fold_left (fun acc _ -> e (C.Expr.Binary { op = C.Expr.Add; left = acc; right = x }) C.Ty.I64) x (List.init 40 Fun.id) in
+    func "long" [ (1, C.Ty.I64) ] [ C.Stat.Return sum ]
+  in
+  let prog = program [ double; twice; join; next; long ] in
   let run = Eval.start prog in
   check "a call gives its result" (Eval.call run "twice" [ Value.VInt 21L ] = Value.VInt 42L);
   check "outputs are kept in the order made" (List.rev run.Eval.outputs = Eval.[ Print "a"; Print "b" ]);
   check "a call is remembered by its arguments" (Value.Key.mem prog.Eval.memo ("twice", [ Value.Int 21L ]));
+  ignore (Eval.call run "long" [ Value.VInt 1L ]);
+  check "as is a call to a large body, though it neither loops nor calls"
+    (Value.Key.mem prog.Eval.memo ("long", [ Value.Int 1L ]));
   ignore (Eval.call run "next" [ Value.VInt 1L ]);
   check "a call that reaches no loop, recursion or runtime function is not"
     (not (Value.Key.mem prog.Eval.memo ("next", [ Value.Int 1L ])));
