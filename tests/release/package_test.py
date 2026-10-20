@@ -21,8 +21,18 @@ class PackageTest(unittest.TestCase):
             source = scratch / "compiler.c"
             source.write_text('''#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 int main(int argc, char **argv) {
-    printf("%s\\n%s\\n%s\\n", getenv("ZANE_CC"),
+    if (argc >= 5 && strcmp(argv[1], "--bundle-runtime") == 0) {
+        char path[4096];
+        mkdir(argv[2], 0755);
+        snprintf(path, sizeof path, "%s/calls", argv[2]);
+        FILE *calls = fopen(path, "a");
+        fprintf(calls, "%s %s %s\\n", getenv("ZANE_CC"), argv[4], argc == 6 ? argv[5] : "-");
+        return fclose(calls);
+    }
+    printf("%s\\n%s\\n%s\\n%s\\n", getenv("ZANE_CC"), getenv("ZANE_RUNTIME_OBJECTS"),
         getenv("LD_LIBRARY_PATH") ? "polluted" : "clean", argv[1]);
     return argc == 2 ? 0 : 1;
 }
@@ -55,12 +65,27 @@ int main(int argc, char **argv) {
             result = subprocess.check_output(
                 [str(relocated / "bin/zanec"), "argument with spaces"], env=environment, text=True
             )
-            self.assertEqual(result.splitlines(), [str(relocated / "bin/zig-cc"), "clean", "argument with spaces"])
+            self.assertEqual(result.splitlines(), [
+                str(relocated / "bin/zig-cc"), str(relocated / "share/runtime"), "clean", "argument with spaces",
+            ])
+            environment["ZIG"] = "/custom/zig"
+            result = subprocess.check_output(
+                [str(relocated / "bin/zanec"), "another Zig"], env=environment, text=True
+            )
+            self.assertEqual(result.splitlines()[:2], [str(relocated / "bin/zig-cc"), "(null)"])
+            del environment["ZIG"]
             environment["ZANE_CC"] = "/custom/compiler with spaces"
             result = subprocess.check_output(
                 [str(relocated / "bin/zanec"), "override"], env=environment, text=True
             )
-            self.assertEqual(result.splitlines()[0], environment["ZANE_CC"])
+            self.assertEqual(result.splitlines()[:2], [environment["ZANE_CC"], "(null)"])
+            # Packaging compiled each target's runtime through the bundled
+            # zig-cc, in the temporary directory it packaged in.
+            calls = [line.rsplit(" ", 2) for line in (relocated / "share/runtime/calls").read_text().splitlines()]
+            self.assertTrue(all(cc.endswith(f"/{root.name}/bin/zig-cc") for cc, _, _ in calls))
+            self.assertEqual([(target, optimize) for _, target, optimize in calls], [
+                (target, optimize) for target in packager.RUNTIME_TARGETS for optimize in ("-", "--optimize")
+            ])
             result = subprocess.check_output(
                 [str(relocated / "bin/zig-cc"), "--target=x86_64-windows-gnu", "file with spaces.c"],
                 env=environment, text=True,

@@ -42,3 +42,4 @@ let executable ?target ?optimize ?link m output =
   Build.executable ?target ?optimize ?link m output
 let object_file ?target ?optimize m output = Build.object_file ?target ?optimize m output
 let prepare ?target ?optimize m = Result.map ignore (Build.prepare ?target ?optimize m)
+let bundle_runtime ~target ~optimize dir = Build.bundle_runtime ~target ~optimize dir

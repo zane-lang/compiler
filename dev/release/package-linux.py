@@ -1,12 +1,25 @@
 #!/usr/bin/env python3
 """Package the native compiler's ELF closure, without a Nix runtime dependency."""
 import argparse
+import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import tarfile
 import tempfile
+
+
+# The targets whose runtime a release bundles, compiled once by its own Zig
+# for a build with and without optimizing (docs/design/lowering.md §7).
+RUNTIME_TARGETS = (
+    "x86_64-linux-gnu",
+    "aarch64-linux-gnu",
+    "x86_64-windows-gnu",
+    "aarch64-windows-gnu",
+    "x86_64-macos",
+    "aarch64-macos",
+)
 
 
 def command(*args):
@@ -70,6 +83,11 @@ unset LD_LIBRARY_PATH
 if [ "${ZANE_CC+x}" != x ]; then
     ZANE_CC="$root/bin/zig-cc"
     export ZANE_CC
+    # The bundled runtimes are linked only by the Zig that compiled them.
+    if [ "${ZIG+x}" != x ]; then
+        ZANE_RUNTIME_OBJECTS="$root/share/runtime"
+        export ZANE_RUNTIME_OBJECTS
+    fi
 fi
 exec "$root/lib/ld-linux-x86-64.so.2" --library-path "$root/lib" "$root/libexec/zanec" "$@"
 ''')
@@ -80,6 +98,16 @@ exec "${ZIG:-$root/zig/zig}" cc "$@"
 ''')
         for name in ("zanec", "zig-cc"):
             (root / "bin" / name).chmod(0o755)
+        # Through the wrappers, so the runtimes are compiled by the bundled
+        # Zig exactly as a build with the released toolchain compiles them.
+        environment = {k: v for k, v in os.environ.items() if k not in ("ZANE_CC", "ZIG")}
+        for target in RUNTIME_TARGETS:
+            for optimize in ([], ["--optimize"]):
+                subprocess.run(
+                    [str(root / "bin/zanec"), "--bundle-runtime", str(root / "share/runtime"),
+                     "--target", target, *optimize],
+                    env=environment, check=True,
+                )
         output.mkdir(parents=True, exist_ok=True)
         archive = output / (root.name + ".tar.gz")
         with tarfile.open(archive, "w:gz") as tar:

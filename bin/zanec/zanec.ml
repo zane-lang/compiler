@@ -58,12 +58,16 @@ type build = {
    library's object, built under the `!` placeholder, written out with the
    placeholder turned into the stamp (docs/design/separate-compilation.md
    C9). `--remap FROM TO INPUT OUTPUT` is remapping's: an object written out
-   with its references to one version of a package moved to another (C11). *)
+   with its references to one version of a package moved to another (C11).
+   `--bundle-runtime DIR --target TRIPLE [--optimize]` is a release's: the
+   runtime compiled for a target into the toolchain's directory of them
+   (docs/design/lowering.md §7). *)
 type request =
   | File of stage * (string * string)
   | Packages of build
   | Rewrite of { stamp : string; input : string; output : string }
   | Remap of { from : string; to_ : string; input : string; output : string }
+  | Bundle_runtime of { dir : string; target : string; optimize : bool }
 
 (* A command the binary cannot run: the arguments do not say a run it
    knows, or a source it names cannot be read. Exits with status 2. *)
@@ -86,7 +90,8 @@ let print_usage () =
   prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
   prerr_endline "             --package [[STAMP]PATH=]DIR [--package [[STAMP]PATH=]DIR ...]";
   prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
-  prerr_endline "       zanec --remap FROM TO INPUT OUTPUT"
+  prerr_endline "       zanec --remap FROM TO INPUT OUTPUT";
+  prerr_endline "       zanec --bundle-runtime DIR --target TRIPLE [--optimize]"
 
 (* The name reported in parse errors travels with the text, so reading from
    standard input still produces a located message. *)
@@ -259,6 +264,10 @@ let arguments () =
   | [ "--remap"; from; to_; input; output ]
     when List.for_all is_value [ from; to_; input; output ] ->
       Remap { from; to_; input; output }
+  | [ "--bundle-runtime"; dir; "--target"; target ] when List.for_all is_value [ dir; target ] ->
+      Bundle_runtime { dir; target; optimize = false }
+  | [ "--bundle-runtime"; dir; "--target"; target; "--optimize" ] when List.for_all is_value [ dir; target ] ->
+      Bundle_runtime { dir; target; optimize = true }
   | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
     | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--check"
     | "--decls" | "--tst" | "--cgt" | "--ll" )
@@ -351,6 +360,7 @@ let () =
         | Remap { from; to_; input; output } ->
             Driver.rewrite_object ~random:(Random.State.make_self_init ()) ~stamps:[ from; to_ ]
               ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output
+        | Bundle_runtime { dir; target; optimize } -> Driver.bundle_runtime ~target ~optimize dir
       in
       match result with
       | Ok () -> 0

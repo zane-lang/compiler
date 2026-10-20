@@ -1035,29 +1035,63 @@ let cached_runtime () =
     | exception Sys_error _ -> []
   in
   let host = Llvm_target.Target.default_triple () in
-  let compiled ?(triple = host) flags = Build.runtime_object ~cache ~cc ~triple ~flags work in
+  let compiled ?(triple = host) ?(optimize = false) () = Build.runtime_object ~cache ~cc ~triple ~optimize work in
   let in_cache = function
     | Ok path -> String.starts_with ~prefix:cache path
     | Error _ -> false
   in
-  let first = compiled [ "-O0"; "-pthread" ] in
+  let first = compiled () in
   check "a runtime not yet kept is compiled" (Result.is_ok first && not (in_cache first));
   check "and kept" (List.length (kept ()) = 1);
-  let second = compiled [ "-O0"; "-pthread" ] in
+  let second = compiled () in
   check "the same flags take it from the cache" (in_cache second);
   check "and keep no second copy" (List.length (kept ()) = 1);
-  let other = compiled [ "-O2"; "-pthread" ] in
+  let other = compiled ~optimize:true () in
   check "other flags compile their own" (Result.is_ok other && not (in_cache other));
   check "and keep it beside the first" (List.length (kept ()) = 2);
-  let elsewhere = compiled ~triple:"x86_64-unknown-linux-musl" [ "-O0"; "-pthread" ] in
+  let elsewhere = compiled ~triple:"x86_64-unknown-linux-musl" () in
   check "another triple compiles its own, though the flags name none"
     (Result.is_ok elsewhere && not (in_cache elsewhere) && List.length (kept ()) = 3);
   let blocked = Filename.concat directory "file" in
   write_all blocked "not a directory";
-  let unwritable = Build.runtime_object ~cache:(Filename.concat blocked "cache") ~cc ~triple:host ~flags:[ "-O0" ] work in
+  let unwritable =
+    Build.runtime_object ~cache:(Filename.concat blocked "cache") ~cc ~triple:host ~optimize:false work
+  in
   check "a cache that cannot be made still compiles the runtime" (Result.is_ok unwritable);
-  let uncached = Build.runtime_object ~cc ~triple:host ~flags:[ "-O0" ] work in
+  let uncached = Build.runtime_object ~cc ~triple:host ~optimize:false work in
   check "no cache compiles the runtime" (Result.is_ok uncached && not (in_cache uncached))
+
+(* A released toolchain's own runtimes are found by the triple a build is
+   for and whether it optimizes, whichever spelling of the target it was
+   given, and before the cache; any other build compiles its own. *)
+let bundled_runtime () =
+  let module Build = Codegen__Build in
+  let directory = Filename.temp_dir "zane-bundled" "" in
+  Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
+  let work = Filename.concat directory "work"
+  and bundled = Filename.concat directory "bundled"
+  and cache = Filename.concat directory "cache" in
+  Sys.mkdir work 0o755;
+  Build.write_runtime work;
+  let host = Llvm_target.Target.default_triple () in
+  let bundle optimize = Build.bundle_runtime ~target:host ~optimize bundled in
+  check "a runtime is bundled" (Result.is_ok (bundle false));
+  check "into a directory made for it" (Array.length (Sys.readdir bundled) = 1);
+  let cc = Build.cc () in
+  let found ?target ?(triple = host) ~optimize () =
+    match Build.runtime_object ~bundled ~cache ~cc ~triple ?target ~optimize work with
+    | Ok path -> String.starts_with ~prefix:bundled path
+    | Error _ -> false
+  in
+  check "a build for the host links the bundled runtime" (found ~optimize:false ());
+  check "as does one naming the host as its target" (found ~target:host ~optimize:false ());
+  check "and the cache is left alone" (not (Sys.file_exists cache));
+  check "an optimized build compiles its own" (not (found ~optimize:true ()));
+  check "as does a build for another triple" (not (found ~triple:"x86_64-unknown-linux-musl" ~optimize:false ()));
+  check "an optimized runtime is bundled beside the other" (Result.is_ok (bundle true));
+  check "and is linked by an optimized build" (found ~optimize:true ());
+  let refused = Build.bundle_runtime ~target:"i386-unknown-linux-gnu" ~optimize:false bundled in
+  check "a target the compiler does not build for is refused" (Result.is_error refused)
 
 (* Rewriting writes beside its output under a name it creates exclusively.
    A name that is already there is someone else's file: it is kept, and the
@@ -1243,6 +1277,7 @@ let () =
   fixture_pairing ();
   escaped_locations ();
   cached_runtime ();
+  bundled_runtime ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
   disposed_modules ();
