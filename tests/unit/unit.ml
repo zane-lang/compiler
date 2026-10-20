@@ -635,6 +635,19 @@ let evaluated () =
   ignore (Eval.call run "join" [ Value.VText "ab" ]);
   check "as is a call whose work grows with its arguments"
     (Value.Key.mem prog.Eval.memo ("join", [ Value.Text "ab" ]));
+  (* f30 calls f29 twice, and so on down, which is 2^30 calls unless each
+     level is remembered. *)
+  let level k =
+    let call = e (C.Expr.Call { fn = Printf.sprintf "f%d" (k - 1); args = [ e (C.Expr.Local 1) C.Ty.I64 ] }) C.Ty.I64 in
+    func (Printf.sprintf "f%d" k) [ (1, C.Ty.I64) ]
+      [ C.Stat.Return (e (C.Expr.Binary { op = C.Expr.Add; left = call; right = call }) C.Ty.I64) ]
+  in
+  let leaf = func "f0" [ (1, C.Ty.I64) ] [ C.Stat.Return (e (C.Expr.Local 1) C.Ty.I64) ] in
+  let doubling = program (leaf :: List.init 30 (fun k -> level (k + 1))) in
+  check "a body making two calls is remembered, so their doubling stays linear"
+    (match Eval.call (Eval.start doubling) "f30" [ Value.VInt 1L ] with
+     | v -> v = Value.VInt 1073741824L
+     | exception Value.Stop _ -> false);
   let again = Eval.start prog in
   ignore (Eval.call again "twice" [ Value.VInt 21L ]);
   check "a remembered call outputs again" (List.rev again.Eval.outputs = Eval.[ Print "a"; Print "b" ]);

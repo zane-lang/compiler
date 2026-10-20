@@ -26,12 +26,12 @@ type constant = { maker : string; state : string; value : string; mutable known 
 type memo = { result : const; outputs : output list; count : int; text : int }
 
 (* A function the evaluator can call, and whether its calls are remembered
-   (O6): when a loop, a spawn, a call through a value, recursion, or work
-   that grows with a value's size (a runtime function, a copy or an
-   overwrite) is
-   reachable from its body. Any other call takes a bounded number of steps,
-   fewer than a remembered call takes to keep and look up. Known the first
-   time it is asked. *)
+   (O6): when its body makes more than one call, or a loop, a spawn, a call
+   through a value, recursion, or work that grows with a value's size (a
+   runtime function, a copy or an overwrite) is reachable from it. Any other
+   call runs one chain of calls, each a bounded number of steps, fewer than a
+   remembered call takes to keep and look up. Known the first time it is
+   asked. *)
 type entry = { func : Func.t; mutable remembers : remembers; mutable frame : int }
 and remembers = Unknown | Asking | Known of bool
 
@@ -57,11 +57,16 @@ let rec remembers funcs e =
   | Asking -> true
   | Unknown ->
       e.remembers <- Asking;
+      (* Two calls in one body can double the work at each level of calls
+         below it, which only remembering keeps linear in their depth. *)
+      let calls = ref 0 in
       let r =
         Cgt.Traverse.exists_in e.func.Func.body
           ~expr:(fun x ->
             match x.Expr.node with
-            | Expr.Call { fn; _ } -> Option.fold ~none:false ~some:(remembers funcs) (Funcs.find_opt funcs fn)
+            | Expr.Call { fn; _ } ->
+                incr calls;
+                !calls > 1 || Option.fold ~none:false ~some:(remembers funcs) (Funcs.find_opt funcs fn)
             | Expr.Call_value _ | Expr.Runtime _ | Expr.Copy _ -> true
             | _ -> false)
           ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Overwrite _ -> true | _ -> false)
@@ -108,28 +113,45 @@ type run = {
 (* The locals of one call. The function being folded has [outer]: the value
    the fold knows a local of it holds, read the first time it is needed. *)
 module Locals = struct
-  (* The cell each local number names, in an array grown as numbers are
-     bound; [none] marks a number bound to nothing. *)
-  type t = { mutable cells : cell array }
+  (* The cell each local number names: numbers below [dense] in an array
+     grown as they are bound, with [none] marking one bound to nothing, and
+     any above in a table. A frame then costs at most [dense] cells however
+     many locals its function numbers, which keeps a fold of a large function
+     from growing with the square of its locals. *)
+  type t = { mutable cells : cell array; mutable far : (int, cell) Hashtbl.t option }
 
+  let dense = 1024
   let none = cell Ty.Void VNull
-  let create ?(size = 16) () = { cells = Array.make size none }
+  let create ?(size = 8) () = { cells = Array.make (min size dense) none; far = None }
   let size t = Array.length t.cells
 
   let find_opt t id =
-    if id >= 0 && id < Array.length t.cells && t.cells.(id) != none then Some t.cells.(id) else None
+    if id >= 0 && id < Array.length t.cells then
+      let c = t.cells.(id) in
+      if c != none then Some c else None
+    else Option.bind t.far (fun h -> Hashtbl.find_opt h id)
 
   let replace t id c =
     if id < 0 then stop "a local with no number";
     let n = Array.length t.cells in
-    if id >= n then begin
-      let cells = Array.make (max (2 * n) (id + 1)) none in
+    if id < n then t.cells.(id) <- c
+    else if id < dense then begin
+      let cells = Array.make (min dense (max (2 * n) (id + 1))) none in
       Array.blit t.cells 0 cells 0 n;
-      t.cells <- cells
-    end;
-    t.cells.(id) <- c
+      t.cells <- cells;
+      cells.(id) <- c
+    end
+    else
+      match t.far with
+      | Some h -> Hashtbl.replace h id c
+      | None ->
+          let h = Hashtbl.create 8 in
+          Hashtbl.replace h id c;
+          t.far <- Some h
 
-  let iter f t = Array.iteri (fun id c -> if c != none then f id c) t.cells
+  let iter f t =
+    Array.iteri (fun id c -> if c != none then f id c) t.cells;
+    Option.iter (Hashtbl.iter f) t.far
 end
 
 type frame = { locals : Locals.t; outer : (int -> (const * Ty.t) option) option }
