@@ -104,7 +104,10 @@ Then enter the project development shell:
 devbox shell
 ```
 
-The shell provides the compiler toolchain and adds `dev/bin` to `PATH`.
+The shell provides the compiler toolchain and adds `dev/bin` to `PATH`. It
+sets `ZANE_CC` to `dev/bin/clang-lld`, which links with LLVM's `lld` in
+about half the time the system linker takes, unless `ZANE_CC` is already
+set.
 For regeneration and `just test`, also install Node/npm and the pinned grammar
 generator dependencies as described in [`grammar/README.md`](grammar/README.md).
 

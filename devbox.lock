@@ -202,6 +202,86 @@
         }
       }
     },
+    "lld_19@latest": {
+      "last_modified": "2026-10-19T15:20:57Z",
+      "resolved": "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#lld_19",
+      "source": "devbox-search",
+      "version": "19.1.7",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/f2h7bpranrpqi7yyh3mygvjjln5zmqcx-lld-19.1.7",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/j0cjy6gfclab6bjsad1rmrscpw2k2336-lld-19.1.7-dev"
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/zkzmf04mw85k12170bqy9gvzsbw0swmp-lld-19.1.7-lib"
+            }
+          ],
+          "store_path": "/nix/store/f2h7bpranrpqi7yyh3mygvjjln5zmqcx-lld-19.1.7"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/w4zgw33xkgh9flrksaqwmvw68bnc6pfz-lld-19.1.7",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/7mmrd0n8hsj3ld5jr8vi3ifimwkxab2s-lld-19.1.7-dev"
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/0xkx83r7l9hnywdr5fz360zwq0xvqrkx-lld-19.1.7-lib"
+            }
+          ],
+          "store_path": "/nix/store/w4zgw33xkgh9flrksaqwmvw68bnc6pfz-lld-19.1.7"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/l29p08h0lqyqwdb0b9r4y1w1pdrawsw9-lld-19.1.7",
+              "default": true
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/pf0mhp2ll3rn6k2naidcm70v4iaqb4v2-lld-19.1.7-lib"
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/nq5crjps8qxq3njkprifr91ycsaln09z-lld-19.1.7-dev"
+            }
+          ],
+          "store_path": "/nix/store/l29p08h0lqyqwdb0b9r4y1w1pdrawsw9-lld-19.1.7"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/xqvlfk7kc9q8r7z5dw70a0d5k87j8y62-lld-19.1.7",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/x1v7621lnaz8b2bp145a83149f2jgq18-lld-19.1.7-dev"
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/k3y3ph69ma9rfgfy7jlh4rc0zndcs0zj-lld-19.1.7-lib"
+            }
+          ],
+          "store_path": "/nix/store/xqvlfk7kc9q8r7z5dw70a0d5k87j8y62-lld-19.1.7"
+        }
+      }
+    },
     "llvm_19@latest": {
       "last_modified": "2026-10-14T08:20:44Z",
       "resolved": "github:NixOS/nixpkgs/319e4cebef10cbb636c6ea392137b52ad105336a#llvm_19",

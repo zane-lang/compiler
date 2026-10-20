@@ -100,7 +100,8 @@ pkg$Op.apply$lambda1
 ## Walk tables
 
 The table of walks over the blocks a type's values own, which the runtime is
-handed ([`lowering.md`](lowering.md) §9), is called by the type's name. An
+handed ([`lowering.md`](lowering.md) §9), is called by the type's name, or
+by the first by name of the types laid out alike that share it. An
 outcome's table is called `outcome of T`, with ` ? A` added when the verb can
 abort with `A`. Each walk is called by the table's name and what it does:
 `.copy`, `.end`, `.move` and `.overwrite`, and `.vacate` for the one that

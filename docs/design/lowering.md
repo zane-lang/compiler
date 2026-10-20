@@ -769,7 +769,10 @@ test passing.
   wherever it is to walk a value of the type: a copy, a slot whose value a
   checked drain ends, an arrival, a promotion, an overwrite, a spawned
   call's result, a write-back and a constant. A type that owns no blocks has
-  no walks, and is handed as none. A walk knows its type's positions, the
+  no walks, and is handed as none. Types whose layouts list alike
+  positions, each nesting layouts that walk alike in turn, share one table
+  and its walks, named for the first of them by name, so `List<String>`
+  under three names is walked by one set. A walk knows its type's positions, the
   offset of each and the variant tags each lies under, so it reads each
   handle and box where it is, and calls the walk of what a box or a list's
   elements hold directly, one level deeper. An array whose elements own

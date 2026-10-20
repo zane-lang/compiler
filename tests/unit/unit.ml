@@ -911,6 +911,37 @@ let snapshot_reads () =
   check "a handle is read by the runtime" (read T.Handle = `Runtime);
   check "two I64s are read by the runtime" (read (T.Struct [ T.I64; T.I64 ]) = `Runtime)
 
+(* Layouts share their walks when their positions are alike and what each
+   nests is walked alike: two lists of strings under different names, and
+   two boxed lists that name themselves, share; a list of a differently
+   laid-out record, or a box of a different size, does not. *)
+let shared_walks () =
+  let module L = Cgt.Nodes.Layout in
+  let at kind = { L.kind; offset = 0; size = 24; tags = [] } in
+  let positions = Hashtbl.create 8 in
+  List.iter
+    (fun (l, ps) -> Hashtbl.replace positions l ps)
+    [
+      ("Strings", [ at L.Text ]);
+      ("Names", [ at L.Text ]);
+      ("Pair", [ at L.Text; { (at L.Text) with L.offset = 24 } ]);
+      ("A", [ at (L.List { stride = 24; elements = "Strings" }) ]);
+      ("B", [ at (L.List { stride = 24; elements = "Names" }) ]);
+      ("C", [ at (L.List { stride = 24; elements = "Pair" }) ]);
+      ("Node", [ at (L.Box { size = 8; payload = "Node" }) ]);
+      ("Link", [ at (L.Box { size = 8; payload = "Link" }) ]);
+      ("Wide", [ at (L.Box { size = 16; payload = "Wide" }) ]);
+    ];
+  let alike = Codegen__Walks.alike positions in
+  let shares a b = Hashtbl.find alike a = Hashtbl.find alike b in
+  check "two layouts of one string share their walks" (shares "Strings" "Names");
+  check "so do lists of them under different names" (shares "A" "B");
+  check "a list of another layout has its own" (not (shares "A" "C"));
+  check "two boxes that name themselves share theirs" (shares "Node" "Link");
+  check "a box of another size has its own" (not (shares "Node" "Wide"));
+  check "a shared walk is named for the first layout"
+    (Hashtbl.find alike "Names" = "Names" && Hashtbl.find alike "Strings" = "Names")
+
 (* Code for x86-64 is tuned as clang tunes it, for the baseline `x86-64`
    processor whatever spelling the triple has, and for Haswell on `x86_64h`;
    other targets keep LLVM's default. *)
@@ -1327,6 +1358,7 @@ let () =
   twice ();
   at_once ();
   snapshot_reads ();
+  shared_walks ();
   target_cpus ();
   sixty_four_bit ();
   checked_sizes ();
