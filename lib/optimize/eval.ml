@@ -26,14 +26,15 @@ type constant = { maker : string; state : string; value : string; mutable known 
 type memo = { result : const; outputs : output list; count : int; text : int }
 
 (* A function the evaluator can call, and whether its calls are remembered
-   (O6): when its body makes more than one call or holds more than
-   [large_body] nodes, or a loop, a spawn, a call through a value,
-   recursion, or work that grows with a value's size (a runtime function, a
-   copy or an overwrite) is reachable from it. Any other call runs one chain
-   of small bodies, fewer steps than a remembered call takes to keep and
-   look up. Known the first time it is asked. *)
+   (O6): when its body makes more than one call, when it and the chain of
+   unremembered calls below it hold more than [large_body] nodes, or when a
+   loop, a spawn, a call through a value, recursion, or work that grows with
+   a value's size (a runtime function, a copy or an overwrite) is reachable
+   from it. Any other call runs a small chain of small bodies, fewer steps
+   than a remembered call takes to keep and look up. Known the first time it
+   is asked. *)
 type entry = { func : Func.t; mutable remembers : remembers; mutable frame : int }
-and remembers = Unknown | Asking | Known of bool
+and remembers = Unknown | Asking | Known of bool * int
 
 module Funcs = Hashtbl.Make (struct
   type t = string
@@ -55,35 +56,46 @@ let large_body = 64
 
 (* A function being asked about again is recursive, which is worth
    remembering. *)
-let rec remembers funcs e =
+let rec remembers funcs e = fst (weigh funcs e)
+
+(* Whether [e] is remembered, and the nodes a call to it runs when it is
+   not: its body's and, through its one call, those of the chain of
+   unremembered calls below it, so a long chain of small bodies is as large
+   as one long body. *)
+and weigh funcs e =
   match e.remembers with
-  | Known r -> r
-  | Asking -> true
+  | Known (r, w) -> (r, w)
+  | Asking -> (true, 0)
   | Unknown ->
       e.remembers <- Asking;
       (* Two calls in one body can double the work at each level of calls
          below it, which only remembering keeps linear in their depth. *)
       let calls = ref 0 and nodes = ref 0 in
-      let large () =
-        incr nodes;
+      let large n =
+        nodes := !nodes + n;
         !nodes > large_body
       in
       let r =
         Cgt.Traverse.exists_in e.func.Func.body
           ~expr:(fun x ->
-            large ()
+            large 1
             ||
             match x.Expr.node with
-            | Expr.Call { fn; _ } ->
+            | Expr.Call { fn; _ } -> (
                 incr calls;
-                !calls > 1 || Option.fold ~none:false ~some:(remembers funcs) (Funcs.find_opt funcs fn)
+                !calls > 1
+                ||
+                match Funcs.find_opt funcs fn with
+                | None -> false
+                | Some callee -> (
+                    match weigh funcs callee with true, _ -> false | false, w -> large w))
             | Expr.Call_value _ | Expr.Runtime _ | Expr.Copy _ -> true
             | _ -> false)
           ~stat:(fun st ->
-            large () || match st with Stat.Repeat _ | Stat.Spawn _ | Stat.Overwrite _ -> true | _ -> false)
+            large 1 || match st with Stat.Repeat _ | Stat.Spawn _ | Stat.Overwrite _ -> true | _ -> false)
       in
-      e.remembers <- Known r;
-      r
+      e.remembers <- Known (r, !nodes);
+      (r, !nodes)
 
 type program = {
   funcs : entry Funcs.t;

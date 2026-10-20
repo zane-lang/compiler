@@ -249,12 +249,13 @@ weight: its text's length and one more, so that an output with no text, a
 A replacement whose code would be larger than 64 KiB, its value, its outputs
 and the locals it stores counted together, does not fold either, which keeps a cheap call that builds a large value out of the
 binary. A call's result and outputs are remembered by its function and its
-arguments when the function's body makes more than one call or holds more
-than 64 nodes, or a loop, a spawn, a call through a value, a recursive call,
-or work that grows with a value's size, a runtime function, a copy or an
-overwrite, is reachable from it, so such a call made again with the same
-arguments costs a lookup. Any other call runs one chain of small bodies,
-fewer steps than keeping and finding its result would, and runs again: `core`'s
+arguments when the function's body makes more than one call, when it and
+the chain of unremembered calls below it hold more than 64 nodes, or when a
+loop, a spawn, a call through a value, a recursive call, or work that grows
+with a value's size, a runtime function, a copy or an overwrite, is
+reachable from it, so such a call made again with the same arguments costs
+a lookup. Any other call runs a short chain of small bodies, fewer steps
+than keeping and finding its result would, and runs again: `core`'s
 arithmetic, which a loop calls with new arguments on every pass, is never
 remembered. A call with constant arguments that did not fold is not tried
 again. A
@@ -364,7 +365,8 @@ each written and read again, with no index check left in it.
 `tests/unit/` checks the evaluator's arithmetic against codegen's, its math
 functions, the intrinsic classes, a value written as code and read back, calls, outputs,
 memoization of a call that reaches a loop or a runtime function, or runs a
-large body, and not of one that does none of these, a chain of calls that each make two staying
+large body or a long chain of small ones, and not of one that does none of
+these, a chain of calls that each make two staying
 linear, the budget, stores in place, two folds of handmade
 functions, a replacement past the size cap only as a whole, a string that
 doubles past the budget, a call that replays its previous level's output

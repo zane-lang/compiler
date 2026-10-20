@@ -652,6 +652,15 @@ let evaluated () =
   in
   let leaf = func "f0" [ (1, C.Ty.I64) ] [ C.Stat.Return (e (C.Expr.Local 1) C.Ty.I64) ] in
   let doubling = program (leaf :: List.init 30 (fun k -> level (k + 1))) in
+  let link k =
+    let call = e (C.Expr.Call { fn = Printf.sprintf "f%d" (k - 1); args = [ e (C.Expr.Local 1) C.Ty.I64 ] }) C.Ty.I64 in
+    func (Printf.sprintf "f%d" k) [ (1, C.Ty.I64) ] [ C.Stat.Return call ]
+  in
+  let chain = program (leaf :: List.init 100 (fun k -> link (k + 1))) in
+  ignore (Eval.call (Eval.start chain) "f100" [ Value.VInt 1L ]);
+  let remembered k = Value.Key.mem chain.Eval.memo (Printf.sprintf "f%d" k, [ Value.Int 1L ]) in
+  check "a long chain of small bodies, each making one call, is remembered every 64 nodes or so"
+    (List.exists remembered (List.init 30 (fun k -> k + 1)) && not (remembered 1));
   check "a body making two calls is remembered, so their doubling stays linear"
     (match Eval.call (Eval.start doubling) "f30" [ Value.VInt 1L ] with
      | v -> v = Value.VInt 1073741824L
