@@ -1150,7 +1150,29 @@ let cached_runtime () =
   in
   check "a cache that cannot be made still compiles the runtime" (Result.is_ok unwritable);
   let uncached = Build.runtime_object ~cc ~triple:host ~optimize:false work in
-  check "no cache compiles the runtime" (Result.is_ok uncached && not (in_cache uncached))
+  check "no cache compiles the runtime" (Result.is_ok uncached && not (in_cache uncached));
+  (* What a C compiler says it is is asked once, and again only once the
+     file it runs has changed. *)
+  if Sys.unix then begin
+    let asked = Filename.concat directory "asked" and fake = Filename.concat directory "fake-cc" in
+    let script extra =
+      write_all fake
+        (Printf.sprintf "#!/bin/sh\n[ \"$1\" = --version ] && echo asked >> %s\necho fake 1.0%s\n"
+           (Filename.quote asked) extra);
+      Unix.chmod fake 0o755
+    in
+    let times () = match read_all asked with Some s -> List.length (String.split_on_char '\n' s) - 1 | None -> 0 in
+    script "";
+    let first = Build.identity ~cache fake work in
+    check "a C compiler's identity is asked the first time" (first = Some "fake 1.0\n" && times () = 1);
+    let again = Build.identity ~cache fake work in
+    check "and kept after that" (again = first && times () = 1);
+    script " changed";
+    let changed = Build.identity ~cache fake work in
+    check "a changed C compiler is asked again" (changed = Some "fake 1.0 changed\n" && times () = 2);
+    check "one found nowhere has none"
+      (Build.identity ~cache "zane-no-such-compiler" work = None)
+  end
 
 (* A released toolchain's own runtimes are found by the triple a build is
    for and whether it optimizes, whichever spelling of the target it was
