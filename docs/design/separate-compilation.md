@@ -192,8 +192,9 @@ name.
 its stamp.** Fetching runs it on each object a release archive carries
 (`dependencies.md` §6.1). It is the compiler's step rather than `zane`'s
 because the symbol spelling is the compiler's: the `zanec` that the project
-pins rewrites objects that same version built, so `zane` never has to know
-how any version spells a symbol (§4).
+pins rewrites objects that it or an earlier compiler of its major built, and a
+major keeps its symbol spelling, so `zane` never has to know how any version
+spells a symbol (§4).
 
 The rewriter reads ELF, Mach-O and COFF objects, and edits a symbol table and
 nothing else. A stamped name is longer than the placeholder, so the new names
