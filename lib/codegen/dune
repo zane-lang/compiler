@@ -8,7 +8,7 @@
  (foreign_stubs
   (language c)
   (names llvm_stubs))
- (libraries cgt diagnostic runtime_source llvm llvm.analysis llvm.irreader llvm.target llvm.passbuilder llvm.all_backends))
+ (libraries cgt diagnostic runtime_source unix llvm llvm.analysis llvm.irreader llvm.target llvm.passbuilder llvm.all_backends))
 
 (rule
  (target abi.ml)
