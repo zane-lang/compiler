@@ -51,8 +51,8 @@ let find_local ctx name = List.find_map (fun tbl -> Hashtbl.find_opt tbl name) c
 let push ctx = { ctx with scopes = Hashtbl.create 8 :: ctx.scopes }
 
 let fresh_local env name ty span =
-  incr env.next_local;
-  { T.Local.id = !(env.next_local); name; ty; span }
+  incr env.counters.next_local;
+  { T.Local.id = !(env.counters.next_local); name; ty; span }
 
 let bind ctx role (local : T.Local.t) =
   match ctx.scopes with

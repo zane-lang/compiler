@@ -251,14 +251,14 @@ let verb_number_refs (v : N.Verb_decl.t) =
 
 let numbers_of env (d : decl) v =
   let own =
-    match Hashtbl.find_opt env.own_numbers d.id with
+    match Hashtbl.find_opt env.verbs.own_numbers d.id with
     | Some r -> r
     | None ->
         let r = verb_number_refs v in
-        Hashtbl.replace env.own_numbers d.id r;
+        Hashtbl.replace env.verbs.own_numbers d.id r;
         r
   in
-  own @ Option.value ~default:[] (Hashtbl.find_opt env.promoted d.id)
+  own @ Option.value ~default:[] (Hashtbl.find_opt env.verbs.promoted d.id)
 
 (* A verb's parameters in the order a call passes them -- a method's and a
    subscript's subject first -- each as the name of an `@concepts$Int`
@@ -288,7 +288,7 @@ let body_calls (v : N.Verb_decl.t) =
   | N.Verb_decl.Subscript { value; _ } -> Sst.Walk.calls_of_expr value
 
 let all_verbs env () =
-  Hashtbl.fold (fun _ (d : decl) acc -> match d.kind with Verb v -> (d, v) :: acc | _ -> acc) env.decls []
+  Hashtbl.fold (fun _ (d : decl) acc -> match d.kind with Verb v -> (d, v) :: acc | _ -> acc) env.names.decls []
 
 (* The verbs a call could reach, by name, and the arguments it passes them. *)
 let call_targets env verbs (d : decl) (c : N.Verb_call.t) =
@@ -373,9 +373,9 @@ let promote env () =
                          && List.exists (fun t -> takes_number_at env t (List.length args) i) targets ->
                       (* [ordinary] is this round's; an earlier call in the
                          same body may already have promoted [n]. *)
-                      let before = Option.value ~default:[] (Hashtbl.find_opt env.promoted d.id) in
+                      let before = Option.value ~default:[] (Hashtbl.find_opt env.verbs.promoted d.id) in
                       if not (List.mem n before) then begin
-                        Hashtbl.replace env.promoted d.id (before @ [ n ]);
+                        Hashtbl.replace env.verbs.promoted d.id (before @ [ n ]);
                         changed := true
                       end
                   | _ -> ())
@@ -656,7 +656,7 @@ let enum_map env (d : decl) =
       let enum_ty = Type_decls.resolve env sc enum in
       let ty = Type_decls.resolve env sc type_ in
       Type_decls.check_storage env type_.N.Type_expr.span "the type of an enum map" ty;
-      Hashtbl.replace env.constant_types d.id ty;
+      Hashtbl.replace env.verbs.constant_types d.id ty;
       match enum_ty with
       | Ty.Error -> ()
       | Ty.Named (tid, _) -> (
@@ -679,14 +679,14 @@ let enum_map env (d : decl) =
                   (Printf.sprintf "an enum map covers every member, and this one has no entry for %s"
                      (String.concat ", " (List.map quote missing)));
               let key = (tid, property.N.Name.text) in
-              let existing = Option.value ~default:[] (Hashtbl.find_opt env.enum_maps key) in
+              let existing = Option.value ~default:[] (Hashtbl.find_opt env.verbs.enum_maps key) in
               (match List.find_opt (fun m -> m.map_decl.package = d.package) existing with
               | Some first ->
                   error env property.N.Name.span
                     (Printf.sprintf "%s already has a map %s, at %s" (quote tid.Ty.name)
                        (quote property.N.Name.text) (where first.map_decl.span))
               | None -> ());
-              Hashtbl.replace env.enum_maps key
+              Hashtbl.replace env.verbs.enum_maps key
                 (existing @ [ { map_decl = d; map_enum = tid; map_ty = ty } ])
           | _ ->
               error env enum.N.Type_expr.span
@@ -703,7 +703,7 @@ let constant env (d : decl) =
   | Constant { type_; _ } ->
       let ty = Type_decls.resolve env (Type_decls.scope d.file) type_ in
       Type_decls.check_storage env type_.N.Type_expr.span "a constant" ty;
-      Hashtbl.replace env.constant_types d.id ty
+      Hashtbl.replace env.verbs.constant_types d.id ty
   | _ -> ()
 
 let run env =
@@ -719,26 +719,26 @@ let run env =
               match build env d v with
               | None -> ()
               | Some s ->
-                  Hashtbl.replace env.signatures d.id s;
+                  Hashtbl.replace env.verbs.signatures d.id s;
                   built := (d, s) :: !built;
                   (match s.kind with
-                  | S.Method -> Hashtbl.add env.methods s.name s
+                  | S.Method -> Hashtbl.add env.verbs.methods s.name s
                   | S.Operator -> (
                       match v.N.Verb_decl.node with
-                      | N.Verb_decl.Op { op; _ } -> Hashtbl.add env.operators op.N.Operator.node s
+                      | N.Verb_decl.Op { op; _ } -> Hashtbl.add env.verbs.operators op.N.Operator.node s
                       | _ -> ())
-                  | S.Flip -> env.flips := !(env.flips) @ [ s ]
-                  | S.Subscript -> env.subscripts := !(env.subscripts) @ [ s ]
+                  | S.Flip -> env.verbs.flips := !(env.verbs.flips) @ [ s ]
+                  | S.Subscript -> env.verbs.subscripts := !(env.verbs.subscripts) @ [ s ]
                   | S.Constructor _ -> (
                       match type_key s.ret with
-                      | Some key -> Hashtbl.add env.constructors key s
+                      | Some key -> Hashtbl.add env.verbs.constructors key s
                       | None -> ())
                   | S.Function -> ()))
           | Constant _ -> constant env d
           | Enum_map _ -> enum_map env d
           | Type_decl _ -> ())
         pkg.decls)
-    !(env.package_order);
+    !(env.names.package_order);
   let built = List.rev !built in
   (* Overload identity, per package and per name. *)
   let key ((d : decl), (s : S.t)) =
@@ -798,14 +798,14 @@ let run env =
       if pkg.is_root then
         List.iter
           (fun (d : decl) ->
-            match Hashtbl.find_opt env.signatures d.id with
+            match Hashtbl.find_opt env.verbs.signatures d.id with
             | Some ({ kind = S.Function; name = "main"; params = _ :: _; _ }) ->
                 error env d.span "`main` takes no parameters: the root package reaches the console and runtime through `@program$`"
             | Some ({ kind = S.Function; name = "main"; abort = Some _; _ }) ->
                 error env d.span "`main` declares no abort type: no caller exists to handle an abort"
             | _ -> ())
           (package_values env pkg_name "main"))
-    !(env.package_order);
+    !(env.names.package_order);
   List.iter
     (fun pkg_name -> List.iter (Collect.check_import_overloads env) (package env pkg_name).files)
-    !(env.package_order)
+    !(env.names.package_order)

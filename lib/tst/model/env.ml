@@ -4,8 +4,10 @@
    two checks share nothing and a function's parameters say what it reads.
 
    The passes run in order (docs/design/semantics.md §3) and each reads only what the
-   ones before it wrote. The tables are mutable because a pass writes them
-   once and every later pass reads them; nothing is written twice. *)
+   ones before it wrote. The tables are grouped by the pass that fills them:
+   [names], [types], [verbs] and [instances], with the counters apart. They
+   are mutable because a pass writes them once and every later pass reads
+   them; nothing is written twice. *)
 
 module N = Sst.Nodes
 module Span = Source.Span
@@ -162,25 +164,20 @@ type pending = {
 (* One check's tables                                                     *)
 (* ---------------------------------------------------------------------- *)
 
-type t = {
-  diagnostics : Diagnostic.t list ref;
-  (* Set while a generic instance is being checked, so an error inside its
-     body names the instantiation that exposed it (D12). *)
-  note : string option ref;
-  (* Passes 1 and 2 ([Collect]): the packages, in the order given, and every
-     declaration by id. *)
+(* Passes 1 and 2 ([Collect]): the packages, in the order given, and every
+   declaration by id. *)
+type names = {
   packages : (string, package) Hashtbl.t;
   package_order : string list ref;
   decls : (int, decl) Hashtbl.t;
-  next_decl : int ref;
-  (* The next type parameter's number. [Intrinsics] made its own when it
-     loaded, so a check numbers its own after them. *)
-  next_param : int ref;
-  (* Pass 3 ([Type_decls]): each type and alias declaration, and each type
-     by the id it declares. Once the pass has run, whether a type is a
-     reference type can be asked of any type ([ready]); before it has, the
-     answer may depend on a definition not yet resolved, so the checks that
-     need it wait. *)
+}
+
+(* Pass 3 ([Type_decls]): each type and alias declaration, and each type by
+   the id it declares. Once the pass has run, whether a type is a reference
+   type can be asked of any type ([ready]); before it has, the answer may
+   depend on a definition not yet resolved, so the checks that need it
+   wait. *)
+type types = {
   type_infos : (int, type_info) Hashtbl.t;
   type_infos_by_id : (Ty.type_id, type_info) Hashtbl.t;
   alias_infos : (int, alias_info) Hashtbl.t;
@@ -188,12 +185,15 @@ type t = {
   deferred_marks : (Ty.t * Span.t) list ref;
   (* Checks that need every type's kind, made once the types are defined. *)
   deferred_kinds : (unit -> unit) list ref;
-  (* Pass 4 ([Verb_signatures]): every verb's signature, each constant's
-     type, every verb where a call site finds it -- constructors under the
-     type they build, methods under their name, operators under their token,
-     subscripts under nothing, since a subscript is found by its subject --
-     the enum maps, and each verb's parameters promoted to number parameters
-     because a call hands them to one, and those it declares so. *)
+}
+
+(* Pass 4 ([Verb_signatures]): every verb's signature, each constant's type,
+   every verb where a call site finds it -- constructors under the type they
+   build, methods under their name, operators under their token, subscripts
+   under nothing, since a subscript is found by its subject -- the enum maps,
+   and each verb's parameters promoted to number parameters because a call
+   hands them to one, and those it declares so. *)
+type verbs = {
   signatures : (int, Signature.t) Hashtbl.t;
   constant_types : (int, Ty.t) Hashtbl.t;
   constructors : (type_key, Signature.t) Hashtbl.t;
@@ -204,27 +204,50 @@ type t = {
   enum_maps : (Ty.type_id * string, enum_map list) Hashtbl.t;
   promoted : (int, string list) Hashtbl.t;
   own_numbers : (int, string list) Hashtbl.t;
-  (* Pass 5 ([Check]): the next local's number; the generic instances
-     recorded, by key, the declarations instantiated at all, those whose
-     chain of instantiations ran past the limit, those still to check, the
-     chain of the instance being checked (empty outside one), and those
-     checked, with [defining] set while a generic verb nothing
-     instantiates is checked where it is declared, which asks for no
-     instances; a subscript's result type per set of arguments, [None] while
-     it is computed, which is how one that depends on itself is caught, and
-     the body typed for it; and the field-constructor defaults the program
-     carries. *)
-  next_local : int ref;
+}
+
+(* Pass 5 ([Program] and [Check]): the generic instances recorded, by key, the
+   declarations instantiated at all, those whose chain of instantiations ran
+   past the limit, those still to check, the chain of the instance being
+   checked (empty outside one), and those checked, with [defining] set while a
+   generic verb nothing instantiates is checked where it is declared, which
+   asks for no instances; a subscript's result type per set of arguments,
+   [None] while it is computed, which is how one that depends on itself is
+   caught, and the body typed for it; and the field-constructor defaults the
+   program carries. *)
+type instances = {
+  (* Set while a generic instance is being checked, so an error inside its
+     body names the instantiation that exposed it (D12). *)
+  note : string option ref;
   instance_keys : (string, unit) Hashtbl.t;
   instantiated : (int, unit) Hashtbl.t;
   runaway : (int, unit) Hashtbl.t;
   pending : pending Stack.t;
   current_chain : int list ref;
-  instances : Nodes.Instance.t list ref;
+  checked : Nodes.Instance.t list ref;
   defining : bool ref;
   subscript_results : (string, Ty.t option) Hashtbl.t;
   subscript_instances : (string, Signature.t * Ty.subst * Nodes.Local.t list * Nodes.Expr.t) Hashtbl.t;
   defaults : Nodes.Defaults.t list ref;
+}
+
+(* The next declaration's, type parameter's and local's numbers. [Intrinsics]
+   made its own type parameters when it loaded, so a check numbers its own
+   after them. *)
+type counters = {
+  next_decl : int ref;
+  next_param : int ref;
+  next_local : int ref;
+}
+
+(* The tables, grouped by the pass that fills them. *)
+type t = {
+  diagnostics : Diagnostic.t list ref;
+  names : names;
+  types : types;
+  verbs : verbs;
+  instances : instances;
+  counters : counters;
 }
 
 (* The parameters [Intrinsics] made when it loaded. *)
@@ -232,21 +255,8 @@ let intrinsic_params = !Ty.next_param
 
 (* A check's tables, empty but for what the intrinsic namespaces supply. *)
 let create () =
-  let env =
+  let verbs =
     {
-      diagnostics = ref [];
-      note = ref None;
-      packages = Hashtbl.create 16;
-      package_order = ref [];
-      decls = Hashtbl.create 256;
-      next_decl = ref 0;
-      next_param = ref intrinsic_params;
-      type_infos = Hashtbl.create 64;
-      type_infos_by_id = Hashtbl.create 64;
-      alias_infos = Hashtbl.create 16;
-      ready = ref false;
-      deferred_marks = ref [];
-      deferred_kinds = ref [];
       signatures = Hashtbl.create 256;
       constant_types = Hashtbl.create 32;
       constructors = Hashtbl.create 64;
@@ -257,24 +267,41 @@ let create () =
       enum_maps = Hashtbl.create 16;
       promoted = Hashtbl.create 64;
       own_numbers = Hashtbl.create 64;
-      next_local = ref 0;
-      instance_keys = Hashtbl.create 32;
-      instantiated = Hashtbl.create 32;
-      runaway = Hashtbl.create 4;
-      pending = Stack.create ();
-      current_chain = ref [];
-      instances = ref [];
-      defining = ref false;
-      subscript_results = Hashtbl.create 16;
-      subscript_instances = Hashtbl.create 16;
-      defaults = ref [];
     }
   in
   List.iter
-    (fun (key, s) -> Hashtbl.add env.constructors (Intrinsic_type (fst key, snd key)) s)
+    (fun (key, s) -> Hashtbl.add verbs.constructors (Intrinsic_type (fst key, snd key)) s)
     Intrinsics.constructors;
-  List.iter (fun (name, s) -> Hashtbl.add env.methods name s) Intrinsics.methods;
-  env
+  List.iter (fun (name, s) -> Hashtbl.add verbs.methods name s) Intrinsics.methods;
+  {
+    diagnostics = ref [];
+    names = { packages = Hashtbl.create 16; package_order = ref []; decls = Hashtbl.create 256 };
+    types =
+      {
+        type_infos = Hashtbl.create 64;
+        type_infos_by_id = Hashtbl.create 64;
+        alias_infos = Hashtbl.create 16;
+        ready = ref false;
+        deferred_marks = ref [];
+        deferred_kinds = ref [];
+      };
+    verbs;
+    instances =
+      {
+        note = ref None;
+        instance_keys = Hashtbl.create 32;
+        instantiated = Hashtbl.create 32;
+        runaway = Hashtbl.create 4;
+        pending = Stack.create ();
+        current_chain = ref [];
+        checked = ref [];
+        defining = ref false;
+        subscript_results = Hashtbl.create 16;
+        subscript_instances = Hashtbl.create 16;
+        defaults = ref [];
+      };
+    counters = { next_decl = ref 0; next_param = ref intrinsic_params; next_local = ref 0 };
+  }
 
 (* ---------------------------------------------------------------------- *)
 (* Reading and writing them                                               *)
@@ -283,9 +310,9 @@ let create () =
 (* Runs [f] with [note] set, and puts back the note it found however [f]
    ends. *)
 let with_note env n f =
-  let saved = !(env.note) in
-  env.note := Some n;
-  Fun.protect ~finally:(fun () -> env.note := saved) f
+  let saved = !(env.instances.note) in
+  env.instances.note := Some n;
+  Fun.protect ~finally:(fun () -> env.instances.note := saved) f
 
 (* Runs [f] with an instance's note, if it has one. *)
 let in_instance env (i : Nodes.Instance.t) f =
@@ -293,14 +320,14 @@ let in_instance env (i : Nodes.Instance.t) f =
 
 let error env span message =
   let message =
-    match !(env.note) with None -> message | Some n -> message ^ " (" ^ n ^ ")"
+    match !(env.instances.note) with None -> message | Some n -> message ^ " (" ^ n ^ ")"
   in
   env.diagnostics := Diagnostic.error span message :: !(env.diagnostics)
 
 (* A new type or number parameter of this check. *)
 let fresh_param env ~name ~kind =
-  incr env.next_param;
-  { Ty.id = !(env.next_param); name; kind }
+  incr env.counters.next_param;
+  { Ty.id = !(env.counters.next_param); name; kind }
 
 (* The signature a call names: a declared verb's, or an intrinsic method's
    or function's. The overloads of one `@operators$` spelling differ only in
@@ -308,14 +335,14 @@ let fresh_param env ~name ~kind =
    parameter is a value, and none is a subject. *)
 let signature_of env (r : Nodes.Verb_ref.t) =
   match r.Nodes.Verb_ref.owner with
-  | Signature.Declared id -> Hashtbl.find_opt env.signatures id
+  | Signature.Declared id -> Hashtbl.find_opt env.verbs.signatures id
   | Signature.Intrinsic spelling ->
       List.find_map
         (fun (_, (sg : Signature.t)) ->
           if sg.Signature.owner = Signature.Intrinsic spelling then Some sg else None)
         (Intrinsics.methods @ List.map (fun ((_, n), sg) -> (n, sg)) Intrinsics.functions)
 
-let package env name = Hashtbl.find env.packages name
+let package env name = Hashtbl.find env.names.packages name
 
 (* What a key in an import, or a qualifier, names from a file
    (dependencies.md §8). When the driver gave the build's imports, a package
@@ -335,7 +362,7 @@ let resolve_key env (file : file) key =
   | false -> (
       if String.equal key own.declared then Own
       else
-        match List.filter (fun id -> String.equal (package env id).declared key) !(env.package_order) with
+        match List.filter (fun id -> String.equal (package env id).declared key) !(env.names.package_order) with
         | [ id ] -> Found id
         | [] -> Unknown
         | ids -> Ambiguous ids)
@@ -420,7 +447,7 @@ let declared_elsewhere env (file : file) name ~members =
     (fun pkg ->
       (not (String.equal pkg file.package))
       && List.exists (fun d -> not (is_private (decl_name d))) (members pkg name))
-    !(env.package_order)
+    !(env.names.package_order)
 
 let missing_import_hint env file name ~members =
   match declared_elsewhere env file name ~members with

@@ -42,7 +42,7 @@ let implicit_constructors env ~src ~dst =
   | None -> []
   | Some key ->
       let homes = List.filter_map Verb_signatures.home [ src; dst ] in
-      Hashtbl.find_all env.constructors key
+      Hashtbl.find_all env.verbs.constructors key
       |> List.filter (fun (s : S.t) -> S.is_implicit s && List.mem s.home homes)
       |> List.filter_map (fun (s : S.t) ->
              match s.params with
@@ -286,7 +286,7 @@ let request_coercions env (o : outcome) =
           (T.Arg.Value
              { T.Expr.node = T.Expr.Coerce { ctor = { T.Verb_ref.owner = S.Declared id; instance; _ }; _ }; span; _ })
         when instance <> [] -> (
-          match Hashtbl.find_opt env.signatures id with
+          match Hashtbl.find_opt env.verbs.signatures id with
           | Some s -> request env s (List.map (fun ((p : Ty.param), a) -> (p.id, a)) instance) span
           | None -> ())
       | _ -> ())
