@@ -325,8 +325,9 @@ let attempt_stat fn (env : known) (s : Stat.t) : Stat.t list option =
 (* A run of statements                                                    *)
 (* ---------------------------------------------------------------------- *)
 
-(* The last statement of a run that names each local, binding it, reading
-   it, storing into it or taking its address, by the statement's index. *)
+(* The last statement of a block that names each local, binding it,
+   reading it, storing into it or taking its address, by the statement's
+   index. *)
 let last_named stats =
   let last = Hashtbl.create 32 in
   Array.iteri
@@ -394,14 +395,11 @@ type mark = {
    list or a box it made: a run that does not is folded as well statement
    by statement. Each local the run bound that a later statement names must
    hold a value a [Let] can give, since the code that bound it is gone. *)
-let mark fn (env : known) (run : Eval.run) (fr : Eval.frame) ~last ~length ~outputs_size =
+let mark fn (env : known) (run : Eval.run) (fr : Eval.frame) ~named_after ~length ~outputs_size =
   if Eval.wrote_globals run then None
   else
     match
       let stores = ref [] and lets = ref [] and drops = ref false in
-      let named_after id =
-        match Hashtbl.find_opt last id with Some i -> i >= length | None -> false
-      in
       Eval.Locals.iter
         (fun id (c : V.cell) ->
           match c.V.origin with
@@ -447,12 +445,13 @@ let exits s =
     | _ -> ());
   !out
 
-(* A run of statements evaluated from the first, as far as it goes, with a
-   mark after each statement that finished. Gives the marks, longest first,
-   and the index of the statement the run stopped in, or the run's length
-   when it finished. *)
-let evaluate_run fn (env : known) stats =
-  let last = last_named stats in
+(* A run of a block's statements evaluated from the one at [from], as far as
+   it goes, with a mark after each statement that finished. [last] is the
+   block's [last_named], made once for every run in it: a run's later
+   statements are the block's. Gives the marks, longest first, and how many
+   statements the run went through before the one it stopped in, or all
+   that follow [from] when it finished. *)
+let evaluate_run fn (env : known) ~last ~from stats =
   let run = Eval.start fn.prog in
   let fr = frame env in
   let marks = ref [] in
@@ -469,14 +468,15 @@ let evaluate_run fn (env : known) stats =
           in
           outputs_size := added !outputs_size run.Eval.outputs;
           seen := run.Eval.outputs;
+          let named_after id = match Hashtbl.find_opt last id with Some j -> j > i | None -> false in
           Option.iter
             (fun m -> marks := m :: !marks)
-            (mark fn env run fr ~last ~length:(i + 1) ~outputs_size:!outputs_size);
+            (mark fn env run fr ~named_after ~length:(i + 1 - from) ~outputs_size:!outputs_size);
           go (i + 1)
       | exception (V.Stop _ | Eval.Left _ | Eval.Returned _) -> i
   in
-  let stopped = go 0 in
-  (!marks, stopped)
+  let stopped = go from in
+  (!marks, stopped - from)
 
 (* The statements that replace the first [m.length] of a run: its outputs,
    then each known local it wrote stored back, then each local it bound
@@ -583,23 +583,27 @@ and block fn env stats =
   for i = Array.length worth - 2 downto 0 do
     worth.(i) <- worth.(i) || worth.(i + 1)
   done;
-  run_from fn env worth 0 0 stats
+  (* The block's statements by index, and the last that names each local,
+     made once for all its runs rather than once for each. *)
+  let all = Array.of_list stats in
+  let last = lazy (last_named all) in
+  run_from fn env worth all last 0 0 stats
 
-and run_from fn env worth at through stats =
+and run_from fn env worth all last at through stats =
   match stats with
   | [] -> []
   | s :: rest when through > 0 || not worth.(at) ->
       let s = stat fn env s in
-      s @ run_from fn env worth (at + 1) (through - 1) rest
+      s @ run_from fn env worth all last (at + 1) (through - 1) rest
   | s :: rest -> (
-      let marks, stopped = evaluate_run fn env (Array.of_list stats) in
+      let marks, stopped = evaluate_run fn env ~last:(Lazy.force last) ~from:at all in
       match List.find_map (fun m -> Option.map (fun r -> (m, r)) (replace_run fn env m)) marks with
       | Some (m, replaced) ->
           let rest = List.filteri (fun i _ -> i >= m.length) stats in
-          replaced @ run_from fn env worth (at + m.length) (stopped - m.length) rest
+          replaced @ run_from fn env worth all last (at + m.length) (stopped - m.length) rest
       | None ->
           let s = stat fn env s in
-          s @ run_from fn env worth (at + 1) (stopped - 1) rest)
+          s @ run_from fn env worth all last (at + 1) (stopped - 1) rest)
 
 and stat fn (env : known) (s : Stat.t) : Stat.t list =
   let ex e =
