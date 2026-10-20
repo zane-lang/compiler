@@ -264,6 +264,7 @@ let zero_handle c h =
 type known = {
   emitting : env;
   positions : (Layout.t, Layout.position list) Hashtbl.t;
+  alike : (Layout.t, Layout.t) Hashtbl.t;
   made : (Layout.t, walks) Hashtbl.t;
   vacates : (Layout.t, Llvm.llvalue) Hashtbl.t;
   mutable unbuilt : (Layout.t * walks) list;
@@ -274,9 +275,14 @@ let define env name t =
   Llvm.set_linkage Llvm.Linkage.Internal f;
   f
 
+(* The layout whose walks [l] shares (see [alike]). *)
+let shared known l = Option.value ~default:l (Hashtbl.find_opt known.alike l)
+
 (* A layout's walks and their table, named for the type it describes
-   (docs/design/symbols.md). *)
+   (docs/design/symbols.md), or for the first of the layouts that share
+   them. *)
 let walks known l =
+  let l = shared known l in
   match Hashtbl.find_opt known.made l with
   | Some w -> w
   | None ->
@@ -615,10 +621,70 @@ let body env f build =
   build c;
   ignore (Llvm.build_ret_void b)
 
+(* Layouts that walk alike share one set of walks: two do when their
+   positions are alike and what each position nests is walked alike in
+   turn, as two types of different names with the same members are. The
+   classes are found as a minimal automaton's states are: every layout
+   starts in one class, which is split by what its positions say of the
+   classes so far until no split is left. Each layout is mapped to the
+   first, by name, of its class. *)
+let alike positions =
+  let names = List.sort compare (Hashtbl.fold (fun l _ ls -> l :: ls) positions []) in
+  let split class_of =
+    let nested l = Option.value ~default:(-1) (Hashtbl.find_opt class_of l) in
+    let shape (p : Layout.position) =
+      let kind =
+        match p.kind with
+        | Layout.Text -> (0, 0, 0, 0)
+        | Layout.List { stride; elements } -> (1, stride, 0, nested elements)
+        | Layout.Array { count; stride; elements } -> (2, stride, count, nested elements)
+        | Layout.Box { size; payload } -> (3, size, 0, nested payload)
+      in
+      (kind, p.offset, p.size, p.tags)
+    in
+    let classes = Hashtbl.create 16 and next = Hashtbl.create 16 in
+    List.iter
+      (fun l ->
+        let key = (Hashtbl.find class_of l, List.map shape (Hashtbl.find positions l)) in
+        let c =
+          match Hashtbl.find_opt classes key with
+          | Some c -> c
+          | None ->
+              let c = Hashtbl.length classes in
+              Hashtbl.replace classes key c;
+              c
+        in
+        Hashtbl.replace next l c)
+      names;
+    (Hashtbl.length classes, next)
+  in
+  let rec settle count class_of =
+    let count', class_of' = split class_of in
+    if count' = count then class_of else settle count' class_of'
+  in
+  let one = Hashtbl.create 16 in
+  List.iter (fun l -> Hashtbl.replace one l 0) names;
+  let class_of = settle 1 one in
+  let first = Hashtbl.create 16 and shared = Hashtbl.create 16 in
+  List.iter
+    (fun l ->
+      let c = Hashtbl.find class_of l in
+      if not (Hashtbl.mem first c) then Hashtbl.replace first c l;
+      Hashtbl.replace shared l (Hashtbl.find first c))
+    names;
+  shared
+
 let create env (named : (Layout.t * Layout.position list) list) =
   let positions = Hashtbl.create 16 in
   List.iter (fun (l, ps) -> if ps <> [] then Hashtbl.replace positions l ps) named;
-  { emitting = env; positions; made = Hashtbl.create 16; vacates = Hashtbl.create 8; unbuilt = [] }
+  {
+    emitting = env;
+    positions;
+    alike = alike positions;
+    made = Hashtbl.create 16;
+    vacates = Hashtbl.create 8;
+    unbuilt = [];
+  }
 
 (* Whether a layout lists a position, and so has walks. *)
 let listed known l = Hashtbl.mem known.positions l
@@ -629,6 +695,7 @@ let table known l =
 
 (* The function that vacates a value of the layout, if it lists anything. *)
 let rec vacater known l =
+  let l = shared known l in
   match (Hashtbl.find_opt known.vacates l, Hashtbl.find_opt known.positions l) with
   | Some f, _ -> Some f
   | None, None -> None
