@@ -3,6 +3,7 @@
   "packages": {
     "just": "latest",
     "clang": "latest",
+    "lld_19": "latest",
     "llvm_19": {
       "version": "latest",
       "outputs": [
@@ -31,6 +32,7 @@
   "shell": {
     "init_hook": [
       "export PATH=\"$DEVBOX_PROJECT_ROOT/dev/bin:$PATH\"",
+      "export ZANE_CC=\"${ZANE_CC:-$DEVBOX_PROJECT_ROOT/dev/bin/clang-lld}\"",
       "\"$DEVBOX_PROJECT_ROOT/dev/setup/bootstrap-toolchain\"",
       "eval $(opam env --switch=\"$DEVBOX_PROJECT_ROOT\" --set-switch)",
       "export LLVM_CONFIG=$(realpath $DEVBOX_PROJECT_ROOT/.devbox/nix/profile/default/bin/llvm-config)",
