@@ -250,8 +250,9 @@ compilers of one major (`dependencies.md` §14). The project being built
 names the compiler for its whole graph, and a dependency's `zane-version`
 names the oldest compiler that builds it, which is the one its release
 objects were written by. Within a major, a compiler computes the layouts and
-signatures an earlier one did and links the objects it wrote, so a consumer
-built by a newer compiler agrees with an archive built by an older one.
+signatures an earlier one did and links the objects the earlier one wrote,
+so a consumer built by a newer compiler agrees with an archive built by an
+older one.
 `zane` refuses a graph holding a package of another major, or one that needs
 a newer compiler than the project's; it records the pin a cache entry was
 rewritten with (`dependencies.md` §7), and refuses to reuse it under another.
