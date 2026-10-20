@@ -1780,3 +1780,24 @@ probes included, and `just check-file-sizes` passed.
 The commit built and passed `devbox run -- just test-compiler`, memory
 probes included, and `just check-file-sizes` passed. It is one commit,
 since a slot's type changes for every pass that reads it at once.
+
+### Batch 8e: environment, stage 3 (F24)
+
+- **F24, stage 3** (`989117f`). The one closure the environment stored was
+  pass 3's deferred kind check: `Type_decls.check_kinds` pushed a
+  `unit -> unit` that captured the type, the arguments written explicitly
+  and the span, to run once every type was defined. `Env.deferred` now
+  holds two `Queue.t`s of data, `marks` (the marked type and its span) and
+  `kinds` (the type, its explicit arguments and the span), and
+  `check_kinds` pushes the triple. The check itself is `report_kinds`,
+  which `check_kinds` calls directly once kinds are known and
+  `Type_decls.run` calls on each queued triple before it returns. A
+  `Queue` keeps the order the checks were asked for, so the `List.rev`
+  each drain did is gone, and the diagnostics come out in the order they
+  did. Pass 5's instance queue (`requests.pending`) already held data,
+  and `Program.run` already drained it and closed it before it returned,
+  so it is unchanged. No golden or fixture changed.
+
+The commit built and passed `devbox run -- just test-compiler`, memory
+probes included, and `just check-file-sizes` passed. F24 is done, and
+with it the last finding of this plan.

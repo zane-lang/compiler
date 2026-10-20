@@ -108,7 +108,7 @@ let check_storage env ?(roaming = false) span what (t : Ty.t) =
    is checked afterwards. *)
 let check_marker env span (marked : Ty.t) =
   match Types.deferred env.types with
-  | Some deferred -> deferred.marks <- (marked, span) :: deferred.marks
+  | Some deferred -> Queue.push (marked, span) deferred.marks
   | None -> (
       match marked with
       | Ty.Reference (Ty.Param _ | Ty.Error) | Ty.Roaming (Ty.Param _ | Ty.Error) -> ()
@@ -342,32 +342,34 @@ let describe_wrong_kind { path; bad; slot } =
          all the way down"
         (quote (Ty.to_string bad)) what (String.concat ", then " path)
 
-(* Report a wrong-kind type once kinds are known: at the argument written
-   explicitly that brought the rejected type in, or at [span]. *)
+(* Report a wrong-kind type: at the argument written explicitly that
+   brought the rejected type in, or at [span]. *)
+let report_kinds env span (t : Ty.t) (args : (Ty.arg * Span.t) list) =
+  match wrong_kind env t with
+  | None -> ()
+  | Some ({ bad; _ } as found) ->
+      let rec mentions (x : Ty.t) =
+        Ty.equal (Ty.strip_mode x) (Ty.strip_mode bad)
+        ||
+        match x with
+        | Ty.Named (_, a) | Ty.Intrinsic { args = a; _ } ->
+            List.exists (function Ty.Type x -> mentions x | Ty.Number _ -> false) a
+        | Ty.Reference x | Ty.Roaming x -> mentions x
+        | _ -> false
+      in
+      let at =
+        match List.find_opt (function Ty.Type x, _ -> mentions x | _ -> false) args with
+        | Some (_, s) -> s
+        | None -> span
+      in
+      error env at (describe_wrong_kind found)
+
+(* Kinds are known only once every type is defined, so a type met before
+   then is checked afterwards. *)
 let check_kinds env span (t : Ty.t) (args : (Ty.arg * Span.t) list) =
-  let run () =
-    match wrong_kind env t with
-    | None -> ()
-    | Some ({ bad; _ } as found) ->
-        let rec mentions (x : Ty.t) =
-          Ty.equal (Ty.strip_mode x) (Ty.strip_mode bad)
-          ||
-          match x with
-          | Ty.Named (_, a) | Ty.Intrinsic { args = a; _ } ->
-              List.exists (function Ty.Type x -> mentions x | Ty.Number _ -> false) a
-          | Ty.Reference x | Ty.Roaming x -> mentions x
-          | _ -> false
-        in
-        let at =
-          match List.find_opt (function Ty.Type x, _ -> mentions x | _ -> false) args with
-          | Some (_, s) -> s
-          | None -> span
-        in
-        error env at (describe_wrong_kind found)
-  in
   match Types.deferred env.types with
-  | Some deferred -> deferred.kinds <- run :: deferred.kinds
-  | None -> run ()
+  | Some deferred -> Queue.push (t, args, span) deferred.kinds
+  | None -> report_kinds env span t args
 
 (* ---------------------------------------------------------------------- *)
 (* Resolution                                                             *)
@@ -1091,7 +1093,7 @@ let check_value_downstream env () =
    type's kind wait until every type is defined, and the view handed on
    holds none back. *)
 let run env (tables : types) =
-  let deferred = { marks = []; kinds = [] } in
+  let deferred = { marks = Queue.create (); kinds = Queue.create () } in
   let env = { env with types = Types.defining tables deferred } in
   register env tables;
   List.iter (define env) (infos_in_order env ());
@@ -1100,7 +1102,7 @@ let run env (tables : types) =
   check_distinct_cycles env ();
   check_growing_arguments env ();
   let env = { env with types = Types.view tables } in
-  List.iter (fun (t, span) -> check_marker env span t) (List.rev deferred.marks);
-  List.iter (fun run -> run ()) (List.rev deferred.kinds);
+  Queue.iter (fun (t, span) -> check_marker env span t) deferred.marks;
+  Queue.iter (fun (t, args, span) -> report_kinds env span t args) deferred.kinds;
   check_value_downstream env ();
   env.types

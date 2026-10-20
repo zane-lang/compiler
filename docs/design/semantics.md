@@ -157,7 +157,8 @@ fills them, and returns a view of them that has no way to write
 (`Env.Names`, `Env.Types`, `Env.Verbs`). `Semantics.check` hands that view to
 the next pass, so no pass can run before the ones it reads. Pass 3 holds back
 the checks that need every type's kind until every type is defined; while it
-runs they wait in a queue its view carries, and the view it returns has none.
+runs they wait, as the type and span each check needs, in queues its view
+carries, and it drains them before it returns a view that has none.
 Pass 5 asks for generic instances through a queue that it closes before it
 checks the generic verbs nothing instantiates, which ask for none.
 
