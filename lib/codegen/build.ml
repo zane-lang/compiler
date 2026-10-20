@@ -154,9 +154,12 @@ let cache_dir () =
         | Some base when not (Filename.is_relative base) -> zane base
         | _ -> Option.bind (set "HOME") (fun home -> zane (Filename.concat home ".cache")))
 
+(* A root that does not exist, as a drive not mounted, is its own parent:
+   the mkdir below fails there rather than climbing forever. *)
 let rec make_dirs dir =
   if not (Sys.file_exists dir) then begin
-    make_dirs (Filename.dirname dir);
+    let parent = Filename.dirname dir in
+    if parent <> dir then make_dirs parent;
     try Sys.mkdir dir 0o755 with Sys_error _ when Sys.file_exists dir -> ()
   end
 
