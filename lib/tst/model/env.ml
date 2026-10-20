@@ -185,12 +185,13 @@ type types = {
   alias_infos : (int, alias_info) Hashtbl.t;
 }
 
-(* The checks pass 3 holds back while it runs: whether a type is a reference
-   type may depend on a definition not yet resolved, so a marker and the
-   kinds of a type's arguments wait for every type to be defined. *)
+(* The checks pass 3 holds back while it runs, in the order they were
+   asked for: whether a type is a reference type may depend on a definition
+   not yet resolved, so a marker, and the kinds of a type's arguments with
+   the arguments written explicitly, wait for every type to be defined. *)
 type deferred = {
-  mutable marks : (Ty.t * Span.t) list;
-  mutable kinds : (unit -> unit) list;
+  marks : (Ty.t * Span.t) Queue.t;
+  kinds : (Ty.t * (Ty.arg * Span.t) list * Span.t) Queue.t;
 }
 
 (* Pass 4 ([Verb_signatures]): every verb's signature, each constant's type,
